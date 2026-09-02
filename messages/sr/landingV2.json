@@ -82,7 +82,8 @@
     },
     "subject": {
         "view": "Погледај тему",
-        "discussionMinutes": "{min}′ расправе"
+        "discussionMinutes": "{min}′ расправе",
+        "aiImage": "Слика генерисана вештачком интелигенцијом"
     },
     "municipality": {
         "subjects": "Теме",

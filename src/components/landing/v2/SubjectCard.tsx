@@ -1,10 +1,11 @@
 'use client';
 
-import { MapPin, Landmark, Clock, CalendarDays, ArrowRight, X } from 'lucide-react';
+import { MapPin, Landmark, Clock, CalendarDays, ArrowRight, X, Image as ImageIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import Icon from '@/components/icon';
+import { SubjectImage } from '@/components/subject/SubjectImage';
 import { formatDate } from '@/lib/formatters/time';
 import { subjectLocationLine, type LandingSubject } from '@/lib/landing/landingData';
 import { captureMapAction, type MapSurface } from '@/lib/analytics/capture';
@@ -144,70 +145,65 @@ export function SubjectCard({
                 </button>
             )}
 
-            {/* header — category bar */}
-            <div
-                className={cn(
-                    'flex items-center gap-2 border-b border-border font-bold text-xs',
-                    preview ? 'px-3 py-2' : 'px-4 py-2.5',
+            {/* hero — the illustration carries the topic, the place and the title; the card
+                below it holds the facts. The image box is reserved at 7:4 before the bytes
+                arrive, so the list does not jump as images load. */}
+            <div className="relative aspect-[7/4] w-full overflow-hidden bg-muted">
+                <SubjectImage subjectId={subject.id} alt="" />
+                <span
+                    className="absolute left-3 top-3 inline-flex max-w-[calc(100%-4.5rem)] items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold shadow-sm"
+                    style={{ backgroundColor: topicBar.background, color: topicBar.icon }}
+                >
+                    <Icon name={subject.topic.icon || 'hash'} color={topicBar.icon} size={14} />
+                    <span className="truncate">{subject.topic.name}</span>
+                </span>
+                {subject.cityLogo && !onClose && (
+                    <span className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white p-1 shadow-sm">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={subject.cityLogo} alt="" loading="lazy" className="h-full w-full object-contain" />
+                    </span>
                 )}
-                style={{ backgroundColor: topicBar.background, color: topicBar.icon }}
-            >
-                <Icon name={subject.topic.icon || 'hash'} color={topicBar.icon} size={16} />
-                <span>{subject.topic.name}</span>
-            </div>
-
-            <div className={cn('flex min-w-0 flex-col gap-2', preview ? 'px-3 py-2' : 'px-3 pt-2 pb-3')}>
-                <div className="flex items-start gap-2 content-center">
-                    {subject.cityLogo && (
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md bg-card">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={subject.cityLogo}
-                                alt=""
-                                loading="lazy"
-                                className="h-full w-full object-contain"
-                            />
-                        </span>
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-4 pb-3 pt-12 text-white">
+                    {locationLine && (
+                        <div className="mb-1 flex items-center gap-1 text-xs font-medium text-white/90">
+                            <MapPin className="h-3.5 w-3.5 shrink-0" />
+                            <span className="min-w-0 truncate">{locationLine}</span>
+                        </div>
                     )}
                     <h3
                         className={cn(
-                            'min-w-0 text-lg font-bold leading-tight text-foreground',
-                            preview ? 'pr-7' : 'text-balance',
+                            'min-w-0 text-lg font-bold leading-tight text-white',
+                            preview ? 'line-clamp-2' : 'text-balance',
                         )}
                     >
                         {subject.title}
                     </h3>
                 </div>
+            </div>
 
-                {/* duration · date · location · admin body */}
-                <div className={cn('flex flex-col gap-1.5 rounded-xl bg-muted/60 px-3 py-2.5')}>
-                    {subject.durationMin > 0 && (
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                            <span className="inline-flex items-center gap-1 font-medium text-foreground/80">
-                                <Clock className="h-3 w-3" /> {t('subject.discussionMinutes', { min: subject.durationMin })}
+            <div className={cn('flex min-w-0 flex-col gap-2', preview ? 'px-3 py-2' : 'px-4 pb-3 pt-3')}>
+                {subject.bodyName && (
+                    <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                        <Landmark className="h-4 w-4 shrink-0" />
+                        <span className="min-w-0 truncate">{subject.bodyName}</span>
+                    </div>
+                )}
+
+                {/* duration · date */}
+                {(subject.durationMin > 0 || subject.date) && (
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-muted-foreground">
+                        {subject.durationMin > 0 && (
+                            <span className="inline-flex items-center gap-1">
+                                <Clock className="h-3.5 w-3.5" /> {t('subject.discussionMinutes', { min: subject.durationMin })}
                             </span>
-                        </div>
-                    )}
-                    {subject.date && (
-                        <div className="flex items-center gap-1 text-xs font-medium text-foreground/80">
-                            <CalendarDays className="h-3 w-3 shrink-0" /> {formatDate(new Date(subject.date), subject.cityTimezone)}
-                        </div>
-                    )}
-
-                    {locationLine && (
-                        <div className="flex items-start gap-1 text-xs font-medium text-foreground/80">
-                            <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                            <span className="min-w-0">{locationLine}</span>
-                        </div>
-                    )}
-
-                    {subject.bodyName && (
-                        <div className="flex items-center gap-1 text-xs font-medium text-foreground/80">
-                            <Landmark className="h-3.5 w-3.5 shrink-0" />
-                            <span className="min-w-0">{subject.bodyName}</span>
-                        </div>
-                    )}
-                </div>
+                        )}
+                        {subject.date && (
+                            <span className="inline-flex items-center gap-1">
+                                <CalendarDays className="h-3.5 w-3.5 shrink-0" /> {formatDate(new Date(subject.date), subject.cityTimezone)}
+                            </span>
+                        )}
+                    </div>
+                )}
 
 
                 {/* description — expanded only */}
@@ -227,15 +223,21 @@ export function SubjectCard({
                     </p>
                 )}
 
-                <SubjectPageLink
-                    surface={surface}
-                    href={subject.href}
-                    onView={onView}
-                    source={preview ? 'map_preview' : 'list'}
-                    subjectId={subject.id}
-                    cityId={subject.cityId}
-                    className={preview ? 'mt-0.5' : 'mt-1 underline'}
-                />
+                <div className={cn('flex items-center justify-between gap-2', preview ? 'mt-0.5' : 'mt-1')}>
+                    <SubjectPageLink
+                        surface={surface}
+                        href={subject.href}
+                        onView={onView}
+                        source={preview ? 'map_preview' : 'list'}
+                        subjectId={subject.id}
+                        cityId={subject.cityId}
+                        className={preview ? undefined : 'underline'}
+                    />
+                    <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+                        <ImageIcon className="h-3 w-3" aria-hidden />
+                        {t('subject.aiImage')}
+                    </span>
+                </div>
 
                 {/* dev-only ranking breakdown (attached by useFilteredSubjects in development) */}
                 {process.env.NODE_ENV === 'development' && subject._debugRanking && (

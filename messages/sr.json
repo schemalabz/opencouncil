@@ -1123,7 +1123,12 @@
         "previousSubject": "Претходна тачка",
         "nextSubject": "Следећа тачка",
         "noDecisionBeforeAgenda": "Тачке покренуте пре дневног реда никада немају одлуку.",
-        "learnWhy": "Сазнајте зашто"
+        "learnWhy": "Сазнајте зашто",
+        "regenerateImage": "Генериши нову слику",
+        "replaceImage": "Замени слику…",
+        "imageDialogTitle": "Слика теме",
+        "imageUpdated": "Слика је ажурирана",
+        "imageUpdateFailed": "Ажурирање слике није успело"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Нема седница} one {# седница} few {# седнице} other {# седница}}",
