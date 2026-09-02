@@ -46,6 +46,11 @@ export function SignIn() {
             // on another realm domain must stay on it, and the same app
             // serves /api/auth everywhere.
             const { pathname, search } = new URL(verifyRequestUrl)
+            // Not router.push(): this path is served by the Auth.js route
+            // handler at src/app/api/auth/[...nextauth]/route.ts, not by an
+            // app-router page, so it needs a real browser navigation. The lint
+            // rule reads the relative path as an internal page and is wrong here.
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.assign(`${pathname}${search}`)
         } catch (err) {
             posthog.captureException(err)
