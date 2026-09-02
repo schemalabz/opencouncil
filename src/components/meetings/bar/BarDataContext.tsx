@@ -4,7 +4,7 @@ import React, { createContext, useContext, useMemo } from 'react';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { getPartyFromRoles , UNKNOWN_SPEAKER_COLOR} from '@/lib/utils';
 import { TOPICLESS_COLOR } from '@/lib/topicStyle';
-import { utteranceRuns, mergeIntervals, chapterStarts, resolveOverlaps, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
+import { utteranceRuns, mergeIntervals, chapterStarts, resolveOverlaps, type BarBand, type Chapter, type ChapterItem, type Interval } from '@/lib/utils/barTimeline';
 import { subjectCategory } from '@/lib/utils/subjects';
 
 export interface BarData {
@@ -56,7 +56,7 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
         const subjectById = new Map(subjects.map(s => [s.id, s]));
 
         const bands: BarBand[] = [];
-        const chapterItems: { category: NonNullable<ReturnType<typeof subjectCategory>>; start: number }[] = [];
+        const chapterItems: ChapterItem[] = [];
         const bySubject = new Map<string, Interval[]>();
         const bySpeaker = new Map<string, Interval[]>();
         const byPair = new Map<string, Interval[]>();
@@ -88,7 +88,7 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
                     pushInterval(bySubject, run.subjectId, [run.start, run.end]);
                     if (person) pushInterval(byPair, `${run.subjectId}:${person.id}`, [run.start, run.end]);
                     const category = subjectCategory(subject);
-                    if (category) chapterItems.push({ category, start: run.start });
+                    if (category) chapterItems.push({ category, start: run.start, end: run.end });
                 }
             }
             // A speaker's highlight is their whole turn, procedural asides included.

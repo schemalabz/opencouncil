@@ -1,4 +1,4 @@
-import { bandAt, chapterStarts, intersectsAny, mergeIntervals, resolveOverlaps, utteranceRuns, type BarBand } from '../barTimeline';
+import { bandAt, chapterStarts, intersectsAny, mergeIntervals, resolveOverlaps, utteranceRuns, type BarBand, type ChapterKey } from '../barTimeline';
 
 const u = (start: number, end: number, subjectId: string | null, status = 'SUBJECT_DISCUSSION') => ({
     startTimestamp: start,
@@ -86,18 +86,20 @@ describe('bandAt', () => {
     });
 });
 
+const run = (category: ChapterKey, start: number, end: number) => ({ category, start, end });
+
 describe('chapterStarts', () => {
-    it('is empty with fewer than two categories', () => {
+    it('is empty with fewer than two categories that hold the floor', () => {
         expect(chapterStarts([])).toEqual([]);
-        expect(chapterStarts([{ category: 'agenda', start: 100 }, { category: 'agenda', start: 50 }])).toEqual([]);
+        expect(chapterStarts([run('agenda', 100, 800), run('agenda', 50, 90)])).toEqual([]);
     });
 
-    it('takes the earliest start per category and sorts chapters', () => {
+    it('starts each chapter where its category holds the floor and sorts them', () => {
         expect(chapterStarts([
-            { category: 'agenda', start: 2750 },
-            { category: 'beforeAgenda', start: 900 },
-            { category: 'beforeAgenda', start: 382 },
-            { category: 'agenda', start: 3000 },
+            run('agenda', 2750, 3100),
+            run('beforeAgenda', 900, 1200),
+            run('beforeAgenda', 382, 700),
+            run('agenda', 3100, 3500),
         ])).toEqual([
             { key: 'beforeAgenda', start: 0 },
             { key: 'agenda', start: 2750 },
@@ -106,11 +108,60 @@ describe('chapterStarts', () => {
 
     it('folds the preamble into the first chapter', () => {
         const chapters = chapterStarts([
-            { category: 'outOfAgenda', start: 5000 },
-            { category: 'agenda', start: 400 },
+            run('outOfAgenda', 5000, 5400),
+            run('agenda', 400, 3000),
         ]);
         expect(chapters[0]).toEqual({ key: 'agenda', start: 0 });
         expect(chapters[1]).toEqual({ key: 'outOfAgenda', start: 5000 });
+    });
+
+    it('skips a brief early visit to a category', () => {
+        // Athens, 11 Feb 2026: a one-minute answer on an agenda item in the middle
+        // of the προ ημερησίας opened the agenda chapter 56 minutes early.
+        expect(chapterStarts([
+            run('beforeAgenda', 0, 2700),
+            run('agenda', 2750, 2810),
+            run('beforeAgenda', 2810, 6100),
+            run('agenda', 6141, 6600),
+            run('agenda', 6600, 7000),
+        ])).toEqual([
+            { key: 'beforeAgenda', start: 0 },
+            { key: 'agenda', start: 6141 },
+        ]);
+    });
+
+    it('keeps a short opening chapter that is real', () => {
+        // Sparta: five minutes of προ ημερησίας, then the agenda for the rest.
+        expect(chapterStarts([
+            run('beforeAgenda', 0, 291),
+            run('agenda', 300, 5000),
+        ])).toEqual([
+            { key: 'beforeAgenda', start: 0 },
+            { key: 'agenda', start: 300 },
+        ]);
+    });
+
+    it('counts the floor across gaps within the window', () => {
+        // Sixty-second runs every two minutes: no single long run, but the category
+        // holds 300 of the 600 seconds after 1000.
+        const items = [run('beforeAgenda', 0, 900)];
+        for (let s = 1000; s < 2200; s += 120) items.push(run('agenda', s, s + 60));
+        expect(chapterStarts(items)).toEqual([
+            { key: 'beforeAgenda', start: 0 },
+            { key: 'agenda', start: 1000 },
+        ]);
+    });
+
+    it('gives no chapter to a category that never holds the floor', () => {
+        // Chalandri, 11 Mar 2026: one out-of-agenda item of 107 seconds.
+        expect(chapterStarts([
+            run('beforeAgenda', 0, 600),
+            run('outOfAgenda', 620, 727),
+            run('agenda', 740, 5000),
+        ])).toEqual([
+            { key: 'beforeAgenda', start: 0 },
+            { key: 'agenda', start: 740 },
+        ]);
     });
 });
 

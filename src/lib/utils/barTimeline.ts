@@ -113,22 +113,68 @@ export interface Chapter {
     start: number;
 }
 
+/** A run of discussion on a subject of one category, in seconds. */
+export interface ChapterItem {
+    category: ChapterKey;
+    start: number;
+    end: number;
+}
+
+/** How long a category has to hold the floor for its chapter to begin. */
+export const CHAPTER_FLOOR_SECONDS = 120;
+/** ...within this long of the candidate start. */
+export const CHAPTER_WINDOW_SECONDS = 600;
+
 /**
  * The bar's chapters: one per agenda category present, starting where the
- * category's first subject starts. The preamble (roll call, housekeeping)
- * belongs to the first chapter, so its start folds to 0. Fewer than two
- * chapters means the meeting has no structure worth drawing — empty result.
+ * category takes the floor — the first run from which it holds at least
+ * CHAPTER_FLOOR_SECONDS of the next CHAPTER_WINDOW_SECONDS.
+ *
+ * The first mention is not the start. A member answering a question on an
+ * agenda item in the middle of the προ ημερησίας, or a vote to admit an
+ * urgent item an hour before it is discussed, is a brief visit; on the
+ * meetings we have, the first-mention rule opened chapters up to an hour
+ * early on such visits. A category that never holds the floor that long gets
+ * no chapter — the rail could not fit a label on it anyway.
+ *
+ * The preamble (roll call, housekeeping) belongs to the first chapter, so its
+ * start folds to 0. Fewer than two chapters means the meeting has no
+ * structure worth drawing — empty result.
  */
-export function chapterStarts(items: { category: ChapterKey; start: number }[]): Chapter[] {
-    const min = new Map<ChapterKey, number>();
+export function chapterStarts(items: ChapterItem[]): Chapter[] {
+    const byCategory = new Map<ChapterKey, ChapterItem[]>();
     for (const item of items) {
-        const current = min.get(item.category);
-        if (current === undefined || item.start < current) min.set(item.category, item.start);
+        const runs = byCategory.get(item.category);
+        if (runs) runs.push(item);
+        else byCategory.set(item.category, [item]);
     }
-    if (min.size < 2) return [];
-    const out = [...min.entries()].map(([key, start]) => ({ key, start })).sort((a, b) => a.start - b.start);
+    const out: Chapter[] = [];
+    for (const [key, runs] of byCategory) {
+        const start = sustainedStart(runs);
+        if (start !== null) out.push({ key, start });
+    }
+    if (out.length < 2) return [];
+    out.sort((a, b) => a.start - b.start);
     out[0] = { ...out[0], start: 0 };
     return out;
+}
+
+/** The earliest run start from which the runs hold the floor for long enough, if any. */
+function sustainedStart(runs: ChapterItem[]): number | null {
+    const sorted = [...runs].sort((a, b) => a.start - b.start);
+    let from = 0;
+    for (const candidate of sorted) {
+        // Runs that ended before this candidate cannot count for it or any later one.
+        while (from < sorted.length && sorted[from].end <= candidate.start) from++;
+        const windowEnd = candidate.start + CHAPTER_WINDOW_SECONDS;
+        let held = 0;
+        for (let i = from; i < sorted.length && sorted[i].start < windowEnd; i++) {
+            const run = sorted[i];
+            held += Math.max(0, Math.min(run.end, windowEnd) - Math.max(run.start, candidate.start));
+            if (held >= CHAPTER_FLOOR_SECONDS) return candidate.start;
+        }
+    }
+    return null;
 }
 
 /**
