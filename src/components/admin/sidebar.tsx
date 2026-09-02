@@ -42,7 +42,7 @@ const menuGroups = [
             { title: "Reviews", icon: ClipboardCheck, url: "/admin/reviews" },
             { title: "Topics", icon: Tag, url: "/admin/topics" },
             { title: "Consultations", icon: MessageSquareText, url: "/admin/consultations" },
-            { title: "Diavgeia", icon: Landmark, url: "/admin/diavgeia" },
+            { title: "Decisions", icon: Landmark, url: "/admin/decisions" },
             { title: "Offers", icon: Files, url: "/admin/offers" },
             { title: "Reports", icon: FileOutput, url: "/admin/reports" },
         ],

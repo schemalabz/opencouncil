@@ -264,7 +264,9 @@
       "tabDocument": "Document",
       "tabExtraction": "Détails de la décision",
       "close": "Fermer",
-      "subjectDescriptionLabel": "Description du sujet :"
+      "subjectDescriptionLabel": "Description du sujet :",
+      "reassignTitle": "Déplacer la décision",
+      "reassignExplain": "La décision sera déplacée vers « {subject} ». « {holder} » restera sans décision."
     },
     "extractionStarted": "Extraction lancée — présences et votes apparaîtront à la fin de la tâche.",
     "extractionStartFailed": "L'extraction n'a pas pu démarrer — réessayez ou utilisez l'action de sondage.",
@@ -354,5 +356,91 @@
       "stopped": "Interrogation automatique arrêtée"
     },
     "resetError": "Erreur de réinitialisation de l’extraction"
+  },
+  "decisionsOverview": {
+    "title": "Décisions",
+    "subtitle": "La liaison des sujets des séances avec les décisions publiées sur Diavgeia",
+    "detailError": "Le chargement des détails a échoué",
+    "loadingDetail": "Chargement des détails…",
+    "openMeeting": "Ouvrir la séance",
+    "hero": {
+      "withDecision": "sujets avec décision",
+      "withContent": "avec texte de décision",
+      "withoutDecision": "sans décision",
+      "unplaced": "décisions non classées",
+      "unplaceable": "sans séance",
+      "unplaceableExplain": "Décisions lues qui déclarent une séance absente de nos données — souvent extraordinaire.",
+      "conflicts": "conflits",
+      "pending": "En attente",
+      "nonePending": "Rien en attente"
+    },
+    "cities": {
+      "title": "Par commune",
+      "notStarted": "Non commencées",
+      "outOfScope": "Hors périmètre",
+      "outOfScopeReason": "sans organisme Diavgeia"
+    },
+    "state": {
+      "blocked": "échec de la récupération",
+      "needsTriage": "à vérifier",
+      "draining": "en cours",
+      "drained": "terminée",
+      "notStarted": "non commencée",
+      "outOfScope": "hors périmètre"
+    },
+    "row": {
+      "withDecision": "avec décision",
+      "quality": "{content} avec texte de décision",
+      "meetings": "séances",
+      "stuck": "{count, plural, one {# séance en échec} other {# séances en échec}}",
+      "conflicts": "{count, plural, one {# conflit} other {# conflits}}",
+      "unplaced": "{count, plural, one {# décision non classée} other {# décisions non classées}}",
+      "unplaceable": "{count, plural, one {# décision sans séance} other {# décisions sans séance}}",
+      "lastPoll": "sondage",
+      "noMeetingsInRange": "aucune séance sur la période — travail en attente seulement"
+    },
+    "sections": {
+      "withoutDecision": "Sujets sans décision",
+      "nothingWaiting": "Rien en attente",
+      "unreadBackfill": "{count, plural, one {# ligne non lue issue du rattrapage — aucune action requise} other {# lignes non lues issues du rattrapage — aucune action requise}}"
+    },
+    "missing": {
+      "sameDayOtherBody": "même jour, autre organe",
+      "nearbySessionMissing": "séance voisine",
+      "sessionUnknown": "séance inconnue",
+      "hint": "Dès que la séance est ajoutée, les décisions correspondantes se lient au prochain pollDecisions."
+    },
+    "taxonomy": {
+      "notProcessed": "dans des séances non traitées par le pipeline actuel",
+      "candidatesUnmatched": "des candidates existaient, aucune n'a correspondu",
+      "nothingFetched": "aucun acte publié (probable)",
+      "duplicateSubject": "sujet en double dans la même séance",
+      "subjectCount": "{count, plural, one {# sujet} other {# sujets}}"
+    },
+    "conflict": {
+      "claims": "revendiquée par « {subject} »",
+      "claimantMeeting": "Séance du demandeur",
+      "holderMeeting": "Séance du détenteur",
+      "reassigned": "Décision déplacée",
+      "dismissed": "Revendication rejetée",
+      "noop": "Déjà résolu — aucun changement",
+      "failed": "La résolution a échoué"
+    },
+    "window": {
+      "d30": "30 derniers jours",
+      "d90": "90 derniers jours",
+      "all": "Vue complète",
+      "note": "Le travail en attente compte toujours sur toute la période."
+    },
+    "filters": {
+      "pending": "Toutes",
+      "pendingDesc": "Tout ce qui attend une action — conflits, non classées et sans séance réunis.",
+      "conflicts": "Conflits",
+      "conflictsDesc": "La même décision est revendiquée par un sujet alors qu'elle est déjà liée à un autre.",
+      "unplaced": "Non classées",
+      "unplacedDesc": "Décisions lues de la séance qu'aucun sujet n'a reprises automatiquement.",
+      "noSession": "Sans séance",
+      "noSessionDesc": "Décisions lues déclarant une séance absente de nos données."
+    }
   }
 }

@@ -151,6 +151,17 @@ export function localCalendarDate(d: Date, timeZone: string): string {
  * @param locale - 'el' (default) or 'en'; both produce day-first numeric output
  * @returns e.g. "04/05/2026"
  */
+/**
+ * Presentation inverse of localCalendarDate: renders a city-local
+ * 'YYYY-MM-DD' string. The string already names the calendar date, so no
+ * timezone math applies — parse and format both use the viewer's zone.
+ */
+export function formatCalendarDate(date: string, locale: string = 'el'): string {
+    return new Date(`${date}T00:00:00`).toLocaleDateString(getIntlLocale(locale), {
+        day: 'numeric', month: 'short', year: 'numeric',
+    });
+}
+
 export function formatNumericDate(date: Date, timezone?: string, locale: string = 'el'): string {
     const options: Intl.DateTimeFormatOptions = {
         day: '2-digit',

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/env.mjs";
-import { getPollingStats } from "@/lib/tasks/pollDecisions";
+import { getPollingStats } from "@/lib/tasks/pollingStats";
 
 export async function GET(request: NextRequest) {
     const authHeader = request.headers.get("authorization");

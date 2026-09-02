@@ -71,3 +71,29 @@ export function partitionMeetingsForPolling(
         alreadyCompleteCount: pollable.filter(m => m.alreadyComplete).length,
     };
 }
+
+/**
+ * Round-robin meetings across cities, newest first within each city.
+ *
+ * The cron dispatches the first N meetings that pass backoff. Without the
+ * interleave, one city with a deep backlog fills the whole batch, which
+ * starves other cities and makes same-city polls run concurrently — parallel
+ * polls do not see each other's knownDecisions, so cross-poll candidates
+ * duplicate work. Input order (newest first) is preserved within each city.
+ */
+export function interleaveByCity<T extends { cityId: string }>(meetings: T[]): T[] {
+    const byCity = new Map<string, T[]>();
+    for (const m of meetings) {
+        const queue = byCity.get(m.cityId);
+        if (queue) queue.push(m);
+        else byCity.set(m.cityId, [m]);
+    }
+    const queues = [...byCity.values()];
+    const out: T[] = [];
+    for (let round = 0; out.length < meetings.length; round++) {
+        for (const queue of queues) {
+            if (round < queue.length) out.push(queue[round]);
+        }
+    }
+    return out;
+}

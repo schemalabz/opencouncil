@@ -1,9 +1,9 @@
 "use server";
 
-import { PollDecisionsRequest, PollDecisionsResult, ExtractedDecisionData } from "../apiTypes";
+import { PollDecisionsRequest, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData } from "../apiTypes";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
-import { AttendanceStatus, DataSource, VoteType } from "@prisma/client";
+import { AttendanceStatus, DataSource, VoteType, Prisma } from "@prisma/client";
 import { sortSubjectsByDiscussionOrder } from "../minutes/builders";
 
 import { upsertDecision, deleteDecision, getDecisionForSubject, DECISION_ELIGIBLE_SUBJECT_WHERE } from "../db/decisions";
@@ -12,9 +12,10 @@ import { getCurrentUser, withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
 import { deriveWindowDays } from "./decisionWindow";
 import { localCalendarDate } from "@/lib/formatters/time";
-import { getConflictingCandidates, applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } from "../db/decisionCandidates";
+import { applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } from "../db/decisionCandidates";
 import { isRoleActiveAt, isMayorRole } from "../utils/roles";
-import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
+import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, isLogodosiaMeeting, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
+import { interleaveByCity } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 
 export async function requestPollDecisions(
@@ -126,14 +127,12 @@ export async function pollDecisionsForMeeting(
 
     // Window from the city's measured publication lags; the declared session
     // date does the precise work, the window only has to be wide enough.
-    const lagRows = await prisma.$queryRaw<Array<{ lag: number }>>`
-        SELECT EXTRACT(EPOCH FROM (d."publishDate" - cm."dateTime")) / 86400 AS lag
-        FROM "Decision" d
-        JOIN "Subject" s ON s.id = d."subjectId"
-        JOIN "CouncilMeeting" cm ON cm.id = s."councilMeetingId" AND cm."cityId" = s."cityId"
-        WHERE s."cityId" = ${cityId} AND d."publishDate" IS NOT NULL
-    `;
-    const windowDays = deriveWindowDays(lagRows.map(r => Number(r.lag)));
+    const lagRows = await prisma.decision.findMany({
+        where: { publishDate: { not: null }, subject: { cityId } },
+        select: { publishDate: true, subject: { select: { councilMeeting: { select: { dateTime: true } } } } },
+    });
+    const windowDays = deriveWindowDays(lagRows.map(r =>
+        (r.publishDate!.getTime() - r.subject.councilMeeting.dateTime.getTime()) / 86_400_000));
     const cityTz = councilMeeting.city.timezone;
     const windowFromDate = localCalendarDate(councilMeeting.dateTime, cityTz);
     const windowToDate = localCalendarDate(new Date(councilMeeting.dateTime.getTime() + windowDays * 86400_000), cityTz);
@@ -225,12 +224,15 @@ export async function pollDecisionsForRecentMeetings() {
             cityId: true,
         },
         orderBy: { dateTime: 'desc' },
-        take: 50, // Fetch extra candidates since many may be skipped by backoff
+        take: 200, // Fetch extra candidates since many may be skipped by backoff
     });
 
     if (meetings.length === 0) {
         return { meetingsProcessed: 0, results: [] };
     }
+
+    // One backlogged city must not fill the whole batch — see interleaveByCity.
+    const orderedMeetings = interleaveByCity(meetings);
 
     // Batch-fetch polling history for all candidate meetings in one query
     const pollHistory = await prisma.taskStatus.groupBy({
@@ -258,7 +260,7 @@ export async function pollDecisionsForRecentMeetings() {
     const dispatchedMeetings: Array<{ cityId: string; meetingId: string }> = [];
     const dispatchErrors: Array<{ cityId: string; meetingId: string; error: string }> = [];
 
-    for (const meeting of meetings) {
+    for (const meeting of orderedMeetings) {
         if (dispatched >= 10) break;
 
         const key = `${meeting.cityId}:${meeting.id}`;
@@ -305,358 +307,6 @@ export async function pollDecisionsForRecentMeetings() {
     }
 
     return { meetingsProcessed: dispatched, results };
-}
-
-/**
- * Returns statistics about decision polling effectiveness.
- * For each decision discovered by polling: when was it published on Diavgeia,
- * when did we find it, and how many poll attempts it took.
- * Use this to fine-tune the BACKOFF_SCHEDULE.
- */
-export async function getPollingStats(cityId?: string, councilMeetingId?: string) {
-    // Decisions discovered by polling (have a taskId)
-    const discoveries = await prisma.decision.findMany({
-        where: { taskId: { not: null } },
-        select: {
-            subjectId: true,
-            ada: true,
-            publishDate: true,
-            createdAt: true,
-            task: {
-                select: {
-                    id: true,
-                    createdAt: true,
-                    councilMeetingId: true,
-                    cityId: true,
-                },
-            },
-            subject: {
-                select: {
-                    name: true,
-                    councilMeeting: {
-                        select: { dateTime: true },
-                    },
-                },
-            },
-        },
-        orderBy: { createdAt: 'desc' },
-    });
-
-    // For each discovery, count how many poll attempts happened for that meeting
-    // before (and including) the discovery task
-    const meetingIds = [...new Set(discoveries.map(d => d.task!.councilMeetingId))];
-
-    const pollCounts = meetingIds.length > 0
-        ? await prisma.taskStatus.groupBy({
-            by: ['councilMeetingId', 'cityId'],
-            where: {
-                councilMeetingId: { in: meetingIds },
-                type: 'pollDecisions',
-                status: 'succeeded',
-            },
-            _count: true,
-            _min: { createdAt: true },
-        })
-        : [];
-
-    const pollCountByMeeting = new Map(
-        pollCounts.map(p => [
-            `${p.cityId}:${p.councilMeetingId}`,
-            { totalPolls: p._count, firstPollAt: p._min.createdAt },
-        ])
-    );
-
-    const discoveryDetails = discoveries.map(d => {
-        const task = d.task!;
-        const key = `${task.cityId}:${task.councilMeetingId}`;
-        const meetingPolls = pollCountByMeeting.get(key);
-
-        const meetingDate = d.subject.councilMeeting.dateTime;
-        const discoveredAt = task.createdAt;
-        const firstPollAt = meetingPolls?.firstPollAt ?? discoveredAt;
-        const publishDate = d.publishDate;
-
-        // How long after Diavgeia published did we find it?
-        const discoveryDelayDays = publishDate
-            ? (discoveredAt.getTime() - publishDate.getTime()) / (1000 * 60 * 60 * 24)
-            : null;
-
-        // How long after we started polling did we find it?
-        const pollingDurationDays = (discoveredAt.getTime() - firstPollAt.getTime()) / (1000 * 60 * 60 * 24);
-
-        // How long after the meeting did Diavgeia publish?
-        const publishDelayDays = publishDate
-            ? (publishDate.getTime() - meetingDate.getTime()) / (1000 * 60 * 60 * 24)
-            : null;
-
-        return {
-            cityId: task.cityId,
-            meetingId: task.councilMeetingId,
-            meetingDate: meetingDate.toISOString().split('T')[0],
-            subjectId: d.subjectId,
-            subjectName: d.subject.name,
-            ada: d.ada,
-            publishDate: publishDate?.toISOString().split('T')[0] ?? null,
-            discoveredAt: discoveredAt.toISOString(),
-            firstPollAt: firstPollAt.toISOString(),
-            totalPollsForMeeting: meetingPolls?.totalPolls ?? 1,
-            discoveryDelayDays: discoveryDelayDays !== null ? Math.round(discoveryDelayDays * 10) / 10 : null,
-            pollingDurationDays: Math.round(pollingDurationDays * 10) / 10,
-            publishDelayDays: publishDelayDays !== null ? Math.round(publishDelayDays * 10) / 10 : null,
-        };
-    });
-
-    // Compute summary stats
-    const delaysWithData = discoveryDetails.filter(d => d.discoveryDelayDays !== null);
-    const sortedDelays = delaysWithData.map(d => d.discoveryDelayDays!).sort((a, b) => a - b);
-    const publishDelaysWithData = discoveryDetails.filter(d => d.publishDelayDays !== null);
-    const sortedPublishDelays = publishDelaysWithData.map(d => d.publishDelayDays!).sort((a, b) => a - b);
-
-    const median = (arr: number[]) => {
-        if (arr.length === 0) return null;
-        const mid = Math.floor(arr.length / 2);
-        return arr.length % 2 !== 0 ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
-    };
-
-    const avg = (arr: number[]) => arr.length === 0 ? null : Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10;
-
-    // Meetings still being actively polled (have unlinked subjects)
-    const pollableDateRange = getPollableMeetingDateRange();
-    const stillPollingMeetings = await prisma.councilMeeting.findMany({
-        where: {
-            dateTime: pollableDateRange,
-            city: { diavgeiaUid: { not: null } },
-            subjects: {
-                some: {
-                    agendaItemIndex: { not: null },
-                    decision: null,
-                },
-            },
-            ...(cityId && { cityId }),
-            ...(councilMeetingId && { id: councilMeetingId }),
-        },
-        select: {
-            id: true,
-            cityId: true,
-            dateTime: true,
-            subjects: {
-                where: {
-                    agendaItemIndex: { not: null },
-                    decision: null,
-                },
-                select: { id: true, name: true },
-            },
-        },
-        orderBy: { dateTime: 'desc' },
-    });
-
-    // Batch-fetch polling history for still-polling meetings
-    const stillPollingIds = stillPollingMeetings.map(m => m.id);
-    const stillPollingHistory = stillPollingIds.length > 0
-        ? await prisma.taskStatus.groupBy({
-            by: ['councilMeetingId', 'cityId'],
-            where: {
-                councilMeetingId: { in: stillPollingIds },
-                type: 'pollDecisions',
-                status: 'succeeded',
-            },
-            _count: true,
-            _min: { createdAt: true },
-            _max: { createdAt: true },
-        })
-        : [];
-
-    const stillPollingHistoryMap = new Map(
-        stillPollingHistory.map(h => [
-            `${h.cityId}:${h.councilMeetingId}`,
-            { count: h._count, firstPollAt: h._min.createdAt, lastPollAt: h._max.createdAt },
-        ])
-    );
-
-    // Batch-fetch total eligible subject counts per meeting
-    const eligibleCounts = stillPollingIds.length > 0
-        ? await prisma.subject.groupBy({
-            by: ['councilMeetingId', 'cityId'],
-            where: {
-                councilMeetingId: { in: stillPollingIds },
-                agendaItemIndex: { not: null },
-            },
-            _count: true,
-        })
-        : [];
-
-    const eligibleCountMap = new Map(
-        eligibleCounts.map(r => [`${r.cityId}:${r.councilMeetingId}`, r._count])
-    );
-
-    const meetingsStillPolling = stillPollingMeetings.map(m => {
-        const key = `${m.cityId}:${m.id}`;
-        const history = stillPollingHistoryMap.get(key);
-        const firstPollAt = history?.firstPollAt ?? null;
-        const lastPollAt = history?.lastPollAt ?? null;
-        const { currentTierLabel, nextPollEligible } = getBackoffState(firstPollAt, lastPollAt);
-
-        return {
-            cityId: m.cityId,
-            meetingId: m.id,
-            meetingDate: m.dateTime.toISOString().split('T')[0],
-            unlinkedSubjects: m.subjects.map(s => ({ id: s.id, name: s.name })),
-            totalEligibleSubjects: eligibleCountMap.get(key) ?? 0,
-            totalPolls: history?.count ?? 0,
-            firstPollAt: firstPollAt?.toISOString() ?? null,
-            lastPollAt: lastPollAt?.toISOString() ?? null,
-            currentTierLabel,
-            nextPollEligible,
-        };
-    });
-
-    // Distinct cities for filter dropdown: union of cities with poll tasks + cities with unlinked subjects
-    const [pollCityRows, stillPollingCityRows] = await Promise.all([
-        prisma.taskStatus.findMany({
-            where: { type: 'pollDecisions' },
-            distinct: ['cityId'],
-            select: { cityId: true },
-        }),
-        prisma.councilMeeting.findMany({
-            where: {
-                dateTime: pollableDateRange,
-                city: { diavgeiaUid: { not: null } },
-                subjects: { some: { agendaItemIndex: { not: null }, decision: null } },
-            },
-            distinct: ['cityId'],
-            select: { cityId: true },
-        }),
-    ]);
-    const pollCities = [...new Set([
-        ...pollCityRows.map(r => r.cityId),
-        ...stillPollingCityRows.map(r => r.cityId),
-    ])].sort();
-
-    // Distinct meeting IDs for the selected city: union of meetings from both sources
-    let pollMeetings: string[] = [];
-    if (cityId) {
-        const [taskMeetingRows, stillPollingMeetingRows] = await Promise.all([
-            prisma.taskStatus.findMany({
-                where: { type: 'pollDecisions', cityId },
-                distinct: ['councilMeetingId'],
-                select: { councilMeetingId: true },
-            }),
-            prisma.councilMeeting.findMany({
-                where: {
-                    cityId,
-                    dateTime: pollableDateRange,
-                    city: { diavgeiaUid: { not: null } },
-                    subjects: { some: { agendaItemIndex: { not: null }, decision: null } },
-                },
-                select: { id: true },
-                orderBy: { dateTime: 'desc' },
-            }),
-        ]);
-        pollMeetings = [...new Set([
-            ...taskMeetingRows.map(r => r.councilMeetingId).filter((id): id is string => id !== null),
-            ...stillPollingMeetingRows.map(r => r.id),
-        ])];
-    }
-
-    // ADA conflicts: unresolved candidates whose proposed subject collides with
-    // an ADA already held by another subject's Decision (issue #617 phase 4).
-    const candidateConflicts = await getConflictingCandidates({
-        ...(cityId && { cityId }),
-        ...(councilMeetingId && { councilMeetingId }),
-    });
-    const conflicts = candidateConflicts.map(c => ({
-        candidateId: c.candidateId,
-        claimingSubject: c.claimingSubject,
-        ada: c.ada,
-        existingDecision: c.existingDecision,
-    }));
-
-    // Recent poll tasks for the "Recent Polls" table
-    const recentPollTasks = await prisma.taskStatus.findMany({
-        where: {
-            type: 'pollDecisions',
-            ...(cityId && { cityId }),
-            ...(councilMeetingId && { councilMeetingId }),
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-        select: {
-            id: true,
-            createdAt: true,
-            status: true,
-            councilMeetingId: true,
-            cityId: true,
-            requestBody: true,
-            responseBody: true,
-        },
-    });
-
-    const recentPolls = recentPollTasks.map(task => {
-        let subjectsPolled = 0;
-        let matchesFound: number | null = null;
-        let unmatchedCount: number | null = null;
-        let ambiguousCount: number | null = null;
-
-        try {
-            const req = JSON.parse(task.requestBody) as { subjects?: unknown[] };
-            subjectsPolled = Array.isArray(req.subjects) ? req.subjects.length : 0;
-        } catch { /* ignore parse errors */ }
-
-        if (task.status === 'succeeded' && task.responseBody) {
-            try {
-                const res = JSON.parse(task.responseBody) as {
-                    matches?: unknown[];
-                    unmatchedSubjects?: unknown[];
-                    ambiguousSubjects?: unknown[];
-                };
-                matchesFound = Array.isArray(res.matches) ? res.matches.length : 0;
-                unmatchedCount = Array.isArray(res.unmatchedSubjects) ? res.unmatchedSubjects.length : 0;
-                ambiguousCount = Array.isArray(res.ambiguousSubjects) ? res.ambiguousSubjects.length : 0;
-            } catch { /* ignore parse errors */ }
-        }
-
-        return {
-            id: task.id,
-            createdAt: task.createdAt.toISOString(),
-            status: task.status,
-            councilMeetingId: task.councilMeetingId,
-            cityId: task.cityId,
-            subjectsPolled,
-            matchesFound,
-            unmatchedCount,
-            ambiguousCount,
-            requestBody: task.requestBody,
-            responseBody: task.responseBody,
-        };
-    });
-
-    return {
-        backoffSchedule: BACKOFF_SCHEDULE,
-        maxPollingDays: MAX_POLLING_DAYS,
-        meetingsStillPolling,
-        conflicts,
-        summary: {
-            totalDiscoveries: discoveryDetails.length,
-            meetingsStillPolling: meetingsStillPolling.length,
-            discoveryDelay: {
-                avgDays: avg(sortedDelays),
-                medianDays: median(sortedDelays),
-                minDays: sortedDelays.length > 0 ? sortedDelays[0] : null,
-                maxDays: sortedDelays.length > 0 ? sortedDelays[sortedDelays.length - 1] : null,
-            },
-            publishDelay: {
-                description: "Days between meeting date and Diavgeia publication",
-                avgDays: avg(sortedPublishDelays),
-                medianDays: median(sortedPublishDelays),
-                minDays: sortedPublishDelays.length > 0 ? sortedPublishDelays[0] : null,
-                maxDays: sortedPublishDelays.length > 0 ? sortedPublishDelays[sortedPublishDelays.length - 1] : null,
-            },
-        },
-        discoveries: discoveryDetails,
-        recentPolls,
-        pollCities,
-        pollMeetings,
-    };
 }
 
 /**
@@ -806,7 +456,7 @@ export async function resolveCandidateConflict(
         throw new Error('Candidate not found');
     }
     await withUserAuthorizedToEdit({ cityId: candidate.cityId });
-    await applyCandidateConflictResolution(candidateId, resolution);
+    return applyCandidateConflictResolution(candidateId, resolution);
 }
 
 /** Per-meeting entry in the batch completion summary. */
@@ -992,6 +642,67 @@ export async function checkBatchCompletionAndAlert(
     }).catch(err => console.error('Failed to send pollDecisions batch completed alert:', err));
 }
 
+/**
+ * Record a conflicting match proposal on the ADA's candidate row.
+ *
+ * A proposal is evidence and must not vanish (before this rule, an existing
+ * row swallowed it via `update: {}` — the "N conflicts" alert then pointed at
+ * nothing). The candidate's own declared session decides:
+ *
+ * - The document declares the polled meeting's session, or was never read →
+ *   record the proposal. On the holder's backing row this is a counter-proposal;
+ *   the assignment (decisionId) is not touched.
+ * - The document declares a different session → the claim contradicts the
+ *   document itself: drop it, the count alone reports it.
+ *
+ * A human dismissal always freezes the row.
+ */
+async function recordConflictClaim(
+    tx: Prisma.TransactionClient,
+    cityId: string,
+    councilMeetingId: string,
+    polledLocalDate: string,
+    match: PollDecisionsMatch,
+): Promise<'recorded' | 'dropped'> {
+    const ada = match.ada!;
+    const proposal = {
+        subjectId: match.subjectId,
+        confidence: match.matchConfidence,
+        reasoning: match.reasoning ?? null,
+    };
+    const existing = await tx.decisionCandidate.findUnique({
+        where: { cityId_ada: { cityId, ada } },
+        select: { meetingDate: true, readStatus: true, dismissedAt: true },
+    });
+    if (!existing) {
+        await tx.decisionCandidate.create({
+            data: {
+                cityId,
+                ada,
+                title: match.decisionTitle ?? null,
+                pdfUrl: match.pdfUrl,
+                publishDate: match.publishDate ? new Date(match.publishDate) : null,
+                protocolNumber: match.protocolNumber ?? null,
+                readStatus: 'unread',
+                councilMeetingId,
+                ...proposal,
+            },
+        });
+        return 'recorded';
+    }
+    if (existing.dismissedAt) return 'dropped';
+    const declaresPolledSession = existing.readStatus === 'unread'
+        || existing.meetingDate === null
+        || polledLocalDate === ''
+        || existing.meetingDate.toISOString().slice(0, 10) === polledLocalDate;
+    if (!declaresPolledSession) return 'dropped';
+    await tx.decisionCandidate.update({
+        where: { cityId_ada: { cityId, ada } },
+        data: proposal,
+    });
+    return 'recorded';
+}
+
 export async function handlePollDecisionsResult(taskId: string, result: PollDecisionsResult) {
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskId },
@@ -1033,6 +744,16 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
         }
     }
 
+    const polledMeeting = await prisma.councilMeeting.findUnique({
+        where: { cityId_id: { id: task.councilMeetingId, cityId: task.cityId } },
+        select: { dateTime: true, administrativeBodyId: true, city: { select: { timezone: true } } },
+    });
+    // The date the polled meeting's documents print — the conflict evidence
+    // rule compares candidates' declared sessions against it.
+    const polledLocalDate = polledMeeting
+        ? localCalendarDate(polledMeeting.dateTime, polledMeeting.city.timezone)
+        : '';
+
     await prisma.$transaction(async (tx) => {
         // Step 1: Detect ADA conflicts — find ADAs that already exist on other subjects
         const matchAdas = result.matches.map(m => m.ada).filter((ada): ada is string => ada != null);
@@ -1053,32 +774,36 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             if (match.ada) {
                 const existingSubjectId = adaToExistingSubject.get(match.ada);
                 if (existingSubjectId && existingSubjectId !== match.subjectId) {
-                    // Record the conflicting proposal as a candidate, skip the upsert
-                    await tx.decisionCandidate.upsert({
-                        where: { cityId_ada: { cityId: task.cityId, ada: match.ada } },
-                        create: {
-                            cityId: task.cityId,
-                            ada: match.ada,
-                            title: match.decisionTitle ?? null,
-                            pdfUrl: match.pdfUrl,
-                            publishDate: match.publishDate ? new Date(match.publishDate) : null,
-                            protocolNumber: match.protocolNumber ?? null,
-                            readStatus: 'unread',
-                            councilMeetingId: task.councilMeetingId,
-                            subjectId: match.subjectId,
-                            confidence: match.matchConfidence,
-                            reasoning: match.reasoning ?? null,
-                        },
-                        // Recorded once; the join to the holding Decision is what
-                        // surfaces the conflict in the admin views.
-                        update: {},
-                    });
+                    // Record the conflicting proposal on the candidate; skip the upsert.
+                    // The join to the holding Decision is what surfaces the
+                    // conflict in the admin views.
+                    const outcome = await recordConflictClaim(tx, task.cityId, task.councilMeetingId, polledLocalDate, match);
                     conflictCount++;
-                    console.log(`ADA conflict: ${match.ada} already belongs to subject ${existingSubjectId}, claimed by subject ${match.subjectId}`);
+                    console.log(`ADA conflict (${outcome}): ${match.ada} already belongs to subject ${existingSubjectId}, claimed by subject ${match.subjectId}`);
                     continue;
                 }
             }
 
+            // A match that changes a subject's ADA leaves the previous
+            // document's candidate back-linked to the decision. The unique
+            // decisionId constraint would then reject the new document's
+            // back-link in Step 3 and abort the whole poll. Release the stale
+            // link first; the old document returns to the unplaced queue.
+            if (match.ada) {
+                await tx.decisionCandidate.updateMany({
+                    where: {
+                        cityId: task.cityId,
+                        ada: { not: match.ada },
+                        decision: { subjectId: match.subjectId },
+                    },
+                    data: { decisionId: null },
+                });
+            }
+
+            // The savepoint lets the fallback below run queries after a unique
+            // violation — without it Postgres aborts the whole transaction and
+            // every other match and candidate of this poll would roll back.
+            await tx.$executeRaw`SAVEPOINT match_upsert`;
             try {
                 await tx.decision.upsert({
                     where: { subjectId: match.subjectId },
@@ -1099,31 +824,15 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                         publishDate: match.publishDate ? new Date(match.publishDate) : null,
                     },
                 });
+                await tx.$executeRaw`RELEASE SAVEPOINT match_upsert`;
             } catch (e) {
                 // Concurrent poll race: another transaction committed a decision with the same
                 // ADA between our conflict check and this upsert. Fall back to recording a claim.
                 if (match.ada && (e as { code?: string })?.code === 'P2002') {
-                    await tx.decisionCandidate.upsert({
-                        where: { cityId_ada: { cityId: task.cityId, ada: match.ada } },
-                        create: {
-                            cityId: task.cityId,
-                            ada: match.ada,
-                            title: match.decisionTitle ?? null,
-                            pdfUrl: match.pdfUrl,
-                            publishDate: match.publishDate ? new Date(match.publishDate) : null,
-                            protocolNumber: match.protocolNumber ?? null,
-                            readStatus: 'unread',
-                            councilMeetingId: task.councilMeetingId,
-                            subjectId: match.subjectId,
-                            confidence: match.matchConfidence,
-                            reasoning: match.reasoning ?? null,
-                        },
-                        // Recorded once; the join to the holding Decision is what
-                        // surfaces the conflict in the admin views.
-                        update: {},
-                    });
+                    await tx.$executeRaw`ROLLBACK TO SAVEPOINT match_upsert`;
+                    const outcome = await recordConflictClaim(tx, task.cityId, task.councilMeetingId, polledLocalDate, match);
                     conflictCount++;
-                    console.log(`ADA conflict (concurrent): ${match.ada} claimed by subject ${match.subjectId}`);
+                    console.log(`ADA conflict (concurrent, ${outcome}): ${match.ada} claimed by subject ${match.subjectId}`);
                     continue;
                 }
                 throw e;
@@ -1140,24 +849,51 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
         // Step 3: DecisionCandidate — persist every decision read in the window
         // (issue #617). Rows survive promotion; deleting the Decision reverts.
         if (result.decisions?.length) {
-            const meeting = await tx.councilMeeting.findUnique({
-                where: { cityId_id: { id: task.councilMeetingId, cityId: task.cityId } },
-                select: { administrativeBodyId: true, city: { select: { timezone: true } } },
+            // Prefetched for the orphan heal below.
+            const storedRows = await tx.decisionCandidate.findMany({
+                where: { cityId: task.cityId, ada: { in: result.decisions.map(d => d.ada) } },
+                select: { ada: true, meetingDate: true, councilMeetingId: true, dismissedAt: true },
             });
+            const storedByAda = new Map(storedRows.map(c => [c.ada, c]));
+            // One city-wide meeting list resolves every declared date below.
+            // localCalendarDate converts the UTC-stored instant to the city's
+            // calendar date — the timezone conversion is load-bearing: without
+            // it, midnight-stored meetings would shift a day.
+            const cityMeetings = polledMeeting ? (await tx.councilMeeting.findMany({
+                where: { cityId: task.cityId },
+                select: { id: true, name: true, dateTime: true, administrativeBodyId: true },
+                orderBy: { dateTime: 'asc' },
+            })).map(m => ({
+                id: m.id, name: m.name, administrativeBodyId: m.administrativeBodyId,
+                localDate: localCalendarDate(m.dateTime, polledMeeting.city.timezone),
+            })) : [];
             for (const d of result.decisions) {
+                const stored = storedByAda.get(d.ada);
+                const freshRead = !d.fromKnown && d.readStatus !== 'unread';
                 // Resolve the declared session to one of our meetings (same body).
                 let councilMeetingId: string | null = null;
-                if (d.meetingDate && meeting?.administrativeBodyId) {
-                    // Double conversion is load-bearing: dateTime is a UTC-stored
-                    // timestamp, so the single-conversion form would interpret it
-                    // as already-local and shift midnight-stored meetings a day.
-                    const target = await tx.$queryRaw<Array<{ id: string }>>`
-                        SELECT id FROM "CouncilMeeting"
-                        WHERE "cityId" = ${task.cityId}
-                          AND "administrativeBodyId" = ${meeting.administrativeBodyId}
-                          AND ("dateTime" AT TIME ZONE 'UTC' AT TIME ZONE ${meeting.city.timezone})::date = ${d.meetingDate}::date
-                        LIMIT 1`;
-                    councilMeetingId = target[0]?.id ?? null;
+                if (freshRead && d.meetingDate && polledMeeting?.administrativeBodyId) {
+                    councilMeetingId = cityMeetings.find(m =>
+                        m.administrativeBodyId === polledMeeting.administrativeBodyId
+                        && m.localDate === d.meetingDate!.slice(0, 10))?.id ?? null;
+                }
+                // Orphan heal, for echoes only. knownDecisions is city-wide, so
+                // this poll can carry another body's orphan — the polled body
+                // cannot be trusted. Heal only when the declared date has
+                // exactly one meeting in the whole city, which makes the body
+                // question moot.
+                let healedMeetingId: string | null = null;
+                if (!freshRead && stored && !stored.councilMeetingId && !stored.dismissedAt && polledMeeting) {
+                    const declared = d.meetingDate?.slice(0, 10)
+                        ?? (stored.meetingDate ? stored.meetingDate.toISOString().slice(0, 10) : null);
+                    if (declared) {
+                        // Λογοδοσία sessions are excluded everywhere in the
+                        // pipeline; they must neither receive a heal nor block
+                        // an otherwise unambiguous one.
+                        const sameDay = cityMeetings.filter(m =>
+                            !isLogodosiaMeeting(m.name) && m.localDate === declared);
+                        if (sameDay.length === 1) healedMeetingId = sameDay[0].id;
+                    }
                 }
                 const promoted = await tx.decision.findUnique({
                     where: { ada: d.ada },
@@ -1186,12 +922,12 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                         // Reading fields refresh only when this poll actually read
                         // the document — a knownDecisions echo carries no new
                         // information and must not blank a stored reading.
-                        ...(!d.fromKnown && d.readStatus !== 'unread' ? {
+                        ...(freshRead ? {
                             meetingDate: d.meetingDate ? new Date(`${d.meetingDate}T00:00:00Z`) : null,
                             decisionNumber: d.decisionNumber,
                             readStatus: d.readStatus,
                             councilMeetingId,
-                        } : {}),
+                        } : (healedMeetingId ? { councilMeetingId: healedMeetingId } : {})),
                         // The suggestion is recorded once, as made; later polls
                         // never overwrite an accepted suggestion's record.
                         ...(d.subjectId && !promoted ? { subjectId: d.subjectId, confidence: d.confidence, reasoning: d.reasoning } : {}),

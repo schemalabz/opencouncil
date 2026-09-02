@@ -242,6 +242,10 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         members: { file: 'src/lib/export/meetings.tsx', type: 'AudioExportFailure' },
     },
     {
+        group: 'admin.decisionsOverview.state.',
+        members: { file: 'src/lib/db/decisionHealthState.ts', type: 'CityState' },
+    },
+    {
         group: 'CityForm.boundaryError_',
         members: { file: 'src/lib/utils/geojson.ts', type: 'BoundaryParseError' },
     },
@@ -280,6 +284,19 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
     { group: 'about.team.members.', why: 'const array in the component' },
     { group: 'about.team.roadmap.items.', why: 'const array in the component' },
     { group: 'admin.adminActions.forms.forceDescription.', why: 'const array in the component' },
+    {
+        group: 'admin.decisionsOverview.conflict.',
+        why: 'ConflictResolutionOutcome supplies the toast leaves, but the group also holds literal panel copy',
+    },
+    {
+        group: 'admin.decisionsOverview.filters.',
+        why: 'the computed leaf is `${filter}Desc`; the filter ids are a const array in the component',
+    },
+    { group: 'admin.decisionsOverview.hero.', why: 'const array in the component' },
+    {
+        group: 'admin.decisionsOverview.missing.',
+        why: 'UnplaceableKind supplies the kinds, but the group also holds the literal hint leaf',
+    },
     { group: 'highlights.sections.', why: 'const array in the component' },
     { group: 'landingV2.bodyType.', why: 'const array in the component' },
     { group: 'landingV2.dateRange.', why: 'const array in the component' },
