@@ -57,11 +57,13 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
 
         const bands: BarBand[] = [];
         const chapterItems: ChapterItem[] = [];
+        let transcriptStart = Infinity;
         const bySubject = new Map<string, Interval[]>();
         const bySpeaker = new Map<string, Interval[]>();
         const byPair = new Map<string, Interval[]>();
 
         for (const segment of transcript) {
+            transcriptStart = Math.min(transcriptStart, segment.startTimestamp);
             const speakerTag = getSpeakerTag(segment.speakerTagId);
             const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
             const party = person ? getPartyFromRoles(person.roles, meetingDate) : null;
@@ -110,7 +112,7 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
             intervalsBySubjectSpeaker: byPair,
             hasSubjectData: bySubject.size > 0,
             contentDuration: flatBands.length ? flatBands[flatBands.length - 1].end : 0,
-            chapters: chapterStarts(chapterItems),
+            chapters: chapterStarts(chapterItems, transcriptStart),
         };
     // The getters are identity-stable ref-backed reads, so they are not deps —
     // but speakerTags is: reassigning a tag to a person must recolour the bar.

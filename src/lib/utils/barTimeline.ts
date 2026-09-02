@@ -134,44 +134,46 @@ export const CHAPTER_WINDOW_SECONDS = 600;
  * agenda item in the middle of the προ ημερησίας, or a vote to admit an
  * urgent item an hour before it is discussed, is a brief visit; on the
  * meetings we have, the first-mention rule opened chapters up to an hour
- * early on such visits. A category that never holds the floor that long gets
- * no chapter — the rail could not fit a label on it anyway.
+ * early on such visits. A category that never holds the floor that long — a
+ * couple of announcements, one urgent item — starts at its first mention:
+ * brief visits are all it has.
  *
  * The preamble (roll call, housekeeping) belongs to the first chapter, so its
- * start folds to 0. Fewer than two chapters means the meeting has no
- * structure worth drawing — empty result.
+ * start folds back to `transcriptStart`, the first utterance — not to 0: the
+ * recording often rolls for minutes before anyone speaks, and that is no
+ * chapter. Fewer than two chapters means the meeting has no structure worth
+ * drawing — empty result.
  */
-export function chapterStarts(items: ChapterItem[]): Chapter[] {
-    const byCategory = new Map<ChapterKey, ChapterItem[]>();
+export function chapterStarts(items: ChapterItem[], transcriptStart = 0): Chapter[] {
+    const byCategory = new Map<ChapterKey, Interval[]>();
     for (const item of items) {
         const runs = byCategory.get(item.category);
-        if (runs) runs.push(item);
-        else byCategory.set(item.category, [item]);
+        const run: Interval = [item.start, item.end];
+        if (runs) runs.push(run);
+        else byCategory.set(item.category, [run]);
     }
     const out: Chapter[] = [];
     for (const [key, runs] of byCategory) {
-        const start = sustainedStart(runs);
-        if (start !== null) out.push({ key, start });
+        // Joined where they touch or overlap: an interjection recorded inside
+        // another speaker's segment must not count its seconds twice.
+        const floor = mergeIntervals(runs, 0);
+        out.push({ key, start: sustainedStart(floor) ?? floor[0][0] });
     }
     if (out.length < 2) return [];
     out.sort((a, b) => a.start - b.start);
-    out[0] = { ...out[0], start: 0 };
+    out[0] = { ...out[0], start: transcriptStart };
     return out;
 }
 
-/** The earliest run start from which the runs hold the floor for long enough, if any. */
-function sustainedStart(runs: ChapterItem[]): number | null {
-    const sorted = [...runs].sort((a, b) => a.start - b.start);
-    let from = 0;
-    for (const candidate of sorted) {
-        // Runs that ended before this candidate cannot count for it or any later one.
-        while (from < sorted.length && sorted[from].end <= candidate.start) from++;
-        const windowEnd = candidate.start + CHAPTER_WINDOW_SECONDS;
+/** The earliest start in a sorted, disjoint floor from which it holds for long enough, if any. */
+function sustainedStart(floor: Interval[]): number | null {
+    for (let i = 0; i < floor.length; i++) {
+        const candidate = floor[i][0];
+        const windowEnd = candidate + CHAPTER_WINDOW_SECONDS;
         let held = 0;
-        for (let i = from; i < sorted.length && sorted[i].start < windowEnd; i++) {
-            const run = sorted[i];
-            held += Math.max(0, Math.min(run.end, windowEnd) - Math.max(run.start, candidate.start));
-            if (held >= CHAPTER_FLOOR_SECONDS) return candidate.start;
+        for (let j = i; j < floor.length && floor[j][0] < windowEnd; j++) {
+            held += Math.min(floor[j][1], windowEnd) - floor[j][0];
+            if (held >= CHAPTER_FLOOR_SECONDS) return candidate;
         }
     }
     return null;

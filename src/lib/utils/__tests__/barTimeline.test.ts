@@ -115,6 +115,15 @@ describe('chapterStarts', () => {
         expect(chapters[1]).toEqual({ key: 'outOfAgenda', start: 5000 });
     });
 
+    it('folds the preamble to the first utterance, not to zero', () => {
+        // The recording rolls for two minutes before anyone speaks.
+        const chapters = chapterStarts([
+            run('agenda', 400, 3000),
+            run('outOfAgenda', 5000, 5400),
+        ], 120);
+        expect(chapters[0]).toEqual({ key: 'agenda', start: 120 });
+    });
+
     it('skips a brief early visit to a category', () => {
         // Athens, 11 Feb 2026: a one-minute answer on an agenda item in the middle
         // of the προ ημερησίας opened the agenda chapter 56 minutes early.
@@ -152,7 +161,7 @@ describe('chapterStarts', () => {
         ]);
     });
 
-    it('gives no chapter to a category that never holds the floor', () => {
+    it('starts a category that never holds the floor at its first mention', () => {
         // Chalandri, 11 Mar 2026: one out-of-agenda item of 107 seconds.
         expect(chapterStarts([
             run('beforeAgenda', 0, 600),
@@ -160,7 +169,33 @@ describe('chapterStarts', () => {
             run('agenda', 740, 5000),
         ])).toEqual([
             { key: 'beforeAgenda', start: 0 },
+            { key: 'outOfAgenda', start: 620 },
             { key: 'agenda', start: 740 },
+        ]);
+    });
+
+    it('keeps the rail when the second category is brief', () => {
+        expect(chapterStarts([
+            run('beforeAgenda', 0, 100),
+            run('agenda', 100, 10000),
+        ])).toEqual([
+            { key: 'beforeAgenda', start: 0 },
+            { key: 'agenda', start: 100 },
+        ]);
+    });
+
+    it('does not count an overlapping run twice', () => {
+        // The brief visit of the 11 Feb case, recorded as two overlapping runs:
+        // 60 seconds of floor, not 120.
+        expect(chapterStarts([
+            run('beforeAgenda', 0, 2700),
+            run('agenda', 2750, 2810),
+            run('agenda', 2750, 2810),
+            run('beforeAgenda', 2810, 6100),
+            run('agenda', 6141, 7000),
+        ])).toEqual([
+            { key: 'beforeAgenda', start: 0 },
+            { key: 'agenda', start: 6141 },
         ]);
     });
 });
