@@ -44,14 +44,18 @@ export interface HotSubjectCard {
     meeting: HotCardMeeting;
     /** Location text ("Χωρίς τοποθεσία" fallback applied at render). */
     locationText: string | null;
-    /** Introducer first, then top speakers by speaking time — for the avatar row. */
-    speakers: PersonWithRelations[];
+    /**
+     * Introducer first, then top speakers by speaking time — only where a
+     * surface asked for them (`withSpeakers`): the embed widget's avatar row.
+     * The city page draws none, so its cards and its cache carry none.
+     */
+    speakers?: PersonWithRelations[];
     /** Footer stats (minutes / speaker count / party dots) — same shape the app card uses. */
     stats: SubjectCardStats;
 }
 
 /** Bump when the ranking or the card shape changes, so entries don't go stale. */
-const HOT_CARDS_CACHE_VERSION = 'v2';
+const HOT_CARDS_CACHE_VERSION = 'v3';
 
 interface Args {
     limit: number;
@@ -60,6 +64,8 @@ interface Args {
     /** How far back to rank. Omitted means the last few meetings. */
     months?: number;
     geohash?: string | null;
+    /** Build the avatar row's speakers. Up to 6 full person records per card cross to the client with it. */
+    withSpeakers?: boolean;
 }
 
 /** Introducer (if any) + up to 5 top speakers by speaking time. */
@@ -73,14 +79,14 @@ function displayedSpeakers(statistics: Statistics | undefined, introducedBy: Per
 }
 
 /**
- * Hydrate the ranked top-N hot subjects with just what the card's location row
- * and avatar row need — location text and the top speakers — for the displayed
- * subjects only. Statistics already carry full person objects, so no city-wide
- * roster is loaded, and only the ~5 speakers per card cross to the client.
+ * Hydrate the ranked top-N hot subjects with just what the card shows — the
+ * location text and the footer stats, plus the speakers where a surface asked
+ * for them — for the displayed subjects only. Statistics already carry full
+ * person objects, so no city-wide roster is loaded either way.
  *
  * Both queries here are uncached, so this is safe to call inside createCache.
  */
-async function buildCards(top: HotSubject[]): Promise<HotSubjectCard[]> {
+async function buildCards(top: HotSubject[], withSpeakers: boolean): Promise<HotSubjectCard[]> {
     if (top.length === 0) return [];
 
     const subjectIds = top.map(t => t.subject.id);
@@ -110,7 +116,7 @@ async function buildCards(top: HotSubject[]): Promise<HotSubjectCard[]> {
                 administrativeBody: meeting.administrativeBody,
             },
             locationText: extra?.locationText ?? null,
-            speakers: displayedSpeakers(statistics, extra?.introducedBy ?? null),
+            ...(withSpeakers ? { speakers: displayedSpeakers(statistics, extra?.introducedBy ?? null) } : {}),
             stats: subjectCardStats(statistics, subject._count?.contributions),
         };
     });
@@ -121,11 +127,11 @@ async function buildCards(top: HotSubject[]): Promise<HotSubjectCard[]> {
  * uses it has its own page cache and an unbounded coordinate space behind it.
  */
 export async function getHotSubjectCards(cityId: string, args: Args): Promise<HotSubjectCard[]> {
-    const { geohash, ...filter } = args;
+    const { geohash, withSpeakers = false, ...filter } = args;
     const top = geohash
         ? await getHotSubjectsNearGeohash(cityId, geohash, filter)
         : await getRecentHotSubjects(cityId, filter);
-    return buildCards(top);
+    return buildCards(top, withSpeakers);
 }
 
 /**
@@ -136,10 +142,11 @@ export async function getHotSubjectCards(cityId: string, args: Args): Promise<Ho
  * meeting queries were cached. No geohash dimension, so the key space stays at
  * cities × body filters.
  */
-export async function getHotSubjectCardsCached(cityId: string, args: Omit<Args, 'geohash'>): Promise<HotSubjectCard[]> {
+export async function getHotSubjectCardsCached(cityId: string, args: Omit<Args, 'geohash' | 'withSpeakers'>): Promise<HotSubjectCard[]> {
     const { limit, months } = args;
     const cards = await createCache(
-        async () => buildCards(await computeRecentHotSubjects(cityId, args)),
+        // Never with speakers: the city page draws none, and the key below does not carry the flag.
+        async () => buildCards(await computeRecentHotSubjects(cityId, args), false),
         // `months`, not the date it resolves to: the window moves with `now`, and
         // the TTL below is what bounds that drift.
         ['city', cityId, 'hotSubjectCards', HOT_CARDS_CACHE_VERSION, `limit:${limit}`, ...bodyFilterKey(args), `months:${months ?? 'default'}`],

@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,8 @@ import { useTranslations } from "next-intl";
 import { FileJson } from "lucide-react";
 
 interface SubjectAdminControlsProps {
+    /** Extra classes for the trigger button, e.g. to seat it on an image. */
+    className?: string;
     subject: {
         id: string;
         nonAgendaReason: string | null;
@@ -21,7 +24,7 @@ interface SubjectAdminControlsProps {
     meetingId: string;
 }
 
-export function SubjectAdminControls({ subject, cityId, meetingId }: SubjectAdminControlsProps) {
+export function SubjectAdminControls({ subject, cityId, meetingId, className }: SubjectAdminControlsProps) {
     const t = useTranslations("Subject");
     const [open, setOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
@@ -50,7 +53,7 @@ export function SubjectAdminControls({ subject, cityId, meetingId }: SubjectAdmi
             <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                className={cn("h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10", className)}
                 onClick={(e) => { e.stopPropagation(); setOpen(true); }}
             >
                 <FileJson className="h-4 w-4" />
