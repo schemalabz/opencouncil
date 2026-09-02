@@ -61,7 +61,8 @@
     },
     "unverifiedBanner": {
         "title": "Automatic Transcript",
-        "description": "This transcript was automatically generated and may contain errors. It is being reviewed and will be updated within 48 hours of the meeting."
+        "description": "This transcript was automatically generated and may contain errors. It is being reviewed and will be updated soon.",
+        "descriptionUntil": "This transcript was automatically generated and may contain errors. It is being reviewed and will be updated by {deadline}."
     },
     "emptySegment": {
         "noUtterances": "No utterances in this segment",

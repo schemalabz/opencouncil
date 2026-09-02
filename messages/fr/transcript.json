@@ -61,7 +61,8 @@
     },
     "unverifiedBanner": {
         "title": "Transcription automatique",
-        "description": "Cette transcription a été générée automatiquement et peut contenir des erreurs. Elle est en cours de révision et sera mise à jour dans les 48 heures suivant la séance."
+        "description": "Cette transcription a été générée automatiquement et peut contenir des erreurs. Elle est en cours de relecture et sera mise à jour prochainement.",
+        "descriptionUntil": "Cette transcription a été générée automatiquement et peut contenir des erreurs. Elle est en cours de relecture et sera mise à jour avant le {deadline}."
     },
     "emptySegment": {
         "noUtterances": "Aucun énoncé dans ce segment",
