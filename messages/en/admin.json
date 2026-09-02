@@ -325,6 +325,14 @@
     "resetExtractions": "Reset extractions",
     "resetExtractionsConfirm": "Reset all extracted data (excerpts, attendance, votes) for this meeting? Decision links will be kept.",
     "resetExtractionsDescription": "Remove all extracted data (excerpts, attendance, votes) for every subject. Decision links are kept.",
+    "scope": {
+        "malformed": "Misconfigured: {error}",
+        "noOrg": "This city has no Diavgeia organization ID — polling cannot run",
+        "org": "Polls org {org}",
+        "orgWide": "Polls org {org} — whole organization, no unit configured",
+        "unit": "unit {unit}",
+        "unitSigner": "unit {unit}, signer {signer}"
+    },
     "save": "Save",
     "showLess": "Show less",
     "showMore": "Show more",

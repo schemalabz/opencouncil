@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,7 @@ import { CollapsibleMarkdown, NameList, MeetingAttendanceSummary, sortNamesByEle
 import { computeDecisionStats } from '@/components/meetings/decisions/stats';
 import { normalizeText } from '@/lib/utils';
 import { diavgeiaDocUrl } from '@/components/meetings/decisions/pdfUrl';
+import { parseDiavgeiaUnitScopes } from '@/lib/utils/diavgeiaUnitScope';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
 
 interface ManualEntryState {
@@ -75,11 +76,22 @@ type PendingAction =
 
 export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     const { toast } = useToast();
-    const { subjects, meeting, people, getPerson } = useCouncilMeetingData();
+    const { subjects, meeting, city, people, getPerson } = useCouncilMeetingData();
     const t = useTranslations('admin.adminActions');
     const tPage = useTranslations('admin.decisionsPage');
     const tSubject = useTranslations('Subject');
     const administrativeBodyId = meeting.administrativeBodyId ?? null;
+    // What a poll would actually ask Diavgeia for. Parsed through the same
+    // helper the task uses, so a malformed entry surfaces here — in the admin
+    // page, before it fails a poll — rather than only in the task log.
+    const pollScope = useMemo(() => {
+        const entries = meeting.administrativeBody?.diavgeiaUnitIds ?? [];
+        try {
+            return { scopes: parseDiavgeiaUnitScopes(entries), error: null as string | null };
+        } catch (e) {
+            return { scopes: [], error: e instanceof Error ? e.message : String(e) };
+        }
+    }, [meeting.administrativeBody?.diavgeiaUnitIds]);
     const meetingDate = new Date(meeting.dateTime);
     const mayorPersonId = people.find(p =>
         p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
@@ -1048,8 +1060,33 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 {/* Poll actions — cost-incurring operations, superadmin only */}
                 {isSuperAdmin && (<>
                 <div className="flex items-center justify-between gap-3">
-                    <div className="text-xs font-medium shrink-0">
-                        {tPage('pollTitle')}
+                    <div className="min-w-0">
+                        <div className="text-xs font-medium">
+                            {tPage('pollTitle')}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5 break-words">
+                            {!city.diavgeiaUid ? (
+                                <span className="text-amber-700">{tPage('scope.noOrg')}</span>
+                            ) : pollScope.error ? (
+                                <span className="text-red-700">{tPage('scope.malformed', { error: pollScope.error })}</span>
+                            ) : pollScope.scopes.length === 0 ? (
+                                <span className="text-amber-700">
+                                    {tPage('scope.orgWide', { org: city.diavgeiaUid })}
+                                </span>
+                            ) : (
+                                <span>
+                                    {tPage('scope.org', { org: city.diavgeiaUid })}
+                                    {pollScope.scopes.map((scope, i) => (
+                                        <span key={`${scope.unit}:${scope.signer ?? ''}`}>
+                                            <span className="mx-1 text-gray-300">|</span>
+                                            {scope.signer
+                                                ? tPage('scope.unitSigner', { unit: scope.unit, signer: scope.signer })
+                                                : tPage('scope.unit', { unit: scope.unit })}
+                                        </span>
+                                    ))}
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                         <label className="flex items-center gap-1.5 cursor-pointer">

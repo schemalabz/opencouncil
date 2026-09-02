@@ -325,6 +325,14 @@
     "resetExtractions": "Réinitialiser les extractions",
     "resetExtractionsConfirm": "Réinitialiser toutes les données extraites (extraits, présences, votes) pour cette séance ? Les associations de décisions seront conservées.",
     "resetExtractionsDescription": "Supprime toutes les données extraites (extraits, présences, votes) pour chaque sujet. Les associations de décisions sont conservées.",
+    "scope": {
+        "malformed": "Mal configuré : {error}",
+        "noOrg": "Cette municipalité n'a pas d'ID d'organisation Diavgeia — l'interrogation est impossible",
+        "org": "Interroge l'organisation {org}",
+        "orgWide": "Interroge l'organisation {org} — organisation entière, aucune unité configurée",
+        "unit": "unité {unit}",
+        "unitSigner": "unité {unit}, signataire {signer}"
+    },
     "save": "Enregistrer",
     "showLess": "Moins",
     "showMore": "Plus",
