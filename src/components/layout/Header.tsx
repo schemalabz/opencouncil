@@ -307,12 +307,16 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
                 <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">
                     {/* The pair flanks the name it steps through; the stage follows outside it. */}
                     {neighbours && <NeighbourLink neighbour={neighbours.previous} direction="previous" />}
+                    {/* Scrolls when it does not fit, in step with the subject name below —
+                        see AutoScrollText. */}
                     {titleElement.link ? (
-                        <Link href={titleElement.link} className="min-w-0 truncate text-sm font-medium hover:no-underline sm:text-base">
-                            {titleElement.name}
+                        <Link href={titleElement.link} className="min-w-0 text-sm font-medium hover:no-underline sm:text-base">
+                            <AutoScrollText>{titleElement.name}</AutoScrollText>
                         </Link>
                     ) : (
-                        <span className="min-w-0 truncate text-sm font-medium sm:text-base">{titleElement.name}</span>
+                        <span className="min-w-0 text-sm font-medium sm:text-base">
+                            <AutoScrollText>{titleElement.name}</AutoScrollText>
+                        </span>
                     )}
                     {neighbours && <NeighbourLink neighbour={neighbours.next} direction="next" />}
                     {titleElement.addon}
