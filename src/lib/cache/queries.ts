@@ -6,6 +6,7 @@ import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
 import { countCouncilMeetingsForCity, getCouncilMeetingsForCity, getCouncilMeetingsWithSubjectPreview, type MeetingListOptions } from "@/lib/db/meetings";
 import { getMeetingSummary } from "@/lib/db/meetingSummary";
+import { getAdjacentMeetings } from "@/lib/db/adjacentMeetings";
 import { countCityPetitions } from "@/lib/db/petitions";
 import { petitionBucket, type PetitionBucket } from "@/lib/landing/petitions";
 import { MEETING_PREVIEW_CACHE_VERSION } from "@/lib/db/types";
@@ -200,6 +201,18 @@ export async function getCityPetitionBucketCached(cityId: string): Promise<Petit
         async () => petitionBucket(await countCityPetitions(cityId)),
         ['city', cityId, 'petitionBucket'],
         { tags: ['city', `city:${cityId}`], revalidate: 3600 }
+    )();
+}
+
+/**
+ * The meetings either side of one, for the header's previous/next. Editors
+ * step through unreleased meetings too, so the two views cache apart.
+ */
+export async function getAdjacentMeetingsCached(cityId: string, meetingId: string, includeUnreleased: boolean) {
+    return createCache(
+        () => getAdjacentMeetings(cityId, meetingId, { includeUnreleased }),
+        ['city', cityId, 'meeting', meetingId, 'adjacent', includeUnreleased ? 'withUnreleased' : 'onlyReleased'],
+        { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] },
     )();
 }
 

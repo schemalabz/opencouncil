@@ -40,6 +40,8 @@ jest.mock('@/lib/cache', () => ({
     getCityMessageCached: jest.fn(),
     getCouncilMeetingsPreviewPublicCached: jest.fn(),
     getSubjectCountForCityCached: jest.fn(),
+    getAdjacentMeetingsCached: jest.fn(async () => ({ previous: null, next: null })),
+    getAllCityIdsCached: jest.fn(async () => ['athens']),
 }));
 
 jest.mock('@/lib/auth', () => ({
@@ -53,6 +55,12 @@ jest.mock('@/lib/getMeetingData', () => ({
 
 jest.mock('@/lib/db/notifications', () => ({
     getNotificationPreferenceForCity: jest.fn(),
+}));
+
+// A client component the layout mounts in the header; it pulls next-intl's
+// ESM entry, which jest does not transform, and the suite never renders it.
+jest.mock('@/components/meetings/stage/MeetingHeaderStage', () => ({
+    MeetingHeaderStage: () => null,
 }));
 
 // Reads headers(), which needs a request scope jest has no way to open.
