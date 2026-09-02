@@ -13,6 +13,7 @@ import { SegmentOnly } from '@/components/meetings/SegmentOnly';
 import PresentationViewButton from '@/components/meetings/PresentationViewButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/getMeetingData';
+import { getAdjacentMeetingsCached, getAllCityIdsCached } from '@/lib/cache';
 import { getNotificationPreferenceForCity } from '@/lib/db/notifications';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 
@@ -136,14 +137,26 @@ export default async function CouncilMeetingPage(
     } = props;
 
     const currentUserPromise = getCurrentUser();
-    const [currentUser, editable, data, notificationPreference, realm] = await Promise.all([
+    const editablePromise = isUserAuthorizedToEdit({ cityId });
+    const realmPromise = getRealm();
+    const [currentUser, editable, data, notificationPreference, realm, adjacent, tMeeting] = await Promise.all([
         currentUserPromise,
-        isUserAuthorizedToEdit({ cityId }),
+        editablePromise,
         getMeetingDataCached(cityId, meetingId),
         currentUserPromise.then(user =>
             user ? getNotificationPreferenceForCity(user.id, cityId) : null
         ),
-        getRealm(),
+        realmPromise,
+        // Editors step through unreleased meetings too. Behind the same
+        // known-city check as the meeting data (#358): this segment renders
+        // before the [cityId] layout 404s, and an unknown slug must not write
+        // a per-city cache entry.
+        Promise.all([realmPromise, editablePromise]).then(async ([currentRealm, canEdit]) =>
+            (await getAllCityIdsCached(currentRealm)).includes(cityId)
+                ? getAdjacentMeetingsCached(cityId, meetingId, canEdit)
+                : { previous: null, next: null }
+        ),
+        getTranslations({ locale, namespace: 'CouncilMeeting' }),
     ]);
 
     if (!data || !data.city) {
@@ -205,6 +218,10 @@ export default async function CouncilMeetingPage(
                                             addon: <MeetingHeaderStage />
                                         }
                                     ]}
+                                    neighbours={{
+                                        previous: adjacent.previous && { href: `/${cityId}/${adjacent.previous.id}`, label: `${tMeeting('previousMeeting')}: ${getLocalizedName(adjacent.previous, locale)}` },
+                                        next: adjacent.next && { href: `/${cityId}/${adjacent.next.id}`, label: `${tMeeting('nextMeeting')}: ${getLocalizedName(adjacent.next, locale)}` },
+                                    }}
                                     showSidebarTrigger={true}
                                     inset={true}
                                     currentEntity={{ cityId: data.city.id }}
