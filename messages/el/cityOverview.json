@@ -77,5 +77,23 @@
   "scopeCouncilFull": "Δημοτικό Συμβούλιο",
   "scopeCommitteeFull": "Δημοτική Επιτροπή",
   "scopeCommunityFull": "Δημοτικές Κοινότητες",
-  "scopeAllFull": "Όλα τα όργανα"
+  "scopeAllFull": "Όλα τα όργανα",
+  "petitionTeaser": {
+    "municipality": "Θέλεις το OpenCouncil στον δήμο σου;",
+    "region": "Θέλεις το OpenCouncil στην περιφέρειά σου;"
+  },
+  "petitionTitle": {
+    "municipality": "Ο δήμος {qualifier} δεν είναι ακόμα στο OpenCouncil",
+    "region": "Η περιφέρεια {qualifier} δεν είναι ακόμα στο OpenCouncil"
+  },
+  "petitionCount": "{count}+ δημότες το ζήτησαν ήδη",
+  "petitionBody": {
+    "municipality": "Βοήθησέ μας να φέρουμε το OpenCouncil στον δήμο. Όταν μιλήσουμε με τον δήμο, θα μπορούμε να εξηγήσουμε πως αρκετοί δημότες το έχουν ζητήσει ήδη.",
+    "region": "Βοήθησέ μας να φέρουμε το OpenCouncil στην περιφέρεια. Όταν μιλήσουμε με την περιφέρεια, θα μπορούμε να εξηγήσουμε πως αρκετοί πολίτες το έχουν ζητήσει ήδη."
+  },
+  "petitionCta": "Πρόσθεσε το όνομά σου",
+  "petitionNote": {
+    "municipality": "Χρησιμοποιούμε το όνομά σου μόνο όταν μιλάμε με τον δήμο.",
+    "region": "Χρησιμοποιούμε το όνομά σου μόνο όταν μιλάμε με την περιφέρεια."
+  }
 }

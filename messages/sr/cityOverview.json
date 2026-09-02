@@ -77,5 +77,23 @@
   "scopeCouncilFull": "Градска скупштина",
   "scopeCommitteeFull": "Градски одбор",
   "scopeCommunityFull": "Месне заједнице",
-  "scopeAllFull": "Сва тела"
+  "scopeAllFull": "Сва тела",
+  "petitionTeaser": {
+    "municipality": "Желите OpenCouncil у својој општини?",
+    "region": "Желите OpenCouncil у свом региону?"
+  },
+  "petitionTitle": {
+    "municipality": "Општина {qualifier} још није на OpenCouncil-у",
+    "region": "Регион {qualifier} још није на OpenCouncil-у"
+  },
+  "petitionCount": "{count}+ грађана је већ затражило",
+  "petitionBody": {
+    "municipality": "Помозите нам да доведемо OpenCouncil у општину. Када разговарамо са општином, моћи ћемо да објаснимо да је довољно грађана то већ затражило.",
+    "region": "Помозите нам да доведемо OpenCouncil у регион. Када разговарамо са регионом, моћи ћемо да објаснимо да је довољно грађана то већ затражило."
+  },
+  "petitionCta": "Додај своје име",
+  "petitionNote": {
+    "municipality": "Ваше име користимо само када разговарамо са општином.",
+    "region": "Ваше име користимо само када разговарамо са регионом."
+  }
 }

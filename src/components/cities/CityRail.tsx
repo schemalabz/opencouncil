@@ -2,9 +2,10 @@ import type { City, CityMessage as CityMessageType } from '@prisma/client';
 import type { CityWithCounts } from '@/lib/db/cities';
 import type { CityNotificationPreference } from '@/lib/db/notifications';
 import { CityAdminTools } from '@/components/cities/CityAdminTools';
-import { CityHeaderActions } from '@/components/cities/CityHeaderActions';
 import { CityMeetingsModule, type MeetingBookends } from '@/components/cities/overview/CityMeetingsModule';
 import { CityNotificationCard } from '@/components/cities/overview/CityNotificationCard';
+import { CityPetitionCard } from '@/components/cities/overview/CityPetitionCard';
+import type { PetitionBucket } from '@/lib/landing/petitions';
 
 interface CityRailProps {
     city: CityWithCounts;
@@ -13,6 +14,8 @@ interface CityRailProps {
     isSuperAdmin: boolean;
     hasNoData: boolean;
     notificationPreference: CityNotificationPreference | null;
+    /** The public "N+" bucket of the city's petitions, for a city not covered yet. */
+    petitionBucket: PetitionBucket | null;
     allMeetings: MeetingBookends;
     councilMeetings: MeetingBookends;
     locale: string;
@@ -36,6 +39,7 @@ export function CityRail({
     isSuperAdmin,
     hasNoData,
     notificationPreference,
+    petitionBucket,
     allMeetings,
     councilMeetings,
     locale,
@@ -62,7 +66,7 @@ export function CityRail({
                 locale={locale}
             />
             <CityNotificationCard city={city} preference={notificationPreference} locale={locale} />
-            <CityHeaderActions city={city as City} />
+            <CityPetitionCard city={city} bucket={petitionBucket} locale={locale} />
         </aside>
     );
 }
