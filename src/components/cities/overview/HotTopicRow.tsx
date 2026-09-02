@@ -4,40 +4,18 @@ import { formatDate } from '@/lib/formatters/time';
 import { localizeText } from '@/lib/serbian';
 import { FactDot } from '@/components/ui/fact-dot';
 import { TopicIcon } from '@/components/TopicIcon';
-import { topicStyle } from '@/lib/topicStyle';
+import { SubjectImage } from '@/components/subject/SubjectImage';
 import { cn } from '@/lib/utils';
-import { hotTopicBarWidth } from '@/lib/utils/subjects';
 import { AdminBodyLabel } from './AdminBodyLabel';
 
 interface HotTopicRowProps {
     card: HotSubjectCard;
     /** Position in the ranking, 1-based. */
     rank: number;
-    /** Longest debate in the list — the scale every bar is drawn against. */
-    maxSeconds: number;
     timezone: string;
     locale: string;
     /** Opens this row in place. */
     onOpen: () => void;
-}
-
-/**
- * The tinted band behind a hot-topic entry, as wide a fraction of the entry as
- * the subject's debate time is of the longest in the list.
- *
- * The entry is its own bar rather than carrying a separate one, because a bar
- * element would compete with the title for the same horizontal space and at
- * this density there is no room for both. Both the leader and the rows below it
- * draw it, so they are read against the same scale.
- */
-export function HotTopicBar({ width, background }: { width: number; background: string }) {
-    return (
-        <span
-            className="absolute inset-y-0 left-0 z-0"
-            style={{ width: `${width}%`, backgroundColor: background, opacity: 0.5 }}
-            aria-hidden
-        />
-    );
 }
 
 /** An entry's place in the ranking, padded so single digits hold the column. */
@@ -55,6 +33,12 @@ const FACTS_SIZES = {
     md: { line: 'mt-2 gap-x-2.5 gap-y-1 text-xs', body: undefined },
 } as const;
 
+/** The facts' ink: the card's own on a row, white on the leader's dark scrim. */
+const FACTS_TONES = {
+    plain: { line: 'text-muted-foreground', strong: 'text-foreground', body: undefined },
+    inverted: { line: 'text-white/75', strong: 'text-white', body: 'text-white/75' },
+} as const;
+
 /**
  * Which body took the subject up, when, and how many people spoke — the line
  * every hot-topic entry carries under its title.
@@ -63,24 +47,27 @@ const FACTS_SIZES = {
  * that column took two thirds of the title, so it joins the facts here instead —
  * still the loudest of them, since it is what the list is ranked on.
  */
-export function HotTopicFacts({ card, timezone, locale, size }: {
+export function HotTopicFacts({ card, timezone, locale, size, inverted = false }: {
     card: HotSubjectCard;
     timezone: string;
     locale: string;
     size: keyof typeof FACTS_SIZES;
+    /** On the leader's dark scrim, where the card's ink would vanish. */
+    inverted?: boolean;
 }) {
     const t = useTranslations('cityOverview');
     const { meeting, stats } = card;
     const sizing = FACTS_SIZES[size];
+    const tone = FACTS_TONES[inverted ? 'inverted' : 'plain'];
 
     // A span rather than a div: a row mounts this inside its <button>.
     return (
-        <span className={cn('flex flex-wrap items-center text-muted-foreground', sizing.line)}>
-            <span className="font-bold text-foreground sm:hidden">
+        <span className={cn('flex flex-wrap items-center', sizing.line, tone.line)}>
+            <span className={cn('font-bold sm:hidden', tone.strong)}>
                 {t('discussionMinutes', { minutes: stats.minutes })}
             </span>
             <FactDot className="sm:hidden" />
-            <AdminBodyLabel body={meeting.administrativeBody} locale={locale} className={sizing.body} />
+            <AdminBodyLabel body={meeting.administrativeBody} locale={locale} className={cn(sizing.body, tone.body)} />
             <FactDot />
             <span>{formatDate(meeting.dateTime, timezone, locale)}</span>
             <FactDot />
@@ -92,28 +79,40 @@ export function HotTopicFacts({ card, timezone, locale, size }: {
 /**
  * One subject below the leader.
  *
- * The scale its bar is drawn against is the list maximum rather than the
- * leader's own time, because the ranking is a blend — recency and which body
- * took the subject up both count — so the top entry is not always the longest
- * debate. Measuring against the leader would push those bars past full width
- * and quietly clamp them.
+ * The subject's illustration fills the row, faded almost out by a scrim in the
+ * card's own colour: the row keeps its dark text on a light surface, and the
+ * picture reads as a tint behind it. The row used to draw a tinted band as wide
+ * a fraction of itself as the subject's debate time was of the longest in the
+ * list; the illustration now occupies that same strip, and two washes behind
+ * one line of text read as noise. The debate time is the figure at the row's
+ * end.
  *
  * No avatars here — they would put a handful of full person records per row into
  * the payload for a list that is read as a ranking, not as a set of profiles.
  */
-export function HotTopicRow({ card, rank, maxSeconds, timezone, locale, onOpen }: HotTopicRowProps) {
+export function HotTopicRow({ card, rank, timezone, locale, onOpen }: HotTopicRowProps) {
     const t = useTranslations('cityOverview');
     const { subject, stats } = card;
-    const topic = topicStyle(subject.topic?.colorHex);
-    const width = hotTopicBarWidth(stats.speakingSeconds, maxSeconds);
 
     return (
         <button
             type="button"
             onClick={onOpen}
-            className="relative flex w-full items-center gap-3 overflow-hidden border-t border-border px-4 py-3 text-left transition-colors hover:bg-muted/30"
+            aria-expanded={false}
+            className="group relative flex w-full items-center gap-3 overflow-hidden border-t border-border px-4 py-3 text-left"
         >
-            <HotTopicBar width={width} background={topic.background} />
+            <span className="absolute inset-0 z-0" aria-hidden>
+                <SubjectImage subjectId={subject.id} alt="" topic={subject.topic} />
+            </span>
+            {/* The scrim is what keeps the text legible against every image the model
+                draws, bright or dark: one wash in the card's own colour, rather than
+                an opacity on the image, which would wash the light images out and
+                leave the dark ones opaque. It thins on hover, which is the row's only
+                affordance now that it carries no hover tint of its own. */}
+            <span
+                className="absolute inset-0 z-0 bg-card/80 transition-colors duration-200 group-hover:bg-card/70"
+                aria-hidden
+            />
             <HotTopicRank rank={rank} className="relative z-10" />
             <TopicIcon
                 color={subject.topic?.colorHex}

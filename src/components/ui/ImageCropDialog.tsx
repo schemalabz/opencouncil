@@ -17,8 +17,10 @@ export interface ImageCropDialogProps {
     file: File | null
     /** Frame shape: square for logos, round for avatars/photos. Defaults to 'rect'. */
     cropShape?: "rect" | "round"
-    /** Output square dimension in pixels. Defaults to 512. */
+    /** Output width in pixels. Defaults to 512. */
     outputSize?: number
+    /** Frame width ÷ height. Defaults to 1 (square); the output height follows it. */
+    aspect?: number
     /** Dialog title. Falls back to a translated default. */
     title?: string
     /** Confirm button label. Falls back to a translated default. */
@@ -33,6 +35,7 @@ export function ImageCropDialog({
     file,
     cropShape = "rect",
     outputSize = 512,
+    aspect = 1,
     title,
     confirmLabel,
     cancelLabel,
@@ -76,7 +79,10 @@ export function ImageCropDialog({
         setIsProcessing(true)
         setError(null)
         try {
-            const result = await renderCroppedImageFile(file, croppedAreaPixels, { size: outputSize })
+            const result = await renderCroppedImageFile(file, croppedAreaPixels, {
+                size: outputSize,
+                height: Math.round(outputSize / aspect),
+            })
             onConfirm(result)
         } catch (err) {
             // Keep the dialog open and surface the failure instead of silently
@@ -86,7 +92,7 @@ export function ImageCropDialog({
         } finally {
             setIsProcessing(false)
         }
-    }, [file, croppedAreaPixels, outputSize, onConfirm, t])
+    }, [file, croppedAreaPixels, outputSize, aspect, onConfirm, t])
 
     return (
         <Dialog open={!!file} onOpenChange={(open) => { if (!open) onCancel() }}>
@@ -101,7 +107,7 @@ export function ImageCropDialog({
                             image={imageUrl}
                             crop={crop}
                             zoom={zoom}
-                            aspect={1}
+                            aspect={aspect}
                             cropShape={cropShape}
                             showGrid={cropShape === "rect"}
                             minZoom={MIN_ZOOM}

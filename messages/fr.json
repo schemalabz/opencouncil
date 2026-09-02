@@ -18,6 +18,12 @@
   },
   "Common": {
     "aiGenerated": "Texte généré par IA",
+    "aiDisclosure": {
+        "label": "Contenu généré par IA",
+        "title": "Créé avec l'intelligence artificielle",
+        "body": "L'image est une illustration imaginaire dessinée par l'IA d'après le titre du sujet, pas une photographie. Le résumé a été rédigé par l'IA à partir de la transcription de la séance.",
+        "learnMore": "Comment ça marche"
+    },
     "skipToContent": "Aller au contenu principal",
     "search": "Rechercher",
     "clearSearch": "Effacer la recherche",
@@ -1120,7 +1126,12 @@
     "previousSubject": "Point précédent",
     "nextSubject": "Point suivant",
     "noDecisionBeforeAgenda": "Les points soulevés avant l'ordre du jour n'ont jamais de décision.",
-    "learnWhy": "Pourquoi ?"
+    "learnWhy": "Pourquoi ?",
+    "regenerateImage": "Régénérer l'image",
+    "replaceImage": "Remplacer l'image…",
+    "imageDialogTitle": "Image du sujet",
+    "imageUpdated": "Image mise à jour",
+    "imageUpdateFailed": "La mise à jour de l'image a échoué"
   },
   "PersonCard": {
     "party": "Groupe",

@@ -34,7 +34,7 @@ export function SubjectSection({
     pending,
     className,
 }: SubjectSectionProps) {
-    const { city, meeting, people } = useCouncilMeetingData();
+    const { city, meeting } = useCouncilMeetingData();
     const t = useTranslations("Subject");
     const [showExplainer, setShowExplainer] = useState(false);
     const [showAll, setShowAll] = useState(false);
@@ -116,7 +116,6 @@ export function SubjectSection({
                         subject={subject}
                         city={city}
                         meeting={meeting}
-                        persons={people}
                         showContext={false}
                         pending={pending}
                         onOpen={() => captureEvent('subject_opened', {

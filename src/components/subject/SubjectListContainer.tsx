@@ -48,9 +48,13 @@ export function SubjectListContainer({
     [subjects]
   );
 
+  // Only the card draws speakers and parties. The row shows neither, so a page of
+  // search results across N cities must not wait on N council rosters.
+  const needsRosters = variant === 'card';
+
   // State for city and meeting data
   const [cityData, setCityData] = useState<Record<string, { people: PersonWithRelations[]; parties: Party[] }>>({});
-  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(needsRosters);
   const [dataError, setDataError] = useState<Error | null>(null);
   const t = useTranslations(translationKey);
   const tCommon = useTranslations('Common');
@@ -84,13 +88,13 @@ export function SubjectListContainer({
       }
     }
 
-    if (cityIds.length > 0) {
+    if (needsRosters && cityIds.length > 0) {
       fetchData();
     } else {
       setCityData({});
       setIsDataLoading(false);
     }
-  }, [cityIds]);
+  }, [cityIds, needsRosters]);
 
   // Fetch statistics for all subjects
   const [statistics, setStatistics] = useState<Record<string, Statistics>>({});
@@ -139,7 +143,6 @@ export function SubjectListContainer({
           subject={withStatistics}
           city={subject.councilMeeting.city}
           meeting={subject.councilMeeting}
-          persons={people}
           showContext={showContext}
           openInNewTab={openInNewTab}
           onOpen={onSubjectOpen && (() => onSubjectOpen(subject, subjects.indexOf(subject)))}
