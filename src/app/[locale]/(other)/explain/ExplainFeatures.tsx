@@ -5,6 +5,7 @@ import { getRealmContactPhone, telHref } from "@/lib/realm";
 import { ArrowRight, Phone } from "lucide-react";
 import { Link } from "@/i18n/routing";
 import HowItWorks from "@/components/about/HowItWorks";
+import { MeetingStagesFlow } from "@/components/explain/MeetingStagesFlow";
 import { FeatureBlock } from "@/components/about/OpennessFeatures";
 import { OPENNESS_FEATURES } from "@/components/about/config";
 import { HeadingAnchor } from "@/components/explain/HeadingAnchor";
@@ -53,6 +54,32 @@ export function ExplainFeatures({
                     {/* Change this to retitle the box on /explain. */}
                     <HowItWorks title="Αναλυτικά" />
                 </div>
+            </div>
+
+            {/* The public stages a meeting passes through. The chips on the
+                meeting pages and on every card deep-link to oc-stage-<stage>. */}
+            <div id="oc-stages" className="scroll-mt-24">
+                <h3 className="!text-left text-xl font-normal !leading-none text-foreground sm:text-2xl">
+                    <HeadingAnchor id="oc-stages">Η πορεία μιας συνεδρίασης</HeadingAnchor>
+                </h3>
+                <p className="mt-3 leading-relaxed text-muted-foreground">
+                    Οι συνεδριάσεις των συλλογικών οργάνων ανεβαίνουν στο OpenCouncil πριν ακόμα γίνουν: όταν ο
+                    δήμος δημοσιεύσει την ημερήσια διάταξη, δηλαδή την πρόσκληση, συνήθως 3-7 ημέρες πριν τη
+                    συνεδρίαση. Τα θέματα της ημερήσιας διάταξης φαίνονται από τότε στη σελίδα της συνεδρίασης, και
+                    αργότερα συμπληρώνονται με τα θέματα προ και εκτός ημερησίας διάταξης.
+                </p>
+                <p className="mt-3 leading-relaxed text-muted-foreground">
+                    Αφότου γίνει μια συνεδρίαση, απομαγνητοφωνείται αυτόματα μέσα σε λίγες ώρες. Από εκείνη τη
+                    στιγμή η απομαγνητοφώνηση είναι διαθέσιμη, με μια προειδοποίηση ότι μπορεί να έχει ακόμη λάθη.
+                    Έπειτα, η ομάδα μας την ελέγχει ολόκληρη προσεκτικά, μέσα σε 48 ώρες από τη συνεδρίαση. Τέλος,
+                    τα θέματα, οι συνόψεις, οι τοποθεσίες και οι τοποθετήσεις των συμβούλων εξάγονται αυτόματα. Τότε
+                    η συνεδρίαση είναι έτοιμη, με μία εξαίρεση: τις αποφάσεις της Δι@ύγειας, που αναζητούνται και
+                    προστίθενται αυτόματα τις επόμενες ημέρες και εβδομάδες, καθώς τις αναρτά ο κάθε δήμος.
+                </p>
+                <p className="mt-3 leading-relaxed text-muted-foreground">
+                    Μέσα στο OpenCouncil, το στάδιο στο οποίο βρίσκεται μια συνεδρίαση φαίνεται με τα εξής σύμβολα:
+                </p>
+                <MeetingStagesFlow />
             </div>
             {OPENNESS_FEATURES.map((feature, index) => (
                 <div key={feature.id} id={`oc-${feature.id}`} className="scroll-mt-24">
