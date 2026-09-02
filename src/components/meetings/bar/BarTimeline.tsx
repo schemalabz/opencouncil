@@ -484,6 +484,10 @@ function ChapterRail({ chapters, duration, currentTime, barWidth }: {
                 // ~7px per glyph at this size and tracking; the label renders
                 // only when the chapter's pixels can carry it whole.
                 const labelFits = fraction * barWidth >= label.length * 7 + 10;
+                // The first chapter starts at the first utterance, a second or two in
+                // on most recordings: its stop line only has room once the pre-roll
+                // is wider than the line itself.
+                const marked = (chapter.start / duration) * barWidth >= 4;
                 return (
                     <div
                         key={chapter.key}
@@ -493,14 +497,15 @@ function ChapterRail({ chapters, duration, currentTime, barWidth }: {
                             width: `${fraction * 100}%`,
                         }}
                     >
-                        {/* a stop line at the border, not a lane per chapter */}
-                        {i > 0 && (
+                        {/* a stop line at the border, not a lane per chapter — the first
+                            chapter has one too when the recording rolls before anyone speaks */}
+                        {marked && (
                             <div className="absolute bottom-[3px] left-0 h-[15px] w-[2px] -translate-x-1/2 rounded-full bg-muted-foreground/70" />
                         )}
                         {labelFits && (
                             <div className={cn(
                                 'absolute top-1/2 flex -translate-y-1/2 items-center gap-1 whitespace-nowrap text-[8px] font-bold tracking-[0.07em]',
-                                i === 0 ? 'left-[8px]' : 'left-[10px]',
+                                marked ? 'left-[10px]' : 'left-[8px]',
                                 active ? 'text-muted-foreground' : 'text-muted-foreground/60',
                             )}>
                                 {label}
