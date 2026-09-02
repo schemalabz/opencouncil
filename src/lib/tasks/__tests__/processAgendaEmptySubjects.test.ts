@@ -1,5 +1,8 @@
 /** @jest-environment node */
 
+import { handleProcessAgendaResult } from '../processAgenda';
+import { ProcessAgendaResult } from '../../apiTypes';
+
 /**
  * Tests for handleProcessAgendaResult subject-handling on empty / malformed
  * success payloads (issue #102).
@@ -53,12 +56,20 @@ jest.mock('../../auth', () => ({
   withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
 }));
 
+const mockGenerateImagesForMeeting = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../subjectImages', () => ({
+  generateImagesForMeeting: (...args: unknown[]) => mockGenerateImagesForMeeting(...args),
+}));
+
+const mockAfter = jest.fn();
+jest.mock('next/server', () => ({
+  ...jest.requireActual('next/server'),
+  after: (fn: () => unknown) => mockAfter(fn),
+}));
+
 jest.mock('../processAgendaInternal', () => ({
   requestProcessAgendaInternal: jest.fn(),
 }));
-
-import { handleProcessAgendaResult } from '../processAgenda';
-import { ProcessAgendaResult } from '../../apiTypes';
 
 describe('handleProcessAgendaResult — empty / malformed subjects (issue #102)', () => {
   beforeEach(() => {
@@ -78,6 +89,18 @@ describe('handleProcessAgendaResult — empty / malformed subjects (issue #102)'
     expect(mockSaveSubjectsForMeeting).toHaveBeenCalledWith([], CITY_ID, MEETING_ID, undefined, {
       pruneUnmatched: true,
     });
+  });
+
+  it('schedules the subject illustrations with after(), once the subjects are saved', async () => {
+    await handleProcessAgendaResult(TASK_ID, { subjects: [] } as ProcessAgendaResult);
+
+    // Scheduled, not started: the work must outlive the response, not escape it.
+    expect(mockGenerateImagesForMeeting).not.toHaveBeenCalled();
+    expect(mockAfter).toHaveBeenCalledTimes(1);
+    expect(mockAfter.mock.invocationCallOrder[0]).toBeGreaterThan(mockSaveSubjectsForMeeting.mock.invocationCallOrder[0]);
+
+    await mockAfter.mock.calls[0][0]();
+    expect(mockGenerateImagesForMeeting).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
   });
 
   it('does not throw and does not delete existing subjects when result omits the subjects array', async () => {

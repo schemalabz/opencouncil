@@ -1,5 +1,7 @@
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-export const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif'] as const;
+import { EMAIL_IMAGE_TYPES, MAX_IMAGE_BYTES } from '@/lib/utils/imageUpload';
+
+export { MAX_IMAGE_BYTES };
+export const ACCEPTED_IMAGE_TYPES = EMAIL_IMAGE_TYPES;
 export const EMAIL_CONTENT_WIDTH = 600;
 
 /**

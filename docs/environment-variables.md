@@ -102,6 +102,8 @@ Copy the output and set it as your `NEXTAUTH_SECRET` in your `.env` file.
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `ANTHROPIC_API_KEY` | API key for Claude. | Yes | - |
+| `GEMINI_API_KEY` | Gemini key for the subject illustrations. When unset, no image is generated and subjects show the topic-coloured fallback. | No | - |
+| `SUBJECT_IMAGES_PREFIX` | Folder inside `DO_SPACES_BUCKET` that holds the subject illustrations. The folder names the style. | No | `subject-images/8bit` |
 
 ### Search Configuration
 | Variable | Description | Required | Default |

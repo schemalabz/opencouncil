@@ -7,7 +7,8 @@ import { env } from '@/env.mjs';
  * Mirrors the singleton + connection handling used by the Next.js cache handler
  * (cache-handler.mjs) and the cache-stats route. When CACHE_URL is unset (dev /
  * single-instance), every helper degrades gracefully: reads return null and
- * writes no-op, so callers don't need their own guards.
+ * writes no-op, so callers don't need their own guards. cacheAcquire is the
+ * one exception, and says so.
  */
 
 // Module-level singleton — reused across requests, avoids connect/disconnect overhead.
@@ -98,6 +99,35 @@ export async function cacheHas(key: string): Promise<boolean> {
     } catch (error) {
         console.error(`[valkey] exists failed for ${key}:`, error instanceof Error ? error.message : error);
         return false;
+    }
+}
+
+/**
+ * Set a marker only when it is absent (SET NX EX): a claim on a piece of work
+ * that other containers must not repeat. cacheDelete releases it, or the TTL
+ * does if the holder dies first. Returns true when the claim landed. Without
+ * CACHE_URL, or on failure, it also returns true: nothing holds a marker then,
+ * so a caller that needs a guard in that case must keep its own process-local one.
+ */
+export async function cacheAcquire(key: string, ttlSeconds: number): Promise<boolean> {
+    try {
+        const redis = await getClient();
+        if (!redis) return true;
+        return (await redis.set(key, '1', { NX: true, EX: ttlSeconds })) === 'OK';
+    } catch (error) {
+        console.error(`[valkey] acquire failed for ${key}:`, error instanceof Error ? error.message : error);
+        return true;
+    }
+}
+
+/** Remove a key. No-ops when CACHE_URL is unset or on failure. */
+export async function cacheDelete(key: string): Promise<void> {
+    try {
+        const redis = await getClient();
+        if (!redis) return;
+        await redis.del(key);
+    } catch (error) {
+        console.error(`[valkey] del failed for ${key}:`, error instanceof Error ? error.message : error);
     }
 }
 
