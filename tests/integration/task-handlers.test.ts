@@ -11,6 +11,11 @@ jest.mock('@/lib/auth', () => ({
     isUserAuthorizedToEdit: jest.fn().mockResolvedValue(true),
 }))
 
+// The handlers schedule the meeting's illustrations with after(), which needs
+// the request scope these direct calls do not have. The scheduling itself is
+// asserted by the unit tests; here it only has to stay out of the way.
+jest.mock('next/server', () => ({ ...jest.requireActual('next/server'), after: () => {} }))
+
 import prisma from '@/lib/db/prisma'
 import { handleProcessAgendaResult } from '@/lib/tasks/processAgenda'
 import { handleSummarizeResult } from '@/lib/tasks/summarize'
