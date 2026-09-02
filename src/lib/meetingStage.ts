@@ -44,6 +44,48 @@ export function publicMeetingStage(signals: MeetingStageSignals, now: Date = new
     return signals.hasMedia ? 'transcribing' : 'waiting';
 }
 
+/** Why a piece of the page is empty: the meeting is ahead, its transcript is on its way, or it is under review. */
+export type PendingKind = 'before' | 'processing' | 'review';
+
+/** Null once the meeting is complete or archived: then an empty piece is simply empty. */
+export function pendingKind(stage: PublicMeetingStage): PendingKind | null {
+    switch (stage) {
+        case 'upcoming':
+        case 'live':
+            return 'before';
+        case 'waiting':
+        case 'transcribing':
+            return 'processing';
+        case 'review':
+            return 'review';
+        default:
+            return null;
+    }
+}
+
+/**
+ * How long until the clock alone changes what a page shows for this stage:
+ * the next boundary, or a minute while a relative time is on screen. Null
+ * once nothing can change without new data — a complete meeting never ticks.
+ */
+export function msUntilStageChange(stage: PublicMeetingStage, dateTime: Date | string, now: Date): number | null {
+    const elapsed = now.getTime() - new Date(dateTime).getTime();
+    const until = (boundary: number) => Math.max(1_000, boundary - elapsed);
+    switch (stage) {
+        case 'upcoming':
+            return Math.min(60_000, until(0));
+        case 'live':
+            return until(LIVE_WINDOW_MS);
+        case 'waiting':
+        case 'transcribing':
+            return until(PROMISE_WINDOW_MS);
+        case 'review':
+            return elapsed < REVIEW_PROMISE_MS ? until(REVIEW_PROMISE_MS) : until(PROMISE_WINDOW_MS);
+        default:
+            return null;
+    }
+}
+
 /** The deadline the review stage promises. Null once it has passed: the copy says "soon" instead of an expired date. */
 export function reviewDeadline(dateTime: Date | string, now: Date = new Date()): Date | null {
     const deadline = new Date(new Date(dateTime).getTime() + REVIEW_PROMISE_MS);

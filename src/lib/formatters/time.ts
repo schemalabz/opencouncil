@@ -188,9 +188,25 @@ export function formatWeekday(date: Date, timezone?: string, locale: string = 'e
     }).format(date);
 }
 
-/** A day and a time the way the meeting page promises them: "Τετάρτη 11 Φεβρουαρίου 2026 στις 15:00". */
+/**
+ * The accusative article a Greek weekday takes — «την Τετάρτη», «τη Δευτέρα»,
+ * «το Σάββατο» — so copy never hard-codes one and gets Saturday wrong.
+ * The final ν stays before a vowel or κ, π, τ, ξ, ψ.
+ */
+function greekWeekdayArticle(weekday: string): string {
+    if (weekday === 'Σάββατο') return 'το';
+    return /^[ΑΕΗΙΟΥΩΚΠΤΞΨ]/.test(weekday) ? 'την' : 'τη';
+}
+
+/**
+ * A day and a time the way the meeting page promises them, with the article
+ * the sentence needs: "την Τετάρτη 11 Φεβρουαρίου 2026 στις 15:00",
+ * "Wednesday 11 February 2026 at 15:00".
+ */
 export function formatWeekdayDateTime(date: Date, timezone?: string, locale: string = 'el'): string {
-    return `${formatWeekday(date, timezone, locale)} ${formatDateTime(date, timezone, 'long', locale)}`;
+    const weekday = formatWeekday(date, timezone, locale);
+    const article = locale === 'el' ? `${greekWeekdayArticle(weekday)} ` : '';
+    return `${article}${weekday} ${formatDateTime(date, timezone, 'long', locale)}`;
 }
 
 /**

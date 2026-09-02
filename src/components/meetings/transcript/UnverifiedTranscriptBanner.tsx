@@ -4,8 +4,8 @@ import { Bot, X, ChevronDown } from "lucide-react";
 import { cn } from '@/lib/utils';
 import { useLocale, useTranslations } from "next-intl";
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
-import { formatDateTime, formatWeekday } from '@/lib/formatters/time';
-import { reviewDeadline } from '@/lib/meetingStage';
+import { formatWeekdayDateTime } from '@/lib/formatters/time';
+import { useMeetingStage } from '@/components/meetings/stage/useMeetingStage';
 
 // Banner height constants
 export const BANNER_HEIGHT_FULL = '5.5rem';
@@ -21,12 +21,12 @@ export function UnverifiedTranscriptBanner({ isScrolled, onBannerHeightChange }:
     const [isBannerDismissed, setIsBannerDismissed] = useState(false);
     const tTranscript = useTranslations('transcript');
     const locale = useLocale();
-    const { meeting, city } = useCouncilMeetingData();
+    const { city } = useCouncilMeetingData();
     // The promise the meeting page's strip makes: 48 hours from the meeting, then "soon".
-    const deadline = reviewDeadline(new Date(meeting.dateTime));
+    const { deadline } = useMeetingStage();
     const description = deadline
         ? tTranscript('unverifiedBanner.descriptionUntil', {
-            deadline: `${formatWeekday(deadline, city.timezone, locale)} ${formatDateTime(deadline, city.timezone, 'long', locale)}`,
+            deadline: formatWeekdayDateTime(deadline, city.timezone, locale),
         })
         : tTranscript('unverifiedBanner.description');
 

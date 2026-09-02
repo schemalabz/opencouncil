@@ -2,7 +2,7 @@
 import { Clock } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
-import { formatDateTime, formatWeekday } from '@/lib/formatters/time';
+import { formatWeekdayDateTime } from '@/lib/formatters/time';
 import { cn } from '@/lib/utils';
 
 /**
@@ -29,7 +29,7 @@ export function PendingBox({ deadline, className, children }: {
             </p>
             {deadline && (
                 <p className="mt-0.5 pl-6 text-xs">
-                    {t('pendingSections.by', { deadline: `${formatWeekday(deadline, city.timezone, locale)} ${formatDateTime(deadline, city.timezone, 'long', locale)}` })}
+                    {t('pendingSections.by', { deadline: formatWeekdayDateTime(deadline, city.timezone, locale) })}
                 </p>
             )}
         </div>

@@ -8,13 +8,12 @@ import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";
 import { CalendarIcon, ExternalLink, FileIcon, FileText } from "lucide-react";
 import { formatDate } from "@/lib/formatters/time";
-import type { PublicMeetingStage } from "@/lib/meetingStage";
+import { pendingKind, type PublicMeetingStage } from "@/lib/meetingStage";
 import { MeetingStageChip } from "@/components/meetings/stage/MeetingStageChip";
 import { MeetingStageStrip } from "@/components/meetings/stage/MeetingStageStrip";
 import { PendingSubjectsNote } from "@/components/meetings/stage/PendingSubjectsNote";
 import { stageChipDetail } from "@/components/meetings/stage/stageDetail";
 import { useMeetingStage } from "@/components/meetings/stage/useMeetingStage";
-import type { SubjectPending } from "@/components/subject/SubjectRow";
 import { sortSubjectsBySpeakerContributionCount, sortSubjectsByAgendaIndex } from "@/lib/utils";
 import { categorizeSubjects, getSubjectCategories } from "@/lib/utils/subjects";
 import { calculateGeometryBounds } from "@/lib/geo";
@@ -32,10 +31,7 @@ export default function MeetingPage() {
     const [agendaSortMode, setAgendaSortMode] = useState<'speakingTime' | 'agendaIndex'>('speakingTime');
     const { stage, deadline, now } = useMeetingStage();
     // What a row says in place of the stats it does not have yet.
-    const pending: SubjectPending | undefined =
-        stage === 'review' ? 'afterReview'
-            : stage === 'complete' || stage === 'archive' ? undefined
-                : 'notDiscussed';
+    const pending = pendingKind(stage);
 
     // The subjects as the shared map language's dense mode: plain topic-coloured
     // dots — what the landing draws when pins crowd. The band is decorative (a
