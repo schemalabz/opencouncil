@@ -128,6 +128,8 @@ src/
 - Re-export from `src/lib/db/types/index.ts`
 - Import from `@/lib/db/types` to prevent circular dependencies
 
+**Prefer the Prisma query API over raw SQL**: declare selects as constants with `satisfies Prisma.XSelect` and derive row types with `Prisma.XGetPayload<{ select: typeof xSelect }>` — never hand-write a type that mirrors a select.
+
 **CRITICAL - Before Creating New Types**:
 - **Always check if the type already exists** before defining a new one
 - When a function returns a type you need, follow the import chain to find its definition
