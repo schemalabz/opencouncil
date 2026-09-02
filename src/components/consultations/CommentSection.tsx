@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,6 +43,7 @@ export default function CommentSection({
     consultationIsActive = true
 }: CommentSectionProps) {
     const { data: session, status } = useSession();
+    const router = useRouter();
     const [isOpen, setIsOpen] = useState(initialOpen);
     const [comment, setComment] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -203,8 +205,7 @@ export default function CommentSection({
     };
 
     const handleLoginRedirect = () => {
-        // This would redirect to login page
-        window.location.href = '/sign-in';
+        router.push('/sign-in');
     };
 
     const commentCount = comments?.filter(c =>
