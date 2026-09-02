@@ -8,6 +8,7 @@ import { getLocalizedName, getMunicipalityQualifier } from '@/lib/formatters/nam
 import { localizeText } from '@/lib/serbian';
 import { authorityKey } from './authorityKey';
 import { NotisConversation } from './NotisConversation';
+import { TopicPill } from '@/components/TopicPill';
 import { RailDisclosure } from './RailDisclosure';
 
 /** Topic chips before the row stops being scannable; the rest become "+N". */
@@ -114,18 +115,7 @@ function SubscribedCard({
                         leave the page. */}
                     <div className="flex flex-wrap items-center gap-1.5">
                         {topics.map(topic => (
-                            <span
-                                key={topic.id}
-                                className="inline-flex items-center gap-1.5 rounded-full py-1 pl-2 pr-2.5 text-[11.5px]"
-                                style={{ backgroundColor: `color-mix(in srgb, ${topic.colorHex} 14%, white)` }}
-                            >
-                                <span
-                                    className="h-1.5 w-1.5 shrink-0 rounded-full"
-                                    style={{ backgroundColor: topic.colorHex }}
-                                    aria-hidden
-                                />
-                                {getLocalizedName(topic, locale)}
-                            </span>
+                            <TopicPill key={topic.id} label={getLocalizedName(topic, locale)} icon={topic.icon} colorHex={topic.colorHex} />
                         ))}
                         {preference.interests.length === 0 && (
                             <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-[11.5px] text-muted-foreground">
