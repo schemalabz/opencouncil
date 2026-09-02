@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Map as MapIcon, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight, Search, Bot } from 'lucide-react';
+import { Shapes, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight, Search, Bot } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link, getPathname } from '@/i18n/routing';
 import { openAfterMenuCloses } from '@/lib/utils/menus';
@@ -76,7 +76,7 @@ export function LandingAside({
                 <RailItem
                     active={!infoOpen && view === 'subjects'}
                     onClick={() => onSelect('subjects')}
-                    icon={<MapIcon className="h-5 w-5" />}
+                    icon={<Shapes className="h-5 w-5" />}
                     label={t('nav.subjects')}
                 />
                 <RailItem
