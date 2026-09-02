@@ -184,7 +184,7 @@ export async function getSubjectCountsByCityCached(realm: Realm): Promise<Record
                     councilMeeting: {
                         released: true,
                         dateTime: { lte: new Date() },
-                        city: { ...PUBLIC_CITY_WHERE, realm },
+                        city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
                     },
                 },
                 _count: { _all: true },
@@ -333,7 +333,8 @@ type MapSubjectPayload = Prisma.SubjectGetPayload<{ include: typeof mapSubjectIn
  * (locationId set) vs the general/city list (locationId null). Future-dated meetings are always
  * excluded; explicit from/to overrides the quick range; allTime drops only the lower bound.
  */
-export function buildMapSubjectWhere(realm: Realm, f: MapSubjectFilters): Prisma.SubjectWhereInput {
+/** `realm: null` spans every realm — for a caller that ranks the whole platform, like the image backfill. */
+export function buildMapSubjectWhere(realm: Realm | null, f: MapSubjectFilters): Prisma.SubjectWhereInput {
     const now = new Date();
     const dateTime: { gte?: Date; lte: Date } = { lte: now };
     if (f.dateFrom || f.dateTo) {
@@ -362,7 +363,7 @@ export function buildMapSubjectWhere(realm: Realm, f: MapSubjectFilters): Prisma
         councilMeeting: {
             released: true,
             dateTime,
-            city: { ...PUBLIC_CITY_WHERE, realm },
+            city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
             ...(f.bodyTypes?.length ? { administrativeBody: { type: { in: f.bodyTypes } } } : {}),
         },
     };
@@ -740,13 +741,53 @@ export async function getSubjectIdsForMeeting(cityId: string, councilMeetingId: 
     return rows.map((row) => row.id);
 }
 
-/** Newest first, optionally one city, optionally capped — the order the image backfill walks in. */
-export async function getSubjectIdsNewestFirst(options: { cityId?: string; limit?: number } = {}): Promise<string[]> {
+/** What the image backfill ranks a subject on — the same signals the landing feeds the ranker. */
+export type SubjectImageBackfillRow = {
+    id: string;
+    cityId: string;
+    meetingDate: Date;
+    adminBodyType: AdministrativeBodyType | null;
+    discussionSeconds: number;
+    hasLocation: boolean;
+};
+
+/**
+ * The subjects the landing could show, with their ranking signals, across
+ * every realm. Same where-clause as the landing (released meetings, public
+ * cities, discussed subjects); `monthsBack` narrows the window, otherwise
+ * it is all time. The caller ranks them with rankAndSortSubjects.
+ */
+/** Under PostgreSQL's 65535 bind parameters; the discussion-time query spends one per subject. */
+const MAX_BACKFILL_WINDOW = 60_000;
+
+/**
+ * The newest `take` subjects the landing can show, at most MAX_BACKFILL_WINDOW
+ * of them. Newest first because the ranker weighs recency most; bounded
+ * because the discussion-time query binds one parameter per id.
+ */
+export async function getSubjectsForImageBackfill(options: { cityId?: string; monthsBack?: number; take: number }): Promise<SubjectImageBackfillRow[]> {
     const rows = await prisma.subject.findMany({
-        where: options.cityId ? { cityId: options.cityId } : undefined,
-        select: { id: true },
-        orderBy: { createdAt: 'desc' },
-        take: options.limit,
+        where: buildMapSubjectWhere(null, {
+            cityIds: options.cityId ? [options.cityId] : undefined,
+            monthsBack: options.monthsBack,
+            allTime: options.monthsBack === undefined,
+        }),
+        select: {
+            id: true,
+            cityId: true,
+            locationId: true,
+            councilMeeting: { select: { dateTime: true, administrativeBody: { select: { type: true } } } },
+        },
+        orderBy: { councilMeeting: { dateTime: 'desc' } },
+        take: Math.min(options.take, MAX_BACKFILL_WINDOW),
     });
-    return rows.map((row) => row.id);
+    const discussionSeconds = await getDiscussionSecondsForSubjects(rows.map((row) => row.id));
+    return rows.map((row) => ({
+        id: row.id,
+        cityId: row.cityId,
+        meetingDate: row.councilMeeting.dateTime,
+        adminBodyType: row.councilMeeting.administrativeBody?.type ?? null,
+        discussionSeconds: discussionSeconds.get(row.id) ?? 0,
+        hasLocation: row.locationId !== null,
+    }));
 }
