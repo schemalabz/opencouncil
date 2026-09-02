@@ -188,6 +188,11 @@ export function formatWeekday(date: Date, timezone?: string, locale: string = 'e
     }).format(date);
 }
 
+/** A day and a time the way the meeting page promises them: "Τετάρτη 11 Φεβρουαρίου 2026 στις 15:00". */
+export function formatWeekdayDateTime(date: Date, timezone?: string, locale: string = 'el'): string {
+    return `${formatWeekday(date, timezone, locale)} ${formatDateTime(date, timezone, 'long', locale)}`;
+}
+
 /**
  * Formats a date to a standard string representation
  * @param date - The date to format
@@ -328,6 +333,31 @@ export function formatDateStamp(date: Date | string, timezone?: string, locale: 
     const day = part({ day: '2-digit' });
     const monthYear = part({ month: 'short', year: '2-digit' }).toLocaleUpperCase(intlLocale);
     return { day, monthYear };
+}
+
+/**
+ * The clock time of a moment, in the council's timezone: "15:00".
+ * Takes a string as well, like the stamps: a cached meeting's date arrives serialized.
+ */
+export function formatClockTime(date: Date | string, timezone?: string, locale: string = 'el'): string {
+    return new Intl.DateTimeFormat(getIntlLocale(locale), {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: timezone || DEFAULT_TIMEZONE,
+    }).format(new Date(date));
+}
+
+/** A deadline the way a chip has room for it: short weekday, day and month — "Παρ 13/2". */
+export function formatShortDeadline(date: Date, timezone?: string, locale: string = 'el'): string {
+    // en-GB rather than en-US so English output stays day-first numeric.
+    const intlLocale = locale === 'en' ? 'en-GB' : getIntlLocale(locale);
+    return new Intl.DateTimeFormat(intlLocale, {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'numeric',
+        timeZone: timezone || DEFAULT_TIMEZONE,
+    }).format(date);
 }
 
 /**
