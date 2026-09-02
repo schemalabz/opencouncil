@@ -6,6 +6,8 @@ import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
 import { countCouncilMeetingsForCity, getCouncilMeetingsForCity, getCouncilMeetingsWithSubjectPreview, type MeetingListOptions } from "@/lib/db/meetings";
 import { getMeetingSummary } from "@/lib/db/meetingSummary";
+import { countCityPetitions } from "@/lib/db/petitions";
+import { petitionBucket, type PetitionBucket } from "@/lib/landing/petitions";
 import { MEETING_PREVIEW_CACHE_VERSION } from "@/lib/db/types";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
@@ -185,6 +187,20 @@ export async function getMeetingSummaryCached(cityId: string, meetingId: string)
     ['city', cityId, 'meeting', meetingId, 'summary'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`], revalidate: 3600 }
   )();
+}
+
+/**
+ * The public "N+" bucket of a city's petitions, or null under the display
+ * threshold — the landing map's own coarseness, never an exact count. Hourly,
+ * like the map's list: petition counts move on their own, with no city
+ * mutation to invalidate on.
+ */
+export async function getCityPetitionBucketCached(cityId: string): Promise<PetitionBucket | null> {
+    return createCache(
+        async () => petitionBucket(await countCityPetitions(cityId)),
+        ['city', cityId, 'petitionBucket'],
+        { tags: ['city', `city:${cityId}`], revalidate: 3600 }
+    )();
 }
 
 /**

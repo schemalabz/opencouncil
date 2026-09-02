@@ -77,5 +77,23 @@
   "scopeCouncilFull": "Conseil municipal",
   "scopeCommitteeFull": "Commission municipale",
   "scopeCommunityFull": "Communes déléguées",
-  "scopeAllFull": "Tous les organes"
+  "scopeAllFull": "Tous les organes",
+  "petitionTeaser": {
+    "municipality": "Vous voulez OpenCouncil dans votre commune ?",
+    "region": "Vous voulez OpenCouncil dans votre région ?"
+  },
+  "petitionTitle": {
+    "municipality": "{qualifier} n'est pas encore sur OpenCouncil",
+    "region": "La région {qualifier} n'est pas encore sur OpenCouncil"
+  },
+  "petitionCount": "{count}+ habitants l'ont déjà demandé",
+  "petitionBody": {
+    "municipality": "Aidez-nous à amener OpenCouncil dans la commune. Quand nous parlerons à la commune, nous pourrons expliquer que de nombreux habitants l'ont déjà demandé.",
+    "region": "Aidez-nous à amener OpenCouncil dans la région. Quand nous parlerons à la région, nous pourrons expliquer que de nombreux habitants l'ont déjà demandé."
+  },
+  "petitionCta": "Ajouter mon nom",
+  "petitionNote": {
+    "municipality": "Nous utilisons votre nom uniquement lorsque nous parlons à la commune.",
+    "region": "Nous utilisons votre nom uniquement lorsque nous parlons à la région."
+  }
 }

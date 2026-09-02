@@ -6,20 +6,12 @@ import type { CityWithCounts } from '@/lib/db/cities';
 import type { CityNotificationPreference } from '@/lib/db/notifications';
 import { getLocalizedName, getMunicipalityQualifier } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
+import { authorityKey } from './authorityKey';
 import { NotisConversation } from './NotisConversation';
 import { RailDisclosure } from './RailDisclosure';
 
 /** Topic chips before the row stops being scannable; the rest become "+N". */
 const TOPICS_SHOWN = 2;
-
-/**
- * The variant of a message that names the authority. Greek and Serbian inflect
- * the noun with its article ("για τον δήμο", "για την περιφέρεια"), so each
- * message carries both forms and the city picks one.
- */
-function authorityKey(key: string, city: { authorityType: string }) {
-    return `${key}.${city.authorityType === 'region' ? 'region' : 'municipality'}`;
-}
 
 interface CityNotificationCardProps {
     city: CityWithCounts;
