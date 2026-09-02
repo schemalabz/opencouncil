@@ -486,6 +486,8 @@ export function getRoleNameForPerson(
 /**
  * The translation keys getRoleText needs. Satisfied by useTranslations('Person')
  * on the client and getTranslations({ namespace: 'Person' }) on the server.
+ *
+ * @translationNamespace Person
  */
 export type RoleTextTranslator = (key: 'mayor' | 'president' | 'partyLeader' | 'member') => string;
 

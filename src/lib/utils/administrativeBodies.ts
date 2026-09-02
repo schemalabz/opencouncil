@@ -18,6 +18,8 @@ export function toAdministrativeBodyType(value: string | undefined): Administrat
 /**
  * Extract which admin body types exist from a flat list of admin bodies.
  * Returns options ordered: council -> committee -> community.
+ *
+ * @translationNamespace Common
  */
 function getAdministrativeBodyTypes(
     bodies: (AdministrativeBody | null | undefined)[],
