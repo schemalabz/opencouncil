@@ -13,7 +13,7 @@ const unplaced = (sessionDate: string, id: string) => ({
 }) as CityDecisionDetail['unplaced'][number];
 
 const detail = (over: Partial<CityDecisionDetail>): CityDecisionDetail => ({
-    conflicts: [], unplaced: [], missingSessions: [], failedMeetings: [],
+    conflicts: [], unplaced: [], missingSessions: [], failedMeetings: [], bodyIdByMeeting: {},
     unmatched: { candidatesUnmatched: [], nothingFetched: [], duplicateSubject: [], notProcessed: [] },
     ...over,
 });

@@ -45,6 +45,15 @@ export interface CityDecisionDetail {
     missingSessions: MissingSessionGroup[];
     /** Meetings whose most recent poll failed — the city's `blocked` state, drillable. */
     failedMeetings: CityFailedMeeting[];
+    /**
+     * Body of every meeting of the city (null for meetings without one). The
+     * client narrows every list — conflicts, unplaced, failed meetings, the
+     * taxonomy — to one body through this single map. The LIST_CAP applies to
+     * the city-wide list before that narrowing, so under a body a capped list
+     * holds that body's share of the first LIST_CAP rows, not its first
+     * LIST_CAP rows.
+     */
+    bodyIdByMeeting: Record<string, string | null>;
     /** Subjects per taxonomy bucket, capped at LIST_CAP each. */
     unmatched: {
         candidatesUnmatched: CityUnmatchedSubject[];
@@ -67,6 +76,7 @@ export async function getCityDecisionDetail(cityId: string): Promise<CityDecisio
         unplaced: deriveUnplacedList(facts, meetingById),
         missingSessions: deriveMissingSessionGroups(facts),
         failedMeetings: deriveFailedMeetings(facts, meetingById),
+        bodyIdByMeeting: Object.fromEntries(facts.meetings.map(m => [m.id, m.administrativeBodyId])),
         unmatched: deriveUnmatchedLists(facts),
     };
 }

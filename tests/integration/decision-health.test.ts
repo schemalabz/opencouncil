@@ -12,6 +12,7 @@ jest.mock('@/lib/auth', () => ({
 
 import prisma from '@/lib/db/prisma'
 import { getDecisionHealth, cityState } from '@/lib/db/decisionHealth'
+import { getCityDecisionDetail } from '@/lib/db/decisionHealthDetail'
 import { applyCandidateConflictResolution, getConflictingCandidates } from '@/lib/db/decisionCandidates'
 import { resetDatabase } from '../helpers/test-db'
 import {
@@ -411,5 +412,22 @@ describe('per-body breakdown', () => {
         await createSubject(m.id, city.id, { name: 'S', agendaItemIndex: 1 })
         const [row] = await getDecisionHealth(city.id)
         expect(row.bodies.map(b => b.body?.id ?? null)).toEqual([body.id])
+    })
+
+    test('the detail maps every meeting of the city to its body', async () => {
+        const city = await seedCityWithBodies()
+        const detail = await getCityDecisionDetail(city.id)
+        expect(detail.bodyIdByMeeting).toEqual({ m1: 'b-council', m2: 'b-committee', m3: null })
+        const referenced = [
+            ...detail.conflicts.map(c => c.claimingSubject.councilMeetingId),
+            ...detail.unplaced.map(u => u.councilMeetingId),
+            ...detail.failedMeetings.map(m => m.id),
+            ...detail.unmatched.candidatesUnmatched.map(s => s.councilMeetingId),
+            ...detail.unmatched.nothingFetched.map(s => s.councilMeetingId),
+            ...detail.unmatched.duplicateSubject.map(s => s.councilMeetingId),
+            ...detail.unmatched.notProcessed.map(m => m.councilMeetingId),
+        ]
+        expect(referenced.length).toBeGreaterThan(0)
+        expect(referenced.every(id => id in detail.bodyIdByMeeting)).toBe(true)
     })
 })
