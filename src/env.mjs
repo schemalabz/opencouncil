@@ -60,6 +60,12 @@ export const env = createEnv({
     // Services
     ANTHROPIC_API_KEY: z.string().min(1),
     GOOGLE_API_KEY: z.string().min(1),
+    // Gemini key for the subject illustrations. Optional — when unset, no image
+    // is generated and every subject shows the topic-coloured fallback.
+    GEMINI_API_KEY: z.string().optional(),
+    // Folder inside DO_SPACES_BUCKET that holds the subject illustrations. The
+    // folder names the style, so a restyle can write a sibling folder.
+    SUBJECT_IMAGES_PREFIX: z.string().min(1).default('subject-images/8bit'),
     // YouTube Data API v3 key (used by the poll-livestreams cron to find meeting
     // livestreams). Optional — when unset, the cron no-ops.
     YOUTUBE_API_KEY: z.string().optional(),
@@ -152,6 +158,8 @@ export const env = createEnv({
     SESSION_COOKIE_DOMAIN: process.env.SESSION_COOKIE_DOMAIN ?? derivedCookieDomain(),
     SESSION_COOKIE_SUFFIX: process.env.SESSION_COOKIE_SUFFIX ?? derivedCookieSuffix(),
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    SUBJECT_IMAGES_PREFIX: process.env.SUBJECT_IMAGES_PREFIX,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
     DO_SPACES_ENDPOINT: process.env.DO_SPACES_ENDPOINT,

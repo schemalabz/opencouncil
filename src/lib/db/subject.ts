@@ -718,3 +718,38 @@ export async function getUtterancesForSubject(subjectId: string) {
 
     return utterances;
 }
+
+/** What the illustration prompt is built from. `null` when the subject does not exist. */
+export async function getSubjectPromptInput(subjectId: string) {
+    return prisma.subject.findUnique({
+        where: { id: subjectId },
+        select: { name: true, description: true },
+    });
+}
+
+/** The topic colour and icon the image placeholder is drawn from. `null` when the subject does not exist. */
+export async function getSubjectTopicForImage(subjectId: string) {
+    return prisma.subject.findUnique({
+        where: { id: subjectId },
+        select: { topic: { select: { colorHex: true, icon: true } } },
+    });
+}
+
+export async function getSubjectIdsForMeeting(cityId: string, councilMeetingId: string): Promise<string[]> {
+    const rows = await prisma.subject.findMany({
+        where: { cityId, councilMeetingId },
+        select: { id: true },
+    });
+    return rows.map((row) => row.id);
+}
+
+/** Newest first, optionally one city, optionally capped — the order the image backfill walks in. */
+export async function getSubjectIdsNewestFirst(options: { cityId?: string; limit?: number } = {}): Promise<string[]> {
+    const rows = await prisma.subject.findMany({
+        where: options.cityId ? { cityId: options.cityId } : undefined,
+        select: { id: true },
+        orderBy: { createdAt: 'desc' },
+        take: options.limit,
+    });
+    return rows.map((row) => row.id);
+}

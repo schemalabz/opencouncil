@@ -65,6 +65,11 @@ jest.mock('../../db/utils', () => ({
 }));
 
 const mockStartTask = jest.fn().mockResolvedValue({ id: TASK_ID });
+const mockGenerateImagesForMeeting = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../subjectImages', () => ({
+  generateImagesForMeeting: (...args: unknown[]) => mockGenerateImagesForMeeting(...args),
+}));
+
 jest.mock('../tasks', () => ({
   startTask: (...args: unknown[]) => mockStartTask(...args),
 }));
@@ -122,6 +127,15 @@ describe('requestSummarize — force controls idempotency only', () => {
 describe('handleSummarizeResult — always cleans up stale data on success', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('asks for the subject illustrations after the subjects are saved', async () => {
+    await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
+
+    expect(mockGenerateImagesForMeeting).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+    const saveOrder = mockSaveSubjectsForMeeting.mock.invocationCallOrder[0];
+    const imagesOrder = mockGenerateImagesForMeeting.mock.invocationCallOrder[0];
+    expect(imagesOrder).toBeGreaterThan(saveOrder);
   });
 
   it('deletes topic labels scoped to the meeting', async () => {
