@@ -77,5 +77,23 @@
   "scopeCouncilFull": "City council",
   "scopeCommitteeFull": "City committee",
   "scopeCommunityFull": "Communities",
-  "scopeAllFull": "All bodies"
+  "scopeAllFull": "All bodies",
+  "petitionTeaser": {
+    "municipality": "Want OpenCouncil in your municipality?",
+    "region": "Want OpenCouncil in your region?"
+  },
+  "petitionTitle": {
+    "municipality": "{qualifier} is not on OpenCouncil yet",
+    "region": "The {qualifier} region is not on OpenCouncil yet"
+  },
+  "petitionCount": "{count}+ residents have already asked",
+  "petitionBody": {
+    "municipality": "Help us bring OpenCouncil to the municipality. When we talk to the municipality, we will be able to say that plenty of residents have already asked for it.",
+    "region": "Help us bring OpenCouncil to the region. When we talk to the region, we will be able to say that plenty of residents have already asked for it."
+  },
+  "petitionCta": "Add your name",
+  "petitionNote": {
+    "municipality": "We use your name only when we talk to the municipality.",
+    "region": "We use your name only when we talk to the region."
+  }
 }

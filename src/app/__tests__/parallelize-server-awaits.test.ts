@@ -31,6 +31,7 @@ jest.mock('next-intl/server', () => ({
 }));
 
 jest.mock('@/lib/cache', () => ({
+    getCityPetitionBucketCached: jest.fn(),
     getPartiesForCityCached: jest.fn(),
     getPeopleForCityCached: jest.fn(),
     getAdministrativeBodiesForCityCached: jest.fn(),
@@ -241,6 +242,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         const councilUpcomingD = deferred<unknown[]>();
         const councilPastD = deferred<unknown[]>();
         const subjectCountD = deferred<number>();
+        const petitionD = deferred<null>();
 
         cache.getCityCached.mockReturnValue(cityD.promise);
         cache.getCityMessageCached.mockReturnValue(messageD.promise);
@@ -252,6 +254,7 @@ describe('PR1: server-side awaits run concurrently', () => {
             .mockReturnValueOnce(councilUpcomingD.promise)
             .mockReturnValueOnce(councilPastD.promise);
         cache.getSubjectCountForCityCached.mockReturnValue(subjectCountD.promise);
+        cache.getCityPetitionBucketCached.mockReturnValue(petitionD.promise);
 
         const { default: TabsLayout } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/layout');
 
@@ -272,10 +275,15 @@ describe('PR1: server-side awaits run concurrently', () => {
             timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'],
         });
         expect(cache.getSubjectCountForCityCached).toHaveBeenCalledTimes(1);
+        // The petition bucket needs the city's status (a supported city has no
+        // petition card), so like the notification preference it waits.
+        expect(cache.getCityPetitionBucketCached).not.toHaveBeenCalled();
         // The notification preference needs the user, so it must NOT be in the batch.
         expect(notifications.getNotificationPreferenceForCity).not.toHaveBeenCalled();
 
-        cityD.resolve({ id: 'athens', timezone: 'Europe/Athens', _count: { councilMeetings: 1, persons: 1, parties: 1 } });
+        cityD.resolve({ id: 'athens', status: 'listed', timezone: 'Europe/Athens', _count: { councilMeetings: 1, persons: 1, parties: 1 } });
+        await flushMicrotasks();
+        expect(cache.getCityPetitionBucketCached).toHaveBeenCalledTimes(1);
         messageD.resolve(null);
         userD.resolve(null);
         canEditD.resolve(false);
@@ -284,6 +292,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         councilUpcomingD.resolve([]);
         councilPastD.resolve([]);
         subjectCountD.resolve(0);
+        petitionD.resolve(null);
 
         await pending;
     });

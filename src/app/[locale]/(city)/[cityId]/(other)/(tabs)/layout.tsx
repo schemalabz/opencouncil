@@ -4,7 +4,8 @@ import { Loader2 } from "lucide-react";
 import { CityIdentityBand } from "@/components/cities/CityIdentityBand";
 import { CityRail } from "@/components/cities/CityRail";
 import { CityNavigation } from "@/components/cities/CityNavigation";
-import { getCityCached, getCityMessageCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
+import { getCityCached, getCityMessageCached, getCityPetitionBucketCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
+import { isPetitionable } from "@/lib/cityStatus";
 import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
 
@@ -32,8 +33,11 @@ export default async function TabsLayout(
     // Both scopes are fetched up front so the band's scope switch is instant. All
     // four are cached and narrow (limit 1), and the council-only pair is what the
     // page shows for cities whose committees meet far more often than the council.
-    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount] = await Promise.all([
-        getCityCached(cityId),
+    // The petition bucket chains on the city: the rail's petition card reads it
+    // on a city we do not cover yet, and a supported city has no card to read it.
+    const cityPromise = getCityCached(cityId);
+    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount, petitionBucket] = await Promise.all([
+        cityPromise,
         getCityMessageCached(cityId),
         getCurrentUser(),
         isUserAuthorizedToEdit({ cityId }),
@@ -42,6 +46,7 @@ export default async function TabsLayout(
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: ['council'] }),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'] }),
         getSubjectCountForCityCached(cityId),
+        cityPromise.then(found => found && isPetitionable(found.status) ? getCityPetitionBucketCached(cityId) : null),
     ]);
 
     if (!city) {
@@ -91,6 +96,7 @@ export default async function TabsLayout(
                         isSuperAdmin={isSuperAdmin}
                         hasNoData={hasNoData}
                         notificationPreference={notificationPreference}
+                        petitionBucket={petitionBucket}
                         allMeetings={{ next: upcoming[0] ?? null, latest: past[0] ?? null }}
                         councilMeetings={{ next: councilUpcoming[0] ?? null, latest: councilPast[0] ?? null }}
                         locale={locale}
