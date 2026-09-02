@@ -1,13 +1,14 @@
 import { ChevronRight } from 'lucide-react';
 import { TrackedLink } from '@/components/analytics/TrackedLink';
-import { isFuture } from 'date-fns';
 import { useLocale, useTranslations } from 'next-intl';
-import { Link } from '@/i18n/routing';
 import { AdminBodyLabel } from '@/components/cities/overview/AdminBodyLabel';
+import { MeetingStageChip } from '@/components/meetings/stage/MeetingStageChip';
+import { stageChipDetail } from '@/components/meetings/stage/stageDetail';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { SUBJECT_PREVIEW_COUNT } from '@/lib/utils/subjects';
 import { getLocalizedName } from '@/lib/formatters/name';
-import { formatDateStamp, formatDateTime, sameCalendarDay } from '@/lib/formatters/time';
+import { formatDateStamp, formatDateTime } from '@/lib/formatters/time';
+import { publicMeetingStage, stageSignalsFromPreview } from '@/lib/meetingStage';
 import { TopicIcon } from '@/components/TopicIcon';
 import { localizeText } from '@/lib/serbian';
 import { sortSubjectsByImportance } from '@/lib/utils';
@@ -32,8 +33,10 @@ interface MeetingCardV2Props {
  * distinguishes one card from the next. The administrative body sits beside it,
  * since council and committee decide different things.
  *
- * Below, the three most-discussed items — what the meeting was actually about,
- * which the title never says.
+ * Under the title, the facts line: when, and — until the meeting is complete —
+ * the stage it is in (lib/meetingStage.ts). Below, the three most-discussed
+ * items — what the meeting was actually about, which the title never says —
+ * and how many there are in all.
  *
  * Deliberately hook-light so it renders in both a Server Component (the city
  * overview) and inside List, which is a client component.
@@ -41,19 +44,15 @@ interface MeetingCardV2Props {
 export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCardV2Props) {
     const t = useTranslations('MeetingCard');
     const tMeeting = useTranslations('CouncilMeeting');
+    const tStage = useTranslations('meetingStage');
     const locale = useLocale();
 
     const date = meeting.dateTime instanceof Date ? meeting.dateTime : new Date(meeting.dateTime);
     const { day, monthYear } = formatDateStamp(date, cityTimezone, locale);
-    const upcoming = isFuture(date);
-    // "Today" has to mean today in the council's timezone, not the reader's or
-    // the server's: comparing calendar days in the runtime zone made a UTC server
-    // and an Athens browser disagree for the first hours of every local day, so
-    // the badge contradicted the date stamp beside it and vanished on hydration.
-    const today = !upcoming && sameCalendarDay(date, new Date(), cityTimezone);
+    const stage = publicMeetingStage(stageSignalsFromPreview(meeting));
+    const upcoming = stage === 'upcoming';
     const subjects = sortSubjectsByImportance(meeting.subjects, 'importance');
     const subjectCount = meeting.subjects.length;
-    const remaining = subjectCount - SUBJECT_PREVIEW_COUNT;
 
     return (
         <TrackedLink
@@ -65,6 +64,7 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
                 city_id: meeting.cityId,
                 meeting_id: meeting.id,
                 upcoming,
+                stage,
                 subject_count: subjectCount,
             }}
             className={cn(
@@ -88,11 +88,6 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
                 </span>
 
                 <span className="flex min-w-0 items-center gap-2">
-                    {(upcoming || today) && (
-                        <span className="shrink-0 rounded-full bg-[hsl(var(--orange))] px-2 py-0.5 text-[11px] font-semibold text-white">
-                            {upcoming ? t('upcoming') : t('today')}
-                        </span>
-                    )}
                     {!meeting.released && (
                         <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
                             {t('notPublic')}
@@ -110,10 +105,15 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
                 <h3 className="!text-left text-lg leading-snug transition-colors group-hover:text-[hsl(var(--orange))]">
                     {getLocalizedName(meeting, locale)}
                 </h3>
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                    {formatDateTime(date, cityTimezone, 'medium', locale)}
-                    {subjectCount > 0 && (
-                        <> · {tMeeting('subjectsCount', { count: subjectCount })}</>
+                {/* Gaps, not dots, between the facts — the ring is its own separator, as an icon would be. */}
+                <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+                    <span>{formatDateTime(date, cityTimezone, 'medium', locale)}</span>
+                    {stage !== 'complete' && (
+                        <MeetingStageChip
+                            stage={stage}
+                            size="sm"
+                            detail={stageChipDetail(tStage, stage, date, cityTimezone, locale)}
+                        />
                     )}
                 </p>
 
@@ -133,12 +133,10 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
                                 </li>
                             ))}
                         </ul>
-                        {remaining > 0 && (
-                            <span className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
-                                {t('moreSubjects', { count: remaining })}
-                                <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                            </span>
-                        )}
+                        <span className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+                            {tMeeting('subjectsCount', { count: subjectCount })}
+                            <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        </span>
                     </>
                 ) : (
                     <span className="mt-3 flex items-center gap-3 border-t border-border pt-3 text-xs text-muted-foreground">

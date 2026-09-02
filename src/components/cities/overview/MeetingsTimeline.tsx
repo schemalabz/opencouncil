@@ -1,5 +1,4 @@
 import { ChevronRight } from 'lucide-react';
-import { isFuture } from 'date-fns';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { TrackedLink } from '@/components/analytics/TrackedLink';
@@ -7,7 +6,10 @@ import { AdminBodyLabel } from '@/components/cities/overview/AdminBodyLabel';
 import { TopicIcon } from '@/components/TopicIcon';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { getLocalizedName } from '@/lib/formatters/name';
-import { formatDayMonthStamp, formatRelativeTime } from '@/lib/formatters/time';
+import { formatDayMonthStamp } from '@/lib/formatters/time';
+import { publicMeetingStage, stageSignalsFromPreview, type PublicMeetingStage } from '@/lib/meetingStage';
+import { MeetingStageChip } from '@/components/meetings/stage/MeetingStageChip';
+import { stageChipDetail } from '@/components/meetings/stage/stageDetail';
 import { localizeText } from '@/lib/serbian';
 import { cn, sortSubjectsByImportance } from '@/lib/utils';
 import { AgendaStateChip } from '@/components/subject/AgendaStateChip';
@@ -33,6 +35,8 @@ interface Entry {
     meeting: CouncilMeetingWithSubjectPreview;
     side: TimelineSide;
     upcoming: boolean;
+    /** The public stage (lib/meetingStage.ts), read once here for both layouts. */
+    stage: PublicMeetingStage;
     height: number;
     /** The card's subject rows, importance-sorted once here — both layout
      * variants render every entry, so the sort must not live in the card. */
@@ -62,14 +66,17 @@ export function MeetingsTimeline({ upcoming, recent, timezone, locale }: Meeting
     // meeting crossing its start time during the skew can sit in both — drop
     // the second copy or React sees duplicate keys and the spine a double card.
     const seen = new Set<string>();
+    const now = new Date();
     const entries: Entry[] = [...upcoming].reverse().concat(recent).flatMap(meeting => {
         const side = timelineSide(meeting.administrativeBody?.type);
         if (side === null || seen.has(meeting.id)) return [];
         seen.add(meeting.id);
+        const stage = publicMeetingStage(stageSignalsFromPreview(meeting), now);
         return [{
             meeting,
             side,
-            upcoming: isFuture(new Date(meeting.dateTime)),
+            upcoming: stage === 'upcoming',
+            stage,
             height: timelineCardHeight(meeting.subjects.length),
             preview: sortSubjectsByImportance(meeting.subjects, 'importance').slice(0, TL.PREVIEW_ROWS),
         }];
@@ -160,7 +167,7 @@ function TwoSided({ entries, timezone, locale }: { entries: Entry[]; timezone: s
                                 )}
                                 style={{ top, height: cardHeight }}
                             >
-                                <MeetingBlock entry={entry} locale={locale} />
+                                <MeetingBlock entry={entry} timezone={timezone} locale={locale} />
                             </div>
                         </div>
                     );
@@ -217,7 +224,7 @@ function Rail({ entries, timezone, locale }: { entries: Entry[]; timezone: strin
                         )}
                     </div>
                     <div className={cn('min-w-0 flex-1', i < entries.length - 1 && 'pb-4')}>
-                        <MeetingBlock entry={entry} locale={locale} />
+                        <MeetingBlock entry={entry} timezone={timezone} locale={locale} />
                     </div>
                 </li>
             ))}
@@ -270,10 +277,11 @@ function DatePill({
  * One meeting's card. Every piece has a fixed height — see the module comment;
  * timelineCardHeight() must agree with what renders here.
  */
-function MeetingBlock({ entry, locale }: { entry: Entry; locale: string }) {
+function MeetingBlock({ entry, timezone, locale }: { entry: Entry; timezone: string; locale: string }) {
     const t = useTranslations('cityOverview');
     const tCard = useTranslations('MeetingCard');
     const tMeeting = useTranslations('CouncilMeeting');
+    const tStage = useTranslations('meetingStage');
     const { meeting } = entry;
     const shown = entry.preview;
     const remaining = meeting.subjects.length - shown.length;
@@ -298,16 +306,12 @@ function MeetingBlock({ entry, locale }: { entry: Entry; locale: string }) {
         >
             <div className="mb-1.5 flex h-6 items-center justify-between gap-2">
                 <AdminBodyLabel body={meeting.administrativeBody} locale={locale} className="min-w-0 text-xs" />
-                {entry.upcoming ? (
-                    <span className="shrink-0 text-[11px] font-semibold text-[hsl(var(--orange-deep))]">
-                        {formatRelativeTime(new Date(meeting.dateTime), locale)}
-                    </span>
-                ) : (
-                    meeting.subjects.length > 0 && (
-                        <span className="shrink-0 text-[11px] text-muted-foreground">
-                            {tMeeting('subjectsCount', { count: meeting.subjects.length })}
-                        </span>
-                    )
+                {entry.stage !== 'complete' && (
+                    <MeetingStageChip
+                        stage={entry.stage}
+                        size="sm"
+                        detail={stageChipDetail(tStage, entry.stage, meeting.dateTime, timezone, locale)}
+                    />
                 )}
             </div>
 
@@ -325,7 +329,7 @@ function MeetingBlock({ entry, locale }: { entry: Entry; locale: string }) {
 
             {remaining > 0 && (
                 <span className="flex items-center justify-between gap-2 border-t border-border pt-2 text-xs text-muted-foreground" style={{ height: TL.FOOTER_H }}>
-                    {tCard('moreSubjects', { count: remaining })}
+                    {tMeeting('subjectsCount', { count: meeting.subjects.length })}
                     <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 </span>
             )}
