@@ -15,14 +15,13 @@ import { formatDate } from "@/lib/formatters/time";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { cn } from "@/lib/utils";
+import type { PendingKind } from "@/lib/meetingStage";
 import { topicStyle } from "@/lib/topicStyle";
 import { Clock, Loader2, MapPin, MessageSquare, ScrollText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 
-/** What a row says in place of the stats it does not have yet — the meeting's stage decides. */
-export type SubjectPending = 'notDiscussed' | 'afterReview';
 
 interface SubjectRowProps {
     subject: SubjectWithRelations & { statistics?: Statistics };
@@ -31,7 +30,8 @@ interface SubjectRowProps {
     persons: PersonWithRelations[];
     /** Show the city / body / date line — off when the row already sits inside a meeting. */
     showContext?: boolean;
-    pending?: SubjectPending;
+    /** What a row says in place of the stats it does not have yet — the meeting's stage decides. */
+    pending?: PendingKind | null;
     openInNewTab?: boolean;
     /** The row was opened. Fires for a new tab too, where the Link navigates itself. */
     onOpen?: () => void;
@@ -91,8 +91,10 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
         formatDate(new Date(meeting.dateTime), undefined, locale),
     ].filter(Boolean).join(" · ");
 
-    const isPending = pending !== undefined && stats.minutes === 0 && stats.speakerCount === 0;
+    const isPending = pending != null && stats.minutes === 0 && stats.speakerCount === 0;
     const showsNote = Boolean(subject.withdrawn) || isPending;
+    // A transcript on its way promises what the review does: the summary comes after the check.
+    const rowNote = pending === 'processing' ? 'review' : pending;
 
     return (
         <Link
@@ -199,8 +201,8 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                             </span>
                         ) : isPending ? (
                             <span className="flex items-center gap-1.5 text-xs italic text-muted-foreground/80">
-                                {pending === 'afterReview' && <Clock className="h-3.5 w-3.5 shrink-0 text-yellow-600" aria-hidden />}
-                                {tStage(`rows.${pending}`)}
+                                {rowNote === 'review' && <Clock className="h-3.5 w-3.5 shrink-0 text-yellow-600" aria-hidden />}
+                                {tStage(`rows.${rowNote}`)}
                             </span>
                         ) : (
                             <>

@@ -2,7 +2,8 @@
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { captureEvent } from '@/lib/analytics/capture';
 import { Statistics } from "@/lib/statistics";
-import { SubjectRow, type SubjectPending } from "../subject/SubjectRow";
+import { SubjectRow } from "../subject/SubjectRow";
+import type { PendingKind } from "@/lib/meetingStage";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -19,7 +20,7 @@ interface SubjectSectionProps {
     onSortModeChange?: (mode: 'speakingTime' | 'agendaIndex') => void;
     showSortToggle?: boolean;
     /** What the rows say in place of the stats they do not have yet. */
-    pending?: SubjectPending;
+    pending?: PendingKind | null;
     className?: string;
 }
 

@@ -34,12 +34,22 @@
         "readTranscript": "Read the transcript"
     },
     "rows": {
-        "notDiscussed": "Not discussed yet",
-        "afterReview": "Summary after the review"
+        "before": "Not discussed yet",
+        "review": "Summary after the review"
     },
     "pendingSections": {
         "title": "Before and outside the agenda",
         "body": "The items raised before and outside the agenda appear after the transcript is reviewed.",
         "by": "Expected by {deadline}"
+    },
+    "subject": {
+        "summary": {
+            "before": "The summary is written automatically after the meeting, once the transcript is reviewed.",
+            "review": "The summary is written after the transcript is reviewed."
+        },
+        "statements": {
+            "before": "The statements per speaker are drawn from the transcript, after the meeting.",
+            "review": "The statements per speaker are added after the transcript is reviewed."
+        }
     }
 }

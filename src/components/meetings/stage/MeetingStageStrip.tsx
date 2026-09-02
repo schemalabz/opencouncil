@@ -4,9 +4,10 @@ import { Bell, FileText, ScrollText, Youtube } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { captureEvent } from '@/lib/analytics/capture';
+import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { useNotificationPreference } from '@/contexts/NotificationPreferenceContext';
-import { formatClockTime, formatDate, formatDateTime, formatWeekday } from '@/lib/formatters/time';
+import { formatClockTime, formatDate, formatWeekdayDateTime } from '@/lib/formatters/time';
 import { meetingStageExplainHref, type PublicMeetingStage } from '@/lib/meetingStage';
 import { cn } from '@/lib/utils';
 import { StageRing } from './StageRing';
@@ -30,11 +31,6 @@ const PILL: Record<PillVariant, string> = {
     live: 'border-red-600 bg-red-600 text-white hover:opacity-90',
 };
 
-/** A day and a time the way the strip says them: "Τετάρτη 11 Φεβρουαρίου 2026 στις 15:00". */
-function whenText(date: Date, timezone: string, locale: string): string {
-    return `${formatWeekday(date, timezone, locale)} ${formatDateTime(date, timezone, 'long', locale)}`;
-}
-
 /**
  * The status strip under the meeting header: what the page has at this stage
  * and what it promises next, with the actions that make sense now. Not a card
@@ -46,8 +42,12 @@ export function MeetingStageStrip({ stage, deadline }: { stage: PublicMeetingSta
     const tMeeting = useTranslations('CouncilMeeting');
     const locale = useLocale();
     const { meeting, city, subjects, transcriptHiddenForReview } = useCouncilMeetingData();
+    const { options } = useTranscriptOptions();
     const preference = useNotificationPreference();
     if (stage === 'complete') return null;
+
+    // The layout keeps the transcript for editors; the strip must say what they see.
+    const hidden = transcriptHiddenForReview && !options.editsAllowed;
 
     const date = new Date(meeting.dateTime);
     const timezone = city.timezone;
@@ -100,7 +100,7 @@ export function MeetingStageStrip({ stage, deadline }: { stage: PublicMeetingSta
     switch (stage) {
         case 'upcoming':
             text = t.rich(subjects.length > 0 ? 'strip.upcoming' : 'strip.upcomingNoAgenda', {
-                when: whenText(date, timezone, locale),
+                when: formatWeekdayDateTime(date, timezone, locale),
                 b: (chunks: ReactNode) => <strong className="font-semibold">{chunks}</strong>,
             });
             actions = [channelPill, agendaPill, notifyPill];
@@ -121,15 +121,15 @@ export function MeetingStageStrip({ stage, deadline }: { stage: PublicMeetingSta
             actions = [videoPill ?? channelPill, notifyPill];
             break;
         case 'review': {
-            const promise = deadline ? t('strip.reviewBy', { deadline: whenText(deadline, timezone, locale) }) : t('strip.reviewSoon');
+            const promise = deadline ? t('strip.reviewBy', { deadline: formatWeekdayDateTime(deadline, timezone, locale) }) : t('strip.reviewSoon');
             text = (
                 <>
-                    {t(transcriptHiddenForReview ? 'strip.reviewHidden' : 'strip.review')}{' '}
+                    {t(hidden ? 'strip.reviewHidden' : 'strip.review')}{' '}
                     <strong className="font-semibold">{promise}</strong>
                 </>
             );
             actions = [
-                transcriptHiddenForReview
+                hidden
                     ? null
                     : pill('readTranscript', t('actions.readTranscript'), 'read_transcript', `/${city.id}/${meeting.id}/transcript`, ScrollText, { variant: 'primary' }),
                 notifyPill,

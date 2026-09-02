@@ -34,12 +34,22 @@
         "readTranscript": "Lire la transcription"
     },
     "rows": {
-        "notDiscussed": "Pas encore discuté",
-        "afterReview": "Résumé après la relecture"
+        "before": "Pas encore discuté",
+        "review": "Résumé après la relecture"
     },
     "pendingSections": {
         "title": "Avant et hors ordre du jour",
         "body": "Les points soulevés avant et hors ordre du jour apparaissent après la relecture de la transcription.",
         "by": "Attendus avant le {deadline}"
+    },
+    "subject": {
+        "summary": {
+            "before": "Le résumé est rédigé automatiquement après la séance, une fois la transcription relue.",
+            "review": "Le résumé est rédigé après la relecture de la transcription."
+        },
+        "statements": {
+            "before": "Les interventions par orateur sont tirées de la transcription, après la séance.",
+            "review": "Les interventions par orateur sont ajoutées après la relecture de la transcription."
+        }
     }
 }
