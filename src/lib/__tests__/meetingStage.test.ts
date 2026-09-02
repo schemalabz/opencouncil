@@ -3,6 +3,8 @@ import {
     PROMISE_WINDOW_MS,
     REVIEW_PROMISE_MS,
     meetingStageExplainHref,
+    msUntilStageChange,
+    pendingKind,
     publicMeetingStage,
     reviewDeadline,
     stageSignalsFromMeetingData,
@@ -115,5 +117,42 @@ describe('meetingStageExplainHref', () => {
         expect(meetingStageExplainHref('greece', 'review')).toBe('/explain#oc-stage-review');
         expect(meetingStageExplainHref('serbia', 'review')).toBeNull();
         expect(meetingStageExplainHref('france', 'upcoming')).toBeNull();
+    });
+});
+
+describe('pendingKind', () => {
+    it('tells a meeting ahead from a transcript on its way from a review', () => {
+        expect(pendingKind('upcoming')).toBe('before');
+        expect(pendingKind('live')).toBe('before');
+        expect(pendingKind('waiting')).toBe('processing');
+        expect(pendingKind('transcribing')).toBe('processing');
+        expect(pendingKind('review')).toBe('review');
+        expect(pendingKind('complete')).toBeNull();
+        expect(pendingKind('archive')).toBeNull();
+    });
+});
+
+describe('msUntilStageChange', () => {
+    const start = (ageMs: number) => new Date(NOW.getTime() - ageMs);
+
+    it('ticks by the minute while a meeting is ahead, and no later than its start', () => {
+        expect(msUntilStageChange('upcoming', start(-3 * HOUR), NOW)).toBe(60_000);
+        expect(msUntilStageChange('upcoming', start(-20_000), NOW)).toBe(20_000);
+    });
+
+    it('waits for the live window to close', () => {
+        expect(msUntilStageChange('live', start(2 * HOUR), NOW)).toBe(LIVE_WINDOW_MS - 2 * HOUR);
+    });
+
+    it('waits for the review promise, then for the week', () => {
+        expect(msUntilStageChange('review', start(DAY), NOW)).toBe(REVIEW_PROMISE_MS - DAY);
+        expect(msUntilStageChange('review', start(3 * DAY), NOW)).toBe(PROMISE_WINDOW_MS - 3 * DAY);
+        expect(msUntilStageChange('transcribing', start(3 * DAY), NOW)).toBe(PROMISE_WINDOW_MS - 3 * DAY);
+    });
+
+    it('never schedules in the past, and never for a finished meeting', () => {
+        expect(msUntilStageChange('live', start(2 * DAY), NOW)).toBe(1_000);
+        expect(msUntilStageChange('complete', start(30 * DAY), NOW)).toBeNull();
+        expect(msUntilStageChange('archive', start(30 * DAY), NOW)).toBeNull();
     });
 });

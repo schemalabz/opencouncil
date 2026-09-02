@@ -27,6 +27,8 @@ import { calculateVoteResult } from "@/lib/utils/votes";
 import { useTranslations, useLocale } from "next-intl";
 import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
+import { useMeetingStage } from "@/components/meetings/stage/useMeetingStage";
+import { PendingNote, pendingKind } from "@/components/meetings/stage/PendingNote";
 import { useVideo } from "@/components/meetings/VideoProvider";
 import type { Statistics } from "@/lib/statistics";
 import { TopicPill } from "@/components/TopicPill";
@@ -43,6 +45,9 @@ import { MountOnVisible } from '@/components/MountOnVisible';
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
+    // What the empty summary and statements say while the meeting is not complete.
+    const { stage, deadline } = useMeetingStage();
+    const pending = pendingKind(stage);
     const t = useTranslations("Subject");
     const locale = useLocale();
     const localize = useLocalizeText();
@@ -351,7 +356,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
                 <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_336px] xl:gap-14">
                     <div className="min-w-0 space-y-9">
-                        {description && (
+                        {description ? (
                             <section>
                                 <SectionHead title={t("summary")} />
                                 <div className="mt-2 max-w-[70ch] text-[14.5px] leading-[1.65] text-foreground/85">
@@ -363,6 +368,11 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                     />
                                 </div>
                             </section>
+                        ) : pending && (
+                            <section>
+                                <SectionHead title={t("summary")} />
+                                <PendingNote what="summary" kind={pending} deadline={deadline} className="mt-4" />
+                            </section>
                         )}
 
                         {subject.context && (
@@ -372,7 +382,9 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         <section>
                             <SectionHead title={t("statements")} count={contributions?.length || 0} />
                             {(!contributions || contributions.length === 0) ? (
-                                <p className="mt-4 text-sm text-muted-foreground">{t("noStatements")}</p>
+                                pending
+                                    ? <PendingNote what="statements" kind={pending} deadline={deadline} className="mt-4" />
+                                    : <p className="mt-4 text-sm text-muted-foreground">{t("noStatements")}</p>
                             ) : (
                                 <div className="divide-y divide-border">
                                     {contributions.map(contribution => (
