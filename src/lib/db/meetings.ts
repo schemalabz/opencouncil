@@ -66,6 +66,14 @@ const meetingWithSubjectPreviewInclude = {
         },
     },
     administrativeBody: true,
+    // The public stage (lib/meetingStage.ts) reads which pipeline tasks have
+    // succeeded, and whether segments exist at all — an imported transcript
+    // has no task row.
+    taskStatuses: {
+        where: { status: 'succeeded', type: { in: ['transcribe', 'summarize'] } },
+        select: { type: true },
+    },
+    _count: { select: { speakerSegments: true } },
 } satisfies Prisma.CouncilMeetingInclude;
 
 export type CouncilMeetingWithSubjectPreview = Prisma.CouncilMeetingGetPayload<{

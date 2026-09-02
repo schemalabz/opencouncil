@@ -5,4 +5,4 @@
  * keep serving the old shape under the old key otherwise. It lives here
  * because meetings.ts is a "use server" module and cannot export a constant.
  */
-export const MEETING_PREVIEW_CACHE_VERSION = 'v2';
+export const MEETING_PREVIEW_CACHE_VERSION = 'v3';
