@@ -47,6 +47,11 @@ import { getLocalizedName } from "@/lib/formatters/name";
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { RailCard } from '@/components/ui/rail-card';
 import { MountOnVisible } from '@/components/MountOnVisible';
+import { SubjectImage } from '@/components/subject/SubjectImage';
+import { SubjectImageAdminControls } from '@/components/subject/SubjectImageAdminControls';
+
+/** The content column and the rail — shared by the header image and the body, so they align. */
+const TWO_COLUMN_GRID = 'grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_336px] xl:gap-14';
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
@@ -72,6 +77,9 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         updatedAt: string | null;
     } | null>(null);
     const [lastSearchedAt, setLastSearchedAt] = useState<string | null>(null);
+    // Bumped after an admin regenerates or replaces the illustration, so the
+    // <img> refetches past the copy the browser cached.
+    const [imageVersion, setImageVersion] = useState<number | undefined>(undefined);
 
     // If subjectId is provided, find the subject in the context
     const subject = subjectId ? subjects.find(s => s.id === subjectId) : undefined;
@@ -169,6 +177,35 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
         return { previous: step(ordered[index - 1], 'previousSubject'), next: step(ordered[index + 1], 'nextSubject') };
     }, [subjects, subject.id, city.id, meeting.id, t, localize]);
 
+    // One primary action for the whole page, instead of a button row on every
+    // card below: jump the video to where this subject starts. Rendered under
+    // the title on a phone and at the top of the rail, beside the image, on a
+    // wide screen.
+    // Sized so both fit one line of the 316px rail: the pair is one control.
+    const actions = subjectStart ? (
+        <div className="flex gap-1.5">
+            <button
+                type="button"
+                onClick={() => {
+                    captureSubjectAction('play_discussion');
+                    seekToAndPlay(subjectStart.startTimestamp);
+                }}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-foreground px-2.5 text-[12.5px] font-bold text-background transition-opacity hover:opacity-90"
+            >
+                <Play className="h-3.5 w-3.5" aria-hidden />
+                {t("watchDiscussion")}
+            </button>
+            <Link
+                href={`/${meeting.cityId}/${meeting.id}/transcript?t=${Math.floor(subjectStart.startTimestamp)}`}
+                onClick={() => captureSubjectAction('open_transcript')}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-2.5 text-[12.5px] font-semibold text-foreground hover:no-underline"
+            >
+                <FileText className="h-4 w-4" aria-hidden />
+                {t("transcript")}
+            </Link>
+        </div>
+    ) : null;
+
     // Push subject info to the header breadcrumb (display-only, so localized)
     useEffect(() => {
         setSubjectHeader({
@@ -231,133 +268,114 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
             {/* max-w-4xl was the old single-column reading width; the two-column layout
                 earns more — the rail takes 316px and the prose caps itself in ch. */}
             <div className="mx-auto max-w-6xl space-y-6 px-3 py-4 md:px-6 md:py-6">
-                {/* The subject's own title, and the page's h1 — it used to live only in the
-                    header bar, at the size that bar gives a page label. The topic names
-                    itself above it; the actions jump the video to where the debate starts. */}
-                <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between md:gap-6">
-                    <div className="min-w-0">
-                        {topic && (
-                            <TopicPill label={getLocalizedName(topic, locale)} icon={topic.icon} colorHex={topic.colorHex} />
-                        )}
-                        <h1 className="mt-3 text-balance text-2xl leading-tight tracking-tight md:text-3xl">
-                            {localize(name)}
-                        </h1>
-                        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-                            {agendaLabel !== null && (
-                                <span className="inline-flex h-5 items-center rounded bg-muted px-2 text-[10.5px] font-bold text-muted-foreground">
-                                    {agendaLabel}
-                                </span>
-                            )}
-                            {/* The date is all that the removed context row carried and
-                                the app header does not: the header breadcrumb already
-                                names the meeting and the city, twice over. The
-                                administrative body went the same way — it rendered
-                                three times inside the first 116px of a phone screen,
-                                and the header two lines above already says it. */}
-                            <span className="text-xs text-muted-foreground">
-                                {formatDate(new Date(meeting.dateTime), undefined, locale)}
-                            </span>
-                            {totalMinutes > 0 && (
-                                <span className="text-xs text-muted-foreground">
-                                    {t("speakers", { count: subject.statistics?.people?.length || contributions?.length || 0 })}
-                                    {' · '}
-                                    {t("minutesCount", { count: totalMinutes })}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-                    {/* One primary action for the whole page, instead of a button row on
-                        every card below: jump the video to where this subject starts. */}
-                    {/* `whitespace-nowrap` and an even split: at 390px the label
-                        broke across two lines, which left one pill twice the height
-                        of the one beside it. The admin control rides this row rather
-                        than taking a 24px-margined row of its own. */}
-                    {(subjectStart || isSuperAdmin) && (
-                        <div className="flex w-full shrink-0 items-center gap-2 md:w-auto md:pt-8">
-                            {subjectStart && (
-                                <>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            captureSubjectAction('play_discussion');
-                                            seekToAndPlay(subjectStart.startTimestamp);
-                                        }}
-                                        className="inline-flex h-9 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-foreground px-4 text-[13px] font-bold text-background transition-opacity hover:opacity-90 md:flex-none"
-                                    >
-                                        <Play className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                        {t("watchDiscussion")}
-                                    </button>
-                                    <Link
-                                        href={`/${meeting.cityId}/${meeting.id}/transcript?t=${Math.floor(subjectStart.startTimestamp)}`}
-                                        onClick={() => captureSubjectAction('open_transcript')}
-                                        className="inline-flex h-9 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-border px-3.5 text-[13px] font-semibold text-foreground hover:no-underline md:flex-none"
-                                    >
-                                        <FileText className="h-4 w-4 shrink-0" aria-hidden />
-                                        {t("transcript")}
-                                    </Link>
-                                </>
-                            )}
-                            {isSuperAdmin && (
-                                <SubjectAdminControls
-                                    subject={subject}
-                                    cityId={meeting.cityId}
-                                    meetingId={meeting.id}
-                                />
-                            )}
-                        </div>
-                    )}
-                </header>
-                {/* Withdrawn notice */}
-                {subject.withdrawn && (
-                    <div className="rounded-lg border border-muted bg-muted/30 px-4 py-3 text-sm text-muted-foreground italic">
-                        {getWithdrawnLabel(t, subject, 'long')}
-                    </div>
-                )}
-
-                {/* Grouped Discussion Notice */}
-                {discussedIn && (
-                    <GroupedDiscussionNotice primarySubject={discussedIn} />
-                )}
-
                 {/* The page in two columns: the content — summary, context, the
                     τοποθετήσεις — and a quiet rail of facts beside it. The old page
                     stacked everything as identical collapsibles, which buried the
                     discussion (the actual meat) under closed boxes. */}
-                {totalMinutes > 0 && (
-                    <div className={cn(surfaceCardClass, "p-3.5 lg:hidden")}>
-                        <DiscussionStats statistics={subject.statistics} totalMinutes={totalMinutes} colorPercentages={colorPercentages} locale={locale} compact />
+                {/* The subject's own title, and the page's h1 — it used to live only in the
+                    header bar, at the size that bar gives a page label. The topic names
+                    itself above it. The three sit on the foot of the illustration, on a
+                    gradient, as they do on the landing card. The illustration spans both
+                    columns as a banner: a fixed height, cropped from the middle, so a wide
+                    screen gets a wide picture and not a tall one. `group` + `relative` is
+                    what the admin overlay hangs off. */}
+                <header className="flex flex-col gap-4">
+                    <div className="group relative h-56 w-full overflow-hidden rounded-2xl bg-muted md:h-72 lg:h-80">
+                        <SubjectImage subjectId={subject.id} alt="" topic={topic} version={imageVersion} loading="eager" className="absolute inset-0" />
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-5 pb-5 pt-20 text-white md:px-6 md:pb-6">
+                            {topic && (
+                                <TopicPill label={getLocalizedName(topic, locale)} icon={topic.icon} colorHex={topic.colorHex} />
+                            )}
+                            <h1 className="mt-3 text-balance text-2xl font-bold leading-tight tracking-tight text-white md:text-3xl">
+                                {localize(name)}
+                            </h1>
+                            <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                                {agendaLabel !== null && (
+                                    <span className="inline-flex h-5 items-center rounded bg-white/20 px-2 text-[10.5px] font-bold text-white">
+                                        {agendaLabel}
+                                    </span>
+                                )}
+                                <span className="text-xs text-white/85">
+                                    {formatDate(new Date(meeting.dateTime), undefined, locale)}
+                                </span>
+                                {totalMinutes > 0 && (
+                                    <span className="text-xs text-white/85">
+                                        {t("speakers", { count: subject.statistics?.people?.length || contributions?.length || 0 })}
+                                        {' · '}
+                                        {t("minutesCount", { count: totalMinutes })}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        {isSuperAdmin && (
+                            <>
+                                <SubjectImageAdminControls
+                                    subjectId={subject.id}
+                                    onChanged={() => setImageVersion(Date.now())}
+                                    className="inset-x-0 top-0 bottom-auto bg-gradient-to-b from-black/60 to-transparent"
+                                />
+                                {/* The metadata dialog's trigger sits in the corner of the foot the text leaves free. */}
+                                <SubjectAdminControls
+                                    subject={subject}
+                                    cityId={meeting.cityId}
+                                    meetingId={meeting.id}
+                                    className="absolute bottom-4 right-4 z-10 rounded-full bg-white/85 text-foreground shadow-sm backdrop-blur hover:bg-white md:bottom-5 md:right-5"
+                                />
+                            </>
+                        )}
                     </div>
-                )}
+                    {actions && <div className="lg:hidden">{actions}</div>}
+                </header>
+                <div className={TWO_COLUMN_GRID}>
+                    {/* A flex gap, not space-y: the phone-only strips are display:none on a
+                        wide screen, and space-y would still count them and push the summary
+                        down, off the level the rail's top sits at. */}
+                    <div className="flex min-w-0 flex-col gap-9">
+                        {/* Withdrawn notice */}
+                        {subject.withdrawn && (
+                            <div className="rounded-lg border border-muted bg-muted/30 px-4 py-3 text-sm text-muted-foreground italic">
+                                {getWithdrawnLabel(t, subject, 'long')}
+                            </div>
+                        )}
 
-                {/* The page's key record must not sit below every statement on a
-                    phone: the rail stacks last there, so the decision takes the same
-                    compact top slot the stats do. Shut, it is the ΑΔΑ and a chevron;
-                    open, it is the whole record the rail shows. */}
-                {decision && (
-                    <DecisionCard
-                        decision={decision}
-                        locale={locale}
-                        collapsible
-                        className="lg:hidden"
-                        onView={() => {
-                            captureSubjectAction('decision_pdf', { surface: 'mobile_strip' });
-                            setDocumentOpen(true);
-                        }}
-                    />
-                )}
-                {decision && (
-                    <DecisionDocumentSheet
-                        open={documentOpen}
-                        onOpenChange={setDocumentOpen}
-                        title={decision.title}
-                        decisionNumber={decision.decisionNumber}
-                        pdfUrl={decision.pdfUrl}
-                        ada={decision.ada}
-                    />
-                )}
+                        {/* Grouped Discussion Notice */}
+                        {discussedIn && (
+                            <GroupedDiscussionNotice primarySubject={discussedIn} />
+                        )}
 
-                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_336px] xl:gap-14">
-                    <div className="min-w-0 space-y-9">
+                        {totalMinutes > 0 && (
+                            <div className={cn(surfaceCardClass, "p-3.5 lg:hidden")}>
+                                <DiscussionStats statistics={subject.statistics} totalMinutes={totalMinutes} colorPercentages={colorPercentages} locale={locale} compact />
+                            </div>
+                        )}
+
+                        {/* The page's key record must not sit below every statement on a
+                            phone: the rail stacks last there, so the decision takes the same
+                            compact top slot the stats do. Shut, it is the ΑΔΑ and a chevron;
+                            open, it is the whole record the rail shows. */}
+                        {decision && (
+                            <DecisionCard
+                                decision={decision}
+                                locale={locale}
+                                collapsible
+                                className="lg:hidden"
+                                onView={() => {
+                                    captureSubjectAction('decision_pdf', { surface: 'mobile_strip' });
+                                    setDocumentOpen(true);
+                                }}
+                            />
+                        )}
+                        {decision && (
+                            <DecisionDocumentSheet
+                                open={documentOpen}
+                                onOpenChange={setDocumentOpen}
+                                title={decision.title}
+                                decisionNumber={decision.decisionNumber}
+                                pdfUrl={decision.pdfUrl}
+                                ada={decision.ada}
+                            />
+                        )}
+
                         {description ? (
                             <section>
                                 <SectionHead title={t("summary")} />
@@ -405,6 +423,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     </div>
 
                     <aside className="flex min-w-0 flex-col gap-3.5">
+                        {actions && <div className="hidden lg:block">{actions}</div>}
                         {totalMinutes > 0 && (
                             <RailCard title={t("discussionCard")} className="hidden lg:block">
                                 <DiscussionStats statistics={subject.statistics} totalMinutes={totalMinutes} colorPercentages={colorPercentages} locale={locale} />
