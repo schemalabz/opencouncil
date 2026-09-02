@@ -2,6 +2,7 @@ import { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand, Obj
 import { Upload } from '@aws-sdk/lib-storage'
 import { v4 as uuidv4 } from 'uuid'
 import { env } from '@/env.mjs'
+import { isS3NotFound } from '@opencouncil/subject-images/store'
 
 // Global S3 client instance
 export const s3Client = new S3Client({
@@ -91,8 +92,8 @@ export async function fileExists(bucket: string, key: string): Promise<boolean> 
             Key: key,
         }))
         return true
-    } catch (error: any) {
-        if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+    } catch (error) {
+        if (isS3NotFound(error)) {
             return false
         }
         console.error('Error checking file existence:', error)
