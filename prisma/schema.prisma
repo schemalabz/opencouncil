@@ -130,7 +130,7 @@ model AdministrativeBody {
   showUnreviewedTranscript Boolean @default(true)
   youtubeChannelUrl String?
   contactEmails String[] @default([]) // Emails for receiving transcripts
-  diavgeiaUnitIds String[] @default([]) // Diavgeia unit IDs (e.g., ["81689"])
+  diavgeiaUnitIds String[] @default([]) // Diavgeia scopes to poll, each `unit[:signer]` (e.g., ["81689"], ["84655:100010590"]). The signer separates bodies that share one unit.
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

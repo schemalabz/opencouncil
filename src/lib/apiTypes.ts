@@ -436,7 +436,7 @@ export interface ExtractedDecisionData {
 export interface PollDecisionsRequest extends TaskRequest {
     meetingDate: string; // ISO date "YYYY-MM-DD"
     diavgeiaUid: string; // City's Diavgeia org UID (e.g., "6104")
-    diavgeiaUnitIds?: string[]; // AdministrativeBody's Diavgeia unit IDs (e.g., ["81689"])
+    diavgeiaUnitIds?: string[]; // AdministrativeBody's Diavgeia scopes, each `unit[:signer]` (e.g., ["81689"], ["84655:100010590"])
     mayorId?: string; // Person ID of the city mayor, for presence extraction
     forceExtract?: boolean; // Skip extraction cache and reprocess all PDFs
     people: { id: string; name: string }[];
