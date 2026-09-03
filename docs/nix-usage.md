@@ -141,6 +141,8 @@ The dev server binds to `0.0.0.0` by default, making it accessible from other de
 
 Scan the QR code with your phone and the page loads. Connected devices appear in real time (device name, browser, viewport size, current path).
 
+The dev server reads the machine's LAN addresses once at startup and adds them to `allowedDevOrigins` in `next.config.mjs`. Next 16 rejects HMR and dev-overlay requests from an address that is not in that list. The page on the phone then reloads itself about once a minute. Restart the dev server after the machine's LAN address changes.
+
 To disable LAN binding: `nix run .#dev -- --no-lan`
 
 **NixOS firewall:** The dev runner automatically opens the app port via `iptables` (prompts for sudo once) and closes it on exit.

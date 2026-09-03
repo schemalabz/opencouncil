@@ -1,6 +1,7 @@
 import './src/env.mjs';
 import createNextIntlPlugin from 'next-intl/plugin';
 import { withPostHogConfig } from "@posthog/nextjs-config";
+import { lanIPv4Addresses } from './src/lib/dev/lan-ips.mjs';
 
 // Log which DB the build will use (host + db name only, no credentials)
 try {
@@ -37,6 +38,14 @@ const nextConfig = {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
     },
     transpilePackages: ['@opencouncil/ui'],
+    // Next 16 answers /_next/* and /__nextjs* requests that carry an Origin
+    // outside this list with 403 (Next 15 only warned). The mobile preview
+    // opens the app through the LAN IP, so the phone's HMR socket and
+    // dev-overlay calls arrive with that IP as Origin; without it the HMR
+    // client hits its reconnect ceiling and force-reloads the page every
+    // minute. The list is read once at startup: restart the dev server after
+    // the machine's LAN address changes. Ignored outside `next dev`.
+    allowedDevOrigins: lanIPv4Addresses(),
     // Enable custom domains - we'll handle this entirely in proxy.ts
     async headers() {
         return [

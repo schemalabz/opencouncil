@@ -1,25 +1,14 @@
 import { NextResponse } from 'next/server'
 import net from 'net'
-import os from 'os'
 import { IS_DEV } from '@/lib/utils'
+import { lanIPv4Addresses } from '@/lib/dev/lan-ips.mjs'
 
 export async function GET() {
   if (!IS_DEV) {
     return NextResponse.json({ error: 'Not allowed in production' }, { status: 403 })
   }
 
-  const interfaces = os.networkInterfaces()
-  let lanIp: string | null = null
-
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name] ?? []) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        lanIp = iface.address
-        break
-      }
-    }
-    if (lanIp) break
-  }
+  const lanIp: string | null = lanIPv4Addresses()[0] ?? null
 
   const port = process.env.APP_PORT || '3000'
   const portNum = parseInt(port, 10)
