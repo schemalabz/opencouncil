@@ -1095,7 +1095,7 @@
         "decisionNumber": "Αριθμός Απόφασης",
         "protocolNumber": "Αριθμός Πρωτοκόλλου",
         "publishDate": "Ημερομηνία Ανάρτησης",
-        "viewDecision": "Προβολή απόφασης στη Διαύγεια",
+        "viewDecision": "Προβολή απόφασης",
         "unanimous": "Ομόφωνα ({count} υπέρ)",
         "majorityVote": "Κατά πλειοψηφία ({for} υπέρ, {against} κατά)",
         "rejected": "Απορρίφθηκε ({against} κατά, {for} υπέρ)",

@@ -1095,7 +1095,7 @@
     "decisionNumber": "Numéro de décision",
     "protocolNumber": "Numéro de protocole",
     "publishDate": "Date de publication",
-    "viewDecision": "Afficher la décision sur Diavgeia",
+    "viewDecision": "Voir la décision",
     "unanimous": "À l'unanimité ({count} pour)",
     "majorityVote": "À la majorité ({for} pour, {against} contre)",
     "rejected": "Rejeté ({against} contre, {for} pour)",

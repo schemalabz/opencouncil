@@ -1095,7 +1095,7 @@
         "decisionNumber": "Decision Number",
         "protocolNumber": "Protocol Number",
         "publishDate": "Publish Date",
-        "viewDecision": "View decision on Diavgeia",
+        "viewDecision": "View decision",
         "voting": "Voting",
         "votingSource": "Voting data sourced from the Diavgeia decision",
         "votingDisclaimer": "Voting results are extracted from Diavgeia decisions when available",
