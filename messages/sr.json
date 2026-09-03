@@ -847,6 +847,7 @@
     },
     "Person": {
         "partyLeader": "Шеф одборничке групе",
+        "formerMembers": "Бивши чланови",
         "mayor": "Градоначелник",
         "president": "Председник",
         "member": "Члан",

@@ -469,6 +469,7 @@
     },
     "Person": {
         "partyLeader": "Επικεφαλής",
+        "formerMembers": "Παλαιότερα μέλη",
         "mayor": "Δήμαρχος",
         "president": "Πρόεδρος",
         "member": "Μέλος",
