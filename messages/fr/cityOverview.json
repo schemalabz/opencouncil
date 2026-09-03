@@ -35,8 +35,8 @@
   "governingParty": "Majorité municipale",
   "notisName": "Notis",
   "notisIntro": {
-    "municipality": "Vous écrit sur WhatsApp au sujet de {qualifier}",
-    "region": "Vous écrit sur WhatsApp au sujet de {qualifier}"
+    "municipality": "le voisin numérique bien informé qui suit ce qui se passe dans la commune",
+    "region": "le voisin numérique bien informé qui suit ce qui se passe dans la région"
   },
   "notisCta": "Je veux être informé",
   "notisChannels": "E-mail, WhatsApp ou SMS · La plupart des semaines, rien",
