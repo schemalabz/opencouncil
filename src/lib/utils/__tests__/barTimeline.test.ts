@@ -1,4 +1,4 @@
-import { bandAt, chapterStarts, intersectsAny, mergeIntervals, resolveOverlaps, utteranceRuns, type BarBand, type ChapterKey } from '../barTimeline';
+import { bandAt, chapterStarts, intersectsAny, lensLeft, lensWindowStart, mergeIntervals, resolveOverlaps, rulerLabelStep, slideFine, utteranceRuns, type BarBand, type ChapterKey } from '../barTimeline';
 
 const u = (start: number, end: number, subjectId: string | null, status = 'SUBJECT_DISCUSSION') => ({
     startTimestamp: start,
@@ -246,5 +246,60 @@ describe('utteranceRuns with overlapping utterances', () => {
     it('never produces a run whose end precedes its start', () => {
         const runs = utteranceRuns([u(10, 30, 'a'), u(15, 25, 'b')], 10, 30);
         for (const run of runs) expect(run.end).toBeGreaterThanOrEqual(run.start);
+    });
+});
+
+describe('lensWindowStart', () => {
+    it('centres the window on the time', () => {
+        expect(lensWindowStart(3000, 10000)).toBe(2700);
+    });
+
+    it('shifts, never narrows, at both ends', () => {
+        expect(lensWindowStart(100, 10000)).toBe(0);
+        expect(lensWindowStart(9950, 10000)).toBe(9400);
+    });
+
+    it('starts at zero for a meeting shorter than the window', () => {
+        expect(lensWindowStart(200, 400)).toBe(0);
+    });
+});
+
+describe('lensLeft', () => {
+    // a 1000px strip starting 300px into a 1440px viewport, a 600px lens
+    it('centres the lens on the pointer', () => {
+        expect(lensLeft(500, 600, 300, 1440)).toBe(200);
+    });
+
+    it('keeps the lens inside the viewport margins', () => {
+        expect(lensLeft(0, 600, 300, 1440)).toBe(-292);
+        expect(lensLeft(1000, 600, 300, 1440)).toBe(532);
+    });
+
+    it('pins a lens wider than the viewport to the left margin', () => {
+        expect(lensLeft(100, 400, 8, 390)).toBe(0);
+    });
+});
+
+describe('rulerLabelStep', () => {
+    it('labels every minute when a minute has room, then every two, then every five', () => {
+        expect(rulerLabelStep(700)).toBe(60);
+        expect(rulerLabelStep(374)).toBe(120);
+        expect(rulerLabelStep(200)).toBe(300);
+    });
+});
+
+describe('slideFine', () => {
+    it('moves the marker inside the window without moving the window', () => {
+        expect(slideFine(3100, 3000, 10000)).toEqual({ time: 3100, windowStart: 3000 });
+    });
+
+    it('slides the window just far enough to keep the marker', () => {
+        expect(slideFine(3700, 3000, 10000)).toEqual({ time: 3700, windowStart: 3100 });
+        expect(slideFine(2900, 3000, 10000)).toEqual({ time: 2900, windowStart: 2900 });
+    });
+
+    it('stops at the meeting\'s ends', () => {
+        expect(slideFine(10500, 9400, 10000)).toEqual({ time: 10000, windowStart: 9400 });
+        expect(slideFine(-40, 0, 10000)).toEqual({ time: 0, windowStart: 0 });
     });
 });
