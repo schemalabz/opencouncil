@@ -141,7 +141,9 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     // element is swapped (e.g. Mux → S3 fallback in Video.tsx).
     const handleLoadedMetadata = useCallback(() => {
         const player = playerRef.current;
-        if (player && !isNaN(player.duration)) {
+        // A live playlist or a container without a length reports Infinity;
+        // nothing downstream can size itself from that.
+        if (player && Number.isFinite(player.duration)) {
             setDuration(player.duration);
         }
     }, []);
