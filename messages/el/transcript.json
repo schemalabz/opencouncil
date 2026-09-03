@@ -57,7 +57,8 @@
         "expandVideo": "Μεγέθυνση βίντεο",
         "collapseBar": "Σύμπτυξη μπάρας",
         "expandBar": "Άνοιγμα μπάρας",
-        "clip": "Απόσπασμα {current}/{total}"
+        "clip": "Απόσπασμα {current}/{total}",
+        "lensFineHint": "Σύρε προς τα πάνω για ακρίβεια"
     },
     "unverifiedBanner": {
         "title": "Αυτόματη απομαγνητοφώνηση",

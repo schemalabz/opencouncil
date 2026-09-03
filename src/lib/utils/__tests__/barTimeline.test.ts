@@ -1,4 +1,4 @@
-import { bandAt, chapterStarts, intersectsAny, lensLeft, lensWindowStart, mergeIntervals, resolveOverlaps, rulerLabelStep, slideFine, utteranceRuns, type BarBand, type ChapterKey } from '../barTimeline';
+import { bandAt, chapterStarts, intersectsAny, lensLeft, lensWindowStart, mergeIntervals, resolveOverlaps, rulerLabelStep, slideFine, timeAt, utteranceRuns, type BarBand, type ChapterKey } from '../barTimeline';
 
 const u = (start: number, end: number, subjectId: string | null, status = 'SUBJECT_DISCUSSION') => ({
     startTimestamp: start,
@@ -277,6 +277,19 @@ describe('lensLeft', () => {
 
     it('pins a lens wider than the viewport to the left margin', () => {
         expect(lensLeft(100, 400, 8, 390)).toBe(0);
+    });
+});
+
+describe('timeAt', () => {
+    it('maps strip x to time, clamped to the strip', () => {
+        expect(timeAt(500, 1000, 14400)).toBe(7200);
+        expect(timeAt(-20, 1000, 14400)).toBe(0);
+        expect(timeAt(1200, 1000, 14400)).toBe(14400);
+    });
+
+    it('maps to 0 without a width or a duration', () => {
+        expect(timeAt(500, 0, 14400)).toBe(0);
+        expect(timeAt(500, 1000, 0)).toBe(0);
     });
 });
 
