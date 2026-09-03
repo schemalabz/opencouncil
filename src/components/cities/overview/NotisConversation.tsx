@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Pointer, RotateCcw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,8 @@ const BEATS = CAPTIONS.length;
 const TYPING_MS = 700;
 /** One unprompted move teaches that the card is tappable; after it, the reader drives. */
 const FIRST_NUDGE_MS = 2600;
+/** The hand appears once the nudged bubble has landed and been read. */
+const CUE_DELAY_MS = 1100;
 
 /** The About page's NotificationDemo wallpaper, so the two surfaces match. */
 const CHAT_SURFACE = {
@@ -52,6 +55,7 @@ export function NotisConversation() {
     const [typing, setTyping] = useState(false);
     const [nudged, setNudged] = useState(false);
     const [awake, setAwake] = useState(false);
+    const [cue, setCue] = useState(false);
     const paneRef = useRef<HTMLDivElement>(null);
     const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [reduced, setReduced] = useState(false);
@@ -101,8 +105,18 @@ export function NotisConversation() {
 
     const advanceByHand = useCallback(() => {
         setAwake(true);
+        setCue(false);
         advance();
     }, [advance]);
+
+    // A hand taps the pane once, after the unprompted bubble: a moving chat
+    // reads as a recording, and the team found nothing said it was playable.
+    // Any tap of the reader's own cancels it, and reduced motion never shows it.
+    useEffect(() => {
+        if (reduced || awake || !nudged) return;
+        const timer = setTimeout(() => setCue(true), CUE_DELAY_MS);
+        return () => clearTimeout(timer);
+    }, [reduced, awake, nudged]);
 
     useEffect(() => {
         const pane = paneRef.current;
@@ -149,6 +163,18 @@ export function NotisConversation() {
                 ))}
                 {typing && <TypingBubble />}
             </div>
+            {cue && (
+                <motion.span
+                    aria-hidden
+                    className="pointer-events-none absolute bottom-4 right-5 z-10 text-foreground/75 drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)]"
+                    initial={{ opacity: 0, scale: 0.9, y: 6 }}
+                    animate={{ opacity: [0, 1, 1, 1, 1, 0], scale: [0.9, 1, 0.8, 1, 0.8, 1], y: [6, 0, 3, 0, 3, 0] }}
+                    transition={{ duration: 2, times: [0, 0.15, 0.32, 0.48, 0.64, 1], ease: 'easeInOut' }}
+                    onAnimationComplete={() => setCue(false)}
+                >
+                    <Pointer className="h-7 w-7" strokeWidth={1.75} />
+                </motion.span>
+            )}
             </div>
 
             <div className="flex items-start justify-between gap-3 px-4 pt-3">
