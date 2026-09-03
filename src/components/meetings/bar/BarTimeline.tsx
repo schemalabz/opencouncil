@@ -13,6 +13,7 @@ import { useLiveTime } from './useLiveTime';
 import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
 import { BAND_ZONE, DOCK_ROW, DOCK_ROW_COMPACT, RAIL_HEIGHT } from './geometry';
 import { Playhead } from './Playhead';
+import { useTimelinePointer } from './useTimelinePointer';
 import { HoverBandDetails } from './HoverBandDetails';
 import { TopicIcon } from '@/components/TopicIcon';
 import { Users, Shapes } from 'lucide-react';
@@ -49,11 +50,6 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
     const { city, meeting } = useCouncilMeetingData();
 
     const barRef = useRef<HTMLDivElement>(null);
-    const cursorRef = useRef<HTMLDivElement>(null);
-    const tooltipRef = useRef<HTMLDivElement>(null);
-    const [hoverBand, setHoverBand] = useState<number>(-1);
-    const [hovering, setHovering] = useState(false);
-    const hoverBandRef = useRef(-1);
 
     const isHighlightMode = editingHighlight !== null;
 
@@ -65,53 +61,6 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
             .map((u, index) => ({ u, index }))
             .filter(({ u }) => included.has(u.id));
     }, [isHighlightMode, editingHighlight, highlightUtterances]);
-
-    // ── pointer handling: one rAF per burst, state only on band change ──
-    const pointerX = useRef<number | null>(null);
-    const rafId = useRef<number | null>(null);
-
-    const applyPointer = useCallback(() => {
-        rafId.current = null;
-        const el = barRef.current;
-        if (!el || duration <= 0) return;
-        const rect = el.getBoundingClientRect();
-        if (pointerX.current === null) return;
-        const x = Math.min(Math.max(pointerX.current - rect.left, 0), rect.width);
-        if (cursorRef.current) {
-            cursorRef.current.style.transform = `translateX(${x}px)`;
-            cursorRef.current.style.opacity = '1';
-        }
-        if (tooltipRef.current) {
-            // On a strip narrower than the tooltip the clamp would invert and
-            // pin it part-way off; centring is the honest fallback.
-            const clamped = rect.width < 220 ? rect.width / 2 : Math.min(Math.max(x, 110), rect.width - 110);
-            tooltipRef.current.style.transform = `translateX(${clamped}px) translateX(-50%)`;
-            const timeEl = tooltipRef.current.querySelector('[data-bar-time]');
-            if (timeEl) timeEl.textContent = formatTimestamp((x / rect.width) * duration);
-        }
-        const time = (x / rect.width) * duration;
-        const idx = bandAt(bands, time);
-        if (idx !== hoverBandRef.current) {
-            hoverBandRef.current = idx;
-            setHoverBand(idx);
-        }
-    }, [bands, duration]);
-
-    const onPointerMove = useCallback((e: React.PointerEvent) => {
-        pointerX.current = e.clientX;
-        setHovering(true);
-        if (rafId.current === null) rafId.current = requestAnimationFrame(applyPointer);
-    }, [applyPointer]);
-
-    const onPointerLeave = useCallback(() => {
-        pointerX.current = null;
-        hoverBandRef.current = -1;
-        setHoverBand(-1);
-        setHovering(false);
-        if (cursorRef.current) cursorRef.current.style.opacity = '0';
-    }, []);
-
-    useEffect(() => () => { if (rafId.current !== null) cancelAnimationFrame(rafId.current); }, []);
 
     // The rail decides label visibility in pixels, not fractions — a chapter
     // that is generous in a wide window may not carry its name in a narrow one.
@@ -127,25 +76,23 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
         return () => observer.disconnect();
     }, []);
 
+    // Where playback stood before the last click-seek: a double-click means
+    // "open this subject", not "abandon my listening position" — the second
+    // click restores it before navigating.
+    const preSeekTime = useRef<number | null>(null);
+    const onSeek = useCallback((time: number) => {
+        preSeekTime.current = currentTimeRef.current;
+        seekTo(time);
+    }, [currentTimeRef, seekTo]);
+
+    const pointer = useTimelinePointer({ barRef, bands, duration, compact, barWidth, lensAllowed: false, onSeek });
+
     const timeFromEvent = (e: { clientX: number }): number | null => {
         const el = barRef.current;
         if (!el || duration <= 0) return null;
         const rect = el.getBoundingClientRect();
         const x = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
         return (x / rect.width) * duration;
-    };
-
-    // Where playback stood before the last click-seek: a double-click means
-    // "open this subject", not "abandon my listening position" — the second
-    // click restores it before navigating.
-    const preSeekTime = useRef<number | null>(null);
-
-    const onClick = (e: React.MouseEvent) => {
-        const time = timeFromEvent(e);
-        if (time !== null) {
-            preSeekTime.current = currentTimeRef.current;
-            seekTo(time);
-        }
     };
 
     const onDoubleClick = (e: React.MouseEvent) => {
@@ -158,25 +105,6 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
             if (preSeekTime.current !== null) seekToWithoutScroll(preSeekTime.current);
             router.push(`/${city.id}/${meeting.id}/subjects/${subjectId}`);
         }
-    };
-
-    // Touch scrubbing: capture the pointer so the drag belongs to the strip
-    // (touch-action-none keeps the browser from claiming it for panning),
-    // preview along the way, seek where the finger lifts.
-    const scrubbing = useRef(false);
-    const onPointerDown = (e: React.PointerEvent) => {
-        if (e.pointerType === 'mouse' || !e.isPrimary) return;
-        scrubbing.current = true;
-        barRef.current?.setPointerCapture(e.pointerId);
-        pointerX.current = e.clientX;
-        if (rafId.current === null) rafId.current = requestAnimationFrame(applyPointer);
-    };
-    const onPointerUp = (e: React.PointerEvent) => {
-        if (!scrubbing.current) return;
-        scrubbing.current = false;
-        const time = timeFromEvent(e);
-        if (time !== null) seekTo(time);
-        onPointerLeave();
     };
 
     const onKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -204,7 +132,7 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
         return <div className="relative min-w-0 flex-1" />;
     }
 
-    const hovered = hoverBand >= 0 ? bands[hoverBand] : null;
+    const hovered = pointer.hoverBand >= 0 ? bands[pointer.hoverBand] : null;
     const scrollBand = currentScrollInterval[0] !== currentScrollInterval[1] && duration > 0 ? currentScrollInterval : null;
     // The chapter rail rides inside the box on desktop only — at the phone's
     // 42px it would be crumbs, so the phone shows no chapters at all.
@@ -224,13 +152,14 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
                 aria-valuenow={Math.round(currentTimeRef.current)}
                 aria-valuetext={formatTimestamp(currentTimeRef.current)}
                 tabIndex={0}
-                onClick={onClick}
+                onClick={pointer.strip.onClick}
                 onDoubleClick={onDoubleClick}
                 onKeyDown={onKeyDown}
-                onPointerDown={onPointerDown}
-                onPointerUp={onPointerUp}
-                onPointerMove={onPointerMove}
-                onPointerLeave={onPointerLeave}
+                onPointerDown={pointer.strip.onPointerDown}
+                onPointerUp={pointer.strip.onPointerUp}
+                onPointerCancel={pointer.strip.onPointerCancel}
+                onPointerMove={pointer.strip.onPointerMove}
+                onPointerLeave={pointer.strip.onPointerLeave}
                 className="relative w-full cursor-pointer touch-none overflow-hidden rounded-[10px] border-2 border-border bg-card"
                 style={{ height: compact ? DOCK_ROW_COMPACT : DOCK_ROW }}
             >
@@ -291,7 +220,7 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
                 )}
 
                 <div
-                    ref={cursorRef}
+                    ref={pointer.cursorRef}
                     aria-hidden
                     className="pointer-events-none absolute left-0 top-0 h-full w-px bg-gray-500 opacity-0"
                     style={{ zIndex: 12 }}
@@ -300,11 +229,11 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
 
             {/* tooltip: position via transform (rAF), content via band-change state */}
             <div
-                ref={tooltipRef}
+                ref={pointer.tooltipRef}
                 aria-hidden
                 className={cn(
                     'pointer-events-none absolute bottom-[calc(100%+8px)] left-0 z-30 w-[220px] rounded-[10px] border-2 border-border bg-card p-2.5 shadow-lg',
-                    hovering ? 'block' : 'hidden',
+                    pointer.hovering && !pointer.lensEnabled ? 'block' : 'hidden',
                 )}
             >
                 <div data-bar-time className="border-b border-border/60 pb-1.5 text-xs font-extrabold tabular-nums" />
