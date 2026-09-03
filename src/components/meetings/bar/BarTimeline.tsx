@@ -8,14 +8,15 @@ import { useHighlight } from '@/components/meetings/HighlightContext';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { useBarData } from './BarDataContext';
 import { useBarHighlight } from './BarHighlightContext';
-import { bandAt, CHAPTER_LABEL_KEY, intersectsAny, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
+import { bandAt, CHAPTER_LABEL_KEY, intersectsAny, timeAt, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
+import { captureEvent } from '@/lib/analytics/capture';
 import { useLiveTime } from './useLiveTime';
 import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
 import { BAND_ZONE, DOCK_ROW, DOCK_ROW_COMPACT, RAIL_HEIGHT } from './geometry';
 import { Playhead } from './Playhead';
-import { useTimelinePointer } from './useTimelinePointer';
-import { HoverBandDetails } from './HoverBandDetails';
-import { TopicIcon } from '@/components/TopicIcon';
+import { useTimelinePointer, type SeekDetail } from './useTimelinePointer';
+import { TimelineLens } from './lens/TimelineLens';
+import { HoverBandDetails, SpeakerLine, SubjectLine } from './HoverBandDetails';
 import { Users, Shapes } from 'lucide-react';
 import type { BarMode } from './ModePicker';
 import { cn, formatTimestamp } from '@/lib/utils';
@@ -80,19 +81,20 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
     // "open this subject", not "abandon my listening position" — the second
     // click restores it before navigating.
     const preSeekTime = useRef<number | null>(null);
-    const onSeek = useCallback((time: number) => {
+    // Coarse seeks are captured too, so the lens's effect on precision is measurable.
+    const onSeek = useCallback((time: number, { precision, input, lens }: SeekDetail) => {
         preSeekTime.current = currentTimeRef.current;
         seekTo(time);
-    }, [currentTimeRef, seekTo]);
+        captureEvent('meeting_page_action', { action: 'timeline_seek', precision, input, lens, city_id: city.id, meeting_id: meeting.id });
+    }, [currentTimeRef, seekTo, city.id, meeting.id]);
 
-    const pointer = useTimelinePointer({ barRef, bands, duration, compact, barWidth, lensAllowed: false, onSeek });
+    const pointer = useTimelinePointer({ barRef, bands, duration, compact, barWidth, onSeek });
 
     const timeFromEvent = (e: { clientX: number }): number | null => {
         const el = barRef.current;
         if (!el || duration <= 0) return null;
         const rect = el.getBoundingClientRect();
-        const x = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
-        return (x / rect.width) * duration;
+        return timeAt(e.clientX - rect.left, rect.width, duration);
     };
 
     const onDoubleClick = (e: React.MouseEvent) => {
@@ -109,7 +111,8 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
 
     const onKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (duration <= 0) return;
-        const step = duration * 0.01;
+        // Shift steps ten seconds: the keyboard's counterpart to the lens's precision.
+        const step = e.shiftKey ? 10 : duration * 0.01;
         if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
             e.preventDefault();
             seekTo(Math.min(duration, currentTimeRef.current + step));
@@ -140,7 +143,7 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
 
     return (
         <div className="relative min-w-0 flex-1">
-            {!compact && <NowLane bands={bands} />}
+            {!compact && <NowLane bands={bands} hidden={pointer.lensEnabled && pointer.lensOpen} />}
             <div
                 ref={barRef}
                 role="slider"
@@ -153,6 +156,7 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
                 aria-valuetext={formatTimestamp(currentTimeRef.current)}
                 tabIndex={0}
                 onClick={pointer.strip.onClick}
+                onContextMenu={pointer.strip.onContextMenu}
                 onDoubleClick={onDoubleClick}
                 onKeyDown={onKeyDown}
                 onPointerDown={pointer.strip.onPointerDown}
@@ -227,18 +231,44 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
                 />
             </div>
 
-            {/* tooltip: position via transform (rAF), content via band-change state */}
-            <div
-                ref={pointer.tooltipRef}
-                aria-hidden
-                className={cn(
-                    'pointer-events-none absolute bottom-[calc(100%+8px)] left-0 z-30 w-[220px] rounded-[10px] border-2 border-border bg-card p-2.5 shadow-lg',
-                    pointer.hovering && !pointer.lensEnabled ? 'block' : 'hidden',
-                )}
-            >
-                <div data-bar-time className="border-b border-border/60 pb-1.5 text-xs font-extrabold tabular-nums" />
-                <HoverBandDetails band={hovered} />
-            </div>
+            {/* Long meetings get the lens, mounted on its first opening; short
+                ones the tooltip. Both take the hovered band from state and
+                their position from the frame. */}
+            {pointer.lensEnabled ? (
+                pointer.lensMounted && (
+                    <TimelineLens
+                        ref={pointer.lensRef}
+                        elRef={pointer.lensElRef}
+                        open={pointer.lensOpen}
+                        bands={bands}
+                        chapters={chapters}
+                        mode={mode}
+                        duration={duration}
+                        lensWidth={pointer.lensWidth}
+                        compact={compact}
+                        hovered={hovered}
+                        fine={pointer.fine}
+                        hint={pointer.coarse}
+                        onPointerDown={pointer.lens.onPointerDown}
+                        onPointerMove={pointer.lens.onPointerMove}
+                        onPointerLeave={pointer.lens.onPointerLeave}
+                        onClick={pointer.lens.onClick}
+                        onContextMenu={pointer.lens.onContextMenu}
+                    />
+                )
+            ) : (
+                <div
+                    ref={pointer.tooltipRef}
+                    aria-hidden
+                    className={cn(
+                        'pointer-events-none absolute bottom-[calc(100%+8px)] left-0 z-30 w-[220px] rounded-[10px] border-2 border-border bg-card p-2.5 shadow-lg',
+                        pointer.hovering ? 'block' : 'hidden',
+                    )}
+                >
+                    <div data-bar-time className="border-b border-border/60 pb-1.5 text-xs font-extrabold tabular-nums" />
+                    <HoverBandDetails band={hovered} />
+                </div>
+            )}
         </div>
     );
 }
@@ -299,33 +329,27 @@ const SegmentsLayer = memo(function SegmentsLayer({ bands, mode, duration, highl
  * edge; the current time lives in the bubble over the play button. The
  * subject is a link into its page.
  */
-function NowLane({ bands }: { bands: BarBand[] }) {
+function NowLane({ bands, hidden }: { bands: BarBand[]; /** the lens is open: its header names the band, and its glass would cover the link */ hidden: boolean }) {
     const { city, meeting } = useCouncilMeetingData();
     const { isPlaying } = useVideo();
     const { currentTimeRef } = useVideoActions();
     const time = useLiveTime(currentTimeRef, isPlaying);
     const band = nowBand(bands, time, isPlaying);
-    // The dock floats over the page, so the line wears a capsule — same
-    // language as the time bubble over the play button. Left-aligned to the
-    // strip it annotates; on pause the lane simply empties.
+    // The dock floats over the page, so the line wears its own box — the
+    // same corners as the time bubble over the play button and the strip.
+    // Left-aligned to the strip it annotates; on pause the lane simply empties.
     return (
-        <div className="relative mb-1 h-8">
+        <div className={cn('relative mb-1 h-8 transition-opacity duration-150', hidden && 'pointer-events-none opacity-0')}>
             {band && (
                 <div className="absolute inset-x-0 top-0 flex h-8 justify-start">
-                    <div className="flex min-w-0 items-center gap-1.5 rounded-full border-2 border-border bg-card px-3 shadow-sm">
-                        {band.speakerName && (
-                            <>
-                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: band.speakerColor }} aria-hidden />
-                                <span className="truncate text-xs font-extrabold">{band.speakerName}</span>
-                            </>
-                        )}
+                    <div className="flex min-w-0 items-center gap-1.5 rounded-[10px] border-2 border-border bg-card px-3 shadow-sm">
+                        <SpeakerLine band={band} strong />
                         {band.speakerName && band.subjectId && band.subjectName && (
                             <span className="text-muted-foreground" aria-hidden>&middot;</span>
                         )}
                         {band.subjectId && band.subjectName && (
-                            <NowPlayingSubjectLink band={band} cityId={city.id} meetingId={meeting.id} className="flex min-w-0 items-center gap-1.5 hover:underline">
-                                <TopicIcon color={band.subjectColor} icon={band.subjectIcon} size="sm" />
-                                <span className="truncate text-xs">{band.subjectName}</span>
+                            <NowPlayingSubjectLink band={band} cityId={city.id} meetingId={meeting.id} className="flex min-w-0 hover:underline">
+                                <SubjectLine band={band} />
                             </NowPlayingSubjectLink>
                         )}
                     </div>

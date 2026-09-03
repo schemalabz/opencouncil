@@ -57,7 +57,8 @@
         "expandVideo": "Повећај видео",
         "collapseBar": "Скупи траку",
         "expandBar": "Отвори траку",
-        "clip": "Исечак {current}/{total}"
+        "clip": "Исечак {current}/{total}",
+        "lensFineHint": "Превуци нагоре за прецизност"
     },
     "unverifiedBanner": {
         "title": "Аутоматски транскрипт",

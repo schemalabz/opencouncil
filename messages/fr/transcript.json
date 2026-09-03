@@ -57,7 +57,8 @@
         "expandVideo": "Agrandir la vidéo",
         "collapseBar": "Réduire la barre",
         "expandBar": "Ouvrir la barre",
-        "clip": "Extrait {current}/{total}"
+        "clip": "Extrait {current}/{total}",
+        "lensFineHint": "Glissez vers le haut pour affiner"
     },
     "unverifiedBanner": {
         "title": "Transcription automatique",
