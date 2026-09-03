@@ -326,12 +326,12 @@
     "resetExtractionsConfirm": "Reset all extracted data (excerpts, attendance, votes) for this meeting? Decision links will be kept.",
     "resetExtractionsDescription": "Remove all extracted data (excerpts, attendance, votes) for every subject. Decision links are kept.",
     "scope": {
-        "malformed": "Misconfigured: {error}",
-        "noOrg": "This city has no Diavgeia organization ID — polling cannot run",
-        "org": "Polls org {org}",
-        "orgWide": "Polls org {org} — whole organization, no unit configured",
-        "unit": "unit {unit}",
-        "unitSigner": "unit {unit}, signer {signer}"
+      "malformed": "Misconfigured: {error}",
+      "noOrg": "This city has no Diavgeia organization ID — polling cannot run",
+      "org": "Diavgeia {org}",
+      "orgWide": "whole organization, no unit configured",
+      "unit": "unit {unit}",
+      "unitSigner": "unit {unit}, signer {signer}"
     },
     "save": "Save",
     "showLess": "Show less",
@@ -361,7 +361,11 @@
       "polled": "{n, plural, one {# poll} other {# polls}}",
       "started": "started {date}",
       "next": "Next auto-poll: {date}",
-      "stopped": "Automatic polling stopped"
+      "stopped": "Automatic polling stopped",
+      "tier": {
+        "everyRun": "auto-poll on every cycle",
+        "interval": "auto-poll every {days} days"
+      }
     },
     "resetError": "Error resetting extraction"
   },

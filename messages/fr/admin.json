@@ -326,12 +326,12 @@
     "resetExtractionsConfirm": "Réinitialiser toutes les données extraites (extraits, présences, votes) pour cette séance ? Les associations de décisions seront conservées.",
     "resetExtractionsDescription": "Supprime toutes les données extraites (extraits, présences, votes) pour chaque sujet. Les associations de décisions sont conservées.",
     "scope": {
-        "malformed": "Mal configuré : {error}",
-        "noOrg": "Cette municipalité n'a pas d'ID d'organisation Diavgeia — l'interrogation est impossible",
-        "org": "Interroge l'organisation {org}",
-        "orgWide": "Interroge l'organisation {org} — organisation entière, aucune unité configurée",
-        "unit": "unité {unit}",
-        "unitSigner": "unité {unit}, signataire {signer}"
+      "malformed": "Mal configuré : {error}",
+      "noOrg": "Cette municipalité n'a pas d'ID d'organisation Diavgeia — l'interrogation est impossible",
+      "org": "Diavgeia {org}",
+      "orgWide": "organisation entière, aucune unité configurée",
+      "unit": "unité {unit}",
+      "unitSigner": "unité {unit}, signataire {signer}"
     },
     "save": "Enregistrer",
     "showLess": "Moins",
@@ -361,7 +361,11 @@
       "polled": "{n, plural, one {# interrogation} other {# interrogations}}",
       "started": "depuis le {date}",
       "next": "Prochaine interrogation automatique : {date}",
-      "stopped": "Interrogation automatique arrêtée"
+      "stopped": "Interrogation automatique arrêtée",
+      "tier": {
+        "everyRun": "interrogation automatique à chaque cycle",
+        "interval": "interrogation automatique tous les {days} jours"
+      }
     },
     "resetError": "Erreur de réinitialisation de l’extraction"
   },
