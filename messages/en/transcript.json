@@ -57,7 +57,8 @@
         "expandVideo": "Expand video",
         "collapseBar": "Collapse the bar",
         "expandBar": "Open the bar",
-        "clip": "Clip {current}/{total}"
+        "clip": "Clip {current}/{total}",
+        "lensFineHint": "Slide up to fine-tune"
     },
     "unverifiedBanner": {
         "title": "Automatic Transcript",

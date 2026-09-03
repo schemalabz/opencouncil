@@ -8,7 +8,7 @@ import { formatTimestamp } from '@/lib/utils';
  * transform — no React state, no 2-second jumps. The lens mounts a second one
  * over its track with `announce` off: the strip's slider is the one that speaks.
  */
-export function Playhead({ playerRef, currentTimeRef, duration, barRef, isPlaying, pausedTick, announce = true }: {
+export function Playhead({ playerRef, currentTimeRef, duration, barRef, isPlaying, pausedTick, announce = true, active = true }: {
     playerRef: React.MutableRefObject<HTMLVideoElement | null>;
     currentTimeRef: React.MutableRefObject<number>;
     duration: number;
@@ -18,10 +18,13 @@ export function Playhead({ playerRef, currentTimeRef, duration, barRef, isPlayin
     pausedTick: number;
     /** whether this playhead maintains the slider's aria values on `barRef` */
     announce?: boolean;
+    /** off while the bar is hidden: it has no width to position against, and the loop would run for nothing */
+    active?: boolean;
 }) {
     const headRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        if (!active) return;
         let lastX = -1;
         let lastSecond = -1;
         const apply = (time: number) => {
@@ -61,7 +64,7 @@ export function Playhead({ playerRef, currentTimeRef, duration, barRef, isPlayin
         };
         raf = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(raf);
-    }, [duration, playerRef, currentTimeRef, barRef, isPlaying, pausedTick, announce]);
+    }, [duration, playerRef, currentTimeRef, barRef, isPlaying, pausedTick, announce, active]);
 
     return (
         <div ref={headRef} aria-hidden className="pointer-events-none absolute left-0 top-0 h-full" style={{ zIndex: 11 }}>

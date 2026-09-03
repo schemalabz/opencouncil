@@ -100,7 +100,10 @@ export function PlaybackBar() {
         <div
             data-playback-focus=""
             className={cn(
-                'fixed inset-x-2 z-50',
+                // A finger held on the strip must scrub, not start a text
+                // selection or an iOS callout on the readouts around it. No
+                // autoprefixer here, so WebKit gets its prefixed property.
+                'fixed inset-x-2 z-50 select-none [-webkit-user-select:none] [-webkit-touch-callout:none]',
                 isMobile ? 'bottom-0 -mx-2 border-t-2 border-border bg-background px-2.5 pt-1.5' : 'bottom-2',
                 pill && 'hidden',
             )}
@@ -253,7 +256,7 @@ function BarPill({ mode, onExpand }: { mode: BarMode; onExpand: () => void }) {
     return (
         <div
             data-playback-focus=""
-            className="fixed inset-x-3 z-50 flex items-center gap-2.5 rounded-full border-2 border-border bg-card py-1 pl-2.5 pr-1.5 shadow-lg"
+            className="fixed inset-x-3 z-50 flex select-none items-center gap-2.5 rounded-full border-2 border-border bg-card py-1 pl-2.5 pr-1.5 shadow-lg [-webkit-user-select:none] [-webkit-touch-callout:none]"
             style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
         >
             <button
