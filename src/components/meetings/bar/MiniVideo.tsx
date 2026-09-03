@@ -6,7 +6,7 @@ import { Video } from '@/components/meetings/Video';
 import { useVideoActions } from '@/components/meetings/VideoProvider';
 import { useHighlight } from '@/components/meetings/HighlightContext';
 import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
-import { DOCK_ROW, DOCK_ROW_COMPACT } from './geometry';
+import { DOCK_ROW, DOCK_ROW_COMPACT, MINI_VIDEO_WIDTH, MINI_VIDEO_WIDTH_COMPACT } from './geometry';
 import { cn } from '@/lib/utils';
 
 const CYCLE = [1, 1.25, 1.5, 2];
@@ -71,8 +71,8 @@ export function MiniVideo({ compact = false }: { compact?: boolean }) {
     }, [menuOpen]);
 
     const size = compact
-        ? { height: DOCK_ROW_COMPACT, width: 70 }
-        : { height: DOCK_ROW, width: 110 };
+        ? { height: DOCK_ROW_COMPACT, width: MINI_VIDEO_WIDTH_COMPACT }
+        : { height: DOCK_ROW, width: MINI_VIDEO_WIDTH };
 
     return (
         <div ref={wrapRef} className="relative shrink-0" style={size}>

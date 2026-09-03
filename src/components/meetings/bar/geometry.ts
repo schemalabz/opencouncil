@@ -9,6 +9,10 @@ export const DOCK_ROW = 62;
 export const DOCK_ROW_COMPACT = 42;
 export const RAIL_HEIGHT = 18;
 export const BAND_ZONE = DOCK_ROW - RAIL_HEIGHT;
+/** The mini video beside the play button, and the gap between the dock's cells. */
+export const MINI_VIDEO_WIDTH = 110;
+export const MINI_VIDEO_WIDTH_COMPACT = 70;
+export const DOCK_GAP = 8;
 
 /** The lens over the strip on long meetings: its box, and its gap to the strip. */
 export const LENS_HEIGHT = 108;
