@@ -8,7 +8,7 @@ import { useHighlight } from '@/components/meetings/HighlightContext';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { useBarData } from './BarDataContext';
 import { useBarHighlight } from './BarHighlightContext';
-import { bandAt, intersectsAny, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
+import { bandAt, CHAPTER_LABEL_KEY, intersectsAny, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
 import { useLiveTime } from './useLiveTime';
 import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
 import { BAND_ZONE, DOCK_ROW, DOCK_ROW_COMPACT, RAIL_HEIGHT } from './geometry';
@@ -452,12 +452,6 @@ const EditLayer = memo(function EditLayer({ editRows, duration, railed, previewM
         </div>
     );
 });
-
-const CHAPTER_LABEL_KEY = {
-    beforeAgenda: 'chapterBeforeAgenda',
-    agenda: 'chapterAgenda',
-    outOfAgenda: 'chapterOutOfAgenda',
-} as const;
 
 /**
  * The chapter rail inside the box, under the bands: one muted span per

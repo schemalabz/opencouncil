@@ -222,3 +222,60 @@ export function bandAt(bands: { start: number; end: number }[], time: number): n
     }
     return -1;
 }
+
+/** The message key (transcript.controls) that names each chapter, on the rail and in the lens. */
+export const CHAPTER_LABEL_KEY = {
+    beforeAgenda: 'chapterBeforeAgenda',
+    agenda: 'chapterAgenda',
+    outOfAgenda: 'chapterOutOfAgenda',
+} as const satisfies Record<ChapterKey, string>;
+
+// ── The lens: ten minutes of the strip, magnified above it ──────────────────
+
+/** The span a lens window covers. */
+export const LENS_SPAN_SECONDS = 600;
+/** Below this the strip is precise enough on its own and the plain tooltip stays. */
+export const LENS_MIN_DURATION_SECONDS = 2 * 60 * 60;
+
+/**
+ * The window start with `time` centred. At the meeting's ends the window
+ * shifts rather than narrows, so the ruler's cadence and the bands' scale
+ * never change; the marker walks off-centre instead.
+ */
+export function lensWindowStart(time: number, duration: number, span = LENS_SPAN_SECONDS): number {
+    return Math.min(Math.max(time - span / 2, 0), Math.max(0, duration - span));
+}
+
+/**
+ * The lens's left edge in strip coordinates: centred on the pointer, kept
+ * inside the viewport by `margin`. A viewport narrower than the lens pins it
+ * to the left margin.
+ */
+export function lensLeft(pointerX: number, lensWidth: number, stripLeft: number, viewportWidth: number, margin = 8): number {
+    const min = margin - stripLeft;
+    const max = viewportWidth - margin - stripLeft - lensWidth;
+    if (max < min) return min;
+    return Math.min(Math.max(pointerX - lensWidth / 2, min), max);
+}
+
+/** How often the ruler labels a minute, in seconds, so HH:MM:SS labels never touch. */
+export function rulerLabelStep(lensWidth: number, span = LENS_SPAN_SECONDS): 60 | 120 | 300 {
+    const pxPerMinute = lensWidth / (span / 60);
+    if (pxPerMinute >= 56) return 60;
+    if (pxPerMinute >= 28) return 120;
+    return 300;
+}
+
+/**
+ * One step of a fine drag: the marker goes to `time`, and when that leaves
+ * the window the window slides just far enough to keep it — the drag never
+ * dead-ends at an edge.
+ */
+export function slideFine(time: number, windowStart: number, duration: number, span = LENS_SPAN_SECONDS): { time: number; windowStart: number } {
+    const clampedTime = Math.min(Math.max(time, 0), duration);
+    let start = windowStart;
+    if (clampedTime < start) start = clampedTime;
+    else if (clampedTime > start + span) start = clampedTime - span;
+    start = Math.min(Math.max(start, 0), Math.max(0, duration - span));
+    return { time: clampedTime, windowStart: start };
+}
