@@ -7,7 +7,8 @@ import { captureEvent } from '@/lib/analytics/capture';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink, Loader2, ArrowLeft, Play } from "lucide-react";
+import { FileText, MapPin, ScrollText, CheckSquare, Landmark, Loader2, ArrowLeft, Play } from "lucide-react";
+import { DecisionDocumentSheet } from "@/components/meetings/decisions/DecisionDocumentSheet";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
@@ -59,6 +60,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
     const { options } = useTranscriptOptions();
     const [isFetchingDecision, setIsFetchingDecision] = useState(false);
+    const [documentOpen, setDocumentOpen] = useState(false);
     const [localDecision, setLocalDecision] = useState<{
         ada: string | null;
         decisionNumber: string | null;
@@ -349,15 +351,16 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
 
                 {/* The page's key record must not sit below every statement on a
                     phone: the rail stacks last there, so the decision gets the same
-                    compact top slot the stats do — the ΑΔΑ and the way to the full
-                    card (which keeps the PDF link and the details). */}
+                    compact top slot the stats do — the ΑΔΑ and the document itself,
+                    read in place. */}
                 {decision && (
-                    <a
-                        href={decision.pdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => captureSubjectAction('decision_pdf', { surface: 'mobile_strip' })}
-                        className={cn(surfaceCardClass, "flex items-center justify-between gap-3 p-3.5 text-foreground hover:no-underline lg:hidden")}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            captureSubjectAction('decision_pdf', { surface: 'mobile_strip' });
+                            setDocumentOpen(true);
+                        }}
+                        className={cn(surfaceCardClass, "flex w-full items-center justify-between gap-3 p-3.5 text-left text-foreground lg:hidden")}
                     >
                         <span className="flex min-w-0 flex-wrap items-center gap-2">
                             <span className="text-[11px] font-extrabold tracking-[.04em] text-muted-foreground">{t("decision")}</span>
@@ -367,9 +370,19 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         </span>
                         <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[hsl(var(--orange-deep))]">
                             {t("viewDecision")}
-                            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                            <FileText className="h-3.5 w-3.5" aria-hidden />
                         </span>
-                    </a>
+                    </button>
+                )}
+                {decision && (
+                    <DecisionDocumentSheet
+                        open={documentOpen}
+                        onOpenChange={setDocumentOpen}
+                        title={decision.title}
+                        decisionNumber={decision.decisionNumber}
+                        pdfUrl={decision.pdfUrl}
+                        ada={decision.ada}
+                    />
                 )}
 
                 <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_336px] xl:gap-14">
@@ -475,16 +488,17 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                     )}
                                 </dl>
                                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-2.5">
-                                    <a
-                                        href={decision.pdfUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={() => captureSubjectAction('decision_pdf', { surface: 'rail' })}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            captureSubjectAction('decision_pdf', { surface: 'rail' });
+                                            setDocumentOpen(true);
+                                        }}
                                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--orange-deep))] hover:underline"
                                     >
-                                        <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                        <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                         {t("viewDecision")}
-                                    </a>
+                                    </button>
                                     {decision.updatedAt && (
                                         // Clock-relative text — see formatRelativeTime.
                                         <span className="text-[10.5px] text-muted-foreground" suppressHydrationWarning>
