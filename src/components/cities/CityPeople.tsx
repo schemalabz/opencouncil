@@ -13,6 +13,7 @@ import { City } from '@prisma/client';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes, getBodiesOfTypeFromPeople } from '@/lib/utils/administrativeBodies';
 import { BadgePicker } from '@/components/ui/badge-picker';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
+import { isRoleActive } from '@/lib/utils/roles';
 
 type CityPeopleProps = {
     allPeople: PersonWithRelations[],
@@ -115,6 +116,9 @@ export default function CityPeople({
                     />
                 );
             }}
+            // Whoever holds no role any more closes the list under their own
+            // heading, instead of sitting between today's members by surname.
+            trailing={{ title: t('formerMembers'), matches: person => !person.roles.some(isRoleActive) }}
             // One search per page: the identity band owns it. The count stays.
             showSearch={false}
             showCount
