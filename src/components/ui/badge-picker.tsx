@@ -3,7 +3,7 @@
 import { Button } from './button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, Filter } from 'lucide-react';
 
@@ -11,6 +11,12 @@ export interface BadgePickerOption<T extends string> {
     value: T;
     label: string;
     color?: string;
+    /**
+     * Extra content after the label (a count, a marker). A function receives
+     * the option's selected state, so the content can adapt its colours to
+     * the filled badge.
+     */
+    hint?: ReactNode | ((selected: boolean) => ReactNode);
 }
 
 interface BadgePickerProps<T extends string> {
@@ -205,6 +211,11 @@ function BadgeButtons<T extends string>({
                             />
                         )}
                         {option.label}
+                        {option.hint !== undefined && (
+                            <span className="flex items-center gap-1.5">
+                                {typeof option.hint === 'function' ? option.hint(isSelected) : option.hint}
+                            </span>
+                        )}
                     </Button>
                 );
             })}
