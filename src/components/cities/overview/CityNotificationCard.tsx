@@ -55,7 +55,7 @@ function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) 
                 <span className="min-w-0 flex-1">
                     <span className="block text-[15px] leading-tight">{t('notisName')}</span>
                     <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
-                        {t(authorityKey('notisIntro', city), { qualifier: getMunicipalityQualifier(city, locale) })}
+                        {t(authorityKey('notisIntro', city))}
                     </span>
                 </span>
             </div>

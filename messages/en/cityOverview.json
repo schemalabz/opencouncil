@@ -35,8 +35,8 @@
   "governingParty": "Governing group",
   "notisName": "Notis",
   "notisIntro": {
-    "municipality": "Writes to you on WhatsApp about {qualifier}",
-    "region": "Writes to you on WhatsApp about {qualifier}"
+    "municipality": "the digital neighbour who keeps up with what happens in the municipality",
+    "region": "the digital neighbour who keeps up with what happens in the region"
   },
   "notisCta": "Send me updates",
   "notisChannels": "Email, WhatsApp or SMS · Most weeks, nothing",

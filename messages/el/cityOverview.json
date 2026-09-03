@@ -35,8 +35,8 @@
   "governingParty": "Δημοτική Αρχή",
   "notisName": "Νότης",
   "notisIntro": {
-    "municipality": "Σου γράφει στο WhatsApp για τον δήμο {qualifier}",
-    "region": "Σου γράφει στο WhatsApp για την περιφέρεια {qualifier}"
+    "municipality": "ο ψηφιακός ενημερωμένος γείτονας που παρακολουθεί τι γίνεται στον δήμο",
+    "region": "ο ψηφιακός ενημερωμένος γείτονας που παρακολουθεί τι γίνεται στην περιφέρεια"
   },
   "notisCta": "Θέλω ενημερώσεις",
   "notisChannels": "Email, WhatsApp ή SMS · Τις περισσότερες εβδομάδες, τίποτα",
