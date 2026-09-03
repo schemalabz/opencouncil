@@ -7,6 +7,7 @@ import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, 
 import { LOCALE_PREFIX_RE, SERBIAN_SCRIPT_COOKIE, foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
 import { isSerbianScript } from './lib/serbian/transliterate';
 import { mcpRewriteTarget } from './lib/mcp/rewrite';
+import { isHeaderlessMultipartPost } from './lib/multipartPostGuard';
 import { applySessionMirror } from './lib/auth/sessionMirror';
 
 const i18nMiddleware = createIntlMiddleware(routing);
@@ -39,6 +40,12 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
     }
 
     if (JUNK_PATH.test(req.nextUrl.pathname)) {
+        return new NextResponse(null, { status: 404 });
+    }
+
+    // Scanner probes for server actions; see isHeaderlessMultipartPost for
+    // why Next itself would answer them with a 500 instead of a 404.
+    if (isHeaderlessMultipartPost(req.method, req.headers.get('content-type'), req.headers.get('next-action'))) {
         return new NextResponse(null, { status: 404 });
     }
 
