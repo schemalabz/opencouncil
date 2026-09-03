@@ -865,6 +865,7 @@
     },
     "Person": {
         "partyLeader": "Party Leader",
+        "formerMembers": "Former members",
         "mayor": "Mayor",
         "president": "President",
         "member": "Member",

@@ -47,6 +47,12 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     pagination?: Omit<PaginationParams, 'totalPages'>;
     renderFilter?: (props: { selectedValues: F[], onChange: (values: F[]) => void }) => React.ReactNode;
     renderAfterFilters?: React.ReactNode | ((selectedValues: F[]) => React.ReactNode);
+    /**
+     * Items listed after all the others, under their own heading — the people
+     * who no longer hold a role, say. They pass the same search and filter and
+     * count in the total; they only stop sharing the grid.
+     */
+    trailing?: { title: string; matches: (item: T) => boolean };
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
@@ -71,7 +77,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     defaultFilterValues,
     pagination,
     renderFilter,
-    renderAfterFilters
+    renderAfterFilters,
+    trailing,
 }: ListProps<T, P, F>) {
     const tCommon = useTranslations('Common');
     const searchParams = useSearchParams();
@@ -172,12 +179,28 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         ? Math.max(1, Math.min(isNaN(urlPage) ? 1 : urlPage, totalPages))
         : 1;
 
-    const paginatedItems = pagination
+    const pagedItems = pagination
         ? filteredItems.slice(
             (currentPage - 1) * pagination.pageSize,
             currentPage * pagination.pageSize
         )
         : filteredItems;
+    const paginatedItems = trailing ? pagedItems.filter(item => !trailing.matches(item)) : pagedItems;
+    const trailingItems = trailing ? pagedItems.filter(trailing.matches) : [];
+
+    const renderItem = (item: T) => (
+        <div
+            key={item.id}
+            className={carouselItemClasses}
+            style={layout === 'carousel' ? { width: carouselItemWidth, minWidth: carouselItemWidth } : undefined}
+        >
+            <ItemComponent
+                item={item}
+                editable={editable}
+                {...itemProps as P}
+            />
+        </div>
+    );
 
     // Debounced URL update for search
     useEffect(() => {
@@ -304,20 +327,16 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         </div>
                     )}
                     <div ref={carouselRef} className={gridClasses}>
-                        {paginatedItems.map((item) => (
-                            <div
-                                key={item.id}
-                                className={carouselItemClasses}
-                                style={layout === 'carousel' ? { width: carouselItemWidth, minWidth: carouselItemWidth } : undefined}
-                            >
-                                <ItemComponent
-                                    item={item}
-                                    editable={editable}
-                                    {...itemProps as P}
-                                />
-                            </div>
-                        ))}
+                        {paginatedItems.map(renderItem)}
                     </div>
+                    {trailingItems.length > 0 && (
+                        <section className="mt-8 border-t border-border pt-6">
+                            <h3 className="mb-4 text-sm font-medium text-muted-foreground">{trailing?.title}</h3>
+                            <div className={gridClasses}>
+                                {trailingItems.map(renderItem)}
+                            </div>
+                        </section>
+                    )}
                 </div>
             ) : (
                 <p className="text-gray-600">{t('noItems', { title: t('item') })}</p>

@@ -481,6 +481,7 @@
   },
   "Person": {
     "partyLeader": "Chef de groupe",
+    "formerMembers": "Anciens membres",
     "mayor": "Maire",
     "president": "Président(e)",
     "member": "Membre",
