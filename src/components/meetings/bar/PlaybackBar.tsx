@@ -11,7 +11,7 @@ import { useBarHighlight } from './BarHighlightContext';
 import { BarTimeline, DIM_OPACITY, type ModeAnnounce } from './BarTimeline';
 import { useLiveTime } from './useLiveTime';
 import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
-import { DOCK_ROW, DOCK_ROW_COMPACT } from './geometry';
+import { DOCK_GAP, DOCK_ROW, DOCK_ROW_COMPACT, MINI_VIDEO_WIDTH } from './geometry';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { MiniVideo } from './MiniVideo';
 import { ModePicker, type BarMode } from './ModePicker';
@@ -180,13 +180,20 @@ function TimeReadout() {
     );
 }
 
-/** The clock over the play button — polls the ref, so it ticks like a clock. */
+/**
+ * The clock over the play button — polls the ref, so it ticks like a clock.
+ * As wide as the play button and the video together, so the now-lane beside
+ * it starts exactly where the strip starts.
+ */
 function NowBubble() {
     const { duration, isPlaying } = useVideo();
     const { currentTimeRef } = useVideoActions();
     const time = useLiveTime(currentTimeRef, isPlaying);
     return (
-        <div className="pointer-events-none absolute -top-9 left-0 flex h-8 w-max items-center gap-1 rounded-full border-2 border-border bg-card px-3 shadow-sm text-[11px] tabular-nums">
+        <div
+            className="pointer-events-none absolute -top-9 left-0 flex h-8 items-center justify-center gap-1 rounded-[10px] border-2 border-border bg-card px-3 shadow-sm text-[11px] tabular-nums"
+            style={{ width: DOCK_ROW + DOCK_GAP + MINI_VIDEO_WIDTH }}
+        >
             <span className="font-extrabold">{formatTimestamp(time)}</span>
             <span className="text-muted-foreground">/ {duration > 0 ? formatTimestamp(duration) : '\u2014'}</span>
         </div>
