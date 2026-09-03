@@ -12,6 +12,8 @@ import { bandAt, CHAPTER_LABEL_KEY, intersectsAny, type BarBand, type Chapter, t
 import { useLiveTime } from './useLiveTime';
 import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
 import { BAND_ZONE, DOCK_ROW, DOCK_ROW_COMPACT, RAIL_HEIGHT } from './geometry';
+import { Playhead } from './Playhead';
+import { HoverBandDetails } from './HoverBandDetails';
 import { TopicIcon } from '@/components/TopicIcon';
 import { Users, Shapes } from 'lucide-react';
 import type { BarMode } from './ModePicker';
@@ -306,22 +308,7 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
                 )}
             >
                 <div data-bar-time className="border-b border-border/60 pb-1.5 text-xs font-extrabold tabular-nums" />
-                {hovered && hovered.speakerName && (
-                    <div className="mt-1.5 flex items-center gap-2">
-                        {/* the party dot, as parties are marked everywhere else — centred
-                            on the same 24px rail as the topic badge below it */}
-                        <span className="flex w-6 shrink-0 justify-center" aria-hidden>
-                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: hovered.speakerColor }} />
-                        </span>
-                        <span className="truncate text-xs font-bold">{hovered.speakerName}</span>
-                    </div>
-                )}
-                {hovered && hovered.subjectName && (
-                    <div className="mt-1.5 flex items-start gap-2">
-                        <TopicIcon color={hovered.subjectColor} icon={hovered.subjectIcon} size="sm" />
-                        <span className="min-w-0 pt-0.5 text-xs leading-snug">{hovered.subjectName}</span>
-                    </div>
-                )}
+                <HoverBandDetails band={hovered} />
             </div>
         </div>
     );
@@ -509,70 +496,6 @@ function ChapterRail({ chapters, duration, currentTime, barWidth }: {
                     </div>
                 );
             })}
-        </div>
-    );
-}
-
-/**
- * The playhead: a rAF loop reading the video element directly and writing a
- * transform — no React state, no 2-second jumps.
- */
-function Playhead({ playerRef, currentTimeRef, duration, barRef, isPlaying, pausedTick }: {
-    playerRef: React.MutableRefObject<HTMLVideoElement | null>;
-    currentTimeRef: React.MutableRefObject<number>;
-    duration: number;
-    barRef: React.RefObject<HTMLDivElement | null>;
-    isPlaying: boolean;
-    /** the throttled clock — its changes reposition the paused playhead after seeks */
-    pausedTick: number;
-}) {
-    const headRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        let lastX = -1;
-        let lastSecond = -1;
-        const apply = (time: number) => {
-            const el = headRef.current;
-            const bar = barRef.current;
-            if (!el || !bar || duration <= 0) return;
-            const x = Math.min(Math.max(time / duration, 0), 1) * bar.clientWidth;
-            if (Math.abs(x - lastX) >= 0.5) {
-                lastX = x;
-                el.style.transform = `translateX(${x}px)`;
-            }
-            // The slider's announced value lives outside React so playback
-            // ticks never re-render the strip.
-            const second = Math.round(time);
-            if (second !== lastSecond) {
-                lastSecond = second;
-                bar.setAttribute('aria-valuenow', String(second));
-                bar.setAttribute('aria-valuetext', formatTimestamp(time));
-            }
-        };
-
-        // Paused, the ref is canonical and only changes through seeks, which
-        // also bump the throttled clock — one positioning per change, no loop.
-        if (!isPlaying) {
-            apply(currentTimeRef.current);
-            return;
-        }
-
-        // Playing, the media element advances between timeupdate events, so a
-        // rAF loop reading it directly is what makes the playhead glide.
-        let raf = 0;
-        const tick = () => {
-            raf = requestAnimationFrame(tick);
-            const player = playerRef.current;
-            apply(player && !player.paused ? player.currentTime : currentTimeRef.current);
-        };
-        raf = requestAnimationFrame(tick);
-        return () => cancelAnimationFrame(raf);
-    }, [duration, playerRef, currentTimeRef, barRef, isPlaying, pausedTick]);
-
-    return (
-        <div ref={headRef} aria-hidden className="pointer-events-none absolute left-0 top-0 h-full" style={{ zIndex: 11 }}>
-            <div className="h-full w-[2px] -translate-x-1/2 bg-slate-700" />
-            <div className="absolute left-0 top-[1px] h-[9px] w-[9px] -translate-x-1/2 rounded-full bg-slate-700" />
         </div>
     );
 }
