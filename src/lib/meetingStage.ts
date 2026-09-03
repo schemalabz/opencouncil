@@ -8,8 +8,8 @@ import { hasExplainPage } from '@/lib/explain/availability';
  * admin pipeline (lib/meetingStatus.ts) tracks tasks; this tracks promises —
  * what the page has now and what it says is coming.
  */
-export const PUBLIC_MEETING_STAGES = ['upcoming', 'live', 'waiting', 'transcribing', 'review', 'complete', 'archive'] as const;
-export type PublicMeetingStage = (typeof PUBLIC_MEETING_STAGES)[number];
+export type PublicMeetingStage = 'upcoming' | 'live' | 'waiting' | 'transcribing' | 'review' | 'complete' | 'archive';
+export const PUBLIC_MEETING_STAGES: readonly PublicMeetingStage[] = ['upcoming', 'live', 'waiting', 'transcribing', 'review', 'complete', 'archive'];
 
 /** The four facts a stage is read from. Every surface derives them from what it has. */
 export interface MeetingStageSignals {

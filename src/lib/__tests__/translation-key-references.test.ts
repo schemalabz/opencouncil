@@ -252,6 +252,9 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
     { group: 'Common.adminBodyType_', members: { prismaEnum: 'AdministrativeBodyType' } },
     { group: 'AddMeetingForm.administrativeBodyType.', members: { prismaEnum: 'AdministrativeBodyType' } },
     { group: 'AdministrativeBodiesList.types.', members: { prismaEnum: 'AdministrativeBodyType' } },
+    { group: 'meetingStage.label.', members: { file: 'src/lib/meetingStage.ts', type: 'PublicMeetingStage' } },
+    { group: 'meetingStage.rows.', why: 'the leaf is a PendingKind with processing folded into review (SubjectRow)' },
+    { group: 'meetingStage.subject.', why: 'two leaves: the piece (summary, statements) and a PendingKind with processing folded into before (PendingNote)' },
 
     {
         group: 'Subject.categories.',
