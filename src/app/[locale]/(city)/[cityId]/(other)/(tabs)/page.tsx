@@ -79,6 +79,11 @@ export async function generateMetadata(
     };
 }
 
+/**
+ * The page binds its translator inside a Promise.all longer than the key scan
+ * reads, so the namespace is stated here for it.
+ * @translationNamespace cityOverview
+ */
 export default async function CityOverviewPage(
     props: {
         params: Promise<{ cityId: string; locale: string }>;
