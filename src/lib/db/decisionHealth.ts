@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { localCalendarDate } from '../formatters/time';
 import { isLogodosiaMeeting } from '../tasks/pollDecisionsBackoff';
 import { DECISION_ELIGIBLE_SUBJECT_WHERE } from './decisionEligibility';
+import { CUSTOMER_CITY_WHERE } from '../cityStatus';
 import { getConflictingCandidates } from './decisionCandidates';
 import { groupOrphanRows, unplaceableKind } from './decisionHealthState';
 import type { MissingSessionGroup, UnplaceableKind } from './decisionHealthState';
@@ -123,16 +124,18 @@ export interface DecisionFacts {
 
 /**
  * One slim fetch of everything the health rollups and the city detail derive
- * from. Hardcoded to the Greek realm for now: Diavgeia is a Greek register.
+ * from. Customer cities of the Greek realm only: Diavgeia is a Greek register,
+ * and a demo city's pipeline is nobody's work queue.
  */
 export async function fetchDecisionFacts(cityId?: string): Promise<DecisionFacts> {
+    const cityWhere = { realm: 'greece', ...CUSTOMER_CITY_WHERE } satisfies Prisma.CityWhereInput;
     const [cities, meetingRows, linkedRows, excerptRows, candidates, polls] = await Promise.all([
         prisma.city.findMany({
-            where: { realm: 'greece', ...(cityId ? { id: cityId } : {}) },
+            where: { ...cityWhere, ...(cityId ? { id: cityId } : {}) },
             select: cityFactsSelect,
         }),
         prisma.councilMeeting.findMany({
-            where: cityId ? { cityId } : { city: { realm: 'greece' } },
+            where: cityId ? { cityId } : { city: cityWhere },
             select: meetingFactsSelect,
         }),
         prisma.decision.findMany({
@@ -155,8 +158,8 @@ export async function fetchDecisionFacts(cityId?: string): Promise<DecisionFacts
 
     const tzByCity = new Map(cities.map(c => [c.id, c.timezone]));
     const meetings: MeetingFacts[] = meetingRows
-        // A cityId outside the realm has no timezone entry and yields no rows,
-        // matching the realm filter of the all-cities path.
+        // A cityId outside the realm or not a customer has no timezone entry
+        // and yields no rows, matching the city filter of the all-cities path.
         .filter(m => tzByCity.has(m.cityId))
         .map(m => ({
             id: m.id, cityId: m.cityId, administrativeBodyId: m.administrativeBodyId,

@@ -29,7 +29,7 @@ describe('getDecisionHealth', () => {
     })
 
     test('aggregates coverage, triage queues, unplaceable orphans and taxonomy for one city', async () => {
-        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1' })
+        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1', status: 'supported' })
         const body = await createAdministrativeBody(city.id, {
             notificationBehavior: 'NOTIFICATIONS_DISABLED',
         })
@@ -84,7 +84,7 @@ describe('getDecisionHealth', () => {
     })
 
     test('a city without a diavgeiaUid reports out of scope, and a failed latest poll blocks', async () => {
-        const city = await createCity({ id: 'c2' })
+        const city = await createCity({ id: 'c2', status: 'supported' })
         const body = await createAdministrativeBody(city.id, {
             notificationBehavior: 'NOTIFICATIONS_DISABLED',
         })
@@ -114,7 +114,7 @@ describe('coverage window', () => {
     })
 
     test('a future meeting with an imported agenda never counts', async () => {
-        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1' })
+        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1', status: 'supported' })
         const body = await createAdministrativeBody(city.id, {
             notificationBehavior: 'NOTIFICATIONS_DISABLED',
         })
@@ -141,7 +141,7 @@ describe('queue visibility', () => {
     })
 
     test('a city with pending work stays visible when the window holds none of its meetings', async () => {
-        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1' })
+        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1', status: 'supported' })
         const body = await createAdministrativeBody(city.id, {
             notificationBehavior: 'NOTIFICATIONS_DISABLED',
         })
@@ -176,7 +176,7 @@ describe('conflict detection', () => {
     // ADA is a conflict, and a backing row that disagrees with its own
     // decision is a counter-proposal — not every suggestion is a conflict.
     test('finds the plain conflict and the counter-proposal, and the rollup surfaces both', async () => {
-        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1' })
+        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1', status: 'supported' })
         const body = await createAdministrativeBody(city.id, {
             notificationBehavior: 'NOTIFICATIONS_DISABLED',
         })
@@ -231,7 +231,7 @@ describe('applyCandidateConflictResolution outcomes', () => {
 
     beforeEach(async () => {
         await resetDatabase(prisma)
-        const city = await createCity({ id: 'c1' })
+        const city = await createCity({ id: 'c1', status: 'supported' })
         cityId = city.id
         const body = await createAdministrativeBody(cityId, {
             notificationBehavior: 'NOTIFICATIONS_DISABLED',
@@ -290,13 +290,30 @@ describe('applyCandidateConflictResolution outcomes', () => {
     })
 })
 
+describe('city scope', () => {
+    beforeEach(async () => {
+        await resetDatabase(prisma)
+    })
+
+    test('a demo city is not on the overview, even with a Diavgeia organization and eligible subjects', async () => {
+        const city = await createCity({ id: 'c-demo', diavgeiaUid: 'DIAV-D', status: 'demo' })
+        const body = await createAdministrativeBody(city.id, { notificationBehavior: 'NOTIFICATIONS_DISABLED' })
+        const m = await createMeeting(city.id, {
+            id: 'm1', administrativeBodyId: body.id, dateTime: new Date('2025-01-10T10:00:00Z'),
+        })
+        await createSubject(m.id, city.id, { name: 'S', agendaItemIndex: 1 })
+        expect(await getDecisionHealth()).toEqual([])
+        expect(await getDecisionHealth(city.id)).toEqual([])
+    })
+})
+
 describe('per-body breakdown', () => {
     beforeEach(async () => {
         await resetDatabase(prisma)
     })
 
     async function seedCityWithBodies() {
-        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1' })
+        const city = await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1', status: 'supported' })
         const council = await createAdministrativeBody(city.id, {
             id: 'b-council', name: 'Δημοτικό Συμβούλιο', type: 'council', diavgeiaUnitIds: ['81689'],
             notificationBehavior: 'NOTIFICATIONS_DISABLED',
@@ -404,7 +421,7 @@ describe('per-body breakdown', () => {
     })
 
     test('a city whose meetings all carry a body has no no-body row', async () => {
-        const city = await createCity({ id: 'c2', diavgeiaUid: 'DIAV-2' })
+        const city = await createCity({ id: 'c2', diavgeiaUid: 'DIAV-2', status: 'supported' })
         const body = await createAdministrativeBody(city.id, { notificationBehavior: 'NOTIFICATIONS_DISABLED' })
         const m = await createMeeting(city.id, {
             id: 'm1', administrativeBodyId: body.id, dateTime: new Date('2025-01-10T10:00:00Z'),
