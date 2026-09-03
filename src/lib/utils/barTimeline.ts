@@ -236,6 +236,14 @@ export const CHAPTER_LABEL_KEY = {
 export const LENS_SPAN_SECONDS = 600;
 /** Below this the strip is precise enough on its own and the plain tooltip stays. */
 export const LENS_MIN_DURATION_SECONDS = 2 * 60 * 60;
+/** The margin the lens keeps from the viewport's edges. */
+export const LENS_MARGIN = 8;
+
+/** The time at strip x, clamped to the strip. Without a width or a duration there is no mapping: 0. */
+export function timeAt(x: number, width: number, duration: number): number {
+    if (width <= 0 || duration <= 0) return 0;
+    return (Math.min(Math.max(x, 0), width) / width) * duration;
+}
 
 /**
  * The window start with `time` centred. At the meeting's ends the window
@@ -251,7 +259,7 @@ export function lensWindowStart(time: number, duration: number, span = LENS_SPAN
  * inside the viewport by `margin`. A viewport narrower than the lens pins it
  * to the left margin.
  */
-export function lensLeft(pointerX: number, lensWidth: number, stripLeft: number, viewportWidth: number, margin = 8): number {
+export function lensLeft(pointerX: number, lensWidth: number, stripLeft: number, viewportWidth: number, margin = LENS_MARGIN): number {
     const min = margin - stripLeft;
     const max = viewportWidth - margin - stripLeft - lensWidth;
     if (max < min) return min;

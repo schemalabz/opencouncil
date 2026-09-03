@@ -1,4 +1,4 @@
-import { CLOSED, lensReducer, type LensContext, type LensEvent, type LensState } from '../lensGesture';
+import { CLOSED, lensReducer, lensWidthFor, type LensContext, type LensEvent, type LensState } from '../lensGesture';
 
 // a 4-hour meeting on a 1000px strip that starts 300px into a 1440px viewport, a 600px lens
 const ctx: LensContext = { duration: 14400, lensEnabled: true, lensWidth: 600, stripLeft: 300, stripWidth: 1000, viewportWidth: 1440 };
@@ -110,5 +110,22 @@ describe('lensReducer — touch', () => {
         const { state } = run([{ type: 'down', x: 500 }, { type: 'stripMove', x: 900 }]);
         expect(state.phase).toBe('coarse');
         expect(state.time).toBe(7200);
+    });
+});
+
+describe('lensReducer — no duration', () => {
+    it('neither opens nor seeks while the strip has no duration', () => {
+        const events: LensEvent[] = [{ type: 'stripMove', x: 500 }, { type: 'stripClick', x: 500 }, { type: 'down', x: 500 }, { type: 'up' }];
+        const { state, effects } = run(events, CLOSED, { ...ctx, duration: 0 });
+        expect(state.phase).toBe('closed');
+        expect(effects).toEqual([]);
+    });
+});
+
+describe('lensWidthFor', () => {
+    it('steps by eight pixels, so a live resize does not rebuild the track per pixel', () => {
+        expect(lensWidthFor(1000, 1440, false)).toBe(600);
+        expect(lensWidthFor(1003, 1440, false)).toBe(600);
+        expect(lensWidthFor(0, 390, true)).toBe(368);
     });
 });

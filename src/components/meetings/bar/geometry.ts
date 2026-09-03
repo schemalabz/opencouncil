@@ -10,8 +10,7 @@ export const DOCK_ROW_COMPACT = 42;
 export const RAIL_HEIGHT = 18;
 export const BAND_ZONE = DOCK_ROW - RAIL_HEIGHT;
 
-/** The lens over the strip on long meetings: its box, and the viewport margin it keeps. */
-export const LENS_HEIGHT = 104;
-export const LENS_HEIGHT_COMPACT = 84;
+/** The lens over the strip on long meetings: its box, and its gap to the strip. */
+export const LENS_HEIGHT = 108;
+export const LENS_HEIGHT_COMPACT = 88;
 export const LENS_GAP = 8;
-export const LENS_MARGIN = 8;
