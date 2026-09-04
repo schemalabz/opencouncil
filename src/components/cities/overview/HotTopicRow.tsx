@@ -45,7 +45,6 @@ export function HotTopicRow({ card, rank, maxSeconds, timezone, locale, onOpen }
         <button
             type="button"
             onClick={onOpen}
-            aria-expanded={false}
             className="relative flex w-full items-center gap-3 overflow-hidden border-t border-border px-4 py-3 text-left transition-colors hover:bg-muted/30"
         >
             <span
