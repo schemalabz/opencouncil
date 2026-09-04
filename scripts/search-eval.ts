@@ -12,6 +12,7 @@
  *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --query "..."      # one ad-hoc query
  *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --min-score 0.94   # sweep the semantic cutoff
  *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --tier-margin      # field-tier ordering
+ *   SKIP_ENV_VALIDATION=1 npx tsx scripts/search-eval.ts --related <id>    # a subject's related subjects, both scopes
  */
 // Must stay the FIRST import: it loads .env before `../src/lib/search/query`
 // initialises `@/env.mjs`. See scripts/search-eval-env.ts.
@@ -20,6 +21,8 @@ import './search-eval-env';
 import { Client, estypes } from '@elastic/elasticsearch';
 import { buildSearchQuery, rankingMultiplierRatio, MAX_RANKING_MULTIPLIER_RATIO } from '../src/lib/search/query';
 import type { SearchRequest } from '../src/lib/search/types';
+import { buildRelatedSubjectsQuery, type RelatedSubjectSeed } from '../src/lib/search/related';
+import type { RelatedScope } from '../src/lib/search/types';
 import { NO_EXTRACTED_FILTERS } from '../src/lib/search/filters';
 
 type Expectation = 'results' | 'empty';
@@ -238,6 +241,53 @@ async function runQuery(
     }));
     const total = res.hits.total;
     return { total: typeof total === 'number' ? total : total?.value ?? 0, rows };
+}
+
+/**
+ * The related-subjects query (buildRelatedSubjectsQuery) for one indexed
+ * subject, both scopes, against the whole index. Prints what the subject page
+ * would list, without the realm cap: the harness has no request to read a
+ * realm from, so `other` here is every other municipality in the index.
+ */
+async function runRelated(subjectId: string): Promise<void> {
+    const seedRes = await client.search<EvalSource & { city_id?: string; councilMeeting_id?: string }>({
+        index: process.env.ELASTICSEARCH_INDEX,
+        size: 1,
+        _source: ['id', 'name', 'city_id', 'city_name', 'councilMeeting_id', 'meeting_date'],
+        query: { term: { id: subjectId } },
+    });
+    const source = seedRes.hits.hits[0]?._source;
+    if (!source?.id || !source.name || !source.city_id || !source.councilMeeting_id) {
+        throw new Error(`subject ${subjectId} is not in the index`);
+    }
+    const seed: RelatedSubjectSeed = { id: source.id, name: source.name, cityId: source.city_id, councilMeetingId: source.councilMeeting_id };
+    console.log(`\n▶ related to "${seed.name}" (${source.city_name}, ${(source.meeting_date ?? '').slice(0, 10)})`);
+
+    const cities = await client.search({
+        index: process.env.ELASTICSEARCH_INDEX,
+        size: 0,
+        aggs: { cities: { terms: { field: 'city_id', size: 1000 } } },
+    });
+    const buckets = (cities.aggregations?.cities as estypes.AggregationsStringTermsAggregate).buckets as estypes.AggregationsStringTermsBucket[];
+    const cityIds = buckets.map(b => String(b.key));
+
+    for (const scope of ['city', 'other'] as RelatedScope[]) {
+        const q = buildRelatedSubjectsQuery(seed, scope, cityIds);
+        const res = await client.search<EvalSource>({
+            ...q,
+            _source: ['id', 'name', 'city_name', 'administrative_body_type', 'meeting_date', 'discussion_speaking_seconds'],
+        });
+        console.log(`\n   scope=${scope} — ${res.hits.hits.length} above ${q.min_score}`);
+        printRows(res.hits.hits.map((h) => ({
+            score: h._score ?? 0,
+            name: (h._source?.name ?? '(no name)').slice(0, 78),
+            city: h._source?.city_name ?? '?',
+            body: h._source?.administrative_body_type ?? '—',
+            date: (h._source?.meeting_date ?? '').slice(0, 10),
+            minutes: Math.round((h._source?.discussion_speaking_seconds ?? 0) / 60),
+            matched: '',
+        })));
+    }
 }
 
 function printRows(rows: HitRow[]) {
@@ -554,6 +604,12 @@ async function main() {
         throw new Error(`--min-score expects a number, got "${rawMinScore}"`);
     }
     const query = flagValue('--query');
+    const relatedTo = flagValue('--related');
+
+    if (relatedTo !== undefined) {
+        await runRelated(relatedTo);
+        return;
+    }
 
     if (query !== undefined) {
         const { total, rows } = await runQuery(query, mode, semanticMinScore);
