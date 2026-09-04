@@ -60,6 +60,9 @@ export async function PUT(
         })
 
         revalidateTag(`city:${params.cityId}:parties`, 'max');
+        // The city row carries the roster counts the overview reads to decide
+        // whether it has data at all, so a new or deleted member ages it too.
+        revalidateTag(`city:${params.cityId}:basic`, 'max');
         revalidatePath(`/${params.cityId}/people`);
         revalidatePath(`/${params.cityId}/parties`);
 
@@ -79,6 +82,9 @@ export async function DELETE(
         await withUserAuthorizedToEdit({ partyId: params.partyId });
         await deleteParty(params.partyId)
         revalidateTag(`city:${params.cityId}:parties`, 'max');
+        // The city row carries the roster counts the overview reads to decide
+        // whether it has data at all, so a new or deleted member ages it too.
+        revalidateTag(`city:${params.cityId}:basic`, 'max');
         revalidatePath(`/${params.cityId}/people`);
         revalidatePath(`/${params.cityId}/parties`);
         return NextResponse.json({ message: 'Party deleted successfully' })
