@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useRouter, Link } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 import { useVideo, useVideoActions } from '@/components/meetings/VideoProvider';
@@ -8,7 +8,7 @@ import { useHighlight } from '@/components/meetings/HighlightContext';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { useBarData } from './BarDataContext';
 import { useBarHighlight } from './BarHighlightContext';
-import { bandAt, CHAPTER_LABEL_KEY, intersectsAny, timeAt, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
+import { bandAt, chapterJumpTarget, CHAPTER_LABEL_KEY, intersectsAny, timeAt, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
 import { captureEvent } from '@/lib/analytics/capture';
 import { useLiveTime } from './useLiveTime';
 import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
@@ -22,6 +22,9 @@ import type { BarMode } from './ModePicker';
 import { cn, formatTimestamp } from '@/lib/utils';
 
 export const DIM_OPACITY = 0.16;
+
+/** What Page Up and Page Down seek on a meeting with no chapters to jump between. */
+const PAGE_STEP_SECONDS = 300;
 
 /** One explicit mode switch — the key remounts the overlay so the animation replays. */
 export interface ModeAnnounce {
@@ -51,6 +54,7 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
     const { city, meeting } = useCouncilMeetingData();
 
     const barRef = useRef<HTMLDivElement>(null);
+    const chapterKeysId = useId();
 
     const isHighlightMode = editingHighlight !== null;
 
@@ -121,6 +125,15 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
         } else if (e.key === 'ArrowLeft') {
             e.preventDefault();
             seekTo(Math.max(0, currentTimeRef.current - step));
+        } else if (e.key === 'PageUp' || e.key === 'PageDown') {
+            // The slider's large step, and the only way to the chapters without
+            // a pointer: the rail draws them, and until now nothing but the
+            // rail knew they existed.
+            e.preventDefault();
+            const direction = e.key === 'PageUp' ? 1 : -1;
+            const chapter = chapterJumpTarget(chapters, currentTimeRef.current, direction);
+            const plain = currentTimeRef.current + direction * PAGE_STEP_SECONDS;
+            seekTo(chapter ?? Math.min(duration, Math.max(0, plain)));
         } else if (e.key === 'Home') {
             e.preventDefault();
             seekTo(0);
@@ -128,7 +141,7 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
             e.preventDefault();
             seekTo(duration);
         }
-    }, [duration, seekTo, currentTimeRef]);
+    }, [duration, seekTo, currentTimeRef, chapters]);
 
     // Under the collapsed pill the dock is display:none: rendering ~500 band
     // divs and running the playhead there is pure waste. Hooks above still run
@@ -156,6 +169,7 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
                 // initial values only — the Playhead maintains both imperatively
                 aria-valuenow={Math.round(currentTimeRef.current)}
                 aria-valuetext={formatTimestamp(currentTimeRef.current)}
+                aria-describedby={chapters.length > 0 ? chapterKeysId : undefined}
                 tabIndex={0}
                 onClick={pointer.strip.onClick}
                 onContextMenu={pointer.strip.onContextMenu}
@@ -232,6 +246,23 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
                     style={{ zIndex: 12 }}
                 />
             </div>
+
+            {chapters.length > 0 && (
+                // Everything inside a slider is presentational to a screen
+                // reader, so the rail drawn in the strip can never carry these
+                // names. The list stands beside it and names the same starts
+                // that Page Up and Page Down move between.
+                <div className="sr-only">
+                    <p id={chapterKeysId}>{t('chapterKeys')}</p>
+                    <ul role="list" aria-label={t('chapters')}>
+                        {chapters.map(chapter => (
+                            <li key={chapter.key}>
+                                {t('chapterAt', { chapter: t(CHAPTER_LABEL_KEY[chapter.key]), time: formatTimestamp(chapter.start) })}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             {/* Long meetings get the lens, mounted on its first opening; short
                 ones the tooltip. Both take the hovered band from state and
@@ -315,15 +346,7 @@ const SegmentsLayer = memo(function SegmentsLayer({ bands, mode, duration, highl
             })}
         </div>
     );
-}, (prev, next) =>
-    prev.bands === next.bands &&
-    prev.mode === next.mode &&
-    prev.duration === next.duration &&
-    prev.dimAll === next.dimAll &&
-    prev.highlightKey === next.highlightKey &&
-    prev.highlightRanges === next.highlightRanges &&
-    prev.railed === next.railed
-);
+});
 
 /**
  * The line above the strip: who speaks and on what, centred over the timeline
@@ -398,7 +421,8 @@ const EditLayer = memo(function EditLayer({ editRows, duration, railed, previewM
 /**
  * The chapter rail inside the box, under the bands: one muted span per
  * chapter, the one the playhead is in a shade darker, labels only where the
- * chapter is wide enough to carry them.
+ * chapter is wide enough to carry them. Paint only — the strip's own list
+ * names the chapters for a reader, and the Page keys move between them.
  */
 function ChapterRail({ chapters, duration, currentTime, barWidth }: {
     chapters: Chapter[];

@@ -1,4 +1,4 @@
-import { bandAt, chapterStarts, intersectsAny, lensLeft, lensWindowStart, mergeIntervals, resolveOverlaps, rulerLabelStep, slideFine, timeAt, utteranceRuns, type BarBand, type ChapterKey } from '../barTimeline';
+import { bandAt, chapterJumpTarget, chapterStarts, coalesceSpans, cycleSpeed, formatSpeed, intersectsAny, lensLeft, lensWindowStart, mergeIntervals, resolveOverlaps, rulerLabelStep, slideFine, timeAt, utteranceRuns, SPEED_CYCLE, SPEED_MENU, type BarBand, type Chapter, type ChapterKey } from '../barTimeline';
 
 const u = (start: number, end: number, subjectId: string | null, status = 'SUBJECT_DISCUSSION') => ({
     startTimestamp: start,
@@ -314,5 +314,122 @@ describe('slideFine', () => {
     it('stops at the meeting\'s ends', () => {
         expect(slideFine(10500, 9400, 10000)).toEqual({ time: 10000, windowStart: 9400 });
         expect(slideFine(-40, 0, 10000)).toEqual({ time: 0, windowStart: 0 });
+    });
+});
+
+describe('chapterJumpTarget', () => {
+    const chapters: Chapter[] = [
+        { key: 'beforeAgenda', start: 0 },
+        { key: 'agenda', start: 600 },
+        { key: 'outOfAgenda', start: 3000 },
+    ];
+
+    it('goes to the next chapter start', () => {
+        expect(chapterJumpTarget(chapters, 100, 1)).toBe(600);
+        expect(chapterJumpTarget(chapters, 700, 1)).toBe(3000);
+    });
+
+    it('goes back to the start of the chapter in progress, then to the one before it', () => {
+        expect(chapterJumpTarget(chapters, 700, -1)).toBe(600);
+        expect(chapterJumpTarget(chapters, 3100, -1)).toBe(3000);
+        expect(chapterJumpTarget(chapters, 600, -1)).toBe(0);
+    });
+
+    it('leaves the ends to the caller', () => {
+        expect(chapterJumpTarget(chapters, 3100, 1)).toBeNull();
+        expect(chapterJumpTarget(chapters, 0, -1)).toBeNull();
+        expect(chapterJumpTarget([], 100, 1)).toBeNull();
+    });
+
+    it('moves off a boundary it already sits on', () => {
+        expect(chapterJumpTarget(chapters, 600, 1)).toBe(3000);
+    });
+});
+
+const painted = (start: number, end: number, speakerColor: string, subjectColor = speakerColor): BarBand => ({
+    ...band(start, end),
+    speakerColor,
+    subjectColor,
+});
+
+const colorOf = (b: BarBand) => b.speakerColor;
+const allLit = () => true;
+
+describe('coalesceSpans', () => {
+    it('joins neighbours that paint the same', () => {
+        const spans = coalesceSpans([painted(0, 10, '#a'), painted(12, 40, '#a')], colorOf, allLit, 30);
+        expect(spans).toEqual([{ start: 0, end: 40, color: '#a', lit: true }]);
+    });
+
+    it('keeps a colour change apart', () => {
+        const spans = coalesceSpans([painted(0, 10, '#a'), painted(10, 20, '#b')], colorOf, allLit, 30);
+        expect(spans.map(s => [s.start, s.end, s.color])).toEqual([[0, 10, '#a'], [10, 20, '#b']]);
+    });
+
+    it('keeps a lit change apart', () => {
+        const spans = coalesceSpans([painted(0, 10, '#a'), painted(10, 20, '#a')], colorOf, b => b.start < 10, 30);
+        expect(spans.map(s => [s.start, s.end, s.lit])).toEqual([[0, 10, true], [10, 20, false]]);
+    });
+
+    it('keeps neighbours further apart than the gap separate', () => {
+        const spans = coalesceSpans([painted(0, 10, '#a'), painted(50, 60, '#a')], colorOf, allLit, 30);
+        expect(spans.map(s => [s.start, s.end])).toEqual([[0, 10], [50, 60]]);
+    });
+
+    it('reads the colour the caller asks for', () => {
+        const bands = [painted(0, 10, '#a', '#x'), painted(10, 20, '#b', '#x')];
+        expect(coalesceSpans(bands, b => b.subjectColor, allLit, 30)).toEqual([
+            { start: 0, end: 20, color: '#x', lit: true },
+        ]);
+    });
+
+    it('handles empty input and leaves the bands untouched', () => {
+        expect(coalesceSpans([], colorOf, allLit, 30)).toEqual([]);
+        const bands = [painted(0, 10, '#a'), painted(12, 40, '#a')];
+        coalesceSpans(bands, colorOf, allLit, 30);
+        expect(bands.map(b => b.end)).toEqual([10, 40]);
+    });
+});
+
+describe('cycleSpeed', () => {
+    it('steps through the cycle and wraps', () => {
+        expect(cycleSpeed(1)).toBe(1.25);
+        expect(cycleSpeed(1.25)).toBe(1.5);
+        expect(cycleSpeed(1.5)).toBe(2);
+        expect(cycleSpeed(2)).toBe(1);
+    });
+
+    it('advances an off-cycle speed to the next higher cycle value', () => {
+        expect(cycleSpeed(0.5)).toBe(1);
+        expect(cycleSpeed(0.75)).toBe(1);
+        expect(cycleSpeed(1.75)).toBe(2);
+        expect(cycleSpeed(1.1)).toBe(1.25);
+    });
+
+    it('wraps a speed above the cycle to the first value', () => {
+        expect(cycleSpeed(3)).toBe(1);
+        expect(cycleSpeed(4)).toBe(1);
+    });
+
+    it('reaches every cycle value from every menu value', () => {
+        for (const start of SPEED_MENU) {
+            const seen = new Set<number>();
+            let speed = start;
+            for (let i = 0; i < SPEED_CYCLE.length + 1; i++) {
+                speed = cycleSpeed(speed);
+                seen.add(speed);
+            }
+            expect([...seen].sort((a, b) => a - b)).toEqual(SPEED_CYCLE);
+        }
+    });
+});
+
+describe('formatSpeed', () => {
+    it('drops the trailing zeros and keeps the sign', () => {
+        expect(formatSpeed(1)).toBe('1×');
+        expect(formatSpeed(1.5)).toBe('1.5×');
+        expect(formatSpeed(1.25)).toBe('1.25×');
+        expect(formatSpeed(0.5)).toBe('0.5×');
+        expect(formatSpeed(0.75)).toBe('0.75×');
     });
 });

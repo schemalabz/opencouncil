@@ -53,12 +53,19 @@
         "chapterBeforeAgenda": "ΠΡΟ ΗΜΕΡΗΣΙΑΣ",
         "chapterAgenda": "ΗΜΕΡΗΣΙΑ ΔΙΑΤΑΞΗ",
         "chapterOutOfAgenda": "ΕΚΤΟΣ ΗΜΕΡΗΣΙΑΣ",
+        "chapters": "Ενότητες συνεδρίασης",
+        "chapterAt": "{chapter}, από {time}",
+        "chapterKeys": "Page Up και Page Down για μετάβαση στην επόμενη ή στην προηγούμενη ενότητα.",
         "playbackSpeed": "Ταχύτητα αναπαραγωγής",
+        "playbackSpeedValue": "Ταχύτητα αναπαραγωγής: {speed}",
         "expandVideo": "Μεγέθυνση βίντεο",
         "collapseBar": "Σύμπτυξη μπάρας",
         "expandBar": "Άνοιγμα μπάρας",
         "clip": "Απόσπασμα {current}/{total}",
-        "lensFineHint": "Σύρε προς τα πάνω για ακρίβεια"
+        "lensFineHint": "Σύρε προς τα πάνω για ακρίβεια",
+        "nowSpeaking": "Μιλάει τώρα: {speaker}",
+        "nowSpeakingOn": "Μιλάει τώρα: {speaker}. Θέμα: {subject}",
+        "nowSubject": "Θέμα: {subject}"
     },
     "unverifiedBanner": {
         "title": "Αυτόματη απομαγνητοφώνηση",
