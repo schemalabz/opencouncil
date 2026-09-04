@@ -1,5 +1,6 @@
 import type { PartyWithPersons } from '@/lib/db/parties';
 import { getLocalizedName } from '@/lib/formatters/name';
+import { partyComposition } from '@/lib/party/composition';
 import { isRoleActive } from '@/lib/utils/roles';
 
 /**
@@ -15,10 +16,11 @@ export function sortParties<T extends PartyWithPersons>(parties: T[], locale?: s
     // have all resigned holds none, and ranking it on the people still on its
     // books put a card reading "0 έδρες" third in a list led by 26 and 9. A
     // party with no seat now sorts below every party that has one, which is
-    // what the numeral on its card says.
+    // what the numeral on its card says. The count comes from partyComposition,
+    // which is the count PartyCard prints, so the order and the numerals agree.
     // Measured once per party rather than inside the comparator, which runs
     // O(n log n) times.
-    const sizes = new Map(parties.map(party => [party.id, councilSeats(party)]));
+    const sizes = new Map(parties.map(party => [party.id, partyComposition(party).council]));
     const label = (party: T) => displayName(party, locale);
     return [...parties].sort((a, b) => {
         const memberCountDiff = (sizes.get(b.id) ?? 0) - (sizes.get(a.id) ?? 0);
@@ -42,22 +44,13 @@ function displayName(party: PartyWithPersons, locale?: string): string {
 }
 
 /**
- * The number PartyCard shows: members of this party holding an active council seat.
- *
- * Both halves are load-bearing, and they are the same two tests partyComposition applies — a
- * councillor who left the παράταξη keeps their seat, and `getPartiesForCity` filters the party's
- * own roles relation but not the nested `person.roles`, so they are still listed here. Counting
- * their seat ranked a party above one whose card prints a larger numeral.
+ * Whether the party has a head now. `isRoleActive` is load-bearing: `getPartiesForCity` filters
+ * the party's own roles relation but not the nested `person.roles`, so a leader who stood down
+ * last term is still on the record — and their ended role won the tiebreak over a party with a
+ * sitting επικεφαλής.
  */
-function councilSeats(party: PartyWithPersons): number {
-    return party.people.filter(person =>
-        person.roles.some(role => role.partyId === party.id && isRoleActive(role)) &&
-        person.roles.some(role => role.administrativeBody?.type === 'council' && isRoleActive(role)),
-    ).length;
-}
-
 function partyHasHead(party: PartyWithPersons): boolean {
     return party.people.some(person =>
-        person.roles.some(role => role.partyId === party.id && role.isHead)
+        person.roles.some(role => role.partyId === party.id && role.isHead && isRoleActive(role))
     );
 }
