@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { surfaceCardClass } from '@/components/ui/surface-card';
+import { meterBarWidth } from '@/lib/utils/subjects';
 
 /**
  * A titled card for a page's side rail — the compact "facts" column the
@@ -24,8 +25,8 @@ export function RailCard({ title, children, className, id }: {
 
 /**
  * One measured row inside a rail card: a label, a count, and a thin bar scaled
- * against the card's largest value. The 6% floor keeps the smallest value
- * visible as a presence rather than a blank track.
+ * against the card's largest value by {@link meterBarWidth}, which floors the
+ * smallest value into a visible presence and caps the bar at its own track.
  */
 export function RailMeterRow({ icon, label, value, ratio, color }: {
     icon?: React.ReactNode;
@@ -47,7 +48,7 @@ export function RailMeterRow({ icon, label, value, ratio, color }: {
             <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
                 <div
                     className="h-full rounded-full"
-                    style={{ width: `${Math.max(6, Math.round(ratio * 100))}%`, backgroundColor: color }}
+                    style={{ width: `${meterBarWidth(ratio)}%`, backgroundColor: color }}
                 />
             </div>
         </li>

@@ -21,6 +21,18 @@ export const INTERNAL_USER_KEY = "oc-internal-user";
 // different team member signs in on the same browser — see identifyUser.ts.
 export const INTERNAL_PERSON_KEY = "oc-internal-person";
 
+/**
+ * Whether the PostHog client is initialised.
+ *
+ * It is initialised only when the project token is set, and calling it before
+ * that logs an error and drops the call — so every capture and every consent
+ * operation in the app is guarded by this. Written out at each site, the guard
+ * was copied eight times over; the reason for it lives here now, once.
+ */
+export function posthogReady(): boolean {
+    return posthog.__loaded === true;
+}
+
 // Re-applies the stored ConsentChip answer whenever PostHog's own consent
 // state is back to 'pending' — on initial load, and right after
 // posthog.reset() on sign-out. In on_reject mode 'pending' DROPS all events,
@@ -28,7 +40,7 @@ export const INTERNAL_PERSON_KEY = "oc-internal-person";
 // anything else stays on the cookieless declined default (server-side daily
 // hash, nothing stored on the device).
 export function applyStoredAnalyticsConsent() {
-    if (!posthog.__loaded) return;
+    if (!posthogReady()) return;
     if (posthog.get_explicit_consent_status() !== "pending") return;
     if (localStorage.getItem(ANALYTICS_CHOICE_KEY) === "accepted") {
         // A restore of an earlier choice, not a new consent action: don't

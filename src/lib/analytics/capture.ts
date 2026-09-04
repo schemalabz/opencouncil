@@ -1,5 +1,6 @@
 import posthog from 'posthog-js';
 import { captureLandingAction } from '@/lib/landing/analytics';
+import { posthogReady } from '@/lib/utils/analyticsConsent';
 
 /**
  * The app-wide capture helper for typed product events (the redesigned city,
@@ -8,9 +9,7 @@ import { captureLandingAction } from '@/lib/landing/analytics';
  * event name, so one insight can compare surfaces (the highlight_* pattern).
  */
 export function captureEvent(event: string, props: Record<string, unknown> = {}): void {
-    // PostHog is initialised only when the project token is set, and calling
-    // capture before that logs an error and drops the event.
-    if (!posthog.__loaded) return;
+    if (!posthogReady()) return;
     posthog.capture(event, props);
 }
 

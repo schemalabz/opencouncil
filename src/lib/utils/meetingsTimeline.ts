@@ -1,4 +1,5 @@
 import type { AdministrativeBodyType } from '@prisma/client';
+import { SUBJECT_PREVIEW_COUNT } from './subjects';
 
 /**
  * Geometry for the city overview's meeting timeline (Greek realm).
@@ -27,8 +28,8 @@ export const TL = {
     FOOTER_H: 30,
     /** The line shown when a meeting has no subjects to preview. */
     EMPTY_H: 38,
-    /** How many subjects a card previews — the same cap the meeting cards use. */
-    PREVIEW_ROWS: 3,
+    /** How many subjects a card previews — the cap the meeting cards use. */
+    PREVIEW_ROWS: SUBJECT_PREVIEW_COUNT,
 } as const;
 
 export type TimelineSide = 'left' | 'right';

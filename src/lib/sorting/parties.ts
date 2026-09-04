@@ -1,7 +1,7 @@
 import type { PartyWithPersons } from '@/lib/db/parties';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { partyComposition } from '@/lib/party/composition';
-import { isRoleActive } from '@/lib/utils/roles';
+import { isActivePartyRole } from '@/lib/utils/roles';
 
 /**
  * Display order for a city's parties: most council seats first, then the ones
@@ -44,13 +44,12 @@ function displayName(party: PartyWithPersons, locale?: string): string {
 }
 
 /**
- * Whether the party has a head now. `isRoleActive` is load-bearing: `getPartiesForCity` filters
- * the party's own roles relation but not the nested `person.roles`, so a leader who stood down
- * last term is still on the record — and their ended role won the tiebreak over a party with a
- * sitting επικεφαλής.
+ * Whether the party has a head now. `isActivePartyRole`, not a bare partyId match: a leader who
+ * stood down last term is still on the record (see the helper), and their ended role won the
+ * tiebreak over a party with a sitting επικεφαλής.
  */
 function partyHasHead(party: PartyWithPersons): boolean {
     return party.people.some(person =>
-        person.roles.some(role => role.partyId === party.id && role.isHead && isRoleActive(role))
+        person.roles.some(role => isActivePartyRole(role, party.id) && role.isHead)
     );
 }

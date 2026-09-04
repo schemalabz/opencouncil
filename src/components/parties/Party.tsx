@@ -20,6 +20,7 @@ import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } fro
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { filterActiveRoles, formatDateRange, isRoleActive, getDateRangeFromRoles } from '@/lib/utils';
+import { isActivePartyMember, isPartyRole } from '@/lib/utils/roles';
 import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
 import { BadgePicker } from '../ui/badge-picker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -63,17 +64,17 @@ function PartyMembersTab({
     const [isRankingSheetOpen, setIsRankingSheetOpen] = useState(false);
     const [selectedTypes, setSelectedTypes] = useState<AdministrativeBodyType[]>([]);
 
-    // Get administrative body types that party members belong to
-    const partyMembers = useMemo(() =>
-        people.filter(person =>
-            person.roles.some(role => role.partyId === party.id)
-        ),
+    // The picker sits in the current-members header and offers the bodies those
+    // members sit on. Built from everyone ever in the party, it offered a body no
+    // sitting member holds — a chip that filters the list down to nothing.
+    const currentMembers = useMemo(() =>
+        people.filter(person => isActivePartyMember(person, party.id)),
         [people, party.id]
     );
 
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople(partyMembers, tCommon),
-        [partyMembers, tCommon]
+        getAdministrativeBodyTypesForPeople(currentMembers, tCommon),
+        [currentMembers, tCommon]
     );
 
     // Filter people based on selected admin body types
@@ -83,21 +84,14 @@ function PartyMembersTab({
 
     // Filter people to only include those with active party roles
     const activePeople = useMemo(() =>
-        people.filter(person =>
-            person.roles.some(role =>
-                role.partyId === party.id &&
-                isRoleActive(role)
-            ) && filterByAdminBodyType(person)
-        ),
+        people.filter(person => isActivePartyMember(person, party.id) && filterByAdminBodyType(person)),
         [people, party.id, filterByAdminBodyType]);
 
     // Filter people to only include those with inactive party roles
     const inactivePeople = useMemo(() =>
         people.filter(person =>
-            person.roles.some(role =>
-                role.partyId === party.id &&
-                !isRoleActive(role)
-            ) && filterByAdminBodyType(person)
+            person.roles.some(role => isPartyRole(role, party.id) && !isRoleActive(role))
+            && filterByAdminBodyType(person)
         ),
         [people, party.id, filterByAdminBodyType]);
 
@@ -192,11 +186,13 @@ function PartyMembersTab({
                                             <div className="min-w-0 flex-1">
                                                 <div className="font-medium text-sm sm:text-base truncate">{person.name}</div>
                                                 <div className="text-xs sm:text-sm text-muted-foreground">
+                                                    {/* History-wide by design: this row is a past member, and
+                                                        every role it describes has ended. */}
                                                     {person.roles
-                                                        .filter(role => role.partyId === party.id)
+                                                        .filter(role => isPartyRole(role, party.id))
                                                         .some(role => role.isHead) && t('partyLeader')}
                                                     {person.roles
-                                                        .filter(role => role.partyId === party.id && role.name)
+                                                        .filter(role => isPartyRole(role, party.id) && role.name)
                                                         .map(role => role.name)
                                                         .join(', ')}
                                                 </div>
@@ -204,7 +200,7 @@ function PartyMembersTab({
                                         </Link>
                                         <span className="text-xs text-muted-foreground text-right flex-shrink-0">
                                             {(() => {
-                                                const partyRoles = person.roles.filter(role => role.partyId === party.id);
+                                                const partyRoles = person.roles.filter(role => isPartyRole(role, party.id));
                                                 const { startDate, endDate } = getDateRangeFromRoles(partyRoles);
                                                 return formatDateRange(startDate, endDate, tCommon);
                                             })()}
@@ -392,11 +388,12 @@ export default function PartyC({ city, party, administrativeBodies }: {
         [persons, tCommon]
     );
 
-    // Create roles with person objects for compatibility with existing code
+    // Create roles with person objects for compatibility with existing code.
+    // Every party role, ended ones included — filterActiveRoles narrows them below.
     const rolesWithPersons = useMemo(() => {
         return persons.flatMap(person =>
             person.roles
-                .filter(role => role.partyId === party.id)
+                .filter(role => isPartyRole(role, party.id))
                 .map(role => ({
                     ...role,
                     person: person

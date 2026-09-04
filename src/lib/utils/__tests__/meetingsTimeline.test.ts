@@ -1,4 +1,13 @@
 import { packTimeline, timelineCardHeight, timelineSide, TL } from '../meetingsTimeline';
+import { SUBJECT_PREVIEW_COUNT } from '../subjects';
+
+describe('TL.PREVIEW_ROWS', () => {
+    it('previews as many subjects as a meeting card does', () => {
+        // The timeline's card geometry is exact, so a card that previews more rows
+        // than the constant says overlaps the card below it.
+        expect(TL.PREVIEW_ROWS).toBe(SUBJECT_PREVIEW_COUNT);
+    });
+});
 
 describe('timelineSide', () => {
     it('puts the council right, committees left, and communities nowhere', () => {
