@@ -20,6 +20,7 @@
         "aiGenerated": "Κείμενο από ΤΝ",
         "skipToContent": "Μετάβαση στο κύριο περιεχόμενο",
         "search": "Αναζήτηση",
+        "clearSearch": "Καθαρισμός αναζήτησης",
         "collapse": "Σύμπτυξη",
         "filter": "Φίλτρο: {label}",
         "municipalityMap": "Χάρτης δήμου",
