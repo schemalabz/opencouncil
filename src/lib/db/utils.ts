@@ -472,6 +472,10 @@ export async function saveSubjectsForMeeting(
                         ? incoming.agendaItemIndex
                         : null,
                     description: incoming.description,
+                    // Prisma skips the column when the value is undefined. A summarize
+                    // result omits the field, so it keeps the stored title; an explicit
+                    // null clears it.
+                    agendaItemTitle: incoming.agendaItemTitle,
                     topicId,
                     locationId: locationId ?? null,
                     personId: validIntroducedBy ?? null,
@@ -537,6 +541,8 @@ export async function saveSubjectsForMeeting(
                 data: {
                     name: subject.name,
                     description: subject.description,
+                    // An omitted field creates the row with null.
+                    agendaItemTitle: subject.agendaItemTitle,
                     councilMeeting: {
                         connect: { cityId_id: { cityId, id: councilMeetingId } }
                     },

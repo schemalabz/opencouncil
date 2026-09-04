@@ -175,6 +175,11 @@ export interface Subject {
     id?: string;  // Optional ID assigned by backend (used for mapping utteranceDiscussionStatuses)
     name: string;
     description: string;  // Markdown with special reference links: [text](REF:UTTERANCE:id), [text](REF:PERSON:id), [text](REF:PARTY:id)
+    /**
+     * The item as written on the official agenda (#616). processAgenda sets it for
+     * every subject. summarize never sets it. When the field is absent, the stored value stays as it is.
+     */
+    agendaItemTitle?: string | null;
     agendaItemIndex: number | "BEFORE_AGENDA" | "OUT_OF_AGENDA";
     introducedByPersonId: string | null;
 
