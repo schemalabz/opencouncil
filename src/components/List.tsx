@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import FormSheet from './FormSheet';
@@ -36,6 +36,14 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     allText?: string;
     showSearch?: boolean;
     /**
+     * The text a row is searchable by. Without it a row is matched on its own
+     * string fields, which see nothing nested — a person's roles, a party's
+     * members, a meeting's administrative body all live behind a relation.
+     * Keep the callback stable (`useCallback`): the normalized text it produces
+     * is indexed once per items/callback change, not once per keystroke.
+     */
+    searchKeys?: (item: T) => (string | null | undefined)[];
+    /**
      * The "N items" line. Defaults to `showSearch`, which used to gate it too.
      * Split out because a list can want one without the other: the city tabs drop
      * the search box in favour of the page's single search, but still need the
@@ -70,6 +78,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     lgColumns = 3,
     allText,
     showSearch = true,
+    searchKeys,
     showCount,
     layout = 'grid',
     carouselItemWidth = 300,
@@ -145,17 +154,30 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         layout === 'carousel' && `w-[${carouselItemWidth}px]`
     );
 
+    // One normalized haystack per row, so a keystroke costs a substring scan
+    // rather than a re-normalization of every name in the city.
+    const searchIndex = useMemo(() => {
+        if (!showSearch) return null;
+        return new Map(items.map(item => {
+            const values = searchKeys
+                ? searchKeys(item)
+                : Object.values(item).filter((value): value is string => typeof value === 'string');
+            return [item.id, normalizeText(values.filter(Boolean).join(' '))];
+        }));
+    }, [items, searchKeys, showSearch]);
+
+    // Every word has to match, so "μαρια παπα" finds "Μαρία Παπαδοπούλου"
+    // whichever order the reader types the two parts of the name in.
+    const searchTerms = useMemo(
+        () => normalizeText(localSearchQuery).split(/\s+/).filter(Boolean),
+        [localSearchQuery]
+    );
+
     const filteredItems = items.filter((item) => {
         // First check search query
-        if (searchQuery && showSearch) {
-            const normalizedQuery = normalizeText(searchQuery);
-            const matchesSearch = Object.values(item).some(
-                (value) =>
-                    typeof value === 'string' &&
-                    normalizeText(value).includes(normalizedQuery)
-            );
-
-            if (!matchesSearch) return false;
+        if (searchIndex && searchTerms.length > 0) {
+            const haystack = searchIndex.get(item.id) ?? '';
+            if (!searchTerms.every(term => haystack.includes(term))) return false;
         }
 
         // Then apply filter if it exists and there are selected filters
@@ -170,7 +192,10 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
     // Client-side pagination — read current page from URL to avoid
     // depending on server component re-renders for page changes.
-    const urlPage = parseInt(searchParams.get('page') || '1', 10);
+    // A query the debounce below has not written yet already narrows the list,
+    // so honouring the URL's page here would show page 4 of the old result set.
+    const searchPending = localSearchQuery !== searchQuery;
+    const urlPage = searchPending ? 1 : parseInt(searchParams.get('page') || '1', 10);
     const totalPages = pagination
         ? Math.ceil(filteredItems.length / pagination.pageSize)
         : 1;
@@ -264,20 +289,25 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         allText={allText ?? tCommon('all')}
                     />
                 ) : null}
-                {showSearch && (
-                    <div className="relative min-w-[12rem] flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder={t('searchItems')}
-                            className="pl-10 w-full h-9"
-                            value={localSearchQuery}
-                            onChange={(e) => handleSearchChange(e.target.value)}
-                        />
-                    </div>
-                )}
-                <div className="ml-auto flex items-center gap-3">
+                <div className="ml-auto flex min-w-0 items-center gap-3">
+                    {/* Narrow, borderless and beside the count, because the page
+                        header already carries a full-width field that searches
+                        every transcript. This one only sifts the rows below it. */}
+                    {showSearch && (
+                        <div className="relative w-36 sm:w-52">
+                            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
+                            <Input
+                                type="search"
+                                placeholder={t('searchItems')}
+                                aria-label={t('searchItems')}
+                                className="h-8 w-full border-transparent bg-muted/60 pl-8 text-sm placeholder:text-muted-foreground/70 focus-visible:bg-background focus-visible:ring-1 focus-visible:ring-offset-0"
+                                value={localSearchQuery}
+                                onChange={(e) => handleSearchChange(e.target.value)}
+                            />
+                        </div>
+                    )}
                     {countVisible && (
-                        <p className="text-sm text-muted-foreground">{t('items', { count: filteredItems.length })}</p>
+                        <p className="shrink-0 text-sm text-muted-foreground">{t('items', { count: filteredItems.length })}</p>
                     )}
                     {/* Marked as back-of-house, the way the city page's own tools
                         are: an outlined pill beside a citizen's list read as part
