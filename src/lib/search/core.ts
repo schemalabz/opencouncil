@@ -11,6 +11,7 @@ import { executeElasticsearchWithRetry } from './retry';
 import { partitionHits, reportOrphanedHits, type EsHit } from './hits';
 import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
 import { logSearchQuery } from '@/lib/db/searchQueries';
+import { createCache } from '@/lib/cache/index';
 import { env } from '@/env.mjs';
 
 // Initialize Elasticsearch client
@@ -543,6 +544,18 @@ export async function searchInRealm(
  * no prose to read filters out of. A seed outside the realm — a subject id
  * from another tenant — relates to nothing, rather than reaching across.
  */
+/**
+ * How long a subject's related-subjects answer may go stale.
+ *
+ * The answer changes when another meeting of the realm is indexed with a
+ * closer subject, and no tag can express that. A renamed or regenerated
+ * subject does not wait for this: the entry carries its meeting's tag, which
+ * the summarize, agenda and review tasks and the subject edit route all
+ * revalidate. Expiry is lazy — the first visitor after the deadline pays for
+ * the query — so a shorter window raises the inference cost in proportion.
+ */
+const RELATED_CACHE_TTL_SECONDS = 86400;
+
 export async function searchRelatedSubjectsInRealm(
     seed: RelatedSubjectSeed,
     scope: RelatedScope,
@@ -554,11 +567,25 @@ export async function searchRelatedSubjectsInRealm(
         const realmCityIds = (await getCities({}, realm)).map(city => city.id);
         if (!realmCityIds.includes(seed.cityId)) return [];
 
-        const response = await executeElasticsearchWithRetry(
-            () => client.search<SubjectDocument>(buildRelatedSubjectsQuery(seed, scope, realmCityIds)),
-            'Related subjects'
-        );
-        const { hits } = await resolveVisibleHits(response.hits.hits, `related:${scope}:${seed.id}`);
+        // The query embeds the title with a hosted model on every call, which
+        // is the one cost in this function. Only the index's answer is cached
+        // — a handful of ids and scores — and the realm is part of the key
+        // because the city set the query is capped to differs per realm. The
+        // visibility re-check and the hydration below run on every request,
+        // so a neighbour that is withdrawn or unpublished after the entry was
+        // written still drops out on the next visit.
+        const esHits = await createCache(
+            async () => {
+                const response = await executeElasticsearchWithRetry(
+                    () => client.search<SubjectDocument>(buildRelatedSubjectsQuery(seed, scope, realmCityIds)),
+                    'Related subjects'
+                );
+                return response.hits.hits.map(hit => ({ _score: hit._score, _source: hit._source }));
+            },
+            ['subject', seed.id, 'related', scope, realm],
+            { tags: [`city:${seed.cityId}:meeting:${seed.councilMeetingId}`], revalidate: RELATED_CACHE_TTL_SECONDS },
+        )();
+        const { hits } = await resolveVisibleHits(esHits, `related:${scope}:${seed.id}`);
         if (hits.length === 0) return [];
         return await hydrateSubjectHits(hits, false);
     } catch (error) {

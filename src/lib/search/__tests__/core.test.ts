@@ -10,6 +10,8 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 jest.mock('@/lib/discord-core', () => ({ sendErrorAdminAlert: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('@/lib/db/searchQueries', () => ({ logSearchQuery: jest.fn() }));
+// Pass-through: the cases below assert what the cache is asked to key and tag, not Next's data cache.
+jest.mock('@/lib/cache/index', () => ({ createCache: jest.fn((fn: () => unknown) => fn) }));
 jest.mock('@/lib/db/cities', () => ({
     getCities: jest.fn(),
     filterCityIdsByRealm: jest.fn(),
@@ -31,6 +33,7 @@ import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '../filters';
 import { buildSearchQuery } from '../query';
 import { buildRelatedSubjectsQuery } from '../related';
+import { createCache } from '@/lib/cache/index';
 import { searchInRealm, searchSubjectsInRealm, searchRelatedSubjectsInRealm } from '../core';
 import type { SearchRequest } from '../types';
 
@@ -38,6 +41,7 @@ const extractFiltersMock = extractFilters as jest.MockedFunction<typeof extractF
 const processFiltersMock = processFilters as jest.MockedFunction<typeof processFilters>;
 const buildSearchQueryMock = buildSearchQuery as jest.MockedFunction<typeof buildSearchQuery>;
 const buildRelatedSubjectsQueryMock = buildRelatedSubjectsQuery as jest.MockedFunction<typeof buildRelatedSubjectsQuery>;
+const createCacheMock = createCache as jest.MockedFunction<typeof createCache>;
 const getCitiesMock = getCities as jest.MockedFunction<typeof getCities>;
 const filterCityIdsByRealmMock = filterCityIdsByRealm as jest.MockedFunction<typeof filterCityIdsByRealm>;
 
@@ -344,6 +348,30 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'other', REALM_CITIES);
         expect(esSearchMock).toHaveBeenCalled();
+    });
+
+    // The realm is in the key because the city set differs per realm; the
+    // meeting tag is what a reprocessing task or a subject edit revalidates.
+    it('caches the index answer per subject, scope and realm, under the meeting tag', async () => {
+        await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
+
+        expect(createCacheMock).toHaveBeenCalledWith(
+            expect.any(Function),
+            ['subject', 'seed', 'related', 'city', 'greece'],
+            { tags: ['city:athens:meeting:meeting-1'], revalidate: 86400 },
+        );
+    });
+
+    it('re-checks visibility outside the cache, so a stale entry cannot show an unpublished subject', async () => {
+        esSearchMock.mockResolvedValue({ hits: { total: { value: 1, relation: 'eq' }, hits: [{ _score: 0.95, _source: { id: 'stale' } }] }, took: 1 });
+        findManyMock.mockResolvedValueOnce([{ id: 'stale', councilMeeting: { released: false } }]);
+
+        await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
+
+        // The cached function returned the hit; the database query that dropped it ran after.
+        const cachedResult = await createCacheMock.mock.results[0].value();
+        expect(cachedResult).toEqual([{ _score: 0.95, _source: { id: 'stale' } }]);
+        expect(findManyMock).toHaveBeenCalled();
     });
 
     // A subject id from another tenant must not become a way to read that
