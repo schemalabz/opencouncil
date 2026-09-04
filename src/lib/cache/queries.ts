@@ -1,10 +1,10 @@
-import { AdministrativeBodyType, Realm } from "@prisma/client";
+import { Realm } from "@prisma/client";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint } from "@/lib/db/cities";
 import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
-import { countCouncilMeetingsForCity, getCouncilMeetingsForCity, getCouncilMeetingsWithSubjectPreview, type MeetingListOptions } from "@/lib/db/meetings";
+import { getCouncilMeetingsForCity, getCouncilMeetingsWithSubjectPreview, type MeetingListOptions } from "@/lib/db/meetingsList";
 import { getAdjacentMeetings } from "@/lib/db/adjacentMeetings";
 import { countCityPetitions } from "@/lib/db/petitions";
 import { petitionBucket, type PetitionBucket } from "@/lib/landing/petitions";
@@ -79,41 +79,16 @@ export async function getCityWithGeometryCached(cityId: string) {
 }
 
 /**
- * Cached version of getCouncilMeetingsForCity that fetches and caches all meetings for a city
+ * A city's meetings with their full subject rows. Released only, so it needs
+ * no headers() call and is safe on a static page.
  */
-export async function getCouncilMeetingsForCityCached(cityId: string, { limit, page, pageSize = 12 }: { limit?: number; page?: number; pageSize?: number } = {}) {
-  // Check if the user is authorized to edit the city
-  // This happens OUTSIDE the cached function to avoid using headers() inside cache
-  const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
-
+export async function getCouncilMeetingsForCityPublicCached(cityId: string, options: MeetingListOptions = {}) {
   return createCache(
-    () => getCouncilMeetingsForCity(cityId, { includeUnreleased, limit, page, pageSize }),
-    ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all')],
-    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
-  )();
-}
-
-/**
- * Public (no-auth) version of getCouncilMeetingsForCityCached.
- * Only returns released meetings. Safe for static pages (no headers() call).
- */
-export async function getCouncilMeetingsForCityPublicCached(
-  cityId: string,
-  { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter }: { limit?: number; administrativeBodyTypes?: AdministrativeBodyType[]; administrativeBodyIds?: string[]; timeFilter?: 'upcoming' | 'past' } = {}
-) {
-  const typeKey = administrativeBodyTypes && administrativeBodyTypes.length > 0
-    ? `types:${[...administrativeBodyTypes].sort().join(',')}`
-    : 'types:all';
-  const idKey = administrativeBodyIds && administrativeBodyIds.length > 0
-    ? `ids:${[...administrativeBodyIds].sort().join(',')}`
-    : 'ids:all';
-  const timeKey = timeFilter ?? 'all';
-  return createCache(
-    () => getCouncilMeetingsForCity(cityId, { includeUnreleased: false, limit, administrativeBodyTypes, administrativeBodyIds, timeFilter }),
-    ['city', cityId, 'meetings', 'onlyReleased', limit ? `limit:${limit}` : 'all', typeKey, idKey, timeKey],
+    () => getCouncilMeetingsForCity(cityId, { ...options, includeUnreleased: false }),
+    ['city', cityId, 'meetings', 'onlyReleased', ...meetingListKey(options)],
     {
       tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
-      ...(timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
+      ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
     }
   )();
 }
@@ -134,8 +109,8 @@ function meetingListKey({ limit, page, pageSize = 12, from, to, administrativeBo
 /**
  * Meetings carrying only what a card draws — see getCouncilMeetingsWithSubjectPreview.
  *
- * Authorization is resolved outside the cached call, as in
- * getCouncilMeetingsForCityCached: headers() cannot be read inside one.
+ * Authorization is resolved outside the cached call: headers() cannot be
+ * read inside one.
  */
 export async function getCouncilMeetingsPreviewCached(cityId: string, options: MeetingListOptions = {}) {
   const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
@@ -154,19 +129,6 @@ export async function getCouncilMeetingsPreviewPublicCached(cityId: string, opti
   return createCache(
     () => getCouncilMeetingsWithSubjectPreview(cityId, { ...options, includeUnreleased: false }),
     ['city', cityId, 'meetingPreviews', MEETING_PREVIEW_CACHE_VERSION, 'onlyReleased', ...meetingListKey(options)],
-    {
-      tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
-      ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
-    }
-  )();
-}
-
-/** How many meetings a pager over the same filters has to cover. */
-export async function countCouncilMeetingsForCityCached(cityId: string, options: MeetingListOptions = {}) {
-  const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
-  return createCache(
-    () => countCouncilMeetingsForCity(cityId, { ...options, includeUnreleased }),
-    ['city', cityId, 'meetingCount', includeUnreleased ? 'withUnreleased' : 'onlyReleased', ...meetingListKey({ ...options, page: undefined, limit: undefined })],
     {
       tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
       ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
@@ -210,7 +172,6 @@ export async function getMeetingStatusCached(cityId: string, meetingId: string) 
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}:derived`] }
   )();
 }
-
 
 /**
  * Cached version of getPartiesForCity that fetches and caches all parties for a city

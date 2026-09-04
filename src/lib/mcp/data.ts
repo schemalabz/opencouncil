@@ -3,7 +3,7 @@ import { Prisma, DiscussionStatus, type AdministrativeBodyType } from '@prisma/c
 import { searchInRealm } from '@/lib/search/core';
 import { getCities, getCity, getListedCityAtPoint, filterCityIdsByRealm } from '@/lib/db/cities';
 import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
-import { getCouncilMeetingsForCity } from '@/lib/db/meetings';
+import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
 import {
