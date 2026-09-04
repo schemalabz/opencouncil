@@ -148,6 +148,17 @@ export async function getCity(
     }
 }
 
+/** How coarsely a boundary is drawn. A δήμος polygon runs to ~100KB at full resolution and to a
+ *  few KB at this tolerance — finer than the line the map draws it as, at any zoom we draw it. */
+const BOUNDARY_SIMPLIFY_TOLERANCE = 0.001;
+
+/** A city boundary as GeoJSON, simplified for drawing. Shared by every reader that ships a
+ *  boundary to a client, so none of them can go back to sending the raw polygon. `column` is
+ *  a column reference from this file, never input. */
+function simplifiedBoundarySql(column: string): Prisma.Sql {
+    return Prisma.raw(`ST_AsGeoJSON(ST_SimplifyPreserveTopology(${column}, ${BOUNDARY_SIMPLIFY_TOLERANCE}))`);
+}
+
 /** SQL predicate: the city polygon covers the given [lng, lat] point (WGS84). Shared by the
  *  two point-lookup helpers so they can never diverge on how containment is decided. */
 function cityCoversPoint(lng: number, lat: number): Prisma.Sql {
@@ -248,7 +259,7 @@ export type MapCityRow = {
 const CITY_MAP_PROJECTION = Prisma.sql`
     ST_X(ST_Centroid(geometry)) AS lng,
     ST_Y(ST_Centroid(geometry)) AS lat,
-    ST_AsGeoJSON(ST_SimplifyPreserveTopology(geometry, 0.001)) AS geometry
+    ${simplifiedBoundarySql('geometry')} AS geometry
 `;
 
 /** A city's boundary centroid — the same centroid rule CITY_MAP_PROJECTION uses.
@@ -601,9 +612,9 @@ export async function attachGeometryToCities<T extends Pick<City, 'id'>>(
 
     const cityWithGeometry = await prisma.$queryRaw<
         ({ id: string, geometry: string | null })[]
-    >`SELECT 
+    >`SELECT
         c."id" AS id,
-        ST_AsGeoJSON(c.geometry)::text AS geometry
+        ${simplifiedBoundarySql('c.geometry')}::text AS geometry
     FROM "City" c
     WHERE c.id IN (${Prisma.join(cities.map(city => city.id))})
     `;

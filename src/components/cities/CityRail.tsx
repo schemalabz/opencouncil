@@ -62,7 +62,11 @@ export function CityRail({
                 {/* Operator controls sit above everything a citizen is here for. */}
                 <CityAdminTools
                     city={city as City}
-                    cityMessage={cityMessage}
+                    // CityAdminTools is a client component, so anything passed here is serialised
+                    // into the payload every visitor downloads. A message is a draft until it is
+                    // active, and only an editor may read one — the client-side `canEdit` check
+                    // inside runs long after delivery.
+                    cityMessage={canEdit ? cityMessage : null}
                     canEdit={canEdit}
                     isSuperAdmin={isSuperAdmin}
                     hasNoData={hasNoData}

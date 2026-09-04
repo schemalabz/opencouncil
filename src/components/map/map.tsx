@@ -1045,7 +1045,10 @@ const Map = memo(function Map({
         prevProps.selectedGeometryForEdit === nextProps.selectedGeometryForEdit &&
         prevProps.zoomToGeometry === nextProps.zoomToGeometry &&
         prevProps.zoomPadding === nextProps.zoomPadding &&
-        JSON.stringify(prevProps.features) === JSON.stringify(nextProps.features)
+        // Identity first: a caller that memoizes its features (a city boundary can run to 100KB)
+        // would otherwise pay two serialisations of them on every parent render, e.g. per moveend.
+        (prevProps.features === nextProps.features ||
+            JSON.stringify(prevProps.features) === JSON.stringify(nextProps.features))
     );
 })
 

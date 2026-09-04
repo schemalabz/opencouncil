@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { CalendarDays, ChevronRight, Clock, MapPin } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ export function SubjectStrip({
     onPreview,
     onSelect,
     trailing,
+    maxCards,
 }: {
     subjects: LandingSubject[];
     previewId: string | null;
@@ -25,8 +26,33 @@ export function SubjectStrip({
     onSelect: (id: string) => void;
     /** A last card after the subjects — what the search found and where the rest of it is. */
     trailing?: ReactNode;
+    /** Render at most this many cards. Omitted — the landing — renders every subject. */
+    maxCards?: number;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Both callers rebuild these handlers on every render (a map moveend is enough), which would
+    // leave StripCard's memo nothing to compare. A card only ever calls the current pair, so it
+    // goes through a ref and keeps the two props it is given stable.
+    const handlers = useRef({ onPreview, onSelect });
+    handlers.current = { onPreview, onSelect };
+    const preview = useCallback((id: string) => handlers.current.onPreview(id), []);
+    const select = useCallback((id: string) => handlers.current.onSelect(id), []);
+
+    // A viewport-wide list runs to a few hundred subjects, and a strip of them is both a large
+    // first payload and a large reconciliation on every pan. `maxCards` keeps the best-ranked
+    // head of the list; the map itself is the control that brings the rest into view.
+    const shown = useMemo(() => {
+        if (maxCards == null || subjects.length <= maxCards) return subjects;
+        const capped = subjects.slice(0, maxCards);
+        // A previewed subject joins the list at its end rather than being reordered into it, so
+        // the cap would drop the one card the strip has to scroll to.
+        if (previewId && !capped.some((s) => s.id === previewId)) {
+            const previewed = subjects.find((s) => s.id === previewId);
+            if (previewed) capped.push(previewed);
+        }
+        return capped;
+    }, [subjects, maxCards, previewId]);
 
     // The previewed subject keeps its position in the list — the strip just scrolls it into view
     // (centred), without reordering. When the preview clears (e.g. zooming out drops it), the strip
@@ -47,21 +73,15 @@ export function SubjectStrip({
     // An empty strip used to render nothing at all. Under a search that is the
     // one case the reader most needs a card for: the matches are real, they are
     // simply not in view, and the trailing card is what says so.
-    if (!subjects.length && !trailing) return null;
+    if (!shown.length && !trailing) return null;
     return (
         <div
             ref={scrollRef}
             className="flex items-end gap-3 overflow-x-auto px-3 pb-1 [&::-webkit-scrollbar]:hidden"
             style={{ scrollbarWidth: 'none' }}
         >
-            {subjects.map((s) => (
-                <StripCard
-                    key={s.id}
-                    subject={s}
-                    active={s.id === previewId}
-                    // first tap previews; tapping the already-previewed card selects it
-                    onClick={() => (s.id === previewId ? onSelect(s.id) : onPreview(s.id))}
-                />
+            {shown.map((s) => (
+                <StripCard key={s.id} subject={s} active={s.id === previewId} onPreview={preview} onSelect={select} />
             ))}
             {trailing}
         </div>
@@ -71,8 +91,21 @@ export function SubjectStrip({
 /* One card in the strip: a full-width category bar, then the municipality logo + title, then
    discussion time · date · address. The previewed card (`active`) gets an outline in its category
    colour. Fixed height, so every card matches: the title clamps to two lines ("…") and the meta
-   sits at the bottom. */
-function StripCard({ subject, active, onClick }: { subject: LandingSubject; active: boolean; onClick: () => void }) {
+   sits at the bottom.
+
+   Memoized: the list the strip is given gets a fresh identity on every map move, and its cards
+   carry an inline SVG each — reconciling all of them per pan is the strip's whole cost. */
+const StripCard = memo(function StripCard({
+    subject,
+    active,
+    onPreview,
+    onSelect,
+}: {
+    subject: LandingSubject;
+    active: boolean;
+    onPreview: (id: string) => void;
+    onSelect: (id: string) => void;
+}) {
     const t = useTranslations('landingV2');
     const locale = useLocale();
     const locationLine = subjectLocationLine(subject);
@@ -81,7 +114,8 @@ function StripCard({ subject, active, onClick }: { subject: LandingSubject; acti
         <button
             type="button"
             data-id={subject.id}
-            onClick={onClick}
+            // first tap previews; tapping the already-previewed card selects it
+            onClick={() => (active ? onSelect(subject.id) : onPreview(subject.id))}
             className={cn(
                 'flex h-[150px] w-[248px] shrink-0 flex-col overflow-hidden rounded-2xl border bg-card text-left shadow-md transition-colors',
                 !active && 'border-black/20',
@@ -137,4 +171,4 @@ function StripCard({ subject, active, onClick }: { subject: LandingSubject; acti
             </div>
         </button>
     );
-}
+});
