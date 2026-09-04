@@ -8,7 +8,7 @@ import { City, Person, Role, AdministrativeBody, AdministrativeBodyType } from '
 import { ImageOrInitials } from '../ImageOrInitials';
 import { Button } from '../ui/button';
 import { PartyWithPersons } from '@/lib/db/parties';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
@@ -19,7 +19,7 @@ import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
-import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole, getDateRangeFromRoles } from '@/lib/utils';
+import { filterActiveRoles, formatDateRange, isRoleActive, getDateRangeFromRoles } from '@/lib/utils';
 import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
 import { BadgePicker } from '../ui/badge-picker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -404,9 +404,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
         ) as RoleWithPerson[];
     }, [persons, party.id]);
 
-    // Split roles into active and inactive
     const activeRoles = useMemo(() => filterActiveRoles(rolesWithPersons), [rolesWithPersons]);
-    const inactiveRoles = useMemo(() => filterInactiveRoles(rolesWithPersons), [rolesWithPersons]);
 
     // Find the current party leader
     const partyLeader = useMemo(() => activeRoles.find((role: RoleWithPerson) => role.isHead), [activeRoles]);
