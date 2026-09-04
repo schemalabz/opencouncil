@@ -46,6 +46,9 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
         })
 
         revalidateTag(`city:${params.cityId}:parties`, 'max');
+        // The city row carries the roster counts the overview reads to decide
+        // whether it has data at all, so a new or deleted member ages it too.
+        revalidateTag(`city:${params.cityId}:basic`, 'max');
         revalidatePath(`/${params.cityId}/parties`);
 
         return NextResponse.json(party)

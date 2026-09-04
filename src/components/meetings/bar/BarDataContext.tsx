@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useRef } from 'react';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { getPartyFromRoles , UNKNOWN_SPEAKER_COLOR} from '@/lib/utils';
 import { TOPICLESS_COLOR } from '@/lib/topicStyle';
@@ -34,6 +34,12 @@ const EMPTY: BarData = {
 };
 
 const BarDataContext = createContext<BarData>(EMPTY);
+
+// The same data behind a ref, for readers that only look at it inside an event
+// handler. Subscribing to the value itself re-renders on every transcript edit,
+// which for the hover wiring means every speaker segment of a long meeting;
+// this context's value never changes, so reading it costs nothing.
+const BarDataRefContext = createContext<React.MutableRefObject<BarData>>({ current: EMPTY });
 
 
 function pushInterval(map: Map<string, Interval[]>, key: string, span: Interval) {
@@ -119,9 +125,25 @@ export function BarDataProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [transcript, subjects, meeting.dateTime, speakerTags]);
 
-    return <BarDataContext.Provider value={value}>{children}</BarDataContext.Provider>;
+    const ref = useRef(value);
+    ref.current = value;
+
+    return (
+        <BarDataRefContext.Provider value={ref}>
+            <BarDataContext.Provider value={value}>{children}</BarDataContext.Provider>
+        </BarDataRefContext.Provider>
+    );
 }
 
 export function useBarData(): BarData {
     return useContext(BarDataContext);
+}
+
+/**
+ * The bar's data for a reader that only needs it when something happens — the
+ * hover wiring on transcript segments and cards. Returns a stable ref, so the
+ * reader never re-renders when the transcript changes.
+ */
+export function useBarDataRef(): React.MutableRefObject<BarData> {
+    return useContext(BarDataRefContext);
 }

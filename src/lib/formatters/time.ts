@@ -309,7 +309,7 @@ function stampContext(date: Date | string, timezone: string | undefined, locale:
     }
     const intlLocale = getIntlLocale(locale);
     const part = (options: Intl.DateTimeFormatOptions): string =>
-        new Intl.DateTimeFormat(intlLocale, timezone ? { ...options, timeZone: timezone } : options).format(value);
+        new Intl.DateTimeFormat(intlLocale, { ...options, timeZone: timezone || DEFAULT_TIMEZONE }).format(value);
     return { intlLocale, part };
 }
 
