@@ -286,14 +286,23 @@ describe('PR1: server-side awaits run concurrently', () => {
         // The petition bucket needs the city's status (a supported city has no
         // petition card), so like the notification preference it waits.
         expect(cache.getCityPetitionBucketCached).not.toHaveBeenCalled();
-        // The notification preference needs the user, so it must NOT be in the batch.
+        // The notification preference needs the user id, so it cannot fire yet.
         expect(notifications.getNotificationPreferenceForCity).not.toHaveBeenCalled();
 
         cityD.resolve({ id: 'athens', status: 'listed', timezone: 'Europe/Athens', _count: { councilMeetings: 1, persons: 1, parties: 1 } });
         await flushMicrotasks();
         expect(cache.getCityPetitionBucketCached).toHaveBeenCalledTimes(1);
+
+        // Resolve the user on its own; the preference chains off currentUserPromise
+        // rather than off the whole batch, so it must fire now even though
+        // message/canEdit/the meeting lists/subjectCount/petition are all still pending.
+        userD.resolve({ id: 'user-42' });
+        await flushMicrotasks();
+
+        expect(notifications.getNotificationPreferenceForCity).toHaveBeenCalledTimes(1);
+        expect(notifications.getNotificationPreferenceForCity).toHaveBeenCalledWith('user-42', 'athens');
+
         messageD.resolve(null);
-        userD.resolve(null);
         canEditD.resolve(false);
         upcomingD.resolve([]);
         pastD.resolve([]);

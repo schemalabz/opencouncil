@@ -41,10 +41,11 @@ export default async function TabsLayout(
     // The petition bucket chains on the city: the rail's petition card reads it
     // on a city we do not cover yet, and a supported city has no card to read it.
     const cityPromise = getCityCached(cityId);
-    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount, petitionBucket, tStage] = await Promise.all([
+    const currentUserPromise = getCurrentUser();
+    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount, petitionBucket, tStage, notificationPreference] = await Promise.all([
         cityPromise,
         getCityMessageCached(cityId),
-        getCurrentUser(),
+        currentUserPromise,
         isUserAuthorizedToEdit({ cityId }),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1 }),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1 }),
@@ -53,6 +54,11 @@ export default async function TabsLayout(
         getSubjectCountForCityCached(cityId),
         cityPromise.then(found => found && isPetitionable(found.status) ? getCityPetitionBucketCached(cityId) : null),
         getTranslations({ locale, namespace: 'meetingStage' }),
+        // The whole preference, not just whether one exists: the notification
+        // card shows the reader which topics and places they signed up for.
+        // Depends on the user id, so it chains off currentUserPromise rather
+        // than sitting as a plain sibling.
+        currentUserPromise.then(user => user ? getNotificationPreferenceForCity(user.id, cityId) : null),
     ]);
 
     if (!city) {
@@ -89,12 +95,6 @@ export default async function TabsLayout(
     // against zero. Neither query filters by anything but cityId, so the counts
     // answer the same question.
     const hasNoData = city._count.councilMeetings === 0 && city._count.parties === 0 && city._count.persons === 0;
-
-    // The whole preference, not just whether one exists: the notification card
-    // shows the reader which topics and places they signed up for.
-    const notificationPreference = currentUser
-        ? await getNotificationPreferenceForCity(currentUser.id, cityId)
-        : null;
 
     const isSuperAdmin = !!currentUser?.isSuperAdmin;
     // An inactive message is a draft: only superadmins see it, to preview it.

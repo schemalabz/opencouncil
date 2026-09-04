@@ -243,6 +243,15 @@ describe('utteranceRuns with overlapping utterances', () => {
         ]);
     });
 
+    // The case above cannot fail without the Math.max: a following run rewrites
+    // the previous run's end anyway. Only a nested utterance that ends the
+    // segment reaches the caller, and only past a segment end that would mask it.
+    it('keeps the longer end when the nested utterance is the last one', () => {
+        expect(utteranceRuns([u(10, 100, 'a'), u(12, 20, 'a')], 10, 50)).toEqual([
+            { subjectId: 'a', start: 10, end: 100 },
+        ]);
+    });
+
     it('never produces a run whose end precedes its start', () => {
         const runs = utteranceRuns([u(10, 30, 'a'), u(15, 25, 'b')], 10, 30);
         for (const run of runs) expect(run.end).toBeGreaterThanOrEqual(run.start);
