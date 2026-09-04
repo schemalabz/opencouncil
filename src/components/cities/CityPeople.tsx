@@ -1,6 +1,6 @@
 "use client";
-import { useMemo } from 'react';
-import { useTranslations } from 'next-intl';
+import { useCallback, useMemo } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client'
 import List from '@/components/List';
@@ -13,7 +13,8 @@ import { City } from '@prisma/client';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes, getBodiesOfTypeFromPeople } from '@/lib/utils/administrativeBodies';
 import { BadgePicker } from '@/components/ui/badge-picker';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
-import { isRoleActive } from '@/lib/utils/roles';
+import { filterActiveRoles, getRoleText, isRoleActive } from '@/lib/utils/roles';
+import { getLocalizedName } from '@/lib/formatters/name';
 
 type CityPeopleProps = {
     allPeople: PersonWithRelations[],
@@ -34,7 +35,31 @@ export default function CityPeople({
 }: CityPeopleProps) {
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
+    const locale = useLocale();
     const searchParams = useSearchParams();
+
+    // Both name columns, not just the localized one: a reader on the Greek page
+    // may well type a councillor's name in Latin script. `getRoleText` adds the
+    // label the card itself shows, which is where an untitled mayor's
+    // "Δήμαρχος" comes from — the role row stores no name for it.
+    const searchKeys = useCallback((person: PersonWithRelations) => [
+        person.name,
+        person.name_en,
+        person.name_short,
+        person.name_short_en,
+        getLocalizedName(person, locale),
+        ...filterActiveRoles(person.roles).flatMap(role => [
+            role.name,
+            role.name_en,
+            getRoleText(role, t),
+            role.party?.name,
+            role.party?.name_en,
+            role.party?.name_short,
+            role.party?.name_short_en,
+            role.administrativeBody?.name,
+            role.administrativeBody?.name_en,
+        ]),
+    ], [locale, t]);
 
     const parties = useMemo(() =>
         partiesWithPersons.map(({ people, ...party }) => party),
@@ -119,8 +144,9 @@ export default function CityPeople({
             // Whoever holds no role any more closes the list under their own
             // heading, instead of sitting between today's members by surname.
             trailing={{ title: t('formerMembers'), matches: person => !person.roles.some(isRoleActive) }}
-            // One search per page: the identity band owns it. The count stays.
-            showSearch={false}
+            // A quiet filter over the loaded rows. The identity band's field is
+            // the page's search, and it searches transcripts instead.
+            searchKeys={searchKeys}
             showCount
             smColumns={1}
             mdColumns={2}

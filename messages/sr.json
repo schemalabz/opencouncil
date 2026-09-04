@@ -20,6 +20,7 @@
         "aiGenerated": "Текст генерисан вештачком интелигенцијом",
         "skipToContent": "Пређите на главни садржај",
         "search": "Претрага",
+        "clearSearch": "Обриши претрагу",
         "collapse": "Скупи",
         "filter": "Филтер: {label}",
         "municipalityMap": "Мапа општине",

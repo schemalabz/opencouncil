@@ -20,6 +20,7 @@
     "aiGenerated": "Texte généré par IA",
     "skipToContent": "Aller au contenu principal",
     "search": "Rechercher",
+    "clearSearch": "Effacer la recherche",
     "collapse": "Réduire",
     "filter": "Filtre : {label}",
     "municipalityMap": "Carte de la commune",

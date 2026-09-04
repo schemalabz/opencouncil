@@ -6,8 +6,9 @@ import PartyForm from '@/components/parties/PartyForm';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { partyBodyColumns } from '@/lib/party/composition';
 import { sortParties } from '@/lib/sorting/parties';
-import { Fragment, useMemo } from 'react';
+import { Fragment, useCallback, useMemo } from 'react';
 import { Person } from '@prisma/client';
+import { getLocalizedName } from '@/lib/formatters/name';
 
 type CityPartiesProps = {
     partiesWithPersons: PartyWithPersons[],
@@ -29,6 +30,17 @@ export default function CityParties({
     // Decided across every party, not per card: the figures are there to be
     // read against each other.
     const columns = useMemo(() => partyBodyColumns(partiesWithPersons), [partiesWithPersons]);
+
+    // A party is as often looked for by a member's name as by its own.
+    const searchKeys = useCallback((party: PartyWithPersons) => [
+        party.name,
+        party.name_en,
+        party.name_short,
+        party.name_short_en,
+        getLocalizedName(party, locale),
+        ...party.people.flatMap(person => [person.name, person.name_en]),
+    ], [locale]);
+
     return (
         <div>
             <List
@@ -39,8 +51,9 @@ export default function CityParties({
                 FormComponent={PartyForm}
                 formProps={{ cityId }}
                 t={t}
-                // One search per page: the identity band owns it. The count stays.
-                showSearch={false}
+                // A quiet filter over the loaded rows. The identity band's field
+                // is the page's search, and it searches transcripts instead.
+                searchKeys={searchKeys}
                 showCount
                 smColumns={1}
                 mdColumns={2}

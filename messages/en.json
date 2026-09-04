@@ -20,6 +20,7 @@
         "aiGenerated": "AI-generated text",
         "skipToContent": "Skip to main content",
         "search": "Search",
+        "clearSearch": "Clear search",
         "collapse": "Collapse",
         "filter": "Filter: {label}",
         "municipalityMap": "Municipality map",
