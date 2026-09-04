@@ -46,8 +46,11 @@ typography:
     fontWeight: 400
 rounded:
   none: "0px"
-  card: "8px"
+  item: "6px"
+  panel: "8px"
+  chrome: "10px"
   xl: "12px"
+  card: "16px"
   full: "9999px"
 spacing:
   sm: "8px"
@@ -173,17 +176,19 @@ The canonical source of truth is the HSL custom-property set in `src/app/globals
 
 ## 4. Elevation
 
-Quiet ambient lift. Surfaces are flat-leaning, but shadows are soft and meaningful: interactive things sit slightly above the page to signal they can be touched. Cards rest at a whisper (`shadow-sm`); buttons carry a touch more presence (`shadow-md`); overlays (dialogs, popovers, dropdowns) earn the largest shadows because they are literally above the page. Depth is never used to decorate static content — structure at rest comes from Cloud Border hairlines and spacing.
+Quiet ambient lift. Surfaces are flat-leaning, but shadows are soft and meaningful: interactive things sit slightly above the page to signal they can be touched. A card rests on its hairline border alone, with no shadow, and gains a Lift (`shadow-md`) only when it is clickable. Buttons carry a Lift by default. Overlays (dialogs, popovers, dropdowns) earn the largest shadows because they are literally above the page. Depth is never used to decorate static content: structure at rest comes from Cloud Border hairlines and spacing.
 
 ### Shadow Vocabulary
 Each role maps to the Tailwind class the codebase actually uses:
 
-- **Whisper** (`shadow-sm`, `box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05)`): Cards and resting containers.
-- **Lift** (`shadow-md`, `box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)`): Primary and secondary buttons; elements inviting touch.
-- **Float** (`shadow-lg`, `box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)`): Overlays only — dialogs, dropdowns, popovers, toasts.
+- **Whisper** (`shadow-sm`, `box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05)`): Resting containers outside the card family: list rows, admin panels, the legacy gradient-bordered card.
+- **Lift** (`shadow-md`, `box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)`): Primary and secondary buttons; a clickable card on hover; elements inviting touch.
+- **Float** (`shadow-lg`, `box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)`): Overlays only: dialogs, dropdowns, popovers, toasts.
+
+Two shadows sit outside this scale, and both are deliberate exceptions rather than a fourth tier. The playback dock's timeline lens layers an outer diffusion, a rim light, and an inner sheen in one hand-written value, because a flat Tailwind shadow reads as a card, not as glass. The Νότης conversation's chat bubbles carry a flat 1px shadow that mimics a real messaging app. Neither is a precedent: reach for Whisper, Lift, or Float first, and hand-write a shadow only when the surface is doing something as specific as glass or a chat bubble.
 
 ### Named Rules
-**The Touchable Lift Rule.** A shadow is a promise of interactivity. If an element casts more than a whisper and isn't clickable, remove the shadow.
+**The Touchable Lift Rule.** A shadow is a promise of interactivity. If an element casts more than a whisper and isn't clickable, remove the shadow. The card family takes this literally: an unclickable card carries no shadow at all, just its hairline border.
 
 ## 5. Layout & Breakpoints
 
@@ -234,11 +239,11 @@ Square, plain, exact — with warmth reserved for action and hover.
 - **Variants:** Default Graphite fill with Warm Paper text; secondary Stone Mist; destructive Signal Red; outline transparent with Ink text. AI-generated content always carries its dedicated AI badge — fidelity labeling is non-negotiable.
 
 ### Cards / Containers (signature component)
-- **Corner Style:** 8px by default; some featured and marketing cards use 12px (`rounded-xl`).
-- **Background:** Paper, framed by a 1.5px gradient border that rests as quiet gray (gray-300 → gray-200 → gray-300).
-- **Hover:** The resting gray border ignites into the animated Civic Flame → Marble Blue gradient (300ms ignition; the card's inline animation loops at 5s, while the gradient button runs the same `gradientFlow` keyframes at 3s via `animate-gradientFlow`) — the system's signature warm moment.
-- **Shadow Strategy:** Whisper at rest (see Elevation).
-- **Internal Padding:** 24px (`p-6`) headers and content.
+- **Corner Style:** 16px (`rounded-2xl`) by default: person, party, and meeting cards, rail cards, subject rows, and contribution cards all share it. The older gradient-bordered `Card` in `packages/ui` still serves admin screens at its own 8px radius; it is legacy, not the pattern for new work.
+- **Background:** Paper, framed by a hairline border (`border-foreground/15`), quieter than the gradient border it replaced.
+- **Hover:** A clickable card (person, party, meeting, contribution) gains a Lift shadow (`shadow-md`) on hover. A card that only displays information stays flat. The animated Civic Flame → Marble Blue gradient still lives on the legacy `Card` component and the gradient button (see The One Gradient Rule), but it is no longer how the default card signals interactivity.
+- **Shadow Strategy:** No shadow at rest; the hairline border alone reads as a surface (see The Touchable Lift Rule).
+- **Internal Padding:** Density-dependent, roughly 14px to 20px (`p-3.5` to `px-[18px] py-4`), not a fixed 24px: a rail card and a subject row don't carry the same amount of content.
 
 ### Inputs / Fields
 - **Style:** 40px tall, sharp corners, 1px Cloud Border stroke on Paper, 14px text, 12px horizontal padding.
@@ -254,7 +259,7 @@ Square, plain, exact — with warmth reserved for action and hover.
 The record itself: Roboto at 16px/1.5, speaker segments with sticky headers, utterances with `scroll-margin-top: 25vh` so deep links land below the sticky chrome, and `content-visibility: auto` for native virtualization of hours-long meetings. Timestamps in Roboto Mono. The transcript page is the purest expression of the Glass Town Hall: maximum record, minimum building.
 
 ### Named Rules
-**The Sharp Default Rule.** Corners are square unless a shape earns curvature: cards (8px, or 12px for featured cards), pills (full), the xl marketing button (12px). Nothing else rounds.
+**The Sharp Default Rule.** Corners are square unless a shape earns curvature, and each radius has exactly one job. Cards round to 16px (`rounded-2xl`): person, party, and meeting cards, rail cards, subject rows, contribution cards. Floating chrome that sits above the page rounds to 10px: the playback dock's cells, the timeline lens, and the shared Radix menus, selects, and popovers. What nests inside that chrome rounds one size down, to 6px: menu items, select items, an icon-only button in a dense row. A panel inset inside a card or a form rounds to 8px: a grouped form row, an alert banner, a chat bubble. The oversized `xl` marketing button keeps its own 12px. Pills, avatars, and dots go fully round. Nothing else rounds.
 
 ## 8. Do's and Don'ts
 
@@ -272,6 +277,6 @@ The record itself: Roboto at 16px/1.5, speaker segments with sticky headers, utt
 - **Don't** use urgency or clutter patterns — no stacked banners, no persistent urgency cues, and no third accent color.
 - **Don't** put the brand gradient on text or surface fills; it lives on thin borders and brand moments only (The One Gradient Rule).
 - **Don't** use `border-left` stripes thicker than 1px as colored accents on cards, callouts, or alerts.
-- **Don't** round corners outside the sanctioned set (0 / 8px cards / 12px featured cards and xl buttons / full pills), and don't introduce new shadows outside Whisper/Lift/Float.
+- **Don't** round corners outside the sanctioned set (0 / 6px menu and select items / 8px inset panels / 10px floating chrome / 12px the `xl` button / 16px cards / full pills), and don't hand-write a new shadow outside Whisper/Lift/Float and the timeline lens's and chat bubble's named exceptions.
 - **Don't** color inactive states — orange and Marble Blue belong to action and selection, never to resting chrome.
 - **Don't** add decorative motion in the product register: motion conveys state (hover ignition, accordion, loading) in 150–300ms; no orchestrated page-load choreography.
