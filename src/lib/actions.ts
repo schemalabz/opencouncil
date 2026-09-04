@@ -60,14 +60,15 @@ export async function getPlaceSuggestions(data: {
         });
         console.log('Response status:', response.data.status);
 
-        // Handle different Google API response statuses
-        if (response.data.status === 'ZERO_RESULTS') {
-            // ZERO_RESULTS is not an error, it's a valid response with no results
-            return createSuccess({ status: 'ZERO_RESULTS', predictions: [] });
-        } else if (response.data.status !== 'OK') {
+        // Pass the Google status through instead of collapsing it into an
+        // error. The caller needs the status: it selects the user-facing
+        // message (REQUEST_DENIED and OVER_QUERY_LIMIT read differently) and it
+        // tags the PostHog report. A failed Result now means that this action
+        // failed, not that Google refused the request.
+        //
+        // ZERO_RESULTS is a valid empty answer, so it is not logged.
+        if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
             console.error('Google Places API returned non-OK status:', response.data.status);
-            const errorMsg = `Google API error: ${response.data.status}${response.data.error_message ? ': ' + response.data.error_message : ''}`;
-            return createError(errorMsg);
         }
 
         return createSuccess(response.data);
@@ -105,10 +106,9 @@ export async function getPlaceDetails(data: { placeId: string; language?: string
             timeout: 5000 // Set timeout to 5 seconds
         });
 
+        // Pass the status through, for the same reason as getPlaceSuggestions.
         if (response.data.status !== 'OK') {
             console.error('Google Places Details API returned non-OK status:', response.data.status);
-            const errorMsg = `Google API error: ${response.data.status}${response.data.error_message ? ': ' + response.data.error_message : ''}`;
-            return createError(errorMsg);
         }
 
         return createSuccess(response.data);
