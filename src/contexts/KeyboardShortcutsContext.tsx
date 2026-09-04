@@ -109,13 +109,19 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
             if (event.target instanceof HTMLElement && event.target.isContentEditable) {
                 return;
             }
+            const inPlaybackDock = event.target instanceof HTMLElement
+                && event.target.closest('[data-playback-focus]') !== null;
             // Keys mean something else on interactive controls: Space activates a
             // focused button, arrows move menus, selects, sliders and tab lists.
-            if (event.target instanceof HTMLElement && (
+            const onInteractiveControl = event.target instanceof HTMLElement && (
                 event.target instanceof HTMLSelectElement ||
                 event.target instanceof HTMLButtonElement ||
-                event.target.closest('[role="menu"], [role="menubar"], [role="listbox"], [role="slider"], [role="tablist"], [role="combobox"]')
-            )) {
+                event.target.closest('[role="menu"], [role="menubar"], [role="listbox"], [role="slider"], [role="tablist"], [role="combobox"]') !== null
+            );
+            // The dock is all buttons and one slider, so this return would reject
+            // every key the dock's own actions claim. It defers to the per-action
+            // check below there, and keeps its verdict everywhere else.
+            if (onInteractiveControl && !inPlaybackDock) {
                 return;
             }
 
@@ -145,9 +151,12 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
                     // Bare arrows stay scroll keys while reading; they drive
                     // playback only when focus sits inside the dock (or the
                     // floating player). Space stays global.
-                    if (action.requiresPlaybackFocus && !(
-                        event.target instanceof HTMLElement && event.target.closest('[data-playback-focus]')
-                    )) {
+                    if (action.requiresPlaybackFocus && !inPlaybackDock) {
+                        continue;
+                    }
+                    // Inside the dock only the arrow actions outrank the control
+                    // under focus: Space still activates the focused button.
+                    if (onInteractiveControl && !action.requiresPlaybackFocus) {
                         continue;
                     }
                     const handler = handlers.current.get(action.id);
