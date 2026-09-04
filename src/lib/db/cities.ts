@@ -1,5 +1,6 @@
 "use server";
 import { City, CityStatus, CouncilMeeting, Prisma, Realm } from '@prisma/client';
+import { revalidateTag } from 'next/cache';
 import prisma from "./prisma";
 import { createCache } from "../cache";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
@@ -111,6 +112,10 @@ export async function updateCityGeometry(
             "updatedAt" = NOW()
         WHERE id = ${id}
     `;
+    // The geometry cache carries no TTL, so a redrawn boundary would otherwise
+    // frame the old outline for good. The invalidation belongs to the writer,
+    // not to one of its callers.
+    revalidateTag(`city:${id}:geometry`, 'max');
 }
 
 async function attachGeometryToCity<T extends Pick<City, 'id'>>(

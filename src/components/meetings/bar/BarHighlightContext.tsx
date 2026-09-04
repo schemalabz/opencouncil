@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useBarData } from './BarDataContext';
+import { useBarDataRef } from './BarDataContext';
 import type { Interval } from '@/lib/utils/barTimeline';
 
 export interface BarHighlight {
@@ -109,19 +109,19 @@ function useHoverHandlers(key: string | null, resolve: () => Interval[] | undefi
 
 /** Hover handlers lighting a subject's runs on the bar. */
 export function useSubjectBarHover(subjectId: string | null): HoverHandlers {
-    const data = useBarData();
-    return useHoverHandlers(subjectId, () => subjectId ? data.intervalsBySubject.get(subjectId) : undefined);
+    const data = useBarDataRef();
+    return useHoverHandlers(subjectId, () => subjectId ? data.current.intervalsBySubject.get(subjectId) : undefined);
 }
 
 /** Hover handlers lighting a speaker's runs on the bar. */
 export function useSpeakerBarHover(personId: string | null): HoverHandlers {
-    const data = useBarData();
-    return useHoverHandlers(personId, () => personId ? data.intervalsBySpeaker.get(personId) : undefined);
+    const data = useBarDataRef();
+    return useHoverHandlers(personId, () => personId ? data.current.intervalsBySpeaker.get(personId) : undefined);
 }
 
 /** Hover handlers lighting one speaker's runs within one subject. */
 export function useContributionBarHover(subjectId: string | null, personId: string | null): HoverHandlers {
-    const data = useBarData();
+    const data = useBarDataRef();
     const key = subjectId && personId ? `${subjectId}:${personId}` : null;
-    return useHoverHandlers(key, () => key ? data.intervalsBySubjectSpeaker.get(key) : undefined);
+    return useHoverHandlers(key, () => key ? data.current.intervalsBySubjectSpeaker.get(key) : undefined);
 }
