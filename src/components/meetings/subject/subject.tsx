@@ -55,7 +55,12 @@ import { AIDisclosure } from '@/components/AIDisclosure';
 /** The content column and the rail. */
 const TWO_COLUMN_GRID = 'grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_336px] xl:gap-14';
 
-export default function Subject({ subjectId, highlightedContributionId }: { subjectId?: string; highlightedContributionId?: string }) {
+/**
+ * `related` is the related-subjects section, rendered by the page on the
+ * server (RelatedSubjectsSection) and handed in as a slot: this component is
+ * a client component, and the section's rows have to be in the HTML.
+ */
+export default function Subject({ subjectId, highlightedContributionId, related }: { subjectId?: string; highlightedContributionId?: string; related?: React.ReactNode }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
     // What the empty summary and statements say while the meeting is not complete.
     const { stage, deadline } = useMeetingStage();
@@ -520,6 +525,8 @@ export default function Subject({ subjectId, highlightedContributionId }: { subj
                         )}
                     </aside>
                 </div>
+
+                {related}
 
                 {/* Voting Section (skip for withdrawn subjects; counselors only, hidden from the public) */}
                 {!subject.withdrawn && options.editsAllowed && <CollapsibleCard

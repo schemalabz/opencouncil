@@ -1058,7 +1058,11 @@
         "replaceImage": "Replace image…",
         "imageDialogTitle": "Subject image",
         "imageUpdated": "Image updated",
-        "imageUpdateFailed": "Could not update the image"
+        "imageUpdateFailed": "Could not update the image",
+        "relatedSubjects": "Related subjects",
+        "relatedOtherCities": "Other municipalities",
+        "relatedSeeMore": "See more in search",
+        "relatedScopeLabel": "Scope of related subjects"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
