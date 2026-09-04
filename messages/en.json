@@ -1048,6 +1048,8 @@
             }
         },
         "agendaItem": "Subject #{index}",
+        "beforeAgenda": "Before Agenda",
+        "outsideAgenda": "Outside Agenda",
         "backToMeetingNamed": "Back to meeting: {meeting}",
         "partOf": "Part of the meeting",
         "parties": "Parties",
@@ -1115,6 +1117,16 @@
         "withdrawnShort": "Withdrawn",
         "withdrawnLong": "The subject was withdrawn and not discussed.",
         "minutesCount": "{count, plural, one {# minute} other {# minutes}}"
+    },
+    "SubjectSubscribe": {
+        "subscribe": "Subscribe",
+        "confirmSubscribe": "Save",
+        "subscribeSuccess": "Saved",
+        "subscribeSuccessDescription": "Your notification preferences have been updated.",
+        "manageNotifications": "Manage notifications",
+        "subscribeTo": "Get notified about:",
+        "error": "Error",
+        "subscribeErrorDescription": "An error occurred while saving your preferences. Please try again."
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
