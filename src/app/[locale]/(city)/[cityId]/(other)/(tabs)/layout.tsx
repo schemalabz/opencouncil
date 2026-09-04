@@ -103,9 +103,13 @@ export default async function TabsLayout(
     return (
         <div className="relative md:container md:mx-auto py-8 px-4 md:px-8 z-0">
             {/* The rail is placed explicitly into the second column across both
-                rows, so on a phone the DOM order still reads identity → rail →
-                tabs. Its own column means the tabs below start immediately
-                rather than after the tallest thing in a band above them. */}
+                rows. Its own column means the tabs below start immediately
+                rather than after the tallest thing in a band above them.
+                On a phone there is one column, and the rail breaks itself up
+                (see CityRail) so the order reads identity → Νότης → tabs →
+                content → the rest of the rail. The `order` values below are
+                what the phone follows; at lg they all fall away and the grid
+                placement takes over. */}
             <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)] lg:gap-10">
                 <CityIdentityBand
                     city={city}
@@ -117,8 +121,9 @@ export default async function TabsLayout(
 
                 {/* self-stretch is what gives the rail inside room to stick: the grid
                     is items-start, so without it this wrapper would be exactly as tall
-                    as its contents and there would be nothing to travel through. */}
-                <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-stretch">
+                    as its contents and there would be nothing to travel through.
+                    `contents` on a phone hands the rail's own parts to the grid. */}
+                <div className="max-lg:contents lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:self-stretch">
                     <CityRail
                         city={city}
                         cityMessage={cityMessage}
@@ -133,7 +138,7 @@ export default async function TabsLayout(
                     />
                 </div>
 
-                <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-2">
+                <div className="min-w-0 space-y-8 max-lg:order-3 lg:col-start-1 lg:row-start-2">
                     <CityNavigation cityId={cityId} city={city} />
 
                     <Suspense fallback={
