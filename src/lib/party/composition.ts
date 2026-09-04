@@ -1,6 +1,6 @@
 import type { AdministrativeBodyType } from '@prisma/client';
 import type { PartyWithPersons, PersonWithRoles } from '@/lib/db/parties';
-import { isMayorRole, isRoleActive } from '@/lib/utils/roles';
+import { isActivePartyMember, isMayorRole, isRoleActive } from '@/lib/utils/roles';
 import { sortPartyMembers } from '@/lib/sorting/people';
 
 /**
@@ -28,17 +28,14 @@ export interface PartyComposition {
 
 export function partyComposition(party: PartyWithPersons): PartyComposition {
     const members = sortPartyMembers(
-        party.people.filter(person =>
-            person.roles.some(role => role.partyId === party.id && isRoleActive(role))
-        ),
+        party.people.filter(person => isActivePartyMember(person, party.id)),
         party.id,
         true,
     );
 
-    // Only active roles count. `getPartiesForCity` filters the party's own roles
-    // relation but not the nested `person.roles`, so a councillor whose seat ended
-    // last term is still on the record — counting those inflated the seat numeral
-    // and left the governing-party chip on a previous mayor's party.
+    // The same "only active roles count" rule as isActivePartyMember, applied to the
+    // administrative-body seats: counting ended ones inflated the seat numeral and
+    // left the governing-party chip on a previous mayor's party.
     const activeRoles = (person: PersonWithRoles) => person.roles.filter(isRoleActive);
 
     const counts = { committee: 0, community: 0 };
@@ -94,8 +91,7 @@ export function partyBodyColumns(parties: PartyWithPersons[]): PartyBodyColumns 
     const present = new Set<AdministrativeBodyType>();
     for (const party of parties) {
         for (const person of party.people) {
-            const inParty = person.roles.some(role => role.partyId === party.id && isRoleActive(role));
-            if (!inParty) continue;
+            if (!isActivePartyMember(person, party.id)) continue;
             for (const role of person.roles) {
                 if (isRoleActive(role) && role.administrativeBody) present.add(role.administrativeBody.type);
             }
