@@ -2,9 +2,10 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Map as MapboxMap } from 'mapbox-gl';
-import { ArrowUpRight, Globe } from 'lucide-react';
+import { ArrowUpRight, Globe, Maximize2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
+import { cn } from '@/lib/utils';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import Map, { type MapFeature } from '@/components/map/map';
 import { cityBoundaryFeature } from '@/components/map/cityBoundary';
@@ -57,7 +58,8 @@ export function CityMapTab({
     // The general-city markers can close an OpenCouncil badge popup; this map never opens one.
     const closeExplainPopupRef = useRef<(() => void) | null>(null);
 
-    const { center } = useMemo(() => calculateGeometryBounds(geometry), [geometry]);
+    const { bounds, center } = useMemo(() => calculateGeometryBounds(geometry), [geometry]);
+    const zoomPadding = isMobile ? 24 : 48;
 
     const {
         selectedId,
@@ -75,7 +77,7 @@ export function CityMapTab({
         previewSubject,
     } = useSubjectMapState({ mapInstance, initialZoom: INITIAL_ZOOM, surface: 'city_map' });
 
-    const { visibleSubjects, visibleGeneralCities, listSubjects, findSubject, selectedSubject } = useFilteredSubjects({
+    const { visibleSubjects, visibleGeneralCities, listSubjects, orderedAll, findSubject, selectedSubject } = useFilteredSubjects({
         mapSubjects: subjects,
         generalRows,
         cats: NO_CATS,
@@ -94,10 +96,36 @@ export function CityMapTab({
         [cityId, geometry],
     );
 
-    // Nothing at all in the window — not "nothing located", which is what SubjectList would say.
-    const empty = listSubjects.length === 0;
+    // An empty list is two different facts, and they need two different answers. `listSubjects`
+    // follows the viewport, so panning to a field empties it; `orderedAll` ignores the viewport
+    // and is what the server loaded, so it alone says whether the window itself is empty.
+    const windowEmpty = orderedAll.length === 0;
+    const noneInView = !windowEmpty && listSubjects.length === 0;
 
     const clearSelection = useCallback(() => setSelectedId(null), [setSelectedId]);
+
+    // The way back from a pan that left the δήμος behind: the boundary fit the map opened on.
+    const resetView = useCallback(() => {
+        if (!mapInstance) return;
+        if (bounds) {
+            mapInstance.fitBounds(
+                [
+                    [bounds.minLng, bounds.minLat],
+                    [bounds.maxLng, bounds.maxLat],
+                ],
+                { padding: zoomPadding, maxZoom: 17 },
+            );
+        } else {
+            mapInstance.easeTo({ center, zoom: INITIAL_ZOOM, padding: zoomPadding });
+        }
+    }, [mapInstance, bounds, center, zoomPadding]);
+
+    // The one card that stands in for the list, in the column and at the end of the strip alike.
+    const notice = windowEmpty ? (
+        <EmptyWindowCard months={months} />
+    ) : noneInView ? (
+        <NoneInViewCard onReset={resetView} />
+    ) : null;
 
     // A pin tap previews on a phone (highlight + centre, no card) and opens the card on a desktop,
     // where the list beside the map is what a selection scrolls to.
@@ -169,10 +197,8 @@ export function CityMapTab({
                         <h2 className="text-sm font-bold">{tc('mapSubjectsHeading')}</h2>
                         <span className="text-sm text-muted-foreground">({listSubjects.length})</span>
                     </div>
-                    {empty ? (
-                        <div className="px-4 py-4">
-                            <EmptyWindowCard months={months} />
-                        </div>
+                    {notice ? (
+                        <div className="px-4 py-4">{notice}</div>
                     ) : (
                     <SubjectList
                         surface="city_map"
@@ -197,7 +223,7 @@ export function CityMapTab({
                         features={features}
                         onMapReady={handleMapReady}
                         zoomToGeometry={geometry}
-                        zoomPadding={isMobile ? 24 : 48}
+                        zoomPadding={zoomPadding}
                         // The map sits in a scrolling page, so a plain wheel scrolls past it; zooming
                         // asks for ⌘/ctrl (and two fingers on a phone).
                         cooperativeGestures
@@ -244,7 +270,8 @@ export function CityMapTab({
                                     previewId={previewId}
                                     onPreview={(id) => previewSubject(id ? findSubject(id) : null)}
                                     onSelect={setSelectedId}
-                                    trailing={empty ? <EmptyWindowCard months={months} /> : null}
+                                    trailing={notice}
+                                    maxCards={STRIP_MAX_CARDS}
                                 />
                             </div>
                         )}
@@ -261,16 +288,41 @@ export function CityMapTab({
  */
 function EmptyWindowCard({ months }: { months: number }) {
     const tc = useTranslations('City');
+    return <span className={noticeCardClass}>{tc('mapEmptyWindow', { months })}</span>;
+}
+
+/**
+ * What the tab says when the δήμος did discuss something and the reader has panned off it. The
+ * count in the column heading is already zero, so this only has to say why — and carry the way
+ * back, since a reader who cannot see the boundary cannot aim for it either.
+ */
+function NoneInViewCard({ onReset }: { onReset: () => void }) {
+    const tc = useTranslations('City');
     return (
-        <span className="block rounded-[10px] border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-md">
-            {tc('mapEmptyWindow', { months })}
-        </span>
+        <div className={cn(noticeCardClass, 'max-w-[280px]')}>
+            {tc('mapNoneInView')}
+            <button
+                type="button"
+                onClick={onReset}
+                className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-[hsl(var(--orange-deep))] hover:underline"
+            >
+                <Maximize2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {tc('mapResetView')}
+            </button>
+        </div>
     );
 }
+
+const noticeCardClass = 'block rounded-[10px] border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-md';
 
 /** Where the map opens before the boundary fit takes over — δήμος-sized, so the fit is a nudge. */
 const INITIAL_ZOOM = 12;
 const noop = () => {};
+
+/** As many cards as the desktop column's first page. The strip has no "load more" of its own —
+ *  the map is what brings the rest of a ranked list into view, and the band above leads to all
+ *  of it — so rendering a few hundred of them only costs a payload and a reconciliation per pan. */
+const STRIP_MAX_CARDS = 10;
 
 /** Topics are not filtered here (that is the full map's job). Module-level so the identity is
  *  stable — a fresh [] each render would rebuild every marker on the map. */
