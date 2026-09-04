@@ -1117,7 +1117,12 @@
     "previousSubject": "Point précédent",
     "nextSubject": "Point suivant",
     "noDecisionBeforeAgenda": "Les points soulevés avant l'ordre du jour n'ont jamais de décision.",
-    "learnWhy": "Pourquoi ?"
+    "learnWhy": "Pourquoi ?",
+    "regenerateImage": "Régénérer l'image",
+    "replaceImage": "Remplacer l'image…",
+    "imageDialogTitle": "Image du sujet",
+    "imageUpdated": "Image mise à jour",
+    "imageUpdateFailed": "La mise à jour de l'image a échoué"
   },
   "PersonCard": {
     "party": "Groupe",

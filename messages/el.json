@@ -1117,7 +1117,12 @@
         "previousSubject": "Προηγούμενο θέμα",
         "nextSubject": "Επόμενο θέμα",
         "noDecisionBeforeAgenda": "Τα προ ημερησίας θέματα δεν έχουν ποτέ απόφαση.",
-        "learnWhy": "Μάθε γιατί"
+        "learnWhy": "Μάθε γιατί",
+        "regenerateImage": "Νέα εικόνα",
+        "replaceImage": "Αντικατάσταση εικόνας…",
+        "imageDialogTitle": "Εικόνα θέματος",
+        "imageUpdated": "Η εικόνα ενημερώθηκε",
+        "imageUpdateFailed": "Η ενημέρωση της εικόνας απέτυχε"
     },
     "PersonCard": {
         "party": "Παράταξη",

@@ -10,6 +10,7 @@ import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
 import { getAvailableSpeakerSegmentIds, getSummarizeRequestBody, saveSubjectsForMeeting } from "../db/utils";
 import { withUserAuthorizedToEdit } from "../auth";
+import { generateImagesForMeeting } from "../subjectImages";
 
 export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = [], additionalInstructions?: string, {
     force = false
@@ -161,6 +162,11 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     // (~500ms/recipient), so revalidating only after it finishes would let early
     // recipients open the meeting and see stale, pre-summarize content.
     revalidateMeeting(councilMeeting.cityId, councilMeeting.id);
+
+    // Illustrations for the non-agenda subjects, which only exist now. Agenda
+    // subjects already have theirs and are skipped. Not awaited: the callback
+    // must not wait on Gemini, and each failure alerts on its own.
+    generateImagesForMeeting(councilMeeting.cityId, councilMeeting.id);
 
     // Create notifications if administrative body allows it
     const adminBody = councilMeeting.administrativeBody;

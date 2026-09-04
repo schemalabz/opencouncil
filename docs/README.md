@@ -26,6 +26,7 @@ Deep dives into specific features — architecture, data flow, and implementatio
 - **[guides/editing-interface.md](./guides/editing-interface.md)** — Transcript editing mode: lifecycle, keyboard shortcuts, speaker management, timestamp adjustment
 - **[guides/consultations.md](./guides/consultations.md)** — Public consultation feature: regulation viewer, comments, geo-editor, JSON schema
 - **[guides/meeting-highlights.md](./guides/meeting-highlights.md)** — Video highlight generation: multi-page flow, video formats (16:9, 9:16), rendering
+- **[guides/subject-images.md](./guides/subject-images.md)** — AI-generated illustration per subject: the `@opencouncil/subject-images` library, the image route, pipeline triggers, the placeholder, admin replace, and the backfill script
 - **[guides/qr-campaigns.md](./guides/qr-campaigns.md)** — QR code redirect system with UTM tracking and analytics
 - **[guides/serbian-localization.md](./guides/serbian-localization.md)** — Serbian dual-script support: Cyrillic-canonical catalogs, generated Latin, render-time transliteration, glossary, and the native-review workflow gating the serbia realm launch
 

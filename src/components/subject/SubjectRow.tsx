@@ -4,9 +4,8 @@ import { Statistics } from "@/lib/statistics";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { surfaceCardClass } from "@/components/ui/surface-card";
 import { TopicIcon } from "@/components/TopicIcon";
-import { PersonAvatarList } from "@/components/persons/PersonAvatarList";
+import { SubjectImage } from "@/components/subject/SubjectImage";
 import { subjectCardStats } from "@/lib/subjectCardStats";
-import { subjectDisplayedSpeakers } from "@/lib/subjectSpeakers";
 import { getAgendaFullLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
 import { PersonWithRelations } from "@/lib/db/people";
@@ -27,7 +26,8 @@ interface SubjectRowProps {
     subject: SubjectWithRelations & { statistics?: Statistics };
     city: City;
     meeting: CouncilMeeting & { administrativeBody?: AdministrativeBody | null };
-    persons: PersonWithRelations[];
+    /** Kept for the callers; the row no longer draws its speakers. */
+    persons?: PersonWithRelations[];
     /** Show the city / body / date line — off when the row already sits inside a meeting. */
     showContext?: boolean;
     /** What a row says in place of the stats it does not have yet — the meeting's stage decides. */
@@ -50,10 +50,10 @@ function MetaItem({ icon: Icon, children }: { icon: typeof MapPin; children: Rea
 /**
  * A subject as a single full-width row — the layout the search results use. It carries the
  * same facts as the SubjectCard (topic, context, title, agenda marker, description, location,
- * speaking stats, speakers), laid out horizontally. A result list then reads top to bottom,
+ * speaking stats), laid out horizontally. A result list then reads top to bottom,
  * one result per line, instead of as a grid of tiles.
  */
-export function SubjectRow({ subject, city, meeting, persons, showContext = true, pending, openInNewTab, onOpen }: SubjectRowProps) {
+export function SubjectRow({ subject, city, meeting, showContext = true, pending, openInNewTab, onOpen }: SubjectRowProps) {
     const router = useRouter();
     const pathname = usePathname();
     const t = useTranslations("Subject");
@@ -79,7 +79,6 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
         router.push(href);
     };
 
-    const speakers = subjectDisplayedSpeakers(subject, persons);
     const stats = subjectCardStats(subject.statistics, subject.contributions?.length);
     const agendaLabel = getAgendaFullLabel(t, subject);
     const description = subject.description ? localize(stripMarkdown(subject.description)) : null;
@@ -92,7 +91,6 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
     ].filter(Boolean).join(" · ");
 
     const isPending = pending != null && stats.minutes === 0 && stats.speakerCount === 0;
-    const showsNote = Boolean(subject.withdrawn) || isPending;
     // A transcript on its way promises what the review does: the summary comes after the check.
     const rowNote = pending === 'processing' ? 'review' : pending;
 
@@ -133,7 +131,19 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                     <div className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: rail }} />
                 </div>
 
-                <div className="flex flex-col gap-3 py-3 pl-4 pr-3 sm:flex-row sm:items-stretch sm:gap-6 sm:py-4 sm:pl-5 sm:pr-4">
+                {/* The illustration fills the row, faded by a scrim in the card's own
+                    colour, as on the city page's hot topics. The scrim, rather than an
+                    opacity on the image, is what gives the text one contrast ratio
+                    against every picture the model draws: an opacity bleaches the light
+                    images and leaves the dark ones heavy. It thins on hover. */}
+                <span className="absolute inset-0 z-0" aria-hidden>
+                    <SubjectImage subjectId={subject.id} alt="" />
+                </span>
+                <span
+                    className="absolute inset-0 z-0 bg-card/80 transition-colors duration-300 group-hover/row:bg-card/70"
+                    aria-hidden
+                />
+                <div className="relative flex flex-col gap-3 py-3 pl-4 pr-3 sm:flex-row sm:items-stretch sm:gap-6 sm:py-4 sm:pl-5 sm:pr-4">
                     {/* Topic and text — everything that identifies the subject */}
                     <div className="flex min-w-0 flex-1 gap-3">
                         <TopicIcon
@@ -156,7 +166,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                                 )}
                             </div>
 
-                            <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug transition-colors duration-300 group-hover/row:text-[hsl(var(--orange))] sm:text-base">
+                            <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug group-hover/row:font-bold sm:text-base">
                                 {localize(subject.name)}
                             </h3>
 
@@ -178,23 +188,11 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                         </div>
                     </div>
 
-                    {/* The discussion — who spoke and for how long. Trailing on desktop,
-                        its own line under the text on mobile. On desktop the stats sit at the
-                        top, on the line of the context meta opposite them, and the speakers drop
-                        to the bottom (sm:mt-auto), level with the meeting and location meta.
-
-                        On mobile it is one line that never wraps: the stats lead, the speakers
-                        sit flush right. It gives up the text column's indent to hold the widest
-                        case — a full stack of avatars plus the "+N" chip — on a 360px screen,
-                        so that a subject with many speakers keeps the same shape as one with
-                        two. Below that width the stats truncate rather than drop to a line of
-                        their own. */}
-                    <div className={cn(
-                        'flex shrink-0 flex-row items-center justify-between gap-x-3 sm:flex-col sm:items-end sm:justify-start sm:gap-y-1.5',
-                        // A note has no avatar stack to make room for, so it takes the text
-                        // column's indent (the icon box and its gap) and reads as a line of it.
-                        showsNote && 'pl-[52px] sm:pl-0',
-                    )}>
+                    {/* The discussion — how long, how many spoke, which parties. Trailing on
+                        desktop, on the line of the context meta opposite it. On mobile it is
+                        its own line under the text, taking the text column's indent (the icon
+                        box and its gap) so it reads as a line of it. */}
+                    <div className="flex shrink-0 flex-row items-center gap-x-3 pl-[52px] sm:flex-col sm:items-end sm:justify-start sm:gap-y-1.5 sm:pl-0">
                         {subject.withdrawn ? (
                             <span className="text-xs italic text-muted-foreground/70">
                                 {getWithdrawnLabel(t, subject)}
@@ -228,9 +226,6 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                                         )}
                                     </div>
                                 )}
-                                <div className="shrink-0 sm:mt-auto" onClick={(e) => e.stopPropagation()}>
-                                    <PersonAvatarList users={speakers} introducerId={subject.introducedBy?.id} size="sm" maxDisplayed={4} stacked />
-                                </div>
                             </>
                         )}
                     </div>

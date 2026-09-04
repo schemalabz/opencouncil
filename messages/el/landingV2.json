@@ -82,7 +82,8 @@
   },
   "subject": {
     "view": "Προβολή θέματος",
-    "discussionMinutes": "{min}′ συζήτηση"
+    "discussionMinutes": "{min}′ συζήτηση",
+    "aiImage": "Εικόνα από ΤΝ"
   },
   "municipality": {
     "subjects": "Θέματα",

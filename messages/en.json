@@ -1123,7 +1123,12 @@
         "previousSubject": "Previous subject",
         "nextSubject": "Next subject",
         "noDecisionBeforeAgenda": "Items raised before the agenda never have a decision.",
-        "learnWhy": "Learn why"
+        "learnWhy": "Learn why",
+        "regenerateImage": "Regenerate image",
+        "replaceImage": "Replace image…",
+        "imageDialogTitle": "Subject image",
+        "imageUpdated": "Image updated",
+        "imageUpdateFailed": "Could not update the image"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",

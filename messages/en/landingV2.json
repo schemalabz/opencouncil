@@ -82,7 +82,8 @@
   },
   "subject": {
     "view": "View subject",
-    "discussionMinutes": "{min}′ discussion"
+    "discussionMinutes": "{min}′ discussion",
+    "aiImage": "AI-generated image"
   },
   "municipality": {
     "subjects": "Subjects",

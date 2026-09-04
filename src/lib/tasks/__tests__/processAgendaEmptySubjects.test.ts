@@ -53,6 +53,11 @@ jest.mock('../../auth', () => ({
   withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
 }));
 
+const mockGenerateImagesForMeeting = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../subjectImages', () => ({
+  generateImagesForMeeting: (...args: unknown[]) => mockGenerateImagesForMeeting(...args),
+}));
+
 jest.mock('../processAgendaInternal', () => ({
   requestProcessAgendaInternal: jest.fn(),
 }));
@@ -78,6 +83,15 @@ describe('handleProcessAgendaResult — empty / malformed subjects (issue #102)'
     expect(mockSaveSubjectsForMeeting).toHaveBeenCalledWith([], CITY_ID, MEETING_ID, undefined, {
       pruneUnmatched: true,
     });
+  });
+
+  it('asks for the subject illustrations once the subjects are saved', async () => {
+    await handleProcessAgendaResult(TASK_ID, { subjects: [] } as ProcessAgendaResult);
+
+    expect(mockGenerateImagesForMeeting).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+    const saveOrder = mockSaveSubjectsForMeeting.mock.invocationCallOrder[0];
+    const imagesOrder = mockGenerateImagesForMeeting.mock.invocationCallOrder[0];
+    expect(imagesOrder).toBeGreaterThan(saveOrder);
   });
 
   it('does not throw and does not delete existing subjects when result omits the subjects array', async () => {

@@ -68,3 +68,28 @@ export function topicStyle(color?: string | null, variant: 'soft' | 'solid' = 's
         icon: `color-mix(in srgb, ${c} 65%, black)`,
     };
 }
+
+/** `color-mix(in srgb, hex weight, other)` as a literal hex, for surfaces that cannot run CSS. */
+export function mixHex(hex: string, other: string, weight: number): string {
+    const parse = (h: string) => {
+        const c = h.replace('#', '');
+        return [0, 2, 4].map((i) => parseInt(c.slice(i, i + 2), 16));
+    };
+    const a = parse(hex);
+    const b = parse(other);
+    const mixed = a.map((v, i) => Math.round(v * weight + b[i] * (1 - weight)));
+    return `#${mixed.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
+ * The `soft` recipe of topicStyle with literal hex values, for an SVG served as
+ * an image or an email — places where `color-mix()` cannot run.
+ */
+export function topicStyleHex(color?: string | null): TopicStyle {
+    const c = color || NEUTRAL;
+    return {
+        background: mixHex(c, '#ffffff', 0.24),
+        border: c,
+        icon: mixHex(c, '#000000', 0.65),
+    };
+}
