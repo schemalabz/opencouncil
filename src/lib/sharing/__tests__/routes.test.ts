@@ -14,6 +14,8 @@ jest.mock('@/lib/og/portrait', () => ({ getPortraitData: jest.fn().mockResolvedV
 jest.mock('next/navigation', () => ({ redirect: jest.fn((url: string) => { throw new Error(`REDIRECT:${url}`); }), notFound: jest.fn(() => { throw new Error('NOT_FOUND'); }) }));
 jest.mock('@/components/meetings/subject/subject', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('@/components/analytics/SubjectReadTracker', () => ({ __esModule: true, default: jest.fn() }));
+// The related-subjects section reaches the search core, and through it the environment; the page under test is not about it.
+jest.mock('@/components/meetings/subject/RelatedSubjectsSection', () => ({ RelatedSubjectsSection: jest.fn() }));
 jest.mock('@/lib/getMeetingData', () => ({ getMeetingDataCached: jest.fn(), getSubjectFromMeetingCached: jest.fn() }));
 jest.mock('@/lib/utils/hreflang', () => ({ buildCanonicalAlternates: jest.fn(async (path: string) => ({ canonical: `https://opencouncil.gr${path}` })) }));
 jest.mock('@/lib/seo/subjectStructuredData', () => ({ buildSubjectStructuredData: jest.fn(() => ({})), serializeStructuredData: jest.fn(() => '{}') }));
