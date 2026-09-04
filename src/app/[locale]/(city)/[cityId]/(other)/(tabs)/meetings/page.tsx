@@ -67,26 +67,37 @@ export async function generateMetadata(
     };
 }
 
+const MEETINGS_PAGE_SIZE = 12;
+
+/**
+ * How many meetings the tab loads.
+ *
+ * The list filters, searches and pages in the browser, so every row a reader
+ * can reach without a reload has to be in the payload. A card carries its
+ * meeting's whole agenda, which put a large city's archive — 124 meetings,
+ * 1.28 MB — on the wire to draw twelve cards. This bounds that at a constant,
+ * and leaves the filter and the search whole over what it covers, which paging
+ * the query would not: both run over the loaded rows.
+ *
+ * Meetings past the window stay reachable through the page header's search and
+ * through their own URLs.
+ */
+const MEETINGS_TAB_LIMIT = MEETINGS_PAGE_SIZE * 5;
+
 export default async function MeetingsPage(
     props: {
         params: Promise<{ cityId: string }>;
-        searchParams: Promise<{ page?: string }>;
     }
 ) {
-    const searchParams = await props.searchParams;
     const params = await props.params;
 
     const {
         cityId
     } = params;
 
-    const pageNumber = parseInt(searchParams.page || '1', 10);
-    const currentPage = isNaN(pageNumber) || pageNumber < 1 ? 1 : pageNumber;
-    const pageSize = 12;
-
     const [city, councilMeetings, canEdit] = await Promise.all([
         getCityCached(cityId),
-        getCouncilMeetingsPreviewCached(cityId, {}),
+        getCouncilMeetingsPreviewCached(cityId, { limit: MEETINGS_TAB_LIMIT }),
         isUserAuthorizedToEdit({ cityId }),
     ]);
 
@@ -100,8 +111,7 @@ export default async function MeetingsPage(
             cityId={cityId}
             timezone={city.timezone}
             canEdit={canEdit}
-            currentPage={currentPage}
-            pageSize={pageSize}
+            pageSize={MEETINGS_PAGE_SIZE}
         />
     );
 }

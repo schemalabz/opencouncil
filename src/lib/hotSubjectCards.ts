@@ -1,5 +1,5 @@
 import type { AdministrativeBody, AdministrativeBodyType, NonAgendaReason, Topic } from '@prisma/client';
-import { createCache } from '@/lib/cache';
+import { bodyFilterKey, createCache } from '@/lib/cache';
 import { getBatchStatisticsForSubjects, type Statistics } from '@/lib/statistics';
 import { getSubjectCardExtras } from '@/lib/db/subject';
 import type { PersonWithRelations } from '@/lib/db/people';
@@ -23,7 +23,8 @@ export interface HotCardMeeting {
     id: string;
     name: string;
     name_en: string | null;
-    /** An ISO string, not a Date, whenever the card set comes off a cache hit. */
+    /** Always a Date. A cache hit hands back an ISO string, which getHotSubjectCardsCached
+     *  restores before it returns — so a reader can call Date methods on this. */
     dateTime: Date;
     administrativeBody: AdministrativeBody | null;
 }
@@ -136,14 +137,12 @@ export async function getHotSubjectCards(cityId: string, args: Args): Promise<Ho
  * cities × body filters.
  */
 export async function getHotSubjectCardsCached(cityId: string, args: Omit<Args, 'geohash'>): Promise<HotSubjectCard[]> {
-    const { limit, administrativeBodyTypes, administrativeBodyIds, months } = args;
-    const typeKey = administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:all';
-    const idKey = administrativeBodyIds?.length ? `ids:${[...administrativeBodyIds].sort().join(',')}` : 'ids:all';
-    return createCache(
+    const { limit, months } = args;
+    const cards = await createCache(
         async () => buildCards(await computeRecentHotSubjects(cityId, args)),
         // `months`, not the date it resolves to: the window moves with `now`, and
         // the TTL below is what bounds that drift.
-        ['city', cityId, 'hotSubjectCards', HOT_CARDS_CACHE_VERSION, `limit:${limit}`, typeKey, idKey, `months:${months ?? 'default'}`],
+        ['city', cityId, 'hotSubjectCards', HOT_CARDS_CACHE_VERSION, `limit:${limit}`, ...bodyFilterKey(args), `months:${months ?? 'default'}`],
         {
             tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
             // The ranking window is the last N *past* meetings, which is a
@@ -151,4 +150,12 @@ export async function getHotSubjectCardsCached(cityId: string, args: Omit<Args, 
             revalidate: 900,
         }
     )();
+
+    // The cache round-trips the set through JSON, so a hit brings the meeting date back as an ISO
+    // string. Restore it here, where one place knows about the round-trip, rather than leaving
+    // every reader of a card to guess which of the two it holds.
+    return cards.map(card => ({
+        ...card,
+        meeting: { ...card.meeting, dateTime: new Date(card.meeting.dateTime) },
+    }));
 }

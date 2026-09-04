@@ -18,14 +18,13 @@ type CityMeetingsProps = {
     cityId: string,
     timezone: string,
     canEdit: boolean,
-} & Partial<PaginationParams>;
+} & Pick<PaginationParams, 'pageSize'>;
 
 export default function CityMeetings({
     councilMeetings,
     cityId,
     timezone,
     canEdit,
-    currentPage,
     pageSize
 }: CityMeetingsProps) {
     const t = useTranslations('CouncilMeeting');
@@ -124,7 +123,7 @@ export default function CityMeetings({
             mdColumns={2}
             // Two at the widest as well: the same card truncates at a third of this column.
             lgColumns={2}
-            pagination={currentPage && pageSize ? { currentPage, pageSize } : undefined}
+            pagination={{ pageSize }}
         />
     );
 }

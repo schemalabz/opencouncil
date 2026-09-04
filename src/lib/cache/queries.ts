@@ -1,4 +1,4 @@
-import { Realm } from "@prisma/client";
+import { AdministrativeBodyType, Realm } from "@prisma/client";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint } from "@/lib/db/cities";
 import { decodeGeohashToCenter } from "@/lib/geo";
@@ -27,6 +27,16 @@ import { getCityCoverage } from "@/lib/db/coverage";
  * over. Time-independent queries stay purely tag-driven.
  */
 const TIME_FILTERED_TTL = 900;
+
+/**
+ * What a cached meeting-list wrapper accepts.
+ *
+ * `includeUnreleased` is not the caller's to set: each wrapper below resolves
+ * it — from the reader's authorization, or to false — and overrides whatever it
+ * was handed. Leaving it in the signature let a caller ask for unreleased
+ * meetings, type-check, and quietly get released ones.
+ */
+type CachedMeetingListOptions = Omit<MeetingListOptions, 'includeUnreleased'>;
 
 /**
  * Cached list of all city ids (single shared cache key, tag `cities:all`).
@@ -82,7 +92,7 @@ export async function getCityWithGeometryCached(cityId: string) {
  * A city's meetings with their full subject rows. Released only, so it needs
  * no headers() call and is safe on a static page.
  */
-export async function getCouncilMeetingsForCityPublicCached(cityId: string, options: MeetingListOptions = {}) {
+export async function getCouncilMeetingsForCityPublicCached(cityId: string, options: CachedMeetingListOptions = {}) {
   return createCache(
     () => getCouncilMeetingsForCity(cityId, { ...options, includeUnreleased: false }),
     ['city', cityId, 'meetings', 'onlyReleased', ...meetingListKey(options)],
@@ -93,12 +103,29 @@ export async function getCouncilMeetingsForCityPublicCached(cityId: string, opti
   )();
 }
 
-/** Cache-key fragments for the filters a meeting list query accepts. */
-function meetingListKey({ limit, page, pageSize = 12, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter }: MeetingListOptions): string[] {
+/**
+ * Cache-key fragments for a filter on administrative bodies.
+ *
+ * Every cache whose query accepts one keys on it through here. A key that
+ * drifts from the query it stands for stays invisible until the day it serves
+ * another filter's rows.
+ */
+export function bodyFilterKey({ administrativeBodyTypes, administrativeBodyIds }: {
+  administrativeBodyTypes?: AdministrativeBodyType[];
+  administrativeBodyIds?: string[];
+}): string[] {
   return [
-    page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all'),
     administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:all',
     administrativeBodyIds?.length ? `ids:${[...administrativeBodyIds].sort().join(',')}` : 'ids:all',
+  ];
+}
+
+/** Cache-key fragments for the filters a meeting list query accepts. */
+function meetingListKey(options: MeetingListOptions): string[] {
+  const { limit, page, pageSize = 12, from, to, timeFilter } = options;
+  return [
+    page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all'),
+    ...bodyFilterKey(options),
     timeFilter ?? 'all',
     // from/to go into the where, so they have to go into the key — without them
     // two different date ranges are one cache entry.
@@ -112,7 +139,7 @@ function meetingListKey({ limit, page, pageSize = 12, from, to, administrativeBo
  * Authorization is resolved outside the cached call: headers() cannot be
  * read inside one.
  */
-export async function getCouncilMeetingsPreviewCached(cityId: string, options: MeetingListOptions = {}) {
+export async function getCouncilMeetingsPreviewCached(cityId: string, options: CachedMeetingListOptions = {}) {
   const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
   return createCache(
     () => getCouncilMeetingsWithSubjectPreview(cityId, { ...options, includeUnreleased }),
@@ -125,7 +152,7 @@ export async function getCouncilMeetingsPreviewCached(cityId: string, options: M
 }
 
 /** Public (no-auth) counterpart, safe for static pages. */
-export async function getCouncilMeetingsPreviewPublicCached(cityId: string, options: MeetingListOptions = {}) {
+export async function getCouncilMeetingsPreviewPublicCached(cityId: string, options: CachedMeetingListOptions = {}) {
   return createCache(
     () => getCouncilMeetingsWithSubjectPreview(cityId, { ...options, includeUnreleased: false }),
     ['city', cityId, 'meetingPreviews', MEETING_PREVIEW_CACHE_VERSION, 'onlyReleased', ...meetingListKey(options)],
