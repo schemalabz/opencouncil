@@ -49,24 +49,38 @@ export function CityRail({
         // beside them. top-24 clears the sticky header; the max-height keeps a
         // rail taller than the window reachable instead of pinning its top and
         // cutting off everything under the fold.
-        <aside className="flex flex-col gap-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-            {/* Operator controls sit above everything a citizen is here for. */}
-            <CityAdminTools
-                city={city as City}
-                cityMessage={cityMessage}
-                canEdit={canEdit}
-                isSuperAdmin={isSuperAdmin}
-                hasNoData={hasNoData}
-            />
-            <CityMeetingsModule
-                all={allMeetings}
-                council={councilMeetings}
-                cityId={city.id}
-                timezone={city.timezone}
-                locale={locale}
-            />
-            <CityNotificationCard city={city} preference={notificationPreference} locale={locale} />
-            <CityPetitionCard city={city} bucket={petitionBucket} locale={locale} />
+        //
+        // On a phone the rail dissolves (`contents`) and its parts become grid
+        // items the layout orders itself: the meetings module alone ran 257px,
+        // which pushed the first subject 66px past the fold. Only Νότης keeps
+        // its place above the tabs; the rest go below the tab's content. The
+        // wrappers below carry that split, and `lg:contents` dissolves them in
+        // turn so the desktop column is the same flat, evenly spaced stack it
+        // has always been.
+        <aside className="max-lg:contents lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)] lg:flex-col lg:gap-3 lg:overflow-y-auto">
+            <div className="flex flex-col gap-3 max-lg:order-4 lg:contents">
+                {/* Operator controls sit above everything a citizen is here for. */}
+                <CityAdminTools
+                    city={city as City}
+                    cityMessage={cityMessage}
+                    canEdit={canEdit}
+                    isSuperAdmin={isSuperAdmin}
+                    hasNoData={hasNoData}
+                />
+                <CityMeetingsModule
+                    all={allMeetings}
+                    council={councilMeetings}
+                    cityId={city.id}
+                    timezone={city.timezone}
+                    locale={locale}
+                />
+            </div>
+            <div className="max-lg:order-2">
+                <CityNotificationCard city={city} preference={notificationPreference} locale={locale} />
+            </div>
+            <div className="max-lg:order-4 lg:contents">
+                <CityPetitionCard city={city} bucket={petitionBucket} locale={locale} />
+            </div>
         </aside>
     );
 }
