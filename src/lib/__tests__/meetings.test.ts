@@ -14,7 +14,8 @@ jest.mock('../db/prisma', () => ({
   }
 }));
 
-import { getCouncilMeetingsForCity, generateUniqueMeetingId } from '../db/meetings';
+import { generateUniqueMeetingId } from '../db/meetings';
+import { getCouncilMeetingsForCity } from '../db/meetingsList';
 import prisma from '../db/prisma';
 
 const mockFindMany = prisma.councilMeeting.findMany as jest.MockedFunction<typeof prisma.councilMeeting.findMany>;
