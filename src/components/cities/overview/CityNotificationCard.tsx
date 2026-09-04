@@ -9,6 +9,7 @@ import { localizeText } from '@/lib/serbian';
 import { authorityKey } from './authorityKey';
 import { NotisConversation } from './NotisConversation';
 import { TopicPill } from '@/components/TopicPill';
+import { FactDot } from '@/components/ui/fact-dot';
 import { RailDisclosure } from './RailDisclosure';
 
 /** Topic chips before the row stops being scannable; the rest become "+N". */
@@ -151,7 +152,7 @@ function SubscribedCard({
                 <Link href={`/${city.id}/notifications`} className="text-xs font-semibold text-[hsl(var(--orange))]">
                     {t('changePreferences')}
                 </Link>
-                <span className="text-border" aria-hidden>·</span>
+                <FactDot className="text-border" />
                 <Link href="/profile" className="text-xs text-muted-foreground hover:text-foreground">
                     {t('allMyCities')}
                 </Link>

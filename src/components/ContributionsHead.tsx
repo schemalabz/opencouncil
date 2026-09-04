@@ -1,7 +1,7 @@
 'use client';
 
-import { Input } from '@/components/ui/input';
-import { SearchSpinIcon } from '@/components/ui/search-spin-icon';
+import { useTranslations } from 'next-intl';
+import { SearchInputPill } from '@/components/ui/search-input-pill';
 import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +19,8 @@ export function ContributionsHead({ title, count, placeholder, searchValue, onSe
     onSearchSubmit: (e: React.FormEvent) => void;
     className?: string;
 }) {
+    const t = useTranslations('search');
+
     return (
         <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2', className)}>
             <h2 className="!m-0 !text-left">
@@ -26,13 +28,14 @@ export function ContributionsHead({ title, count, placeholder, searchValue, onSe
                 {count > 0 && <span className="ml-1.5 text-sm font-normal text-muted-foreground">({count})</span>}
             </h2>
             <AIGeneratedBadge />
-            <form onSubmit={onSearchSubmit} className="group relative ml-auto w-full sm:w-[260px]">
-                <SearchSpinIcon className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                    placeholder={placeholder}
-                    className="h-8 rounded-full pl-9 text-xs"
+            <form onSubmit={onSearchSubmit} className="ml-auto w-full sm:w-[260px]">
+                <SearchInputPill
                     value={searchValue}
-                    onChange={(e) => onSearchChange(e.target.value)}
+                    onChange={onSearchChange}
+                    placeholder={placeholder}
+                    clearAriaLabel={t('clearQuery')}
+                    size="sm"
+                    className="rounded-full"
                 />
             </form>
         </div>

@@ -4,6 +4,8 @@ import { SearchSpinIcon } from '@/components/ui/search-spin-icon';
 import { getTranslations } from 'next-intl/server';
 import { routing, urlPrefixForLocale, LOCALE_OVERRIDE_HEADER } from '@/i18n/routing';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
+import { surfaceCardClass } from '@/components/ui/surface-card';
+import { cn } from '@/lib/utils';
 import type { CityWithCounts } from '@/lib/db/cities';
 
 interface CitySearchFormProps {
@@ -47,7 +49,12 @@ export async function CitySearchForm({ city, subjectCount, locale }: CitySearchF
             action={`${localePrefix}/search`}
             method="get"
             role="search"
-            className="group flex items-center gap-2 rounded-xl border border-border bg-card py-1.5 pl-3.5 pr-1.5 shadow-sm sm:gap-3 sm:pl-4 transition-colors focus-within:border-[hsl(var(--orange))]/70 focus-within:shadow-md hover:border-foreground/25"
+            className={cn(
+                surfaceCardClass,
+                // A tighter corner than the resting card: this is a control, not a
+                // surface something sits on.
+                'group flex items-center gap-2 rounded-xl py-1.5 pl-3.5 pr-1.5 shadow-sm sm:gap-3 sm:pl-4 transition-colors focus-within:border-[hsl(var(--orange))]/70 focus-within:shadow-md hover:border-foreground/25',
+            )}
         >
             <input type="hidden" name="cityId" value={city.id} />
             {/* One magnifier at a time: below `sm` the submit button carries it, and

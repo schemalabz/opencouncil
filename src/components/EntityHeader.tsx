@@ -29,7 +29,7 @@ export function EntityHeader({ avatar, name, badges, facts, admin }: {
     );
 }
 
-/** The separator between two facts on the band's facts line. */
-export function FactDot() {
-    return <span aria-hidden>·</span>;
-}
+// The dot the facts line is punctuated with. It moved to the ui primitives once
+// the overview surfaces needed it too; re-exported here for the pages that
+// still reach it through the header.
+export { FactDot } from '@/components/ui/fact-dot';

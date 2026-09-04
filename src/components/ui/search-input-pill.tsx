@@ -2,13 +2,21 @@
 
 import { X } from "lucide-react";
 import { SearchSpinIcon } from "@/components/ui/search-spin-icon";
-import type { CSSProperties, KeyboardEvent, RefObject } from "react";
+import { useRef, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
 import { cn } from "@/lib/utils";
 
-/* Icon · input · clear-button pill, shared by the landing page's map search and the /search
-   page's query box. Callers own the Enter-key behavior (submit a query vs. detect a
-   category/municipality/address) via `onKeyDown`. */
+/* Icon · input · clear-button pill, shared by the landing page's map search, the /search
+   page's query box and the contributions list's filter. Callers own the Enter-key behavior
+   (submit a query vs. detect a category/municipality/address) via `onKeyDown`. */
 const SIZE_STYLES = {
+    /** A filter beside a heading, where the field is not the point of the row. */
+    sm: {
+        wrapper: "h-8 gap-2.5 px-3",
+        icon: "h-3.5 w-3.5",
+        input: "text-xs",
+        clearButton: "h-5 w-5",
+        clearIcon: "h-3.5 w-3.5",
+    },
     default: {
         wrapper: "h-11 gap-2.5 px-4",
         icon: "h-4 w-4",
@@ -48,7 +56,8 @@ export function SearchInputPill({
     placeholder: string;
     ariaLabel?: string;
     clearAriaLabel: string;
-    inputRef: RefObject<HTMLInputElement | null>;
+    /** Only when the caller drives focus itself; clearing focuses the field either way. */
+    inputRef?: RefObject<HTMLInputElement | null>;
     autoFocus?: boolean;
     disabled?: boolean;
     size?: keyof typeof SIZE_STYLES;
@@ -63,6 +72,8 @@ export function SearchInputPill({
     style?: CSSProperties;
 }) {
     const sizeStyles = SIZE_STYLES[size];
+    const ownRef = useRef<HTMLInputElement>(null);
+    const ref = inputRef ?? ownRef;
     return (
         <label
             style={style}
@@ -75,7 +86,7 @@ export function SearchInputPill({
         >
             <SearchSpinIcon className={cn("shrink-0 text-[hsl(var(--orange))]", sizeStyles.icon)} />
             <input
-                ref={inputRef}
+                ref={ref}
                 autoFocus={autoFocus}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
@@ -99,7 +110,7 @@ export function SearchInputPill({
                     aria-label={clearAriaLabel}
                     onClick={() => {
                         onChange("");
-                        inputRef.current?.focus();
+                        ref.current?.focus();
                     }}
                     className={cn(
                         "flex shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",

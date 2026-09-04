@@ -5,6 +5,7 @@ import { getLocalizedMunicipalityName } from '@/lib/formatters/name';
 import { CityMessage } from '@/components/cities/CityMessage';
 import { CitySearchForm } from '@/components/cities/CitySearchForm';
 import { OfficialSupportBadge } from '@/components/cities/OfficialSupportBadge';
+import { FactDot } from '@/components/ui/fact-dot';
 
 type CityIdentityBandProps = {
     city: CityWithCounts;
@@ -66,7 +67,7 @@ export function CityIdentityBand({
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                         {stats.map((stat, i) => (
                             <span key={i} className="flex items-center gap-2">
-                                {i > 0 && <span className="text-muted-foreground/40" aria-hidden>·</span>}
+                                {i > 0 && <FactDot className="text-muted-foreground/40" />}
                                 {stat}
                             </span>
                         ))}

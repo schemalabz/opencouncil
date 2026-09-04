@@ -2,6 +2,7 @@
 import { useState, type ReactNode } from 'react';
 import { ChevronDown, Lock } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { surfaceCardClass } from '@/components/ui/surface-card';
 import { cn } from '@/lib/utils';
 
 interface CityFormSectionProps {
@@ -26,8 +27,10 @@ interface CityFormSectionProps {
 export function CityFormSection({ title, hint, defaultOpen = false, restricted, children }: CityFormSectionProps) {
     const [open, setOpen] = useState(defaultOpen);
 
+    // A tighter corner than the resting card: these stack five deep in a form
+    // column, where the 16px radius reads as five separate panels.
     return (
-        <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border border-border bg-card">
+        <Collapsible open={open} onOpenChange={setOpen} className={cn(surfaceCardClass, 'rounded-xl')}>
             <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-muted/40">
                 <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
