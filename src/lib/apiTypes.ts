@@ -447,6 +447,7 @@ export interface PollDecisionsRequest extends TaskRequest {
     people: { id: string; name: string }[];
     subjects: Array<{
         subjectId: string;
+        /** The agenda item title when the subject has one, else the summary name. */
         name: string;
         agendaItemIndex: number | null;
         nonAgendaReason: string | null;
