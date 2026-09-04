@@ -39,10 +39,22 @@ export const HOT_PERIODS: Record<HotPeriod, {
     all: { label: 'periodAll', isDefault: false },
 };
 
-/** The instant a period reaches back to — the one definition of that arithmetic. */
-export function monthsAgo(months: number): Date {
-    const from = new Date();
+/**
+ * The instant a period reaches back to — the one definition of that arithmetic.
+ *
+ * The day is clamped to the target month's length. setMonth() alone rolls a
+ * 29th, 30th or 31st into the month after the one asked for — 31 May less three
+ * months lands on 3 March — which reports meetings inside the window as outside
+ * it.
+ */
+export function monthsAgo(months: number, now: Date = new Date()): Date {
+    const from = new Date(now);
+    // From the first of the month, so the subtraction cannot roll over on its
+    // own; the day goes back on afterwards, and the time of day is untouched.
+    from.setDate(1);
     from.setMonth(from.getMonth() - months);
+    const lastDay = new Date(from.getFullYear(), from.getMonth() + 1, 0).getDate();
+    from.setDate(Math.min(now.getDate(), lastDay));
     return from;
 }
 
@@ -52,11 +64,17 @@ export function periodStart(period: HotPeriod): Date | null {
     return months ? monthsAgo(months) : null;
 }
 
-/** A URL value, or the default when it is absent or not one we recognise. */
+/**
+ * A URL value, or the default when it is absent or not one we recognise.
+ *
+ * Own keys only: `in` also answers true for `constructor`, `__proto__` and the
+ * rest of Object.prototype, and such a value reaches the ranking as a scope or
+ * a period with no `types` and no `months` behind it.
+ */
 export function readScope(value: string | undefined): HotScope {
-    return value && value in HOT_SCOPES ? (value as HotScope) : 'council';
+    return value && Object.hasOwn(HOT_SCOPES, value) ? (value as HotScope) : 'council';
 }
 
 export function readPeriod(value: string | undefined): HotPeriod {
-    return value && value in HOT_PERIODS ? (value as HotPeriod) : '3m';
+    return value && Object.hasOwn(HOT_PERIODS, value) ? (value as HotPeriod) : '3m';
 }

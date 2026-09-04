@@ -58,9 +58,17 @@ export function OfficialSupportBadge({
 
     const Icon = officialSupport ? BadgeCheck : BadgeX;
 
+    // The badge also sits inside CityCard, whose whole surface navigates on
+    // click. Without this the popover opens and the card unmounts under it, so
+    // neither the explanation nor its link can be reached. The content is
+    // portalled, but a React event still travels the component tree, so it
+    // needs the same guard as the trigger.
+    const keepInsideBadge = (event: React.MouseEvent) => event.stopPropagation();
+
     return (
         <Popover>
             <PopoverTrigger
+                onClick={keepInsideBadge}
                 className={cn(
                     'inline-flex items-center gap-1.5 rounded-full text-muted-foreground transition-colors hover:text-foreground',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30',
@@ -78,7 +86,7 @@ export function OfficialSupportBadge({
                 />
                 {officialSupport ? t('supportBadgeShortOfficial') : t('supportBadgeShortUnofficial')}
             </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={6} className="w-64">
+            <PopoverContent align="start" sideOffset={6} className="w-64" onClick={keepInsideBadge}>
                 <p className="flex gap-2 text-[13px] leading-snug">
                     <Icon
                         className={cn('mt-[3px] h-3.5 w-3.5 shrink-0',

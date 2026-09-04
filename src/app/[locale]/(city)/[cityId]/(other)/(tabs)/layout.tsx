@@ -1,13 +1,18 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { getTranslations } from "next-intl/server";
 import { Loader2 } from "lucide-react";
 import { CityIdentityBand } from "@/components/cities/CityIdentityBand";
 import { CityRail } from "@/components/cities/CityRail";
 import { CityNavigation } from "@/components/cities/CityNavigation";
+import type { DatedMeeting, MeetingBookends } from "@/components/cities/overview/CityMeetingsModule";
+import { stageChipDetail } from "@/components/meetings/stage/stageDetail";
 import { getCityCached, getCityMessageCached, getCityPetitionBucketCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
 import { isPetitionable } from "@/lib/cityStatus";
 import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
+import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
+import { publicMeetingStage, stageSignalsFromPreview } from "@/lib/meetingStage";
 
 export default async function TabsLayout(
     props: {
@@ -36,7 +41,7 @@ export default async function TabsLayout(
     // The petition bucket chains on the city: the rail's petition card reads it
     // on a city we do not cover yet, and a supported city has no card to read it.
     const cityPromise = getCityCached(cityId);
-    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount, petitionBucket] = await Promise.all([
+    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount, petitionBucket, tStage] = await Promise.all([
         cityPromise,
         getCityMessageCached(cityId),
         getCurrentUser(),
@@ -47,11 +52,36 @@ export default async function TabsLayout(
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'] }),
         getSubjectCountForCityCached(cityId),
         cityPromise.then(found => found && isPetitionable(found.status) ? getCityPetitionBucketCached(cityId) : null),
+        getTranslations({ locale, namespace: 'meetingStage' }),
     ]);
 
     if (!city) {
         notFound();
     }
+
+    // The rail is a Client Component, so the two clock-dependent facts of a row
+    // — the stage and the chip's relative time — are read here, against one
+    // instant. Read at render they would be read a second time at hydration,
+    // and a meeting crossing a boundary between the two passes would mismatch.
+    const now = new Date();
+    const dated = (meeting: CouncilMeetingWithSubjectPreview | undefined): DatedMeeting | null => {
+        if (!meeting) return null;
+        const stage = publicMeetingStage(stageSignalsFromPreview(meeting), now);
+        return { meeting, stage, detail: stageChipDetail(tStage, stage, meeting.dateTime, city.timezone, locale, now) };
+    };
+
+    // A meeting that has started is no longer the next one, whatever the cache
+    // says: the four lists are separately revalidated entries with a 15-minute
+    // window, so one that began since the upcoming entry was written would head
+    // the rail as "next" wearing a live chip — and appear again as the latest
+    // one held once the past entry catches up.
+    const bookends = (
+        next: CouncilMeetingWithSubjectPreview | undefined,
+        latest: CouncilMeetingWithSubjectPreview | undefined,
+    ): MeetingBookends => {
+        const scheduled = dated(next);
+        return { next: scheduled?.stage === 'upcoming' ? scheduled : null, latest: dated(latest) };
+    };
 
     // Whether the city is eligible for the city creator. Read off the counts the
     // city query already carries: this used to load every party and every person
@@ -97,8 +127,8 @@ export default async function TabsLayout(
                         hasNoData={hasNoData}
                         notificationPreference={notificationPreference}
                         petitionBucket={petitionBucket}
-                        allMeetings={{ next: upcoming[0] ?? null, latest: past[0] ?? null }}
-                        councilMeetings={{ next: councilUpcoming[0] ?? null, latest: councilPast[0] ?? null }}
+                        allMeetings={bookends(upcoming[0], past[0])}
+                        councilMeetings={bookends(councilUpcoming[0], councilPast[0])}
                         locale={locale}
                     />
                 </div>
