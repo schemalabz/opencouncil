@@ -1,5 +1,7 @@
 import { Metadata } from "next";
+import { Suspense } from "react";
 import Subject from "@/components/meetings/subject/subject";
+import { RelatedSubjectsSection } from "@/components/meetings/subject/RelatedSubjectsSection";
 import SubjectReadTracker from "@/components/analytics/SubjectReadTracker";
 import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
 import { notFound } from "next/navigation";
@@ -129,7 +131,24 @@ export default async function SubjectPage(
                 meetingId={params.meetingId}
                 subjectId={params.subjectId}
             />
-            <Subject subjectId={params.subjectId} />
+            <Subject
+                subjectId={params.subjectId}
+                related={
+                    // Its own boundary: two index queries and a hydration
+                    // must not hold back the page they decorate.
+                    <Suspense fallback={null}>
+                        <RelatedSubjectsSection
+                            seed={{
+                                id: subject.id,
+                                name: subject.name,
+                                cityId: subject.cityId,
+                                councilMeetingId: subject.councilMeetingId,
+                            }}
+                            cityName={getLocalizedName(meetingData.city, params.locale)}
+                        />
+                    </Suspense>
+                }
+            />
         </>
     );
 }
