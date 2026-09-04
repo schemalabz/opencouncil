@@ -1,5 +1,5 @@
 import { getCities } from "@/lib/db/cities";
-import { getCouncilMeetingsForCity, CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetings";
+import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from "@/lib/db/meetingsList";
 import { getDecisionCountsForCity, MeetingDecisionCounts } from "@/lib/db/decisions";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import CitySelector from "@/components/admin/people/city-selector";

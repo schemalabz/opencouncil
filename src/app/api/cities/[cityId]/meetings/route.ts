@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
-import { getCouncilMeetingsForCity, generateUniqueMeetingId } from '@/lib/db/meetings';
+import { generateUniqueMeetingId } from '@/lib/db/meetings';
+import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
 import { createCouncilMeetingDirect } from '@/lib/db/meetingsCreate';
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
@@ -70,6 +71,9 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         }
 
         revalidateTag(`city:${cityId}:meetings`, 'max');
+        // The city row carries the meeting count the overview reads to decide
+        // whether it has data at all.
+        revalidateTag(`city:${cityId}:basic`, 'max');
         revalidatePath(`/${cityId}`, "layout");
 
         // Fetch city data (should exist since meeting was created successfully)

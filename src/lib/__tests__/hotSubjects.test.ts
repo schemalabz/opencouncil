@@ -12,7 +12,7 @@ jest.mock('../cache', () => ({
         mockGetCouncilMeetingsForCityPublicCached(...args),
 }));
 
-jest.mock('../db/meetings', () => ({
+jest.mock('../db/meetingsList', () => ({
     __esModule: true,
     getCouncilMeetingsForCity: jest.fn(),
 }));

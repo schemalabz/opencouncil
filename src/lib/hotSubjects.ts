@@ -1,6 +1,6 @@
 import { AdministrativeBodyType } from '@prisma/client';
 import { createCache, getCouncilMeetingsForCityPublicCached } from '@/lib/cache';
-import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
+import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetingsList';
 import { getContributionCount } from '@/lib/utils';
 import { getDiscussionSecondsForSubjects } from '@/lib/db/subject';
 import { sortByRanking, type RankableSubject } from '@/lib/ranking/subjects';
