@@ -23,18 +23,21 @@ jest.mock('../retry', () => ({
     executeElasticsearchWithRetry: jest.fn((run: () => unknown) => run()),
 }));
 jest.mock('../query', () => ({ buildSearchQuery: jest.fn(() => ({ query: { match_all: {} } })) }));
+jest.mock('../related', () => ({ buildRelatedSubjectsQuery: jest.fn(() => ({ query: { match_all: {} } })) }));
 
 import { Client } from '@elastic/elasticsearch';
 import prisma from '@/lib/db/prisma';
 import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '../filters';
 import { buildSearchQuery } from '../query';
-import { searchInRealm, searchSubjectsInRealm } from '../core';
+import { buildRelatedSubjectsQuery } from '../related';
+import { searchInRealm, searchSubjectsInRealm, searchRelatedSubjectsInRealm } from '../core';
 import type { SearchRequest } from '../types';
 
 const extractFiltersMock = extractFilters as jest.MockedFunction<typeof extractFilters>;
 const processFiltersMock = processFilters as jest.MockedFunction<typeof processFilters>;
 const buildSearchQueryMock = buildSearchQuery as jest.MockedFunction<typeof buildSearchQuery>;
+const buildRelatedSubjectsQueryMock = buildRelatedSubjectsQuery as jest.MockedFunction<typeof buildRelatedSubjectsQuery>;
 const getCitiesMock = getCities as jest.MockedFunction<typeof getCities>;
 const filterCityIdsByRealmMock = filterCityIdsByRealm as jest.MockedFunction<typeof filterCityIdsByRealm>;
 
@@ -276,5 +279,55 @@ describe('searchSubjectsInRealm — retrieval', () => {
         const result = await searchSubjectsInRealm({ query: 'ανακύκλωση στα Χανιά' }, 'greece');
 
         expect(result.derivedFilters).toEqual({ cityIds: ['chania'] });
+    });
+});
+
+describe('searchRelatedSubjectsInRealm', () => {
+    const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1' };
+
+    it('caps the query to the realm and passes the scope through', async () => {
+        await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');
+
+        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'other', REALM_CITIES);
+        expect(esSearchMock).toHaveBeenCalled();
+    });
+
+    // A subject id from another tenant must not become a way to read that
+    // tenant's neighbours: nothing is asked of the index at all.
+    it('relates a subject outside the realm to nothing', async () => {
+        await expect(searchRelatedSubjectsInRealm({ ...SEED, cityId: 'paris' }, 'city', 'greece')).resolves.toEqual([]);
+
+        expect(esSearchMock).not.toHaveBeenCalled();
+    });
+
+    it('drops a hit whose meeting the database no longer marks released', async () => {
+        esSearchMock.mockResolvedValue({ hits: { total: { value: 1, relation: 'eq' }, hits: [{ _score: 0.95, _source: { id: 'stale' } }] }, took: 1 });
+        findManyMock.mockResolvedValueOnce([{ id: 'stale', councilMeeting: { released: false } }]);
+
+        await expect(searchRelatedSubjectsInRealm(SEED, 'city', 'greece')).resolves.toEqual([]);
+    });
+
+    it('hydrates the surviving hits in relevance order, with their scores', async () => {
+        esSearchMock.mockResolvedValue({
+            hits: {
+                total: { value: 2, relation: 'eq' },
+                hits: [{ _score: 0.95, _source: { id: 'near' } }, { _score: 0.94, _source: { id: 'far' } }],
+            },
+            took: 1,
+        });
+        const meeting = { id: 'meeting-2', city: { id: 'athens' }, administrativeBody: null };
+        findManyMock
+            .mockResolvedValueOnce([
+                { id: 'near', councilMeeting: { released: true } },
+                { id: 'far', councilMeeting: { released: true } },
+            ])
+            .mockResolvedValueOnce([
+                { id: 'far', location: null, councilMeeting: meeting },
+                { id: 'near', location: null, councilMeeting: meeting },
+            ]);
+
+        const results = await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
+
+        expect(results.map(r => [r.id, r.score])).toEqual([['near', 0.95], ['far', 0.94]]);
     });
 });
