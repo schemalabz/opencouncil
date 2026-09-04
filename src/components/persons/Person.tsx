@@ -26,11 +26,13 @@ import { useSession } from 'next-auth/react';
 import { DebugMetadataButton } from '../ui/debug-metadata-button';
 import { AdminStrip, AdminToolButton, adminToolClass } from '@/components/admin/AdminStrip';
 import { RailCard, RailMeterRow } from '@/components/ui/rail-card';
-import { EntityHeader, FactDot } from '@/components/EntityHeader';
+import { EntityHeader } from '@/components/EntityHeader';
+import { FactDot } from '@/components/ui/fact-dot';
 import { ContributionsHead } from '@/components/ContributionsHead';
 import Icon from '@/components/icon';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { topicStyle } from '@/lib/topicStyle';
+import { topicSurfaceStyle } from '@/components/TopicPill';
 
 export default function PersonC({ city, person, parties, administrativeBodies, statistics, contributionTopics }: {
     city: City,
@@ -236,14 +238,13 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                             <>
                             {activeRoles.map(role => {
                                 if (role.partyId && role.party) {
-                                    const style = topicStyle(role.party.colorHex);
                                     return (
                                         <Link
                                             key={role.id}
                                             href={`/${city.id}/parties/${role.partyId}`}
                                             onClick={() => captureEvent('party_opened', { surface: 'person_chip', city_id: city.id, party_id: role.partyId })}
                                             className="inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-bold hover:no-underline"
-                                            style={{ backgroundColor: style.background, borderColor: style.border, color: style.icon }}
+                                            style={topicSurfaceStyle(role.party.colorHex)}
                                         >
                                             {role.isHead && <Star className="h-3 w-3 shrink-0" aria-hidden />}
                                             {getLocalizedName(role.party, locale)}

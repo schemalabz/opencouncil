@@ -2,7 +2,7 @@
 
 import Icon from '@/components/icon';
 import { cn } from '@/lib/utils';
-import { topicStyle } from '@/lib/topicStyle';
+import { topicSurfaceStyle } from '@/components/TopicPill';
 
 /** Icon box sizes. `sm` for inline chips, `md` for cards and headers, `lg` for a page's own header. */
 const SIZES = {
@@ -33,14 +33,13 @@ export function TopicIcon({
     solid?: boolean;
     className?: string;
 }) {
-    const style = topicStyle(color, solid ? 'solid' : 'soft');
     const { pad, icon: iconSize } = SIZES[size];
     return (
         <span
             className={cn('inline-flex shrink-0 items-center justify-center rounded-full border', pad, className)}
-            style={{ backgroundColor: style.background, borderColor: style.border }}
+            style={topicSurfaceStyle(color, solid ? 'solid' : 'soft')}
         >
-            <Icon name={icon || 'hash'} color={style.icon} size={iconSize} />
+            <Icon name={icon || 'hash'} color="currentColor" size={iconSize} />
         </span>
     );
 }
