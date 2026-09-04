@@ -252,6 +252,8 @@
     "mapSubjectsHeading": "Sujets sur la carte",
     "mapOpenFullMap": "Ouvrir la carte complète",
     "mapEmptyWindow": "Rien n'a été discuté ces {months} derniers mois. La carte complète remonte plus loin.",
+    "mapNoneInView": "Aucun sujet dans cette partie de la carte.",
+    "mapResetView": "Réinitialiser la vue",
     "membersComingSoon": "Les membres seront bientôt disponibles",
     "partiesComingSoon": "Les groupes seront bientôt disponibles",
     "addCity": "Ajouter une ville",

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useVideo, useVideoActions } from '@/components/meetings/VideoProvider';
 import { useHighlight } from '@/components/meetings/HighlightContext';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { useStoredState } from '@/hooks/useStoredState';
 import { useBarData } from './BarDataContext';
 import { useBarHighlight } from './BarHighlightContext';
 import { BarTimeline, DIM_OPACITY, type ModeAnnounce } from './BarTimeline';
@@ -15,7 +16,7 @@ import { DOCK_GAP, DOCK_ROW, DOCK_ROW_COMPACT, MINI_VIDEO_WIDTH } from './geomet
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { MiniVideo } from './MiniVideo';
 import { ModePicker, type BarMode } from './ModePicker';
-import { intersectsAny } from '@/lib/utils/barTimeline';
+import { coalesceSpans, intersectsAny, type BarBand } from '@/lib/utils/barTimeline';
 import { cn, formatTimestamp } from '@/lib/utils';
 
 interface BarModeContextType {
@@ -51,6 +52,12 @@ export function useBarModeSetter(): (mode: BarMode) => void {
 
 const COLLAPSED_KEY = 'oc-playback-bar-collapsed';
 
+function parseCollapsed(raw: string): boolean | undefined {
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+    return undefined;
+}
+
 /**
  * The playback dock: play · video · bar · mode picker on one rounded row at
  * the bottom of every meeting page. On phones the same row anchors to the
@@ -61,8 +68,8 @@ export function PlaybackBar() {
     const t = useTranslations('transcript.controls');
     const isMobile = useMediaQuery('(max-width: 767px)');
     const { mode, setMode } = useBarMode();
-    const { hasSubjectData } = useBarData();
-    const [collapsed, setCollapsed] = useState(false);
+    const { bands, hasSubjectData } = useBarData();
+    const [collapsed, setCollapsed] = useStoredState(COLLAPSED_KEY, parseCollapsed, false, 'session');
 
     // Set only by the picker, never by the subject page's programmatic preset:
     // the big label teaches what the button does, so it follows the button.
@@ -73,18 +80,11 @@ export function PlaybackBar() {
         setAnnounce({ mode: m, key: ++announceSeq.current });
     };
 
-    useEffect(() => {
-        try {
-            setCollapsed(sessionStorage.getItem(COLLAPSED_KEY) === '1');
-        } catch { /* storage may be unavailable */ }
-    }, []);
-
     const setCollapsedPersisted = (value: boolean) => {
         setCollapsed(value);
         // A display:none round-trip restarts CSS animations; a finished
         // announcement must not replay on every expand.
         if (value) setAnnounce(null);
-        try { sessionStorage.setItem(COLLAPSED_KEY, value ? '1' : '0'); } catch { /* ignore */ }
     };
 
     const effectiveMode: BarMode = hasSubjectData ? mode : 'speakers';
@@ -96,6 +96,7 @@ export function PlaybackBar() {
     // pill and expanding is a visibility flip, not a remount mid-playback.
     return (
         <>
+            <NowAnnouncer bands={bands} />
             {pill && <BarPill mode={effectiveMode} onExpand={() => setCollapsedPersisted(false)} />}
         <div
             data-playback-focus=""
@@ -152,6 +153,53 @@ function PlayButton({ compact }: { compact: boolean }) {
                 : <Play className="h-5 w-5" aria-hidden />}
         </button>
     );
+}
+
+/** How often the announcer looks at the clock. */
+const ANNOUNCE_POLL_MS = 1000;
+/**
+ * How long a band has to hold before it is announced. The lane and the readout
+ * change with every turn of the floor; a reader must hear who holds it, not
+ * every interjection on the way there.
+ */
+const ANNOUNCE_DWELL_MS = 4000;
+
+/**
+ * What the now-lane and the phone readout show, for a reader who sees neither.
+ * Nothing else in the dock speaks: the strip's slider announces a time, and a
+ * time does not say who is talking.
+ *
+ * The region starts empty and stays empty until the band changes, so arriving
+ * on the page announces nothing, and a band that does not hold for the dwell
+ * announces nothing either.
+ */
+function NowAnnouncer({ bands }: { bands: BarBand[] }) {
+    const t = useTranslations('transcript.controls');
+    const { isPlaying } = useVideo();
+    const { currentTimeRef } = useVideoActions();
+    const time = useLiveTime(currentTimeRef, isPlaying, ANNOUNCE_POLL_MS);
+    const band = nowBand(bands, time, isPlaying);
+
+    const text = !band ? ''
+        : band.speakerName && band.subjectName ? t('nowSpeakingOn', { speaker: band.speakerName, subject: band.subjectName })
+            : band.speakerName ? t('nowSpeaking', { speaker: band.speakerName })
+                : band.subjectName ? t('nowSubject', { subject: band.subjectName })
+                    : '';
+
+    const [announced, setAnnounced] = useState('');
+    // Seeded with the band at mount, so the first run of the effect — and its
+    // second under StrictMode — announces nothing.
+    const spoken = useRef(text);
+
+    useEffect(() => {
+        if (text === spoken.current) return;
+        spoken.current = text;
+        if (!text) return;
+        const timer = setTimeout(() => setAnnounced(text), ANNOUNCE_DWELL_MS);
+        return () => clearTimeout(timer);
+    }, [text]);
+
+    return <div className="sr-only" role="status" aria-live="polite">{announced}</div>;
 }
 
 function TimeReadout() {
@@ -232,6 +280,9 @@ function ClipNav() {
     );
 }
 
+/** How far apart two same-paint bands can be and still read as one span on the sliver. */
+const SLIVER_GAP_SECONDS = 30;
+
 /**
  * The collapsed phone state: play, the bar as a sliver (same bands, same
  * highlight dimming), the elapsed time, and the way back up.
@@ -245,20 +296,12 @@ function BarPill({ mode, onExpand }: { mode: BarMode; onExpand: () => void }) {
 
     // At sliver scale a pixel is ~50 seconds, so same-paint neighbours melt
     // into one span — a few dozen spans instead of one per band.
-    const sliverSpans = useMemo(() => {
-        const out: { start: number; end: number; color: string; lit: boolean }[] = [];
-        for (const band of bands) {
-            const color = mode === 'speakers' ? band.speakerColor : band.subjectColor;
-            const lit = !highlight || intersectsAny(band.start, band.end, highlight.ranges);
-            const last = out[out.length - 1];
-            if (last && last.color === color && last.lit === lit && band.start - last.end < 30) {
-                last.end = band.end;
-            } else {
-                out.push({ start: band.start, end: band.end, color, lit });
-            }
-        }
-        return out;
-    }, [bands, mode, highlight]);
+    const sliverSpans = useMemo(() => coalesceSpans(
+        bands,
+        band => mode === 'speakers' ? band.speakerColor : band.subjectColor,
+        band => !highlight || intersectsAny(band.start, band.end, highlight.ranges),
+        SLIVER_GAP_SECONDS,
+    ), [bands, mode, highlight]);
 
     return (
         <div

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useBarDataRef } from './BarDataContext';
 import type { Interval } from '@/lib/utils/barTimeline';
 
@@ -80,11 +80,15 @@ type HoverHandlers = {
     onBlur: () => void;
 };
 
+/**
+ * The wiring behind every hover source. `resolve` runs when the pointer
+ * arrives, not while rendering: the interval maps change with every transcript
+ * edit, and a segment that subscribed to them would re-render on each one.
+ * Each source passes a memoized resolver, so the handlers stay identity-stable
+ * for the memoized rows and cards that spread them.
+ */
 function useHoverHandlers(key: string | null, resolve: () => Interval[] | undefined): HoverHandlers {
     const { setHoverHighlight, clearHoverIf } = useBarHighlightActions();
-    // resolve reads the freshest interval maps without being a dependency
-    const resolveRef = useRef(resolve);
-    resolveRef.current = resolve;
 
     // Browsers fire no mouseleave for an element that unmounts under the
     // pointer (a clicked row navigating away, a tapped header collapsing), so
@@ -97,31 +101,43 @@ function useHoverHandlers(key: string | null, resolve: () => Interval[] | undefi
     return useMemo(() => {
         const enter = () => {
             if (!key) return;
-            const ranges = resolveRef.current();
+            const ranges = resolve();
             // Empty intervals still mean "this is what the pointer is on":
             // clear, rather than keep a sibling's stale highlight alive.
             setHoverHighlight(ranges && ranges.length > 0 ? { key, ranges } : null);
         };
         const leave = () => setHoverHighlight(null);
         return { onMouseEnter: enter, onMouseLeave: leave, onFocus: enter, onBlur: leave };
-    }, [key, setHoverHighlight]);
+    }, [key, resolve, setHoverHighlight]);
 }
 
 /** Hover handlers lighting a subject's runs on the bar. */
 export function useSubjectBarHover(subjectId: string | null): HoverHandlers {
     const data = useBarDataRef();
-    return useHoverHandlers(subjectId, () => subjectId ? data.current.intervalsBySubject.get(subjectId) : undefined);
+    const resolve = useCallback(
+        () => subjectId ? data.current.intervalsBySubject.get(subjectId) : undefined,
+        [data, subjectId],
+    );
+    return useHoverHandlers(subjectId, resolve);
 }
 
 /** Hover handlers lighting a speaker's runs on the bar. */
 export function useSpeakerBarHover(personId: string | null): HoverHandlers {
     const data = useBarDataRef();
-    return useHoverHandlers(personId, () => personId ? data.current.intervalsBySpeaker.get(personId) : undefined);
+    const resolve = useCallback(
+        () => personId ? data.current.intervalsBySpeaker.get(personId) : undefined,
+        [data, personId],
+    );
+    return useHoverHandlers(personId, resolve);
 }
 
 /** Hover handlers lighting one speaker's runs within one subject. */
 export function useContributionBarHover(subjectId: string | null, personId: string | null): HoverHandlers {
     const data = useBarDataRef();
     const key = subjectId && personId ? `${subjectId}:${personId}` : null;
-    return useHoverHandlers(key, () => key ? data.current.intervalsBySubjectSpeaker.get(key) : undefined);
+    const resolve = useCallback(
+        () => key ? data.current.intervalsBySubjectSpeaker.get(key) : undefined,
+        [data, key],
+    );
+    return useHoverHandlers(key, resolve);
 }

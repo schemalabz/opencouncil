@@ -104,6 +104,41 @@ export function resolveOverlaps(bands: BarBand[]): BarBand[] {
     return out;
 }
 
+/** One painted run of the strip: what `coalesceSpans` returns. */
+export interface CoalescedSpan {
+    start: number;
+    end: number;
+    color: string;
+    lit: boolean;
+}
+
+/**
+ * Join neighbouring bands that would paint the same, so a strip drawn at
+ * sliver scale carries a few dozen spans instead of one per band. Bands
+ * separated by less than `gapSeconds` count as neighbours — at that scale the
+ * gap between two turns is narrower than a pixel. Takes the disjoint bands in
+ * time order that `resolveOverlaps` produces.
+ */
+export function coalesceSpans(
+    bands: BarBand[],
+    colorOf: (band: BarBand) => string,
+    litOf: (band: BarBand) => boolean,
+    gapSeconds: number,
+): CoalescedSpan[] {
+    const out: CoalescedSpan[] = [];
+    for (const band of bands) {
+        const color = colorOf(band);
+        const lit = litOf(band);
+        const last = out[out.length - 1];
+        if (last && last.color === color && last.lit === lit && band.start - last.end < gapSeconds) {
+            last.end = band.end;
+        } else {
+            out.push({ start: band.start, end: band.end, color, lit });
+        }
+    }
+    return out;
+}
+
 import type { SubjectCategoryKey } from './subjects';
 
 export type ChapterKey = SubjectCategoryKey;
@@ -223,6 +258,31 @@ export function bandAt(bands: { start: number; end: number }[], time: number): n
     return -1;
 }
 
+/**
+ * The chapter start the strip's chapter key lands on: the first one after
+ * `time` going forward, the last one before it going back. Going back from the
+ * middle of a chapter therefore restarts that chapter, and a second press
+ * reaches the one before it — the same two steps a track button gives.
+ *
+ * Returns null when there is no chapter that way. The caller then takes a
+ * plain large step, the behaviour a slider's Page keys owe the user.
+ *
+ * The half-second margin keeps a playhead parked on a boundary from landing on
+ * the boundary it already sits on.
+ */
+export function chapterJumpTarget(chapters: Chapter[], time: number, direction: 1 | -1): number | null {
+    if (direction === 1) {
+        for (const chapter of chapters) {
+            if (chapter.start > time + 0.5) return chapter.start;
+        }
+        return null;
+    }
+    for (let i = chapters.length - 1; i >= 0; i--) {
+        if (chapters[i].start < time - 0.5) return chapters[i].start;
+    }
+    return null;
+}
+
 /** The message key (transcript.controls) that names each chapter, on the rail and in the lens. */
 export const CHAPTER_LABEL_KEY = {
     beforeAgenda: 'chapterBeforeAgenda',
@@ -286,4 +346,34 @@ export function slideFine(time: number, windowStart: number, duration: number, s
     else if (clampedTime > start + span) start = clampedTime - span;
     start = Math.min(Math.max(start, 0), Math.max(0, duration - span));
     return { time: clampedTime, windowStart: start };
+}
+
+// ── The speed badge on the dock's video ─────────────────────────────────────
+
+/** What one activation of the badge steps through. */
+export const SPEED_CYCLE = [1, 1.25, 1.5, 2];
+/** What the badge's long-press menu offers — a superset of the cycle. */
+export const SPEED_MENU = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
+
+/** Two speeds are the same speed: the values come as decimals from storage and from the menu. */
+export function sameSpeed(a: number, b: number): boolean {
+    return Math.abs(a - b) < 0.01;
+}
+
+/**
+ * The speed one activation of the badge selects next. A speed the cycle does
+ * not hold — the menu's 0.5×, 0.75× and 3×, or any value restored from
+ * storage — advances to the next higher cycle value, and wraps to the first
+ * when it is already past the last. Without that step every off-cycle speed
+ * fell back to 1×, so 1.75× jumped down instead of up.
+ */
+export function cycleSpeed(speed: number): number {
+    const index = SPEED_CYCLE.findIndex(value => sameSpeed(value, speed));
+    if (index >= 0) return SPEED_CYCLE[(index + 1) % SPEED_CYCLE.length];
+    return SPEED_CYCLE.find(value => value > speed) ?? SPEED_CYCLE[0];
+}
+
+/** The badge's and the menu's label: `1×`, `1.25×`, `1.5×`. */
+export function formatSpeed(value: number): string {
+    return `${Number.isInteger(value) ? value : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}×`;
 }

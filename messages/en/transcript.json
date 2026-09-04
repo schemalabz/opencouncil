@@ -53,12 +53,19 @@
         "chapterBeforeAgenda": "BEFORE AGENDA",
         "chapterAgenda": "AGENDA",
         "chapterOutOfAgenda": "OFF AGENDA",
+        "chapters": "Meeting sections",
+        "chapterAt": "{chapter}, from {time}",
+        "chapterKeys": "Page Up and Page Down move to the next and the previous section.",
         "playbackSpeed": "Playback speed",
+        "playbackSpeedValue": "Playback speed: {speed}",
         "expandVideo": "Expand video",
         "collapseBar": "Collapse the bar",
         "expandBar": "Open the bar",
         "clip": "Clip {current}/{total}",
-        "lensFineHint": "Slide up to fine-tune"
+        "lensFineHint": "Slide up to fine-tune",
+        "nowSpeaking": "Now speaking: {speaker}",
+        "nowSpeakingOn": "Now speaking: {speaker}. Subject: {subject}",
+        "nowSubject": "Subject: {subject}"
     },
     "unverifiedBanner": {
         "title": "Automatic Transcript",

@@ -238,6 +238,8 @@
         "mapSubjectsHeading": "Subjects on the map",
         "mapOpenFullMap": "Open the full map",
         "mapEmptyWindow": "Nothing was discussed in the last {months} months. The full map goes further back.",
+        "mapNoneInView": "No subjects in this part of the map.",
+        "mapResetView": "Reset the view",
         "membersComingSoon": "Members will be available soon",
         "partiesComingSoon": "Parties will be available soon",
         "addCity": "Add City",

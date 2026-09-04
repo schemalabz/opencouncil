@@ -53,12 +53,19 @@
         "chapterBeforeAgenda": "ПРЕ ДНЕВНОГ РЕДА",
         "chapterAgenda": "ДНЕВНИ РЕД",
         "chapterOutOfAgenda": "ВАН ДНЕВНОГ РЕДА",
+        "chapters": "Делови седнице",
+        "chapterAt": "{chapter}, од {time}",
+        "chapterKeys": "Page Up и Page Down воде на следећи и на претходни део.",
         "playbackSpeed": "Брзина репродукције",
+        "playbackSpeedValue": "Брзина репродукције: {speed}",
         "expandVideo": "Повећај видео",
         "collapseBar": "Скупи траку",
         "expandBar": "Отвори траку",
         "clip": "Исечак {current}/{total}",
-        "lensFineHint": "Превуци нагоре за прецизност"
+        "lensFineHint": "Превуци нагоре за прецизност",
+        "nowSpeaking": "Говори: {speaker}",
+        "nowSpeakingOn": "Говори: {speaker}. Тема: {subject}",
+        "nowSubject": "Тема: {subject}"
     },
     "unverifiedBanner": {
         "title": "Аутоматски транскрипт",

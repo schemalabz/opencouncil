@@ -238,6 +238,8 @@
         "mapSubjectsHeading": "Теме на мапи",
         "mapOpenFullMap": "Отвори целу мапу",
         "mapEmptyWindow": "Ништа није разматрано у последња {months} месеца. Цела мапа иде даље у прошлост.",
+        "mapNoneInView": "Нема тема у овом делу мапе.",
+        "mapResetView": "Ресетуј приказ",
         "membersComingSoon": "Чланови ће ускоро бити доступни",
         "partiesComingSoon": "Одборничке групе ће ускоро бити доступне",
         "addCity": "Додај град",

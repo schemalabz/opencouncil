@@ -1,5 +1,6 @@
 "use client";
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useMemo, useState } from 'react';
+import { useStoredState } from '@/hooks/useStoredState';
 
 export interface TranscriptOptions {
     editable: boolean;
@@ -19,13 +20,10 @@ const TranscriptOptionsContext = createContext<TranscriptOptionsContextType | un
 
 const SPEED_STORAGE_KEY = 'oc-playback-speed';
 
-/** The last chosen speed, surviving navigations — clamped to the player's range. */
-function storedPlaybackSpeed(): number {
-    try {
-        const value = parseFloat(window.localStorage.getItem(SPEED_STORAGE_KEY) ?? '');
-        if (Number.isFinite(value)) return Math.min(4, Math.max(0.5, value));
-    } catch { /* storage may be unavailable */ }
-    return 1;
+/** The last chosen speed, clamped to the player's range. */
+function parseStoredSpeed(raw: string): number | undefined {
+    const value = parseFloat(raw);
+    return Number.isFinite(value) ? Math.min(4, Math.max(0.5, value)) : undefined;
 }
 
 const defaultOptions: Omit<TranscriptOptions, 'playbackSpeed'> = {
@@ -37,30 +35,22 @@ const defaultOptions: Omit<TranscriptOptions, 'playbackSpeed'> = {
 };
 
 export function TranscriptOptionsProvider({ children, editable, canCreateHighlights }: { children: React.ReactNode, editable: boolean, canCreateHighlights: boolean }) {
-    const [options, setOptions] = useState<TranscriptOptions>(() => ({
+    const [options, setOptions] = useState<Omit<TranscriptOptions, 'playbackSpeed'>>(() => ({
         ...defaultOptions,
         editsAllowed: editable,
         canCreateHighlights,
-        playbackSpeed: 1,
     }));
-
-    // The stored speed loads after mount: reading localStorage during the
-    // initial render makes the server HTML and the hydration render disagree
-    // for anyone whose stored speed is not 1.
-    useEffect(() => {
-        const stored = storedPlaybackSpeed();
-        if (stored !== 1) setOptions(prev => ({ ...prev, playbackSpeed: stored }));
-    }, []);
+    // The one option that outlives the page, so it is the one option that is stored.
+    const [playbackSpeed, setPlaybackSpeed] = useStoredState(SPEED_STORAGE_KEY, parseStoredSpeed, 1);
 
     const value = useMemo<TranscriptOptionsContextType>(() => ({
-        options,
+        options: { ...options, playbackSpeed },
         updateOptions: newOptions => {
-            if (newOptions.playbackSpeed !== undefined) {
-                try { window.localStorage.setItem(SPEED_STORAGE_KEY, String(newOptions.playbackSpeed)); } catch { /* ignore */ }
-            }
-            setOptions(prev => ({ ...prev, ...newOptions }));
+            const { playbackSpeed: speed, ...rest } = newOptions;
+            if (speed !== undefined) setPlaybackSpeed(speed);
+            if (Object.keys(rest).length > 0) setOptions(prev => ({ ...prev, ...rest }));
         },
-    }), [options]);
+    }), [options, playbackSpeed, setPlaybackSpeed]);
 
     return (
         <TranscriptOptionsContext.Provider value={value}>
