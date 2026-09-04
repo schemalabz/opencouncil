@@ -155,33 +155,32 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
         }
     }
 
+    // Which meeting page this is — resolved once, for the crumb and the icon
+    // alike, so the two cannot drift apart.
+    //
+    // `/{cityId}/{meetingId}` is the overview and renders with no child segment,
+    // so fall back to it: without the fallback nothing is pushed, and the action
+    // bar ends up holding the meeting name while the header holds the
+    // administrative body. Only inside a meeting, hence `path[0]?.city`: the
+    // admin shell also sets `showSidebarTrigger`, and `/admin/decisions` shares a
+    // segment with a meeting page, so without that test the admin page took a
+    // meeting's title and icon and demoted its own crumb to the trail.
+    const meetingPage = showSidebarTrigger && !subjectHeader && path[0]?.city
+        ? meetingPageSegments[segment ?? 'overview']
+        : undefined;
+
     if (showSidebarTrigger) {
         if (subjectHeader) {
             dynamicPath.push({ name: subjectHeader.name, link: '' });
-        } else {
-            // `/{cityId}/{meetingId}` is the overview and renders with no child
-            // segment, so fall back to it exactly as `pageIcon` below does.
-            // Without the fallback nothing is pushed, and the action bar ends up
-            // holding the meeting name while the header holds the administrative
-            // body. Only inside a meeting: the admin shell also sets
-            // `showSidebarTrigger` and must not gain a page crumb of its own.
-            const key = path[0]?.city ? (segment ?? 'overview') : segment;
-            const pageConfig = key ? meetingPageSegments[key] : null;
-            if (pageConfig) {
-                dynamicPath.push({ name: pageConfig.title, link: '' });
-            }
+        } else if (meetingPage) {
+            dynamicPath.push({ name: meetingPage.title, link: '' });
         }
     }
 
     const isMeetingContext = showSidebarTrigger && dynamicPath.length >= 2 && Boolean(path[0]?.city);
     const cityElement: PathElement | undefined = dynamicPath[0];
     const isCurrentSubject = subjectHeader !== null;
-    // Same 'overview' fallback as the page crumb above, under the same guard: the admin shell also
-    // sets showSidebarTrigger, and `settings` is a segment of both, so without `path[0]?.city` an
-    // admin page resolves a meeting icon.
-    const PageIcon = (showSidebarTrigger && !subjectHeader && path[0]?.city)
-        ? meetingPageSegments[segment ?? 'overview']?.icon
-        : null;
+    const PageIcon = meetingPage?.icon ?? null;
 
     // In a meeting the last crumb is the page (or the subject) and belongs to the
     // action bar; the meeting itself titles the header. Everywhere else the last
@@ -197,6 +196,14 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
     // The bar exists when the page has something to say about itself: a meeting
     // page always does, and any caller passing actions does by definition.
     const hasActionBar = isMeetingContext || Boolean(children);
+
+    // On a phone row one folds away below, and it holds the only sidebar toggle:
+    // the meeting nav is a Sheet there, and its own trigger lives inside the
+    // sheet, so a folded row one left the nav unreachable until the reader
+    // scrolled back to the top. While it is folded the toggle rides in the
+    // action bar instead. Both are in the tree and exactly one is ever shown —
+    // the fold is a media query, so only CSS can pick between them.
+    const triggerInActionBar = showSidebarTrigger && hasActionBar && isContentScrolled;
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -260,7 +267,12 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
     const renderMarks = () => (
         <div className={cn('flex items-center gap-2 sm:gap-3', inset && 'md:hidden')}>
             {showSidebarTrigger && (
-                <SidebarTrigger className="h-5 w-5 shrink-0 text-muted-foreground/60" />
+                <SidebarTrigger className={cn(
+                    'h-5 w-5 shrink-0 text-muted-foreground/60',
+                    // Dropped rather than left to the fold's `opacity-0`, which
+                    // still answers a tap and still takes focus.
+                    triggerInActionBar && 'hidden sm:inline-flex',
+                )} />
             )}
             <Link href="/" className="flex shrink-0 items-center gap-2 hover:no-underline">
                 <Image
@@ -519,7 +531,12 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
                         and the toggle, and indenting the page behind them left it
                         floating in the middle of a row it owns. From `md` that
                         column is zero wide, so this lands on the crumb's x anyway. */}
-                    <div className={cn('col-start-1 col-span-2 flex min-w-0 items-center', rowTwo)}>{renderPageLabel()}</div>
+                    <div className={cn('col-start-1 col-span-2 flex min-w-0 items-center gap-2', rowTwo)}>
+                        {triggerInActionBar && (
+                            <SidebarTrigger className="h-5 w-5 shrink-0 text-muted-foreground/60 sm:hidden" />
+                        )}
+                        {renderPageLabel()}
+                    </div>
                     <div className={cn('col-start-3 ml-auto flex', rowTwo)}>{renderPageActions()}</div>
                 </>
             )}
