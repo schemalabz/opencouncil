@@ -3,7 +3,7 @@ import { Prisma, DiscussionStatus, type AdministrativeBodyType } from '@prisma/c
 import { searchInRealm } from '@/lib/search/core';
 import { getCities, getCity, getListedCityAtPoint, filterCityIdsByRealm } from '@/lib/db/cities';
 import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
-import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
+import { getCouncilMeetingsWithSubjectPreview } from '@/lib/db/meetingsList';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
 import {
@@ -286,8 +286,9 @@ export async function mcpGetParty(partyId: string) {
 /**
  * A meeting is summarized into subjects only after it is transcribed, so a
  * meeting with no subjects can still carry the full verbatim record — and an
- * agent that reads an empty agenda as "nothing here" misses it. Both helpers
- * answer only whether any segment exists, never how many.
+ * agent that reads an empty agenda as "nothing here" misses it. This answers
+ * only whether any segment exists, never how many. The list below reads the
+ * same fact from the segment count its projection already carries.
  */
 async function hasTranscript(cityId: string, meetingId: string): Promise<boolean> {
     const segment = await prisma.speakerSegment.findFirst({
@@ -295,21 +296,6 @@ async function hasTranscript(cityId: string, meetingId: string): Promise<boolean
         select: { id: true },
     });
     return segment !== null;
-}
-
-/**
- * The same question for a page of meetings, in one query rather than per row.
- * `some` is a semi-join, so it stops at each meeting's first segment; grouping
- * or counting would read every segment row on the page to reach the same
- * booleans.
- */
-async function meetingsWithTranscript(cityId: string, meetingIds: string[]): Promise<Set<string>> {
-    if (meetingIds.length === 0) return new Set();
-    const transcribed = await prisma.councilMeeting.findMany({
-        where: { cityId, id: { in: meetingIds }, speakerSegments: { some: {} } },
-        select: { id: true },
-    });
-    return new Set(transcribed.map(meeting => meeting.id));
 }
 
 export async function mcpListMeetings(
@@ -329,7 +315,12 @@ export async function mcpListMeetings(
     if (options.administrativeBodyIds?.length) {
         await requireCityBodies(cityId, options.administrativeBodyIds);
     }
-    const meetings = await getCouncilMeetingsForCity(cityId, {
+    // The card projection, not the full include: this list reports how many
+    // subjects a meeting has, never what they say, and the full one reads every
+    // subject's description and context to answer that. The projection counts
+    // segments per listed meeting anyway, so hasTranscript reads that count
+    // instead of the semi-join it used to run for itself.
+    const meetings = await getCouncilMeetingsWithSubjectPreview(cityId, {
         includeUnreleased: await canSeeUnreleased(identity, cityId),
         page: options.page,
         pageSize: options.pageSize,
@@ -344,8 +335,6 @@ export async function mcpListMeetings(
         administrativeBodyTypes: options.administrativeBodyTypes,
     });
 
-    const transcribed = await meetingsWithTranscript(cityId, meetings.map(meeting => meeting.id));
-
     return {
         meetings: meetings.map(meeting => ({
             id: meeting.id,
@@ -354,7 +343,7 @@ export async function mcpListMeetings(
             administrativeBody: meeting.administrativeBody?.name ?? null,
             released: meeting.released,
             subjectCount: meeting.subjects.length,
-            hasTranscript: transcribed.has(meeting.id),
+            hasTranscript: meeting._count.speakerSegments > 0,
             url: urls.meeting(cityId, meeting.id),
         })),
         page: options.page,

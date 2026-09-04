@@ -4,10 +4,15 @@ import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import Icon from '@/components/icon';
 import { CalendarIcon, Building, ChevronRight, Youtube } from 'lucide-react';
-import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
+import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 
 interface EmbedMeetingCardProps {
-    meeting: CouncilMeetingWithAdminBodyAndSubjects;
+    /**
+     * The preview projection, not the full meeting: the card draws three
+     * subject titles and a count, and the full one carries every subject's
+     * prose to do it.
+     */
+    meeting: CouncilMeetingWithSubjectPreview;
     locale: string;
     showSubjects: boolean;
     baseUrl: string;
