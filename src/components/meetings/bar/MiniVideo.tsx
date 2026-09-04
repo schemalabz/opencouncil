@@ -7,16 +7,16 @@ import { useVideoActions } from '@/components/meetings/VideoProvider';
 import { useHighlight } from '@/components/meetings/HighlightContext';
 import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
 import { DOCK_ROW, DOCK_ROW_COMPACT, MINI_VIDEO_WIDTH, MINI_VIDEO_WIDTH_COMPACT } from './geometry';
+import { cycleSpeed, formatSpeed, sameSpeed, SPEED_MENU } from '@/lib/utils/barTimeline';
 import { cn } from '@/lib/utils';
 
-const CYCLE = [1, 1.25, 1.5, 2];
-const MENU = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
 const LONG_PRESS_MS = 450;
 
 /**
  * The dock's video: the thumbnail with its two standing affordances — the
  * expand badge (bottom-right, no hover needed) and the speed badge
- * (bottom-left: click cycles, long press opens the menu, lit when ≠1×).
+ * (bottom-left: a click or a key cycles, a long press or a right-click opens
+ * the menu, lit when the speed is not 1×).
  */
 export function MiniVideo({ compact = false }: { compact?: boolean }) {
     const t = useTranslations('transcript.controls');
@@ -36,28 +36,29 @@ export function MiniVideo({ compact = false }: { compact?: boolean }) {
         handleSpeedChange(String(value));
     }, [updateOptions, handleSpeedChange]);
 
-    const cycleSpeed = () => {
-        const idx = CYCLE.findIndex(v => Math.abs(v - speed) < 0.01);
-        setSpeed(CYCLE[(idx + 1) % CYCLE.length] ?? CYCLE[0]);
-    };
-
-    const pressStartedHere = useRef(false);
+    // The pointer only ever decides whether this is a long press. The cycling
+    // itself hangs off click, which a pointer and a keyboard both dispatch —
+    // pointerup does not exist for someone pressing Enter on the badge.
     const onPressStart = (e: React.PointerEvent) => {
-        // Only a primary press cycles: right-click means the context menu
-        // (which on Windows fires after pointerup), middle-click means paste.
+        // Only a primary press opens the menu: right-click has its own handler
+        // (on Windows it fires after pointerup), middle-click means paste.
         if (e.button !== 0) return;
-        pressStartedHere.current = true;
         longPressed.current = false;
         pressTimer.current = setTimeout(() => {
             longPressed.current = true;
             setMenuOpen(true);
         }, LONG_PRESS_MS);
     };
-    const onPressEnd = () => {
-        if (!pressStartedHere.current) return;
-        pressStartedHere.current = false;
+    const stopPress = () => {
         if (pressTimer.current) clearTimeout(pressTimer.current);
-        if (!longPressed.current && !menuOpen) cycleSpeed();
+    };
+    const onBadgeClick = () => {
+        // The click that ends a long press belongs to the menu it opened.
+        if (longPressed.current || menuOpen) {
+            longPressed.current = false;
+            return;
+        }
+        setSpeed(cycleSpeed(speed));
     };
 
     // close the menu on any outside press
@@ -92,14 +93,17 @@ export function MiniVideo({ compact = false }: { compact?: boolean }) {
             <button
                 type="button"
                 onPointerDown={onPressStart}
-                onPointerUp={onPressEnd}
-                onPointerLeave={() => pressTimer.current && clearTimeout(pressTimer.current)}
+                onPointerUp={stopPress}
+                onPointerLeave={stopPress}
+                onClick={onBadgeClick}
                 onContextMenu={e => { e.preventDefault(); setMenuOpen(true); }}
                 title={t('playbackSpeed')}
-                aria-label={t('playbackSpeed')}
+                // The badge's own text is the speed; a bare label would replace
+                // it, and the reader would never hear which speed is in force.
+                aria-label={t('playbackSpeedValue', { speed: formatSpeed(speed) })}
                 className={cn(
                     'absolute bottom-[3px] left-[3px] z-10 flex h-4 items-center rounded px-[5px] text-[9.5px] font-extrabold tabular-nums text-white',
-                    Math.abs(speed - 1) < 0.01 ? 'bg-foreground/70' : 'bg-[hsl(var(--orange-deep))]',
+                    sameSpeed(speed, 1) ? 'bg-foreground/70' : 'bg-[hsl(var(--orange-deep))]',
                 )}
             >
                 {formatSpeed(speed)}
@@ -107,18 +111,19 @@ export function MiniVideo({ compact = false }: { compact?: boolean }) {
 
             {menuOpen && (
                 <div className="absolute bottom-[calc(100%+6px)] left-0 z-30 w-24 overflow-hidden rounded-[10px] border-2 border-border bg-card shadow-lg">
-                    {MENU.map(value => (
+                    {SPEED_MENU.map(value => (
                         <button
                             key={value}
                             type="button"
                             onClick={() => { setSpeed(value); setMenuOpen(false); }}
+                            aria-current={sameSpeed(value, speed)}
                             className={cn(
                                 'flex w-full items-center justify-between px-3 py-2 text-[13px] tabular-nums hover:bg-muted',
-                                Math.abs(value - speed) < 0.01 && 'bg-muted font-extrabold',
+                                sameSpeed(value, speed) && 'bg-muted font-extrabold',
                             )}
                         >
                             {formatSpeed(value)}
-                            {Math.abs(value - speed) < 0.01 && <span className="text-[hsl(var(--orange-deep))]">✓</span>}
+                            {sameSpeed(value, speed) && <span className="text-[hsl(var(--orange-deep))]" aria-hidden>✓</span>}
                         </button>
                     ))}
                 </div>
@@ -126,8 +131,4 @@ export function MiniVideo({ compact = false }: { compact?: boolean }) {
 
         </div>
     );
-}
-
-function formatSpeed(value: number): string {
-    return `${Number.isInteger(value) ? value : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}×`;
 }

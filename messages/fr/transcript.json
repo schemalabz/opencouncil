@@ -53,12 +53,19 @@
         "chapterBeforeAgenda": "AVANT L'ORDRE DU JOUR",
         "chapterAgenda": "ORDRE DU JOUR",
         "chapterOutOfAgenda": "HORS ORDRE DU JOUR",
+        "chapters": "Sections de la séance",
+        "chapterAt": "{chapter}, à partir de {time}",
+        "chapterKeys": "Page Up et Page Down vont à la section suivante et à la précédente.",
         "playbackSpeed": "Vitesse de lecture",
+        "playbackSpeedValue": "Vitesse de lecture : {speed}",
         "expandVideo": "Agrandir la vidéo",
         "collapseBar": "Réduire la barre",
         "expandBar": "Ouvrir la barre",
         "clip": "Extrait {current}/{total}",
-        "lensFineHint": "Glissez vers le haut pour affiner"
+        "lensFineHint": "Glissez vers le haut pour affiner",
+        "nowSpeaking": "Intervient : {speaker}",
+        "nowSpeakingOn": "Intervient : {speaker}. Sujet : {subject}",
+        "nowSubject": "Sujet : {subject}"
     },
     "unverifiedBanner": {
         "title": "Transcription automatique",
