@@ -11,15 +11,13 @@ import { getLocalizedName } from '@/lib/formatters/name';
 import { partyBodyColumns } from '@/lib/party/composition';
 import { sortParties } from '@/lib/sorting/parties';
 import { sortPeople } from '@/lib/sorting/people';
-import { getPartyFromRoles, isRoleActive } from '@/lib/utils/roles';
+import { filterActiveRoles, getPartyFromRoles, getPrimaryRole, getRoleText } from '@/lib/utils/roles';
 import { localizeText } from '@/lib/serbian';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { cn } from '@/lib/utils';
 
 /** Parties shown before the list stops being a summary of who holds the room. */
 const PARTIES_SHOWN = 3;
-/** Faces per party card. */
-const FACES_PER_PARTY = 4;
 /** People in the preview strip — three by three where the columns fit. */
 const PEOPLE_SHOWN = 9;
 
@@ -106,12 +104,17 @@ export function CouncilBand({ parties, people, city, locale }: CouncilBandProps)
 }
 
 function PersonRow({ person, cityId, locale }: { person: PersonWithRelations; cityId: string; locale: string }) {
+    const t = useTranslations('Person');
     const party = getPartyFromRoles(person.roles);
-    const role = person.roles.find(r => isRoleActive(r) && r.name);
+    // The most prominent titled role, and the same label PersonCard prints for
+    // it. Taking the first role the relation happened to return captioned the
+    // same person differently on the two surfaces: the include carries no
+    // `orderBy`, so an αντιδήμαρχος could hide behind a committee seat.
+    const role = getPrimaryRole(filterActiveRoles(person.roles).filter(r => !r.partyId && r.name));
     // Most councillors hold no titled role, so the party carries the second line
     // instead. Something is there either way, which keeps the rows one height.
     const caption = role
-        ? getLocalizedName(role as { name: string; name_en: string | null }, locale)
+        ? localizeText(getRoleText(role, t), locale)
         : party && getLocalizedName(party, locale);
 
     return (

@@ -60,7 +60,10 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     const activeRoles = filterActiveRoles(person.roles as RoleWithRelations[]);
     const personParty = getPartyFromRoles(person.roles);
     const speakingMinutes = Math.round((statistics?.speakingSeconds ?? 0) / 60);
-    const inactiveRoles = filterInactiveRoles(person.roles as RoleWithRelations[]);
+    // filterInactiveRoles means "not active now", which also matches a term that
+    // has not started yet. A future term is not a past one.
+    const pastRoles = filterInactiveRoles(person.roles as RoleWithRelations[])
+        .filter(role => !role.startDate || new Date(role.startDate) <= new Date());
     const topTopics = useMemo(
         () => (statistics?.topics ?? [])
             .filter(stat => stat.speakingSeconds > 0)
@@ -427,21 +430,21 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                     <aside className="min-w-0 space-y-4 lg:pt-[3.25rem]">
                         <RailCard title={t('rolesCard')}>
                             <ul className="space-y-2.5">
-                                {activeRoles.map(role => <RoleRow key={role.id} role={role} t={t} />)}
+                                {activeRoles.map(role => <RoleRow key={role.id} role={role} t={t} tCommon={tCommon} />)}
                                 {activeRoles.length === 0 && (
                                     <li className="text-sm text-muted-foreground">
                                         {isIndependentCouncilMember ? t('independentCouncilMember') : '—'}
                                     </li>
                                 )}
                             </ul>
-                            {inactiveRoles.length > 0 && (
+                            {pastRoles.length > 0 && (
                                 <details className="group mt-3 border-t border-border pt-3">
                                     <summary className="cursor-pointer list-none text-[12.5px] font-semibold text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
-                                        {t('pastTerms', { count: inactiveRoles.length })}
+                                        {t('pastTerms', { count: pastRoles.length })}
                                         <ChevronDown className="ml-1 inline h-3.5 w-3.5 transition-transform group-open:rotate-180" aria-hidden />
                                     </summary>
                                     <ul className="mt-2.5 space-y-2.5 opacity-70">
-                                        {inactiveRoles.map(role => <RoleRow key={role.id} role={role} t={t} />)}
+                                        {pastRoles.map(role => <RoleRow key={role.id} role={role} t={t} tCommon={tCommon} />)}
                                     </ul>
                                 </details>
                             )}
@@ -480,12 +483,19 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
  * orange star for leading the city, the party's colour dot, a landmark for an
  * administrative body — then the same label the site's role badges render,
  * with the term's dates underneath.
+ *
+ * Two translators: the label is `Person` copy, the date range is `Common` copy —
+ * `from` and `until` exist in no other namespace.
  */
-function RoleRow({ role, t }: { role: RoleWithRelations; t: ReturnType<typeof useTranslations> }) {
+function RoleRow({ role, t, tCommon }: {
+    role: RoleWithRelations;
+    t: ReturnType<typeof useTranslations>;
+    tCommon: ReturnType<typeof useTranslations>;
+}) {
     const dates = formatDateRange(
         role.startDate ? new Date(role.startDate) : null,
         role.endDate ? new Date(role.endDate) : null,
-        t,
+        tCommon,
     );
     return (
         <li className="flex items-start gap-2">

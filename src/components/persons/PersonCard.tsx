@@ -1,6 +1,5 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { TrackedLink } from '@/components/analytics/TrackedLink';
-import { Link } from '@/i18n/routing';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import type { PersonWithRelations } from '@/lib/db/people';
 import { getLocalizedName } from '@/lib/formatters/name';
@@ -40,13 +39,11 @@ export default function PersonCard({ item: person, analyticsSurface = 'people_li
     // getRoleText, not `role.name`: two thirds of councillors hold no titled
     // role, and filtering on the name column left their cards with an empty role
     // area. The helper falls back to the administrative body, or to "member".
-    // Sorted before the slice, and before the map that would throw the sort key
-    // away: `sortRolesByPriority` puts a mayor first, then a deputy mayor, then a
-    // body chair, then plain membership. Slicing the raw relation order instead
-    // hid an αντιδήμαρχος behind "+1" while showing two committee seats — the
-    // Prisma include carries no `orderBy`.
-    const roles = sortRolesByPriority(filterActiveRoles(person.roles).filter(role => !role.partyId))
-        .map(role => getRoleText(role, t));
+    // Sorted before the slice: `sortRolesByPriority` puts a mayor first, then a
+    // deputy mayor, then a body chair, then plain membership. Slicing the raw
+    // relation order instead hid an αντιδήμαρχος behind "+1" while showing two
+    // committee seats — the Prisma include carries no `orderBy`.
+    const roles = sortRolesByPriority(filterActiveRoles(person.roles).filter(role => !role.partyId));
     const shown = roles.slice(0, ROLES_SHOWN);
     const rest = roles.length - shown.length;
 
@@ -88,8 +85,8 @@ export default function PersonCard({ item: person, analyticsSurface = 'people_li
                     {shown.length > 0 && (
                         <span className="mt-2 flex flex-col gap-0.5">
                             {shown.map(role => (
-                                <span key={role} className="truncate text-xs text-foreground/80">
-                                    {localizeText(role, locale)}
+                                <span key={role.id} className="truncate text-xs text-foreground/80">
+                                    {localizeText(getRoleText(role, t), locale)}
                                 </span>
                             ))}
                             {rest > 0 && (
