@@ -52,7 +52,12 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
      */
     showCount?: boolean;
     defaultFilterValues?: F[];
-    pagination?: Omit<PaginationParams, 'totalPages'>;
+    /**
+     * Page size only. The page itself comes from the URL below, and a
+     * `currentPage` prop was read by nobody — the server that passed one only
+     * forced itself dynamic to compute it.
+     */
+    pagination?: Pick<PaginationParams, 'pageSize'>;
     renderFilter?: (props: { selectedValues: F[], onChange: (values: F[]) => void }) => React.ReactNode;
     renderAfterFilters?: React.ReactNode | ((selectedValues: F[]) => React.ReactNode);
     /**

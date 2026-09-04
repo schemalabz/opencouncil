@@ -1,20 +1,29 @@
 /** @jest-environment node */
 
 const mockGetCouncilMeetingsForCityPublicCached = jest.fn();
+const mockGetCouncilMeetingsForCity = jest.fn();
 const mockFilterLocationIdsWithinRadius = jest.fn();
 const mockGetLocationDistancesFromPoint = jest.fn();
 const mockGetDiscussionSecondsForSubjects = jest.fn();
+/** The key parts each cached call was built with, in call order. */
+const mockCacheKeys: string[][] = [];
 
 jest.mock('../cache', () => ({
     __esModule: true,
-    createCache: (fn: () => unknown) => fn,
+    createCache: (fn: () => unknown, keyParts: string[]) => {
+        mockCacheKeys.push(keyParts);
+        return fn;
+    },
+    // The real helper sits in a module that reaches prisma, so the key
+    // assertions below cover the fragments this file builds around it.
+    bodyFilterKey: () => ['types:all', 'ids:all'],
     getCouncilMeetingsForCityPublicCached: (...args: unknown[]) =>
         mockGetCouncilMeetingsForCityPublicCached(...args),
 }));
 
 jest.mock('../db/meetingsList', () => ({
     __esModule: true,
-    getCouncilMeetingsForCity: jest.fn(),
+    getCouncilMeetingsForCity: (...args: unknown[]) => mockGetCouncilMeetingsForCity(...args),
 }));
 
 jest.mock('../db/subject', () => ({
@@ -28,9 +37,17 @@ jest.mock('../db/location', () => ({
     getLocationDistancesFromPoint: (...args: unknown[]) => mockGetLocationDistancesFromPoint(...args),
 }));
 
-import { getRecentHotSubjects, getHotSubjectsNearPoint, withDistances, type HotSubject } from '../hotSubjects';
+import {
+    getRecentHotSubjects,
+    getHotSubjectsNearGeohash,
+    getHotSubjectsNearPoint,
+    withDistances,
+    type HotSubject,
+} from '../hotSubjects';
 
 const CENTER: [number, number] = [23.72, 37.98];
+/** A cell over central Athens. */
+const GEOHASH = 'swbb5';
 
 /**
  * Minimal meeting/subject shapes for the ranker. dateTime deliberately allows
@@ -157,6 +174,43 @@ describe('getRecentHotSubjects', () => {
 
         expect(hot).toEqual([]);
         expect(mockGetCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('getHotSubjectsNearGeohash', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockCacheKeys.length = 0;
+        mockGetDiscussionSecondsForSubjects.mockResolvedValue(new Map());
+        mockFilterLocationIdsWithinRadius.mockResolvedValue([]);
+    });
+
+    it('asks only for meetings inside the period it is given', async () => {
+        // The period used to be destructured away here and the window hardcoded,
+        // so this variant silently ranked the last few meetings whatever it was
+        // asked for.
+        mockGetCouncilMeetingsForCity.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [{ id: 'a', locationId: null }]),
+        ]);
+
+        await getHotSubjectsNearGeohash('athens', GEOHASH, { limit: 10, months: 3 });
+
+        expect(mockGetCouncilMeetingsForCity).toHaveBeenCalledTimes(1);
+        const [, options] = mockGetCouncilMeetingsForCity.mock.calls[0];
+        expect(options.from).toBeInstanceOf(Date);
+    });
+
+    it('keys the period, so two periods cannot share one entry', async () => {
+        mockGetCouncilMeetingsForCity.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [{ id: 'a', locationId: null }]),
+        ]);
+
+        await getHotSubjectsNearGeohash('athens', GEOHASH, { limit: 6, months: 3 });
+        await getHotSubjectsNearGeohash('athens', GEOHASH, { limit: 6, months: 12 });
+
+        const [threeMonths, twelveMonths] = mockCacheKeys;
+        expect(threeMonths).toContain('months:3');
+        expect(twelveMonths).toContain('months:12');
     });
 });
 

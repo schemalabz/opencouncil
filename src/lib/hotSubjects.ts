@@ -1,5 +1,5 @@
 import { AdministrativeBodyType } from '@prisma/client';
-import { createCache, getCouncilMeetingsForCityPublicCached } from '@/lib/cache';
+import { bodyFilterKey, createCache, getCouncilMeetingsForCityPublicCached } from '@/lib/cache';
 import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetingsList';
 import { getContributionCount } from '@/lib/utils';
 import { getDiscussionSecondsForSubjects } from '@/lib/db/subject';
@@ -171,13 +171,15 @@ async function rankSubjectsNearPoint(
 async function computeHotSubjectsNearGeohash(
     cityId: string,
     geohash: string,
-    { limit, administrativeBodyTypes, administrativeBodyIds }: BodyFilter & { limit: number }
+    { limit, administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
     // Called inside the cached wrapper below — use the uncached meetings query so
     // we don't nest unstable_cache calls.
-    const meetings = await getCouncilMeetingsForCity(cityId, {
-        includeUnreleased: false, limit: HOT_MEETING_WINDOW, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
-    });
+    const meetings = await meetingsFor({ months }, window =>
+        getCouncilMeetingsForCity(cityId, {
+            includeUnreleased: false, ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+        }),
+    );
     try {
         return await rankSubjectsNearPoint(meetings, decodeGeohashToCenter(geohash), GEO_RADIUS_METERS, limit);
     } catch (error) {
@@ -267,13 +269,12 @@ export async function getHotSubjectsNearGeohash(
     geohash: string,
     filter: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
-    const typeKey = filter.administrativeBodyTypes?.length
-        ? `types:${[...filter.administrativeBodyTypes].sort().join(',')}` : 'types:all';
-    const idKey = filter.administrativeBodyIds?.length
-        ? `ids:${[...filter.administrativeBodyIds].sort().join(',')}` : 'ids:all';
     return createCache(
         () => computeHotSubjectsNearGeohash(cityId, geohash, filter),
-        ['city', cityId, 'hotSubjectsGeo', GEO_CACHE_VERSION, geohash, typeKey, idKey, `limit:${filter.limit}`],
+        // `months` keys the window the same way getHotSubjectCardsCached keys it:
+        // the period is part of what the entry answers for, so two periods must
+        // never share one.
+        ['city', cityId, 'hotSubjectsGeo', GEO_CACHE_VERSION, geohash, ...bodyFilterKey(filter), `limit:${filter.limit}`, `months:${filter.months ?? 'default'}`],
         {
             tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `geohash:${geohash}`],
             // The window is the last N *past* meetings, a function of `now` that
