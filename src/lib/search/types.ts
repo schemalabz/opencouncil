@@ -37,6 +37,15 @@ export type Location = {
     radiusMeters: number;
 };
 
+/**
+ * Which municipalities a subject's related subjects come from: its own
+ * (`city`), or every other municipality of the realm (`other`). "All" is not
+ * a scope on purpose: measured on the production index, the closest matches
+ * across the realm are mostly the home municipality's own subjects again, so
+ * a second level that included them showed the reader nothing new.
+ */
+export type RelatedScope = 'city' | 'other';
+
 // Search request type
 export type SearchRequest = {
     /** Free-text query. When omitted/empty, the search is filter-only: results
