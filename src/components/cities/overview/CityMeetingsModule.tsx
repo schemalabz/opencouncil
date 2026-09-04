@@ -6,8 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { MeetingStageChip } from '@/components/meetings/stage/MeetingStageChip';
-import { stageChipDetail } from '@/components/meetings/stage/stageDetail';
-import { publicMeetingStage, stageSignalsFromPreview } from '@/lib/meetingStage';
+import type { PublicMeetingStage } from '@/lib/meetingStage';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { formatClockTime, formatDateStamp } from '@/lib/formatters/time';
 import { cn } from '@/lib/utils';
@@ -16,10 +15,24 @@ import { surfaceCardClass } from '@/components/ui/surface-card';
 
 type Meeting = CouncilMeetingWithSubjectPreview;
 
+/**
+ * A meeting with the two facts that depend on the clock rather than on the row:
+ * both are read once on the server, against one instant. Read here instead,
+ * they would be read again at hydration and could disagree with what the server
+ * sent — the stage of a meeting that starts between the two passes, and the
+ * relative time of every upcoming one.
+ */
+export interface DatedMeeting {
+    meeting: Meeting;
+    stage: PublicMeetingStage;
+    /** The chip's soft second half, or null where the stage word says everything. */
+    detail: string | null;
+}
+
 /** The soonest scheduled meeting and the most recent one held, for one scope. */
 export interface MeetingBookends {
-    next: Meeting | null;
-    latest: Meeting | null;
+    next: DatedMeeting | null;
+    latest: DatedMeeting | null;
 }
 
 interface CityMeetingsModuleProps {
@@ -48,11 +61,12 @@ interface CityMeetingsModuleProps {
  */
 export function CityMeetingsModule({ all, council, cityId, timezone, locale }: CityMeetingsModuleProps) {
     const t = useTranslations('cityOverview');
-    const tMeeting = useTranslations('CouncilMeeting');
     const [councilOnly, setCouncilOnly] = useState(false);
 
     const scoped = councilOnly ? council : all;
-    const differs = all.next?.id !== council.next?.id || all.latest?.id !== council.latest?.id;
+    const differs =
+        all.next?.meeting.id !== council.next?.meeting.id ||
+        all.latest?.meeting.id !== council.latest?.meeting.id;
 
     if (!all.next && !all.latest) return null;
 
@@ -70,7 +84,7 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
                         </span>
                     </div>
                     <MeetingRow
-                        meeting={scoped.next}
+                        entry={scoped.next}
                         cityId={cityId}
                         timezone={timezone}
                         locale={locale}
@@ -110,7 +124,7 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
 
             {scoped.latest ? (
                 <MeetingRow
-                    meeting={scoped.latest}
+                    entry={scoped.latest}
                     cityId={cityId}
                     timezone={timezone}
                     locale={locale}
@@ -129,14 +143,14 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
  * button under it would repeat the same target and cost 56px of a phone screen.
  */
 function MeetingRow({
-    meeting,
+    entry,
     cityId,
     timezone,
     locale,
     ariaLabel,
     className,
 }: {
-    meeting: Meeting;
+    entry: DatedMeeting;
     cityId: string;
     timezone: string;
     locale: string;
@@ -144,8 +158,7 @@ function MeetingRow({
     className?: string;
 }) {
     const tMeeting = useTranslations('CouncilMeeting');
-    const tStage = useTranslations('meetingStage');
-    const stage = publicMeetingStage(stageSignalsFromPreview(meeting));
+    const { meeting, stage, detail } = entry;
     const upcoming = stage === 'upcoming';
     return (
         <Link
@@ -178,12 +191,7 @@ function MeetingRow({
                     )}
                 </span>
                 {stage !== 'complete' && (
-                    <MeetingStageChip
-                        stage={stage}
-                        size="sm"
-                        className="mt-1"
-                        detail={stageChipDetail(tStage, stage, meeting.dateTime, timezone, locale)}
-                    />
+                    <MeetingStageChip stage={stage} size="sm" className="mt-1" detail={detail} />
                 )}
             </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
