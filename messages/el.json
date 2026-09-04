@@ -1140,7 +1140,11 @@
         "previousSubject": "Προηγούμενο θέμα",
         "nextSubject": "Επόμενο θέμα",
         "noDecisionBeforeAgenda": "Τα προ ημερησίας θέματα δεν έχουν ποτέ απόφαση.",
-        "learnWhy": "Μάθε γιατί"
+        "learnWhy": "Μάθε γιατί",
+        "relatedSubjects": "Σχετικά θέματα",
+        "relatedOtherCities": "Άλλοι δήμοι",
+        "relatedSeeMore": "Δες περισσότερα στην αναζήτηση",
+        "relatedScopeLabel": "Εύρος σχετικών θεμάτων"
     },
     "PersonCard": {
         "party": "Παράταξη",

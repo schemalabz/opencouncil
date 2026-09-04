@@ -1146,7 +1146,11 @@
         "previousSubject": "Previous subject",
         "nextSubject": "Next subject",
         "noDecisionBeforeAgenda": "Items raised before the agenda never have a decision.",
-        "learnWhy": "Learn why"
+        "learnWhy": "Learn why",
+        "relatedSubjects": "Related subjects",
+        "relatedOtherCities": "Other municipalities",
+        "relatedSeeMore": "See more in search",
+        "relatedScopeLabel": "Scope of related subjects"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
