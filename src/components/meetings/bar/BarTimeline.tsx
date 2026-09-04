@@ -112,11 +112,13 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
     const onKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (duration <= 0) return;
         // Shift steps ten seconds: the keyboard's counterpart to the lens's precision.
+        // Left and right seek; up and down are the dock's speed keys, so the strip
+        // lets them through to the shortcut the editing guide advertises.
         const step = e.shiftKey ? 10 : duration * 0.01;
-        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        if (e.key === 'ArrowRight') {
             e.preventDefault();
             seekTo(Math.min(duration, currentTimeRef.current + step));
-        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        } else if (e.key === 'ArrowLeft') {
             e.preventDefault();
             seekTo(Math.max(0, currentTimeRef.current - step));
         } else if (e.key === 'Home') {
