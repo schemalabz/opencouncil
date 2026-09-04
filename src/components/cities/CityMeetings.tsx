@@ -1,6 +1,6 @@
 "use client";
-import { useTranslations } from 'next-intl';
-import { useMemo } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AdministrativeBodyType } from '@prisma/client';
 import List from '@/components/List';
@@ -11,6 +11,7 @@ import { getAdministrativeBodyTypesForMeetings, filterMeetingByAdminBodyTypes, g
 import { PaginationParams } from '@/lib/db/types';
 import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
+import { getLocalizedName } from '@/lib/formatters/name';
 
 type CityMeetingsProps = {
     councilMeetings: CouncilMeetingWithSubjectPreview[],
@@ -29,7 +30,19 @@ export default function CityMeetings({
 }: CityMeetingsProps) {
     const t = useTranslations('CouncilMeeting');
     const tCommon = useTranslations('Common');
+    const locale = useLocale();
     const searchParams = useSearchParams();
+
+    // The subject titles are already on the card's preview, and they are what a
+    // reader remembers a meeting by far more often than its number.
+    const searchKeys = useCallback((meeting: CouncilMeetingWithSubjectPreview) => [
+        meeting.name,
+        meeting.name_en,
+        getLocalizedName(meeting, locale),
+        meeting.administrativeBody?.name,
+        meeting.administrativeBody?.name_en,
+        ...meeting.subjects.map(subject => subject.name),
+    ], [locale]);
 
     const typeOptions = useMemo(() =>
         getAdministrativeBodyTypesForMeetings(councilMeetings, tCommon),
@@ -103,9 +116,9 @@ export default function CityMeetings({
                     />
                 );
             }}
-            // The page has one search, in the identity band; this list keeps only
-            // its count, which reports the filtered total the band cannot.
-            showSearch={false}
+            // A quiet filter over the loaded rows. The identity band's field is
+            // the page's search, and it searches transcripts instead.
+            searchKeys={searchKeys}
             showCount
             smColumns={1}
             mdColumns={2}
