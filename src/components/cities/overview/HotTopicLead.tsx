@@ -4,13 +4,12 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { PersonAvatarList } from '@/components/persons/PersonAvatarList';
 import type { HotSubjectCard } from '@/lib/hotSubjectCards';
-import { formatDate } from '@/lib/formatters/time';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { localizeText } from '@/lib/serbian';
 import { topicStyle } from '@/lib/topicStyle';
 import { TopicPill } from '@/components/TopicPill';
 import { hotTopicBarWidth } from '@/lib/utils/subjects';
-import { AdminBodyLabel } from './AdminBodyLabel';
+import { HotTopicBar, HotTopicFacts, HotTopicRank } from './HotTopicRow';
 
 /** Where the metrics column starts, as a percentage of the row. */
 const METRICS_COLUMN_EDGE_PCT = 88;
@@ -58,15 +57,9 @@ export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale 
                     ? { ['--avatar-ring' as string]: `color-mix(in srgb, ${topic.background} 50%, white)` }
                     : undefined}
             >
-                <span
-                    className="absolute inset-y-0 left-0 z-0"
-                    style={{ width: `${width}%`, backgroundColor: topic.background, opacity: 0.5 }}
-                    aria-hidden
-                />
+                <HotTopicBar width={width} background={topic.background} />
                 <div className="relative z-10 flex items-start gap-3">
-                    <span className="w-6 shrink-0 pt-1 text-xs font-bold tabular-nums text-muted-foreground">
-                        {String(rank).padStart(2, '0')}
-                    </span>
+                    <HotTopicRank rank={rank} className="pt-1" />
 
                     <div className="min-w-0 flex-1">
                         {/* The topic names the leader only, so it sits inside the leader's own
@@ -86,20 +79,7 @@ export function HotTopicLead({ card, rank, maxSeconds, cityId, timezone, locale 
                             </Link>
                         </h3>
 
-                        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
-                            {/* The debate time keeps its own column where there is
-                                width for one; on a phone it joins the facts here,
-                                still the loudest of them. */}
-                            <span className="font-bold text-foreground sm:hidden">
-                                {t('discussionMinutes', { minutes: stats.minutes })}
-                            </span>
-                            <span className="sm:hidden" aria-hidden>·</span>
-                            <AdminBodyLabel body={meeting.administrativeBody} locale={locale} />
-                            <span aria-hidden>·</span>
-                            <span>{formatDate(meeting.dateTime, timezone, locale)}</span>
-                            <span aria-hidden>·</span>
-                            <span>{t('speakerCount', { count: stats.speakerCount })}</span>
-                        </div>
+                        <HotTopicFacts card={card} timezone={timezone} locale={locale} size="md" />
 
                         {description && (
                             <p className="mt-2.5 max-w-[68ch] text-sm leading-relaxed text-foreground/80 line-clamp-2">
