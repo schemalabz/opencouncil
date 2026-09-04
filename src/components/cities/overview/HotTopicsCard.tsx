@@ -29,12 +29,22 @@ export function HotTopicsCard({ cards, cityId, timezone, locale, scope, period, 
     return (
         <section>
             <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+                {/* Quiet on a phone. The eyebrow and the explainer are reading
+                    room a wide screen has and a 844px one does not: together
+                    with the larger title they cost about 100px, which is the
+                    difference between the lead subject's card ending above the
+                    fold and being cut across its own call to action. */}
                 <div className="min-w-0">
-                    <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
+                    <span className="hidden text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground md:inline">
                         {t('hotTopicsEyebrow')}
                     </span>
-                    <h2 className="mt-2.5 !text-left text-2xl tracking-tight md:text-3xl">{t('hotTopicsTitle')}</h2>
-                    <p className="mt-2 max-w-[60ch] text-sm text-muted-foreground">{t('hotTopicsExplainer')}</p>
+                    {/* The size needs `!` for the same reason the alignment does:
+                        globals.css styles every h2 outside .prose at text-2xl,
+                        and that selector outranks a utility class. Without it
+                        the phone's title stays 24px and takes a second line.
+                        md keeps the 24px this has always rendered at. */}
+                    <h2 className="!text-left !text-xl tracking-tight md:mt-2.5 md:!text-2xl">{t('hotTopicsTitle')}</h2>
+                    <p className="mt-2 hidden max-w-[60ch] text-sm text-muted-foreground md:block">{t('hotTopicsExplainer')}</p>
                 </div>
                 <HotTopicsFilters scope={scope} period={period} availableScopes={availableScopes} />
             </div>
