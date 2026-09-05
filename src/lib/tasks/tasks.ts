@@ -198,14 +198,35 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     const sendGenericAlerts = getDiscordAlertMode(task.type) !== 'none';
 
     if (update.status === 'success') {
+        // Persist the raw task server payload BEFORE running our processor.
+        // If processing throws, responseBody stays intact and the task can be
+        // replayed without re-running the (paid) backend job.
+        //
+        // The status stays non-terminal while the processor runs. Tasks in the
+        // same batch finish concurrently, and a sibling's terminal hook reads
+        // every task's status: flipping to 'succeeded' up here would let that
+        // hook report a clean batch while this processor is still running (and
+        // possibly about to fail). Only a task with nothing to process is
+        // terminal at this point.
         const updatedTask = await prisma.taskStatus.update({
             where: { id: taskId },
-            data: { status: 'succeeded', responseBody: JSON.stringify(update.result), version: update.version }
+            data: {
+                ...(update.result ? {} : { status: 'succeeded' as const }),
+                responseBody: JSON.stringify(update.result),
+                processingError: null,
+                version: update.version,
+            }
         });
 
         if (update.result) {
             try {
                 await processResult(taskId, update.result, options);
+
+                // Processing is done, so the task is terminal now.
+                await prisma.taskStatus.update({
+                    where: { id: taskId },
+                    data: { status: 'succeeded', version: update.version },
+                });
 
                 // Send Discord admin alert for successful completion AFTER processing succeeds
                 if (sendGenericAlerts) {
@@ -230,11 +251,25 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 }
             } catch (error) {
                 console.error(`Error processing result for task ${taskId}:`, error);
-                const originalResponse = JSON.stringify(update.result);
-                const errorDetail = `Processing error: ${(error as Error).message}\n\n--- Original task server response ---\n${originalResponse}`;
+                // A processor can reject with a non-Error (a string, a plain
+                // object, undefined). Reading .stack/.message off one of those
+                // throws, which would skip the failed-status write and the alert
+                // below and leave the task marked succeeded.
+                const failureMessage = error instanceof Error ? error.message : String(error);
+                const failureDetail = error instanceof Error
+                    ? (error.stack ?? error.message).trim()
+                    : failureMessage;
+                // Keep responseBody untouched — it already holds the raw task
+                // server payload from the pre-processing write above, so the
+                // task can be replayed via processTaskResponse once the bug
+                // in the processor is fixed.
                 await prisma.taskStatus.update({
                     where: { id: taskId },
-                    data: { status: 'failed', responseBody: errorDetail, version: update.version }
+                    data: {
+                        status: 'failed',
+                        processingError: failureDetail,
+                        version: update.version,
+                    }
                 });
 
                 // Send Discord admin alert for processing failure
@@ -247,7 +282,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                         taskId: task.id,
                         cityId: task.cityId,
                         meetingId: task.councilMeetingId,
-                        error: (error as Error).message,
+                        error: failureMessage,
                     });
                 }
             }
@@ -270,7 +305,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     } else if (update.status === 'error') {
         await prisma.taskStatus.update({
             where: { id: taskId },
-            data: { status: 'failed', responseBody: update.error, version: update.version }
+            data: { status: 'failed', responseBody: update.error, processingError: null, version: update.version }
         });
 
         // Send Discord admin alert for task failure
