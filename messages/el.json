@@ -21,6 +21,7 @@
         "skipToContent": "Μετάβαση στο κύριο περιεχόμενο",
         "search": "Αναζήτηση",
         "clearSearch": "Καθαρισμός αναζήτησης",
+        "adminOnly": "Μόνο για διαχειριστές",
         "collapse": "Σύμπτυξη",
         "filter": "Φίλτρο: {label}",
         "municipalityMap": "Χάρτης δήμου",
