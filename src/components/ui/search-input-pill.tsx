@@ -8,19 +8,22 @@ import { cn } from "@/lib/utils";
 /* Icon · input · clear-button pill, shared by the landing page's map search, the /search
    page's query box and the contributions list's filter. Callers own the Enter-key behavior
    (submit a query vs. detect a category/municipality/address) via `onKeyDown`. */
+// The input sizes read `text-base md:...`: iOS zooms the page when a focused
+// field is under 16px, and the viewport no longer forbids it. A phone gets 16px
+// and the compact sizes apply from md up, where no such zoom exists.
 const SIZE_STYLES = {
     /** A filter beside a heading, where the field is not the point of the row. */
     sm: {
         wrapper: "h-8 gap-2.5 px-3",
         icon: "h-3.5 w-3.5",
-        input: "text-xs",
+        input: "text-base md:text-xs",
         clearButton: "h-5 w-5",
         clearIcon: "h-3.5 w-3.5",
     },
     default: {
         wrapper: "h-11 gap-2.5 px-4",
         icon: "h-4 w-4",
-        input: "text-[15px]",
+        input: "text-base md:text-[15px]",
         clearButton: "h-6 w-6",
         clearIcon: "h-4 w-4",
     },
