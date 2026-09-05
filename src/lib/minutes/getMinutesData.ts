@@ -5,6 +5,7 @@ import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
+import { agendaItemTitleOrName } from '@/lib/utils/subjects';
 import { PersonWithRelations } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
 import {
@@ -89,8 +90,8 @@ export async function getMinutesData(
         orderBy: { startTimestamp: 'asc' },
     });
 
-    // Subject name map for cross-subject annotations (includes all subjects)
-    const subjectNameMap = new Map(subjects.map(s => [s.id, s.name]));
+    // Subject title map for cross-subject annotations (includes all subjects)
+    const subjectNameMap = new Map(subjects.map(s => [s.id, agendaItemTitleOrName(s)]));
 
     // Compute temporal windows from linked utterances
     const windows = computeTemporalWindows(allUtterances, activeSubjectIds);
@@ -230,7 +231,7 @@ export async function getMinutesData(
                     if (ownerSubject && !discussedElsewhere.some(d => d.subjectId === ownerSubjectId)) {
                         discussedElsewhere.push({
                             subjectId: ownerSubjectId,
-                            name: ownerSubject.name,
+                            name: agendaItemTitleOrName(ownerSubject),
                             agendaItemIndex: ownerSubject.agendaItemIndex,
                         });
                     }
@@ -243,10 +244,10 @@ export async function getMinutesData(
             agendaItemIndex: s.agendaItemIndex,
             nonAgendaReason: s.nonAgendaReason as 'beforeAgenda' | 'outOfAgenda' | null,
             withdrawn: s.withdrawn,
-            name: s.name,
+            name: agendaItemTitleOrName(s),
             discussedWith: s.discussedIn ? {
                 id: s.discussedIn.id,
-                name: s.discussedIn.name,
+                name: agendaItemTitleOrName(s.discussedIn),
                 agendaItemIndex: s.discussedIn.agendaItemIndex,
             } : null,
             discussedElsewhere,

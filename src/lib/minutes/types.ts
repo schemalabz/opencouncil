@@ -55,6 +55,13 @@ export interface MinutesCrossSubjectEntry {
 
 export type MinutesTranscriptEntry = MinutesSpeakerEntry | MinutesCrossSubjectEntry;
 
+/**
+ * Every subject name inside `MinutesData` is the item as written on the official
+ * agenda, when the subject has one. Otherwise it is the summary name. This
+ * includes the cross-reference names: `MinutesCrossSubjectEntry.subject.name`
+ * and `MinutesAttendanceChange.atSubject.name`. `getMinutesData` resolves the
+ * name once, through `agendaItemTitleOrName`.
+ */
 export interface MinutesSubject {
     subjectId: string;
     agendaItemIndex: number | null;
@@ -62,7 +69,11 @@ export interface MinutesSubject {
     withdrawn: boolean;
     name: string;
 
-    discussedWith: { id: string; name: string; agendaItemIndex: number | null } | null;
+    discussedWith: {
+        id: string;
+        name: string;
+        agendaItemIndex: number | null;
+    } | null;
 
     /** Subjects whose discussion partially occurred within another subject's section */
     discussedElsewhere: Array<{

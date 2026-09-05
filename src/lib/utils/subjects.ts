@@ -88,3 +88,12 @@ export function getWithdrawnLabel(t: Translate, subject: { nonAgendaReason: stri
     return mode === 'short' ? t('withdrawnShort') : t('withdrawnLong');
 }
 
+/**
+ * The title the minutes print and the decision matcher reads: the item as written
+ * on the official agenda when processAgenda kept it, else the summary name (#616).
+ * The web pages keep showing `name`. A blank stored title reads as no title.
+ */
+export function agendaItemTitleOrName(subject: { name: string; agendaItemTitle: string | null }): string {
+    return subject.agendaItemTitle?.trim() ? subject.agendaItemTitle : subject.name;
+}
+

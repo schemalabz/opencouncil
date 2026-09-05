@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ExternalLink, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { diavgeiaViewUrl, inlinePdfUrl } from './pdfUrl';
+import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 
 interface ConfirmSheetProps {
     open: boolean;
@@ -21,6 +22,8 @@ interface ConfirmSheetProps {
     ada: string | null;
     /** The subject's own description — the context for judging the match. */
     subjectDescription?: string | null;
+    /** The item as written on the official agenda — the text the matcher receives. */
+    agendaItemTitle?: string | null;
     busy: boolean;
     onConfirm: () => void;
     /** Inspect mode: the confirm button assigns, and it needs a selected subject. */
@@ -40,7 +43,7 @@ interface ConfirmSheetProps {
  * at the document itself, not only at metadata. Inspect mode uses the same
  * surface read-first: the admin opens the document, then assigns or dismisses.
  */
-export function ConfirmSheet({ open, onOpenChange, action, destructive, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, busy, onConfirm, confirmDisabled, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
+export function ConfirmSheet({ open, onOpenChange, action, destructive, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, agendaItemTitle, busy, onConfirm, confirmDisabled, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
     const t = useTranslations('admin.decisionsPage.sheet');
     const [pane, setPane] = useState<'document' | 'extraction'>('document');
     useEffect(() => { if (open) setPane('document'); }, [open]);
@@ -49,17 +52,24 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
         : t(`${action}Explain`, { subject: subjectName ?? '', holder: holderName ?? '' });
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="flex w-full flex-col sm:max-w-xl">
+            <SheetContent side="right" className="flex w-full flex-col overflow-y-auto sm:max-w-xl">
                 <SheetHeader>
                     <SheetTitle>{t(`${action}Title`)}</SheetTitle>
                     <SheetDescription>
                         {decisionNumber ? `${decisionNumber} — ` : ''}{decisionTitle ?? ''}
                         {action === 'view' && subjectName && <><br />{explain}</>}
                     </SheetDescription>
+                    {agendaItemTitle?.trim() && (
+                        <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">{t('agendaItemTitleLabel')}</span>{' '}
+                            <span>{agendaItemTitle}</span>
+                        </div>
+                    )}
                     {subjectDescription && (
                         <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                             <span className="font-medium text-foreground">{t('subjectDescriptionLabel')}</span>{' '}
-                            <span className="line-clamp-4">{subjectDescription}</span>
+                            <span>{subjectDescription}</span>
+                            <AIGeneratedBadge className="mt-1 justify-end" />
                         </div>
                     )}
                     {(ada || meetingLink) && (
@@ -98,9 +108,9 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                     </div>
                 )}
                 {extraContent && pane === 'extraction' ? (
-                    <div className="min-h-0 flex-1 overflow-y-auto rounded border p-3">{extraContent}</div>
+                    <div className="h-[60vh] min-h-[320px] shrink-0 overflow-y-auto rounded border p-3">{extraContent}</div>
                 ) : (
-                    <iframe title={t('documentTitle')} src={inlinePdfUrl(pdfUrl)} className="min-h-0 w-full flex-1 rounded border" />
+                    <iframe title={t('documentTitle')} src={inlinePdfUrl(pdfUrl)} className="h-[60vh] min-h-[320px] w-full shrink-0 rounded border" />
                 )}
                 {action !== 'view' && (
                     <div className={`rounded-lg px-3 py-2.5 text-sm ${action === 'unlink' && destructive ? 'bg-red-50 dark:bg-red-950/30 text-red-900 dark:text-red-200' : 'bg-muted/60'}`}>
