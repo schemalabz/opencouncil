@@ -68,7 +68,8 @@ export async function CitySearchForm({ city, subjectCount, locale }: CitySearchF
                 // The placeholder names the city and its subject count, which no
                 // phone-width field can hold. Ellipsis truncation reads as a long
                 // sentence continuing; a hard clip reads as a broken layout.
-                className="h-10 min-w-0 flex-1 truncate bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
+                // 16px on a phone, so focusing it does not make iOS zoom the page.
+                className="h-10 min-w-0 flex-1 truncate bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-[15px]"
             />
             <button
                 type="submit"
