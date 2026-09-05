@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { getNotisRolloutOverview, getNotisRolloutUsers } from '@/lib/db/notis-rollout';
+import { ROLLOUT_PHONE_ISSUE_LABELS } from '@/lib/notifications/phone-eligibility';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { formatNumericDateTime } from '@/lib/formatters/time';
 import { NotisToggleButton } from '@/components/admin/notis/NotisToggleButton';
@@ -68,7 +69,10 @@ export default async function NotisReleasePage(props: {
                             </span>
                         </p>
                         <p className="text-sm text-muted-foreground">
-                            Eligible = has a phone and phone delivery on in at least one city.
+                            Eligible = a mobile number we can message, and phone delivery on in
+                            at least one city. A landline, an invalid number, or a number shared
+                            by two accounts is not. +1 numbers count as eligible but stay out of
+                            batches while Meta refuses marketing templates to the US (131049).
                         </p>
                     </CardContent>
                 </Card>
@@ -112,7 +116,14 @@ export default async function NotisReleasePage(props: {
                                 <div className="font-medium">{user.name ?? '—'}</div>
                                 <div className="text-sm text-muted-foreground">{user.email}</div>
                             </TableCell>
-                            <TableCell>{user.phone ?? '—'}</TableCell>
+                            <TableCell>
+                                {user.phone ?? '—'}
+                                {user.phoneIssue && (
+                                    <Badge variant="outline" className="ml-2 border-red-300 text-red-700">
+                                        {ROLLOUT_PHONE_ISSUE_LABELS[user.phoneIssue]}
+                                    </Badge>
+                                )}
+                            </TableCell>
                             <TableCell className="max-w-56 truncate">
                                 {user.cityNames.join(', ') || '—'}
                             </TableCell>
