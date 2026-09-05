@@ -264,11 +264,11 @@ describe('debounce', () => {
 
     // Call debounced function
     debouncedFn();
-    expect(mockFn).not.toBeCalled();
+    expect(mockFn).not.toHaveBeenCalled();
 
     // Fast-forward time
     jest.advanceTimersByTime(500);
-    expect(mockFn).toBeCalledTimes(1);
+    expect(mockFn).toHaveBeenCalledTimes(1);
   });
 
   it('should reset timer on multiple calls', () => {
@@ -282,11 +282,11 @@ describe('debounce', () => {
     jest.advanceTimersByTime(200);
     debouncedFn();
 
-    expect(mockFn).not.toBeCalled();
+    expect(mockFn).not.toHaveBeenCalled();
 
     // Fast-forward remaining time
     jest.advanceTimersByTime(500);
-    expect(mockFn).toBeCalledTimes(1);
+    expect(mockFn).toHaveBeenCalledTimes(1);
   });
 
   it('should pass arguments to the original function', () => {
@@ -296,7 +296,7 @@ describe('debounce', () => {
     debouncedFn('test', 123);
     jest.advanceTimersByTime(500);
 
-    expect(mockFn).toBeCalledWith('test', 123);
+    expect(mockFn).toHaveBeenCalledWith('test', 123);
   });
 });
 
