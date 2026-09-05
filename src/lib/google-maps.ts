@@ -13,6 +13,13 @@ export type PlaceSuggestion = {
     placeId: string;
 };
 
+// The fields this module reads from a Google autocomplete prediction. The
+// server action passes Google's body through untyped.
+type PlacePrediction = {
+    place_id: string;
+    description: string;
+};
+
 // Error type for API failures
 export type PlaceSuggestionsError = {
     type: 'API_ERROR' | 'NETWORK_ERROR';
@@ -75,7 +82,7 @@ export async function getPlaceSuggestions(
                 data: [],
                 error: {
                     type: 'API_ERROR',
-                    message: response.error || `Google API error: ${response.status}`,
+                    message: `Google API error: ${response.status}${response.error_message ? `: ${response.error_message}` : ''}`,
                     status: response.status
                 }
             };
@@ -83,7 +90,8 @@ export async function getPlaceSuggestions(
 
         // Check if we have valid predictions
         if (response.predictions && Array.isArray(response.predictions)) {
-            const suggestions = response.predictions.map((prediction: any) => ({
+            const predictions: PlacePrediction[] = response.predictions;
+            const suggestions = predictions.map((prediction) => ({
                 id: prediction.place_id,
                 placeId: prediction.place_id,
                 text: prediction.description

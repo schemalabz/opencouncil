@@ -2,10 +2,83 @@
 
 import axios from 'axios';
 import { env } from '@/env.mjs';
+import { cacheHas, cacheSetJSON } from '@/lib/cache/valkey';
+import { sendErrorAdminAlert } from '@/lib/discord';
 import { Result, createSuccess, createError } from '@/lib/result';
 
 // The radius to use for location-based search, in meters (40km)
 const SEARCH_RADIUS = 40000;
+
+// Google answers 200 with the failure in a status field, so a dead API key
+// throws nowhere in the stack. onRequestError never fires, the address field
+// just stops returning results, and the notification signup breaks in silence.
+// An expired key did exactly that in production.
+//
+// These two statuses mean the integration itself is down, not that the query
+// found nothing. REQUEST_DENIED covers an expired, revoked or restricted key.
+const ALERTING_STATUSES = new Set(['REQUEST_DENIED', 'OVER_QUERY_LIMIT']);
+
+// One alert per status per hour. A dead key fails on every debounced keystroke
+// of every visitor, and processFilters geocodes once per candidate city, so an
+// unthrottled alert would bury the channel. The window still repeats while the
+// outage lasts, because one message at 02:00 on a Saturday is easy to miss.
+const ALERT_TTL_SECONDS = 60 * 60;
+const ALERT_INTERVAL_MS = ALERT_TTL_SECONDS * 1000;
+
+// A local gate first, so a dead key does not make a Valkey round trip on every
+// keystroke. The shared marker below is what holds the window across instances.
+const lastAlertedAt = new Map<string, number>();
+
+async function alertOnPlacesOutage(
+    operation: 'suggestions' | 'details',
+    status: string,
+    errorMessage?: string
+): Promise<void> {
+    if (!ALERTING_STATUSES.has(status)) return;
+
+    const now = Date.now();
+    const previous = lastAlertedAt.get(status);
+    if (previous !== undefined && now - previous < ALERT_INTERVAL_MS) return;
+    // Hold the local gate before the await so concurrent requests in this
+    // process do not all reach Discord at once. Released below if the send
+    // fails, so a Discord outage never buys silence about a Google one.
+    lastAlertedAt.set(status, now);
+
+    const message = `Google Places ${operation} returned ${status}${errorMessage ? `: ${errorMessage}` : ''}. Address search is down.`;
+
+    // Match search/hits.ts: keep preview and local runs out of the team channel.
+    // Production is also the only environment that writes the marker below, so
+    // that key cannot collide across environments.
+    if (env.DEPLOYMENT_ENV !== 'production') {
+        console.warn(`[Places] ${message}`);
+        return;
+    }
+
+    // Production runs several instances, so the local gate alone lets each one
+    // alert. This marker makes the window shared, matching the dedup markers in
+    // tasks/pollLivestreams.ts. cacheHas returns false when Valkey is unset or
+    // down, which fails toward alerting: a duplicate message beats a missed
+    // outage. The check and the write are not atomic, so two instances can race
+    // and both alert. That is the same acceptable cost.
+    const dedupKey = `oc:places:outage-alert:${status}`;
+    if (await cacheHas(dedupKey)) return;
+
+    const delivered = await sendErrorAdminAlert({
+        source: 'Google Places',
+        error: message,
+        context: { operation, status },
+    });
+
+    // Suppress the next hour only once the alert is actually out. Discord
+    // swallows its own delivery failures, so writing the marker first would
+    // silence every instance for an hour over an outage nobody heard about.
+    if (!delivered) {
+        lastAlertedAt.delete(status);
+        return;
+    }
+
+    await cacheSetJSON(dedupKey, 1, ALERT_TTL_SECONDS);
+}
 
 /**
  * Server action to get place suggestions from Google Places API
@@ -60,14 +133,14 @@ export async function getPlaceSuggestions(data: {
         });
         console.log('Response status:', response.data.status);
 
-        // Handle different Google API response statuses
-        if (response.data.status === 'ZERO_RESULTS') {
-            // ZERO_RESULTS is not an error, it's a valid response with no results
-            return createSuccess({ status: 'ZERO_RESULTS', predictions: [] });
-        } else if (response.data.status !== 'OK') {
+        // Pass the Google status through rather than collapsing it into an
+        // error string. The caller needs it: it picks the user-facing message
+        // (LocationSelector reads REQUEST_DENIED and OVER_QUERY_LIMIT), and it
+        // decides whether this is an outage. A failed Result now means that
+        // this action failed, not that Google refused the request.
+        if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
             console.error('Google Places API returned non-OK status:', response.data.status);
-            const errorMsg = `Google API error: ${response.data.status}${response.data.error_message ? ': ' + response.data.error_message : ''}`;
-            return createError(errorMsg);
+            await alertOnPlacesOutage('suggestions', response.data.status, response.data.error_message);
         }
 
         return createSuccess(response.data);
@@ -105,10 +178,10 @@ export async function getPlaceDetails(data: { placeId: string; language?: string
             timeout: 5000 // Set timeout to 5 seconds
         });
 
+        // Pass the status through, for the same reason as getPlaceSuggestions.
         if (response.data.status !== 'OK') {
             console.error('Google Places Details API returned non-OK status:', response.data.status);
-            const errorMsg = `Google API error: ${response.data.status}${response.data.error_message ? ': ' + response.data.error_message : ''}`;
-            return createError(errorMsg);
+            await alertOnPlacesOutage('details', response.data.status, response.data.error_message);
         }
 
         return createSuccess(response.data);
