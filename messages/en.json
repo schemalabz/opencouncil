@@ -658,6 +658,7 @@
         "active": "Member"
     },
     "Unsubscribe": {
+        "metaTitle": "Unsubscribe | OpenCouncil",
         "invalidLinkTitle": "Invalid link",
         "invalidLinkDescription": "This unsubscribe link is not valid or has expired.",
         "successCityTitle": "Successfully unsubscribed",

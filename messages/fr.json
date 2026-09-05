@@ -642,6 +642,7 @@
     "watchMeeting": "Regardez la séance"
   },
   "Unsubscribe": {
+    "metaTitle": "Désinscription | OpenCouncil",
     "invalidLinkTitle": "Lien non valide",
     "invalidLinkDescription": "Ce lien de désinscription n'est pas valide ou a expiré.",
     "successCityTitle": "Désinscription réussie",
