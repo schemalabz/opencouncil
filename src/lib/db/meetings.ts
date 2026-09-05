@@ -5,6 +5,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
 import { formatDateAsMeetingId } from '../utils/meetingId';
+import { urlHasYouTubeVideoId } from '../utils/youtube';
 import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
@@ -120,6 +121,40 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     } catch (error) {
         console.error('Error fetching council meeting:', error);
         throw new Error('Failed to fetch council meeting');
+    }
+}
+
+/**
+ * Finds a released council meeting whose stored youtubeUrl carries the given
+ * YouTube video id. The SQL predicates only narrow the candidate set; each
+ * candidate URL is then parsed, so an id sitting inside a playlist parameter or
+ * at the start of a longer path segment never counts as a match. When several
+ * meetings share the same video (e.g. re-uploads), the most recent one wins.
+ */
+export async function findCouncilMeetingByYouTubeVideoId(
+    videoId: string
+): Promise<{ cityId: string; id: string } | null> {
+    // YouTube video IDs are always exactly 11 base64url characters.
+    if (!videoId || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) return null;
+
+    try {
+        const candidates = await prisma.councilMeeting.findMany({
+            where: {
+                released: true,
+                OR: [
+                    { youtubeUrl: { contains: `v=${videoId}` } },
+                    { youtubeUrl: { contains: `/${videoId}` } },
+                ],
+            },
+            orderBy: [{ dateTime: 'desc' }, { createdAt: 'desc' }],
+            select: { cityId: true, id: true, youtubeUrl: true },
+        });
+
+        const meeting = candidates.find(candidate => urlHasYouTubeVideoId(candidate.youtubeUrl, videoId));
+        return meeting ? { cityId: meeting.cityId, id: meeting.id } : null;
+    } catch (error) {
+        console.error('Error finding council meeting by YouTube video id:', error);
+        throw new Error('Failed to find council meeting by YouTube video id');
     }
 }
 
