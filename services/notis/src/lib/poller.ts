@@ -1,5 +1,6 @@
 import type { MeetingEventRow, PrismaClient as MainViewsClient } from "../../generated/main-client";
 import type { Prisma, PrismaClient } from "../../generated/client";
+import { normalizeMobilePhone } from "@opencouncil/ui/lib/phone";
 import { editorialPass } from "@/agent/editorialPass";
 import { seedProfileFromPreferences } from "@/agent/profileSeed";
 import { renderTemplate } from "@/agent/templates";
@@ -57,6 +58,9 @@ export interface PollerResult {
   reason?: string;
   enrolled: number;
   introsSent: number;
+  /** Flagged users not enrolled because their phone cannot receive WhatsApp,
+   *  or already belongs to another active subscription. They retry every tick. */
+  enrollmentHeld: number;
   phonesRefreshed: number;
   phoneGoneUnsubscribed: number;
   scheduledFired: number;
@@ -97,6 +101,7 @@ const emptyResult = (ran: boolean, reason?: string): PollerResult => ({
   ...(reason ? { reason } : {}),
   enrolled: 0,
   introsSent: 0,
+  enrollmentHeld: 0,
   phonesRefreshed: 0,
   phoneGoneUnsubscribed: 0,
   scheduledFired: 0,
@@ -221,9 +226,28 @@ async function enrollNewTargets(
   }
 
   const rendered = renderTemplate("demos_transition");
+  const held: string[] = [];
   for (const [userId, rows] of byUser) {
-    const phone = normalizePhone(rows[0].phone);
-    if (!phone) continue;
+    const raw = normalizePhone(rows[0].phone);
+    if (!raw) continue;
+    // The last gate before a number that reaches nobody becomes a
+    // subscription that can never be re-enrolled. The main app applies the
+    // same rule on every write; held users retry every tick, so a repair
+    // there takes effect here on its own.
+    const parsed = normalizeMobilePhone(raw);
+    if (!parsed.ok) {
+      held.push(`${userId} (${parsed.reason})`);
+      continue;
+    }
+    const phone = parsed.e164;
+    const holder = await db.notisSubscription.findFirst({
+      where: { phone, status: "active", NOT: { userId } },
+      select: { userId: true },
+    });
+    if (holder) {
+      held.push(`${userId} (phone already on ${holder.userId})`);
+      continue;
+    }
     const cities = toCityPreferences(rows);
     const at = now();
 
@@ -278,7 +302,22 @@ async function enrollNewTargets(
       result.introsSent++;
     }
   }
+
+  result.enrollmentHeld = held.length;
+  // A held user stays held until someone fixes the number, and the poller
+  // ticks every five minutes — so each one is reported once per process,
+  // not every tick.
+  const fresh = held.filter((entry) => !heldAlerted.has(entry));
+  if (fresh.length > 0) {
+    for (const entry of fresh) heldAlerted.add(entry);
+    await alert(
+      `enrollment held for ${fresh.length} flagged user(s) whose phone cannot receive WhatsApp — fix it in the main app and the next tick enrolls them: ${fresh.join(", ")}`,
+    );
+  }
 }
+
+/** Held-enrollment entries already reported, for the life of the process. */
+const heldAlerted = new Set<string>();
 
 /**
  * Phase (b) — reconciliation for existing subscriptions: refresh phone and

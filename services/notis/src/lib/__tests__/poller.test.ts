@@ -237,6 +237,79 @@ describe("enrollment", () => {
     expect(intro).toMatchObject({ status: "sent", template: "demos_transition", proactive: true });
   });
 
+  it("repairs a Greek mobile behind a bare plus and enrolls it with its country code", async () => {
+    const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
+    const bird = new FakeBird();
+    // The shape the old phone input let through (2026-09-05 audit).
+    const main = makeFakeMain({ targets: [target("user-bare", "athens", { phone: "+6943472297" })] });
+
+    const result = await runPollerTick({ db, main, bird, alert: async () => {}, now });
+
+    expect(result.enrolled).toBe(1);
+    expect([...db.store.subscriptions.values()][0].phone).toBe("+306943472297");
+    expect(bird.created[0].phone).toBe("+306943472297");
+  });
+
+  it("holds a landline instead of enrolling it into silence, and says so once", async () => {
+    const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
+    const bird = new FakeBird();
+    const main = makeFakeMain({
+      targets: [target("user-landline", "athens", { phone: "+302106459454" })],
+    });
+    const alerts: string[] = [];
+    const alert = async (m: string) => {
+      alerts.push(m);
+    };
+
+    const first = await runPollerTick({ db, main, bird, alert, now });
+    const second = await runPollerTick({ db, main, bird, alert, now });
+
+    // No subscription, no intro: the user stays enrollable once the number is fixed.
+    expect(first.enrolled).toBe(0);
+    expect(first.enrollmentHeld).toBe(1);
+    expect(second.enrollmentHeld).toBe(1);
+    expect(db.store.subscriptions.size).toBe(0);
+    expect(bird.created).toHaveLength(0);
+    const held = alerts.filter((m) => m.includes("user-landline (landline)"));
+    expect(held).toHaveLength(1);
+  });
+
+  it("holds a phone that already belongs to another active subscription", async () => {
+    const db = makeFakeDb({
+      settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }],
+      subscriptions: [
+        {
+          id: "sub-first",
+          userId: "user-first",
+          phone: "+33749306027",
+          status: "active",
+          origin: "transition",
+          profileText: "x",
+        },
+      ],
+    });
+    const bird = new FakeBird();
+    const main = makeFakeMain({
+      targets: [target("user-second", "athens", { phone: "+33749306027" })],
+    });
+    const alerts: string[] = [];
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird,
+      alert: async (m) => {
+        alerts.push(m);
+      },
+      now,
+    });
+
+    expect(result.enrolled).toBe(0);
+    expect(result.enrollmentHeld).toBe(1);
+    expect(db.store.subscriptions.size).toBe(1);
+    expect(alerts.some((m) => m.includes("user-second (phone already on user-first)"))).toBe(true);
+  });
+
   it("paused (the default, no settings rows): the enrollment phase is skipped entirely", async () => {
     const db = makeFakeDb();
     const main = makeFakeMain({ targets: [target("user9", "athens")] });

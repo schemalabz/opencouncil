@@ -92,9 +92,21 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
           if (w.status !== undefined && s.status !== w.status) return false;
           return true;
         }),
-      findFirst: async ({ where }: { where: { phone: { in: string[] } } }) =>
-        [...store.subscriptions.values()].find((s) => where.phone.in.includes(s.phone as string)) ??
-        null,
+      findFirst: async ({
+        where,
+      }: {
+        where: { phone: string | { in: string[] }; status?: string; NOT?: { userId: string } };
+      }) =>
+        [...store.subscriptions.values()].find((s) => {
+          const phoneMatches =
+            typeof where.phone === "string"
+              ? s.phone === where.phone
+              : where.phone.in.includes(s.phone as string);
+          if (!phoneMatches) return false;
+          if (where.status !== undefined && s.status !== where.status) return false;
+          if (where.NOT && s.userId === where.NOT.userId) return false;
+          return true;
+        }) ?? null,
       create: async ({ data }: { data: Row }) => {
         const row: Row = { id: id("sub"), status: "active", unsubscribedAt: null, ...data };
         store.subscriptions.set(row.id as string, row);
