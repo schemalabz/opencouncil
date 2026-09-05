@@ -1279,6 +1279,9 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                     subjectDescription={'subjectId' in sheetAction && sheetAction.subjectId
                         ? subjects.find(s => s.id === sheetAction.subjectId)?.description ?? null
                         : null}
+                    agendaItemTitle={'subjectId' in sheetAction && sheetAction.subjectId
+                        ? subjects.find(s => s.id === sheetAction.subjectId)?.agendaItemTitle ?? null
+                        : null}
                     busy={sheetBusy}
                     extraContent={sheetAction.action === 'view' ? renderExtractedDetails(sheetAction.subjectId) : undefined}
                     onConfirm={confirmPending}

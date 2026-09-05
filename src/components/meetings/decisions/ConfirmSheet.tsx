@@ -21,6 +21,8 @@ interface ConfirmSheetProps {
     ada: string | null;
     /** The subject's own description — the context for judging the match. */
     subjectDescription?: string | null;
+    /** The item as written on the official agenda — the text the matcher receives. */
+    agendaItemTitle?: string | null;
     busy: boolean;
     onConfirm: () => void;
     /** Inspect mode: the confirm button assigns, and it needs a selected subject. */
@@ -40,7 +42,7 @@ interface ConfirmSheetProps {
  * at the document itself, not only at metadata. Inspect mode uses the same
  * surface read-first: the admin opens the document, then assigns or dismisses.
  */
-export function ConfirmSheet({ open, onOpenChange, action, destructive, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, busy, onConfirm, confirmDisabled, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
+export function ConfirmSheet({ open, onOpenChange, action, destructive, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, agendaItemTitle, busy, onConfirm, confirmDisabled, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
     const t = useTranslations('admin.decisionsPage.sheet');
     const [pane, setPane] = useState<'document' | 'extraction'>('document');
     useEffect(() => { if (open) setPane('document'); }, [open]);
@@ -56,6 +58,12 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                         {decisionNumber ? `${decisionNumber} — ` : ''}{decisionTitle ?? ''}
                         {action === 'view' && subjectName && <><br />{explain}</>}
                     </SheetDescription>
+                    {agendaItemTitle?.trim() && (
+                        <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">{t('agendaItemTitleLabel')}</span>{' '}
+                            <span className="line-clamp-4">{agendaItemTitle}</span>
+                        </div>
+                    )}
                     {subjectDescription && (
                         <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                             <span className="font-medium text-foreground">{t('subjectDescriptionLabel')}</span>{' '}

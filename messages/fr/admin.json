@@ -265,6 +265,7 @@
       "tabExtraction": "Détails de la décision",
       "close": "Fermer",
       "subjectDescriptionLabel": "Description du sujet :",
+      "agendaItemTitleLabel": "Intitulé à l'ordre du jour :",
       "reassignTitle": "Déplacer la décision",
       "reassignExplain": "La décision sera déplacée vers « {subject} ». « {holder} » restera sans décision."
     },
