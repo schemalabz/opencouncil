@@ -20,6 +20,7 @@
         "aiGenerated": "Текст генерисан вештачком интелигенцијом",
         "skipToContent": "Пређите на главни садржај",
         "search": "Претрага",
+        "clearSearch": "Обриши претрагу",
         "collapse": "Скупи",
         "filter": "Филтер: {label}",
         "municipalityMap": "Мапа општине",
@@ -46,8 +47,8 @@
         "locationDetailsError": "Грешка при преузимању детаља локације.",
         "allTopics": "Све категорије",
         "allMeetings": "Све",
-        "adminBodyType_council": "Скупштине",
-        "adminBodyType_committee": "Одбори",
+        "adminBodyType_council": "Скупштина",
+        "adminBodyType_committee": "Одбор",
         "adminBodyType_community": "Заједнице",
         "allPeople": "Сви",
         "allBodies": "Сва",
@@ -79,9 +80,17 @@
         "about": "За општине",
         "search": "Претрага",
         "mcp": "OpenCouncil MCP",
+        "mcpShort": "MCP",
         "login": "Пријавите се",
         "notificationsBreadcrumb": "Обавештења",
-        "petitionBreadcrumb": "Подржите своју општину"
+        "petitionBreadcrumb": "Подржите своју општину",
+        "explain": "Водич кроз локалну самоуправу",
+        "explainShort": "Водич",
+        "canEditHint": "Све што промените одмах се објављује.",
+        "canEditAuthority": {
+            "municipality": "Можете да уређујете град {qualifier}",
+            "region": "Можете да уређујете регион {qualifier}"
+        }
     },
     "Footer": {
         "tagline": "Изграђено са поштовањем и уважавањем локалне самоуправе.",
@@ -209,15 +218,28 @@
             "externalLink": "Спољашња веза (отвара се у новој картици)",
             "activeLabel": "Активна (видљива свим корисницима)",
             "inactiveDescription": "Неактивне поруке видљиве су само суперадминистраторима ради прегледа."
-        }
+        },
+        "sectionIdentity": "Подаци о граду",
+        "sectionIdentityHint": "Назив, тип власти и логотип",
+        "sectionSettings": "Подешавања",
+        "sectionSettingsHint": "Адреса, временска зона, обавештења, јавне расправе, Диавгеиа",
+        "administrativeBodiesHint": "Скупштина, одбори и месне заједнице",
+        "adminSettingsHint": "Статус, дозволе, држава и језик"
     },
     "City": {
         "addCouncilMeeting": "Додај седницу скупштине",
         "councilMeetingsTracked": "{count, plural, =0 {Нема седница скупштине на OpenCouncil-у} one {# седница скупштине на OpenCouncil-у} few {# седнице скупштине на OpenCouncil-у} other {# седница скупштине на OpenCouncil-у}}",
         "councilMeetings": "Седнице скупштине",
+        "overview": "Преглед",
         "people": "Особе",
         "parties": "Одборничке групе",
         "consultations": "Јавне расправе",
+        "map": "Мапа",
+        "mapSubjectsHeading": "Теме на мапи",
+        "mapOpenFullMap": "Отвори целу мапу",
+        "mapEmptyWindow": "Ништа није разматрано у последња {months} месеца. Цела мапа иде даље у прошлост.",
+        "mapNoneInView": "Нема тема у овом делу мапе.",
+        "mapResetView": "Ресетуј приказ",
         "membersComingSoon": "Чланови ће ускоро бити доступни",
         "partiesComingSoon": "Одборничке групе ће ускоро бити доступне",
         "addCity": "Додај град",
@@ -230,19 +252,14 @@
         "filterByAdminBody": "Филтрирај по управном телу",
         "citySections": "Секције града",
         "widget": "Виџет",
-        "notificationsCta": {
-            "title": "Останите информисани",
-            "subtitle": "Можемо да вам пошаљемо поруку кад год скупштина расправља о нечему што се тиче вашег краја!",
-            "manageTitle": "Управљајте обавештењима",
-            "manageSubtitle": "Већ примате обавештења од ове скупштине. Своја подешавања можете да ажурирате или да у било ком тренутку зауставите обавештења.",
-            "manageAction": "Идите на страницу за управљање обавештењима"
-        },
-        "petitionCta": "Затражите подршку своје општине/града",
         "supportBadgeOfficialAthens": "Уз подршку града и компаније ДАЕМ",
         "supportBadgeOfficialMunicipality": "Уз подршку општине/града",
         "supportBadgeOfficialRegion": "Уз подршку округа",
         "supportBadgeUnofficialMunicipality": "Без званичне подршке општине/града",
-        "supportBadgeUnofficialRegion": "Без званичне подршке округа"
+        "supportBadgeUnofficialRegion": "Без званичне подршке округа",
+        "supportBadgeShortOfficial": "Званична подршка",
+        "supportBadgeShortUnofficial": "Без званичне подршке",
+        "supportBadgeLearnMore": "Ко плаћа OpenCouncil?"
     },
     "EmbedConfigurator": {
         "title": "Виџет за ваш веб-сајт",
@@ -440,27 +457,10 @@
         "derivedFields": "Изведени називи"
     },
     "TranscriptOptions": {
-        "title": "Опције транскрипта",
-        "editMode": {
-            "label": "Режим уређивања",
-            "description": "Омогућите режим уређивања текста транскрипта"
-        },
-        "highlightUncertain": {
-            "label": "Истакни несигурне речи",
-            "description": "Истакните речи са ниском поузданошћу препознавања"
-        },
         "maxUtteranceDrift": {
             "label": "Максимално одступање исказа",
             "description": "Максимално дозвољено временско одступање за сваки исказ, у секундама"
-        },
-        "playbackTitle": "Подешавања репродукције",
-        "playbackDescription": "Подешавања за репродукцију видеа",
-        "playbackSpeedLabel": "Брзина репродукције",
-        "playbackSpeedDescription": "Прилагодите брзину репродукције видеа",
-        "transcriptTitle": "Подешавања транскрипта",
-        "transcriptDescription": "Подешавања транскрипта",
-        "advancedTitle": "Напредна подешавања",
-        "advancedDescription": "Техничка подешавања за напредне кориснике"
+        }
     },
     "Chat": {
         "items": "Повезане теме о којима се расправљало ({count})"
@@ -856,11 +856,11 @@
     },
     "Person": {
         "partyLeader": "Шеф одборничке групе",
+        "formerMembers": "Бивши чланови",
         "mayor": "Градоначелник",
         "president": "Председник",
         "member": "Члан",
         "partyLeaderShort": "Шеф групе",
-        "history": "Историја",
         "items": "{count, plural, =0 {Нема чланова} one {# члан} few {# члана} other {# чланова}}",
         "addItem": "Додај члана",
         "noItems": "На платформи OpenCouncil нема чланова.",
@@ -874,12 +874,10 @@
         "englishRole": "Улога (на енглеском)",
         "activeFrom": "Активан од",
         "activeTo": "Активан до",
-        "searchForPerson": "Претражите транскрипте повезане са овим чланом",
         "searchItems": "Претрага чланова",
         "activeUntil": "Члан до",
         "active": "Члан",
         "item": "члан",
-        "loadingSegments": "Учитавање недавних изјава...",
         "noSegmentsFound": "Нису пронађене изјаве",
         "loading": "Учитавање...",
         "loadMore": "Учитај још",
@@ -887,7 +885,14 @@
         "tryDifferentFilter": "Покушајте да промените филтере",
         "breadcrumbHome": "Почетна",
         "independentCouncilMember": "Независни одборник",
-        "biography": "Биографија"
+        "biography": "Биографија",
+        "moreRoles": "+{count} још",
+        "present": "данас",
+        "statementsFact": "{count, plural, one {# излагање} few {# излагања} other {# излагања}}",
+        "speakingFact": "{minutes}′ укупног говора",
+        "rolesCard": "Улоге",
+        "topTopicsCard": "Најчешће теме",
+        "pastTerms": "Претходни мандати ({count})"
     },
     "Party": {
         "currentMembers": "Тренутни чланови",
@@ -897,13 +902,11 @@
         "editParty": "Измени одборничку групу",
         "deleteParty": "Обриши одборничку групу",
         "partyDeleted": "Одборничка група {name} је обрисана",
-        "searchInParty": "Претражите изјаве одборничке групе {partyName}",
         "items": "{count, plural, =0 {Нема одборничких група} one {# одборничка група} few {# одборничке групе} other {# одборничких група}}",
         "searchItems": "Претрага одборничких група",
         "item": "одборничка група",
         "addItem": "Додај одборничку групу",
         "noItems": "На платформи OpenCouncil нема одборничких група.",
-        "loadingSegments": "Учитавање недавних изјава...",
         "noSegmentsFound": "Нису пронађене изјаве",
         "loading": "Учитавање...",
         "loadMore": "Учитај још",
@@ -912,15 +915,15 @@
         "leaderLabel": "Шеф групе: ",
         "breadcrumbHome": "Почетна",
         "tabPeople": "Особе",
-        "tabPeopleShort": "Чланови",
         "tabSegments": "Изјаве",
-        "tabSegmentsShort": "Изјаве",
         "breakdownMayor": "Градоначелник",
         "breakdownCouncil": "{count} у скупштини",
         "breakdownCommittees": "{count} у одборима",
         "breakdownCommunities": "{count} у месним заједницама",
         "breakdownOthers": "{count, plural, one {# остали} few {# остала} other {# осталих}}",
-        "peopleWithoutParties": "Особе изван одборничких група:"
+        "peopleWithoutParties": "Особе изван одборничких група:",
+        "compositionCard": "Састав",
+        "membersTotal": "{count, plural, one {# члан укупно} few {# члана укупно} other {# чланова укупно}}"
     },
     "MeetingStatus": {
         "scheduled": "Заказана",
@@ -977,7 +980,8 @@
         "failedToSave": "Чување није успело",
         "unexpectedError": "Дошло је до неочекиване грешке",
         "confirmDelete": "Да ли сте сигурни да желите да обришете ово административно тело?",
-        "failedToDelete": "Брисање није успело"
+        "failedToDelete": "Брисање није успело",
+        "delete": "Обриши"
     },
     "RSS": {
         "title": "Најновија ажурирања - {city}",
@@ -1063,6 +1067,10 @@
         "introducer": "Известилац",
         "summary": "Сажетак",
         "statements": "Изјаве",
+        "watchDiscussion": "Погледајте расправу",
+        "discussionCard": "Расправа",
+        "partiesCount": "{count, plural, one {# одборничка група} few {# одборничке групе} other {# одборничких група}}",
+        "locationCardTitle": "Локација",
         "statementsCount": "{count, plural, one {# изјава} few {# изјаве} other {# изјава}}",
         "noContributions": "Нема учешћа говорника",
         "unknownSpeaker": "Непознат говорник",
@@ -1096,7 +1104,7 @@
         "decisionNumber": "Број одлуке",
         "protocolNumber": "Број протокола",
         "publishDate": "Датум објављивања",
-        "viewDecision": "Погледајте одлуку на платформи Diavgeia",
+        "viewDecision": "Преглед одлуке",
         "voting": "Гласање",
         "votingSource": "Подаци о гласању преузети су из одлуке на платформи Diavgeia",
         "votingDisclaimer": "Резултати гласања се, када су доступни, издвајају из одлука на платформи Diavgeia",
@@ -1120,7 +1128,11 @@
         "notApprovedLong": "Тема није усвојена као хитна.",
         "withdrawnShort": "Повучено",
         "withdrawnLong": "Тема је повучена и није разматрана.",
-        "minutesCount": "{count, plural, one {# минут} few {# минута} other {# минута}}"
+        "minutesCount": "{count, plural, one {# минут} few {# минута} other {# минута}}",
+        "previousSubject": "Претходна тачка",
+        "nextSubject": "Следећа тачка",
+        "noDecisionBeforeAgenda": "Тачке покренуте пре дневног реда никада немају одлуку.",
+        "learnWhy": "Сазнајте зашто"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Нема седница} one {# седница} few {# седнице} other {# седница}}",
@@ -1142,11 +1154,9 @@
         "next": "Следећа",
         "agendaDocument": "Дневни ред",
         "subjectsCount": "{count, plural, =0 {Нема тема} one {# тема} few {# теме} other {# тема}}",
-        "availableSoon": "Седница ће ускоро бити доступна",
         "notificationComing": "Ускоро ћете добити обавештење о темама расправе",
-        "subscribeForSubjects": "Пријавите се на обавештења да бисте добијали теме расправе пре и после седница",
-        "scheduledFor": "Седница ће се одржати {when}",
-        "watchMeeting": "Пратите седницу"
+        "previousMeeting": "Претходна седница",
+        "nextMeeting": "Следећа седница"
     },
     "ProductUpdates": {
         "triggerButton": "Пошаљи новости о производу",

@@ -6,11 +6,15 @@ import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronDown, Filter } from 'lucide-react';
+import Icon from '@/components/icon';
+import { topicStyle } from '@/lib/topicStyle';
 
 export interface BadgePickerOption<T extends string> {
     value: T;
     label: string;
     color?: string;
+    /** A lucide glyph for the option (topics have one); options without keep the plain dot. */
+    icon?: string | null;
 }
 
 interface BadgePickerProps<T extends string> {
@@ -153,18 +157,22 @@ function BadgeButtons<T extends string>({
     inline: boolean;
 }) {
     const isAllSelected = selectedValues.length === 0;
+    // Explicit radii: the theme sets --radius to 0, so `rounded-md` renders square
+    // chips beside cards that are rounded-2xl.
     const badgeClass = inline
-        ? "h-9 px-3 rounded-md shadow-sm text-xs"
-        : "h-7 px-2.5 rounded-full shadow-sm text-xs";
+        ? "h-8 px-3 rounded-full text-xs"
+        : "h-7 px-2.5 rounded-full text-xs";
 
     return (
         <div className="flex flex-wrap gap-1.5">
             <Button
-                variant={isAllSelected ? "default" : "outline"}
+                variant={isAllSelected ? "default" : "ghost"}
                 size="sm"
                 className={cn(
                     badgeClass,
-                    isAllSelected ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/50"
+                    isAllSelected
+                        ? "bg-foreground text-background hover:bg-foreground"
+                        : "text-muted-foreground hover:!bg-foreground/[0.06] hover:text-foreground"
                 )}
                 onClick={onSelectAll}
                 aria-pressed={isAllSelected}
@@ -176,31 +184,39 @@ function BadgeButtons<T extends string>({
                 return (
                     <Button
                         key={option.value}
-                        variant={isSelected ? "default" : "outline"}
+                        variant={isSelected ? "default" : "ghost"}
                         size="sm"
                         className={cn(
                             badgeClass,
                             "flex items-center gap-1.5",
                             isSelected
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-background hover:bg-muted/50"
+                                ? "bg-foreground text-background hover:bg-foreground"
+                                : "text-muted-foreground hover:!bg-foreground/[0.06] hover:text-foreground"
                         )}
                         onClick={() => onToggle(option.value)}
                         aria-pressed={isSelected}
                         style={
                             option.color
                                 ? isSelected
-                                    ? { backgroundColor: option.color, borderColor: option.color, color: '#fff' }
+                                    ? { backgroundColor: option.color, borderColor: option.color, color: topicStyle(option.color, 'solid').icon }
                                     : { borderColor: `${option.color}40` }
                                 : undefined
                         }
                     >
-                        {option.color && (
+                        {option.icon ? (
+                            // The topic's own glyph, inked the way every TopicIcon inks it —
+                            // the raw hex is too light for a 14px stroke on white.
+                            <Icon
+                                name={option.icon}
+                                size={14}
+                                color={isSelected ? topicStyle(option.color, 'solid').icon : topicStyle(option.color).icon}
+                            />
+                        ) : option.color && (
                             <div
                                 className="w-1.5 h-1.5 rounded-full"
                                 aria-hidden="true"
                                 style={{
-                                    backgroundColor: isSelected ? '#fff' : option.color
+                                    backgroundColor: isSelected ? topicStyle(option.color, 'solid').icon : option.color
                                 }}
                             />
                         )}

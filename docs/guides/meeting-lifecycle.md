@@ -177,7 +177,7 @@ sequenceDiagram
 *   **Cache Management**:
     *   `src/lib/cache/queries.ts` (cache invalidation via Next.js API routes)
     *   `src/lib/cache/index.ts` (createCache utility with performance logging)
-    *   Cached queries: `getMeetingDataCached()`, `getCouncilMeetingsForCityCached()`, `getCityCached()`, `getMeetingStatusCached()`
+    *   Cached queries: `getMeetingDataCached()`, `getCouncilMeetingsPreviewCached()`, `getCityCached()`, `getMeetingStatusCached()`
 *   **Context Providers**:
     *   `src/components/meetings/CouncilMeetingDataContext.tsx` (central data provider with speaker management)
     *   `src/components/meetings/VideoProvider.tsx` (video playback state and seeking operations)

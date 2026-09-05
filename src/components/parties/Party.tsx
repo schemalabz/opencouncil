@@ -1,5 +1,6 @@
 'use client';
 import { useTranslations } from 'next-intl';
+import { captureEvent } from '@/lib/analytics/capture';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import FormSheet from '../FormSheet';
 import PartyForm from './PartyForm';
@@ -7,29 +8,42 @@ import { City, Person, Role, AdministrativeBody, AdministrativeBodyType } from '
 import { ImageOrInitials } from '../ImageOrInitials';
 import { Button } from '../ui/button';
 import { PartyWithPersons } from '@/lib/db/parties';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
-import { Search, Users, FileText } from "lucide-react";
-import { Input } from '../ui/input';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
 import { getLatestContributionsForParty } from '@/lib/db/contributions';
 import { ContributionForPerson } from '@/lib/db/types';
-import { ContributionCard } from '@/components/meetings/subject/ContributionCard';
+import { ContributionCard, ContributionCardSkeleton } from '@/components/meetings/subject/ContributionCard';
 import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
-import { filterActiveRoles, filterInactiveRoles, formatDateRange, isRoleActive, getActivePartyRole, getDateRangeFromRoles } from '@/lib/utils';
+import { filterActiveRoles, formatDateRange, isRoleActive, getDateRangeFromRoles } from '@/lib/utils';
+import { isActivePartyMember, isPartyRole } from '@/lib/utils/roles';
 import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
 import { BadgePicker } from '../ui/badge-picker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PersonWithRelations } from '@/lib/db/people';
 import PartyMemberRankingSheet from './PartyMemberRankingSheet';
+import { AdminStrip, AdminToolButton, adminToolClass } from '@/components/admin/AdminStrip';
+import { RailCard, RailMeterRow } from '@/components/ui/rail-card';
+import { EntityHeader, FactDot } from '@/components/EntityHeader';
+import { ContributionsHead } from '@/components/ContributionsHead';
+import { GoverningPartyChip } from '@/components/parties/GoverningPartyChip';
+import { partyComposition } from '@/lib/party/composition';
 
 type RoleWithPerson = Role & {
     person: Person;
 };
+
+/**
+ * An underline tab trigger: no box, no fill — a 2px rule in the site's deep
+ * orange under the active label. Overrides the boxed default of ui/tabs.
+ */
+const underlineTabClass =
+    '-mb-px rounded-none no-underline hover:no-underline border-b-2 border-transparent bg-transparent px-0 pb-2.5 pt-0 text-sm font-semibold text-muted-foreground shadow-none ' +
+    'data-[state=active]:border-[hsl(var(--orange-deep))] data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none';
 
 // Party Members Tab Component
 function PartyMembersTab({
@@ -50,17 +64,17 @@ function PartyMembersTab({
     const [isRankingSheetOpen, setIsRankingSheetOpen] = useState(false);
     const [selectedTypes, setSelectedTypes] = useState<AdministrativeBodyType[]>([]);
 
-    // Get administrative body types that party members belong to
-    const partyMembers = useMemo(() =>
-        people.filter(person =>
-            person.roles.some(role => role.partyId === party.id)
-        ),
+    // The picker sits in the current-members header and offers the bodies those
+    // members sit on. Built from everyone ever in the party, it offered a body no
+    // sitting member holds — a chip that filters the list down to nothing.
+    const currentMembers = useMemo(() =>
+        people.filter(person => isActivePartyMember(person, party.id)),
         [people, party.id]
     );
 
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople(partyMembers, tCommon),
-        [partyMembers, tCommon]
+        getAdministrativeBodyTypesForPeople(currentMembers, tCommon),
+        [currentMembers, tCommon]
     );
 
     // Filter people based on selected admin body types
@@ -70,73 +84,61 @@ function PartyMembersTab({
 
     // Filter people to only include those with active party roles
     const activePeople = useMemo(() =>
-        people.filter(person =>
-            person.roles.some(role =>
-                role.partyId === party.id &&
-                isRoleActive(role)
-            ) && filterByAdminBodyType(person)
-        ),
+        people.filter(person => isActivePartyMember(person, party.id) && filterByAdminBodyType(person)),
         [people, party.id, filterByAdminBodyType]);
 
     // Filter people to only include those with inactive party roles
     const inactivePeople = useMemo(() =>
         people.filter(person =>
-            person.roles.some(role =>
-                role.partyId === party.id &&
-                !isRoleActive(role)
-            ) && filterByAdminBodyType(person)
+            person.roles.some(role => isPartyRole(role, party.id) && !isRoleActive(role))
+            && filterByAdminBodyType(person)
         ),
         [people, party.id, filterByAdminBodyType]);
 
     return (
         <div className="space-y-8">
-            {/* Administrative Body Type Filter - only show if there's more than one */}
-            {typeOptions.length > 1 && (
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                >
-                    <BadgePicker
-                        options={typeOptions}
-                        selectedValues={selectedTypes}
-                        onSelectionChange={setSelectedTypes}
-                        allLabel={tCommon('allPeople')}
-                        className="items-center"
-                    />
-                </motion.div>
-            )}
-
             {/* Current Members Section */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
             >
-                <div className="flex items-center justify-between mb-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                        <Users className="h-5 w-5 text-primary" />
-                        <h2 className="text-lg sm:text-xl font-semibold">{t('currentMembers')}</h2>
+                        <h2 className="!m-0 !text-left">{t('currentMembers')}</h2>
                         <span className="text-sm text-muted-foreground">({activePeople.length})</span>
                     </div>
-                    {canEdit && city.peopleOrdering === 'partyRank' && (
-                        <>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setIsRankingSheetOpen(true)}
-                            >
-                                {t('changeMemberOrdering')}
-                            </Button>
-                            <PartyMemberRankingSheet
-                                open={isRankingSheetOpen}
-                                onOpenChange={setIsRankingSheetOpen}
-                                party={party}
-                                people={people}
-                                cityId={city.id}
+                    <div className="flex flex-wrap items-center gap-3">
+                        {typeOptions.length > 1 && (
+                            <BadgePicker
+                                options={typeOptions}
+                                selectedValues={selectedTypes}
+                                onSelectionChange={values => {
+                                    captureEvent('profile_filter', { page: 'party', kind: 'body_scope', value_id: values[0] ?? null, active: values.length > 0, city_id: city.id });
+                                    setSelectedTypes(values);
+                                }}
+                                allLabel={tCommon('allPeople')}
                             />
-                        </>
-                    )}
+                        )}
+                        {canEdit && city.peopleOrdering === 'partyRank' && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setIsRankingSheetOpen(true)}
+                                >
+                                    {t('changeMemberOrdering')}
+                                </Button>
+                                <PartyMemberRankingSheet
+                                    open={isRankingSheetOpen}
+                                    onOpenChange={setIsRankingSheetOpen}
+                                    party={party}
+                                    people={people}
+                                    cityId={city.id}
+                                />
+                            </>
+                        )}
+                    </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {sortPartyMembers(activePeople, party.id, true)
@@ -145,6 +147,7 @@ function PartyMembersTab({
                                 key={person.id}
                                 item={person}
                                 editable={canEdit}
+                                analyticsSurface="party_members"
                             />
                         ))}
                 </div>
@@ -157,7 +160,7 @@ function PartyMembersTab({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
                 >
-                    <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('pastMembers')} ({inactivePeople.length})</h2>
+                    <h2 className="mb-4">{t('pastMembers')} ({inactivePeople.length})</h2>
                     <div className="space-y-3">
                         {sortInactivePartyMembers(inactivePeople, party.id)
                             .map(person => (
@@ -183,11 +186,13 @@ function PartyMembersTab({
                                             <div className="min-w-0 flex-1">
                                                 <div className="font-medium text-sm sm:text-base truncate">{person.name}</div>
                                                 <div className="text-xs sm:text-sm text-muted-foreground">
+                                                    {/* History-wide by design: this row is a past member, and
+                                                        every role it describes has ended. */}
                                                     {person.roles
-                                                        .filter(role => role.partyId === party.id)
+                                                        .filter(role => isPartyRole(role, party.id))
                                                         .some(role => role.isHead) && t('partyLeader')}
                                                     {person.roles
-                                                        .filter(role => role.partyId === party.id && role.name)
+                                                        .filter(role => isPartyRole(role, party.id) && role.name)
                                                         .map(role => role.name)
                                                         .join(', ')}
                                                 </div>
@@ -195,7 +200,7 @@ function PartyMembersTab({
                                         </Link>
                                         <span className="text-xs text-muted-foreground text-right flex-shrink-0">
                                             {(() => {
-                                                const partyRoles = person.roles.filter(role => role.partyId === party.id);
+                                                const partyRoles = person.roles.filter(role => isPartyRole(role, party.id));
                                                 const { startDate, endDate } = getDateRangeFromRoles(partyRoles);
                                                 return formatDateRange(startDate, endDate, tCommon);
                                             })()}
@@ -212,7 +217,6 @@ function PartyMembersTab({
 
 // Segments Tab Component
 function SegmentsTab({
-    party,
     typeOptions,
     selectedType,
     onSelectType,
@@ -225,7 +229,6 @@ function SegmentsTab({
     handleSearch,
     allLabel
 }: {
-    party: PartyWithPersons,
     typeOptions: { value: AdministrativeBodyType; label: string }[],
     selectedType: AdministrativeBodyType | null,
     onSelectType: (type: AdministrativeBodyType | null) => void,
@@ -239,6 +242,7 @@ function SegmentsTab({
     allLabel: string
 }) {
     const t = useTranslations('Party');
+    const tCommon = useTranslations('Common');
 
     const selectedValues = selectedType ? [selectedType] : [];
     const handleSelectionChange = (values: AdministrativeBodyType[]) => {
@@ -246,50 +250,40 @@ function SegmentsTab({
     };
 
     return (
-        <div className="space-y-8">
-            {/* Search Section */}
-            <motion.form
-                onSubmit={handleSearch}
-                className="relative"
+        <div className="space-y-4">
+            <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+                transition={{ delay: 0.1 }}
             >
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder={t('searchInParty', { partyName: party.name })}
-                    className="pl-10 h-10 sm:h-12 text-sm sm:text-base"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                <ContributionsHead
+                    title={t('recentContributions')}
+                    count={totalCount}
+                    placeholder={tCommon('search')}
+                    searchValue={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    onSearchSubmit={handleSearch}
                 />
-            </motion.form>
+            </motion.div>
 
-            {/* Administrative Body Type Filter - only show if there's more than one */}
             {typeOptions.length > 1 && (
                 <BadgePicker
                     options={typeOptions}
                     selectedValues={selectedValues}
                     onSelectionChange={handleSelectionChange}
                     allLabel={allLabel}
-                    className="items-center"
                 />
             )}
 
-            {/* Recent Segments Section */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
+                transition={{ delay: 0.3 }}
                 className="relative"
             >
-                <h2 className="text-lg sm:text-xl font-semibold mb-4">{t('recentContributions')}</h2>
-
                 {isLoadingContributions && contributions.length === 0 ? (
-                    <div className="flex justify-center items-center py-12 border rounded-lg bg-card/50">
-                        <div className="flex flex-col items-center space-y-4">
-                            <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-                            <p className="text-xs sm:text-sm text-muted-foreground">{t('loadingSegments')}</p>
-                        </div>
+                    <div className="space-y-3 sm:space-y-4" aria-busy>
+                        {[0, 1, 2].map(i => <ContributionCardSkeleton key={i} />)}
                     </div>
                 ) : (
                     <div className="space-y-3 sm:space-y-4">
@@ -313,6 +307,9 @@ function SegmentsTab({
                                         adminBodyName: contribution.subject.councilMeeting.administrativeBody?.name ?? null,
                                         meetingDate: contribution.subject.councilMeeting.dateTime,
                                         subjectName: contribution.subject.name,
+                                        agendaItemIndex: contribution.subject.agendaItemIndex,
+                                        nonAgendaReason: contribution.subject.nonAgendaReason,
+                                        withdrawn: contribution.subject.withdrawn,
                                         topic: contribution.subject.topic
                                             ? {
                                                 name: contribution.subject.topic.name,
@@ -322,6 +319,7 @@ function SegmentsTab({
                                             : null,
                                     }}
                                     showPlayButton={false}
+                                    sourcePage="party"
                                 />
                             </motion.div>
                         ))}
@@ -342,7 +340,10 @@ function SegmentsTab({
 
                 {!isLoadingContributions && contributions.length < totalCount && (
                     <Button
-                        onClick={() => setPage(prevPage => prevPage + 1)}
+                        onClick={() => {
+                            captureEvent('profile_load_more', { page: 'party', loaded_count: contributions.length, total_count: totalCount });
+                            setPage(prevPage => prevPage + 1);
+                        }}
                         variant="outline"
                         className="mt-6 w-full sm:w-auto"
                         disabled={isLoadingContributions}
@@ -367,6 +368,8 @@ export default function PartyC({ city, party, administrativeBodies }: {
 }) {
     const t = useTranslations('Party');
     const tCommon = useTranslations('Common');
+    const tOverview = useTranslations('cityOverview');
+    const tCity = useTranslations('City');
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [contributions, setContributions] = useState<ContributionForPerson[]>([]);
@@ -385,11 +388,12 @@ export default function PartyC({ city, party, administrativeBodies }: {
         [persons, tCommon]
     );
 
-    // Create roles with person objects for compatibility with existing code
+    // Create roles with person objects for compatibility with existing code.
+    // Every party role, ended ones included — filterActiveRoles narrows them below.
     const rolesWithPersons = useMemo(() => {
         return persons.flatMap(person =>
             person.roles
-                .filter(role => role.partyId === party.id)
+                .filter(role => isPartyRole(role, party.id))
                 .map(role => ({
                     ...role,
                     person: person
@@ -397,12 +401,20 @@ export default function PartyC({ city, party, administrativeBodies }: {
         ) as RoleWithPerson[];
     }, [persons, party.id]);
 
-    // Split roles into active and inactive
     const activeRoles = useMemo(() => filterActiveRoles(rolesWithPersons), [rolesWithPersons]);
-    const inactiveRoles = useMemo(() => filterInactiveRoles(rolesWithPersons), [rolesWithPersons]);
 
     // Find the current party leader
     const partyLeader = useMemo(() => activeRoles.find((role: RoleWithPerson) => role.isHead), [activeRoles]);
+
+    // Seats per body and the governing-party standing — the same derivation the
+    // city overview's cards run, so the two surfaces can never disagree.
+    const composition = useMemo(() => partyComposition(party), [party]);
+    const compositionRows = useMemo(() => [
+        { key: 'council', label: tCommon('adminBodyType_council'), count: composition.council },
+        { key: 'committee', label: tCommon('adminBodyType_committee'), count: composition.committee },
+        { key: 'community', label: tCommon('adminBodyType_community'), count: composition.community },
+    ].filter(row => row.count > 0), [composition, tCommon]);
+    const compositionMax = Math.max(1, ...compositionRows.map(row => row.count));
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -458,6 +470,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
+        captureEvent('profile_search', { page: 'party', query_length: searchQuery.length, city_id: city.id });
         const params = new URLSearchParams();
         params.set('query', searchQuery);
         params.set('partyId', party.id);
@@ -490,6 +503,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
 
     // Handler for admin body type selection
     const handleAdminBodyTypeSelect = (type: AdministrativeBodyType | null) => {
+        captureEvent('profile_filter', { page: 'party', kind: 'body_scope', value_id: type, active: type !== null, city_id: city.id });
         setSelectedAdminBodyType(type);
     };
 
@@ -517,131 +531,180 @@ export default function PartyC({ city, party, administrativeBodies }: {
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
                             <BreadcrumbItem>
+                                <BreadcrumbLink asChild>
+                                    <Link href={`/${city.id}/parties`}>{tCity('parties')}</Link>
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
                                 <BreadcrumbLink href={`/${city.id}/parties/${party.id}`}>{party.name}</BreadcrumbLink>
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
 
-                    {/* Hero Section */}
-                    <div className="flex flex-col gap-6 sm:gap-8 pb-6 sm:pb-8 border-b">
-                        <motion.div
-                            className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.5 }}
-                        >
-                            <div className="flex-shrink-0">
-                                <div className="relative w-20 h-20 sm:w-24 sm:h-24 mx-auto">
-                                    <ImageOrInitials
-                                        imageUrl={party.logo}
-                                        name={party.name_short}
-                                        color={party.colorHex}
-                                        width={96}
-                                        height={96}
-                                        square={true}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex-1 min-w-0 space-y-3 text-center sm:text-left">
-                                <motion.h1
-                                    className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight break-words"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.2 }}
-                                >
-                                    {party.name}
-                                </motion.h1>
+                    {/* Identity band: the party as a colour — its logo, or a washed
+                        tile of its initials in the same wash/ink derivation the topic
+                        chips use — then its standing and the seat facts a reader can
+                        compare across parties. Admin controls sit in the hazard-striped
+                        corner every back-of-house control now uses. */}
+                    <EntityHeader
+                        avatar={(
+                            <span className="block h-[84px] w-[84px] shrink-0">
+                                <ImageOrInitials
+                                    imageUrl={party.logo}
+                                    name={party.name_short || party.name}
+                                    color={party.colorHex}
+                                    width={84}
+                                    height={84}
+                                    square
+                                    variant="wash"
+                                />
+                            </span>
+                        )}
+                        name={party.name}
+                        badges={(composition.hasMayor || partyLeader) && (
+                            <>
+                                {composition.hasMayor && <GoverningPartyChip colorHex={party.colorHex} />}
                                 {partyLeader && (
-                                    <motion.div
-                                        className="text-sm sm:text-base"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ delay: 0.25 }}
-                                    >
+                                    <span className="inline-flex items-center gap-1.5 text-sm">
                                         <span className="text-muted-foreground">{t('leaderLabel')}</span>
                                         <Link
                                             href={`/${city.id}/people/${partyLeader.person.id}`}
-                                            className="hover:underline text-primary font-medium"
+                                            className="font-medium hover:underline"
                                         >
                                             {partyLeader.person.name}
                                         </Link>
-                                    </motion.div>
+                                    </span>
                                 )}
-                                <motion.div
-                                    className="text-sm sm:text-base text-muted-foreground"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.3 }}
-                                >
-                                    {t('membersCount', { count: persons.length })}
-                                </motion.div>
-                            </div>
-                        </motion.div>
-
-                        {canEdit && (
-                            <motion.div
-                                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.5 }}
-                            >
+                            </>
+                        )}
+                        facts={(
+                            <>
+                                <span>
+                                    <span className="font-bold tabular-nums" style={{ color: party.colorHex }}>{composition.council}</span>
+                                    {' '}
+                                    {tOverview('seatsInCouncil', { count: composition.council })}
+                                </span>
+                                {composition.committee > 0 && (
+                                    <>
+                                        <FactDot />
+                                        <span>{tOverview('inCommittees', { count: composition.committee })}</span>
+                                    </>
+                                )}
+                                {composition.community > 0 && (
+                                    <>
+                                        <FactDot />
+                                        <span>{tOverview('inCommunities', { count: composition.community })}</span>
+                                    </>
+                                )}
+                                <FactDot />
+                                <span>{t('membersCount', { count: composition.members.length })}</span>
+                            </>
+                        )}
+                        admin={canEdit && (
+                            <AdminStrip className="shrink-0 self-start">
                                 <FormSheet
                                     FormComponent={PartyForm}
                                     formProps={{ party, cityId: city.id }}
                                     title={t('editParty')}
                                     type="edit"
+                                    triggerVariant="ghost"
+                                    triggerSize="sm"
+                                    triggerClassName={adminToolClass}
                                 />
-                                <Button variant="destructive" onClick={onDelete} className="sm:w-auto">
+                                <AdminToolButton destructive onClick={onDelete}>
                                     {t('deleteParty')}
-                                </Button>
-                            </motion.div>
+                                </AdminToolButton>
+                            </AdminStrip>
                         )}
-                    </div>
+                    />
 
-                    {/* Tabs */}
-                    <Tabs defaultValue="people" className="space-y-6">
-                        <div className="flex justify-center">
-                            <TabsList className="grid w-full max-w-md grid-cols-2 h-auto p-1 bg-muted/50">
-                                <TabsTrigger value="people" className="text-xs sm:text-sm py-2 px-3">
-                                    <Users className="h-4 w-4 mr-1 sm:mr-2" />
-                                    <span className="hidden xs:inline">{t('tabPeople')}</span>
-                                    <span className="xs:hidden">{t('tabPeopleShort')}</span>
+                    {/* Main and rail: the tabs carry the roster and the record, the
+                        rail keeps the party's composition and its επικεφαλής in view
+                        whichever tab is open. Underline triggers, not boxed ones — the
+                        two views are peers, not modes. */}
+                    <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10">
+                        <Tabs defaultValue="people" className="min-w-0">
+                            <TabsList className="h-auto w-full justify-start gap-6 overflow-x-visible rounded-none border-b border-border bg-transparent p-0">
+                                <TabsTrigger value="people" className={underlineTabClass}>
+                                    {t('tabPeople')}
+                                    <span className="ml-1.5 font-normal text-muted-foreground">({composition.members.length})</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="contributions" className="text-xs sm:text-sm py-2 px-3">
-                                    <FileText className="h-4 w-4 mr-1 sm:mr-2" />
-                                    <span className="hidden sm:inline">{t('tabSegments')}</span>
-                                    <span className="sm:hidden">{t('tabSegmentsShort')}</span>
+                                <TabsTrigger value="contributions" className={underlineTabClass}>
+                                    {t('tabSegments')}
+                                    {totalCount > 0 && <span className="ml-1.5 font-normal text-muted-foreground">({totalCount})</span>}
                                 </TabsTrigger>
                             </TabsList>
-                        </div>
 
-                        <TabsContent value="people" className="mt-6">
-                            <PartyMembersTab
-                                city={city}
-                                party={party}
-                                people={persons}
-                                canEdit={canEdit}
-                                administrativeBodies={administrativeBodies}
-                            />
-                        </TabsContent>
+                            <TabsContent value="people" className="mt-6">
+                                <PartyMembersTab
+                                    city={city}
+                                    party={party}
+                                    people={persons}
+                                    canEdit={canEdit}
+                                    administrativeBodies={administrativeBodies}
+                                />
+                            </TabsContent>
 
-                        <TabsContent value="contributions" className="mt-6">
-                            <SegmentsTab
-                                party={party}
-                                typeOptions={typeOptions}
-                                selectedType={selectedAdminBodyType}
-                                onSelectType={handleAdminBodyTypeSelect}
-                                contributions={contributions}
-                                isLoadingContributions={isLoadingContributions}
-                                totalCount={totalCount}
-                                setPage={setPage}
-                                searchQuery={searchQuery}
-                                setSearchQuery={setSearchQuery}
-                                handleSearch={handleSearch}
-                                allLabel={tCommon('allMeetings')}
-                            />
-                        </TabsContent>
-                    </Tabs>
+                            <TabsContent value="contributions" className="mt-6">
+                                <SegmentsTab
+                                    typeOptions={typeOptions}
+                                    selectedType={selectedAdminBodyType}
+                                    onSelectType={handleAdminBodyTypeSelect}
+                                    contributions={contributions}
+                                    isLoadingContributions={isLoadingContributions}
+                                    totalCount={totalCount}
+                                    setPage={setPage}
+                                    searchQuery={searchQuery}
+                                    setSearchQuery={setSearchQuery}
+                                    handleSearch={handleSearch}
+                                    allLabel={tCommon('allMeetings')}
+                                />
+                            </TabsContent>
+                        </Tabs>
+
+                        <aside className="min-w-0 space-y-4 lg:pt-[2.6rem]">
+                            <RailCard title={t('compositionCard')}>
+                                <ul className="space-y-3">
+                                    {compositionRows.map(row => (
+                                        <RailMeterRow
+                                            key={row.key}
+                                            label={row.label}
+                                            value={row.count}
+                                            ratio={row.count / compositionMax}
+                                            color={party.colorHex}
+                                        />
+                                    ))}
+                                </ul>
+                                <div className="mt-3 border-t border-border pt-2.5 text-[12px] text-muted-foreground">
+                                    {t('membersTotal', { count: composition.members.length })}
+                                </div>
+                            </RailCard>
+
+                            {partyLeader && (
+                                <RailCard title={t('partyLeader')}>
+                                    <Link
+                                        href={`/${city.id}/people/${partyLeader.person.id}`}
+                                        onClick={() => captureEvent('person_opened', { surface: 'party_leader', city_id: city.id, person_id: partyLeader.person.id })}
+                                        className="group flex items-center gap-3 hover:no-underline"
+                                    >
+                                        <span className="block h-11 w-11 shrink-0">
+                                            <ImageOrInitials
+                                                imageUrl={partyLeader.person.image}
+                                                name={partyLeader.person.name}
+                                                color={party.colorHex}
+                                                width={44}
+                                                height={44}
+                                            />
+                                        </span>
+                                        <span className="min-w-0 text-sm font-semibold transition-colors group-hover:text-[hsl(var(--orange))]">
+                                            {partyLeader.person.name}
+                                        </span>
+                                    </Link>
+                                </RailCard>
+                            )}
+                        </aside>
+                    </div>
                 </motion.div>
             </div>
         </div>

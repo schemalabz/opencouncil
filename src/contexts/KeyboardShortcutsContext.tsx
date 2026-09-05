@@ -8,6 +8,8 @@ export interface KeyboardAction {
     description: string;
     keys: string[]; // e.g., ['Control+s', 'Meta+s']
     handler?: KeyboardActionHandler;
+    /** Bare arrows belong to reading (scroll) unless focus sits in the playback dock. */
+    requiresPlaybackFocus?: boolean;
 }
 
 interface KeyboardShortcutsContextType {
@@ -43,22 +45,26 @@ const ACTION_DEFINITIONS: Record<string, Omit<KeyboardAction, 'handler'>> = {
     SEEK_PREVIOUS: {
         id: 'SEEK_PREVIOUS',
         description: 'Seek to previous utterance or 5s back',
-        keys: ['ArrowLeft']
+        keys: ['ArrowLeft'],
+        requiresPlaybackFocus: true
     },
     SEEK_NEXT: {
         id: 'SEEK_NEXT',
         description: 'Seek to next utterance or 5s forward',
-        keys: ['ArrowRight']
+        keys: ['ArrowRight'],
+        requiresPlaybackFocus: true
     },
     SPEED_UP: {
         id: 'SPEED_UP',
         description: 'Increase playback speed',
-        keys: ['ArrowUp']
+        keys: ['ArrowUp'],
+        requiresPlaybackFocus: true
     },
     SPEED_DOWN: {
         id: 'SPEED_DOWN',
         description: 'Decrease playback speed',
-        keys: ['ArrowDown']
+        keys: ['ArrowDown'],
+        requiresPlaybackFocus: true
     },
     SKIP_BACKWARD: {
         id: 'SKIP_BACKWARD',
@@ -91,8 +97,31 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
+            // A component that already handled this key (the timeline slider's
+            // arrows, for example) wins over the global shortcuts.
+            if (event.defaultPrevented) {
+                return;
+            }
             // Ignore if input/textarea is focused (unless it's a special modifier command we want to allow globally)
             if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+            if (event.target instanceof HTMLElement && event.target.isContentEditable) {
+                return;
+            }
+            const inPlaybackDock = event.target instanceof HTMLElement
+                && event.target.closest('[data-playback-focus]') !== null;
+            // Keys mean something else on interactive controls: Space activates a
+            // focused button, arrows move menus, selects, sliders and tab lists.
+            const onInteractiveControl = event.target instanceof HTMLElement && (
+                event.target instanceof HTMLSelectElement ||
+                event.target instanceof HTMLButtonElement ||
+                event.target.closest('[role="menu"], [role="menubar"], [role="listbox"], [role="slider"], [role="tablist"], [role="combobox"]') !== null
+            );
+            // The dock is all buttons and one slider, so this return would reject
+            // every key the dock's own actions claim. It defers to the per-action
+            // check below there, and keeps its verdict everywhere else.
+            if (onInteractiveControl && !inPlaybackDock) {
                 return;
             }
 
@@ -119,6 +148,17 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
                 });
 
                 if (isMatch) {
+                    // Bare arrows stay scroll keys while reading; they drive
+                    // playback only when focus sits inside the dock (or the
+                    // floating player). Space stays global.
+                    if (action.requiresPlaybackFocus && !inPlaybackDock) {
+                        continue;
+                    }
+                    // Inside the dock only the arrow actions outrank the control
+                    // under focus: Space still activates the focused button.
+                    if (onInteractiveControl && !action.requiresPlaybackFocus) {
+                        continue;
+                    }
                     const handler = handlers.current.get(action.id);
                     if (handler) {
                         event.preventDefault();

@@ -1,4 +1,5 @@
 import posthog from 'posthog-js';
+import { posthogReady } from '@/lib/utils/analyticsConsent';
 
 /**
  * Landing (v2) analytics. Events are namespaced `landing_*` and carry shared context (device,
@@ -16,6 +17,7 @@ export function setLandingContext(patch: Partial<LandingContext>): void {
 
 /** Capture a landing event (non-interaction — e.g. the initial view, a prompt being shown). */
 export function captureLanding(event: string, props: Record<string, unknown> = {}): void {
+    if (!posthogReady()) return;
     posthog.capture(`landing_${event}`, { ...context, ...props });
 }
 
@@ -24,6 +26,9 @@ export function captureLanding(event: string, props: Record<string, unknown> = {
  * (with `action_type`), so the "first action" funnel needs no per-handler plumbing.
  */
 export function captureLandingAction(event: string, props: Record<string, unknown> = {}): void {
+    // Guarded here as well as in captureLanding, so a dropped call does not spend
+    // the session's one first_action on an event PostHog never received.
+    if (!posthogReady()) return;
     if (!firstActionFired) {
         firstActionFired = true;
         posthog.capture('landing_first_action', { ...context, action_type: event });

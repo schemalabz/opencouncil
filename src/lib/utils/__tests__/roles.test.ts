@@ -1,5 +1,5 @@
 import { Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt } from '../roles';
+import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember } from '../roles';
 import { RoleWithRelations } from '@/lib/db/types';
 
 function makeRole(overrides: Partial<Role> & { party?: Party | null } = {}): Role & { party?: Party | null; cityId?: string | null } {
@@ -637,5 +637,70 @@ describe('getRoleLabelAt', () => {
   it('returns null when no role is active', () => {
     expect(getRoleLabelAt(undefined, roleT, meetingDate)).toBeNull();
     expect(getRoleLabelAt([makeFullRole({ endDate: new Date('2020-06-01') })], roleT, meetingDate)).toBeNull();
+  });
+});
+
+describe('party membership predicates', () => {
+  const PARTY = 'party-1';
+  const ended = { startDate: null, endDate: new Date('2024-01-01') };
+
+  /**
+   * A defector: the party role ended, the council seat did not. Real roles are one
+   * or the other — validateRoles forbids a role carrying both a partyId and an
+   * administrativeBodyId — so leaving a παράταξη lapses only the party role, and
+   * getPartiesForCity still returns the person under the party.
+   */
+  const defector = {
+    roles: [
+      makeRole({ id: 'left-party', partyId: PARTY, ...ended }),
+      makeRole({ id: 'seat', administrativeBodyId: 'council' }),
+    ],
+  };
+  const sittingMember = { roles: [makeRole({ id: 'member', partyId: PARTY })] };
+
+  describe('isPartyRole', () => {
+    it('matches a role in the party whether or not it has ended', () => {
+      expect(isPartyRole(makeRole({ partyId: PARTY }), PARTY)).toBe(true);
+      expect(isPartyRole(makeRole({ partyId: PARTY, ...ended }), PARTY)).toBe(true);
+    });
+
+    it('rejects a role in another party and a role in none', () => {
+      expect(isPartyRole(makeRole({ partyId: 'party-2' }), PARTY)).toBe(false);
+      expect(isPartyRole(makeRole({ administrativeBodyId: 'council' }), PARTY)).toBe(false);
+    });
+  });
+
+  describe('isActivePartyRole', () => {
+    it('rejects a party role that has ended', () => {
+      expect(isActivePartyRole(makeRole({ partyId: PARTY, ...ended }), PARTY)).toBe(false);
+    });
+
+    it('rejects an active role that belongs to another party', () => {
+      expect(isActivePartyRole(makeRole({ partyId: 'party-2' }), PARTY)).toBe(false);
+    });
+
+    it('accepts a party role with no end date', () => {
+      expect(isActivePartyRole(makeRole({ partyId: PARTY }), PARTY)).toBe(true);
+    });
+  });
+
+  describe('isActivePartyMember', () => {
+    it('counts a sitting member', () => {
+      expect(isActivePartyMember(sittingMember, PARTY)).toBe(true);
+    });
+
+    it('does not count a councillor who has left the party', () => {
+      expect(isActivePartyMember(defector, PARTY)).toBe(false);
+    });
+
+    it('counts someone whose ended term is followed by a current one', () => {
+      const reelected = {
+        roles: [
+          makeRole({ id: 'last-term', partyId: PARTY, ...ended }),
+          makeRole({ id: 'this-term', partyId: PARTY, startDate: new Date('2024-01-01') }),
+        ],
+      };
+      expect(isActivePartyMember(reelected, PARTY)).toBe(true);
+    });
   });
 });

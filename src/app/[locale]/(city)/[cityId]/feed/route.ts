@@ -32,6 +32,9 @@ export async function GET(
         return new NextResponse(t('cityNotFound'), { status: 404 });
     }
 
+    // The full include, not the card projection: each item's HTML content lists
+    // every subject with its description, so the feed reads the prose the card
+    // surfaces deliberately leave behind.
     const meetings = await getCouncilMeetingsForCityPublicCached(cityId, { limit });
 
     // The feed is served on the realm's domain and its default locale (el for

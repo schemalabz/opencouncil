@@ -14,7 +14,8 @@
         "enableEdit": "Укључите режим уређивања",
         "guide": "Водич",
         "speakers": "Говорници",
-        "completeReview": "Завршите преглед"
+        "completeReview": "Завршите преглед",
+        "editShort": "Уређивање"
     },
     "stats": {
         "title": "Говорници"

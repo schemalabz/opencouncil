@@ -13,6 +13,9 @@ import { createCache } from '../cache/index';
 // one) so it is never a directly-callable action. createCouncilMeeting wraps it
 // with the auth check.
 import { createCouncilMeetingDirect } from './meetingsCreate';
+// The list reads live in a server-only module so they are never callable
+// actions: each takes `includeUnreleased` from its caller. Types only here.
+export type { CouncilMeetingWithAdminBodyAndSubjects, CouncilMeetingWithSubjectPreview, MeetingListOptions } from './meetingsList';
 
 const meetingWithAdminBodyInclude = {
     administrativeBody: true,
@@ -22,23 +25,7 @@ export type CouncilMeetingWithAdminBody = Prisma.CouncilMeetingGetPayload<{
     include: typeof meetingWithAdminBodyInclude
 }>;
 
-const meetingWithSubjectsInclude = {
-    subjects: {
-        orderBy: [
-            { agendaItemIndex: 'asc' as const },
-            { name: 'asc' as const },
-        ],
-        include: {
-            topic: true,
-            _count: { select: { contributions: true } },
-        },
-    },
-    administrativeBody: true,
-} satisfies Prisma.CouncilMeetingInclude;
 
-export type CouncilMeetingWithAdminBodyAndSubjects = Prisma.CouncilMeetingGetPayload<{
-    include: typeof meetingWithSubjectsInclude
-}>;
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
@@ -120,57 +107,6 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     } catch (error) {
         console.error('Error fetching council meeting:', error);
         throw new Error('Failed to fetch council meeting');
-    }
-}
-
-export async function getCouncilMeetingsForCity(cityId: string, { includeUnreleased, limit, page, pageSize = 12, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter }: { includeUnreleased?: boolean; limit?: number; page?: number; pageSize?: number; from?: Date; to?: Date; administrativeBodyTypes?: AdministrativeBodyType[]; administrativeBodyIds?: string[]; timeFilter?: 'upcoming' | 'past' } = {}): Promise<CouncilMeetingWithAdminBodyAndSubjects[]> {
-
-    try {
-        // Calculate pagination
-        const skip = page ? (page - 1) * pageSize : undefined;
-        const take = page ? pageSize : limit;
-
-        // Build dateTime filter. An explicit from/to range and timeFilter are
-        // independent constraints, so they intersect. Only `past` and `to` set
-        // the same bound, and there the earlier of the two wins.
-        const now = new Date();
-        const upperBound = timeFilter === 'past'
-            ? (to && to < now ? to : now)
-            : to;
-        const dateTimeFilter = {
-            ...(timeFilter === 'upcoming' && { gt: now }),
-            ...(from && { gte: from }),
-            ...(upperBound && { lte: upperBound }),
-        };
-
-        // Specific bodies (ids) take precedence over the broader type filter.
-        let bodyFilter: Prisma.CouncilMeetingWhereInput = {};
-        if (administrativeBodyIds && administrativeBodyIds.length > 0) {
-            bodyFilter = { administrativeBodyId: { in: administrativeBodyIds } };
-        } else if (administrativeBodyTypes && administrativeBodyTypes.length > 0) {
-            bodyFilter = { administrativeBody: { type: { in: administrativeBodyTypes } } };
-        }
-
-        // First, get meetings with subjects and basic relationships
-        const meetings = await prisma.councilMeeting.findMany({
-            where: {
-                cityId,
-                released: includeUnreleased ? undefined : true,
-                ...(Object.keys(dateTimeFilter).length > 0 && { dateTime: dateTimeFilter }),
-                ...bodyFilter,
-            },
-            orderBy: timeFilter === 'upcoming'
-                ? [{ dateTime: 'asc' }, { createdAt: 'asc' }]
-                : [{ dateTime: 'desc' }, { createdAt: 'desc' }],
-            ...(skip !== undefined && { skip }),
-            ...(take && { take }),
-            include: meetingWithSubjectsInclude,
-        });
-
-        return meetings;
-    } catch (error) {
-        console.error('Error fetching council meetings for city:', error);
-        throw new Error('Failed to fetch council meetings for city');
     }
 }
 

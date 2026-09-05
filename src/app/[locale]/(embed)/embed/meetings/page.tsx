@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
-import { getCityCached, getCouncilMeetingsForCityPublicCached } from '@/lib/cache';
+import { getCityCached, getCouncilMeetingsPreviewPublicCached } from '@/lib/cache';
 import { EmbedMeetingCard } from '@/components/embed/EmbedMeetingCard';
 import { EmbedFooter } from '@/components/embed/EmbedFooter';
 import { parseEmbedConfig, type EmbedSearchParams } from '@/lib/utils/embedParams';
@@ -35,8 +35,8 @@ export default async function EmbedMeetingsPage(props: EmbedMeetingsPageProps) {
     // Two queries are correct: a single DESC query would cut off the nearest upcoming
     // meetings when there are more upcoming than `limit`.
     const [upcomingAll, pastAll] = await Promise.all([
-        getCouncilMeetingsForCityPublicCached(cityId, { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'upcoming' }),
-        getCouncilMeetingsForCityPublicCached(cityId, { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past' }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'upcoming' }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past' }),
     ]);
 
     // Prioritize upcoming; fill remaining slots with past meetings.

@@ -162,7 +162,10 @@ const SelectItem = React.forwardRef<
     <SelectPrimitive.Item
       ref={ref}
       className={cn(
-        "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        // Radix marks the pointed-at and the arrowed-to row with data-highlighted, so that variant
+        // carries the same neutral wash as focus — the sky-blue accent here made a Select disagree
+        // with every DropdownMenu and ContextMenu on the same screen.
+        "relative flex w-full cursor-default select-none items-center rounded-[6px] py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-foreground/[0.06] focus:text-foreground data-[highlighted]:bg-foreground/[0.06] data-[highlighted]:text-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className
       )}
       onFocus={handleFocus}

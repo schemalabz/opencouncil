@@ -58,8 +58,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport = {
     width: 'device-width',
     initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
+    // No maximumScale and no userScalable: false. Both were added to stop iOS
+    // zooming the page when a reader focuses an input, which it does whenever
+    // the field is under 16px — the form controls carry that size themselves
+    // now, so the lock has no job. It also never did that job: Safari has
+    // ignored user-scalable since iOS 10. What it did do was deny pinch-zoom
+    // on Android, which is WCAG 1.4.4 and not ours to take from a reader.
     // The app has no dark theme — `darkMode: ["class"]` is configured but the class is never
     // applied. Without a declared color scheme, Chrome's Auto Dark Theme (and Samsung Internet,
     // and in-app WebViews) assume the page simply hasn't been updated and algorithmically invert

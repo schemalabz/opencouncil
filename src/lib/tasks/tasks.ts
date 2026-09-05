@@ -315,6 +315,9 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
 function shouldRevalidateForTaskType(taskType: MeetingTaskType): boolean {
     // Only revalidate for tasks that affect meeting data that would be displayed in lists
     const revalidationTaskTypes = [
+        // The cached list previews read which tasks succeeded for the public
+        // stage; without this the cards say "transcribing" until the summary.
+        'transcribe',
         'summarize',
         'processAgenda',
         'pollDecisions',

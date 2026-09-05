@@ -1,35 +1,47 @@
 "use client";
-import { useTranslations } from 'next-intl';
-import { useMemo } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AdministrativeBodyType } from '@prisma/client';
 import List from '@/components/List';
-import MeetingCard from '@/components/meetings/MeetingCard';
+import MeetingCardV2 from '@/components/meetings/MeetingCardV2';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
-import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
+import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { getAdministrativeBodyTypesForMeetings, filterMeetingByAdminBodyTypes, getBodiesOfTypeFromMeetings } from '@/lib/utils/administrativeBodies';
 import { PaginationParams } from '@/lib/db/types';
 import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
+import { getLocalizedName } from '@/lib/formatters/name';
 
 type CityMeetingsProps = {
-    councilMeetings: CouncilMeetingWithAdminBodyAndSubjects[],
+    councilMeetings: CouncilMeetingWithSubjectPreview[],
     cityId: string,
     timezone: string,
     canEdit: boolean,
-} & Partial<PaginationParams>;
+} & Pick<PaginationParams, 'pageSize'>;
 
 export default function CityMeetings({
     councilMeetings,
     cityId,
     timezone,
     canEdit,
-    currentPage,
     pageSize
 }: CityMeetingsProps) {
     const t = useTranslations('CouncilMeeting');
     const tCommon = useTranslations('Common');
+    const locale = useLocale();
     const searchParams = useSearchParams();
+
+    // The subject titles are already on the card's preview, and they are what a
+    // reader remembers a meeting by far more often than its number.
+    const searchKeys = useCallback((meeting: CouncilMeetingWithSubjectPreview) => [
+        meeting.name,
+        meeting.name_en,
+        getLocalizedName(meeting, locale),
+        meeting.administrativeBody?.name,
+        meeting.administrativeBody?.name_en,
+        ...meeting.subjects.map(subject => subject.name),
+    ], [locale]);
 
     const typeOptions = useMemo(() =>
         getAdministrativeBodyTypesForMeetings(councilMeetings, tCommon),
@@ -66,10 +78,10 @@ export default function CityMeetings({
     }, [searchParams, councilMeetings, typeOptions]);
 
     return (
-        <List<CouncilMeetingWithAdminBodyAndSubjects, { cityTimezone: string }, AdministrativeBodyType>
+        <List<CouncilMeetingWithSubjectPreview, { cityTimezone: string }, AdministrativeBodyType>
             items={councilMeetings}
             editable={canEdit}
-            ItemComponent={MeetingCard}
+            ItemComponent={MeetingCardV2}
             itemProps={{ cityTimezone: timezone }}
             FormComponent={AddMeetingForm}
             formProps={{ cityId }}
@@ -103,10 +115,15 @@ export default function CityMeetings({
                     />
                 );
             }}
+            // A quiet filter over the loaded rows. The identity band's field is
+            // the page's search, and it searches transcripts instead.
+            searchKeys={searchKeys}
+            showCount
             smColumns={1}
             mdColumns={2}
-            lgColumns={3}
-            pagination={currentPage && pageSize ? { currentPage, pageSize } : undefined}
+            // Two at the widest as well: the same card truncates at a third of this column.
+            lgColumns={2}
+            pagination={{ pageSize }}
         />
     );
 }

@@ -1,12 +1,13 @@
 import { AdministrativeBody, City, CouncilMeeting } from "@prisma/client";
+import { useSubjectBarHover } from '@/components/meetings/bar/BarHighlightContext';
 import { Statistics } from "@/lib/statistics";
 import { SubjectWithRelations } from "@/lib/db/subject";
-import { Card } from "@/components/ui/card";
+import { surfaceCardClass } from "@/components/ui/surface-card";
 import { TopicIcon } from "@/components/TopicIcon";
 import { PersonAvatarList } from "@/components/persons/PersonAvatarList";
 import { subjectCardStats } from "@/lib/subjectCardStats";
 import { subjectDisplayedSpeakers } from "@/lib/subjectSpeakers";
-import { getAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
+import { getAgendaFullLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
 import { PersonWithRelations } from "@/lib/db/people";
 import { stripMarkdown } from "@/lib/formatters/markdown";
@@ -14,11 +15,13 @@ import { formatDate } from "@/lib/formatters/time";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { cn } from "@/lib/utils";
+import type { PendingKind } from "@/lib/meetingStage";
 import { topicStyle } from "@/lib/topicStyle";
 import { Clock, Loader2, MapPin, MessageSquare, ScrollText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+
 
 interface SubjectRowProps {
     subject: SubjectWithRelations & { statistics?: Statistics };
@@ -27,6 +30,8 @@ interface SubjectRowProps {
     persons: PersonWithRelations[];
     /** Show the city / body / date line — off when the row already sits inside a meeting. */
     showContext?: boolean;
+    /** What a row says in place of the stats it does not have yet — the meeting's stage decides. */
+    pending?: PendingKind | null;
     openInNewTab?: boolean;
     /** The row was opened. Fires for a new tab too, where the Link navigates itself. */
     onOpen?: () => void;
@@ -48,10 +53,11 @@ function MetaItem({ icon: Icon, children }: { icon: typeof MapPin; children: Rea
  * speaking stats, speakers), laid out horizontally. A result list then reads top to bottom,
  * one result per line, instead of as a grid of tiles.
  */
-export function SubjectRow({ subject, city, meeting, persons, showContext = true, openInNewTab, onOpen }: SubjectRowProps) {
+export function SubjectRow({ subject, city, meeting, persons, showContext = true, pending, openInNewTab, onOpen }: SubjectRowProps) {
     const router = useRouter();
     const pathname = usePathname();
     const t = useTranslations("Subject");
+    const tStage = useTranslations("meetingStage");
     const locale = useLocale();
     const localize = useLocalizeText();
     const [isLoading, setIsLoading] = useState(false);
@@ -62,6 +68,9 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
 
     const href = `/${city.id}/${meeting.id}/subjects/${subject.id}`;
 
+    // Lights this subject's runs on the meeting playback bar; a no-op on
+    // pages without one (search, city tabs).
+    const barHover = useSubjectBarHover(subject.id);
     const handleClick = (e: React.MouseEvent) => {
         onOpen?.();
         if (openInNewTab) return; // let the Link handle it
@@ -72,7 +81,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
 
     const speakers = subjectDisplayedSpeakers(subject, persons);
     const stats = subjectCardStats(subject.statistics, subject.contributions?.length);
-    const agendaLabel = getAgendaLabel(t, subject);
+    const agendaLabel = getAgendaFullLabel(t, subject);
     const description = subject.description ? localize(stripMarkdown(subject.description)) : null;
     const locationText = subject.location?.text ? localize(subject.location.text) : null;
     const rail = topicStyle(subject.topic?.colorHex).border;
@@ -82,21 +91,29 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
         formatDate(new Date(meeting.dateTime), undefined, locale),
     ].filter(Boolean).join(" · ");
 
+    const isPending = pending != null && stats.minutes === 0 && stats.speakerCount === 0;
+    const showsNote = Boolean(subject.withdrawn) || isPending;
+    // A transcript on its way promises what the review does: the summary comes after the check.
+    const rowNote = pending === 'processing' ? 'review' : pending;
+
     return (
         <Link
             href={href}
+            prefetch={false}
             className="block hover:no-underline"
             onClick={handleClick}
+            {...barHover}
             {...(openInNewTab && { target: "_blank", rel: "noopener noreferrer" })}
         >
-            <Card
+            <div
                 className={cn(
-                    "group/row w-full transition-shadow duration-300 hover:shadow-md",
+                    surfaceCardClass,
+                    "group/row relative w-full overflow-hidden transition-shadow duration-300 hover:shadow-md",
                     subject.withdrawn && "opacity-60",
                 )}
             >
                 {isLoading && (
-                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-lg bg-background/90 backdrop-blur-sm">
+                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-background/90 backdrop-blur-sm">
                         <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     </div>
                 )}
@@ -106,11 +123,11 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                     outline. A radius on the rail itself cannot do that: the rail is 4px wide, so
                     the browser clamps an 8px corner down to 4px and the corner ends up outside the
                     card. The rail is square instead, and this wrapper clips it to the outline.
-                    The radius is the literal 0.5rem the card paints its own corners with —
+                    The radius is the literal 1rem of the shared card surface —
                     `rounded-lg` resolves to --radius, which is 0 in this theme. */}
                 <div
                     className="pointer-events-none absolute inset-0 overflow-hidden"
-                    style={{ borderRadius: "0.5rem" }}
+                    style={{ borderRadius: "1rem" }}
                     aria-hidden="true"
                 >
                     <div className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: rail }} />
@@ -139,7 +156,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                                 )}
                             </div>
 
-                            <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug transition-colors duration-300 group-hover/row:text-accent-foreground sm:text-base">
+                            <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug transition-colors duration-300 group-hover/row:text-[hsl(var(--orange))] sm:text-base">
                                 {localize(subject.name)}
                             </h3>
 
@@ -153,7 +170,9 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                             )}
 
                             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                                <MetaItem icon={ScrollText}>{getLocalizedName(meeting, locale)}</MetaItem>
+                                {/* The meeting name is context too: on the meeting's own page
+                                    the h1 already says it, N rows repeating it said nothing. */}
+                                {showContext && <MetaItem icon={ScrollText}>{getLocalizedName(meeting, locale)}</MetaItem>}
                                 <MetaItem icon={MapPin}>{locationText ?? t("noLocation")}</MetaItem>
                             </div>
                         </div>
@@ -170,10 +189,20 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                         so that a subject with many speakers keeps the same shape as one with
                         two. Below that width the stats truncate rather than drop to a line of
                         their own. */}
-                    <div className="flex shrink-0 flex-row items-center justify-between gap-x-3 sm:flex-col sm:items-end sm:justify-start sm:gap-y-1.5">
+                    <div className={cn(
+                        'flex shrink-0 flex-row items-center justify-between gap-x-3 sm:flex-col sm:items-end sm:justify-start sm:gap-y-1.5',
+                        // A note has no avatar stack to make room for, so it takes the text
+                        // column's indent (the icon box and its gap) and reads as a line of it.
+                        showsNote && 'pl-[52px] sm:pl-0',
+                    )}>
                         {subject.withdrawn ? (
                             <span className="text-xs italic text-muted-foreground/70">
                                 {getWithdrawnLabel(t, subject)}
+                            </span>
+                        ) : isPending ? (
+                            <span className="flex items-center gap-1.5 text-xs italic text-muted-foreground/80">
+                                {rowNote === 'review' && <Clock className="h-3.5 w-3.5 shrink-0 text-yellow-600" aria-hidden />}
+                                {tStage(`rows.${rowNote}`)}
                             </span>
                         ) : (
                             <>
@@ -206,7 +235,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                         )}
                     </div>
                 </div>
-            </Card>
+            </div>
         </Link>
     );
 }

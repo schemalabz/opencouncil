@@ -1,13 +1,20 @@
 "use client";
 import Map from "@/components/map/map";
+import { useBarData } from '@/components/meetings/bar/BarDataContext';
+import { useBarHighlightActions } from '@/components/meetings/bar/BarHighlightContext';
+import { useBarModeSetter } from '@/components/meetings/bar/PlaybackBar';
+import { captureEvent } from '@/lib/analytics/capture';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, MapPin, ScrollText, CheckSquare, Landmark, ExternalLink, Loader2, ArrowLeft } from "lucide-react";
+import { FileText, MapPin, ScrollText, CheckSquare, Landmark, Loader2, ArrowLeft, Play } from "lucide-react";
+import { DecisionDocumentSheet } from "@/components/meetings/decisions/DecisionDocumentSheet";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
-import { subjectToMapFeature } from "@/lib/utils";
+import { cn, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
+import { categorizeSubjects } from "@/lib/utils/subjects";
+import { hasExplainPage } from "@/lib/explain/availability";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -23,15 +30,28 @@ import { calculateVoteResult } from "@/lib/utils/votes";
 import { useTranslations, useLocale } from "next-intl";
 import { requestPollDecisionForSubject, getLastPollTimeForMeeting, getDecisionForSubject } from "@/lib/tasks/pollDecisions";
 import { useSubjectHeader } from "@/contexts/SubjectHeaderContext";
+import { useMeetingStage } from "@/components/meetings/stage/useMeetingStage";
+import { PendingNote } from "@/components/meetings/stage/PendingNote";
+import { pendingKind } from "@/lib/meetingStage";
+import { useVideo } from "@/components/meetings/VideoProvider";
+import type { Statistics } from "@/lib/statistics";
+import { TopicPill } from "@/components/TopicPill";
+import useSWR from "swr";
 import { useSession } from "next-auth/react";
-import { getWithdrawnLabel } from "@/lib/utils/subjects";
+import { getAgendaFullLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { SubjectAdminControls } from "./SubjectAdminControls";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { getLocalizedName } from "@/lib/formatters/name";
+import { surfaceCardClass } from '@/components/ui/surface-card';
+import { RailCard } from '@/components/ui/rail-card';
+import { MountOnVisible } from '@/components/MountOnVisible';
 
 export default function Subject({ subjectId }: { subjectId?: string }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
+    // What the empty summary and statements say while the meeting is not complete.
+    const { stage, deadline } = useMeetingStage();
+    const pending = pendingKind(stage);
     const t = useTranslations("Subject");
     const locale = useLocale();
     const localize = useLocalizeText();
@@ -40,6 +60,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false;
     const { options } = useTranscriptOptions();
     const [isFetchingDecision, setIsFetchingDecision] = useState(false);
+    const [documentOpen, setDocumentOpen] = useState(false);
     const [localDecision, setLocalDecision] = useState<{
         ada: string | null;
         decisionNumber: string | null;
@@ -78,6 +99,45 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     })) || [];
 
     const totalMinutes = Math.round(subject.statistics?.speakingSeconds ? subject.statistics.speakingSeconds / 60 : 0);
+    const agendaLabel = getAgendaFullLabel(t, subject);
+
+    // Where the subject's discussion starts in the video — the first identified
+    // speaker's first utterance, the same lookup every card makes for its own chip.
+    const { seekToAndPlay } = useVideo();
+
+    // The bar scopes to this page's subject: its runs stay lit, the rest dims,
+    // and the colour language flips to subjects so the answer to "where in the
+    // meeting was this discussed" is one glance away.
+    const { intervalsBySubject } = useBarData();
+    const { setPageHighlight } = useBarHighlightActions();
+    const setMode = useBarModeSetter();
+    // The mode presets once per subject visit; the highlight tracks interval
+    // recomputations. Split, so a transcript edit does not silently snap a
+    // reader's chosen mode back to subjects.
+    useEffect(() => {
+        if (subjectId) setMode('subjects');
+    }, [subjectId, setMode]);
+    useEffect(() => {
+        if (!subjectId) return;
+        const ranges = intervalsBySubject.get(subjectId);
+        setPageHighlight(ranges && ranges.length > 0 ? { key: subjectId, ranges } : null);
+        return () => setPageHighlight(null);
+    }, [subjectId, intervalsBySubject, setPageHighlight]);
+
+    // Every action on this page carries the same identity triple.
+    const captureSubjectAction = (action: string, extra: Record<string, unknown> = {}) =>
+        captureEvent('subject_action', {
+            action,
+            subject_id: subject.id,
+            city_id: meeting.cityId,
+            meeting_id: meeting.id,
+            ...extra,
+        });
+    const firstSpeakerId = contributions?.find(c => c.speakerId)?.speakerId ?? null;
+    const { data: subjectStart } = useSWR<{ startTimestamp: number; endTimestamp: number }>(
+        firstSpeakerId ? `/api/subject/${subject.id}/first-utterance/${firstSpeakerId}` : null,
+        (url: string) => fetch(url).then(res => res.ok ? res.json() : null),
+    );
 
     // Memoize map features to prevent unnecessary recalculations
     const mapFeatures = useMemo(() => {
@@ -95,15 +155,30 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     // The effective decision: local override (from polling) or server-rendered
     const decision = localDecision || subject.decision;
 
+    // The subjects either side of this one, in the order the sidebar lists them:
+    // before the agenda, outside it, then the agenda by its numbers.
+    const neighbours = useMemo(() => {
+        const grouped = categorizeSubjects(subjects);
+        const ordered = [...grouped.beforeAgenda, ...grouped.outOfAgenda, ...sortSubjectsByAgendaIndex(grouped.agenda)];
+        const index = ordered.findIndex(candidate => candidate.id === subject.id);
+        // A subject in no category is in no list to step through.
+        if (index === -1) return { previous: null, next: null };
+        const step = (candidate: (typeof ordered)[number] | undefined, key: 'previousSubject' | 'nextSubject') =>
+            candidate ? { href: `/${city.id}/${meeting.id}/subjects/${candidate.id}`, label: `${t(key)}: ${localize(candidate.name)}` } : null;
+        return { previous: step(ordered[index - 1], 'previousSubject'), next: step(ordered[index + 1], 'nextSubject') };
+    }, [subjects, subject.id, city.id, meeting.id, t, localize]);
+
     // Push subject info to the header breadcrumb (display-only, so localized)
     useEffect(() => {
         setSubjectHeader({
             name: localize(name),
             topicIcon: topic?.icon ?? undefined,
             topicColor: topic?.colorHex ?? undefined,
+            previous: neighbours.previous,
+            next: neighbours.next,
         });
         return () => setSubjectHeader(null);
-    }, [name, topic?.icon, topic?.colorHex, setSubjectHeader, localize]);
+    }, [name, topic?.icon, topic?.colorHex, neighbours, setSubjectHeader, localize]);
 
     // Fetch last poll time on mount when there's no decision
     useEffect(() => {
@@ -113,6 +188,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     }, [agendaItemIndex, subject.decision, subject.withdrawn, meeting.id, meeting.cityId]);
 
     const handleFetchDecision = useCallback(async () => {
+        captureSubjectAction('fetch_decision');
         setIsFetchingDecision(true);
         try {
             const result = await requestPollDecisionForSubject(subject.id);
@@ -151,7 +227,9 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     return (
         <div className="min-h-screen bg-background">
             {/* Main Content */}
-            <div className="max-w-4xl mx-auto px-3 py-4 md:px-4 md:py-6 space-y-6">
+            {/* max-w-4xl was the old single-column reading width; the two-column layout
+                earns more — the rail takes 316px and the prose caps itself in ch. */}
+            <div className="mx-auto max-w-6xl space-y-6 px-3 py-4 md:px-6 md:py-6">
                 {/* On-page context + back affordance.
                     The breadcrumb in the header is the only other place that
                     shows which meeting/council this subject belongs to and the
@@ -164,6 +242,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 >
                     <Link
                         href={`/${meeting.cityId}/${meeting.id}`}
+                        prefetch={false}
                         aria-label={t("backToMeetingNamed", { meeting: getLocalizedName(meeting, locale) })}
                         className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
@@ -181,9 +260,64 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         {formatDate(new Date(meeting.dateTime), undefined, locale)}
                     </span>
                 </nav>
-                <h1 className="text-left text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-                    {localize(name)}
-                </h1>
+                {/* The subject's own title, and the page's h1 — it used to live only in the
+                    header bar, at the size that bar gives a page label. The topic names
+                    itself above it; the actions jump the video to where the debate starts. */}
+                <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between md:gap-6">
+                    <div className="min-w-0">
+                        {topic && (
+                            <TopicPill label={getLocalizedName(topic, locale)} icon={topic.icon} colorHex={topic.colorHex} />
+                        )}
+                        <h1 className="mt-3 text-balance text-2xl leading-tight tracking-tight md:text-3xl">
+                            {localize(name)}
+                        </h1>
+                        <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+                            {agendaLabel !== null && (
+                                <span className="inline-flex h-5 items-center rounded bg-muted px-2 text-[10.5px] font-bold text-muted-foreground">
+                                    {agendaLabel}
+                                </span>
+                            )}
+                            {meeting.administrativeBody && (
+                                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                    <Landmark className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                    {getLocalizedName(meeting.administrativeBody, locale)}
+                                </span>
+                            )}
+                            {totalMinutes > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                    {t("speakers", { count: subject.statistics?.people?.length || contributions?.length || 0 })}
+                                    {' · '}
+                                    {t("minutesCount", { count: totalMinutes })}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    {/* One primary action for the whole page, instead of a button row on
+                        every card below: jump the video to where this subject starts. */}
+                    {subjectStart && (
+                        <div className="flex shrink-0 gap-2 md:pt-8">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    captureSubjectAction('play_discussion');
+                                    seekToAndPlay(subjectStart.startTimestamp);
+                                }}
+                                className="inline-flex h-9 items-center gap-2 rounded-full bg-foreground px-4 text-[13px] font-bold text-background transition-opacity hover:opacity-90"
+                            >
+                                <Play className="h-3.5 w-3.5" aria-hidden />
+                                {t("watchDiscussion")}
+                            </button>
+                            <Link
+                                href={`/${meeting.cityId}/${meeting.id}/transcript?t=${Math.floor(subjectStart.startTimestamp)}`}
+                                onClick={() => captureSubjectAction('open_transcript')}
+                                className="inline-flex h-9 items-center gap-2 rounded-full border border-border px-3.5 text-[13px] font-semibold text-foreground hover:no-underline"
+                            >
+                                <FileText className="h-4 w-4" aria-hidden />
+                                {t("transcript")}
+                            </Link>
+                        </div>
+                    )}
+                </header>
                 {isSuperAdmin && (
                     <div className="flex justify-end">
                         <SubjectAdminControls
@@ -200,162 +334,199 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     </div>
                 )}
 
-                {/* Quick Stats Section */}
-                <div className="flex flex-col md:flex-row gap-3 md:gap-4">
-                    {/* Parties Card */}
-                    <div className="flex-grow rounded-lg shadow-sm overflow-hidden">
-                        <div
-                            className="w-full h-full rounded-lg p-[1.5px] bg-gradient-to-r from-gray-300/40 via-gray-200/30 to-gray-300/40"
-                            style={{ borderRadius: "0.5rem" }}
-                        >
-                            <div className="w-full h-full bg-card overflow-hidden p-3 md:p-4" style={{ borderRadius: "calc(0.5rem - 1.5px)" }}>
-                                <h3 className="text-sm font-semibold mb-2">{t("parties")}</h3>
-                                {totalMinutes === 0 ? (
-                                    <div className="py-6 text-center">
-                                        <p className="text-sm text-muted-foreground">
-                                            {t("noDiscussionFound")}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-start gap-3">
-                                        {/* Color Ring */}
-                                        <div className="flex-shrink-0">
-                                            <ColorPercentageRing
-                                                data={colorPercentages}
-                                                size={80}
-                                                thickness={10}
-                                            >
-                                                <div className="flex flex-col items-center">
-                                                    <div className="text-xl font-semibold">
-                                                        {totalMinutes}
-                                                    </div>
-                                                    <div className="text-[10px] text-muted-foreground">
-                                                        {t("minutes")}
-                                                    </div>
-                                                </div>
-                                            </ColorPercentageRing>
-                                        </div>
-
-                                        {/* Party Breakdown + Speaker Count */}
-                                        <div className="flex-grow min-w-0 space-y-2">
-                                            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                                                {subject.statistics?.parties?.map((p) => (
-                                                    <div key={p.item.id} className="flex items-center gap-1.5 text-xs">
-                                                        <div
-                                                            className="w-3 h-3 rounded-sm shrink-0"
-                                                            style={{ backgroundColor: p.item.colorHex }}
-                                                        />
-                                                        <span className="font-medium">{getLocalizedName(p.item, locale)}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                <span>{t("speakers", { count: subject.statistics?.people?.length || contributions?.length || 0 })}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Introducer Card */}
-                    {introducedBy && (
-                        <div className="shrink-0 rounded-lg shadow-sm overflow-hidden md:max-w-[66%]">
-                            <div
-                                className="w-full h-full rounded-lg p-[1.5px] bg-gradient-to-r from-gray-300/40 via-gray-200/30 to-gray-300/40"
-                                style={{ borderRadius: "0.5rem" }}
-                            >
-                                <div className="w-full h-full bg-card overflow-hidden p-3 md:p-4" style={{ borderRadius: "calc(0.5rem - 1.5px)" }}>
-                                    <h3 className="text-sm font-semibold mb-2">{t("introducer")}</h3>
-                                    <PersonBadge person={introducedBy} />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
                 {/* Grouped Discussion Notice */}
                 {discussedIn && (
                     <GroupedDiscussionNotice primarySubject={discussedIn} />
                 )}
 
-                {/* Decision Section (skip for beforeAgenda and withdrawn subjects) */}
-                {subject.nonAgendaReason !== 'beforeAgenda' && !subject.withdrawn && (
-                    <CollapsibleCard
-                        id="decision"
-                        ssrContent
-                        icon={<Landmark className="w-4 h-4" />}
-                        title={
-                            decision ? (
-                                <span className="flex items-center gap-2">
-                                    {t("decision")}
-                                    <Badge variant="secondary" className="text-xs">
-                                        {decision.ada ? `ΑΔΑ: ${decision.ada}` : t("decision")}
-                                    </Badge>
-                                </span>
-                            ) : (
-                                <span className="text-muted-foreground">{t("noDecision")}</span>
-                            )
-                        }
+                {/* The page in two columns: the content — summary, context, the
+                    τοποθετήσεις — and a quiet rail of facts beside it. The old page
+                    stacked everything as identical collapsibles, which buried the
+                    discussion (the actual meat) under closed boxes. */}
+                {totalMinutes > 0 && (
+                    <div className={cn(surfaceCardClass, "p-3.5 lg:hidden")}>
+                        <DiscussionStats statistics={subject.statistics} totalMinutes={totalMinutes} colorPercentages={colorPercentages} locale={locale} compact />
+                    </div>
+                )}
+
+                {/* The page's key record must not sit below every statement on a
+                    phone: the rail stacks last there, so the decision gets the same
+                    compact top slot the stats do — the ΑΔΑ and the document itself,
+                    read in place. */}
+                {decision && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            captureSubjectAction('decision_pdf', { surface: 'mobile_strip' });
+                            setDocumentOpen(true);
+                        }}
+                        className={cn(surfaceCardClass, "flex w-full items-center justify-between gap-3 p-3.5 text-left text-foreground lg:hidden")}
                     >
-                        {decision ? (
-                            <div className="p-4 space-y-3">
-                                <table className="w-full text-sm">
-                                    <tbody>
-                                        {decision.title && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap align-top">{t("decisionTitle")}</td>
-                                                <td className="py-1.5">{decision.title}</td>
-                                            </tr>
-                                        )}
+                        <span className="flex min-w-0 flex-wrap items-center gap-2">
+                            <span className="text-[11px] font-extrabold tracking-[.04em] text-muted-foreground">{t("decision")}</span>
+                            {decision.ada && (
+                                <Badge variant="secondary" className="text-[10px]">{`ΑΔΑ: ${decision.ada}`}</Badge>
+                            )}
+                        </span>
+                        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[hsl(var(--orange-deep))]">
+                            {t("viewDecision")}
+                            <FileText className="h-3.5 w-3.5" aria-hidden />
+                        </span>
+                    </button>
+                )}
+                {decision && (
+                    <DecisionDocumentSheet
+                        open={documentOpen}
+                        onOpenChange={setDocumentOpen}
+                        title={decision.title}
+                        decisionNumber={decision.decisionNumber}
+                        pdfUrl={decision.pdfUrl}
+                        ada={decision.ada}
+                    />
+                )}
+
+                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_336px] xl:gap-14">
+                    <div className="min-w-0 space-y-9">
+                        {description ? (
+                            <section>
+                                <SectionHead title={t("summary")} />
+                                <div className="mt-2 max-w-[70ch] text-[14.5px] leading-[1.65] text-foreground/85">
+                                    <FormattedTextDisplay
+                                        text={description}
+                                        meetingId={meeting.id}
+                                        cityId={meeting.cityId}
+                                        linkColor="black"
+                                    />
+                                </div>
+                            </section>
+                        ) : pending && (
+                            <section>
+                                <SectionHead title={t("summary")} />
+                                <PendingNote what="summary" kind={pending} deadline={deadline} className="mt-4" />
+                            </section>
+                        )}
+
+                        {subject.context && (
+                            <SubjectContext subject={subject} />
+                        )}
+
+                        <section>
+                            <SectionHead title={t("statements")} count={contributions?.length || 0} />
+                            {(!contributions || contributions.length === 0) ? (
+                                pending
+                                    ? <PendingNote what="statements" kind={pending} deadline={deadline} className="mt-4" />
+                                    : <p className="mt-4 text-sm text-muted-foreground">{t("noStatements")}</p>
+                            ) : (
+                                <div className="divide-y divide-border">
+                                    {contributions.map(contribution => (
+                                        <ContributionCard
+                                            key={contribution.id}
+                                            contribution={contribution}
+                                            subjectId={subject.id}
+                                            meeting={meeting}
+                                            speaker={contribution.speakerId ? getPerson(contribution.speakerId) ?? null : null}
+                                            isIntroducer={!!contribution.speakerId && contribution.speakerId === introducedBy?.id}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+                    </div>
+
+                    <aside className="flex min-w-0 flex-col gap-3.5">
+                        {totalMinutes > 0 && (
+                            <RailCard title={t("discussionCard")} className="hidden lg:block">
+                                <DiscussionStats statistics={subject.statistics} totalMinutes={totalMinutes} colorPercentages={colorPercentages} locale={locale} />
+                            </RailCard>
+                        )}
+
+                        {introducedBy && (
+                            <RailCard title={t("introducer")}>
+                                <PersonBadge person={introducedBy} />
+                            </RailCard>
+                        )}
+
+                        {/* Always present, so a reader learns where decisions live even on
+                            the subjects that never get one. */}
+                        <RailCard
+                                id="decision"
+                                title={decision ? (
+                                    <span className="flex flex-wrap items-center gap-2">
+                                        {t("decision")}
                                         {decision.ada && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">ΑΔΑ</td>
-                                                <td className="py-1.5">{decision.ada}</td>
-                                            </tr>
+                                            <Badge variant="secondary" className="text-[10px]">{`ΑΔΑ: ${decision.ada}`}</Badge>
                                         )}
-                                        {decision.decisionNumber && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("decisionNumber")}</td>
-                                                <td className="py-1.5">{decision.decisionNumber}</td>
-                                            </tr>
-                                        )}
-                                        {decision.protocolNumber && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("protocolNumber")}</td>
-                                                <td className="py-1.5">{decision.protocolNumber}</td>
-                                            </tr>
-                                        )}
-                                        {decision.publishDate && (
-                                            <tr>
-                                                <td className="py-1.5 pr-4 text-muted-foreground font-medium whitespace-nowrap">{t("publishDate")}</td>
-                                                <td className="py-1.5">{formatDate(new Date(decision.publishDate))}</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                                <div className="flex items-center justify-between pt-2 border-t border-border">
-                                    <a
-                                        href={decision.pdfUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+                                    </span>
+                                ) : t("decision")}
+                            >
+                        {decision ? (
+                            <div className="space-y-3">
+                                {/* Stacked, not a table: a label column beside a long Diavgeia
+                                    title in a 316px rail broke the title one word per line. The
+                                    ΑΔΑ already sits in the card's own head. */}
+                                {decision.title && (
+                                    <p className="text-[12.5px] leading-relaxed text-foreground/85">{decision.title}</p>
+                                )}
+                                <dl className="space-y-1.5 text-xs">
+                                    {decision.decisionNumber && (
+                                        <div className="flex items-baseline justify-between gap-3">
+                                            <dt className="shrink-0 text-muted-foreground">{t("decisionNumber")}</dt>
+                                            <dd className="text-right tabular-nums">{decision.decisionNumber}</dd>
+                                        </div>
+                                    )}
+                                    {decision.protocolNumber && (
+                                        <div className="flex items-baseline justify-between gap-3">
+                                            <dt className="shrink-0 text-muted-foreground">{t("protocolNumber")}</dt>
+                                            <dd className="text-right tabular-nums">{decision.protocolNumber}</dd>
+                                        </div>
+                                    )}
+                                    {decision.publishDate && (
+                                        <div className="flex items-baseline justify-between gap-3">
+                                            <dt className="shrink-0 text-muted-foreground">{t("publishDate")}</dt>
+                                            <dd className="text-right">{formatDate(new Date(decision.publishDate))}</dd>
+                                        </div>
+                                    )}
+                                </dl>
+                                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-2.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            captureSubjectAction('decision_pdf', { surface: 'rail' });
+                                            setDocumentOpen(true);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--orange-deep))] hover:underline"
                                     >
-                                        <ExternalLink className="w-3.5 h-3.5" />
+                                        <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                         {t("viewDecision")}
-                                    </a>
+                                    </button>
                                     {decision.updatedAt && (
                                         // Clock-relative text — see formatRelativeTime.
-                                        <span className="text-xs text-muted-foreground" suppressHydrationWarning>
+                                        <span className="text-[10.5px] text-muted-foreground" suppressHydrationWarning>
                                             {t("lastUpdated", { time: formatRelativeTime(new Date(decision.updatedAt), locale) })}
                                         </span>
                                     )}
                                 </div>
                             </div>
+                        ) : subject.nonAgendaReason === 'beforeAgenda' ? (
+                            <p className="pt-1 text-sm text-muted-foreground">
+                                {t("noDecisionBeforeAgenda")}
+                                {hasExplainPage(city.realm) && (
+                                    <>
+                                        {' '}
+                                        <Link
+                                            href="/explain#domi-synedriasis"
+                                            onClick={() => captureSubjectAction('why_no_decision')}
+                                            className="font-semibold text-[hsl(var(--orange-deep))] hover:underline"
+                                        >
+                                            {t("learnWhy")}
+                                        </Link>
+                                    </>
+                                )}
+                            </p>
+                        ) : subject.withdrawn ? (
+                            <p className="pt-1 text-sm text-muted-foreground">{getWithdrawnLabel(t, subject, 'long')}</p>
                         ) : (
-                            <div className="p-6 text-center space-y-3">
+                            <div className="space-y-3 pt-1 text-center">
                                 <p className="text-sm text-muted-foreground">{t("noDecisionDescription")}</p>
                                 {isFetchingDecision ? (
                                     <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -379,82 +550,28 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                 )}
                             </div>
                         )}
-                    </CollapsibleCard>
-                )}
+                        </RailCard>
 
-                {/* Summary Section (Collapsible - Open by default) */}
-                {description && (
-                    <CollapsibleCard
-                        icon={<FileText className="w-4 h-4" />}
-                        title={t("summary")}
-                        defaultOpen={true}
-                    >
-                        <div className="p-4 space-y-4">
-                            <div className="text-justify">
-                                <FormattedTextDisplay
-                                    text={description}
-                                    meetingId={meeting.id}
-                                    cityId={meeting.cityId}
-                                    linkColor="black"
-                                />
-                            </div>
-                            <div className="flex justify-end">
-                                <AIGeneratedBadge />
-                            </div>
-                        </div>
-                    </CollapsibleCard>
-                )}
-
-                {/* Location & Map Section (Collapsible) */}
-                {location && (
-                    <CollapsibleCard
-                        icon={<MapPin className="w-4 h-4" />}
-                        title={location.text}
-                    >
-                        <div className="h-[300px] w-full">
-                            <Map
-                                center={location.coordinates ? [location.coordinates.x, location.coordinates.y] : undefined}
-                                zoom={15}
-                                features={mapFeatures}
-                                animateRotation={false}
-                            />
-                        </div>
-                    </CollapsibleCard>
-                )}
-
-                {/* Context Section */}
-                {subject.context && (
-                    <SubjectContext subject={subject} />
-                )}
-
-                {/* Speaker Contributions */}
-                <CollapsibleCard
-                    icon={<ScrollText className="w-4 h-4" />}
-                    title={`${t("statements")} (${contributions?.length || 0})`}
-                    defaultOpen={true}
-                >
-                    {(!contributions || contributions.length === 0) ? (
-                        <div className="p-8 text-center">
-                            <p className="text-sm text-muted-foreground">
-                                {t("noStatements")}
-                            </p>
-                        </div>
-                    ) : (
-                        <>
-                            {contributions.map((contribution, index) => (
-                                <div key={contribution.id}>
-                                    {index > 0 && <div className="border-t border-border" />}
-                                    <ContributionCard
-                                        contribution={contribution}
-                                        subjectId={subject.id}
-                                        meeting={meeting}
-                                        speaker={contribution.speakerId ? getPerson(contribution.speakerId) ?? null : null}
+                        {location && (
+                            <RailCard title={t("locationCardTitle")}>
+                                <MountOnVisible>
+                                <div className="h-[150px] overflow-hidden rounded-[10px] border border-border">
+                                    <Map
+                                        center={location.coordinates ? [location.coordinates.x, location.coordinates.y] : undefined}
+                                        zoom={15}
+                                        features={mapFeatures}
+                                        animateRotation={false}
                                     />
                                 </div>
-                            ))}
-                        </>
-                    )}
-                </CollapsibleCard>
+                                </MountOnVisible>
+                                <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+                                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                                    {location.text}
+                                </p>
+                            </RailCard>
+                        )}
+                    </aside>
+                </div>
 
                 {/* Voting Section (skip for withdrawn subjects; counselors only, hidden from the public) */}
                 {!subject.withdrawn && options.editsAllowed && <CollapsibleCard
@@ -513,6 +630,76 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     </CollapsibleCard>
                 )}
             </div>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/* The redesigned page's small pieces                                  */
+/* ------------------------------------------------------------------ */
+
+/** A section's heading: title, optional count, and the AI notice once — not on every card. */
+function SectionHead({ title, count }: { title: string; count?: number }) {
+    return (
+        <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+            <h2 className="!m-0 !text-left tracking-[.01em]">
+                {title}
+                {count !== undefined && <span className="ml-1.5 font-normal text-muted-foreground">({count})</span>}
+            </h2>
+            <AIGeneratedBadge />
+        </div>
+    );
+}
+
+/**
+ * The discussion at a glance: the party-split ring around the total, and each
+ * party's own minutes as a legend — the old swatch row named the parties but
+ * not how long each actually held the floor.
+ */
+function DiscussionStats({
+    statistics,
+    totalMinutes,
+    colorPercentages,
+    locale,
+    compact = false,
+}: {
+    statistics: Statistics | undefined;
+    totalMinutes: number;
+    colorPercentages: { color: string; percentage: number }[];
+    locale: string;
+    compact?: boolean;
+}) {
+    const t = useTranslations("Subject");
+    const parties = [...(statistics?.parties ?? [])].sort((a, b) => b.speakingSeconds - a.speakingSeconds);
+    const speakerCount = statistics?.people?.length ?? 0;
+
+    return (
+        <div>
+            <div className="flex items-center gap-4">
+                <ColorPercentageRing data={colorPercentages} size={compact ? 64 : 84} thickness={compact ? 9 : 11}>
+                    <div className="flex flex-col items-center">
+                        <div className={compact ? "text-base font-semibold leading-none" : "text-xl font-semibold leading-none"}>
+                            {totalMinutes}′
+                        </div>
+                        <div className="mt-0.5 text-[9px] text-muted-foreground">{t("minutes")}</div>
+                    </div>
+                </ColorPercentageRing>
+                <div className="min-w-0 flex-1">
+                    {parties.map(p => (
+                        <div key={p.item.id} className="flex items-center gap-2 py-[3px] text-[11.5px]">
+                            <span className="h-[9px] w-[9px] shrink-0 rounded-[3px]" style={{ backgroundColor: p.item.colorHex }} aria-hidden />
+                            <span className="min-w-0 flex-1 truncate">{getLocalizedName(p.item, locale)}</span>
+                            <span className="tabular-nums text-muted-foreground">{Math.round(p.speakingSeconds / 60)}′</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            {!compact && speakerCount > 0 && (
+                <div className="mt-2.5 border-t border-border pt-2.5 text-[11.5px] text-muted-foreground">
+                    {t("speakers", { count: speakerCount })}
+                    {statistics?.parties?.length ? <> · {t("partiesCount", { count: statistics.parties.length })}</> : null}
+                </div>
+            )}
         </div>
     );
 }

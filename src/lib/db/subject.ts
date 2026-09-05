@@ -1,4 +1,5 @@
 import prisma from './prisma';
+import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import {
     Subject,
     SpeakerContribution,
@@ -110,6 +111,61 @@ export type SubjectWithRelations = Subject & {
     votes: { voteType: VoteType; person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }[];
     attendance: { status: 'PRESENT' | 'ABSENT'; person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }[];
 };
+
+/** What a subject card needs beyond the ranked subject itself. */
+export interface SubjectCardExtras {
+    locationText: string | null;
+    introducedBy: PersonWithRelations | null;
+}
+
+/**
+ * Location text and introducer for a named set of subjects, keyed by id.
+ *
+ * The cards used to reach these off {@link getSubjectsForMeeting}, which loads
+ * every subject of every meeting a ranked subject came from — a full agenda's
+ * prose to read two fields off seven rows. One query, only the rows displayed,
+ * only the columns read.
+ */
+export async function getSubjectCardExtras(subjectIds: string[]): Promise<Map<string, SubjectCardExtras>> {
+    if (subjectIds.length === 0) return new Map();
+
+    const rows = await prisma.subject.findMany({
+        where: { id: { in: subjectIds } },
+        select: {
+            id: true,
+            location: { select: { text: true } },
+            introducedBy: introducedByInclude,
+        },
+    });
+
+    return new Map(rows.map(row => [row.id, {
+        locationText: row.location?.text ?? null,
+        introducedBy: row.introducedBy,
+    }]));
+}
+
+/**
+ * All-time total subjects for one city — the figure the city page quotes when it
+ * says how much there is to search.
+ *
+ * Deliberately the same visibility rule as {@link getSubjectCountsByCityCached}
+ * (released, past-dated, actually discussed), so the number a δήμος shows on its
+ * own page matches the one it shows in the landing directory. It differs only in
+ * scope: the city is already known here, so there is no realm to resolve and no
+ * whole-realm groupBy to compute.
+ */
+export async function getSubjectCountForCity(cityId: string): Promise<number> {
+    return prisma.subject.count({
+        where: {
+            cityId,
+            contributions: { some: {} },
+            councilMeeting: {
+                released: true,
+                dateTime: { lte: new Date() },
+            },
+        },
+    });
+}
 
 /**
  * All-time total subjects per city ({ cityId: count }) for the Δήμοι *directory* tab, shown
@@ -330,7 +386,7 @@ function toGeneralSubjectRow(s: MapSubjectPayload, discussionSeconds: Map<string
         adminBodyType: s.councilMeeting?.administrativeBody?.type ?? null,
         topicId: s.topicId,
         topicName: s.topic?.name,
-        topicColor: s.topic?.colorHex || '#627BBC',
+        topicColor: s.topic?.colorHex || TOPICLESS_COLOR,
         topicIcon: s.topic?.icon,
         discussionTimeSeconds: Math.round(discussionSeconds.get(s.id) ?? 0),
         speakerCount: getContributionCount(s),

@@ -2,6 +2,7 @@ import Header from "@/components/layout/Header";
 import { PathElement } from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { getRealm } from "@/lib/realm.server";
+import { hasExplainPage } from "@/lib/explain/availability";
 import { getCityCached } from "@/lib/cache";
 import { getConsultationById } from "@/lib/db/consultations";
 import { notFound } from "next/navigation";
@@ -26,9 +27,10 @@ export default async function ConsultationLayout(props: ConsultationLayoutProps)
         children
     } = props;
 
-    const [city, consultation] = await Promise.all([
+    const [city, consultation, realm] = await Promise.all([
         getCityCached(cityId),
-        getConsultationById(cityId, id)
+        getConsultationById(cityId, id),
+        getRealm()
     ]);
 
     if (!city) {
@@ -66,9 +68,10 @@ export default async function ConsultationLayout(props: ConsultationLayoutProps)
             <Header
                 path={pathElements}
                 currentEntity={{ cityId: city.id }}
+                showExplain={hasExplainPage(realm)}
             />
             {children}
-            <Footer realm={await getRealm()} />
+            <Footer realm={realm} />
         </>
     );
 } 

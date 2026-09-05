@@ -99,7 +99,8 @@
     "createNewHighlight": "Créer un nouveau temps fort",
     "creating": "Création du temps fort...",
     "currentlyEditing": "Édition d'un temps fort en cours",
-    "addHighlight": "Ajouter un temps fort"
+    "addHighlight": "Ajouter un temps fort",
+    "highlightShort": "Extrait"
   },
   "toasts": {
     "highlightCreated": "Temps fort créé",

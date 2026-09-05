@@ -11,7 +11,7 @@
     },
     "MunicipalitySelector": {
         "groupSupported": "ΥΠΟΣΤΗΡΙΖΟΜΕΝΟΙ ΔΗΜΟΙ",
-        "groupAll": "ΌΛΟΙ ΟΙ ΔΗΜΟΙ",
+        "groupAll": "ΟΛΟΙ ΟΙ ΔΗΜΟΙ",
         "placeholder": "Επιλέξτε τον Δήμο σας...",
         "searchPlaceholder": "Αναζητήστε τον Δήμο σας...",
         "emptyMessage": "Δεν βρέθηκε Δήμος με αυτό το όνομα."
@@ -20,6 +20,7 @@
         "aiGenerated": "Κείμενο από ΤΝ",
         "skipToContent": "Μετάβαση στο κύριο περιεχόμενο",
         "search": "Αναζήτηση",
+        "clearSearch": "Καθαρισμός αναζήτησης",
         "collapse": "Σύμπτυξη",
         "filter": "Φίλτρο: {label}",
         "municipalityMap": "Χάρτης δήμου",
@@ -46,8 +47,8 @@
         "locationDetailsError": "Σφάλμα κατά την ανάκτηση των λεπτομερειών της τοποθεσίας.",
         "allTopics": "Όλα τα θέματα",
         "allMeetings": "Όλες",
-        "adminBodyType_council": "Δημοτικά Συμβούλια",
-        "adminBodyType_committee": "Επιτροπές",
+        "adminBodyType_council": "Δημοτικό Συμβούλιο",
+        "adminBodyType_committee": "Δημοτική Επιτροπή",
         "adminBodyType_community": "Κοινότητες",
         "allPeople": "Όλα",
         "allBodies": "Όλες",
@@ -93,9 +94,17 @@
         "about": "Για Δήμους",
         "search": "Αναζήτηση",
         "mcp": "OpenCouncil MCP",
+        "mcpShort": "MCP",
         "login": "Σύνδεση",
         "notificationsBreadcrumb": "Ενημερώσεις",
-        "petitionBreadcrumb": "Υποστήριξη Δήμου"
+        "petitionBreadcrumb": "Υποστήριξη Δήμου",
+        "explain": "Οδηγός τοπικής αυτοδιοίκησης",
+        "explainShort": "Οδηγός",
+        "canEditHint": "Ό,τι αλλάξετε δημοσιεύεται αμέσως.",
+        "canEditAuthority": {
+            "municipality": "Μπορείτε να επεξεργαστείτε τον Δήμο {qualifier}",
+            "region": "Μπορείτε να επεξεργαστείτε την Περιφέρεια {qualifier}"
+        }
     },
     "Footer": {
         "tagline": "Φτιαγμένο με σεβασμό και εκτίμηση για την τοπική αυτοδιοίκηση.",
@@ -223,15 +232,28 @@
             "externalLink": "Εξωτερικός σύνδεσμος (ανοίγει σε νέα καρτέλα)",
             "activeLabel": "Ενεργό (ορατό σε όλους τους χρήστες)",
             "inactiveDescription": "Τα ανενεργά μηνύματα είναι ορατά μόνο στους διαχειριστές συστήματος για προεπισκόπηση."
-        }
+        },
+        "sectionIdentity": "Στοιχεία δήμου",
+        "sectionIdentityHint": "Ονομασία, τύπος αρχής και λογότυπο",
+        "sectionSettings": "Ρυθμίσεις",
+        "sectionSettingsHint": "Διεύθυνση, ζώνη ώρας, ειδοποιήσεις, διαβουλεύσεις, Διαύγεια",
+        "administrativeBodiesHint": "Δημοτικό συμβούλιο, επιτροπές και κοινότητες",
+        "adminSettingsHint": "Κατάσταση, δικαιώματα, χώρα και γλώσσα"
     },
     "City": {
         "addCouncilMeeting": "Προσθήκη Συνεδρίασης",
         "councilMeetingsTracked": "{count, plural, =0 {Καμία συνεδρίαση στο OpenCouncil} =1 {1 συνεδρίαση στο OpenCouncil} other {# συνεδριάσεις στο OpenCouncil}}",
         "councilMeetings": "Συνεδριάσεις",
+        "overview": "Επισκόπηση",
         "people": "Πρόσωπα",
         "parties": "Παρατάξεις",
         "consultations": "Διαβουλεύσεις",
+        "map": "Χάρτης",
+        "mapSubjectsHeading": "Θέματα στον χάρτη",
+        "mapOpenFullMap": "Άνοιξε τον πλήρη χάρτη",
+        "mapEmptyWindow": "Δεν συζητήθηκε κάτι τους τελευταίους {months} μήνες. Ο πλήρης χάρτης πάει πιο πίσω.",
+        "mapNoneInView": "Κανένα θέμα σε αυτό το τμήμα του χάρτη.",
+        "mapResetView": "Επαναφορά προβολής",
         "membersComingSoon": "Τα μέλη θα είναι σύντομα διαθέσιμα",
         "partiesComingSoon": "Οι παρατάξεις θα είναι σύντομα διαθέσιμες",
         "addCity": "Προσθήκη Πόλης",
@@ -244,19 +266,14 @@
         "filterByAdminBody": "Φιλτράρισμα ανά Διοικητικό Όργανο",
         "citySections": "Ενότητες δήμου",
         "widget": "Widget",
-        "notificationsCta": {
-            "title": "Μείνε ενημερωμένος",
-            "subtitle": "Μπορούμε να σας στέλνουμε ένα μήνυμα όποτε ο δήμος συζητάει κάτι για την γειτονιά σας!",
-            "manageTitle": "Διαχείριση ειδοποιήσεων",
-            "manageSubtitle": "Λαμβάνετε ήδη ειδοποιήσεις από αυτόν τον δήμο. Μπορείτε να αλλάξετε τις προτιμήσεις σας ή να σταματήσετε τις ειδοποιήσεις όποτε θέλετε.",
-            "manageAction": "Μεταφερθείτε στη σελίδα διαχείρισης ειδοποιήσεων"
-        },
-        "petitionCta": "Ζητήστε την υποστήριξη του δήμου",
         "supportBadgeOfficialAthens": "Με την υποστήριξη του δήμου και της ΔΑΕΜ Α.Ε.",
         "supportBadgeOfficialMunicipality": "Με την υποστήριξη του δήμου",
         "supportBadgeOfficialRegion": "Με την υποστήριξη της περιφέρειας",
         "supportBadgeUnofficialMunicipality": "Χωρίς επίσημη υποστήριξη του δήμου",
-        "supportBadgeUnofficialRegion": "Χωρίς επίσημη υποστήριξη της περιφέρειας"
+        "supportBadgeUnofficialRegion": "Χωρίς επίσημη υποστήριξη της περιφέρειας",
+        "supportBadgeShortOfficial": "Επίσημη υποστήριξη",
+        "supportBadgeShortUnofficial": "Χωρίς επίσημη υποστήριξη",
+        "supportBadgeLearnMore": "Ποιος πληρώνει για το OpenCouncil;"
     },
     "EmbedConfigurator": {
         "title": "Widget για την ιστοσελίδα σας",
@@ -455,11 +472,11 @@
     },
     "Person": {
         "partyLeader": "Επικεφαλής",
+        "formerMembers": "Παλαιότερα μέλη",
         "mayor": "Δήμαρχος",
         "president": "Πρόεδρος",
         "member": "Μέλος",
         "partyLeaderShort": "Επικ.",
-        "history": "Ιστορικό",
         "items": "{count, plural, =0 {Κανένα μέλος} =1 {1 μέλος} other {# μέλη}}",
         "addItem": "Προσθήκη Μέλους",
         "noItems": "Δεν υπάρχουν μέλη στο OpenCouncil.",
@@ -473,12 +490,10 @@
         "englishRole": "Ρόλος στα Αγγλικά",
         "activeFrom": "Ενεργός από",
         "activeTo": "Ενεργός έως",
-        "searchForPerson": "Αναζήτηση στα πρακτικά που αφορούν το μέλος",
         "searchItems": "Αναζητήστε μέλη",
         "activeUntil": "Μέλος έως",
         "active": "Μέλος",
         "item": "μέλος",
-        "loadingSegments": "Φόρτωση πρόσφατων τοποθετήσεων...",
         "noSegmentsFound": "Δεν βρέθηκαν τοποθετήσεις",
         "loading": "Φόρτωση...",
         "loadMore": "Περισσότερα",
@@ -486,7 +501,14 @@
         "tryDifferentFilter": "Προσπαθήστε να αλλάξετε τα φίλτρα",
         "breadcrumbHome": "Αρχική",
         "independentCouncilMember": "Ανεξάρτητος Δημοτικός Σύμβουλος",
-        "biography": "Βιογραφικό"
+        "biography": "Βιογραφικό",
+        "moreRoles": "+{count} ακόμη",
+        "present": "σήμερα",
+        "statementsFact": "{count, plural, one {# τοποθέτηση} other {# τοποθετήσεις}}",
+        "speakingFact": "{minutes}′ συνολικής ομιλίας",
+        "rolesCard": "Ρόλοι",
+        "topTopicsCard": "Θέματα που μιλά συχνότερα",
+        "pastTerms": "Προηγούμενες θητείες ({count})"
     },
     "Party": {
         "currentMembers": "Μέλη",
@@ -496,13 +518,11 @@
         "editParty": "Επεξεργασία Παράταξης",
         "deleteParty": "Διαγραφή Παράταξης",
         "partyDeleted": "Η παράταξη {name} διαγράφηκε",
-        "searchInParty": "Αναζήτηση στις τοποθετήσεις της παράταξης {partyName}",
         "items": "{count, plural, =0 {Καμία παράταξη} =1 {1 παράταξη} other {# παρατάξεις}}",
         "searchItems": "Αναζητήστε παρατάξεις",
         "item": "παράταξη",
         "addItem": "Προσθήκη Παράταξης",
         "noItems": "Δεν υπάρχουν παρατάξεις στο OpenCouncil.",
-        "loadingSegments": "Φόρτωση πρόσφατων τοποθετήσεων...",
         "noSegmentsFound": "Δεν βρέθηκαν τοποθετήσεις",
         "loading": "Φόρτωση...",
         "loadMore": "Περισσότερα",
@@ -511,15 +531,15 @@
         "leaderLabel": "Επικεφαλής: ",
         "breadcrumbHome": "Αρχική",
         "tabPeople": "Πρόσωπα",
-        "tabPeopleShort": "Μέλη",
         "tabSegments": "Τοποθετήσεις",
-        "tabSegmentsShort": "Τοποθετήσεις",
         "breakdownMayor": "Δήμαρχος",
         "breakdownCouncil": "{count} στο Δημοτικό Συμβούλιο",
         "breakdownCommittees": "{count} σε επιτροπές",
         "breakdownCommunities": "{count} σε κοινότητες",
         "breakdownOthers": "{count} άλλοι",
-        "peopleWithoutParties": "Πρόσωπα εκτός παρατάξεων:"
+        "peopleWithoutParties": "Πρόσωπα εκτός παρατάξεων:",
+        "compositionCard": "Σύνθεση",
+        "membersTotal": "{count, plural, one {# μέλος συνολικά} other {# μέλη συνολικά}}"
     },
     "ImageCropDialog": {
         "title": "Προσαρμογή εικόνας",
@@ -635,11 +655,9 @@
         "next": "Επόμενο",
         "agendaDocument": "Ημερήσια Διάταξη",
         "subjectsCount": "{count, plural, =0 {Χωρίς θέματα} one {# θέμα} other {# θέματα}}",
-        "availableSoon": "Η συνεδρίαση θα είναι σύντομα διαθέσιμη",
         "notificationComing": "Θα λάβετε σύντομα ενημέρωση για τα θέματα συζήτησης",
-        "subscribeForSubjects": "Γραφτείτε στις ειδοποιήσεις για να λαμβάνετε τα θέματα συζήτησης πριν και μετά τις συνεδριάσεις",
-        "scheduledFor": "Η συνεδρίαση θα πραγματοποιηθεί {when}",
-        "watchMeeting": "Παρακολουθήστε τη συνεδρίαση"
+        "previousMeeting": "Προηγούμενη συνεδρίαση",
+        "nextMeeting": "Επόμενη συνεδρίαση"
     },
     "Unsubscribe": {
         "invalidLinkTitle": "Μη έγκυρος σύνδεσμος",
@@ -807,27 +825,10 @@
         "adamDescription": "Αναγνωριστικό ΚΗΜΔΗΣ (π.χ. 24PROC015123456). Όταν συμπληρωθεί, η προσφορά θεωρείται επίσημα υπογεγραμμένη."
     },
     "TranscriptOptions": {
-        "title": "Επιλογές Απομαγνητοφώνησης",
-        "editMode": {
-            "label": "Λειτουργία Επεξεργασίας",
-            "description": "Ενεργοποίηση λειτουργίας επεξεργασίας για το κείμενο της απομαγνητοφώνησης"
-        },
-        "highlightUncertain": {
-            "label": "Επισήμανση Αβέβαιων Λέξεων",
-            "description": "Επισήμανση λέξεων με χαμηλή βεβαιότητα αναγνώρισης"
-        },
         "maxUtteranceDrift": {
             "label": "Μέγιστη Απόκλιση Εκφωνήσεων",
             "description": "Μέγιστη επιτρεπόμενη χρονική απόκλιση για κάθε εκφώνηση σε δευτερόλεπτα"
-        },
-        "playbackTitle": "Ρυθμίσεις αναπαραγωγής",
-        "playbackDescription": "Ρυθμίσεις για την αναπαραγωγή του βίντεο",
-        "playbackSpeedLabel": "Ταχύτητα αναπαραγωγής",
-        "playbackSpeedDescription": "Προσαρμόστε την ταχύτητα αναπαραγωγής του βίντεο",
-        "transcriptTitle": "Ρυθμίσεις απομαγνητοφώνησης",
-        "transcriptDescription": "Ρυθμίσεις της απομαγνητοφώνησης",
-        "advancedTitle": "Προχωρημένες ρυθμίσεις",
-        "advancedDescription": "Τεχνικές ρυθμίσεις για προχωρημένους χρήστες"
+        }
     },
     "Chat": {
         "items": "Σχετικά θέματα που συζητήθηκαν ({count})"
@@ -973,7 +974,8 @@
         "failedToSave": "Αποτυχία αποθήκευσης",
         "unexpectedError": "Προέκυψε ένα απρόσμενο σφάλμα",
         "confirmDelete": "Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το διοικητικό όργανο;",
-        "failedToDelete": "Αποτυχία διαγραφής"
+        "failedToDelete": "Αποτυχία διαγραφής",
+        "delete": "Διαγραφή"
     },
     "RSS": {
         "title": "Τελευταίες Ενημερώσεις - {city}",
@@ -1059,6 +1061,10 @@
         "introducer": "Εισηγητής",
         "summary": "Σύνοψη",
         "statements": "Τοποθετήσεις",
+        "watchDiscussion": "Δες τη συζήτηση",
+        "discussionCard": "Η συζήτηση",
+        "partiesCount": "{count, plural, one {# παράταξη} other {# παρατάξεις}}",
+        "locationCardTitle": "Τοποθεσία",
         "statementsCount": "{count, plural, =1 {1 τοποθέτηση} other {# τοποθετήσεις}}",
         "noContributions": "Δεν υπάρχουν συνεισφορές ομιλητών",
         "unknownSpeaker": "Άγνωστος ομιλητής",
@@ -1098,7 +1104,7 @@
         "decisionNumber": "Αριθμός Απόφασης",
         "protocolNumber": "Αριθμός Πρωτοκόλλου",
         "publishDate": "Ημερομηνία Ανάρτησης",
-        "viewDecision": "Προβολή απόφασης στη Διαύγεια",
+        "viewDecision": "Προβολή απόφασης",
         "unanimous": "Ομόφωνα ({count} υπέρ)",
         "majorityVote": "Κατά πλειοψηφία ({for} υπέρ, {against} κατά)",
         "rejected": "Απορρίφθηκε ({against} κατά, {for} υπέρ)",
@@ -1116,7 +1122,11 @@
         "notApprovedLong": "Το θέμα δεν εγκρίθηκε ως έκτακτο.",
         "withdrawnShort": "Αποσύρθηκε",
         "withdrawnLong": "Το θέμα αποσύρθηκε και δεν συζητήθηκε.",
-        "minutesCount": "{count, plural, one {# λεπτό} other {# λεπτά}}"
+        "minutesCount": "{count, plural, one {# λεπτό} other {# λεπτά}}",
+        "previousSubject": "Προηγούμενο θέμα",
+        "nextSubject": "Επόμενο θέμα",
+        "noDecisionBeforeAgenda": "Τα προ ημερησίας θέματα δεν έχουν ποτέ απόφαση.",
+        "learnWhy": "Μάθε γιατί"
     },
     "PersonCard": {
         "party": "Παράταξη",

@@ -46,6 +46,9 @@ export const SUBJECT_POINT_COLOR = '#E57373'; // A nice red color that contrasts
 
 export const UNKNOWN_SPEAKER_LABEL = "Άγνωστος Ομιλητής";
 
+/** The grey for speakers without a party — one value across transcript borders, search results and the playback bar. */
+export const UNKNOWN_SPEAKER_COLOR = '#D3D3D3';
+
 export const buildUnknownSpeakerLabel = (index: number) =>
   `${UNKNOWN_SPEAKER_LABEL} ${index}`;
 

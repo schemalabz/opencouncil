@@ -1,0 +1,55 @@
+{
+    "label": {
+        "upcoming": "À venir",
+        "live": "En cours",
+        "waiting": "En attente de l'enregistrement",
+        "transcribing": "Transcription",
+        "review": "En relecture",
+        "complete": "Terminée",
+        "archive": "Archive"
+    },
+    "detail": {
+        "live": "depuis {time}",
+        "review": "avant le {deadline}",
+        "archive": "sans transcription"
+    },
+    "explain": "Qu'est-ce que cela signifie ?",
+    "strip": {
+        "upcoming": "La séance a lieu le <b>{when}</b>. L'ordre du jour est déjà là ; la transcription et les résumés sont ajoutés après la séance.",
+        "upcomingNoAgenda": "La séance a lieu le <b>{when}</b>. L'ordre du jour apparaît ici dès sa publication.",
+        "live": "La séance est en cours. Elle a commencé à {time}. La transcription arrive ici quelques heures après la fin.",
+        "waiting": "La séance a eu lieu le {date}. Nous attendons l'enregistrement ; la transcription commence dès sa publication.",
+        "transcribing": "Nous transcrivons la séance. La transcription arrive dans quelques heures ; les résumés suivent après la relecture.",
+        "review": "La transcription est disponible. Elle a été produite automatiquement et une personne la relit. Résumés, interventions par orateur et points soulevés avant et hors ordre du jour :",
+        "reviewHidden": "La transcription a été produite automatiquement et une personne la relit. Elle est publiée, avec les résumés et les interventions par orateur, après la relecture :",
+        "reviewBy": "avant le {deadline}",
+        "reviewSoon": "bientôt",
+        "archive": "Il n'y a pas de transcription pour cette séance. L'ordre du jour et les décisions sont disponibles."
+    },
+    "actions": {
+        "channel": "Chaîne YouTube",
+        "watchLive": "Regarder en direct",
+        "video": "Voir sur YouTube",
+        "notifications": "S'inscrire aux notifications",
+        "readTranscript": "Lire la transcription"
+    },
+    "rows": {
+        "before": "Pas encore discuté",
+        "review": "Résumé après la relecture"
+    },
+    "pendingSections": {
+        "title": "Avant et hors ordre du jour",
+        "body": "Les points soulevés avant et hors ordre du jour apparaissent après la relecture de la transcription.",
+        "by": "Attendus avant le {deadline}"
+    },
+    "subject": {
+        "summary": {
+            "before": "Le résumé est rédigé automatiquement après la séance, une fois la transcription relue.",
+            "review": "Le résumé est rédigé après la relecture de la transcription."
+        },
+        "statements": {
+            "before": "Les interventions par orateur sont tirées de la transcription, après la séance.",
+            "review": "Les interventions par orateur sont ajoutées après la relecture de la transcription."
+        }
+    }
+}

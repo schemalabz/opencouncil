@@ -14,7 +14,8 @@
     "enableEdit": "Ενεργοποίηση Επεξεργασίας",
     "guide": "Οδηγός",
     "speakers": "Ομιλητές",
-    "completeReview": "Ολοκλήρωση Ελέγχου"
+    "completeReview": "Ολοκλήρωση Ελέγχου",
+    "editShort": "Επεξεργασία"
   },
   "stats": {
     "title": "Ομιλητές"

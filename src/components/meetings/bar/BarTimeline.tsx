@@ -1,0 +1,480 @@
+"use client";
+
+import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useRouter, Link } from '@/i18n/routing';
+import { useTranslations } from 'next-intl';
+import { useVideo, useVideoActions } from '@/components/meetings/VideoProvider';
+import { useHighlight } from '@/components/meetings/HighlightContext';
+import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
+import { useBarData } from './BarDataContext';
+import { useBarHighlight } from './BarHighlightContext';
+import { bandAt, chapterJumpTarget, CHAPTER_LABEL_KEY, intersectsAny, timeAt, type BarBand, type Chapter, type Interval } from '@/lib/utils/barTimeline';
+import { captureEvent } from '@/lib/analytics/capture';
+import { useLiveTime } from './useLiveTime';
+import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
+import { BAND_ZONE, DOCK_ROW, DOCK_ROW_COMPACT, RAIL_HEIGHT } from './geometry';
+import { Playhead } from './Playhead';
+import { useTimelinePointer, type SeekDetail } from './useTimelinePointer';
+import { TimelineLens } from './lens/TimelineLens';
+import { HoverBandDetails, SpeakerLine, SubjectLine } from './HoverBandDetails';
+import { Users, Shapes } from 'lucide-react';
+import type { BarMode } from './ModePicker';
+import { cn, formatTimestamp } from '@/lib/utils';
+
+export const DIM_OPACITY = 0.16;
+
+/** What Page Up and Page Down seek on a meeting with no chapters to jump between. */
+const PAGE_STEP_SECONDS = 300;
+
+/** One explicit mode switch — the key remounts the overlay so the animation replays. */
+export interface ModeAnnounce {
+    mode: BarMode;
+    key: number;
+}
+
+/**
+ * The coloured strip. Three layers with three very different update rates:
+ * the segment bands re-render only when the mode or the highlight changes;
+ * the playhead runs on requestAnimationFrame straight against the video
+ * element; the hover layer throttles pointer moves to one rAF and touches
+ * React state only when the band under the cursor changes.
+ */
+export function BarTimeline({ mode, compact = false, announce = null, onAnnounceEnd, dormant = false }: { mode: BarMode; compact?: boolean; announce?: ModeAnnounce | null; onAnnounceEnd?: () => void; /** the pill covers a hidden dock: keep the slot, skip the machinery */ dormant?: boolean }) {
+    const t = useTranslations('transcript.controls');
+    const router = useRouter();
+    const { bands, contentDuration, chapters } = useBarData();
+    const highlight = useBarHighlight();
+    const { duration: mediaDuration, currentScrollInterval, currentTime, isPlaying } = useVideo();
+    // Until the media reports metadata its duration is 0; the transcript's own
+    // extent keeps the strip painted and clickable in the meantime.
+    const duration = mediaDuration > 0 ? mediaDuration : contentDuration;
+    const { seekTo, seekToWithoutScroll, currentTimeRef } = useVideoActions();
+    const { playerRef } = useVideo();
+    const { editingHighlight, highlightUtterances, previewMode, currentHighlightIndex } = useHighlight();
+    const { city, meeting } = useCouncilMeetingData();
+
+    const barRef = useRef<HTMLDivElement>(null);
+    const chapterKeysId = useId();
+
+    const isHighlightMode = editingHighlight !== null;
+
+    // amber layer rows, memoized with Set-based membership (was O(n·m) per render)
+    const editRows = useMemo(() => {
+        if (!isHighlightMode || !highlightUtterances) return null;
+        const included = new Set(editingHighlight.highlightedUtterances.map(hu => hu.utteranceId));
+        return highlightUtterances
+            .map((u, index) => ({ u, index }))
+            .filter(({ u }) => included.has(u.id));
+    }, [isHighlightMode, editingHighlight, highlightUtterances]);
+
+    // The rail decides label visibility in pixels, not fractions — a chapter
+    // that is generous in a wide window may not carry its name in a narrow one.
+    const [barWidth, setBarWidth] = useState(0);
+    useEffect(() => {
+        const el = barRef.current;
+        if (!el) return;
+        const observer = new ResizeObserver(entries => {
+            const width = Math.round(entries[0]?.contentRect.width ?? 0);
+            setBarWidth(prev => (Math.abs(prev - width) >= 1 ? width : prev));
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+
+    // Where playback stood before the last click-seek: a double-click means
+    // "open this subject", not "abandon my listening position" — the second
+    // click restores it before navigating.
+    const preSeekTime = useRef<number | null>(null);
+    // Coarse seeks are captured too, so the lens's effect on precision is measurable.
+    const onSeek = useCallback((time: number, { precision, input, lens }: SeekDetail) => {
+        preSeekTime.current = currentTimeRef.current;
+        seekTo(time);
+        captureEvent('meeting_page_action', { action: 'timeline_seek', precision, input, lens, city_id: city.id, meeting_id: meeting.id });
+    }, [currentTimeRef, seekTo, city.id, meeting.id]);
+
+    const pointer = useTimelinePointer({ barRef, bands, duration, compact, barWidth, onSeek });
+
+    const timeFromEvent = (e: { clientX: number }): number | null => {
+        const el = barRef.current;
+        if (!el || duration <= 0) return null;
+        const rect = el.getBoundingClientRect();
+        return timeAt(e.clientX - rect.left, rect.width, duration);
+    };
+
+    const onDoubleClick = (e: React.MouseEvent) => {
+        if (mode !== 'subjects') return;
+        const time = timeFromEvent(e);
+        if (time === null) return;
+        const idx = bandAt(bands, time);
+        const subjectId = idx >= 0 ? bands[idx].subjectId : null;
+        if (subjectId) {
+            if (preSeekTime.current !== null) seekToWithoutScroll(preSeekTime.current);
+            router.push(`/${city.id}/${meeting.id}/subjects/${subjectId}`);
+        }
+    };
+
+    const onKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (duration <= 0) return;
+        // Shift steps ten seconds: the keyboard's counterpart to the lens's precision.
+        // Left and right seek; up and down are the dock's speed keys, so the strip
+        // lets them through to the shortcut the editing guide advertises.
+        const step = e.shiftKey ? 10 : duration * 0.01;
+        if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            seekTo(Math.min(duration, currentTimeRef.current + step));
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            seekTo(Math.max(0, currentTimeRef.current - step));
+        } else if (e.key === 'PageUp' || e.key === 'PageDown') {
+            // The slider's large step, and the only way to the chapters without
+            // a pointer: the rail draws them, and until now nothing but the
+            // rail knew they existed.
+            e.preventDefault();
+            const direction = e.key === 'PageUp' ? 1 : -1;
+            const chapter = chapterJumpTarget(chapters, currentTimeRef.current, direction);
+            const plain = currentTimeRef.current + direction * PAGE_STEP_SECONDS;
+            seekTo(chapter ?? Math.min(duration, Math.max(0, plain)));
+        } else if (e.key === 'Home') {
+            e.preventDefault();
+            seekTo(0);
+        } else if (e.key === 'End') {
+            e.preventDefault();
+            seekTo(duration);
+        }
+    }, [duration, seekTo, currentTimeRef, chapters]);
+
+    // Under the collapsed pill the dock is display:none: rendering ~500 band
+    // divs and running the playhead there is pure waste. Hooks above still run
+    // (order-stable); the DOM and the rAF/observer consumers do not.
+    if (dormant) {
+        return <div className="relative min-w-0 flex-1" />;
+    }
+
+    const hovered = pointer.hoverBand >= 0 ? bands[pointer.hoverBand] : null;
+    const scrollBand = currentScrollInterval[0] !== currentScrollInterval[1] && duration > 0 ? currentScrollInterval : null;
+    // The chapter rail rides inside the box on desktop only — at the phone's
+    // 42px it would be crumbs, so the phone shows no chapters at all.
+    const railed = !compact && chapters.length > 0;
+
+    return (
+        <div className="relative min-w-0 flex-1">
+            {!compact && <NowLane bands={bands} hidden={pointer.lensEnabled && pointer.lensOpen} />}
+            <div
+                ref={barRef}
+                role="slider"
+                aria-label={t('timeline')}
+                aria-orientation="horizontal"
+                aria-valuemin={0}
+                aria-valuemax={Math.round(duration)}
+                // initial values only — the Playhead maintains both imperatively
+                aria-valuenow={Math.round(currentTimeRef.current)}
+                aria-valuetext={formatTimestamp(currentTimeRef.current)}
+                aria-describedby={chapters.length > 0 ? chapterKeysId : undefined}
+                tabIndex={0}
+                onClick={pointer.strip.onClick}
+                onContextMenu={pointer.strip.onContextMenu}
+                onDoubleClick={onDoubleClick}
+                onKeyDown={onKeyDown}
+                onPointerDown={pointer.strip.onPointerDown}
+                onPointerUp={pointer.strip.onPointerUp}
+                onPointerCancel={pointer.strip.onPointerCancel}
+                onPointerMove={pointer.strip.onPointerMove}
+                onPointerLeave={pointer.strip.onPointerLeave}
+                className="relative w-full cursor-pointer touch-none overflow-hidden rounded-[10px] border-2 border-border bg-card"
+                style={{ height: compact ? DOCK_ROW_COMPACT : DOCK_ROW }}
+            >
+                {scrollBand && (
+                    <div
+                        aria-hidden
+                        className="absolute top-0 bg-yellow-200"
+                        style={{
+                            height: railed ? BAND_ZONE : '100%',
+                            left: `${(scrollBand[0] / duration) * 100}%`,
+                            width: `${((scrollBand[1] - scrollBand[0]) / duration) * 100}%`,
+                        }}
+                    />
+                )}
+
+                <SegmentsLayer
+                    railed={railed}
+                    bands={bands}
+                    mode={mode}
+                    duration={duration}
+                    highlightKey={highlight?.key ?? null}
+                    highlightRanges={highlight?.ranges ?? null}
+                    dimAll={isHighlightMode}
+                />
+
+                {editRows && duration > 0 && (
+                    <EditLayer
+                        editRows={editRows}
+                        duration={duration}
+                        railed={railed}
+                        previewMode={previewMode}
+                        currentHighlightIndex={currentHighlightIndex}
+                        seekTo={seekTo}
+                    />
+                )}
+
+                <Playhead playerRef={playerRef} currentTimeRef={currentTimeRef} duration={duration} barRef={barRef} isPlaying={isPlaying} pausedTick={currentTime} />
+
+                {railed && (
+                    <ChapterRail chapters={chapters} duration={duration} currentTime={currentTime} barWidth={barWidth} />
+                )}
+
+                {announce && (
+                    <div
+                        key={announce.key}
+                        onAnimationEnd={onAnnounceEnd}
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 flex animate-[bar-mode-announce_2.4s_ease-in-out_forwards] items-center justify-center gap-2 bg-card/85 opacity-0"
+                        style={{ zIndex: 12 }}
+                    >
+                        {announce.mode === 'speakers'
+                            ? <Users className={compact ? 'h-4 w-4' : 'h-5 w-5'} aria-hidden />
+                            : <Shapes className={compact ? 'h-4 w-4' : 'h-5 w-5'} aria-hidden />}
+                        <span className={cn('-mr-[0.25em] font-black tracking-[0.25em]', compact ? 'text-sm' : 'text-lg')}>
+                            {t(announce.mode === 'speakers' ? 'modeAnnounceSpeakers' : 'modeAnnounceSubjects')}
+                        </span>
+                    </div>
+                )}
+
+                <div
+                    ref={pointer.cursorRef}
+                    aria-hidden
+                    className="pointer-events-none absolute left-0 top-0 h-full w-px bg-gray-500 opacity-0"
+                    style={{ zIndex: 12 }}
+                />
+            </div>
+
+            {chapters.length > 0 && (
+                // Everything inside a slider is presentational to a screen
+                // reader, so the rail drawn in the strip can never carry these
+                // names. The list stands beside it and names the same starts
+                // that Page Up and Page Down move between.
+                <div className="sr-only">
+                    <p id={chapterKeysId}>{t('chapterKeys')}</p>
+                    <ul role="list" aria-label={t('chapters')}>
+                        {chapters.map(chapter => (
+                            <li key={chapter.key}>
+                                {t('chapterAt', { chapter: t(CHAPTER_LABEL_KEY[chapter.key]), time: formatTimestamp(chapter.start) })}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {/* Long meetings get the lens, mounted on its first opening; short
+                ones the tooltip. Both take the hovered band from state and
+                their position from the frame. */}
+            {pointer.lensEnabled ? (
+                pointer.lensMounted && (
+                    <TimelineLens
+                        ref={pointer.lensRef}
+                        elRef={pointer.lensElRef}
+                        open={pointer.lensOpen}
+                        bands={bands}
+                        chapters={chapters}
+                        mode={mode}
+                        duration={duration}
+                        lensWidth={pointer.lensWidth}
+                        compact={compact}
+                        hovered={hovered}
+                        fine={pointer.fine}
+                        hint={pointer.coarse}
+                        onPointerDown={pointer.lens.onPointerDown}
+                        onPointerMove={pointer.lens.onPointerMove}
+                        onPointerLeave={pointer.lens.onPointerLeave}
+                        onClick={pointer.lens.onClick}
+                        onContextMenu={pointer.lens.onContextMenu}
+                    />
+                )
+            ) : (
+                <div
+                    ref={pointer.tooltipRef}
+                    aria-hidden
+                    className={cn(
+                        'pointer-events-none absolute bottom-[calc(100%+8px)] left-0 z-30 w-[220px] rounded-[10px] border-2 border-border bg-card p-2.5 shadow-lg',
+                        pointer.hovering ? 'block' : 'hidden',
+                    )}
+                >
+                    <div data-bar-time className="border-b border-border/60 pb-1.5 text-xs font-extrabold tabular-nums" />
+                    <HoverBandDetails band={hovered} />
+                </div>
+            )}
+        </div>
+    );
+}
+
+/**
+ * The bands. Renders only when the transcript, the mode, or the highlight
+ * changes — playback ticks and pointer moves never reach it.
+ */
+const SegmentsLayer = memo(function SegmentsLayer({ bands, mode, duration, highlightKey, highlightRanges, dimAll, railed }: {
+    bands: BarBand[];
+    mode: BarMode;
+    duration: number;
+    highlightKey: string | null;
+    highlightRanges: Interval[] | null;
+    dimAll: boolean;
+    railed: boolean;
+}) {
+    if (duration <= 0) return null;
+    return (
+        <div aria-hidden className="absolute inset-0">
+            {bands.map((band, i) => {
+                const lit = !highlightRanges || intersectsAny(band.start, band.end, highlightRanges);
+                return (
+                    <div
+                        key={i}
+                        className={cn(
+                            'absolute transition-[opacity,top,height] duration-150',
+                            // literals because hover: variants need static classes —
+                            // they are BAND_ZONE (44) splits; see geometry.ts
+                            railed
+                                ? 'top-[6px] h-[38px] hover:top-[2px] hover:h-[42px]'
+                                : 'top-[12.5%] h-3/4 hover:top-0 hover:h-full',
+                        )}
+                        style={{
+                            left: `${(band.start / duration) * 100}%`,
+                            width: `${Math.max(((band.end - band.start) / duration) * 100, 0.05)}%`,
+                            backgroundColor: mode === 'speakers' ? band.speakerColor : band.subjectColor,
+                            opacity: dimAll ? 0.3 : lit ? 1 : DIM_OPACITY,
+                        }}
+                    />
+                );
+            })}
+        </div>
+    );
+});
+
+/**
+ * The line above the strip: who speaks and on what, centred over the timeline
+ * it points into — only while playing. The total duration keeps the right
+ * edge; the current time lives in the bubble over the play button. The
+ * subject is a link into its page.
+ */
+function NowLane({ bands, hidden }: { bands: BarBand[]; /** the lens is open: its header names the band, and its glass would cover the link */ hidden: boolean }) {
+    const { city, meeting } = useCouncilMeetingData();
+    const { isPlaying } = useVideo();
+    const { currentTimeRef } = useVideoActions();
+    const time = useLiveTime(currentTimeRef, isPlaying);
+    const band = nowBand(bands, time, isPlaying);
+    // The dock floats over the page, so the line wears its own box — the
+    // same corners as the time bubble over the play button and the strip.
+    // Left-aligned to the strip it annotates; on pause the lane simply empties.
+    return (
+        <div className={cn('relative mb-1 h-8 transition-opacity duration-150', hidden && 'pointer-events-none opacity-0')}>
+            {band && (
+                <div className="absolute inset-x-0 top-0 flex h-8 justify-start">
+                    <div className="flex min-w-0 items-center gap-1.5 rounded-[10px] border-2 border-border bg-card px-3 shadow-sm">
+                        <SpeakerLine band={band} strong />
+                        {band.speakerName && band.subjectId && band.subjectName && (
+                            <span className="text-muted-foreground" aria-hidden>&middot;</span>
+                        )}
+                        {band.subjectId && band.subjectName && (
+                            <NowPlayingSubjectLink band={band} cityId={city.id} meetingId={meeting.id} className="flex min-w-0 hover:underline">
+                                <SubjectLine band={band} />
+                            </NowPlayingSubjectLink>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+/**
+ * The amber highlight-editing rows. Like the bands, they change only when the
+ * edited set or the preview position does — never on ticks or hover sweeps.
+ */
+const EditLayer = memo(function EditLayer({ editRows, duration, railed, previewMode, currentHighlightIndex, seekTo }: {
+    editRows: { u: { id: string; startTimestamp: number; endTimestamp: number; speakerName: string; text: string }; index: number }[];
+    duration: number;
+    railed: boolean;
+    previewMode: boolean;
+    currentHighlightIndex: number;
+    seekTo: (time: number) => void;
+}) {
+    return (
+        <div aria-hidden className="absolute inset-0" style={{ zIndex: 10 }}>
+            {editRows.map(({ u, index }) => (
+                <div
+                    key={u.id}
+                    onClick={e => { e.stopPropagation(); seekTo(u.startTimestamp); }}
+                    title={`${u.speakerName}: ${u.text.substring(0, 50)}…`}
+                    className={cn(
+                        'absolute top-0 cursor-pointer transition-colors hover:bg-amber-500',
+                        previewMode && index === currentHighlightIndex ? 'bg-amber-600' : 'bg-amber-400',
+                    )}
+                    style={{
+                        height: railed ? BAND_ZONE : '100%',
+                        left: `${(u.startTimestamp / duration) * 100}%`,
+                        width: `${((u.endTimestamp - u.startTimestamp) / duration) * 100}%`,
+                    }}
+                />
+            ))}
+        </div>
+    );
+});
+
+/**
+ * The chapter rail inside the box, under the bands: one muted span per
+ * chapter, the one the playhead is in a shade darker, labels only where the
+ * chapter is wide enough to carry them. Paint only — the strip's own list
+ * names the chapters for a reader, and the Page keys move between them.
+ */
+function ChapterRail({ chapters, duration, currentTime, barWidth }: {
+    chapters: Chapter[];
+    duration: number;
+    currentTime: number;
+    barWidth: number;
+}) {
+    const t = useTranslations('transcript.controls');
+    if (duration <= 0) return null;
+    return (
+        <div aria-hidden className="absolute inset-x-0 bottom-0" style={{ height: RAIL_HEIGHT, zIndex: 5 }}>
+            {/* the lane reads as a track, so the empty width belongs to something */}
+            <div className="absolute inset-0 bg-muted/50" />
+            {chapters.map((chapter, i) => {
+                const end = i + 1 < chapters.length ? chapters[i + 1].start : duration;
+                const active = currentTime >= chapter.start && currentTime < end;
+                const fraction = (end - chapter.start) / duration;
+                const label = t(CHAPTER_LABEL_KEY[chapter.key]);
+                // ~7px per glyph at this size and tracking; the label renders
+                // only when the chapter's pixels can carry it whole.
+                const labelFits = fraction * barWidth >= label.length * 7 + 10;
+                // The first chapter starts at the first utterance, a second or two in
+                // on most recordings: its stop line only has room once the pre-roll
+                // is wider than the line itself.
+                const marked = (chapter.start / duration) * barWidth >= 4;
+                return (
+                    <div
+                        key={chapter.key}
+                        className="absolute top-0 h-full"
+                        style={{
+                            left: `${(chapter.start / duration) * 100}%`,
+                            width: `${fraction * 100}%`,
+                        }}
+                    >
+                        {/* a stop line at the border, not a lane per chapter — the first
+                            chapter has one too when the recording rolls before anyone speaks */}
+                        {marked && (
+                            <div className="absolute bottom-[3px] left-0 h-[15px] w-[2px] -translate-x-1/2 rounded-full bg-muted-foreground/70" />
+                        )}
+                        {labelFits && (
+                            <div className={cn(
+                                'absolute top-1/2 flex -translate-y-1/2 items-center gap-1 whitespace-nowrap text-[8px] font-bold tracking-[0.07em]',
+                                marked ? 'left-[10px]' : 'left-[8px]',
+                                active ? 'text-muted-foreground' : 'text-muted-foreground/60',
+                            )}>
+                                {label}
+                                <span aria-hidden>{'\u2192'}</span>
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}

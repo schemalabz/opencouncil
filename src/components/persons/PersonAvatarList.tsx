@@ -53,6 +53,8 @@ interface PersonAvatarListProps {
     stacked?: boolean;
     /** Marks this person as the subject's introducer with a pen badge. */
     introducerId?: string;
+    /** Analytics hook: called with the person opened via their avatar. */
+    onPersonOpen?: (personId: string) => void;
 }
 
 export function PersonAvatarList({
@@ -65,6 +67,7 @@ export function PersonAvatarList({
     size = 'md',
     stacked = false,
     introducerId,
+    onPersonOpen,
 }: PersonAvatarListProps) {
     const displayCount = Math.min(users.length, maxDisplayed);
     const remainingCount = numMore ?? (users.length - displayCount);
@@ -149,10 +152,15 @@ export function PersonAvatarList({
         ? STACK_SPACING[size]
         : autoScroll ? "-space-x-2" : "-space-x-4 rtl:space-x-reverse";
 
-    /* Stacked circles are ringed against the card so the overlap stays legible, and each one
+    /* Stacked circles are ringed against their surface so the overlap stays legible, and each one
        rises out of the stack on hover: it scales up, lifts, and takes a z-index above its
-       neighbours, while the rest of the stack fades back. */
-    const stackedItem = "rounded-full ring-2 ring-card transition-[transform,opacity,box-shadow] duration-300 ease-out group-hover/avatars:opacity-50 hover:!opacity-100 hover:z-30 hover:-translate-y-1 hover:scale-110 hover:shadow-md";
+       neighbours, while the rest of the stack fades back.
+
+       The ring reads as part of the surface, not as part of the avatar, so it cannot be a fixed
+       white: on anything tinted it turns into a halo around every circle. Surfaces that are not
+       the card declare their own colour in `--avatar-ring`. The "+N" chip has the same job and
+       takes a translucent tint instead of a fill, which composites on whatever is behind it. */
+    const stackedItem = "rounded-full ring-2 ring-[color:var(--avatar-ring,hsl(var(--card)))] transition-[transform,opacity,box-shadow] duration-300 ease-out group-hover/avatars:opacity-50 hover:!opacity-100 hover:z-30 hover:-translate-y-1 hover:scale-110 hover:shadow-md";
 
     const content = (
         <div
@@ -173,7 +181,7 @@ export function PersonAvatarList({
                         // The list often sits inside a card-wide <a>. stopPropagation alone keeps
                         // the card's React onClick (which calls preventDefault) from running, so
                         // the anchor's native navigation would override the badge's router.push.
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPersonOpen?.(user.id); }}
                         className={cn("relative shrink-0", stacked && stackedItem)}
                     >
                         <PersonBadge
@@ -199,7 +207,7 @@ export function PersonAvatarList({
                         "shrink-0",
                         stacked ? cn("relative", stackedItem) : "inline-flex items-center py-1 pr-1",
                     )}>
-                        <div className={cn("flex items-center justify-center rounded-full bg-muted text-center text-sm font-medium text-muted-foreground", REMAINDER_SIZES[size])}>
+                        <div className={cn("flex items-center justify-center rounded-full bg-foreground/[0.07] text-center text-sm font-medium text-muted-foreground", REMAINDER_SIZES[size])}>
                             +{remainingCount}
                         </div>
                     </div>

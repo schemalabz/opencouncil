@@ -20,6 +20,7 @@
         "aiGenerated": "AI-generated text",
         "skipToContent": "Skip to main content",
         "search": "Search",
+        "clearSearch": "Clear search",
         "collapse": "Collapse",
         "filter": "Filter: {label}",
         "municipalityMap": "Municipality map",
@@ -46,8 +47,8 @@
         "locationDetailsError": "Error retrieving the location details.",
         "allTopics": "All Topics",
         "allMeetings": "All",
-        "adminBodyType_council": "Councils",
-        "adminBodyType_committee": "Committees",
+        "adminBodyType_council": "City Council",
+        "adminBodyType_committee": "Municipal Committee",
         "adminBodyType_community": "Communities",
         "allPeople": "All",
         "allBodies": "All",
@@ -79,9 +80,17 @@
         "about": "For Municipalities",
         "search": "Search",
         "mcp": "OpenCouncil MCP",
+        "mcpShort": "MCP",
         "login": "Sign in",
         "notificationsBreadcrumb": "Notifications",
-        "petitionBreadcrumb": "Support your municipality"
+        "petitionBreadcrumb": "Support your municipality",
+        "explain": "Guide to local government",
+        "explainShort": "Guide",
+        "canEditHint": "Whatever you change is published at once.",
+        "canEditAuthority": {
+            "municipality": "You can edit {qualifier}",
+            "region": "You can edit {qualifier}"
+        }
     },
     "Footer": {
         "tagline": "Built with respect and appreciation for local government.",
@@ -209,15 +218,28 @@
             "externalLink": "External link (opens in new tab)",
             "activeLabel": "Active (visible to all users)",
             "inactiveDescription": "Inactive messages are only visible to superadmins for preview purposes."
-        }
+        },
+        "sectionIdentity": "City details",
+        "sectionIdentityHint": "Name, authority type and logo",
+        "sectionSettings": "Settings",
+        "sectionSettingsHint": "Address, time zone, notifications, consultations, Diavgeia",
+        "administrativeBodiesHint": "Council, committees and communities",
+        "adminSettingsHint": "Status, permissions, realm and language"
     },
     "City": {
         "addCouncilMeeting": "Add Council Meeting",
         "councilMeetingsTracked": "{count, plural, =0 {No council meetings on OpenCouncil} =1 {1 council meeting on OpenCouncil} other {# council meetings on OpenCouncil}}",
         "councilMeetings": "Council Meetings",
+        "overview": "Overview",
         "people": "People",
         "parties": "Parties",
         "consultations": "Consultations",
+        "map": "Map",
+        "mapSubjectsHeading": "Subjects on the map",
+        "mapOpenFullMap": "Open the full map",
+        "mapEmptyWindow": "Nothing was discussed in the last {months} months. The full map goes further back.",
+        "mapNoneInView": "No subjects in this part of the map.",
+        "mapResetView": "Reset the view",
         "membersComingSoon": "Members will be available soon",
         "partiesComingSoon": "Parties will be available soon",
         "addCity": "Add City",
@@ -230,19 +252,14 @@
         "filterByAdminBody": "Filter by Administrative Body",
         "citySections": "City sections",
         "widget": "Widget",
-        "notificationsCta": {
-            "title": "Stay informed",
-            "subtitle": "We can send you a message whenever the council discusses something about your neighborhood!",
-            "manageTitle": "Manage notifications",
-            "manageSubtitle": "You're already receiving notifications from this council. You can update your preferences or stop notifications anytime.",
-            "manageAction": "Go to the notification management page"
-        },
-        "petitionCta": "Request your municipality's support",
         "supportBadgeOfficialAthens": "With the support of the municipality and DAEM S.A.",
         "supportBadgeOfficialMunicipality": "With the municipality's support",
         "supportBadgeOfficialRegion": "With the region's support",
         "supportBadgeUnofficialMunicipality": "No official municipality support",
-        "supportBadgeUnofficialRegion": "No official region support"
+        "supportBadgeUnofficialRegion": "No official region support",
+        "supportBadgeShortOfficial": "Official support",
+        "supportBadgeShortUnofficial": "No official support",
+        "supportBadgeLearnMore": "Who pays for OpenCouncil?"
     },
     "EmbedConfigurator": {
         "title": "Widget for your website",
@@ -440,27 +457,10 @@
         "derivedFields": "Derived Names"
     },
     "TranscriptOptions": {
-        "title": "Transcript Options",
-        "editMode": {
-            "label": "Edit Mode",
-            "description": "Enable edit mode for transcript text"
-        },
-        "highlightUncertain": {
-            "label": "Highlight Uncertain Words",
-            "description": "Highlight words with low recognition confidence"
-        },
         "maxUtteranceDrift": {
             "label": "Maximum Utterance Drift",
             "description": "Maximum allowed time drift for each utterance in seconds"
-        },
-        "playbackTitle": "Playback settings",
-        "playbackDescription": "Settings for video playback",
-        "playbackSpeedLabel": "Playback speed",
-        "playbackSpeedDescription": "Adjust the video playback speed",
-        "transcriptTitle": "Transcript settings",
-        "transcriptDescription": "Transcript settings",
-        "advancedTitle": "Advanced settings",
-        "advancedDescription": "Technical settings for advanced users"
+        }
     },
     "Chat": {
         "items": "Related topics discussed ({count})"
@@ -856,11 +856,11 @@
     },
     "Person": {
         "partyLeader": "Party Leader",
+        "formerMembers": "Former members",
         "mayor": "Mayor",
         "president": "President",
         "member": "Member",
         "partyLeaderShort": "Leader",
-        "history": "History",
         "items": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
         "addItem": "Add Member",
         "noItems": "There are no members in OpenCouncil.",
@@ -874,12 +874,10 @@
         "englishRole": "Role (English)",
         "activeFrom": "Active From",
         "activeTo": "Active To",
-        "searchForPerson": "Search in transcripts related to this member",
         "searchItems": "Search members",
         "activeUntil": "Member until",
         "active": "Member",
         "item": "member",
-        "loadingSegments": "Loading recent statements...",
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
         "loadMore": "Load more",
@@ -887,7 +885,14 @@
         "tryDifferentFilter": "Try changing the filters",
         "breadcrumbHome": "Home",
         "independentCouncilMember": "Independent Council Member",
-        "biography": "Biography"
+        "biography": "Biography",
+        "moreRoles": "+{count} more",
+        "present": "present",
+        "statementsFact": "{count, plural, one {# statement} other {# statements}}",
+        "speakingFact": "{minutes}′ of speaking time",
+        "rolesCard": "Roles",
+        "topTopicsCard": "Most frequent topics",
+        "pastTerms": "Past terms ({count})"
     },
     "Party": {
         "currentMembers": "Current Members",
@@ -897,13 +902,11 @@
         "editParty": "Edit Party",
         "deleteParty": "Delete Party",
         "partyDeleted": "Party {name} was deleted",
-        "searchInParty": "Search in statements from {partyName}",
         "items": "{count, plural, =0 {No parties} =1 {1 party} other {# parties}}",
         "searchItems": "Search parties",
         "item": "party",
         "addItem": "Add Party",
         "noItems": "There are no parties in OpenCouncil.",
-        "loadingSegments": "Loading recent statements...",
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
         "loadMore": "Load more",
@@ -912,15 +915,15 @@
         "leaderLabel": "Leader: ",
         "breadcrumbHome": "Home",
         "tabPeople": "People",
-        "tabPeopleShort": "Members",
         "tabSegments": "Statements",
-        "tabSegmentsShort": "Statements",
         "breakdownMayor": "Mayor",
         "breakdownCouncil": "{count} on the city council",
         "breakdownCommittees": "{count} on committees",
         "breakdownCommunities": "{count} in communities",
         "breakdownOthers": "{count} others",
-        "peopleWithoutParties": "People not in a group:"
+        "peopleWithoutParties": "People not in a group:",
+        "compositionCard": "Composition",
+        "membersTotal": "{count, plural, one {# member in total} other {# members in total}}"
     },
     "MeetingStatus": {
         "scheduled": "Scheduled",
@@ -977,7 +980,8 @@
         "failedToSave": "Failed to save",
         "unexpectedError": "An unexpected error occurred",
         "confirmDelete": "Are you sure you want to delete this administrative body?",
-        "failedToDelete": "Failed to delete"
+        "failedToDelete": "Failed to delete",
+        "delete": "Delete"
     },
     "RSS": {
         "title": "Latest Updates - {city}",
@@ -1063,6 +1067,10 @@
         "introducer": "Introducer",
         "summary": "Summary",
         "statements": "Statements",
+        "watchDiscussion": "Watch the discussion",
+        "discussionCard": "The discussion",
+        "partiesCount": "{count, plural, one {# party} other {# parties}}",
+        "locationCardTitle": "Location",
         "statementsCount": "{count, plural, =1 {1 statement} other {# statements}}",
         "noContributions": "No speaker contributions",
         "unknownSpeaker": "Unknown speaker",
@@ -1096,7 +1104,7 @@
         "decisionNumber": "Decision Number",
         "protocolNumber": "Protocol Number",
         "publishDate": "Publish Date",
-        "viewDecision": "View decision on Diavgeia",
+        "viewDecision": "View decision",
         "voting": "Voting",
         "votingSource": "Voting data sourced from the Diavgeia decision",
         "votingDisclaimer": "Voting results are extracted from Diavgeia decisions when available",
@@ -1120,7 +1128,11 @@
         "notApprovedLong": "The subject was not approved as urgent.",
         "withdrawnShort": "Withdrawn",
         "withdrawnLong": "The subject was withdrawn and not discussed.",
-        "minutesCount": "{count, plural, one {# minute} other {# minutes}}"
+        "minutesCount": "{count, plural, one {# minute} other {# minutes}}",
+        "previousSubject": "Previous subject",
+        "nextSubject": "Next subject",
+        "noDecisionBeforeAgenda": "Items raised before the agenda never have a decision.",
+        "learnWhy": "Learn why"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
@@ -1142,11 +1154,9 @@
         "next": "Next",
         "agendaDocument": "Agenda",
         "subjectsCount": "{count, plural, =0 {No subjects} one {# subject} other {# subjects}}",
-        "availableSoon": "The meeting will be available soon",
         "notificationComing": "You will receive an update on the discussion subjects soon",
-        "subscribeForSubjects": "Subscribe to notifications to receive discussion subjects before and after meetings",
-        "scheduledFor": "The meeting will take place {when}",
-        "watchMeeting": "Watch the meeting"
+        "previousMeeting": "Previous meeting",
+        "nextMeeting": "Next meeting"
     },
     "ProductUpdates": {
         "triggerButton": "Send product update",

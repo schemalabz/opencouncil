@@ -5,7 +5,7 @@
  * the .test.ts → node split in jest.config.js.
  */
 import posthog from 'posthog-js';
-import { applyStoredAnalyticsConsent, ANALYTICS_CHOICE_KEY } from '../utils/analyticsConsent';
+import { applyStoredAnalyticsConsent, posthogReady, ANALYTICS_CHOICE_KEY } from '../utils/analyticsConsent';
 
 jest.mock('posthog-js', () => ({
   __esModule: true,
@@ -73,5 +73,14 @@ describe('applyStoredAnalyticsConsent', () => {
 
     expect(mocked.opt_out_capturing).toHaveBeenCalled();
     expect(mocked.opt_in_capturing).not.toHaveBeenCalled();
+  });
+});
+
+describe('posthogReady', () => {
+  it('reports whether the client is initialized', () => {
+    mocked.__loaded = true;
+    expect(posthogReady()).toBe(true);
+    mocked.__loaded = false;
+    expect(posthogReady()).toBe(false);
   });
 });

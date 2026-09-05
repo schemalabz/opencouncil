@@ -18,6 +18,10 @@ interface PlayPauseButtonProps {
     className?: string;
     /** Stop event propagation on click */
     stopPropagation?: boolean;
+    /** Rendered after the icon — e.g. the timestamp, so the whole chip is the control. */
+    children?: React.ReactNode;
+    /** Called when the press starts playback (not on pause) — the analytics hook. */
+    onPressPlay?: () => void;
 }
 
 /**
@@ -31,6 +35,8 @@ export const PlayPauseButton = memo(function PlayPauseButton({
     circleIcons = false,
     className,
     stopPropagation = false,
+    children,
+    onPressPlay,
 }: PlayPauseButtonProps) {
     const { isPlaying, currentTime, seekToAndPlay, setIsPlaying } = useVideo();
     const t = useTranslations("transcript.miniTranscript");
@@ -52,6 +58,7 @@ export const PlayPauseButton = memo(function PlayPauseButton({
         if (isThisPlaying) {
             setIsPlaying(false);
         } else {
+            onPressPlay?.();
             seekToAndPlay(startTimestamp);
         }
     };
@@ -86,6 +93,7 @@ export const PlayPauseButton = memo(function PlayPauseButton({
                     {showLabel && t("play")}
                 </>
             )}
+            {children}
         </Button>
     );
 });

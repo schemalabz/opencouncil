@@ -33,7 +33,6 @@ interface VideoContextType {
     duration: number;
     setCurrentScrollInterval: (interval: [number, number]) => void;
     currentScrollInterval: [number, number];
-    playbackSpeed: string;
     togglePlayPause: () => void;
     handleSpeedChange: (value: string) => void;
     seekTo: (time: number) => void;
@@ -63,6 +62,7 @@ interface VideoActionsContextType {
     seekTo: (time: number) => void;
     seekToWithoutScroll: (time: number) => void;
     togglePlayPause: () => void;
+    handleSpeedChange: (value: string) => void;
 }
 
 const VideoActionsContext = createContext<VideoActionsContextType | undefined>(undefined);
@@ -114,7 +114,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const [isPlaying, setIsPlaying] = useState(false); // React state for UI updates
     const currentTimeRef = useRef(0); // Ref for immediate access without re-renders
     const [duration, setDuration] = useState(0); // Total video duration
-    const [playbackSpeed, setPlaybackSpeed] = useState(options.playbackSpeed.toString());
     const [isSeeking, setIsSeeking] = useState(false); // True when user is dragging timeline
     const [hasStartedPlaying, setHasStartedPlaying] = useState(false); // First play flag
     const playerRef = useRef<HTMLVideoElement | null>(null); // Direct reference to video element
@@ -142,7 +141,9 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     // element is swapped (e.g. Mux → S3 fallback in Video.tsx).
     const handleLoadedMetadata = useCallback(() => {
         const player = playerRef.current;
-        if (player && !isNaN(player.duration)) {
+        // A live playlist or a container without a length reports Infinity;
+        // nothing downstream can size itself from that.
+        if (player && Number.isFinite(player.duration)) {
             setDuration(player.duration);
         }
     }, []);
@@ -165,6 +166,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                 const targetTime = targetUtterance?.startTimestamp ?? seconds;
 
                 currentTimeRef.current = targetTime;
+                setCurrentTime(targetTime);
                 // Retry scrolling until the utterance DOM element is rendered
                 const scrollAttempt = (attemptsLeft: number) => {
                     setTimeout(() => {
@@ -236,6 +238,10 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const pauseVideo = async () => {
         if (playerRef.current) {
             await playerRef.current.pause();
+            // Reconcile the throttled UI clock: paused readouts must not sit
+            // up to two seconds behind the playhead indefinitely.
+            currentTimeRef.current = playerRef.current.currentTime;
+            setCurrentTime(playerRef.current.currentTime);
             setIsPlaying(false);
         }
     };
@@ -277,8 +283,10 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     }
     
+    // One store for speed: options.playbackSpeed (persisted there). This just
+    // applies it to the element immediately; a freshly mounted or swapped
+    // element gets the speed re-applied in Video's resumeFromLastPosition.
     const handleSpeedChange = (value: string) => {
-        setPlaybackSpeed(value);
         if (playerRef.current) {
             playerRef.current.playbackRate = parseFloat(value);
         }
@@ -474,7 +482,8 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         seekTo: stableSeekTo,
         seekToWithoutScroll: stableSeekToWithoutScroll,
         togglePlayPause: stableTogglePlayPause,
-    }), [stableSeekTo, stableSeekToWithoutScroll, stableTogglePlayPause]);
+        handleSpeedChange: stableHandleSpeedChange,
+    }), [stableSeekTo, stableSeekToWithoutScroll, stableTogglePlayPause, stableHandleSpeedChange]);
 
     // Memoize the value so it only invalidates when the reactive fields it
     // exposes actually change. The function fields are now all stable refs,
@@ -484,7 +493,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         currentTime: currentTimeRef.current,
         currentTimeRef,
         duration,
-        playbackSpeed,
         currentScrollInterval,
         setCurrentScrollInterval,
         togglePlayPause: stableTogglePlayPause,
@@ -510,7 +518,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         isPlaying,
         currentTime,
         duration,
-        playbackSpeed,
         currentScrollInterval,
         isSeeking,
         handleTimeUpdate,

@@ -18,7 +18,10 @@ mapboxgl.accessToken = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 export interface MapFeature {
     id: string
     geometry: any // GeoJSON geometry
-    properties?: Record<string, any>
+    /** `labelAnchor` is the one key the base map interprets: only 'left' has a
+     * matching offset/justify treatment in the label layer, so only 'left' is
+     * accepted. Everything else rides through to the GeoJSON source untouched. */
+    properties?: Record<string, any> & { labelAnchor?: 'left' }
     style?: {
         fillColor?: string
         fillOpacity?: number
@@ -515,8 +518,12 @@ const Map = memo(function Map({
                         12, 10,
                         17, 13
                     ],
-                    'text-anchor': 'top',
-                    'text-offset': [0, 0.8],
+                    // Per-feature placement: a small dot reads best labelled beneath
+                    // (the default), a 28px HTML pin hides that — such features pass
+                    // properties.labelAnchor 'left' and the text sits beside the icon.
+                    'text-anchor': ['coalesce', ['get', 'labelAnchor'], 'top'],
+                    'text-offset': ['case', ['==', ['get', 'labelAnchor'], 'left'], ['literal', [1.6, 0]], ['literal', [0, 0.8]]],
+                    'text-justify': ['case', ['==', ['get', 'labelAnchor'], 'left'], 'left', 'center'],
                     'text-padding': 3,
                     'text-optional': false,
                     'text-max-width': 16,
@@ -1038,7 +1045,10 @@ const Map = memo(function Map({
         prevProps.selectedGeometryForEdit === nextProps.selectedGeometryForEdit &&
         prevProps.zoomToGeometry === nextProps.zoomToGeometry &&
         prevProps.zoomPadding === nextProps.zoomPadding &&
-        JSON.stringify(prevProps.features) === JSON.stringify(nextProps.features)
+        // Identity first: a caller that memoizes its features (a city boundary can run to 100KB)
+        // would otherwise pay two serialisations of them on every parent render, e.g. per moveend.
+        (prevProps.features === nextProps.features ||
+            JSON.stringify(prevProps.features) === JSON.stringify(nextProps.features))
     );
 })
 

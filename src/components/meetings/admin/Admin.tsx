@@ -1,5 +1,7 @@
 "use client"
 import React from 'react';
+import { Slider } from '@/components/ui/slider';
+import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
 import { TaskStatus } from '@prisma/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -555,6 +557,35 @@ export default function AdminActions({
         </div>
 
         <MeetingOperator cityId={meeting.cityId} meetingId={meeting.id} />
+
+        <UtteranceDriftSetting />
     </div>
     );
 };
+
+/**
+ * The one transcript option that survived the settings page: how much timing
+ * drift an utterance may carry before the transcript hides it. Session-local,
+ * for whoever is reviewing timing issues.
+ */
+function UtteranceDriftSetting() {
+    const t = useTranslations('TranscriptOptions');
+    const { options, updateOptions } = useTranscriptOptions();
+    return (
+        <div className="mt-6">
+            <h3 className="text-lg font-semibold">{t('maxUtteranceDrift.label')}</h3>
+            <p className="text-sm text-muted-foreground mb-4">{t('maxUtteranceDrift.description')}</p>
+            <div className="flex items-center gap-4">
+                <Slider
+                    min={0}
+                    max={500}
+                    step={10}
+                    value={[options.maxUtteranceDrift]}
+                    onValueChange={value => updateOptions({ maxUtteranceDrift: value[0] })}
+                    className="w-[240px]"
+                />
+                <span className="w-14 text-sm font-medium tabular-nums">{options.maxUtteranceDrift}s</span>
+            </div>
+        </div>
+    );
+}

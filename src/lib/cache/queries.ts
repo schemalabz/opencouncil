@@ -4,15 +4,39 @@ import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogo
 import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
-import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
+import { getCouncilMeetingsForCity, getCouncilMeetingsWithSubjectPreview, type MeetingListOptions } from "@/lib/db/meetingsList";
+import { getAdjacentMeetings } from "@/lib/db/adjacentMeetings";
+import { countCityPetitions } from "@/lib/db/petitions";
+import { petitionBucket, type PetitionBucket } from "@/lib/landing/petitions";
+import { MEETING_PREVIEW_CACHE_VERSION } from "@/lib/db/types";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
-import { getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
+import { getSubjectCountForCity, getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
 import { getAdministrativeBodiesForCity, getAdministrativeBodiesWithPublicMeetings } from "@/lib/db/administrativeBodies";
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
 import { createCache } from "./index";
 import { getCityCoverage } from "@/lib/db/coverage";
+
+/**
+ * How long a time-filtered meeting query may go stale.
+ *
+ * Such a result is a function of `now`, which getCouncilMeetingsForCity reads
+ * inside the cached call. No tag can express "a meeting has since happened", so
+ * without a TTL an 'upcoming' entry keeps serving a meeting that is already
+ * over. Time-independent queries stay purely tag-driven.
+ */
+const TIME_FILTERED_TTL = 900;
+
+/**
+ * What a cached meeting-list wrapper accepts.
+ *
+ * `includeUnreleased` is not the caller's to set: each wrapper below resolves
+ * it — from the reader's authorization, or to false — and overrides whatever it
+ * was handed. Leaving it in the signature let a caller ask for unreleased
+ * meetings, type-check, and quietly get released ones.
+ */
+type CachedMeetingListOptions = Omit<MeetingListOptions, 'includeUnreleased'>;
 
 /**
  * Cached list of all city ids (single shared cache key, tag `cities:all`).
@@ -53,40 +77,116 @@ export async function getCityCached(cityId: string) {
 }
 
 /**
- * Cached version of getCouncilMeetingsForCity that fetches and caches all meetings for a city
+ * The same city row plus its boundary polygon — what a map needs to frame the δήμος. Kept apart
+ * from getCityCached so the pages that only want identity never carry a polygon through the cache.
  */
-export async function getCouncilMeetingsForCityCached(cityId: string, { limit, page, pageSize = 12 }: { limit?: number; page?: number; pageSize?: number } = {}) {
-  // Check if the user is authorized to edit the city
-  // This happens OUTSIDE the cached function to avoid using headers() inside cache
-  const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
-
+export async function getCityWithGeometryCached(cityId: string) {
   return createCache(
-    () => getCouncilMeetingsForCity(cityId, { includeUnreleased, limit, page, pageSize }),
-    ['city', cityId, 'meetings', includeUnreleased ? 'withUnreleased' : 'onlyReleased', page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all')],
-    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
+    () => getCity(cityId, { includeGeometry: true }),
+    ['city', cityId, 'geometry'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:geometry`] }
   )();
 }
 
 /**
- * Public (no-auth) version of getCouncilMeetingsForCityCached.
- * Only returns released meetings. Safe for static pages (no headers() call).
+ * A city's meetings with their full subject rows. Released only, so it needs
+ * no headers() call and is safe on a static page.
  */
-export async function getCouncilMeetingsForCityPublicCached(
-  cityId: string,
-  { limit, administrativeBodyTypes, administrativeBodyIds, timeFilter }: { limit?: number; administrativeBodyTypes?: AdministrativeBodyType[]; administrativeBodyIds?: string[]; timeFilter?: 'upcoming' | 'past' } = {}
-) {
-  const typeKey = administrativeBodyTypes && administrativeBodyTypes.length > 0
-    ? `types:${[...administrativeBodyTypes].sort().join(',')}`
-    : 'types:all';
-  const idKey = administrativeBodyIds && administrativeBodyIds.length > 0
-    ? `ids:${[...administrativeBodyIds].sort().join(',')}`
-    : 'ids:all';
-  const timeKey = timeFilter ?? 'all';
+export async function getCouncilMeetingsForCityPublicCached(cityId: string, options: CachedMeetingListOptions = {}) {
   return createCache(
-    () => getCouncilMeetingsForCity(cityId, { includeUnreleased: false, limit, administrativeBodyTypes, administrativeBodyIds, timeFilter }),
-    ['city', cityId, 'meetings', 'onlyReleased', limit ? `limit:${limit}` : 'all', typeKey, idKey, timeKey],
-    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
+    () => getCouncilMeetingsForCity(cityId, { ...options, includeUnreleased: false }),
+    ['city', cityId, 'meetings', 'onlyReleased', ...meetingListKey(options)],
+    {
+      tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
+      ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
+    }
   )();
+}
+
+/**
+ * Cache-key fragments for a filter on administrative bodies.
+ *
+ * Every cache whose query accepts one keys on it through here. A key that
+ * drifts from the query it stands for stays invisible until the day it serves
+ * another filter's rows.
+ */
+export function bodyFilterKey({ administrativeBodyTypes, administrativeBodyIds }: {
+  administrativeBodyTypes?: AdministrativeBodyType[];
+  administrativeBodyIds?: string[];
+}): string[] {
+  return [
+    administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:all',
+    administrativeBodyIds?.length ? `ids:${[...administrativeBodyIds].sort().join(',')}` : 'ids:all',
+  ];
+}
+
+/** Cache-key fragments for the filters a meeting list query accepts. */
+function meetingListKey(options: MeetingListOptions): string[] {
+  const { limit, page, pageSize = 12, from, to, timeFilter } = options;
+  return [
+    page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all'),
+    ...bodyFilterKey(options),
+    timeFilter ?? 'all',
+    // from/to go into the where, so they have to go into the key — without them
+    // two different date ranges are one cache entry.
+    `range:${from?.toISOString() ?? ''}:${to?.toISOString() ?? ''}`,
+  ];
+}
+
+/**
+ * Meetings carrying only what a card draws — see getCouncilMeetingsWithSubjectPreview.
+ *
+ * Authorization is resolved outside the cached call: headers() cannot be
+ * read inside one.
+ */
+export async function getCouncilMeetingsPreviewCached(cityId: string, options: CachedMeetingListOptions = {}) {
+  const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
+  return createCache(
+    () => getCouncilMeetingsWithSubjectPreview(cityId, { ...options, includeUnreleased }),
+    ['city', cityId, 'meetingPreviews', MEETING_PREVIEW_CACHE_VERSION, includeUnreleased ? 'withUnreleased' : 'onlyReleased', ...meetingListKey(options)],
+    {
+      tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
+      ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
+    }
+  )();
+}
+
+/** Public (no-auth) counterpart, safe for static pages. */
+export async function getCouncilMeetingsPreviewPublicCached(cityId: string, options: CachedMeetingListOptions = {}) {
+  return createCache(
+    () => getCouncilMeetingsWithSubjectPreview(cityId, { ...options, includeUnreleased: false }),
+    ['city', cityId, 'meetingPreviews', MEETING_PREVIEW_CACHE_VERSION, 'onlyReleased', ...meetingListKey(options)],
+    {
+      tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
+      ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
+    }
+  )();
+}
+
+/**
+ * The public "N+" bucket of a city's petitions, or null under the display
+ * threshold — the landing map's own coarseness, never an exact count. Hourly,
+ * like the map's list: petition counts move on their own, with no city
+ * mutation to invalidate on.
+ */
+export async function getCityPetitionBucketCached(cityId: string): Promise<PetitionBucket | null> {
+    return createCache(
+        async () => petitionBucket(await countCityPetitions(cityId)),
+        ['city', cityId, 'petitionBucket'],
+        { tags: ['city', `city:${cityId}`], revalidate: 3600 }
+    )();
+}
+
+/**
+ * The meetings either side of one, for the header's previous/next. Editors
+ * step through unreleased meetings too, so the two views cache apart.
+ */
+export async function getAdjacentMeetingsCached(cityId: string, meetingId: string, includeUnreleased: boolean) {
+    return createCache(
+        () => getAdjacentMeetings(cityId, meetingId, { includeUnreleased }),
+        ['city', cityId, 'meeting', meetingId, 'adjacent', includeUnreleased ? 'withUnreleased' : 'onlyReleased'],
+        { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] },
+    )();
 }
 
 /**
@@ -99,7 +199,6 @@ export async function getMeetingStatusCached(cityId: string, meetingId: string) 
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}:derived`] }
   )();
 }
-
 
 /**
  * Cached version of getPartiesForCity that fetches and caches all parties for a city
@@ -175,6 +274,20 @@ export async function getCityMessageCached(cityId: string) {
     () => getCityMessage(cityId),
     ['city', cityId, 'message'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:message`] }
+  )();
+}
+
+export async function getSubjectCountForCityCached(cityId: string) {
+  return createCache(
+    () => getSubjectCountForCity(cityId),
+    ['city', cityId, 'subjectCount'],
+    {
+      tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
+      // The count only includes meetings already held, so it grows with the clock
+      // as well as with the data — the same reason the time-filtered meeting
+      // queries carry a TTL.
+      revalidate: 900,
+    }
   )();
 }
 

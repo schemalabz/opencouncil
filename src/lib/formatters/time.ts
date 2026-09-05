@@ -189,6 +189,27 @@ export function formatWeekday(date: Date, timezone?: string, locale: string = 'e
 }
 
 /**
+ * The accusative article a Greek weekday takes — «την Τετάρτη», «τη Δευτέρα»,
+ * «το Σάββατο» — so copy never hard-codes one and gets Saturday wrong.
+ * The final ν stays before a vowel or κ, π, τ, ξ, ψ.
+ */
+function greekWeekdayArticle(weekday: string): string {
+    if (weekday === 'Σάββατο') return 'το';
+    return /^[ΑΕΗΙΟΥΩΚΠΤΞΨ]/.test(weekday) ? 'την' : 'τη';
+}
+
+/**
+ * A day and a time the way the meeting page promises them, with the article
+ * the sentence needs: "την Τετάρτη 11 Φεβρουαρίου 2026 στις 15:00",
+ * "Wednesday 11 February 2026 at 15:00".
+ */
+export function formatWeekdayDateTime(date: Date, timezone?: string, locale: string = 'el'): string {
+    const weekday = formatWeekday(date, timezone, locale);
+    const article = locale === 'el' ? `${greekWeekdayArticle(weekday)} ` : '';
+    return `${article}${weekday} ${formatDateTime(date, timezone, 'long', locale)}`;
+}
+
+/**
  * Formats a date to a standard string representation
  * @param date - The date to format
  * @param timezone - Optional timezone
@@ -267,6 +288,94 @@ export function formatDateTime(date: Date, timezone?: string, dateStyle: 'long' 
   }
 }
 
+/** The parts of a date-stamp: a large day numeral over a short month and year. */
+export interface DateStampParts {
+    day: string;
+    /** Abbreviated month and two-digit year, e.g. "ΑΥΓ 26" — already uppercased. */
+    monthYear: string;
+}
+
+
+/**
+ * The stamp formatters' shared prologue: normalize (dates that have been
+ * through unstable_cache come back as ISO strings), refuse garbage, and bind
+ * the locale and timezone once. Both stamp formats compose from this so their
+ * handling cannot drift.
+ */
+function stampContext(date: Date | string, timezone: string | undefined, locale: string) {
+    const value = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(value.getTime())) {
+        throw new Error(`Invalid date: ${String(date)}`);
+    }
+    const intlLocale = getIntlLocale(locale);
+    const part = (options: Intl.DateTimeFormatOptions): string =>
+        new Intl.DateTimeFormat(intlLocale, { ...options, timeZone: timezone || DEFAULT_TIMEZONE }).format(value);
+    return { intlLocale, part };
+}
+
+/** A timeline node's stamp — the day and short month, no year. */
+export interface DayMonthStampParts {
+    day: string;
+    /** Abbreviated month, uppercased with the locale's own rules — Greek capitals drop their tonos. */
+    month: string;
+}
+
+/**
+ * The date-stamp without its year, for surfaces where every date is recent — a
+ * year on each node of a meetings timeline would repeat itself down the page.
+ * Same normalization and timezone handling as {@link formatDateStamp}.
+ */
+export function formatDayMonthStamp(date: Date | string, timezone?: string, locale: string = 'el'): DayMonthStampParts {
+    const { intlLocale, part } = stampContext(date, timezone, locale);
+    return {
+        day: part({ day: 'numeric' }),
+        month: part({ month: 'short' }).replace(/\./g, '').toLocaleUpperCase(intlLocale),
+    };
+}
+
+/**
+ * Splits a date into the parts a calendar-style stamp renders separately, so a
+ * card can size the day numeral independently of the month.
+ *
+ * The month is abbreviated and uppercased because the stamp is read as a glance
+ * target, not as prose; a full month name would compete with the title beside it.
+ *
+ * @param date - The date to format
+ * @param timezone - The city's timezone; a meeting's local date is the one that matters
+ * @param locale - Defaults to 'el' to match the app's default locale
+ */
+export function formatDateStamp(date: Date | string, timezone?: string, locale: string = 'el'): DateStampParts {
+    const { intlLocale, part } = stampContext(date, timezone, locale);
+    const day = part({ day: '2-digit' });
+    const monthYear = part({ month: 'short', year: '2-digit' }).toLocaleUpperCase(intlLocale);
+    return { day, monthYear };
+}
+
+/**
+ * The clock time of a moment, in the council's timezone: "15:00".
+ * Takes a string as well, like the stamps: a cached meeting's date arrives serialized.
+ */
+export function formatClockTime(date: Date | string, timezone?: string, locale: string = 'el'): string {
+    return new Intl.DateTimeFormat(getIntlLocale(locale), {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: timezone || DEFAULT_TIMEZONE,
+    }).format(new Date(date));
+}
+
+/** A deadline the way a chip has room for it: short weekday, day and month — "Παρ 13/2". */
+export function formatShortDeadline(date: Date, timezone?: string, locale: string = 'el'): string {
+    // en-GB rather than en-US so English output stays day-first numeric.
+    const intlLocale = locale === 'en' ? 'en-GB' : getIntlLocale(locale);
+    return new Intl.DateTimeFormat(intlLocale, {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'numeric',
+        timeZone: timezone || DEFAULT_TIMEZONE,
+    }).format(date);
+}
+
 /**
  * Formats a gap duration in seconds to a Greek human-readable string
  * @param seconds - Gap duration in seconds
@@ -298,4 +407,3 @@ export function formatDateRange(startDate: Date | null, endDate: Date | null, t:
   }
   return '';
 }
-

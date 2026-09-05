@@ -99,7 +99,8 @@
         "createNewHighlight": "Креирај нови истакнути снимак",
         "creating": "Креирање истакнутог снимка...",
         "currentlyEditing": "Тренутно уређујете истакнути снимак",
-        "addHighlight": "Додај истакнути снимак"
+        "addHighlight": "Додај истакнути снимак",
+        "highlightShort": "Снимак"
     },
     "toasts": {
         "highlightCreated": "Истакнути снимак је креиран",

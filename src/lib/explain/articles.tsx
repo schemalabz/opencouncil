@@ -256,6 +256,28 @@ function LeitourgiaSymvouliouBody() {
     );
 }
 
+// How a meeting is put together — the προ ημερησίας part, the agenda, the
+// εκτός ημερησίας items — and why only the voted items end in a decision.
+// Linked from every προ ημερησίας subject's decision card, so the anchor is
+// load-bearing.
+function DomiSynedriasisBody() {
+    return (
+        <>
+            <p>
+                Μια συνεδρίαση έχει τρία μέρη. Στην αρχή, τα <strong>προ ημερησίας</strong>: ανακοινώσεις, ερωτήσεις
+                και συζήτηση, χωρίς ψηφοφορία και χωρίς απόφαση. Μετά, η <strong>ημερήσια διάταξη</strong>: τα
+                αριθμημένα θέματα της πρόσκλησης, που συζητούνται και ψηφίζονται ένα προς ένα. Ανάμεσά τους,
+                τα <strong>εκτός ημερησίας</strong>: έκτακτα θέματα που το σώμα δέχεται να συζητήσει, αφού πρώτα
+                ψηφίσει ότι είναι κατεπείγοντα.
+            </p>
+            <p>
+                Απόφαση παίρνουν μόνο τα θέματα που ψηφίζονται, και μόνο αυτές αναρτώνται στη Διαύγεια. Γι&apos; αυτό
+                ένα προ ημερησίας θέμα δεν έχει ποτέ απόφαση.
+            </p>
+        </>
+    );
+}
+
 function DimotikiEpitropiBody() {
     return (
         <>
@@ -440,6 +462,7 @@ export const ARTICLES: ExplainArticle[] = [
     { id: "dioikisi-dimou", title: "Πως διοικείται ένας Δήμος;", Body: DioikisiDimouBody },
     { id: "dimotiko-symvoulio", title: "Τι κάνει το Δημοτικό Συμβούλιο;", Body: DimotikoSymvoulioBody },
     { id: "leitourgia-symvouliou", title: "Πότε και πως συνεδριάζει το Δημοτικό Συμβούλιο;", Body: LeitourgiaSymvouliouBody },
+    { id: "domi-synedriasis", title: "Πώς είναι δομημένη μια συνεδρίαση;", Body: DomiSynedriasisBody },
     { id: "dimotiki-epitropi", title: "Τι κάνει η Δημοτική Επιτροπή;", Body: DimotikiEpitropiBody },
     {
         id: "dimotikes-koinotites",

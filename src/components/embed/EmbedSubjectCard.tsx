@@ -2,7 +2,7 @@ import { formatDate } from '@/lib/formatters/time';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { getAgendaLabel } from '@/lib/utils/subjects';
-import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
+import type { HotCardMeeting, HotCardSubject } from '@/lib/hotSubjectCards';
 import { SubjectCardContent } from '@/components/subject/SubjectCardContent';
 import { SubjectCardFooter } from '@/components/subject/SubjectCardFooter';
 import type { SubjectCardStats } from '@/lib/subjectCardStats';
@@ -11,11 +11,9 @@ import { routing, urlPrefixForLocale } from '@/i18n/routing';
 import { localizeText } from '@/lib/serbian';
 import { useTranslations } from 'next-intl';
 
-type EmbedSubject = CouncilMeetingWithAdminBodyAndSubjects['subjects'][number];
-
 interface EmbedSubjectCardProps {
-    subject: EmbedSubject;
-    meeting: CouncilMeetingWithAdminBodyAndSubjects;
+    subject: HotCardSubject;
+    meeting: HotCardMeeting;
     /** Subject location text; "Χωρίς τοποθεσία" fallback applied here. */
     locationText: string | null;
     /** Introducer + top speakers for the avatar row. */

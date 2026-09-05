@@ -14,6 +14,7 @@ export interface NavSection {
 
 export const OPENCOUNCIL_SUBSECTIONS: NavSection[] = [
     { id: "oc-how", title: "Αναλυτικά" },
+    { id: "oc-stages", title: "Η πορεία μιας συνεδρίασης" },
     { id: "oc-subjects", title: "Θέματα & Περιλήψεις" },
     { id: "oc-search", title: "Αναζήτηση" },
     { id: "oc-notifications", title: "Ειδοποιήσεις" },

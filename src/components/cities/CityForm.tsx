@@ -19,10 +19,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { SheetClose } from "@/components/ui/sheet"
 import { City, AdministrativeBodyType, CityMessage, NotificationBehavior } from '@prisma/client'
-import { Loader2, ChevronDown, ChevronUp, Trash2 } from "lucide-react"
+import { Loader2, Trash2 } from "lucide-react"
 import Image from 'next/image'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Switch } from "@/components/ui/switch"
 import { useLocale, useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
@@ -33,6 +32,9 @@ import AdministrativeBodiesList from './AdministrativeBodiesList'
 import CityMessageForm, { MessageFormState } from './CityMessageForm'
 import CityBoundaryEditor from './CityBoundaryEditor'
 import { ImageCropDialog } from '@/components/ui/ImageCropDialog'
+import { CityFormSection } from './CityFormSection'
+import { useRealm } from '@/hooks/useRealm'
+import { getRealmBaseUrl } from '@/lib/realm'
 
 // Use shared schema from lib/schemas/city.ts
 const formSchema = cityFormSchema
@@ -52,7 +54,6 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
     const [logoPreview, setLogoPreview] = useState<string | null>(city?.logoImage || null)
-    const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const [timezones, setTimezones] = useState<string[]>([])
     const t = useTranslations('CityForm')
     const locale = useLocale()
@@ -65,15 +66,15 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         notificationBehavior?: NotificationBehavior | null;
         diavgeiaUnitIds?: string[];
     }>>([])
-    const [isAdminBodiesOpen, setIsAdminBodiesOpen] = useState(false)
-    const [isAdminSettingsOpen, setIsAdminSettingsOpen] = useState(false)
-    const [isBoundaryOpen, setIsBoundaryOpen] = useState(false)
     const [boundary, setBoundary] = useState<GeoJSON.Polygon | GeoJSON.MultiPolygon | null>(null)
 
     // Message data for form submission - only stored when message component updates
     const [messageData, setMessageData] = useState<MessageFormState | null>(null);
 
     const isSuperAdmin = session?.user?.isSuperAdmin
+    // The slug is shown under the domain it will actually answer on: a city in
+    // the France realm lives on the .fr host, not on opencouncil.gr.
+    const urlPrefix = `${getRealmBaseUrl(useRealm()).replace(/^https?:\/\//, '')}/`
 
     useEffect(() => {
         // Get all available timezones
@@ -229,117 +230,361 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
                 {formError && (
-                    <div className="text-red-500 mb-4">{formError}</div>
+                    <div className="rounded-[8px] border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                        {formError}
+                    </div>
                 )}
-                <InputWithDerivatives
-                    baseName="name"
-                    basePlaceholder={t('cityNamePlaceholder')}
-                    baseDescription={t('cityNameDescription')}
-                    derivatives={[
-                        { name: "name_en", calculate: (baseValue) => toGreeklish(baseValue), placeholder: t('cityNameEnPlaceholder'), description: t('cityNameEnDescription') },
-                        { name: "name_municipality", calculate: (baseValue) => `Δήμος ${baseValue}`, placeholder: t('cityMunicipalityPlaceholder'), description: t('cityMunicipalityDescription') },
-                        { name: "name_municipality_en", calculate: (baseValue) => toGreeklish(`Municipality of ${toGreeklish(baseValue)}`), placeholder: t('cityMunicipalityEnPlaceholder'), description: t('cityMunicipalityEnDescription') },
-                    ]}
-                    form={form}
-                />
-                <FormField
-                    control={form.control}
-                    name="authorityType"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{t('authorityType')}</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={t('selectAuthorityType')} />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="municipality">{t('municipality')}</SelectItem>
-                                    <SelectItem value="region">{t('region')}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormDescription>
-                                {t('authorityTypeDescription')}
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                {city && (
+
+                <CityFormSection title={t('sectionIdentity')} hint={t('sectionIdentityHint')} defaultOpen>
+                    <InputWithDerivatives
+                        baseName="name"
+                        basePlaceholder={t('cityNamePlaceholder')}
+                        baseDescription={t('cityNameDescription')}
+                        derivatives={[
+                            { name: "name_en", calculate: (baseValue) => toGreeklish(baseValue), placeholder: t('cityNameEnPlaceholder'), description: t('cityNameEnDescription') },
+                            { name: "name_municipality", calculate: (baseValue) => `Δήμος ${baseValue}`, placeholder: t('cityMunicipalityPlaceholder'), description: t('cityMunicipalityDescription') },
+                            { name: "name_municipality_en", calculate: (baseValue) => toGreeklish(`Municipality of ${toGreeklish(baseValue)}`), placeholder: t('cityMunicipalityEnPlaceholder'), description: t('cityMunicipalityEnDescription') },
+                        ]}
+                        form={form}
+                    />
                     <FormField
                         control={form.control}
-                        name="peopleOrdering"
+                        name="authorityType"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>{t('peopleOrdering')}</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value || "default"}>
+                                <FormLabel>{t('authorityType')}</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                         <SelectTrigger>
-                                            <SelectValue placeholder={t('selectOrderingMethod')} />
+                                            <SelectValue placeholder={t('selectAuthorityType')} />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                        <SelectItem value="default">{t('defaultOrdering')}</SelectItem>
-                                        <SelectItem value="partyRank">{t('partyRankOrdering')}</SelectItem>
+                                        <SelectItem value="municipality">{t('municipality')}</SelectItem>
+                                        <SelectItem value="region">{t('region')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 <FormDescription>
-                                    {t('peopleOrderingDescription')}
+                                    {t('authorityTypeDescription')}
                                 </FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )}
                     />
-                )}
-                <FormField
-                    control={form.control}
-                    name="logoImage"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{t('logoImage')}</FormLabel>
-                            <FormControl>
-                                <Input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0]
-                                        if (file) setCropFile(file)
-                                        e.target.value = ''
-                                    }}
-                                />
-                            </FormControl>
-                            {!logoPreview && (
-                                <FormDescription>
-                                    {t('logoImageDescription')}
-                                </FormDescription>
-                            )}
-                            {logoPreview && (
-                                <div className="mt-2 flex items-end gap-2">
-                                    <Image
-                                        src={logoPreview}
-                                        alt={t('logoPreview')}
-                                        width={100}
-                                        height={100}
-                                        className="object-contain"
+                    <FormField
+                        control={form.control}
+                        name="logoImage"
+                        render={() => (
+                            <FormItem>
+                                <FormLabel>{t('logoImage')}</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0]
+                                            if (file) setCropFile(file)
+                                            e.target.value = ''
+                                        }}
                                     />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="icon"
-                                        aria-label="Remove logo"
-                                        onClick={handleRemoveLogo}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
+                                </FormControl>
+                                {!logoPreview && (
+                                    <FormDescription>
+                                        {t('logoImageDescription')}
+                                    </FormDescription>
+                                )}
+                                {logoPreview && (
+                                    <div className="mt-2 flex items-end gap-2">
+                                        <Image
+                                            src={logoPreview}
+                                            alt={t('logoPreview')}
+                                            width={100}
+                                            height={100}
+                                            className="object-contain"
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            aria-label="Remove logo"
+                                            onClick={handleRemoveLogo}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                )}
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </CityFormSection>
+
+                <CityFormSection title={t('sectionSettings')} hint={t('sectionSettingsHint')}>
+                    <FormField
+                        control={form.control}
+                        name="id"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('cityId')}</FormLabel>
+                                <FormControl>
+                                    <div className="flex items-center gap-1">
+                                        <span className="shrink-0 text-sm text-muted-foreground">{urlPrefix}</span>
+                                        <Input
+                                            {...field}
+                                            onChange={(e) => {
+                                                // Use the same transformation function as auto-derivation
+                                                field.onChange(idifyName(e.target.value))
+                                            }}
+                                        />
+                                    </div>
+                                </FormControl>
+                                <FormDescription>
+                                    {t('cityIdDescription')}
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="timezone"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('timezone')}</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder={t('selectTimezone')} />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {timezones.map((tz) => (
+                                            <SelectItem key={tz} value={tz}>
+                                                {tz}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>
+                                    {t('timezoneDescription')}
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    {city && (
+                        <FormField
+                            control={form.control}
+                            name="peopleOrdering"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('peopleOrdering')}</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value || "default"}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={t('selectOrderingMethod')} />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="default">{t('defaultOrdering')}</SelectItem>
+                                            <SelectItem value="partyRank">{t('partyRankOrdering')}</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormDescription>
+                                        {t('peopleOrderingDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
                             )}
-                            <FormMessage />
-                        </FormItem>
+                        />
                     )}
-                />
+                    <FormField
+                        control={form.control}
+                        name="diavgeiaUid"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('diavgeiaUid')}</FormLabel>
+                                <FormControl>
+                                    <Input
+                                        placeholder={t('diavgeiaUidPlaceholder')}
+                                        {...field}
+                                    />
+                                </FormControl>
+                                <FormDescription>
+                                    {t('diavgeiaUidDescription')}
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="supportsNotifications"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between gap-4 rounded-[8px] border border-border p-3">
+                                <div className="space-y-0.5">
+                                    <FormLabel>{t('supportsNotifications')}</FormLabel>
+                                    <FormDescription>
+                                        {t('supportsNotificationsDescription')}
+                                    </FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="consultationsEnabled"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between gap-4 rounded-[8px] border border-border p-3">
+                                <div className="space-y-0.5">
+                                    <FormLabel>{t('consultationsEnabled')}</FormLabel>
+                                    <FormDescription>
+                                        {t('consultationsEnabledDescription')}
+                                    </FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
+                </CityFormSection>
+
+                <CityFormSection title={t('boundary')} hint={t('boundaryDescription')}>
+                    <CityBoundaryEditor cityId={city?.id} onBoundaryChange={setBoundary} />
+                </CityFormSection>
+
+                {city && (
+                    <CityFormSection title={t('administrativeBodies')} hint={t('administrativeBodiesHint')}>
+                        <AdministrativeBodiesList
+                            cityId={city.id}
+                            bodies={administrativeBodies}
+                            onUpdate={refreshAdminBodies}
+                        />
+                    </CityFormSection>
+                )}
+
+                {isSuperAdmin && city && (
+                    <CityMessageForm
+                        existingMessage={cityMessage}
+                        onMessageChange={setMessageData}
+                    />
+                )}
+
+                {isSuperAdmin && (
+                    <CityFormSection title={t('adminSettings')} hint={t('adminSettingsHint')} restricted>
+                        <FormField
+                            control={form.control}
+                            name="status"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('status')}</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={t('selectStatus')} />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="pending">{t('statusPending')}</SelectItem>
+                                            <SelectItem value="demo">{t('statusDemo')}</SelectItem>
+                                            <SelectItem value="supported">{t('statusSupported')}</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormDescription>
+                                        {t('statusDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="highlightCreationPermission"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('highlightCreationPermission')}</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={t('selectHighlightCreationPermission')} />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="ADMINS_ONLY">{t('highlightCreationAdminsOnly')}</SelectItem>
+                                            <SelectItem value="EVERYONE">{t('highlightCreationEveryone')}</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormDescription>
+                                        {t('highlightCreationPermissionDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="realm"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('realm')}</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={t('selectRealm')} />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {ALL_REALMS.map((realm) => (
+                                                <SelectItem key={realm} value={realm}>{getRealmDisplayName(realm, locale)}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormDescription>
+                                        {t('realmDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="language"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('language')}</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={t('selectLanguage')} />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="el">{t('languageGreek')}</SelectItem>
+                                            <SelectItem value="fr">{t('languageFrench')}</SelectItem>
+                                            <SelectItem value="sr">{t('languageSerbian')}</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormDescription>
+                                        {t('languageDescription')}
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </CityFormSection>
+                )}
 
                 <ImageCropDialog
                     file={cropFile}
@@ -349,332 +594,13 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                     onConfirm={handleCroppedLogo}
                 />
 
-                {/* City Message Section - SuperAdmin Only */}
-                {isSuperAdmin && city && (
-                    <CityMessageForm
-                        existingMessage={cityMessage}
-                        onMessageChange={setMessageData}
-                    />
-                )}
-
-                <Collapsible
-                    open={isDetailsOpen}
-                    onOpenChange={setIsDetailsOpen}
-                    className="space-y-2"
-                >
-                    <div className="flex items-center justify-between space-x-4 px-4">
-                        <h4 className="text-sm font-semibold">
-                            {t('details')}
-                        </h4>
-                        <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm" className="w-9 p-0">
-                                {isDetailsOpen ? (
-                                    <ChevronUp className="h-4 w-4" />
-                                ) : (
-                                    <ChevronDown className="h-4 w-4" />
-                                )}
-                                <span className="sr-only">{t('toggle')}</span>
-                            </Button>
-                        </CollapsibleTrigger>
-                    </div>
-                    <CollapsibleContent className="space-y-2">
-                        <FormField
-                            control={form.control}
-                            name="timezone"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{t('timezone')}</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder={t('selectTimezone')} />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {timezones.map((tz) => (
-                                                <SelectItem key={tz} value={tz}>
-                                                    {tz}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormDescription>
-                                        {t('timezoneDescription')}
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="id"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{t('cityId')}</FormLabel>
-                                    <FormControl>
-                                        <div className="flex items-center">
-                                            <span className="mr-2">https://opencouncil.gr/</span>
-                                            <Input
-                                                {...field}
-                                                onChange={(e) => {
-                                                    // Use the same transformation function as auto-derivation
-                                                    field.onChange(idifyName(e.target.value))
-                                                }}
-                                            />
-                                        </div>
-                                    </FormControl>
-                                    <FormDescription>
-                                        {t('cityIdDescription')}
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="supportsNotifications"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                    <div className="space-y-0.5">
-                                        <FormLabel className="text-base">
-                                            {t('supportsNotifications')}
-                                        </FormLabel>
-                                        <FormDescription>
-                                            {t('supportsNotificationsDescription')}
-                                        </FormDescription>
-                                    </div>
-                                    <FormControl>
-                                        <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="consultationsEnabled"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                    <div className="space-y-0.5">
-                                        <FormLabel className="text-base">
-                                            {t('consultationsEnabled')}
-                                        </FormLabel>
-                                        <FormDescription>
-                                            {t('consultationsEnabledDescription')}
-                                        </FormDescription>
-                                    </div>
-                                    <FormControl>
-                                        <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                        />
-                                    </FormControl>
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="diavgeiaUid"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{t('diavgeiaUid')}</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            placeholder={t('diavgeiaUidPlaceholder')}
-                                            {...field}
-                                        />
-                                    </FormControl>
-                                    <FormDescription>
-                                        {t('diavgeiaUidDescription')}
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </CollapsibleContent>
-                </Collapsible>
-                <Collapsible
-                    open={isBoundaryOpen}
-                    onOpenChange={setIsBoundaryOpen}
-                    className="space-y-2"
-                >
-                    <div className="flex items-center justify-between space-x-4 px-4">
-                        <h4 className="text-sm font-semibold">
-                            {t('boundary')}
-                        </h4>
-                        <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm" className="w-9 p-0">
-                                {isBoundaryOpen ? (
-                                    <ChevronUp className="h-4 w-4" />
-                                ) : (
-                                    <ChevronDown className="h-4 w-4" />
-                                )}
-                                <span className="sr-only">{t('toggle')}</span>
-                            </Button>
-                        </CollapsibleTrigger>
-                    </div>
-                    <CollapsibleContent className="space-y-2">
-                        <p className="text-sm text-muted-foreground">{t('boundaryDescription')}</p>
-                        <CityBoundaryEditor cityId={city?.id} onBoundaryChange={setBoundary} />
-                    </CollapsibleContent>
-                </Collapsible>
-                {isSuperAdmin && (
-                    <Collapsible
-                        open={isAdminSettingsOpen}
-                        onOpenChange={setIsAdminSettingsOpen}
-                        className="space-y-2"
-                    >
-                        <div className="flex items-center justify-between space-x-4 px-4">
-                            <h4 className="text-sm font-semibold">
-                                {t('adminSettings')}
-                            </h4>
-                            <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="sm" className="w-9 p-0">
-                                    {isAdminSettingsOpen ? (
-                                        <ChevronUp className="h-4 w-4" />
-                                    ) : (
-                                        <ChevronDown className="h-4 w-4" />
-                                    )}
-                                    <span className="sr-only">{t('toggle')}</span>
-                                </Button>
-                            </CollapsibleTrigger>
-                        </div>
-                        <CollapsibleContent className="space-y-4">
-                            <FormField
-                                control={form.control}
-                                name="status"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('status')}</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder={t('selectStatus')} />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="pending">{t('statusPending')}</SelectItem>
-                                                <SelectItem value="demo">{t('statusDemo')}</SelectItem>
-                                                <SelectItem value="supported">{t('statusSupported')}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-                                            {t('statusDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="highlightCreationPermission"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('highlightCreationPermission')}</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder={t('selectHighlightCreationPermission')} />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="ADMINS_ONLY">{t('highlightCreationAdminsOnly')}</SelectItem>
-                                                <SelectItem value="EVERYONE">{t('highlightCreationEveryone')}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-                                            {t('highlightCreationPermissionDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="realm"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('realm')}</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder={t('selectRealm')} />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {ALL_REALMS.map((realm) => (
-                                                    <SelectItem key={realm} value={realm}>{getRealmDisplayName(realm, locale)}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-                                            {t('realmDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="language"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{t('language')}</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder={t('selectLanguage')} />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="el">{t('languageGreek')}</SelectItem>
-                                                <SelectItem value="fr">{t('languageFrench')}</SelectItem>
-                                                <SelectItem value="sr">{t('languageSerbian')}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormDescription>
-                                            {t('languageDescription')}
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </CollapsibleContent>
-                    </Collapsible>
-                )}
-                {city && (
-                    <Collapsible
-                        open={isAdminBodiesOpen}
-                        onOpenChange={setIsAdminBodiesOpen}
-                        className="space-y-2"
-                    >
-                        <div className="flex items-center justify-between space-x-4 px-4">
-                            <h4 className="text-sm font-semibold">
-                                {t('administrativeBodies')}
-                            </h4>
-                            <CollapsibleTrigger asChild>
-                                <Button variant="ghost" size="sm" className="w-9 p-0">
-                                    {isAdminBodiesOpen ? (
-                                        <ChevronUp className="h-4 w-4" />
-                                    ) : (
-                                        <ChevronDown className="h-4 w-4" />
-                                    )}
-                                    <span className="sr-only">{t('toggle')}</span>
-                                </Button>
-                            </CollapsibleTrigger>
-                        </div>
-                        <CollapsibleContent className="space-y-2">
-                            <AdministrativeBodiesList
-                                cityId={city.id}
-                                bodies={administrativeBodies}
-                                onUpdate={refreshAdminBodies}
-                            />
-                        </CollapsibleContent>
-                    </Collapsible>
-                )}
-                <div className="flex justify-between">
+                {/* Pinned: the sheet is six sections tall with everything open, and
+                    the button that commits them should never be the thing you have
+                    to scroll back to. */}
+                <div className="sticky bottom-0 -mx-6 -mb-6 flex items-center justify-end gap-2 border-t border-border bg-background/95 px-6 py-3 backdrop-blur">
+                    <SheetClose asChild>
+                        <Button type="button" variant="ghost">{t('cancel')}</Button>
+                    </SheetClose>
                     <Button type="submit" disabled={isSubmitting}>
                         {isSubmitting ? (
                             <>
@@ -685,9 +611,6 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                             <>{city ? t('updateCity') : t('createCity')}</>
                         )}
                     </Button>
-                    <SheetClose asChild>
-                        <Button type="button" variant="outline">{t('cancel')}</Button>
-                    </SheetClose>
                 </div>
             </form>
         </Form>

@@ -1,19 +1,34 @@
 /** @jest-environment node */
 
 const mockGetCouncilMeetingsForCityPublicCached = jest.fn();
+const mockGetCouncilMeetingsForCity = jest.fn();
 const mockFilterLocationIdsWithinRadius = jest.fn();
 const mockGetLocationDistancesFromPoint = jest.fn();
+const mockGetDiscussionSecondsForSubjects = jest.fn();
+/** The key parts each cached call was built with, in call order. */
+const mockCacheKeys: string[][] = [];
 
 jest.mock('../cache', () => ({
     __esModule: true,
-    createCache: (fn: () => unknown) => fn,
+    createCache: (fn: () => unknown, keyParts: string[]) => {
+        mockCacheKeys.push(keyParts);
+        return fn;
+    },
+    // The real helper sits in a module that reaches prisma, so the key
+    // assertions below cover the fragments this file builds around it.
+    bodyFilterKey: () => ['types:all', 'ids:all'],
     getCouncilMeetingsForCityPublicCached: (...args: unknown[]) =>
         mockGetCouncilMeetingsForCityPublicCached(...args),
 }));
 
-jest.mock('../db/meetings', () => ({
+jest.mock('../db/meetingsList', () => ({
     __esModule: true,
-    getCouncilMeetingsForCity: jest.fn(),
+    getCouncilMeetingsForCity: (...args: unknown[]) => mockGetCouncilMeetingsForCity(...args),
+}));
+
+jest.mock('../db/subject', () => ({
+    __esModule: true,
+    getDiscussionSecondsForSubjects: (...args: unknown[]) => mockGetDiscussionSecondsForSubjects(...args),
 }));
 
 jest.mock('../db/location', () => ({
@@ -22,9 +37,17 @@ jest.mock('../db/location', () => ({
     getLocationDistancesFromPoint: (...args: unknown[]) => mockGetLocationDistancesFromPoint(...args),
 }));
 
-import { getHotSubjectsNearPoint, withDistances, type HotSubject } from '../hotSubjects';
+import {
+    getRecentHotSubjects,
+    getHotSubjectsNearGeohash,
+    getHotSubjectsNearPoint,
+    withDistances,
+    type HotSubject,
+} from '../hotSubjects';
 
 const CENTER: [number, number] = [23.72, 37.98];
+/** A cell over central Athens. */
+const GEOHASH = 'swbb5';
 
 /**
  * Minimal meeting/subject shapes for the ranker. dateTime deliberately allows
@@ -32,7 +55,11 @@ const CENTER: [number, number] = [23.72, 37.98];
  * ranking must survive both (regression for the 500 this caused in the MCP
  * nearby tool).
  */
-function meeting(id: string, dateTime: Date | string, subjects: Array<{ id: string; locationId: string | null }>) {
+function meeting(
+    id: string,
+    dateTime: Date | string,
+    subjects: Array<{ id: string; locationId: string | null; contributions?: number; withdrawn?: boolean }>,
+) {
     return {
         id,
         cityId: 'athens',
@@ -46,14 +73,151 @@ function meeting(id: string, dateTime: Date | string, subjects: Array<{ id: stri
             locationId: subject.locationId,
             topic: null,
             speakerSegments: [],
-            _count: { contributions: 1 },
+            withdrawn: subject.withdrawn ?? false,
+            _count: { contributions: subject.contributions ?? 1 },
         })),
     };
 }
 
+describe('getRecentHotSubjects', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockGetDiscussionSecondsForSubjects.mockResolvedValue(new Map());
+    });
+
+    it('leaves out subjects nobody spoke to, and withdrawn ones', async () => {
+        // Both would otherwise rank on recency alone, and a subject with no
+        // discussion time behind it makes nonsense of any comparison drawn
+        // against it.
+        mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [
+                { id: 'debated', locationId: null, contributions: 4 },
+                { id: 'untouched', locationId: null, contributions: 0 },
+                { id: 'withdrawn', locationId: null, contributions: 9, withdrawn: true },
+            ]),
+        ]);
+
+        const hot = await getRecentHotSubjects('athens', { limit: 10 });
+
+        expect(hot.map(h => h.subject.id)).toEqual(['debated']);
+    });
+
+    it('ranks on debate minutes, not on how many times people spoke', async () => {
+        // The two signals disagree: one long intervention outweighs many short
+        // ones. The landing map ranks on minutes, and this must agree with it.
+        mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [
+                { id: 'manyShort', locationId: null, contributions: 40 },
+                { id: 'oneLong', locationId: null, contributions: 2 },
+            ]),
+        ]);
+        mockGetDiscussionSecondsForSubjects.mockResolvedValue(
+            new Map([['manyShort', 120], ['oneLong', 3600]]),
+        );
+
+        const hot = await getRecentHotSubjects('athens', { limit: 10 });
+
+        expect(hot.map(h => h.subject.id)).toEqual(['oneLong', 'manyShort']);
+    });
+
+    it('falls back to recency when nothing in the window has been discussed yet', async () => {
+        // Contributions are written at summarization, so a city whose meetings
+        // are released but not yet summarized has zero everywhere. Dropping them
+        // unconditionally emptied the embed widget municipalities host on their
+        // own sites; the filter only applies when there is something to prefer.
+        mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [
+                { id: 'untouched', locationId: null, contributions: 0 },
+                { id: 'also-untouched', locationId: null, contributions: 0 },
+            ]),
+        ]);
+
+        const hot = await getRecentHotSubjects('athens', { limit: 10 });
+        expect(hot.map(h => h.subject.id).sort()).toEqual(['also-untouched', 'untouched']);
+    });
+
+    it('asks only for meetings inside the period it is given', async () => {
+        mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [{ id: 'a', locationId: null }]),
+        ]);
+
+        await getRecentHotSubjects('athens', { limit: 10, months: 3 });
+
+        expect(mockGetCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(1);
+        const [, options] = mockGetCouncilMeetingsForCityPublicCached.mock.calls[0];
+        expect(options.from).toBeInstanceOf(Date);
+    });
+
+    it('falls back to the most recent meetings when the period holds none', async () => {
+        // A council in summer recess, or a city whose releases lag, leaves the
+        // period legitimately empty — and this ranking is the city page's lead
+        // content, so an empty period must not empty the page.
+        mockGetCouncilMeetingsForCityPublicCached
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([
+                meeting('old', new Date('2026-01-11T18:00:00Z'), [{ id: 'a', locationId: null }]),
+            ]);
+
+        const hot = await getRecentHotSubjects('athens', { limit: 10, months: 3 });
+
+        expect(hot.map(h => h.subject.id)).toEqual(['a']);
+        // The retry drops the date bound — the page tells the fallback happened
+        // by every meeting it gets back predating the window.
+        const [, second] = mockGetCouncilMeetingsForCityPublicCached.mock.calls[1];
+        expect(second.from).toBeUndefined();
+    });
+
+    it('does not retry an empty result when no period was asked for', async () => {
+        mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([]);
+
+        const hot = await getRecentHotSubjects('athens', { limit: 10 });
+
+        expect(hot).toEqual([]);
+        expect(mockGetCouncilMeetingsForCityPublicCached).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('getHotSubjectsNearGeohash', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockCacheKeys.length = 0;
+        mockGetDiscussionSecondsForSubjects.mockResolvedValue(new Map());
+        mockFilterLocationIdsWithinRadius.mockResolvedValue([]);
+    });
+
+    it('asks only for meetings inside the period it is given', async () => {
+        // The period used to be destructured away here and the window hardcoded,
+        // so this variant silently ranked the last few meetings whatever it was
+        // asked for.
+        mockGetCouncilMeetingsForCity.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [{ id: 'a', locationId: null }]),
+        ]);
+
+        await getHotSubjectsNearGeohash('athens', GEOHASH, { limit: 10, months: 3 });
+
+        expect(mockGetCouncilMeetingsForCity).toHaveBeenCalledTimes(1);
+        const [, options] = mockGetCouncilMeetingsForCity.mock.calls[0];
+        expect(options.from).toBeInstanceOf(Date);
+    });
+
+    it('keys the period, so two periods cannot share one entry', async () => {
+        mockGetCouncilMeetingsForCity.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [{ id: 'a', locationId: null }]),
+        ]);
+
+        await getHotSubjectsNearGeohash('athens', GEOHASH, { limit: 6, months: 3 });
+        await getHotSubjectsNearGeohash('athens', GEOHASH, { limit: 6, months: 12 });
+
+        const [threeMonths, twelveMonths] = mockCacheKeys;
+        expect(threeMonths).toContain('months:3');
+        expect(twelveMonths).toContain('months:12');
+    });
+});
+
 describe('getHotSubjectsNearPoint', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockGetDiscussionSecondsForSubjects.mockResolvedValue(new Map());
     });
 
     it('orders in-radius subjects first, fills with municipality-wide ones, and drops located subjects outside the radius', async () => {
@@ -132,6 +296,7 @@ describe('getHotSubjectsNearPoint', () => {
 describe('withDistances', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockGetDiscussionSecondsForSubjects.mockResolvedValue(new Map());
     });
 
     const items = meeting('m1', new Date('2026-08-01T18:00:00Z'), [

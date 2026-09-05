@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import type { MapSurface } from '@/lib/analytics/capture';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { SubjectCard } from './SubjectCard';
@@ -18,6 +19,7 @@ export function SubjectList({
     onSelect,
     loading,
     variant,
+    surface = 'landing',
     footer,
 }: {
     subjects: LandingSubject[];
@@ -25,6 +27,8 @@ export function SubjectList({
     onSelect: (id: string) => void;
     loading: boolean;
     variant: 'desktop' | 'mobile';
+    /** Which page the list renders on — passed through to each card's analytics. */
+    surface?: MapSurface;
     footer?: ReactNode;
 }) {
     const t = useTranslations('landingV2');
@@ -57,7 +61,7 @@ export function SubjectList({
             {visible.map((s) => (
                 // scroll-mt leaves a breather above the card when aligned to the top
                 <div key={s.id} data-subject-id={s.id} className={variant === 'desktop' ? 'scroll-mt-4' : 'scroll-mt-2'}>
-                    <SubjectCard subject={s} variant="expanded" selected={s.id === selectedId} onClick={() => onSelect(s.id)} />
+                    <SubjectCard subject={s} variant="expanded" selected={s.id === selectedId} surface={surface} onClick={() => onSelect(s.id)} />
                 </div>
             ))}
             {footer}

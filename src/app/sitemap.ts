@@ -89,12 +89,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }
     ]
 
-    const cityEntries: MetadataRoute.Sitemap = cities.map(city => ({
-        url: `${baseUrl}/${city.id}`,
-        lastModified: latestDate(city.updatedAt, ...city.councilMeetings.flatMap(meeting => [meeting.updatedAt, ...meeting.subjects.map(subject => subject.updatedAt)])),
-        changeFrequency: 'daily',
-        priority: 0.9,
-    }))
+    const cityEntries: MetadataRoute.Sitemap = cities.flatMap(city => {
+        const lastModified = latestDate(city.updatedAt, ...city.councilMeetings.flatMap(meeting => [meeting.updatedAt, ...meeting.subjects.map(subject => subject.updatedAt)]))
+        return [
+            {
+                url: `${baseUrl}/${city.id}`,
+                lastModified,
+                changeFrequency: 'daily' as const,
+                priority: 0.9,
+            },
+            // The full meeting list is only reachable from the city page's tab bar,
+            // so without its own entry it stays orphaned from crawlers.
+            {
+                url: `${baseUrl}/${city.id}/meetings`,
+                lastModified,
+                changeFrequency: 'daily' as const,
+                priority: 0.7,
+            },
+        ]
+    })
 
     const meetingEntries: MetadataRoute.Sitemap = cities.flatMap(city =>
         city.councilMeetings.map(meeting => ({

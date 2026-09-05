@@ -11,6 +11,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { getDateFnsLocale } from "@/lib/formatters/time";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
+import { UNKNOWN_SPEAKER_COLOR } from '@/lib/utils';
 
 export function Result({ result, className }: { result: SegmentWithRelations, className?: string }) {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -19,7 +20,7 @@ export function Result({ result, className }: { result: SegmentWithRelations, cl
     const t = useTranslations('search.result');
 
     const party = result.person ? getPartyFromRoles(result.person.roles) : null;
-    const borderColor = party?.colorHex || '#D3D3D3';
+    const borderColor = party?.colorHex || UNKNOWN_SPEAKER_COLOR;
     const timeParam = `t=${Math.floor(result.startTimestamp)}`;
     const transcriptUrl = `/${result.meeting.city.id}/${result.meeting.id}/transcript?${timeParam}`;
 
