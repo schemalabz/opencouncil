@@ -2,10 +2,42 @@
 
 import axios from 'axios';
 import { env } from '@/env.mjs';
+import { sendErrorAdminAlert } from '@/lib/discord';
 import { Result, createSuccess, createError } from '@/lib/result';
 
 // The radius to use for location-based search, in meters (40km)
 const SEARCH_RADIUS = 40000;
+
+// Google answers 200 with the failure in a status field, so a dead API key
+// throws nowhere in the stack. onRequestError never fires, the address field
+// just stops returning results, and the notification signup breaks in silence.
+// An expired key did exactly that in production.
+//
+// These two statuses mean the integration itself is down, not that the query
+// found nothing. REQUEST_DENIED covers an expired, revoked or restricted key.
+const ALERTING_STATUSES = new Set(['REQUEST_DENIED', 'OVER_QUERY_LIMIT']);
+
+async function alertOnPlacesOutage(
+    operation: 'suggestions' | 'details',
+    status: string,
+    errorMessage?: string
+): Promise<void> {
+    if (!ALERTING_STATUSES.has(status)) return;
+
+    const message = `Google Places ${operation} returned ${status}${errorMessage ? `: ${errorMessage}` : ''}. Address search is down.`;
+
+    // Match search/hits.ts: keep preview and local runs out of the team channel.
+    if (env.DEPLOYMENT_ENV !== 'production') {
+        console.warn(`[Places] ${message}`);
+        return;
+    }
+
+    await sendErrorAdminAlert({
+        source: 'Google Places',
+        error: message,
+        context: { operation, status },
+    });
+}
 
 /**
  * Server action to get place suggestions from Google Places API
@@ -60,14 +92,14 @@ export async function getPlaceSuggestions(data: {
         });
         console.log('Response status:', response.data.status);
 
-        // Handle different Google API response statuses
-        if (response.data.status === 'ZERO_RESULTS') {
-            // ZERO_RESULTS is not an error, it's a valid response with no results
-            return createSuccess({ status: 'ZERO_RESULTS', predictions: [] });
-        } else if (response.data.status !== 'OK') {
+        // Pass the Google status through rather than collapsing it into an
+        // error string. The caller needs it: it picks the user-facing message
+        // (LocationSelector reads REQUEST_DENIED and OVER_QUERY_LIMIT), and it
+        // decides whether this is an outage. A failed Result now means that
+        // this action failed, not that Google refused the request.
+        if (response.data.status !== 'OK' && response.data.status !== 'ZERO_RESULTS') {
             console.error('Google Places API returned non-OK status:', response.data.status);
-            const errorMsg = `Google API error: ${response.data.status}${response.data.error_message ? ': ' + response.data.error_message : ''}`;
-            return createError(errorMsg);
+            await alertOnPlacesOutage('suggestions', response.data.status, response.data.error_message);
         }
 
         return createSuccess(response.data);
@@ -105,10 +137,10 @@ export async function getPlaceDetails(data: { placeId: string; language?: string
             timeout: 5000 // Set timeout to 5 seconds
         });
 
+        // Pass the status through, for the same reason as getPlaceSuggestions.
         if (response.data.status !== 'OK') {
             console.error('Google Places Details API returned non-OK status:', response.data.status);
-            const errorMsg = `Google API error: ${response.data.status}${response.data.error_message ? ': ' + response.data.error_message : ''}`;
-            return createError(errorMsg);
+            await alertOnPlacesOutage('details', response.data.status, response.data.error_message);
         }
 
         return createSuccess(response.data);
