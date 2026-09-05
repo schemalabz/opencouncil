@@ -14,6 +14,14 @@ interface OnboardingProviderProps {
     initialStage: OnboardingStage;
 }
 
+// Server rejections that have their own message under Onboarding.errors.
+const SAVE_ERROR_KEYS: Record<string, string> = {
+    phone_empty: 'phoneInvalid',
+    phone_invalid: 'phoneInvalid',
+    phone_not_mobile: 'phoneNotMobile',
+    phone_in_use: 'phoneInUse',
+};
+
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
 export function OnboardingProvider({
@@ -183,7 +191,7 @@ export function OnboardingProvider({
                 if (result.error === "email_exists") {
                     setEmailExistsError(session?.user?.email || email);
                 } else {
-                    setError('genericError');
+                    setError(SAVE_ERROR_KEYS[result.error] ?? 'genericError');
                 }
             } else {
                 posthog.capture("notification_signup_completed", {
@@ -224,7 +232,7 @@ export function OnboardingProvider({
                 if (result.error === "email_exists") {
                     setEmailExistsError(session?.user?.email || email);
                 } else {
-                    setError('genericError');
+                    setError(SAVE_ERROR_KEYS[result.error] ?? 'genericError');
                 }
             } else {
                 posthog.capture("petition_submitted", {

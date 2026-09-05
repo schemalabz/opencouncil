@@ -716,6 +716,8 @@
     "phone": "Téléphone",
     "phonePlaceholder": "Ajouter un numéro de téléphone (facultatif)",
     "phoneInvalid": "Saisissez un numéro de téléphone valide",
+    "phoneNotMobile": "Indiquez un numéro de mobile : WhatsApp et les SMS n'atteignent pas une ligne fixe",
+    "phoneInUse": "Ce numéro est déjà associé à un autre compte",
     "emailChangeTooltip": "Pour modifier votre e-mail, contactez-nous à dpo@opencouncil.gr",
     "lastUpdated": "Dernière mise à jour : {date}",
     "allowProductUpdates": "Mises à jour sur les actualités d'OpenCouncil",
@@ -835,6 +837,9 @@
       "emailExists": "L'e-mail {email} est déjà utilisé. Connectez-vous pour continuer ou utilisez un autre e-mail.",
       "signInCta": "Se connecter avec cet e-mail",
       "genericError": "Une erreur s'est produite. Veuillez réessayer.",
+      "phoneInvalid": "Le numéro de téléphone n'est pas valide. Saisissez-le avec l'indicatif du pays, par ex. +33 6….",
+      "phoneNotMobile": "Indiquez un numéro de mobile : WhatsApp et les SMS n'atteignent pas une ligne fixe.",
+      "phoneInUse": "Ce numéro est déjà associé à un autre compte. Connectez-vous avec ce compte ou utilisez un autre numéro.",
       "loadingError": "Une erreur s'est produite lors du chargement des préférences. Veuillez réessayer."
     },
     "submitting": "Envoi...",
@@ -898,7 +903,8 @@
       "phoneOptional": "(facultatif)",
       "phonePlaceholder": "Ajouter un numéro de téléphone",
       "phoneActivePlaceholder": "Votre numéro de téléphone",
-      "phoneInvalid": "Veuillez saisir un numéro de téléphone valide"
+      "phoneInvalid": "Veuillez saisir un numéro de téléphone valide",
+      "phoneNotMobile": "Indiquez un numéro de mobile : WhatsApp et les SMS n'atteignent pas une ligne fixe"
     },
     "complete": {
       "petitionTitle": "Votre demande a été enregistrée",

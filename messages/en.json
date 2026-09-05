@@ -470,6 +470,9 @@
             "emailExists": "The email {email} is already in use. Sign in to continue, or use a different email.",
             "signInCta": "Sign in with this email",
             "genericError": "An error occurred. Please try again.",
+            "phoneInvalid": "The phone number is not valid. Enter it with the country code, e.g. +30 69….",
+            "phoneNotMobile": "Enter a mobile number — WhatsApp and SMS cannot reach a landline.",
+            "phoneInUse": "This number is already linked to another account. Sign in with that account, or use a different number.",
             "loadingError": "An error occurred while loading preferences. Please try again."
         },
         "submitting": "Submitting...",
@@ -533,7 +536,8 @@
             "phoneOptional": "(optional)",
             "phonePlaceholder": "Add a phone number",
             "phoneActivePlaceholder": "Your phone number",
-            "phoneInvalid": "Please enter a valid phone number"
+            "phoneInvalid": "Please enter a valid phone number",
+            "phoneNotMobile": "Enter a mobile number — WhatsApp and SMS cannot reach a landline"
         },
         "complete": {
             "petitionTitle": "Your request has been recorded",
@@ -728,6 +732,8 @@
         "phone": "Phone",
         "phonePlaceholder": "Add phone number (optional)",
         "phoneInvalid": "Enter a valid phone number",
+        "phoneNotMobile": "Enter a mobile number — WhatsApp and SMS cannot reach a landline",
+        "phoneInUse": "This number is already linked to another account",
         "emailChangeTooltip": "To change your email, contact us at dpo@opencouncil.gr",
         "lastUpdated": "Last updated: {date}",
         "allowProductUpdates": "Product updates for OpenCouncil",

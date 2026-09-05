@@ -49,6 +49,7 @@ export function UserInfoForm({
         isActive: false,
         isEmpty: true,
         isValid: false,
+        reason: null,
     });
     const [nameError, setNameError] = useState<string | null>(null);
     const [emailError, setEmailError] = useState<string | null>(null);
@@ -200,6 +201,7 @@ export function UserInfoForm({
                         placeholder={t('phonePlaceholder')}
                         activePlaceholder={t('phoneActivePlaceholder')}
                         invalidMessage={t('phoneInvalid')}
+                        notMobileMessage={t('phoneNotMobile')}
                     />
                 </div>
             )}
