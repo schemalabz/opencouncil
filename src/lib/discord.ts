@@ -32,13 +32,17 @@ interface DiscordWebhookPayload {
 }
 
 /**
- * Send a message to Discord via webhook
+ * Send a message to Discord via webhook.
+ *
+ * Returns whether Discord accepted the message. A failure is still swallowed
+ * rather than thrown, so no caller has to guard, but a caller that suppresses
+ * its own repeat alerts needs to know that this one never arrived.
  */
-async function sendDiscordMessage(payload: DiscordWebhookPayload): Promise<void> {
+async function sendDiscordMessage(payload: DiscordWebhookPayload): Promise<boolean> {
     // Skip if webhook URL is not configured
     if (!env.DISCORD_WEBHOOK_URL) {
         console.log('Discord webhook URL not configured, skipping admin alert');
-        return;
+        return false;
     }
 
     try {
@@ -52,9 +56,13 @@ async function sendDiscordMessage(payload: DiscordWebhookPayload): Promise<void>
 
         if (!response.ok) {
             console.error('Failed to send Discord admin alert:', response.statusText);
+            return false;
         }
+
+        return true;
     } catch (error) {
         console.error('Error sending Discord admin alert:', error);
+        return false;
     }
 }
 
@@ -78,6 +86,7 @@ function buildIdentityFooter(): DiscordEmbed['footer'] {
 
 /**
  * Thin wrapper around sendDiscordMessage that adds the embed boilerplate.
+ * Returns whether Discord accepted the message.
  */
 async function sendAdminAlert(embed: {
     title: string;
@@ -85,8 +94,8 @@ async function sendAdminAlert(embed: {
     color: number;
     fields: DiscordEmbed['fields'];
     footer?: DiscordEmbed['footer'];
-}): Promise<void> {
-    await sendDiscordMessage({
+}): Promise<boolean> {
+    return sendDiscordMessage({
         embeds: [{
             ...embed,
             footer: embed.footer ?? buildIdentityFooter(),
@@ -949,7 +958,7 @@ export async function sendErrorAdminAlert(data: {
     source: string;
     error: string;
     context?: Record<string, string | undefined>;
-}): Promise<void> {
+}): Promise<boolean> {
     const contextFields = data.context
         ? Object.entries(data.context)
             .filter((entry): entry is [string, string] => entry[1] !== undefined)
@@ -960,7 +969,7 @@ export async function sendErrorAdminAlert(data: {
             }))
         : [];
 
-    await sendAdminAlert({
+    return sendAdminAlert({
         title: `🚨 Error - ${data.source}`,
         description: truncateField(data.error),
         color: 0xff0000,
