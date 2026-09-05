@@ -535,14 +535,23 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
                     {/* From column one: below `md` the marks column holds the mark
                         and the toggle, and indenting the page behind them left it
                         floating in the middle of a row it owns. From `md` that
-                        column is zero wide, so this lands on the crumb's x anyway. */}
-                    <div className={cn('col-start-1 col-span-2 flex min-w-0 items-center gap-2', rowTwo)}>
+                        column is zero wide, so this lands on the crumb's x anyway.
+                        The actions ride in this same item rather than in column
+                        three. That column is `auto`, so it used to size to
+                        whichever row wanted more, and the action bar always wants
+                        more than a search button and an avatar: on a phone it held
+                        column three at 124px for a row one that needed 76, and the
+                        48px it kept went to `ml-auto`, not to the title. An item
+                        that spans the `1fr` column adds nothing to the intrinsic
+                        size of the two beside it, so spanning all three hands that
+                        width back to the name. */}
+                    <div className={cn('col-start-1 col-span-3 flex min-w-0 items-center gap-2', rowTwo)}>
                         {triggerInActionBar && (
                             <SidebarTrigger className="h-5 w-5 shrink-0 text-muted-foreground/60 sm:hidden" />
                         )}
                         {renderPageLabel()}
+                        <div className="ml-auto flex shrink-0 items-center">{renderPageActions()}</div>
                     </div>
-                    <div className={cn('col-start-3 ml-auto flex', rowTwo)}>{renderPageActions()}</div>
                 </>
             )}
         </div>
