@@ -404,6 +404,10 @@ function TaxonomyList({ label, count, meetings, cityId, openLabel }: {
     const [open, setOpen] = useState(false);
     if (count === 0) return null;
     const rows = [...meetings].sort((a, b) => b.sessionDate.localeCompare(a.sessionDate));
+    // The lists are capped city-wide before a body narrows them, so a bucket can
+    // list fewer subjects than its count. Say so rather than let the reader
+    // assume the list is complete.
+    const listed = rows.reduce((n, m) => n + m.subjects, 0);
     return (
         <div className="mb-1.5">
             <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-baseline justify-between gap-2 text-left text-xs hover:underline">
@@ -412,6 +416,9 @@ function TaxonomyList({ label, count, meetings, cityId, openLabel }: {
             </button>
             {open && (
                 <ul className="mt-1 space-y-0.5 pl-1">
+                    {listed < count && (
+                        <li className="text-xs text-muted-foreground/80">{t('taxonomy.partial', { listed, count })}</li>
+                    )}
                     {rows.map(m => (
                         <li key={m.councilMeetingId} className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
                             <span>

@@ -134,9 +134,13 @@ function deriveUnmatchedLists(facts: DecisionFacts): CityDecisionDetail['unmatch
     }
 
     // Caps are per cause so one bucket cannot starve another.
+    // Newest session first, so the cap keeps the meetings a reader is most
+    // likely to act on. Meeting ids are slugs («jun9_2026»), so ordering by id
+    // sorted alphabetically by month name and made the kept rows arbitrary.
     const bucket = (cause: UnmatchedCause): CityUnmatchedSubject[] =>
         classified.filter(r => r.cause === cause)
-            .sort((a, b) => a.councilMeetingId.localeCompare(b.councilMeetingId)
+            .sort((a, b) => b.sessionDate.localeCompare(a.sessionDate)
+                || a.councilMeetingId.localeCompare(b.councilMeetingId)
                 || a.name.localeCompare(b.name, 'el'))
             .slice(0, LIST_CAP)
             .map(({ id, name, councilMeetingId, sessionDate }) => ({ id, name, councilMeetingId, sessionDate }));

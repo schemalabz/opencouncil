@@ -428,7 +428,8 @@
             "candidatesUnmatched": "кандидати су постојали, ниједан није одговарао",
             "nothingFetched": "нема објављеног акта (вероватно)",
             "duplicateSubject": "дупликат тачке у истој седници",
-            "subjectCount": "{count, plural, one {# тема} few {# теме} other {# тема}}"
+            "subjectCount": "{count, plural, one {# тема} few {# теме} other {# тема}}",
+            "partial": "приказано {listed} од {count}, најновије"
         },
         "conflict": {
             "claims": "тражи је „{subject}”",

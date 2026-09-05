@@ -428,7 +428,8 @@
       "candidatesUnmatched": "candidates were present, none matched",
       "nothingFetched": "no published act (probable)",
       "duplicateSubject": "duplicate subject in the same meeting",
-      "subjectCount": "{count, plural, one {# subject} other {# subjects}}"
+      "subjectCount": "{count, plural, one {# subject} other {# subjects}}",
+      "partial": "showing {listed} of {count}, the most recent"
     },
     "conflict": {
       "claims": "claimed by “{subject}”",

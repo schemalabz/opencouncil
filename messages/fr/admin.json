@@ -428,7 +428,8 @@
       "candidatesUnmatched": "des candidates existaient, aucune n'a correspondu",
       "nothingFetched": "aucun acte publié (probable)",
       "duplicateSubject": "sujet en double dans la même séance",
-      "subjectCount": "{count, plural, one {# sujet} other {# sujets}}"
+      "subjectCount": "{count, plural, one {# sujet} other {# sujets}}",
+      "partial": "affichage de {listed} sur {count}, les plus récentes"
     },
     "conflict": {
       "claims": "revendiquée par « {subject} »",

@@ -428,7 +428,8 @@
       "candidatesUnmatched": "υπήρχαν υποψήφιες, καμία δεν ταίριαξε",
       "nothingFetched": "καμία δημοσιευμένη πράξη (πιθανό)",
       "duplicateSubject": "διπλότυπο θέμα στην ίδια συνεδρίαση",
-      "subjectCount": "{count, plural, one {# θέμα} other {# θέματα}}"
+      "subjectCount": "{count, plural, one {# θέμα} other {# θέματα}}",
+      "partial": "εμφανίζονται {listed} από {count}, οι πιο πρόσφατες"
     },
     "conflict": {
       "claims": "διεκδικείται από «{subject}»",
