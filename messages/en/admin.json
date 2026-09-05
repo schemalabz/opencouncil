@@ -264,7 +264,7 @@
       "tabDocument": "Document",
       "tabExtraction": "Decision details",
       "close": "Close",
-      "subjectDescriptionLabel": "Subject description:",
+      "subjectDescriptionLabel": "Subject summary:",
       "agendaItemTitleLabel": "Agenda item title:",
       "reassignTitle": "Move decision",
       "reassignExplain": "The decision moves to “{subject}”. “{holder}” is left without a decision."

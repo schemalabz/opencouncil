@@ -264,7 +264,7 @@
             "tabDocument": "Документ",
             "tabExtraction": "Детаљи одлуке",
             "close": "Затвори",
-            "subjectDescriptionLabel": "Опис тачке:",
+            "subjectDescriptionLabel": "Сажетак теме:",
             "agendaItemTitleLabel": "Наслов тачке дневног реда:",
             "reassignTitle": "Премести одлуку",
             "reassignExplain": "Одлука се премешта на тачку „{subject}”. Тачка „{holder}” остаје без одлуке."

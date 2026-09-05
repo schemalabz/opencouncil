@@ -264,7 +264,7 @@
       "tabDocument": "Έγγραφο",
       "tabExtraction": "Στοιχεία απόφασης",
       "close": "Κλείσιμο",
-      "subjectDescriptionLabel": "Περιγραφή θέματος:",
+      "subjectDescriptionLabel": "Σύνοψη θέματος:",
       "agendaItemTitleLabel": "Τίτλος στην ημερήσια διάταξη:",
       "reassignTitle": "Μεταφορά απόφασης",
       "reassignExplain": "Η απόφαση θα μεταφερθεί στο θέμα «{subject}». Το «{holder}» θα μείνει χωρίς απόφαση."

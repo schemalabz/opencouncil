@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ExternalLink, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { diavgeiaViewUrl, inlinePdfUrl } from './pdfUrl';
+import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 
 interface ConfirmSheetProps {
     open: boolean;
@@ -51,7 +52,7 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
         : t(`${action}Explain`, { subject: subjectName ?? '', holder: holderName ?? '' });
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="flex w-full flex-col sm:max-w-xl">
+            <SheetContent side="right" className="flex w-full flex-col overflow-y-auto sm:max-w-xl">
                 <SheetHeader>
                     <SheetTitle>{t(`${action}Title`)}</SheetTitle>
                     <SheetDescription>
@@ -61,13 +62,14 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                     {agendaItemTitle?.trim() && (
                         <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                             <span className="font-medium text-foreground">{t('agendaItemTitleLabel')}</span>{' '}
-                            <span className="line-clamp-4">{agendaItemTitle}</span>
+                            <span>{agendaItemTitle}</span>
                         </div>
                     )}
                     {subjectDescription && (
                         <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                             <span className="font-medium text-foreground">{t('subjectDescriptionLabel')}</span>{' '}
-                            <span className="line-clamp-4">{subjectDescription}</span>
+                            <span>{subjectDescription}</span>
+                            <AIGeneratedBadge className="mt-1 justify-end" />
                         </div>
                     )}
                     {(ada || meetingLink) && (
@@ -106,9 +108,9 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                     </div>
                 )}
                 {extraContent && pane === 'extraction' ? (
-                    <div className="min-h-0 flex-1 overflow-y-auto rounded border p-3">{extraContent}</div>
+                    <div className="h-[60vh] min-h-[320px] shrink-0 overflow-y-auto rounded border p-3">{extraContent}</div>
                 ) : (
-                    <iframe title={t('documentTitle')} src={inlinePdfUrl(pdfUrl)} className="min-h-0 w-full flex-1 rounded border" />
+                    <iframe title={t('documentTitle')} src={inlinePdfUrl(pdfUrl)} className="h-[60vh] min-h-[320px] w-full shrink-0 rounded border" />
                 )}
                 {action !== 'view' && (
                     <div className={`rounded-lg px-3 py-2.5 text-sm ${action === 'unlink' && destructive ? 'bg-red-50 dark:bg-red-950/30 text-red-900 dark:text-red-200' : 'bg-muted/60'}`}>
