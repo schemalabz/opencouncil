@@ -8,6 +8,8 @@ import { classifyDeliveries, deliveriesWhereForStatus } from '@/lib/notification
 import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
+import { PHONE_IN_USE_CODE, PHONE_REJECTION_CODES, normalizeMobilePhone } from "@/lib/utils/phone";
+import { phoneBelongsToAnotherUser } from "./users";
 import { NotFoundError } from "@/lib/api/errors";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
@@ -307,7 +309,15 @@ export async function saveNotificationPreferences(data: OnboardingData & {
     if (!validation.success) {
         return createError('Invalid input');
     }
-    const { cityId, locations, topicIds, phone, email, name, seedUser: rawSeedUser } = data;
+    const { cityId, locations, topicIds, phone: rawPhone, email, name, seedUser: rawSeedUser } = data;
+    // A phone is stored as a mobile number in E.164 or not at all (@/lib/phone):
+    // the old input let national numbers through, and they reached nobody.
+    let phone: string | undefined;
+    if (rawPhone) {
+        const parsed = normalizeMobilePhone(rawPhone);
+        if (!parsed.ok) return createError(PHONE_REJECTION_CODES[parsed.reason]);
+        phone = parsed.e164;
+    }
     // Harden the attacker-controllable seed field: undefined off local dev, and
     // otherwise stripped to benign fields only (see sanitizeSeedUser).
     const seedUser = sanitizeSeedUser(rawSeedUser);
@@ -340,6 +350,9 @@ export async function saveNotificationPreferences(data: OnboardingData & {
 
             // Update phone if provided
             if (phone) {
+                if (await phoneBelongsToAnotherUser(phone, user.id)) {
+                    return createError(PHONE_IN_USE_CODE);
+                }
                 await prisma.user.update({
                     where: { id: user.id },
                     data: { phone }
@@ -356,6 +369,9 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 // Email exists but user is not authenticated - return error
                 return createError("email_exists");
             } else {
+                if (phone && (await phoneBelongsToAnotherUser(phone))) {
+                    return createError(PHONE_IN_USE_CODE);
+                }
                 // Create new user
                 const newUser = await prisma.user.create({
                     data: {
@@ -488,7 +504,14 @@ export async function savePetition(data: OnboardingData & {
     if (!validation.success) {
         return createError('Invalid input');
     }
-    const { cityId, isResident, isCitizen, phone, email, name, seedUser: rawSeedUser } = data;
+    const { cityId, isResident, isCitizen, phone: rawPhone, email, name, seedUser: rawSeedUser } = data;
+    // Same rule as saveNotificationPreferences: a mobile in E.164 or nothing.
+    let phone: string | undefined;
+    if (rawPhone) {
+        const parsed = normalizeMobilePhone(rawPhone);
+        if (!parsed.ok) return createError(PHONE_REJECTION_CODES[parsed.reason]);
+        phone = parsed.e164;
+    }
     // Harden the attacker-controllable seed field: undefined off local dev, and
     // otherwise stripped to benign fields only (see sanitizeSeedUser).
     const seedUser = sanitizeSeedUser(rawSeedUser);
@@ -513,6 +536,9 @@ export async function savePetition(data: OnboardingData & {
 
             // Always set allowPetitionUpdates (submitting a petition is implicit
             // consent for petition updates); merge phone in if provided.
+            if (phone && (await phoneBelongsToAnotherUser(phone, user.id))) {
+                return createError(PHONE_IN_USE_CODE);
+            }
             await prisma.user.update({
                 where: { id: user.id },
                 data: {
@@ -531,6 +557,9 @@ export async function savePetition(data: OnboardingData & {
                 // Email exists but user is not authenticated - return error
                 return createError("email_exists");
             } else {
+                if (phone && (await phoneBelongsToAnotherUser(phone))) {
+                    return createError(PHONE_IN_USE_CODE);
+                }
                 // Create new user
                 const newUser = await prisma.user.create({
                     data: {

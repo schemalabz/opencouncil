@@ -18,6 +18,14 @@ import { NotificationPreferencesSection } from "@/components/profile/Notificatio
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatNumericDateTime } from "@/lib/formatters/time";
 
+// Server phone rejections that have their own message in the Profile namespace.
+const PHONE_ERROR_KEYS: Record<string, string> = {
+    phone_empty: "phoneInvalid",
+    phone_invalid: "phoneInvalid",
+    phone_not_mobile: "phoneNotMobile",
+    phone_in_use: "phoneInUse",
+};
+
 interface UserInfoFormProps {
     user: User;
     isOnboarded: boolean;
@@ -33,7 +41,11 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
         isActive: false,
         isEmpty: true,
         isValid: false,
+        reason: null,
     });
+    // A rejection the server can see and the field cannot (a number held by
+    // another account), keyed into PHONE_ERROR_KEYS.
+    const [serverPhoneError, setServerPhoneError] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
         name: user.name || "",
@@ -53,7 +65,19 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
-            if (!response.ok) throw new Error("Failed to update profile");
+            if (!response.ok) {
+                const body = (await response.json().catch(() => null)) as {
+                    error?: { code?: string; fieldErrors?: { phone?: string[] } };
+                } | null;
+                const code = body?.error?.code ?? body?.error?.fieldErrors?.phone?.[0];
+                const key = code ? PHONE_ERROR_KEYS[code] : undefined;
+                if (key) {
+                    setServerPhoneError(key);
+                    return;
+                }
+                throw new Error("Failed to update profile");
+            }
+            setServerPhoneError(null);
             router.refresh();
         } catch (error) {
             console.error("Failed to update profile:", error);
@@ -162,11 +186,18 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
                                     <Label htmlFor="phone">{t("phone")}</Label>
                                     <PhoneField
                                         value={formData.phone}
-                                        onChange={(phone) => setFormData({ ...formData, phone })}
+                                        onChange={(phone) => {
+                                            setServerPhoneError(null);
+                                            setFormData({ ...formData, phone });
+                                        }}
                                         onValidityChange={setPhoneValidity}
                                         placeholder={t("phonePlaceholder")}
                                         invalidMessage={t("phoneInvalid")}
+                                        notMobileMessage={t("phoneNotMobile")}
                                     />
+                                    {serverPhoneError && (
+                                        <p className="text-sm text-red-500">{t(serverPhoneError)}</p>
+                                    )}
                                 </div>
 
                                 <div className="flex flex-col justify-between gap-2">

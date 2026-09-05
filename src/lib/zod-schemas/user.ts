@@ -1,12 +1,31 @@
 import { z } from 'zod';
+import { PHONE_REJECTION_CODES, normalizeMobilePhone } from '@/lib/utils/phone';
 
 // --- Profile (self-service) ---
+
+/**
+ * A phone is stored as a mobile number in E.164 or not at all; the issue
+ * message is a code the form translates. A number another account already
+ * holds is refused by the route, which needs the database for that.
+ */
+const phoneField = z
+    .string()
+    .nullable()
+    .transform((value, ctx) => {
+        if (value === null) return null;
+        const parsed = normalizeMobilePhone(value);
+        if (!parsed.ok) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: PHONE_REJECTION_CODES[parsed.reason] });
+            return z.NEVER;
+        }
+        return parsed.e164;
+    });
 
 const profileFields = {
     name: z.string().trim().min(1, "Name cannot be empty").nullable(),
     // Null means "no phone"; an empty string is the same thing wearing a
     // different type, and it reads as a phone to every IS NOT NULL query.
-    phone: z.string().trim().min(1, "Phone cannot be empty").nullable(),
+    phone: phoneField,
     allowProductUpdates: z.boolean(),
     allowPetitionUpdates: z.boolean(),
     allowFeedbackCalls: z.boolean(),

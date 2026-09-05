@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { updateUserProfile, deleteCurrentUser, UserProfileUpdateData } from "@/lib/db/users";
+import { updateUserProfile, deleteCurrentUser, phoneBelongsToAnotherUser, UserProfileUpdateData } from "@/lib/db/users";
 import { sendUserOnboardedAdminAlert } from "@/lib/discord";
+import { PHONE_IN_USE_CODE } from "@/lib/utils/phone";
 import { updateProfileSchema } from "@/lib/zod-schemas/user";
 
 export async function POST(request: Request) {
@@ -17,6 +18,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
         }
         const updateData = parsed.data;
+        if (updateData.phone && (await phoneBelongsToAnotherUser(updateData.phone, user.id))) {
+            return NextResponse.json({ error: { code: PHONE_IN_USE_CODE } }, { status: 409 });
+        }
 
         // Track if this is the user completing onboarding for the first time
         const isCompletingOnboarding = !user.onboarded && updateData.onboarded === true;

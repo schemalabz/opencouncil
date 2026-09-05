@@ -208,6 +208,19 @@ export async function deleteCurrentUser(): Promise<void> {
     await prisma.user.delete({ where: { id: user.id } });
 }
 
+/**
+ * Does another account already hold this phone? One number is one reader
+ * on WhatsApp: a second account on it would get every send twice and make
+ * inbound routing a coin toss. `phone` must already be in E.164.
+ */
+export async function phoneBelongsToAnotherUser(phone: string, exceptUserId?: string): Promise<boolean> {
+    const holder = await prisma.user.findFirst({
+        where: { phone, ...(exceptUserId ? { NOT: { id: exceptUserId } } : {}) },
+        select: { id: true },
+    });
+    return holder !== null;
+}
+
 export type UserProfileUpdateData = Partial<Pick<User, 'name' | 'phone' | 'allowProductUpdates' | 'allowPetitionUpdates' | 'allowFeedbackCalls' | 'onboarded'>>;
 
 export async function updateUserProfile(id: string, data: UserProfileUpdateData): Promise<User> {
