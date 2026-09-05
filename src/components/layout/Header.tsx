@@ -507,9 +507,14 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
     );
     const rowTwo = 'row-start-2 h-11 items-center sm:h-[54px]';
 
-    const renderGrid = () => (
+    // The gutter belongs to whoever is the outermost box. Inside the container
+    // below, the container carries it and matches the page's own; the shells
+    // that opt out of the container (meeting, admin) have no other source, so
+    // there the grid keeps its own.
+    const renderGrid = (gutter: string) => (
         <div className={cn(
-            'grid grid-cols-[auto_minmax(0,1fr)_auto] px-2 sm:px-4',
+            'grid grid-cols-[auto_minmax(0,1fr)_auto]',
+            gutter,
             // Collapsed explicitly rather than left to `auto`: the mark's cell is
             // display:none from `md` when a nav owns the column, but an auto track
             // still reserved 28px, which pushed the path off the nav's edge.
@@ -565,7 +570,13 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
                 )}
             />
             <div className="relative">
-                {noContainer ? renderGrid() : <div className="container mx-auto">{renderGrid()}</div>}
+                {/* The same gutter rule the city page uses, so the mark lines up
+                    with the page title under it. `container` alone padded the
+                    header 2rem at every width, which put it 24px inside the
+                    content on a phone and 16px inside it on a desktop. */}
+                {noContainer
+                    ? renderGrid('px-2 sm:px-4')
+                    : <div className="md:container md:mx-auto px-4 md:px-8">{renderGrid('')}</div>}
             </div>
 
             {/* Search Modal */}
