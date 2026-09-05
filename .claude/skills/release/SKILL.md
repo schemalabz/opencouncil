@@ -97,7 +97,7 @@ If that is also empty, stop and tell the user — there's genuinely nothing to r
 
 ### Elasticsearch infrastructure check
 
-The app deploys itself, and Prisma migrations run at build time — but the Elasticsearch infrastructure (`elasticsearch/schema.json`, `views.sql`, `pipeline.json`) deploys through a separate, manual channel. Check whether this release carries any of it:
+The app deploys itself, and Prisma migrations run at build time. The PGSync views ride those migrations, so this release applies `views.sql` to every database on its own (#638). The rest of the Elasticsearch infrastructure (`elasticsearch/schema.json`, `pipeline.json`) deploys through a separate, manual channel. Check whether this release carries any of it:
 
 ```bash
 git diff --stat $MERGE_RANGE -- elasticsearch/
@@ -105,7 +105,7 @@ git diff --stat $MERGE_RANGE -- elasticsearch/
 
 If this is non-empty, tell the user this release carries Elasticsearch infrastructure, and coordinate with `/es-deploy` — that skill diffs the live infrastructure against the repository and states what belongs on each side of the release:
 
-- **Before this release completes**: `views.sql` applied to production when a pending migration depends on it (a migration that drops a table or column a view reads is blocked until the view stops reading it — its comment states the prerequisite), and the ingest pipeline `PUT` when `pipeline.json` changed.
+- **Before this release completes**: the ingest pipeline `PUT` when `pipeline.json` changed.
 - **After this release**: everything else — the PGSync daemon fetches `schema.json` from the **production branch**, so a schema change reaches it only through this release, followed by a daemon recreate, and on a rebuild the bootstrap → verify → alias swap. The swap always waits for the released app to be live.
 
 So the release is the middle of the sequence, not before or after it. Run `/es-deploy` first to get the split for this specific change; resume the release once its before-steps (if any) are done; hand back to `/es-deploy` after the deployment is ACTIVE.
