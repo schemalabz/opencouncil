@@ -3,6 +3,11 @@ import prisma from './prisma';
 import { getCurrentUser, withUserAuthorizedToEdit } from '../auth';
 import { Utterance } from '@prisma/client';
 
+type BulkDeleteUtteranceResult = {
+    utteranceId: string;
+    segmentId: string | null;
+};
+
 export async function editUtterance(utteranceId: string, newText: string): Promise<Utterance> {
     try {
         const utterance = await prisma.utterance.findUnique({
@@ -47,54 +52,105 @@ export async function editUtterance(utteranceId: string, newText: string): Promi
     }
 }
 
-export async function deleteUtterance(utteranceId: string): Promise<{ segmentId: string, remainingUtterances: number }> {
+export async function deleteUtterance(utteranceId: string): Promise<{ segmentId: string | null }> {
+    const results = await deleteUtterances([utteranceId]);
+    return { segmentId: results[0]?.segmentId ?? null };
+}
+
+export async function deleteUtterances(utteranceIds: string[]): Promise<BulkDeleteUtteranceResult[]> {
     try {
-        const utterance = await prisma.utterance.findUnique({
-            where: { id: utteranceId },
-            include: {
+        const uniqueUtteranceIds = Array.from(new Set(utteranceIds));
+        if (uniqueUtteranceIds.length === 0) {
+            return [];
+        }
+
+        const utterances = await prisma.utterance.findMany({
+            where: { id: { in: uniqueUtteranceIds } },
+            select: {
+                id: true,
+                speakerSegmentId: true,
                 speakerSegment: {
-                    include: {
-                        utterances: true
+                    select: {
+                        cityId: true
                     }
                 }
             }
         });
 
-        if (!utterance) {
-            throw new Error('Utterance not found');
+        const cityIds = Array.from(new Set(utterances.map(utterance => utterance.speakerSegment.cityId)));
+        for (const cityId of cityIds) {
+            await withUserAuthorizedToEdit({ cityId });
         }
 
-        await withUserAuthorizedToEdit({ cityId: utterance.speakerSegment.cityId });
+        const foundUtteranceIds = utterances.map(utterance => utterance.id);
+        const affectedSegmentIds = Array.from(new Set(utterances.map(utterance => utterance.speakerSegmentId)));
 
-        const segmentId = utterance.speakerSegmentId;
-        const remainingUtterances = utterance.speakerSegment.utterances.filter(u => u.id !== utteranceId);
+        await prisma.$transaction(async (tx) => {
+            if (foundUtteranceIds.length > 0) {
+                await tx.utterance.deleteMany({
+                    where: { id: { in: foundUtteranceIds } }
+                });
+            }
 
-        // Delete the utterance
-        await prisma.utterance.delete({
-            where: { id: utteranceId }
-        });
+            if (affectedSegmentIds.length === 0) {
+                return;
+            }
 
-        // If there are remaining utterances, recalculate segment timestamps
-        if (remainingUtterances.length > 0) {
-            const allTimestamps = remainingUtterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
-            const newStart = Math.min(...allTimestamps);
-            const newEnd = Math.max(...allTimestamps);
-
-            await prisma.speakerSegment.update({
-                where: { id: segmentId },
-                data: {
-                    startTimestamp: newStart,
-                    endTimestamp: newEnd
+            const remainingUtterances = await tx.utterance.findMany({
+                where: {
+                    speakerSegmentId: { in: affectedSegmentIds }
+                },
+                select: {
+                    speakerSegmentId: true,
+                    startTimestamp: true,
+                    endTimestamp: true
                 }
             });
-        }
 
-        console.log(`Deleted utterance ${utteranceId} from segment ${segmentId}. Remaining: ${remainingUtterances.length}`);
-        
-        return { segmentId, remainingUtterances: remainingUtterances.length };
+            const remainingBySegment = new Map<string, Array<{ startTimestamp: number; endTimestamp: number }>>();
+            for (const utterance of remainingUtterances) {
+                const segmentUtterances = remainingBySegment.get(utterance.speakerSegmentId);
+                if (segmentUtterances) {
+                    segmentUtterances.push({
+                        startTimestamp: utterance.startTimestamp,
+                        endTimestamp: utterance.endTimestamp
+                    });
+                } else {
+                    remainingBySegment.set(utterance.speakerSegmentId, [{
+                        startTimestamp: utterance.startTimestamp,
+                        endTimestamp: utterance.endTimestamp
+                    }]);
+                }
+            }
+
+            for (const segmentId of affectedSegmentIds) {
+                const segmentUtterances = remainingBySegment.get(segmentId);
+                if (!segmentUtterances || segmentUtterances.length === 0) {
+                    continue;
+                }
+
+                const timestamps = segmentUtterances.flatMap((utterance) => [utterance.startTimestamp, utterance.endTimestamp]);
+                await tx.speakerSegment.update({
+                    where: { id: segmentId },
+                    data: {
+                        startTimestamp: Math.min(...timestamps),
+                        endTimestamp: Math.max(...timestamps)
+                    }
+                });
+            }
+        });
+
+        const segmentByUtteranceId = new Map(utterances.map(utterance => [utterance.id, utterance.speakerSegmentId]));
+        return uniqueUtteranceIds.map((utteranceId) => ({
+            utteranceId,
+            segmentId: segmentByUtteranceId.get(utteranceId) ?? null
+        }));
     } catch (error) {
-        console.error('Error deleting utterance:', error);
-        throw new Error('Failed to delete utterance');
+        if (error instanceof Error && error.message === 'Not authorized') {
+            throw error;
+        }
+        console.error('Error deleting utterances:', error);
+        throw new Error('Failed to delete utterances');
     }
 }
 
@@ -140,12 +196,12 @@ export async function updateUtteranceTimestamps(
         });
 
         // Recalculate segment boundaries based on all utterances
-        const allUtterances = utterance.speakerSegment.utterances.map(u => 
-            u.id === utteranceId 
+        const allUtterances = utterance.speakerSegment.utterances.map(u =>
+            u.id === utteranceId
                 ? { ...u, startTimestamp, endTimestamp }
                 : u
         );
-        
+
         const allTimestamps = allUtterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
         const newStart = Math.min(...allTimestamps);
         const newEnd = Math.max(...allTimestamps);
