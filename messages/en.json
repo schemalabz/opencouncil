@@ -21,6 +21,7 @@
         "skipToContent": "Skip to main content",
         "search": "Search",
         "clearSearch": "Clear search",
+        "adminOnly": "Admin only",
         "collapse": "Collapse",
         "filter": "Filter: {label}",
         "municipalityMap": "Municipality map",

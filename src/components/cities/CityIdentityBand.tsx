@@ -2,6 +2,7 @@ import { useTranslations } from 'next-intl';
 import type { CityMessage as CityMessageType } from '@prisma/client';
 import type { CityWithCounts } from '@/lib/db/cities';
 import { getLocalizedMunicipalityName } from '@/lib/formatters/name';
+import { AdminOnly } from '@/components/admin/AdminStrip';
 import { CityMessage } from '@/components/cities/CityMessage';
 import { CitySearchForm } from '@/components/cities/CitySearchForm';
 import { OfficialSupportBadge } from '@/components/cities/OfficialSupportBadge';
@@ -36,6 +37,7 @@ export function CityIdentityBand({
     locale,
 }: CityIdentityBandProps) {
     const t = useTranslations('cityOverview');
+    const tCommon = useTranslations('Common');
 
     // Rich text so the figure carries the weight and the noun stays quiet — the
     // three counts are read as numbers first.
@@ -79,11 +81,17 @@ export function CityIdentityBand({
                 </div>
             </div>
 
+            {/* A draft is the same message, framed and named. It used to be
+                marked by a faded dashed border alone, which says that something
+                differs but never that the public cannot see it yet. */}
             {showMessage && cityMessage && (
-                <CityMessage
-                    message={cityMessage}
-                    className={!cityMessage.isActive ? 'opacity-75 border-dashed' : undefined}
-                />
+                cityMessage.isActive ? (
+                    <CityMessage message={cityMessage} />
+                ) : (
+                    <AdminOnly label={tCommon('adminOnly')} className="mb-4">
+                        <CityMessage message={cityMessage} className="mb-0" />
+                    </AdminOnly>
+                )
             )}
         </div>
     );

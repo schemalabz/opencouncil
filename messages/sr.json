@@ -21,6 +21,7 @@
         "skipToContent": "Пређите на главни садржај",
         "search": "Претрага",
         "clearSearch": "Обриши претрагу",
+        "adminOnly": "Само за администраторе",
         "collapse": "Скупи",
         "filter": "Филтер: {label}",
         "municipalityMap": "Мапа општине",

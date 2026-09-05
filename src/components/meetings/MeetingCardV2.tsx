@@ -14,6 +14,7 @@ import { localizeText } from '@/lib/serbian';
 import { sortSubjectsByImportance } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { surfaceCardClass } from '@/components/ui/surface-card';
+import { AdminOnly } from '@/components/admin/AdminStrip';
 
 interface MeetingCardV2Props {
     /**
@@ -44,6 +45,7 @@ interface MeetingCardV2Props {
 export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCardV2Props) {
     const t = useTranslations('MeetingCard');
     const tMeeting = useTranslations('CouncilMeeting');
+    const tCommon = useTranslations('Common');
     const tStage = useTranslations('meetingStage');
     const locale = useLocale();
 
@@ -54,7 +56,7 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
     const subjects = sortSubjectsByImportance(meeting.subjects, 'importance');
     const subjectCount = meeting.subjects.length;
 
-    return (
+    const card = (
         <TrackedLink
             href={`/${meeting.cityId}/${meeting.id}`}
             prefetch={false}
@@ -71,7 +73,6 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
                 surfaceCardClass,
                 'group flex h-full flex-col overflow-hidden transition-shadow hover:shadow-md hover:no-underline',
                 upcoming && 'border-[hsl(var(--orange))]/50',
-                !meeting.released && 'border-dashed',
             )}
         >
             <div
@@ -147,5 +148,12 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
                 )}
             </div>
         </TrackedLink>
+    );
+
+    // An unreleased meeting reaches no one but staff — the public queries filter
+    // it out — so the card says whose it is. `h-full` on the frame keeps the
+    // card the height the grid row gave it.
+    return meeting.released ? card : (
+        <AdminOnly label={tCommon('adminOnly')} className="h-full">{card}</AdminOnly>
     );
 }
