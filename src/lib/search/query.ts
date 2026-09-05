@@ -1,6 +1,7 @@
 import { estypes } from '@elastic/elasticsearch';
 import { SearchRequest, ExtractedFilters, Location } from './types';
 import { env } from '@/env.mjs';
+import { HIGHLIGHT_START, HIGHLIGHT_END } from './constants';
 import type { AdministrativeBodyType } from '@prisma/client';
 
 // Score added ONCE to a subject pinned within an AI-extracted location's radius
@@ -1226,6 +1227,20 @@ export function buildSearchQuery(
         size: request.config?.size || 10,
         from: request.config?.from || 0,
         track_total_hits: true,
-        query: applyRanking(scoredQuery)
+        query: applyRanking(scoredQuery),
+        // Request highlight fragments so the UI can emphasize the matched terms.
+        // number_of_fragments:0 returns the whole field (with markers) as a single
+        // fragment, keeping titles/descriptions intact rather than snippeted.
+        ...(request.config?.enableHighlights ? {
+            highlight: {
+                pre_tags: [HIGHLIGHT_START],
+                post_tags: [HIGHLIGHT_END],
+                number_of_fragments: 0,
+                fields: {
+                    name: {},
+                    description: {}
+                }
+            }
+        } : {})
     };
 }

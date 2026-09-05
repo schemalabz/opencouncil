@@ -9,6 +9,8 @@ export interface EsHit {
     _score?: number | null;
     _source?: { id?: string };
     inner_hits?: Record<string, { hits?: { hits?: EsInnerHit[] } }>;
+    /** ES highlight fragments, keyed by field name (e.g. `name`, `description`). */
+    highlight?: Record<string, string[]>;
 }
 
 export interface PartitionedHits<T> {

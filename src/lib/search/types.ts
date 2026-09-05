@@ -57,6 +57,10 @@ export type SearchRequest = {
 // Lightweight search result
 export type SearchResultLight = SubjectWithRelations & {
     score: number;
+    // Highlight fragments (full field, matched terms wrapped in HIGHLIGHT_START/END
+    // sentinel tags). Present only when config.enableHighlights is set.
+    nameHighlight?: string;
+    descriptionHighlight?: string;
     councilMeeting: CouncilMeeting & {
         city: City;
         administrativeBody: AdministrativeBody | null;

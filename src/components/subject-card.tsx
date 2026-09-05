@@ -11,7 +11,7 @@ import { Link, useRouter } from "@/i18n/routing";
 import { PersonWithRelations } from '@/lib/db/people';
 import { HighlightVideo } from "./meetings/HighlightVideo";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
-import { stripMarkdown } from "@/lib/formatters/markdown";
+import { renderHighlighted } from "@/lib/search/highlight";
 import { formatDate } from "@/lib/formatters/time";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
@@ -30,9 +30,13 @@ interface SubjectCardProps {
     disableHover?: boolean;
     showContext?: boolean;
     openInNewTab?: boolean;
+    // Elasticsearch highlight fragments (matched terms wrapped in sentinel tags).
+    // When present, the matched terms are bolded in the title/description.
+    nameHighlight?: string;
+    descriptionHighlight?: string;
 }
 
-export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth, highlight, disableHover, showContext, openInNewTab }: SubjectCardProps) {
+export function SubjectCard({ subject, city, meeting, parties, persons, fullWidth, highlight, disableHover, showContext, openInNewTab, nameHighlight, descriptionHighlight }: SubjectCardProps) {
     const router = useRouter();
     const pathname = usePathname();
     const t = useTranslations("Subject");
@@ -82,7 +86,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
     return (
         <Link {...linkProps} onClick={handleClick} onMouseEnter={() => setIsCardHovered(true)} onMouseLeave={() => setIsCardHovered(false)}>
             <SubjectCardContent
-                title={localize(subject.name)}
+                title={renderHighlighted(nameHighlight, localize(subject.name))}
                 topic={subject.topic}
                 context={showContext ? {
                     meta: [getLocalizedName(city, locale), meeting.administrativeBody ? getLocalizedName(meeting.administrativeBody, locale) : null, formatDate(new Date(meeting.dateTime), undefined, locale)].filter(Boolean).join(" · "),
@@ -90,7 +94,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                 } : null}
                 locationText={subject.location?.text ? localize(subject.location.text) : t("noLocation")}
                 agendaLabel={getAgendaLabel(t, subject)}
-                description={subject.description ? localize(stripMarkdown(subject.description)) : null}
+                description={subject.description ? renderHighlighted(descriptionHighlight, localize(subject.description), true) : null}
                 mediaSlot={highlight?.muxPlaybackId ? (
                     <div className="mb-4" onClick={(e) => e.stopPropagation()}>
                         <HighlightVideo

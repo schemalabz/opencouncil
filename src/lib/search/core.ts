@@ -52,8 +52,18 @@ const subjectDiscussionSegmentInclude = {
 
 type SubjectDiscussionSegment = Prisma.SpeakerSegmentGetPayload<{ include: typeof subjectDiscussionSegmentInclude }>;
 
-/** One Elasticsearch hit that survived the release re-check, in relevance order. */
-export type SubjectSearchHit = { id: string; score: number };
+/** One Elasticsearch hit that survived the release re-check, in relevance order.
+ *
+ * The highlight fragments are the whole field with the matched spans wrapped in
+ * sentinel markers (see ./constants), carried across the retrieval/hydration
+ * seam because only the query knows what matched. Present only when
+ * `config.enableHighlights` asked for them. */
+export type SubjectSearchHit = {
+    id: string;
+    score: number;
+    nameHighlight?: string;
+    descriptionHighlight?: string;
+};
 
 /** What retrieval knows before anything is hydrated. */
 export type SubjectSearchHits = {
@@ -292,7 +302,12 @@ export async function searchSubjectsInRealm(
         // hidden content should withhold the total whenever `dropped` > 0.
         const dropped = response.hits.hits.length - resolved.length;
         return {
-            hits: resolved.map(({ hit, subject }) => ({ id: subject.id, score: hit._score || 0 })),
+            hits: resolved.map(({ hit, subject }) => ({
+                id: subject.id,
+                score: hit._score || 0,
+                nameHighlight: hit.highlight?.name?.[0],
+                descriptionHighlight: hit.highlight?.description?.[0],
+            })),
             total: totalHits - dropped,
             dropped,
             derivedFilters,
@@ -420,7 +435,7 @@ export async function searchInRealm(
             locationCoordinates.map(loc => [loc.id, { x: loc.x, y: loc.y }])
         );
 
-        const results = hits.flatMap(({ id, score }) => {
+        const results = hits.flatMap(({ id, score, nameHighlight, descriptionHighlight }) => {
             const subject = subjectMap.get(id);
             // Retrieval already re-checked every id against the database, so a
             // miss here means the row went away between the two queries. Drop
@@ -444,6 +459,8 @@ export async function searchInRealm(
                 ...subject,
                 location: locationWithCoordinates,
                 score,
+                nameHighlight,
+                descriptionHighlight,
                 councilMeeting: subject.councilMeeting,
                 votes: [],
                 attendance: []
