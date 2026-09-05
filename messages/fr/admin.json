@@ -326,12 +326,12 @@
     "resetExtractionsConfirm": "Réinitialiser toutes les données extraites (extraits, présences, votes) pour cette séance ? Les associations de décisions seront conservées.",
     "resetExtractionsDescription": "Supprime toutes les données extraites (extraits, présences, votes) pour chaque sujet. Les associations de décisions sont conservées.",
     "scope": {
-        "malformed": "Mal configuré : {error}",
-        "noOrg": "Cette municipalité n'a pas d'ID d'organisation Diavgeia — l'interrogation est impossible",
-        "org": "Interroge l'organisation {org}",
-        "orgWide": "Interroge l'organisation {org} — organisation entière, aucune unité configurée",
-        "unit": "unité {unit}",
-        "unitSigner": "unité {unit}, signataire {signer}"
+      "malformed": "Mal configuré : {error}",
+      "noOrg": "Cette municipalité n'a pas d'ID d'organisation Diavgeia — l'interrogation est impossible",
+      "org": "Diavgeia {org}",
+      "orgWide": "organisation entière, aucune unité configurée",
+      "unit": "unité {unit}",
+      "unitSigner": "unité {unit}, signataire {signer}"
     },
     "save": "Enregistrer",
     "showLess": "Moins",
@@ -361,7 +361,11 @@
       "polled": "{n, plural, one {# interrogation} other {# interrogations}}",
       "started": "depuis le {date}",
       "next": "Prochaine interrogation automatique : {date}",
-      "stopped": "Interrogation automatique arrêtée"
+      "stopped": "Interrogation automatique arrêtée",
+      "tier": {
+        "everyRun": "interrogation automatique à chaque cycle",
+        "interval": "interrogation automatique tous les {days} jours"
+      }
     },
     "resetError": "Erreur de réinitialisation de l’extraction"
   },
@@ -405,7 +409,8 @@
       "unplaced": "{count, plural, one {# décision non classée} other {# décisions non classées}}",
       "unplaceable": "{count, plural, one {# décision sans séance} other {# décisions sans séance}}",
       "lastPoll": "sondage",
-      "noMeetingsInRange": "aucune séance sur la période — travail en attente seulement"
+      "noMeetingsInRange": "aucune séance sur la période — travail en attente seulement",
+      "diavgeia": "Diavgeia"
     },
     "sections": {
       "withoutDecision": "Sujets sans décision",
@@ -423,7 +428,8 @@
       "candidatesUnmatched": "des candidates existaient, aucune n'a correspondu",
       "nothingFetched": "aucun acte publié (probable)",
       "duplicateSubject": "sujet en double dans la même séance",
-      "subjectCount": "{count, plural, one {# sujet} other {# sujets}}"
+      "subjectCount": "{count, plural, one {# sujet} other {# sujets}}",
+      "partial": "affichage de {listed} sur {count}, les plus récentes"
     },
     "conflict": {
       "claims": "revendiquée par « {subject} »",
@@ -449,6 +455,16 @@
       "unplacedDesc": "Décisions lues de la séance qu'aucun sujet n'a reprises automatiquement.",
       "noSession": "Sans séance",
       "noSessionDesc": "Décisions lues déclarant une séance absente de nos données."
+    },
+    "bodies": {
+      "noBody": "(sans organe)",
+      "orgWide": "organisme entier",
+      "orgWideExplain": "Sans unités, la recherche couvre tout l'organisme : plus de résultats sans rapport et plus de candidates sans correspondance.",
+      "noMeetingsInRange": "aucune séance sur la période",
+      "orphansHidden": "Les décisions sans séance n'appartiennent à aucun organe — elles n'apparaissent que dans la vue de la commune.",
+      "details": "Détails des organes",
+      "openInDiavgeia": "Ouvrir dans Diavgeia",
+      "all": "Tous les organes"
     }
   }
 }

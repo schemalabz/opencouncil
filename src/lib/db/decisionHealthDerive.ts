@@ -8,6 +8,8 @@
  * unit-test without a database.
  */
 
+import type { AdministrativeBodyType } from '@prisma/client';
+
 /** Composite key for a meeting across per-city maps and sets. */
 export const meetingKey = (cityId: string, councilMeetingId: string): string =>
     `${cityId}\u0000${councilMeetingId}`;
@@ -130,4 +132,106 @@ export function nearestMeetingGapDays(
         if (best === null || gap < best) best = gap;
     }
     return best;
+}
+
+/**
+ * The windowed measurements of one scope — a city, or one administrative
+ * body of a city. Both rows of the overview share this record, so the
+ * body rows always sum to the city row.
+ */
+export interface CoverageMeasures {
+    /** Held meetings with eligible subjects inside the window. */
+    meetings: number;
+    /** Of those, meetings with at least one succeeded poll. */
+    polledMeetings: number;
+    eligibleSubjects: number;
+    linkedSubjects: number;
+    /** Links whose decision carries its excerpt (and with it attendance and votes). */
+    contentLinks: number;
+    /** Why eligible subjects have no decision, by mechanically decidable cause. */
+    unmatchedTaxonomy: {
+        /** The subject's meeting has no read documents: the current pipeline has not processed it. */
+        notProcessed: number;
+        /** Meeting processed, and unassigned session candidates remain: matching material existed. Ours to explain. */
+        candidatesUnmatched: number;
+        /** Meeting processed and its candidate pool is exhausted: probably never published. */
+        nothingFetched: number;
+        /** An identically named subject in the same meeting already holds the decision. Data-quality issue, not a gap. */
+        duplicateSubject: number;
+    };
+}
+
+/**
+ * The work queues a meeting scope holds — a city, or one body of a city.
+ * Always all-time, never windowed. Orphan documents are not here: they
+ * belong to no meeting, so they belong to the city alone.
+ */
+export interface MeetingQueues {
+    unplacedCandidates: number;
+    /** Of those, candidates never read — mostly rows the legacy backfill created. */
+    unplacedUnread: number;
+    conflicts: number;
+    /**
+     * Meetings whose most recent poll attempt failed. All-time failure counts are
+     * not actionable — a city can carry dozens of old failures and be healthy — so
+     * this counts only meetings currently sitting in a failed state.
+     */
+    failedMeetings: number;
+}
+
+export function emptyMeetingQueues(): MeetingQueues {
+    return { unplacedCandidates: 0, unplacedUnread: 0, conflicts: 0, failedMeetings: 0 };
+}
+
+export function emptyCoverage(): CoverageMeasures {
+    return {
+        meetings: 0, polledMeetings: 0, eligibleSubjects: 0, linkedSubjects: 0, contentLinks: 0,
+        unmatchedTaxonomy: { notProcessed: 0, candidatesUnmatched: 0, nothingFetched: 0, duplicateSubject: 0 },
+    };
+}
+
+/** One eligible subject as the accumulator sees it: linked (with or without the decision's excerpt), or unlinked with its cause. */
+export type MeasuredSubject =
+    | { linked: true; content: boolean }
+    | { linked: false; cause: UnmatchedCause };
+
+/** One meeting after its facts are resolved: measured once, folded into every scope it belongs to. */
+export interface MeasuredMeeting {
+    polled: boolean;
+    subjects: MeasuredSubject[];
+}
+
+/** Folds one measured meeting into a coverage record. The single measurement rule. */
+export function accumulateMeeting(into: CoverageMeasures, meeting: MeasuredMeeting): void {
+    into.meetings += 1;
+    if (meeting.polled) into.polledMeetings += 1;
+    into.eligibleSubjects += meeting.subjects.length;
+    for (const s of meeting.subjects) {
+        if (s.linked) {
+            into.linkedSubjects += 1;
+            if (s.content) into.contentLinks += 1;
+        } else {
+            into.unmatchedTaxonomy[s.cause] += 1;
+        }
+    }
+}
+
+/** Composite key of a body scope; `null` is the city's "no body" bucket. */
+export const bodyKey = (cityId: string, bodyId: string | null): string =>
+    `${cityId}\u0000${bodyId ?? ''}`;
+
+const BODY_TYPE_ORDER: Record<AdministrativeBodyType, number> = { council: 0, committee: 1, community: 2 };
+
+/**
+ * Councils, then committees, then communities, by Greek name within a type;
+ * the "no body" row last. Independent of the window, so rows never move
+ * when the window changes.
+ */
+export function compareBodyRows(
+    a: { body: { type: AdministrativeBodyType; name: string } | null },
+    b: { body: { type: AdministrativeBodyType; name: string } | null },
+): number {
+    if (a.body === null || b.body === null) return (a.body === null ? 1 : 0) - (b.body === null ? 1 : 0);
+    return BODY_TYPE_ORDER[a.body.type] - BODY_TYPE_ORDER[b.body.type]
+        || a.body.name.localeCompare(b.body.name, 'el');
 }

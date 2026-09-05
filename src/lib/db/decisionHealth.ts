@@ -3,13 +3,16 @@ import { Prisma } from '@prisma/client';
 import { localCalendarDate } from '../formatters/time';
 import { isLogodosiaMeeting } from '../tasks/pollDecisionsBackoff';
 import { DECISION_ELIGIBLE_SUBJECT_WHERE } from './decisionEligibility';
+import { CUSTOMER_CITY_WHERE } from '../cityStatus';
 import { getConflictingCandidates } from './decisionCandidates';
 import { groupOrphanRows, unplaceableKind } from './decisionHealthState';
 import type { MissingSessionGroup, UnplaceableKind } from './decisionHealthState';
 import {
-    classifyUnmatchedSubject, collectMeetingCandidateStats, compareDecisionNumbers,
-    declaredCalendarDate, isInMeasurementWindow, meetingKey, nearestMeetingGapDays, subjectNameKey,
-    type MeetingCandidateStats, type UnmatchedCause,
+    accumulateMeeting, bodyKey, classifyUnmatchedSubject, collectMeetingCandidateStats, compareBodyRows,
+    compareDecisionNumbers, declaredCalendarDate, emptyCoverage, emptyMeetingQueues, isInMeasurementWindow,
+    meetingKey, nearestMeetingGapDays, subjectNameKey,
+    type CoverageMeasures, type MeasuredMeeting, type MeasuredSubject, type MeetingCandidateStats, type MeetingQueues,
+    type UnmatchedCause,
 } from './decisionHealthDerive';
 export { cityState, type CityState, type MissingSessionGroup } from './decisionHealthState';
 
@@ -31,48 +34,29 @@ export { cityState, type CityState, type MissingSessionGroup } from './decisionH
  * never aggregated (issue #303 was a payload-overflow crash of that shape).
  */
 
-export interface CityDecisionHealth {
+/** One administrative body of a city, or (`body: null`) its meetings that carry no body. */
+export interface BodyDecisionHealth extends CoverageMeasures, MeetingQueues {
+    body: BodyFacts | null;
+}
+
+export interface CityDecisionHealth extends CoverageMeasures, MeetingQueues {
     cityId: string;
     cityName: string;
     cityNameEn: string;
     /** False for cities outside the Diavgeia realm — they are out of scope, not failing. */
     inScope: boolean;
+    diavgeiaUid: string | null;
 
-    // Coverage
-    meetings: number;
-    polledMeetings: number;
-    eligibleSubjects: number;
-    linkedSubjects: number;
-
-    // Waiting for a human
-    unplacedCandidates: number;
-    /** Of those, candidates never read — mostly rows the legacy backfill created. */
-    unplacedUnread: number;
-    conflicts: number;
     /**
-     * Meetings whose most recent poll attempt failed. All-time failure counts are
-     * not actionable — a city can carry dozens of old failures and be healthy — so
-     * this counts only meetings currently sitting in a failed state.
+     * Every administrative body of the city, plus a trailing no-body row when
+     * the city's meetings without a body have something to show: eligible
+     * subjects at any time, or coverage or queue work now. Ordered by
+     * compareBodyRows; the rows sum to the city's own coverage and queue fields.
      */
-    failedMeetings: number;
+    bodies: BodyDecisionHealth[];
 
     /** Documents we hold and read but cannot attach to any meeting. */
     unplaceable: Record<UnplaceableKind, number> & { total: number };
-
-    /** Links whose decision carries its excerpt (and with it attendance and votes). */
-    contentLinks: number;
-
-    /** Why eligible subjects have no decision, by mechanically decidable cause. */
-    unmatchedTaxonomy: {
-        /** The subject's meeting has no read documents: the current pipeline has not processed it. */
-        notProcessed: number;
-        /** Meeting processed, and unassigned session candidates remain: matching material existed. Ours to explain. */
-        candidatesUnmatched: number;
-        /** Meeting processed and its candidate pool is exhausted: probably never published. */
-        nothingFetched: number;
-        /** An identically named subject in the same meeting already holds the decision. Data-quality issue, not a gap. */
-        duplicateSubject: number;
-    };
 
     lastPollAt: Date | null;
 }
@@ -81,11 +65,15 @@ export interface CityDecisionHealth {
 
 const cityFactsSelect = {
     id: true, name: true, name_en: true, diavgeiaUid: true, timezone: true,
+    administrativeBodies: {
+        select: { id: true, name: true, name_en: true, type: true, diavgeiaUnitIds: true },
+    },
 } satisfies Prisma.CitySelect;
 type CityFacts = Prisma.CityGetPayload<{ select: typeof cityFactsSelect }>;
+type BodyFacts = CityFacts['administrativeBodies'][number];
 
 const meetingFactsSelect = {
-    id: true, cityId: true, name: true, dateTime: true,
+    id: true, cityId: true, administrativeBodyId: true, name: true, dateTime: true,
     subjects: {
         where: DECISION_ELIGIBLE_SUBJECT_WHERE,
         select: { id: true, name: true, decision: { select: { id: true } } },
@@ -136,16 +124,18 @@ export interface DecisionFacts {
 
 /**
  * One slim fetch of everything the health rollups and the city detail derive
- * from. Hardcoded to the Greek realm for now: Diavgeia is a Greek register.
+ * from. Customer cities of the Greek realm only: Diavgeia is a Greek register,
+ * and a demo city's pipeline is nobody's work queue.
  */
 export async function fetchDecisionFacts(cityId?: string): Promise<DecisionFacts> {
+    const cityWhere = { realm: 'greece', ...CUSTOMER_CITY_WHERE } satisfies Prisma.CityWhereInput;
     const [cities, meetingRows, linkedRows, excerptRows, candidates, polls] = await Promise.all([
         prisma.city.findMany({
-            where: { realm: 'greece', ...(cityId ? { id: cityId } : {}) },
+            where: { ...cityWhere, ...(cityId ? { id: cityId } : {}) },
             select: cityFactsSelect,
         }),
         prisma.councilMeeting.findMany({
-            where: cityId ? { cityId } : { city: { realm: 'greece' } },
+            where: cityId ? { cityId } : { city: cityWhere },
             select: meetingFactsSelect,
         }),
         prisma.decision.findMany({
@@ -168,11 +158,12 @@ export async function fetchDecisionFacts(cityId?: string): Promise<DecisionFacts
 
     const tzByCity = new Map(cities.map(c => [c.id, c.timezone]));
     const meetings: MeetingFacts[] = meetingRows
-        // A cityId outside the realm has no timezone entry and yields no rows,
-        // matching the realm filter of the all-cities path.
+        // A cityId outside the realm or not a customer has no timezone entry
+        // and yields no rows, matching the city filter of the all-cities path.
         .filter(m => tzByCity.has(m.cityId))
         .map(m => ({
-            id: m.id, cityId: m.cityId, name: m.name, dateTime: m.dateTime,
+            id: m.id, cityId: m.cityId, administrativeBodyId: m.administrativeBodyId,
+            name: m.name, dateTime: m.dateTime,
             localDate: localCalendarDate(m.dateTime, tzByCity.get(m.cityId)!),
             subjects: m.subjects.map(s => ({ id: s.id, name: s.name, linked: s.decision !== null })),
         }));
@@ -227,6 +218,18 @@ export function classifyUnmatchedIn(
         facts.linkedSubjectNameKeys,
         stats.get(meetingKey(meeting.cityId, meeting.id)),
     );
+}
+
+/** Resolves one meeting's facts into the shape the accumulator folds — once per meeting, whatever the scope count. */
+function measureMeeting(
+    facts: DecisionFacts, stats: Map<string, MeetingCandidateStats>, m: MeetingFacts,
+): MeasuredMeeting {
+    return {
+        polled: facts.succeededPollMeetings.has(meetingKey(m.cityId, m.id)),
+        subjects: m.subjects.map((s): MeasuredSubject => s.linked
+            ? { linked: true, content: facts.excerptSubjectIds.has(s.id) }
+            : { linked: false, cause: classifyUnmatchedIn(facts, stats, m, s) }),
+    };
 }
 
 /**
@@ -291,67 +294,95 @@ export async function getDecisionHealth(cityId?: string, sinceDays?: number): Pr
     const stats = collectMeetingCandidateStats(facts.candidates);
     const meetingDatesByCity = collectMeetingDatesByCity(facts.meetings);
 
-    const conflictsByCity = new Map<string, number>();
-    for (const c of conflictList) {
-        const id = c.claimingSubject.cityId;
-        conflictsByCity.set(id, (conflictsByCity.get(id) ?? 0) + 1);
-    }
-
-    const failedByCity = new Map<string, number>();
-    for (const latest of facts.latestPollByMeeting.values()) {
-        if (latest.status === 'failed') {
-            failedByCity.set(latest.cityId, (failedByCity.get(latest.cityId) ?? 0) + 1);
-        }
-    }
+    // The no-body row exists while folding wherever a body-less meeting exists,
+    // so every meeting has a row to land in; it is dropped afterwards when it
+    // shows nothing (a presentation without eligible subjects is not polled).
+    const citiesWithBodylessMeetings = new Set(
+        facts.meetings.filter(m => m.administrativeBodyId === null).map(m => m.cityId));
+    const citiesWithEligibleBodylessMeetings = new Set(
+        facts.meetings.filter(m => m.administrativeBodyId === null && m.subjects.length > 0).map(m => m.cityId));
 
     const rows = facts.cities.map((city): CityDecisionHealth => ({
         cityId: city.id,
         cityName: city.name,
         cityNameEn: city.name_en,
         inScope: city.diavgeiaUid !== null,
-        meetings: 0, polledMeetings: 0, eligibleSubjects: 0, linkedSubjects: 0,
-        unplacedCandidates: 0, unplacedUnread: 0,
-        conflicts: conflictsByCity.get(city.id) ?? 0,
-        failedMeetings: failedByCity.get(city.id) ?? 0,
+        diavgeiaUid: city.diavgeiaUid,
+        ...emptyCoverage(),
+        ...emptyMeetingQueues(),
+        bodies: [
+            ...city.administrativeBodies.map((body): BodyDecisionHealth => ({ body, ...emptyCoverage(), ...emptyMeetingQueues() })),
+            ...(citiesWithBodylessMeetings.has(city.id) ? [{ body: null, ...emptyCoverage(), ...emptyMeetingQueues() }] : []),
+        ].sort(compareBodyRows),
         unplaceable: { sameDayOtherBody: 0, nearbySessionMissing: 0, sessionUnknown: 0, total: 0 },
-        contentLinks: 0,
-        unmatchedTaxonomy: { notProcessed: 0, candidatesUnmatched: 0, nothingFetched: 0, duplicateSubject: 0 },
         lastPollAt: facts.lastPollAtByCity.get(city.id) ?? null,
     }));
     const rowByCity = new Map(rows.map(r => [r.cityId, r]));
+    const bodyRowByKey = new Map<string, BodyDecisionHealth>();
+    for (const r of rows) {
+        for (const b of r.bodies) bodyRowByKey.set(bodyKey(r.cityId, b.body?.id ?? null), b);
+    }
+    const bodyIdByMeeting = new Map(facts.meetings.map(m => [meetingKey(m.cityId, m.id), m.administrativeBodyId]));
+    // The schema does not pin a meeting's body to the meeting's city, so a
+    // cross-city reference misses here. Such a meeting counts for the city
+    // and for no body; the page must not crash on it.
+    const bodyRowOfMeeting = (cityId: string, councilMeetingId: string): BodyDecisionHealth | undefined => {
+        const key = meetingKey(cityId, councilMeetingId);
+        return bodyIdByMeeting.has(key) ? bodyRowByKey.get(bodyKey(cityId, bodyIdByMeeting.get(key)!)) : undefined;
+    };
 
-    // Coverage, link quality and the taxonomy — the windowed measurements.
+    // Coverage, link quality and the taxonomy — the windowed measurements,
+    // measured once per meeting and folded into the city and its body.
     for (const m of facts.meetings) {
         if (isLogodosiaMeeting(m.name)) continue;
         if (!isInMeasurementWindow(m.dateTime, sinceDays ?? null, now)) continue;
         if (m.subjects.length === 0) continue;
-        const row = rowByCity.get(m.cityId)!;
-        row.meetings += 1;
-        if (facts.succeededPollMeetings.has(meetingKey(m.cityId, m.id))) row.polledMeetings += 1;
-        row.eligibleSubjects += m.subjects.length;
-        for (const s of m.subjects) {
-            if (s.linked) {
-                row.linkedSubjects += 1;
-                if (facts.excerptSubjectIds.has(s.id)) row.contentLinks += 1;
-            } else {
-                row.unmatchedTaxonomy[classifyUnmatchedIn(facts, stats, m, s)] += 1;
-            }
-        }
+        const measured = measureMeeting(facts, stats, m);
+        accumulateMeeting(rowByCity.get(m.cityId)!, measured);
+        const bodyRow = bodyRowOfMeeting(m.cityId, m.id);
+        if (bodyRow) accumulateMeeting(bodyRow, measured);
     }
 
-    // Work queues — always all-time.
+    // Work queues — always all-time, folded into the city and its body alike.
+    for (const c of conflictList) {
+        const { cityId: id, councilMeetingId } = c.claimingSubject;
+        const row = rowByCity.get(id);
+        if (!row) continue;
+        row.conflicts += 1;
+        const bodyRow = bodyRowOfMeeting(id, councilMeetingId);
+        if (bodyRow) bodyRow.conflicts += 1;
+    }
+    for (const latest of facts.latestPollByMeeting.values()) {
+        if (latest.status !== 'failed') continue;
+        const row = rowByCity.get(latest.cityId);
+        if (!row) continue;
+        row.failedMeetings += 1;
+        const bodyRow = bodyRowOfMeeting(latest.cityId, latest.councilMeetingId);
+        if (bodyRow) bodyRow.failedMeetings += 1;
+    }
     for (const c of facts.candidates) {
         const row = rowByCity.get(c.cityId);
         if (!row) continue;
         if (isUnplacedQueueCandidate(c)) {
             row.unplacedCandidates += 1;
             if (c.readStatus === 'unread') row.unplacedUnread += 1;
+            const bodyRow = bodyRowOfMeeting(c.cityId, c.councilMeetingId!);
+            if (bodyRow) {
+                bodyRow.unplacedCandidates += 1;
+                if (c.readStatus === 'unread') bodyRow.unplacedUnread += 1;
+            }
         } else if (isReadOrphanCandidate(c)) {
             const days = nearestMeetingGapDays(
                 declaredCalendarDate(c.meetingDate!), meetingDatesByCity.get(c.cityId) ?? []);
             row.unplaceable[unplaceableKind(days)] += 1;
             row.unplaceable.total += 1;
         }
+    }
+
+    for (const r of rows) {
+        r.bodies = r.bodies.filter(b => b.body !== null
+            || citiesWithEligibleBodylessMeetings.has(r.cityId)
+            || b.meetings > 0 || b.unplacedCandidates > 0 || b.conflicts > 0 || b.failedMeetings > 0);
     }
 
     // A city with neither in-window eligible meetings nor queue work drops out.

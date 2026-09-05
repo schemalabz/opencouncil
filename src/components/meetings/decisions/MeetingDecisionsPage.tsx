@@ -25,7 +25,7 @@ import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
 import { CollapsibleMarkdown, NameList, MeetingAttendanceSummary, sortNamesByElectedOrder } from '@/components/meetings/decisions/shared';
 import { computeDecisionStats } from '@/components/meetings/decisions/stats';
 import { normalizeText } from '@/lib/utils';
-import { diavgeiaDocUrl } from '@/components/meetings/decisions/pdfUrl';
+import { diavgeiaDocUrl, diavgeiaSearchUrl } from '@/components/meetings/decisions/pdfUrl';
 import { parseDiavgeiaUnitScopes } from '@/lib/utils/diavgeiaUnitScope';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
 
@@ -1064,29 +1064,6 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         <div className="text-xs font-medium">
                             {tPage('pollTitle')}
                         </div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5 break-words">
-                            {!city.diavgeiaUid ? (
-                                <span className="text-amber-700">{tPage('scope.noOrg')}</span>
-                            ) : pollScope.error ? (
-                                <span className="text-red-700">{tPage('scope.malformed', { error: pollScope.error })}</span>
-                            ) : pollScope.scopes.length === 0 ? (
-                                <span className="text-amber-700">
-                                    {tPage('scope.orgWide', { org: city.diavgeiaUid })}
-                                </span>
-                            ) : (
-                                <span>
-                                    {tPage('scope.org', { org: city.diavgeiaUid })}
-                                    {pollScope.scopes.map((scope, i) => (
-                                        <span key={`${scope.unit}:${scope.signer ?? ''}`}>
-                                            <span className="mx-1 text-gray-300">|</span>
-                                            {scope.signer
-                                                ? tPage('scope.unitSigner', { unit: scope.unit, signer: scope.signer })
-                                                : tPage('scope.unit', { unit: scope.unit })}
-                                        </span>
-                                    ))}
-                                </span>
-                            )}
-                        </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
                         <label className="flex items-center gap-1.5 cursor-pointer">
@@ -1125,36 +1102,72 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 )}
                 </>)}
 
-                {/* Polling Status */}
-                {pollingStatus && pollingStatus.totalPolls > 0 && (
-                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
-                        <Clock className="h-3 w-3" />
-                        <span>{tPage('polling.polled', { n: pollingStatus.totalPolls })}</span>
-                        {pollingStatus.firstPollAt && (
-                            <>
-                                <span>&middot;</span>
-                                <span>{tPage('polling.started', { date: formatDate(new Date(pollingStatus.firstPollAt)) })}</span>
-                            </>
-                        )}
-                        {pollingStatus.currentTierLabel && (
-                            <>
-                                <span>&middot;</span>
-                                <span>{pollingStatus.currentTierLabel}</span>
-                            </>
-                        )}
-                        {pollingStatus.nextPollEligible ? (
-                            <>
-                                <span>&middot;</span>
-                                <span>{tPage('polling.next', { date: formatDate(new Date(pollingStatus.nextPollEligible)) })}</span>
-                            </>
-                        ) : pollingStatus.currentTierLabel?.startsWith('Stopped') ? (
-                            <>
-                                <span>&middot;</span>
-                                <span>{tPage('polling.stopped')}</span>
-                            </>
-                        ) : null}
-                    </div>
-                )}
+                {/* Polling status, visible to city admins: what Diavgeia scope the poll
+                    queries (each id opens the portal search), then the history. */}
+                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                    <Clock className="h-3 w-3" />
+                    {!city.diavgeiaUid ? (
+                        <span className="text-amber-700">{tPage('scope.noOrg')}</span>
+                    ) : pollScope.error ? (
+                        <span className="text-red-700">{tPage('scope.malformed', { error: pollScope.error })}</span>
+                    ) : (
+                        <>
+                            <a href={diavgeiaSearchUrl(city.diavgeiaUid)} target="_blank" rel="noopener noreferrer" className="font-mono hover:underline">
+                                {tPage('scope.org', { org: city.diavgeiaUid })}
+                            </a>
+                            {pollScope.scopes.length === 0 ? (
+                                <>
+                                    <span>&middot;</span>
+                                    <span className="text-amber-700">{tPage('scope.orgWide')}</span>
+                                </>
+                            ) : pollScope.scopes.map(scope => (
+                                <span key={`${scope.unit}:${scope.signer ?? ''}`} className="flex items-center gap-1.5">
+                                    <span>&middot;</span>
+                                    <a href={diavgeiaSearchUrl(city.diavgeiaUid!, scope)} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                        {scope.signer
+                                            ? tPage('scope.unitSigner', { unit: scope.unit, signer: scope.signer })
+                                            : tPage('scope.unit', { unit: scope.unit })}
+                                    </a>
+                                </span>
+                            ))}
+                        </>
+                    )}
+                    {pollingStatus && pollingStatus.totalPolls > 0 && (
+                        <>
+                            <span>&middot;</span>
+                            <span>{tPage('polling.polled', { n: pollingStatus.totalPolls })}</span>
+                            {pollingStatus.firstPollAt && (
+                                <>
+                                    <span>&middot;</span>
+                                    <span>{tPage('polling.started', { date: formatDate(new Date(pollingStatus.firstPollAt)) })}</span>
+                                </>
+                            )}
+                            {pollingStatus.currentTier?.kind === 'everyRun' && (
+                                <>
+                                    <span>&middot;</span>
+                                    <span>{tPage('polling.tier.everyRun')}</span>
+                                </>
+                            )}
+                            {pollingStatus.currentTier?.kind === 'interval' && (
+                                <>
+                                    <span>&middot;</span>
+                                    <span>{tPage('polling.tier.interval', { days: pollingStatus.currentTier.intervalDays })}</span>
+                                </>
+                            )}
+                            {pollingStatus.nextPollEligible ? (
+                                <>
+                                    <span>&middot;</span>
+                                    <span>{tPage('polling.next', { date: formatDate(new Date(pollingStatus.nextPollEligible)) })}</span>
+                                </>
+                            ) : pollingStatus.currentTier?.kind === 'stopped' ? (
+                                <>
+                                    <span>&middot;</span>
+                                    <span>{tPage('polling.stopped')}</span>
+                                </>
+                            ) : null}
+                        </>
+                    )}
+                </div>
             </div>
 
             {/* Meeting-level attendance (initial roll call) — superadmin-only while

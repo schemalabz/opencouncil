@@ -14,7 +14,7 @@ import { deriveWindowDays } from "./decisionWindow";
 import { localCalendarDate } from "@/lib/formatters/time";
 import { applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } from "../db/decisionCandidates";
 import { isRoleActiveAt, isMayorRole } from "../utils/roles";
-import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, isLogodosiaMeeting, LOGODOSIA_NAME_PATTERN } from "./pollDecisionsBackoff";
+import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, isLogodosiaMeeting, LOGODOSIA_NAME_PATTERN, type BackoffTier } from "./pollDecisionsBackoff";
 import { interleaveByCity } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 
@@ -383,6 +383,7 @@ export async function getPollingHistoryForMeeting(
     totalPolls: number;
     firstPollAt: string | null;
     lastPollAt: string | null;
+    currentTier: BackoffTier | null;
     currentTierLabel: string | null;
     nextPollEligible: string | null;
 }> {
@@ -407,17 +408,19 @@ export async function getPollingHistoryForMeeting(
             totalPolls: 0,
             firstPollAt: null,
             lastPollAt: null,
+            currentTier: null,
             currentTierLabel: null,
             nextPollEligible: null,
         };
     }
 
-    const { currentTierLabel, nextPollEligible } = getBackoffState(firstPollAt, lastPollAt);
+    const { currentTier, currentTierLabel, nextPollEligible } = getBackoffState(firstPollAt, lastPollAt);
 
     return {
         totalPolls,
         firstPollAt: firstPollAt.toISOString(),
         lastPollAt: lastPollAt.toISOString(),
+        currentTier,
         currentTierLabel,
         nextPollEligible,
     };

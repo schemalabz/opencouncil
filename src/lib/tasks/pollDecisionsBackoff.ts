@@ -80,37 +80,47 @@ export function shouldSkipPolling(
     return null;
 }
 
+/** The backoff tier a meeting sits in; the UI translates it, the stats endpoint labels it. */
+export type BackoffTier =
+    | { kind: 'everyRun' }
+    | { kind: 'interval'; week: number; intervalDays: number }
+    | { kind: 'stopped'; maxDays: number };
+
+function backoffTierLabel(tier: BackoffTier): string {
+    switch (tier.kind) {
+        case 'everyRun': return 'Every cron run';
+        case 'interval': return `Week ${tier.week}: every ${tier.intervalDays}d`;
+        case 'stopped': return `Stopped (exceeded ${tier.maxDays}-day window)`;
+    }
+}
+
 /**
- * Returns the current backoff tier label and next eligible poll time for a meeting.
+ * Returns the current backoff tier (structured, with its English label) and
+ * next eligible poll time for a meeting.
  * Pure function — reused by both getPollingHistoryForMeeting() and batch stats.
  */
 export function getBackoffState(
     firstPollAt: Date | null,
     lastPollAt: Date | null,
-): { currentTierLabel: string | null; nextPollEligible: string | null } {
+): { currentTier: BackoffTier | null; currentTierLabel: string | null; nextPollEligible: string | null } {
     if (!firstPollAt || !lastPollAt) {
-        return { currentTierLabel: null, nextPollEligible: null };
+        return { currentTier: null, currentTierLabel: null, nextPollEligible: null };
     }
 
     const now = Date.now();
     const daysSinceFirstPoll = (now - firstPollAt.getTime()) / (1000 * 60 * 60 * 24);
 
     if (daysSinceFirstPoll >= MAX_POLLING_DAYS) {
-        return {
-            currentTierLabel: `Stopped (exceeded ${MAX_POLLING_DAYS}-day window)`,
-            nextPollEligible: null,
-        };
+        const stopped: BackoffTier = { kind: 'stopped', maxDays: MAX_POLLING_DAYS };
+        return { currentTier: stopped, currentTierLabel: backoffTierLabel(stopped), nextPollEligible: null };
     }
 
     const tier = [...BACKOFF_SCHEDULE].reverse().find(t => daysSinceFirstPoll >= t.afterDays);
 
-    let currentTierLabel: string;
-    if (!tier || tier.minIntervalDays === 0) {
-        currentTierLabel = 'Every cron run';
-    } else {
-        const weekNum = Math.floor(tier.afterDays / 7) + 1;
-        currentTierLabel = `Week ${weekNum}: every ${tier.minIntervalDays}d`;
-    }
+    const currentTier: BackoffTier = !tier || tier.minIntervalDays === 0
+        ? { kind: 'everyRun' }
+        : { kind: 'interval', week: Math.floor(tier.afterDays / 7) + 1, intervalDays: tier.minIntervalDays };
+    const currentTierLabel = backoffTierLabel(currentTier);
 
     let nextPollEligible: string | null = null;
     if (tier && tier.minIntervalDays > 0) {
@@ -120,5 +130,5 @@ export function getBackoffState(
         }
     }
 
-    return { currentTierLabel, nextPollEligible };
+    return { currentTier, currentTierLabel, nextPollEligible };
 }

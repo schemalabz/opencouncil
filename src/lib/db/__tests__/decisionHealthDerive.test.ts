@@ -1,6 +1,7 @@
 import {
-    classifyUnmatchedSubject, collectMeetingCandidateStats, compareDecisionNumbers,
-    declaredCalendarDate, isInMeasurementWindow, meetingKey, nearestMeetingGapDays, subjectNameKey,
+    accumulateMeeting, bodyKey, classifyUnmatchedSubject, collectMeetingCandidateStats,
+    compareBodyRows, compareDecisionNumbers, declaredCalendarDate, emptyCoverage,
+    isInMeasurementWindow, meetingKey, nearestMeetingGapDays, subjectNameKey,
 } from '../decisionHealthDerive';
 
 describe('classifyUnmatchedSubject', () => {
@@ -110,5 +111,73 @@ describe('isInMeasurementWindow', () => {
 describe('declaredCalendarDate', () => {
     test('reads the UTC calendar date of a midnight-UTC stored declaration', () => {
         expect(declaredCalendarDate(new Date('2026-03-15T00:00:00Z'))).toBe('2026-03-15');
+    });
+});
+
+describe('accumulateMeeting', () => {
+    test('an empty record holds zeros in every field and every taxonomy bucket', () => {
+        expect(emptyCoverage()).toEqual({
+            meetings: 0, polledMeetings: 0, eligibleSubjects: 0, linkedSubjects: 0, contentLinks: 0,
+            unmatchedTaxonomy: { notProcessed: 0, candidatesUnmatched: 0, nothingFetched: 0, duplicateSubject: 0 },
+        });
+    });
+
+    test('folds one meeting: counts, links, content and the cause of each unlinked subject', () => {
+        const into = emptyCoverage();
+        accumulateMeeting(into, {
+            polled: true,
+            subjects: [
+                { linked: true, content: true },
+                { linked: true, content: false },
+                { linked: false, cause: 'nothingFetched' },
+                { linked: false, cause: 'nothingFetched' },
+                { linked: false, cause: 'duplicateSubject' },
+            ],
+        });
+        expect(into).toEqual({
+            meetings: 1, polledMeetings: 1, eligibleSubjects: 5, linkedSubjects: 2, contentLinks: 1,
+            unmatchedTaxonomy: { notProcessed: 0, candidatesUnmatched: 0, nothingFetched: 2, duplicateSubject: 1 },
+        });
+    });
+
+    test('the same measured meeting folds identically into two records', () => {
+        const meeting = {
+            polled: false,
+            subjects: [{ linked: false as const, cause: 'notProcessed' as const }],
+        };
+        const city = emptyCoverage();
+        const body = emptyCoverage();
+        accumulateMeeting(city, meeting);
+        accumulateMeeting(body, meeting);
+        expect(body).toEqual(city);
+        expect(city.polledMeetings).toBe(0);
+        expect(city.unmatchedTaxonomy.notProcessed).toBe(1);
+    });
+});
+
+describe('bodyKey', () => {
+    test('the no-body bucket has its own key per city', () => {
+        expect(bodyKey('c1', null)).not.toBe(bodyKey('c1', 'b1'));
+        expect(bodyKey('c1', null)).not.toBe(bodyKey('c2', null));
+        expect(bodyKey('c1', 'b1')).toBe(bodyKey('c1', 'b1'));
+    });
+});
+
+describe('compareBodyRows', () => {
+    const row = (type: 'council' | 'committee' | 'community', name: string) => ({ body: { type, name } });
+
+    test('orders by type: council, committee, community; then by Greek name', () => {
+        const rows = [
+            row('community', '5η Κοινότητα'), row('committee', 'Δημοτική Επιτροπή'),
+            row('council', 'Δημοτικό Συμβούλιο'), row('community', '1η Κοινότητα'),
+        ];
+        expect([...rows].sort(compareBodyRows).map(r => r.body.name)).toEqual([
+            'Δημοτικό Συμβούλιο', 'Δημοτική Επιτροπή', '1η Κοινότητα', '5η Κοινότητα',
+        ]);
+    });
+
+    test('the no-body row sorts last', () => {
+        const rows = [{ body: null }, row('community', 'Κ')];
+        expect([...rows].sort(compareBodyRows).map(r => r.body?.name ?? null)).toEqual(['Κ', null]);
     });
 });

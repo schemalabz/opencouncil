@@ -121,6 +121,7 @@ describe('getBackoffState', () => {
     describe('no history', () => {
         it('returns nulls when both dates are null', () => {
             expect(getBackoffState(null, null)).toEqual({
+                currentTier: null,
                 currentTierLabel: null,
                 nextPollEligible: null,
             });
@@ -128,6 +129,7 @@ describe('getBackoffState', () => {
 
         it('returns nulls when firstPollAt is null', () => {
             expect(getBackoffState(null, daysAgo(1))).toEqual({
+                currentTier: null,
                 currentTierLabel: null,
                 nextPollEligible: null,
             });
@@ -135,6 +137,7 @@ describe('getBackoffState', () => {
 
         it('returns nulls when lastPollAt is null', () => {
             expect(getBackoffState(daysAgo(1), null)).toEqual({
+                currentTier: null,
                 currentTierLabel: null,
                 nextPollEligible: null,
             });

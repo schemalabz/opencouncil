@@ -45,6 +45,15 @@ export interface CityDecisionDetail {
     missingSessions: MissingSessionGroup[];
     /** Meetings whose most recent poll failed — the city's `blocked` state, drillable. */
     failedMeetings: CityFailedMeeting[];
+    /**
+     * Body of every meeting of the city (null for meetings without one). The
+     * client narrows every list — conflicts, unplaced, failed meetings, the
+     * taxonomy — to one body through this single map. The LIST_CAP applies to
+     * the city-wide list before that narrowing, so under a body a capped list
+     * holds that body's share of the first LIST_CAP rows, not its first
+     * LIST_CAP rows.
+     */
+    bodyIdByMeeting: Record<string, string | null>;
     /** Subjects per taxonomy bucket, capped at LIST_CAP each. */
     unmatched: {
         candidatesUnmatched: CityUnmatchedSubject[];
@@ -67,6 +76,7 @@ export async function getCityDecisionDetail(cityId: string): Promise<CityDecisio
         unplaced: deriveUnplacedList(facts, meetingById),
         missingSessions: deriveMissingSessionGroups(facts),
         failedMeetings: deriveFailedMeetings(facts, meetingById),
+        bodyIdByMeeting: Object.fromEntries(facts.meetings.map(m => [m.id, m.administrativeBodyId])),
         unmatched: deriveUnmatchedLists(facts),
     };
 }
@@ -124,9 +134,13 @@ function deriveUnmatchedLists(facts: DecisionFacts): CityDecisionDetail['unmatch
     }
 
     // Caps are per cause so one bucket cannot starve another.
+    // Newest session first, so the cap keeps the meetings a reader is most
+    // likely to act on. Meeting ids are slugs («jun9_2026»), so ordering by id
+    // sorted alphabetically by month name and made the kept rows arbitrary.
     const bucket = (cause: UnmatchedCause): CityUnmatchedSubject[] =>
         classified.filter(r => r.cause === cause)
-            .sort((a, b) => a.councilMeetingId.localeCompare(b.councilMeetingId)
+            .sort((a, b) => b.sessionDate.localeCompare(a.sessionDate)
+                || a.councilMeetingId.localeCompare(b.councilMeetingId)
                 || a.name.localeCompare(b.name, 'el'))
             .slice(0, LIST_CAP)
             .map(({ id, name, councilMeetingId, sessionDate }) => ({ id, name, councilMeetingId, sessionDate }));
