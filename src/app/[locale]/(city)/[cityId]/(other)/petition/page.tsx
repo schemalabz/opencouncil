@@ -50,7 +50,11 @@ export default async function PetitionSignupPage(props: PageProps) {
             city={city}
             bucket={bucket}
             initialStep={step === "2" ? 2 : 1}
-            existing={petition ? { isResident: petition.is_resident, isCitizen: petition.is_citizen } : null}
+            existing={
+                petition
+                    ? { isResident: petition.is_resident, isCitizen: petition.is_citizen, otherRelation: petition.other_relation }
+                    : null
+            }
             account={user ? { name: user.name ?? "", email: user.email, phone: user.phone ?? null } : null}
         />
     );

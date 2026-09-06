@@ -25,6 +25,6 @@ export async function getUserSignupCityIds(userId: string): Promise<{
 export async function getUserPetition(userId: string, cityId: string) {
     return prisma.petition.findUnique({
         where: { userId_cityId: { userId, cityId } },
-        select: { is_resident: true, is_citizen: true },
+        select: { is_resident: true, is_citizen: true, other_relation: true },
     });
 }

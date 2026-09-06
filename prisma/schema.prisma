@@ -1035,7 +1035,9 @@ model Petition {
   // Fields from PRD
   is_resident Boolean @default(false)
   is_citizen Boolean @default(false)
-  
+  /// The reader's own words for a relation that is neither («Είμαι παραθεριστής»).
+  other_relation String?
+
   @@unique([userId, cityId])
   @@index([userId])
   @@index([cityId])

@@ -21,7 +21,8 @@ export type SignupIssue =
     | 'phone_invalid'
     | 'name_missing'
     | 'email_invalid'
-    | 'relation_missing';
+    | 'relation_missing'
+    | 'other_relation_missing';
 
 const EMAIL_RE = /.+@.+\..+/;
 

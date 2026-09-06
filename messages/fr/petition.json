@@ -22,12 +22,28 @@
   "ctaSubmitting": "Envoi…",
   "formTitle": "Qui demande ?",
   "formLead": "Votre nom, comme habitant qui veut OpenCouncil dans sa commune.",
-  "relationEyebrow": "Votre lien avec la commune",
+  "relationTitle": {
+    "municipality": "Quel est votre lien avec la commune ?",
+    "region": "Quel est votre lien avec la région ?"
+  },
+  "relationEyebrow": {
+    "municipality": "Votre lien avec la commune",
+    "region": "Votre lien avec la région"
+  },
   "relationHint": "Cochez ce qui s'applique.",
   "isResident": "Je suis habitant",
-  "isResidentHint": "J'habite dans la commune.",
+  "isResidentHint": {
+    "municipality": "J'habite dans la commune.",
+    "region": "J'habite dans la région."
+  },
   "isCitizen": "Je suis électeur",
-  "isCitizenHint": "Je vote dans la commune.",
+  "isCitizenHint": {
+    "municipality": "Je vote dans la commune.",
+    "region": "Je vote dans la région."
+  },
+  "isOther": "Autre",
+  "isOtherHint": "Dites-le en quelques mots.",
+  "otherPlaceholder": "J'y passe mes étés",
   "accountHint": "Pour vous écrire quand la commune aura rejoint.",
   "phoneHint": "facultatif",
   "consent": "Nous ne vous écrirons qu'au sujet de la demande.",
