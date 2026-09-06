@@ -35,7 +35,8 @@
     "phone_invalid": "Овај број не изгледа исправно.",
     "name_missing": "Унесите своје име.",
     "email_invalid": "Унесите исправан имејл.",
-    "relation_missing": "Изаберите своју везу са општином."
+    "relation_missing": "Изаберите своју везу са општином.",
+    "other_relation_missing": "Реците у пар речи каква је ваша веза."
   },
   "picker": {
     "searchLabel": "Претрага општина",

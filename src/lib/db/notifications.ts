@@ -37,6 +37,7 @@ export type UserPreference = {
         name: string;
         isResident: boolean;
         isCitizen: boolean;
+        otherRelation: string | null;
         phone?: string;
     };
     locations?: {
@@ -263,7 +264,8 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
                     petitionData: {
                         name: petitionName,
                         isResident: petition.is_resident,
-                        isCitizen: petition.is_citizen
+                        isCitizen: petition.is_citizen,
+                        otherRelation: petition.other_relation,
                     }
                 });
             }
@@ -528,12 +530,19 @@ export async function saveNotificationPreferences(data: OnboardingData & {
 export async function savePetition(data: OnboardingData & {
     isResident: boolean;
     isCitizen: boolean;
+    /** The reader's own words for a third relation; null clears it, undefined keeps it. */
+    otherRelation?: string | null;
 }): Promise<Result<Petition>> {
     const validation = savePetitionSchema.safeParse(data);
     if (!validation.success) {
         return createError('Invalid input');
     }
-    const { cityId, isResident, isCitizen, phone: rawPhone, email, name, seedUser: rawSeedUser } = data;
+    const { cityId, isResident, isCitizen, otherRelation, phone: rawPhone, email, name, seedUser: rawSeedUser } = data;
+    const relation = {
+        is_resident: isResident,
+        is_citizen: isCitizen,
+        ...(otherRelation !== undefined ? { other_relation: otherRelation?.trim() || null } : {}),
+    };
     // Same rule as saveNotificationPreferences: a mobile in E.164 or nothing.
     let phone: string | undefined;
     if (rawPhone) {
@@ -628,10 +637,7 @@ export async function savePetition(data: OnboardingData & {
             // Update existing petition
             const result = await prisma.petition.update({
                 where: { id: existingPetition.id },
-                data: {
-                    is_resident: isResident,
-                    is_citizen: isCitizen
-                },
+                data: relation,
                 include: {
                     city: true
                 }
@@ -643,8 +649,7 @@ export async function savePetition(data: OnboardingData & {
                 data: {
                     userId,
                     cityId,
-                    is_resident: isResident,
-                    is_citizen: isCitizen
+                    ...relation,
                 },
                 include: {
                     city: true

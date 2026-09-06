@@ -92,6 +92,7 @@ export function PetitionSignup({
                 city_id: city.id,
                 is_resident: state.isResident,
                 is_citizen: state.isCitizen,
+                has_other: state.other,
                 has_phone: signedIn ? Boolean(account.phone) : !phoneValidity.isEmpty,
                 signed_in: signedIn,
                 updated: existing !== null,
@@ -125,6 +126,7 @@ export function PetitionSignup({
             {state.step === 1 && <PetitionIntroStep city={city} bucket={bucket} existing={existing !== null} />}
             {state.step === 2 && (
                 <PetitionFormStep
+                    city={city}
                     state={state}
                     signedIn={signedIn}
                     issues={issues}

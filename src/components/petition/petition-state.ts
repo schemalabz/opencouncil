@@ -12,12 +12,16 @@ export type PetitionStep = 1 | 2;
 export interface ExistingPetition {
     isResident: boolean;
     isCitizen: boolean;
+    otherRelation: string | null;
 }
 
 export interface PetitionState {
     step: PetitionStep;
     isResident: boolean;
     isCitizen: boolean;
+    /** The third relation, in the reader's words, ticked and typed. */
+    other: boolean;
+    otherText: string;
     name: string;
     email: string;
     phone: string;
@@ -32,6 +36,8 @@ export function initialPetitionState(input: {
         step: input.initialStep,
         isResident: input.existing?.isResident ?? false,
         isCitizen: input.existing?.isCitizen ?? false,
+        other: Boolean(input.existing?.otherRelation),
+        otherText: input.existing?.otherRelation ?? '',
         name: input.account?.name ?? '',
         email: input.account?.email ?? '',
         phone: '',
@@ -47,7 +53,8 @@ export function petitionIssues(
     opts: { phoneEmpty: boolean; phoneValid: boolean; signedIn: boolean },
 ): SignupIssue[] {
     const issues: SignupIssue[] = [];
-    if (!state.isResident && !state.isCitizen) issues.push('relation_missing');
+    if (!state.isResident && !state.isCitizen && !state.other) issues.push('relation_missing');
+    if (state.other && !state.otherText.trim()) issues.push('other_relation_missing');
     if (!opts.signedIn) {
         issues.push(...accountIssues(state));
         if (!opts.phoneEmpty && !opts.phoneValid) issues.push('phone_invalid');
@@ -59,15 +66,17 @@ export interface PetitionSubmission {
     cityId: string;
     isResident: boolean;
     isCitizen: boolean;
+    otherRelation: string | null;
     name?: string;
     email?: string;
     phone?: string;
 }
 
 /**
- * What the save action receives. A signed-in reader's name, email and phone
- * are the account's; a signed-out reader's phone goes only when they typed
- * one, because the field carries the dial code even while empty.
+ * What the save action receives. An unticked «Άλλο» sends null, so an
+ * earlier answer is cleared. A signed-in reader's name, email and phone are
+ * the account's; a signed-out reader's phone goes only when they typed one,
+ * because the field carries the dial code even while empty.
  */
 export function buildPetitionSubmission(
     state: PetitionState,
@@ -79,6 +88,7 @@ export function buildPetitionSubmission(
         cityId,
         isResident: state.isResident,
         isCitizen: state.isCitizen,
+        otherRelation: state.other ? state.otherText.trim() : null,
         ...(signedIn
             ? {}
             : {

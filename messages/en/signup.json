@@ -35,7 +35,8 @@
     "phone_invalid": "That number does not look right.",
     "name_missing": "Enter your name.",
     "email_invalid": "Enter a valid email.",
-    "relation_missing": "Pick your link to the municipality."
+    "relation_missing": "Pick your link to the municipality.",
+    "other_relation_missing": "Say in a few words what your link is."
   },
   "picker": {
     "searchLabel": "Search municipalities",

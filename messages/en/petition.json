@@ -22,12 +22,28 @@
   "ctaSubmitting": "Sending…",
   "formTitle": "Who is asking?",
   "formLead": "Your name, as a resident who wants OpenCouncil in their municipality.",
-  "relationEyebrow": "Your link to the municipality",
+  "relationTitle": {
+    "municipality": "What is your link to the municipality?",
+    "region": "What is your link to the region?"
+  },
+  "relationEyebrow": {
+    "municipality": "Your link to the municipality",
+    "region": "Your link to the region"
+  },
   "relationHint": "Pick whatever applies.",
   "isResident": "I am a resident",
-  "isResidentHint": "I live in the municipality.",
+  "isResidentHint": {
+    "municipality": "I live in the municipality.",
+    "region": "I live in the region."
+  },
   "isCitizen": "I am a registered citizen",
-  "isCitizenHint": "I vote in the municipality.",
+  "isCitizenHint": {
+    "municipality": "I vote in the municipality.",
+    "region": "I vote in the region."
+  },
+  "isOther": "Other",
+  "isOtherHint": "Say it in a few words.",
+  "otherPlaceholder": "I spend my summers here",
   "accountHint": "So we can write to you when the municipality joins.",
   "phoneHint": "optional",
   "consent": "We will write to you only about the request.",

@@ -1,4 +1,4 @@
-import { saveNotificationPreferencesSchema } from '../onboarding';
+import { saveNotificationPreferencesSchema, savePetitionSchema } from '../onboarding';
 
 const base = {
     cityId: 'athens',
@@ -26,5 +26,21 @@ describe('saveNotificationPreferencesSchema channel consent', () => {
 
     it('rejects a flag that is not a boolean', () => {
         expect(saveNotificationPreferencesSchema.safeParse({ ...base, notifyByPhone: 'yes' }).success).toBe(false);
+    });
+});
+
+describe('savePetitionSchema other relation', () => {
+    const petition = { cityId: 'rhodes', isResident: false, isCitizen: false };
+
+    it('takes the reader’s words, trimmed, and null to clear them', () => {
+        expect(savePetitionSchema.safeParse({ ...petition, otherRelation: ' Είμαι παραθεριστής ' }).data).toMatchObject({
+            otherRelation: 'Είμαι παραθεριστής',
+        });
+        expect(savePetitionSchema.safeParse({ ...petition, otherRelation: null }).success).toBe(true);
+        expect(savePetitionSchema.safeParse(petition).data).not.toHaveProperty('otherRelation');
+    });
+
+    it('refuses an essay', () => {
+        expect(savePetitionSchema.safeParse({ ...petition, otherRelation: 'α'.repeat(121) }).success).toBe(false);
     });
 });

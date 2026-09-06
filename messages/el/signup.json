@@ -35,7 +35,8 @@
     "phone_invalid": "Ο αριθμός δεν φαίνεται σωστός.",
     "name_missing": "Γράψε το όνομά σου.",
     "email_invalid": "Γράψε ένα σωστό email.",
-    "relation_missing": "Διάλεξε τη σχέση σου με τον δήμο."
+    "relation_missing": "Διάλεξε τη σχέση σου με τον δήμο.",
+    "other_relation_missing": "Γράψε με δυο λόγια ποια είναι η σχέση σου."
   },
   "picker": {
     "searchLabel": "Αναζήτηση δήμου",

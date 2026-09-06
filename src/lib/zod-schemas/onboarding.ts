@@ -43,5 +43,7 @@ export const savePetitionSchema = z
         ...onboardingBaseFields,
         isResident: z.boolean(),
         isCitizen: z.boolean(),
+        // The reader's own words for a third relation; null clears it.
+        otherRelation: z.string().trim().max(120).nullable().optional(),
     })
     .passthrough();

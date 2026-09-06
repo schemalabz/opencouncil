@@ -35,7 +35,8 @@
     "phone_invalid": "Ce numéro ne semble pas correct.",
     "name_missing": "Indiquez votre nom.",
     "email_invalid": "Indiquez un e-mail valide.",
-    "relation_missing": "Indiquez votre lien avec la commune."
+    "relation_missing": "Indiquez votre lien avec la commune.",
+    "other_relation_missing": "Dites en quelques mots quel est votre lien."
   },
   "picker": {
     "searchLabel": "Rechercher une commune",

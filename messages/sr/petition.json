@@ -22,12 +22,28 @@
   "ctaSubmitting": "Слање…",
   "formTitle": "Ко тражи?",
   "formLead": "Ваше име, као становника који жели OpenCouncil у својој општини.",
-  "relationEyebrow": "Ваша веза са општином",
+  "relationTitle": {
+    "municipality": "Каква је ваша веза са општином?",
+    "region": "Каква је ваша веза са регионом?"
+  },
+  "relationEyebrow": {
+    "municipality": "Ваша веза са општином",
+    "region": "Ваша веза са регионом"
+  },
   "relationHint": "Изаберите шта важи.",
   "isResident": "Становник сам",
-  "isResidentHint": "Живим у општини.",
+  "isResidentHint": {
+    "municipality": "Живим у општини.",
+    "region": "Живим у региону."
+  },
   "isCitizen": "Уписан сам у бирачки списак",
-  "isCitizenHint": "Гласам у општини.",
+  "isCitizenHint": {
+    "municipality": "Гласам у општини.",
+    "region": "Гласам у региону."
+  },
+  "isOther": "Друго",
+  "isOtherHint": "Реците у пар речи.",
+  "otherPlaceholder": "Овде проводим лета",
   "accountHint": "Да вам пишемо када се општина придружи.",
   "phoneHint": "необавезно",
   "consent": "Писаћемо вам само о захтеву.",

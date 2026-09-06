@@ -22,12 +22,28 @@
   "ctaSubmitting": "Αποστολή…",
   "formTitle": "Ποιος το ζητάει;",
   "formLead": "Το όνομά σου, ως δημότη που θέλει το OpenCouncil στον δήμο του.",
-  "relationEyebrow": "Η σχέση σου με τον δήμο",
+  "relationTitle": {
+    "municipality": "Ποια είναι η σχέση σου με τον δήμο;",
+    "region": "Ποια είναι η σχέση σου με την περιφέρεια;"
+  },
+  "relationEyebrow": {
+    "municipality": "Η σχέση σου με τον δήμο",
+    "region": "Η σχέση σου με την περιφέρεια"
+  },
   "relationHint": "Διάλεξε ό,τι ισχύει.",
   "isResident": "Είμαι κάτοικος",
-  "isResidentHint": "Μένω στον δήμο.",
+  "isResidentHint": {
+    "municipality": "Μένω στον δήμο.",
+    "region": "Μένω στην περιφέρεια."
+  },
   "isCitizen": "Είμαι δημότης",
-  "isCitizenHint": "Ψηφίζω στον δήμο.",
+  "isCitizenHint": {
+    "municipality": "Ψηφίζω στον δήμο.",
+    "region": "Ψηφίζω στην περιφέρεια."
+  },
+  "isOther": "Άλλο",
+  "isOtherHint": "Πες το με δυο λόγια.",
+  "otherPlaceholder": "Είμαι παραθεριστής",
   "accountHint": "Για να σου γράψουμε όταν ο δήμος μπει.",
   "phoneHint": "προαιρετικό",
   "consent": "Θα σου γράψουμε μόνο για την πορεία του αιτήματος.",

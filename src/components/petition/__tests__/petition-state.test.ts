@@ -8,23 +8,51 @@ describe('initialPetitionState', () => {
             step: 1,
             isResident: false,
             isCitizen: false,
+            other: false,
+            otherText: '',
             name: '',
             email: '',
             phone: '',
         });
         expect(
-            initialPetitionState({ initialStep: 2, existing: { isResident: true, isCitizen: false }, account }),
-        ).toMatchObject({ step: 2, isResident: true, isCitizen: false, name: 'Μαρία', email: 'maria@example.com' });
+            initialPetitionState({
+                initialStep: 2,
+                existing: { isResident: true, isCitizen: false, otherRelation: 'Είμαι παραθεριστής' },
+                account,
+            }),
+        ).toMatchObject({
+            step: 2,
+            isResident: true,
+            isCitizen: false,
+            other: true,
+            otherText: 'Είμαι παραθεριστής',
+            name: 'Μαρία',
+            email: 'maria@example.com',
+        });
     });
 });
 
 describe('petitionIssues', () => {
-    const base: PetitionState = { step: 2, isResident: true, isCitizen: false, name: 'Μαρία', email: 'maria@example.com', phone: '' };
+    const base: PetitionState = {
+        step: 2,
+        isResident: true,
+        isCitizen: false,
+        other: false,
+        otherText: '',
+        name: 'Μαρία',
+        email: 'maria@example.com',
+        phone: '',
+    };
     const ok = { phoneEmpty: true, phoneValid: false, signedIn: false };
 
     it('needs at least one relation to the municipality', () => {
         expect(petitionIssues(base, ok)).toEqual([]);
         expect(petitionIssues({ ...base, isResident: false }, ok)).toEqual(['relation_missing']);
+        expect(petitionIssues({ ...base, isResident: false, other: true, otherText: 'παραθεριστής' }, ok)).toEqual([]);
+    });
+
+    it('needs the words behind a ticked «Άλλο»', () => {
+        expect(petitionIssues({ ...base, other: true, otherText: '  ' }, ok)).toEqual(['other_relation_missing']);
     });
 
     it('needs the account fields from a signed-out reader only', () => {
@@ -45,28 +73,32 @@ describe('buildPetitionSubmission', () => {
         step: 2,
         isResident: false,
         isCitizen: true,
+        other: true,
+        otherText: ' Είμαι παραθεριστής ',
         name: ' Μαρία ',
         email: ' maria@example.com ',
         phone: '+30 694 3472297',
     };
 
     it('sends the account fields when signed out, and the phone only when one was typed', () => {
-        expect(buildPetitionSubmission(state, 'thessaloniki', false, false)).toEqual({
-            cityId: 'thessaloniki',
+        expect(buildPetitionSubmission(state, 'rhodes', false, false)).toEqual({
+            cityId: 'rhodes',
             isResident: false,
             isCitizen: true,
+            otherRelation: 'Είμαι παραθεριστής',
             name: 'Μαρία',
             email: 'maria@example.com',
             phone: '+30 694 3472297',
         });
-        expect(buildPetitionSubmission({ ...state, phone: '+30' }, 'thessaloniki', false, true)).not.toHaveProperty('phone');
+        expect(buildPetitionSubmission({ ...state, phone: '+30' }, 'rhodes', false, true)).not.toHaveProperty('phone');
     });
 
-    it('sends only the relation when signed in', () => {
-        expect(buildPetitionSubmission(state, 'thessaloniki', true, true)).toEqual({
-            cityId: 'thessaloniki',
+    it('sends only the relation when signed in, and null for an unticked «Άλλο»', () => {
+        expect(buildPetitionSubmission({ ...state, other: false }, 'rhodes', true, true)).toEqual({
+            cityId: 'rhodes',
             isResident: false,
             isCitizen: true,
+            otherRelation: null,
         });
     });
 });
