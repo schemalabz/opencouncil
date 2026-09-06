@@ -268,7 +268,11 @@ const stats = await createNotificationsForMeeting(
 
 The completion screen shows the real first message (`notis_intro`) and says when it arrives. The Notis poller sends it on its next tick; the main app sends a welcome email only.
 
-`/notifications` lists the municipalities that support notifications. A tap lands on step 2 of that municipality's signup.
+`/notifications` lists the municipalities that support notifications, with a search. A tap lands on step 2 of that municipality's signup. A search hit that Notis does not serve yet is offered the petition. A signed-in reader sees which municipalities they are already in, and the row offers to change their preferences instead of joining.
+
+#### Petition
+
+`/{cityId}/petition` is the same flow for a municipality OpenCouncil does not cover yet, on the same components (`src/components/signup/` holds the shared chrome, the card checkbox, the account fields, the municipality picker; `src/components/petition/` holds the two steps). Step 1 explains and shows how many have asked, in the landing map's buckets. Step 2 asks the reader's relation to the municipality and, for a signed-out reader, the account. `/petition` is its municipality-agnostic entry with the same picker in petition mode. `savePetition()` is unchanged.
 
 #### Profile
 
