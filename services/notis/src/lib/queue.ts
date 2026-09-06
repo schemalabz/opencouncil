@@ -46,6 +46,11 @@ import {
   toConversationMessage,
 } from "./conversation";
 import { getProactiveSettings } from "./settings";
+import { markUnsubscribed, suppressPendingOutbound } from "./subscription";
+
+// The unsubscribe cleanup lives with the other state transitions now; the
+// name stays exported from here for the callers that learned it here.
+export { suppressPendingOutbound };
 
 /**
  * The live-lane drainer: claim → assemble state → runWake → persist → send.
@@ -444,27 +449,19 @@ async function runOneWake(
     // subscription on its row lock — the ΣΤΟΠ path touches the same row.)
     const subData: Prisma.NotisSubscriptionUpdateInput = { updatedAt: new Date() };
     if (outcome.profileRewrite !== undefined) subData.profileText = outcome.profileRewrite;
-    // Only the user moves a row into `unsubscribed` — and unsubscribe_user
-    // fires only on a user_message wake, so this is the user doing it.
-    if (outcome.unsubscribe && sub.status !== "unsubscribed") {
-      subData.status = "unsubscribed";
-      // finalLastAt, not lastAt: an unsubscribe honored from an ABSORBED
-      // message must not be dated before the request itself.
-      subData.unsubscribedAt = new Date(finalLastAt);
-    }
     await tx.notisSubscription.update({ where: { id: sub.id }, data: subData });
 
-    // Nothing queued may outlive an unsubscribe. This wake's OWN rows are
-    // exempt: the goodbye the agent sends alongside unsubscribe_user must
-    // still go out (incremental rows already exist, so they are excluded by
-    // id; batch rows are created after this statement).
+    // Only the user moves a row into `unsubscribed` — and unsubscribe_user
+    // fires only on a user_message wake, so this is the user doing it.
+    // This wake's OWN rows are exempt from the cleanup: the goodbye the agent
+    // sends alongside unsubscribe_user must still go out (incremental rows
+    // already exist, so they are excluded by id; batch rows are created after
+    // this statement). finalLastAt, not lastAt: an unsubscribe honored from an
+    // ABSORBED message must not be dated before the request itself.
     if (outcome.unsubscribe) {
-      await suppressPendingOutbound(tx, sub.id, incrementalIds);
-      // A promise cannot outlive the reader's departure any more than a queued
-      // message can — the same rule, applied to the other durable store.
-      await tx.notisCommitment.updateMany({
-        where: { subscriptionId: sub.id, resolvedAt: null },
-        data: { resolvedAt: new Date() },
+      await markUnsubscribed(tx, sub, {
+        at: new Date(finalLastAt),
+        exceptMessageIds: incrementalIds,
       });
     }
 
@@ -878,28 +875,6 @@ export type SuppressionReason = keyof typeof SUPPRESSION_REASONS;
  *  through as itself rather than disappearing from the panel. */
 export function suppressionLabel(reason: string): string {
   return (SUPPRESSION_REASONS as Record<string, string>)[reason] ?? reason;
-}
-
-/**
- * Kill every pending outbound row of a subscription — the unsubscribe
- * cleanup, shared by ALL status→unsubscribed sites (bare ΣΤΟΠ, the agent's
- * unsubscribe_user, the poller's phone-gone). exceptIds spares the goodbye
- * the unsubscribing wake itself sends.
- */
-export async function suppressPendingOutbound(
-  db: PrismaClient | Prisma.TransactionClient,
-  subscriptionId: string,
-  exceptIds: string[] = [],
-): Promise<void> {
-  await db.notisMessage.updateMany({
-    where: {
-      subscriptionId,
-      direction: "outbound",
-      status: "pending",
-      ...(exceptIds.length > 0 ? { id: { notIn: exceptIds } } : {}),
-    },
-    data: { status: "suppressed", failureReason: "unsubscribed" satisfies SuppressionReason },
-  });
 }
 
 export async function suppressMessages(

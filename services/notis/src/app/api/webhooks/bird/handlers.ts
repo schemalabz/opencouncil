@@ -6,14 +6,10 @@ import { ExtractedMessageFields } from "@/lib/bird-extract";
 import { citiesForUser, findEnabledUserByPhone } from "@/lib/fanout";
 import { hasMainDb, mainDb } from "@/lib/main-db";
 import { normalizePhone } from "@/lib/phone";
-import {
-  maybeSendSmsFallback,
-  sendPendingMessages,
-  sendSmsAndRecord,
-  suppressPendingOutbound,
-} from "@/lib/queue";
+import { maybeSendSmsFallback, sendPendingMessages, sendSmsAndRecord } from "@/lib/queue";
 import { enqueueLiveWake } from "@/lib/queue-core";
 import { STOP_ALREADY_TEXT, STOP_CONFIRMATION_TEXT, isBareStop } from "@/lib/stop";
+import { markUnsubscribed } from "@/lib/subscription";
 import type {
   MessageStatus,
   NotisMessage,
@@ -341,24 +337,10 @@ async function handleBareStop(
         birdMessageId: fields.birdMessageId,
       },
     });
-    // Always touched: updatedAt is the conversation list's activity sort key.
-    await tx.notisSubscription.update({
-      where: { id: sub.id },
-      data: {
-        updatedAt: at,
-        ...(alreadyUnsubscribed ? {} : { status: "unsubscribed" as const, unsubscribedAt: at }),
-      },
-    });
-    // Nothing queued may outlive a ΣΤΟΠ. The confirmation reply is created
+    // The state flip and its cleanup. The confirmation reply is created
     // below, after this statement, so it is the one outbound row that
-    // survives.
-    await suppressPendingOutbound(tx, sub.id);
-    // Promises die with the subscription too, or the panel shows live
-    // commitments to someone who left.
-    await tx.notisCommitment.updateMany({
-      where: { subscriptionId: sub.id, resolvedAt: null },
-      data: { resolvedAt: at },
-    });
+    // survives the suppression.
+    await markUnsubscribed(tx, sub, { at });
     // A model-less wake row records the decision (the reader's text lives on
     // the inbound message row, the reply on its own row below — this is only
     // the "what happened and why"). model/trace stay null: no model ran.
