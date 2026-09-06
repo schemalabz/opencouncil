@@ -304,12 +304,18 @@ function sanitizeSeedUser(
 export async function saveNotificationPreferences(data: OnboardingData & {
     locations: { text: string; coordinates: [number, number] }[];
     topicIds: string[];
+    /** Channel consent from the delivery step; omitted by older callers, who keep the defaults. */
+    notifyByPhone?: boolean;
+    notifyByEmail?: boolean;
 }): Promise<Result<NotificationPreference>> {
     const validation = saveNotificationPreferencesSchema.safeParse(data);
     if (!validation.success) {
         return createError('Invalid input');
     }
-    const { cityId, locations, topicIds, phone: rawPhone, email, name, seedUser: rawSeedUser } = data;
+    const {
+        cityId, locations, topicIds, phone: rawPhone, email, name, seedUser: rawSeedUser,
+        notifyByPhone, notifyByEmail,
+    } = data;
     // A phone is stored as a mobile number in E.164 or not at all (@/lib/phone):
     // the old input let national numbers through, and they reached nobody.
     let phone: string | undefined;
@@ -348,6 +354,12 @@ export async function saveNotificationPreferences(data: OnboardingData & {
 
             userId = user.id;
 
+            // WhatsApp consent needs a number to reach: the one given now, or
+            // the one already on the account.
+            if (notifyByPhone && !phone && !user.phone) {
+                return createError(PHONE_REJECTION_CODES.empty);
+            }
+
             // Update phone if provided
             if (phone) {
                 if (await phoneBelongsToAnotherUser(phone, user.id)) {
@@ -359,6 +371,9 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 });
             }
         } else if (email) {
+            if (notifyByPhone && !phone) {
+                return createError(PHONE_REJECTION_CODES.empty);
+            }
             // Non-authenticated user
             // Check if this email already exists
             let user = await prisma.user.findUnique({
@@ -436,6 +451,14 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 ? { connect: validTopicIds.map(id => ({ id })) }
                 : undefined;
 
+            // Only the channels the caller decided on are written: an older
+            // caller that sends neither leaves an existing row's flags alone
+            // and a new row on the schema defaults.
+            const channels = {
+                ...(notifyByPhone !== undefined ? { notifyByPhone } : {}),
+                ...(notifyByEmail !== undefined ? { notifyByEmail } : {}),
+            };
+
             const existing = await tx.notificationPreference.findUnique({
                 where: { userId_cityId: { userId, cityId } },
                 select: { id: true },
@@ -449,14 +472,14 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 });
                 const updated = await tx.notificationPreference.update({
                     where: { id: existing.id },
-                    data: { locations: locationConnect, interests: interestConnect },
+                    data: { locations: locationConnect, interests: interestConnect, ...channels },
                     include: { city: true, locations: true, interests: true },
                 });
                 return { preference: updated, wasNew: false };
             }
 
             const created = await tx.notificationPreference.create({
-                data: { userId, cityId, locations: locationConnect, interests: interestConnect },
+                data: { userId, cityId, locations: locationConnect, interests: interestConnect, ...channels },
                 include: { city: true, locations: true, interests: true },
             });
             return { preference: created, wasNew: true };
@@ -1355,6 +1378,33 @@ export async function updateNotificationPreferenceChannels(
     return prisma.notificationPreference.update({
         where: { id: preferenceId },
         data: channels,
+    });
+}
+
+/**
+ * The reader's phone channel as this database knows it: whether any of
+ * their preferences has phone delivery on (the poller's enrollment gate and
+ * the fan-out audience filter), and the number it would reach. The
+ * subscription itself is Notis's; src/lib/actions/notis.ts joins the two.
+ */
+export async function getPhoneChannelState(userId: string): Promise<{ notifyByPhoneAny: boolean; phone: string | null }> {
+    const [user, enabledCount] = await Promise.all([
+        prisma.user.findUnique({ where: { id: userId }, select: { phone: true } }),
+        prisma.notificationPreference.count({ where: { userId, notifyByPhone: true } }),
+    ]);
+    return { notifyByPhoneAny: enabledCount > 0, phone: user?.phone ?? null };
+}
+
+/**
+ * Flip phone delivery on every one of the reader's preferences at once —
+ * the profile's single Νότης switch. Per-city phone flags stopped being a
+ * control when Notis became per-reader; they stay per row only because the
+ * view the poller reads is per row.
+ */
+export async function setNotifyByPhoneForUser(userId: string, enabled: boolean): Promise<void> {
+    await prisma.notificationPreference.updateMany({
+        where: { userId },
+        data: { notifyByPhone: enabled },
     });
 }
 
