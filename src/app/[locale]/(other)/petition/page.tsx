@@ -1,77 +1,62 @@
 import { Metadata } from "next";
-import { Suspense } from "react";
-import { PetitionMunicipalitySelector } from "@/components/onboarding/selectors/PetitionMunicipalitySelector";
-import { OpenCouncilDescription } from "@/components/landing/OpenCouncilDescription";
+import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/routing";
+import { MunicipalityPicker } from "@/components/signup/MunicipalityPicker";
+import { NotisChatCard } from "@/components/signup/NotisChatCard";
+import { Eyebrow, SignupLayout } from "@/components/signup/SignupChrome";
+import { getCurrentUser } from "@/lib/auth";
 import { getAllCitiesMinimalCached } from "@/lib/cache/queries";
+import { getUserSignupCityIds } from "@/lib/db/signup";
 import { getRealm } from "@/lib/realm.server";
-import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
+import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 
 export async function generateMetadata(): Promise<Metadata> {
+    const t = await getTranslations("petition");
     return {
-        title: "Υποστήριξη Δήμου | OpenCouncil",
-        description: "Υποστηρίξτε την προσθήκη του δήμου σας στο OpenCouncil",
-        alternates: await buildCanonicalAlternates('/petition'),
+        title: t("metaTitle"),
+        description: t("metaDescription"),
+        alternates: await buildCanonicalAlternates("/petition"),
     };
 }
 
-export default async function PetitionPage() {
-    // Fetch all cities
-    const cities = await getAllCitiesMinimalCached(await getRealm()).catch(error => {
-        console.error('Failed to fetch cities:', error);
-        return [];
-    });
+/**
+ * The petition's municipality-agnostic entry: what asking does, then which
+ * municipality — found by the search, because a few hundred are too many to
+ * scan. A tap lands on step 2 of the petition; a municipality that already
+ * has notifications is offered the signup instead.
+ */
+export default async function PetitionPickerPage() {
+    const [realm, user, t] = await Promise.all([getRealm(), getCurrentUser(), getTranslations("petition")]);
+    const [cities, membership] = await Promise.all([
+        getAllCitiesMinimalCached(realm),
+        user ? getUserSignupCityIds(user.id) : { subscribedCityIds: [], petitionedCityIds: [] },
+    ]);
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-start px-4 pt-8 pb-8 sm:pt-12 sm:pb-12">
-            <div className="w-full max-w-3xl mx-auto space-y-8 sm:space-y-12">
-                {/* Header Section */}
-                <div className="text-center space-y-4 sm:space-y-6">
-                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-normal leading-tight">
-                        Υποστηρίξτε την προσθήκη του Δήμου σας στο{' '}
-                        <span className="relative z-10 text-[hsl(var(--orange))]">
-                            OpenCouncil
-                        </span>
-                    </h1>
-                </div>
-
-                {/* Description Section */}
-                <div className="space-y-4 sm:space-y-6">
-                    <div className="text-base sm:text-lg text-muted-foreground text-center">
-                        <OpenCouncilDescription />
-                    </div>
-
-                    <p className="text-base sm:text-lg text-muted-foreground text-left leading-relaxed">
-                        Μπορείτε να μας βοηθήσετε να φέρουμε τον δήμο σας στο OpenCouncil, επιτρέποντας μας να χρησιμοποιήσουμε το
-                        όνομά σας όταν μιλήσουμε με τον δήμο, ως δημότη που θα ήθελε να έχει το OpenCouncil στον δήμο του.
-                    </p>
-                </div>
-
-                {/* Municipality Selector Section */}
-                <div className="w-full">
-                    <Suspense fallback={
-                        <div className="flex items-center justify-center min-h-[200px]">
-                            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-primary"></div>
-                        </div>
-                    }>
-                        <PetitionMunicipalitySelector cities={cities} />
-                    </Suspense>
-                </div>
-
-                {/* Pricing Information */}
-                <div className="space-y-4">
-                    <p className="text-sm sm:text-base text-muted-foreground text-left leading-relaxed">
-                        Έχουμε εμπορική δραστηριότητα με τους δήμους που συνεργαζόμαστε. Οι τιμές και ο τρόπος που τιμολογούμε είναι δημόσια διαθέσιμες στο{' '}
-                        <a
-                            href="https://opencouncil.gr/about"
-                            className="text-blue-600 hover:text-blue-800 underline transition-colors duration-200"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                        >
-                            opencouncil.gr/about
-                        </a>.
-                    </p>
-                </div>
+        <SignupLayout aside={<NotisChatCard intro={t("whatYouGet")} />} className="pb-10">
+            <div className="flex flex-col gap-3 pt-7 lg:pt-10">
+                <Eyebrow>{t("eyebrow")}</Eyebrow>
+                <h1 className="text-[30px] font-normal leading-none tracking-[-0.02em] lg:text-[36px]">{t("pickerTitle")}</h1>
+                <p className="text-[15px] leading-[1.45] text-muted-foreground lg:text-base">{t("pickerLead")}</p>
             </div>
-        </div>
+
+            <NotisChatCard intro={t("whatYouGet")} className="mt-5 lg:hidden" />
+
+            <div className="mt-7 flex items-baseline gap-2 lg:mt-9">
+                <Eyebrow>{t("pickerEyebrow")}</Eyebrow>
+                <span className="text-xs text-muted-foreground">{t("pickerHint")}</span>
+            </div>
+            <MunicipalityPicker cities={cities} mode="petition" membership={membership} className="mt-2.5" />
+
+            <p className="mt-4 text-[11px] leading-[1.4] text-muted-foreground">
+                {t.rich("pricingNote", {
+                    link: (chunks) => (
+                        <Link href="/about" className="underline">
+                            {chunks}
+                        </Link>
+                    ),
+                })}
+            </p>
+        </SignupLayout>
     );
-} 
+}
