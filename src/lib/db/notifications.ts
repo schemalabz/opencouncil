@@ -108,6 +108,36 @@ export async function getNotificationPreferenceForCity(userId: string, cityId: s
 export type CityNotificationPreference = NonNullable<Awaited<ReturnType<typeof getNotificationPreferenceForCity>>>;
 
 /**
+ * The point of each location, by id. A location whose geometry is missing or
+ * not a point is absent from the map; `withCoordinates` gives it the (0,0)
+ * sentinel the rest of the app reads as "no coordinates".
+ */
+export async function getLocationCoordinates(locationIds: string[]): Promise<Record<string, [number, number]>> {
+    if (locationIds.length === 0) return {};
+    const rows = await prisma.$queryRaw<{ id: string; geometry: string | null }[]>`
+        SELECT l."id" AS id, ST_AsGeoJSON(l.coordinates)::text AS geometry
+        FROM "Location" l
+        WHERE l.id IN (${Prisma.join(locationIds)})
+    `;
+    const coordinates: Record<string, [number, number]> = {};
+    for (const row of rows) {
+        if (!row.geometry) continue;
+        const parsed = JSON.parse(row.geometry);
+        if (parsed.type === 'Point' && Array.isArray(parsed.coordinates) && parsed.coordinates.length === 2) {
+            coordinates[row.id] = parsed.coordinates as [number, number];
+        }
+    }
+    return coordinates;
+}
+
+export function withCoordinates<L extends { id: string; text: string }>(
+    locations: L[],
+    coordinates: Record<string, [number, number]>,
+): { id: string; text: string; coordinates: [number, number] }[] {
+    return locations.map(loc => ({ id: loc.id, text: loc.text, coordinates: coordinates[loc.id] ?? [0, 0] }));
+}
+
+/**
  * Get all user preferences (notifications and petitions)
  */
 export async function getUserPreferences(): Promise<UserPreference[]> {
@@ -149,63 +179,9 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
         const cities = [...notificationPreferences.map(np => np.city), ...petitions.map(p => p.city)];
         const citiesWithGeometry = await attachGeometryToCities(cities);
 
-        // Get all location IDs that need coordinates
-        const allLocationIds = notificationPreferences.flatMap(np =>
-            np.locations.map(loc => loc.id)
+        const coordinates = await getLocationCoordinates(
+            notificationPreferences.flatMap(np => np.locations.map(loc => loc.id))
         );
-
-        console.log('All location IDs to fetch:', allLocationIds);
-
-        // Prepare to store the locations with proper coordinates
-        let locationsWithCoordinates: Record<string, { id: string, text: string, coordinates: [number, number] }> = {};
-
-        // If there are any locations, get their coordinates using the same pattern as attachGeometryToCities
-        if (allLocationIds.length > 0) {
-            try {
-                const locationsWithGeometry = await prisma.$queryRaw<
-                    ({ id: string, text: string, geometry: string | null })[]
-                >`SELECT 
-                    l."id" AS id,
-                    l."text" AS text,
-                    ST_AsGeoJSON(l.coordinates)::text AS geometry
-                FROM "Location" l
-                WHERE l.id IN (${Prisma.join(allLocationIds)})
-                `;
-
-                console.log('Raw locations with geometry:', locationsWithGeometry);
-
-                // Process each location to extract coordinates from GeoJSON
-                locationsWithGeometry.forEach(loc => {
-                    if (loc.geometry) {
-                        try {
-                            const parsed = JSON.parse(loc.geometry);
-                            console.log(`Parsed geometry for location ${loc.id}:`, parsed);
-
-                            // Extract coordinates if it's a point
-                            if (parsed.type === 'Point' &&
-                                Array.isArray(parsed.coordinates) &&
-                                parsed.coordinates.length === 2) {
-
-                                // Store the location with its coordinates
-                                locationsWithCoordinates[loc.id] = {
-                                    id: loc.id,
-                                    text: loc.text,
-                                    coordinates: parsed.coordinates as [number, number]
-                                };
-
-                                console.log(`Extracted coordinates for location ${loc.id}:`, parsed.coordinates);
-                            }
-                        } catch (err) {
-                            console.error(`Error parsing geometry for location ${loc.id}:`, err);
-                        }
-                    }
-                });
-
-                console.log('Processed locations with coordinates:', locationsWithCoordinates);
-            } catch (error) {
-                console.error('Error fetching location geometry:', error);
-            }
-        }
 
         const preferences: UserPreference[] = [];
 
@@ -214,27 +190,7 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
             const cityWithGeometry = citiesWithGeometry.find(c => c.id === np.cityId);
 
             if (cityWithGeometry) {
-                // Map locations, using coordinates from our processed locations
-                const processedLocations = np.locations.map(loc => {
-                    // Look up the location with coordinates
-                    const locationWithCoords = locationsWithCoordinates[loc.id];
-
-                    if (locationWithCoords) {
-                        console.log(`Using processed location ${loc.id} with coordinates:`, locationWithCoords.coordinates);
-                        return {
-                            id: loc.id,
-                            text: loc.text,
-                            coordinates: locationWithCoords.coordinates
-                        };
-                    } else {
-                        console.warn(`No coordinates found for location ${loc.id}, using default [0,0]`);
-                        return {
-                            id: loc.id,
-                            text: loc.text,
-                            coordinates: [0, 0] as [number, number]
-                        };
-                    }
-                });
+                const processedLocations = withCoordinates(np.locations, coordinates);
 
                 preferences.push({
                     cityId: np.cityId,

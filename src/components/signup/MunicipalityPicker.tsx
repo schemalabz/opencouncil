@@ -11,6 +11,7 @@ import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { cn, normalizeText } from '@/lib/utils';
 import { CitySeal } from './CityCard';
+import { Eyebrow } from './SignupChrome';
 
 export type PickerMode = 'notifications' | 'petition';
 
@@ -112,8 +113,8 @@ export function MunicipalityPicker({
 
             {secondary.length > 0 && (
                 <>
-                    <div className="border-y border-border bg-muted/40 px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[.16em] text-muted-foreground">
-                        {mode === 'notifications' ? t('picker.notSupportedYet') : t('picker.supportedAlready')}
+                    <div className="border-y border-border bg-muted/40 px-3.5 py-1.5">
+                        <Eyebrow>{mode === 'notifications' ? t('picker.notSupportedYet') : t('picker.supportedAlready')}</Eyebrow>
                     </div>
                     <ul>
                         {secondary.map((city) => (

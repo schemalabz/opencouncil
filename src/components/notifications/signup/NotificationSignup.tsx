@@ -1,13 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
-import type { PhoneFieldValidity } from '@/components/ui/phone-field';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
 import { saveErrorKey } from '@/components/signup/signup-shared';
+import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { saveNotificationPreferences } from '@/lib/actions/notifications';
-import { setNotisEnabled } from '@/lib/actions/notis';
+import { releaseNotisWithoutPhoneChannel, setNotisEnabled } from '@/lib/actions/notis';
 import { captureEvent } from '@/lib/analytics/capture';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import type { Location } from '@/lib/types/onboarding';
@@ -21,16 +21,13 @@ import {
     type NotisStatus,
     type SignupAccount,
     type SignupState,
-    type SignupStep,
     buildSubmission,
     channelIssues,
     initialSignupState,
+    notisActionFor,
 } from './signup-state';
-import type { SignupIssue } from '@/components/signup/signup-shared';
 
 const TOTAL_STEPS = 3;
-
-const INITIAL_VALIDITY: PhoneFieldValidity = { isActive: false, isEmpty: true, isValid: false, reason: null };
 
 /**
  * The three steps and the completion screen, on one page. The step rides in
@@ -56,65 +53,51 @@ export function NotificationSignup({
     const t = useTranslations('notificationSignup');
     const ts = useTranslations('signup');
     const signedIn = account !== null;
-    const [state, setState] = useState<SignupState>(() =>
-        initialSignupState({ initialStep, existing, account, notisStatus }),
-    );
-    const [done, setDone] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-    const [attempted, setAttempted] = useState(false);
-    const [saveError, setSaveError] = useState<string | null>(null);
-    const [phoneValidity, setPhoneValidity] = useState<PhoneFieldValidity>(INITIAL_VALIDITY);
-    const viewed = useRef<Set<number>>(new Set());
+    const flow = useSignupFlow<SignupState>({
+        initial: () => initialSignupState({ initialStep, existing, account, notisStatus }),
+        cityId: city.id,
+        signedIn,
+        events: { stepViewed: 'notification_signup_step_viewed', failed: 'notification_signup_failed' },
+    });
+    const { state, patch, goTo, done, submitting, attempted, saveError, validity, setPhoneValidity } = flow;
+    // Whether Notis serves this reader once the signup is done: the completion
+    // screen promises an intro only to a reader he does not know yet.
+    const [known, setKnown] = useState(notisStatus === 'active');
 
-    const patch = useCallback((next: Partial<SignupState>) => setState((s) => ({ ...s, ...next })), []);
+    const issues = attempted ? channelIssues(state, validity) : [];
 
-    useEffect(() => {
-        if (done || viewed.current.has(state.step)) return;
-        viewed.current.add(state.step);
-        captureEvent('notification_signup_step_viewed', { city_id: city.id, step: state.step, signed_in: signedIn });
-    }, [city.id, done, signedIn, state.step]);
+    const submit = () =>
+        flow.submit(async () => {
+            if (channelIssues(state, validity).length > 0) return 'blocked';
 
-    const goTo = useCallback((step: SignupStep) => {
-        setState((s) => ({ ...s, step }));
-        const url = new URL(window.location.href);
-        url.searchParams.set('step', String(step));
-        window.history.replaceState(window.history.state, '', url);
-        window.scrollTo({ top: 0 });
-    }, []);
-
-    const issues: SignupIssue[] = attempted
-        ? channelIssues(state, {
-              phoneEmpty: phoneValidity.isEmpty,
-              phoneValid: phoneValidity.isValid,
-              signedIn,
-          })
-        : [];
-
-    const submit = async () => {
-        setAttempted(true);
-        setSaveError(null);
-        const blocking = channelIssues(state, {
-            phoneEmpty: phoneValidity.isEmpty,
-            phoneValid: phoneValidity.isValid,
-            signedIn,
-        });
-        if (blocking.length > 0) return;
-
-        setSubmitting(true);
-        try {
             const result = await saveNotificationPreferences(buildSubmission(state, city.id, signedIn));
             if (!result.success) {
-                const key = saveErrorKey(result.error);
-                setSaveError(key);
                 captureEvent('notification_signup_failed', { city_id: city.id, code: result.error });
-                return;
+                return { ok: false, error: saveErrorKey(result.error) };
             }
-            // A reader who had said ΣΤΟΠ and ticked WhatsApp again did so on
-            // purpose: that is the explicit action re-activation waits for.
-            // The poller never resurrects a subscription on its own.
-            if (signedIn && state.phoneChannel && notisStatus === 'unsubscribed') {
-                await setNotisEnabled(true);
+
+            // The flags are written; now the side Notis owns. A refusal or a
+            // silence must not pass as success: the flags would then claim a
+            // channel that does not exist, and the poller never resurrects a
+            // subscription on its own.
+            const action = notisActionFor(state, signedIn, notisStatus);
+            if (action === 'activate') {
+                const notis = await setNotisEnabled(true);
+                if (!notis.ok) {
+                    captureEvent('notification_signup_failed', { city_id: city.id, code: notis.code });
+                    return { ok: false, error: saveErrorKey(notis.code) };
+                }
+                if (!notis.synced) {
+                    captureEvent('notification_signup_failed', { city_id: city.id, code: 'notis_unreachable' });
+                    return { ok: false, error: 'notisUnreachable' };
+                }
+                setKnown(notis.subscription?.status === 'active');
+            } else if (action === 'release') {
+                // Best effort: the flags already mute the proactive audience, and
+                // the poller reconciles a subscription left behind.
+                await releaseNotisWithoutPhoneChannel();
             }
+
             captureEvent('notification_signup_completed', {
                 city_id: city.id,
                 location_count: state.locations.length,
@@ -124,16 +107,8 @@ export function NotificationSignup({
                 notify_by_email: state.emailChannel,
                 signed_in: signedIn,
             });
-            setDone(true);
-            window.scrollTo({ top: 0 });
-        } catch (error) {
-            console.error('Notification signup failed:', error);
-            setSaveError('generic');
-            captureEvent('notification_signup_failed', { city_id: city.id, code: 'exception' });
-        } finally {
-            setSubmitting(false);
-        }
-    };
+            return { ok: true };
+        });
 
     if (done) {
         return (
@@ -144,7 +119,7 @@ export function NotificationSignup({
                     phone={state.phone}
                     email={state.email}
                     phoneChannel={state.phoneChannel}
-                    known={signedIn && notisStatus !== null}
+                    known={known}
                     signedIn={signedIn}
                 />
             </SignupLayout>

@@ -87,7 +87,9 @@ export function SignupSummary({
 function SummaryRow({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div className="flex flex-col gap-1">
-            <dt className="text-[11px] font-extrabold uppercase tracking-[.16em] text-muted-foreground">{label}</dt>
+            <dt>
+                <Eyebrow>{label}</Eyebrow>
+            </dt>
             <dd>{children}</dd>
         </div>
     );

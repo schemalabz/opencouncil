@@ -19,7 +19,12 @@ export interface ExistingPreference {
     notifyByEmail: boolean;
 }
 
-export type NotisStatus = 'active' | 'unsubscribed' | null;
+/**
+ * What Notis says about this reader: a subscription's status, `null` when
+ * he has none (or there is no Notis to ask), `unknown` when he did not
+ * answer — which is not the same as none.
+ */
+export type NotisStatus = 'active' | 'unsubscribed' | 'unknown' | null;
 
 export interface SignupState {
     step: SignupStep;
@@ -38,14 +43,15 @@ export function initialSignupState(input: {
     account: SignupAccount | null;
     notisStatus: NotisStatus;
 }): SignupState {
-    const { existing, account } = input;
-    // A reader who said ΣΤΟΠ is not resubscribed by editing their topics: the
-    // card starts unticked for them, and only an explicit tick re-enables the
-    // channel. Everyone else starts with WhatsApp on — it is the recommended
-    // channel — and email off, as the design proposes it.
-    const phoneChannel = existing
-        ? existing.notifyByPhone && input.notisStatus !== 'unsubscribed'
-        : true;
+    const { existing, account, notisStatus } = input;
+    // A reader who said ΣΤΟΠ is not resubscribed by editing their topics, in
+    // this municipality or a new one: the card starts unticked for them, and
+    // only an explicit tick re-enables the channel. When Notis did not answer,
+    // the reader may be one of them, so the same explicit tick is asked for.
+    // Everyone else starts with WhatsApp on — it is the recommended channel —
+    // and email off, as the design proposes it.
+    const phoneChannel =
+        notisStatus === 'unsubscribed' || notisStatus === 'unknown' ? false : existing ? existing.notifyByPhone : true;
     return {
         step: input.initialStep,
         locations: existing?.locations ?? [],
@@ -71,6 +77,20 @@ export function channelIssues(
     }
     if (!opts.signedIn) issues.push(...accountIssues(state));
     return issues;
+}
+
+/**
+ * What the signup has to tell Notis after the save, if anything. A ticked
+ * card from a reader he does not serve (or may not: he did not answer) is
+ * the explicit re-activation; an unticked card from a reader he serves may
+ * release him, once the server confirms no other municipality keeps the
+ * phone channel. A signed-out reader and a reader with no subscription are
+ * the poller's, which enrolls on the flag.
+ */
+export function notisActionFor(state: SignupState, signedIn: boolean, notisStatus: NotisStatus): 'activate' | 'release' | null {
+    if (!signedIn) return null;
+    if (state.phoneChannel) return notisStatus === 'unsubscribed' || notisStatus === 'unknown' ? 'activate' : null;
+    return notisStatus === 'active' ? 'release' : null;
 }
 
 export interface SignupSubmission {

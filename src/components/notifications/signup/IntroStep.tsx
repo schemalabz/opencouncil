@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { authorityKey } from '@/components/cities/overview/authorityKey';
 import { CityCard } from '@/components/signup/CityCard';
 import { NotisChatCard } from '@/components/signup/NotisChatCard';
-import { Eyebrow } from '@/components/signup/SignupChrome';
+import { StepHeading } from '@/components/signup/SignupChrome';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import { isCustomer } from '@/lib/cityStatus';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
@@ -27,13 +27,7 @@ export function IntroStep({ city, existing }: { city: CityWithGeometry; existing
 
     return (
         <div>
-            <div className="flex flex-col gap-3 pt-6 lg:pt-8">
-                <Eyebrow>{t('eyebrow')}</Eyebrow>
-                <h1 className="text-[30px] font-normal leading-none tracking-[-0.02em] lg:text-[36px]">
-                    {t(authorityKey('introTitle', city), { qualifier })}
-                </h1>
-                <p className="text-[15px] leading-[1.45] text-muted-foreground lg:text-base">{t('lead')}</p>
-            </div>
+            <StepHeading eyebrow={t('eyebrow')} title={t(authorityKey('introTitle', city), { qualifier })} lead={t('lead')} />
 
             <CityCard
                 city={city}
