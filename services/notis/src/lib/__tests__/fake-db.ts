@@ -408,6 +408,18 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         return { count: 1 };
       },
       findUnique: async ({ where }: { where: { id: string } }) => store.queue.get(where.id) ?? null,
+      // Reactivation drops the pending batch rows of a returning reader:
+      // scalar equality on every key given, like findMany above.
+      deleteMany: async ({ where }: { where?: Row } = {}) => {
+        let count = 0;
+        for (const [key, row] of store.queue) {
+          if (!Object.entries(where ?? {}).every(([k, v]) => row[k] === v)) continue;
+          store.queue.delete(key);
+          count++;
+        }
+        calls.push("queue-deleted");
+        return { count };
+      },
     },
     // Real rollback semantics: a throw restores the store snapshot, so a
     // transaction that aborts (e.g. the claim fence) leaves no writes.

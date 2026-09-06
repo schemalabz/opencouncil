@@ -13,8 +13,9 @@ import { buildDeps } from "./deps";
 import { toCityPreferences } from "./fanout";
 import { hasMainDb, mainDb } from "./main-db";
 import { normalizePhone } from "./phone";
-import { deliverPendingMessage, suppressPendingOutbound } from "./queue";
+import { deliverPendingMessage } from "./queue";
 import { enqueueBatchWake, isUniqueViolation } from "./queue-core";
+import { markUnsubscribed, recordSystemDecision } from "./subscription";
 import {
   POLLER_STATUS_KEY,
   futureSummaryAlertKey,
@@ -351,42 +352,15 @@ async function reconcileSubscriptions(
       if (sub.status === "active") {
         const at = now();
         await db.$transaction(async (tx) => {
-          await tx.notisSubscription.update({
-            where: { id: sub.id },
-            data: { status: "unsubscribed", unsubscribedAt: at, phone: null },
-          });
-          // The third unsubscribe site gets the same cleanup as the other
-          // two: nothing queued may outlive the opt-out. sendFreeform needs
-          // only birdConversationId (which survives), so without this the
-          // sweeper would deliver a leftover pending row after the phone
-          // was removed.
-          await suppressPendingOutbound(tx, sub.id);
-          await tx.notisCommitment.updateMany({
-            where: { subscriptionId: sub.id, resolvedAt: null },
-            data: { resolvedAt: at },
-          });
-          // A model-less wake row: why this reader went silent must survive in
-          // the decision log (the audit answer to "who unsubscribed them").
-          const rationale =
-            "(σύστημα) Ο αριθμός τηλεφώνου αφαιρέθηκε από τον λογαριασμό — απεγγραφή. Επανεγγραφή μόνο με ρητή ενέργεια του χρήστη.";
-          await tx.notisWake.create({
-            data: {
-              subscriptionId: sub.id,
-              eventType: "system",
-              eventAt: at,
-              event: { type: "system", at: at.toISOString() } as unknown as Prisma.InputJsonValue,
-              decision: "silence",
-              rationale,
-              outcome: {
-                decision: "silence",
-                rationale,
-                messages: [],
-                scheduledWakes: [],
-                unsubscribe: { reason: "phone removed" },
-              } as unknown as Prisma.InputJsonValue,
-              costUsd: 0,
-              durationMs: 0,
-            },
+          // The same cleanup as every other unsubscribe site: sendFreeform
+          // needs only birdConversationId (which survives), so without the
+          // suppression the sweeper would deliver a leftover pending row
+          // after the phone was removed.
+          await markUnsubscribed(tx, sub, { at, clearPhone: true });
+          await recordSystemDecision(tx, sub.id, at, {
+            rationale:
+              "(σύστημα) Ο αριθμός τηλεφώνου αφαιρέθηκε από τον λογαριασμό — απεγγραφή. Επανεγγραφή μόνο με ρητή ενέργεια του χρήστη.",
+            unsubscribe: { reason: "phone removed" },
           });
         });
         result.phoneGoneUnsubscribed++;
