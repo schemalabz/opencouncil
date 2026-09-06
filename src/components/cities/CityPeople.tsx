@@ -1,5 +1,5 @@
 "use client";
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client'
@@ -67,6 +67,22 @@ export default function CityPeople({
         return null;
     }, [searchParams, allPeople, typeOptions]);
 
+    // Stable identity, otherwise List's filteredItems memo is invalidated on
+    // every render of this component.
+    const filterPerson = useCallback(
+        (selectedValues: AdministrativeBodyType[], person: PersonWithRelations) => {
+            if (!filterPersonByAdminBodyTypes(person, selectedValues)) return false;
+            if (resolvedBodyId) {
+                const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
+                if (selectedType && selectedType !== 'council') {
+                    return person.roles.some(r => r.administrativeBodyId === resolvedBodyId);
+                }
+            }
+            return true;
+        },
+        [resolvedBodyId]
+    );
+
     return (
         <List<PersonWithRelations, Record<string, never>, AdministrativeBodyType>
             items={orderedPersons}
@@ -76,16 +92,7 @@ export default function CityPeople({
             formProps={{ cityId, parties, administrativeBodies }}
             t={t}
             filterAvailableValues={typeOptions}
-            filter={(selectedValues, person) => {
-                if (!filterPersonByAdminBodyTypes(person, selectedValues)) return false;
-                if (resolvedBodyId) {
-                    const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
-                    if (selectedType && selectedType !== 'council') {
-                        return person.roles.some(r => r.administrativeBodyId === resolvedBodyId);
-                    }
-                }
-                return true;
-            }}
+            filter={filterPerson}
             defaultFilterValues={defaultFilterValues}
             renderFilter={({ selectedValues, onChange }) => {
                 if (typeOptions.length <= 1) return null;
