@@ -2,25 +2,23 @@ import "server-only";
 
 import { sendEmail } from '@/lib/email/resend';
 import { getPendingDeliveries, updateDeliveryStatus } from '@/lib/db/notifications';
-import {
-    createOrUpdateConversation,
-    sendSMSMessage,
-} from './bird';
-import { sendAndPersistOutbound } from './outbound';
-import { formatDate } from '@/lib/formatters/time';
-import { env } from '@/env.mjs';
 
 /**
- * Release notifications by sending all pending deliveries
+ * Release notifications by sending all pending deliveries.
+ *
+ * Only email is sent from here. WhatsApp and SMS are Notis's for every
+ * reader, so a `message` delivery can only be a row created before the
+ * switch (or by the admin test-send tool) and is marked skipped, never sent.
  */
 export async function releaseNotifications(notificationIds: string[]): Promise<{
     success: boolean;
     emailsSent: number;
     messagesSent: number;
+    skipped: number;
     failed: number;
 }> {
     let emailsSent = 0;
-    let messagesSent = 0;
+    let skipped = 0;
     let failed = 0;
 
     try {
@@ -40,19 +38,9 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
                         failed++;
                     }
                 } else if (delivery.medium === 'message') {
-                    // Defense in depth for the Notis rollout: a delivery created
-                    // before the user's notisEnabledAt flip must not send — Notis
-                    // owns their WhatsApp from that moment.
-                    if (delivery.notification?.user?.notisEnabledAt) {
-                        await updateDeliveryStatus(delivery.id, 'skipped');
-                        continue;
-                    }
-                    const result = await sendMessageDelivery(delivery);
-                    if (result) {
-                        messagesSent++;
-                    } else {
-                        failed++;
-                    }
+                    await updateDeliveryStatus(delivery.id, 'skipped');
+                    skipped++;
+                    continue;
                 }
 
                 // Add a small delay to avoid rate limiting
@@ -66,12 +54,13 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
             }
         }
 
-        console.log(`Release complete: ${emailsSent} emails, ${messagesSent} messages, ${failed} failed`);
+        console.log(`Release complete: ${emailsSent} emails, ${skipped} skipped, ${failed} failed`);
 
         return {
             success: true,
             emailsSent,
-            messagesSent,
+            messagesSent: 0,
+            skipped,
             failed
         };
     } catch (error) {
@@ -79,7 +68,8 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
         return {
             success: false,
             emailsSent,
-            messagesSent,
+            messagesSent: 0,
+            skipped,
             failed
         };
     }
@@ -114,91 +104,6 @@ async function sendEmailDelivery(delivery: any): Promise<boolean> {
         }
     } catch (error) {
         console.error('Error sending email delivery:', error);
-        await updateDeliveryStatus(delivery.id, 'failed');
-        return false;
-    }
-}
-
-/**
- * Send message delivery via Bird (WhatsApp template → SMS fallback).
- *
- * First send creates a Bird conversation via the Conversations API so every
- * subsequent inbound + outbound message lands in the same conversation.
- */
-async function sendMessageDelivery(delivery: any): Promise<boolean> {
-    try {
-        if (!delivery.phone) {
-            console.error('Missing phone for delivery', delivery.id);
-            await updateDeliveryStatus(delivery.id, 'failed');
-            return false;
-        }
-
-        // Check if Bird API is configured
-        if (!env.BIRD_API_KEY) {
-            console.warn('Bird API not configured, skipping message delivery');
-            await updateDeliveryStatus(delivery.id, 'failed');
-            return false;
-        }
-
-        const notification = delivery.notification;
-        const meeting = notification.meeting;
-
-        // Prepare WhatsApp template parameters
-        const templateParams = {
-            date: formatDate(meeting.dateTime),
-            cityName: notification.city.name,
-            subjectsSummary: notification.subjects.slice(0, 3).map((ns: any) => ns.subject.name).join(', '),
-            adminBody: meeting.administrativeBody?.name || 'Συνεδρίαση',
-            notificationId: notification.id
-        };
-
-        const waResult = await sendAndPersistOutbound({
-            notificationDeliveryId: delivery.id,
-            channel: 'whatsapp',
-            phone: delivery.phone,
-            body: delivery.body || '[template]',
-            send: () => createOrUpdateConversation({
-                phone: delivery.phone,
-                notificationType: notification.type,
-                params: templateParams,
-                notificationDeliveryId: delivery.id,
-            }),
-        });
-
-        if (waResult.success && waResult.finalStatus !== 'failed') {
-            await updateDeliveryStatus(delivery.id, 'sent', 'whatsapp');
-            console.log(`WhatsApp conversation seeded for ${delivery.phone}`);
-            return true;
-        }
-        
-        console.log(
-            waResult.success
-                ? `WhatsApp delivery failed post-send for ${delivery.phone}, falling back to SMS`
-                : `WhatsApp create-conversation failed for ${delivery.phone}: ${waResult.error}`,
-        );
-
-        const smsBody = delivery.body;
-        const smsResult = await sendAndPersistOutbound({
-            notificationDeliveryId: delivery.id,
-            channel: 'sms',
-            phone: delivery.phone,
-            body: smsBody,
-            send: () => sendSMSMessage(delivery.phone, smsBody),
-        });
-
-        if (smsResult.success && smsResult.finalStatus !== 'failed') {
-            await updateDeliveryStatus(delivery.id, 'sent', 'sms');
-            console.log(`SMS sent successfully to ${delivery.phone}`);
-            return true;
-        }
-
-        // Both failed
-        await updateDeliveryStatus(delivery.id, 'failed');
-        console.error(`Failed to send message to ${delivery.phone} via WhatsApp and SMS`);
-        return false;
-
-    } catch (error) {
-        console.error('Error sending message delivery:', error);
         await updateDeliveryStatus(delivery.id, 'failed');
         return false;
     }

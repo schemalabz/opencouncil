@@ -89,12 +89,13 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         expect(nEmailOnly.deliveries.some((d) => d.medium === 'email' && d.status === 'pending')).toBeTruthy()
         expect(nEmailOnly.deliveries.some((d) => d.medium === 'message')).toBeFalsy()
 
-        // phone user: should have proximity for A and generalInterest for B; deliveries include message
+        // phone user: should have proximity for A and generalInterest for B; the
+        // email delivery only — WhatsApp and SMS are Notis's, never a delivery here
         const nPhone = byUser('phone@example.com')
         expect(nPhone.subjects.some((s) => s.subjectId === subjectA.id && s.reason === 'proximity')).toBeTruthy()
         expect(nPhone.subjects.some((s) => s.subjectId === subjectB.id && s.reason === 'generalInterest')).toBeTruthy()
         expect(nPhone.deliveries.some((d) => d.medium === 'email' && d.status === 'pending')).toBeTruthy()
-        expect(nPhone.deliveries.some((d) => d.medium === 'message' && d.status === 'pending')).toBeTruthy()
+        expect(nPhone.deliveries.some((d) => d.medium === 'message')).toBeFalsy()
 
         // far user: only generalInterest for B
         const nFar = byUser('far@example.com')
@@ -145,7 +146,9 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         const byEmail = (e: string) => notifs.find(n => n.user.email === e)!
 
         expect(byEmail('email@example.com').deliveries.map(d => d.medium).sort()).toEqual(['email'])
-        expect(byEmail('sms@example.com').deliveries.map(d => d.medium).sort()).toEqual(['message'])
+        // Phone-only: the in-app notification exists with no deliveries at all —
+        // the WhatsApp side is Notis's.
+        expect(byEmail('sms@example.com').deliveries).toEqual([])
         expect(notifs.find(n => n.user.email === 'none@example.com')).toBeUndefined()
     })
 })

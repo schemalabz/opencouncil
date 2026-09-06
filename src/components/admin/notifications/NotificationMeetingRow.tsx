@@ -99,7 +99,7 @@ function StatusCounts({ counts, label }: { counts: NotificationStatusCounts | nu
                     </span>
                 )}
                 {counts.skipped > 0 && (
-                    <span className="flex items-center gap-1 text-gray-500" title="Deliveries deliberately skipped (Notis rollout)">
+                    <span className="flex items-center gap-1 text-gray-500" title="Deliveries skipped: WhatsApp and SMS are served by Notis">
                         <MinusCircle className="h-3 w-3" />
                         {counts.skipped}
                     </span>
@@ -118,7 +118,7 @@ function DeliveryRow({ delivery }: { delivery: NotificationData['deliveries'][0]
         pending: 'bg-yellow-100 text-yellow-800',
         sent: 'bg-green-100 text-green-800',
         failed: 'bg-red-100 text-red-800',
-        // Deliberately withheld (e.g. the Notis rollout owns this user's WhatsApp)
+        // Deliberately withheld: WhatsApp and SMS are Notis's, never sent from here
         skipped: 'bg-gray-100 text-gray-600'
     };
 

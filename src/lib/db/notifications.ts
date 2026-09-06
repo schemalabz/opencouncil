@@ -13,8 +13,8 @@ import { phoneBelongsToAnotherUser } from "./users";
 import { NotFoundError } from "@/lib/api/errors";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
-import { generateEmailContent, generateSmsContent } from "@/lib/notifications/content";
-import { sendWelcomeMessages } from "@/lib/notifications/welcome";
+import { generateEmailContent } from "@/lib/notifications/content";
+import { sendWelcomeEmail } from "@/lib/notifications/welcome";
 import { IS_DEV } from "@/lib/utils";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 
@@ -480,9 +480,10 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 });
             }
 
-            // Send welcome messages to new signups (non-blocking)
-            sendWelcomeMessages(userId, preference.city, phone).catch(err =>
-                console.error('Error sending welcome messages:', err)
+            // The welcome email, non-blocking. The WhatsApp welcome is Notis's:
+            // its poller enrolls the reader and opens the thread with the intro.
+            sendWelcomeEmail(userId, preference.city).catch(err =>
+                console.error('Error sending welcome email:', err)
             );
         }
 
@@ -897,22 +898,11 @@ export async function createNotificationsForMeeting(
                     });
                 }
 
-                // Create message delivery if user has phone and wants to be notified by phone.
-                // Users on the Notis rollout (notisEnabledAt set) get their WhatsApp
-                // messages from Notis — creating a message delivery here would serve
-                // them by both paths. Email stays untouched.
-                if (userPref.notifyByPhone && user.phone && !user.notisEnabledAt) {
-                    const smsBody = await generateSmsContent(notificationData);
-                    await prisma.notificationDelivery.create({
-                        data: {
-                            notificationId: notification.id,
-                            medium: 'message',
-                            status: 'pending',
-                            phone: user.phone,
-                            body: smsBody
-                        }
-                    });
-                }
+                // No message delivery: WhatsApp and SMS are Notis's for every
+                // reader (services/notis enrolls anyone with phone delivery on
+                // and writes its own messages). A phone-only reader keeps the
+                // in-app notification with zero deliveries, which the admin
+                // views read as "skipped".
             } catch (error: any) {
                 // Handle unique constraint error - notification already exists
                 if (error?.code === 'P2002' && error?.meta?.target?.includes('userId') && error?.meta?.target?.includes('cityId') && error?.meta?.target?.includes('meetingId') && error?.meta?.target?.includes('type')) {

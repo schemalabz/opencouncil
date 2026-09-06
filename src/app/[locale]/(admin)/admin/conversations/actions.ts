@@ -8,8 +8,7 @@ import {
     sendSMSMessage,
 } from '@/lib/notifications/bird';
 import { sendAndPersistOutbound } from '@/lib/notifications/outbound';
-import { generateSmsContent, generateWelcomeSmsContent } from '@/lib/notifications/content';
-import { releaseNotifications } from '@/lib/notifications/deliver';
+import { generateWelcomeSmsContent } from '@/lib/notifications/content';
 import type { OutboundSendResult } from '@/lib/notifications/types';
 import type { MessageChannel } from '@prisma/client';
 
@@ -132,11 +131,10 @@ export async function sendTestTemplate(input: {
 }
 
 // ---------------------------------------------------------------------------
-// Admin "Before-meeting" test send. Creates a real Notification +
-// NotificationDelivery row for a chosen user/city/meeting (mirroring the prod
-// flow that `createNotificationsForMeeting` runs after the agenda task), then
-// calls `releaseNotifications` so it goes through the same conversation +
-// message-row pipeline as a real notification.
+// Admin "Before-meeting" test send. Retired with the old message path: this
+// app creates no message deliveries any more, so the tool would only add a
+// row that release marks skipped. The action stays as a signpost until the
+// panel is rebuilt; a real wake is tested in the Notis playground.
 // ---------------------------------------------------------------------------
 
 export interface CityOption { id: string; name: string }
@@ -163,98 +161,16 @@ export async function listMeetingsForTest(cityId: string): Promise<MeetingOption
     return meetings.map((m) => ({ ...m, dateTime: m.dateTime.toISOString() }));
 }
 
-export async function sendTestBeforeMeetingNotification(input: {
+export async function sendTestBeforeMeetingNotification(_input: {
     phone: string;
     cityId: string;
     meetingId: string;
 }): Promise<SendReplyResult> {
     await withUserAuthorizedToEdit({});
-
-    const phone = input.phone.trim();
-    if (!phone) return { success: false, error: 'Phone number is required' };
-    if (!input.cityId) return { success: false, error: 'City is required' };
-    if (!input.meetingId) return { success: false, error: 'Meeting is required' };
-
-    const user = await prisma.user.findFirst({ where: { phone } });
-    if (!user) {
-        return { success: false, error: `No user found with phone ${phone}` };
-    }
-
-    const firstSubject = await prisma.subject.findFirst({
-        where: { councilMeetingId: input.meetingId, cityId: input.cityId },
-    });
-    if (!firstSubject) {
-        return { success: false, error: 'Meeting has no subjects to attach' };
-    }
-
-    let notificationId: string;
-    try {
-        // Include the relations `generateSmsContent` needs so we can
-        // pre-render the SMS body inline — same path the production flow
-        // takes in `createNotificationsForMeeting`.
-        const notification = await prisma.notification.create({
-            data: {
-                userId: user.id,
-                cityId: input.cityId,
-                meetingId: input.meetingId,
-                type: 'beforeMeeting',
-                subjects: {
-                    create: [{ subjectId: firstSubject.id, reason: 'generalInterest' }],
-                },
-            },
-            include: {
-                subjects: { include: { subject: { include: { topic: true } } } },
-                meeting: { include: { administrativeBody: true } },
-                city: true,
-            },
-        });
-        notificationId = notification.id;
-
-        const smsBody = await generateSmsContent({
-            id: notification.id,
-            userId: notification.userId,
-            cityId: notification.cityId,
-            type: 'beforeMeeting',
-            subjects: notification.subjects.map((ns) => ({
-                id: ns.subject.id,
-                name: ns.subject.name,
-                description: ns.subject.description,
-                topic: ns.subject.topic
-                    ? { name: ns.subject.topic.name, colorHex: ns.subject.topic.colorHex }
-                    : null,
-            })),
-            meeting: {
-                dateTime: notification.meeting.dateTime,
-                administrativeBody: notification.meeting.administrativeBody
-                    ? { name: notification.meeting.administrativeBody.name }
-                    : null,
-            },
-            city: { name_municipality: notification.city.name_municipality, realm: notification.city.realm },
-        });
-
-        await prisma.notificationDelivery.create({
-            data: {
-                notificationId: notification.id,
-                medium: 'message',
-                status: 'pending',
-                phone,
-                body: smsBody,
-            },
-        });
-    } catch (error: any) {
-        if (error?.code === 'P2002' && error?.meta?.target?.includes('userId')) {
-            return {
-                success: false,
-                error: 'A beforeMeeting notification already exists for this user + meeting',
-            };
-        }
-        throw error;
-    }
-
-    const result = await releaseNotifications([notificationId]);
-
-    if (result.failed > 0) {
-        return { success: false, error: `Release failed (${result.failed} failed deliveries)` };
-    }
-    return { success: true };
+    return {
+        success: false,
+        error:
+            'WhatsApp and SMS are served by Notis now; this app sends no message deliveries. ' +
+            'Test a wake in the Notis playground instead.',
+    };
 }

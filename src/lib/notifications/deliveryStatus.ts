@@ -9,7 +9,7 @@ import type { NotificationDeliveryStatus, Prisma } from '@prisma/client';
  *
  * Precedence: any pending → pending; else any failed → failed; else all
  * deliveries skipped (or none at all — nothing was ever dispatched, e.g. a
- * phone-only user on the Notis rollout) → skipped; else sent.
+ * phone-only reader, whose WhatsApp is Notis's) → skipped; else sent.
  */
 export type NotificationOverallStatus = 'pending' | 'failed' | 'skipped' | 'sent';
 
