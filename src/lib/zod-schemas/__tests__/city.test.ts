@@ -20,7 +20,6 @@ const validFrontendBase = {
   status: 'pending' as const,
   supportsNotifications: false,
   consultationsEnabled: false,
-  peopleOrdering: 'default' as const,
   highlightCreationPermission: 'ADMINS_ONLY' as const,
   language: 'el' as const,
   realm: 'greece' as const,
@@ -36,7 +35,6 @@ const validFormDataBase = {
   status: 'pending',
   supportsNotifications: 'true',
   consultationsEnabled: 'false',
-  peopleOrdering: 'default',
   highlightCreationPermission: 'ADMINS_ONLY',
   language: 'el',
   realm: 'greece',
@@ -185,7 +183,6 @@ describe('updateCityFormDataSchema (Backend PUT)', () => {
     expect(parsed.supportsNotifications).toBeUndefined();
     expect(parsed.consultationsEnabled).toBeUndefined();
     expect(parsed.highlightCreationPermission).toBeUndefined();
-    expect(parsed.peopleOrdering).toBeUndefined();
     expect(parsed.status).toBeUndefined();
   });
 
@@ -211,12 +208,6 @@ describe('updateCityFormDataSchema (Backend PUT)', () => {
   it('should handle optional status for superadmin', () => {
     const parsed = updateCityFormDataSchema.parse({ status: 'demo' });
     expect(parsed.status).toBe('demo');
-  });
-
-  it('should handle peopleOrdering as optional (not nullable)', () => {
-    expect(updateCityFormDataSchema.parse({ peopleOrdering: 'default' }).peopleOrdering).toBe('default');
-    expect(updateCityFormDataSchema.parse({ peopleOrdering: 'partyRank' }).peopleOrdering).toBe('partyRank');
-    expect(updateCityFormDataSchema.parse({}).peopleOrdering).toBeUndefined();
   });
 });
 
@@ -257,23 +248,6 @@ describe('Enum validation', () => {
     });
   });
 
-  describe('peopleOrdering', () => {
-    it('should accept valid peopleOrdering values', () => {
-      ['default', 'partyRank'].forEach(ordering => {
-        expect(() => baseCityFormSchema.parse({
-          ...validFrontendBase,
-          peopleOrdering: ordering,
-        })).not.toThrow();
-      });
-    });
-
-    it('should reject invalid peopleOrdering', () => {
-      expect(() => baseCityFormSchema.parse({
-        ...validFrontendBase,
-        peopleOrdering: 'invalid',
-      })).toThrow();
-    });
-  });
 
   describe('highlightCreationPermission', () => {
     it('should accept valid highlightCreationPermission values', () => {
@@ -405,7 +379,6 @@ describe('CITY_DEFAULTS alignment', () => {
       authorityType: 'municipality',
       supportsNotifications: false,
       consultationsEnabled: false,
-      peopleOrdering: 'default',
       highlightCreationPermission: 'ADMINS_ONLY',
       language: 'el',
       realm: 'greece',

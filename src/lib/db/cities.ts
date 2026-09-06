@@ -67,7 +67,9 @@ export async function deleteCity(id: string): Promise<void> {
     }
 }
 
-export async function createCity(cityData: Omit<City, 'createdAt' | 'updatedAt'>): Promise<City> {
+// `peopleOrdering` stays a column with its default but nothing reads or writes
+// it any more: one order applies to every city.
+export async function createCity(cityData: Omit<City, 'createdAt' | 'updatedAt' | 'peopleOrdering'>): Promise<City> {
     await withUserAuthorizedToEdit({});
     try {
         const newCity = await prisma.city.create({

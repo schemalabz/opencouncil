@@ -90,7 +90,6 @@ export async function POST(request: Request) {
             wikipediaId: null,
             supportsNotifications: data.supportsNotifications,
             consultationsEnabled: data.consultationsEnabled,
-            peopleOrdering: data.peopleOrdering,
             highlightCreationPermission: data.highlightCreationPermission,
             diavgeiaUid: data.diavgeiaUid || null,
             language: data.language,
