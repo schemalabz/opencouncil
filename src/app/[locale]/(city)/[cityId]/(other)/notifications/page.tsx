@@ -75,7 +75,11 @@ export default async function NotificationSignupPage(props: PageProps) {
             topics={topics}
             initialStep={step === "2" ? 2 : 1}
             existing={existing}
-            account={user ? { name: user.name ?? "", email: user.email, phone: user.phone ?? null } : null}
+            account={
+                user
+                    ? { name: user.name ?? "", email: user.email, phone: user.phone ?? null, notifyByPhone: user.notifyByPhone }
+                    : null
+            }
             notisStatus={notisStatusOf(notis)}
         />
     );

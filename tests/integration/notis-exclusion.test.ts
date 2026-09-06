@@ -52,13 +52,12 @@ describe('message deliveries are Notis\'s, never this app\'s', () => {
 
     test('a phone-only reader keeps the in-app notification, gets no deliveries, and reads as skipped', async () => {
         const { city, meeting, topic } = await setupMatchingMeeting()
-        const user = await createUser('phone-only@example.com', { phone: '+306900000009' })
+        const user = await createUser('phone-only@example.com', { phone: '+306900000009', notifyByPhone: true })
         await prisma.notificationPreference.create({
             data: {
                 userId: user.id,
                 cityId: city.id,
                 notifyByEmail: false,
-                notifyByPhone: true,
                 interests: { connect: [{ id: topic.id }] },
             },
         })
@@ -83,13 +82,12 @@ describe('message deliveries are Notis\'s, never this app\'s', () => {
 
     test('a message delivery left over from before the switch is skipped at release, never sent', async () => {
         const { city, meeting, topic } = await setupMatchingMeeting()
-        const user = await createUser('leftover@example.com', { phone: '+306900000003' })
+        const user = await createUser('leftover@example.com', { phone: '+306900000003', notifyByPhone: true })
         await prisma.notificationPreference.create({
             data: {
                 userId: user.id,
                 cityId: city.id,
                 notifyByEmail: false,
-                notifyByPhone: true,
                 interests: { connect: [{ id: topic.id }] },
             },
         })

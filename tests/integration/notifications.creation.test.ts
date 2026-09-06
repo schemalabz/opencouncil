@@ -109,30 +109,22 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         expect(nInterested.subjects.some((s) => s.subjectId === subjectB.id && s.reason === 'generalInterest')).toBeTruthy()
     })
 
-    test('respects notifyByEmail / notifyByPhone channel preferences', async () => {
+    test("respects the preference's notifyByEmail and the person's notifyByPhone", async () => {
         const city = await createCity({ id: 'c4', name_municipality: 'X', name_municipality_en: 'X' })
         const body = await createAdministrativeBody(city.id)
         const meeting = await createMeeting(city.id, { id: 'm2', administrativeBodyId: body.id })
         await createSubject(meeting.id, city.id, { id: 'sh', topicId: null, locationId: null, name: 'High' })
 
-        const uEmail = await createUser('email@example.com', { phone: '+306900000001' })
+        const uEmail = await createUser('email@example.com', { phone: '+306900000001', notifyByPhone: false })
         await createNotificationPreference({ userId: uEmail.id, cityId: city.id })
-        const uSms = await createUser('sms@example.com', { phone: '+306900000002' })
+        const uSms = await createUser('sms@example.com', { phone: '+306900000002', notifyByPhone: true })
         await createNotificationPreference({ userId: uSms.id, cityId: city.id })
-        const uNone = await createUser('none@example.com', { phone: '+306900000003' })
+        const uNone = await createUser('none@example.com', { phone: '+306900000003', notifyByPhone: false })
         await createNotificationPreference({ userId: uNone.id, cityId: city.id })
 
-        await prisma.notificationPreference.update({
-            where: { userId_cityId: { userId: uEmail.id, cityId: city.id } },
-            data: { notifyByEmail: true, notifyByPhone: false },
-        })
-        await prisma.notificationPreference.update({
-            where: { userId_cityId: { userId: uSms.id, cityId: city.id } },
-            data: { notifyByEmail: false, notifyByPhone: true },
-        })
-        await prisma.notificationPreference.update({
-            where: { userId_cityId: { userId: uNone.id, cityId: city.id } },
-            data: { notifyByEmail: false, notifyByPhone: false },
+        await prisma.notificationPreference.updateMany({
+            where: { userId: { in: [uSms.id, uNone.id] }, cityId: city.id },
+            data: { notifyByEmail: false },
         })
 
         await createNotificationsForMeeting(city.id, meeting.id, 'beforeMeeting', {

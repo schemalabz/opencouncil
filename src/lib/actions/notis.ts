@@ -22,8 +22,8 @@ export interface NotisChannelState {
     /** Whether Notis answered; false leaves `subscription` unknown, not empty. */
     reachable: boolean;
     subscription: NotisSubscriptionView | null;
-    /** notifyByPhone on at least one of the reader's preferences. */
-    notifyByPhoneAny: boolean;
+    /** The reader's WhatsApp/SMS consent (User.notifyByPhone). */
+    notifyByPhone: boolean;
     phone: string | null;
 }
 
@@ -49,18 +49,19 @@ export async function getNotisChannelState(): Promise<NotisChannelState | null> 
         configured: isNotisConfigured(),
         reachable: notis.ok,
         subscription: notis.ok ? notis.data : null,
-        notifyByPhoneAny: channel.notifyByPhoneAny,
+        notifyByPhone: channel.notifyByPhone,
         phone: channel.phone,
     };
 }
 
 /**
- * Switch the reader's WhatsApp channel on or off.
+ * Switch the reader's WhatsApp channel on or off: the profile's switch and
+ * the signup's card, which are the same consent.
  *
- * Off writes the flags first — the fan-out audience filter mutes proactive
+ * Off writes the flag first — the fan-out audience filter mutes proactive
  * wakes this tick — and then tells Notis, best-effort. On asks Notis first,
  * because a refusal (a number another reader holds, no usable mobile) must
- * not leave the flags claiming a channel that does not exist; a reader with
+ * not leave the flag claiming a channel that does not exist; a reader with
  * no subscription is left to the poller, which enrolls on notifyByPhone.
  */
 export async function setNotisEnabled(enabled: boolean): Promise<SetNotisEnabledResult> {
@@ -91,19 +92,4 @@ export async function setNotisEnabled(enabled: boolean): Promise<SetNotisEnabled
         synced: result.ok,
         subscription: result.ok ? result.data.subscription : null,
     };
-}
-
-/**
- * After a signup unticked WhatsApp for one municipality: release the reader
- * from Notis only when no municipality keeps the phone channel — Νότης is
- * one conversation, and another city's tick still wants it. Best effort,
- * like the switch's off path: the flags already mute the proactive audience.
- */
-export async function releaseNotisWithoutPhoneChannel(): Promise<{ released: boolean; synced: boolean }> {
-    const user = await getCurrentUser();
-    if (!user) return { released: false, synced: false };
-    const { notifyByPhoneAny } = await getPhoneChannelState(user.id);
-    if (notifyByPhoneAny) return { released: false, synced: true };
-    const result = await setNotisSubscription(user.id, "unsubscribed");
-    return { released: true, synced: result.ok };
 }

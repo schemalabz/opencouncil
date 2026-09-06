@@ -13,7 +13,7 @@ import { maskPhone } from '@/components/signup/signup-shared';
 /**
  * One switch for the WhatsApp channel, backed by the Notis subscriptions
  * API. Notis owns the status, so the switch reads it from there and falls
- * back to the reader's notifyByPhone flags only while Notis has not
+ * back to the reader's notifyByPhone consent only while Notis has not
  * enrolled them yet. Notis unreachable never shows as OFF: the switch
  * freezes on its last known state and says so.
  */
@@ -21,7 +21,7 @@ import { maskPhone } from '@/components/signup/signup-shared';
 type Loaded = {
     state: NotisChannelState;
     enabled: boolean;
-    /** The last flip wrote the flags but did not reach Notis. */
+    /** The last flip wrote the consent but did not reach Notis. */
     unsynced: boolean;
     error: string | null;
 };
@@ -38,7 +38,7 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
         if (!state) return;
         setLoaded({
             state,
-            enabled: state.subscription ? state.subscription.status === 'active' : state.notifyByPhoneAny,
+            enabled: state.subscription ? state.subscription.status === 'active' : state.notifyByPhone,
             unsynced: false,
             error: null,
         });
@@ -65,7 +65,7 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
             setLoaded({
                 state: {
                     ...loaded.state,
-                    notifyByPhoneAny: result.enabled,
+                    notifyByPhone: result.enabled,
                     subscription: result.synced ? result.subscription : loaded.state.subscription,
                 },
                 enabled: result.enabled,

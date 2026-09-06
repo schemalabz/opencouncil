@@ -20,6 +20,8 @@ interface CityNotificationCardProps {
     city: CityWithCounts;
     /** The signed-in reader's preference for THIS city, or null when they have none. */
     preference: CityNotificationPreference | null;
+    /** The reader's WhatsApp/SMS consent: one per person, so it comes with the reader, not the preference. */
+    phoneChannel: boolean;
     locale: string;
 }
 
@@ -34,9 +36,9 @@ interface CityNotificationCardProps {
  * A Server Component: everything here is text the server already has, and the
  * card sits above the fold on every city page.
  */
-export function CityNotificationCard({ city, preference, locale }: CityNotificationCardProps) {
+export function CityNotificationCard({ city, preference, phoneChannel, locale }: CityNotificationCardProps) {
     if (!city.supportsNotifications) return null;
-    if (preference) return <SubscribedCard city={city} preference={preference} locale={locale} />;
+    if (preference) return <SubscribedCard city={city} preference={preference} phoneChannel={phoneChannel} locale={locale} />;
     return <InviteCard city={city} locale={locale} />;
 }
 
@@ -82,10 +84,12 @@ function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) 
 function SubscribedCard({
     city,
     preference,
+    phoneChannel,
     locale,
 }: {
     city: CityWithCounts;
     preference: CityNotificationPreference;
+    phoneChannel: boolean;
     locale: string;
 }) {
     const t = useTranslations('cityOverview');
@@ -95,7 +99,7 @@ function SubscribedCard({
 
     const channels = [
         preference.notifyByEmail ? t('channelEmail') : null,
-        preference.notifyByPhone ? t('channelPhone') : null,
+        phoneChannel ? t('channelPhone') : null,
     ].filter(Boolean);
 
     return (

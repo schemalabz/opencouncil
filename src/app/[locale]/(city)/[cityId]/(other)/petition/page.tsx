@@ -55,7 +55,11 @@ export default async function PetitionSignupPage(props: PageProps) {
                     ? { isResident: petition.is_resident, isCitizen: petition.is_citizen, otherRelation: petition.other_relation }
                     : null
             }
-            account={user ? { name: user.name ?? "", email: user.email, phone: user.phone ?? null } : null}
+            account={
+                user
+                    ? { name: user.name ?? "", email: user.email, phone: user.phone ?? null, notifyByPhone: user.notifyByPhone }
+                    : null
+            }
         />
     );
 }

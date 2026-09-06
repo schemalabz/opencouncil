@@ -1,6 +1,6 @@
 import { buildPetitionSubmission, initialPetitionState, petitionIssues, type PetitionState } from '../petition-state';
 
-const account = { name: 'Μαρία', email: 'maria@example.com', phone: '+306900000001' };
+const account = { name: 'Μαρία', email: 'maria@example.com', phone: '+306900000001', notifyByPhone: true };
 
 describe('initialPetitionState', () => {
     it('starts empty for a new reader and prefilled for one who signed before', () => {

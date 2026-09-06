@@ -61,13 +61,11 @@ export async function POST(request: NextRequest) {
       return id
     }
 
-    // Every test user gets a fake phone and a phone-enabled notification
-    // preference, so the Notis release panel counts them as eligible and the
-    // playground can mirror them. Re-runs upgrade users from earlier seeds —
-    // including notifyByPhone, which eligibility requires.
+    // Every test user gets a fake phone, the WhatsApp channel on, and a
+    // notification preference, so the poller enrolls them and the playground
+    // can mirror them. Re-runs upgrade users from earlier seeds.
     async function ensurePreference(userId: string, cityId: string, locationIds: string[]) {
       const data = {
-        notifyByPhone: true,
         interests: { connect: testTopics.map(t => ({ id: t.id })) },
         locations: { connect: locationIds.map(id => ({ id })) }
       }
@@ -79,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     async function ensureNotisFixtures(userId: string, testUser: (typeof TEST_USERS)[number]) {
-      await prisma.user.update({ where: { id: userId }, data: { phone: testUser.phone } })
+      await prisma.user.update({ where: { id: userId }, data: { phone: testUser.phone, notifyByPhone: true } })
 
       // Superadmin and readonly carry pinned locations, so the picker and the
       // seeded profile exercise the locations path; the others stay topic-only.

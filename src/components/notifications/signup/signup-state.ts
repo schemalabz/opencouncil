@@ -15,7 +15,6 @@ export type SignupStep = 1 | 2 | 3;
 export interface ExistingPreference {
     locations: Location[];
     topics: Topic[];
-    notifyByPhone: boolean;
     notifyByEmail: boolean;
 }
 
@@ -48,10 +47,12 @@ export function initialSignupState(input: {
     // this municipality or a new one: the card starts unticked for them, and
     // only an explicit tick re-enables the channel. When Notis did not answer,
     // the reader may be one of them, so the same explicit tick is asked for.
-    // Everyone else starts with WhatsApp on — it is the recommended channel —
-    // and email off, as the design proposes it.
+    // A signed-in reader starts from their one consent — Νότης is one
+    // conversation, whatever the municipality — and a new reader with
+    // WhatsApp on, the recommended channel, and email off, as the design
+    // proposes it.
     const phoneChannel =
-        notisStatus === 'unsubscribed' || notisStatus === 'unknown' ? false : existing ? existing.notifyByPhone : true;
+        notisStatus === 'unsubscribed' || notisStatus === 'unknown' ? false : account ? account.notifyByPhone : true;
     return {
         step: input.initialStep,
         locations: existing?.locations ?? [],
@@ -82,10 +83,10 @@ export function channelIssues(
 /**
  * What the signup has to tell Notis after the save, if anything. A ticked
  * card from a reader he does not serve (or may not: he did not answer) is
- * the explicit re-activation; an unticked card from a reader he serves may
- * release him, once the server confirms no other municipality keeps the
- * phone channel. A signed-out reader and a reader with no subscription are
- * the poller's, which enrolls on the flag.
+ * the explicit re-activation; an unticked card from a reader he serves
+ * releases him — the card is the person's one consent, not a municipality's.
+ * A signed-out reader and a reader with no subscription are the poller's,
+ * which enrolls on the flag.
  */
 export function notisActionFor(state: SignupState, signedIn: boolean, notisStatus: NotisStatus): 'activate' | 'release' | null {
     if (!signedIn) return null;

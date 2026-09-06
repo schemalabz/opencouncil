@@ -37,7 +37,7 @@ function state(overrides: Partial<NotisChannelState> = {}): NotisChannelState {
         configured: true,
         reachable: true,
         subscription: active,
-        notifyByPhoneAny: true,
+        notifyByPhone: true,
         phone: '+306943472297',
         ...overrides,
     };
@@ -101,7 +101,7 @@ describe('NotisSwitch', () => {
     });
 
     it('promises the first message while enrollment is still pending', async () => {
-        mockedState.mockResolvedValue(state({ subscription: null, notifyByPhoneAny: false }));
+        mockedState.mockResolvedValue(state({ subscription: null, notifyByPhone: false }));
         mockedSet.mockResolvedValue({ ok: true, enabled: true, synced: true, subscription: null });
         render(<NotisSwitch hasPreferences />);
         await waitFor(() => expect(theSwitch()).toHaveAttribute('aria-checked', 'false'));
@@ -113,7 +113,7 @@ describe('NotisSwitch', () => {
     });
 
     it('shows the refusal when Notis will not take the number', async () => {
-        mockedState.mockResolvedValue(state({ subscription: null, notifyByPhoneAny: false }));
+        mockedState.mockResolvedValue(state({ subscription: null, notifyByPhone: false }));
         mockedSet.mockResolvedValue({ ok: false, code: 'phone_in_use' });
         render(<NotisSwitch hasPreferences />);
         await waitFor(() => expect(theSwitch()).toBeEnabled());
@@ -125,14 +125,14 @@ describe('NotisSwitch', () => {
     });
 
     it('is locked without a mobile number and points at the personal tab', async () => {
-        mockedState.mockResolvedValue(state({ subscription: null, notifyByPhoneAny: false, phone: null }));
+        mockedState.mockResolvedValue(state({ subscription: null, notifyByPhone: false, phone: null }));
         render(<NotisSwitch hasPreferences />);
 
         await waitFor(() => expect(theSwitch()).toBeDisabled());
         expect(screen.getByRole('link', { name: 'notisAddPhone' })).toHaveAttribute('href', '/profile?tab=personal');
     });
 
-    it('freezes on the flags instead of showing OFF while Notis is unreachable', async () => {
+    it('freezes on the consent instead of showing OFF while Notis is unreachable', async () => {
         mockedState.mockResolvedValueOnce(state({ reachable: false, subscription: null }));
         mockedState.mockResolvedValueOnce(state());
         render(<NotisSwitch hasPreferences />);
@@ -147,7 +147,7 @@ describe('NotisSwitch', () => {
     });
 
     it('stays hidden for a reader with no preferences and no subscription', async () => {
-        mockedState.mockResolvedValue(state({ subscription: null, notifyByPhoneAny: false }));
+        mockedState.mockResolvedValue(state({ subscription: null, notifyByPhone: false }));
         const { container } = render(<NotisSwitch hasPreferences={false} />);
 
         await waitFor(() => expect(mockedState).toHaveBeenCalled());

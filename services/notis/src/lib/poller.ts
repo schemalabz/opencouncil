@@ -705,9 +705,10 @@ async function processMeetingEvents(
 
   const upcoming = fresh.slice(0, MAX_EVENTS_PER_TICK);
   // The audience comes straight from the live view: dropping a city from
-  // your preferences, or switching phone delivery off for it, takes effect
-  // this tick. A reader who said ΣΤΟΠ to the old templates carries
-  // notifyByPhone=false and must never be woken for that city.
+  // your preferences, or switching the WhatsApp channel off (one consent
+  // per reader, on every row of theirs), takes effect this tick. A reader
+  // who said ΣΤΟΠ to the old templates carries notifyByPhone=false and must
+  // never be woken.
   const cityTargets = await main.fanoutTargetRow.findMany({
     where: {
       cityId: { in: [...new Set(upcoming.map((r) => r.cityId))] },
