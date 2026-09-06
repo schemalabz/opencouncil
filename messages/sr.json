@@ -283,7 +283,14 @@
         "recent": "Недавне седнице",
         "watchLive": "Гледајте уживо",
         "noSubjects": "Нема доступних тема.",
-        "hotSubjects": "Актуелне теме"
+        "hotSubjects": "Актуелне теме",
+        "aiSummary": "Аутоматски сажетак",
+        "fullMeeting": "Цела седница",
+        "noMeeting": "Седница није пронађена.",
+        "subjectsCount": "{count, plural, one {# тема} few {# теме} other {# тема}}",
+        "speakersCount": "{count, plural, one {# говорник} few {# говорника} other {# говорника}}",
+        "hoursCount": "{count, plural, one {# сат} few {# сата} other {# сати}}",
+        "minutesCount": "{count, plural, one {# минут} few {# минута} other {# минута}}"
     },
     "AddMeetingForm": {
         "meetingName": "Назив седнице",

@@ -1,4 +1,5 @@
 import { AdministrativeBodyType } from '@prisma/client';
+import { DEFAULT_LOCALE, urlPrefixForLocale } from '@/i18n/config';
 import {
     generateThemeVars,
     generateAppThemeShim,
@@ -10,6 +11,38 @@ import {
 } from '@/lib/utils/embedTheme';
 
 const VALID_BODY_TYPES = new Set<string>(['council', 'committee', 'community']);
+
+export interface BoundedIntSpec {
+    default: number;
+    min: number;
+    max: number;
+}
+
+/** Cards shown by the meetings and subjects widgets. */
+const DEFAULT_LIMIT: BoundedIntSpec = { default: 5, min: 1, max: 10 };
+
+/** Bounds of the meeting summary widget's own params; the configurator reads the same values. */
+export const EMBED_SUMMARY_LIMITS = {
+    /** Latest past meetings shown when no `meetingId` is given. */
+    meetings: { default: 1, min: 1, max: 5 },
+    /** Subject cards per meeting. */
+    subjects: { default: 6, min: 1, max: 20 },
+} as const satisfies Record<string, BoundedIntSpec>;
+
+/** A query integer clamped to `[min, max]`; missing, invalid or zero falls back to the default. */
+export function parseBoundedInt(raw: string | undefined, { default: fallback, min, max }: BoundedIntSpec): number {
+    const parsed = parseInt(raw || '', 10) || fallback;
+    return Math.min(Math.max(parsed, min), max);
+}
+
+/**
+ * URL prefix for a locale under next-intl's `as-needed` prefixing: empty for
+ * the default locale, so a Greek iframe links to unprefixed Greek pages and an
+ * English one to `/en/...`.
+ */
+export function embedLocalePrefix(locale: string): string {
+    return locale === DEFAULT_LOCALE ? '' : `/${urlPrefixForLocale(locale)}`;
+}
 
 /** Raw query params shared by every embed widget variant. */
 export interface EmbedSearchParams {
@@ -26,7 +59,7 @@ export interface EmbedSearchParams {
 export interface ParsedEmbedConfig {
     mode: EmbedMode;
     radius: EmbedRadius;
-    /** Clamped to 1–10 — number of cards to show. */
+    /** Number of cards to show, clamped to the widget's bounds (1–10 unless overridden). */
     limit: number;
     administrativeBodyTypes?: AdministrativeBodyType[];
     administrativeBodyIds?: string[];
@@ -41,10 +74,10 @@ export interface ParsedEmbedConfig {
  * Variant-specific params (e.g. `showSubjects`) stay in their own routes. The
  * base URL for links is realm-dependent, see `embedBaseUrl`.
  */
-export function parseEmbedConfig(searchParams: EmbedSearchParams): ParsedEmbedConfig {
+export function parseEmbedConfig(searchParams: EmbedSearchParams, options: { limit?: BoundedIntSpec } = {}): ParsedEmbedConfig {
     const accent = parseAccentColor(searchParams.accent);
     const mode: EmbedMode = searchParams.mode === 'dark' ? 'dark' : 'light';
-    const limit = Math.min(Math.max(parseInt(searchParams.limit || '5', 10) || 5, 1), 10);
+    const limit = parseBoundedInt(searchParams.limit, options.limit ?? DEFAULT_LIMIT);
     const radius: EmbedRadius =
         searchParams.radius === 'sharp' || searchParams.radius === 'pill'
             ? searchParams.radius

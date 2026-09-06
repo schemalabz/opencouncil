@@ -297,7 +297,14 @@
     "recent": "Séances récentes",
     "watchLive": "Regarder en direct",
     "hotSubjects": "Sujets marquants",
-    "noSubjects": "Aucun sujet disponible."
+    "noSubjects": "Aucun sujet disponible.",
+    "aiSummary": "Résumé automatique",
+    "fullMeeting": "Séance complète",
+    "noMeeting": "Séance introuvable.",
+    "subjectsCount": "{count, plural, one {# point} other {# points}}",
+    "speakersCount": "{count, plural, one {# intervenant} other {# intervenants}}",
+    "hoursCount": "{count, plural, one {# heure} other {# heures}}",
+    "minutesCount": "{count, plural, one {# minute} other {# minutes}}"
   },
   "AddMeetingForm": {
     "meetingName": "Nom de la séance",

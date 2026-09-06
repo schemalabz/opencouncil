@@ -7,7 +7,7 @@ import { SubjectCardContent } from '@/components/subject/SubjectCardContent';
 import { SubjectCardFooter } from '@/components/subject/SubjectCardFooter';
 import type { SubjectCardStats } from '@/lib/subjectCardStats';
 import type { PersonWithRelations } from '@/lib/db/people';
-import { routing, urlPrefixForLocale } from '@/i18n/routing';
+import { embedLocalePrefix } from '@/lib/utils/embedParams';
 import { localizeText } from '@/lib/serbian';
 import { useTranslations } from 'next-intl';
 
@@ -35,10 +35,7 @@ interface EmbedSubjectCardProps {
  */
 export function EmbedSubjectCard({ subject, meeting, locationText, speakers, stats, locale, baseUrl, cityTimezone }: EmbedSubjectCardProps) {
     const t = useTranslations('Subject');
-    // next-intl uses `as-needed` prefixing: the default locale has no prefix.
-    // Keeping the locale here makes English iframes link to English pages.
-    const localePrefix = locale === routing.defaultLocale ? '' : `/${urlPrefixForLocale(locale)}`;
-    const subjectUrl = `${baseUrl}${localePrefix}/${meeting.cityId}/${meeting.id}/subjects/${subject.id}`;
+    const subjectUrl = `${baseUrl}${embedLocalePrefix(locale)}/${meeting.cityId}/${meeting.id}/subjects/${subject.id}`;
 
     return (
         <a href={subjectUrl} target="_blank" rel="noopener noreferrer" className="block hover:no-underline">

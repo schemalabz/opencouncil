@@ -283,7 +283,14 @@
         "recent": "Recent Meetings",
         "watchLive": "Watch live",
         "noSubjects": "No subjects available.",
-        "hotSubjects": "Hot Subjects"
+        "hotSubjects": "Hot Subjects",
+        "aiSummary": "Automatic summary",
+        "fullMeeting": "Full meeting",
+        "noMeeting": "Meeting not found.",
+        "subjectsCount": "{count, plural, one {# subject} other {# subjects}}",
+        "speakersCount": "{count, plural, one {# speaker} other {# speakers}}",
+        "hoursCount": "{count, plural, one {# hour} other {# hours}}",
+        "minutesCount": "{count, plural, one {# minute} other {# minutes}}"
     },
     "AddMeetingForm": {
         "meetingName": "Meeting Name",
