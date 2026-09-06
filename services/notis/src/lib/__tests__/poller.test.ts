@@ -60,14 +60,13 @@ interface FakeMainSeed {
   events?: Row[];
 }
 
-/** When the seeded accounts were created — before any cutoff a test sets. */
 const USER_CREATED_AT = new Date("2026-06-01T00:00:00.000Z");
 
 function makeFakeMain(seed: FakeMainSeed = {}) {
   const targets = seed.targets ?? [];
-  // Enrollment reads the account's createdAt from notis_users, and reconcile
-  // its phone and name. A seed that names only targets gets one user row per
-  // target, so the two views agree the way the real ones do.
+  // Reconcile reads the account's phone and name from notis_users. A seed
+  // that names only targets gets one user row per target, so the two views
+  // agree the way the real ones do.
   const users =
     seed.users ??
     [...new Map(targets.map((t) => [t.userId as string, t])).values()].map((t) => ({
@@ -134,15 +133,6 @@ function target(userId: string, cityId: string, overrides: Row = {}): Row {
   };
 }
 
-/** A notis_users row for an account created after the cutoff — a signup. */
-function signupUser(userId: string, phone: string, createdAt = new Date("2026-09-20")): Row {
-  return { id: userId, name: "Νίκος", phone, createdAt };
-}
-
-const CUTOFF = new Date("2026-09-10T00:00:00.000Z");
-/** A cutoff every fake account postdates: with it, each of them is a signup. */
-const LONG_AGO = new Date("2020-01-01T00:00:00.000Z");
-
 function meetingRow(taskId: string, overrides: Row = {}): Row {
   return {
     taskId,
@@ -204,8 +194,8 @@ describe("enrollment", () => {
       alerts.push(m);
     };
 
-    const result = await runPollerTick({ db, main, bird, alert, now, transitionCutoff: LONG_AGO });
-    await runPollerTick({ db, main, bird, alert, now, transitionCutoff: LONG_AGO });
+    const result = await runPollerTick({ db, main, bird, alert, now });
+    await runPollerTick({ db, main, bird, alert, now });
 
     // Enrolling here would burn the cohort: the subscription exists forever
     // after, and every later tick skips it — with no intro ever sent.
@@ -222,12 +212,12 @@ describe("enrollment", () => {
       targets: [target("user9", "athens", { phone: "306999999999" })],
     });
 
-    const result = await runPollerTick({ db, main, bird, alert: async () => {}, now, transitionCutoff: LONG_AGO });
+    const result = await runPollerTick({ db, main, bird, alert: async () => {}, now });
 
     expect(result.enrolled).toBe(1);
     expect(result.introsSent).toBe(1);
     const sub = [...db.store.subscriptions.values()][0];
-    // A cutoff from before the account: the reader signed up here.
+    // Every reader arrives through the site's signup now.
     expect(sub).toMatchObject({
       userId: "user9",
       origin: "signup",
@@ -245,69 +235,34 @@ describe("enrollment", () => {
     expect(intro).toMatchObject({ status: "sent", template: "notis_intro", proactive: true });
   });
 
-  it("an account from before the cutoff moves over with demos_transition", async () => {
-    const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
-    const bird = new FakeBird();
-    const main = makeFakeMain({ targets: [target("user9", "athens")] });
-
-    const result = await runPollerTick({
-      db,
-      main,
-      bird,
-      alert: async () => {},
-      now,
-      transitionCutoff: CUTOFF,
-    });
-
-    expect(result.enrolled).toBe(1);
-    expect([...db.store.subscriptions.values()][0].origin).toBe("transition");
-    expect(bird.created[0].template).toBe("demos_transition");
-  });
-
-  it("paces transitions per tick and never makes a signup wait behind them", async () => {
+  it("enrolls every waiting reader in one tick, each with the signup intro", async () => {
     const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
     const bird = new FakeBird();
     const main = makeFakeMain({
       targets: [
-        target("old-a", "athens", { phone: "+306900000011" }),
-        target("old-b", "athens", { phone: "+306900000012" }),
-        target("new-c", "athens", { phone: "+306900000013" }),
-      ],
-      users: [
-        { id: "old-a", name: "Α", phone: "+306900000011", createdAt: new Date("2026-01-01") },
-        { id: "old-b", name: "Β", phone: "+306900000012", createdAt: new Date("2026-03-01") },
-        signupUser("new-c", "+306900000013"),
+        target("reader-a", "athens", { phone: "+306900000011" }),
+        target("reader-b", "athens", { phone: "+306900000012" }),
+        target("reader-c", "athens", { phone: "+306900000013" }),
       ],
     });
-    const deps = { db, main, bird, alert: async () => {}, now, transitionCutoff: CUTOFF, enrollPerTick: 1 };
 
-    const first = await runPollerTick(deps);
+    const result = await runPollerTick({ db, main, bird, alert: async () => {}, now });
 
-    // The signup went first, then the one transition the budget allows —
-    // the newer account — and the third waits for the next tick.
-    expect(first.enrolled).toBe(2);
-    expect(first.enrollmentDeferred).toBe(1);
-    expect(bird.created.map((c) => c.phone)).toEqual(["+306900000013", "+306900000012"]);
-    expect(bird.created.map((c) => c.template)).toEqual(["notis_intro", "demos_transition"]);
-
-    const second = await runPollerTick(deps);
-    expect(second.enrolled).toBe(1);
-    expect(second.enrollmentDeferred).toBe(0);
-    expect(db.store.subscriptions.size).toBe(3);
+    // No pacing and no second shell: the readers of the old templates moved
+    // over from the release panel before the signup switched to Νότης.
+    expect(result.enrolled).toBe(3);
+    expect(result.enrollmentDeferred).toBe(0);
+    expect(bird.created.map((c) => c.template)).toEqual(["notis_intro", "notis_intro", "notis_intro"]);
+    expect([...db.store.subscriptions.values()].map((s) => s.origin)).toEqual(["signup", "signup", "signup"]);
   });
 
-  it("holds only the readers whose shell has no project id; the other shell keeps enrolling", async () => {
+  it("holds a +1 number while the intro shell is marketing, and says so once", async () => {
     const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
     const bird = new FakeBird();
-    bird.unaddressable.add("demos_transition");
     const main = makeFakeMain({
       targets: [
-        target("old-a", "athens", { phone: "+306900000011" }),
-        target("new-c", "athens", { phone: "+306900000013" }),
-      ],
-      users: [
-        { id: "old-a", name: "Α", phone: "+306900000011", createdAt: new Date("2026-01-01") },
-        signupUser("new-c", "+306900000013"),
+        target("us-reader", "athens", { phone: "+16174613635" }),
+        target("gr-reader", "athens", { phone: "+306900000012" }),
       ],
     });
     const alerts: string[] = [];
@@ -319,50 +274,17 @@ describe("enrollment", () => {
         alerts.push(m);
       },
       now,
-      transitionCutoff: CUTOFF,
     };
 
     const result = await runPollerTick(deps);
     await runPollerTick(deps);
 
-    expect(result.enrolled).toBe(1);
-    expect(result.enrollmentDeferred).toBe(1);
-    expect(bird.created.map((c) => c.template)).toEqual(["notis_intro"]);
-    expect(alerts.filter((m) => m.includes("demos_transition template has no Bird project id"))).toHaveLength(1);
-  });
-
-  it("holds a +1 number while its shell is marketing, and enrolls it under a utility shell", async () => {
-    const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
-    const bird = new FakeBird();
-    const main = makeFakeMain({
-      targets: [
-        target("us-signup", "athens", { phone: "+16174613635" }),
-        target("us-transition", "athens", { phone: "+16174613636" }),
-      ],
-      users: [
-        signupUser("us-signup", "+16174613635"),
-        { id: "us-transition", name: "Δ", phone: "+16174613636", createdAt: new Date("2026-01-01") },
-      ],
-    });
-    const alerts: string[] = [];
-
-    const result = await runPollerTick({
-      db,
-      main,
-      bird,
-      alert: async (m) => {
-        alerts.push(m);
-      },
-      now,
-      transitionCutoff: CUTOFF,
-    });
-
-    // notis_intro is marketing, which Meta refuses to +1 (131049); the
-    // utility demos_transition reaches the same kind of number.
+    // notis_intro is marketing, which Meta refuses to +1 (131049). The
+    // reader's own reply opens the thread without a template.
     expect(result.enrolled).toBe(1);
     expect(result.enrollmentHeld).toBe(1);
-    expect(bird.created.map((c) => c.phone)).toEqual(["+16174613636"]);
-    expect(alerts.some((m) => m.includes("us-signup (+1 number while notis_intro is a marketing shell)"))).toBe(true);
+    expect(bird.created.map((c) => c.phone)).toEqual(["+306900000012"]);
+    expect(alerts.filter((m) => m.includes("us-reader (+1 number while notis_intro is a marketing shell)"))).toHaveLength(1);
   });
 
   it("repairs a Greek mobile behind a bare plus and enrolls it with its country code", async () => {
