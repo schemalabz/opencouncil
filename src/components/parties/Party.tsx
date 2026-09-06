@@ -21,11 +21,10 @@ import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
 import { filterActiveRoles, formatDateRange, isRoleActive, getDateRangeFromRoles } from '@/lib/utils';
 import { isActivePartyMember, isPartyRole } from '@/lib/utils/roles';
-import { sortPartyMembers, sortInactivePartyMembers } from '@/lib/sorting/people';
+import { sortInactivePartyMembers, sortPartyMembers, sortPeople } from '@/lib/sorting/people';
 import { BadgePicker } from '../ui/badge-picker';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PersonWithRelations } from '@/lib/db/people';
-import PartyMemberRankingSheet from './PartyMemberRankingSheet';
 import { AdminStrip, AdminToolButton, adminToolClass } from '@/components/admin/AdminStrip';
 import { RailCard, RailMeterRow } from '@/components/ui/rail-card';
 import { EntityHeader, FactDot } from '@/components/EntityHeader';
@@ -61,7 +60,6 @@ function PartyMembersTab({
 }) {
     const t = useTranslations('Party');
     const tCommon = useTranslations('Common');
-    const [isRankingSheetOpen, setIsRankingSheetOpen] = useState(false);
     const [selectedTypes, setSelectedTypes] = useState<AdministrativeBodyType[]>([]);
 
     // The picker sits in the current-members header and offers the bodies those
@@ -86,6 +84,14 @@ function PartyMembersTab({
     const activePeople = useMemo(() =>
         people.filter(person => isActivePartyMember(person, party.id) && filterByAdminBodyType(person)),
         [people, party.id, filterByAdminBodyType]);
+
+    // One body type picked: that type's order, as on the people page. Otherwise
+    // the party's own order.
+    const orderedPeople = useMemo(() =>
+        selectedTypes.length === 1
+            ? sortPeople(activePeople, selectedTypes[0])
+            : sortPartyMembers(activePeople, party.id),
+        [activePeople, party.id, selectedTypes]);
 
     // Filter people to only include those with inactive party roles
     const inactivePeople = useMemo(() =>
@@ -120,28 +126,10 @@ function PartyMembersTab({
                                 allLabel={tCommon('allPeople')}
                             />
                         )}
-                        {canEdit && city.peopleOrdering === 'partyRank' && (
-                            <>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setIsRankingSheetOpen(true)}
-                                >
-                                    {t('changeMemberOrdering')}
-                                </Button>
-                                <PartyMemberRankingSheet
-                                    open={isRankingSheetOpen}
-                                    onOpenChange={setIsRankingSheetOpen}
-                                    party={party}
-                                    people={people}
-                                    cityId={city.id}
-                                />
-                            </>
-                        )}
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {sortPartyMembers(activePeople, party.id, true)
+                    {orderedPeople
                         .map(person => (
                             <PersonCard
                                 key={person.id}

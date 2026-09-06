@@ -73,6 +73,13 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
      * count in the total; they only stop sharing the grid.
      */
     trailing?: { title: string; matches: (item: T) => boolean };
+    /**
+     * Orders the rows that passed the search and the filter, with the filter
+     * in hand — a list whose order depends on what is selected, such as the
+     * members of one body in that body's order. Without it the rows keep the
+     * order of `items`.
+     */
+    sortItems?: (items: T[], selectedValues: F[]) => T[];
 }
 
 export default function List<T extends { id: string }, P = {}, F = string | undefined>({
@@ -101,6 +108,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     renderFilter,
     renderAfterFilters,
     trailing,
+    sortItems,
 }: ListProps<T, P, F>) {
     const tCommon = useTranslations('Common');
     const searchParams = useSearchParams();
@@ -197,7 +205,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
         [localSearchQuery]
     );
 
-    const filteredItems = items.filter((item) => {
+    const matchingItems = items.filter((item) => {
         // First check search query
         if (searchIndex && searchTerms.length > 0) {
             const haystack = searchIndex.get(item.id) ?? '';
@@ -211,6 +219,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
 
         return true;
     });
+    const filteredItems = sortItems ? sortItems(matchingItems, selectedFilters) : matchingItems;
 
     const countVisible = showCount ?? showSearch;
 

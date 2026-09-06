@@ -10,6 +10,25 @@ type MeetingWithAdminBody = {
 /** Canonical ordering for admin body types */
 export const ADMIN_BODY_TYPE_ORDER: AdministrativeBodyType[] = ['council', 'committee', 'community'];
 
+/**
+ * Where a body type sits in {@link ADMIN_BODY_TYPE_ORDER}. A type that is absent
+ * or unknown sorts after every known one, so a person with no seat closes a list
+ * rather than opening it.
+ */
+export function administrativeBodyTypeRank(type: AdministrativeBodyType | null | undefined): number {
+    const index = type ? ADMIN_BODY_TYPE_ORDER.indexOf(type) : -1;
+    return index === -1 ? ADMIN_BODY_TYPE_ORDER.length : index;
+}
+
+/** Orders two administrative bodies as every list of bodies shows them: by type, then by name. */
+export function compareAdministrativeBodies(
+    a: { name: string; type: AdministrativeBodyType },
+    b: { name: string; type: AdministrativeBodyType },
+): number {
+    return administrativeBodyTypeRank(a.type) - administrativeBodyTypeRank(b.type)
+        || a.name.localeCompare(b.name, 'el');
+}
+
 /** Narrow an unvalidated value — a URL parameter — to an admin body type. */
 export function toAdministrativeBodyType(value: string | undefined): AdministrativeBodyType | undefined {
     return ADMIN_BODY_TYPE_ORDER.find(type => type === value);

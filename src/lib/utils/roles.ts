@@ -414,6 +414,27 @@ export function isMayorRole(role: { isHead: boolean; cityId?: string | null; par
   return !!role.cityId && !role.partyId && !role.administrativeBodyId && role.isHead;
 }
 
+/** The fields a mayor test reads off a role. */
+type MayorRoleFields = {
+  isHead: boolean;
+  cityId?: string | null;
+  partyId?: string | null;
+  administrativeBodyId?: string | null;
+  startDate: Date | null;
+  endDate: Date | null;
+};
+
+/**
+ * Whether a person holds the city's mayor role now.
+ *
+ * The person-level half of {@link isMayorRole}, which several surfaces spelled
+ * out by hand. Every "is this the mayor" test belongs here, so a change to the
+ * rule reaches all of them.
+ */
+export function isMayor(person: { roles: MayorRoleFields[] }): boolean {
+  return person.roles.some(role => isRoleActive(role) && isMayorRole(role));
+}
+
 /**
  * Simplify vice-mayor role names for document output.
  * Keeps everything up to and including "Αντιδήμαρχος", dropping portfolio details.

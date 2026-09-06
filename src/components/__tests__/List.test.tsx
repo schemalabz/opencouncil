@@ -34,7 +34,7 @@ const people: Item[] = [
 
 const roleNames = (item: Item) => (item.roles ?? []).map(role => role.name);
 
-const Card = ({ item }: { item: Item }) => <div>{item.name}</div>;
+const Card = ({ item }: { item: Item }) => <div data-testid="row">{item.name}</div>;
 
 const t = (key: string, params?: { count?: number }) =>
     params?.count === undefined ? key : `${key}:${params.count}`;
@@ -46,6 +46,9 @@ type RenderProps = {
     items?: Item[];
     cappedAt?: number;
     searchKeys?: (item: Item) => (string | null | undefined)[];
+    sortItems?: (items: Item[], selectedValues: (string | undefined)[]) => Item[];
+    filterAvailableValues?: { value: string | undefined; label: string }[];
+    filter?: (selectedValues: (string | undefined)[], item: Item) => boolean;
 };
 
 function renderList(props: RenderProps = {}) {
@@ -80,6 +83,9 @@ const search = (query: string) => {
 };
 
 const shownNames = () => people.filter(person => screen.queryByText(person.name)).map(person => person.name);
+
+/** The rows as rendered, in document order. */
+const renderedNames = () => screen.queryAllByTestId('row').map(row => row.textContent);
 
 beforeEach(() => {
     mockSearchParams = new URLSearchParams();
@@ -214,5 +220,31 @@ describe('List count under a capped fetch', () => {
     it('counts plainly when the page sets no cap', () => {
         renderList({ showCount: true });
         expect(screen.getByText('items:2')).toBeInTheDocument();
+    });
+});
+
+describe('List — ordering the rows', () => {
+    it('renders the rows in the order the hook returns', () => {
+        renderList({ items: people, sortItems: rows => [...rows].reverse() });
+        expect(renderedNames()).toEqual([people[1].name, people[0].name]);
+    });
+
+    it('hands the hook the rows that passed the search, not every row', () => {
+        const sortItems = jest.fn((rows: Item[]) => rows);
+        renderList({ items: people, searchKeys: item => [item.name], sortItems });
+        search('Παπαδοπούλου');
+        const [rows] = sortItems.mock.calls[sortItems.mock.calls.length - 1];
+        expect(rows.map(row => row.id)).toEqual(['p1']);
+    });
+
+    it('hands the hook the current selection, not an empty one', () => {
+        const sortItems = jest.fn((rows: Item[], _selected: (string | undefined)[]) => rows);
+        renderList({
+            items: people,
+            sortItems,
+            filterAvailableValues: [{ value: 'council', label: 'council' }],
+        });
+        const [, selected] = sortItems.mock.calls[sortItems.mock.calls.length - 1];
+        expect(selected).toEqual(['council']);
     });
 });

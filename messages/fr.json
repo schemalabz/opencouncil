@@ -540,7 +540,6 @@
     "noSegmentsFound": "Aucune intervention trouvée",
     "loading": "Chargement...",
     "loadMore": "Voir plus",
-    "changeMemberOrdering": "Modifier le tri des membres",
     "recentContributions": "Résumés des interventions",
     "leaderLabel": "Chef de groupe : ",
     "breadcrumbHome": "Accueil",
@@ -999,22 +998,6 @@
     "subjects": "Points",
     "noSubjects": "Aucun point à l'ordre du jour",
     "cityNotFound": "Ville introuvable"
-  },
-  "PartyMemberRankingSheet": {
-    "title": "Modifier l'ordre des membres",
-    "description": "Glissez-déposez les membres pour modifier leur ordre. L'ordre sera enregistré en tant que classement.",
-    "rank": "Classement : {rank}",
-    "save": "Enregistrer le classement",
-    "saving": "Enregistrement...",
-    "reset": "Réinitialiser le classement",
-    "resetting": "Réinitialisation...",
-    "rankingsSaved": "Le classement a été enregistré",
-    "rankingsSavedDescription": "Le classement des membres a été mis à jour avec succès.",
-    "rankingsReset": "Le classement a été réinitialisé",
-    "rankingsResetDescription": "Tous les classements des membres ont été réinitialisés.",
-    "error": "Erreur",
-    "saveError": "Échec de l'enregistrement du classement. Veuillez réessayer.",
-    "resetError": "Échec de la réinitialisation du classement. Veuillez réessayer."
   },
   "ElectedOrderSheet": {
     "triggerButton": "Ordre d'élection",

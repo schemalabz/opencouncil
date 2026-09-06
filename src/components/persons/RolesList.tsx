@@ -85,19 +85,24 @@ export default function RolesList({ personId, cityId, roles, parties, administra
     const handleSubmit = (values: z.infer<typeof formSchema>, e: React.FormEvent) => {
         e.preventDefault(); // Prevent form submission
 
+        const administrativeBodyId = values.type === 'administrativeBody' ? values.administrativeBodyId || null : null;
+        // The elected order belongs to a seat on one body. It stays only while
+        // the role keeps that seat; a role moved to another body or type starts
+        // without one.
+        const keepsSeat = administrativeBodyId !== null && administrativeBodyId === editingRole?.administrativeBodyId;
+
         const newRole: RoleWithRelations = {
             id: editingRole?.id || Math.random().toString(), // Temporary ID for new roles
             personId: personId || '',
             cityId: values.type === 'city' ? cityId : null,
             partyId: values.type === 'party' ? values.partyId || null : null,
-            administrativeBodyId: values.type === 'administrativeBody' ? values.administrativeBodyId || null : null,
+            administrativeBodyId,
             name: values.name || null,
             name_en: values.name_en || null,
             isHead: values.isHead,
             startDate: values.startDate,
             endDate: values.endDate,
-            rank: editingRole?.rank ?? null,
-            electedOrder: editingRole?.electedOrder ?? null,
+            electedOrder: keepsSeat ? editingRole?.electedOrder ?? null : null,
             createdAt: new Date(),
             updatedAt: new Date(),
             // Relations will be populated below if available

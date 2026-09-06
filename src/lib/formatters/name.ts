@@ -68,6 +68,16 @@ export function getLocalizedShortName(
 }
 
 /**
+ * The surname of a name stored first-name first: its last whitespace-separated
+ * word. Lists of people are ordered by it, so it lives here with the rest of
+ * the name readers rather than beside each sort.
+ */
+export function getSurname(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    return parts.length === 0 ? '' : parts[parts.length - 1];
+}
+
+/**
  * Reorders a name from "Firstname Lastname" to "Lastname Firstname".
  * For names with more than two parts (e.g., "Firstname Middle Lastname"),
  * moves only the last word to the front.

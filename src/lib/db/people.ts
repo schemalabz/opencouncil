@@ -58,7 +58,7 @@ export async function createPerson(data: {
                         isHead: role.isHead,
                         startDate: role.startDate,
                         endDate: role.endDate,
-                        rank: role.rank
+                        electedOrder: role.electedOrder
                     }))
                 }
             },
@@ -110,7 +110,7 @@ export async function editPerson(id: string, data: {
                             isHead: role.isHead,
                             startDate: role.startDate,
                             endDate: role.endDate,
-                            rank: role.rank
+                            electedOrder: role.electedOrder
                         }))
                     }
                 },
