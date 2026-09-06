@@ -88,8 +88,10 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 | `BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING` | Template project ID (UUID) from Bird Studio for after meeting notifications. | No | - |
 | `BIRD_WHATSAPP_TEMPLATE_WELCOME` | Template project ID (UUID) from Bird Studio for welcome messages when users sign up. | No | - |
 | `BIRD_WEBHOOK_SECRET` | Shared secret for verifying HMAC signatures on inbound Bird webhook events. | No | - |
+| `NOTIS_API_URL` | Base URL of the Notis service (`https://notis.opencouncil.gr`; staging `https://notis.staging.opencouncil.gr`; `http://localhost:3001` in development). The profile's Νότης switch reads and flips the reader's subscription through it, server-side. Without it the switch shows as unavailable. | No | - |
+| `NOTIS_SERVICE_TOKEN` | Bearer token presented on `NOTIS_API_URL/api/subscriptions/*`. The same value as the Notis component's `NOTIS_SERVICE_TOKEN`, at least 32 characters (`openssl rand -hex 32`), different per environment. | No | - |
 
-For full setup instructions (workspace, channels, templates, API key, webhook subscription), see [bird-setup.md](./bird-setup.md).
+For full setup instructions (workspace, channels, templates, API key, webhook subscription), see [bird-setup.md](./bird-setup.md). The Notis service's own variables are in [services/notis/README.md](../services/notis/README.md).
 
 #### NEXTAUTH_SECRET
 You can quickly create a good value on the command line via this openssl command:
