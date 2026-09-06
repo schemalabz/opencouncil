@@ -27,16 +27,6 @@ export const env = createEnv({
     // Webhook (e.g. Discord) for operational alarms — janitor refusals and
     // failures. Optional: without it alarms only reach the logs.
     NOTIS_ALERT_WEBHOOK_URL: z.string().url().optional(),
-    // When the site stopped routing new readers through the old notification
-    // templates (an ISO instant — the production deploy of PR 5). An account
-    // from before it enrolls as a transition (demos_transition); a younger one
-    // as a signup (notis_intro). Unset: every reader is a transition, paced.
-    NOTIS_TRANSITION_CUTOFF: z.string().datetime({ offset: true }).optional(),
-    // How many transition readers one poller tick may enroll — the pacing the
-    // release panel's batches used to provide, without the panel. Two per
-    // five-minute tick across the active hours is ~300 a day. Signups never
-    // wait on it.
-    NOTIS_ENROLL_PER_TICK: z.coerce.number().int().min(1).default(2),
     // Bird (WhatsApp). Notis has its OWN webhook subscription and signing
     // key, separate from the main app's — both subscriptions receive all
     // conversation events during rollout and each service filters to the
@@ -77,8 +67,6 @@ export const env = createEnv({
     MAIN_SESSION_COOKIE_NAME: process.env.MAIN_SESSION_COOKIE_NAME,
     NOTIS_SERVICE_TOKEN: process.env.NOTIS_SERVICE_TOKEN,
     NOTIS_ALERT_WEBHOOK_URL: process.env.NOTIS_ALERT_WEBHOOK_URL,
-    NOTIS_TRANSITION_CUTOFF: process.env.NOTIS_TRANSITION_CUTOFF,
-    NOTIS_ENROLL_PER_TICK: process.env.NOTIS_ENROLL_PER_TICK,
     BIRD_API_KEY: process.env.BIRD_API_KEY,
     BIRD_WORKSPACE_ID: process.env.BIRD_WORKSPACE_ID,
     BIRD_WHATSAPP_CHANNEL_ID: process.env.BIRD_WHATSAPP_CHANNEL_ID,

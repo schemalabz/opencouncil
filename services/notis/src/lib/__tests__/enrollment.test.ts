@@ -1,28 +1,4 @@
-import { enrollmentOriginFor, isHeldForMarketing, parseCutoff } from "../enrollment";
-
-const CUTOFF = new Date("2026-09-10T12:00:00.000Z");
-
-describe("enrollmentOriginFor", () => {
-  it("everyone is a paced transition when no cutoff is set, never an unpaced signup", () => {
-    expect(enrollmentOriginFor(new Date("2025-01-01"), undefined)).toBe("transition");
-    expect(enrollmentOriginFor(new Date("2099-01-01"), undefined)).toBe("transition");
-  });
-
-  it("an account from before the cutoff moves over; one from the cutoff on signed up here", () => {
-    expect(enrollmentOriginFor(new Date("2026-09-10T11:59:59.000Z"), CUTOFF)).toBe("transition");
-    expect(enrollmentOriginFor(CUTOFF, CUTOFF)).toBe("signup");
-    expect(enrollmentOriginFor(new Date("2026-09-11"), CUTOFF)).toBe("signup");
-  });
-});
-
-describe("parseCutoff", () => {
-  it("reads an ISO instant and ignores garbage", () => {
-    expect(parseCutoff("2026-09-10T12:00:00.000Z")).toEqual(CUTOFF);
-    expect(parseCutoff(undefined)).toBeUndefined();
-    expect(parseCutoff("")).toBeUndefined();
-    expect(parseCutoff("next tuesday")).toBeUndefined();
-  });
-});
+import { isHeldForMarketing } from "../enrollment";
 
 describe("isHeldForMarketing", () => {
   it("holds a +1 number only while its shell is a marketing template", () => {

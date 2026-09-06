@@ -110,7 +110,7 @@ The app spec lives in the DO dashboard, not the repo. The Notis component:
 | Instance | smallest available (stateless, I/O-bound) |
 | Env (secret, run+build) | `ANTHROPIC_API_KEY`, `NOTIS_DATABASE_URL`, `MAIN_DATABASE_URL`, `NOTIS_SERVICE_TOKEN` (see [Subscriptions API](#subscriptions-api-service-token)) |
 | Env (build-time, plain) | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` (public token; baked at build — without it the wizard's map/address search degrades to text chips) |
-| Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL`, `MAIN_SESSION_COOKIE_NAME`, `NOTIS_TRANSITION_CUTOFF` (the ISO instant of the PR 5 production deploy — accounts from before it enroll as transitions), `NOTIS_ENROLL_PER_TICK` (default 2), `BIRD_API_KEY`, `BIRD_WORKSPACE_ID`, `BIRD_WHATSAPP_CHANNEL_ID`, `BIRD_SMS_CHANNEL_ID`, `BIRD_WEBHOOK_SECRET`, the `BIRD_WHATSAPP_TEMPLATE_*` project ids (see [Bird](#bird-whatsapp)) |
+| Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL`, `MAIN_SESSION_COOKIE_NAME`, `BIRD_API_KEY`, `BIRD_WORKSPACE_ID`, `BIRD_WHATSAPP_CHANNEL_ID`, `BIRD_SMS_CHANNEL_ID`, `BIRD_WEBHOOK_SECRET`, the `BIRD_WHATSAPP_TEMPLATE_*` project ids (see [Bird](#bird-whatsapp)) |
 | Env (operational, set it) | `NOTIS_ALERT_WEBHOOK_URL` — Discord webhook for janitor refusals, queue give-ups and poller failures; without it those alarms only reach the logs |
 
 Same branch wiring as the main component: `production` branch → production,

@@ -20,12 +20,7 @@ import { alert as sendAlert } from "./alert";
 import { BirdLike, realBird } from "./bird";
 import { hasNotisDb, notisDb } from "./db";
 import { buildDeps } from "./deps";
-import {
-  type EnrollmentPacing,
-  enrollmentOriginFor,
-  isHeldForMarketing,
-  parseCutoff,
-} from "./enrollment";
+import { isHeldForMarketing } from "./enrollment";
 import { toCityPreferences } from "./fanout";
 import { hasMainDb, mainDb } from "./main-db";
 import { normalizePhone } from "./phone";
@@ -70,10 +65,6 @@ export interface PollerDeps {
     meetingId: string,
     phase: "agenda" | "summary",
   ) => Promise<{ brief: EditorialBrief; costUsd: number }>;
-  /** Overrides NOTIS_TRANSITION_CUTOFF; null means no cutoff (everyone is a paced transition). */
-  transitionCutoff?: Date | null;
-  /** Overrides NOTIS_ENROLL_PER_TICK. */
-  enrollPerTick?: number;
 }
 
 export interface PollerResult {
@@ -85,8 +76,7 @@ export interface PollerResult {
    *  already belongs to another active subscription, or Meta would refuse
    *  their intro shell. They retry every tick. */
   enrollmentHeld: number;
-  /** Readers whose turn has not come: transitions beyond this tick's budget,
-   *  and readers whose intro shell has no Bird project id yet. */
+  /** Readers who wait because the intro shell has no Bird project id yet. */
   enrollmentDeferred: number;
   phonesRefreshed: number;
   phoneGoneUnsubscribed: number;
@@ -176,18 +166,10 @@ async function tick(
       return { brief, costUsd };
     });
 
-  const pacing: EnrollmentPacing = {
-    transitionCutoff:
-      overrides.transitionCutoff === undefined
-        ? parseCutoff(env.NOTIS_TRANSITION_CUTOFF)
-        : (overrides.transitionCutoff ?? undefined),
-    transitionsPerTick: overrides.enrollPerTick ?? env.NOTIS_ENROLL_PER_TICK,
-  };
-
   const result = emptyResult(true);
 
   if (main) {
-    await enrollNewTargets(db, main, bird, alert, now, pacing, result);
+    await enrollNewTargets(db, main, bird, alert, now, result);
     await reconcileSubscriptions(db, main, now, result);
   }
   await fireScheduledWakes(db, now, rng, result);
@@ -202,31 +184,13 @@ async function tick(
   return result;
 }
 
-interface EnrollmentCandidate {
-  userId: string;
-  rows: FanoutTargetRow[];
-  createdAt: Date;
-  origin: EnrollmentOrigin;
-}
-
-/** Signups first — they were just told Νότης will write — then newest first. */
-function compareCandidates(a: EnrollmentCandidate, b: EnrollmentCandidate): number {
-  if (a.origin !== b.origin) return a.origin === "signup" ? -1 : 1;
-  return b.createdAt.getTime() - a.createdAt.getTime();
-}
-
 /**
  * Phase (a) — enrollment ceremony. A reader with phone delivery on and no
  * subscription (any status — never resurrect) gets one: profile seeded from
- * preferences, an origin that says how they arrived, and that origin's
- * intro. The account's age against NOTIS_TRANSITION_CUTOFF decides the
- * origin: an account from before the site stopped routing readers through
- * the old notification templates is a `transition` (told the sender
- * changed); a younger one is a `signup` (told what they asked for is done).
- *
- * Signups never wait. Transitions are paced by NOTIS_ENROLL_PER_TICK — the
- * batches the release panel used to hand out, without the panel — and the
- * rest report as deferred until a later tick.
+ * preferences, the `signup` origin, and its intro. Every reader arrives
+ * here through the site's signup now: the readers of the old templates
+ * moved over batch by batch from the release panel, before the signup
+ * switched to Νότης and the panel went.
  *
  * Three conditions gate a ceremony, and all three exist to keep enrollment
  * and its intro inseparable — a subscription is skipped forever once it
@@ -246,7 +210,6 @@ async function enrollNewTargets(
   bird: BirdLike,
   alert: (message: string) => Promise<void>,
   now: () => Date,
-  pacing: EnrollmentPacing,
   result: PollerResult,
 ): Promise<void> {
   const settings = await getProactiveSettings(db);
@@ -273,40 +236,24 @@ async function enrollNewTargets(
   for (const sub of existing) byUser.delete(sub.userId);
   if (byUser.size === 0) return;
 
-  // The account's age decides the origin, and the origin the shell.
-  const users = await main.notisUserRow.findMany({
-    where: { id: { in: [...byUser.keys()] } },
-    select: { id: true, createdAt: true },
-  });
-  const createdAt = new Map(users.map((u) => [u.id, u.createdAt]));
-  const candidates: EnrollmentCandidate[] = [];
-  for (const [userId, rows] of byUser) {
-    const created = createdAt.get(userId);
-    // Gone between the two reads: account deletion, the janitor's domain.
-    if (!created) continue;
-    candidates.push({
-      userId,
-      rows,
-      createdAt: created,
-      origin: enrollmentOriginFor(created, pacing.transitionCutoff),
-    });
+  const origin: EnrollmentOrigin = "signup";
+  const template = introTemplateFor(origin);
+  if (!bird.canSendTemplate(template)) {
+    result.enrollmentDeferred += byUser.size;
+    // Checked with readers in hand, not every tick, and once per process:
+    // alerting on an idle misconfiguration would page every five minutes
+    // forever.
+    if (!unaddressableAlerted.has(template)) {
+      unaddressableAlerted.add(template);
+      await alert(
+        `enrollment held: readers are ready but the ${template} template has no Bird project id — enrolling them now would leave them permanently without an intro. Set BIRD_WHATSAPP_TEMPLATE_${template.toUpperCase()} and the next tick enrolls them`,
+      );
+    }
+    return;
   }
-  candidates.sort(compareCandidates);
 
-  let transitionBudget = pacing.transitionsPerTick;
   const held: string[] = [];
-  const unaddressable = new Set<TemplateName>();
-  for (const { userId, rows, origin } of candidates) {
-    if (origin === "transition" && transitionBudget <= 0) {
-      result.enrollmentDeferred++;
-      continue;
-    }
-    const template = introTemplateFor(origin);
-    if (!bird.canSendTemplate(template)) {
-      unaddressable.add(template);
-      result.enrollmentDeferred++;
-      continue;
-    }
+  for (const [userId, rows] of byUser) {
     const raw = normalizePhone(rows[0].phone);
     if (!raw) continue;
     // The last gate before a number that reaches nobody becomes a
@@ -379,7 +326,6 @@ async function enrollNewTargets(
     }
 
     result.enrolled++;
-    if (origin === "transition") transitionBudget--;
     const sub = await db.notisSubscription.findUnique({ where: { id: enrollment.subId } });
     if (sub) {
       await deliverPendingMessage(db, bird, enrollment.introId, sub, alert);
@@ -396,16 +342,6 @@ async function enrollNewTargets(
     for (const entry of fresh) heldAlerted.add(entry);
     await alert(
       `enrollment held for ${fresh.length} reader(s) whose intro cannot reach them — fix the number in the main app (or wait for the shell's category) and the next tick enrolls them: ${fresh.join(", ")}`,
-    );
-  }
-  // Checked with readers in hand, not every tick, and once per shell per
-  // process: alerting on an idle misconfiguration would page every five
-  // minutes forever.
-  for (const template of unaddressable) {
-    if (unaddressableAlerted.has(template)) continue;
-    unaddressableAlerted.add(template);
-    await alert(
-      `enrollment held: readers are ready but the ${template} template has no Bird project id — enrolling them now would leave them permanently without an intro. Set BIRD_WHATSAPP_TEMPLATE_${template.toUpperCase()} and the next tick enrolls them`,
     );
   }
 }
