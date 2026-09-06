@@ -10,6 +10,7 @@ const BRIEF = {
 import {
   TEMPLATES,
   type TemplateName,
+  introTemplateFor,
   isWindowOpen,
   linkPathForEvent,
   linkPathFromText,
@@ -36,6 +37,30 @@ describe("templates", () => {
     expect(r.body).toContain("Οι ειδοποιήσεις του OpenCouncil αλλάζουν!");
     expect(r.body).not.toContain("ignored");
     expect(r.footer).toBe("Μήνυμα με τεχνητή νοημοσύνη. ΣΤΟΠ για μόνο email.");
+  });
+
+  it("opens a thread with the shell that matches how the reader arrived", () => {
+    // A transition reader is told the sender changed; a site signup gets the
+    // confirmation of what they just asked for.
+    expect(introTemplateFor("transition")).toBe("demos_transition");
+    expect(introTemplateFor("signup")).toBe("notis_intro");
+    const r = renderTemplate("notis_intro", "ignored");
+    expect(r.body).toContain("Η εγγραφή σου στις ειδοποιήσεις του OpenCouncil ολοκληρώθηκε.");
+    expect(r.buttons.map((b) => b.label)).toEqual(["Περισσότερα", "Τι θα λαμβάνω;"]);
+  });
+
+  it("mirrors the categories WhatsApp Manager shows, appeals included", () => {
+    // Read from WhatsApp Manager 2026-09-06: the transition and news appeals
+    // won; the intro shells stay marketing (demos_intro's appeals are
+    // exhausted, notis_intro's is pending). The poller keys the +1 hold off
+    // this, so a stale entry either blocks a reachable number or sends a
+    // shell Meta refuses.
+    expect(TEMPLATES.demos_transition.category).toBe("utility");
+    expect(TEMPLATES.demos_update_agenda.category).toBe("utility");
+    expect(TEMPLATES.demos_update_news.category).toBe("utility");
+    expect(TEMPLATES.demos_followup.category).toBe("utility");
+    expect(TEMPLATES.demos_intro.category).toBe("marketing");
+    expect(TEMPLATES.notis_intro.category).toBe("marketing");
   });
 
   it("maps wake events to the right shell", () => {
@@ -97,6 +122,7 @@ describe("link_path", () => {
     expect(TEMPLATES.demos_followup.hasLinkPath).toBe(true);
     expect(TEMPLATES.demos_intro.hasLinkPath).toBe(false);
     expect(TEMPLATES.demos_transition.hasLinkPath).toBe(false);
+    expect(TEMPLATES.notis_intro.hasLinkPath).toBe(false);
     expect(TEMPLATES.demos_checkin.hasLinkPath).toBe(false);
   });
 

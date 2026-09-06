@@ -80,6 +80,13 @@ events in production and outbound sends fail with an alert:
   unmatched channel id classifies as WhatsApp.
 - `BIRD_WEBHOOK_SECRET` — the signing key of the NOTIS subscription. Do not
   reuse the main app's secret.
+- `BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION`, `BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO`,
+  `BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA`, `BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS`,
+  `BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP` (and `..._DEMOS_INTRO` for the
+  threads it opened before notis_intro existed) — the Bird project id of each
+  shell in `src/agent/templates.ts`. A shell without its id is unaddressable:
+  the poller holds the readers who need it and alerts, instead of enrolling
+  them into a thread that never opens.
 
 To exercise the inbound path locally without Bird, send a signed synthetic
 event: `npx tsx --env-file=.env scripts/send-test-webhook.ts +306990000001 "γεια σου"`.
@@ -102,7 +109,7 @@ The app spec lives in the DO dashboard, not the repo. The Notis component:
 | Instance | smallest available (stateless, I/O-bound) |
 | Env (secret, run+build) | `ANTHROPIC_API_KEY`, `NOTIS_DATABASE_URL`, `MAIN_DATABASE_URL` |
 | Env (build-time, plain) | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` (public token; baked at build — without it the wizard's map/address search degrades to text chips) |
-| Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL`, `MAIN_SESSION_COOKIE_NAME`, `BIRD_API_KEY`, `BIRD_WORKSPACE_ID`, `BIRD_WHATSAPP_CHANNEL_ID`, `BIRD_SMS_CHANNEL_ID`, `BIRD_WEBHOOK_SECRET` (see [Bird](#bird-whatsapp)) |
+| Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL`, `MAIN_SESSION_COOKIE_NAME`, `BIRD_API_KEY`, `BIRD_WORKSPACE_ID`, `BIRD_WHATSAPP_CHANNEL_ID`, `BIRD_SMS_CHANNEL_ID`, `BIRD_WEBHOOK_SECRET`, the `BIRD_WHATSAPP_TEMPLATE_*` project ids (see [Bird](#bird-whatsapp)) |
 | Env (operational, set it) | `NOTIS_ALERT_WEBHOOK_URL` — Discord webhook for janitor refusals, queue give-ups and poller failures; without it those alarms only reach the logs |
 
 Same branch wiring as the main component: `production` branch → production,

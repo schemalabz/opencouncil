@@ -7,6 +7,7 @@ jest.mock("@/env.mjs", () => ({
     BIRD_WHATSAPP_CHANNEL_ID: "wa-channel",
     BIRD_SMS_CHANNEL_ID: "sms-channel",
     BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION: "proj-transition",
+    BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO: "proj-notis-intro",
     BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS: "proj-news",
     // demos_followup deliberately unset: the missing-id path.
   },

@@ -364,7 +364,7 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                     "Μετάβαση από τις ειδοποιήσεις",
                     "Λάμβανε ήδη WhatsApp/SMS — ξεκινά με το demos_transition",
                   ],
-                  ["signup", "Νέα εγγραφή", "Μόλις γράφτηκε στο site — ξεκινά με το demos_intro"],
+                  ["signup", "Νέα εγγραφή", "Μόλις γράφτηκε στο site — ξεκινά με το notis_intro"],
                 ] as const
               ).map(([value, label, hint]) => (
                 <button

@@ -6,10 +6,17 @@ import { WakeEvent } from "./types";
  * by Meta 2026-08-04/05, revised 2026-08-15: intro/transition name the persona «ο Νότης»,
  * conditional agenda closing, «Τι είναι αυτό;» intro button, new
  * demos_checkin; revised again 2026-08-19 so every footer carries the AI
- * disclosure the AI Act asks for). If a template
+ * disclosure the AI Act asks for; notis_intro added 2026-09-06 for readers
+ * who sign up on the site once everyone is served here). If a template
  * changes in Bird, this file must change with it — the simulator and the
  * production send path both render from here, so what you see simulated is
  * what Meta approved.
+ *
+ * `category` mirrors what WhatsApp Manager shows, not what was submitted:
+ * Meta files utility submissions as marketing and the category appeals
+ * (won for demos_transition and demos_update_news on 2026-09-06) move it
+ * back. It matters for +1 numbers, which Meta refuses marketing templates
+ * (error 131049) — the poller holds them while a shell is marketing.
  *
  * Cold sends (outside the 24h customer-service window) MUST use one of these
  * shells; free-form text is only deliverable inside the window.
@@ -18,6 +25,7 @@ import { WakeEvent } from "./types";
 export type TemplateName =
   | "demos_intro"
   | "demos_transition"
+  | "notis_intro"
   | "demos_update_agenda"
   | "demos_update_news"
   | "demos_followup"
@@ -83,7 +91,7 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
   },
   demos_transition: {
     name: "demos_transition",
-    category: "marketing",
+    category: "utility",
     bodyPrefix:
       "Οι ειδοποιήσεις του OpenCouncil αλλάζουν! Από εδώ και πέρα σου γράφω εγώ, ο Νότης, ο βοηθός του OpenCouncil. Θα σου στέλνω λιγότερα και πιο προσωπικά μηνύματα, μόνο όταν συμβαίνει κάτι που πραγματικά σε αφορά, και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για τον δήμο σου. Τα email σου συνεχίζουν κανονικά.",
     bodySuffix: "",
@@ -93,6 +101,24 @@ export const TEMPLATES: Record<TemplateName, TemplateDef> = {
     buttons: [
       { label: "Περισσότερα", kind: "url" },
       { label: "Ας γνωριστούμε", kind: "quick_reply" },
+    ],
+  },
+  notis_intro: {
+    name: "notis_intro",
+    // The shell a site signup opens with: a confirmation of something the
+    // reader just asked for, framed as such so it reads as utility. Submitted
+    // as utility; Meta's classifier filed it as marketing and the category
+    // appeal is pending — flip this when WhatsApp Manager does.
+    category: "marketing",
+    bodyPrefix:
+      "Η εγγραφή σου στις ειδοποιήσεις του OpenCouncil ολοκληρώθηκε. Σε αυτόν τον αριθμό θα σε ενημερώνει ο Νότης, ο βοηθός του OpenCouncil, για τις συνεδριάσεις του δήμου σου — μόνο όταν κάτι σε αφορά. Για ερωτήσεις σχετικά με τον δήμο σου ή τις ειδοποιήσεις σου, απάντησε σε αυτό το μήνυμα.",
+    bodySuffix: "",
+    hasVariable: false,
+    hasLinkPath: false,
+    footer: STOP_FOOTER,
+    buttons: [
+      { label: "Περισσότερα", kind: "url" },
+      { label: "Τι θα λαμβάνω;", kind: "quick_reply" },
     ],
   },
   demos_update_agenda: {
@@ -169,9 +195,15 @@ export function renderTemplate(name: TemplateName, text = ""): RenderedTemplate 
  */
 export type EnrollmentOrigin = "transition" | "signup";
 
-/** Which shell opens the thread, by how the reader entered Notis. */
+/**
+ * Which shell opens the thread, by how the reader entered Notis. A
+ * transition reader was getting the old notification templates and is told
+ * the sender changed; a signup reader asked for this on the site and gets
+ * the confirmation they expect. demos_intro stays in the mirror for the
+ * conversations it opened before notis_intro existed.
+ */
 export function introTemplateFor(origin: EnrollmentOrigin): TemplateName {
-  return origin === "transition" ? "demos_transition" : "demos_intro";
+  return origin === "transition" ? "demos_transition" : "notis_intro";
 }
 
 /**
