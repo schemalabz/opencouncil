@@ -5,7 +5,7 @@ import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
 import { getMeetingSummary } from "@/lib/db/meetingSummary";
-import { getCouncilMeetingsForCity, getCouncilMeetingsWithSubjectPreview, type MeetingListOptions } from "@/lib/db/meetingsList";
+import { getCouncilMeetingsForCity, getCouncilMeetingsWithSubjectPreview, DEFAULT_MEETING_PAGE_SIZE, type MeetingListOptions } from "@/lib/db/meetingsList";
 import { getAdjacentMeetings } from "@/lib/db/adjacentMeetings";
 import { countCityPetitions } from "@/lib/db/petitions";
 import { petitionBucket, type PetitionBucket } from "@/lib/landing/petitions";
@@ -123,7 +123,7 @@ export function bodyFilterKey({ administrativeBodyTypes, administrativeBodyIds }
 
 /** Cache-key fragments for the filters a meeting list query accepts. */
 function meetingListKey(options: MeetingListOptions): string[] {
-  const { limit, page, pageSize = 12, from, to, timeFilter } = options;
+  const { limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, timeFilter } = options;
   return [
     page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all'),
     ...bodyFilterKey(options),
