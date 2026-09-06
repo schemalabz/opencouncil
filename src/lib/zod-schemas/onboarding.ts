@@ -30,6 +30,11 @@ export const saveNotificationPreferencesSchema = z
             coordinates: z.tuple([z.number(), z.number()]),
         })),
         topicIds: z.array(z.string()),
+        // Channel consent, as the signup's delivery step records it. Optional
+        // so older callers (the dev seed route) keep the schema defaults; the
+        // signup flow always sends both.
+        notifyByPhone: z.boolean().optional(),
+        notifyByEmail: z.boolean().optional(),
     })
     .passthrough();
 
