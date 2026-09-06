@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Maximize2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { Loader2, Maximize2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { env } from '@/env.mjs';
-import Map, { type MapFeature } from '@/components/map/map';
+import type { MapFeature } from '@/components/map/map';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import { calculateMapView } from '@/lib/geo';
@@ -13,6 +14,18 @@ import type { Location } from '@/lib/types/onboarding';
 import { cn } from '@/lib/utils';
 
 const STATIC_STYLE = 'https://api.mapbox.com/styles/v1/mapbox/light-v11/static';
+
+// The one dynamic import the signup allows (decision of 2026-09-06): the
+// map library is the heaviest thing on the page and only the sheet needs
+// it, so a reader who never opens the sheet never downloads it.
+const Map = dynamic(() => import('@/components/map/map'), {
+    ssr: false,
+    loading: () => (
+        <div className="flex h-full w-full items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
+        </div>
+    ),
+});
 
 /**
  * The map, quietly: a static image of the municipality and the chosen
