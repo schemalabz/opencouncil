@@ -68,8 +68,10 @@ const UtteranceReferenceLinkComponent = function UtteranceReferenceLink({
     return <span className="text-muted-foreground">{children}</span>;
   }
 
+  // No wrapping element: the expansion below is block content, and a wrapper
+  // <span> around it would be invalid HTML.
   return (
-    <span className="inline">
+    <>
       <a
         onClick={handleClick}
         className={cn(
@@ -93,7 +95,7 @@ const UtteranceReferenceLinkComponent = function UtteranceReferenceLink({
           />
         </div>
       )}
-    </span>
+    </>
   );
 };
 

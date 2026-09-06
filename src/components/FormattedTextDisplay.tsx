@@ -5,6 +5,7 @@ import { useLocale } from "next-intl";
 import { ReferenceType } from "@/lib/utils/references";
 import { Badge } from "./ui/badge";
 import ReactMarkdown from 'react-markdown';
+import type { Element, ElementContent } from 'hast';
 import { UtteranceReferenceLink } from "./meetings/subject/UtteranceReferenceLink";
 import { serbianScriptForLocale, toScript, type SerbianScript } from "@/lib/serbian";
 
@@ -20,6 +21,17 @@ const makeRehypeTransliterate = (script: SerbianScript) => () => (tree: { type: 
         node.children?.forEach((child) => walk(child as { type: string; value?: string; children?: unknown[] }));
     };
     walk(tree);
+};
+
+// True when the subtree holds an utterance reference. Such a reference expands
+// into a mini transcript, which is block content.
+const hasUtteranceReference = (node: Element | ElementContent | undefined): boolean => {
+    if (!node || node.type !== 'element') return false;
+    if (node.tagName === 'a' && typeof node.properties.href === 'string'
+        && node.properties.href.startsWith('REF:UTTERANCE:')) {
+        return true;
+    }
+    return node.children.some(hasUtteranceReference);
 };
 
 interface FormattedTextDisplayProps {
@@ -80,6 +92,16 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
                 urlTransform={(url) => url} // Pass through all URLs unchanged
                 rehypePlugins={rehypePlugins}
                 components={{
+                    // A block element inside a <p> is invalid HTML. Only a paragraph
+                    // that can hold the block-level mini transcript renders as a <div>.
+                    // Every other paragraph stays a <p> and keeps the `prose` styles.
+                    // The margin repeats the paragraph spacing of `prose-sm`.
+                    p: ({ node, children }) => (
+                        !disableUtteranceExpansion && hasUtteranceReference(node)
+                            ? <div className="my-4">{children}</div>
+                            : <p>{children}</p>
+                    ),
+
                     // Custom link renderer to handle REF:TYPE:ID links
                     a: ({ href, children }) => {
                         if (!href || !href.startsWith('REF:')) {
