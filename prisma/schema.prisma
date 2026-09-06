@@ -826,6 +826,10 @@ model User {
   allowProductUpdates  Boolean  @default(true)
   allowPetitionUpdates Boolean  @default(false)
   allowFeedbackCalls   Boolean  @default(true)
+  /// WhatsApp/SMS consent, one per person: Νότης is one conversation, not
+  /// one per municipality. The signup's card and the profile switch write it;
+  /// the notis_fanout_targets view carries it on every row.
+  notifyByPhone        Boolean  @default(true)
   isSuperAdmin  Boolean         @default(false)
   // The retired Notis rollout flag. Unread since PR 5 (every reader is
   // served by Notis); the notis_users and notis_fanout_targets views still
@@ -1055,9 +1059,8 @@ model NotificationPreference {
   city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId    String
   
-  // Channel preferences
+  // The email summary, per municipality. The phone channel is the person's (User.notifyByPhone).
   notifyByEmail Boolean @default(true)
-  notifyByPhone Boolean @default(true)
 
   // Many-to-many relations with locations and topics/interests
   locations Location[] @relation("NotificationLocation")

@@ -4,11 +4,10 @@ import { buildSubmission, channelIssues, initialSignupState, notisActionFor, typ
 const topic = (id: string): Topic =>
     ({ id, name: id, name_en: id, colorHex: '#000', icon: null, description: '', deprecated: false, realm: 'greece' }) as Topic;
 
-const account = { name: 'Μαρία', email: 'maria@example.com', phone: '+306900000001' };
+const account = { name: 'Μαρία', email: 'maria@example.com', phone: '+306900000001', notifyByPhone: true };
 const existing = {
     locations: [{ text: 'Κυψέλη', coordinates: [23.73, 37.99] as [number, number] }],
     topics: [topic('t1')],
-    notifyByPhone: true,
     notifyByEmail: true,
 };
 
@@ -41,6 +40,12 @@ describe('initialSignupState', () => {
         expect(state.emailChannel).toBe(true);
     });
 
+    it("starts the WhatsApp card from the person's one consent, whatever the municipality", () => {
+        const declined = { ...account, notifyByPhone: false };
+        expect(initialSignupState({ initialStep: 2, existing, account: declined, notisStatus: null }).phoneChannel).toBe(false);
+        expect(initialSignupState({ initialStep: 2, existing: null, account: declined, notisStatus: null }).phoneChannel).toBe(false);
+    });
+
     it('does not resubscribe a reader who said ΣΤΟΠ: the WhatsApp card starts unticked, in any municipality', () => {
         const state = initialSignupState({ initialStep: 2, existing, account, notisStatus: 'unsubscribed' });
         expect(state.phoneChannel).toBe(false);
@@ -65,7 +70,7 @@ describe('notisActionFor', () => {
         expect(notisActionFor(ticked, true, null)).toBeNull();
     });
 
-    it('releases a served reader who unticked, and never touches Notis for a signed-out reader', () => {
+    it('releases a served reader who unticked — the card is the profile switch — and never touches Notis for a signed-out reader', () => {
         expect(notisActionFor(unticked, true, 'active')).toBe('release');
         expect(notisActionFor(unticked, true, 'unsubscribed')).toBeNull();
         expect(notisActionFor(ticked, false, 'unsubscribed')).toBeNull();

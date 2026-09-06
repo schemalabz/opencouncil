@@ -4,8 +4,10 @@
 // cannot write the main database.
 //
 // Generate-only: the views are owned by the ROOT prisma migration history
-// (prisma/migrations/20260815120000_notis_views_and_rollout). Never run
-// migrate against this schema.
+// (prisma/migrations/20260815120000_notis_views_and_rollout, and
+// notis_fanout_targets last replaced in 20260906210000_phone_consent_per_user:
+// notifyByPhone is the reader's now, repeated on each of their rows). Never
+// run migrate against this schema.
 
 generator client {
   provider = "prisma-client-js"

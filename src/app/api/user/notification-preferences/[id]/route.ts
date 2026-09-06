@@ -12,12 +12,11 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ id:
     }
 
     const body = await request.json();
-    const { notifyByEmail, notifyByPhone } = body;
+    const { notifyByEmail } = body;
 
     try {
         const updated = await updateNotificationPreferenceChannels(params.id, currentUser.id, {
             ...(notifyByEmail !== undefined && { notifyByEmail }),
-            ...(notifyByPhone !== undefined && { notifyByPhone }),
         });
         return NextResponse.json(updated);
     } catch (error) {

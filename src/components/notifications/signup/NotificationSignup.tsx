@@ -7,7 +7,7 @@ import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/
 import { saveErrorKey } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { saveNotificationPreferences } from '@/lib/actions/notifications';
-import { releaseNotisWithoutPhoneChannel, setNotisEnabled } from '@/lib/actions/notis';
+import { setNotisEnabled } from '@/lib/actions/notis';
 import { captureEvent } from '@/lib/analytics/capture';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import type { Location } from '@/lib/types/onboarding';
@@ -76,8 +76,8 @@ export function NotificationSignup({
                 return { ok: false, error: saveErrorKey(result.error) };
             }
 
-            // The flags are written; now the side Notis owns. A refusal or a
-            // silence must not pass as success: the flags would then claim a
+            // The consent is written; now the side Notis owns. A refusal or a
+            // silence must not pass as success: the consent would then claim a
             // channel that does not exist, and the poller never resurrects a
             // subscription on its own.
             const action = notisActionFor(state, signedIn, notisStatus);
@@ -93,9 +93,9 @@ export function NotificationSignup({
                 }
                 setKnown(notis.subscription?.status === 'active');
             } else if (action === 'release') {
-                // Best effort: the flags already mute the proactive audience, and
-                // the poller reconciles a subscription left behind.
-                await releaseNotisWithoutPhoneChannel();
+                // The unticked card is the profile switch's OFF: best effort, the
+                // consent already mutes the proactive audience.
+                await setNotisEnabled(false);
             }
 
             captureEvent('notification_signup_completed', {

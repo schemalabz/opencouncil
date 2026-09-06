@@ -131,6 +131,7 @@ export default async function TabsLayout(
                         isSuperAdmin={isSuperAdmin}
                         hasNoData={hasNoData}
                         notificationPreference={notificationPreference}
+                        phoneChannel={currentUser?.notifyByPhone ?? false}
                         petitionBucket={petitionBucket}
                         allMeetings={bookends(upcoming[0], past[0])}
                         councilMeetings={bookends(councilUpcoming[0], councilPast[0])}

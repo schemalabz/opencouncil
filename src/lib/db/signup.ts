@@ -24,8 +24,9 @@ export async function getUserSignupCityIds(userId: string): Promise<{
 
 /**
  * What the signup needs of a reader's preference for one municipality: the
- * places with their points, the topics, the two channel flags. One row and
- * one coordinate query, instead of every preference with its city boundary.
+ * places with their points, the topics, the email flag. One row and one
+ * coordinate query, instead of every preference with its city boundary. The
+ * phone channel is the person's, and comes with the account.
  */
 export async function getSignupPreference(userId: string, cityId: string) {
     const preference = await prisma.notificationPreference.findUnique({
@@ -37,7 +38,6 @@ export async function getSignupPreference(userId: string, cityId: string) {
     return {
         locations: withCoordinates(preference.locations, coordinates),
         topics: preference.interests,
-        notifyByPhone: preference.notifyByPhone,
         notifyByEmail: preference.notifyByEmail,
     };
 }

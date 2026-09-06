@@ -191,9 +191,10 @@ for a state on the reader's explicit action.
 
 - **notifyByPhone and the subscription status are two facts, kept aligned
   by the profile switch.** ΣΤΟΠ writes only this database, so a reader who
-  said it still carries `notifyByPhone: true` in the main one; the profile
-  shows the subscription's status, not the flag, so it tells the truth. The
-  other direction is the seam: the flag gates enrollment and the proactive
+  said it still carries `User.notifyByPhone: true` in the main one (one
+  consent per reader, repeated on every row of the view); the profile shows
+  the subscription's status, not the flag, so it tells the truth. The other
+  direction is the seam: the flag gates enrollment and the proactive
   audience but never re-activates anyone — only the switch does, through the
   subscriptions API. `User.notisEnabledAt` and its two view columns are
   unread since PR 5 and go with a view-recreating migration in PR 6.

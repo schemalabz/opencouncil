@@ -89,30 +89,6 @@ export async function findUserByNotificationDeliveryId(
     return delivery?.notification?.user ?? null;
 }
 
-/**
- * Disables phone notifications across all cities for this user.
- * Returns the number of rows actually changed — `0` means the user was
- * already fully unsubscribed.
- */
-export async function unsubscribeUserPhoneFromAllCities(
-    userId: string,
-): Promise<{ changedCount: number }> {
-    const result = await prisma.notificationPreference.updateMany({
-        where: { userId, notifyByPhone: true },
-        data: { notifyByPhone: false },
-    });
-    return { changedCount: result.count };
-}
-
-export const UNSUBSCRIBE_CONFIRMATION_TEXT =
-    'Δεν θα λαμβάνετε πλέον ειδοποιήσεις μέσω τηλεφώνου. Για να τις ενεργοποιήσετε ξανά, συνδεθείτε στο opencouncil.gr/profile?tab=notifications';
-
-// Used when a STOP arrives but no preference rows actually changed — phrased
-// as "you don't receive..." rather than "you've been unsubscribed..." so it
-// reads correctly for users who were never opted in.
-export const UNSUBSCRIBE_ALREADY_TEXT =
-    'Δεν λαμβάνετε ειδοποιήσεις μέσω τηλεφώνου. Για να τις ενεργοποιήσετε ξανά, συνδεθείτε στο opencouncil.gr/profile?tab=notifications';
-
 export const UNSUBSCRIBE_RETRY_TEXT =
     'Παρουσιάστηκε προσωρινό πρόβλημα, παρακαλούμε δοκιμάστε ξανά σε λίγο.';
 

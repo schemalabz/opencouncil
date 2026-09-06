@@ -15,6 +15,7 @@ import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotifi
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
 import { generateEmailContent } from "@/lib/notifications/content";
 import { sendWelcomeEmail } from "@/lib/notifications/welcome";
+import { setNotisSubscription } from "@/lib/notis/client";
 import { IS_DEV } from "@/lib/utils";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 
@@ -46,8 +47,7 @@ export type UserPreference = {
         coordinates: [number, number];
     }[];
     topics?: Topic[];
-    // Channel consent, on notification preferences only.
-    notifyByPhone?: boolean;
+    // The email summary, on notification preferences only; the phone channel is the person's.
     notifyByEmail?: boolean;
 };
 
@@ -198,7 +198,6 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
                     isPetition: false,
                     locations: processedLocations,
                     topics: np.interests,
-                    notifyByPhone: np.notifyByPhone,
                     notifyByEmail: np.notifyByEmail,
                 });
             }
@@ -267,7 +266,11 @@ function sanitizeSeedUser(
 export async function saveNotificationPreferences(data: OnboardingData & {
     locations: { text: string; coordinates: [number, number] }[];
     topicIds: string[];
-    /** Channel consent from the delivery step; omitted by older callers, who keep the defaults. */
+    /**
+     * Channel consent from the delivery step; omitted by older callers, who
+     * keep the defaults. The phone channel is the person's (User.notifyByPhone),
+     * the email summary is this municipality's.
+     */
     notifyByPhone?: boolean;
     notifyByEmail?: boolean;
 }): Promise<Result<NotificationPreference>> {
@@ -415,12 +418,12 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 : undefined;
 
             // Only the channels the caller decided on are written: an older
-            // caller that sends neither leaves an existing row's flags alone
-            // and a new row on the schema defaults.
-            const channels = {
-                ...(notifyByPhone !== undefined ? { notifyByPhone } : {}),
-                ...(notifyByEmail !== undefined ? { notifyByEmail } : {}),
-            };
+            // caller that sends neither leaves the flags alone and a new row on
+            // the schema defaults.
+            const channels = notifyByEmail !== undefined ? { notifyByEmail } : {};
+            if (notifyByPhone !== undefined) {
+                await tx.user.update({ where: { id: userId }, data: { notifyByPhone } });
+            }
 
             const existing = await tx.notificationPreference.findUnique({
                 where: { userId_cityId: { userId, cityId } },
@@ -811,7 +814,7 @@ export async function createNotificationsForMeeting(
             const userPref = userPrefMap.get(userId)!;
             const user = userPref.user;
 
-            if (!userPref.notifyByEmail && !userPref.notifyByPhone) {
+            if (!userPref.notifyByEmail && !user.notifyByPhone) {
                 continue;
             }
 
@@ -1325,12 +1328,13 @@ export async function getUserNotificationPreferences(userId: string) {
 }
 
 /**
- * Update notification channel preferences (email/phone) for a preference
+ * Update the email summary of one preference. The phone channel is the
+ * person's, not the preference's (setNotifyByPhoneForUser).
  */
 export async function updateNotificationPreferenceChannels(
     preferenceId: string,
     userId: string,
-    channels: { notifyByEmail?: boolean; notifyByPhone?: boolean }
+    channels: { notifyByEmail?: boolean }
 ) {
     await requireSelfOrSuperadmin(userId);
     const preference = await prisma.notificationPreference.findUnique({
@@ -1348,30 +1352,19 @@ export async function updateNotificationPreferenceChannels(
 }
 
 /**
- * The reader's phone channel as this database knows it: whether any of
- * their preferences has phone delivery on (the poller's enrollment gate and
- * the fan-out audience filter), and the number it would reach. The
- * subscription itself is Notis's; src/lib/actions/notis.ts joins the two.
+ * The reader's phone channel as this database knows it: their consent (the
+ * poller's enrollment gate and the fan-out audience filter) and the number
+ * it would reach. The subscription itself is Notis's;
+ * src/lib/actions/notis.ts joins the two.
  */
-export async function getPhoneChannelState(userId: string): Promise<{ notifyByPhoneAny: boolean; phone: string | null }> {
-    const [user, enabledCount] = await Promise.all([
-        prisma.user.findUnique({ where: { id: userId }, select: { phone: true } }),
-        prisma.notificationPreference.count({ where: { userId, notifyByPhone: true } }),
-    ]);
-    return { notifyByPhoneAny: enabledCount > 0, phone: user?.phone ?? null };
+export async function getPhoneChannelState(userId: string): Promise<{ notifyByPhone: boolean; phone: string | null }> {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true, notifyByPhone: true } });
+    return { notifyByPhone: user?.notifyByPhone ?? false, phone: user?.phone ?? null };
 }
 
-/**
- * Flip phone delivery on every one of the reader's preferences at once —
- * the profile's single Νότης switch. Per-city phone flags stopped being a
- * control when Notis became per-reader; they stay per row only because the
- * view the poller reads is per row.
- */
+/** The profile's single Νότης switch and the signup's card write the same fact. */
 export async function setNotifyByPhoneForUser(userId: string, enabled: boolean): Promise<void> {
-    await prisma.notificationPreference.updateMany({
-        where: { userId },
-        data: { notifyByPhone: enabled },
-    });
+    await prisma.user.update({ where: { id: userId }, data: { notifyByPhone: enabled } });
 }
 
 /**
@@ -1422,12 +1415,12 @@ export async function getUnsubscribeContext(userId: string, cityId?: string): Pr
             : Promise.resolve(null),
         prisma.user.findUnique({
             where: { id: userId },
-            select: { email: true, allowProductUpdates: true, allowPetitionUpdates: true },
+            select: { email: true, allowProductUpdates: true, allowPetitionUpdates: true, notifyByPhone: true },
         }),
         cityId
             ? prisma.notificationPreference.findUnique({
                 where: { userId_cityId: { userId, cityId } },
-                select: { notifyByEmail: true, notifyByPhone: true },
+                select: { notifyByEmail: true },
             })
             : Promise.resolve(null),
     ]);
@@ -1439,9 +1432,7 @@ export async function getUnsubscribeContext(userId: string, cityId?: string): Pr
         userEmail: user.email,
         allowProductUpdates: user.allowProductUpdates,
         allowPetitionUpdates: user.allowPetitionUpdates,
-        citySubscribed: Boolean(
-            cityPreference && (cityPreference.notifyByEmail || cityPreference.notifyByPhone),
-        ),
+        citySubscribed: Boolean(cityPreference && (cityPreference.notifyByEmail || user.notifyByPhone)),
     };
 }
 
@@ -1451,10 +1442,19 @@ export async function getUnsubscribeContext(userId: string, cityId?: string): Pr
 // unsubscribe context. This module intentionally has no `"use server"`
 // directive, so clients cannot call them directly and bypass the token check.
 export async function disableAllNotificationPreferences(userId: string) {
-    await prisma.notificationPreference.updateMany({
-        where: { userId },
-        data: { notifyByEmail: false, notifyByPhone: false },
-    });
+    await Promise.all([
+        prisma.notificationPreference.updateMany({
+            where: { userId },
+            data: { notifyByEmail: false },
+        }),
+        prisma.user.updateMany({
+            where: { id: userId },
+            data: { notifyByPhone: false },
+        }),
+    ]);
+    // "All" includes Νότης. Best effort: the flag already mutes the proactive
+    // audience, and the reader can still say ΣΤΟΠ to him.
+    await setNotisSubscription(userId, 'unsubscribed');
 }
 
 /**
@@ -1480,7 +1480,7 @@ export async function disableNotificationPreferenceByCityId(userId: string, city
     // time (or whose city preference was already removed) shouldn't see an error.
     await prisma.notificationPreference.updateMany({
         where: { userId, cityId },
-        data: { notifyByEmail: false, notifyByPhone: false },
+        data: { notifyByEmail: false },
     });
 }
 

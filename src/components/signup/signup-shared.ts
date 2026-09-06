@@ -12,6 +12,8 @@ export interface SignupAccount {
     name: string;
     email: string;
     phone: string | null;
+    /** WhatsApp/SMS consent, one per person, not per municipality. */
+    notifyByPhone: boolean;
 }
 
 /** Every reason a flow's last step may refuse to submit; each flow raises its own subset. */
