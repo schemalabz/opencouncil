@@ -1,5 +1,5 @@
 "use client"
-import Map from "@/components/map/map";
+import Map from "@/components/map/DynamicMap";
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { subjectToMapFeature } from "@/lib/utils";
 import { getRealmDefaultMapView } from "@/lib/realm";
