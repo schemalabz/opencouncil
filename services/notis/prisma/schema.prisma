@@ -1,7 +1,9 @@
 // The Notis service's own database: subscriptions, wakes, messages,
 // queue. userId references the main database by id only — no cross-database
-// foreign keys. Rollout state (User.notisEnabledAt) lives in the main
-// database; Notis reads it through the notis_* views (see main-views.prisma).
+// foreign keys. Readers and their preferences live in the main database;
+// Notis reads them through the notis_* views (see main-views.prisma). The
+// views still carry User.notisEnabledAt, the retired rollout flag, which
+// nothing reads any more; it goes with a view-recreating migration later.
 
 generator client {
   provider = "prisma-client-js"

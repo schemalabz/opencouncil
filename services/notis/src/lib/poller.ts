@@ -1,15 +1,31 @@
-import type { MeetingEventRow, PrismaClient as MainViewsClient } from "../../generated/main-client";
+import type {
+  FanoutTargetRow,
+  MeetingEventRow,
+  PrismaClient as MainViewsClient,
+} from "../../generated/main-client";
 import type { Prisma, PrismaClient } from "../../generated/client";
 import { normalizeMobilePhone } from "@opencouncil/ui/lib/phone";
 import { editorialPass } from "@/agent/editorialPass";
 import { seedProfileFromPreferences } from "@/agent/profileSeed";
-import { renderTemplate } from "@/agent/templates";
+import {
+  type EnrollmentOrigin,
+  type TemplateName,
+  introTemplateFor,
+  renderTemplate,
+} from "@/agent/templates";
 import { EditorialBrief, WakeEvent } from "@/agent/types";
+import { env } from "@/env.mjs";
 import { clampToActiveHours, isQuietHour } from "./active-hours";
 import { alert as sendAlert } from "./alert";
 import { BirdLike, realBird } from "./bird";
 import { hasNotisDb, notisDb } from "./db";
 import { buildDeps } from "./deps";
+import {
+  type EnrollmentPacing,
+  enrollmentOriginFor,
+  isHeldForMarketing,
+  parseCutoff,
+} from "./enrollment";
 import { toCityPreferences } from "./fanout";
 import { hasMainDb, mainDb } from "./main-db";
 import { normalizePhone } from "./phone";
@@ -33,7 +49,9 @@ import {
  *
  * Ownership (schema.prisma): notis owns subscription state. This code
  * refreshes phones and unsubscribes when a phone is GONE; it never
- * re-activates anyone, and notifyByPhone is an enrollment-time filter only.
+ * re-activates anyone — that is the subscriptions API's job, on the
+ * reader's explicit action. notifyByPhone gates enrollment and the
+ * proactive audience; it never unsubscribes.
  *
  * Greece-only launch: the Athens quiet-hours clamp is hardcoded. When a
  * second realm ships, timezone (and the MCP origin) come from the meeting
@@ -52,6 +70,10 @@ export interface PollerDeps {
     meetingId: string,
     phase: "agenda" | "summary",
   ) => Promise<{ brief: EditorialBrief; costUsd: number }>;
+  /** Overrides NOTIS_TRANSITION_CUTOFF; null means no cutoff (everyone is a signup). */
+  transitionCutoff?: Date | null;
+  /** Overrides NOTIS_ENROLL_PER_TICK. */
+  enrollPerTick?: number;
 }
 
 export interface PollerResult {
@@ -59,9 +81,13 @@ export interface PollerResult {
   reason?: string;
   enrolled: number;
   introsSent: number;
-  /** Flagged users not enrolled because their phone cannot receive WhatsApp,
-   *  or already belongs to another active subscription. They retry every tick. */
+  /** Readers not enrolled because their phone cannot receive WhatsApp, or
+   *  already belongs to another active subscription, or Meta would refuse
+   *  their intro shell. They retry every tick. */
   enrollmentHeld: number;
+  /** Readers whose turn has not come: transitions beyond this tick's budget,
+   *  and readers whose intro shell has no Bird project id yet. */
+  enrollmentDeferred: number;
   phonesRefreshed: number;
   phoneGoneUnsubscribed: number;
   scheduledFired: number;
@@ -103,6 +129,7 @@ const emptyResult = (ran: boolean, reason?: string): PollerResult => ({
   enrolled: 0,
   introsSent: 0,
   enrollmentHeld: 0,
+  enrollmentDeferred: 0,
   phonesRefreshed: 0,
   phoneGoneUnsubscribed: 0,
   scheduledFired: 0,
@@ -149,13 +176,21 @@ async function tick(
       return { brief, costUsd };
     });
 
+  const pacing: EnrollmentPacing = {
+    transitionCutoff:
+      overrides.transitionCutoff === undefined
+        ? parseCutoff(env.NOTIS_TRANSITION_CUTOFF)
+        : (overrides.transitionCutoff ?? undefined),
+    transitionsPerTick: overrides.enrollPerTick ?? env.NOTIS_ENROLL_PER_TICK,
+  };
+
   const result = emptyResult(true);
 
   if (main) {
-    await enrollNewTargets(db, main, bird, alert, now, result);
+    await enrollNewTargets(db, main, bird, alert, now, pacing, result);
     await reconcileSubscriptions(db, main, now, result);
   }
-  await fireScheduledWakes(db, main, now, rng, result);
+  await fireScheduledWakes(db, now, rng, result);
   if (main) {
     await processMeetingEvents(db, main, alert, now, rng, editorial, opts, result);
   }
@@ -167,23 +202,43 @@ async function tick(
   return result;
 }
 
+interface EnrollmentCandidate {
+  userId: string;
+  rows: FanoutTargetRow[];
+  createdAt: Date;
+  origin: EnrollmentOrigin;
+}
+
+/** Signups first — they were just told Νότης will write — then newest first. */
+function compareCandidates(a: EnrollmentCandidate, b: EnrollmentCandidate): number {
+  if (a.origin !== b.origin) return a.origin === "signup" ? -1 : 1;
+  return b.createdAt.getTime() - a.createdAt.getTime();
+}
+
 /**
- * Phase (a) — enrollment ceremony. A rollout-enabled user with phone
- * delivery on and no subscription (any status — never resurrect) gets one:
- * profile seeded from preferences, origin `transition`, and the
- * demos_transition intro.
+ * Phase (a) — enrollment ceremony. A reader with phone delivery on and no
+ * subscription (any status — never resurrect) gets one: profile seeded from
+ * preferences, an origin that says how they arrived, and that origin's
+ * intro. The account's age against NOTIS_TRANSITION_CUTOFF decides the
+ * origin: an account from before the site stopped routing readers through
+ * the old notification templates is a `transition` (told the sender
+ * changed); a younger one is a `signup` (told what they asked for is done).
  *
- * Three conditions gate the phase, and all three exist to keep enrollment
+ * Signups never wait. Transitions are paced by NOTIS_ENROLL_PER_TICK — the
+ * batches the release panel used to hand out, without the panel — and the
+ * rest report as deferred until a later tick.
+ *
+ * Three conditions gate a ceremony, and all three exist to keep enrollment
  * and its intro inseparable — a subscription is skipped forever once it
  * exists, so a ceremony that commits without delivering leaves that reader
  * permanently silent:
  * - paused: enrolling without the intro recreates the silent-cohort
- *   problem, so flipping a user in the release panel takes effect once the
- *   switch is on;
+ *   problem, so a paused deployment enrolls nobody;
  * - quiet hours: the intro is a cold proactive template like any other and
  *   is held to the 09:00 release rather than sent at 01:00;
  * - an unaddressable template: without its Bird project id every intro
- *   fails non-retryably, so the whole cohort would enroll into silence.
+ *   fails non-retryably, so the readers who need that shell wait and the
+ *   operator hears about it once.
  */
 async function enrollNewTargets(
   db: PrismaClient,
@@ -191,6 +246,7 @@ async function enrollNewTargets(
   bird: BirdLike,
   alert: (message: string) => Promise<void>,
   now: () => Date,
+  pacing: EnrollmentPacing,
   result: PollerResult,
 ): Promise<void> {
   const settings = await getProactiveSettings(db);
@@ -198,12 +254,12 @@ async function enrollNewTargets(
   if (isQuietHour(now())) return;
 
   const targets = await main.fanoutTargetRow.findMany({
-    where: { notisEnabledAt: { not: null }, notifyByPhone: true, phone: { not: null } },
+    where: { notifyByPhone: true, phone: { not: null } },
     orderBy: [{ userId: "asc" }, { cityId: "asc" }],
   });
   if (targets.length === 0) return;
 
-  const byUser = new Map<string, typeof targets>();
+  const byUser = new Map<string, FanoutTargetRow[]>();
   for (const row of targets) {
     const rows = byUser.get(row.userId) ?? [];
     rows.push(row);
@@ -217,18 +273,40 @@ async function enrollNewTargets(
   for (const sub of existing) byUser.delete(sub.userId);
   if (byUser.size === 0) return;
 
-  // Checked with a cohort in hand, not every tick: alerting on an idle
-  // misconfiguration would page every five minutes forever.
-  if (!bird.canSendTemplate("demos_transition")) {
-    await alert(
-      `enrollment held: ${byUser.size} user(s) are ready but the demos_transition template has no Bird project id — enrolling them now would leave them permanently without an intro`,
-    );
-    return;
-  }
-
-  const rendered = renderTemplate("demos_transition");
-  const held: string[] = [];
+  // The account's age decides the origin, and the origin the shell.
+  const users = await main.notisUserRow.findMany({
+    where: { id: { in: [...byUser.keys()] } },
+    select: { id: true, createdAt: true },
+  });
+  const createdAt = new Map(users.map((u) => [u.id, u.createdAt]));
+  const candidates: EnrollmentCandidate[] = [];
   for (const [userId, rows] of byUser) {
+    const created = createdAt.get(userId);
+    // Gone between the two reads: account deletion, the janitor's domain.
+    if (!created) continue;
+    candidates.push({
+      userId,
+      rows,
+      createdAt: created,
+      origin: enrollmentOriginFor(created, pacing.transitionCutoff),
+    });
+  }
+  candidates.sort(compareCandidates);
+
+  let transitionBudget = pacing.transitionsPerTick;
+  const held: string[] = [];
+  const unaddressable = new Set<TemplateName>();
+  for (const { userId, rows, origin } of candidates) {
+    if (origin === "transition" && transitionBudget <= 0) {
+      result.enrollmentDeferred++;
+      continue;
+    }
+    const template = introTemplateFor(origin);
+    if (!bird.canSendTemplate(template)) {
+      unaddressable.add(template);
+      result.enrollmentDeferred++;
+      continue;
+    }
     const raw = normalizePhone(rows[0].phone);
     if (!raw) continue;
     // The last gate before a number that reaches nobody becomes a
@@ -241,6 +319,10 @@ async function enrollNewTargets(
       continue;
     }
     const phone = parsed.e164;
+    if (isHeldForMarketing(template, phone)) {
+      held.push(`${userId} (+1 number while ${template} is a marketing shell)`);
+      continue;
+    }
     const holder = await db.notisSubscription.findFirst({
       where: { phone, status: "active", NOT: { userId } },
       select: { userId: true },
@@ -250,7 +332,7 @@ async function enrollNewTargets(
       continue;
     }
     const cities = toCityPreferences(rows);
-    const at = now();
+    const rendered = renderTemplate(template);
 
     // A plain create, not an upsert: the unique userId is what makes the
     // ceremony run exactly once. Two ticks (a second instance, or the CLI
@@ -260,35 +342,35 @@ async function enrollNewTargets(
     let enrollment: { subId: string; introId: string };
     try {
       enrollment = await db.$transaction(async (tx) => {
-      const sub = await tx.notisSubscription.create({
-        data: {
-          userId,
-          phone,
-          status: "active",
-          origin: "transition",
-          profileText: seedProfileFromPreferences(cities),
-          userName: rows[0].userName,
-        },
-        select: { id: true },
-      });
-      // No decision row: the intro's text reaches the agent through the
-      // conversation (its message row, once sent), and the panel's intro
-      // bubble renders from the subscription's origin.
-      const intro = await tx.notisMessage.create({
-        data: {
-          subscriptionId: sub.id,
-          direction: "outbound",
-          body: rendered.body,
-          channel: "whatsapp",
-          proactive: true,
-          railed: true,
-          deliveryMode: "template",
-          template: "demos_transition",
-          status: "pending",
-        },
-        select: { id: true },
-      });
-      return { subId: sub.id, introId: intro.id };
+        const sub = await tx.notisSubscription.create({
+          data: {
+            userId,
+            phone,
+            status: "active",
+            origin,
+            profileText: seedProfileFromPreferences(cities),
+            userName: rows[0].userName,
+          },
+          select: { id: true },
+        });
+        // No decision row: the intro's text reaches the agent through the
+        // conversation (its message row, once sent), and the panel's intro
+        // bubble renders from the subscription's origin.
+        const intro = await tx.notisMessage.create({
+          data: {
+            subscriptionId: sub.id,
+            direction: "outbound",
+            body: rendered.body,
+            channel: "whatsapp",
+            proactive: true,
+            railed: true,
+            deliveryMode: "template",
+            template,
+            status: "pending",
+          },
+          select: { id: true },
+        });
+        return { subId: sub.id, introId: intro.id };
       });
     } catch (error) {
       // Another tick enrolled this user first; it owns the intro.
@@ -297,6 +379,7 @@ async function enrollNewTargets(
     }
 
     result.enrolled++;
+    if (origin === "transition") transitionBudget--;
     const sub = await db.notisSubscription.findUnique({ where: { id: enrollment.subId } });
     if (sub) {
       await deliverPendingMessage(db, bird, enrollment.introId, sub, alert);
@@ -312,13 +395,25 @@ async function enrollNewTargets(
   if (fresh.length > 0) {
     for (const entry of fresh) heldAlerted.add(entry);
     await alert(
-      `enrollment held for ${fresh.length} flagged user(s) whose phone cannot receive WhatsApp — fix it in the main app and the next tick enrolls them: ${fresh.join(", ")}`,
+      `enrollment held for ${fresh.length} reader(s) whose intro cannot reach them — fix the number in the main app (or wait for the shell's category) and the next tick enrolls them: ${fresh.join(", ")}`,
+    );
+  }
+  // Checked with readers in hand, not every tick, and once per shell per
+  // process: alerting on an idle misconfiguration would page every five
+  // minutes forever.
+  for (const template of unaddressable) {
+    if (unaddressableAlerted.has(template)) continue;
+    unaddressableAlerted.add(template);
+    await alert(
+      `enrollment held: readers are ready but the ${template} template has no Bird project id — enrolling them now would leave them permanently without an intro. Set BIRD_WHATSAPP_TEMPLATE_${template.toUpperCase()} and the next tick enrolls them`,
     );
   }
 }
 
 /** Held-enrollment entries already reported, for the life of the process. */
 const heldAlerted = new Set<string>();
+/** Shells already reported as unaddressable, for the life of the process. */
+const unaddressableAlerted = new Set<TemplateName>();
 
 /**
  * Phase (b) — reconciliation for existing subscriptions: refresh phone and
@@ -368,8 +463,12 @@ async function reconcileSubscriptions(
       continue;
     }
 
+    // The same repair enrollment applies: a number the main app stored
+    // without its country code is refreshed in E.164, and a number that is
+    // not a mobile at all leaves the last good one in place.
+    const parsed = normalizeMobilePhone(newPhone);
     const data: Prisma.NotisSubscriptionUpdateInput = {};
-    if (newPhone !== sub.phone) data.phone = newPhone;
+    if (parsed.ok && parsed.e164 !== sub.phone) data.phone = parsed.e164;
     if (user.name && user.name !== sub.userName) data.userName = user.name;
     if (Object.keys(data).length === 0) continue;
     if (data.phone) result.phonesRefreshed++;
@@ -383,18 +482,9 @@ async function reconcileSubscriptions(
  * 09:00, and enqueued on the batch lane where it coalesces with any
  * meeting events of the same morning. Notes of unsubscribed readers are
  * consumed without a wake — ΣΤΟΠ said stop.
- *
- * A note is also consumed without a wake when the reader was rolled back in
- * the release panel (notisEnabledAt cleared): the old notification path serves
- * them again, so a proactive send here would double-serve. The poller never
- * removes or resurrects the subscription, so this is the only place the
- * scheduled leg learns of a rollback — the fan-out audience query and the
- * inbound webhook already honor it. Fail open when the main DB is unreachable,
- * matching the inbound webhook's stance.
  */
 async function fireScheduledWakes(
   db: PrismaClient,
-  main: MainViewsClient | null,
   now: () => Date,
   rng: () => number,
   result: PollerResult,
@@ -411,18 +501,6 @@ async function fireScheduledWakes(
   });
   const subById = new Map(subs.map((s) => [s.id, s]));
 
-  // Which of these readers still carry the rollout flag. Null means the main
-  // DB is unreachable this tick — fail open (fire the notes) rather than hold
-  // promised follow-ups hostage to a transient outage.
-  let enabledUserIds: Set<string> | null = null;
-  if (main) {
-    const rows = await main.notisUserRow.findMany({
-      where: { id: { in: [...new Set(subs.map((s) => s.userId))] }, notisEnabledAt: { not: null } },
-      select: { id: true },
-    });
-    enabledUserIds = new Set(rows.map((r) => r.id));
-  }
-
   for (const note of due) {
     const sub = subById.get(note.subscriptionId);
     const clamped = clampToActiveHours(now(), rng);
@@ -433,7 +511,6 @@ async function fireScheduledWakes(
       });
       if (fenced.count !== 1) return;
       if (!sub || sub.status === "unsubscribed") return;
-      if (enabledUserIds && !enabledUserIds.has(sub.userId)) return;
       const event: WakeEvent = {
         type: "scheduled",
         at: clamped.toISOString(),
@@ -628,11 +705,13 @@ async function processMeetingEvents(
 
   const upcoming = fresh.slice(0, MAX_EVENTS_PER_TICK);
   // The audience comes straight from the live view: dropping a city from
-  // your preferences (or losing the rollout flag) takes effect this tick.
+  // your preferences, or switching phone delivery off for it, takes effect
+  // this tick. A reader who said ΣΤΟΠ to the old templates carries
+  // notifyByPhone=false and must never be woken for that city.
   const cityTargets = await main.fanoutTargetRow.findMany({
     where: {
       cityId: { in: [...new Set(upcoming.map((r) => r.cityId))] },
-      notisEnabledAt: { not: null },
+      notifyByPhone: true,
     },
   });
   const usersByCity = new Map<string, Set<string>>();

@@ -5,8 +5,8 @@
  *
  *   npx tsx --env-file=.env scripts/send-test-webhook.ts <phone> <text> [url]
  *
- * The phone must belong to a rollout-enabled user (User.notisEnabledAt set)
- * for the agent to answer; any other phone is ignored by design. The url
+ * The phone must belong to a main-app user for the agent to answer; a
+ * stranger's message is ignored by design. The url
  * defaults to http://localhost:3001/api/webhooks/bird. Signs with
  * BIRD_WEBHOOK_SECRET when set; without it the dev server accepts unsigned
  * events anyway.

@@ -193,8 +193,8 @@ export default async function SettingsPage() {
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
               Ο Νότης έχει ΔΙΚΟ του webhook subscription στο Bird (
               <span className="font-mono">/api/webhooks/bird</span>) με δικό του signing key —
-              χωριστό από του κύριου app. Εισερχόμενα εξυπηρετούνται μόνο για χρήστες με
-              ενεργό rollout flag· οι απαντήσεις στέλνονται free-form μέσα στο 24ωρο παράθυρο.
+              χωριστό από του κύριου app. Εισερχόμενα εξυπηρετούνται για κάθε χρήστη του
+              OpenCouncil με αυτό το κινητό· οι απαντήσεις στέλνονται free-form μέσα στο 24ωρο παράθυρο.
               Χωρίς τα τέσσερα BIRD_* το webhook απορρίπτει events σε production και οι
               αποστολές αποτυγχάνουν με ειδοποίηση.
             </p>

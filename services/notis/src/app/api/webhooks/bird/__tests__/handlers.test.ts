@@ -18,12 +18,12 @@ jest.mock("@/lib/main-db", () => ({
   mainDb: jest.fn(),
 }));
 jest.mock("@/lib/fanout", () => ({
-  findEnabledUserByPhone: jest.fn(async () => null),
+  findUserByPhone: jest.fn(async () => null),
   citiesForUser: jest.fn(async () => []),
 }));
 
 import { hasMainDb, mainDb } from "@/lib/main-db";
-import { citiesForUser, findEnabledUserByPhone } from "@/lib/fanout";
+import { citiesForUser, findUserByPhone } from "@/lib/fanout";
 
 
 const SUB: Row = {
@@ -55,11 +55,12 @@ function inbound(overrides: Partial<ExtractedMessageFields> = {}): ExtractedMess
 beforeEach(() => {
   jest.clearAllMocks();
   (hasMainDb as jest.Mock).mockReturnValue(false);
-  (findEnabledUserByPhone as jest.Mock).mockResolvedValue(null);
+  (findUserByPhone as jest.Mock).mockResolvedValue(null);
   (citiesForUser as jest.Mock).mockResolvedValue([]);
-  // When a test flips hasMainDb on, the gate sees an enabled user by default.
+  // When a test flips hasMainDb on, the gate sees a user whose phone it
+  // cannot compare by default.
   (mainDb as jest.Mock).mockReturnValue({
-    notisUserRow: { findUnique: jest.fn(async () => ({ notisEnabledAt: new Date() })) },
+    notisUserRow: { findUnique: jest.fn(async () => ({ phone: null })) },
   });
 });
 
@@ -86,7 +87,7 @@ describe("handleInbound", () => {
     expect(bird.sends).toHaveLength(0);
   });
 
-  it("stays silent for a phone notis does not serve — the main app answers those", async () => {
+  it("stays silent for a phone no reader has", async () => {
     const db = makeFakeDb();
     const bird = new FakeBird();
 
@@ -96,7 +97,7 @@ describe("handleInbound", () => {
       alert: async () => {},
     });
 
-    expect(result).toEqual({ action: "ignored", reason: "not a notis-served phone" });
+    expect(result).toEqual({ action: "ignored", reason: "unknown phone" });
     expect(db.store.messages).toHaveLength(0);
     expect(db.store.subscriptions.size).toBe(0);
     expect(bird.sends).toHaveLength(0);
@@ -121,7 +122,7 @@ describe("handleInbound", () => {
     ]);
   });
 
-  it("does not read a message back for a phone notis does not serve", async () => {
+  it("does not read a message back for a phone no reader has", async () => {
     const db = makeFakeDb();
     const bird = new FakeBird();
     bird.messageBody = "never read";
@@ -131,13 +132,13 @@ describe("handleInbound", () => {
       { db, bird, alert: async () => {} },
     );
 
-    expect(result).toEqual({ action: "ignored", reason: "not a notis-served phone" });
+    expect(result).toEqual({ action: "ignored", reason: "unknown phone" });
     expect(bird.messageReads).toEqual([]);
   });
 
-  it("enrolls a rollout-enabled user on first contact, profile seeded from preferences", async () => {
+  it("enrolls a reader on first contact, profile seeded from preferences", async () => {
     (hasMainDb as jest.Mock).mockReturnValue(true);
-    (findEnabledUserByPhone as jest.Mock).mockResolvedValue({ id: "user9", name: "Νίκος" });
+    (findUserByPhone as jest.Mock).mockResolvedValue({ id: "user9", name: "Νίκος" });
     (citiesForUser as jest.Mock).mockResolvedValue([
       { cityId: "athens", cityName: "Αθήνα", topics: ["Πολεοδομία"], locations: ["Κυψέλη"] },
     ]);
@@ -284,19 +285,18 @@ describe("handleInbound", () => {
     expect(db.store.queue.size).toBe(0);
   });
 
-  it("ignores an existing subscription whose user was rolled back (flag cleared)", async () => {
+  it("ignores an existing subscription whose account is gone", async () => {
     (hasMainDb as jest.Mock).mockReturnValue(true);
     (mainDb as jest.Mock).mockReturnValue({
-      notisUserRow: { findUnique: jest.fn(async () => ({ notisEnabledAt: null })) },
+      notisUserRow: { findUnique: jest.fn(async () => null) },
     });
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     const bird = new FakeBird();
 
     const result = await handleInbound(inbound(), { db, bird, alert: async () => {} });
 
-    // The main app's webhook serves them again — answering here too would
-    // double-reply.
-    expect(result).toEqual({ action: "ignored", reason: "user rolled back to the old path" });
+    // The janitor purges the subscription; until then its number is nobody's.
+    expect(result).toEqual({ action: "ignored", reason: "user no longer exists" });
     expect(db.store.messages).toHaveLength(0);
     expect(db.store.queue.size).toBe(0);
     expect(bird.sends).toHaveLength(0);
@@ -304,7 +304,7 @@ describe("handleInbound", () => {
 
   it("re-enrolls by userId when the phone changed — the message is served, not dropped", async () => {
     (hasMainDb as jest.Mock).mockReturnValue(true);
-    (findEnabledUserByPhone as jest.Mock).mockResolvedValue({ id: "user1", name: "Μαρία" });
+    (findUserByPhone as jest.Mock).mockResolvedValue({ id: "user1", name: "Μαρία" });
     const db = makeFakeDb({ subscriptions: [{ ...SUB, phone: "+306900000001" }] });
 
     const result = await handleInbound(inbound({ phone: "+306999999999", conversationId: "conv-9" }), {
@@ -371,7 +371,7 @@ describe("inbound SMS for served phones", () => {
     expect(db.store.queue.size).toBe(1);
   });
 
-  it("ignores SMS from a phone notis does not serve — the main app owns it", async () => {
+  it("ignores SMS from an unknown phone", async () => {
     const db = makeFakeDb({ subscriptions: [] });
     const bird = new FakeBird();
 
@@ -380,7 +380,7 @@ describe("inbound SMS for served phones", () => {
       { db, bird, alert: async () => {} },
     );
 
-    expect(result).toEqual({ action: "ignored", reason: "sms from a phone notis does not serve" });
+    expect(result).toEqual({ action: "ignored", reason: "sms from an unknown phone" });
     expect(db.store.messages).toHaveLength(0);
     expect(bird.smsSends).toHaveLength(0);
   });
@@ -472,6 +472,36 @@ describe("SMS fallback on failed proactive templates", () => {
     await handleOutboundStatus(failedEvent(), { db, bird });
     expect(bird.smsSends).toHaveLength(1);
     expect(db.store.messages.filter((m) => m.channel === "sms")).toHaveLength(1);
+  });
+
+  it("a Meta throttle failure alerts and sends no SMS — the number was limited, not the reader", async () => {
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    jest.setSystemTime(new Date("2026-03-11T10:00:00.000Z"));
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: LIVE });
+    await seedFailedCandidate(db);
+    const bird = new FakeBird();
+    const alerts: string[] = [];
+
+    await handleOutboundStatus(
+      inbound({
+        birdMessageId: "bm-out",
+        direction: "outbound",
+        status: "failed",
+        failureReason: "131048: Spam rate limit hit",
+      }),
+      {
+        db,
+        bird,
+        alert: async (m) => {
+          alerts.push(m);
+        },
+      },
+    );
+
+    expect(db.store.messages[0]).toMatchObject({ status: "failed", failureReason: "131048: Spam rate limit hit" });
+    expect(bird.smsSends).toHaveLength(0);
+    expect(db.store.messages.filter((m) => m.channel === "sms")).toHaveLength(0);
+    expect(alerts.some((m) => m.includes("throttled") && m.includes("no SMS fallback"))).toBe(true);
   });
 
   it("holds the SMS through quiet hours instead of ringing at 03:00", async () => {
@@ -688,18 +718,14 @@ describe("isForwardProgression", () => {
 });
 
 describe("a phone the reader no longer has", () => {
-  it("stays silent, so the sender is not answered twice", async () => {
-    // The main app's gate looks up User.phone and misses, so it sends its
-    // unsupported-number reply. If notis answered as well — it still matches
-    // its own stored phone — the sender would get two contradictory replies,
-    // on every message.
+  it("stays silent, so a stranger is not answered as the reader", async () => {
+    // The subscription still matches its stored phone, but the account has
+    // moved to a new number: whoever holds the old one now is not the reader,
+    // and must not be served — or unsubscribed — as them.
     (hasMainDb as jest.Mock).mockReturnValue(true);
     (mainDb as jest.Mock).mockReturnValue({
       notisUserRow: {
-        findUnique: async () => ({
-          notisEnabledAt: new Date("2026-08-01"),
-          phone: "+306999999999",
-        }),
+        findUnique: async () => ({ phone: "+306999999999" }),
       },
     });
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
@@ -720,10 +746,7 @@ describe("a phone the reader no longer has", () => {
     (hasMainDb as jest.Mock).mockReturnValue(true);
     (mainDb as jest.Mock).mockReturnValue({
       notisUserRow: {
-        findUnique: async () => ({
-          notisEnabledAt: new Date("2026-08-01"),
-          phone: "+306900000001",
-        }),
+        findUnique: async () => ({ phone: "+306900000001" }),
       },
     });
     // The lookup accepts both forms, so this subscription is found — and the
