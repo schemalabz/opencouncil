@@ -3,8 +3,9 @@ import { enrollmentOriginFor, isHeldForMarketing, parseCutoff } from "../enrollm
 const CUTOFF = new Date("2026-09-10T12:00:00.000Z");
 
 describe("enrollmentOriginFor", () => {
-  it("everyone is a signup when no cutoff is set", () => {
-    expect(enrollmentOriginFor(new Date("2025-01-01"), undefined)).toBe("signup");
+  it("everyone is a paced transition when no cutoff is set, never an unpaced signup", () => {
+    expect(enrollmentOriginFor(new Date("2025-01-01"), undefined)).toBe("transition");
+    expect(enrollmentOriginFor(new Date("2099-01-01"), undefined)).toBe("transition");
   });
 
   it("an account from before the cutoff moves over; one from the cutoff on signed up here", () => {

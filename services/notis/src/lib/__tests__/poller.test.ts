@@ -140,6 +140,8 @@ function signupUser(userId: string, phone: string, createdAt = new Date("2026-09
 }
 
 const CUTOFF = new Date("2026-09-10T00:00:00.000Z");
+/** A cutoff every fake account postdates: with it, each of them is a signup. */
+const LONG_AGO = new Date("2020-01-01T00:00:00.000Z");
 
 function meetingRow(taskId: string, overrides: Row = {}): Row {
   return {
@@ -202,8 +204,8 @@ describe("enrollment", () => {
       alerts.push(m);
     };
 
-    const result = await runPollerTick({ db, main, bird, alert, now });
-    await runPollerTick({ db, main, bird, alert, now });
+    const result = await runPollerTick({ db, main, bird, alert, now, transitionCutoff: LONG_AGO });
+    await runPollerTick({ db, main, bird, alert, now, transitionCutoff: LONG_AGO });
 
     // Enrolling here would burn the cohort: the subscription exists forever
     // after, and every later tick skips it — with no intro ever sent.
@@ -220,12 +222,12 @@ describe("enrollment", () => {
       targets: [target("user9", "athens", { phone: "306999999999" })],
     });
 
-    const result = await runPollerTick({ db, main, bird, alert: async () => {}, now });
+    const result = await runPollerTick({ db, main, bird, alert: async () => {}, now, transitionCutoff: LONG_AGO });
 
     expect(result.enrolled).toBe(1);
     expect(result.introsSent).toBe(1);
     const sub = [...db.store.subscriptions.values()][0];
-    // No cutoff configured: every reader is a signup.
+    // A cutoff from before the account: the reader signed up here.
     expect(sub).toMatchObject({
       userId: "user9",
       origin: "signup",

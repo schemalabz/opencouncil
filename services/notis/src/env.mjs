@@ -30,7 +30,7 @@ export const env = createEnv({
     // When the site stopped routing new readers through the old notification
     // templates (an ISO instant — the production deploy of PR 5). An account
     // from before it enrolls as a transition (demos_transition); a younger one
-    // as a signup (notis_intro). Unset: every reader is a signup.
+    // as a signup (notis_intro). Unset: every reader is a transition, paced.
     NOTIS_TRANSITION_CUTOFF: z.string().datetime({ offset: true }).optional(),
     // How many transition readers one poller tick may enroll — the pacing the
     // release panel's batches used to provide, without the panel. Two per
@@ -93,4 +93,7 @@ export const env = createEnv({
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+  // A blank platform secret (`NOTIS_SERVICE_TOKEN=`) is "unset", not a
+  // token of length zero that fails min(32) and stops the service at boot.
+  emptyStringAsUndefined: true,
 });
