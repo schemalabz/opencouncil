@@ -287,7 +287,12 @@
         "troubleshootingTitle": "Σημειώσεις εγκατάστασης",
         "troubleshootingCSP": "Αν το widget δεν εμφανίζεται, ελέγξτε ότι το Content Security Policy (CSP) του site σας επιτρέπει frame-src από opencouncil.gr.",
         "troubleshootingWordPress": "Σε WordPress, χρησιμοποιήστε Custom HTML block. Σε Joomla, χρησιμοποιήστε module τύπου \"Custom / mod_custom\" με editor σε code view.",
-        "troubleshootingHeight": "Ρυθμίστε το height στον κώδικα ανάλογα με τον αριθμό συνεδριάσεων. Για 5 συνεδριάσεις, 600px είναι καλή αρχή."
+        "troubleshootingHeight": "Ρυθμίστε το height στον κώδικα ανάλογα με τον αριθμό συνεδριάσεων. Για 5 συνεδριάσεις, 600px είναι καλή αρχή.",
+        "typeSummary": "Σύνοψη συνεδρίασης",
+        "summaryMeeting": "Ποια συνεδρίαση",
+        "summaryLatest": "Οι πιο πρόσφατες συνεδριάσεις",
+        "subjectsPerMeeting": "Θέματα ανά συνεδρίαση",
+        "troubleshootingHeightSummary": "Για τη σύνοψη συνεδρίασης υπολογίστε περίπου 450px ύψος ανά συνεδρίαση."
     },
     "EmbedWidget": {
         "subjects": "Θέματα",

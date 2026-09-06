@@ -273,7 +273,12 @@
         "troubleshootingTitle": "Installation notes",
         "troubleshootingCSP": "If the widget doesn't load, check that your site's Content Security Policy (CSP) allows frame-src from opencouncil.gr.",
         "troubleshootingWordPress": "In WordPress, use a Custom HTML block. In Joomla, use a \"Custom / mod_custom\" module with the editor in code view.",
-        "troubleshootingHeight": "Adjust the height value in the code based on the number of meetings. For 5 meetings, 600px is a good starting point."
+        "troubleshootingHeight": "Adjust the height value in the code based on the number of meetings. For 5 meetings, 600px is a good starting point.",
+        "typeSummary": "Meeting summary",
+        "summaryMeeting": "Which meeting",
+        "summaryLatest": "The latest meetings",
+        "subjectsPerMeeting": "Subjects per meeting",
+        "troubleshootingHeightSummary": "For the meeting summary, allow about 450px of height per meeting."
     },
     "EmbedWidget": {
         "subjects": "Subjects",

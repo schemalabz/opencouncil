@@ -287,7 +287,12 @@
     "numberOfSubjects": "Nombre de sujets à afficher",
     "typeMeetings": "Séances",
     "typeSubjects": "Sujets marquants",
-    "widgetType": "Contenu à afficher"
+    "widgetType": "Contenu à afficher",
+    "typeSummary": "Résumé de séance",
+    "summaryMeeting": "Quelle séance",
+    "summaryLatest": "Les dernières séances",
+    "subjectsPerMeeting": "Points par séance",
+    "troubleshootingHeightSummary": "Pour le résumé de séance, prévoyez environ 450px de hauteur par séance."
   },
   "EmbedWidget": {
     "subjects": "Points",

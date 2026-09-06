@@ -273,7 +273,12 @@
         "troubleshootingTitle": "Напомене за инсталацију",
         "troubleshootingCSP": "Ако се виџет не учитава, проверите да ли Content Security Policy (CSP) вашег сајта дозвољава frame-src са opencouncil.gr.",
         "troubleshootingWordPress": "У WordPress-у користите блок Custom HTML. У Joomla-и користите модул \"Custom / mod_custom\" са уређивачем у приказу кода.",
-        "troubleshootingHeight": "Прилагодите вредност висине у коду према броју седница. За 5 седница, 600px је добра почетна вредност."
+        "troubleshootingHeight": "Прилагодите вредност висине у коду према броју седница. За 5 седница, 600px је добра почетна вредност.",
+        "typeSummary": "Сажетак седнице",
+        "summaryMeeting": "Која седница",
+        "summaryLatest": "Најновије седнице",
+        "subjectsPerMeeting": "Теме по седници",
+        "troubleshootingHeightSummary": "За сажетак седнице предвидите око 450px висине по седници."
     },
     "EmbedWidget": {
         "subjects": "Теме",

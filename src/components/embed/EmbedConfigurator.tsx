@@ -11,10 +11,13 @@ import { urlPrefixForLocale } from '@/i18n/config';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
 import { EmbedLocationInput, type EmbedLocation } from '@/components/embed/EmbedLocationInput';
 import { Check, Copy, Code, Sun, Moon } from 'lucide-react';
 import { type EmbedRadius } from '@/lib/utils/embedTheme';
+import { EMBED_SUMMARY_LIMITS } from '@/lib/utils/embedParams';
+import { formatDate } from '@/lib/formatters/time';
 
 /** An admin-body type and its individual bodies that have public meetings. */
 export interface EmbedBodyGroup {
@@ -22,26 +25,48 @@ export interface EmbedBodyGroup {
     bodies: { id: string; name: string; name_en: string }[];
 }
 
+/** A released past meeting the summary widget can be pinned to. */
+export interface EmbedRecentMeeting {
+    id: string;
+    name: string;
+    name_en: string;
+    /** ISO string: crosses the server/client boundary as text. */
+    dateTime: string;
+}
+
+type EmbedWidgetType = 'meetings' | 'subjects' | 'summary';
+
+/** Select value for "the latest meetings" in the summary widget's meeting picker. */
+const LATEST_MEETINGS = 'latest';
+
 interface EmbedConfiguratorProps {
     cityId: string;
     /** City name — biases the location-filter address search. */
     cityName?: string;
+    /** For the dates in the summary widget's meeting picker. */
+    cityTimezone?: string;
     /** Only types/bodies that have released meetings — pre-filtered server-side. */
     bodyGroups: EmbedBodyGroup[];
+    /** Released past meetings, newest first — choices for the summary widget's meeting picker. */
+    recentMeetings: EmbedRecentMeeting[];
 }
 
-export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfiguratorProps) {
+export function EmbedConfigurator({ cityId, cityName, cityTimezone, bodyGroups, recentMeetings }: EmbedConfiguratorProps) {
     const t = useTranslations('EmbedConfigurator');
     const tCommon = useTranslations('Common');
     const locale = useLocale();
 
     // Configuration state
-    const [widgetType, setWidgetType] = useState<'meetings' | 'subjects'>('meetings');
+    const [widgetType, setWidgetType] = useState<EmbedWidgetType>('meetings');
     const [accent, setAccent] = useState('#3b82f6');
     const [mode, setMode] = useState<'light' | 'dark'>('light');
     const [limit, setLimit] = useState(5);
     const [showSubjects, setShowSubjects] = useState(true);
     const [radius, setRadius] = useState<EmbedRadius>('rounded');
+    // Summary widget: a pinned meeting (null = the latest ones), how many of those, and cards per meeting.
+    const [summaryMeetingId, setSummaryMeetingId] = useState<string | null>(null);
+    const [summaryLimit, setSummaryLimit] = useState<number>(EMBED_SUMMARY_LIMITS.meetings.default);
+    const [subjectsPerMeeting, setSubjectsPerMeeting] = useState<number>(EMBED_SUMMARY_LIMITS.subjects.default);
     // Body filter: a single type (level 1) plus an optional specific body (level 2).
     const [selectedType, setSelectedType] = useState<AdministrativeBodyType | null>(null);
     const [selectedBodyId, setSelectedBodyId] = useState<string | null>(null);
@@ -70,6 +95,9 @@ export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfigu
         return () => clearTimeout(timer);
     }, [copied]);
 
+    // A pinned meeting is shown whatever its body; the body filter only narrows "the latest meetings".
+    const bodyFilterApplies = widgetType !== 'summary' || summaryMeetingId === null;
+
     // Build the embed URL
     const embedUrl = useMemo(() => {
         if (!origin) return '';
@@ -77,21 +105,35 @@ export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfigu
         params.set('cityId', cityId);
         if (accent !== '#3b82f6') params.set('accent', accent.replace('#', ''));
         if (mode !== 'light') params.set('mode', mode);
-        if (limit !== 5) params.set('limit', String(limit));
+        if (widgetType === 'summary') {
+            if (summaryMeetingId) {
+                params.set('meetingId', summaryMeetingId);
+            } else if (summaryLimit !== EMBED_SUMMARY_LIMITS.meetings.default) {
+                params.set('limit', String(summaryLimit));
+            }
+            if (subjectsPerMeeting !== EMBED_SUMMARY_LIMITS.subjects.default) {
+                params.set('subjects', String(subjectsPerMeeting));
+            }
+        } else if (limit !== 5) {
+            params.set('limit', String(limit));
+        }
         if (widgetType === 'meetings' && !showSubjects) params.set('showSubjects', 'false');
-        if (widgetType === 'meetings' && radius !== 'rounded') params.set('radius', radius);
+        // The subjects widget's cards have fixed corners.
+        if (widgetType !== 'subjects' && radius !== 'rounded') params.set('radius', radius);
         // A specific body (id) wins over the broader type filter.
-        if (selectedBodyId) {
-            params.set('bodyIds', selectedBodyId);
-        } else if (selectedType) {
-            params.set('bodies', selectedType);
+        if (bodyFilterApplies) {
+            if (selectedBodyId) {
+                params.set('bodyIds', selectedBodyId);
+            } else if (selectedType) {
+                params.set('bodies', selectedType);
+            }
         }
         // Location filter is subjects-only.
         if (widgetType === 'subjects' && geoLocation) {
             params.set('geohash', geoLocation.geohash);
         }
         return `${origin}/${urlPrefixForLocale(locale)}/embed/${widgetType}?${params.toString()}`;
-    }, [origin, locale, cityId, widgetType, accent, mode, limit, showSubjects, radius, selectedType, selectedBodyId, geoLocation]);
+    }, [origin, locale, cityId, widgetType, accent, mode, limit, showSubjects, radius, selectedType, selectedBodyId, geoLocation, bodyFilterApplies, summaryMeetingId, summaryLimit, subjectsPerMeeting]);
 
     const embedCode = `<iframe\n  src="${embedUrl}"\n  width="100%"\n  height="600"\n  frameborder="0"\n  style="border-radius: 8px; border: 1px solid #e5e7eb;"\n  title="OpenCouncil"\n></iframe>`;
 
@@ -126,6 +168,7 @@ export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfigu
                         {([
                             { value: 'meetings', label: t('typeMeetings') },
                             { value: 'subjects', label: t('typeSubjects') },
+                            { value: 'summary', label: t('typeSummary') },
                         ] as const).map((opt) => (
                             <button
                                 key={opt.value}
@@ -178,20 +221,76 @@ export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfigu
                     />
                 </div>
 
-                {/* Number of cards */}
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                        <Label>{widgetType === 'subjects' ? t('numberOfSubjects') : t('numberOfMeetings')}</Label>
-                        <span className="text-sm font-medium tabular-nums">{limit}</span>
+                {/* Meeting picker — summary widget only */}
+                {widgetType === 'summary' && (
+                    <div className="space-y-2">
+                        <Label>{t('summaryMeeting')}</Label>
+                        <Select
+                            value={summaryMeetingId ?? LATEST_MEETINGS}
+                            onValueChange={(value) => setSummaryMeetingId(value === LATEST_MEETINGS ? null : value)}
+                        >
+                            <SelectTrigger>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value={LATEST_MEETINGS}>{t('summaryLatest')}</SelectItem>
+                                {recentMeetings.map((meeting) => (
+                                    <SelectItem key={meeting.id} value={meeting.id}>
+                                        {getLocalizedName(meeting, locale)} · {formatDate(new Date(meeting.dateTime), cityTimezone, locale)}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <Slider
-                        value={[limit]}
-                        onValueChange={([v]) => setLimit(v)}
-                        min={1}
-                        max={10}
-                        step={1}
-                    />
-                </div>
+                )}
+
+                {/* Number of cards — for the summary widget, how many of the latest meetings */}
+                {widgetType !== 'summary' ? (
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <Label>{widgetType === 'subjects' ? t('numberOfSubjects') : t('numberOfMeetings')}</Label>
+                            <span className="text-sm font-medium tabular-nums">{limit}</span>
+                        </div>
+                        <Slider
+                            value={[limit]}
+                            onValueChange={([v]) => setLimit(v)}
+                            min={1}
+                            max={10}
+                            step={1}
+                        />
+                    </div>
+                ) : summaryMeetingId === null && (
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <Label>{t('numberOfMeetings')}</Label>
+                            <span className="text-sm font-medium tabular-nums">{summaryLimit}</span>
+                        </div>
+                        <Slider
+                            value={[summaryLimit]}
+                            onValueChange={([v]) => setSummaryLimit(v)}
+                            min={EMBED_SUMMARY_LIMITS.meetings.min}
+                            max={EMBED_SUMMARY_LIMITS.meetings.max}
+                            step={1}
+                        />
+                    </div>
+                )}
+
+                {/* Subject cards per meeting — summary widget only */}
+                {widgetType === 'summary' && (
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                            <Label>{t('subjectsPerMeeting')}</Label>
+                            <span className="text-sm font-medium tabular-nums">{subjectsPerMeeting}</span>
+                        </div>
+                        <Slider
+                            value={[subjectsPerMeeting]}
+                            onValueChange={([v]) => setSubjectsPerMeeting(v)}
+                            min={EMBED_SUMMARY_LIMITS.subjects.min}
+                            max={EMBED_SUMMARY_LIMITS.subjects.max}
+                            step={1}
+                        />
+                    </div>
+                )}
 
                 {/* Location filter — subjects widget only */}
                 {widgetType === 'subjects' && (
@@ -218,8 +317,8 @@ export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfigu
                     </div>
                 )}
 
-                {/* Border radius — subjects cards have fixed corners, so meetings-only */}
-                {widgetType === 'meetings' && (
+                {/* Border radius — subjects cards have fixed corners, so not for that widget */}
+                {widgetType !== 'subjects' && (
                 <div className="space-y-2">
                     <Label>{t('borderRadius')}</Label>
                     <div className="flex gap-2">
@@ -241,16 +340,18 @@ export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfigu
                 )}
 
                 {/* Administrative body filter — type (level 1) + specific body (level 2) */}
-                <AdminBodyPicker
-                    groups={bodyPickerGroups}
-                    selectedType={selectedType}
-                    onTypeChange={type => { setSelectedType(type); setSelectedBodyId(null); }}
-                    selectedBodyId={selectedBodyId}
-                    onBodyChange={setSelectedBodyId}
-                    allTypesLabel={tCommon('allMeetings')}
-                    allBodiesLabel={tCommon('allBodies')}
-                    label={t('administrativeBodies')}
-                />
+                {bodyFilterApplies && (
+                    <AdminBodyPicker
+                        groups={bodyPickerGroups}
+                        selectedType={selectedType}
+                        onTypeChange={type => { setSelectedType(type); setSelectedBodyId(null); }}
+                        selectedBodyId={selectedBodyId}
+                        onBodyChange={setSelectedBodyId}
+                        allTypesLabel={tCommon('allMeetings')}
+                        allBodiesLabel={tCommon('allBodies')}
+                        label={t('administrativeBodies')}
+                    />
+                )}
 
                 {/* Embed code */}
                 <div className="space-y-2">
@@ -290,7 +391,7 @@ export function EmbedConfigurator({ cityId, cityName, bodyGroups }: EmbedConfigu
                     <ul className="list-disc pl-4 space-y-1 text-xs">
                         <li>{t('troubleshootingCSP')}</li>
                         <li>{t('troubleshootingWordPress')}</li>
-                        <li>{t('troubleshootingHeight')}</li>
+                        <li>{widgetType === 'summary' ? t('troubleshootingHeightSummary') : t('troubleshootingHeight')}</li>
                     </ul>
                 </div>
             </div>
