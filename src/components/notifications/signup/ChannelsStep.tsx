@@ -4,10 +4,10 @@ import Image from 'next/image';
 import { Mail } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
+import { CheckboxCard } from '@/components/ui/checkbox-card';
 import { Label } from '@/components/ui/label';
 import { PhoneField, type PhoneFieldValidity } from '@/components/ui/phone-field';
 import { AccountFields } from '@/components/signup/AccountFields';
-import { CardCheckbox } from '@/components/signup/CardCheckbox';
 import { IssuesAlert, signInHrefFor } from '@/components/signup/IssuesAlert';
 import { StepHeading } from '@/components/signup/SignupChrome';
 import type { SignupIssue } from '@/components/signup/signup-shared';
@@ -46,10 +46,10 @@ export function ChannelsStep({
             <IssuesAlert saveError={saveError} issues={issues} signInHref={signInHrefFor(state.email)} />
 
             <div className="mt-5 flex flex-col gap-3">
-                <CardCheckbox
+                <CheckboxCard
                     checked={state.phoneChannel}
-                    onToggle={() => onChange({ phoneChannel: !state.phoneChannel })}
-                    title={t('phoneChannel')}
+                    onCheckedChange={(phoneChannel) => onChange({ phoneChannel })}
+                    label={t('phoneChannel')}
                     badge={t('recommended')}
                 >
                     <div className="flex items-center gap-2.5 pb-3">
@@ -78,12 +78,12 @@ export function ChannelsStep({
                         />
                     </div>
                     <p className="mt-1.5 text-xs leading-[1.4] text-muted-foreground">{t('phoneHint')}</p>
-                </CardCheckbox>
+                </CheckboxCard>
 
-                <CardCheckbox
+                <CheckboxCard
                     checked={state.emailChannel}
-                    onToggle={() => onChange({ emailChannel: !state.emailChannel })}
-                    title={t('emailChannel')}
+                    onCheckedChange={(emailChannel) => onChange({ emailChannel })}
+                    label={t('emailChannel')}
                     description={t('emailChannelBlurb')}
                     icon={<Mail className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />}
                 />

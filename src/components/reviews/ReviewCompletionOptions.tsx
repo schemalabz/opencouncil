@@ -73,23 +73,26 @@ export function ReviewCompletionOptions({
                     onCheckedChange={setRunSummarize}
                     label={t('runSummarize.label')}
                     description={
+                        // Spans, not paragraphs: the description sits inside the card's label.
                         <>
-                            <p>{t('runSummarize.help')}</p>
-                            {!canSummarize && <p>{t(`runSummarize.unavailable.${summarizeAvailability}`)}</p>}
+                            <span className="block">{t('runSummarize.help')}</span>
+                            {!canSummarize && (
+                                <span className="block">{t(`runSummarize.unavailable.${summarizeAvailability}`)}</span>
+                            )}
                             {/* One outcome line, and only for a send the reviewer asked
                                 for. Before release the warning replaces the plain AUTO
                                 line, which describes the same single send */}
                             {canSummarize && runSummarize && (
                                 notifiesBeforeRelease ? (
-                                    <p className="flex items-start gap-1.5 text-amber-600 dark:text-amber-500">
+                                    <span className="flex items-start gap-1.5 text-amber-600 dark:text-amber-500">
                                         <Bell className="h-4 w-4 shrink-0 mt-0.5" />
                                         <span>{t('runSummarize.notifications.beforeRelease')}</span>
-                                    </p>
+                                    </span>
                                 ) : (
-                                    <p className={cn('flex items-start gap-1.5', notification.className)}>
+                                    <span className={cn('flex items-start gap-1.5', notification.className)}>
                                         <NotificationIcon className="h-4 w-4 shrink-0 mt-0.5" />
                                         <span>{t(`runSummarize.notifications.${notification.key}`)}</span>
-                                    </p>
+                                    </span>
                                 )
                             )}
                         </>
@@ -103,12 +106,12 @@ export function ReviewCompletionOptions({
                         label={t('sendTranscript.label')}
                         description={
                             <>
-                                <p>{t('sendTranscript.help', {
+                                <span className="block">{t('sendTranscript.help', {
                                     toEmail: primaryEmail,
                                     bodyName: administrativeBodyName ?? '',
-                                })}</p>
+                                })}</span>
                                 {ccEmails.length > 0 && (
-                                    <p>{t('sendTranscript.cc', { ccEmails: ccEmails.join(', ') })}</p>
+                                    <span className="block">{t('sendTranscript.cc', { ccEmails: ccEmails.join(', ') })}</span>
                                 )}
                             </>
                         }
