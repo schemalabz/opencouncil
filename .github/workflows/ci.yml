@@ -76,7 +76,7 @@ jobs:
       - run: npm run prisma:generate -w notis
 
       # The suites CI could not previously see: view/grant contracts
-      # (notis-views, notis-rollout, notis-exclusion), queue claims
+      # (notis-views, notis-exclusion), queue claims
       # (notis-queue), migration replay, and the notification paths.
       # Serially: parallel testcontainers flake under contention (observed
       # locally — 9 spurious failures hot, 0 after warmup); CI runners are

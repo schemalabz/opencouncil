@@ -137,7 +137,7 @@ describe('notis views migration', () => {
         ])
     })
 
-    test('notis_fanout_targets carries the rollout flag without filtering on it', async () => {
+    test('notis_fanout_targets still carries the retired rollout flag, unfiltered, until PR 6 drops it', async () => {
         const city = await createCity({ id: 'nv_city' })
         const enabledAt = new Date('2026-08-01T00:00:00Z')
         const user = await createUser('enabled@example.com', {

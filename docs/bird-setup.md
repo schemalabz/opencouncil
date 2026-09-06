@@ -177,11 +177,11 @@ The most common causes are:
 - ngrok was restarted and the URL on the Bird subscription is stale (update it).
 - Your `.env` was loaded before you set `BIRD_WEBHOOK_SECRET` — restart `npm run dev`.
 
-## The Notis webhook subscription (rollout)
+## The Notis webhook subscription
 
-The Notis service (`services/notis`) carries its own inbound WhatsApp path.
-During the rollout, register a SECOND webhook subscription beside the one
-from Step 9:
+The Notis service (`services/notis`) carries the inbound WhatsApp path for
+every reader. It has a SECOND webhook subscription beside the one from
+Step 9:
 
 | Field | Value |
 |---|---|
@@ -190,14 +190,14 @@ from Step 9:
 | **Service** | `Conversations` |
 | **Events** | `conversation.created`, `conversation.updated` |
 
-Both subscriptions receive every conversation event. Each service filters to
-the users it serves:
+Both subscriptions receive every conversation event:
 
-- Notis answers users with `notisEnabledAt` set. It also reconciles the
-  delivery status of its own sends.
-- The main app answers everyone else (the unsubscribe flow and the
-  "replies not supported" auto-reply). It skips notis-served users, so one
-  inbound message never draws two replies.
+- Notis answers every reader: it enrolls a main-app user on their first
+  message, serves ΣΤΟΠ and every reply, and reconciles the delivery status
+  of its own sends. A message from a phone no reader has is ignored.
+- The main app only reconciles the delivery status of the messages it sent
+  itself (the admin test-send tools). It answers nobody, so one inbound
+  message never draws two replies.
 
 > **Production only.** Register webhook subscriptions for production, not
 > for staging. Bird sends every event to every subscription in the
