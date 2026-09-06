@@ -81,7 +81,7 @@ The notification creation process should produce two statistics to inform of its
 
 ### Notification Deliveries
 
-NotificationDeliveries represent the actual sending of notifications to users through specific channels (email or message). The delivery process consists of two phases: **creation** and **sending**.
+NotificationDeliveries represent the sending of a notification to a user through a channel. This app creates **email deliveries only**. WhatsApp and SMS are the channel of the Notis service (`services/notis`), which reads the notifications and the preferences through database views; see [`services/notis/README.md`](../services/notis/README.md). The delivery process consists of two phases: **creation** and **sending**.
 
 **Delivery Lifecycle:**
 1. All NotificationDeliveries are initially created with `pending` status
@@ -92,8 +92,8 @@ NotificationDeliveries represent the actual sending of notifications to users th
 #### Creating Notification Deliveries
 
 **Delivery Types Created:**
-- **Email delivery**: Always created for every notification
-- **Message delivery**: Created additionally if the user has provided a phone number
+- **Email delivery**: Created when the preference has `notifyByEmail`
+- **Phone channel**: No delivery row. A preference with `notifyByPhone` and no email produces a notification with zero deliveries, and the Notis service serves it.
 
 **Email Notification Content:**
 - **Title format**: `OpenCouncil {municipalityName}: {adminBody} - {date}`
@@ -102,43 +102,17 @@ NotificationDeliveries represent the actual sending of notifications to users th
   - Navigation buttons (top and bottom) linking to the notification view page
 - **Future enhancement**: LLM-generated titles incorporating keywords from the most important subjects
 
-**Message Notification Content:**
-- **Title**: Not set (unused for messages)
-- **Body**: Text content used only for SMS fallback delivery
-  - WhatsApp uses pre-approved templates instead of this body content
-
 #### Sending Notification Deliveries
 
 **Email Delivery Process:**
 - Sent using Resend service
 - Uses the title and body content created during delivery creation
 
-**Message Delivery Process:**
-- **Service**: All message delivery (WhatsApp and SMS) is handled through Bird
-- **WhatsApp-first approach**: 
-  - Attempts WhatsApp delivery using pre-approved templates configured in Bird
-  - Falls back to SMS via Bird if WhatsApp fails (e.g., user doesn't have WhatsApp on that number)
-
-**WhatsApp Template System:**
-WhatsApp requires pre-approved templates for users who haven't messaged us in the last 24 hours (we always assume this case). We have two template types configured in Bird:
-
-1. **Before Meeting Template** - for `beforeMeeting` notifications  
-2. **After Meeting Template** - for `afterMeeting` notifications
-
-**Template Parameters:**
-Both templates take exactly the same parameters.
-- `date`: Meeting date
-- `cityName`: City name (e.g., "Athens")  
-- `subjectsSummary`: Comma-separated subject titles
-- `adminBody`: Administrative body name
-- `notificationId`: Used for redirect button to `opencouncil.gr/notifications/{notificationId}`
-
-**SMS Fallback:**
-If WhatsApp delivery fails, the system uses SMS with the body content created during delivery creation.
+**Phone channel:**
+The Notis service owns the WhatsApp templates, the WhatsApp-first delivery with SMS fallback, the quiet hours, and the ΣΤΟΠ ceremony. Its README documents them. The release step marks a `message` delivery row from before the switch as `skipped`. The Bird webhook in this app reconciles only the status of the messages this app sent before the switch.
 
 **Delivery Status Updates:**
 - Successful sending updates the delivery `status` field
-- For message deliveries, also sets `messageSentVia` (whatsapp/sms) to track the actual delivery method
 
 ### Administrative Body Notification Behavior Flow
 
@@ -282,45 +256,33 @@ const stats = await createNotificationsForMeeting(
 
 ### 7. User Notification Preferences
 
-#### Simple Profile Integration
+#### Signup
 
-Add basic notification management to existing `src/app/[locale]/(other)/profile/page.tsx`:
+`/{cityId}/notifications` is a three-step flow on one narrow column, built for a phone (`src/components/notifications/signup/`):
 
-**New Component**: `src/components/profile/NotificationPreferencesSection.tsx`
-- **Show Active Cities**: Simple list of cities where user has notification preferences
-- **Per-City Actions**:
-  - "Edit" button → redirects to existing `/{cityId}/notifications` UI
-  - "Unsubscribe" button → deletes `NotificationPreference` record for that city
+1. **Intro**: what Νότης is, with the municipality preselected and a playable example conversation.
+2. **Preferences**: locations and topics. `?step=2` deep-links here. The municipality picker at `/notifications` and the subscribed card on the city page use it.
+3. **Channels**: a WhatsApp/SMS card with the phone number inside (`notifyByPhone`), an email summary card (`notifyByEmail`), and the account fields for a signed-out reader.
 
-**Layout**:
-```typescript
-// Cities with Notifications Enabled:
-// 📍 Athens          [Edit Preferences] [Unsubscribe]
-// 📍 Thessaloniki    [Edit Preferences] [Unsubscribe]
-// 
-// [+ Add notifications for another city]
-```
+`saveNotificationPreferences()` persists the two channel flags. A reader who said ΣΤΟΠ to Νότης starts with the WhatsApp card unticked. Only an explicit tick re-activates them, through the Notis API (`src/lib/actions/notis.ts`).
 
-#### Leverage Existing Infrastructure
+The completion screen shows the real first message (`notis_intro`) and says when it arrives. The Notis poller sends it on its next tick; the main app sends a welcome email only.
 
-**Reuse Existing UI**: 
-- All preference editing happens in existing `/{cityId}/notifications` → `OnboardingPageContent` flow
-- Keep existing location map interface and topic selection exactly as-is
-- Use existing `saveNotificationPreferences()` and `getUserPreferences()` functions
+`/notifications` lists the municipalities that support notifications. A tap lands on step 2 of that municipality's signup.
 
-**Profile Integration**:
-- Simple collapsible section alongside existing `UserInfoForm`
-- Load data using existing `getUserPreferences()` 
-- Unsubscribe action uses existing API patterns
+#### Profile
 
-#### Unsubscribe Implementation
+`src/components/profile/NotificationPreferencesSection.tsx`:
+- **Νότης switch**: one switch for the WhatsApp channel of the whole account (`NotisSwitch.tsx`). It reads the subscription status from the Notis API and falls back to `notifyByPhone` while enrollment is pending. Off writes the flags first, then tells Notis. On asks Notis first, so a refused number never leaves the flags on. Notis unreachable freezes the switch on its last known state.
+- **Per-city rows**: topics and locations, an email checkbox (`notifyByEmail`), edit (step 2 of the signup), delete.
+- **History**: past notifications with their delivery statuses.
 
-**Email Unsubscribe Links**: 
-- TODO
+#### Unsubscribe
 
-**Profile Unsubscribe**:
-- Delete button per city removes `NotificationPreference` record
-- Simple confirmation dialog: "Stop receiving notifications from Athens?"
+- **ΣΤΟΠ on WhatsApp**: Notis unsubscribes the reader and keeps their preferences. The profile switch shows the subscription status, so it shows off.
+- **Profile switch off**: `notifyByPhone=false` on every preference, then Notis `unsubscribed`.
+- **Delete per city**: removes the `NotificationPreference` record after a confirmation dialog.
+- **Email unsubscribe links**: TODO
 
 ### 8. API Endpoints
 
