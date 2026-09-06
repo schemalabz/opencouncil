@@ -488,34 +488,6 @@ export async function getAllCitiesMinimal(realm?: Realm): Promise<CityMinimalWit
     }
 }
 
-const citySupportingNotificationsSelect = {
-    id: true,
-    name: true,
-    name_en: true,
-    name_municipality: true,
-    name_municipality_en: true,
-    logoImage: true,
-    status: true,
-    authorityType: true,
-} satisfies Prisma.CitySelect;
-
-export type CitySupportingNotifications = Prisma.CityGetPayload<{
-    select: typeof citySupportingNotificationsSelect;
-}>;
-
-/**
- * The municipalities a reader can sign up for notifications in — the
- * /notifications picker. Every row is a city Νότης serves, so the picker
- * needs no client-side filter and no search for a list this short.
- */
-export async function getCitiesSupportingNotifications(realm: Realm): Promise<CitySupportingNotifications[]> {
-    return prisma.city.findMany({
-        where: { realm, supportsNotifications: true },
-        select: citySupportingNotificationsSelect,
-        orderBy: CITY_ORDER_BY,
-    });
-}
-
 /**
  * All city ids regardless of status. Used to validate route cityId params
  * against the known set before any per-city cached query runs, so junk slugs
