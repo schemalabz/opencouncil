@@ -1,10 +1,9 @@
 import { z } from 'zod';
-import { AuthorityType, CityStatus, PeopleOrdering, HighlightCreationPermission, CityLanguage, Realm } from '@prisma/client';
+import { AuthorityType, CityStatus, HighlightCreationPermission, CityLanguage, Realm } from '@prisma/client';
 
 // Prisma enum schemas - use nativeEnum for type safety
 export const authorityTypeSchema = z.nativeEnum(AuthorityType);
 export const cityStatusSchema = z.nativeEnum(CityStatus);
-export const peopleOrderingSchema = z.nativeEnum(PeopleOrdering);
 export const highlightCreationPermissionSchema = z.nativeEnum(HighlightCreationPermission);
 export const cityLanguageSchema = z.nativeEnum(CityLanguage);
 export const realmSchema = z.nativeEnum(Realm);
@@ -26,7 +25,6 @@ export const CITY_DEFAULTS = {
   authorityType: 'municipality' as AuthorityType,
   supportsNotifications: false,
   consultationsEnabled: false,
-  peopleOrdering: 'default' as PeopleOrdering,
   highlightCreationPermission: 'ADMINS_ONLY' as HighlightCreationPermission,
   language: 'el' as CityLanguage,
   realm: 'greece' as Realm,
@@ -60,7 +58,6 @@ export const baseCityFields = {
   status: cityStatusSchema,
   supportsNotifications: z.boolean(),
   consultationsEnabled: z.boolean(),
-  peopleOrdering: peopleOrderingSchema,
   highlightCreationPermission: highlightCreationPermissionSchema,
   language: cityLanguageSchema,
   realm: realmSchema,

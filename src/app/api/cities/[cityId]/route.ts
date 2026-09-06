@@ -83,7 +83,6 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
             ...(data.authorityType !== undefined && { authorityType: data.authorityType }),
             ...(data.supportsNotifications !== undefined && { supportsNotifications: data.supportsNotifications }),
             ...(data.consultationsEnabled !== undefined && { consultationsEnabled: data.consultationsEnabled }),
-            ...(data.peopleOrdering !== undefined && { peopleOrdering: data.peopleOrdering }),
             ...(data.highlightCreationPermission !== undefined && { highlightCreationPermission: data.highlightCreationPermission }),
             ...(data.diavgeiaUid !== undefined && { diavgeiaUid: data.diavgeiaUid || null }),
         }

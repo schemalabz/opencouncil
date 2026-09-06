@@ -114,7 +114,6 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             status: city?.status || CITY_DEFAULTS.status,
             supportsNotifications: city?.supportsNotifications ?? CITY_DEFAULTS.supportsNotifications,
             consultationsEnabled: city?.consultationsEnabled ?? CITY_DEFAULTS.consultationsEnabled,
-            peopleOrdering: city?.peopleOrdering || CITY_DEFAULTS.peopleOrdering,
             highlightCreationPermission: city?.highlightCreationPermission || CITY_DEFAULTS.highlightCreationPermission,
             diavgeiaUid: city?.diavgeiaUid || '',
             language: city?.language || CITY_DEFAULTS.language,
@@ -149,7 +148,6 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         formData.append('supportsNotifications', values.supportsNotifications.toString())
         formData.append('consultationsEnabled', values.consultationsEnabled.toString())
         formData.append('highlightCreationPermission', values.highlightCreationPermission)
-        formData.append('peopleOrdering', values.peopleOrdering)
         formData.append('diavgeiaUid', values.diavgeiaUid || '')
         formData.append('language', values.language)
         formData.append('realm', values.realm)
@@ -374,32 +372,6 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                             </FormItem>
                         )}
                     />
-                    {city && (
-                        <FormField
-                            control={form.control}
-                            name="peopleOrdering"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{t('peopleOrdering')}</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value || "default"}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder={t('selectOrderingMethod')} />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="default">{t('defaultOrdering')}</SelectItem>
-                                            <SelectItem value="partyRank">{t('partyRankOrdering')}</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormDescription>
-                                        {t('peopleOrderingDescription')}
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    )}
                     <FormField
                         control={form.control}
                         name="diavgeiaUid"
