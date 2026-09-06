@@ -27,6 +27,7 @@ Deep dives into specific features — architecture, data flow, and implementatio
 - **[guides/consultations.md](./guides/consultations.md)** — Public consultation feature: regulation viewer, comments, geo-editor, JSON schema
 - **[guides/meeting-highlights.md](./guides/meeting-highlights.md)** — Video highlight generation: multi-page flow, video formats (16:9, 9:16), rendering
 - **[guides/qr-campaigns.md](./guides/qr-campaigns.md)** — QR code redirect system with UTM tracking and analytics
+- **[guides/embed-widgets.md](./guides/embed-widgets.md)** — Iframe widgets for external sites: the meetings, hot subjects and meeting summary widgets, their params, theming, caching and the configurator
 - **[guides/serbian-localization.md](./guides/serbian-localization.md)** — Serbian dual-script support: Cyrillic-canonical catalogs, generated Latin, render-time transliteration, glossary, and the native-review workflow gating the serbia realm launch
 
 ## Operations & Infrastructure
