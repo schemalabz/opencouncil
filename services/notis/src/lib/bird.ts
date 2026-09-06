@@ -104,6 +104,8 @@ export function templateProjectId(name: TemplateName): string | undefined {
       return env.BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION;
     case "demos_intro":
       return env.BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO;
+    case "notis_intro":
+      return env.BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO;
     case "demos_update_agenda":
       return env.BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA;
     case "demos_update_news":
