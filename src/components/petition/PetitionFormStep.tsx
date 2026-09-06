@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PhoneField, type PhoneFieldValidity } from '@/components/ui/phone-field';
 import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { CheckboxCard } from '@/components/ui/checkbox-card';
 import { AccountFields } from '@/components/signup/AccountFields';
-import { CardCheckbox } from '@/components/signup/CardCheckbox';
 import { IssuesAlert, signInHrefFor } from '@/components/signup/IssuesAlert';
 import { Eyebrow, StepHeading } from '@/components/signup/SignupChrome';
 import type { SignupIssue } from '@/components/signup/signup-shared';
@@ -60,22 +60,22 @@ export function PetitionFormStep({
                     </div>
                 )}
                 <div className="flex flex-col gap-3">
-                    <CardCheckbox
+                    <CheckboxCard
                         checked={state.isResident}
-                        onToggle={() => onChange({ isResident: !state.isResident })}
-                        title={t('isResident')}
+                        onCheckedChange={(isResident) => onChange({ isResident })}
+                        label={t('isResident')}
                         description={t(authorityKey('isResidentHint', city))}
                     />
-                    <CardCheckbox
+                    <CheckboxCard
                         checked={state.isCitizen}
-                        onToggle={() => onChange({ isCitizen: !state.isCitizen })}
-                        title={t('isCitizen')}
+                        onCheckedChange={(isCitizen) => onChange({ isCitizen })}
+                        label={t('isCitizen')}
                         description={t(authorityKey('isCitizenHint', city))}
                     />
-                    <CardCheckbox
+                    <CheckboxCard
                         checked={state.other}
-                        onToggle={() => onChange({ other: !state.other })}
-                        title={t('isOther')}
+                        onCheckedChange={(other) => onChange({ other })}
+                        label={t('isOther')}
                         description={t('isOtherHint')}
                     >
                         <Input
@@ -88,7 +88,7 @@ export function PetitionFormStep({
                             autoFocus
                             className="h-11 text-base md:text-sm"
                         />
-                    </CardCheckbox>
+                    </CheckboxCard>
                 </div>
             </section>
 
