@@ -8,6 +8,7 @@ import { Transcript } from '@/lib/db/transcript';
 import { MeetingData } from '@/lib/getMeetingData';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getPartyFromRoles } from "@/lib/utils";
+import { getTimestampBounds } from '@/lib/utils/timestamps';
 import type { HighlightWithUtterances } from '@/lib/db/highlights';
 
 // Actions are mutations + getters that don't depend on transcript identity.
@@ -70,12 +71,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
     const meetingId = data.meeting.id;
 
     const recalculateSegmentTimestamps = useCallback((utterances: Array<{ startTimestamp: number; endTimestamp: number }>) => {
-        if (utterances.length === 0) return null;
-        const allTimestamps = utterances.flatMap(u => [u.startTimestamp, u.endTimestamp]);
-        return {
-            startTimestamp: Math.min(...allTimestamps),
-            endTimestamp: Math.max(...allTimestamps)
-        };
+        return getTimestampBounds(utterances);
     }, []);
 
     const addHighlight = useCallback((highlight: HighlightWithUtterances) => {

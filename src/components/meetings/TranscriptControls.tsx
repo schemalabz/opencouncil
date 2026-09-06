@@ -139,22 +139,6 @@ export default function TranscriptControls({ className }: { className?: string }
         setHoveredSpeaker(null);
     };
 
-    // Find current speaker
-    const currentSpeaker = (() => {
-        for (const segment of speakerSegments) {
-            if (currentTime >= segment.startTimestamp && currentTime <= segment.endTimestamp) {
-                const speakerTag = getSpeakerTag(segment.speakerTagId);
-                const person = speakerTag?.personId ? getPerson(speakerTag.personId) : undefined;
-                const party = person ? getPartyFromRoles(person.roles, meetingDate) : null;
-                let speakerColor = party?.colorHex || '#D3D3D3';
-                let speakerName = person ? person.name_short : speakerTag?.label || 'Unknown';
-
-                return { name: speakerName, color: speakerColor };
-            }
-        }
-        return null;
-    })();
-
     // Calculate tooltip position
     const getTooltipPosition = () => {
         if (!sliderRef.current || hoverTime === null) return {};
