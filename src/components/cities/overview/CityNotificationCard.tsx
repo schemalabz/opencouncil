@@ -11,6 +11,7 @@ import { NotisConversation } from './NotisConversation';
 import { TopicPill } from '@/components/TopicPill';
 import { FactDot } from '@/components/ui/fact-dot';
 import { RailDisclosure } from './RailDisclosure';
+import { env } from '@/env.mjs';
 
 /** Topic chips before the row stops being scannable; the rest become "+N". */
 const TOPICS_SHOWN = 2;
@@ -35,9 +36,12 @@ interface CityNotificationCardProps {
  */
 export function CityNotificationCard({ city, preference, locale }: CityNotificationCardProps) {
     if (!city.supportsNotifications) return null;
-    return preference
-        ? <SubscribedCard city={city} preference={preference} locale={locale} />
-        : <InviteCard city={city} locale={locale} />;
+    if (preference) return <SubscribedCard city={city} preference={preference} locale={locale} />;
+    // The invite is the only half that reaches someone who has not asked for
+    // anything, so the rollout holds it back until it is ready to be seen. A
+    // reader who already subscribed keeps their card either way.
+    if (env.SHOW_NOTIS_PROMO !== 'true') return null;
+    return <InviteCard city={city} locale={locale} />;
 }
 
 function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) {
