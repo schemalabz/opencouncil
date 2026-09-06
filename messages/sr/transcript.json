@@ -1,4 +1,27 @@
 {
+    "findReplace": {
+        "searchPlaceholder": "Пронађите",
+        "replacePlaceholder": "Замените",
+        "caseSensitive": "Разликовање великих и малих слова",
+        "previous": "Претходно (Shift+Enter)",
+        "next": "Следеће (Enter)",
+        "close": "Затворите (Esc)",
+        "replaceOne": "Замените",
+        "replaceAll": "Све",
+        "noResults": "0 резултата",
+        "counter": "{current} / {total}",
+        "confirmTitle": "Заменити све?",
+        "confirmDescription": "Биће замењено {count} појављивања „{search}“ са „{replacement}“. Ова радња не може да се опозове.",
+        "confirmCancel": "Откажите",
+        "confirmReplace": "Замените све",
+        "toastTitleSingular": "{count} појављивање је замењено",
+        "toastTitlePlural": "{count} појављивања је замењено",
+        "toastDescriptionSingular": "У {count} исказу",
+        "toastDescriptionPlural": "У {count} исказа",
+        "errorTitle": "Грешка",
+        "errorReplaceFailed": "Замена није успела",
+        "errorReplaceOneFailed": "Замена није била могућа"
+    },
     "utterance": {
         "editing": {
             "saveShortcut": "Сачувајте (Enter)",

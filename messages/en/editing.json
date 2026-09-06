@@ -71,7 +71,8 @@
       "editing": {
         "title": "Text Editing",
         "saveAndNext": "Save and edit next",
-        "cancel": "Cancel editing"
+        "cancel": "Cancel editing",
+        "findReplace": "Find & replace"
       },
       "selection": {
         "title": "Selection & Structure",
