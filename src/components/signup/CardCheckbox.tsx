@@ -1,13 +1,17 @@
 'use client';
 
-import { Check } from 'lucide-react';
+import { useId } from 'react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 
 /**
- * A card that is a checkbox. The whole header toggles it; the body — a
- * phone field, say — shows only while it is on, and stays outside the
- * toggle so typing in it never flips the card. The delivery channels and
- * the petition's relation to the municipality are both made of these.
+ * A card that is a checkbox. The whole header is the checkbox's label, so
+ * tapping anywhere on it toggles; the body — a phone field, the reader's
+ * own words — shows only while it is on, and stays outside the label so
+ * typing in it never flips the card. The box itself is the app's checkbox,
+ * so a tick looks the same here as everywhere else. A ticked card stays
+ * white and lifts: an orange halo and a warm shadow, so the choice reads
+ * without the whole card turning orange.
  */
 export function CardCheckbox({
     checked,
@@ -16,7 +20,6 @@ export function CardCheckbox({
     description,
     badge,
     icon,
-    emphasized = false,
     children,
 }: {
     checked: boolean;
@@ -25,33 +28,25 @@ export function CardCheckbox({
     description?: string;
     badge?: string;
     icon?: React.ReactNode;
-    /** The recommended choice: an orange ring while it is on. */
-    emphasized?: boolean;
     children?: React.ReactNode;
 }) {
+    const id = useId();
     return (
         <div
             className={cn(
-                'rounded-2xl border bg-card transition-colors',
-                checked && emphasized ? 'border-2 border-[hsl(var(--orange))]' : 'border-foreground/15',
+                'rounded-2xl border bg-card transition-[border-color,box-shadow] duration-300 ease-out',
+                checked
+                    ? 'border-[hsl(var(--orange))]/60 shadow-[0_0_0_2px_hsl(var(--orange)/0.08),0_6px_18px_-12px_hsl(var(--orange)/0.35)]'
+                    : 'border-foreground/15 shadow-none',
             )}
         >
-            <button
-                type="button"
-                role="checkbox"
-                aria-checked={checked}
-                onClick={onToggle}
-                className="flex min-h-[56px] w-full items-center gap-3 px-3.5 py-3 text-left"
-            >
-                <span
-                    className={cn(
-                        'flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded border border-foreground',
-                        checked ? 'bg-foreground' : 'bg-card',
-                    )}
-                    aria-hidden
-                >
-                    {checked && <Check className="h-3.5 w-3.5 text-background" strokeWidth={2.6} />}
-                </span>
+            <label htmlFor={id} className="flex min-h-[56px] w-full cursor-pointer items-center gap-3 px-3.5 py-3">
+                <Checkbox
+                    id={id}
+                    checked={checked}
+                    onCheckedChange={onToggle}
+                    className="h-[22px] w-[22px] rounded-[6px] border-foreground/60 [&_svg]:h-4 [&_svg]:w-4"
+                />
                 <span className="min-w-0 flex-1">
                     <span className="block text-base leading-tight">{title}</span>
                     {description && (
@@ -64,7 +59,7 @@ export function CardCheckbox({
                     </span>
                 )}
                 {icon}
-            </button>
+            </label>
             {checked && children ? <div className="px-3.5 pb-3.5">{children}</div> : null}
         </div>
     );

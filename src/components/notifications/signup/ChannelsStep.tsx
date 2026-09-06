@@ -51,7 +51,6 @@ export function ChannelsStep({
                     onToggle={() => onChange({ phoneChannel: !state.phoneChannel })}
                     title={t('phoneChannel')}
                     badge={t('recommended')}
-                    emphasized
                 >
                     <div className="flex items-center gap-2.5 pb-3">
                         <Image
