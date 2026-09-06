@@ -1,0 +1,54 @@
+{
+  "stepOf": "Корак {step} од {total}",
+  "back": "Назад",
+  "changeCity": "Промени",
+  "privacy": "Политика приватности",
+  "doneMagicLink": "У вашем имејлу је линк за пријаву без лозинке.",
+  "account": {
+    "eyebrow": "Ваш налог",
+    "nameLabel": "Име",
+    "namePlaceholder": "Ваше име",
+    "emailLabel": "Имејл",
+    "emailPlaceholder": "vi@email.rs",
+    "emailHint": "Пријављујете се линком из имејла, без лозинке."
+  },
+  "phone": {
+    "label": "Мобилни",
+    "placeholder": "6X XXX XXXX"
+  },
+  "map": {
+    "open": "Отвори мапу",
+    "title": "Ваша места"
+  },
+  "errors": {
+    "phoneMissing": "Унесите свој мобилни да би вам Нотис писао.",
+    "phoneInvalid": "Овај број не изгледа исправно.",
+    "phoneNotMobile": "Потребан је мобилни број, не фиксни.",
+    "phoneInUse": "Овај мобилни већ припада другом налогу.",
+    "emailExists": "Већ постоји налог са овим имејлом.",
+    "signIn": "Пријава",
+    "generic": "Нешто је пошло наопако. Покушајте поново."
+  },
+  "issues": {
+    "no_channel": "Изаберите бар један канал.",
+    "phone_missing": "Унесите свој мобилни да би вам Нотис писао.",
+    "phone_invalid": "Овај број не изгледа исправно.",
+    "name_missing": "Унесите своје име.",
+    "email_invalid": "Унесите исправан имејл.",
+    "relation_missing": "Изаберите своју везу са општином."
+  },
+  "picker": {
+    "searchLabel": "Претрага општина",
+    "searchPlaceholder": "Пронађите своју општину",
+    "signUp": "Пријава",
+    "changePreferences": "Промени подешавања",
+    "subscribed": "Пријављени сте",
+    "request": "Затражи",
+    "changeRequest": "Промени податке",
+    "requested": "Већ сте затражили",
+    "notSupportedYet": "Још није на OpenCouncil-у",
+    "supportedAlready": "Већ шаљу обавештења",
+    "noResults": "Ниједна општина за „{query}“.",
+    "noResultsPetition": "Затражите подршку своје општине"
+  }
+}

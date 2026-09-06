@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Link } from '@/i18n/routing';
 import { getNotisChannelState, setNotisEnabled, type NotisChannelState } from '@/lib/actions/notis';
 import { captureEvent } from '@/lib/analytics/capture';
-import { maskPhone } from '@/components/notifications/signup/signup-state';
+import { maskPhone } from '@/components/signup/signup-shared';
 
 /**
  * One switch for the WhatsApp channel, backed by the Notis subscriptions

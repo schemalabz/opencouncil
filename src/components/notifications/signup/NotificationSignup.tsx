@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import type { PhoneFieldValidity } from '@/components/ui/phone-field';
+import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
+import { saveErrorKey } from '@/components/signup/signup-shared';
 import { saveNotificationPreferences } from '@/lib/actions/notifications';
 import { setNotisEnabled } from '@/lib/actions/notis';
 import { captureEvent } from '@/lib/analytics/capture';
@@ -13,20 +15,18 @@ import { ChannelsStep } from './ChannelsStep';
 import { CompleteAside, CompleteScreen } from './CompleteScreen';
 import { IntroAside, IntroStep } from './IntroStep';
 import { PreferencesAside, PreferencesStep } from './PreferencesStep';
-import { SignupFooter, SignupLayout, SignupProgress } from './SignupChrome';
 import { SignupSummary } from './SignupSummary';
 import {
     type ExistingPreference,
     type NotisStatus,
     type SignupAccount,
-    type SignupIssue,
     type SignupState,
     type SignupStep,
     buildSubmission,
     channelIssues,
     initialSignupState,
-    saveErrorKey,
 } from './signup-state';
+import type { SignupIssue } from '@/components/signup/signup-shared';
 
 const TOTAL_STEPS = 3;
 
@@ -54,6 +54,7 @@ export function NotificationSignup({
     notisStatus: NotisStatus;
 }) {
     const t = useTranslations('notificationSignup');
+    const ts = useTranslations('signup');
     const signedIn = account !== null;
     const [state, setState] = useState<SignupState>(() =>
         initialSignupState({ initialStep, existing, account, notisStatus }),
@@ -162,7 +163,7 @@ export function NotificationSignup({
 
     return (
         <SignupLayout aside={aside}>
-            <SignupProgress step={state.step} total={TOTAL_STEPS} label={t('stepOf', { step: state.step, total: TOTAL_STEPS })} />
+            <SignupProgress step={state.step} total={TOTAL_STEPS} label={ts('stepOf', { step: state.step, total: TOTAL_STEPS })} />
 
             {state.step === 1 && <IntroStep city={city} existing={existing !== null} />}
             {state.step === 2 && (
@@ -191,7 +192,7 @@ export function NotificationSignup({
                 <SignupFooter
                     actionLabel={t('ctaContinue')}
                     onAction={() => goTo(3)}
-                    backLabel={t('back')}
+                    backLabel={ts('back')}
                     onBack={() => goTo(1)}
                 />
             )}
@@ -200,7 +201,7 @@ export function NotificationSignup({
                     actionLabel={submitting ? t('ctaSubmitting') : t('ctaSubmit')}
                     onAction={submit}
                     disabled={submitting}
-                    backLabel={t('back')}
+                    backLabel={ts('back')}
                     onBack={() => goTo(2)}
                 />
             )}

@@ -1,18 +1,18 @@
 'use client';
 
 import Image from 'next/image';
-import { CalendarDays, Check, ChevronRight, CornerUpLeft, ExternalLink, Settings2 } from 'lucide-react';
+import { CalendarDays, Check, CornerUpLeft, ExternalLink, Settings2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Link } from '@/i18n/routing';
 import { authorityKey } from '@/components/cities/overview/authorityKey';
 import { OsektutuBanner } from '@/components/onboarding/OsektutuBanner';
+import { MeanwhileLinks, type MeanwhileLink } from '@/components/signup/MeanwhileLinks';
+import { maskPhone } from '@/components/signup/signup-shared';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
 import { findOsektutuNeighbourhood } from '@/lib/osektutu';
 import type { Location } from '@/lib/types/onboarding';
 import { cn } from '@/lib/utils';
-import { maskPhone } from './signup-state';
 
 /** The WhatsApp wallpaper the city page's example conversation uses. */
 const CHAT_SURFACE = { backgroundColor: '#ECE5DD' };
@@ -45,6 +45,7 @@ export function CompleteScreen({
     signedIn: boolean;
 }) {
     const t = useTranslations('notificationSignup');
+    const ts = useTranslations('signup');
     const tc = useTranslations('cityOverview');
     const osektutuNeighbourhood = findOsektutuNeighbourhood(locations);
     const maskedPhone = phone ? maskPhone(phone) : t('yourPhone');
@@ -105,9 +106,7 @@ export function CompleteScreen({
                 </section>
             )}
 
-            <div className="mt-7 lg:hidden">
-                <MeanwhileCard city={city} signedIn={signedIn} />
-            </div>
+            <MeanwhileLinks className="mt-7 lg:hidden" eyebrow={t('meanwhileEyebrow')} items={useMeanwhile(city, signedIn)} />
 
             {osektutuNeighbourhood && (
                 <div className="mt-6">
@@ -116,7 +115,7 @@ export function CompleteScreen({
             )}
 
             <p className="mt-4 pb-8 text-[11px] leading-[1.45] text-muted-foreground lg:mt-6 lg:text-xs">
-                {!signedIn && <>{t('doneMagicLink')} </>}
+                {!signedIn && <>{ts('doneMagicLink')} </>}
                 {t('doneStop')}
             </p>
         </div>
@@ -125,49 +124,26 @@ export function CompleteScreen({
 
 /** Beside the completion screen on a desktop: where to go in the meantime. */
 export function CompleteAside({ city, signedIn }: { city: CityWithGeometry; signedIn: boolean }) {
-    return <MeanwhileCard city={city} signedIn={signedIn} />;
+    const t = useTranslations('notificationSignup');
+    return <MeanwhileLinks eyebrow={t('meanwhileEyebrow')} items={useMeanwhile(city, signedIn)} />;
 }
 
-function MeanwhileCard({ city, signedIn }: { city: CityWithGeometry; signedIn: boolean }) {
+function useMeanwhile(city: CityWithGeometry, signedIn: boolean): MeanwhileLink[] {
     const t = useTranslations('notificationSignup');
     const locale = useLocale();
     const qualifier = getMunicipalityQualifier(city, locale);
-
-    return (
-        <div>
-            <span className="block text-[11px] font-extrabold uppercase tracking-[.16em] text-muted-foreground">
-                {t('meanwhileEyebrow')}
-            </span>
-            <div className={cn(surfaceCardClass, 'mt-2.5 overflow-hidden')}>
-                <Link
-                    href={`/${city.id}`}
-                    className="flex min-h-14 items-center gap-3 border-b border-border/60 px-3 py-2.5 hover:no-underline"
-                >
-                    <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-muted">
-                        <CalendarDays className="h-4 w-4 text-foreground/70" aria-hidden />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                        <span className="block text-[15px] leading-tight">{t('meanwhileMeeting')}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">
-                            {t(authorityKey('meanwhileMeetingHint', city), { qualifier })}
-                        </span>
-                    </span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                </Link>
-                <Link
-                    href={signedIn ? '/profile?tab=notifications' : '/sign-in?callbackUrl=%2Fprofile%3Ftab%3Dnotifications'}
-                    className="flex min-h-14 items-center gap-3 px-3 py-2.5 hover:no-underline"
-                >
-                    <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-muted">
-                        <Settings2 className="h-4 w-4 text-foreground/70" aria-hidden />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                        <span className="block text-[15px] leading-tight">{t('meanwhilePreferences')}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">{t('meanwhilePreferencesHint')}</span>
-                    </span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                </Link>
-            </div>
-        </div>
-    );
+    return [
+        {
+            href: `/${city.id}`,
+            icon: CalendarDays,
+            title: t('meanwhileMeeting'),
+            hint: t(authorityKey('meanwhileMeetingHint', city), { qualifier }),
+        },
+        {
+            href: signedIn ? '/profile?tab=notifications' : '/sign-in?callbackUrl=%2Fprofile%3Ftab%3Dnotifications',
+            icon: Settings2,
+            title: t('meanwhilePreferences'),
+            hint: t('meanwhilePreferencesHint'),
+        },
+    ];
 }

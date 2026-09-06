@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { ChannelCard } from '../ChannelCard';
+import { CardCheckbox } from '../CardCheckbox';
 
-describe('ChannelCard', () => {
+describe('CardCheckbox', () => {
     it('is a checkbox whose whole header toggles it', () => {
         const onToggle = jest.fn();
-        render(<ChannelCard checked={false} onToggle={onToggle} title="WhatsApp ή SMS" badge="Προτείνεται" />);
+        render(<CardCheckbox checked={false} onToggle={onToggle} title="WhatsApp ή SMS" badge="Προτείνεται" />);
 
         const box = screen.getByRole('checkbox', { name: /WhatsApp ή SMS/ });
         expect(box).toHaveAttribute('aria-checked', 'false');
@@ -14,16 +14,16 @@ describe('ChannelCard', () => {
 
     it('shows its body only while it is on, so typing in a field never flips the card', () => {
         const { rerender } = render(
-            <ChannelCard checked={false} onToggle={() => {}} title="WhatsApp ή SMS">
+            <CardCheckbox checked={false} onToggle={() => {}} title="WhatsApp ή SMS">
                 <input aria-label="Κινητό" />
-            </ChannelCard>,
+            </CardCheckbox>,
         );
         expect(screen.queryByLabelText('Κινητό')).toBeNull();
 
         rerender(
-            <ChannelCard checked onToggle={() => {}} title="WhatsApp ή SMS">
+            <CardCheckbox checked onToggle={() => {}} title="WhatsApp ή SMS">
                 <input aria-label="Κινητό" />
-            </ChannelCard>,
+            </CardCheckbox>,
         );
         expect(screen.getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');
         const field = screen.getByLabelText('Κινητό');
