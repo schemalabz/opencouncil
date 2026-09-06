@@ -827,9 +827,10 @@ model User {
   allowPetitionUpdates Boolean  @default(false)
   allowFeedbackCalls   Boolean  @default(true)
   isSuperAdmin  Boolean         @default(false)
-  // Notis rollout flag: null = old WhatsApp/SMS notification path. Set from
-  // the /admin release panel; Notis reads it through the notis_* views and
-  // enrolls the user on its next poll. Nulling it sends them back.
+  // The retired Notis rollout flag. Unread since PR 5 (every reader is
+  // served by Notis); the notis_users and notis_fanout_targets views still
+  // carry it, so it goes with a view-recreating migration in PR 6 rather
+  // than while the previous Notis build may still be polling those views.
   notisEnabledAt DateTime?
   accounts      Account[]
   sessions      Session[]

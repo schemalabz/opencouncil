@@ -1,7 +1,3 @@
-export async function sendWelcomeMessages() {
+export async function sendWelcomeEmail() {
     return
 }
-
-
-
-

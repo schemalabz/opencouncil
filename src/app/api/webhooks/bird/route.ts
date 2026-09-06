@@ -2,22 +2,9 @@ import { NextResponse } from 'next/server';
 import { createHmac, createHash, timingSafeEqual } from 'crypto';
 import { env } from '@/env.mjs';
 import prisma from '@/lib/db/prisma';
-import {
-    findUserByNotificationDeliveryId,
-    isUnsubscribeMessage,
-    sendUnsubscribeReply,
-    UNSUBSCRIBE_ALREADY_TEXT,
-    UNSUBSCRIBE_CONFIRMATION_TEXT,
-    UNSUBSCRIBE_RETRY_TEXT,
-    unsubscribeUserPhoneFromAllCities,
-    verifyUnsubscribeIntent,
-} from '@/lib/notifications/unsubscribe';
-import { sendUnsupportedReply } from '@/lib/notifications/autoReply';
-import { isNotisServedPhone } from '@/lib/notifications/notis-gate';
-import { normalizePhone } from '@/lib/notifications/phone';
 import type { VerifyRequestResult, VerifySignatureResult } from '@/lib/notifications/types';
 import { extractMessageFields, type ExtractedMessageFields } from './extract';
-import type { MessageStatus, Prisma } from '@prisma/client';
+import type { MessageStatus } from '@prisma/client';
 
 const SIGNATURE_HEADER = 'messagebird-signature';
 const TIMESTAMP_HEADER = 'messagebird-request-timestamp';
@@ -148,150 +135,17 @@ async function updateOutboundMessage(fields: ExtractedMessageFields): Promise<bo
     return true;
 }
 
-
-async function getNotificationDeliveryForMessage(
-    fields: ExtractedMessageFields,
-): Promise<string | null> {
-    if (fields.direction !== 'inbound' || !fields.conversationId) return null;
-    const lastWithDelivery = await prisma.message.findFirst({
-        where: {
-            conversationId: fields.conversationId,
-            notificationDeliveryId: { not: null },
-        },
-        orderBy: { createdAt: 'desc' },
-        select: { notificationDeliveryId: true },
-    });
-    return lastWithDelivery?.notificationDeliveryId ?? null;
-}
-
-
-async function persistMessageRow(
-    fields: ExtractedMessageFields,
-    notificationDeliveryId: string | null,
-): Promise<void> {
-    await prisma.message.create({
-        data: {
-            channel: fields.channel,
-            direction: fields.direction,
-            birdMessageId: fields.birdMessageId,
-            conversationId: fields.conversationId ?? null,
-            phone: normalizePhone(fields.phone),
-            body: fields.body,
-            status: fields.status,
-            failureReason: fields.status === 'failed' ? fields.failureReason ?? null : null,
-            notificationDeliveryId,
-        },
-    });
-}
-
 /**
- * Two-stage unsubscribe handling for inbound WhatsApp messages with a
- * resolved delivery link:
- *   1. Regex keyword match (STOP / ΣΤΟΠ / απεγγραφή / etc.)
- *   2. LLM intent verification (rules out e.g. "stop the meeting")
+ * This app's half of the Bird webhook: the delivery status of a message it
+ * sent itself (the admin test-send tools), reconciled onto its Message row.
  *
- * Returns true when the message was handled as an unsubscribe (action taken
- * or an unsubscribe-related reply sent), so the caller can skip the generic
- * "replies not supported" auto-reply. A keyword match that the LLM rejects
- * (e.g. "stop the meeting") is NOT an unsubscribe and returns false.
+ * Everything else belongs to the Notis webhook subscription, which receives
+ * the same events and serves every reader: inbound messages, ΣΤΟΠ, and the
+ * status of Notis's own sends (their ids are unknown here). A ΣΤΟΠ is
+ * therefore recorded in Notis alone, and this app's notifyByPhone follows
+ * through the profile switch, never from here. A message from a phone no
+ * reader has draws silence from both subscriptions, by design.
  */
-async function handleUnsubscribeIfApplicable(
-    fields: ExtractedMessageFields,
-    notificationDeliveryId: string | null,
-): Promise<boolean> {
-    if (
-        fields.direction !== 'inbound' ||
-        fields.channel !== 'whatsapp' ||
-        !notificationDeliveryId ||
-        !isUnsubscribeMessage(fields.body)
-    ) return false;
-
-    const user = await findUserByNotificationDeliveryId(notificationDeliveryId);
-    if (!user) {
-        console.warn(
-            `Bird webhook: unsubscribe keyword matched but no user resolved (delivery ${notificationDeliveryId})`,
-        );
-        return false;
-    }
-
-    if (normalizePhone(user.phone) !== normalizePhone(fields.phone)) {
-        console.warn(
-            `Bird webhook: unsubscribe phone mismatch — inbound from ${fields.phone}, user.phone ${user.phone} (user ${user.id}, delivery ${notificationDeliveryId}); ignoring`,
-        );
-        return false;
-    }
-
-    const intent = await verifyUnsubscribeIntent(fields.body);
-
-    if (intent === 'rejected') {
-        console.log(
-            `Bird webhook: unsubscribe keyword matched but LLM rejected intent (user ${user.id}, delivery ${notificationDeliveryId})`,
-        );
-        return false;
-    }
-
-    if (intent === 'failed') {
-        console.warn(
-            `Bird webhook: LLM verification failed — asking user ${user.id} to retry (delivery ${notificationDeliveryId})`,
-        );
-        if (fields.conversationId) {
-            await sendUnsubscribeReply({
-                conversationId: fields.conversationId,
-                phone: normalizePhone(fields.phone),
-                notificationDeliveryId,
-                text: UNSUBSCRIBE_RETRY_TEXT,
-            });
-        }
-        return true;
-    }
-
-    const { changedCount } = await unsubscribeUserPhoneFromAllCities(user.id);
-    const replyText = changedCount > 0 ? UNSUBSCRIBE_CONFIRMATION_TEXT : UNSUBSCRIBE_ALREADY_TEXT;
-    console.log(
-        changedCount > 0
-            ? `Bird webhook: disabled phone notifications for user ${user.id} across ${changedCount} cities (delivery ${notificationDeliveryId})`
-            : `Bird webhook: user ${user.id} already unsubscribed — sending reminder (delivery ${notificationDeliveryId})`,
-    );
-    if (fields.conversationId) {
-        await sendUnsubscribeReply({
-            conversationId: fields.conversationId,
-            phone: normalizePhone(fields.phone),
-            notificationDeliveryId,
-            text: replyText,
-        });
-    }
-    return true;
-}
-
-/**
- * For inbound WhatsApp messages we didn't otherwise act on, reply that we
- * don't support conversational replies yet (and how to unsubscribe).
- *
- * Unsubscribe-keyword messages are excluded even when `handleUnsubscribeIf-
- * Applicable` returned false (null delivery link, unresolved user, phone
- * mismatch). Telling someone who just sent "STOP" that replies aren't
- * supported would be the wrong message; those edge cases get no reply, as
- * before this feature.
- */
-async function sendUnsupportedReplyIfApplicable(
-    fields: ExtractedMessageFields,
-    notificationDeliveryId: string | null,
-): Promise<void> {
-    if (
-        fields.direction !== 'inbound' ||
-        fields.channel !== 'whatsapp' ||
-        !fields.conversationId ||
-        isUnsubscribeMessage(fields.body)
-    ) return;
-
-    await sendUnsupportedReply({
-        conversationId: fields.conversationId,
-        channel: fields.channel,
-        phone: normalizePhone(fields.phone),
-        notificationDeliveryId,
-    });
-}
-
 export async function POST(request: Request) {
     const verified = await verifyRequest(request);
     if (!verified.ok) return verified.response;
@@ -301,51 +155,12 @@ export async function POST(request: Request) {
         whatsapp: env.BIRD_WHATSAPP_CHANNEL_ID,
     });
     if (!fields.birdMessageId || !fields.phone) {
-        console.warn('Bird webhook: missing required fields, skipping insert');
+        console.warn('Bird webhook: missing required fields, skipping');
         return NextResponse.json({ ok: true });
     }
 
-    if (fields.direction === 'outbound' && await updateOutboundMessage(fields)) {
-        return NextResponse.json({ ok: true });
-    }
-
-    // Notis-served users belong to the notis webhook subscription: no reply,
-    // no unsubscribe handling, no Message row (notis's database is the record
-    // of those conversations). Legacy outbound reconciliation stays above —
-    // a Message row that exists here is this app's send regardless of flag.
-    //
-    // KNOWN GAP, deliberately deferred to the rollout PRs: a ΣΤΟΠ from a
-    // notis-served reader is therefore recorded in notis alone, and this
-    // app's NotificationPreference.notifyByPhone keeps its old value. That is
-    // the intended end state (PRD §2.1 — notis holds the only copy), and it
-    // is safe while the flag is set, because the matching engine skips these
-    // users. It stops being safe if someone clears notisEnabledAt: the old
-    // path then sees notifyByPhone: true and resumes messaging a reader who
-    // asked to be left alone, and the release panel shows no sign they ever
-    // sent ΣΤΟΠ. PRD §9 promises narrowing never unsubscribes anyone; this is
-    // the mirror case, and it is answered where the profile checkbox becomes
-    // a notis API client (PR 5) rather than by adding a second copy of the
-    // opt-out here.
-    if (await isNotisServedPhone(fields.phone)) {
-        console.log(`Bird webhook: ${fields.direction} event for a notis-served phone — skipping`);
-        return NextResponse.json({ ok: true });
-    }
-
-    const notificationDeliveryId = await getNotificationDeliveryForMessage(fields);
-
-    try {
-        await persistMessageRow(fields, notificationDeliveryId);
-        const handledAsUnsubscribe = await handleUnsubscribeIfApplicable(fields, notificationDeliveryId);
-        if (!handledAsUnsubscribe) {
-            await sendUnsupportedReplyIfApplicable(fields, notificationDeliveryId);
-        }
-    } catch (error) {
-        const code = (error as Prisma.PrismaClientKnownRequestError | undefined)?.code;
-        if (code !== 'P2002') {
-            console.error('Bird webhook: persist error', error);
-            // Returning 500 makes Bird retry — appropriate for transient DB issues.
-            return NextResponse.json({ error: 'persist failed' }, { status: 500 });
-        }
+    if (fields.direction === 'outbound') {
+        await updateOutboundMessage(fields);
     }
 
     return NextResponse.json({ ok: true });
