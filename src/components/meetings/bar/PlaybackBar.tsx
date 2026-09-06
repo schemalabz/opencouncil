@@ -24,29 +24,26 @@ interface BarModeContextType {
     setMode: (mode: BarMode) => void;
 }
 const BarModeContext = createContext<BarModeContextType | null>(null);
-const BarModeSetterContext = createContext<((mode: BarMode) => void) | null>(null);
 
 export function BarModeProvider({ children }: { children: React.ReactNode }) {
     const [mode, setMode] = useState<BarMode>('speakers');
     const value = useMemo(() => ({ mode, setMode }), [mode]);
-    return (
-        <BarModeSetterContext.Provider value={setMode}>
-            <BarModeContext.Provider value={value}>{children}</BarModeContext.Provider>
-        </BarModeSetterContext.Provider>
-    );
+    return <BarModeContext.Provider value={value}>{children}</BarModeContext.Provider>;
 }
 
-/** The subject page presets the subjects mode; anyone may flip it back. */
+/**
+ * The subject page presets the subjects mode; anyone may flip it back.
+ *
+ * One context, not two. A second setter-only context used to spare the subject
+ * page a render when the mode changed. The mode changes when a reader clicks
+ * the picker, perhaps twice in a session, and that page already re-renders from
+ * its own `useBarData()` subscription — so the saving never paid for the extra
+ * context, hook and guard. `setMode` comes from `useState` either way, so it
+ * keeps its identity and an effect that depends on it still runs once.
+ */
 export function useBarMode(): BarModeContextType {
     const ctx = useContext(BarModeContext);
     if (!ctx) throw new Error('useBarMode must be used within a BarModeProvider');
-    return ctx;
-}
-
-/** The setter alone — identity-stable, so a whole page can preset the mode without re-rendering on flips. */
-export function useBarModeSetter(): (mode: BarMode) => void {
-    const ctx = useContext(BarModeSetterContext);
-    if (!ctx) throw new Error('useBarModeSetter must be used within a BarModeProvider');
     return ctx;
 }
 
