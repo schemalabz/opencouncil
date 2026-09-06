@@ -1,0 +1,144 @@
+import type { Topic } from '@prisma/client';
+import {
+    buildSubmission,
+    channelIssues,
+    initialSignupState,
+    maskPhone,
+    saveErrorKey,
+    type SignupState,
+} from '../signup-state';
+
+const topic = (id: string): Topic =>
+    ({ id, name: id, name_en: id, colorHex: '#000', icon: null, description: '', deprecated: false, realm: 'greece' }) as Topic;
+
+const account = { name: 'Μαρία', email: 'maria@example.com', phone: '+306900000001' };
+const existing = {
+    locations: [{ text: 'Κυψέλη', coordinates: [23.73, 37.99] as [number, number] }],
+    topics: [topic('t1')],
+    notifyByPhone: true,
+    notifyByEmail: true,
+};
+
+describe('initialSignupState', () => {
+    it('starts a new reader with WhatsApp on, email off, and the account prefilled when signed in', () => {
+        const state = initialSignupState({ initialStep: 1, existing: null, account, notisStatus: null });
+        expect(state).toMatchObject({
+            step: 1,
+            locations: [],
+            topics: [],
+            phoneChannel: true,
+            emailChannel: false,
+            phone: '+306900000001',
+            name: 'Μαρία',
+            email: 'maria@example.com',
+        });
+        expect(initialSignupState({ initialStep: 2, existing: null, account: null, notisStatus: null })).toMatchObject({
+            step: 2,
+            phone: '',
+            name: '',
+            email: '',
+        });
+    });
+
+    it('brings back a saved preference, channels included', () => {
+        const state = initialSignupState({ initialStep: 2, existing, account, notisStatus: 'active' });
+        expect(state.locations).toEqual(existing.locations);
+        expect(state.topics).toEqual(existing.topics);
+        expect(state.phoneChannel).toBe(true);
+        expect(state.emailChannel).toBe(true);
+    });
+
+    it('does not resubscribe a reader who said ΣΤΟΠ: the WhatsApp card starts unticked', () => {
+        const state = initialSignupState({ initialStep: 2, existing, account, notisStatus: 'unsubscribed' });
+        expect(state.phoneChannel).toBe(false);
+        expect(state.emailChannel).toBe(true);
+    });
+});
+
+describe('channelIssues', () => {
+    const base: SignupState = {
+        step: 3,
+        locations: [],
+        topics: [],
+        phoneChannel: true,
+        emailChannel: false,
+        phone: '+306900000001',
+        name: 'Μαρία',
+        email: 'maria@example.com',
+    };
+    const ok = { phoneEmpty: false, phoneValid: true, signedIn: true };
+
+    it('passes a complete delivery step', () => {
+        expect(channelIssues(base, ok)).toEqual([]);
+    });
+
+    it('needs at least one channel', () => {
+        expect(channelIssues({ ...base, phoneChannel: false }, ok)).toEqual(['no_channel']);
+        expect(channelIssues({ ...base, phoneChannel: false, emailChannel: true }, ok)).toEqual([]);
+    });
+
+    it('needs a valid mobile while WhatsApp is on, and none while it is off', () => {
+        expect(channelIssues(base, { ...ok, phoneEmpty: true, phoneValid: false })).toEqual(['phone_missing']);
+        expect(channelIssues(base, { ...ok, phoneValid: false })).toEqual(['phone_invalid']);
+        expect(
+            channelIssues({ ...base, phoneChannel: false, emailChannel: true }, { ...ok, phoneEmpty: true, phoneValid: false }),
+        ).toEqual([]);
+    });
+
+    it('needs a name and an email from a signed-out reader only', () => {
+        const anonymous = { ...base, name: ' ', email: 'not-an-email' };
+        expect(channelIssues(anonymous, { ...ok, signedIn: false })).toEqual(['name_missing', 'email_invalid']);
+        expect(channelIssues(anonymous, ok)).toEqual([]);
+    });
+});
+
+describe('buildSubmission', () => {
+    const state: SignupState = {
+        step: 3,
+        locations: [{ id: 'old', text: 'Κυψέλη', coordinates: [23.73, 37.99] }],
+        topics: [topic('t1'), topic('t2')],
+        phoneChannel: true,
+        emailChannel: false,
+        phone: '+306900000001',
+        name: ' Μαρία ',
+        email: ' maria@example.com ',
+    };
+
+    it('sends the consent flags, the phone while WhatsApp is on, and the account fields when signed out', () => {
+        expect(buildSubmission(state, 'athens', false)).toEqual({
+            cityId: 'athens',
+            locations: [{ text: 'Κυψέλη', coordinates: [23.73, 37.99] }],
+            topicIds: ['t1', 't2'],
+            notifyByPhone: true,
+            notifyByEmail: false,
+            phone: '+306900000001',
+            name: 'Μαρία',
+            email: 'maria@example.com',
+        });
+    });
+
+    it('sends no phone for a declined WhatsApp card, and no account fields when signed in', () => {
+        const submission = buildSubmission({ ...state, phoneChannel: false, emailChannel: true }, 'athens', true);
+        expect(submission).not.toHaveProperty('phone');
+        expect(submission).not.toHaveProperty('name');
+        expect(submission).not.toHaveProperty('email');
+        expect(submission).toMatchObject({ notifyByPhone: false, notifyByEmail: true });
+    });
+});
+
+describe('saveErrorKey', () => {
+    it('maps the save action\'s codes to message keys and falls back to generic', () => {
+        expect(saveErrorKey('phone_empty')).toBe('phoneMissing');
+        expect(saveErrorKey('phone_not_mobile')).toBe('phoneNotMobile');
+        expect(saveErrorKey('phone_in_use')).toBe('phoneInUse');
+        expect(saveErrorKey('email_exists')).toBe('emailExists');
+        expect(saveErrorKey('An unexpected error occurred.')).toBe('generic');
+    });
+});
+
+describe('maskPhone', () => {
+    it('keeps the country code, the prefix and the last four digits', () => {
+        expect(maskPhone('+306943472297')).toBe('+30 694 ··· 2297');
+        expect(maskPhone('+16174613635')).toBe('+1 617 ··· 3635');
+    });
+});

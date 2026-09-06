@@ -45,6 +45,9 @@ export type UserPreference = {
         coordinates: [number, number];
     }[];
     topics?: Topic[];
+    // Channel consent, on notification preferences only.
+    notifyByPhone?: boolean;
+    notifyByEmail?: boolean;
 };
 
 /**
@@ -238,6 +241,8 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
                     isPetition: false,
                     locations: processedLocations,
                     topics: np.interests,
+                    notifyByPhone: np.notifyByPhone,
+                    notifyByEmail: np.notifyByEmail,
                 });
             }
         }
