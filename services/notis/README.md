@@ -65,9 +65,10 @@ stateless playground-only mode:
 ### Bird (WhatsApp)
 
 Notis has its OWN Bird webhook subscription and signing key, separate from
-the main app's. Both subscriptions receive all conversation events during
-the rollout. Each service filters to the users it serves: notis answers
-rollout-enabled users, the main app answers everyone else. See
+the main app's. Both subscriptions receive all conversation events. Notis
+answers every reader; the main app's webhook only reconciles the delivery
+status of its own sends (the admin test-send tool). A message from a phone
+no reader has draws silence from both. See
 [docs/bird-setup.md](../../docs/bird-setup.md), "The Notis webhook
 subscription".
 

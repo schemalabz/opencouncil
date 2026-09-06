@@ -32,9 +32,10 @@ export class FakeBird implements BirdLike {
   public messageBody: string | null = null;
 
   /** Configured by default — the fake stands in for a workspace where every
-   *  demos_* template has its project id. Set false to exercise the
-   *  unaddressable-template path. */
+   *  shell has its project id. Set false to exercise the unaddressable-
+   *  template path for every shell, or name the shells that lack an id. */
   public templatesConfigured = true;
+  public unaddressable = new Set<TemplateName>();
 
   constructor(
     private result?: BirdSendResult,
@@ -48,8 +49,8 @@ export class FakeBird implements BirdLike {
     return { success: true, messageId: `bird-${n}` };
   }
 
-  canSendTemplate(_template: TemplateName): boolean {
-    return this.templatesConfigured;
+  canSendTemplate(template: TemplateName): boolean {
+    return this.templatesConfigured && !this.unaddressable.has(template);
   }
 
   async sendText(input: { conversationId: string; text: string; idempotencyKey: string }) {
