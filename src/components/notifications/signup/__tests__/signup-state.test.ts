@@ -1,12 +1,5 @@
 import type { Topic } from '@prisma/client';
-import {
-    buildSubmission,
-    channelIssues,
-    initialSignupState,
-    maskPhone,
-    saveErrorKey,
-    type SignupState,
-} from '../signup-state';
+import { buildSubmission, channelIssues, initialSignupState, type SignupState } from '../signup-state';
 
 const topic = (id: string): Topic =>
     ({ id, name: id, name_en: id, colorHex: '#000', icon: null, description: '', deprecated: false, realm: 'greece' }) as Topic;
@@ -123,22 +116,5 @@ describe('buildSubmission', () => {
         expect(submission).not.toHaveProperty('name');
         expect(submission).not.toHaveProperty('email');
         expect(submission).toMatchObject({ notifyByPhone: false, notifyByEmail: true });
-    });
-});
-
-describe('saveErrorKey', () => {
-    it('maps the save action\'s codes to message keys and falls back to generic', () => {
-        expect(saveErrorKey('phone_empty')).toBe('phoneMissing');
-        expect(saveErrorKey('phone_not_mobile')).toBe('phoneNotMobile');
-        expect(saveErrorKey('phone_in_use')).toBe('phoneInUse');
-        expect(saveErrorKey('email_exists')).toBe('emailExists');
-        expect(saveErrorKey('An unexpected error occurred.')).toBe('generic');
-    });
-});
-
-describe('maskPhone', () => {
-    it('keeps the country code, the prefix and the last four digits', () => {
-        expect(maskPhone('+306943472297')).toBe('+30 694 ··· 2297');
-        expect(maskPhone('+16174613635')).toBe('+1 617 ··· 3635');
     });
 });

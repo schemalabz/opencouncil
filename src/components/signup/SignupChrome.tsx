@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 /**
+ * The chrome the signup flows share — notifications and the petition: one
+ * layout, one progress bar, one heading, one action bar.
+ *
  * One column on a phone. On a desktop the column keeps its measure and a
  * second one appears beside it for what the step is about — Νότης himself,
  * the map, the summary of the choices — so the width is used without
@@ -30,7 +33,7 @@ export function SignupLayout({
     );
 }
 
-/** The three-segment progress bar at the top of every step. */
+/** The segmented progress bar at the top of every step. */
 export function SignupProgress({ step, total, label }: { step: number; total: number; label: string }) {
     return (
         <div className="flex items-center gap-1.5 pt-3.5 lg:pt-6" aria-label={label}>
@@ -59,9 +62,20 @@ export function Eyebrow({ children, className }: { children: React.ReactNode; cl
 }
 
 /** A step's title and its one-line lead, at the phone's size and the desktop's. */
-export function StepHeading({ title, lead, className }: { title: string; lead: string; className?: string }) {
+export function StepHeading({
+    eyebrow,
+    title,
+    lead,
+    className,
+}: {
+    eyebrow?: string;
+    title: string;
+    lead: string;
+    className?: string;
+}) {
     return (
         <div className={cn('flex flex-col gap-2.5 pt-6 lg:gap-3 lg:pt-8', className)}>
+            {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
             <h1 className="text-[30px] font-normal leading-none tracking-[-0.02em] lg:text-[36px]">{title}</h1>
             <p className="text-[15px] leading-[1.45] text-muted-foreground lg:text-base">{lead}</p>
         </div>

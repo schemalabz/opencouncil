@@ -4,10 +4,10 @@ import type { Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { TopicFilter } from '@/components/filters/TopicFilter';
 import { LocationSelector } from '@/components/onboarding/selectors/LocationSelector';
+import { LocationPreview } from '@/components/signup/LocationPreview';
+import { Eyebrow, StepHeading } from '@/components/signup/SignupChrome';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import type { Location } from '@/lib/types/onboarding';
-import { LocationPreview } from './LocationPreview';
-import { Eyebrow, StepHeading } from './SignupChrome';
 
 /**
  * Step 2: the places and the topics. Both optional; both editable later.
@@ -63,5 +63,6 @@ export function PreferencesStep({
 
 /** Beside step 2 on a desktop: the municipality's map, with the places as they are added. */
 export function PreferencesAside({ city, locations }: { city: CityWithGeometry; locations: Location[] }) {
-    return <LocationPreview city={city} locations={locations} variant="panel" />;
+    const t = useTranslations('notificationSignup');
+    return <LocationPreview city={city} locations={locations} variant="panel" emptyLabel={t('mapEmpty')} />;
 }

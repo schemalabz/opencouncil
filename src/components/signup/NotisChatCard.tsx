@@ -1,3 +1,5 @@
+'use client';
+
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { NotisConversation } from '@/components/cities/overview/NotisConversation';
@@ -7,9 +9,9 @@ import { cn } from '@/lib/utils';
 /**
  * Νότης in his box: the header a WhatsApp thread has (avatar, name, a
  * one-line about) over the playable example conversation the city page
- * already carries. The signup's first step and the municipality picker
- * both show it, because the fastest way to explain what he is, is to let
- * him do it.
+ * already carries. The signups' first steps and both municipality pickers
+ * show it, because the fastest way to explain what he is, is to let him
+ * do it.
  */
 export function NotisChatCard({ intro, className }: { intro: string; className?: string }) {
     const t = useTranslations('cityOverview');

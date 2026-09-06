@@ -3,13 +3,13 @@
 import { MapPin } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { CitySeal } from '@/components/signup/CityCard';
+import { Eyebrow } from '@/components/signup/SignupChrome';
 import { TopicPill } from '@/components/TopicPill';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
 import { cn } from '@/lib/utils';
-import { CitySeal } from './IntroStep';
-import { Eyebrow } from './SignupChrome';
 import type { SignupState } from './signup-state';
 
 /**

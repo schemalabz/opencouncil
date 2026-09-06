@@ -1,0 +1,54 @@
+{
+  "stepOf": "Βήμα {step} από {total}",
+  "back": "Πίσω",
+  "changeCity": "Αλλαγή",
+  "privacy": "Πολιτική απορρήτου",
+  "doneMagicLink": "Στο email σου ήρθε ένας σύνδεσμος για να συνδέεσαι χωρίς κωδικό.",
+  "account": {
+    "eyebrow": "Ο λογαριασμός σου",
+    "nameLabel": "Όνομα",
+    "namePlaceholder": "Το όνομά σου",
+    "emailLabel": "Email",
+    "emailPlaceholder": "to@email.gr",
+    "emailHint": "Συνδέεσαι με έναν σύνδεσμο στο email, χωρίς κωδικό."
+  },
+  "phone": {
+    "label": "Κινητό",
+    "placeholder": "69X XXX XXXX"
+  },
+  "map": {
+    "open": "Άνοιγμα χάρτη",
+    "title": "Οι περιοχές σου"
+  },
+  "errors": {
+    "phoneMissing": "Γράψε το κινητό σου για να σου γράφει ο Νότης.",
+    "phoneInvalid": "Ο αριθμός δεν φαίνεται σωστός.",
+    "phoneNotMobile": "Χρειάζεται κινητό, όχι σταθερό.",
+    "phoneInUse": "Αυτό το κινητό ανήκει ήδη σε άλλον λογαριασμό.",
+    "emailExists": "Υπάρχει ήδη λογαριασμός με αυτό το email.",
+    "signIn": "Σύνδεση",
+    "generic": "Κάτι πήγε στραβά. Δοκίμασε ξανά."
+  },
+  "issues": {
+    "no_channel": "Διάλεξε τουλάχιστον ένα κανάλι.",
+    "phone_missing": "Γράψε το κινητό σου για να σου γράφει ο Νότης.",
+    "phone_invalid": "Ο αριθμός δεν φαίνεται σωστός.",
+    "name_missing": "Γράψε το όνομά σου.",
+    "email_invalid": "Γράψε ένα σωστό email.",
+    "relation_missing": "Διάλεξε τη σχέση σου με τον δήμο."
+  },
+  "picker": {
+    "searchLabel": "Αναζήτηση δήμου",
+    "searchPlaceholder": "Ψάξε τον δήμο σου",
+    "signUp": "Εγγραφή",
+    "changePreferences": "Αλλαγή προτιμήσεων",
+    "subscribed": "Είσαι γραμμένος",
+    "request": "Ζήτησέ το",
+    "changeRequest": "Αλλαγή στοιχείων",
+    "requested": "Το ζήτησες ήδη",
+    "notSupportedYet": "Δεν είναι ακόμα στο OpenCouncil",
+    "supportedAlready": "Έχουν ήδη ειδοποιήσεις",
+    "noResults": "Κανένας δήμος για «{query}».",
+    "noResultsPetition": "Ζήτησε την υποστήριξη του δήμου σου"
+  }
+}

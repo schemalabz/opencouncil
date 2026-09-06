@@ -15,26 +15,30 @@ import { cn } from '@/lib/utils';
 const STATIC_STYLE = 'https://api.mapbox.com/styles/v1/mapbox/light-v11/static';
 
 /**
- * The map, quietly: a static image of the chosen places, and the full map
- * only on request. The old signup was a map with a form floating over it;
- * the places matter, the map is context.
+ * The map, quietly: a static image of the municipality and the chosen
+ * places, and the full map only on request. The old signup was a map with
+ * a form floating over it; the places matter, the map is context.
  *
  * The strip sits under the address search on a phone and shows nothing
  * until there is a place to show. The panel is the desktop's aside: it
- * shows the municipality from the start, and the places as they are added.
+ * shows the municipality from the start, and the places as they are added
+ * — or, for the petition, the municipality alone.
  */
 export function LocationPreview({
     city,
     locations,
     variant = 'strip',
+    emptyLabel,
     className,
 }: {
     city: CityWithGeometry;
     locations: Location[];
     variant?: 'strip' | 'panel';
+    /** What the panel says while there is no place yet; nothing when omitted. */
+    emptyLabel?: string;
     className?: string;
 }) {
-    const t = useTranslations('notificationSignup');
+    const t = useTranslations('signup');
     const [open, setOpen] = useState(false);
     const panel = variant === 'panel';
 
@@ -63,24 +67,24 @@ export function LocationPreview({
                     panel ? 'h-[420px] rounded-[14px]' : 'h-[120px] rounded-[10px]',
                     className,
                 )}
-                aria-label={t('openMap')}
+                aria-label={t('map.open')}
             >
                 {/* A static image, not a map: nothing to drag, nothing to load. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={src} alt="" className="h-full w-full object-cover" />
-                {panel && locations.length === 0 && (
+                {panel && emptyLabel && locations.length === 0 && (
                     <span className="absolute left-3 top-3 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
-                        {t('mapEmpty')}
+                        {emptyLabel}
                     </span>
                 )}
                 <span className="absolute bottom-2 right-2 inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs text-foreground shadow-sm">
                     <Maximize2 className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                    {t('openMap')}
+                    {t('map.open')}
                 </span>
             </button>
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="max-w-2xl p-0">
-                    <DialogTitle className="px-4 pt-4 text-base">{t('mapTitle')}</DialogTitle>
+                    <DialogTitle className="px-4 pt-4 text-base">{t('map.title')}</DialogTitle>
                     {open && <FullMap city={city} locations={locations} />}
                 </DialogContent>
             </Dialog>

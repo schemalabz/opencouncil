@@ -1,0 +1,54 @@
+{
+  "stepOf": "Step {step} of {total}",
+  "back": "Back",
+  "changeCity": "Change",
+  "privacy": "Privacy policy",
+  "doneMagicLink": "A link to sign in without a password is in your email.",
+  "account": {
+    "eyebrow": "Your account",
+    "nameLabel": "Name",
+    "namePlaceholder": "Your name",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@email.com",
+    "emailHint": "You sign in with a link in your email, no password."
+  },
+  "phone": {
+    "label": "Mobile",
+    "placeholder": "69X XXX XXXX"
+  },
+  "map": {
+    "open": "Open the map",
+    "title": "Your places"
+  },
+  "errors": {
+    "phoneMissing": "Enter your mobile number so Notis can write to you.",
+    "phoneInvalid": "That number does not look right.",
+    "phoneNotMobile": "A mobile number is needed, not a landline.",
+    "phoneInUse": "That mobile number already belongs to another account.",
+    "emailExists": "There is already an account with this email.",
+    "signIn": "Sign in",
+    "generic": "Something went wrong. Please try again."
+  },
+  "issues": {
+    "no_channel": "Pick at least one channel.",
+    "phone_missing": "Enter your mobile number so Notis can write to you.",
+    "phone_invalid": "That number does not look right.",
+    "name_missing": "Enter your name.",
+    "email_invalid": "Enter a valid email.",
+    "relation_missing": "Pick your link to the municipality."
+  },
+  "picker": {
+    "searchLabel": "Search municipalities",
+    "searchPlaceholder": "Find your municipality",
+    "signUp": "Sign up",
+    "changePreferences": "Change preferences",
+    "subscribed": "You are signed up",
+    "request": "Ask for it",
+    "changeRequest": "Update details",
+    "requested": "You already asked",
+    "notSupportedYet": "Not on OpenCouncil yet",
+    "supportedAlready": "Already send updates",
+    "noResults": "No municipality matches “{query}”.",
+    "noResultsPetition": "Ask for your municipality to be supported"
+  }
+}

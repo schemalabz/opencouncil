@@ -6,9 +6,10 @@ import { cn } from '@/lib/utils';
 /**
  * A card that is a checkbox. The whole header toggles it; the body — a
  * phone field, say — shows only while it is on, and stays outside the
- * toggle so typing in it never flips the card.
+ * toggle so typing in it never flips the card. The delivery channels and
+ * the petition's relation to the municipality are both made of these.
  */
-export function ChannelCard({
+export function CardCheckbox({
     checked,
     onToggle,
     title,
@@ -24,7 +25,7 @@ export function ChannelCard({
     description?: string;
     badge?: string;
     icon?: React.ReactNode;
-    /** The recommended channel: an orange ring while it is on. */
+    /** The recommended choice: an orange ring while it is on. */
     emphasized?: boolean;
     children?: React.ReactNode;
 }) {
