@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { env } from '@/env.mjs';
 import { getCityCached, getCityIdForGeohashCached } from '@/lib/cache';
 import { parseEmbedConfig } from '@/lib/utils/embedParams';
+import { embedBaseUrl } from '@/lib/utils/embedBaseUrl';
 import { getRecentHotSubjects, getHotSubjectsNearGeohash, withDistances, type HotSubject, type HotSubjectWithDistance } from '@/lib/hotSubjects';
 import { isValidGeohash, decodeGeohashToCenter } from '@/lib/geo';
 
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { limit, administrativeBodyTypes, administrativeBodyIds } = parseEmbedConfig(params);
-    const baseUrl = env.NEXTAUTH_URL.replace(/\/$/, '');
+    const baseUrl = embedBaseUrl(city?.realm);
 
     const top: HotSubject[] = city
         ? geohash

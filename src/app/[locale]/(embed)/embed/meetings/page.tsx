@@ -4,6 +4,7 @@ import { getCityCached, getCouncilMeetingsForCityPublicCached } from '@/lib/cach
 import { EmbedMeetingCard } from '@/components/embed/EmbedMeetingCard';
 import { EmbedFooter } from '@/components/embed/EmbedFooter';
 import { parseEmbedConfig, type EmbedSearchParams } from '@/lib/utils/embedParams';
+import { embedBaseUrl } from '@/lib/utils/embedBaseUrl';
 import './embed.css';
 
 // Cache the page for 5 minutes at the CDN, serve stale for up to 1 hour while revalidating
@@ -28,7 +29,8 @@ export default async function EmbedMeetingsPage(props: EmbedMeetingsPageProps) {
     const city = await getCityCached(cityId);
     if (!city) notFound();
 
-    const { limit, administrativeBodyTypes, administrativeBodyIds, themeVars, baseUrl } = parseEmbedConfig(searchParams);
+    const { limit, administrativeBodyTypes, administrativeBodyIds, themeVars } = parseEmbedConfig(searchParams);
+    const baseUrl = embedBaseUrl(city.realm);
     const showSubjects = searchParams.showSubjects !== 'false';
 
     // Fetch upcoming (ASC, nearest first) and past (DESC, most recent first) in parallel.

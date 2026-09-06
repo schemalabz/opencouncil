@@ -1,5 +1,4 @@
 import { AdministrativeBodyType } from '@prisma/client';
-import { env } from '@/env.mjs';
 import {
     generateThemeVars,
     generateAppThemeShim,
@@ -34,14 +33,13 @@ export interface ParsedEmbedConfig {
     themeVars: EmbedThemeVars;
     /** App design-token overrides for the shared SubjectCardContent in the subjects widget. */
     appThemeShim: AppThemeShim;
-    /** Trailing-slash-free base URL for building card links. */
-    baseUrl: string;
 }
 
 /**
  * Parse the appearance/filter query params common to all embed widgets
- * (`/embed/meetings`, `/embed/subjects`, …) and derive the theme vars + base
- * URL. Variant-specific params (e.g. `showSubjects`) stay in their own routes.
+ * (`/embed/meetings`, `/embed/subjects`, …) and derive the theme vars.
+ * Variant-specific params (e.g. `showSubjects`) stay in their own routes. The
+ * base URL for links is realm-dependent, see `embedBaseUrl`.
  */
 export function parseEmbedConfig(searchParams: EmbedSearchParams): ParsedEmbedConfig {
     const accent = parseAccentColor(searchParams.accent);
@@ -66,6 +64,5 @@ export function parseEmbedConfig(searchParams: EmbedSearchParams): ParsedEmbedCo
         administrativeBodyIds,
         themeVars: generateThemeVars(accent, mode, radius),
         appThemeShim: generateAppThemeShim(accent, mode, radius),
-        baseUrl: env.NEXTAUTH_URL.replace(/\/$/, ''),
     };
 }
