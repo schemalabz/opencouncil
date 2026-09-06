@@ -5,6 +5,7 @@ import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
 import { getCouncilMeetingsForCity } from "@/lib/db/meetings";
+import { getMeetingSummary } from "@/lib/db/meetingSummary";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
@@ -86,6 +87,21 @@ export async function getCouncilMeetingsForCityPublicCached(
     () => getCouncilMeetingsForCity(cityId, { includeUnreleased: false, limit, administrativeBodyTypes, administrativeBodyIds, timeFilter }),
     ['city', cityId, 'meetings', 'onlyReleased', limit ? `limit:${limit}` : 'all', typeKey, idKey, timeKey],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
+  )();
+}
+
+/**
+ * Cached data for one block of the meeting summary widget. Keyed per meeting,
+ * so every widget configuration shares one entry; `revalidateMeeting` busts it
+ * once summarization writes new subjects. Transcript edits (speaker tags,
+ * segment boundaries) bust no tag, so the entry also expires hourly: the
+ * duration and speaker count then catch up without a manual revalidation.
+ */
+export async function getMeetingSummaryCached(cityId: string, meetingId: string) {
+  return createCache(
+    () => getMeetingSummary(cityId, meetingId),
+    ['city', cityId, 'meeting', meetingId, 'summary'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`], revalidate: 3600 }
   )();
 }
 

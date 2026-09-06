@@ -15,6 +15,7 @@ import { CouncilMeetingWithAdminBodyAndSubjects } from '../meetings';
 // Re-export db types
 export * from './roles';
 export * from './contribution';
+export * from './meetingSummary';
 
 // Pagination
 export type { PaginationParams } from "../../../../packages/ui/src/lib/pagination";

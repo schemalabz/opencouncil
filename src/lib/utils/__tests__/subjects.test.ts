@@ -1,4 +1,4 @@
-import { categorizeSubjects, getNonAgendaLabel, getWithdrawnLabel, getSubjectCategories } from '../subjects';
+import { categorizeSubjects, getNonAgendaLabel, getWithdrawnLabel, getSubjectCategories, pickSummarySubjects } from '../subjects';
 
 // Identity translator: returns the key so tests assert the resolved key path
 // without depending on message-file contents.
@@ -143,5 +143,18 @@ describe('getWithdrawnLabel', () => {
 
     it('returns long label for OUT_OF_AGENDA withdrawn', () => {
         expect(getWithdrawnLabel(t, { nonAgendaReason: 'outOfAgenda' }, 'long')).toBe('notApprovedLong');
+    });
+});
+
+describe('pickSummarySubjects', () => {
+    const subject = (id: string, contributions: number) => ({ id, name: id, _count: { contributions } });
+
+    it('keeps the most discussed subjects, most discussed first', () => {
+        const picked = pickSummarySubjects([subject('a', 1), subject('b', 5), subject('c', 3)], 2);
+        expect(picked.map(s => s.id)).toEqual(['b', 'c']);
+    });
+
+    it('returns every subject when the cap is not reached', () => {
+        expect(pickSummarySubjects([subject('a', 0)], 6).map(s => s.id)).toEqual(['a']);
     });
 });

@@ -1,4 +1,4 @@
-import { sortSubjectsBySpeakerContributionCount } from "@/lib/utils";
+import { sortSubjectsBySpeakerContributionCount, sortSubjectsByImportance } from "@/lib/utils";
 import type { Statistics } from "@/lib/statistics";
 
 interface CategorizableSubject {
@@ -88,3 +88,10 @@ export function getWithdrawnLabel(t: Translate, subject: { nonAgendaReason: stri
     return mode === 'short' ? t('withdrawnShort') : t('withdrawnLong');
 }
 
+/**
+ * The subjects a block of the meeting summary widget shows: the `max` most
+ * discussed ones, most discussed first — the same ranking as the meetings widget.
+ */
+export function pickSummarySubjects<T extends { name: string; _count?: { contributions?: number } }>(subjects: T[], max: number): T[] {
+    return sortSubjectsByImportance(subjects, 'importance').slice(0, max);
+}
