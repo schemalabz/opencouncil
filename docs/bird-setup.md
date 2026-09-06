@@ -104,7 +104,7 @@ BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING=<uuid>
 BIRD_WEBHOOK_SECRET=<openssl-output-from-step-6>
 ```
 
-At this point the main app can reconcile outbound delivery statuses. It sends no messages itself: the admin test-send tool reports that Notis serves WhatsApp and SMS. To send a real message, run the Notis service with the same Bird variables and use its playground. **Inbound** still requires the next two steps.
+At this point the main app can reconcile outbound delivery statuses. It sends no messages to readers: the meeting test-send on the admin conversation page reports that Notis serves WhatsApp and SMS. The page's raw test tools (a template, an SMS, a reply) still send through the main app's Bird client until the sender is removed. To exercise a real reader's thread, run the Notis service with the same Bird variables and use its playground. **Inbound** still requires the next two steps.
 
 ## Step 8: Expose the webhook locally with ngrok
 

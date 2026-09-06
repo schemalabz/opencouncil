@@ -11,7 +11,9 @@ export interface EnrollmentPacing {
    * The moment the site stopped routing new readers through the old
    * notification templates. An account from before it is a `transition`
    * (told the sender changed); a younger one is a `signup` (told what they
-   * asked for is done). Unset means every reader is a signup.
+   * asked for is done). Unset means every reader is a transition: paced,
+   * and told the sender changed — the safe side, because a signup never
+   * waits and the whole legacy base would otherwise move in one tick.
    */
   transitionCutoff: Date | undefined;
   /**
@@ -31,7 +33,7 @@ export function enrollmentOriginFor(
   userCreatedAt: Date,
   cutoff: Date | undefined,
 ): EnrollmentOrigin {
-  if (!cutoff) return "signup";
+  if (!cutoff) return "transition";
   return userCreatedAt < cutoff ? "transition" : "signup";
 }
 

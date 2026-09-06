@@ -70,7 +70,7 @@ export interface PollerDeps {
     meetingId: string,
     phase: "agenda" | "summary",
   ) => Promise<{ brief: EditorialBrief; costUsd: number }>;
-  /** Overrides NOTIS_TRANSITION_CUTOFF; null means no cutoff (everyone is a signup). */
+  /** Overrides NOTIS_TRANSITION_CUTOFF; null means no cutoff (everyone is a paced transition). */
   transitionCutoff?: Date | null;
   /** Overrides NOTIS_ENROLL_PER_TICK. */
   enrollPerTick?: number;
