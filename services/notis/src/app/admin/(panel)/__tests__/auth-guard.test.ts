@@ -17,7 +17,10 @@ import path from "path";
  * proxy checks only that it exists — so one route.ts shipped without
  * requireAdmin() is an open endpoint. Every route must call requireAdmin()
  * unless it is on the deliberate public list (health; the Bird webhook,
- * which authenticates with its own HMAC signature).
+ * which authenticates with its own HMAC signature), or it is one of the
+ * service routes the main app calls with the shared bearer token — those
+ * call requireService() and live under api/subscriptions/ only, so the
+ * token cannot quietly become a second way into the admin routes.
  *
  * Mirrors src/lib/__tests__/admin-auth-guard.test.ts in the main app.
  */
@@ -48,6 +51,9 @@ const PUBLIC_ROUTES = new Set([
   "api/health/route.ts", // static liveness probe, no data
   "api/webhooks/bird/route.ts", // HMAC-signed by Bird, not session-authed
 ]);
+
+/** Where the service-token guard is allowed to stand in for requireAdmin. */
+const SERVICE_ROUTE_PREFIX = "api/subscriptions/";
 
 function findRoutes(dir: string, out: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -80,15 +86,24 @@ describe("notis (panel) auth guard", () => {
     expect({ unguarded }).toEqual({ unguarded: [] });
   });
 
-  it("every API route calls requireAdmin or is deliberately public", () => {
+  it("every API route calls requireAdmin, or requireService under api/subscriptions, or is deliberately public", () => {
     const unguarded: string[] = [];
     for (const route of findRoutes(APP_DIR)) {
       const rel = path.relative(APP_DIR, route).split(path.sep).join("/");
       if (PUBLIC_ROUTES.has(rel)) continue;
       const source = fs.readFileSync(route, "utf8");
       if (/requireAdmin/.test(source)) continue;
+      if (rel.startsWith(SERVICE_ROUTE_PREFIX) && /requireService/.test(source)) continue;
       unguarded.push(rel);
     }
     expect({ unguarded }).toEqual({ unguarded: [] });
+  });
+
+  it("has a service route to scan, and no service guard outside its prefix", () => {
+    const serviceRoutes = findRoutes(APP_DIR)
+      .map((route) => path.relative(APP_DIR, route).split(path.sep).join("/"))
+      .filter((rel) => /requireService/.test(fs.readFileSync(path.join(APP_DIR, rel), "utf8")));
+    expect(serviceRoutes.length).toBeGreaterThan(0);
+    expect(serviceRoutes.filter((rel) => !rel.startsWith(SERVICE_ROUTE_PREFIX))).toEqual([]);
   });
 });

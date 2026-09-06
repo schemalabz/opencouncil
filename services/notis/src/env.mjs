@@ -20,6 +20,10 @@ export const env = createEnv({
     // Override for the main app's session cookie name. Defaults per
     // environment; see src/lib/session-cookie.ts.
     MAIN_SESSION_COOKIE_NAME: z.string().optional(),
+    // The bearer token the main app presents on the subscriptions API (the
+    // profile switch). Same value on both components. Without it those
+    // routes answer 503 — they fail closed, never open.
+    NOTIS_SERVICE_TOKEN: z.string().min(32).optional(),
     // Webhook (e.g. Discord) for operational alarms — janitor refusals and
     // failures. Optional: without it alarms only reach the logs.
     NOTIS_ALERT_WEBHOOK_URL: z.string().url().optional(),
@@ -71,6 +75,7 @@ export const env = createEnv({
     NOTIS_DATABASE_URL: process.env.NOTIS_DATABASE_URL,
     MAIN_DATABASE_URL: process.env.MAIN_DATABASE_URL,
     MAIN_SESSION_COOKIE_NAME: process.env.MAIN_SESSION_COOKIE_NAME,
+    NOTIS_SERVICE_TOKEN: process.env.NOTIS_SERVICE_TOKEN,
     NOTIS_ALERT_WEBHOOK_URL: process.env.NOTIS_ALERT_WEBHOOK_URL,
     NOTIS_TRANSITION_CUTOFF: process.env.NOTIS_TRANSITION_CUTOFF,
     NOTIS_ENROLL_PER_TICK: process.env.NOTIS_ENROLL_PER_TICK,

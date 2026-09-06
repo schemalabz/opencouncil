@@ -83,8 +83,11 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
     calls,
     store,
     notisSubscription: {
-      findUnique: async ({ where }: { where: { id: string } }) =>
-        store.subscriptions.get(where.id) ?? null,
+      // By id, or by the unique userId the subscriptions API addresses.
+      findUnique: async ({ where }: { where: { id?: string; userId?: string } }) =>
+        where.id !== undefined
+          ? (store.subscriptions.get(where.id) ?? null)
+          : ([...store.subscriptions.values()].find((s) => s.userId === where.userId) ?? null),
       findMany: async ({ where }: { where?: Row } = {}) =>
         [...store.subscriptions.values()].filter((s) => {
           const w = (where ?? {}) as { userId?: { in: string[] }; status?: string };
