@@ -1,6 +1,6 @@
 import { AdministrativeBodyType, Realm } from "@prisma/client";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
-import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getAllCityIds, getCitiesSupportingNotifications, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint } from "@/lib/db/cities";
 import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
@@ -49,6 +49,19 @@ export async function getAllCityIdsCached(realm: Realm) {
   return createCache(
     () => getAllCityIds(realm),
     ['cities', 'ids', realm],
+    { tags: ['cities:all', `realm:${realm}:cities:all`] }
+  )();
+}
+
+/**
+ * Cached municipalities that support notifications, for the /notifications
+ * picker. Tagged with the cities set, so flipping supportsNotifications on a
+ * city revalidates it with everything else that lists cities.
+ */
+export async function getCitiesSupportingNotificationsCached(realm: Realm) {
+  return createCache(
+    () => getCitiesSupportingNotifications(realm),
+    ['cities', 'notifying', realm],
     { tags: ['cities:all', `realm:${realm}:cities:all`] }
   )();
 }
