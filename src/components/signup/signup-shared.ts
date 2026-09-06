@@ -44,6 +44,7 @@ const SAVE_ERROR_KEYS: Record<string, string> = {
     phone_not_mobile: 'phoneNotMobile',
     phone_in_use: 'phoneInUse',
     email_exists: 'emailExists',
+    notis_unreachable: 'notisUnreachable',
 };
 
 export function saveErrorKey(code: string): string {

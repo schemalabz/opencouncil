@@ -630,7 +630,6 @@
         "notisNoPhone": "A mobile number is needed.",
         "notisAddPhone": "Add it under personal details",
         "notisUnreachable": "Notis is not answering right now.",
-        "notisUnsynced": "Not confirmed.",
         "notisRetry": "Try again",
         "notisError": "Something went wrong. Try again.",
         "actions": "Actions",

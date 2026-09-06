@@ -1,8 +1,10 @@
 import type { Topic } from '@prisma/client';
 import { accountIssues, type SignupAccount, type SignupIssue } from '@/components/signup/signup-shared';
+import { type NotisStatus, phoneChannelFor } from '@/lib/notis/phone-channel';
 import type { Location } from '@/lib/types/onboarding';
 
 export type { SignupAccount } from '@/components/signup/signup-shared';
+export type { NotisStatus } from '@/lib/notis/phone-channel';
 
 /**
  * The signup's state and rules, kept apart from React so they can be tested
@@ -18,13 +20,6 @@ export interface ExistingPreference {
     notifyByEmail: boolean;
 }
 
-/**
- * What Notis says about this reader: a subscription's status, `null` when
- * he has none (or there is no Notis to ask), `unknown` when he did not
- * answer — which is not the same as none.
- */
-export type NotisStatus = 'active' | 'unsubscribed' | 'unknown' | null;
-
 export interface SignupState {
     step: SignupStep;
     locations: Location[];
@@ -36,28 +31,34 @@ export interface SignupState {
     email: string;
 }
 
+/**
+ * Where the WhatsApp card starts. Notis decides for a reader he knows: a
+ * reader who said ΣΤΟΠ is not resubscribed by editing their topics, in this
+ * municipality or a new one — the card starts unticked, and only an
+ * explicit tick re-enables the channel. When Notis did not answer, the
+ * reader may be one of them, so the same explicit tick is asked for. A
+ * reader Notis has not met starts from their own request — Νότης is one
+ * conversation, whatever the municipality — and a new reader with WhatsApp
+ * on, the recommended channel.
+ */
+export function phoneChannelDefault(notisStatus: NotisStatus, account: SignupAccount | null): boolean {
+    if (!account) return true;
+    return phoneChannelFor(notisStatus, account.notifyByPhone) ?? false;
+}
+
 export function initialSignupState(input: {
     initialStep: SignupStep;
     existing: ExistingPreference | null;
     account: SignupAccount | null;
-    notisStatus: NotisStatus;
 }): SignupState {
-    const { existing, account, notisStatus } = input;
-    // A reader who said ΣΤΟΠ is not resubscribed by editing their topics, in
-    // this municipality or a new one: the card starts unticked for them, and
-    // only an explicit tick re-enables the channel. When Notis did not answer,
-    // the reader may be one of them, so the same explicit tick is asked for.
-    // A signed-in reader starts from their one consent — Νότης is one
-    // conversation, whatever the municipality — and a new reader with
-    // WhatsApp on, the recommended channel, and email off, as the design
-    // proposes it.
-    const phoneChannel =
-        notisStatus === 'unsubscribed' || notisStatus === 'unknown' ? false : account ? account.notifyByPhone : true;
+    const { existing, account } = input;
     return {
         step: input.initialStep,
         locations: existing?.locations ?? [],
         topics: existing?.topics ?? [],
-        phoneChannel,
+        // Notis has not been asked yet; the answer replaces this before the
+        // card shows. Email starts off, as the design proposes it.
+        phoneChannel: phoneChannelDefault(null, account),
         emailChannel: existing?.notifyByEmail ?? false,
         phone: account?.phone ?? '',
         name: account?.name ?? '',

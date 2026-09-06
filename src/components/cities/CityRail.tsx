@@ -14,8 +14,8 @@ interface CityRailProps {
     isSuperAdmin: boolean;
     hasNoData: boolean;
     notificationPreference: CityNotificationPreference | null;
-    /** The reader's WhatsApp/SMS consent, one per person; false when nobody is signed in. */
-    phoneChannel: boolean;
+    /** The reader's WhatsApp channel as Notis has it, still being asked; resolves false when nobody is signed in. */
+    phoneChannel: Promise<boolean | null>;
     /** The public "N+" bucket of the city's petitions, for a city not covered yet. */
     petitionBucket: PetitionBucket | null;
     allMeetings: MeetingBookends;

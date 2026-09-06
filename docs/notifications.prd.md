@@ -264,7 +264,7 @@ const stats = await createNotificationsForMeeting(
 2. **Preferences**: locations and topics. `?step=2` deep-links here. The municipality picker at `/notifications` and the subscribed card on the city page use it.
 3. **Channels**: a WhatsApp/SMS card with the phone number inside (`User.notifyByPhone`, one consent per reader, not per municipality), an email summary card (`NotificationPreference.notifyByEmail`), and the account fields for a signed-out reader.
 
-`saveNotificationPreferences()` persists the email flag on the preference and the WhatsApp consent on the reader. A signed-in reader's card starts from that consent. A reader who said ΣΤΟΠ to Νότης starts with the WhatsApp card unticked. Only an explicit tick re-activates them, through the Notis API (`src/lib/actions/notis.ts`). An unticked card from a reader Νότης serves is the profile switch's off.
+`saveNotificationPreferences()` persists the email flag on the preference and the WhatsApp request on the reader. Notis is the truth for the WhatsApp card (`src/lib/notis/phone-channel.ts`): a signed-in reader's card starts from what Notis says about them, and from their own request only when Notis has not met them. A reader who said ΣΤΟΠ to Νότης starts with the card unticked. Only an explicit tick re-activates them, through the Notis API (`src/lib/actions/notis.ts`). An unticked card from a reader Νότης serves is the profile switch's off. The page does not wait for Notis: the signup asks in the background and step 3 waits for the answer only if it has not arrived yet.
 
 The completion screen shows the real first message (`notis_intro`) and says when it arrives. The Notis poller sends it on its next tick; the main app sends a welcome email only.
 
@@ -277,14 +277,14 @@ The completion screen shows the real first message (`notis_intro`) and says when
 #### Profile
 
 `src/components/profile/NotificationPreferencesSection.tsx`:
-- **Νότης switch**: one switch for the WhatsApp channel of the whole account (`NotisSwitch.tsx`). It reads the subscription status from the Notis API and falls back to `User.notifyByPhone` while enrollment is pending. Off writes the consent first, then tells Notis. On asks Notis first, so a refused number never leaves the consent on. Notis unreachable freezes the switch on its last known state.
+- **Νότης switch**: one switch for the WhatsApp channel of the whole account (`NotisSwitch.tsx`). It shows the subscription status from the Notis API and falls back to `User.notifyByPhone` only while enrollment is pending. Both flips ask Notis first; the request follows a confirmed answer. A flip Notis does not confirm changes nothing and offers a retry, so a refused number never leaves the request on, and an outage never leaves the request off against a subscription Notis still serves. Notis unreachable freezes the switch on its last known state.
 - **Per-city rows**: topics and locations, an email checkbox (`notifyByEmail`), edit (step 2 of the signup), delete.
 - **History**: past notifications with their delivery statuses.
 
 #### Unsubscribe
 
 - **ΣΤΟΠ on WhatsApp**: Notis unsubscribes the reader and keeps their preferences. The profile switch shows the subscription status, so it shows off.
-- **Profile switch off**: `User.notifyByPhone=false`, then Notis `unsubscribed`. The unticked WhatsApp card in a signup does the same.
+- **Profile switch off**: Notis `unsubscribed` first, then `User.notifyByPhone=false`. The unticked WhatsApp card in a signup does the same.
 - **«All notifications» link in an email**: `notifyByEmail=false` on every preference, `User.notifyByPhone=false`, then Notis `unsubscribed` (best effort).
 - **Delete per city**: removes the `NotificationPreference` record after a confirmation dialog.
 - **Email unsubscribe links**: TODO

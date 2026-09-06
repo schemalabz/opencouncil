@@ -9,21 +9,23 @@ import { Link } from '@/i18n/routing';
 import { getNotisChannelState, setNotisEnabled, type NotisChannelState } from '@/lib/actions/notis';
 import { captureEvent } from '@/lib/analytics/capture';
 import { maskPhone } from '@/components/signup/signup-shared';
+import { notisStatusFromChannelState, phoneChannelFor } from '@/lib/notis/phone-channel';
 
 /**
  * One switch for the WhatsApp channel, backed by the Notis subscriptions
- * API. Notis owns the status, so the switch reads it from there and falls
- * back to the reader's notifyByPhone consent only while Notis has not
- * enrolled them yet. Notis unreachable never shows as OFF: the switch
- * freezes on its last known state and says so.
+ * API. Notis owns the status, so the switch shows what Notis says and falls
+ * back to the reader's own request only while Notis has not enrolled them
+ * yet. A flip Notis does not confirm changes nothing: the switch stays
+ * where it was and offers to try again. Notis unreachable never shows as
+ * OFF either: the switch freezes on its last known state and says so.
  */
 
 type Loaded = {
     state: NotisChannelState;
     enabled: boolean;
-    /** The last flip wrote the consent but did not reach Notis. */
-    unsynced: boolean;
     error: string | null;
+    /** The state the reader asked for and Notis did not confirm; offered again. */
+    retry: boolean | null;
 };
 
 export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
@@ -38,9 +40,9 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
         if (!state) return;
         setLoaded({
             state,
-            enabled: state.subscription ? state.subscription.status === 'active' : state.notifyByPhone,
-            unsynced: false,
+            enabled: phoneChannelFor(notisStatusFromChannelState(state), state.notifyByPhone) ?? state.notifyByPhone,
             error: null,
+            retry: null,
         });
     }, []);
 
@@ -54,28 +56,23 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
         try {
             const result = await setNotisEnabled(next);
             if (!result.ok) {
-                setLoaded({ ...loaded, error: result.code });
+                setLoaded({ ...loaded, error: result.code, retry: result.code === 'notis_unreachable' ? next : null });
                 return;
             }
             captureEvent('notis_toggle_changed', {
                 enabled: result.enabled,
-                synced: result.synced,
                 had_subscription: loaded.state.subscription !== null,
             });
             setLoaded({
-                state: {
-                    ...loaded.state,
-                    notifyByPhone: result.enabled,
-                    subscription: result.synced ? result.subscription : loaded.state.subscription,
-                },
+                state: { ...loaded.state, notifyByPhone: result.enabled, subscription: result.subscription },
                 enabled: result.enabled,
-                unsynced: !result.synced,
                 error: null,
+                retry: null,
             });
         } catch (error) {
             // A thrown action must not leave the switch disabled for good.
             console.error('Notis switch failed:', error);
-            setLoaded({ ...loaded, error: 'exception' });
+            setLoaded({ ...loaded, error: 'exception', retry: null });
         } finally {
             setSaving(false);
         }
@@ -85,18 +82,22 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
     // he already knows them; then the switch is how they turn him off.
     if (!hasPreferences && !loaded?.state.subscription) return null;
 
-    const retry = (
-        <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => flip(loaded!.enabled)}>
-            {t('notisRetry')}
-        </button>
-    );
-
     let status: React.ReactNode = null;
     let tone = 'text-muted-foreground';
     if (loaded) {
-        const { state, enabled, unsynced, error } = loaded;
+        const { state, enabled, error, retry } = loaded;
         const phone = state.phone ? maskPhone(state.phone) : '';
-        if (error) {
+        if (error === 'notis_unreachable' && retry !== null) {
+            tone = 'text-amber-700';
+            status = (
+                <>
+                    {t('notisUnreachable')}{' '}
+                    <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => flip(retry)}>
+                        {t('notisRetry')}
+                    </button>
+                </>
+            );
+        } else if (error) {
             tone = 'text-destructive';
             status = errorMessage(error, t, tp);
         } else if (!state.phone) {
@@ -117,9 +118,6 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
                     </button>
                 </>
             );
-        } else if (unsynced) {
-            tone = 'text-amber-700';
-            status = <>{t('notisUnsynced')} {retry}</>;
         } else if (enabled && state.subscription?.status === 'active') {
             status = t('notisOn', { phone });
         } else if (enabled) {

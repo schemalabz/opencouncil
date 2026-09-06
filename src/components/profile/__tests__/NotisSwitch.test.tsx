@@ -59,12 +59,21 @@ describe('NotisSwitch', () => {
         expect(screen.getByText('notisOn +30 694 ··· 2297')).toBeInTheDocument();
     });
 
+    it('shows what Notis says over the request: a reader who said ΣΤΟΠ reads as off', async () => {
+        mockedState.mockResolvedValue(
+            state({ subscription: { ...active, status: 'unsubscribed', unsubscribedAt: '2026-09-05T10:00:00.000Z' } }),
+        );
+        render(<NotisSwitch hasPreferences />);
+
+        await waitFor(() => expect(theSwitch()).toHaveAttribute('aria-checked', 'false'));
+        expect(screen.getByText('notisOff')).toBeInTheDocument();
+    });
+
     it('turns Νότης off through the action and reports the flip', async () => {
         mockedState.mockResolvedValue(state());
         mockedSet.mockResolvedValue({
             ok: true,
             enabled: false,
-            synced: true,
             subscription: { ...active, status: 'unsubscribed', unsubscribedAt: '2026-09-06T10:00:00.000Z' },
         });
         render(<NotisSwitch hasPreferences />);
@@ -77,32 +86,32 @@ describe('NotisSwitch', () => {
         expect(screen.getByText('notisOff')).toBeInTheDocument();
         expect(captureEvent).toHaveBeenCalledWith('notis_toggle_changed', {
             enabled: false,
-            synced: true,
             had_subscription: true,
         });
     });
 
-    it('says the flip is not confirmed when Notis was not told, and retries the same state', async () => {
+    it('keeps its state when Notis did not confirm the flip, and offers the same flip again', async () => {
         mockedState.mockResolvedValue(state());
-        mockedSet.mockResolvedValueOnce({ ok: true, enabled: false, synced: false, subscription: null });
-        mockedSet.mockResolvedValueOnce({ ok: true, enabled: false, synced: true, subscription: null });
+        mockedSet.mockResolvedValueOnce({ ok: false, code: 'notis_unreachable' });
+        mockedSet.mockResolvedValueOnce({ ok: true, enabled: false, subscription: null });
         render(<NotisSwitch hasPreferences />);
         await waitFor(() => expect(theSwitch()).toBeEnabled());
 
         fireEvent.click(theSwitch());
-        await screen.findByText(/notisUnsynced/);
-        expect(theSwitch()).toHaveAttribute('aria-checked', 'false');
+        await screen.findByText(/notisUnreachable/);
+        expect(theSwitch()).toHaveAttribute('aria-checked', 'true');
+        expect(captureEvent).not.toHaveBeenCalled();
 
         fireEvent.click(screen.getByRole('button', { name: 'notisRetry' }));
 
-        await waitFor(() => expect(mockedSet).toHaveBeenLastCalledWith(false));
+        await waitFor(() => expect(theSwitch()).toHaveAttribute('aria-checked', 'false'));
+        expect(mockedSet).toHaveBeenLastCalledWith(false);
         expect(mockedSet).toHaveBeenCalledTimes(2);
-        await waitFor(() => expect(screen.queryByText(/notisUnsynced/)).toBeNull());
     });
 
     it('promises the first message while enrollment is still pending', async () => {
         mockedState.mockResolvedValue(state({ subscription: null, notifyByPhone: false }));
-        mockedSet.mockResolvedValue({ ok: true, enabled: true, synced: true, subscription: null });
+        mockedSet.mockResolvedValue({ ok: true, enabled: true, subscription: null });
         render(<NotisSwitch hasPreferences />);
         await waitFor(() => expect(theSwitch()).toHaveAttribute('aria-checked', 'false'));
 
@@ -132,7 +141,7 @@ describe('NotisSwitch', () => {
         expect(screen.getByRole('link', { name: 'notisAddPhone' })).toHaveAttribute('href', '/profile?tab=personal');
     });
 
-    it('freezes on the consent instead of showing OFF while Notis is unreachable', async () => {
+    it('freezes on the request instead of showing OFF while Notis is unreachable', async () => {
         mockedState.mockResolvedValueOnce(state({ reachable: false, subscription: null }));
         mockedState.mockResolvedValueOnce(state());
         render(<NotisSwitch hasPreferences />);

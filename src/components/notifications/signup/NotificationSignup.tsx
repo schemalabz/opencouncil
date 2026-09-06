@@ -1,15 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
 import { saveErrorKey } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { saveNotificationPreferences } from '@/lib/actions/notifications';
-import { setNotisEnabled } from '@/lib/actions/notis';
+import { getNotisChannelState, setNotisEnabled } from '@/lib/actions/notis';
 import { captureEvent } from '@/lib/analytics/capture';
 import type { CityWithGeometry } from '@/lib/db/cities';
+import { notisStatusFromChannelState } from '@/lib/notis/phone-channel';
 import type { Location } from '@/lib/types/onboarding';
 import { ChannelsStep } from './ChannelsStep';
 import { CompleteAside, CompleteScreen } from './CompleteScreen';
@@ -25,6 +26,7 @@ import {
     channelIssues,
     initialSignupState,
     notisActionFor,
+    phoneChannelDefault,
 } from './signup-state';
 
 const TOTAL_STEPS = 3;
@@ -34,6 +36,11 @@ const TOTAL_STEPS = 3;
  * the URL (`?step=2` is where the municipality picker lands), so a reload
  * keeps the place; the choices live in memory, so a reload starts them
  * over — a signed-in reader's saved preferences come back from the server.
+ *
+ * Notis is asked about a signed-in reader in the background, not before
+ * the page shows: the answer only matters at step 3, where the WhatsApp
+ * card starts from it. A reader who reaches step 3 before it arrives waits
+ * there, briefly, rather than see the card flip under their thumb.
  */
 export function NotificationSignup({
     city,
@@ -41,33 +48,61 @@ export function NotificationSignup({
     initialStep,
     existing,
     account,
-    notisStatus,
 }: {
     city: CityWithGeometry;
     topics: Topic[];
     initialStep: 1 | 2;
     existing: ExistingPreference | null;
     account: SignupAccount | null;
-    notisStatus: NotisStatus;
 }) {
     const t = useTranslations('notificationSignup');
     const ts = useTranslations('signup');
     const signedIn = account !== null;
     const flow = useSignupFlow<SignupState>({
-        initial: () => initialSignupState({ initialStep, existing, account, notisStatus }),
+        initial: () => initialSignupState({ initialStep, existing, account }),
         cityId: city.id,
         signedIn,
         events: { stepViewed: 'notification_signup_step_viewed', failed: 'notification_signup_failed' },
     });
     const { state, patch, goTo, done, submitting, attempted, saveError, validity, setPhoneValidity } = flow;
+
+    // 'pending' until Notis has answered for a signed-in reader; a signed-out
+    // reader has nothing to ask about.
+    const [notisStatus, setNotisStatus] = useState<NotisStatus | 'pending'>(signedIn ? 'pending' : null);
+    // Once the reader has touched the card, Notis's late answer keeps its hands off it.
+    const touchedPhoneChannel = useRef(false);
+    useEffect(() => {
+        if (!signedIn) return;
+        let cancelled = false;
+        getNotisChannelState()
+            .then((channel) => (channel ? notisStatusFromChannelState(channel) : null))
+            .catch((error: unknown) => {
+                console.error('Notis status failed:', error);
+                return 'unknown' as const;
+            })
+            .then((status) => {
+                if (cancelled) return;
+                setNotisStatus(status);
+                if (!touchedPhoneChannel.current) patch({ phoneChannel: phoneChannelDefault(status, account) });
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [account, patch, signedIn]);
+
     // Whether Notis serves this reader once the signup is done: the completion
     // screen promises an intro only to a reader he does not know yet.
-    const [known, setKnown] = useState(notisStatus === 'active');
+    const [known, setKnown] = useState(false);
+    useEffect(() => {
+        if (notisStatus === 'active') setKnown(true);
+    }, [notisStatus]);
 
+    const notisPending = notisStatus === 'pending';
     const issues = attempted ? channelIssues(state, validity) : [];
 
     const submit = () =>
         flow.submit(async () => {
+            if (notisPending) return 'blocked';
             if (channelIssues(state, validity).length > 0) return 'blocked';
 
             const result = await saveNotificationPreferences(buildSubmission(state, city.id, signedIn));
@@ -76,26 +111,18 @@ export function NotificationSignup({
                 return { ok: false, error: saveErrorKey(result.error) };
             }
 
-            // The consent is written; now the side Notis owns. A refusal or a
-            // silence must not pass as success: the consent would then claim a
+            // The request is written; now the side Notis owns. A refusal or a
+            // silence must not pass as success: the request would then claim a
             // channel that does not exist, and the poller never resurrects a
             // subscription on its own.
             const action = notisActionFor(state, signedIn, notisStatus);
-            if (action === 'activate') {
-                const notis = await setNotisEnabled(true);
+            if (action !== null) {
+                const notis = await setNotisEnabled(action === 'activate');
                 if (!notis.ok) {
                     captureEvent('notification_signup_failed', { city_id: city.id, code: notis.code });
                     return { ok: false, error: saveErrorKey(notis.code) };
                 }
-                if (!notis.synced) {
-                    captureEvent('notification_signup_failed', { city_id: city.id, code: 'notis_unreachable' });
-                    return { ok: false, error: 'notisUnreachable' };
-                }
                 setKnown(notis.subscription?.status === 'active');
-            } else if (action === 'release') {
-                // The unticked card is the profile switch's OFF: best effort, the
-                // consent already mutes the proactive audience.
-                await setNotisEnabled(false);
             }
 
             captureEvent('notification_signup_completed', {
@@ -155,9 +182,13 @@ export function NotificationSignup({
                 <ChannelsStep
                     state={state}
                     signedIn={signedIn}
+                    phoneChannelPending={notisPending}
                     issues={issues}
                     saveError={saveError}
-                    onChange={patch}
+                    onChange={(next) => {
+                        if (next.phoneChannel !== undefined) touchedPhoneChannel.current = true;
+                        patch(next);
+                    }}
                     onPhoneValidity={setPhoneValidity}
                 />
             )}
@@ -175,7 +206,7 @@ export function NotificationSignup({
                 <SignupFooter
                     actionLabel={submitting ? t('ctaSubmitting') : t('ctaSubmit')}
                     onAction={submit}
-                    disabled={submitting}
+                    disabled={submitting || notisPending}
                     backLabel={ts('back')}
                     onBack={() => goTo(2)}
                 />

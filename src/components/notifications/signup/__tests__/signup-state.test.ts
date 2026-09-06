@@ -1,5 +1,12 @@
 import type { Topic } from '@prisma/client';
-import { buildSubmission, channelIssues, initialSignupState, notisActionFor, type SignupState } from '../signup-state';
+import {
+    buildSubmission,
+    channelIssues,
+    initialSignupState,
+    notisActionFor,
+    phoneChannelDefault,
+    type SignupState,
+} from '../signup-state';
 
 const topic = (id: string): Topic =>
     ({ id, name: id, name_en: id, colorHex: '#000', icon: null, description: '', deprecated: false, realm: 'greece' }) as Topic;
@@ -13,7 +20,7 @@ const existing = {
 
 describe('initialSignupState', () => {
     it('starts a new reader with WhatsApp on, email off, and the account prefilled when signed in', () => {
-        const state = initialSignupState({ initialStep: 1, existing: null, account, notisStatus: null });
+        const state = initialSignupState({ initialStep: 1, existing: null, account });
         expect(state).toMatchObject({
             step: 1,
             locations: [],
@@ -24,7 +31,7 @@ describe('initialSignupState', () => {
             name: 'Μαρία',
             email: 'maria@example.com',
         });
-        expect(initialSignupState({ initialStep: 2, existing: null, account: null, notisStatus: null })).toMatchObject({
+        expect(initialSignupState({ initialStep: 2, existing: null, account: null })).toMatchObject({
             step: 2,
             phone: '',
             name: '',
@@ -32,30 +39,31 @@ describe('initialSignupState', () => {
         });
     });
 
-    it('brings back a saved preference, channels included', () => {
-        const state = initialSignupState({ initialStep: 2, existing, account, notisStatus: 'active' });
+    it('brings back a saved preference, the email channel included', () => {
+        const state = initialSignupState({ initialStep: 2, existing, account });
         expect(state.locations).toEqual(existing.locations);
         expect(state.topics).toEqual(existing.topics);
-        expect(state.phoneChannel).toBe(true);
         expect(state.emailChannel).toBe(true);
     });
+});
 
-    it("starts the WhatsApp card from the person's one consent, whatever the municipality", () => {
-        const declined = { ...account, notifyByPhone: false };
-        expect(initialSignupState({ initialStep: 2, existing, account: declined, notisStatus: null }).phoneChannel).toBe(false);
-        expect(initialSignupState({ initialStep: 2, existing: null, account: declined, notisStatus: null }).phoneChannel).toBe(false);
+describe('phoneChannelDefault', () => {
+    it('lets Notis decide for a reader he knows, whatever the reader asked for here', () => {
+        expect(phoneChannelDefault('active', { ...account, notifyByPhone: false })).toBe(true);
+        expect(phoneChannelDefault('unsubscribed', account)).toBe(false);
     });
 
-    it('does not resubscribe a reader who said ΣΤΟΠ: the WhatsApp card starts unticked, in any municipality', () => {
-        const state = initialSignupState({ initialStep: 2, existing, account, notisStatus: 'unsubscribed' });
-        expect(state.phoneChannel).toBe(false);
-        expect(state.emailChannel).toBe(true);
-        expect(initialSignupState({ initialStep: 2, existing: null, account, notisStatus: 'unsubscribed' }).phoneChannel).toBe(false);
+    it("starts from the reader's own request when Notis has not met them, whatever the municipality", () => {
+        expect(phoneChannelDefault(null, account)).toBe(true);
+        expect(phoneChannelDefault(null, { ...account, notifyByPhone: false })).toBe(false);
     });
 
     it('asks for an explicit tick when Notis did not answer, because the reader may have said ΣΤΟΠ', () => {
-        expect(initialSignupState({ initialStep: 2, existing, account, notisStatus: 'unknown' }).phoneChannel).toBe(false);
-        expect(initialSignupState({ initialStep: 2, existing: null, account, notisStatus: 'unknown' }).phoneChannel).toBe(false);
+        expect(phoneChannelDefault('unknown', account)).toBe(false);
+    });
+
+    it('starts a signed-out reader with WhatsApp on', () => {
+        expect(phoneChannelDefault(null, null)).toBe(true);
     });
 });
 
