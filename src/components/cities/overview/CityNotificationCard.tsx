@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import Image from 'next/image';
 import { ArrowRight, Mail, MapPin } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -20,8 +21,12 @@ interface CityNotificationCardProps {
     city: CityWithCounts;
     /** The signed-in reader's preference for THIS city, or null when they have none. */
     preference: CityNotificationPreference | null;
-    /** The reader's WhatsApp/SMS consent: one per person, so it comes with the reader, not the preference. */
-    phoneChannel: boolean;
+    /**
+     * The reader's WhatsApp channel as Notis has it, still being asked: the
+     * card streams that one line in rather than hold the page for it. `null`
+     * when Notis did not answer, and the card says nothing about it.
+     */
+    phoneChannel: Promise<boolean | null>;
     locale: string;
 }
 
@@ -89,7 +94,7 @@ function SubscribedCard({
 }: {
     city: CityWithCounts;
     preference: CityNotificationPreference;
-    phoneChannel: boolean;
+    phoneChannel: Promise<boolean | null>;
     locale: string;
 }) {
     const t = useTranslations('cityOverview');
@@ -97,10 +102,8 @@ function SubscribedCard({
     const moreTopics = preference.interests.length - topics.length;
     const [firstLocation, ...otherLocations] = preference.locations;
 
-    const channels = [
-        preference.notifyByEmail ? t('channelEmail') : null,
-        phoneChannel ? t('channelPhone') : null,
-    ].filter(Boolean);
+    const emailLabel = preference.notifyByEmail ? t('channelEmail') : null;
+    const phoneLabel = t('channelPhone');
 
     return (
         <RailDisclosure summary={t('subscribedSummary')}>
@@ -143,12 +146,11 @@ function SubscribedCard({
                         )}
                     </div>
 
-                    {channels.length > 0 && (
-                        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                            <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                            {channels.join(' · ')}
-                        </p>
-                    )}
+                    {/* The email part is known at once; the WhatsApp part is
+                        Notis's answer and arrives when it does. */}
+                    <Suspense fallback={<ChannelsLine labels={[emailLabel]} />}>
+                        <PhoneChannelsLine emailLabel={emailLabel} phoneLabel={phoneLabel} phoneChannel={phoneChannel} />
+                    </Suspense>
                 </div>
             </div>
 
@@ -165,5 +167,29 @@ function SubscribedCard({
                 </Link>
             </div>
         </RailDisclosure>
+    );
+}
+
+async function PhoneChannelsLine({
+    emailLabel,
+    phoneLabel,
+    phoneChannel,
+}: {
+    emailLabel: string | null;
+    phoneLabel: string;
+    phoneChannel: Promise<boolean | null>;
+}) {
+    const phone = await phoneChannel;
+    return <ChannelsLine labels={[emailLabel, phone === true ? phoneLabel : null]} />;
+}
+
+function ChannelsLine({ labels }: { labels: (string | null)[] }) {
+    const shown = labels.filter((label): label is string => label !== null);
+    if (shown.length === 0) return null;
+    return (
+        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            {shown.join(' · ')}
+        </p>
     );
 }

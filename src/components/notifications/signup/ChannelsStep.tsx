@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Mail } from 'lucide-react';
+import { Loader2, Mail } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { CheckboxCard } from '@/components/ui/checkbox-card';
@@ -22,6 +22,7 @@ import type { SignupState } from './signup-state';
 export function ChannelsStep({
     state,
     signedIn,
+    phoneChannelPending,
     issues,
     saveError,
     onChange,
@@ -29,6 +30,8 @@ export function ChannelsStep({
 }: {
     state: SignupState;
     signedIn: boolean;
+    /** Notis has not said yet where this reader's card starts; the card waits. */
+    phoneChannelPending: boolean;
     /** Shown once the reader has tried to submit. */
     issues: SignupIssue[];
     /** The save action's answer, as a key under `signup.errors`. */
@@ -47,10 +50,16 @@ export function ChannelsStep({
 
             <div className="mt-5 flex flex-col gap-3">
                 <CheckboxCard
-                    checked={state.phoneChannel}
+                    checked={state.phoneChannel && !phoneChannelPending}
+                    disabled={phoneChannelPending}
                     onCheckedChange={(phoneChannel) => onChange({ phoneChannel })}
                     label={t('phoneChannel')}
                     badge={t('recommended')}
+                    icon={
+                        phoneChannelPending ? (
+                            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" aria-hidden />
+                        ) : undefined
+                    }
                 >
                     <div className="flex items-center gap-2.5 pb-3">
                         <Image

@@ -189,14 +189,15 @@ for a state on the reader's explicit action.
 
 ## Known gaps (tracked for later PRs)
 
-- **notifyByPhone and the subscription status are two facts, kept aligned
-  by the profile switch.** ΣΤΟΠ writes only this database, so a reader who
-  said it still carries `User.notifyByPhone: true` in the main one (one
-  consent per reader, repeated on every row of the view); the profile shows
-  the subscription's status, not the flag, so it tells the truth. The other
-  direction is the seam: the flag gates enrollment and the proactive
-  audience but never re-activates anyone — only the switch does, through the
-  subscriptions API. `User.notisEnabledAt` and its two view columns are
+- **notifyByPhone is the reader's request; the subscription status is the
+  truth.** ΣΤΟΠ writes only this database, so a reader who said it still
+  carries `User.notifyByPhone: true` in the main one (one request per
+  reader, repeated on every row of the view). Every page of the main app
+  shows what this API says and falls back to the flag only for a reader
+  Notis has not met; both flips of the switch ask this API first and write
+  the flag after a confirmed answer. The flag gates enrollment and the
+  proactive audience but never re-activates anyone — only the switch does,
+  through the subscriptions API. `User.notisEnabledAt` and its two view columns are
   unread since PR 5 and go with a view-recreating migration in PR 6.
 
 - **The wake trace shares a table with the wake's scalars.** `NotisWake.trace`

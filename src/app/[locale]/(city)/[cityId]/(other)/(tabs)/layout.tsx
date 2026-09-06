@@ -13,6 +13,7 @@ import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
 import { publicMeetingStage, stageSignalsFromPreview } from "@/lib/meetingStage";
+import { readerPhoneChannel } from "@/lib/notis/reader";
 
 export default async function TabsLayout(
     props: {
@@ -60,6 +61,9 @@ export default async function TabsLayout(
         // than sitting as a plain sibling.
         currentUserPromise.then(user => user ? getNotificationPreferenceForCity(user.id, cityId) : null),
     ]);
+    // Not awaited: Notis's answer about the reader's WhatsApp channel streams
+    // into the notification card, so the page never waits on a second service.
+    const phoneChannel = currentUserPromise.then(user => (user ? readerPhoneChannel(user) : false));
 
     if (!city) {
         notFound();
@@ -131,7 +135,7 @@ export default async function TabsLayout(
                         isSuperAdmin={isSuperAdmin}
                         hasNoData={hasNoData}
                         notificationPreference={notificationPreference}
-                        phoneChannel={currentUser?.notifyByPhone ?? false}
+                        phoneChannel={phoneChannel}
                         petitionBucket={petitionBucket}
                         allMeetings={bookends(upcoming[0], past[0])}
                         councilMeetings={bookends(councilUpcoming[0], councilPast[0])}
