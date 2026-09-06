@@ -1001,7 +1001,6 @@ model Role {
   isHead Boolean @default(false)
   name String?
   name_en String?
-  rank Int?
   electedOrder Int?
 
   startDate DateTime?

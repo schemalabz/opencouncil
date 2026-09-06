@@ -81,11 +81,10 @@ export default async function PeoplePage(
         cityId
     } = params;
 
-    const [partiesWithPersons, administrativeBodies, allPeople, city, canEdit] = await Promise.all([
+    const [partiesWithPersons, administrativeBodies, allPeople, canEdit] = await Promise.all([
         getPartiesForCityCached(cityId),
         getAdministrativeBodiesForCityCached(cityId),
         getPeopleForCityCached(cityId),
-        getCityCached(cityId),
         isUserAuthorizedToEdit({ cityId })
     ]);
 
@@ -100,7 +99,6 @@ export default async function PeoplePage(
             administrativeBodies={administrativeBodies}
             cityId={cityId}
             canEdit={canEdit}
-            city={city}
         />
     );
 } 

@@ -108,7 +108,7 @@ Main catalog (`messages/sr.json`), one checkbox per namespace:
 - [ ] TranscriptOptions, Chat, Onboarding, ImageCropDialog, PartyForm
 - [ ] PersonForm, RolesList, PersonCard, Unsubscribe, NotificationPreferences
 - [ ] Profile, OfferForm, Offer, MeetingCard, Person, Party, MeetingStatus
-- [ ] AdministrativeBodiesList, RSS, PartyMemberRankingSheet, ElectedOrderSheet
+- [ ] AdministrativeBodiesList, RSS, ElectedOrderSheet
 - [ ] Subject, CouncilMeeting, ProductUpdates
 - [ ] SignIn, ShareDropdown
 

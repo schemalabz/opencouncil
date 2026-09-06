@@ -31,7 +31,6 @@ const RoleSchema = z.object({
     isHead: z.boolean(),
     name: z.string().nullable(),
     name_en: z.string().nullable(),
-    rank: z.number().int().nullable(),
     electedOrder: z.number().int().nullable(),
     startDate: z.string().datetime().nullable(),
     endDate: z.string().datetime().nullable(),

@@ -30,7 +30,6 @@ export function partyComposition(party: PartyWithPersons): PartyComposition {
     const members = sortPartyMembers(
         party.people.filter(person => isActivePartyMember(person, party.id)),
         party.id,
-        true,
     );
 
     // The same "only active roles count" rule as isActivePartyMember, applied to the

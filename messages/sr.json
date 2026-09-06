@@ -924,7 +924,6 @@
         "noSegmentsFound": "Нису пронађене изјаве",
         "loading": "Учитавање...",
         "loadMore": "Учитај још",
-        "changeMemberOrdering": "Промени редослед чланова",
         "recentContributions": "Недавна учешћа",
         "leaderLabel": "Шеф групе: ",
         "breadcrumbHome": "Почетна",
@@ -1004,22 +1003,6 @@
         "subjects": "Теме",
         "noSubjects": "Нема наведених тема",
         "cityNotFound": "Град није пронађен"
-    },
-    "PartyMemberRankingSheet": {
-        "title": "Промена редоследа чланова",
-        "description": "Превуците и отпустите чланове да бисте променили њихов редослед. Редослед ће бити сачуван као рангирање.",
-        "rank": "Ранг: {rank}",
-        "save": "Сачувај рангирање",
-        "saving": "Чување...",
-        "reset": "Поништи рангирање",
-        "resetting": "Поништавање...",
-        "rankingsSaved": "Рангирање је сачувано",
-        "rankingsSavedDescription": "Рангирање чланова је успешно ажурирано.",
-        "rankingsReset": "Рангирање је поништено",
-        "rankingsResetDescription": "Сва рангирања чланова су поништена.",
-        "error": "Грешка",
-        "saveError": "Чување рангирања није успело. Покушајте поново.",
-        "resetError": "Поништавање рангирања није успело. Покушајте поново."
     },
     "ElectedOrderSheet": {
         "triggerButton": "Изборни редослед",

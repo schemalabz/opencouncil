@@ -924,7 +924,6 @@
         "noSegmentsFound": "No statements found",
         "loading": "Loading...",
         "loadMore": "Load more",
-        "changeMemberOrdering": "Change Member Ordering",
         "recentContributions": "Recent Contributions",
         "leaderLabel": "Leader: ",
         "breadcrumbHome": "Home",
@@ -1004,22 +1003,6 @@
         "subjects": "Subjects",
         "noSubjects": "No subjects listed",
         "cityNotFound": "City not found"
-    },
-    "PartyMemberRankingSheet": {
-        "title": "Change Member Ordering",
-        "description": "Drag and drop members to reorder them. The order will be saved as rankings.",
-        "rank": "Rank: {rank}",
-        "save": "Save Ranking",
-        "saving": "Saving...",
-        "reset": "Reset Ranking",
-        "resetting": "Resetting...",
-        "rankingsSaved": "Rankings saved",
-        "rankingsSavedDescription": "Member rankings have been updated successfully.",
-        "rankingsReset": "Rankings reset",
-        "rankingsResetDescription": "All member rankings have been reset.",
-        "error": "Error",
-        "saveError": "Failed to save rankings. Please try again.",
-        "resetError": "Failed to reset rankings. Please try again."
     },
     "ElectedOrderSheet": {
         "triggerButton": "Elected Order",

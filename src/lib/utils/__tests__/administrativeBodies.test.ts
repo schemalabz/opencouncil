@@ -53,7 +53,6 @@ function makePerson(roles: { administrativeBody: AdministrativeBody | null; city
             isHead: false,
             name: null,
             name_en: null,
-            rank: null,
             electedOrder: null,
             startDate: r.startDate !== undefined ? r.startDate : new Date('2020-01-01'),
             endDate: r.endDate !== undefined ? r.endDate : null,

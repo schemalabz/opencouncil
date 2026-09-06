@@ -382,13 +382,11 @@ describe('PR1: server-side awaits run concurrently', () => {
         const partiesD = deferred<unknown[]>();
         const adminD = deferred<unknown[]>();
         const peopleD = deferred<unknown[]>();
-        const cityD = deferred<unknown>();
         const authD = deferred<boolean>();
 
         cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
         cache.getAdministrativeBodiesForCityCached.mockReturnValue(adminD.promise);
         cache.getPeopleForCityCached.mockReturnValue(peopleD.promise);
-        cache.getCityCached.mockReturnValue(cityD.promise);
         auth.isUserAuthorizedToEdit.mockReturnValue(authD.promise);
 
         const { default: PeoplePage } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/people/page');
@@ -402,12 +400,10 @@ describe('PR1: server-side awaits run concurrently', () => {
         expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);
         expect(cache.getAdministrativeBodiesForCityCached).toHaveBeenCalledTimes(1);
         expect(cache.getPeopleForCityCached).toHaveBeenCalledTimes(1);
-        expect(cache.getCityCached).toHaveBeenCalledTimes(1);
 
         partiesD.resolve([{ id: 'p', people: [] }]);
         adminD.resolve([]);
         peopleD.resolve([]);
-        cityD.resolve({ id: 'athens', name: 'Athens' });
         authD.resolve(false);
 
         await pending;

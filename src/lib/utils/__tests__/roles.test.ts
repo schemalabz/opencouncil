@@ -12,7 +12,6 @@ function makeRole(overrides: Partial<Role> & { party?: Party | null } = {}): Rol
     isHead: false,
     name: null,
     name_en: null,
-    rank: null,
     electedOrder: null,
     startDate: null,
     endDate: null,

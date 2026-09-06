@@ -45,7 +45,7 @@ export function CouncilBand({ parties, people, city, locale }: CouncilBandProps)
     // Over every party, not just the three shown, so the band and the Παρατάξεις
     // tab never carry different figures on the same card.
     const columns = partyBodyColumns(parties);
-    const ordered = sortPeople(people, parties, city.peopleOrdering).slice(0, PEOPLE_SHOWN);
+    const ordered = sortPeople(people).slice(0, PEOPLE_SHOWN);
 
     return (
         <section>

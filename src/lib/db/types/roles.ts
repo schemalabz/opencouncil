@@ -1,10 +1,5 @@
 import { Prisma } from '@prisma/client';
 
-export interface RoleRanking {
-    roleId: string;
-    rank: number | null;
-}
-
 export interface ElectedOrderRanking {
     roleId: string;
     electedOrder: number | null;
