@@ -11,7 +11,7 @@ import { NotisConversation } from './NotisConversation';
 import { TopicPill } from '@/components/TopicPill';
 import { FactDot } from '@/components/ui/fact-dot';
 import { RailDisclosure } from './RailDisclosure';
-import { env } from '@/env.mjs';
+import { TrackedLink } from '@/components/analytics/TrackedLink';
 
 /** Topic chips before the row stops being scannable; the rest become "+N". */
 const TOPICS_SHOWN = 2;
@@ -37,10 +37,6 @@ interface CityNotificationCardProps {
 export function CityNotificationCard({ city, preference, locale }: CityNotificationCardProps) {
     if (!city.supportsNotifications) return null;
     if (preference) return <SubscribedCard city={city} preference={preference} locale={locale} />;
-    // The invite is the only half that reaches someone who has not asked for
-    // anything, so the rollout holds it back until it is ready to be seen. A
-    // reader who already subscribed keeps their card either way.
-    if (env.SHOW_NOTIS_PROMO !== 'true') return null;
     return <InviteCard city={city} locale={locale} />;
 }
 
@@ -68,13 +64,15 @@ function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) 
             <NotisConversation />
 
             <div className="flex flex-col gap-3 px-4 pb-4 pt-3">
-                <Link
+                <TrackedLink
                     href={`/${city.id}/notifications`}
+                    event="notis_invite_cta_clicked"
+                    eventProps={{ city_id: city.id }}
                     className="group/cta flex h-10 max-w-sm items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--orange-deep))] text-sm font-medium text-white transition-opacity hover:opacity-90 hover:no-underline"
                 >
                     {t('notisCta')}
                     <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
-                </Link>
+                </TrackedLink>
                 <p className="max-w-sm text-center text-[11px] text-muted-foreground">{t('notisChannels')}</p>
             </div>
         </RailDisclosure>
@@ -153,7 +151,8 @@ function SubscribedCard({
             {/* Quiet, because they are exits: everything here is a step away from the
                 city the reader is looking at. */}
             <div className="flex items-center gap-3 border-t border-border bg-muted/40 px-4 py-2.5">
-                <Link href={`/${city.id}/notifications`} className="text-xs font-semibold text-[hsl(var(--orange))]">
+                {/* Straight to the places and topics: this reader has read the explainer. */}
+                <Link href={`/${city.id}/notifications?step=2`} className="text-xs font-semibold text-[hsl(var(--orange))]">
                     {t('changePreferences')}
                 </Link>
                 <FactDot className="text-border" />
