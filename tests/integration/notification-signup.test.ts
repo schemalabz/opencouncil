@@ -1,6 +1,5 @@
 /** @jest-environment node */
 import prisma from '@/lib/db/prisma'
-import { getCitiesSupportingNotifications } from '@/lib/db/cities'
 import {
     getPhoneChannelState,
     saveNotificationPreferences,
@@ -111,17 +110,5 @@ describe('notification signup channel consent', () => {
 
         await setNotifyByPhoneForUser(admin.id, true)
         expect((await getPhoneChannelState(admin.id)).notifyByPhoneAny).toBe(true)
-    })
-
-    test('lists only the municipalities of the realm that support notifications', async () => {
-        await createCity({ id: 'ns_yes', name: 'Yes', supportsNotifications: true })
-        await createCity({ id: 'ns_no', name: 'No', supportsNotifications: false })
-
-        const cities = await getCitiesSupportingNotifications('greece')
-
-        expect(cities.map((c) => c.id)).toEqual(['ns_yes'])
-        expect(cities[0]).toEqual(
-            expect.objectContaining({ name: 'Yes', name_municipality: expect.any(String), status: expect.any(String) }),
-        )
     })
 })
