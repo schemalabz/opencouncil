@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { DEFAULT_MEETING_PAGE_SIZE } from "@/lib/db/meetingsList";
 import CityMeetings from "@/components/cities/CityMeetings";
 import { getCityCached, getCouncilMeetingsPreviewCached } from "@/lib/cache";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
@@ -67,7 +68,6 @@ export async function generateMetadata(
     };
 }
 
-const MEETINGS_PAGE_SIZE = 12;
 
 /**
  * How many meetings the tab loads.
@@ -82,7 +82,7 @@ const MEETINGS_PAGE_SIZE = 12;
  * Meetings past the window stay reachable through the page header's search and
  * through their own URLs.
  */
-const MEETINGS_TAB_LIMIT = MEETINGS_PAGE_SIZE * 5;
+const MEETINGS_TAB_LIMIT = DEFAULT_MEETING_PAGE_SIZE * 5;
 
 export default async function MeetingsPage(
     props: {
@@ -111,7 +111,7 @@ export default async function MeetingsPage(
             cityId={cityId}
             timezone={city.timezone}
             canEdit={canEdit}
-            pageSize={MEETINGS_PAGE_SIZE}
+            pageSize={DEFAULT_MEETING_PAGE_SIZE}
         />
     );
 }

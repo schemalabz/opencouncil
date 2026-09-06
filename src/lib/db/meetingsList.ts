@@ -81,13 +81,24 @@ export interface MeetingListOptions {
 }
 
 /**
+ * How many meetings a page holds.
+ *
+ * The query below and the cache key in lib/cache/queries.ts both default to
+ * this. They have to agree: the key names a page of rows, and the query decides
+ * which rows that is. Two literals drift apart in silence — the key would go on
+ * describing a page of twelve while the query returned some other number, and
+ * nothing would throw.
+ */
+export const DEFAULT_MEETING_PAGE_SIZE = 12;
+
+/**
  * The `where`, ordering and window every list query over a city's meetings
  * shares, so the two projections below and the count cannot answer for
  * different sets of meetings.
  */
 function meetingListQuery(
     cityId: string,
-    { includeUnreleased, limit, page, pageSize = 12, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter }: MeetingListOptions,
+    { includeUnreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter }: MeetingListOptions,
 ) {
     // Calculate pagination
     const skip = page ? (page - 1) * pageSize : undefined;
