@@ -1,4 +1,5 @@
 import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "./lib/utils"
@@ -24,12 +25,18 @@ const badgeVariants = cva(
 )
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+  extends React.HTMLAttributes<HTMLSpanElement>,
+    VariantProps<typeof badgeVariants> {
+  asChild?: boolean
+}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
+// A badge renders a <span>, not a <div>, because badges appear inside
+// paragraphs (markdown output, for example). A <div> in a <p> is invalid HTML
+// and the browser reparents it, which breaks hydration.
+function Badge({ className, variant, asChild = false, ...props }: BadgeProps) {
+  const Comp = asChild ? Slot : "span"
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <Comp className={cn(badgeVariants({ variant }), className)} {...props} />
   )
 }
 
