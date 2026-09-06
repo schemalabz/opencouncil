@@ -26,6 +26,7 @@
     "phoneNotMobile": "Il faut un numéro de mobile, pas de fixe.",
     "phoneInUse": "Ce mobile appartient déjà à un autre compte.",
     "emailExists": "Un compte existe déjà avec cet e-mail.",
+    "notisUnreachable": "Vos préférences sont enregistrées, mais Notis ne répond pas pour le moment. Réessayez dans un moment pour WhatsApp.",
     "signIn": "Se connecter",
     "generic": "Un problème est survenu. Réessayez."
   },

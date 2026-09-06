@@ -26,6 +26,7 @@
     "phoneNotMobile": "A mobile number is needed, not a landline.",
     "phoneInUse": "That mobile number already belongs to another account.",
     "emailExists": "There is already an account with this email.",
+    "notisUnreachable": "Your preferences are saved, but Notis is not answering right now. Try again in a while for WhatsApp.",
     "signIn": "Sign in",
     "generic": "Something went wrong. Please try again."
   },

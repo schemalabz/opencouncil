@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { MunicipalityPicker } from "@/components/signup/MunicipalityPicker";
 import { NotisChatCard } from "@/components/signup/NotisChatCard";
-import { Eyebrow, SignupLayout } from "@/components/signup/SignupChrome";
+import { Eyebrow, SignupLayout, StepHeading } from "@/components/signup/SignupChrome";
 import { getCurrentUser } from "@/lib/auth";
 import { getAllCitiesMinimalCached } from "@/lib/cache/queries";
 import { getUserSignupCityIds } from "@/lib/db/signup";
@@ -34,11 +34,7 @@ export default async function PetitionPickerPage() {
 
     return (
         <SignupLayout aside={<NotisChatCard intro={t("whatYouGet")} />} className="pb-10">
-            <div className="flex flex-col gap-3 pt-7 lg:pt-10">
-                <Eyebrow>{t("eyebrow")}</Eyebrow>
-                <h1 className="text-[30px] font-normal leading-none tracking-[-0.02em] lg:text-[36px]">{t("pickerTitle")}</h1>
-                <p className="text-[15px] leading-[1.45] text-muted-foreground lg:text-base">{t("pickerLead")}</p>
-            </div>
+            <StepHeading eyebrow={t("eyebrow")} title={t("pickerTitle")} lead={t("pickerLead")} className="pt-7 lg:pt-10" />
 
             <NotisChatCard intro={t("whatYouGet")} className="mt-5 lg:hidden" />
 

@@ -1,8 +1,11 @@
 'use client';
 
 import { ArrowRight } from 'lucide-react';
+import { Eyebrow } from '@/components/landing/v2/shared';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+export { Eyebrow };
 
 /**
  * The chrome the signup flows share — notifications and the petition: one
@@ -52,23 +55,20 @@ export function SignupProgress({ step, total, label }: { step: number; total: nu
     );
 }
 
-/** The eyebrow the design uses above every title and section. */
-export function Eyebrow({ children, className }: { children: React.ReactNode; className?: string }) {
-    return (
-        <span className={cn('text-[11px] font-extrabold uppercase tracking-[.16em] text-muted-foreground', className)}>
-            {children}
-        </span>
-    );
-}
-
-/** A step's title and its one-line lead, at the phone's size and the desktop's. */
+/**
+ * A page's or a step's title and its one-line lead, at the phone's size and
+ * the desktop's: the one place the type scale lives. `leading` is what a
+ * completion screen puts above the title (the check).
+ */
 export function StepHeading({
     eyebrow,
+    leading,
     title,
     lead,
     className,
 }: {
     eyebrow?: string;
+    leading?: React.ReactNode;
     title: string;
     lead: string;
     className?: string;
@@ -76,6 +76,7 @@ export function StepHeading({
     return (
         <div className={cn('flex flex-col gap-2.5 pt-6 lg:gap-3 lg:pt-8', className)}>
             {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
+            {leading}
             <h1 className="text-[30px] font-normal leading-none tracking-[-0.02em] lg:text-[36px]">{title}</h1>
             <p className="text-[15px] leading-[1.45] text-muted-foreground lg:text-base">{lead}</p>
         </div>

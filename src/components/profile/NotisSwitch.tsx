@@ -51,27 +51,34 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
     const flip = async (next: boolean) => {
         if (!loaded) return;
         setSaving(true);
-        const result = await setNotisEnabled(next);
-        setSaving(false);
-        if (!result.ok) {
-            setLoaded({ ...loaded, error: result.code });
-            return;
+        try {
+            const result = await setNotisEnabled(next);
+            if (!result.ok) {
+                setLoaded({ ...loaded, error: result.code });
+                return;
+            }
+            captureEvent('notis_toggle_changed', {
+                enabled: result.enabled,
+                synced: result.synced,
+                had_subscription: loaded.state.subscription !== null,
+            });
+            setLoaded({
+                state: {
+                    ...loaded.state,
+                    notifyByPhoneAny: result.enabled,
+                    subscription: result.synced ? result.subscription : loaded.state.subscription,
+                },
+                enabled: result.enabled,
+                unsynced: !result.synced,
+                error: null,
+            });
+        } catch (error) {
+            // A thrown action must not leave the switch disabled for good.
+            console.error('Notis switch failed:', error);
+            setLoaded({ ...loaded, error: 'exception' });
+        } finally {
+            setSaving(false);
         }
-        captureEvent('notis_toggle_changed', {
-            enabled: result.enabled,
-            synced: result.synced,
-            had_subscription: loaded.state.subscription !== null,
-        });
-        setLoaded({
-            state: {
-                ...loaded.state,
-                notifyByPhoneAny: result.enabled,
-                subscription: result.synced ? result.subscription : loaded.state.subscription,
-            },
-            enabled: result.enabled,
-            unsynced: !result.synced,
-            error: null,
-        });
     };
 
     // A reader with no preference rows has nothing for Νότης to say, unless

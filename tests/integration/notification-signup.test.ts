@@ -18,7 +18,7 @@ describe('notification signup channel consent', () => {
     })
 
     beforeEach(async () => {
-        await resetDatabase(prisma as any)
+        await resetDatabase(prisma)
     })
 
     test('persists both channel flags on a new preference and on an update', async () => {

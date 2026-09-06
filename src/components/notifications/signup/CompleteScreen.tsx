@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { authorityKey } from '@/components/cities/overview/authorityKey';
 import { OsektutuBanner } from '@/components/onboarding/OsektutuBanner';
 import { MeanwhileLinks, type MeanwhileLink } from '@/components/signup/MeanwhileLinks';
+import { StepHeading } from '@/components/signup/SignupChrome';
 import { maskPhone } from '@/components/signup/signup-shared';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import type { CityWithGeometry } from '@/lib/db/cities';
@@ -53,21 +54,18 @@ export function CompleteScreen({
 
     return (
         <div>
-            <div className="flex flex-col gap-3 pt-6 lg:pt-10">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600" aria-hidden>
-                    <Check className="h-5 w-5 text-white" strokeWidth={2.6} />
-                </span>
-                <h1 className="mt-1 text-[30px] font-normal leading-none tracking-[-0.02em] lg:text-[36px]">
-                    {!phoneChannel ? t('doneTitleEmailOnly') : known ? t('doneTitleKnown') : t('doneTitle')}
-                </h1>
-                <p className="text-[15px] leading-[1.45] text-muted-foreground lg:text-base">
-                    {!phoneChannel
+            <StepHeading
+                className="pt-6 lg:pt-10"
+                leading={<DoneCheck />}
+                title={!phoneChannel ? t('doneTitleEmailOnly') : known ? t('doneTitleKnown') : t('doneTitle')}
+                lead={
+                    !phoneChannel
                         ? t('doneLeadEmailOnly', { email })
                         : known
                           ? t('doneLeadKnown', { phone: maskedPhone })
-                          : t('doneLead', { phone: maskedPhone })}
-                </p>
-            </div>
+                          : t('doneLead', { phone: maskedPhone })
+                }
+            />
 
             {intro && (
                 <section className={cn(surfaceCardClass, 'mt-5 overflow-hidden lg:mt-7')} aria-label={t('firstMessageLabel')}>
@@ -119,6 +117,15 @@ export function CompleteScreen({
                 {t('doneStop')}
             </p>
         </div>
+    );
+}
+
+/** The green check a completion screen opens with. */
+export function DoneCheck() {
+    return (
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600" aria-hidden>
+            <Check className="h-5 w-5 text-white" strokeWidth={2.6} />
+        </span>
     );
 }
 

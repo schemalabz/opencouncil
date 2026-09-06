@@ -92,3 +92,18 @@ export async function setNotisEnabled(enabled: boolean): Promise<SetNotisEnabled
         subscription: result.ok ? result.data.subscription : null,
     };
 }
+
+/**
+ * After a signup unticked WhatsApp for one municipality: release the reader
+ * from Notis only when no municipality keeps the phone channel — Νότης is
+ * one conversation, and another city's tick still wants it. Best effort,
+ * like the switch's off path: the flags already mute the proactive audience.
+ */
+export async function releaseNotisWithoutPhoneChannel(): Promise<{ released: boolean; synced: boolean }> {
+    const user = await getCurrentUser();
+    if (!user) return { released: false, synced: false };
+    const { notifyByPhoneAny } = await getPhoneChannelState(user.id);
+    if (notifyByPhoneAny) return { released: false, synced: true };
+    const result = await setNotisSubscription(user.id, "unsubscribed");
+    return { released: true, synced: result.ok };
+}

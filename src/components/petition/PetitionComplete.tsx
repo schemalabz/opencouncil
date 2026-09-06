@@ -1,9 +1,11 @@
 'use client';
 
-import { BookOpen, Check, Landmark } from 'lucide-react';
+import { BookOpen, Landmark } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { authorityKey } from '@/components/cities/overview/authorityKey';
+import { DoneCheck } from '@/components/notifications/signup/CompleteScreen';
 import { MeanwhileLinks, type MeanwhileLink } from '@/components/signup/MeanwhileLinks';
+import { StepHeading } from '@/components/signup/SignupChrome';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
 
@@ -30,17 +32,12 @@ export function PetitionComplete({
 
     return (
         <div>
-            <div className="flex flex-col gap-3 pt-6 lg:pt-10">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600" aria-hidden>
-                    <Check className="h-5 w-5 text-white" strokeWidth={2.6} />
-                </span>
-                <h1 className="mt-1 text-[30px] font-normal leading-none tracking-[-0.02em] lg:text-[36px]">
-                    {updated ? t('doneTitleUpdated') : t('doneTitle')}
-                </h1>
-                <p className="text-[15px] leading-[1.45] text-muted-foreground lg:text-base">
-                    {t(authorityKey('doneLead', city), { qualifier })}
-                </p>
-            </div>
+            <StepHeading
+                className="pt-6 lg:pt-10"
+                leading={<DoneCheck />}
+                title={updated ? t('doneTitleUpdated') : t('doneTitle')}
+                lead={t(authorityKey('doneLead', city), { qualifier })}
+            />
 
             <MeanwhileLinks className="mt-7 lg:hidden" eyebrow={t('meanwhileEyebrow')} items={useMeanwhile()} />
 

@@ -1,11 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { PhoneFieldValidity } from '@/components/ui/phone-field';
 import { LocationPreview } from '@/components/signup/LocationPreview';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
-import { saveErrorKey, type SignupAccount, type SignupIssue } from '@/components/signup/signup-shared';
+import { saveErrorKey, type SignupAccount } from '@/components/signup/signup-shared';
+import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { savePetition } from '@/lib/actions/notifications';
 import { captureEvent } from '@/lib/analytics/capture';
 import type { CityWithGeometry } from '@/lib/db/cities';
@@ -23,8 +22,6 @@ import {
 } from './petition-state';
 
 const TOTAL_STEPS = 2;
-
-const INITIAL_VALIDITY: PhoneFieldValidity = { isActive: false, isEmpty: true, isValid: false, reason: null };
 
 /**
  * The petition for one municipality: step 1 explains, step 2 asks who is
@@ -48,45 +45,24 @@ export function PetitionSignup({
     const t = useTranslations('petition');
     const ts = useTranslations('signup');
     const signedIn = account !== null;
-    const [state, setState] = useState<PetitionState>(() => initialPetitionState({ initialStep, existing, account }));
-    const [done, setDone] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-    const [attempted, setAttempted] = useState(false);
-    const [saveError, setSaveError] = useState<string | null>(null);
-    const [phoneValidity, setPhoneValidity] = useState<PhoneFieldValidity>(INITIAL_VALIDITY);
-    const viewed = useRef<Set<number>>(new Set());
+    const flow = useSignupFlow<PetitionState>({
+        initial: () => initialPetitionState({ initialStep, existing, account }),
+        cityId: city.id,
+        signedIn,
+        events: { stepViewed: 'petition_step_viewed', failed: 'petition_failed' },
+    });
+    const { state, patch, goTo, done, submitting, attempted, saveError, validity, phoneValidity, setPhoneValidity } = flow;
 
-    const patch = useCallback((next: Partial<PetitionState>) => setState((s) => ({ ...s, ...next })), []);
+    const issues = attempted ? petitionIssues(state, validity) : [];
 
-    useEffect(() => {
-        if (done || viewed.current.has(state.step)) return;
-        viewed.current.add(state.step);
-        captureEvent('petition_step_viewed', { city_id: city.id, step: state.step, signed_in: signedIn });
-    }, [city.id, done, signedIn, state.step]);
+    const submit = () =>
+        flow.submit(async () => {
+            if (petitionIssues(state, validity).length > 0) return 'blocked';
 
-    const goTo = useCallback((step: PetitionStep) => {
-        setState((s) => ({ ...s, step }));
-        const url = new URL(window.location.href);
-        url.searchParams.set('step', String(step));
-        window.history.replaceState(window.history.state, '', url);
-        window.scrollTo({ top: 0 });
-    }, []);
-
-    const validity = { phoneEmpty: phoneValidity.isEmpty, phoneValid: phoneValidity.isValid, signedIn };
-    const issues: SignupIssue[] = attempted ? petitionIssues(state, validity) : [];
-
-    const submit = async () => {
-        setAttempted(true);
-        setSaveError(null);
-        if (petitionIssues(state, validity).length > 0) return;
-
-        setSubmitting(true);
-        try {
             const result = await savePetition(buildPetitionSubmission(state, city.id, signedIn, phoneValidity.isEmpty));
             if (!result.success) {
-                setSaveError(saveErrorKey(result.error));
                 captureEvent('petition_failed', { city_id: city.id, code: result.error });
-                return;
+                return { ok: false, error: saveErrorKey(result.error) };
             }
             captureEvent('petition_submitted', {
                 city_id: city.id,
@@ -97,16 +73,8 @@ export function PetitionSignup({
                 signed_in: signedIn,
                 updated: existing !== null,
             });
-            setDone(true);
-            window.scrollTo({ top: 0 });
-        } catch (error) {
-            console.error('Petition failed:', error);
-            setSaveError('generic');
-            captureEvent('petition_failed', { city_id: city.id, code: 'exception' });
-        } finally {
-            setSubmitting(false);
-        }
-    };
+            return { ok: true };
+        });
 
     if (done) {
         return (

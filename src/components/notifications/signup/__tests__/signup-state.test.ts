@@ -1,5 +1,5 @@
 import type { Topic } from '@prisma/client';
-import { buildSubmission, channelIssues, initialSignupState, type SignupState } from '../signup-state';
+import { buildSubmission, channelIssues, initialSignupState, notisActionFor, type SignupState } from '../signup-state';
 
 const topic = (id: string): Topic =>
     ({ id, name: id, name_en: id, colorHex: '#000', icon: null, description: '', deprecated: false, realm: 'greece' }) as Topic;
@@ -41,10 +41,34 @@ describe('initialSignupState', () => {
         expect(state.emailChannel).toBe(true);
     });
 
-    it('does not resubscribe a reader who said ΣΤΟΠ: the WhatsApp card starts unticked', () => {
+    it('does not resubscribe a reader who said ΣΤΟΠ: the WhatsApp card starts unticked, in any municipality', () => {
         const state = initialSignupState({ initialStep: 2, existing, account, notisStatus: 'unsubscribed' });
         expect(state.phoneChannel).toBe(false);
         expect(state.emailChannel).toBe(true);
+        expect(initialSignupState({ initialStep: 2, existing: null, account, notisStatus: 'unsubscribed' }).phoneChannel).toBe(false);
+    });
+
+    it('asks for an explicit tick when Notis did not answer, because the reader may have said ΣΤΟΠ', () => {
+        expect(initialSignupState({ initialStep: 2, existing, account, notisStatus: 'unknown' }).phoneChannel).toBe(false);
+        expect(initialSignupState({ initialStep: 2, existing: null, account, notisStatus: 'unknown' }).phoneChannel).toBe(false);
+    });
+});
+
+describe('notisActionFor', () => {
+    const ticked = { phoneChannel: true } as SignupState;
+    const unticked = { phoneChannel: false } as SignupState;
+
+    it('re-activates only on an explicit tick from a reader Notis does not serve, or may not', () => {
+        expect(notisActionFor(ticked, true, 'unsubscribed')).toBe('activate');
+        expect(notisActionFor(ticked, true, 'unknown')).toBe('activate');
+        expect(notisActionFor(ticked, true, 'active')).toBeNull();
+        expect(notisActionFor(ticked, true, null)).toBeNull();
+    });
+
+    it('releases a served reader who unticked, and never touches Notis for a signed-out reader', () => {
+        expect(notisActionFor(unticked, true, 'active')).toBe('release');
+        expect(notisActionFor(unticked, true, 'unsubscribed')).toBeNull();
+        expect(notisActionFor(ticked, false, 'unsubscribed')).toBeNull();
     });
 });
 

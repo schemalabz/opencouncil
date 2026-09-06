@@ -37,6 +37,7 @@ export function accountIssues(fields: { name: string; email: string }): SignupIs
 /** The save actions' error codes, as message keys under `signup.errors`. */
 const SAVE_ERROR_KEYS: Record<string, string> = {
     phone_empty: 'phoneMissing',
+    no_phone: 'phoneMissing',
     phone_invalid: 'phoneInvalid',
     phone_not_mobile: 'phoneNotMobile',
     phone_in_use: 'phoneInUse',
