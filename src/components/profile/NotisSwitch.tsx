@@ -33,17 +33,29 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
     const tp = useTranslations('Profile');
     const id = useId();
     const [loaded, setLoaded] = useState<Loaded | null>(null);
+    const [loadFailed, setLoadFailed] = useState(false);
     const [saving, setSaving] = useState(false);
 
     const load = useCallback(async () => {
-        const state = await getNotisChannelState();
-        if (!state) return;
-        setLoaded({
-            state,
-            enabled: phoneChannelFor(notisStatusFromChannelState(state), state.notifyByPhone) ?? state.notifyByPhone,
-            error: null,
-            retry: null,
-        });
+        setLoadFailed(false);
+        try {
+            const state = await getNotisChannelState();
+            // No state means no session, which on this page means it expired.
+            // Either way the row must not sit on a spinner for good.
+            if (!state) {
+                setLoadFailed(true);
+                return;
+            }
+            setLoaded({
+                state,
+                enabled: phoneChannelFor(notisStatusFromChannelState(state), state.notifyByPhone) ?? state.notifyByPhone,
+                error: null,
+                retry: null,
+            });
+        } catch (error) {
+            console.error('Notis state failed to load:', error);
+            setLoadFailed(true);
+        }
     }, []);
 
     useEffect(() => {
@@ -82,21 +94,33 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
     // he already knows them; then the switch is how they turn him off.
     if (!hasPreferences && !loaded?.state.subscription) return null;
 
+    // One line for the one condition, whether it stopped a read or a flip.
+    // Disabled while saving: a second click would race the first over the same
+    // captured state, and the later answer would win.
+    const unreachableLine = (onRetry: () => void) => (
+        <>
+            {t('notisUnreachable')}{' '}
+            <button
+                type="button"
+                className="underline underline-offset-2 hover:text-foreground disabled:no-underline disabled:opacity-60"
+                disabled={saving}
+                onClick={onRetry}
+            >
+                {t('notisRetry')}
+            </button>
+        </>
+    );
+
     let status: React.ReactNode = null;
     let tone = 'text-muted-foreground';
-    if (loaded) {
+    if (!loaded && loadFailed) {
+        status = unreachableLine(load);
+    } else if (loaded) {
         const { state, enabled, error, retry } = loaded;
         const phone = state.phone ? maskPhone(state.phone) : '';
         if (error === 'notis_unreachable' && retry !== null) {
             tone = 'text-amber-700';
-            status = (
-                <>
-                    {t('notisUnreachable')}{' '}
-                    <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => flip(retry)}>
-                        {t('notisRetry')}
-                    </button>
-                </>
-            );
+            status = unreachableLine(() => flip(retry));
         } else if (error) {
             tone = 'text-destructive';
             status = errorMessage(error, t, tp);
@@ -110,14 +134,7 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
                 </>
             );
         } else if (!state.reachable) {
-            status = (
-                <>
-                    {t('notisUnreachable')}{' '}
-                    <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={load}>
-                        {t('notisRetry')}
-                    </button>
-                </>
-            );
+            status = unreachableLine(load);
         } else if (enabled && state.subscription?.status === 'active') {
             status = t('notisOn', { phone });
         } else if (enabled) {
