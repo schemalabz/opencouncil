@@ -34,11 +34,13 @@ describe('buildRelatedSubjectsQuery', () => {
         expect(query.index).toBe('test-index');
     });
 
-    it('excludes the subject and every subject of its meeting', () => {
-        const query = buildRelatedSubjectsQuery(SEED, 'city', REALM_CITIES);
+    // The meeting id is a date, so the sibling exclusion must name the city
+    // too: another municipality's meeting of the same day is a fair neighbour.
+    it('excludes the subject and every subject of its own meeting, not same-day meetings elsewhere', () => {
+        const query = buildRelatedSubjectsQuery(SEED, 'other', REALM_CITIES);
         expect(boolOf(query).must_not).toEqual([
             { term: { id: 'subject-1' } },
-            { term: { councilMeeting_id: 'meeting-1' } },
+            { bool: { filter: [{ term: { city_id: 'athens' } }, { term: { councilMeeting_id: 'meeting-1' } }] } },
         ]);
     });
 
