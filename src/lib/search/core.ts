@@ -84,11 +84,15 @@ export type SubjectSearchHits = {
     derivedFilters: DerivedFilters;
 };
 
-/** Log the failure, alert the team, and raise a message that leaks nothing. */
-function failSearch(request: SearchRequest, error: unknown): never {
+/**
+ * Log the failure, alert the team, and raise a message that leaks nothing.
+ * `source` names the caller in the log and the alert, so a related-subjects
+ * failure is not read as a search a person typed.
+ */
+function failSearch(request: SearchRequest, error: unknown, source = 'Search'): never {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    logEssential('Search Session Failed', {
+    logEssential(`${source} Session Failed`, {
         query: request.query,
         error: errorMessage,
         filters: {
@@ -103,7 +107,7 @@ function failSearch(request: SearchRequest, error: unknown): never {
 
     // Notify team via Discord (fire-and-forget)
     sendErrorAdminAlert({
-        source: 'Search',
+        source,
         error: errorMessage,
         context: {
             query: request.query,
@@ -589,6 +593,6 @@ export async function searchRelatedSubjectsInRealm(
         if (hits.length === 0) return [];
         return await hydrateSubjectHits(hits, false);
     } catch (error) {
-        failSearch(request, error);
+        failSearch(request, error, 'Related subjects');
     }
 }
