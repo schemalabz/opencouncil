@@ -26,6 +26,13 @@ export const RELATED_SUBJECTS_SIZE = 5;
  */
 export const RELATED_MIN_SIMILARITY = 0.93;
 
+/** The municipalities one scope searches, out of the realm's `cityIds`. */
+export function relatedScopeCityIds(seed: RelatedSubjectSeed, scope: RelatedScope, cityIds: string[]): string[] {
+    return scope === 'city'
+        ? cityIds.filter(id => id === seed.cityId)
+        : cityIds.filter(id => id !== seed.cityId);
+}
+
 /**
  * The subjects most similar to one subject, as one Elasticsearch request.
  *
@@ -49,9 +56,7 @@ export function buildRelatedSubjectsQuery(
     scope: RelatedScope,
     cityIds: string[]
 ): estypes.SearchRequest {
-    const scopeCityIds = scope === 'city'
-        ? cityIds.filter(id => id === seed.cityId)
-        : cityIds.filter(id => id !== seed.cityId);
+    const scopeCityIds = relatedScopeCityIds(seed, scope, cityIds);
 
     return {
         index: env.ELASTICSEARCH_INDEX,

@@ -25,7 +25,10 @@ jest.mock('../retry', () => ({
     executeElasticsearchWithRetry: jest.fn((run: () => unknown) => run()),
 }));
 jest.mock('../query', () => ({ buildSearchQuery: jest.fn(() => ({ query: { match_all: {} } })) }));
-jest.mock('../related', () => ({ buildRelatedSubjectsQuery: jest.fn(() => ({ query: { match_all: {} } })) }));
+jest.mock('../related', () => ({
+    ...jest.requireActual<typeof import('../related')>('../related'),
+    buildRelatedSubjectsQuery: jest.fn(() => ({ query: { match_all: {} } })),
+}));
 
 import { Client } from '@elastic/elasticsearch';
 import prisma from '@/lib/db/prisma';
@@ -350,15 +353,29 @@ describe('searchRelatedSubjectsInRealm', () => {
         expect(esSearchMock).toHaveBeenCalled();
     });
 
-    // The realm is in the key because the city set differs per realm; the
-    // meeting tag is what a reprocessing task or a subject edit revalidates.
-    it('caches the index answer per subject, scope and realm, under the meeting tag', async () => {
+    // The realm is in the key because the city set differs per realm. The
+    // tags name what changes the answer: the city list, the seed's own
+    // meeting, and the meetings of every municipality the scope searches.
+    it('caches the index answer per subject, scope and realm, under the tags that change it', async () => {
         await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
             ['subject', 'seed', 'related', 'city', 'greece'],
-            { tags: ['city:athens:meeting:meeting-1'], revalidate: 86400 },
+            { tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:athens:meetings'], revalidate: 86400 },
+        );
+    });
+
+    it('tags the other scope with the meetings of every other municipality of the realm', async () => {
+        await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');
+
+        expect(createCacheMock).toHaveBeenCalledWith(
+            expect.any(Function),
+            ['subject', 'seed', 'related', 'other', 'greece'],
+            {
+                tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:chania:meetings', 'city:argos:meetings'],
+                revalidate: 86400,
+            },
         );
     });
 
