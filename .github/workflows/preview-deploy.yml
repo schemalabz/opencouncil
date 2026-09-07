@@ -96,8 +96,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Get changed files in prisma/migrations/
-          CHANGED_MIGRATIONS=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep '^prisma/migrations/' || true)
+          # The baseline is the branch the shared staging database tracks, not
+          # the PR's base. A PR stacked on a branch that adds a migration
+          # inherits that migration, and still needs an isolated database.
+          BASELINE="origin/${{ github.event.repository.default_branch }}"
+          CHANGED_MIGRATIONS=$(git diff --name-only "$BASELINE...HEAD" | grep '^prisma/migrations/' || true)
 
           if [ -n "$CHANGED_MIGRATIONS" ]; then
             echo "has-migrations=true" >> $GITHUB_OUTPUT
