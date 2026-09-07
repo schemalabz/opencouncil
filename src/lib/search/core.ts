@@ -4,7 +4,7 @@ import prisma from "@/lib/db/prisma";
 import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches, RelatedScope } from './types';
 import { buildSearchQuery } from './query';
-import { buildRelatedSubjectsQuery, type RelatedSubjectSeed } from './related';
+import { buildRelatedSubjectsQuery, relatedScopeCityIds, type RelatedSubjectSeed } from './related';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { executeElasticsearchWithRetry } from './retry';
@@ -551,14 +551,34 @@ export async function searchInRealm(
 /**
  * How long a subject's related-subjects answer may go stale.
  *
- * The answer changes when another meeting of the realm is indexed with a
- * closer subject, and no tag can express that. A renamed or regenerated
- * subject does not wait for this: the entry carries its meeting's tag, which
- * the summarize, agenda and review tasks and the subject edit route all
- * revalidate. Expiry is lazy — the first visitor after the deadline pays for
- * the query — so a shorter window raises the inference cost in proportion.
+ * The tags below cover the events the code can name: a meeting of the scope
+ * released, deleted or reprocessed, a subject edited, a municipality's status
+ * or realm changed. The window covers what they cannot, such as index drift,
+ * and is the ceiling when a realm has more municipalities than one entry can
+ * carry tags for. Expiry is lazy — the first visitor after the deadline pays
+ * for the query — so a shorter window raises the inference cost in proportion.
  */
 const RELATED_CACHE_TTL_SECONDS = 86400;
+
+/** Next's ceiling on tags per cache entry. */
+const MAX_CACHE_TAGS = 128;
+
+/**
+ * The tags a related-subjects entry carries, so the events that change the
+ * answer revalidate it instead of waiting for the TTL:
+ * - `cities:all`: a municipality's status or realm changes, which changes
+ *   the city set the query is capped to.
+ * - `city:{id}:meeting:{id}`: the seed itself is renamed or regenerated.
+ * - `city:{id}:meetings` for every municipality of the scope: a meeting
+ *   there is released, unreleased, deleted or reprocessed, so a neighbour
+ *   appears or disappears. Dropped when they do not fit under Next's limit;
+ *   the TTL then covers them.
+ */
+function relatedCacheTags(seed: RelatedSubjectSeed, scopeCityIds: string[]): string[] {
+    const fixed = ['cities:all', `city:${seed.cityId}:meeting:${seed.councilMeetingId}`];
+    const perCity = scopeCityIds.map(id => `city:${id}:meetings`);
+    return fixed.length + perCity.length <= MAX_CACHE_TAGS ? [...fixed, ...perCity] : fixed;
+}
 
 export async function searchRelatedSubjectsInRealm(
     seed: RelatedSubjectSeed,
@@ -576,8 +596,9 @@ export async function searchRelatedSubjectsInRealm(
         // — a handful of ids and scores — and the realm is part of the key
         // because the city set the query is capped to differs per realm. The
         // visibility re-check and the hydration below run on every request,
-        // so a neighbour that is withdrawn or unpublished after the entry was
-        // written still drops out on the next visit.
+        // so a neighbour that is unpublished after the entry was written
+        // still drops out on the next visit.
+        const scopeCityIds = relatedScopeCityIds(seed, scope, realmCityIds);
         const esHits = await createCache(
             async () => {
                 const response = await executeElasticsearchWithRetry(
@@ -587,7 +608,7 @@ export async function searchRelatedSubjectsInRealm(
                 return response.hits.hits.map(hit => ({ _score: hit._score, _source: hit._source }));
             },
             ['subject', seed.id, 'related', scope, realm],
-            { tags: [`city:${seed.cityId}:meeting:${seed.councilMeetingId}`], revalidate: RELATED_CACHE_TTL_SECONDS },
+            { tags: relatedCacheTags(seed, scopeCityIds), revalidate: RELATED_CACHE_TTL_SECONDS },
         )();
         const { hits } = await resolveVisibleHits(esHits, `related:${scope}:${seed.id}`);
         if (hits.length === 0) return [];
