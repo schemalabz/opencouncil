@@ -21,9 +21,17 @@ module.exports = {
         '^next-intl/server$': '<rootDir>/tests/mocks/nextIntlServer.ts',
         '^@/(.*)$': '<rootDir>/src/$1',
     },
+    // @auth/prisma-adapter is ESM-only (no CJS build), so requiring it from the
+    // CommonJS test runner fails. Transform just that package; everything else in
+    // node_modules stays untransformed.
+    transformIgnorePatterns: ['/node_modules/(?!@auth/prisma-adapter/)'],
     transform: {
         '^.+\\.(ts|tsx)$': ['ts-jest', {
             tsconfig: 'tsconfig.json',
+            isolatedModules: true,
+        }],
+        '^.+\\.js$': ['ts-jest', {
+            tsconfig: { allowJs: true, module: 'commonjs', target: 'es2022' },
             isolatedModules: true,
         }],
     },

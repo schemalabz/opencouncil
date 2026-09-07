@@ -321,7 +321,13 @@ export async function aiChat<T>(
                     cache_creation_input_tokens: (response.usage.cache_creation_input_tokens || 0) + (response2.usage.cache_creation_input_tokens || 0),
                     cache_read_input_tokens: (response.usage.cache_read_input_tokens || 0) + (response2.usage.cache_read_input_tokens || 0),
                     server_tool_use: response.usage.server_tool_use || null,
-                    service_tier: response.usage.service_tier || null
+                    service_tier: response.usage.service_tier || null,
+                    // Required from @anthropic-ai/sdk 0.120. These describe a
+                    // single response, so a summed Usage carries the first
+                    // response's values rather than a meaningless total.
+                    cache_creation: response.usage.cache_creation || null,
+                    inference_geo: response.usage.inference_geo || null,
+                    output_tokens_details: response.usage.output_tokens_details || null
                 },
                 result: response2.result
             }
