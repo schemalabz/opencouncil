@@ -8,6 +8,7 @@ import type { SearchMatches } from '@/lib/search/types';
 type SubjectText = {
     name: string;
     description?: string | null;
+    location?: { text: string } | null;
     matches?: SearchMatches;
 };
 
@@ -44,6 +45,13 @@ function emphasize(text: string): React.ReactNode {
  * plus markers, so localization and markdown stripping still apply to it. */
 export function subjectTitle(subject: SubjectText, localize: Localize): React.ReactNode {
     return emphasize(localize(subject.matches?.name ?? subject.name));
+}
+
+/** A subject's location, with any search matches emphasized. Null when the
+ *  subject has no location — callers supply their own placeholder. */
+export function subjectLocation(subject: SubjectText, localize: Localize): React.ReactNode {
+    const source = subject.matches?.location_text ?? subject.location?.text;
+    return source ? emphasize(localize(source)) : null;
 }
 
 /** A subject's description, markdown-stripped, with any search matches

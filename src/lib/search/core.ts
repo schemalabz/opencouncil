@@ -1,12 +1,13 @@
 import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
+import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches } from './types';
 import { buildSearchQuery } from './query';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord';
 import { executeElasticsearchWithRetry } from './retry';
-import { partitionHits, reportOrphanedHits } from './hits';
+import { partitionHits, reportOrphanedHits, type EsHit } from './hits';
 import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
 import { logSearchQuery } from '@/lib/db/searchQueries';
 import { env } from '@/env.mjs';
@@ -51,6 +52,17 @@ const subjectDiscussionSegmentInclude = {
 } satisfies Prisma.SpeakerSegmentInclude;
 
 type SubjectDiscussionSegment = Prisma.SpeakerSegmentGetPayload<{ include: typeof subjectDiscussionSegmentInclude }>;
+
+/** The marked-up copies of whichever MATCH_FIELDS this hit matched on.
+ * Derived from the field list, so adding a field to MATCH_FIELDS carries it
+ * through the request, this mapping, and the SearchMatches type together. */
+function matchesOf(highlight: EsHit['highlight']): SearchMatches | undefined {
+    if (!highlight) return undefined;
+    const entries = MATCH_FIELDS
+        .map(field => [field, highlight[field]?.[0]] as const)
+        .filter((entry): entry is readonly [(typeof MATCH_FIELDS)[number], string] => entry[1] !== undefined);
+    return entries.length ? (Object.fromEntries(entries) as SearchMatches) : undefined;
+}
 
 /** One Elasticsearch hit that survived the release re-check, in relevance order.
  *
@@ -302,10 +314,7 @@ export async function searchSubjectsInRealm(
             hits: resolved.map(({ hit, subject }) => ({
                 id: subject.id,
                 score: hit._score || 0,
-                matches: hit.highlight && {
-                    name: hit.highlight.name?.[0],
-                    description: hit.highlight.description?.[0],
-                },
+                matches: matchesOf(hit.highlight),
             })),
             total: totalHits - dropped,
             dropped,

@@ -11,7 +11,7 @@ import { Link, useRouter } from "@/i18n/routing";
 import { PersonWithRelations } from '@/lib/db/people';
 import { HighlightVideo } from "./meetings/HighlightVideo";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
-import { subjectTitle, subjectDescription } from "@/lib/subjectText";
+import { subjectTitle, subjectDescription, subjectLocation } from "@/lib/subjectText";
 import type { SearchMatches } from "@/lib/search/types";
 import { formatDate } from "@/lib/formatters/time";
 import { useState, useEffect } from "react";
@@ -89,7 +89,7 @@ export function SubjectCard({ subject, city, meeting, parties, persons, fullWidt
                     meta: [getLocalizedName(city, locale), meeting.administrativeBody ? getLocalizedName(meeting.administrativeBody, locale) : null, formatDate(new Date(meeting.dateTime), undefined, locale)].filter(Boolean).join(" · "),
                     meetingName: getLocalizedName(meeting, locale),
                 } : null}
-                locationText={subject.location?.text ? localize(subject.location.text) : t("noLocation")}
+                locationText={subjectLocation(subject, localize) ?? t("noLocation")}
                 agendaLabel={getAgendaLabel(t, subject)}
                 description={subjectDescription(subject, localize)}
                 mediaSlot={highlight?.muxPlaybackId ? (

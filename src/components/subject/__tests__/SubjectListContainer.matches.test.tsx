@@ -76,6 +76,15 @@ describe.each(['row', 'card'] as const)('SubjectListContainer variant=%s', (vari
         expect(container.textContent).not.toContain(MATCH_END);
     });
 
+    it('emphasizes the matched term of the location', async () => {
+        const subject = makeSubject({
+            location: { text: 'Καλαθάς, Χανιά' },
+            matches: { location_text: `${mark('Καλαθάς')}, Χανιά` },
+        } as Partial<SearchResultLight>);
+        const { container } = await renderList(variant, subject);
+        expect(markedTexts(container)).toContain('Καλαθάς');
+    });
+
     it('emphasizes nothing when the hit carries no matches', async () => {
         const { container } = await renderList(variant, makeSubject());
         expect(container.querySelector('mark')).toBeNull();

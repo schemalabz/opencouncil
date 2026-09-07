@@ -10,7 +10,7 @@ export interface SubjectCardContentProps {
     /** Cross-meeting context (shown when the card isn't already inside a meeting). */
     context?: { meta: string; meetingName: string } | null;
     /** Location text; omit the row entirely when null/undefined. */
-    locationText?: string | null;
+    locationText?: React.ReactNode;
     /** Agenda marker (e.g. "#3" or "Προ ημερησίας"); omit when null. */
     agendaLabel?: string | null;
     /** Inline content. The caller has already stripped markdown and resolved

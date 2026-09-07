@@ -9,7 +9,7 @@ import { subjectDisplayedSpeakers } from "@/lib/subjectSpeakers";
 import { getAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
 import { PersonWithRelations } from "@/lib/db/people";
-import { subjectTitle, subjectDescription } from "@/lib/subjectText";
+import { subjectTitle, subjectDescription, subjectLocation } from "@/lib/subjectText";
 import type { SearchMatches } from "@/lib/search/types";
 import { formatDate } from "@/lib/formatters/time";
 import { getLocalizedName } from "@/lib/formatters/name";
@@ -75,7 +75,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
     const stats = subjectCardStats(subject.statistics, subject.contributions?.length);
     const agendaLabel = getAgendaLabel(t, subject);
     const description = subjectDescription(subject, localize);
-    const locationText = subject.location?.text ? localize(subject.location.text) : null;
+    const locationText = subjectLocation(subject, localize);
     const rail = topicStyle(subject.topic?.colorHex).border;
     const context = [
         getLocalizedName(city, locale),

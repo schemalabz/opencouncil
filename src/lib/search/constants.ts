@@ -19,4 +19,4 @@ export const MATCH_END = '\uE001';
 
 /** The fields we ask Elasticsearch to mark up, and therefore the fields a
  * SearchMatches can carry. */
-export const MATCH_FIELDS = ['name', 'description'] as const;
+export const MATCH_FIELDS = ['name', 'description', 'location_text'] as const;
