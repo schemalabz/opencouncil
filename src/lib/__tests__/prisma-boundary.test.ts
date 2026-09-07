@@ -47,7 +47,6 @@ const ALLOWED_FILES = new Set([
     'src/lib/pilotStats.ts',
     'src/app/sitemap.ts',
     'src/app/qr/[code]/route.ts',
-    'src/app/[locale]/(admin)/admin/conversations/actions.ts',
     'src/app/[locale]/(admin)/admin/reports/page.tsx',
     'src/app/api/admin/elasticsearch/status/route.ts',
     'src/app/api/admin/entities/route.ts',
