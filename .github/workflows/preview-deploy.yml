@@ -5,7 +5,6 @@ on:
     # `labeled` lets the preview-notis label trigger a paired notis deploy
     # on an already-open PR; the root jobs skip every other label event.
     types: [opened, synchronize, reopened, labeled]
-    branches: [main]
 
 permissions:
   pull-requests: write
