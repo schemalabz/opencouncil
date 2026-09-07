@@ -61,13 +61,18 @@ export default async function TabsLayout(
         // than sitting as a plain sibling.
         currentUserPromise.then(user => user ? getNotificationPreferenceForCity(user.id, cityId) : null),
     ]);
-    // Not awaited: Notis's answer about the reader's WhatsApp channel streams
-    // into the notification card, so the page never waits on a second service.
-    const phoneChannel = currentUserPromise.then(user => (user ? readerPhoneChannel(user) : false));
-
     if (!city) {
         notFound();
     }
+
+    // Only the subscribed card reads this, so only that card pays for it: an
+    // unread answer would still cost a request to a second service on every
+    // city page a signed-in reader opens. Not awaited — it streams into the
+    // card behind a Suspense boundary rather than holding the page.
+    const phoneChannel =
+        currentUser && notificationPreference && city.supportsNotifications
+            ? readerPhoneChannel(currentUser)
+            : Promise.resolve<boolean | null>(false);
 
     // The rail is a Client Component, so the two clock-dependent facts of a row
     // — the stage and the chip's relative time — are read here, against one
