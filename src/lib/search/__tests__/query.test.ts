@@ -6,6 +6,7 @@ import type { SearchRequest } from '../types';
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 
 import { buildFilters, buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO } from '../query';
+import { MATCH_START, MATCH_END, MATCH_FIELDS } from '../constants';
 import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
 import schema from '../../../../elasticsearch/schema.json';
 import type { ExtractedFilters } from '../types';
@@ -1506,5 +1507,32 @@ describe('buildFilters administrative body filter', () => {
 
         expect(termsOf(filters, 'administrative_body_id')).toBeUndefined();
         expect(termsOf(filters, 'administrative_body_type')).toBeUndefined();
+    });
+});
+
+
+describe('buildSearchQuery — the highlight block', () => {
+    it('is omitted unless the caller asks for markup', () => {
+        expect(buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS).highlight).toBeUndefined();
+        expect(
+            buildSearchQuery({ query: 'πάρκα', config: { enableHighlights: false } }, NO_EXTRACTED_FILTERS).highlight
+        ).toBeUndefined();
+    });
+
+    it('asks for a whole-field fragment of every MATCH_FIELD, marked with the sentinels', () => {
+        const query = buildSearchQuery(
+            { query: 'πάρκα', config: { enableHighlights: true } },
+            NO_EXTRACTED_FILTERS
+        );
+
+        // Derived, not spelled out: the request must mirror MATCH_FIELDS, so a
+        // field added there cannot be silently left out of the request.
+        expect(query.highlight).toEqual({
+            pre_tags: [MATCH_START],
+            post_tags: [MATCH_END],
+            number_of_fragments: 0,
+            fields: Object.fromEntries(MATCH_FIELDS.map(field => [field, {}])),
+        });
+        expect(Object.keys(query.highlight!.fields!)).toContain('location_text');
     });
 });

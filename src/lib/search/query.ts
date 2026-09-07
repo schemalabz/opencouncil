@@ -1,6 +1,7 @@
 import { estypes } from '@elastic/elasticsearch';
 import { SearchRequest, ExtractedFilters, Location } from './types';
 import { env } from '@/env.mjs';
+import { MATCH_START, MATCH_END, MATCH_FIELDS } from './constants';
 import type { AdministrativeBodyType } from '@prisma/client';
 
 // Score added ONCE to a subject pinned within an AI-extracted location's radius
@@ -1226,6 +1227,17 @@ export function buildSearchQuery(
         size: request.config?.size || 10,
         from: request.config?.from || 0,
         track_total_hits: true,
-        query: applyRanking(scoredQuery)
+        query: applyRanking(scoredQuery),
+        // number_of_fragments:0 returns the whole field as a single fragment, so
+        // the UI renders a complete title/description with the matched spans
+        // marked, rather than a snippet.
+        ...(request.config?.enableHighlights ? {
+            highlight: {
+                pre_tags: [MATCH_START],
+                post_tags: [MATCH_END],
+                number_of_fragments: 0,
+                fields: Object.fromEntries(MATCH_FIELDS.map(field => [field, {}]))
+            }
+        } : {})
     };
 }

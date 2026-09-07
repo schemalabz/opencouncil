@@ -1,4 +1,5 @@
 import { AdministrativeBody, AdministrativeBodyType, City, CouncilMeeting } from "@prisma/client";
+import { MATCH_FIELDS } from "./constants";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 
@@ -14,6 +15,9 @@ export type SearchConfig = {
     /** Similarity cutoff (normalized cosine, 0-1) for the semantic fallback.
      *  See DEFAULT_SEMANTIC_MIN_SCORE. */
     semanticMinScore?: number;
+    /** Ask Elasticsearch to mark the matched spans in `name`/`description`, so
+     *  the UI can emphasize them. Costs a whole-field copy of both fields per
+     *  hit in the response. Only the in-app search page sets it. */
     enableHighlights?: boolean;
     size?: number;
     from?: number;
@@ -54,9 +58,18 @@ export type SearchRequest = {
     config?: SearchConfig;
 };
 
+/** Whole-field copies of the matched fields, with the matched spans wrapped in
+ *  MATCH_START/MATCH_END. A field is absent when nothing in it matched, and the
+ *  whole object is absent unless `config.enableHighlights` asked for markup.
+ *
+ *  The text is Elasticsearch's indexed copy, so it can lag the database row
+ *  between an edit and the next reindex. */
+export type SearchMatches = Partial<Record<(typeof MATCH_FIELDS)[number], string>>;
+
 // Lightweight search result
 export type SearchResultLight = SubjectWithRelations & {
     score: number;
+    matches?: SearchMatches;
     councilMeeting: CouncilMeeting & {
         city: City;
         administrativeBody: AdministrativeBody | null;

@@ -9,7 +9,8 @@ import { subjectDisplayedSpeakers } from "@/lib/subjectSpeakers";
 import { getAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
 import { PersonWithRelations } from "@/lib/db/people";
-import { stripMarkdown } from "@/lib/formatters/markdown";
+import { subjectTitle, subjectDescription, subjectLocation } from "@/lib/subjectText";
+import type { SearchMatches } from "@/lib/search/types";
 import { formatDate } from "@/lib/formatters/time";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
@@ -21,7 +22,7 @@ import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 
 interface SubjectRowProps {
-    subject: SubjectWithRelations & { statistics?: Statistics };
+    subject: SubjectWithRelations & { statistics?: Statistics; matches?: SearchMatches };
     city: City;
     meeting: CouncilMeeting & { administrativeBody?: AdministrativeBody | null };
     persons: PersonWithRelations[];
@@ -73,8 +74,8 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
     const speakers = subjectDisplayedSpeakers(subject, persons);
     const stats = subjectCardStats(subject.statistics, subject.contributions?.length);
     const agendaLabel = getAgendaLabel(t, subject);
-    const description = subject.description ? localize(stripMarkdown(subject.description)) : null;
-    const locationText = subject.location?.text ? localize(subject.location.text) : null;
+    const description = subjectDescription(subject, localize);
+    const locationText = subjectLocation(subject, localize);
     const rail = topicStyle(subject.topic?.colorHex).border;
     const context = [
         getLocalizedName(city, locale),
@@ -140,7 +141,7 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
                             </div>
 
                             <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug transition-colors duration-300 group-hover/row:text-accent-foreground sm:text-base">
-                                {localize(subject.name)}
+                                {subjectTitle(subject, localize)}
                             </h3>
 
                             {description && (

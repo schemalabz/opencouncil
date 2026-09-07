@@ -278,3 +278,57 @@ describe('searchSubjectsInRealm — retrieval', () => {
         expect(result.derivedFilters).toEqual({ cityIds: ['chania'] });
     });
 });
+
+
+describe('search matches cross the retrieval/hydration seam', () => {
+    const NAME_FRAGMENT = 'Αίτηση για \uE000Αδειοδότηση\uE001 καταστήματος';
+    const DESCRIPTION_FRAGMENT = 'Συζήτηση για την \uE000άδεια\uE001 λειτουργίας';
+    const markedHit = {
+        _score: 9,
+        _source: { id: 'a' },
+        highlight: { name: [NAME_FRAGMENT], description: [DESCRIPTION_FRAGMENT] },
+    };
+    const plainHit = { _score: 4, _source: { id: 'b' } };
+    const released = (id: string) => ({ id, councilMeeting: { released: true } });
+
+    beforeEach(() => {
+        esSearchMock.mockResolvedValue({
+            hits: { total: { value: 2, relation: 'eq' }, hits: [markedHit, plainHit] },
+            took: 1,
+        });
+    });
+
+    it('carries each marked field on the retrieval hit, and nothing for an unmarked hit', async () => {
+        findManyMock.mockResolvedValue([released('a'), released('b')]);
+
+        const result = await searchSubjectsInRealm(
+            { query: 'άδεια', config: { enableHighlights: true } },
+            'greece'
+        );
+
+        expect(result.hits).toStrictEqual([
+            { id: 'a', score: 9, matches: { name: NAME_FRAGMENT, description: DESCRIPTION_FRAGMENT } },
+            { id: 'b', score: 4, matches: undefined },
+        ]);
+    });
+
+    it('hands the matches to the hydrated result', async () => {
+        const row = (id: string) => ({
+            id, location: null,
+            councilMeeting: { id: 'm1', city: { id: 'athens' }, administrativeBody: null },
+        });
+        findManyMock
+            .mockResolvedValueOnce([released('a'), released('b')])
+            .mockResolvedValueOnce([row('a'), row('b')]);
+
+        const response = await searchInRealm(
+            { query: 'άδεια', config: { enableHighlights: true } },
+            'greece'
+        );
+
+        expect(response.results.map(r => r.matches)).toEqual([
+            { name: NAME_FRAGMENT, description: DESCRIPTION_FRAGMENT },
+            undefined,
+        ]);
+    });
+});

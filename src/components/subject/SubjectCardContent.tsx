@@ -5,16 +5,17 @@ import { TopicIcon } from '@/components/TopicIcon';
 
 export interface SubjectCardContentProps {
     /** Subject title. */
-    title: string;
+    title: React.ReactNode;
     topic?: { colorHex?: string | null; icon?: string | null } | null;
     /** Cross-meeting context (shown when the card isn't already inside a meeting). */
     context?: { meta: string; meetingName: string } | null;
     /** Location text; omit the row entirely when null/undefined. */
-    locationText?: string | null;
+    locationText?: React.ReactNode;
     /** Agenda marker (e.g. "#3" or "Προ ημερησίας"); omit when null. */
     agendaLabel?: string | null;
-    /** Description, already markdown-stripped. */
-    description?: string | null;
+    /** Inline content. The caller has already stripped markdown and resolved
+     *  any search emphasis. */
+    description?: React.ReactNode;
     /** Optional media above the description (app: highlight video). */
     mediaSlot?: React.ReactNode;
     /** Optional footer (app: speaking stats + avatars; widget: none or a light row). */

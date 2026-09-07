@@ -1,12 +1,13 @@
 import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
-import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters } from './types';
+import { MATCH_FIELDS } from './constants';
+import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches } from './types';
 import { buildSearchQuery } from './query';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord';
 import { executeElasticsearchWithRetry } from './retry';
-import { partitionHits, reportOrphanedHits } from './hits';
+import { partitionHits, reportOrphanedHits, type EsHit } from './hits';
 import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
 import { logSearchQuery } from '@/lib/db/searchQueries';
 import { env } from '@/env.mjs';
@@ -52,8 +53,26 @@ const subjectDiscussionSegmentInclude = {
 
 type SubjectDiscussionSegment = Prisma.SpeakerSegmentGetPayload<{ include: typeof subjectDiscussionSegmentInclude }>;
 
-/** One Elasticsearch hit that survived the release re-check, in relevance order. */
-export type SubjectSearchHit = { id: string; score: number };
+/** The marked-up copies of whichever MATCH_FIELDS this hit matched on.
+ * Derived from the field list, so adding a field to MATCH_FIELDS carries it
+ * through the request, this mapping, and the SearchMatches type together. */
+function matchesOf(highlight: EsHit['highlight']): SearchMatches | undefined {
+    if (!highlight) return undefined;
+    const entries = MATCH_FIELDS
+        .map(field => [field, highlight[field]?.[0]] as const)
+        .filter((entry): entry is readonly [(typeof MATCH_FIELDS)[number], string] => entry[1] !== undefined);
+    return entries.length ? (Object.fromEntries(entries) as SearchMatches) : undefined;
+}
+
+/** One Elasticsearch hit that survived the release re-check, in relevance order.
+ *
+ * `matches` crosses the retrieval/hydration seam because only the query knows
+ * what matched; see SearchMatches. */
+export type SubjectSearchHit = {
+    id: string;
+    score: number;
+    matches?: SearchMatches;
+};
 
 /** What retrieval knows before anything is hydrated. */
 export type SubjectSearchHits = {
@@ -292,7 +311,11 @@ export async function searchSubjectsInRealm(
         // hidden content should withhold the total whenever `dropped` > 0.
         const dropped = response.hits.hits.length - resolved.length;
         return {
-            hits: resolved.map(({ hit, subject }) => ({ id: subject.id, score: hit._score || 0 })),
+            hits: resolved.map(({ hit, subject }) => ({
+                id: subject.id,
+                score: hit._score || 0,
+                matches: matchesOf(hit.highlight),
+            })),
             total: totalHits - dropped,
             dropped,
             derivedFilters,
@@ -420,7 +443,7 @@ export async function searchInRealm(
             locationCoordinates.map(loc => [loc.id, { x: loc.x, y: loc.y }])
         );
 
-        const results = hits.flatMap(({ id, score }) => {
+        const results = hits.flatMap(({ id, score, matches }) => {
             const subject = subjectMap.get(id);
             // Retrieval already re-checked every id against the database, so a
             // miss here means the row went away between the two queries. Drop
@@ -444,6 +467,7 @@ export async function searchInRealm(
                 ...subject,
                 location: locationWithCoordinates,
                 score,
+                matches,
                 councilMeeting: subject.councilMeeting,
                 votes: [],
                 attendance: []

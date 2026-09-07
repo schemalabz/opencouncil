@@ -304,6 +304,7 @@ export default function SearchPage() {
                     // that, what it gave is in the URL and on the pills, and
                     // what the reader took off should stay off.
                     extractFilters: shouldExtract,
+                    enableHighlights: true,
                     size: PAGE_SIZE,
                     from: (page - 1) * PAGE_SIZE,
                     detailed: false
