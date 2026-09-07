@@ -78,10 +78,20 @@ export function buildRelatedSubjectsQuery(
                     { terms: { city_id: scopeCityIds } },
                 ],
                 // The subject itself, and its siblings from the same meeting:
-                // the meeting page already lists those.
+                // the meeting page already lists those. A meeting id is a
+                // date, unique only within its municipality, so the sibling
+                // clause names the (city, meeting) pair: on its own it would
+                // also drop every other municipality's meeting of that day.
                 must_not: [
                     { term: { id: seed.id } },
-                    { term: { councilMeeting_id: seed.councilMeetingId } },
+                    {
+                        bool: {
+                            filter: [
+                                { term: { city_id: seed.cityId } },
+                                { term: { councilMeeting_id: seed.councilMeetingId } },
+                            ],
+                        },
+                    },
                 ],
             },
         },
