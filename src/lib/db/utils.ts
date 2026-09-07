@@ -472,6 +472,8 @@ export async function saveSubjectsForMeeting(
                         ? incoming.agendaItemIndex
                         : null,
                     description: incoming.description,
+                    // undefined leaves the stored title alone; null clears it.
+                    agendaItemTitle: incoming.agendaItemTitle,
                     topicId,
                     locationId: locationId ?? null,
                     personId: validIntroducedBy ?? null,
@@ -537,6 +539,7 @@ export async function saveSubjectsForMeeting(
                 data: {
                     name: subject.name,
                     description: subject.description,
+                    agendaItemTitle: subject.agendaItemTitle,
                     councilMeeting: {
                         connect: { cityId_id: { cityId, id: councilMeetingId } }
                     },

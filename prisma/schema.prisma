@@ -470,6 +470,9 @@ model Subject {
   councilMeetingId String
 
   agendaItemIndex Int?
+  // The item as written on the official agenda. processAgenda sets it; summarize never touches
+  // it. Null for non-agenda subjects, rows that predate the field, or an item with no printed text.
+  agendaItemTitle String?
   nonAgendaReason NonAgendaReason?
   withdrawn       Boolean          @default(false)
   topicId String?

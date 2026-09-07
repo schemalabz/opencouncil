@@ -324,4 +324,52 @@ describe('saveSubjectsForMeeting - integration', () => {
 
         expect(secondRunIds).toEqual(firstRunIds)
     })
+
+    test('agendaItemTitle: stored on create, kept when a later run omits it, replaced when present, cleared by null', async () => {
+        // processAgenda run: every subject carries the field.
+        const agendaRun: Subject[] = [
+            makeSubject({ name: 'Budget', agendaItemIndex: 1, agendaItemTitle: 'ΕΓΚΡΙΣΗ ΠΡΟΫΠΟΛΟΓΙΣΜΟΥ ΟΙΚΟΝΟΜΙΚΟΥ ΕΤΟΥΣ 2026' }),
+            makeSubject({ name: 'Roads', agendaItemIndex: 2, agendaItemTitle: 'ΣΥΝΤΗΡΗΣΗ ΟΔΙΚΟΥ ΔΙΚΤΥΟΥ' }),
+        ]
+        await saveSubjectsForMeeting(agendaRun, cityId, meetingId, undefined, { pruneUnmatched: true })
+
+        const afterAgenda = await prisma.subject.findMany({ where: { councilMeetingId: meetingId, cityId }, orderBy: { agendaItemIndex: 'asc' } })
+        expect(afterAgenda[0].agendaItemTitle).toBe('ΕΓΚΡΙΣΗ ΠΡΟΫΠΟΛΟΓΙΣΜΟΥ ΟΙΚΟΝΟΜΙΚΟΥ ΕΤΟΥΣ 2026')
+        expect(afterAgenda[1].agendaItemTitle).toBe('ΣΥΝΤΗΡΗΣΗ ΟΔΙΚΟΥ ΔΙΚΤΥΟΥ')
+
+        // summarize run: renames the subject and omits the field.
+        const summarizeRun: Subject[] = [
+            makeSubject({ name: 'Budget 2026 approved', agendaItemIndex: 1, description: 'Discussed at length' }),
+        ]
+        await saveSubjectsForMeeting(summarizeRun, cityId, meetingId)
+
+        const afterSummarize = await prisma.subject.findUnique({ where: { id: afterAgenda[0].id } })
+        expect(afterSummarize!.name).toBe('Budget 2026 approved')
+        expect(afterSummarize!.agendaItemTitle).toBe('ΕΓΚΡΙΣΗ ΠΡΟΫΠΟΛΟΓΙΣΜΟΥ ΟΙΚΟΝΟΜΙΚΟΥ ΕΤΟΥΣ 2026')
+
+        const roadsAfterSummarize = await prisma.subject.findUnique({ where: { id: afterAgenda[1].id } })
+        expect(roadsAfterSummarize!.agendaItemTitle).toBe('ΣΥΝΤΗΡΗΣΗ ΟΔΙΚΟΥ ΔΙΚΤΥΟΥ')
+
+        // A second agenda run replaces the title, and an explicit null clears it.
+        const secondAgendaRun: Subject[] = [
+            makeSubject({ name: 'Budget 2026 approved', agendaItemIndex: 1, agendaItemTitle: 'ΕΓΚΡΙΣΗ ΠΡΟΫΠΟΛΟΓΙΣΜΟΥ 2026 (ΟΡΘΗ ΕΠΑΝΑΛΗΨΗ)' }),
+            makeSubject({ name: 'Roads', agendaItemIndex: 2, agendaItemTitle: null }),
+        ]
+        await saveSubjectsForMeeting(secondAgendaRun, cityId, meetingId, undefined, { pruneUnmatched: true })
+
+        const afterSecond = await prisma.subject.findMany({ where: { councilMeetingId: meetingId, cityId }, orderBy: { agendaItemIndex: 'asc' } })
+        expect(afterSecond[0].id).toBe(afterAgenda[0].id)
+        expect(afterSecond[0].agendaItemTitle).toBe('ΕΓΚΡΙΣΗ ΠΡΟΫΠΟΛΟΓΙΣΜΟΥ 2026 (ΟΡΘΗ ΕΠΑΝΑΛΗΨΗ)')
+        expect(afterSecond[1].id).toBe(afterAgenda[1].id)
+        expect(afterSecond[1].agendaItemTitle).toBeNull()
+    })
+
+    test('agendaItemTitle: a subject created without the field stores null', async () => {
+        const run: Subject[] = [makeSubject({ name: 'Opening remarks', agendaItemIndex: 'BEFORE_AGENDA' })]
+        await saveSubjectsForMeeting(run, cityId, meetingId)
+
+        const rows = await prisma.subject.findMany({ where: { councilMeetingId: meetingId, cityId } })
+        expect(rows).toHaveLength(1)
+        expect(rows[0].agendaItemTitle).toBeNull()
+    })
 })

@@ -17,6 +17,7 @@ import { isRoleActiveAt, isMayorRole } from "../utils/roles";
 import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, isLogodosiaMeeting, LOGODOSIA_NAME_PATTERN, type BackoffTier } from "./pollDecisionsBackoff";
 import { interleaveByCity } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
+import { agendaItemTitleOrName } from "@/lib/utils/subjects";
 
 export async function requestPollDecisions(
     cityId: string,
@@ -75,6 +76,7 @@ export async function pollDecisionsForMeeting(
                 select: {
                     id: true,
                     name: true,
+                    agendaItemTitle: true,
                     agendaItemIndex: true,
                     nonAgendaReason: true,
                     discussedIn: { select: { id: true } },
@@ -168,7 +170,7 @@ export async function pollDecisionsForMeeting(
         })),
         subjects: sortedSubjects.map(s => ({
             subjectId: s.id,
-            name: s.name,
+            name: agendaItemTitleOrName(s),
             agendaItemIndex: s.agendaItemIndex,
             nonAgendaReason: s.nonAgendaReason,
             ...(s.decision?.ada ? {

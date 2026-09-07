@@ -1,4 +1,4 @@
-import { categorizeSubjects, getNonAgendaLabel, getWithdrawnLabel, getSubjectCategories, pickSummarySubjects } from '../subjects';
+import { categorizeSubjects, getNonAgendaLabel, getWithdrawnLabel, getSubjectCategories, pickSummarySubjects, agendaItemTitleOrName } from '../subjects';
 
 // Identity translator: returns the key so tests assert the resolved key path
 // without depending on message-file contents.
@@ -156,5 +156,27 @@ describe('pickSummarySubjects', () => {
 
     it('returns every subject when the cap is not reached', () => {
         expect(pickSummarySubjects([subject('a', 0)], 6).map(s => s.id)).toEqual(['a']);
+    });
+});
+
+describe('agendaItemTitleOrName', () => {
+    it('prefers the verbatim agenda item title', () => {
+        expect(agendaItemTitleOrName({
+            name: 'Αποζημίωση ακινήτου Κόκκινο Μετόχι',
+            agendaItemTitle: 'ΕΓΚΡΙΣΗ ΕΝΑΡΞΗΣ ΔΙΑΔΙΚΑΣΙΩΝ ΠΛΗΡΩΜΗΣ ΑΠΟΖΗΜΙΩΣΗΣ ΑΚΙΝΗΤΟΥ',
+        })).toBe('ΕΓΚΡΙΣΗ ΕΝΑΡΞΗΣ ΔΙΑΔΙΚΑΣΙΩΝ ΠΛΗΡΩΜΗΣ ΑΠΟΖΗΜΙΩΣΗΣ ΑΚΙΝΗΤΟΥ');
+    });
+
+    it('falls back to the summary name when no title is stored', () => {
+        expect(agendaItemTitleOrName({ name: 'Αποζημίωση ακινήτου Κόκκινο Μετόχι', agendaItemTitle: null }))
+            .toBe('Αποζημίωση ακινήτου Κόκκινο Μετόχι');
+    });
+
+    it('falls back to the summary name for an empty title', () => {
+        expect(agendaItemTitleOrName({ name: 'Περίληψη', agendaItemTitle: '' })).toBe('Περίληψη');
+    });
+
+    it('falls back to the summary name for a whitespace-only title', () => {
+        expect(agendaItemTitleOrName({ name: 'Περίληψη', agendaItemTitle: '   ' })).toBe('Περίληψη');
     });
 });

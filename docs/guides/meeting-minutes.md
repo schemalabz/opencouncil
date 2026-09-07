@@ -49,6 +49,9 @@ Minutes include utterances linked to each subject via `Utterance.discussionSubje
 
 This linking is currently AI-driven with no manual editing UI. Misclassified or unlinked utterances silently disappear from the minutes output.
 
+### Subject headings print the official agenda title
+`Subject.agendaItemTitle` holds the item as written on the official agenda. `processAgenda` fills it for new meetings. The minutes print it in the table of contents, in each subject heading, and in cross-references. A subject without a title, for example one that summarize created, prints its summary name instead. `agendaItemTitleOrName()` in `src/lib/utils/subjects.ts` holds that rule. Web pages keep showing the summary name. The Diavgeia decision matcher receives the same title as the subject text of the poll request. The official wording matches decision titles far better than the summary name (issue #616).
+
 ### Excerpt and references are markdown
 `Decision.excerpt` and `Decision.references` are stored as markdown to preserve PDF structure (bullet points, numbered lists). Richness varies by municipality — Vrilissia has 14+ numbered reference items per decision, while Zografou often uses a single generic phrase.
 
