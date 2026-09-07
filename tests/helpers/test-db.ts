@@ -150,6 +150,9 @@ export async function resetDatabase(prisma: { $executeRawUnsafe: (q: string) => 
       "Topic",
       "Person",
       "User",
+      -- VerificationToken has no FK to User, so the CASCADE above never reaches
+      -- it the way it reaches Account and Session.
+      "VerificationToken",
       "AdministrativeBody",
       "City",
       "Location"
