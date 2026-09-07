@@ -655,7 +655,7 @@ function CitizensPanel() {
             <View style={{ flex: 1 }} />
             <View style={{ alignItems: "center", flexShrink: 0 }}>
                 <BrowserFrame
-                    src={`${ASSET_BASE}/brochure/subject.jpg`}
+                    src={`${ASSET_BASE}/brochure/subject.png`}
                     url="opencouncil.gr/chania"
                     width={PANEL_W - PANEL_PAD * 2}
                 />
