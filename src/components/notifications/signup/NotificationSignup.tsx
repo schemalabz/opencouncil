@@ -27,6 +27,7 @@ import {
     initialSignupState,
     notisActionFor,
     phoneChannelDefault,
+    phoneChannelLocked,
 } from './signup-state';
 
 const TOTAL_STEPS = 3;
@@ -98,6 +99,9 @@ export function NotificationSignup({
     }, [notisStatus]);
 
     const notisPending = notisStatus === 'pending';
+    // The card is not the reader's to change until Notis has answered, and a
+    // silent Notis stays that way: the rest of the step still saves.
+    const channelLocked = notisPending || phoneChannelLocked(notisStatus);
     const issues = attempted ? channelIssues(state, validity) : [];
 
     const submit = () =>
@@ -105,7 +109,9 @@ export function NotificationSignup({
             if (notisPending) return 'blocked';
             if (channelIssues(state, validity).length > 0) return 'blocked';
 
-            const result = await saveNotificationPreferences(buildSubmission(state, city.id, signedIn));
+            const result = await saveNotificationPreferences(
+                buildSubmission(state, city.id, signedIn, { phoneChannelLocked: channelLocked }),
+            );
             if (!result.success) {
                 captureEvent('notification_signup_failed', { city_id: city.id, code: result.error });
                 return { ok: false, error: saveErrorKey(result.error) };
@@ -182,6 +188,7 @@ export function NotificationSignup({
                 <ChannelsStep
                     state={state}
                     signedIn={signedIn}
+                    phoneChannelLocked={channelLocked}
                     phoneChannelPending={notisPending}
                     issues={issues}
                     saveError={saveError}
