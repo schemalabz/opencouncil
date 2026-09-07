@@ -51,9 +51,14 @@ export async function getNotisChannelState(): Promise<NotisChannelState | null> 
     };
 }
 
-/** A refused or silent Notis call, as the code the reader's surface shows. */
+/**
+ * A refused or silent Notis call, as the code the reader's surface shows.
+ * Only a refusal Notis explains by code is the reader's to act on; everything
+ * else — a timeout, a 5xx from a proxy, a body that is not the API's — is an
+ * outage, and the surfaces offer a retry for that.
+ */
 function refusalCode(result: Exclude<NotisClientResult<unknown>, { ok: true }>): string {
-    if (result.reason === "rejected") return result.code ?? `notis_${result.status}`;
+    if (result.reason === "rejected" && result.code) return result.code;
     return "notis_unreachable";
 }
 

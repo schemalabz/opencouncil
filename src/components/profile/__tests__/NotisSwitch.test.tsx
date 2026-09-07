@@ -155,6 +155,20 @@ describe('NotisSwitch', () => {
         expect(mockedState).toHaveBeenCalledTimes(2);
     });
 
+    it('offers a retry instead of a spinner when the read throws', async () => {
+        mockedState.mockRejectedValueOnce(new Error('network'));
+        mockedState.mockResolvedValueOnce(state());
+        render(<NotisSwitch hasPreferences />);
+
+        const retry = await screen.findByRole('button', { name: 'notisRetry' });
+        expect(screen.queryByRole('switch')).toBeNull();
+
+        fireEvent.click(retry);
+
+        await waitFor(() => expect(theSwitch()).toBeEnabled());
+        expect(theSwitch()).toHaveAttribute('aria-checked', 'true');
+    });
+
     it('stays hidden for a reader with no preferences and no subscription', async () => {
         mockedState.mockResolvedValue(state({ subscription: null, notifyByPhone: false }));
         const { container } = render(<NotisSwitch hasPreferences={false} />);
