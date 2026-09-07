@@ -7,7 +7,7 @@
     "services/*"
   ],
   "scripts": {
-    "postinstall": "patch-package",
+    "postinstall": "patch-package --error-on-fail",
     "dev": "next dev --turbo -H 0.0.0.0",
     "dev:fast": "NEXT_TELEMETRY_DISABLED=1 NODE_OPTIONS='--max-old-space-size=4096' next dev --turbo -H 0.0.0.0",
     "build": "next build",
@@ -23,7 +23,7 @@
     "prisma:migrate:reset": "prisma migrate reset",
     "db:deploy": "prisma migrate deploy && prisma generate",
     "db:deploy:seed": "npm run db:deploy && prisma db seed",
-    "production:build": "patch-package && next build",
+    "production:build": "patch-package --error-on-fail && next build",
     "production:start": "NODE_OPTIONS='--max-old-space-size=6144' next start",
     "email": "tsx scripts/email_municipality.ts",
     "import:people": "tsx scripts/insert_people.ts",
