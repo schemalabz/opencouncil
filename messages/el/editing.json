@@ -135,6 +135,15 @@
     "selectionErrorDiffSegments": "Δεν είναι δυνατή η εξαγωγή προτάσεων από διαφορετικά τμήματα ταυτόχρονα.",
     "invalidOperationTitle": "Μη έγκυρη ενέργεια",
     "invalidOperationExtractAll": "Δεν είναι δυνατή η εξαγωγή όλων των προτάσεων. Χρησιμοποιήστε την 'Αλλαγή Ομιλητή'.",
+    "deletionSuccess": "{count, plural, one {Διαγράφηκε # φράση} other {Διαγράφηκαν # φράσεις}}",
+    "deletionError": "Αποτυχία διαγραφής των επιλεγμένων φράσεων",
+    "bulkDeleteConfirmTitle": "Διαγραφή επιλεγμένων;",
+    "bulkDeleteConfirmDesc": "Είστε βέβαιοι ότι θέλετε να διαγράψετε {count, plural, one {# φράση} other {# φράσεις}}; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.",
+    "common": {
+      "cancel": "Ακύρωση",
+      "deleting": "Διαγραφή...",
+      "delete": "Διαγραφή"
+    },
     "reviewCompleted": "Ο Έλεγχος Ολοκληρώθηκε",
     "reviewCompletedDescription": "Ο έλεγχος της απομαγνητοφώνησης έχει σημειωθεί ως ολοκληρωμένος."
   }
