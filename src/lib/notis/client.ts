@@ -68,13 +68,20 @@ const subscriptionPath = (userId: string) => `/api/subscriptions/${encodeURIComp
 export async function getNotisSubscription(
     userId: string,
 ): Promise<NotisClientResult<NotisSubscriptionView | null>> {
-    const result = await call<{ subscription: NotisSubscriptionView | null }>(subscriptionPath(userId), { method: "GET" });
-    return result.ok ? { ok: true, data: result.data.subscription } : result;
+    const result = await call<{ subscription: NotisSubscriptionView | null } | null>(subscriptionPath(userId), { method: "GET" });
+    // `call` hands back a null body for a 2xx that is not the API's JSON — a
+    // 204, or a proxy's HTML error page. Reading through it would throw out of
+    // a function every caller trusts never to throw.
+    return result.ok ? { ok: true, data: result.data?.subscription ?? null } : result;
 }
 
 export async function setNotisSubscription(
     userId: string,
     status: NotisSubscriptionStatus,
 ): Promise<NotisClientResult<{ subscription: NotisSubscriptionView | null; next?: "poller" }>> {
-    return call(subscriptionPath(userId), { method: "PATCH", body: { status } });
+    const result = await call<{ subscription: NotisSubscriptionView | null; next?: "poller" } | null>(
+        subscriptionPath(userId),
+        { method: "PATCH", body: { status } },
+    );
+    return result.ok ? { ok: true, data: result.data ?? { subscription: null } } : result;
 }
