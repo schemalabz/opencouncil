@@ -5,6 +5,7 @@ import {
     initialSignupState,
     notisActionFor,
     phoneChannelDefault,
+    phoneChannelLocked,
     type SignupState,
 } from '../signup-state';
 
@@ -58,8 +59,9 @@ describe('phoneChannelDefault', () => {
         expect(phoneChannelDefault(null, { ...account, notifyByPhone: false })).toBe(false);
     });
 
-    it('asks for an explicit tick when Notis did not answer, because the reader may have said ΣΤΟΠ', () => {
-        expect(phoneChannelDefault('unknown', account)).toBe(false);
+    it('freezes on the reader’s request when Notis did not answer, and never shows OFF on a guess', () => {
+        expect(phoneChannelDefault('unknown', account)).toBe(true);
+        expect(phoneChannelDefault('unknown', { ...account, notifyByPhone: false })).toBe(false);
     });
 
     it('starts a signed-out reader with WhatsApp on', () => {
@@ -67,13 +69,21 @@ describe('phoneChannelDefault', () => {
     });
 });
 
+describe('phoneChannelLocked', () => {
+    it('locks the card only while Notis has not answered', () => {
+        expect(phoneChannelLocked('unknown')).toBe(true);
+        expect(phoneChannelLocked('active')).toBe(false);
+        expect(phoneChannelLocked('unsubscribed')).toBe(false);
+        expect(phoneChannelLocked(null)).toBe(false);
+    });
+});
+
 describe('notisActionFor', () => {
     const ticked = { phoneChannel: true } as SignupState;
     const unticked = { phoneChannel: false } as SignupState;
 
-    it('re-activates only on an explicit tick from a reader Notis does not serve, or may not', () => {
+    it('re-activates only on an explicit tick from a reader Notis does not serve', () => {
         expect(notisActionFor(ticked, true, 'unsubscribed')).toBe('activate');
-        expect(notisActionFor(ticked, true, 'unknown')).toBe('activate');
         expect(notisActionFor(ticked, true, 'active')).toBeNull();
         expect(notisActionFor(ticked, true, null)).toBeNull();
     });
@@ -82,6 +92,11 @@ describe('notisActionFor', () => {
         expect(notisActionFor(unticked, true, 'active')).toBe('release');
         expect(notisActionFor(unticked, true, 'unsubscribed')).toBeNull();
         expect(notisActionFor(ticked, false, 'unsubscribed')).toBeNull();
+    });
+
+    it('decides nothing in either direction while Notis has not answered', () => {
+        expect(notisActionFor(ticked, true, 'unknown')).toBeNull();
+        expect(notisActionFor(unticked, true, 'unknown')).toBeNull();
     });
 });
 
@@ -145,6 +160,12 @@ describe('buildSubmission', () => {
             name: 'Μαρία',
             email: 'maria@example.com',
         });
+    });
+
+    it('sends no consent at all for a locked card, so the save leaves the reader’s request alone', () => {
+        const submission = buildSubmission(state, 'athens', true, { phoneChannelLocked: true });
+        expect(submission).not.toHaveProperty('notifyByPhone');
+        expect(submission).toMatchObject({ notifyByEmail: false, phone: '+306900000001' });
     });
 
     it('sends no phone for a declined WhatsApp card, and no account fields when signed in', () => {

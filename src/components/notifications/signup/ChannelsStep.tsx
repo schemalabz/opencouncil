@@ -22,6 +22,7 @@ import type { SignupState } from './signup-state';
 export function ChannelsStep({
     state,
     signedIn,
+    phoneChannelLocked,
     phoneChannelPending,
     issues,
     saveError,
@@ -30,7 +31,12 @@ export function ChannelsStep({
 }: {
     state: SignupState;
     signedIn: boolean;
-    /** Notis has not said yet where this reader's card starts; the card waits. */
+    /**
+     * Notis has not answered, so the card shows what it last knew and takes no
+     * change: the signup neither activates nor releases a channel it cannot read.
+     */
+    phoneChannelLocked: boolean;
+    /** Notis is still being asked; the wait is a spinner rather than a state. */
     phoneChannelPending: boolean;
     /** Shown once the reader has tried to submit. */
     issues: SignupIssue[];
@@ -51,7 +57,7 @@ export function ChannelsStep({
             <div className="mt-5 flex flex-col gap-3">
                 <CheckboxCard
                     checked={state.phoneChannel && !phoneChannelPending}
-                    disabled={phoneChannelPending}
+                    disabled={phoneChannelLocked}
                     onCheckedChange={(phoneChannel) => onChange({ phoneChannel })}
                     label={t('phoneChannel')}
                     badge={t('recommended')}
