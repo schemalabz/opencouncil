@@ -76,7 +76,8 @@ export interface PollerResult {
    *  already belongs to another active subscription, or Meta would refuse
    *  their intro shell. They retry every tick. */
   enrollmentHeld: number;
-  /** Readers who wait because the intro shell has no Bird project id yet. */
+  /** Readers whose turn has not come: beyond this tick's ceiling, or waiting
+   *  because the intro shell has no Bird project id yet. */
   enrollmentDeferred: number;
   phonesRefreshed: number;
   phoneGoneUnsubscribed: number;
@@ -95,6 +96,15 @@ export interface PollerResult {
 /** Editorial spend ceiling per tick (~$0.60); the backlog drains across
  *  ticks instead of one expensive burst. */
 export const MAX_EVENTS_PER_TICK = 4;
+/**
+ * Intros one tick may send. Enrollment sends inline, so without a ceiling one
+ * tick spends the whole waiting audience against the WhatsApp rate limits in
+ * a single burst, and holds the tick lock while it does — the phases after it
+ * are skipped and the next ticks are dropped. Eight per five-minute tick is
+ * ~750 a day across the active hours, well above any signup rate and far
+ * under the number's messaging limit.
+ */
+export const MAX_ENROLLMENTS_PER_TICK = 8;
 /** How far back the event feed looks. completedAt moves on task-row
  *  rewrites, so this is a coarse window — dedup is by meeting and phase. */
 export const EVENT_LOOKBACK_MS = 7 * 24 * 60 * 60_000;
@@ -190,7 +200,8 @@ async function tick(
  * preferences, the `signup` origin, and its intro. Every reader arrives
  * here through the site's signup now: the readers of the old templates
  * moved over batch by batch from the release panel, before the signup
- * switched to Νότης and the panel went.
+ * switched to Νότης and the panel went. MAX_ENROLLMENTS_PER_TICK still caps
+ * the phase, because that move is a deploy step rather than an invariant.
  *
  * Three conditions gate a ceremony, and all three exist to keep enrollment
  * and its intro inseparable — a subscription is skipped forever once it
@@ -253,7 +264,12 @@ async function enrollNewTargets(
   }
 
   const held: string[] = [];
+  let enrolled = 0;
   for (const [userId, rows] of byUser) {
+    if (enrolled >= MAX_ENROLLMENTS_PER_TICK) {
+      result.enrollmentDeferred++;
+      continue;
+    }
     const raw = normalizePhone(rows[0].phone);
     if (!raw) continue;
     // The last gate before a number that reaches nobody becomes a
@@ -326,6 +342,7 @@ async function enrollNewTargets(
     }
 
     result.enrolled++;
+    enrolled++;
     const sub = await db.notisSubscription.findUnique({ where: { id: enrollment.subId } });
     if (sub) {
       await deliverPendingMessage(db, bird, enrollment.introId, sub, alert);
