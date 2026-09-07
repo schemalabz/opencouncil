@@ -16,10 +16,12 @@ import {
     createUser,
 } from '../helpers/factories'
 
-const MIGRATION_PATH = path.join(
-    __dirname,
-    '../../prisma/migrations/20260815120000_notis_views_and_rollout/migration.sql',
-)
+/** Every migration that defines or redefines a notis view, in order. The last
+ *  one wins, so the suite checks the definition production actually runs. */
+const MIGRATION_PATHS = [
+    '20260815120000_notis_views_and_rollout',
+    '20260906210000_phone_consent_per_user',
+].map((name) => path.join(__dirname, `../../prisma/migrations/${name}/migration.sql`))
 
 /** The consumer's half of the contract: the Prisma models Notis reads the
  *  views through. Kept in a separate file from the SQL that defines them,
@@ -52,16 +54,27 @@ function consumerViewModels(): Array<{ view: string; fields: string[] }> {
 }
 
 async function applyNotisMigration() {
-    const sql = fs.readFileSync(MIGRATION_PATH, 'utf8')
-    for (const statement of splitSqlStatements(sql)) {
-        await prisma.$executeRawUnsafe(statement)
+    // The suite's database comes from `prisma db push`, which builds the tables
+    // from schema.prisma. That no longer declares the per-preference phone flag,
+    // but the database production runs still has it — the consent migration
+    // leaves the column in place until no live build reads it — and the first
+    // view definition below selects it. Put it back so the replay sees the shape
+    // production has.
+    await prisma.$executeRawUnsafe(
+        'ALTER TABLE "NotificationPreference" ADD COLUMN IF NOT EXISTS "notifyByPhone" BOOLEAN NOT NULL DEFAULT true',
+    )
+    for (const migrationPath of MIGRATION_PATHS) {
+        const sql = fs.readFileSync(migrationPath, 'utf8')
+        for (const statement of splitSqlStatements(sql)) {
+            await prisma.$executeRawUnsafe(statement)
+        }
     }
 }
 
 describe('notis views migration', () => {
     beforeAll(async () => {
         await ensureTestDb()
-        // Twice on purpose: the migration must be idempotent (the test
+        // Twice on purpose: the migrations must be idempotent (the test
         // database comes from `prisma db push`, which already created the
         // notisEnabledAt column and the skipped enum value).
         await applyNotisMigration()

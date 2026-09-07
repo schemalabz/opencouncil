@@ -1,15 +1,28 @@
 -- WhatsApp/SMS consent becomes one setting per person: Νότης is one
 -- conversation, not one per municipality.
-ALTER TABLE "User" ADD COLUMN "notifyByPhone" BOOLEAN NOT NULL DEFAULT true;
+--
+-- Every statement here is idempotent. The integration suite replays this file
+-- against a database built from schema.prisma, and replays it twice on purpose.
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "notifyByPhone" BOOLEAN NOT NULL DEFAULT true;
 
--- A person who had the channel off in every municipality stays off.
-UPDATE "User" u
-SET "notifyByPhone" = false
-WHERE EXISTS (SELECT 1 FROM "NotificationPreference" np WHERE np."userId" = u.id)
-  AND NOT EXISTS (
-    SELECT 1 FROM "NotificationPreference" np
-    WHERE np."userId" = u.id AND np."notifyByPhone"
-  );
+-- A person who had the channel off in every municipality stays off. Guarded on
+-- the old column: it is gone from schema.prisma already, and a later migration
+-- drops it from the database, after which this backfill has nothing to read.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'NotificationPreference' AND column_name = 'notifyByPhone'
+  ) THEN
+    UPDATE "User" u
+    SET "notifyByPhone" = false
+    WHERE EXISTS (SELECT 1 FROM "NotificationPreference" np WHERE np."userId" = u.id)
+      AND NOT EXISTS (
+        SELECT 1 FROM "NotificationPreference" np
+        WHERE np."userId" = u.id AND np."notifyByPhone"
+      );
+  END IF;
+END $$;
 
 -- The view keeps its columns (a replace, not a drop: the Notis build that is
 -- still polling keeps reading it); the flag now comes from the person.
