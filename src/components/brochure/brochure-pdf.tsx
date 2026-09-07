@@ -147,7 +147,7 @@ function Panel({
 function PanelTitle({ kicker, title }: { kicker: string; title: string }) {
     return (
         <View style={{ marginBottom: 14 }}>
-            <Text style={{ fontSize: 7.5, color: C.accent, letterSpacing: 1, marginBottom: 5 }}>
+            <Text style={{ fontSize: 8.5, color: C.accent, letterSpacing: 1, marginBottom: 5 }}>
                 {greekUpper(kicker)}
             </Text>
             <Text style={{ fontSize: 16, fontWeight: 600, color: C.ink, lineHeight: 1.25 }}>
@@ -202,7 +202,7 @@ function Feature({
                         </Text>
                     )}
                 </View>
-                <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginTop: 3 }}>
+                <Text style={{ fontSize: 9, color: C.body, lineHeight: 1.5, marginTop: 3 }}>
                     {text}
                 </Text>
             </View>
@@ -294,7 +294,7 @@ function FlapPanel({ data }: { data: BrochureData }) {
             {data.partners.length > 0 && (
                 <View style={{ marginBottom: 10 }}>
                     <Text
-                        style={{ fontSize: 7.5, color: C.accent, letterSpacing: 1, marginBottom: 9 }}
+                        style={{ fontSize: 8.5, color: C.accent, letterSpacing: 1, marginBottom: 9 }}
                     >
                         {greekUpper(`Σε ${data.stats.municipalityCount} δήμους στην Ελλάδα`)}
                     </Text>
@@ -342,10 +342,10 @@ function FlapPanel({ data }: { data: BrochureData }) {
                 <Text style={{ fontSize: 14.5, color: C.ink, lineHeight: 1.45, fontWeight: 500 }}>
                     Μέσα στα πρώτα πέντε λεπτά κατάλαβα πως ήταν κάτι το διαφορετικό.
                 </Text>
-                <Text style={{ fontSize: 8.5, color: C.mid, marginTop: 9, lineHeight: 1.4 }}>
+                <Text style={{ fontSize: 8.5, color: C.body, marginTop: 9, lineHeight: 1.4 }}>
                     Προϊσταμένη Δ/νσης Προγραμματισμού, Οργάνωσης και Πληροφορικής
                 </Text>
-                <Text style={{ fontSize: 8.5, color: C.light, marginTop: 1.5 }}>Δήμος Χανίων</Text>
+                <Text style={{ fontSize: 8.5, color: C.body, marginTop: 1.5 }}>Δήμος Χανίων</Text>
             </View>
 
             <View
@@ -477,19 +477,19 @@ function BackPanel({ data }: { data: BrochureData }) {
                     marginBottom: 5,
                 }}
             />
-            <Text style={{ fontSize: 8, color: C.mid, lineHeight: 1.4, marginBottom: 12 }}>
+            <Text style={{ fontSize: 8, color: C.body, lineHeight: 1.4, marginBottom: 12 }}>
                 Τα γραφεία μας είναι ανοιχτά και μπορείτε να μας επισκεφτείτε —
                 Σμολένσκι 22, Εξάρχεια.
             </Text>
 
-            <Text style={{ fontSize: 8, color: C.mid, lineHeight: 1.5, marginBottom: 10 }}>
+            <Text style={{ fontSize: 8, color: C.body, lineHeight: 1.5, marginBottom: 10 }}>
                 Η OpenCouncil Μονοπρόσωπη Ι.Κ.Ε. ανήκει εξ ολοκλήρου στη Schema Labs,
                 μη-κερδοσκοπική εταιρεία. Ο κώδικάς μας είναι ανοιχτός, με άδεια GPL v3 —
                 κάθε γραμμή είναι δημόσια.
             </Text>
 
             {data.city?.adam && (
-                <Text style={{ fontSize: 8, color: C.mid, lineHeight: 1.5, marginBottom: 10 }}>
+                <Text style={{ fontSize: 8, color: C.body, lineHeight: 1.5, marginBottom: 10 }}>
                     Το OpenCouncil λειτουργεί στον{" "}
                     {municipalityAccusative(data.city.nameMunicipality)} με σύμβαση με ΑΔΑΜ{" "}
                     {data.city.adam}. Ο τρόπος τιμολόγησης είναι δημόσια διαθέσιμος στο
@@ -513,7 +513,7 @@ function BackPanel({ data }: { data: BrochureData }) {
                         size={54}
                     />
                     {data.city && (
-                        <Text style={{ fontSize: 6, color: C.light }}>
+                        <Text style={{ fontSize: 6, color: C.mid }}>
                             opencouncil.gr/{data.city.id}
                         </Text>
                     )}
@@ -570,7 +570,7 @@ function FrontPanel({ data }: { data: BrochureData }) {
                         </Text>
                     </>
                 )}
-                <Text style={{ fontSize: 10.5, color: C.mid, lineHeight: 1.55, marginTop: 12 }}>
+                <Text style={{ fontSize: 10.5, color: C.body, lineHeight: 1.55, marginTop: 12 }}>
                     {coverSubtitle(data)}
                 </Text>
                 <View style={{ marginTop: 16 }}>
@@ -605,14 +605,14 @@ function FrontPanel({ data }: { data: BrochureData }) {
                         <Text style={{ fontSize: 20, fontWeight: 700, color: C.accent }}>
                             {stat.value}
                         </Text>
-                        <Text style={{ fontSize: 7, color: C.mid, marginTop: 3 }}>
+                        <Text style={{ fontSize: 7, color: C.body, marginTop: 3 }}>
                             {stat.label}
                         </Text>
                     </View>
                 ))}
             </View>
 
-            <Text style={{ fontSize: 8.5, color: C.light, lineHeight: 1.4 }}>
+            <Text style={{ fontSize: 8.5, color: C.body, lineHeight: 1.4 }}>
                 Από τον Δήμο Σαμοθράκης μέχρι τον Δήμο Αθηναίων ·{" "}
                 {data.city ? `opencouncil.gr/${data.city.id}` : "opencouncil.gr"}
             </Text>
@@ -626,7 +626,7 @@ function CitizensPanel() {
     return (
         <Panel>
             <PanelTitle kicker="Για δημότες και αιρετούς" title="Κάθε συνεδρίαση, ανοιχτή σε όλους" />
-            <Text style={{ fontSize: 9.5, color: C.mid, lineHeight: 1.55, marginBottom: 13 }}>
+            <Text style={{ fontSize: 9.5, color: C.body, lineHeight: 1.55, marginBottom: 13 }}>
                 Το OpenCouncil μετατρέπει πολύωρες συνεδριάσεις σε κατανοητό, αναζητήσιμο
                 και προσβάσιμο περιεχόμενο — αυτόματα.
             </Text>
@@ -662,7 +662,7 @@ function CitizensPanel() {
                 <Text
                     style={{
                         fontSize: 8,
-                        color: C.light,
+                        color: C.body,
                         lineHeight: 1.4,
                         marginTop: 6,
                         textAlign: "center",
@@ -682,7 +682,7 @@ function ServicesPanel({ data }: { data: BrochureData }) {
                 kicker="Για τις υπηρεσίες του δήμου"
                 title="Ό,τι γινόταν σε μέρες, τώρα γίνεται σε ώρες"
             />
-            <Text style={{ fontSize: 9.5, color: C.mid, lineHeight: 1.55, marginBottom: 13 }}>
+            <Text style={{ fontSize: 9.5, color: C.body, lineHeight: 1.55, marginBottom: 13 }}>
                 Απομαγνητοφωνήσεις, πρακτικά, αποφάσεις — αυτόματα ή με ελάχιστη ανθρώπινη
                 παρέμβαση.
             </Text>
@@ -778,7 +778,7 @@ function Step({
                     <LucideIcon name={icon} size={10.5} />
                     <Text style={{ fontSize: 11, fontWeight: 600, color: C.ink }}>{title}</Text>
                 </View>
-                <Text style={{ fontSize: 9, color: C.mid, lineHeight: 1.5, marginTop: 3 }}>
+                <Text style={{ fontSize: 9, color: C.body, lineHeight: 1.5, marginTop: 3 }}>
                     {text}
                 </Text>
             </View>
@@ -812,7 +812,7 @@ function HowItWorksPanel() {
             />
 
             <View style={{ borderTopWidth: 0.5, borderTopColor: C.line, paddingTop: 12 }}>
-                <Text style={{ fontSize: 7.5, color: C.accent, letterSpacing: 1, marginBottom: 8 }}>
+                <Text style={{ fontSize: 8.5, color: C.accent, letterSpacing: 1, marginBottom: 8 }}>
                     {greekUpper("Διακρίσεις & Αναφορές")}
                 </Text>
                 {[
