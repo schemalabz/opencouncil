@@ -23,7 +23,10 @@ function onPath(tool: string): boolean {
 
 // pg_dump/pg_restore/psql are probed through `binary()` so the gate checks the same
 // Postgres build the pipeline itself uses when `SEED_PG_BIN` points at a pinned one.
-const ready = ['greenmask', 'zstd', 'gzip', binary('pg_dump'), binary('pg_restore'), binary('psql')].every(onPath)
+const tools = ['greenmask', 'zstd', 'gzip', binary('pg_dump'), binary('pg_restore'), binary('psql')]
+const ready = tools.every(onPath)
+// CI installs the tools (`.#seed-tools`), so a missing one there is a broken job, not a reason to skip.
+if (!ready && process.env.CI) throw new Error(`the seed pipeline e2e test needs ${tools.filter((tool) => !onPath(tool)).join(', ')} on PATH`)
 const maybe = ready ? describe : describe.skip
 
 /** libpq refuses an unknown URI query parameter, and Prisma's `?schema=public` is one. */
