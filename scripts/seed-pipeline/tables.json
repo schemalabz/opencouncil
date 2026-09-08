@@ -28,7 +28,15 @@
     }
   },
   "explicitQuery": ["DecisionCandidate"],
+  "beforeNulling": [
+    { "table": "Highlight", "action": "delete-when", "when": "\"createdById\" IS NOT NULL AND NOT \"isShowcased\"" }
+  ],
   "masking": [
+    { "table": "CouncilMeeting", "action": "delete-when", "when": "NOT released" },
+    { "table": "SpeakerTag", "action": "delete-when", "when": "NOT EXISTS (SELECT 1 FROM public.\"SpeakerSegment\" g WHERE g.\"speakerTagId\" = \"SpeakerTag\".id)" },
+    { "table": "DecisionCandidate", "action": "delete-when", "when": "(\"councilMeetingId\" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.\"CouncilMeeting\" m WHERE (m.\"cityId\", m.id) = (\"DecisionCandidate\".\"cityId\", \"DecisionCandidate\".\"councilMeetingId\"))) OR (\"subjectId\" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.\"Subject\" s WHERE s.id = \"DecisionCandidate\".\"subjectId\")) OR (\"decisionId\" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.\"Decision\" d WHERE d.id = \"DecisionCandidate\".\"decisionId\"))" },
+    { "table": "TaskStatus", "action": "delete-when", "when": "type = 'generateHighlight' AND pg_input_is_valid(\"requestBody\", 'jsonb') AND NOT EXISTS (SELECT 1 FROM public.\"Highlight\" h WHERE h.id = \"requestBody\"::jsonb #>> '{parts,0,id}')" },
+    { "table": "Location", "action": "delete-when", "when": "NOT EXISTS (SELECT 1 FROM public.\"Subject\" s WHERE s.\"locationId\" = \"Location\".id)" },
     { "table": "AdministrativeBody", "column": "contactEmails", "action": "empty-array" },
     { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "callbackUrl" },
     { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "recipientEmails" },
