@@ -297,6 +297,11 @@
         nodejs prisma prisma-engines openssl pkg-config python3
         cairo pango libjpeg giflib librsvg pixman libpng glib
       ] ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.util-linux ]);
+
+      # The seed pipeline's command-line tools. The dev shell, the seed-pipeline
+      # app, and CI's integration job (through `.#seed-tools`) all take them from
+      # this list, so they run the versions that flake.lock pins.
+      mkSeedTools = pkgs: with pkgs; [ greenmask zstd gnutar gzip ];
     in {
       # Export shared builders for use by nixosModules
       lib = { inherit mkPostgis335 mkPostgresCompat mkPrismaEnv mkOpenSslEnv mkPrismaToolchain mkAppRuntimeEnv; };
@@ -312,6 +317,7 @@
               postgresql_16  # Provides psql CLI for interactive DB access
               rclone         # S3 client for the test-backup skill (fetch dumps from DO Spaces)
             ])
+            ++ (mkSeedTools pkgs)
             ++ (pkgs.lib.optionals pkgs.stdenv.isLinux [
               # Provides libuuid.so.1, required by native deps like `canvas`.
               pkgs.util-linux
@@ -331,6 +337,10 @@
               . .env
               set +a
             fi
+
+            # The seed CLI resolves SEED_PG_BIN on demand (see resolvePgBin); a
+            # stale value from .env must not override that.
+            unset SEED_PG_BIN
 
             # Create PSQL_URL by stripping query params from DATABASE_URL (psql doesn't need them)
             if [ -n "''${DATABASE_URL:-}" ]; then
@@ -1611,12 +1621,59 @@ EOF
             meta = { description = "Notis production build"; mainProgram = "start.sh"; };
           };
 
+          # The seed pipeline CLI, bundled to one file so the package carries no
+          # node_modules. Externals: pg-native is an optional native binding pg
+          # never needs here.
+          seed-pipeline-bundle = pkgs.buildNpmPackage {
+            pname = "seed-pipeline-bundle";
+            version = "0.1.0";
+            src = ./.;
+            npmDeps = mkNpmDeps pkgs;
+            npmConfigHook = pkgs.importNpmLock.npmConfigHook;
+            makeCacheWritable = true;
+            npmFlags = [ "--legacy-peer-deps" ];
+            npmInstallFlags = [ "--ignore-scripts" ];
+            nativeBuildInputs = [ pkgs.esbuild ];
+            dontNpmBuild = true;
+            buildPhase = ''
+              runHook preBuild
+              esbuild scripts/seed-pipeline/cli.ts --bundle --platform=node --format=cjs --target=node20 \
+                --alias:@=./src --external:pg-native --outfile=dist/seed-pipeline.cjs
+              runHook postBuild
+            '';
+            installPhase = ''
+              mkdir -p $out/lib $out/prisma
+              cp dist/seed-pipeline.cjs $out/lib/
+              cp scripts/seed-pipeline/tables.json scripts/seed-pipeline/pinned-meetings.txt \
+                 scripts/seed-pipeline/expected-counts.sql scripts/seed-pipeline/measure-tasks.sql $out/lib/
+              cp prisma/schema.prisma $out/prisma/
+              cp -r prisma/migrations $out/prisma/migrations
+            '';
+          };
+
+          seed-pipeline = pkgs.writeShellApplication {
+            name = "seed-pipeline";
+            runtimeInputs = (mkPrismaToolchain pkgs) ++ (mkSeedTools pkgs) ++ [
+              postgresCompat
+              pkgs.coreutils
+            ];
+            text = ''
+              ${mkAppRuntimeEnv pkgs}
+              export SEED_PIPELINE_HOME="${seed-pipeline-bundle}/lib"
+              export SEED_PG_BIN="${postgresCompat}/bin"
+              exec node "${seed-pipeline-bundle}/lib/seed-pipeline.cjs" "$@"
+            '';
+          };
+
         in {
-          inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-cache oc-dev-app-local oc-studio oc-cleanup oc-rss opencouncil-prod notis-prod;
+          inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-cache oc-dev-app-local oc-studio oc-cleanup oc-rss opencouncil-prod notis-prod seed-pipeline seed-pipeline-bundle;
           # The test-backup skill runs a private throwaway cluster with this build.
           postgres-postgis = postgres;
           # The seed pipeline's scratch cluster: PostGIS 3.3.5, the version the migrations pin.
           postgres-compat = postgresCompat;
+          # The tools the seed pipeline's e2e test needs, for CI's integration job.
+          # postgresql_16 is the client the dev shell has; the e2e test's server is PostgreSQL 16 too.
+          seed-tools = pkgs.buildEnv { name = "seed-tools"; paths = (mkSeedTools pkgs) ++ [ pkgs.postgresql_16 ]; };
         });
 
       checks = forAllSystems (_system: pkgs: _pkgs-unstable:
@@ -2053,6 +2110,10 @@ EOF
         studio = {
           type = "app";
           program = "${self.packages.${system}.oc-studio}/bin/oc-studio";
+        };
+        seed-pipeline = {
+          type = "app";
+          program = "${self.packages.${system}.seed-pipeline}/bin/seed-pipeline";
         };
         build = {
           type = "app";

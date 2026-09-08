@@ -18,6 +18,12 @@ From the repo root:
 nix develop
 ```
 
+The seed pipeline needs the flake's PostGIS 3.3.5 Postgres (`.#postgres-compat`), the version that the migrations pin. `cache.nixos.org` does not carry that build, so Nix compiles it from source the first time that something needs it. `nix develop` does not build it. `npm run seed-pipeline produce` and `npm run seed-pipeline verify` build it on first use. `npm run seed-pipeline restore` does not, because it needs only `pg_restore`, `psql`, and `prisma` (client tools, not a server). `nix run .#seed-pipeline` needs the build for every command, because the packaged app carries it. The tests that start a cluster need `SEED_PG_BIN`, and skip without it. The dev shell unsets `SEED_PG_BIN`, also for `nix develop --command`, so set it inside the command:
+
+```bash
+nix develop --command bash -c 'export SEED_PG_BIN="$(nix build .#postgres-compat --no-link --print-out-paths)/bin"; npx jest src/lib/seed-pipeline/transient-postgres.test.ts'
+```
+
 ## Run the stack (Process Compose TUI)
 
 The recommended entrypoint is the flake app `dev`, which launches a `process-compose` TUI and manages logs.
