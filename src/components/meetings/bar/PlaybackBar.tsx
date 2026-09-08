@@ -204,23 +204,35 @@ function TimeReadout() {
     const { bands } = useBarData();
     const { city, meeting } = useCouncilMeetingData();
     const band = nowBand(bands, currentTime, isPlaying);
+    // The phone's answer to the desktop lane. It carried the same two names
+    // already, but centred between two clocks and set at 10px, with the speaker
+    // `shrink-0` — a long name pushed the subject out of the row instead of
+    // truncating. The names now take the row and the clock pairs up on the
+    // right, which costs the dock no height: a 32px lane like the desktop one
+    // would run a 99px dock to 131px, and it is pinned to the bottom edge.
     return (
         <div className="mt-1 flex items-center gap-2 text-[10px] tabular-nums text-muted-foreground">
-            <span className="shrink-0 font-bold text-foreground">{formatTimestamp(currentTime)}</span>
-            <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
-                {band && band.speakerName && (
+            <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[11.5px]">
+                {band?.speakerName && (
                     <>
                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: band.speakerColor }} aria-hidden />
-                        <span className="shrink-0 font-bold text-foreground">{band.speakerName}</span>
+                        <span className="truncate font-bold text-foreground">{band.speakerName}</span>
                     </>
                 )}
-                {band && band.subjectId && band.subjectName && (
-                    <NowPlayingSubjectLink band={band} cityId={city.id} meetingId={meeting.id} className="truncate">
-                        &middot; {band.subjectName}
+                {band?.speakerName && band.subjectId && band.subjectName && (
+                    <span className="shrink-0" aria-hidden>&middot;</span>
+                )}
+                {band?.subjectId && band.subjectName && (
+                    <NowPlayingSubjectLink band={band} cityId={city.id} meetingId={meeting.id} className="min-w-0 truncate">
+                        {band.subjectName}
                     </NowPlayingSubjectLink>
                 )}
             </span>
-            <span className="shrink-0">{duration > 0 ? formatTimestamp(duration) : '\u2014'}</span>
+            <span className="shrink-0">
+                <span className="font-bold text-foreground">{formatTimestamp(currentTime)}</span>
+                {' / '}
+                {duration > 0 ? formatTimestamp(duration) : '\u2014'}
+            </span>
         </div>
     );
 }
