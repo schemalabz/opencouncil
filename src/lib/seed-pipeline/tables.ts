@@ -2,11 +2,16 @@ import fs from 'fs';
 import path from 'path';
 import { z } from 'zod';
 
+// Removes whole rows, for a table whose rows can be private although the table is content.
+const deleteWhenRule = z.object({ table: z.string(), action: z.literal('delete-when'), when: z.string() });
+
 const maskingRule = z.discriminatedUnion('action', [
     z.object({ table: z.string(), column: z.string(), action: z.literal('set-null') }),
     z.object({ table: z.string(), column: z.string(), action: z.literal('empty-array') }),
     z.object({ table: z.string(), column: z.string(), action: z.literal('json-remove-key'), key: z.string() }),
+    z.object({ table: z.string(), column: z.string(), action: z.literal('json-remove-path'), path: z.array(z.string().min(1)).nonempty() }),
     z.object({ table: z.string(), column: z.string(), action: z.literal('null-when'), when: z.string() }),
+    deleteWhenRule,
 ]);
 export type MaskingRule = z.infer<typeof maskingRule>;
 
@@ -19,6 +24,11 @@ const schemaEntry = z.object({
 export const tablesConfigSchema = z.object({
     schemas: z.record(schemaEntry),
     explicitQuery: z.array(z.string()),
+    /**
+     * Rules that read a column which `produce` nulls because it points at a private
+     * table, so they run before the nulling. `verify` cannot check them afterwards.
+     */
+    beforeNulling: z.array(deleteWhenRule),
     masking: z.array(maskingRule),
     subsetOnly: z.array(maskingRule),
     publicText: z.array(z.string()),
