@@ -147,6 +147,28 @@ export async function ensureMigrationsTable(databaseUrl: string): Promise<void> 
     }
 }
 
+/**
+ * An empty database next to the test database, in the same container, for
+ * tools that need a second target (the seed pipeline's scratch and verify).
+ * The returned URL carries no query string. `ensureTestDb` appends Prisma's
+ * `?schema=public`, and libpq refuses that as an unknown URI query parameter.
+ */
+export async function createSiblingDatabase(name: string): Promise<string> {
+    const { databaseUrl } = await ensureTestDb()
+    const admin = new Client({ connectionString: databaseUrl })
+    await admin.connect()
+    try {
+        await admin.query(`DROP DATABASE IF EXISTS "${name}"`)
+        await admin.query(`CREATE DATABASE "${name}"`)
+    } finally {
+        await admin.end()
+    }
+    const url = new URL(databaseUrl)
+    url.pathname = `/${name}`
+    url.search = ''
+    return url.toString()
+}
+
 export async function resetDatabase(prisma: { $executeRawUnsafe: (q: string) => Promise<any> }) {
     // Truncate in a single statement; CASCADE clears dependent rows and join tables
     await prisma.$executeRawUnsafe(`
