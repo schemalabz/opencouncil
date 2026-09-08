@@ -9,7 +9,7 @@ import { ExternalLink } from "lucide-react";
 import PrintButton from "@/components/consultations/PrintButton";
 import { env } from "@/env.mjs";
 import { getRealm } from "@/lib/realm.server";
-import { getRealmContactPhone } from "@/lib/realm";
+import { getRealmContactPhone, getRealmDomain } from "@/lib/realm";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { localizeText } from "@/lib/serbian";
 import { getSafeHtmlContent } from "@/lib/utils/sanitize";
@@ -255,10 +255,11 @@ function getEntityDetails(entityType: string, entityId: string, regulationData: 
 
 export default async function CommentsPage(props: PageProps) {
     const params = await props.params;
-    const [city, consultation, session] = await Promise.all([
+    const [city, consultation, session, realm] = await Promise.all([
         getCityCached(params.cityId),
         getConsultationById(params.cityId, params.id),
-        auth()
+        auth(),
+        getRealm()
     ]);
 
     if (!city) {
@@ -406,8 +407,8 @@ export default async function CommentsPage(props: PageProps) {
                 {/* Footer */}
                 <div className="mt-12 pt-6 border-t border-gray-200 text-xs text-gray-500">
                     <p>
-                        Αυτή η αναφορά δημιουργήθηκε από το OpenCouncil ({env.NEXTAUTH_URL}).
-                        Για ερωτήσεις και τεχνική υποστήριξη: {env.NEXT_PUBLIC_CONTACT_EMAIL} ή {getRealmContactPhone(await getRealm())}
+                        Αυτή η αναφορά δημιουργήθηκε από το OpenCouncil ({getRealmDomain(realm)}).
+                        Για ερωτήσεις και τεχνική υποστήριξη: {env.NEXT_PUBLIC_CONTACT_EMAIL} ή {getRealmContactPhone(realm)}
                     </p>
                 </div>
             </div>
