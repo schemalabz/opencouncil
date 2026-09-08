@@ -3,6 +3,7 @@ import {
     loadPinnedMeetings,
     loadTablesConfig,
     parsePinnedMeetings,
+    tablesConfigSchema,
     MIGRATIONS_TABLE,
 } from './tables';
 import { listPrismaModelsFromFile } from './prisma-models';
@@ -29,8 +30,9 @@ describe('tables.json classification', () => {
         });
     }
 
-    test('masking, subsetOnly, explicitQuery, and publicText name content tables', () => {
+    test('beforeNulling, masking, subsetOnly, explicitQuery, and publicText name content tables', () => {
         const named = [
+            ...cfg.beforeNulling.map((r) => r.table),
             ...cfg.masking.map((r) => r.table),
             ...cfg.subsetOnly.map((r) => r.table),
             ...cfg.explicitQuery,
@@ -55,5 +57,17 @@ describe('tables.json classification', () => {
             { cityId: 'athens', meetingId: 'feb11_2026', reason: 'transcript editor words' },
         ]);
         expect(() => parsePinnedMeetings('athens feb11_2026')).toThrow(/line 1/);
+    });
+});
+
+describe('json-remove-path rules', () => {
+    const parses = (path: unknown) =>
+        tablesConfigSchema.safeParse({ ...cfg, masking: [{ table: 'TaskStatus', column: 'responseBody', action: 'json-remove-path', path }] }).success;
+
+    test('accept a non-empty array of non-empty keys, and reject other paths', () => {
+        expect(parses(['transcript', 'transcription', 'utterances'])).toBe(true);
+        expect(parses([])).toBe(false);
+        expect(parses(['transcript', ''])).toBe(false);
+        expect(parses('transcript')).toBe(false);
     });
 });
