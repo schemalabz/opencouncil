@@ -1,0 +1,3 @@
+# Pinned meetings: always in the subset artifact, one per line, with the reason.
+# Format:  city/meeting  # reason
+# A pinned meeting must have at least one subject and one speaker segment; produce stops otherwise.

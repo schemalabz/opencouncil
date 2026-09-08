@@ -1,0 +1,45 @@
+{
+  "schemas": {
+    "main": {
+      "prisma": "prisma/schema.prisma",
+      "content": [
+        "City", "Topic", "Location", "Party", "AdministrativeBody", "Person", "Role",
+        "CouncilMeeting", "SpeakerTag", "Subject", "Decision", "DecisionCandidate",
+        "SubjectAttendance", "SubjectVote", "MeetingAttendance", "SpeakerSegment",
+        "SpeakerContribution", "Utterance", "Word", "TopicLabel", "Summary", "Highlight",
+        "HighlightedUtterance", "CityMessage", "Consultation", "TaskStatus",
+        "AttendanceEvent", "SpeakerIdentification"
+      ],
+      "private": [
+        "User", "Account", "Session", "VerificationToken", "Authenticator", "Administers",
+        "ServiceApiKey", "UserMcpToken", "UtteranceEdit", "Petition", "NotificationPreference",
+        "Notification", "NotificationSubject", "NotificationDelivery", "Message", "SearchQuery",
+        "ConsultationComment", "ConsultationCommentUpvote", "MeetingOperator", "Offer",
+        "VoicePrint", "VoicePrintConsent", "QrCampaign", "PhoneVerification", "PhoneCodeSend"
+      ]
+    },
+    "notis": {
+      "prisma": "services/notis/prisma/schema.prisma",
+      "content": ["NotisProcessedEvent", "NotisSetting"],
+      "private": [
+        "NotisSubscription", "NotisCommitment", "NotisWake", "NotisMessage",
+        "NotisScheduledWake", "NotisWakeQueue"
+      ]
+    }
+  },
+  "explicitQuery": ["DecisionCandidate"],
+  "masking": [
+    { "table": "AdministrativeBody", "column": "contactEmails", "action": "empty-array" },
+    { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "callbackUrl" },
+    { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "recipientEmails" },
+    { "table": "TaskStatus", "column": "responseBody", "action": "null-when", "when": "type = 'generateVoiceprint'" }
+  ],
+  "subsetOnly": [
+    { "table": "City", "column": "geometry", "action": "null-when", "when": "status <> 'supported'" }
+  ],
+  "publicText": [
+    "Utterance", "Word", "Summary", "Subject", "SpeakerContribution", "Decision",
+    "DecisionCandidate", "Highlight", "Consultation", "CityMessage", "Topic", "TaskStatus", "SpeakerIdentification"
+  ],
+  "ignoreTables": ["spatial_ref_sys"]
+}
