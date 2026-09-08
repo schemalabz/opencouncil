@@ -12,7 +12,13 @@ import { REALMS } from '@/lib/realm';
  */
 export type EmailLocale = (typeof REALMS)[Realm]['defaultLocale'];
 
-/** The language to write an email about `realm`'s content in. */
-export function emailLocaleForRealm(realm: Realm): EmailLocale {
-    return REALMS[realm].defaultLocale;
+/**
+ * The language to write an email about `realm`'s content in.
+ *
+ * A null realm means there is no city to derive one from — a product-update
+ * broadcast. It falls back to greece, matching `realmForHost`'s default for an
+ * unknown host and the `el` these emails defaulted to before realms existed.
+ */
+export function emailLocaleForRealm(realm: Realm | null): EmailLocale {
+    return REALMS[realm ?? 'greece'].defaultLocale;
 }
