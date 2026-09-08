@@ -273,7 +273,12 @@ const QuickLogin = process.env.NODE_ENV === 'development'
 The condition must use `process.env.NODE_ENV === 'development'` directly (not via a variable) so the bundler can eliminate the dead branch at build time. See `src/app/[locale]/layout.tsx` for the pattern.
 
 ### Base URLs
-- **Server-side**: Use `env.NEXTAUTH_URL` for constructing URLs (e.g., callback URLs, API endpoints)
+
+One deployment serves every realm domain. `env.NEXTAUTH_URL` therefore names the deployment, not the realm. City pages are tenant-isolated, so a link to a city on another realm's domain returns 404.
+
+- **Deployment-scoped URLs**: use `env.NEXTAUTH_URL`. This covers task callbacks, `/api` routes and `/admin` pages. None of these are tenant-isolated.
+- **A link to a city's content, outside a request scope**: use `realmBaseUrl(realm)` from `@/lib/utils/realmBaseUrl`. Alerts, emails, calendar events and embed widgets do this. Read the realm from the city you already loaded (`city.realm`). Use `getCityRealm(cityId)` from `@/lib/db/cityRealm` when you only have the id.
+- **A link inside a request scope**: read the realm with `getRealm()` from `@/lib/realm.server` and pass it to `realmBaseUrl`. Use `getRealmBaseUrlFromRequest()` for SEO metadata — canonical, hreflang, sitemap, robots, JSON-LD, OG. Those must name the production domain even on a preview; `realmBaseUrl` keeps the preview host, which is what a link a person clicks needs.
 - **Client-side**: Use `window.location.origin` in browser-only contexts (onClick handlers, etc.)
 - **Never use `NEXT_PUBLIC_*` for server-side URL construction** — these are baked in at build time and won't reflect runtime environment (breaks previews)
 
