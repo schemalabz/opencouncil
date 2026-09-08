@@ -190,6 +190,39 @@ export function getDateRangeFromRoles<T extends { startDate: Date | null, endDat
   return { startDate: validStartDate, endDate: validEndDate };
 }
 
+/** The fields a party-membership test reads off a role. */
+type PartyRoleFields = { partyId: string | null; startDate: Date | null; endDate: Date | null };
+
+/**
+ * Whether a role is a role in this party, whether or not it has ended.
+ *
+ * The history-wide half of the membership test. Use it only where the surface
+ * deliberately shows a party's past — a past-members list, the date range across
+ * every term someone served. Everywhere else use {@link isActivePartyRole}.
+ */
+export function isPartyRole(role: { partyId: string | null }, partyId: string): boolean {
+    return role.partyId === partyId;
+}
+
+/**
+ * Whether a role puts its holder in this party now.
+ *
+ * The active test is load-bearing and was easy to forget: `getPartiesForCity`
+ * filters the party's own roles relation but not the nested `person.roles`, so a
+ * councillor who left the παράταξη last term is still on the record. Written out
+ * by hand, the pair drifted apart across the party surfaces and counted defectors
+ * as members. Every "is this person in this party now" test goes through here or
+ * {@link isActivePartyMember}.
+ */
+export function isActivePartyRole(role: PartyRoleFields, partyId: string): boolean {
+    return isPartyRole(role, partyId) && isRoleActive(role);
+}
+
+/** Whether a person holds a role in this party that has not ended. */
+export function isActivePartyMember(person: { roles: PartyRoleFields[] }, partyId: string): boolean {
+    return person.roles.some(role => isActivePartyRole(role, partyId));
+}
+
 /**
  * Finds the first active party role from a list of roles.
  * @param roles Array of roles with party relations
@@ -209,7 +242,7 @@ export function getActivePartyRole<T extends Role & { partyId?: string | null }>
 
   // Find the first role that has a party (and matches partyId if provided)
   if (partyId) {
-    return activeRoles.find(role => role.partyId === partyId) || null;
+    return activeRoles.find(role => isPartyRole(role, partyId)) || null;
   }
   return activeRoles.find(role => role.partyId) || null;
 }

@@ -17,6 +17,12 @@ jest.mock('@/lib/statistics', () => ({ getBatchStatisticsForSubjects: jest.fn().
 jest.mock('@/components/TopicIcon', () => ({ TopicIcon: () => <span data-testid="topic-icon" /> }));
 jest.mock('@/components/persons/PersonAvatarList', () => ({ PersonAvatarList: () => null }));
 jest.mock('@/components/meetings/HighlightVideo', () => ({ HighlightVideo: () => null }));
+// A row lights its runs on the playback bar; that context reaches prisma and
+// env.mjs, neither of which ts-jest can parse. The emphasis under test is
+// independent of the hover.
+jest.mock('@/components/meetings/bar/BarHighlightContext', () => ({
+    useSubjectBarHover: () => ({ onMouseEnter: undefined, onMouseLeave: undefined }),
+}));
 
 const mark = (s: string) => `${MATCH_START}${s}${MATCH_END}`;
 const NAME = 'Αίτηση για Αδειοδότηση καταστήματος';

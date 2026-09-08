@@ -37,6 +37,15 @@ describe('next.config.mjs redirect sources', () => {
         expect(matchesAnyRedirect('/lat/athens/meetings/jan15_2024')).toBe(true);
     });
 
+    it('leaves the city meetings tab alone', () => {
+        // /:cityId/meetings is a real page. The phantom-redirect patterns require a
+        // :meetingId segment after /meetings/, so they must not swallow the listing
+        // itself — otherwise the tab 301s to the city page.
+        expect(matchesAnyRedirect('/athens/meetings')).toBe(false);
+        expect(matchesAnyRedirect('/en/athens/meetings')).toBe(false);
+        expect(matchesAnyRedirect('/lat/athens/meetings')).toBe(false);
+    });
+
     it('keeps the hardcoded locale alternations in sync with the shared prefix set', () => {
         // next.config.mjs can't import TS, so its regexes inline the locale
         // URL prefixes. This pins them to src/i18n/config.ts.

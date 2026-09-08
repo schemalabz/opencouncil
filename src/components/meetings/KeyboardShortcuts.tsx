@@ -6,15 +6,21 @@ import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useKeyboardShortcut, ACTIONS } from '@/contexts/KeyboardShortcutsContext';
 
 export function KeyboardShortcuts() {
-    const { seekTo, handleSpeedChange, togglePlayPause } = useVideo();
+    const { seekTo, handleSpeedChange, togglePlayPause, meeting } = useVideo();
     const { currentTimeRef } = useVideoActions();
     const { options, updateOptions } = useTranscriptOptions();
     const { transcript } = useCouncilMeetingData();
 
+    // The same media test the meeting layout uses to decide whether to render a
+    // PlaybackBar at all. A registered shortcut gets its key preventDefault-ed,
+    // so registering these without a player would only make the keys dead.
+    const hasPlayback = Boolean(meeting.muxPlaybackId || meeting.videoUrl || meeting.audioUrl);
+
     // Play / Pause
+    // Playback belongs to every reader — only editing actions stay gated.
     useKeyboardShortcut(ACTIONS.PLAY_PAUSE.id, () => {
         togglePlayPause();
-    }, options.editable);
+    }, hasPlayback);
 
     // Edit Next Utterance (Enter)
     useKeyboardShortcut(ACTIONS.EDIT_NEXT_UTTERANCE.id, () => {
@@ -52,7 +58,7 @@ export function KeyboardShortcuts() {
             const targetUtterance = currentUtterance ? prevUtterances[1] || prevUtterances[0] : prevUtterances[0];
             seekTo(targetUtterance.startTimestamp);
         }
-    }, options.editable);
+    }, hasPlayback);
 
     // Seek Next (ArrowRight)
     useKeyboardShortcut(ACTIONS.SEEK_NEXT.id, () => {
@@ -64,32 +70,32 @@ export function KeyboardShortcuts() {
         if (nextUtterance) {
             seekTo(nextUtterance.startTimestamp);
         }
-    }, options.editable);
+    }, hasPlayback);
 
     // Speed Up (ArrowUp)
     useKeyboardShortcut(ACTIONS.SPEED_UP.id, () => {
-        const newSpeedUp = Math.min(4, options.playbackSpeed + 0.1);
-        handleSpeedChange(newSpeedUp.toString());
+        const newSpeedUp = Math.min(4, Math.round((options.playbackSpeed + 0.1) * 10) / 10);
         updateOptions({ playbackSpeed: newSpeedUp });
-    }, options.editable);
+        handleSpeedChange(newSpeedUp.toString());
+    }, hasPlayback);
 
     // Speed Down (ArrowDown)
     useKeyboardShortcut(ACTIONS.SPEED_DOWN.id, () => {
-        const newSpeedDown = Math.max(0.5, options.playbackSpeed - 0.1);
-        handleSpeedChange(newSpeedDown.toString());
+        const newSpeedDown = Math.max(0.5, Math.round((options.playbackSpeed - 0.1) * 10) / 10);
         updateOptions({ playbackSpeed: newSpeedDown });
-    }, options.editable);
+        handleSpeedChange(newSpeedDown.toString());
+    }, hasPlayback);
 
     // Skip Backward (Shift + ArrowLeft)
     useKeyboardShortcut(ACTIONS.SKIP_BACKWARD.id, () => {
         const newTime = Math.max(0, currentTimeRef.current - options.skipInterval);
         seekTo(newTime);
-    }, options.editable);
+    }, hasPlayback);
 
     // Skip Forward (Shift + ArrowRight)
     useKeyboardShortcut(ACTIONS.SKIP_FORWARD.id, () => {
         seekTo(currentTimeRef.current + options.skipInterval);
-    }, options.editable);
+    }, hasPlayback);
 
     return null;
 } 

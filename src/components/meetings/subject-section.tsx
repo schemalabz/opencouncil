@@ -1,7 +1,9 @@
 "use client"
 import { SubjectWithRelations } from "@/lib/db/subject";
+import { captureEvent } from '@/lib/analytics/capture';
 import { Statistics } from "@/lib/statistics";
-import { SubjectCard } from "../subject-card";
+import { SubjectRow } from "../subject/SubjectRow";
+import type { PendingKind } from "@/lib/meetingStage";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -17,6 +19,8 @@ interface SubjectSectionProps {
     sortMode?: 'speakingTime' | 'agendaIndex';
     onSortModeChange?: (mode: 'speakingTime' | 'agendaIndex') => void;
     showSortToggle?: boolean;
+    /** What the rows say in place of the stats they do not have yet. */
+    pending?: PendingKind | null;
     className?: string;
 }
 
@@ -27,9 +31,10 @@ export function SubjectSection({
     sortMode,
     onSortModeChange,
     showSortToggle,
+    pending,
     className,
 }: SubjectSectionProps) {
-    const { city, meeting, parties, people } = useCouncilMeetingData();
+    const { city, meeting, people } = useCouncilMeetingData();
     const t = useTranslations("Subject");
     const [showExplainer, setShowExplainer] = useState(false);
     const [showAll, setShowAll] = useState(false);
@@ -39,10 +44,6 @@ export function SubjectSection({
     const hasMore = subjects.length > INITIAL_VISIBLE;
     const visibleSubjects = showAll ? subjects : subjects.slice(0, INITIAL_VISIBLE);
 
-    // When few subjects, cards stack vertically; otherwise use multi-column grid
-    const cardGridClass = subjects.length <= 2
-        ? "flex flex-col gap-4 flex-1"
-        : "flex flex-wrap gap-4 flex-1 [&>*]:w-full [&>*]:sm:w-[calc(50%-0.5rem)] [&>*]:lg:w-[calc(33.333%-0.75rem)] [&>*]:lg:min-w-[calc(33.333%-0.75rem)]";
 
     return (
         <section className={cn("mt-8 flex flex-col", className ?? "w-full max-w-4xl mx-auto")}>
@@ -65,7 +66,10 @@ export function SubjectSection({
                     {showSortToggle && onSortModeChange && (
                         <div className="flex items-center gap-2 text-xs sm:text-sm mt-1">
                             <button
-                                onClick={() => onSortModeChange('speakingTime')}
+                                onClick={() => {
+                                    captureEvent('meeting_page_action', { action: 'sort_discussed', city_id: city.id, meeting_id: meeting.id });
+                                    onSortModeChange('speakingTime');
+                                }}
                                 className={cn(
                                     "transition-colors",
                                     sortMode === 'speakingTime'
@@ -77,7 +81,10 @@ export function SubjectSection({
                             </button>
                             <span className="text-muted-foreground/40">|</span>
                             <button
-                                onClick={() => onSortModeChange('agendaIndex')}
+                                onClick={() => {
+                                    captureEvent('meeting_page_action', { action: 'sort_agenda', city_id: city.id, meeting_id: meeting.id });
+                                    onSortModeChange('agendaIndex');
+                                }}
                                 className={cn(
                                     "transition-colors",
                                     sortMode === 'agendaIndex'
@@ -98,15 +105,27 @@ export function SubjectSection({
                 )}
             </div>
 
-            <div className={cardGridClass}>
+            {/* Rows, not tiles: the search page's own subject row, minus the context
+                line a meeting page already provides. A list reads top to bottom and
+                gives every title a full measure — the three-across tiles clamped
+                theirs to a third of the column. */}
+            <div className="flex flex-col gap-3">
                 {visibleSubjects.map(subject => (
-                    <SubjectCard
+                    <SubjectRow
                         key={subject.id}
                         subject={subject}
                         city={city}
                         meeting={meeting}
-                        parties={parties}
                         persons={people}
+                        showContext={false}
+                        pending={pending}
+                        onOpen={() => captureEvent('subject_opened', {
+                            surface: 'meeting_rows',
+                            subject_id: subject.id,
+                            city_id: city.id,
+                            meeting_id: meeting.id,
+                            sort_mode: sortMode ?? null,
+                        })}
                     />
                 ))}
             </div>
@@ -114,7 +133,10 @@ export function SubjectSection({
             {hasMore && !showAll && (
                 <div className="flex justify-center mt-4">
                     <button
-                        onClick={() => setShowAll(true)}
+                        onClick={() => {
+                            captureEvent('meeting_page_action', { action: 'show_all_subjects', city_id: city.id, meeting_id: meeting.id, count: subjects.length });
+                            setShowAll(true);
+                        }}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
                         {t("showAll", { count: subjects.length })}

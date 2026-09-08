@@ -1,0 +1,55 @@
+{
+    "label": {
+        "upcoming": "Upcoming",
+        "live": "In progress",
+        "waiting": "Awaiting recording",
+        "transcribing": "Transcribing",
+        "review": "Under review",
+        "complete": "Complete",
+        "archive": "Archive"
+    },
+    "detail": {
+        "live": "since {time}",
+        "review": "by {deadline}",
+        "archive": "no transcript"
+    },
+    "explain": "What does this mean?",
+    "strip": {
+        "upcoming": "The meeting takes place on <b>{when}</b>. The agenda is already here; the transcript and the summaries are added after the meeting.",
+        "upcomingNoAgenda": "The meeting takes place on <b>{when}</b>. The agenda appears here as soon as it is published.",
+        "live": "The meeting is in progress. It started at {time}. The transcript arrives here a few hours after it ends.",
+        "waiting": "The meeting took place on {date}. We are waiting for the recording; transcription starts as soon as it is published.",
+        "transcribing": "We are transcribing the meeting. The transcript arrives in a few hours; the summaries follow after the review.",
+        "review": "The transcript is available. It was produced automatically and a person is reviewing it. Summaries, statements per speaker and the items raised before and outside the agenda:",
+        "reviewHidden": "The transcript was produced automatically and a person is reviewing it. It is published, with the summaries and the statements per speaker, after the review:",
+        "reviewBy": "by {deadline}",
+        "reviewSoon": "soon",
+        "archive": "There is no transcript for this meeting. The agenda and the decisions are available."
+    },
+    "actions": {
+        "channel": "YouTube channel",
+        "watchLive": "Watch live",
+        "video": "Watch on YouTube",
+        "notifications": "Sign up for notifications",
+        "readTranscript": "Read the transcript"
+    },
+    "rows": {
+        "before": "Not discussed yet",
+        "review": "Summary after the review"
+    },
+    "pendingSections": {
+        "title": "Before and outside the agenda",
+        "body": "The items raised before and outside the agenda appear after the transcript is reviewed.",
+        "by": "Expected by {deadline}"
+    },
+    "subject": {
+        "summary": {
+            "before": "The summary is written automatically after the meeting, once the transcript is reviewed.",
+            "review": "The summary is written after the transcript is reviewed."
+        },
+        "statements": {
+            "before": "The statements per speaker are drawn from the transcript, after the meeting.",
+            "review": "The statements per speaker are added after the transcript is reviewed."
+        }
+    }
+}

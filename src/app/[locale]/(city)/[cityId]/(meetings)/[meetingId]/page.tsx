@@ -1,18 +1,26 @@
 "use client"
 import MapView from "@/components/map/map";
+import { captureEvent } from '@/lib/analytics/capture';
+import { cityBoundaryFeature } from '@/components/map/cityBoundary';
+import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";
-import { CalendarIcon, ExternalLink, FileIcon, FileText, Youtube } from "lucide-react";
-import { useNotificationPreference } from "@/contexts/NotificationPreferenceContext";
-import { formatDate, formatDateTime, formatRelativeTime } from "@/lib/formatters/time";
-import { sortSubjectsBySpeakerContributionCount, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
+import { CalendarIcon, ExternalLink, FileIcon, FileText } from "lucide-react";
+import { formatDate } from "@/lib/formatters/time";
+import { pendingKind, type PublicMeetingStage } from "@/lib/meetingStage";
+import { MeetingStageChip } from "@/components/meetings/stage/MeetingStageChip";
+import { MeetingStageStrip } from "@/components/meetings/stage/MeetingStageStrip";
+import { PendingSubjectsNote } from "@/components/meetings/stage/PendingSubjectsNote";
+import { stageChipDetail } from "@/components/meetings/stage/stageDetail";
+import { useMeetingStage } from "@/components/meetings/stage/useMeetingStage";
+import { sortSubjectsBySpeakerContributionCount, sortSubjectsByAgendaIndex } from "@/lib/utils";
 import { categorizeSubjects, getSubjectCategories } from "@/lib/utils/subjects";
 import { calculateGeometryBounds } from "@/lib/geo";
 import { Link } from "@/i18n/routing";
 import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { useLocale, useTranslations } from "next-intl";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import type { Topic } from "@prisma/client";
 
 export default function MeetingPage() {
@@ -21,11 +29,30 @@ export default function MeetingPage() {
     const subjectCategories = getSubjectCategories(t);
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const [agendaSortMode, setAgendaSortMode] = useState<'speakingTime' | 'agendaIndex'>('speakingTime');
+    const { stage, deadline, now } = useMeetingStage();
+    // What a row says in place of the stats it does not have yet.
+    const pending = pendingKind(stage);
 
-    // Convert all subjects with locations to map features
-    const subjectFeatures = subjects
-        .map(subjectToMapFeature)
-        .filter((f): f is NonNullable<ReturnType<typeof subjectToMapFeature>> => f !== null);
+    // The subjects as the shared map language's dense mode: plain topic-coloured
+    // dots — what the landing draws when pins crowd. The band is decorative (a
+    // gradient and the meeting info sit over it); the interactive map is the
+    // Χάρτης tab.
+    // Memoized: the map effect re-uploads its source whenever the array's
+    // identity changes, and this component re-renders on every filter click.
+    const mapFeatures = useMemo(() => [
+        cityBoundaryFeature(city.id, city.geometry),
+        ...subjects.flatMap(subject => {
+            const point = subject.location?.coordinates;
+            if (!point) return [];
+            const color = subject.topic?.colorHex ?? TOPICLESS_COLOR;
+            return [{
+                id: `subject-${subject.id}`,
+                geometry: { type: 'Point' as const, coordinates: [point.x, point.y] },
+                properties: { interactive: false },
+                style: { fillColor: color, fillOpacity: 0.85, strokeColor: color, strokeWidth: 5 },
+            }];
+        }),
+    ], [city.id, city.geometry, subjects]);
 
     // Center on city geometry for the decorative header map
     const cityCenter = useMemo((): [number, number] => {
@@ -66,32 +93,16 @@ export default function MeetingPage() {
     return (
         <div className="flex flex-col w-full">
             <div className="relative h-[200px] sm:h-[300px] w-full">
-                <MapView className="w-full h-full" features={[
-                    {
-                        id: city.id,
-                        geometry: city.geometry,
-                        properties: {
-                            name: city.name,
-                            name_en: city.name_en
-                        },
-                        style: {
-                            fillColor: '#627BBC',
-                            fillOpacity: 0.2,
-                            strokeColor: '#627BBC',
-                            strokeWidth: 2,
-                        }
-                    },
-                    ...subjectFeatures
-                ]}
+                <MapView className="w-full h-full" features={mapFeatures}
                     center={cityCenter}
                     zoom={12}
                 />
                 <div className="absolute bottom-0 left-0 right-0 h-36 sm:h-48 bg-gradient-to-t from-white via-white/70 to-transparent" />
-                <MeetingInfo />
+                <MeetingInfo stage={stage} now={now} />
             </div>
 
             <div className="p-4 sm:p-6">
-                <UpcomingMeetingCard />
+                <MeetingStageStrip stage={stage} deadline={deadline} />
                 <HighlightCards subjects={subjects} />
 
                 {availableTopics.length > 0 && (
@@ -104,18 +115,24 @@ export default function MeetingPage() {
                     </div>
                 )}
 
+                {stage === 'review' && !selectedTopicId && beforeAgendaSubjects.length === 0 && outOfAgendaSubjects.length === 0 && (
+                    <PendingSubjectsNote deadline={deadline} />
+                )}
+
                 {(beforeAgendaSubjects.length > 0 || outOfAgendaSubjects.length > 0) && (
                     <div className={`max-w-4xl mx-auto ${beforeAgendaSubjects.length <= 1 && outOfAgendaSubjects.length <= 1 ? "flex flex-col lg:flex-row lg:flex-wrap gap-x-8" : "flex flex-col"}`}>
                         <SubjectSection
                             title={subjectCategories.beforeAgenda.label}
                             explainerText={subjectCategories.beforeAgenda.explainerText}
                             subjects={beforeAgendaSubjects}
+                            pending={pending}
                             className="flex-1 min-w-0"
                         />
                         <SubjectSection
                             title={subjectCategories.outOfAgenda.label}
                             explainerText={subjectCategories.outOfAgenda.explainerText}
                             subjects={outOfAgendaSubjects}
+                            pending={pending}
                             className="flex-1 min-w-0"
                         />
                     </div>
@@ -129,6 +146,7 @@ export default function MeetingPage() {
                     title={subjectCategories.agenda.label}
                     explainerText={subjectCategories.agenda.explainerText}
                     subjects={agendaSubjects}
+                    pending={pending}
                     sortMode={agendaSortMode}
                     onSortModeChange={setAgendaSortMode}
                     showSortToggle
@@ -138,15 +156,24 @@ export default function MeetingPage() {
     )
 }
 
-function MeetingInfo() {
+function MeetingInfo({ stage, now }: { stage: PublicMeetingStage; now: Date }) {
     const tMeeting = useTranslations("CouncilMeeting");
+    const tStage = useTranslations("meetingStage");
     const { meeting, subjects, city } = useCouncilMeetingData();
     const locale = useLocale();
     return (
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
             <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
                 <h1 className="text-xl sm:text-2xl font-bold">{meeting.name}</h1>
+                {/* The stage opens the facts row; on a phone the row wraps and the chip takes
+                    the first slot. A complete meeting has no chip: the full ring is its absence. */}
                 <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs sm:text-sm text-gray-600">
+                    {stage !== 'complete' && (
+                        <MeetingStageChip
+                            stage={stage}
+                            detail={stageChipDetail(tStage, stage, meeting.dateTime, city.timezone, locale, now)}
+                        />
+                    )}
                     <div className="flex items-center">
                         <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
                         {formatDate(new Date(meeting.dateTime), city.timezone, locale)}
@@ -155,7 +182,7 @@ function MeetingInfo() {
                     {meeting.agendaUrl && (
                         <div className="flex items-center">
                             <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
-                            <Link href={meeting.agendaUrl} target="_blank" className="hover:text-primary transition-colors inline-flex items-center">
+                            <Link href={meeting.agendaUrl} target="_blank" onClick={() => captureEvent('meeting_page_action', { action: 'agenda_pdf', city_id: meeting.cityId, meeting_id: meeting.id })} className="hover:text-primary transition-colors inline-flex items-center">
                                 {tMeeting('agendaDocument')}
                                 <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1.5" />
                             </Link>
@@ -170,104 +197,4 @@ function MeetingInfo() {
             </div>
         </div>
     )
-}
-
-function UpcomingMeetingCard() {
-    const tMeeting = useTranslations("CouncilMeeting");
-    const { meeting, city } = useCouncilMeetingData();
-    const notificationPreference = useNotificationPreference();
-    const locale = useLocale();
-
-    const meetingDate = new Date(meeting.dateTime);
-    // Only tick while the meeting hasn't started yet, to catch the upcoming → past transition.
-    // Once past, the card is static — no interval needed.
-    const [now, setNow] = useState(() => new Date());
-    const isUpcoming = meetingDate > now;
-    useEffect(() => {
-        if (!isUpcoming) return;
-        const interval = setInterval(() => setNow(new Date()), 60_000);
-        return () => clearInterval(interval);
-    }, [isUpcoming]);
-
-    // Hide once video is uploaded
-    if (meeting.youtubeUrl) return null;
-
-    // Nothing useful to show if no links and no notification CTA
-    if (!meeting.agendaUrl && !meeting.administrativeBody?.youtubeChannelUrl && !city.supportsNotifications) {
-        return null;
-    }
-    const youtubeChannelUrl = meeting.administrativeBody?.youtubeChannelUrl;
-
-    // After the meeting without YouTube channel, show notification CTA or nothing
-    if (!isUpcoming && !youtubeChannelUrl) {
-        if (!city.supportsNotifications) return null;
-        return (
-            <div className="max-w-2xl mx-auto mb-8 p-6 sm:p-8 rounded-lg border bg-muted/50 text-center">
-                <p className="font-medium mb-2">
-                    {tMeeting('availableSoon')}
-                </p>
-                {notificationPreference ? (
-                    <p className="text-sm text-muted-foreground">
-                        {tMeeting('notificationComing')}
-                    </p>
-                ) : (
-                    <Link
-                        href={`/${city.id}/notifications`}
-                        className="text-sm text-muted-foreground underline hover:text-foreground transition-colors"
-                    >
-                        {tMeeting('subscribeForSubjects')}
-                    </Link>
-                )}
-            </div>
-        );
-    }
-
-    const links = (
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            {youtubeChannelUrl && (
-                <Link
-                    href={youtubeChannelUrl}
-                    target="_blank"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border font-medium transition-colors hover:bg-accent"
-                >
-                    <Youtube className="w-5 h-5 text-red-600" />
-                    YouTube
-                </Link>
-            )}
-            {meeting.agendaUrl && (
-                <Link
-                    href={meeting.agendaUrl}
-                    target="_blank"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border font-medium transition-colors hover:bg-accent"
-                >
-                    <FileText className="w-4 h-4" />
-                    {tMeeting('agendaDocument')}
-                </Link>
-            )}
-        </div>
-    );
-
-    return (
-        <div className="max-w-2xl mx-auto mb-8 p-6 sm:p-8 rounded-lg border bg-muted/50 text-center">
-            {isUpcoming ? (
-                <>
-                    <div className="flex items-center justify-center gap-2 mb-3">
-                        <CalendarIcon className="w-5 h-5 text-primary" />
-                        {/* Clock-relative text — see formatRelativeTime. */}
-                        <p className="font-medium" suppressHydrationWarning>
-                            {tMeeting('scheduledFor', { when: formatRelativeTime(meetingDate, locale) })}
-                        </p>
-                    </div>
-                    <p className="text-lg font-semibold mb-4">
-                        {formatDateTime(meetingDate, city.timezone)}
-                    </p>
-                </>
-            ) : (
-                <p className="font-medium mb-4">
-                    {tMeeting('watchMeeting')}
-                </p>
-            )}
-            {links}
-        </div>
-    );
 }

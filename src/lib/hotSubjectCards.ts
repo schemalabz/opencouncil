@@ -1,14 +1,47 @@
-import type { AdministrativeBodyType } from '@prisma/client';
-import { getSubjectsForMeetingCached } from '@/lib/cache';
+import type { AdministrativeBody, AdministrativeBodyType, NonAgendaReason, Topic } from '@prisma/client';
+import { bodyFilterKey, createCache } from '@/lib/cache';
 import { getBatchStatisticsForSubjects, type Statistics } from '@/lib/statistics';
-import type { SubjectWithRelations } from '@/lib/db/subject';
+import { getSubjectCardExtras } from '@/lib/db/subject';
 import type { PersonWithRelations } from '@/lib/db/people';
-import { getRecentHotSubjects, getHotSubjectsNearGeohash, type HotSubject } from '@/lib/hotSubjects';
+import { computeRecentHotSubjects, getRecentHotSubjects, getHotSubjectsNearGeohash, type HotSubject } from '@/lib/hotSubjects';
 import { subjectCardStats, type SubjectCardStats } from '@/lib/subjectCardStats';
 
+/** The subject fields a card draws — not the row, which is mostly prose. */
+export interface HotCardSubject {
+    id: string;
+    name: string;
+    description: string;
+    topic: Topic | null;
+    /** Read only by getAgendaLabel, which the embed card shows. */
+    agendaItemIndex: number | null;
+    nonAgendaReason: NonAgendaReason | null;
+}
+
+/** The meeting fields a card draws, plus what its links are built from. */
+export interface HotCardMeeting {
+    cityId: string;
+    id: string;
+    name: string;
+    name_en: string | null;
+    /** Always a Date. A cache hit hands back an ISO string, which getHotSubjectCardsCached
+     *  restores before it returns — so a reader can call Date methods on this. */
+    dateTime: Date;
+    administrativeBody: AdministrativeBody | null;
+}
+
+/**
+ * One card.
+ *
+ * `subject` and `meeting` are projections rather than the ranked records they
+ * came from, and that is not only about row size. A ranked set draws several
+ * cards from one meeting, and while the records are shared by reference the RSC
+ * payload writes that meeting once. Caching the set round-trips it through JSON,
+ * which breaks the sharing — so a full meeting would be written once per card,
+ * with every subject of its agenda inside.
+ */
 export interface HotSubjectCard {
-    subject: HotSubject['subject'];
-    meeting: HotSubject['meeting'];
+    subject: HotCardSubject;
+    meeting: HotCardMeeting;
     /** Location text ("Χωρίς τοποθεσία" fallback applied at render). */
     locationText: string | null;
     /** Introducer first, then top speakers by speaking time — for the avatar row. */
@@ -17,10 +50,15 @@ export interface HotSubjectCard {
     stats: SubjectCardStats;
 }
 
+/** Bump when the ranking or the card shape changes, so entries don't go stale. */
+const HOT_CARDS_CACHE_VERSION = 'v2';
+
 interface Args {
     limit: number;
     administrativeBodyTypes?: AdministrativeBodyType[];
     administrativeBodyIds?: string[];
+    /** How far back to rank. Omitted means the last few meetings. */
+    months?: number;
     geohash?: string | null;
 }
 
@@ -39,35 +77,85 @@ function displayedSpeakers(statistics: Statistics | undefined, introducedBy: Per
  * and avatar row need — location text and the top speakers — for the displayed
  * subjects only. Statistics already carry full person objects, so no city-wide
  * roster is loaded, and only the ~5 speakers per card cross to the client.
+ *
+ * Both queries here are uncached, so this is safe to call inside createCache.
+ */
+async function buildCards(top: HotSubject[]): Promise<HotSubjectCard[]> {
+    if (top.length === 0) return [];
+
+    const subjectIds = top.map(t => t.subject.id);
+    const [extras, stats] = await Promise.all([
+        getSubjectCardExtras(subjectIds),
+        getBatchStatisticsForSubjects(subjectIds),
+    ]);
+
+    return top.map(({ subject, meeting }) => {
+        const extra = extras.get(subject.id);
+        const statistics = stats.get(subject.id);
+        return {
+            subject: {
+                id: subject.id,
+                name: subject.name,
+                description: subject.description,
+                topic: subject.topic,
+                agendaItemIndex: subject.agendaItemIndex,
+                nonAgendaReason: subject.nonAgendaReason,
+            },
+            meeting: {
+                cityId: meeting.cityId,
+                id: meeting.id,
+                name: meeting.name,
+                name_en: meeting.name_en,
+                dateTime: meeting.dateTime,
+                administrativeBody: meeting.administrativeBody,
+            },
+            locationText: extra?.locationText ?? null,
+            speakers: displayedSpeakers(statistics, extra?.introducedBy ?? null),
+            stats: subjectCardStats(statistics, subject._count?.contributions),
+        };
+    });
+}
+
+/**
+ * Uncached: the ranking it builds on is cached per geohash, and the embed that
+ * uses it has its own page cache and an unbounded coordinate space behind it.
  */
 export async function getHotSubjectCards(cityId: string, args: Args): Promise<HotSubjectCard[]> {
     const { geohash, ...filter } = args;
     const top = geohash
         ? await getHotSubjectsNearGeohash(cityId, geohash, filter)
         : await getRecentHotSubjects(cityId, filter);
+    return buildCards(top);
+}
 
-    if (top.length === 0) return [];
+/**
+ * The city overview's variant: one cache entry for the whole card set.
+ *
+ * Uncached, this ran the ranking's statistics query and the card hydration on
+ * every request — the page's only remaining per-request database work once the
+ * meeting queries were cached. No geohash dimension, so the key space stays at
+ * cities × body filters.
+ */
+export async function getHotSubjectCardsCached(cityId: string, args: Omit<Args, 'geohash'>): Promise<HotSubjectCard[]> {
+    const { limit, months } = args;
+    const cards = await createCache(
+        async () => buildCards(await computeRecentHotSubjects(cityId, args)),
+        // `months`, not the date it resolves to: the window moves with `now`, and
+        // the TTL below is what bounds that drift.
+        ['city', cityId, 'hotSubjectCards', HOT_CARDS_CACHE_VERSION, `limit:${limit}`, ...bodyFilterKey(args), `months:${months ?? 'default'}`],
+        {
+            tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
+            // The ranking window is the last N *past* meetings, which is a
+            // function of `now` that no tag can express.
+            revalidate: 900,
+        }
+    )();
 
-    const meetingIds = [...new Set(top.map(t => t.meeting.id))];
-    const [subjectLists, stats] = await Promise.all([
-        Promise.all(meetingIds.map(meetingId => getSubjectsForMeetingCached(cityId, meetingId))),
-        getBatchStatisticsForSubjects(top.map(t => t.subject.id)),
-    ]);
-
-    const fullById = new Map<string, SubjectWithRelations>();
-    for (const list of subjectLists) {
-        for (const subject of list) fullById.set(subject.id, subject);
-    }
-
-    return top.map(({ subject, meeting }) => {
-        const full = fullById.get(subject.id);
-        const statistics = stats.get(subject.id);
-        return {
-            subject,
-            meeting,
-            locationText: full?.location?.text ?? null,
-            speakers: displayedSpeakers(statistics, full?.introducedBy ?? null),
-            stats: subjectCardStats(statistics, subject._count?.contributions),
-        };
-    });
+    // The cache round-trips the set through JSON, so a hit brings the meeting date back as an ISO
+    // string. Restore it here, where one place knows about the round-trip, rather than leaving
+    // every reader of a card to guess which of the two it holds.
+    return cards.map(card => ({
+        ...card,
+        meeting: { ...card.meeting, dateTime: new Date(card.meeting.dateTime) },
+    }));
 }

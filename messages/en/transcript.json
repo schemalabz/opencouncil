@@ -1,85 +1,104 @@
 {
-  "utterance": {
-    "editing": {
-      "saveShortcut": "Save (Enter)",
-      "cancelShortcut": "Cancel (Escape)",
-      "timestamps": "Timestamps",
-      "useCurrent": "Use Current",
-      "setStartTime": "Set to current video time ([)",
-      "setEndTime": "Set to current video time (])"
+    "utterance": {
+        "editing": {
+            "saveShortcut": "Save (Enter)",
+            "cancelShortcut": "Cancel (Escape)",
+            "timestamps": "Timestamps",
+            "useCurrent": "Use Current",
+            "setStartTime": "Set to current video time ([)",
+            "setEndTime": "Set to current video time (])"
+        },
+        "contextMenu": {
+            "copyText": "Copy text",
+            "selectFromHere": "Select from here",
+            "selectUntilHere": "Select until here",
+            "startHighlightFromHere": "Start Highlight from here",
+            "moveToPreviousSegment": "Move to previous segment",
+            "moveToNextSegment": "Move to next segment",
+            "shareFromHere": "Share from here",
+            "extractSegment": "Extract segment"
+        },
+        "toasts": {
+            "moveUtterances": "Move utterances?",
+            "moveToPreviousDescription": "Move this and previous utterances to the previous segment?",
+            "moveToNextDescription": "Move this and following utterances to the next segment?",
+            "confirm": "Confirm",
+            "utterancesMovedSuccessfully": "Utterances moved successfully",
+            "highlightCreated": "Highlight Created",
+            "highlightCreatedDescription": "Highlight started with this utterance. Add more utterances to build your highlight.",
+            "error": "Error",
+            "createHighlightError": "Failed to create highlight. Please try again.",
+            "editError": "Failed to save changes. Please try again.",
+            "copyError": "Failed to copy text",
+            "deleteUtterance": "Delete utterance?",
+            "deleteUtteranceDescription": "This action cannot be undone.",
+            "utteranceDeletedSuccessfully": "Utterance deleted successfully",
+            "deleteError": "Failed to delete utterance"
+        },
+        "common": {
+            "error": "Error"
+        }
     },
-    "contextMenu": {
-      "copyText": "Copy text",
-      "selectFromHere": "Select from here",
-      "selectUntilHere": "Select until here",
-      "startHighlightFromHere": "Start Highlight from here",
-      "moveToPreviousSegment": "Move to previous segment",
-      "moveToNextSegment": "Move to next segment",
-      "shareFromHere": "Share from here",
-      "extractSegment": "Extract segment"
+    "controls": {
+        "pause": "Pause",
+        "play": "Play",
+        "previousClip": "Previous clip",
+        "nextClip": "Next clip",
+        "timeline": "Playback timeline",
+        "modePicker": "Bar coloring",
+        "modeSpeakers": "Color by speaker",
+        "modeSubjects": "Color by subject",
+        "modeAnnounceSpeakers": "SPEAKERS",
+        "modeAnnounceSubjects": "SUBJECTS",
+        "chapterBeforeAgenda": "BEFORE AGENDA",
+        "chapterAgenda": "AGENDA",
+        "chapterOutOfAgenda": "OFF AGENDA",
+        "chapters": "Meeting sections",
+        "chapterAt": "{chapter}, from {time}",
+        "chapterKeys": "Page Up and Page Down move to the next and the previous section.",
+        "playbackSpeed": "Playback speed",
+        "playbackSpeedValue": "Playback speed: {speed}",
+        "expandVideo": "Expand video",
+        "collapseBar": "Collapse the bar",
+        "expandBar": "Open the bar",
+        "clip": "Clip {current}/{total}",
+        "lensFineHint": "Slide up to fine-tune",
+        "nowSpeaking": "Now speaking: {speaker}",
+        "nowSpeakingOn": "Now speaking: {speaker}. Subject: {subject}",
+        "nowSubject": "Subject: {subject}"
     },
-    "toasts": {
-      "moveUtterances": "Move utterances?",
-      "moveToPreviousDescription": "Move this and previous utterances to the previous segment?",
-      "moveToNextDescription": "Move this and following utterances to the next segment?",
-      "confirm": "Confirm",
-      "utterancesMovedSuccessfully": "Utterances moved successfully",
-      "highlightCreated": "Highlight Created",
-      "highlightCreatedDescription": "Highlight started with this utterance. Add more utterances to build your highlight.",
-      "error": "Error",
-      "createHighlightError": "Failed to create highlight. Please try again.",
-      "editError": "Failed to save changes. Please try again.",
-      "copyError": "Failed to copy text",
-      "deleteUtterance": "Delete utterance?",
-      "deleteUtteranceDescription": "This action cannot be undone.",
-      "utteranceDeletedSuccessfully": "Utterance deleted successfully",
-      "deleteError": "Failed to delete utterance"
+    "unverifiedBanner": {
+        "title": "Automatic Transcript",
+        "description": "This transcript was automatically generated and may contain errors. It is being reviewed and will be updated soon.",
+        "descriptionUntil": "This transcript was automatically generated and may contain errors. It is being reviewed and will be updated by {deadline}."
     },
-    "common": {
-      "error": "Error"
+    "emptySegment": {
+        "noUtterances": "No utterances in this segment",
+        "addUtterance": "Add Utterance",
+        "adding": "Adding..."
+    },
+    "addUtterance": {
+        "button": "Add utterance",
+        "tooltip": "Add a new utterance at the end of this segment"
+    },
+    "miniTranscript": {
+        "play": "Play",
+        "pause": "Pause",
+        "seekTo": "Seek to",
+        "transcript": "Transcript"
+    },
+    "hiddenForReview": {
+        "title": "Transcript not yet available",
+        "description": "The transcript is being reviewed by our team and will be available soon."
+    },
+    "copySegment": {
+        "button": "Copy segment",
+        "segmentCopied": "Segment copied",
+        "copySourceAttribution": "Copied from OpenCouncil · opencouncil.gr"
+    },
+    "notAvailable": "The transcript is not available yet.",
+    "procedural": "Procedural",
+    "currentTimeButton": {
+        "jumpToCurrent": "Jump to the current time"
     }
-  },
-  "controls": {
-    "hideControls": "Hide controls",
-    "showControls": "Show controls",
-    "pause": "Pause",
-    "play": "Play",
-    "previousClip": "Previous clip",
-    "nextClip": "Next clip",
-    "timeline": "Playback timeline",
-    "playbackProgress": "Playback progress"
-  },
-  "unverifiedBanner": {
-    "title": "Automatic Transcript",
-    "description": "This transcript was automatically generated and may contain errors. It is being reviewed and will be updated within 48 hours of the meeting."
-  },
-  "emptySegment": {
-    "noUtterances": "No utterances in this segment",
-    "addUtterance": "Add Utterance",
-    "adding": "Adding..."
-  },
-  "addUtterance": {
-    "button": "Add utterance",
-    "tooltip": "Add a new utterance at the end of this segment"
-  },
-  "miniTranscript": {
-    "play": "Play",
-    "pause": "Pause",
-    "seekTo": "Seek to",
-    "transcript": "Transcript"
-  },
-  "hiddenForReview": {
-    "title": "Transcript not yet available",
-    "description": "The transcript is being reviewed by our team and will be available soon."
-  },
-  "copySegment": {
-    "button": "Copy segment",
-    "segmentCopied": "Segment copied",
-    "copySourceAttribution": "Copied from OpenCouncil · opencouncil.gr"
-  },
-  "notAvailable": "The transcript is not available yet.",
-  "procedural": "Procedural",
-  "currentTimeButton": {
-    "jumpToCurrent": "Jump to the current time"
-  }
 }

@@ -6,6 +6,9 @@
  */
 :root {
   --orange: 24 100% 50%;
+  /* The brand orange deep enough to carry white text: 4.81:1 against
+     white, where the brand orange itself is 2.94:1. For filled controls. */
+  --orange-deep: 24 100% 38%;
   --background: 0 0% 100%;
   --foreground: 20 14.3% 4.1%;
   --card: 0 0% 100%;
@@ -49,6 +52,9 @@
   --popover: 20 14.3% 4.1%;
   --popover-foreground: 60 9.1% 97.8%;
   --orange: 24 100% 50%;
+  /* The brand orange deep enough to carry white text: 4.81:1 against
+     white, where the brand orange itself is 2.94:1. For filled controls. */
+  --orange-deep: 24 100% 38%;
   --primary: 60 9.1% 97.8%;
   --primary-foreground: 24 9.8% 10%;
   --secondary: 12 6.5% 15.1%;

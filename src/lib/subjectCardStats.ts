@@ -3,6 +3,13 @@ import type { Statistics } from "@/lib/statistics";
 /** Footer stats shown on a subject card: speaking minutes, speaker count, party dots. */
 export interface SubjectCardStats {
     minutes: number;
+    /**
+     * The unrounded speaking time. `minutes` is what a card displays, but comparing
+     * subjects to each other (the city page ranks them against the leader) needs the
+     * raw value — at these durations rounding to minutes loses the differences that
+     * separate the tail.
+     */
+    speakingSeconds: number;
     speakerCount: number;
     partyDots: { id: string; colorHex: string; name: string }[];
 }
@@ -11,6 +18,11 @@ export interface SubjectCardStats {
 export function subjectCardStats(statistics: Statistics | undefined, fallbackSpeakerCount = 0): SubjectCardStats {
     return {
         minutes: statistics?.speakingSeconds ? Math.round(statistics.speakingSeconds / 60) : 0,
+        speakingSeconds: statistics?.speakingSeconds ?? 0,
+        // `||`, not `??`: an empty people array means the statistics have not been
+        // computed, which is exactly when the contribution count has to stand in.
+        // `??` treated a length of 0 as an answer, and HotTopicRow prints the
+        // number ungated — every such row read "0 ομιλητές".
         speakerCount: statistics?.people?.length || fallbackSpeakerCount || 0,
         partyDots: (statistics?.parties ?? []).map(p => ({ id: p.item.id, colorHex: p.item.colorHex, name: p.item.name })),
     };

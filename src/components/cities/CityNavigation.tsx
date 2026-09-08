@@ -2,7 +2,6 @@
 import { useTranslations } from 'next-intl';
 import { useSelectedLayoutSegment } from 'next/navigation';
 import { Link } from '@/i18n/routing';
-import { motion } from 'framer-motion';
 import { ReactNode } from 'react';
 import { City } from '@prisma/client';
 
@@ -26,11 +25,13 @@ function NavLink({
     children,
     segment,
     matchSegment,
-    activeClassName = 'bg-background text-foreground shadow-sm',
-    inactiveClassName = 'text-muted-foreground hover:text-foreground hover:bg-muted/30',
+    // An underline rather than a pill: the bar now sits left-aligned on a rule
+    // under the identity band, where a floating pill reads as a separate control.
+    activeClassName = 'text-foreground border-[hsl(var(--orange-deep))]',
+    inactiveClassName = 'text-muted-foreground border-transparent hover:text-foreground',
 }: NavLinkProps) {
     const isActive = segment === matchSegment;
-    const className = `px-2 sm:px-3 md:px-6 py-2 text-xs sm:text-sm md:text-base whitespace-nowrap transition-colors rounded-md flex-shrink-0 ${isActive ? activeClassName : inactiveClassName
+    const className = `px-1 pb-3 text-sm md:text-base whitespace-nowrap transition-colors border-b-2 flex-shrink-0 hover:no-underline ${isActive ? activeClassName : inactiveClassName
         }`;
 
     return (
@@ -44,19 +45,25 @@ export function CityNavigation({ cityId, city }: CityNavigationProps) {
     const t = useTranslations('City');
     const segment = useSelectedLayoutSegment();
 
-    // Convert segment to our view types
-    const currentSegment = segment || 'meetings';
+    // The overview lives at the tab group's index route, so it has no segment of
+    // its own. Every other tab is a folder and reports its own name.
+    const currentSegment = segment || 'overview';
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="flex justify-center mb-6 md:mb-8"
-        >
-            <nav aria-label={t('citySections')} className="gap-1 sm:gap-2 md:gap-8 p-1 bg-background/80 backdrop-blur-sm w-full max-w-4xl flex justify-center rounded-lg overflow-x-auto scrollbar-hide">
+        // No entrance animation: this used to fade in on a 0.7s delay as the tail
+        // of the old hero's choreography, which left the page's primary navigation
+        // invisible on arrival — and permanently so if hydration was slow.
+        <div className="mb-6 md:mb-8 border-b border-border">
+            <nav aria-label={t('citySections')} className="flex gap-4 sm:gap-6 md:gap-7 overflow-x-auto scrollbar-hide -mb-px">
                 <NavLink
                     href={`/${cityId}`}
+                    segment={currentSegment}
+                    matchSegment="overview"
+                >
+                    {t('overview')}
+                </NavLink>
+                <NavLink
+                    href={`/${cityId}/meetings`}
                     segment={currentSegment}
                     matchSegment="meetings"
                 >
@@ -76,6 +83,13 @@ export function CityNavigation({ cityId, city }: CityNavigationProps) {
                 >
                     {t('parties')}
                 </NavLink>
+                <NavLink
+                    href={`/${cityId}/map`}
+                    segment={currentSegment}
+                    matchSegment="map"
+                >
+                    {t('map')}
+                </NavLink>
                 {city?.consultationsEnabled && (
                     <NavLink
                         href={`/${cityId}/consultations`}
@@ -86,6 +100,6 @@ export function CityNavigation({ cityId, city }: CityNavigationProps) {
                     </NavLink>
                 )}
             </nav>
-        </motion.div>
+        </div>
     );
 } 

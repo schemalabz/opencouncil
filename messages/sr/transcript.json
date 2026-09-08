@@ -40,18 +40,37 @@
         }
     },
     "controls": {
-        "hideControls": "Сакријте контроле",
-        "showControls": "Прикажите контроле",
         "pause": "Паузирајте",
         "play": "Пустите",
         "previousClip": "Претходни исечак",
         "nextClip": "Следећи исечак",
         "timeline": "Временска линија репродукције",
-        "playbackProgress": "Ток репродукције"
+        "modePicker": "Боје траке",
+        "modeSpeakers": "Боје по говорнику",
+        "modeSubjects": "Боје по теми",
+        "modeAnnounceSpeakers": "ГОВОРНИЦИ",
+        "modeAnnounceSubjects": "ТЕМЕ",
+        "chapterBeforeAgenda": "ПРЕ ДНЕВНОГ РЕДА",
+        "chapterAgenda": "ДНЕВНИ РЕД",
+        "chapterOutOfAgenda": "ВАН ДНЕВНОГ РЕДА",
+        "chapters": "Делови седнице",
+        "chapterAt": "{chapter}, од {time}",
+        "chapterKeys": "Page Up и Page Down воде на следећи и на претходни део.",
+        "playbackSpeed": "Брзина репродукције",
+        "playbackSpeedValue": "Брзина репродукције: {speed}",
+        "expandVideo": "Повећај видео",
+        "collapseBar": "Скупи траку",
+        "expandBar": "Отвори траку",
+        "clip": "Исечак {current}/{total}",
+        "lensFineHint": "Превуци нагоре за прецизност",
+        "nowSpeaking": "Говори: {speaker}",
+        "nowSpeakingOn": "Говори: {speaker}. Тема: {subject}",
+        "nowSubject": "Тема: {subject}"
     },
     "unverifiedBanner": {
         "title": "Аутоматски транскрипт",
-        "description": "Овај транскрипт је аутоматски генерисан и може садржати грешке. Тренутно се прегледа и биће ажуриран у року од 48 сати од седнице."
+        "description": "Овај транскрипт је аутоматски генерисан и може садржати грешке. У току је провера и биће ажуриран ускоро.",
+        "descriptionUntil": "Овај транскрипт је аутоматски генерисан и може садржати грешке. У току је провера и биће ажуриран до {deadline}."
     },
     "emptySegment": {
         "noUtterances": "Нема исказа у овом сегменту",

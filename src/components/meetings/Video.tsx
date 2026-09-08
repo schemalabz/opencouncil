@@ -4,6 +4,9 @@ import { useVideo } from './VideoProvider';
 import { cn } from '@/lib/utils';
 import { ArrowDownLeft, ArrowUpRight, Minimize2, Move, ArrowDownLeftSquare, Scaling } from 'lucide-react';
 import { motion, useAnimation } from 'framer-motion';
+import { createPortal } from 'react-dom';
+import { useTranslations } from 'next-intl';
+import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
 
 // MuxErrorCode.NETWORK_NOT_READY. playback-core reaches us as a transitive
 // dependency, so importing the enum would mean pinning it directly.
@@ -18,8 +21,9 @@ type MuxErrorDetail = {
     data?: { response?: { code?: number } };
 };
 
-export const Video: React.FC<{ className?: string, expandable?: boolean, onExpandChange?: (expanded: boolean) => void }> = ({ className, expandable = false, onExpandChange }) => {
-    const { playerRef, meeting, isPlaying, currentTime, setIsPlaying, seekTo } = useVideo();
+export const Video: React.FC<{ className?: string, expandable?: boolean, /** a standing corner affordance instead of the hover-only overlay */ expandBadge?: boolean, onExpandChange?: (expanded: boolean) => void }> = ({ className, expandable = false, expandBadge = false, onExpandChange }) => {
+    const t = useTranslations('transcript.controls');
+    const { playerRef, meeting, isPlaying, currentTime, currentTimeRef, setIsPlaying, seekTo } = useVideo();
     const [muxFailed, setMuxFailed] = useState(false);
     const [muxStillEncoding, setMuxStillEncoding] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
@@ -34,7 +38,9 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
     const toggleExpand = () => {
         const prevState = {
             isPlaying: isPlaying,
-            currentTime: playerRef.current?.currentTime,
+            // The ref is canonical: before the first play, seeks and ?t= deep
+            // links never touch the element, whose clock still reads 0.
+            currentTime: currentTimeRef.current,
         }
 
         setIsExpanded(!isExpanded);
@@ -143,10 +149,14 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
     };
 
     if (isExpanded) {
-        return (
+        // Portaled: the floating player must not inherit the dock's fate — a
+        // display:none ancestor (the dock under the collapsed phone pill)
+        // hides fixed descendants, leaving audio playing with no video.
+        return createPortal(
             <>
                 <motion.div
                     ref={containerRef}
+                    data-playback-focus=""
                     drag={!isResizing}
                     dragMomentum={false}
                     dragElastic={0.1}
@@ -156,7 +166,10 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
                     exit={{ opacity: 0, scale: 0.5 }}
                     transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     className="fixed z-50 shadow-lg rounded-lg overflow-hidden"
-                    style={{ width: dimensions.width, height: dimensions.height }}
+                    // Anchored above the playback dock: with no coordinates a fixed box
+                    // keeps its in-flow offset, which for the dock's video slot is off
+                    // the bottom of the viewport.
+                    style={{ width: dimensions.width, height: dimensions.height, left: 8, bottom: 'calc(var(--playback-dock-clearance) + env(safe-area-inset-bottom))' }}
                     onMouseEnter={() => setIsHovered(true)}
                     onMouseLeave={() => setIsHovered(false)}
                 >
@@ -199,7 +212,8 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
                         className="absolute bottom-2 left-2 w-4 h-4 text-white"
                     />
                 </motion.div>
-            </>
+            </>,
+            document.body,
         );
     }
 
@@ -208,19 +222,27 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, onExpan
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}>
             {renderVideoElement()}
-            {
-                expandable && isHovered && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute top-0 left-0 w-full h-full bg-black opacity-50 flex items-center justify-center"
-                        onClick={toggleExpand}
-                    >
-                        <ArrowUpRight className="w-6 h-6 text-white" />
-                    </motion.div>
-                )
-            }
+            {expandable && expandBadge && (
+                <button
+                    type="button"
+                    onClick={toggleExpand}
+                    aria-label={t('expandVideo')}
+                    className="absolute bottom-[3px] right-[3px] z-10 flex h-[18px] w-[18px] items-center justify-center rounded bg-black/70 text-white hover:bg-black/85"
+                >
+                    <ArrowUpRight className="h-3 w-3" aria-hidden />
+                </button>
+            )}
+            {expandable && !expandBadge && isHovered && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute top-0 left-0 w-full h-full bg-black opacity-50 flex items-center justify-center"
+                    onClick={toggleExpand}
+                >
+                    <ArrowUpRight className="w-6 h-6 text-white" />
+                </motion.div>
+            )}
         </div>
     );
 };
@@ -234,6 +256,7 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
     isExpanded?: boolean;
 }) => {
     const { onSeeked, onSeeking, onTimeUpdate, onLoadedMetadata, playerRef, currentTimeRef } = useVideo();
+    const { options } = useTranscriptOptions();
 
     // Resume where the swapped-out element left off. This runs in both directions:
     // Mux erroring onto the original, and the asset finishing its encode and
@@ -242,6 +265,9 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
         if (currentTimeRef.current > 0) {
             e.currentTarget.currentTime = currentTimeRef.current;
         }
+        // A fresh element starts at rate 1; the chosen speed must survive the
+        // expand/collapse remounts and the Mux/S3 swaps that land here.
+        e.currentTarget.playbackRate = options.playbackSpeed;
         onLoadedMetadata();
     };
 

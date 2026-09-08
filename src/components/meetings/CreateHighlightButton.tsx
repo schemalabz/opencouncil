@@ -89,16 +89,17 @@ export function CreateHighlightButton({
                 {...buttonProps}
                 variant="ghost"
                 size="icon"
-                className={`w-9 h-9 rounded-full hover:bg-accent transition-colors shrink-0 ${
+                className={`h-9 w-9 lg:w-auto lg:px-3 gap-1.5 rounded-full text-foreground/80 transition-colors hover:bg-foreground/[0.06] hover:text-foreground shrink-0 ${
                     isEditing ? 'opacity-50 cursor-not-allowed' : ''
                 } ${buttonProps.className}`}
-                title={isEditing ? "Currently editing a highlight" : "Create a new highlight"}
+                title={isEditing ? t('buttons.currentlyEditing') : t('buttons.createHighlight')}
             >
                 {isCreating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
                 ) : (
-                    <Clapperboard className="h-4 w-4" />
+                    <Clapperboard className="h-4 w-4 shrink-0" />
                 )}
+                <span className="hidden text-sm lg:inline">{t('buttons.highlightShort')}</span>
             </Button>
         );
     }
@@ -111,7 +112,7 @@ export function CreateHighlightButton({
             className={`w-full ${
                 isEditing ? 'opacity-50 cursor-not-allowed' : ''
             } ${buttonProps.className}`}
-            title={isEditing ? "Currently editing a highlight" : "Create a new highlight"}
+            title={isEditing ? t('buttons.currentlyEditing') : t('buttons.createHighlight')}
         >
             {isCreating ? (
                 <Loader2 className="h-5 w-5 mr-2 animate-spin" />

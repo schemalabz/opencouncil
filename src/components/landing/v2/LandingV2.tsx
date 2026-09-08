@@ -15,25 +15,18 @@ import { useNotifyPrompt } from './hooks/useNotifyPrompt';
 import { useSubjectSelection } from './hooks/useSubjectSelection';
 import {
     useGeneralCityMarkers,
-    useMapViewCapture,
     useMunicipalitiesViewMarkers,
     useMunicipalityCountMarkers,
     useSubjectMarkers,
 } from './hooks/useMapMarkers';
 import { useMapPopups } from './hooks/useMapPopups';
+import { useSubjectMapState } from '@/components/map/subjects/useSubjectMapState';
 import { captureLanding, captureLandingAction, setLandingContext } from '@/lib/landing/analytics';
 import {
     aggregateMunicipalityCounts,
     detectMunicipalityQuery,
-    isValidLngLat,
-    type CenterMunicipality,
     type ClickedMunicipality,
-    type CoLocatedBox,
-    type GeneralBox,
-    type LandingGeneralCity,
     type LandingPetitionedCity,
-    type LandingSubject,
-    type MapViewport,
     type MunicipalityInterest,
 } from '@/lib/landing/landingData';
 import {
@@ -41,7 +34,6 @@ import {
     EMPTY_FILTERS,
     MUNICIPALITY_COUNT_MAX_ZOOM,
     MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM,
-    SUBJECT_FOCUS_ZOOM,
     desktopView,
     flyToMunicipality,
     parseInitialUrlState,
@@ -94,7 +86,6 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     });
     // Selected topic ids — empty means "all".
     const [cats, setCats] = useState<string[]>([]);
-    const [selectedId, setSelectedId] = useState<string | null>(null);
     // Which panel/list is showing. The map is unaffected — it always shows subject pins; the Δήμοι
     // tab picks a δήμος to filter them by. Desktop has no 'home' (iteration 1); mobile keeps it
     // (restored on mount in the URL-init effect).
@@ -109,16 +100,6 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     }, []);
     // Mobile: the OpenCouncil badge shows a card preview (like a subject), not a tooltip.
     const [explainOpen, setExplainOpen] = useState(false);
-    // Mobile: the strip's in-view subject — its map pin gets an orange preview outline.
-    const [previewId, setPreviewId] = useState<string | null>(null);
-    // Captured on moveend — drives the in-view list.
-    const [mapView, setMapView] = useState<MapViewport | null>(null);
-    // Non-located subjects show in the list only while zoomed out (< this).
-    const [mapZoom, setMapZoom] = useState(initialView.zoom);
-    // Subjects at one point + screen position.
-    const [coLocated, setCoLocated] = useState<CoLocatedBox | null>(null);
-    // A municipality's non-located subjects + screen position.
-    const [generalBox, setGeneralBox] = useState<GeneralBox | null>(null);
 
     // The municipality the visitor seems interested in (filter, clicked subject, or "δήμος X"
     // search) → drives the delayed notification prompt.
@@ -169,12 +150,26 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         zoomOut,
         showExplainLocation,
     } = useMapActions({ mapInstance, isMobile, defaultView: initialView });
-    // Set before a selection-triggered pan so the next moveend doesn't refilter the list.
-    const suppressViewCaptureRef = useRef(false);
-    // A co-located "+N" pan centers the point first, then opens the box on the next moveend.
-    const pendingCoLocatedRef = useRef<LandingSubject[] | null>(null);
-    // A city-hall pan centers the centroid first, then opens the general box on the next moveend.
-    const pendingGeneralRef = useRef<LandingGeneralCity | null>(null);
+
+    // Selection, strip preview, viewport and the open cluster box — plus the moveend capture that
+    // feeds them. Shared with the city pages' map tab (see useSubjectMapState).
+    const {
+        selectedId,
+        setSelectedId,
+        previewId,
+        setPreviewId,
+        mapView,
+        mapZoom,
+        coLocated,
+        setCoLocated,
+        generalBox,
+        setGeneralBox,
+        centerMunicipality,
+        suppressViewCaptureRef,
+        pendingCoLocatedRef,
+        pendingGeneralRef,
+        previewSubject: previewSubjectObject,
+    } = useSubjectMapState({ mapInstance, initialZoom: initialView.zoom, trackCenterMunicipality: true });
 
     // ---- real data ----
     const { topics } = useTopics();
@@ -183,9 +178,6 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     const [cityGeometries, setCityGeometries] = useState<Record<string, GeoJSON.Geometry>>({});
     // An out-of-network municipality the user clicked on the map — shaded orange.
     const [clickedMunicipality, setClickedMunicipality] = useState<ClickedMunicipality | null>(null);
-    // The municipality under the map center (updated on every move) — drives the "view its page"
-    // button. Publication gates it: shown only for δήμοι actually in OpenCouncil.
-    const [centerMunicipality, setCenterMunicipality] = useState<CenterMunicipality | null>(null);
 
     const [range, setRange] = useState<DateRangeKey>(DEFAULT_RANGE);
     const [filters, setFilters] = useState<MapFilters>(EMPTY_FILTERS);
@@ -453,21 +445,6 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         selectSubjectRef.current(id);
     }, [mapInstance, allSubjects, allGeneralSubjects]);
 
-    // Capture the map view (list + clustering + centered municipality) on every pan/zoom.
-    useMapViewCapture({
-        mapInstance,
-        suppressViewCaptureRef,
-        pendingCoLocatedRef,
-        pendingGeneralRef,
-        setMapZoom,
-        setCenterMunicipality,
-        setCoLocated,
-        setGeneralBox,
-        setMapView,
-        // Navigating the map drops any strip preview (so the map doesn't snap back to it).
-        onUserNavigate: () => setPreviewId(null),
-    });
-
     // Remember the camera so a return visit opens where this one ended. Written on every settled
     // move rather than on leave: moveend fires once per gesture (cheap), while leave-events are
     // unreliable — pagehide/unload are skipped by bfcache and can be missed entirely when a
@@ -529,21 +506,9 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         selectSubject(id);
     };
 
-    // Preview a subject (mobile): highlight its pin, navigate the map to it (like a selection, but
-    // no box), and keep the strip list order unchanged (the strip just scrolls to it). The pan is
-    // suppressed so the moveend neither refilters the list nor clears the preview.
-    const previewSubject = (id: string | null) => {
-        setPreviewId(id);
-        if (!id || !mapInstance) return;
-        const s = findSubject(id);
-        if (!s || !isValidLngLat(s.lng, s.lat)) return;
-        suppressViewCaptureRef.current = true;
-        mapInstance.easeTo({
-            center: [s.lng, s.lat],
-            zoom: Math.max(mapInstance.getZoom(), SUBJECT_FOCUS_ZOOM),
-            duration: 500,
-        });
-    };
+    // Preview a subject (mobile): highlight its pin and navigate the map to it (like a selection,
+    // but no box). The strip list order is unchanged — the strip just scrolls to it.
+    const previewSubject = (id: string | null) => previewSubjectObject(id ? findSubject(id) ?? null : null);
 
     // A marker tap: mobile previews it (highlight + navigate, no box); desktop selects it (opens the
     // tooltip/preview) and reports the funnel source.

@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { CityMessage } from '@prisma/client'
-import { MessageSquare, ChevronDown, ChevronUp } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useTranslations } from 'next-intl'
 import { IconInput } from "@/components/admin/icon-input"
+import { CityFormSection } from "./CityFormSection"
 
 // Message state type based on Prisma CityMessage but with additional form fields
 export type MessageFormState = Omit<CityMessage, 'id' | 'cityId' | 'createdAt' | 'updatedAt'> & {
@@ -32,7 +30,6 @@ interface CityMessageFormProps {
 
 export default function CityMessageForm({ existingMessage, onMessageChange }: CityMessageFormProps) {
     const t = useTranslations('CityForm.CityMessageForm')
-    const [isOpen, setIsOpen] = useState(false);
 
     // Message state using Prisma type with form additions
     const [messageState, setMessageState] = useState<MessageFormState>(DEFAULT_MESSAGE_STATE);
@@ -61,37 +58,13 @@ export default function CityMessageForm({ existingMessage, onMessageChange }: Ci
         onMessageChange?.(newState);
     }, [messageState, onMessageChange]);
 
+    const status = existingMessage
+        ? t('currentMessageStatus', { status: existingMessage.isActive ? t('statusActive') : t('statusInactive') })
+        : t('noMessageSet');
+
     return (
-        <Collapsible
-            open={isOpen}
-            onOpenChange={setIsOpen}
-            className="space-y-2"
-        >
-            <div className="flex items-center justify-between space-x-4 px-4">
-                <h4 className="text-sm font-semibold flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4" />
-                    {t('sectionTitle')}
-                </h4>
-                <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="w-9 p-0">
-                        {isOpen ? (
-                            <ChevronUp className="h-4 w-4" />
-                        ) : (
-                            <ChevronDown className="h-4 w-4" />
-                        )}
-                        <span className="sr-only">{t('toggle')}</span>
-                    </Button>
-                </CollapsibleTrigger>
-            </div>
-            <CollapsibleContent className="space-y-4 px-4">
-                <div className="text-sm text-muted-foreground">
-                    {existingMessage
-                        ? t('currentMessageStatus', {
-                            status: existingMessage.isActive ? t('statusActive') : t('statusInactive')
-                          })
-                        : t('noMessageSet')
-                    }
-                </div>
+        <CityFormSection title={t('sectionTitle')} hint={status} restricted>
+            <div className="space-y-4">
 
                 <div className="flex items-center space-x-2">
                     <Checkbox
@@ -179,7 +152,7 @@ export default function CityMessageForm({ existingMessage, onMessageChange }: Ci
                         )}
                     </>
                 )}
-            </CollapsibleContent>
-        </Collapsible>
+            </div>
+        </CityFormSection>
     );
 }

@@ -1,17 +1,24 @@
 import { AdministrativeBodyType } from '@prisma/client';
-import { createCache, getCouncilMeetingsForCityPublicCached } from '@/lib/cache';
-import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
+import { bodyFilterKey, createCache, getCouncilMeetingsForCityPublicCached } from '@/lib/cache';
+import { getCouncilMeetingsForCity, type CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetingsList';
 import { getContributionCount } from '@/lib/utils';
+import { getDiscussionSecondsForSubjects } from '@/lib/db/subject';
 import { sortByRanking, type RankableSubject } from '@/lib/ranking/subjects';
 import { filterLocationIdsWithinRadius, getLocationDistancesFromPoint } from '@/lib/db/location';
 import { decodeGeohashToCenter } from '@/lib/geo';
+import { monthsAgo } from '@/lib/utils/hotTopicFilters';
 
-/** Recent past meetings to draw "hot" subjects from. */
+/** Recent past meetings to draw "hot" subjects from when no period is given. */
 const HOT_MEETING_WINDOW = 8;
+/**
+ * Safety bound when a period IS given: the window is then the period, and this
+ * only stops a very busy council from ranking a year of agendas in one request.
+ */
+const HOT_PERIOD_MEETING_CAP = 60;
 /** Radius (m) around the geohash cell center for the location-filtered variant. */
 const GEO_RADIUS_METERS = 500;
 /** Bump when the ranking/selection logic changes so cached results don't go stale. */
-const GEO_CACHE_VERSION = 'v2';
+const GEO_CACHE_VERSION = 'v3';
 
 type Meeting = CouncilMeetingWithAdminBodyAndSubjects;
 export type HotSubject = { subject: Meeting['subjects'][number]; meeting: Meeting };
@@ -19,33 +26,120 @@ export type HotSubject = { subject: Meeting['subjects'][number]; meeting: Meetin
 interface BodyFilter {
     administrativeBodyTypes?: AdministrativeBodyType[];
     administrativeBodyIds?: string[];
+    /** How far back to look. Omitted means the last {@link HOT_MEETING_WINDOW} meetings. */
+    months?: number;
 }
 
+/** The meetings query's window for a filter — a period when one is asked for. */
+function windowFor({ months }: BodyFilter) {
+    if (!months) return { limit: HOT_MEETING_WINDOW };
+    return { limit: HOT_PERIOD_MEETING_CAP, from: monthsAgo(months) };
+}
+
+type Window = ReturnType<typeof windowFor>;
+
+/**
+ * The window's meetings, or the most recent ones when the window holds none.
+ *
+ * A period can legitimately be empty — a council in summer recess, a city whose
+ * releases lag — and this ranking is the city page's lead content, so an empty
+ * period must not empty the page. The caller can tell the fallback happened:
+ * every meeting it gets back then predates the window.
+ */
+async function meetingsFor(
+    filter: BodyFilter,
+    fetch: (window: Window) => Promise<Meeting[]>,
+): Promise<Meeting[]> {
+    const window = windowFor(filter);
+    const meetings = await fetch(window);
+    if (meetings.length > 0 || !('from' in window)) return meetings;
+    return fetch({ limit: HOT_MEETING_WINDOW });
+}
+
+/**
+ * Every subject of the given meetings, minus the ones that cannot be "hot".
+ *
+ * A withdrawn subject was pulled before it could be discussed, so it never
+ * qualifies. A subject nobody spoke to is dropped only when the window holds
+ * something that was: contributions are written at summarization, so a city
+ * whose meetings are released but not yet summarized has zero everywhere —
+ * filtering unconditionally would empty the embed widget municipalities put on
+ * their own sites rather than fall back to recency, which is the ranking those
+ * subjects can still support.
+ */
 function flatten(meetings: Meeting[]): HotSubject[] {
-    return meetings.flatMap(meeting => meeting.subjects.map(subject => ({ subject, meeting })));
+    const candidates = meetings.flatMap(meeting =>
+        meeting.subjects
+            .filter(subject => !subject.withdrawn)
+            .map(subject => ({ subject, meeting })),
+    );
+    const discussed = candidates.filter(c => getContributionCount(c.subject) > 0);
+    return discussed.length > 0 ? discussed : candidates;
 }
 
-function adapt(item: HotSubject): RankableSubject {
-    return {
+/**
+ * The ranker's view of a candidate, built against the same signals the landing
+ * map ranks on (useFilteredSubjects' toRankable) so the two surfaces agree on
+ * what "hot" means.
+ *
+ * `discussionSignal` is minutes of debate, not a contribution count: the two
+ * disagree often — a subject can draw many short interventions or one long one —
+ * and it carries the heaviest weight in the blend, so using a different signal
+ * here produced a visibly different order for the same subjects.
+ */
+function adapter(discussionSeconds: Map<string, number>) {
+    return (item: HotSubject): RankableSubject => ({
         cityId: item.meeting.cityId,
         meetingDate: item.meeting.dateTime,
-        discussionSignal: getContributionCount(item.subject),
+        // Rounded to minutes exactly as toLandingSubjects does: the signal is
+        // log-damped, so the unit changes the spacing between candidates.
+        discussionSignal: Math.round((discussionSeconds.get(item.subject.id) ?? 0) / 60),
         adminBodyType: item.meeting.administrativeBody?.type ?? null,
         // Weak location tiebreaker in the non-geo widget; a no-op within the
         // geo variant's homogeneous near/wide groups.
         hasLocation: item.subject.locationId != null,
-    };
+    });
+}
+
+/** Debate time for a candidate set — one query, whatever its size. */
+function discussionSecondsFor(candidates: HotSubject[]): Promise<Map<string, number>> {
+    return getDiscussionSecondsForSubjects(candidates.map(c => c.subject.id));
+}
+
+/** Rank the subjects of an already-fetched window of meetings. */
+async function rankSubjectsOf(meetings: Meeting[], limit: number): Promise<HotSubject[]> {
+    const candidates = flatten(meetings);
+    const seconds = await discussionSecondsFor(candidates);
+    return sortByRanking(candidates, adapter(seconds)).slice(0, limit);
 }
 
 /** Recent hottest subjects across a city's recent past meetings (no location filter). */
 export async function getRecentHotSubjects(
     cityId: string,
-    { limit, administrativeBodyTypes, administrativeBodyIds }: BodyFilter & { limit: number }
+    { limit, administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
-    const meetings = await getCouncilMeetingsForCityPublicCached(cityId, {
-        limit: HOT_MEETING_WINDOW, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
-    });
-    return sortByRanking(flatten(meetings), adapt).slice(0, limit);
+    const meetings = await meetingsFor({ months }, window =>
+        getCouncilMeetingsForCityPublicCached(cityId, {
+            ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+        }),
+    );
+    return rankSubjectsOf(meetings, limit);
+}
+
+/**
+ * {@link getRecentHotSubjects} off the uncached meetings query, for callers that
+ * run inside createCache — unstable_cache must never nest.
+ */
+export async function computeRecentHotSubjects(
+    cityId: string,
+    { limit, administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter & { limit: number }
+): Promise<HotSubject[]> {
+    const meetings = await meetingsFor({ months }, window =>
+        getCouncilMeetingsForCity(cityId, {
+            includeUnreleased: false, ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+        }),
+    );
+    return rankSubjectsOf(meetings, limit);
 }
 
 async function rankSubjectsNearPoint(
@@ -58,7 +152,12 @@ async function rankSubjectsNearPoint(
     const locatedIds = candidates
         .map(c => c.subject.locationId)
         .filter((id): id is string => id != null);
-    const nearby = new Set(await filterLocationIdsWithinRadius(locatedIds, center, radiusMeters));
+    const [nearbyIds, seconds] = await Promise.all([
+        filterLocationIdsWithinRadius(locatedIds, center, radiusMeters),
+        discussionSecondsFor(candidates),
+    ]);
+    const nearby = new Set(nearbyIds);
+    const adapt = adapter(seconds);
 
     // Location-targeted ordering: subjects within the radius come first
     // (that's the whole point of asking near a point), then municipality-wide
@@ -72,13 +171,15 @@ async function rankSubjectsNearPoint(
 async function computeHotSubjectsNearGeohash(
     cityId: string,
     geohash: string,
-    { limit, administrativeBodyTypes, administrativeBodyIds }: BodyFilter & { limit: number }
+    { limit, administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
     // Called inside the cached wrapper below — use the uncached meetings query so
     // we don't nest unstable_cache calls.
-    const meetings = await getCouncilMeetingsForCity(cityId, {
-        includeUnreleased: false, limit: HOT_MEETING_WINDOW, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
-    });
+    const meetings = await meetingsFor({ months }, window =>
+        getCouncilMeetingsForCity(cityId, {
+            includeUnreleased: false, ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+        }),
+    );
     try {
         return await rankSubjectsNearPoint(meetings, decodeGeohashToCenter(geohash), GEO_RADIUS_METERS, limit);
     } catch (error) {
@@ -88,7 +189,7 @@ async function computeHotSubjectsNearGeohash(
         // nearby tool) use getHotSubjectsNearPoint, which propagates instead.
         console.error('Radius filter failed; falling back to municipality-wide subjects:', error);
         const wide = flatten(meetings).filter(c => c.subject.locationId == null);
-        return sortByRanking(wide, adapt).slice(0, limit);
+        return sortByRanking(wide, adapter(await discussionSecondsFor(wide))).slice(0, limit);
     }
 }
 
@@ -168,13 +269,17 @@ export async function getHotSubjectsNearGeohash(
     geohash: string,
     filter: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
-    const typeKey = filter.administrativeBodyTypes?.length
-        ? `types:${[...filter.administrativeBodyTypes].sort().join(',')}` : 'types:all';
-    const idKey = filter.administrativeBodyIds?.length
-        ? `ids:${[...filter.administrativeBodyIds].sort().join(',')}` : 'ids:all';
     return createCache(
         () => computeHotSubjectsNearGeohash(cityId, geohash, filter),
-        ['city', cityId, 'hotSubjectsGeo', GEO_CACHE_VERSION, geohash, typeKey, idKey, `limit:${filter.limit}`],
-        { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `geohash:${geohash}`] }
+        // `months` keys the window the same way getHotSubjectCardsCached keys it:
+        // the period is part of what the entry answers for, so two periods must
+        // never share one.
+        ['city', cityId, 'hotSubjectsGeo', GEO_CACHE_VERSION, geohash, ...bodyFilterKey(filter), `limit:${filter.limit}`, `months:${filter.months ?? 'default'}`],
+        {
+            tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `geohash:${geohash}`],
+            // The window is the last N *past* meetings, a function of `now` that
+            // no tag can express — the same reason the meeting queries carry one.
+            revalidate: 900,
+        }
     )();
 }

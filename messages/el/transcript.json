@@ -1,57 +1,76 @@
 {
-  "utterance": {
-    "editing": {
-      "saveShortcut": "Αποθήκευση (Enter)",
-      "cancelShortcut": "Ακύρωση (Escape)",
-      "timestamps": "Χρονοσήμανση",
-      "useCurrent": "Χρήση Τρέχουσας",
-      "setStartTime": "Ορισμός στην τρέχουσα ώρα βίντεο ([)",
-      "setEndTime": "Ορισμός στην τρέχουσα ώρα βίντεο (])"
+    "utterance": {
+        "editing": {
+            "saveShortcut": "Αποθήκευση (Enter)",
+            "cancelShortcut": "Ακύρωση (Escape)",
+            "timestamps": "Χρονοσήμανση",
+            "useCurrent": "Χρήση Τρέχουσας",
+            "setStartTime": "Ορισμός στην τρέχουσα ώρα βίντεο ([)",
+            "setEndTime": "Ορισμός στην τρέχουσα ώρα βίντεο (])"
+        },
+        "contextMenu": {
+            "copyText": "Αντιγραφή κειμένου",
+            "selectFromHere": "Επιλογή από εδώ",
+            "selectUntilHere": "Επιλογή έως εδώ",
+            "startHighlightFromHere": "Ξεκινήστε Στιγμιότυπο από εδώ",
+            "moveToPreviousSegment": "Μετακίνηση στο προηγούμενο τμήμα",
+            "moveToNextSegment": "Μετακίνηση στο επόμενο τμήμα",
+            "shareFromHere": "Κοινοποίηση από εδώ",
+            "extractSegment": "Εξαγωγή τμήματος"
+        },
+        "toasts": {
+            "moveUtterances": "Μετακίνηση φράσεων;",
+            "moveToPreviousDescription": "Μετακίνηση αυτής και των προηγούμενων φράσεων στο προηγούμενο τμήμα;",
+            "moveToNextDescription": "Μετακίνηση αυτής και των επόμενων φράσεων στο επόμενο τμήμα;",
+            "confirm": "Επιβεβαίωση",
+            "utterancesMovedSuccessfully": "Οι φράσεις μετακινήθηκαν επιτυχώς",
+            "highlightCreated": "Το στιγμιότυπο δημιουργήθηκε",
+            "highlightCreatedDescription": "Το στιγμιότυπο ξεκίνησε με αυτή τη φράση. Προσθέστε περισσότερες φράσεις για να δημιουργήσετε το στιγμιότυπό σας.",
+            "error": "Σφάλμα",
+            "createHighlightError": "Αποτυχία δημιουργίας στιγμιότυπου. Παρακαλώ δοκιμάστε ξανά.",
+            "editError": "Αποτυχία αποθήκευσης αλλαγών. Παρακαλώ δοκιμάστε ξανά.",
+            "copyError": "Αποτυχία αντιγραφής κειμένου",
+            "deleteUtterance": "Διαγραφή φράσης;",
+            "deleteUtteranceDescription": "Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.",
+            "utteranceDeletedSuccessfully": "Η φράση διαγράφηκε επιτυχώς",
+            "deleteError": "Αποτυχία διαγραφής φράσης"
+        },
+        "common": {
+            "error": "Σφάλμα"
+        }
     },
-    "contextMenu": {
-      "copyText": "Αντιγραφή κειμένου",
-      "selectFromHere": "Επιλογή από εδώ",
-      "selectUntilHere": "Επιλογή έως εδώ",
-      "startHighlightFromHere": "Ξεκινήστε Στιγμιότυπο από εδώ",
-      "moveToPreviousSegment": "Μετακίνηση στο προηγούμενο τμήμα",
-      "moveToNextSegment": "Μετακίνηση στο επόμενο τμήμα",
-      "shareFromHere": "Κοινοποίηση από εδώ",
-      "extractSegment": "Εξαγωγή τμήματος"
+    "controls": {
+        "pause": "Παύση",
+        "play": "Αναπαραγωγή",
+        "previousClip": "Προηγούμενο κλιπ",
+        "nextClip": "Επόμενο κλιπ",
+        "timeline": "Χρονολόγιο αναπαραγωγής",
+        "modePicker": "Χρωματισμός μπάρας",
+        "modeSpeakers": "Χρώματα ανά ομιλητή",
+        "modeSubjects": "Χρώματα ανά θέμα",
+        "modeAnnounceSpeakers": "ΟΜΙΛΗΤΕΣ",
+        "modeAnnounceSubjects": "ΘΕΜΑΤΑ",
+        "chapterBeforeAgenda": "ΠΡΟ ΗΜΕΡΗΣΙΑΣ",
+        "chapterAgenda": "ΗΜΕΡΗΣΙΑ ΔΙΑΤΑΞΗ",
+        "chapterOutOfAgenda": "ΕΚΤΟΣ ΗΜΕΡΗΣΙΑΣ",
+        "chapters": "Ενότητες συνεδρίασης",
+        "chapterAt": "{chapter}, από {time}",
+        "chapterKeys": "Page Up και Page Down για μετάβαση στην επόμενη ή στην προηγούμενη ενότητα.",
+        "playbackSpeed": "Ταχύτητα αναπαραγωγής",
+        "playbackSpeedValue": "Ταχύτητα αναπαραγωγής: {speed}",
+        "expandVideo": "Μεγέθυνση βίντεο",
+        "collapseBar": "Σύμπτυξη μπάρας",
+        "expandBar": "Άνοιγμα μπάρας",
+        "clip": "Απόσπασμα {current}/{total}",
+        "lensFineHint": "Σύρε προς τα πάνω για ακρίβεια",
+        "nowSpeaking": "Μιλάει τώρα: {speaker}",
+        "nowSpeakingOn": "Μιλάει τώρα: {speaker}. Θέμα: {subject}",
+        "nowSubject": "Θέμα: {subject}"
     },
-    "toasts": {
-      "moveUtterances": "Μετακίνηση φράσεων;",
-      "moveToPreviousDescription": "Μετακίνηση αυτής και των προηγούμενων φράσεων στο προηγούμενο τμήμα;",
-      "moveToNextDescription": "Μετακίνηση αυτής και των επόμενων φράσεων στο επόμενο τμήμα;",
-      "confirm": "Επιβεβαίωση",
-      "utterancesMovedSuccessfully": "Οι φράσεις μετακινήθηκαν επιτυχώς",
-      "highlightCreated": "Το στιγμιότυπο δημιουργήθηκε",
-      "highlightCreatedDescription": "Το στιγμιότυπο ξεκίνησε με αυτή τη φράση. Προσθέστε περισσότερες φράσεις για να δημιουργήσετε το στιγμιότυπό σας.",
-      "error": "Σφάλμα",
-      "createHighlightError": "Αποτυχία δημιουργίας στιγμιότυπου. Παρακαλώ δοκιμάστε ξανά.",
-      "editError": "Αποτυχία αποθήκευσης αλλαγών. Παρακαλώ δοκιμάστε ξανά.",
-      "copyError": "Αποτυχία αντιγραφής κειμένου",
-      "deleteUtterance": "Διαγραφή φράσης;",
-      "deleteUtteranceDescription": "Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.",
-      "utteranceDeletedSuccessfully": "Η φράση διαγράφηκε επιτυχώς",
-      "deleteError": "Αποτυχία διαγραφής φράσης"
-    },
-    "common": {
-      "error": "Σφάλμα"
-    }
-  },
-  "controls": {
-    "hideControls": "Απόκρυψη στοιχείων ελέγχου",
-    "showControls": "Εμφάνιση στοιχείων ελέγχου",
-    "pause": "Παύση",
-    "play": "Αναπαραγωγή",
-    "previousClip": "Προηγούμενο κλιπ",
-    "nextClip": "Επόμενο κλιπ",
-    "timeline": "Χρονολόγιο αναπαραγωγής",
-    "playbackProgress": "Πρόοδος αναπαραγωγής"
-  },
     "unverifiedBanner": {
         "title": "Αυτόματη απομαγνητοφώνηση",
-        "description": "Η απομαγνητοφώνηση αυτή έχει δημιουργηθεί αυτόματα και μπορεί να περιέχει λάθη. Γίνεται έλεγχος και θα ενημερωθεί εντός 48 ωρών από τη συνεδρίαση."
+        "description": "Η απομαγνητοφώνηση αυτή έχει δημιουργηθεί αυτόματα και μπορεί να περιέχει λάθη. Γίνεται έλεγχος και θα ενημερωθεί σύντομα.",
+        "descriptionUntil": "Η απομαγνητοφώνηση αυτή έχει δημιουργηθεί αυτόματα και μπορεί να περιέχει λάθη. Γίνεται έλεγχος και θα ενημερωθεί έως {deadline}."
     },
     "emptySegment": {
         "noUtterances": "Δεν υπάρχουν φράσεις σε αυτό το τμήμα",

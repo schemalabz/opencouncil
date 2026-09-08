@@ -1,4 +1,5 @@
 import posthog from 'posthog-js';
+import { posthogReady } from '@/lib/utils/analyticsConsent';
 
 /**
  * Highlight analytics. Events are namespaced `highlight_*` and every one of
@@ -12,9 +13,6 @@ export function captureHighlight(
     surface: HighlightSurface,
     props: Record<string, unknown> = {}
 ): void {
-    // PostHog is initialised only when the project token is set, and calling
-    // capture before that logs an error and drops the event. Every other call
-    // site in the app guards the same way.
-    if (!posthog.__loaded) return;
+    if (!posthogReady()) return;
     posthog.capture(`highlight_${event}`, { surface, ...props });
 }

@@ -22,7 +22,8 @@ export function TopicFilter({
         topics.map(topic => ({
             value: topic.id,
             label: topic.name,
-            color: topic.colorHex
+            color: topic.colorHex,
+            icon: topic.icon
         })),
         [topics]
     );

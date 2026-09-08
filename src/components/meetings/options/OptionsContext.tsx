@@ -1,13 +1,11 @@
 "use client";
-import React, { createContext, useContext, useState } from 'react';
-import { SpeakerTag } from '@prisma/client';
+import React, { createContext, useContext, useMemo, useState } from 'react';
+import { useStoredState } from '@/hooks/useStoredState';
 
 export interface TranscriptOptions {
     editable: boolean;
     editsAllowed: boolean;
     canCreateHighlights: boolean;
-    selectedSpeakerTag: SpeakerTag["id"] | null;
-    highlightLowConfidenceWords: boolean;
     maxUtteranceDrift: number;
     playbackSpeed: number;
     skipInterval: number; // seconds to skip forward/backward
@@ -20,32 +18,42 @@ interface TranscriptOptionsContextType {
 
 const TranscriptOptionsContext = createContext<TranscriptOptionsContextType | undefined>(undefined);
 
-const defaultOptions: TranscriptOptions = {
+const SPEED_STORAGE_KEY = 'oc-playback-speed';
+
+/** The last chosen speed, clamped to the player's range. */
+function parseStoredSpeed(raw: string): number | undefined {
+    const value = parseFloat(raw);
+    return Number.isFinite(value) ? Math.min(4, Math.max(0.5, value)) : undefined;
+}
+
+const defaultOptions: Omit<TranscriptOptions, 'playbackSpeed'> = {
     editsAllowed: false,
     editable: false,
     canCreateHighlights: false,
-    selectedSpeakerTag: null,
-    highlightLowConfidenceWords: true,
     maxUtteranceDrift: 500,
-    playbackSpeed: 1,
-    skipInterval: 5 // default to 5 seconds
+    skipInterval: 5,
 };
 
-function useTranscriptOptionsProvider(initialOptions: TranscriptOptions) {
-    const [options, setOptions] = useState<TranscriptOptions>(initialOptions);
-
-    const updateOptions = (newOptions: Partial<TranscriptOptions>) => {
-        setOptions(prev => ({ ...prev, ...newOptions }));
-    };
-
-    return { options, updateOptions };
-}
-
 export function TranscriptOptionsProvider({ children, editable, canCreateHighlights }: { children: React.ReactNode, editable: boolean, canCreateHighlights: boolean }) {
-    const { options, updateOptions } = useTranscriptOptionsProvider({ ...defaultOptions, editsAllowed: editable, canCreateHighlights });
+    const [options, setOptions] = useState<Omit<TranscriptOptions, 'playbackSpeed'>>(() => ({
+        ...defaultOptions,
+        editsAllowed: editable,
+        canCreateHighlights,
+    }));
+    // The one option that outlives the page, so it is the one option that is stored.
+    const [playbackSpeed, setPlaybackSpeed] = useStoredState(SPEED_STORAGE_KEY, parseStoredSpeed, 1);
+
+    const value = useMemo<TranscriptOptionsContextType>(() => ({
+        options: { ...options, playbackSpeed },
+        updateOptions: newOptions => {
+            const { playbackSpeed: speed, ...rest } = newOptions;
+            if (speed !== undefined) setPlaybackSpeed(speed);
+            if (Object.keys(rest).length > 0) setOptions(prev => ({ ...prev, ...rest }));
+        },
+    }), [options, playbackSpeed, setPlaybackSpeed]);
 
     return (
-        <TranscriptOptionsContext.Provider value={{ options, updateOptions }}>
+        <TranscriptOptionsContext.Provider value={value}>
             {children}
         </TranscriptOptionsContext.Provider>
     );

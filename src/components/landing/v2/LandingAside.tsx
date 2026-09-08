@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Map as MapIcon, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight, Search, Bot } from 'lucide-react';
+import { Shapes, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight, Search, Bot } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link, getPathname } from '@/i18n/routing';
 import { openAfterMenuCloses } from '@/lib/utils/menus';
@@ -76,7 +76,7 @@ export function LandingAside({
                 <RailItem
                     active={!infoOpen && view === 'subjects'}
                     onClick={() => onSelect('subjects')}
-                    icon={<MapIcon className="h-5 w-5" />}
+                    icon={<Shapes className="h-5 w-5" />}
                     label={t('nav.subjects')}
                 />
                 <RailItem
@@ -145,8 +145,8 @@ export function LandingAside({
                     >
                         {/* brand header */}
                         <div className="flex items-center gap-2 px-2 pb-1.5 pt-1">
-                            <Image src="/logo.png" alt="" width={40} height={40} className="h-8 w-auto object-contain" />
-                            <span className="text-[18px] font-bold text-foreground">OpenCouncil</span>
+                            <Image src="/logo.png" alt="" width={40} height={40} className="h-10 w-auto object-contain" />
+                            <span className="text-[18px] text-foreground">OpenCouncil</span>
                         </div>
                         <DropdownMenuSeparator className="bg-muted" />
                         {/* the "?" guide — parity with the mobile menu's info action */}

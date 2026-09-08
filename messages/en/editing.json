@@ -14,7 +14,8 @@
     "enableEdit": "Enable Editing Mode",
     "guide": "Guide",
     "speakers": "Speakers",
-    "completeReview": "Complete Review"
+    "completeReview": "Complete Review",
+    "editShort": "Edit"
   },
   "stats": {
     "title": "Speakers"

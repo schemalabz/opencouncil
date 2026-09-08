@@ -18,15 +18,18 @@ export default async function Layout({ children }: { children: React.ReactNode }
 
     return (
         <SidebarProvider>
-            <div className="h-screen w-full flex flex-col overflow-hidden">
-                <Header
-                    path={[{ name: "Admin", link: "/admin" }]}
-                    showSidebarTrigger={true}
-                    noContainer={true}
-                    className="relative z-10 bg-white dark:bg-gray-950"
-                />
-                <div className="flex-1 flex min-h-0">
-                    <AdminSidebar />
+            {/* The nav owns the left column top to bottom, so its edge is the
+                page's one vertical rule and the header sits beside it. */}
+            <div className="h-screen w-full flex overflow-hidden">
+                <AdminSidebar />
+                <div className="flex min-w-0 flex-1 flex-col">
+                    <Header
+                        path={[{ name: "Admin", link: "/admin" }]}
+                        showSidebarTrigger={true}
+                        inset={true}
+                        noContainer={true}
+                        className="relative z-10 bg-white dark:bg-gray-950"
+                    />
                     <main id="main-content" className="relative flex-1 overflow-auto">
                         {children}
                     </main>

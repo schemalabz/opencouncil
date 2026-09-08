@@ -21,7 +21,13 @@ export function toAdministrativeBodyType(value: string | undefined): Administrat
  *
  * @translationNamespace Common
  */
-function getAdministrativeBodyTypes(
+/**
+ * The types present in a set of bodies. Prefer this over the meeting-derived
+ * wrapper when the caller has the city's own bodies: a list capped to a window
+ * of meetings knows only the bodies inside that window, so a body that last met
+ * before it would offer no chip at all.
+ */
+export function getAdministrativeBodyTypes(
     bodies: (AdministrativeBody | null | undefined)[],
     t: (key: string) => string
 ): { value: AdministrativeBodyType; label: string }[] {
@@ -40,7 +46,8 @@ function getAdministrativeBodyTypes(
 /**
  * Extract individual bodies of a given type, sorted alphabetically.
  */
-function getBodiesOfType(
+/** The bodies of one type, sorted. Same caveat as {@link getAdministrativeBodyTypes}. */
+export function getBodiesOfType(
     bodies: (AdministrativeBody | null | undefined)[],
     type: AdministrativeBodyType
 ): { value: string; label: string }[] {

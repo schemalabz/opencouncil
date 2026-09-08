@@ -1,23 +1,25 @@
 "use server";
 import { notFound } from 'next/navigation';
+import { PlaybackBar } from '@/components/meetings/bar/PlaybackBar';
 import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
 import CouncilMeetingWrapper from '@/components/meetings/CouncilMeetingWrapper';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import MeetingSidebar from '@/components/meetings/sidebar';
-import TranscriptControls from '@/components/meetings/TranscriptControls';
+import { MeetingHeaderStage } from '@/components/meetings/stage/MeetingHeaderStage';
 import { Suspense } from 'react'
 import Header from '@/components/layout/Header';
 import EditButton from '@/components/meetings/EditButton';
+import { SegmentOnly } from '@/components/meetings/SegmentOnly';
 import PresentationViewButton from '@/components/meetings/PresentationViewButton';
 import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { getMeetingDataCached } from '@/lib/getMeetingData';
+import { getAdjacentMeetingsCached, getAllCityIdsCached } from '@/lib/cache';
 import { getNotificationPreferenceForCity } from '@/lib/db/notifications';
 import { NavigationEvents } from '@/components/meetings/NavigationEvents';
 
 import { HighlightModeBar } from '@/components/meetings/HighlightModeBar';
 import { ShareProvider } from '@/contexts/ShareContext';
 import { CreateHighlightButton } from '@/components/meetings/CreateHighlightButton';
-import { HighlightProvider } from '@/components/meetings/HighlightContext';
 import { EditingModeBar } from '@/components/meetings/EditingModeBar';
 import { HighlightCreationPermission } from '@prisma/client';
 import { SubjectHeaderProvider } from '@/contexts/SubjectHeaderContext';
@@ -26,6 +28,8 @@ import { getTranslations } from 'next-intl/server';
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { buildOgImageUrl } from '@/lib/og/locale';
+import { getRealm } from '@/lib/realm.server';
+import { hasExplainPage } from '@/lib/explain/availability';
 
 export async function generateImageMetadata(
     props: {
@@ -133,13 +137,26 @@ export default async function CouncilMeetingPage(
     } = props;
 
     const currentUserPromise = getCurrentUser();
-    const [currentUser, editable, data, notificationPreference] = await Promise.all([
+    const editablePromise = isUserAuthorizedToEdit({ cityId });
+    const realmPromise = getRealm();
+    const [currentUser, editable, data, notificationPreference, realm, adjacent, tMeeting] = await Promise.all([
         currentUserPromise,
-        isUserAuthorizedToEdit({ cityId }),
+        editablePromise,
         getMeetingDataCached(cityId, meetingId),
         currentUserPromise.then(user =>
             user ? getNotificationPreferenceForCity(user.id, cityId) : null
         ),
+        realmPromise,
+        // Editors step through unreleased meetings too. Behind the same
+        // known-city check as the meeting data (#358): this segment renders
+        // before the [cityId] layout 404s, and an unknown slug must not write
+        // a per-city cache entry.
+        Promise.all([realmPromise, editablePromise]).then(async ([currentRealm, canEdit]) =>
+            (await getAllCityIdsCached(currentRealm)).includes(cityId)
+                ? getAdjacentMeetingsCached(cityId, meetingId, canEdit)
+                : { previous: null, next: null }
+        ),
+        getTranslations({ locale, namespace: 'CouncilMeeting' }),
     ]);
 
     if (!data || !data.city) {
@@ -164,8 +181,11 @@ export default async function CouncilMeetingPage(
     // filters against stored values.
     const adminBodyPath = adminBody ? {
         name: getLocalizedName(adminBody, locale),
-        link: `/${cityId}?filters=${encodeURIComponent(tCommon(`adminBodyType_${adminBody.type}`))}&body=${encodeURIComponent(adminBody.name)}`
+        link: `/${cityId}/meetings?filters=${encodeURIComponent(tCommon(`adminBodyType_${adminBody.type}`))}&body=${encodeURIComponent(adminBody.name)}`
     } : null;
+
+    const hasPlayback = Boolean(data.meeting.muxPlaybackId || data.meeting.videoUrl || data.meeting.audioUrl);
+
 
     return (
         <ShareProvider>
@@ -175,11 +195,15 @@ export default async function CouncilMeetingPage(
                 editable={editable}
                 canCreateHighlights={highlightCreationAllowed}
             >
-                <HighlightProvider>
-                    <SubjectHeaderProvider>
+                <SubjectHeaderProvider>
                         <SidebarProvider>
                             <NavigationEvents />
-                            <div className="h-screen w-full flex flex-col overflow-hidden">
+                            {/* The nav owns the left column top to bottom, so its
+                                edge is the page's one vertical rule and the header
+                                sits beside it rather than above it. */}
+                            <div className="h-screen w-full flex overflow-hidden">
+                                <MeetingSidebar />
+                                <div className="flex min-w-0 flex-1 flex-col">
                                 <Header
                                     path={[
                                         {
@@ -190,38 +214,52 @@ export default async function CouncilMeetingPage(
                                         ...(adminBodyPath ? [adminBodyPath] : []),
                                         {
                                             name: getLocalizedName(data.meeting, locale),
-                                            link: `/${cityId}/${meetingId}`
+                                            link: `/${cityId}/${meetingId}`,
+                                            addon: <MeetingHeaderStage />
                                         }
                                     ]}
+                                    neighbours={{
+                                        previous: adjacent.previous && { href: `/${cityId}/${adjacent.previous.id}`, label: `${tMeeting('previousMeeting')}: ${getLocalizedName(adjacent.previous, locale)}` },
+                                        next: adjacent.next && { href: `/${cityId}/${adjacent.next.id}`, label: `${tMeeting('nextMeeting')}: ${getLocalizedName(adjacent.next, locale)}` },
+                                    }}
                                     showSidebarTrigger={true}
+                                    inset={true}
                                     currentEntity={{ cityId: data.city.id }}
                                     noContainer={true}
+                                    showExplain={hasExplainPage(realm)}
                                     className="relative z-10 bg-white dark:bg-gray-950"
                                 >
                                     <div className="flex items-center space-x-2">
-                                        <EditButton />
+                                        {/* Each action shows where it acts: editing belongs to the
+                                            transcript, presenting to the overview. */}
+                                        <SegmentOnly segment="transcript">
+                                            <EditButton />
+                                        </SegmentOnly>
                                         <CreateHighlightButton />
-                                        {editable && <PresentationViewButton cityId={cityId} meetingId={meetingId} />}
+                                        {editable && (
+                                            <SegmentOnly segment={null}>
+                                                <PresentationViewButton cityId={cityId} meetingId={meetingId} />
+                                            </SegmentOnly>
+                                        )}
                                         <ShareDropdown meetingId={meetingId} cityId={cityId} />
                                     </div>
                                 </Header>
                                 <HighlightModeBar />
                                 <EditingModeBar />
-                                <div className="flex-1 flex min-h-0">
-                                    <MeetingSidebar />
-                                    <div className="relative flex-1 overflow-auto" data-scroll-container>
-                                        <div className='pb-20'>
-                                            <Suspense>
-                                                {children}
-                                            </Suspense>
-                                        </div>
-                                        {data.meeting.muxPlaybackId && <TranscriptControls />}
+                                <div className="relative flex-1 overflow-auto" data-scroll-container>
+                                    {/* Reserve the dock's height only when a dock renders; the
+                                        phone dock also grows by the home-indicator inset. */}
+                                    <div className={hasPlayback ? 'pb-[var(--playback-dock-clearance)] max-md:pb-[calc(var(--playback-dock-clearance-mobile)+env(safe-area-inset-bottom))]' : undefined}>
+                                        <Suspense>
+                                            {children}
+                                        </Suspense>
                                     </div>
+                                    {hasPlayback && <PlaybackBar />}
+                                </div>
                                 </div>
                             </div>
                         </SidebarProvider>
-                    </SubjectHeaderProvider>
-                </HighlightProvider>
+                </SubjectHeaderProvider>
             </CouncilMeetingWrapper>
             </NotificationPreferenceProvider>
         </ShareProvider>
