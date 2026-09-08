@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronUp, Loader, Pause, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, Loader, Pause, Play, ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useVideo, useVideoActions } from '@/components/meetings/VideoProvider';
 import { useHighlight } from '@/components/meetings/HighlightContext';
@@ -101,20 +101,29 @@ export function PlaybackBar() {
                 // A finger held on the strip must scrub, not start a text
                 // selection or an iOS callout on the readouts around it. No
                 // autoprefixer here, so WebKit gets its prefixed property.
-                'fixed inset-x-2 z-50 select-none [-webkit-user-select:none] [-webkit-touch-callout:none]',
+                // `touch-manipulation` because the page can be pinched again: a
+                // quick double-tap on play/pause would otherwise be read as
+                // double-tap-to-zoom, and the second tap lands on a control that
+                // is already back where it started.
+                'fixed inset-x-2 z-50 touch-manipulation select-none [-webkit-user-select:none] [-webkit-touch-callout:none]',
                 isMobile ? 'bottom-0 -mx-2 border-t-2 border-border bg-background px-2.5 pt-1.5' : 'bottom-2',
                 pill && 'hidden',
             )}
             style={isMobile ? { paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)' } : undefined}
         >
             {isMobile && (
+                // A chevron beside the grabber, because the grabber alone was a
+                // promise the handler does not keep: that shape means "drag me"
+                // on both platforms' sheets, and this control takes a tap only.
+                // The caret says which gesture works and which way it goes.
                 <button
                     type="button"
                     onClick={() => setCollapsedPersisted(true)}
                     aria-label={t('collapseBar')}
-                    className="mx-auto mb-1.5 block h-4 w-full max-w-[120px]"
+                    className="mx-auto mb-1.5 flex h-4 w-full max-w-[120px] items-center justify-center gap-1.5 text-muted-foreground"
                 >
-                    <span className="mx-auto block h-1 w-9 rounded-full bg-border" aria-hidden />
+                    <span className="block h-1 w-9 rounded-full bg-border" aria-hidden />
+                    <ChevronDown className="h-3.5 w-3.5" aria-hidden />
                 </button>
             )}
             <div className="flex items-end gap-2">
@@ -315,7 +324,7 @@ function BarPill({ mode, onExpand }: { mode: BarMode; onExpand: () => void }) {
     return (
         <div
             data-playback-focus=""
-            className="fixed inset-x-3 z-50 flex select-none items-center gap-2.5 rounded-full border-2 border-border bg-card py-1 pl-2.5 pr-1.5 shadow-lg [-webkit-user-select:none] [-webkit-touch-callout:none]"
+            className="fixed inset-x-3 z-50 flex touch-manipulation select-none items-center gap-2.5 rounded-full border-2 border-border bg-card py-1 pl-2.5 pr-1.5 shadow-lg [-webkit-user-select:none] [-webkit-touch-callout:none]"
             style={{ bottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
         >
             <button

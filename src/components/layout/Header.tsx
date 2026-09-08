@@ -614,7 +614,13 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
                                         placeholder={tCommon('searchPlaceholder')}
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full pl-8 sm:pl-9 h-10 sm:h-12 text-sm sm:text-base"
+                                        // 16px at every width, never `text-sm`. This field
+                                        // takes focus on open, and iOS Safari zooms the page
+                                        // when a focused field is under 16px — which leaves
+                                        // the page zoomed after the modal closes, laying the
+                                        // fixed header and dock out against the layout
+                                        // viewport, off the visible area.
+                                        className="w-full pl-8 sm:pl-9 h-10 sm:h-12 text-base"
                                         aria-label={t('search')}
                                         autoFocus
                                     />
