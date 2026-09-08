@@ -60,11 +60,11 @@ function makeMeeting(overrides: Partial<MeetingForCalendarSync> = {}): MeetingFo
         updatedAt: new Date(0),
         released: false,
         administrativeBodyId: null,
-        city: { name: 'Αθήνα', timezone: 'Europe/Athens' },
+        city: { name: 'Αθήνα', timezone: 'Europe/Athens', realm: 'greece' },
         administrativeBody: null,
         meetingOperator: null,
         ...overrides,
-    } as MeetingForCalendarSync;
+    };
 }
 
 beforeEach(() => {
@@ -158,6 +158,17 @@ describe('syncMeetingToCalendar', () => {
         expect(body.description).toBe('Ημερήσια Διάταξη: https://example.com/agenda.pdf\n\nhttps://opencouncil.gr/athens/jun5_2026');
         expect(body.visibility).toBe('public');
         expect(body.start.timeZone).toBe('Europe/Athens');
+    });
+
+    it("links to the domain of the city's realm, not the configured host", async () => {
+        mockGetMeeting.mockResolvedValue(makeMeeting({
+            calendarEventId: 'evt-1',
+            cityId: 'rennes',
+            city: { name: 'Rennes', timezone: 'Europe/Paris', realm: 'france' },
+        } as Partial<MeetingForCalendarSync>));
+        await syncMeetingToCalendar('rennes', 'jun5_2026');
+        expect(mockPatch.mock.calls[0][0].requestBody.description)
+            .toBe('https://opencouncil.fr/rennes/jun5_2026');
     });
 
     it('uses the city name alone when there is no administrative body', async () => {
