@@ -28,7 +28,6 @@ function role(fields: Partial<OrderedRole> & { body?: BodyRef }): OrderedRole {
         partyId: null,
         administrativeBodyId: body?.id ?? null,
         administrativeBody: body ?? null,
-        party: null,
         electedOrder: null,
         ...OPEN,
         ...rest,
@@ -38,7 +37,7 @@ function role(fields: Partial<OrderedRole> & { body?: BodyRef }): OrderedRole {
 const seat = (body: BodyRef, electedOrder: number | null = null, extra: Partial<OrderedRole> = {}) =>
     role({ body, electedOrder, ...extra });
 const partyRole = (partyId: string, isHead = false, dates: Partial<OrderedRole> = OPEN) =>
-    role({ partyId, party: { id: partyId, name: partyId }, isHead, ...dates });
+    role({ partyId, isHead, ...dates });
 const mayorRole = () => role({ cityId: 'athens', isHead: true });
 
 function person(id: string, name: string, roles: OrderedRole[]): OrderedPerson {
@@ -88,41 +87,17 @@ describe('sortBodyMembers', () => {
         expect(names(sortBodyMembers(people, COUNCIL.id))).toEqual(['mayor', 'chair', 'second', 'third', 'early', 'late']);
     });
 
-    it('groups the members by party, the first-elected party first', () => {
-        // The shape a Greek council carries: the order of election runs across
-        // the parties, so the numbers alone would interleave them.
+    it('follows the numbers across parties, because the fill carries the blocks', () => {
+        // The party a member belongs to changes nothing here. A municipality
+        // that wants its members in party blocks, or an officer above them,
+        // writes that into the numbers; see the note on this module.
         const people = [
-            person('a1', 'Άλφα Ένα', [partyRole('alpha'), seat(COUNCIL, 1)]),
             person('b1', 'Βήτα Ένα', [partyRole('beta'), seat(COUNCIL, 2)]),
-            person('a2', 'Άλφα Δύο', [partyRole('alpha'), seat(COUNCIL, 3)]),
+            person('a1', 'Άλφα Ένα', [partyRole('alpha'), seat(COUNCIL, 1)]),
             person('b2', 'Βήτα Δύο', [partyRole('beta'), seat(COUNCIL, 4)]),
+            person('a2', 'Άλφα Δύο', [partyRole('alpha'), seat(COUNCIL, 3)]),
         ];
-        expect(names(sortBodyMembers(people, COUNCIL.id))).toEqual(['a1', 'a2', 'b1', 'b2']);
-    });
-
-    it('closes the list with the members who hold no party', () => {
-        const people = [
-            person('independent', 'Άλφα Άλφα', [seat(COUNCIL, 1)]),
-            person('member', 'Ωμέγα Ωμέγα', [partyRole('alpha'), seat(COUNCIL, 2)]),
-        ];
-        expect(names(sortBodyMembers(people, COUNCIL.id))).toEqual(['member', 'independent']);
-    });
-
-    it('sorts a party whose members carry no number after the parties that do', () => {
-        const people = [
-            person('unnumbered', 'Άλφα Άλφα', [partyRole('beta'), seat(COUNCIL)]),
-            person('numbered', 'Ωμέγα Ωμέγα', [partyRole('alpha'), seat(COUNCIL, 9)]),
-        ];
-        expect(names(sortBodyMembers(people, COUNCIL.id))).toEqual(['numbered', 'unnumbered']);
-    });
-
-    it('keeps the mayor and the chair before the party blocks', () => {
-        const people = [
-            person('member', 'Άλφα Άλφα', [partyRole('alpha'), seat(COUNCIL, 1)]),
-            person('chair', 'Βήτα Βήτα', [partyRole('beta'), seat(COUNCIL, 8, { isHead: true })]),
-            person('mayor', 'Ωμέγα Ωμέγα', [mayorRole(), partyRole('beta'), seat(COUNCIL, 5)]),
-        ];
-        expect(names(sortBodyMembers(people, COUNCIL.id))).toEqual(['mayor', 'chair', 'member']);
+        expect(names(sortBodyMembers(people, COUNCIL.id))).toEqual(['a1', 'b1', 'a2', 'b2']);
     });
 
     it('puts every member, numbered or not, before someone with no seat on the body', () => {
