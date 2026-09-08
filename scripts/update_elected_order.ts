@@ -309,15 +309,22 @@ async function main() {
         }
     }
 
-    // Find the council administrative body for this city
-    const councilBody = await prisma.administrativeBody.findFirst({
+    // Find the council administrative body for this city. A city can carry
+    // more than one body of type council (Athens lists a municipal company
+    // under that type), so take the one the councillors actually sit on: the
+    // body with the most open roles.
+    const councilBodies = await prisma.administrativeBody.findMany({
         where: { cityId, type: 'council' },
-        select: { id: true, name: true },
+        select: { id: true, name: true, _count: { select: { roles: { where: { endDate: null } } } } },
     });
+    const councilBody = [...councilBodies].sort((a, b) => b._count.roles - a._count.roles)[0];
 
     if (!councilBody) {
         console.error(`No council administrative body found for city ${cityId}`);
         process.exit(1);
+    }
+    if (councilBodies.length > 1) {
+        console.log(`${councilBodies.length} bodies of type council; using the one with the most members: ${councilBody.name}`);
     }
     console.log(`Administrative body: ${councilBody.name} (${councilBody.id})\n`);
 
