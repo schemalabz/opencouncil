@@ -1615,6 +1615,8 @@ EOF
           inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-cache oc-dev-app-local oc-studio oc-cleanup oc-rss opencouncil-prod notis-prod;
           # The test-backup skill runs a private throwaway cluster with this build.
           postgres-postgis = postgres;
+          # The seed pipeline's scratch cluster: PostGIS 3.3.5, the version the migrations pin.
+          postgres-compat = postgresCompat;
         });
 
       checks = forAllSystems (_system: pkgs: _pkgs-unstable:
