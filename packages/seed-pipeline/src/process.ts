@@ -204,6 +204,24 @@ export function psql(url: string, sql: string, opts: RunOptions = {}): Promise<R
     return run(binary('psql'), ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-d', url], { ...opts, input: sql });
 }
 
+/** Run a SQL file against a URL, stopping at the first error. */
+export function psqlFile(url: string, file: string, opts: RunOptions = {}): Promise<RunResult> {
+    return run(binary('psql'), ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-d', url, '-f', file], opts);
+}
+
+/**
+ * Run a Prisma CLI command against a URL. Prisma prefers DIRECT_URL when it is
+ * set, and the shell's .env can set it to another database, so both point here.
+ */
+export function prisma(url: string, args: string[], opts: RunOptions = {}): Promise<RunResult> {
+    return run('prisma', args, { ...opts, env: { DATABASE_URL: url, DIRECT_URL: url, ...opts.env } });
+}
+
+/** Run `prisma migrate <args>` against a URL. */
+export function prismaMigrate(url: string, schemaPath: string, args: string[], opts: RunOptions = {}): Promise<RunResult> {
+    return prisma(url, ['migrate', ...args, '--schema', schemaPath], { ...opts, env: { SKIP_ENV_VALIDATION: '1', ...opts.env } });
+}
+
 /** Run one query and return its single text value. */
 export async function psqlValue(url: string, sql: string, opts: RunOptions = {}): Promise<string> {
     const result = await run(binary('psql'), ['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1', '-d', url, '-c', sql], opts);
