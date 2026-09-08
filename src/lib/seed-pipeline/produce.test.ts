@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import { MANIFEST_FILE } from './manifest';
 import { produce, PRODUCE_LOCK_FILE } from './produce';
+import { VERIFY_REPORT_FILE } from './verify';
 
 describe('produce', () => {
     let root = '';
@@ -13,14 +14,16 @@ describe('produce', () => {
         fs.rmSync(root, { recursive: true, force: true });
     });
 
-    test('removes the manifest of an earlier run before anything can fail', async () => {
+    test('removes the manifest and the verify report of an earlier run before anything can fail', async () => {
         const outDir = path.join(root, 'out');
         fs.mkdirSync(outDir);
         fs.writeFileSync(path.join(outDir, MANIFEST_FILE), '{}');
+        fs.writeFileSync(path.join(outDir, VERIFY_REPORT_FILE), '{"ok":true}');
         // The classification file does not exist, so produce fails before it starts a database.
         const run = produce({ backupPath: path.join(root, 'backup.sql.gz'), outDir, workDir: path.join(root, 'work'), schemaPath: 'prisma/schema.prisma', meetingsPerBody: 2, tablesFile: path.join(root, 'missing.json'), log: () => undefined });
         await expect(run).rejects.toThrow(/missing\.json/);
         expect(fs.existsSync(path.join(outDir, MANIFEST_FILE))).toBe(false);
+        expect(fs.existsSync(path.join(outDir, VERIFY_REPORT_FILE))).toBe(false);
         // The run gives the output directory back when it fails.
         expect(fs.existsSync(path.join(outDir, PRODUCE_LOCK_FILE))).toBe(false);
     });
