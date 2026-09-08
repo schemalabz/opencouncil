@@ -21,6 +21,7 @@ import {
     MinutesTranscriptEntry,
     MinutesAttendanceChange,
 } from '@/lib/minutes/types';
+import { getRealmDomain } from '@/lib/realm';
 
 const FONT_SIZE = {
     TITLE: 32,      // 16pt
@@ -326,7 +327,7 @@ function createTitlePage(
     paragraphs.push(new Paragraph({
         indent: { left: brandingIndent },
         children: [new TextRun({
-            text: `opencouncil.gr/${data.meeting.cityId}`,
+            text: `${getRealmDomain(data.city.realm)}/${data.meeting.cityId}`,
             size: FONT_SIZE.CAPTION,
             color: 'AAAAAA',
         })],

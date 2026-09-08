@@ -1,3 +1,4 @@
+import type { Realm } from '@prisma/client';
 export interface MinutesMember {
     personId: string;
     name: string;
@@ -119,6 +120,8 @@ export interface MinutesData {
         name_municipality: string;
         timezone: string;
         logoImage: string | null;
+        /** Owns the domain the printed link points at. */
+        realm: Realm;
     };
     meeting: {
         id: string;

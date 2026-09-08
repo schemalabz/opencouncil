@@ -395,6 +395,7 @@ export async function getMinutesData(
             name_municipality: city.name_municipality,
             timezone: city.timezone,
             logoImage: city.logoImage,
+            realm: city.realm,
         },
         meeting: {
             id: meeting.id,
