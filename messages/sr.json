@@ -1115,6 +1115,7 @@
         "lastSearched": "Последња претрага {time}",
         "lastUpdated": "Последње ажурирање {time}",
         "decisionTitle": "Наслов",
+        "adaLabel": "ADA",
         "decisionNumber": "Број одлуке",
         "protocolNumber": "Број протокола",
         "publishDate": "Датум објављивања",

@@ -1115,6 +1115,7 @@
         "lastSearched": "Τελευταία αναζήτηση {time}",
         "lastUpdated": "Τελευταία ενημέρωση {time}",
         "decisionTitle": "Τίτλος",
+        "adaLabel": "ΑΔΑ",
         "decisionNumber": "Αριθμός Απόφασης",
         "protocolNumber": "Αριθμός Πρωτοκόλλου",
         "publishDate": "Ημερομηνία Ανάρτησης",

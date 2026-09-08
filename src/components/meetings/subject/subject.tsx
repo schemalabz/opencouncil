@@ -7,8 +7,9 @@ import { captureEvent } from '@/lib/analytics/capture';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, MapPin, ScrollText, CheckSquare, Landmark, Loader2, ArrowLeft, Play } from "lucide-react";
+import { FileText, MapPin, ScrollText, CheckSquare, Landmark, Loader2, Play } from "lucide-react";
 import { DecisionDocumentSheet } from "@/components/meetings/decisions/DecisionDocumentSheet";
+import { DecisionCard } from "./DecisionCard";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
@@ -230,36 +231,6 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
             {/* max-w-4xl was the old single-column reading width; the two-column layout
                 earns more — the rail takes 316px and the prose caps itself in ch. */}
             <div className="mx-auto max-w-6xl space-y-6 px-3 py-4 md:px-6 md:py-6">
-                {/* On-page context + back affordance.
-                    The breadcrumb in the header is the only other place that
-                    shows which meeting/council this subject belongs to and the
-                    only "back" path, which users miss (#405). This is a real
-                    navigational <Link> to the meeting page, so back never falls
-                    back to "/" the way browser history did in #51. */}
-                <nav
-                    aria-label={t("partOf")}
-                    className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
-                >
-                    <Link
-                        href={`/${meeting.cityId}/${meeting.id}`}
-                        prefetch={false}
-                        aria-label={t("backToMeetingNamed", { meeting: getLocalizedName(meeting, locale) })}
-                        className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                        <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>{getLocalizedName(meeting, locale)}</span>
-                    </Link>
-                    <span className="text-muted-foreground" aria-hidden="true">·</span>
-                    <Link
-                        href={`/${meeting.cityId}`}
-                        className="text-muted-foreground hover:text-primary transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                        {getLocalizedName(city, locale)}
-                    </Link>
-                    <span className="text-muted-foreground">
-                        {formatDate(new Date(meeting.dateTime), undefined, locale)}
-                    </span>
-                </nav>
                 {/* The subject's own title, and the page's h1 — it used to live only in the
                     header bar, at the size that bar gives a page label. The topic names
                     itself above it; the actions jump the video to where the debate starts. */}
@@ -283,6 +254,12 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                     {getLocalizedName(meeting.administrativeBody, locale)}
                                 </span>
                             )}
+                            {/* The date is all that the removed context row carried and
+                                the app header does not: the header breadcrumb already
+                                names the meeting and the city, twice over. */}
+                            <span className="text-xs text-muted-foreground">
+                                {formatDate(new Date(meeting.dateTime), undefined, locale)}
+                            </span>
                             {totalMinutes > 0 && (
                                 <span className="text-xs text-muted-foreground">
                                     {t("speakers", { count: subject.statistics?.people?.length || contributions?.length || 0 })}
@@ -294,39 +271,45 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                     </div>
                     {/* One primary action for the whole page, instead of a button row on
                         every card below: jump the video to where this subject starts. */}
-                    {subjectStart && (
-                        <div className="flex shrink-0 gap-2 md:pt-8">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    captureSubjectAction('play_discussion');
-                                    seekToAndPlay(subjectStart.startTimestamp);
-                                }}
-                                className="inline-flex h-9 items-center gap-2 rounded-full bg-foreground px-4 text-[13px] font-bold text-background transition-opacity hover:opacity-90"
-                            >
-                                <Play className="h-3.5 w-3.5" aria-hidden />
-                                {t("watchDiscussion")}
-                            </button>
-                            <Link
-                                href={`/${meeting.cityId}/${meeting.id}/transcript?t=${Math.floor(subjectStart.startTimestamp)}`}
-                                onClick={() => captureSubjectAction('open_transcript')}
-                                className="inline-flex h-9 items-center gap-2 rounded-full border border-border px-3.5 text-[13px] font-semibold text-foreground hover:no-underline"
-                            >
-                                <FileText className="h-4 w-4" aria-hidden />
-                                {t("transcript")}
-                            </Link>
+                    {/* `whitespace-nowrap` and an even split: at 390px the label
+                        broke across two lines, which left one pill twice the height
+                        of the one beside it. The admin control rides this row rather
+                        than taking a 24px-margined row of its own. */}
+                    {(subjectStart || isSuperAdmin) && (
+                        <div className="flex w-full shrink-0 items-center gap-2 md:w-auto md:pt-8">
+                            {subjectStart && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            captureSubjectAction('play_discussion');
+                                            seekToAndPlay(subjectStart.startTimestamp);
+                                        }}
+                                        className="inline-flex h-9 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-foreground px-4 text-[13px] font-bold text-background transition-opacity hover:opacity-90 md:flex-none"
+                                    >
+                                        <Play className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                        {t("watchDiscussion")}
+                                    </button>
+                                    <Link
+                                        href={`/${meeting.cityId}/${meeting.id}/transcript?t=${Math.floor(subjectStart.startTimestamp)}`}
+                                        onClick={() => captureSubjectAction('open_transcript')}
+                                        className="inline-flex h-9 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-full border border-border px-3.5 text-[13px] font-semibold text-foreground hover:no-underline md:flex-none"
+                                    >
+                                        <FileText className="h-4 w-4 shrink-0" aria-hidden />
+                                        {t("transcript")}
+                                    </Link>
+                                </>
+                            )}
+                            {isSuperAdmin && (
+                                <SubjectAdminControls
+                                    subject={subject}
+                                    cityId={meeting.cityId}
+                                    meetingId={meeting.id}
+                                />
+                            )}
                         </div>
                     )}
                 </header>
-                {isSuperAdmin && (
-                    <div className="flex justify-end">
-                        <SubjectAdminControls
-                            subject={subject}
-                            cityId={meeting.cityId}
-                            meetingId={meeting.id}
-                        />
-                    </div>
-                )}
                 {/* Withdrawn notice */}
                 {subject.withdrawn && (
                     <div className="rounded-lg border border-muted bg-muted/30 px-4 py-3 text-sm text-muted-foreground italic">
@@ -350,29 +333,20 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                 )}
 
                 {/* The page's key record must not sit below every statement on a
-                    phone: the rail stacks last there, so the decision gets the same
-                    compact top slot the stats do — the ΑΔΑ and the document itself,
-                    read in place. */}
+                    phone: the rail stacks last there, so the decision takes the same
+                    compact top slot the stats do. Shut, it is the ΑΔΑ and a chevron;
+                    open, it is the whole record the rail shows. */}
                 {decision && (
-                    <button
-                        type="button"
-                        onClick={() => {
+                    <DecisionCard
+                        decision={decision}
+                        locale={locale}
+                        collapsible
+                        className="lg:hidden"
+                        onView={() => {
                             captureSubjectAction('decision_pdf', { surface: 'mobile_strip' });
                             setDocumentOpen(true);
                         }}
-                        className={cn(surfaceCardClass, "flex w-full items-center justify-between gap-3 p-3.5 text-left text-foreground lg:hidden")}
-                    >
-                        <span className="flex min-w-0 flex-wrap items-center gap-2">
-                            <span className="text-[11px] font-extrabold tracking-[.04em] text-muted-foreground">{t("decision")}</span>
-                            {decision.ada && (
-                                <Badge variant="secondary" className="text-[10px]">{`ΑΔΑ: ${decision.ada}`}</Badge>
-                            )}
-                        </span>
-                        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[hsl(var(--orange-deep))]">
-                            {t("viewDecision")}
-                            <FileText className="h-3.5 w-3.5" aria-hidden />
-                        </span>
-                    </button>
+                    />
                 )}
                 {decision && (
                     <DecisionDocumentSheet
@@ -447,110 +421,64 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         )}
 
                         {/* Always present, so a reader learns where decisions live even on
-                            the subjects that never get one. */}
-                        <RailCard
-                                id="decision"
-                                title={decision ? (
-                                    <span className="flex flex-wrap items-center gap-2">
-                                        {t("decision")}
-                                        {decision.ada && (
-                                            <Badge variant="secondary" className="text-[10px]">{`ΑΔΑ: ${decision.ada}`}</Badge>
-                                        )}
-                                    </span>
-                                ) : t("decision")}
-                            >
+                            the subjects that never get one. With a decision the rail
+                            shows the shared card, and the phone gets its own shut copy
+                            at the top of the page; without one there is nothing to
+                            hoist, so this stays where the rail puts it. */}
                         {decision ? (
-                            <div className="space-y-3">
-                                {/* Stacked, not a table: a label column beside a long Diavgeia
-                                    title in a 316px rail broke the title one word per line. The
-                                    ΑΔΑ already sits in the card's own head. */}
-                                {decision.title && (
-                                    <p className="text-[12.5px] leading-relaxed text-foreground/85">{decision.title}</p>
-                                )}
-                                <dl className="space-y-1.5 text-xs">
-                                    {decision.decisionNumber && (
-                                        <div className="flex items-baseline justify-between gap-3">
-                                            <dt className="shrink-0 text-muted-foreground">{t("decisionNumber")}</dt>
-                                            <dd className="text-right tabular-nums">{decision.decisionNumber}</dd>
-                                        </div>
-                                    )}
-                                    {decision.protocolNumber && (
-                                        <div className="flex items-baseline justify-between gap-3">
-                                            <dt className="shrink-0 text-muted-foreground">{t("protocolNumber")}</dt>
-                                            <dd className="text-right tabular-nums">{decision.protocolNumber}</dd>
-                                        </div>
-                                    )}
-                                    {decision.publishDate && (
-                                        <div className="flex items-baseline justify-between gap-3">
-                                            <dt className="shrink-0 text-muted-foreground">{t("publishDate")}</dt>
-                                            <dd className="text-right">{formatDate(new Date(decision.publishDate))}</dd>
-                                        </div>
-                                    )}
-                                </dl>
-                                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border pt-2.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            captureSubjectAction('decision_pdf', { surface: 'rail' });
-                                            setDocumentOpen(true);
-                                        }}
-                                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--orange-deep))] hover:underline"
-                                    >
-                                        <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                        {t("viewDecision")}
-                                    </button>
-                                    {decision.updatedAt && (
-                                        // Clock-relative text — see formatRelativeTime.
-                                        <span className="text-[10.5px] text-muted-foreground" suppressHydrationWarning>
-                                            {t("lastUpdated", { time: formatRelativeTime(new Date(decision.updatedAt), locale) })}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        ) : subject.nonAgendaReason === 'beforeAgenda' ? (
-                            <p className="pt-1 text-sm text-muted-foreground">
-                                {t("noDecisionBeforeAgenda")}
-                                {hasExplainPage(city.realm) && (
-                                    <>
-                                        {' '}
-                                        <Link
-                                            href="/explain#domi-synedriasis"
-                                            onClick={() => captureSubjectAction('why_no_decision')}
-                                            className="font-semibold text-[hsl(var(--orange-deep))] hover:underline"
-                                        >
-                                            {t("learnWhy")}
-                                        </Link>
-                                    </>
-                                )}
-                            </p>
-                        ) : subject.withdrawn ? (
-                            <p className="pt-1 text-sm text-muted-foreground">{getWithdrawnLabel(t, subject, 'long')}</p>
+                            <DecisionCard
+                                id="decision"
+                                decision={decision}
+                                locale={locale}
+                                className="hidden lg:block"
+                                onView={() => {
+                                    captureSubjectAction('decision_pdf', { surface: 'rail' });
+                                    setDocumentOpen(true);
+                                }}
+                            />
                         ) : (
-                            <div className="space-y-3 pt-1 text-center">
-                                <p className="text-sm text-muted-foreground">{t("noDecisionDescription")}</p>
-                                {isFetchingDecision ? (
-                                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        {t("searchingDecision")}
-                                    </div>
-                                ) : (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleFetchDecision}
-                                    >
-                                        <Landmark className="w-4 h-4 mr-2" />
-                                        {t("fetchDecision")}
-                                    </Button>
-                                )}
-                                {lastSearchedAt && !isFetchingDecision && (
-                                    <p className="text-xs text-muted-foreground">
-                                        {t("lastSearched", { time: formatRelativeTime(new Date(lastSearchedAt), locale) })}
+                            <RailCard id="decision" title={t("decision")}>
+                                {subject.nonAgendaReason === 'beforeAgenda' ? (
+                                    <p className="pt-1 text-sm text-muted-foreground">
+                                        {t("noDecisionBeforeAgenda")}
+                                        {hasExplainPage(city.realm) && (
+                                            <>
+                                                {' '}
+                                                <Link
+                                                    href="/explain#domi-synedriasis"
+                                                    onClick={() => captureSubjectAction('why_no_decision')}
+                                                    className="font-semibold text-[hsl(var(--orange-deep))] hover:underline"
+                                                >
+                                                    {t("learnWhy")}
+                                                </Link>
+                                            </>
+                                        )}
                                     </p>
+                                ) : subject.withdrawn ? (
+                                    <p className="pt-1 text-sm text-muted-foreground">{getWithdrawnLabel(t, subject, 'long')}</p>
+                                ) : (
+                                    <div className="space-y-3 pt-1 text-center">
+                                        <p className="text-sm text-muted-foreground">{t("noDecisionDescription")}</p>
+                                        {isFetchingDecision ? (
+                                            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                {t("searchingDecision")}
+                                            </div>
+                                        ) : (
+                                            <Button variant="outline" size="sm" onClick={handleFetchDecision}>
+                                                <Landmark className="w-4 h-4 mr-2" />
+                                                {t("fetchDecision")}
+                                            </Button>
+                                        )}
+                                        {lastSearchedAt && !isFetchingDecision && (
+                                            <p className="text-xs text-muted-foreground">
+                                                {t("lastSearched", { time: formatRelativeTime(new Date(lastSearchedAt), locale) })}
+                                            </p>
+                                        )}
+                                    </div>
                                 )}
-                            </div>
+                            </RailCard>
                         )}
-                        </RailCard>
 
                         {location && (
                             <RailCard title={t("locationCardTitle")}>

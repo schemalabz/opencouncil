@@ -1115,6 +1115,7 @@
     "lastSearched": "Dernière recherche {time}",
     "lastUpdated": "Dernière mise à jour {time}",
     "decisionTitle": "Titre",
+    "adaLabel": "ADA",
     "decisionNumber": "Numéro de décision",
     "protocolNumber": "Numéro de protocole",
     "publishDate": "Date de publication",
