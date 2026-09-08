@@ -181,21 +181,17 @@ function matchMembers(
 
     const { matched: personMatches, unmatched } = matchByName(candidates, matchDbMembers);
 
-    // Convert person matches to globalOrder values
+    // The position of the matched candidate in the election list. The list is
+    // already in the order the council reads: parties by seats, then in each
+    // party the head, the elected members by votes, and the candidates who
+    // were not elected by votes. A replacement is such a candidate, so
+    // ordering by list position keeps every replacement inside their own
+    // party's block, after its elected members. Numbering by seat count
+    // instead put a replacement on the same number as the next party's first
+    // member, and the two interleaved.
     const matched = new Map<string, number>();
     for (const [personId, electedIdx] of personMatches) {
-        const e = elected[electedIdx];
-        if (e.globalOrder > 0) {
-            matched.set(personId, e.globalOrder);
-        } else {
-            // Replacement: candidate beyond seat cutoff
-            const lastElectedInParty = elected
-                .filter(el => el.candId === e.candId && el.globalOrder > 0)
-                .reduce((max, el) => Math.max(max, el.globalOrder), 0);
-            const seatsInParty = elected.filter(el => el.candId === e.candId && el.globalOrder > 0).length;
-            const offset = e.partyInternalRank - seatsInParty;
-            matched.set(personId, lastElectedInParty + offset);
-        }
+        matched.set(personId, electedIdx);
     }
 
     return { matched, unmatched };
