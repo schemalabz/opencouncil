@@ -248,15 +248,12 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                     {agendaLabel}
                                 </span>
                             )}
-                            {meeting.administrativeBody && (
-                                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <Landmark className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                                    {getLocalizedName(meeting.administrativeBody, locale)}
-                                </span>
-                            )}
                             {/* The date is all that the removed context row carried and
                                 the app header does not: the header breadcrumb already
-                                names the meeting and the city, twice over. */}
+                                names the meeting and the city, twice over. The
+                                administrative body went the same way — it rendered
+                                three times inside the first 116px of a phone screen,
+                                and the header two lines above already says it. */}
                             <span className="text-xs text-muted-foreground">
                                 {formatDate(new Date(meeting.dateTime), undefined, locale)}
                             </span>
