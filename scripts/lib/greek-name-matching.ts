@@ -20,6 +20,32 @@ export function normalizeGreekName(name: string): string {
         .trim();
 }
 
+/**
+ * Informal first names as they appear in our data, mapped to the formal form
+ * the election results and Diavgeia decisions use. Keys and values are in the
+ * normalized form (lowercase, no tonos, final sigma folded). Only forms with a
+ * single formal counterpart are listed; "Τάκης" or "Σάκης" stay as they are.
+ */
+const FORMAL_FIRST_NAMES: Record<string, string> = {
+    γιωργοσ: 'γεωργιοσ', γιαννησ: 'ιωαννησ', δημητρησ: 'δημητριοσ', μιμησ: 'δημητριοσ',
+    μανωλησ: 'εμμανουηλ', βασιλησ: 'βασιλειοσ', νικοσ: 'νικολαοσ', νικολασ: 'νικολαοσ',
+    κωστασ: 'κωνσταντινοσ', κωστησ: 'κωνσταντινοσ', ντινοσ: 'κωνσταντινοσ', μιχαλησ: 'μιχαηλ',
+    αντωνησ: 'αντωνιοσ', φωτησ: 'φωτιοσ', σωτηρησ: 'σωτηριοσ', αναστασησ: 'αναστασιοσ', τασοσ: 'αναστασιοσ',
+    γρηγορησ: 'γρηγοριοσ', θανασησ: 'αθανασιοσ', νασοσ: 'αθανασιοσ', λευτερησ: 'ελευθεριοσ',
+    στελιοσ: 'στυλιανοσ', σπυροσ: 'σπυριδων', τρυφωνασ: 'τρυφων', αλεξησ: 'αλεξιοσ', αλεκοσ: 'αλεξανδροσ',
+    θοδωρησ: 'θεοδωροσ', θοδωροσ: 'θεοδωροσ', χαρησ: 'χαραλαμποσ', μπαμπησ: 'χαραλαμποσ', πανοσ: 'παναγιωτησ',
+    στρατοσ: 'ευστρατιοσ', βαγγελησ: 'ευαγγελοσ', κατερινα: 'αικατερινη', ρενα: 'ειρηνη', ντινα: 'κωνσταντινα',
+    λενα: 'ελενη', βουλα: 'παρασκευη', χρηστοσ: 'χρηστοσ',
+};
+
+/** The same name with every informal first name replaced by its formal form. */
+export function formalizeFirstNames(normalized: string): string {
+    return normalized
+        .split(/\s+/)
+        .map(token => FORMAL_FIRST_NAMES[token] ?? token)
+        .join(' ');
+}
+
 /** Build a sorted token key from a normalized name string. */
 export function buildSortKey(normalized: string): string {
     return normalized
@@ -39,6 +65,14 @@ export function tokenSortKeys(name: string): string[] {
     const keys: string[] = [];
 
     keys.push(buildSortKey(normalizeGreekName(name)));
+
+    // Our data often carries the informal first name (Γιώργος) where the
+    // election results and Diavgeia carry the formal one (Γεώργιος). Both
+    // sides get this key, so either spelling matches the other.
+    const formalKey = buildSortKey(formalizeFirstNames(normalizeGreekName(name)));
+    if (formalKey !== keys[0]) {
+        keys.push(formalKey);
+    }
 
     const nicknameMatch = name.match(/(\S+)\s*\(([^)]+)\)/);
     if (nicknameMatch) {
