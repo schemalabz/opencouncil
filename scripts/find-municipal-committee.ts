@@ -507,6 +507,10 @@ async function main() {
       default: DEFAULT_TERM,
       description: 'Council term period (e.g. 2024-2029)',
     })
+    .option('ada', {
+      type: 'string',
+      description: 'ADA of the committee election decision; skips the Diavgeia search',
+    })
     .option('json', {
       type: 'boolean',
       default: false,
@@ -607,7 +611,9 @@ async function main() {
   console.error(
     `Searching for committee election decision (term ${argv.term})...`
   )
-  const decision = await findCommitteeDecision(orgId, dateRange)
+  const decision = argv.ada
+    ? await diavgeiaApi<Decision>(`/decisions/${encodeURIComponent(argv.ada)}.json`)
+    : await findCommitteeDecision(orgId, dateRange)
 
   if (!decision) {
     console.error(
