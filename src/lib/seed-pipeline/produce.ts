@@ -13,6 +13,7 @@ import { binary, logToStderr, prismaMigrate, psql, redactUrl, run, SUPERUSER_PSQ
 import { ContentFilter } from './stream-filter';
 import { allowedTables, knownTables, loadPinnedMeetings, loadTablesConfig, privateTables, MIGRATIONS_TABLE, PINNED_FILE, TABLES_JSON } from './tables';
 import { withScratchCluster } from './transient-postgres';
+import { VERIFY_REPORT_FILE } from './verify';
 import { assertLocalTarget, parseLocalTarget } from '@/lib/seed/target-guard';
 import { errorMessage } from '@/lib/utils/errors';
 
@@ -144,9 +145,11 @@ export async function produce(o: ProduceOptions): Promise<Manifest> {
 async function produceInLockedDir(o: ProduceOptions): Promise<Manifest> {
     // A run that fails part of the way leaves the artifacts of the previous run in
     // place. Remove the manifest before anything can fail, so no manifest
-    // describes files it does not match.
+    // describes files it does not match. The verify report of the previous run
+    // goes too, so no report describes artifacts that this run replaces.
     fs.mkdirSync(o.outDir, { recursive: true });
     fs.rmSync(path.join(o.outDir, MANIFEST_FILE), { force: true });
+    fs.rmSync(path.join(o.outDir, VERIFY_REPORT_FILE), { force: true });
     // Each line names the seconds since the start, so a log shows where a run spends its time.
     const started = Date.now();
     const sink = o.log ?? logToStderr;
