@@ -25,7 +25,8 @@ import { PartyWithPersons } from '@/lib/db/parties';
 import { GripVertical, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useTranslations } from 'next-intl';
-import { isRoleActive, getActivePartyRole } from '@/lib/utils';
+import { getActivePartyRole } from '@/lib/utils';
+import { isActivePartyMember } from '@/lib/utils/roles';
 import { compareRanks } from '@/lib/sorting/people';
 
 interface PartyMemberRankingSheetProps {
@@ -99,11 +100,7 @@ export default function PartyMemberRankingSheet({
 
     // Initialize members from people data
     useEffect(() => {
-        const activePeople = people.filter(person =>
-            person.roles.some(role =>
-                role.partyId === party.id && isRoleActive(role)
-            )
-        );
+        const activePeople = people.filter(person => isActivePartyMember(person, party.id));
 
         const membersData: SortableMember[] = activePeople
             .flatMap(person => {
