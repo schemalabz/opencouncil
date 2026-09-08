@@ -4,8 +4,17 @@ import { UserInviteEmail } from "@/lib/email/templates/user-invite"
 import { sendEmail } from "@/lib/email/resend"
 import { env } from "@/env.mjs"
 import prisma from "@/lib/db/prisma"
+import { signInUrlForRequest } from "@/lib/auth/signInUrl"
 
-export async function generateSignInLink(email: string): Promise<{ signInUrl: string, verificationTokenKey: { identifier: string, token: string } }> {
+/**
+ * `request` repoints the link at the host the admin is inviting from, as
+ * `auth.config.ts` does for the magic link: production session cookies are
+ * host-only, so an invite landing on another domain signs the person in there.
+ *
+ * The admin's host, deliberately — not the realm of the city they will
+ * administer. Omit `request` to keep the configured host.
+ */
+export async function generateSignInLink(email: string, request?: Request): Promise<{ signInUrl: string, verificationTokenKey: { identifier: string, token: string } }> {
     const token = randomBytes(32).toString('hex')
 
     await prisma.verificationToken.create({
@@ -16,7 +25,10 @@ export async function generateSignInLink(email: string): Promise<{ signInUrl: st
         }
     })
 
-    const signInUrl = `${env.NEXTAUTH_URL}/sign-in?token=${token}&email=${encodeURIComponent(email)}`
+    const configuredUrl = `${env.NEXTAUTH_URL}/sign-in?token=${token}&email=${encodeURIComponent(email)}`
+    // signInUrlForRequest trusts only a host isKnownRealmHost recognises, so a
+    // spoofed Host cannot move the invite.
+    const signInUrl = request ? signInUrlForRequest(configuredUrl, request) : configuredUrl
     return {
         signInUrl,
         verificationTokenKey: {
@@ -26,10 +38,10 @@ export async function generateSignInLink(email: string): Promise<{ signInUrl: st
     }
 }
 
-export async function sendInviteEmail(email: string, name: string | null | undefined): Promise<boolean> {
+export async function sendInviteEmail(email: string, name: string | null | undefined, request?: Request): Promise<boolean> {
     let verificationTokenKey: { identifier: string; token: string } | undefined
     try {
-        const result = await generateSignInLink(email)
+        const result = await generateSignInLink(email, request)
         verificationTokenKey = result.verificationTokenKey
         const emailHtml = await render(UserInviteEmail({ name: name || email, inviteUrl: result.signInUrl }))
         const sendResult = await sendEmail({

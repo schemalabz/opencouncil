@@ -37,7 +37,7 @@ export async function POST(request: Request) {
         const newUser = await createUser({ email, name, isSuperAdmin, administers })
 
         // Send invitation email
-        const inviteEmailSent = await sendInviteEmail(newUser.email, newUser.name ?? newUser.email)
+        const inviteEmailSent = await sendInviteEmail(newUser.email, newUser.name ?? newUser.email, request)
 
         if (!inviteEmailSent) {
             console.error(`User ${newUser.id} created, but invite email failed to send`)
