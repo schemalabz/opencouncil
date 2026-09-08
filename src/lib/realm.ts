@@ -145,6 +145,12 @@ export function realmForHost(host: string | null | undefined): Realm {
 export function isKnownRealmHost(host: string | null | undefined): boolean {
     const normalized = (host ?? '').split(':')[0].toLowerCase();
     if (!normalized) return false;
+    // Reject anything that is not a bare hostname BEFORE matching the suffix.
+    // `URL`'s `host` setter truncates at the first / ? # \, so a value like
+    // `evil.example.com/x.opencouncil.gr` ends with a realm domain — passing a
+    // plain suffix test — while the origin it produces is `evil.example.com`.
+    // The allowlist would then approve a host it does not actually authorise.
+    if (!/^[a-z0-9.-]+$/.test(normalized)) return false;
     if (hostMatchesDomain(normalized, PREVIEW_DOMAIN)) return true;
     return Object.values(REALMS).some(({ domain }) => hostMatchesDomain(normalized, domain));
 }
@@ -155,8 +161,7 @@ export function isKnownRealmHost(host: string | null | undefined): boolean {
  * `?realm=<realm>`; read by the proxy, `getRealm()` and `realmForBrowser()` so
  * previews and localhost can be viewed as any realm despite their Host
  * resolving elsewhere (preview hosts are subdomains of `PREVIEW_DOMAIN`, which
- * belongs to no realm, and some realm domains — e.g. opencouncil.rs — have no
- * DNS yet).
+ * belongs to no realm).
  */
 export const REALM_OVERRIDE_COOKIE = 'oc-realm';
 

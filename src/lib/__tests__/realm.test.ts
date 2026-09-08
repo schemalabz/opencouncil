@@ -77,6 +77,20 @@ describe('realmForHost', () => {
 });
 
 describe('isKnownRealmHost', () => {
+    // A plain suffix test approves these: they really do end with a realm
+    // domain. `URL`'s host setter then truncates at the delimiter, so the
+    // origin that results is the attacker's. The allowlist guards a magic-link
+    // token, so it must reject anything that is not a bare hostname.
+    it.each([
+        'evil.example.com/x.opencouncil.gr',
+        'evil.example.com?x.opencouncil.gr',
+        'evil.example.com#x.opencouncil.gr',
+        'evil.example.com\\x.opencouncil.gr',
+        'evil.example.com/x.opencouncil.dev',
+    ])('rejects the delimiter-embedded host %s', (host) => {
+        expect(isKnownRealmHost(host)).toBe(false);
+    });
+
     it('accepts apex and subdomain hosts of any realm domain', () => {
         expect(isKnownRealmHost('opencouncil.gr')).toBe(true);
         expect(isKnownRealmHost('opencouncil.fr')).toBe(true);
