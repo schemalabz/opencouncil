@@ -72,7 +72,7 @@ export interface ParsedEmbedConfig {
  * Parse the appearance/filter query params common to all embed widgets
  * (`/embed/meetings`, `/embed/subjects`, …) and derive the theme vars.
  * Variant-specific params (e.g. `showSubjects`) stay in their own routes. The
- * base URL for links is realm-dependent, see `embedBaseUrl`.
+ * base URL for links is realm-dependent, see `realmBaseUrl`.
  */
 export function parseEmbedConfig(searchParams: EmbedSearchParams, options: { limit?: BoundedIntSpec } = {}): ParsedEmbedConfig {
     const accent = parseAccentColor(searchParams.accent);
