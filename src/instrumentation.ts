@@ -32,10 +32,17 @@ export const onRequestError: Instrumentation.onRequestError = async (
   if (process.env.NODE_ENV === 'development') return;
 
   const err = error as Error & { digest?: string };
-  const { sendErrorAdminAlert } = await import('@/lib/discord');
+  // This runs after the request scope is gone, so the alert cannot read
+  // headers() itself; its Host is what names the realm.
+  const host = request.headers.host;
+  // discord-core, not discord, and lazily: this handler is compiled for edge,
+  // where discord.ts's database import would throw. Lazy so a future node-only
+  // import in discord-core costs one alert rather than every proxied request.
+  const { sendErrorAdminAlert } = await import('@/lib/discord-core');
   await sendErrorAdminAlert({
     source: `${context.routerKind} ${context.routeType}`,
     error: err.stack ?? err.message ?? String(error),
+    host: Array.isArray(host) ? host[0] : host,
     context: {
       url: `${request.method} ${request.path}`,
       route: context.routePath,

@@ -8,7 +8,7 @@ jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: { subject: { findMany: jest.fn().mockResolvedValue([]) }, speakerSegment: { findMany: jest.fn().mockResolvedValue([]) }, $queryRaw: jest.fn().mockResolvedValue([]) },
 }));
-jest.mock('@/lib/discord', () => ({ sendErrorAdminAlert: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('@/lib/discord-core', () => ({ sendErrorAdminAlert: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('@/lib/db/searchQueries', () => ({ logSearchQuery: jest.fn() }));
 jest.mock('@/lib/db/cities', () => ({
     getCities: jest.fn(),

@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 import { env } from '@/env.mjs';
-import { sendErrorAdminAlert } from '@/lib/discord';
+import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { Result, createSuccess, createError } from '@/lib/result';
 
 // The radius to use for location-based search, in meters (40km)
