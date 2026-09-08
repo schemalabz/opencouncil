@@ -18,7 +18,9 @@ export function stageChipDetail(
     const date = new Date(dateTime);
     switch (stage) {
         case 'upcoming':
-            return formatRelativeTime(date, locale);
+            // Against the caller's instant, not the clock: this runs on the
+            // server and again on hydration, and two clocks gave two answers.
+            return formatRelativeTime(date, locale, { now });
         case 'live':
             return t('detail.live', { time: formatClockTime(date, timezone, locale) });
         case 'review': {

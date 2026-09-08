@@ -651,6 +651,7 @@
   },
   "CouncilMeeting": {
     "items": "{count, plural, =0 {Aucune séance} =1 {1 séance} other {# séances}}",
+    "itemsCapped": "Les {count} plus récentes",
     "pages": {
       "overview": "Aperçu",
       "map": "Carte",

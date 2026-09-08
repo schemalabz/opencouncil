@@ -3,7 +3,7 @@ import { Metadata } from "next";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { DEFAULT_MEETING_PAGE_SIZE } from "@/lib/db/meetingsList";
 import CityMeetings from "@/components/cities/CityMeetings";
-import { getCityCached, getCouncilMeetingsPreviewCached } from "@/lib/cache";
+import { getCityCached, getCouncilMeetingsPreviewCached, getAdministrativeBodiesWithPublicMeetingsCached } from "@/lib/cache";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
@@ -95,9 +95,12 @@ export default async function MeetingsPage(
         cityId
     } = params;
 
-    const [city, councilMeetings, canEdit] = await Promise.all([
+    const [city, councilMeetings, administrativeBodies, canEdit] = await Promise.all([
         getCityCached(cityId),
         getCouncilMeetingsPreviewCached(cityId, { limit: MEETINGS_TAB_LIMIT }),
+        // The picker's own source. Deriving it from the capped rows above hid
+        // every body whose last meeting fell outside the window.
+        getAdministrativeBodiesWithPublicMeetingsCached(cityId),
         isUserAuthorizedToEdit({ cityId }),
     ]);
 
@@ -111,6 +114,9 @@ export default async function MeetingsPage(
             cityId={cityId}
             timezone={city.timezone}
             canEdit={canEdit}
+            administrativeBodies={administrativeBodies}
+            now={new Date()}
+            cappedAt={MEETINGS_TAB_LIMIT}
             pageSize={DEFAULT_MEETING_PAGE_SIZE}
         />
     );

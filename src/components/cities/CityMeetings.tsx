@@ -2,12 +2,12 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { AdministrativeBodyType } from '@prisma/client';
+import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
 import List from '@/components/List';
 import MeetingCardV2 from '@/components/meetings/MeetingCardV2';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
-import { getAdministrativeBodyTypesForMeetings, filterMeetingByAdminBodyTypes, getBodiesOfTypeFromMeetings } from '@/lib/utils/administrativeBodies';
+import { getAdministrativeBodyTypes, filterMeetingByAdminBodyTypes, getBodiesOfType } from '@/lib/utils/administrativeBodies';
 import { PaginationParams } from '@/lib/db/types';
 import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
@@ -18,6 +18,17 @@ type CityMeetingsProps = {
     cityId: string,
     timezone: string,
     canEdit: boolean,
+    /**
+     * Every body the city has released a meeting for — not only the bodies
+     * inside the loaded window. The list is capped, so deriving the picker from
+     * the rows hid any body whose last meeting fell outside it: no chip, no
+     * empty state, and its meetings unreachable through the filter.
+     */
+    administrativeBodies: AdministrativeBody[],
+    /** Fixed by the server page, so a card's stage survives hydration. */
+    now: Date,
+    /** The row cap the page fetched with, so the count can name its window. */
+    cappedAt?: number,
 } & Pick<PaginationParams, 'pageSize'>;
 
 export default function CityMeetings({
@@ -25,6 +36,9 @@ export default function CityMeetings({
     cityId,
     timezone,
     canEdit,
+    administrativeBodies,
+    now,
+    cappedAt,
     pageSize
 }: CityMeetingsProps) {
     const t = useTranslations('CouncilMeeting');
@@ -44,8 +58,8 @@ export default function CityMeetings({
     ], [locale]);
 
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForMeetings(councilMeetings, tCommon),
-        [councilMeetings, tCommon]
+        getAdministrativeBodyTypes(administrativeBodies, tCommon),
+        [administrativeBodies, tCommon]
     );
 
     // Two-level picker groups. Council stays a single body in practice, so keep its
@@ -54,9 +68,9 @@ export default function CityMeetings({
         typeOptions.map(o => ({
             type: o.value,
             typeLabel: o.label,
-            bodies: o.value === 'council' ? [] : getBodiesOfTypeFromMeetings(councilMeetings, o.value),
+            bodies: o.value === 'council' ? [] : getBodiesOfType(administrativeBodies, o.value),
         })),
-        [typeOptions, councilMeetings]
+        [typeOptions, administrativeBodies]
     );
 
     const defaultFilterValues = useMemo(() => {
@@ -70,19 +84,20 @@ export default function CityMeetings({
         if (!bodyLabel) return null;
         for (const option of typeOptions) {
             if (option.value === 'council') continue;
-            const subBodies = getBodiesOfTypeFromMeetings(councilMeetings, option.value);
+            const subBodies = getBodiesOfType(administrativeBodies, option.value);
             const match = subBodies.find(o => o.label === bodyLabel);
             if (match) return match.value;
         }
         return null;
-    }, [searchParams, councilMeetings, typeOptions]);
+    }, [searchParams, administrativeBodies, typeOptions]);
 
     return (
-        <List<CouncilMeetingWithSubjectPreview, { cityTimezone: string }, AdministrativeBodyType>
+        <List<CouncilMeetingWithSubjectPreview, { cityTimezone: string; now: Date }, AdministrativeBodyType>
             items={councilMeetings}
             editable={canEdit}
             ItemComponent={MeetingCardV2}
-            itemProps={{ cityTimezone: timezone }}
+            itemProps={{ cityTimezone: timezone, now }}
+            cappedAt={cappedAt}
             FormComponent={AddMeetingForm}
             formProps={{ cityId }}
             t={t}

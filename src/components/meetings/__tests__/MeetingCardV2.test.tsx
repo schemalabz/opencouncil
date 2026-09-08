@@ -65,8 +65,11 @@ const makeMeeting = (
         ...overrides,
     }) as unknown as CouncilMeetingWithSubjectPreview;
 
-const renderCard = (meeting = makeMeeting(), cityTimezone = 'Europe/Athens') =>
-    render(<MeetingCardV2 item={meeting} editable={false} cityTimezone={cityTimezone} />);
+/** A fixed instant, as the server page supplies — never the runner's clock. */
+const NOW = new Date('2024-06-01T00:00:00Z');
+
+const renderCard = (meeting = makeMeeting(), cityTimezone = 'Europe/Athens', now = NOW) =>
+    render(<MeetingCardV2 item={meeting} editable={false} cityTimezone={cityTimezone} now={now} />);
 
 describe('MeetingCardV2 date line (#514)', () => {
     beforeEach(() => {
@@ -101,5 +104,39 @@ describe('MeetingCardV2 date line (#514)', () => {
         renderCard(makeMeeting({ dateTime: PAST_UTC_LATE }));
         expect(screen.getByText('16')).toBeInTheDocument();
         expect(screen.getByText('ΙΑΝ 24')).toBeInTheDocument();
+    });
+});
+
+/**
+ * The card runs once on the server and again on hydration. It used to read
+ * `new Date()` in both, so a meeting on a stage boundary rendered one word on
+ * the server and another in the browser, and only the detail line carried
+ * `suppressHydrationWarning`.
+ */
+describe('MeetingCardV2 stage clock', () => {
+    beforeEach(() => {
+        mockLocale = 'el';
+    });
+
+    it('judges the stage against the instant it is given, not the runner clock', () => {
+        const start = new Date('2030-01-01T12:00:00Z');
+        const meeting = makeMeeting({ dateTime: start });
+
+        // A second either side of the start: same card, same props but the
+        // instant, and the stage word has to follow the instant.
+        const before = renderCard(meeting, 'Europe/Athens', new Date(start.getTime() - 1000));
+        const beforeText = before.container.textContent;
+        before.unmount();
+
+        const after = renderCard(meeting, 'Europe/Athens', new Date(start.getTime() + 1000));
+        expect(after.container.textContent).not.toEqual(beforeText);
+    });
+
+    it('renders the same text twice for one instant', () => {
+        const meeting = makeMeeting({ dateTime: new Date('2030-01-01T12:00:00Z') });
+        const first = renderCard(meeting);
+        const firstText = first.container.textContent;
+        first.unmount();
+        expect(renderCard(meeting).container.textContent).toEqual(firstText);
     });
 });

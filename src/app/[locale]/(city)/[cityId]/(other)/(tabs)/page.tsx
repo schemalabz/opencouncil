@@ -165,6 +165,10 @@ export default async function CityOverviewPage(
         hotSubjects.length > 0 &&
         hotSubjects.every(card => new Date(card.meeting.dateTime) < windowStart);
 
+    // One instant for every card on this page, so the server render and the
+    // hydration that follows it judge each meeting's stage against the same clock.
+    const now = new Date();
+
     return (
         <div className="space-y-12">
             <HotTopicsCard
@@ -219,6 +223,7 @@ export default async function CityOverviewPage(
                                     item={meeting}
                                     editable={false}
                                     cityTimezone={city.timezone}
+                                    now={now}
                                 />
                             ))}
                         </div>

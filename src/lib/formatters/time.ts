@@ -1,4 +1,4 @@
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistance, formatDistanceToNow } from 'date-fns';
 import { el, enUS, fr, sr, srLatn, type Locale } from 'date-fns/locale';
 import { type AppLocale, DEFAULT_LOCALE, LOCALE_TAGS } from '@/i18n/config';
 
@@ -124,11 +124,19 @@ export function formatDurationMs(ms: number): string {
  * @param options - `addSuffix` controls the "ago"/"in" wording (defaults to true)
  * @returns Formatted relative time string in the specified locale
  */
-export function formatRelativeTime(date: Date, locale: string = 'el', options?: { addSuffix?: boolean }): string {
-  return formatDistanceToNow(date, {
-    addSuffix: options?.addSuffix ?? true,
-    locale: getDateFnsLocale(locale)
-  });
+export function formatRelativeTime(date: Date, locale: string = 'el', options?: { addSuffix?: boolean; now?: Date }): string {
+  // `now` so a caller that already fixed an instant — a server render whose
+  // client hydration must agree with it — measures against that one rather
+  // than reading the clock again here.
+  return options?.now
+    ? formatDistance(date, options.now, {
+        addSuffix: options.addSuffix ?? true,
+        locale: getDateFnsLocale(locale)
+      })
+    : formatDistanceToNow(date, {
+        addSuffix: options?.addSuffix ?? true,
+        locale: getDateFnsLocale(locale)
+      });
 }
 
 /**

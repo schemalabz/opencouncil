@@ -24,6 +24,16 @@ interface MeetingCardV2Props {
     item: CouncilMeetingWithSubjectPreview;
     editable: boolean;
     cityTimezone: string;
+    /**
+     * The instant the stage is judged against, fixed by the server page.
+     *
+     * These cards render inside `List`, a client component, so they run once on
+     * the server and again on hydration. Reading `new Date()` in both gave two
+     * clocks: a meeting starting at 12:00 rendered `upcoming` at 11:59:59 and
+     * `live` a moment later, and only the detail line carried
+     * `suppressHydrationWarning` — the stage word and its tone did not.
+     */
+    now: Date;
 }
 
 /**
@@ -42,7 +52,7 @@ interface MeetingCardV2Props {
  * Deliberately hook-light so it renders in both a Server Component (the city
  * overview) and inside List, which is a client component.
  */
-export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCardV2Props) {
+export default function MeetingCardV2({ item: meeting, cityTimezone, now }: MeetingCardV2Props) {
     const t = useTranslations('MeetingCard');
     const tMeeting = useTranslations('CouncilMeeting');
     const tCommon = useTranslations('Common');
@@ -51,7 +61,7 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
 
     const date = meeting.dateTime instanceof Date ? meeting.dateTime : new Date(meeting.dateTime);
     const { day, monthYear } = formatDateStamp(date, cityTimezone, locale);
-    const stage = publicMeetingStage(stageSignalsFromPreview(meeting));
+    const stage = publicMeetingStage(stageSignalsFromPreview(meeting), now);
     const upcoming = stage === 'upcoming';
     const subjects = sortSubjectsByImportance(meeting.subjects, 'importance');
     const subjectCount = meeting.subjects.length;
@@ -113,7 +123,7 @@ export default function MeetingCardV2({ item: meeting, cityTimezone }: MeetingCa
                         <MeetingStageChip
                             stage={stage}
                             size="sm"
-                            detail={stageChipDetail(tStage, stage, date, cityTimezone, locale)}
+                            detail={stageChipDetail(tStage, stage, date, cityTimezone, locale, now)}
                         />
                     )}
                 </p>

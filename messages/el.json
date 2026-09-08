@@ -651,6 +651,7 @@
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Καμία συνεδρίαση} =1 {1 συνεδρίαση} other {# συνεδριάσεις}}",
+        "itemsCapped": "Οι {count} πιο πρόσφατες",
         "pages": {
             "overview": "Σύνοψη",
             "map": "Χάρτης",

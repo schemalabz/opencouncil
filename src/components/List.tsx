@@ -34,6 +34,13 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     filterAvailableValues?: { value: F, label: string }[];
     filter?: (selectedValues: F[], item: T) => boolean;
     allText?: string;
+    /**
+     * The page fetched at most this many rows. When the cap actually binds and
+     * nothing is filtering, the count names the window instead of reporting the
+     * fetch limit as the collection's own total — the city band a few lines
+     * above prints the real number, and the two contradicted each other.
+     */
+    cappedAt?: number;
     showSearch?: boolean;
     /**
      * The text a row is searchable by. Without it a row is matched on its own
@@ -82,6 +89,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     mdColumns = 2,
     lgColumns = 3,
     allText,
+    cappedAt,
     showSearch = true,
     searchKeys,
     showCount,
@@ -210,6 +218,13 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     // depending on server component re-renders for page changes.
     // A query the debounce below has not written yet already narrows the list,
     // so honouring the URL's page here would show page 4 of the old result set.
+    // Only while the cap binds and nothing narrows the list: under a filter the
+    // count describes the rows on screen, which is the useful number and not a
+    // claim about the collection.
+    const capped = cappedAt != null
+        && items.length >= cappedAt
+        && filteredItems.length === items.length;
+
     const searchPending = localSearchQuery !== searchQuery;
     const urlPage = searchPending ? 1 : parseInt(searchParams.get('page') || '1', 10);
     const totalPages = pagination
@@ -354,7 +369,9 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         </button>
                     ))}
                     {countVisible && (
-                        <p className={cn('shrink-0 text-sm text-muted-foreground', searchOpen && 'max-sm:hidden')}>{t('items', { count: filteredItems.length })}</p>
+                        <p className={cn('shrink-0 text-sm text-muted-foreground', searchOpen && 'max-sm:hidden')}>
+                            {capped ? t('itemsCapped', { count: items.length }) : t('items', { count: filteredItems.length })}
+                        </p>
                     )}
                     {/* Marked as back-of-house, the way the city page's own tools
                         are: an outlined pill beside a citizen's list read as part
