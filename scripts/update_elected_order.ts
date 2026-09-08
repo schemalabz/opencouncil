@@ -2,13 +2,20 @@
  * Updates elected order for a municipality's council members based on official
  * election results from the greek-municipal-elections open data repo.
  *
- * Elected order is determined by:
- *   - Party ordering: parties with more seats come first (winning party first)
- *   - Within each party: the party head (mayoral candidate) is first, then
- *     council members ordered by votes (σταυροί) descending
- *   - Replacement members (who entered the council after the election) are
- *     placed right after the last elected member of their party, based on
- *     their vote ranking
+ * The numbers carry the whole order the pages and the minutes read, so this
+ * script writes the order a municipality publishes its council in:
+ *   - The council officers first: the president (isHead, or the role named
+ *     Πρόεδρος), then the vice-president (Αντιπρόεδρος), then the secretary
+ *     (Γραμματέας). The sort places the mayor and the president on its own;
+ *     the other two officers have no field of their own, so their number is
+ *     what puts them above the party blocks.
+ *   - Then the parties in the order of the election results: the winning
+ *     party first, then by seats. Inside each party: the head (mayoral
+ *     candidate), the elected members by votes (σταυροί), then the members
+ *     who entered later as replacements, by their votes. Each party is one
+ *     block.
+ *   - Council members who did not stand in the election are appended at the
+ *     end, in name order, and reported.
  *
  * Usage:
  *   npx tsx scripts/update_elected_order.ts --city chalandri [--dry-run]
@@ -101,6 +108,21 @@ interface DbMember {
     roleId: string;
     personId: string;
     name: string;
+    /** 1 president, 2 vice-president, 3 secretary, null for a member. */
+    officer: number | null;
+}
+
+const OFFICER_RANKS: Record<string, number> = {
+    προεδροσ: 1,
+    αντιπροεδροσ: 2,
+    γραμματεασ: 3,
+};
+
+/** The officer rank a council role carries, read from the head flag and the role name. */
+function officerRank(role: { isHead: boolean; name: string | null }): number | null {
+    if (role.isHead) return 1;
+    if (!role.name) return null;
+    return OFFICER_RANKS[normalizeGreekName(role.name)] ?? null;
 }
 
 // --- Data loading ---
@@ -307,7 +329,7 @@ async function main() {
             name: true,
             roles: {
                 where: { endDate: null },
-                select: { id: true, electedOrder: true, cityId: true, partyId: true, administrativeBodyId: true },
+                select: { id: true, electedOrder: true, cityId: true, partyId: true, administrativeBodyId: true, name: true, isHead: true },
             },
         },
     });
@@ -316,7 +338,7 @@ async function main() {
     const dbMembers: DbMember[] = people.flatMap(person => {
         const role = person.roles.find(r => r.administrativeBodyId === councilBody.id);
         if (!role) return [];
-        return [{ roleId: role.id, personId: person.id, name: person.name }];
+        return [{ roleId: role.id, personId: person.id, name: person.name, officer: officerRank(role) }];
     });
 
     // Warn about people with no council role
@@ -368,10 +390,13 @@ async function main() {
         }
     }
 
-    // Renumber sequentially to eliminate gaps and collisions
+    // Number the officers first, then everyone by their position in the
+    // election list, which already runs party by party.
     const sortedByRawOrder = [...dbMembers]
-        .map(m => ({ personId: m.personId, roleId: m.roleId, rawOrder: matched.get(m.personId) ?? Infinity }))
-        .sort((a, b) => a.rawOrder - b.rawOrder);
+        .map(m => ({ personId: m.personId, roleId: m.roleId, officer: m.officer ?? Infinity, rawOrder: matched.get(m.personId) ?? Infinity }))
+        .sort((a, b) => (a.officer - b.officer) || (a.rawOrder - b.rawOrder));
+    const officers = dbMembers.filter(m => m.officer !== null).sort((a, b) => a.officer! - b.officer!);
+    console.log(`\nOfficers placed first: ${officers.length ? officers.map(m => `${m.name} (${['', 'president', 'vice-president', 'secretary'][m.officer!]})`).join(', ') : 'none found'}`);
     const finalOrder = new Map<string, { roleId: string; order: number }>();
     sortedByRawOrder.forEach((entry, i) => finalOrder.set(entry.personId, { roleId: entry.roleId, order: i + 1 }));
 
