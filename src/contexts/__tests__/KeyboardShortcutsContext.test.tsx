@@ -10,16 +10,18 @@ type Handlers = {
     extract: jest.Mock;
 };
 
-function Shortcuts({ handlers }: { handlers: Handlers }) {
-    useKeyboardShortcut(ACTIONS.SEEK_NEXT.id, handlers.seekNext);
-    useKeyboardShortcut(ACTIONS.SPEED_UP.id, handlers.speedUp);
-    useKeyboardShortcut(ACTIONS.PLAY_PAUSE.id, handlers.playPause);
+function Shortcuts({ editable, handlers }: { editable: boolean; handlers: Handlers }) {
+    // Seek belongs to everyone; speed is the editing surface's until a reader
+    // reaches the dock, because up and down are a reader's scroll keys.
+    useKeyboardShortcut(ACTIONS.SEEK_NEXT.id, handlers.seekNext, true, { requiresPlaybackFocus: false });
+    useKeyboardShortcut(ACTIONS.SPEED_UP.id, handlers.speedUp, true, { requiresPlaybackFocus: !editable });
+    useKeyboardShortcut(ACTIONS.PLAY_PAUSE.id, handlers.playPause, true);
     useKeyboardShortcut(ACTIONS.CLEAR_SELECTION.id, handlers.clearSelection, true);
     useKeyboardShortcut(ACTIONS.EXTRACT_SEGMENT.id, handlers.extract, true);
     return null;
 }
 
-function setup() {
+function setup(editable: boolean) {
     const handlers: Handlers = {
         seekNext: jest.fn(),
         speedUp: jest.fn(),
@@ -29,7 +31,7 @@ function setup() {
     };
     const view = render(
         <KeyboardShortcutsProvider>
-            <Shortcuts handlers={handlers} />
+            <Shortcuts editable={editable} handlers={handlers} />
             <p data-testid="transcript">an utterance</p>
             <button data-testid="toolbar">Speakers</button>
             <div data-playback-focus="">
@@ -44,28 +46,74 @@ function setup() {
 
 describe('a control that owns the keyboard', () => {
     it('leaves Space to a focused button, which it activates', () => {
-        const { handlers, view } = setup();
+        const { handlers, view } = setup(true);
         fireEvent.keyDown(view.getByTestId('toolbar'), { key: ' ' });
         expect(handlers.playPause).not.toHaveBeenCalled();
     });
 
     it('passes Escape from a focused button to its action', () => {
-        const { handlers, view } = setup();
+        const { handlers, view } = setup(true);
         fireEvent.keyDown(view.getByTestId('toolbar'), { key: 'Escape' });
         expect(handlers.clearSelection).toHaveBeenCalledTimes(1);
     });
 
     it('passes a letter from a focused button to its action', () => {
-        const { handlers, view } = setup();
+        const { handlers, view } = setup(true);
         fireEvent.keyDown(view.getByTestId('toolbar'), { key: 'e' });
         expect(handlers.extract).toHaveBeenCalledTimes(1);
     });
 
     it('leaves every key to a listbox, which moves its own selection', () => {
-        const { handlers, view } = setup();
+        const { handlers, view } = setup(true);
         fireEvent.keyDown(view.getByTestId('listbox'), { key: 'ArrowRight' });
         fireEvent.keyDown(view.getByTestId('listbox'), { key: 'Escape' });
         expect(handlers.seekNext).not.toHaveBeenCalled();
         expect(handlers.clearSelection).not.toHaveBeenCalled();
+    });
+});
+
+describe('bare arrows in the editing surface', () => {
+    it('seeks to the next utterance with focus on the transcript', () => {
+        const { handlers, view } = setup(true);
+        fireEvent.keyDown(view.getByTestId('transcript'), { key: 'ArrowRight' });
+        expect(handlers.seekNext).toHaveBeenCalledTimes(1);
+    });
+
+    it('changes the speed with focus on the transcript', () => {
+        const { handlers, view } = setup(true);
+        fireEvent.keyDown(view.getByTestId('transcript'), { key: 'ArrowUp' });
+        expect(handlers.speedUp).toHaveBeenCalledTimes(1);
+    });
+
+    it('seeks with focus on a button, which has no arrow behaviour of its own', () => {
+        const { handlers, view } = setup(true);
+        fireEvent.keyDown(view.getByTestId('toolbar'), { key: 'ArrowRight' });
+        expect(handlers.seekNext).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('bare arrows for a reader', () => {
+    it('seeks from the transcript, because left and right never scroll it', () => {
+        const { handlers, view } = setup(false);
+        fireEvent.keyDown(view.getByTestId('transcript'), { key: 'ArrowRight' });
+        expect(handlers.seekNext).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps up and down for scroll, so a stray press cannot store a new speed', () => {
+        const { handlers, view } = setup(false);
+        fireEvent.keyDown(view.getByTestId('transcript'), { key: 'ArrowUp' });
+        expect(handlers.speedUp).not.toHaveBeenCalled();
+    });
+
+    it('changes the speed from inside the dock', () => {
+        const { handlers, view } = setup(false);
+        fireEvent.keyDown(view.getByTestId('dock-play'), { key: 'ArrowUp' });
+        expect(handlers.speedUp).toHaveBeenCalledTimes(1);
+    });
+
+    it('plays and pauses with Space anywhere', () => {
+        const { handlers, view } = setup(false);
+        fireEvent.keyDown(view.getByTestId('transcript'), { key: ' ' });
+        expect(handlers.playPause).toHaveBeenCalledTimes(1);
     });
 });

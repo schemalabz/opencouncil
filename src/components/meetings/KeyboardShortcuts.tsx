@@ -16,6 +16,15 @@ export function KeyboardShortcuts() {
     // so registering these without a player would only make the keys dead.
     const hasPlayback = Boolean(meeting.muxPlaybackId || meeting.videoUrl || meeting.audioUrl);
 
+    // Seek belongs to every reader. Left and right only scroll a page sideways,
+    // and a transcript never scrolls sideways, so claiming them costs nothing.
+    const seekScope = { requiresPlaybackFocus: false };
+    // Speed is the other case. Up and down are how a reader scrolls, and the
+    // chosen speed outlives the page, so a stray press would follow a reader to
+    // every meeting they open. Editing mode claims them outright; a reader
+    // changes speed from the dock, where the badge shows the rate in force.
+    const speedScope = { requiresPlaybackFocus: !options.editable };
+
     // Play / Pause
     // Playback belongs to every reader — only editing actions stay gated.
     useKeyboardShortcut(ACTIONS.PLAY_PAUSE.id, () => {
@@ -58,7 +67,7 @@ export function KeyboardShortcuts() {
             const targetUtterance = currentUtterance ? prevUtterances[1] || prevUtterances[0] : prevUtterances[0];
             seekTo(targetUtterance.startTimestamp);
         }
-    }, hasPlayback);
+    }, hasPlayback, seekScope);
 
     // Seek Next (ArrowRight)
     useKeyboardShortcut(ACTIONS.SEEK_NEXT.id, () => {
@@ -70,21 +79,21 @@ export function KeyboardShortcuts() {
         if (nextUtterance) {
             seekTo(nextUtterance.startTimestamp);
         }
-    }, hasPlayback);
+    }, hasPlayback, seekScope);
 
     // Speed Up (ArrowUp)
     useKeyboardShortcut(ACTIONS.SPEED_UP.id, () => {
         const newSpeedUp = Math.min(4, Math.round((options.playbackSpeed + 0.1) * 10) / 10);
         updateOptions({ playbackSpeed: newSpeedUp });
         handleSpeedChange(newSpeedUp.toString());
-    }, hasPlayback);
+    }, hasPlayback, speedScope);
 
     // Speed Down (ArrowDown)
     useKeyboardShortcut(ACTIONS.SPEED_DOWN.id, () => {
         const newSpeedDown = Math.max(0.5, Math.round((options.playbackSpeed - 0.1) * 10) / 10);
         updateOptions({ playbackSpeed: newSpeedDown });
         handleSpeedChange(newSpeedDown.toString());
-    }, hasPlayback);
+    }, hasPlayback, speedScope);
 
     // Skip Backward (Shift + ArrowLeft)
     useKeyboardShortcut(ACTIONS.SKIP_BACKWARD.id, () => {

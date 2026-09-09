@@ -3,6 +3,21 @@ import React, { createContext, useContext, ReactNode, useCallback, useEffect } f
 
 export type KeyboardActionHandler = () => void;
 
+export interface ShortcutRegistrationOptions {
+    /**
+     * Bare arrows scroll the page while reading, so a reader's playback actions
+     * run only from inside the dock. The editing surface claims them outright:
+     * an editor drives the audio while the caret and the focus stay on the
+     * transcript. Defaults to the action definition.
+     */
+    requiresPlaybackFocus?: boolean;
+}
+
+interface ShortcutRegistration {
+    handler: KeyboardActionHandler;
+    requiresPlaybackFocus?: boolean;
+}
+
 export interface KeyboardAction {
     id: string;
     description: string;
@@ -13,7 +28,7 @@ export interface KeyboardAction {
 }
 
 interface KeyboardShortcutsContextType {
-    registerShortcut: (actionId: string, handler: KeyboardActionHandler) => void;
+    registerShortcut: (actionId: string, handler: KeyboardActionHandler, options?: ShortcutRegistrationOptions) => void;
     unregisterShortcut: (actionId: string) => void;
     getShortcutLabel: (actionId: string) => string | null;
 }
@@ -80,10 +95,10 @@ const ACTION_DEFINITIONS: Record<string, Omit<KeyboardAction, 'handler'>> = {
 
 export function KeyboardShortcutsProvider({ children }: { children: ReactNode }) {
     // Map of actionId -> handler
-    const handlers = React.useRef<Map<string, KeyboardActionHandler>>(new Map());
+    const handlers = React.useRef<Map<string, ShortcutRegistration>>(new Map());
 
-    const registerShortcut = useCallback((actionId: string, handler: KeyboardActionHandler) => {
-        handlers.current.set(actionId, handler);
+    const registerShortcut = useCallback((actionId: string, handler: KeyboardActionHandler, options?: ShortcutRegistrationOptions) => {
+        handlers.current.set(actionId, { handler, requiresPlaybackFocus: options?.requiresPlaybackFocus });
     }, []);
 
     const unregisterShortcut = useCallback((actionId: string) => {
@@ -149,8 +164,8 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
                     continue;
                 }
 
-                const handler = handlers.current.get(action.id);
-                if (!handler) {
+                const registration = handlers.current.get(action.id);
+                if (!registration) {
                     continue;
                 }
 
@@ -164,12 +179,15 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
                 if (onButton && (matchedKey === ' ' || matchedKey === 'enter')) {
                     continue;
                 }
-                if (isArrow && action.requiresPlaybackFocus && !inPlaybackDock) {
-                    continue;
+                if (isArrow) {
+                    const requiresPlaybackFocus = registration.requiresPlaybackFocus ?? action.requiresPlaybackFocus;
+                    if (requiresPlaybackFocus && !inPlaybackDock) {
+                        continue;
+                    }
                 }
 
                 event.preventDefault();
-                handler();
+                registration.handler();
                 return;
             }
         };
@@ -185,18 +203,25 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
     );
 }
 
-export function useKeyboardShortcut(actionId: string, handler: KeyboardActionHandler, enabled: boolean = true) {
+export function useKeyboardShortcut(
+    actionId: string,
+    handler: KeyboardActionHandler,
+    enabled: boolean = true,
+    options?: ShortcutRegistrationOptions
+) {
     const context = useContext(KeyboardShortcutsContext);
     if (context === undefined) {
         throw new Error('useKeyboardShortcut must be used within a KeyboardShortcutsProvider');
     }
 
+    const requiresPlaybackFocus = options?.requiresPlaybackFocus;
+
     useEffect(() => {
         if (enabled) {
-            context.registerShortcut(actionId, handler);
+            context.registerShortcut(actionId, handler, { requiresPlaybackFocus });
             return () => context.unregisterShortcut(actionId);
         }
-    }, [actionId, handler, enabled, context]);
+    }, [actionId, handler, enabled, requiresPlaybackFocus, context]);
 }
 
 export const ACTIONS = ACTION_DEFINITIONS;
