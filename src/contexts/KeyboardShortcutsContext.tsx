@@ -111,61 +111,66 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
             }
             const inPlaybackDock = event.target instanceof HTMLElement
                 && event.target.closest('[data-playback-focus]') !== null;
-            // Keys mean something else on interactive controls: Space activates a
-            // focused button, arrows move menus, selects, sliders and tab lists.
-            const onInteractiveControl = event.target instanceof HTMLElement && (
+            // A composite widget owns every key: menus, listboxes, sliders, tab
+            // lists, comboboxes and selects move their own selection with the
+            // arrows, close on Escape and jump to a letter as you type it.
+            const onCompositeWidget = event.target instanceof HTMLElement && (
                 event.target instanceof HTMLSelectElement ||
-                event.target instanceof HTMLButtonElement ||
                 event.target.closest('[role="menu"], [role="menubar"], [role="listbox"], [role="slider"], [role="tablist"], [role="combobox"]') !== null
             );
-            // The dock is all buttons and one slider, so this return would reject
-            // every key the dock's own actions claim. It defers to the per-action
-            // check below there, and keeps its verdict everywhere else.
-            if (onInteractiveControl && !inPlaybackDock) {
-                return;
-            }
+            // A focused button owns Space and Enter, which activate it. It owns
+            // no other key, so the rest of the shortcuts still reach their action.
+            const onButton = event.target instanceof HTMLButtonElement;
 
             // Check all definitions
             for (const action of Object.values(ACTION_DEFINITIONS)) {
-                const isMatch = action.keys.some(keyCombo => {
+                const matchedKey = action.keys.map(keyCombo => {
                     const parts = keyCombo.toLowerCase().split('+');
                     const key = parts.pop();
                     const modifiers = parts;
-                    
-                    if (event.key.toLowerCase() !== key) return false;
-                    
+
+                    if (event.key.toLowerCase() !== key) return undefined;
+
                     const ctrl = modifiers.includes('control') || modifiers.includes('ctrl');
                     const meta = modifiers.includes('meta') || modifiers.includes('cmd');
                     const shift = modifiers.includes('shift');
                     const alt = modifiers.includes('alt');
 
-                    return (
+                    const modifiersMatch = (
                         event.ctrlKey === ctrl &&
                         event.metaKey === meta &&
                         event.shiftKey === shift &&
                         event.altKey === alt
                     );
-                });
+                    return modifiersMatch ? key : undefined;
+                }).find(key => key !== undefined);
 
-                if (isMatch) {
-                    // Bare arrows stay scroll keys while reading; they drive
-                    // playback only when focus sits inside the dock (or the
-                    // floating player). Space stays global.
-                    if (action.requiresPlaybackFocus && !inPlaybackDock) {
-                        continue;
-                    }
-                    // Inside the dock only the arrow actions outrank the control
-                    // under focus: Space still activates the focused button.
-                    if (onInteractiveControl && !action.requiresPlaybackFocus) {
-                        continue;
-                    }
-                    const handler = handlers.current.get(action.id);
-                    if (handler) {
-                        event.preventDefault();
-                        handler();
-                        return;
-                    }
+                if (matchedKey === undefined) {
+                    continue;
                 }
+
+                const handler = handlers.current.get(action.id);
+                if (!handler) {
+                    continue;
+                }
+
+                const isArrow = matchedKey.startsWith('arrow');
+
+                // Inside the dock the arrow actions outrank the widget under
+                // focus, which is how the dock's own strip and buttons work.
+                if (onCompositeWidget && !(inPlaybackDock && isArrow)) {
+                    continue;
+                }
+                if (onButton && (matchedKey === ' ' || matchedKey === 'enter')) {
+                    continue;
+                }
+                if (isArrow && action.requiresPlaybackFocus && !inPlaybackDock) {
+                    continue;
+                }
+
+                event.preventDefault();
+                handler();
+                return;
             }
         };
 
