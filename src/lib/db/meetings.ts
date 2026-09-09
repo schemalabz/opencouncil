@@ -1,4 +1,15 @@
-"use server";
+// Server-only, and deliberately NOT a "use server" module. Every export of such
+// a module becomes a POST-able Server Action, which would put eleven meeting
+// reads and writes on the public surface to serve the one call a client
+// component actually makes. That call is the release toggle, wrapped in
+// lib/actions/meetings.ts.
+//
+// Keep a gated wrapper and its ungated core in this file, next to each other
+// (createCouncilMeeting/createCouncilMeetingDirect,
+// getCouncilMeeting/getCouncilMeetingDirect). Choosing between the two is
+// choosing whether the viewer's session applies, and that choice should not
+// require opening a second file.
+import "server-only";
 import { CouncilMeeting, AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
@@ -9,13 +20,9 @@ import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
-// createCouncilMeetingDirect lives in a server-only module (not this "use server"
-// one) so it is never a directly-callable action. createCouncilMeeting wraps it
-// with the auth check.
-import { createCouncilMeetingDirect } from './meetingsCreate';
 import { getCityRealm } from "./cityRealm";
-// The list reads live in a server-only module so they are never callable
-// actions: each takes `includeUnreleased` from its caller. Types only here.
+// List reads and their payload types live in meetingsList.ts. Re-exported here
+// as types only, so callers of this module keep one import.
 export type { CouncilMeetingWithAdminBodyAndSubjects, CouncilMeetingWithSubjectPreview, MeetingListOptions } from './meetingsList';
 
 const meetingWithAdminBodyInclude = {
@@ -43,6 +50,21 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
 export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ cityId: meetingData.cityId });
     return createCouncilMeetingDirect(meetingData);
+}
+
+/**
+ * Create a council meeting with no auth check, for a caller that has already
+ * authorized the write: the meetings API route, which admits service keys as
+ * well as user sessions. A session gate inside this function would reject the
+ * service keys.
+ */
+export async function createCouncilMeetingDirect(
+    meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string; videoUrl?: string },
+): Promise<CouncilMeetingWithAdminBody> {
+    return prisma.councilMeeting.create({
+        data: meetingData,
+        include: meetingWithAdminBodyInclude,
+    });
 }
 
 /**
