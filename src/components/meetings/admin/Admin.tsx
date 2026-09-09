@@ -14,7 +14,7 @@ import TaskList from './TaskList';
 import { getTasksForMeeting } from '@/lib/db/tasks';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { toggleMeetingRelease } from '@/lib/db/meetings';
+import { toggleMeetingRelease } from '@/lib/actions/meetings';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
