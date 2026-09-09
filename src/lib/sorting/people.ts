@@ -1,4 +1,4 @@
-import type { AdministrativeBody, AdministrativeBodyType, Party, Role } from '@prisma/client';
+import type { AdministrativeBody, AdministrativeBodyType, Role } from '@prisma/client';
 import { administrativeBodyTypeRank, compareAdministrativeBodies } from '@/lib/utils/administrativeBodies';
 import { getSurname } from '@/lib/formatters/name';
 import { filterActiveRoles, isActivePartyRole, isMayor } from '@/lib/utils/roles';
@@ -9,8 +9,7 @@ import { filterActiveRoles, isActivePartyRole, isMayor } from '@/lib/utils/roles
  * One field decides the order: `Role.electedOrder`, the elected order of a seat
  * on an administrative body. The rules read it the same way on every surface:
  *
- * - In one body: the mayor, then the chair, then the parties in turn, then
- *   elected order inside the party, then surname.
+ * - In one body: the mayor, then the chair, then elected order, then surname.
  * - In one party: the mayor, then the party head, then the members by the body
  *   they sit on (council, committee, community, none), then elected order in
  *   that body, then surname.
@@ -19,13 +18,23 @@ import { filterActiveRoles, isActivePartyRole, isMayor } from '@/lib/utils/roles
  *   sit on. With a body type selected, only the bodies of that type place
  *   people, so a page filtered to the committees lists them in committee order.
  *
- * A body's list groups the members by party, because that is how a municipality
- * publishes its council. The grouping is a rule here, not a property of the
- * numbers: `electedOrder` stays the seat's own order of election, which in a
- * Greek municipal election runs across the parties rather than inside one.
+ * `electedOrder` carries the whole order of a body's list, and this module adds
+ * nothing to it beyond the mayor and the chair. A municipality publishes its
+ * council in party blocks, so the fill that writes these numbers puts the blocks
+ * in them. Two rules are deliberately absent here:
+ *
+ * - Grouping by party. A rule could group the members, but it could not place an
+ *   Αντιπρόεδρος or a Γραμματέας, who belong to a party and yet sit above every
+ *   block. `Role.isHead` marks the chair alone, no other field marks an officer,
+ *   and the role's name is text a municipality writes, not a signal to match on.
+ *   A grouping rule would therefore fix one half of the order and break the
+ *   other. The numbers hold both.
+ * - Any ordering of the parties. The fill decides it, so a municipality that
+ *   publishes an order of its own keeps it.
  *
  * The minutes read `electedOrder` through {@link getElectedOrderForBody} and
- * {@link compareRanks}. They print one order of election, without the grouping.
+ * {@link compareRanks} and nothing else, so the order a page shows and the
+ * order the minutes print come from the same numbers.
  */
 
 /**
@@ -39,7 +48,6 @@ export type OrderedRole = Pick<
     'isHead' | 'cityId' | 'partyId' | 'administrativeBodyId' | 'electedOrder' | 'startDate' | 'endDate'
 > & {
     administrativeBody: Pick<AdministrativeBody, 'id' | 'name' | 'type'> | null;
-    party: Pick<Party, 'id' | 'name'> | null;
 };
 
 export interface OrderedPerson {
@@ -91,38 +99,6 @@ const activeRoles = (person: OrderedPerson): OrderedRole[] => filterActiveRoles(
 const bodyRole = (person: OrderedPerson, administrativeBodyId: string): OrderedRole | null =>
     activeRoles(person).find(role => role.administrativeBodyId === administrativeBodyId) ?? null;
 
-/** The party a person belongs to now, or null. */
-const activePartyRole = (person: OrderedPerson): OrderedRole | null =>
-    activeRoles(person).find(role => role.partyId) ?? null;
-
-/**
- * Where each party's block sits in one body's list.
- *
- * The party whose first-elected member comes first opens the list, so the order
- * of the blocks follows the election rather than a count this function would
- * have to take. A party whose members carry no number sorts after the parties
- * that do, by name. Everyone with no party sorts after every party, which is
- * where a municipality puts its independents.
- */
-function partyBlockRanks(people: OrderedPerson[], administrativeBodyId: string): Map<string, number> {
-    const blocks = new Map<string, { order: number | null; name: string }>();
-    for (const person of people) {
-        const role = activePartyRole(person);
-        if (!role?.partyId) continue;
-        const order = bodyRole(person, administrativeBodyId)?.electedOrder ?? null;
-        const seen = blocks.get(role.partyId);
-        if (!seen) {
-            blocks.set(role.partyId, { order, name: role.party?.name ?? role.partyId });
-        } else if (compareRanks(order, seen.order) < 0) {
-            seen.order = order;
-        }
-    }
-    const ordered = [...blocks.entries()].sort(
-        ([, a], [, b]) => compareRanks(a.order, b.order) || a.name.localeCompare(b.name, 'el'),
-    );
-    return new Map(ordered.map(([partyId], index) => [partyId, index]));
-}
-
 /**
  * The seat that places a person, and their elected order on it.
  *
@@ -156,26 +132,24 @@ function sortWithKeys<T, K>(items: T[], key: (item: T) => K, compare: (a: K, b: 
 }
 
 /**
- * The members of one administrative body: the mayor, then the chair, then the
- * parties in turn, then elected order inside each party, then surname. Someone
- * in the list without a seat on the body (a deputy mayor listed with the
- * council) sorts after the members.
+ * The members of one administrative body: the mayor, then the chair, then
+ * elected order, then surname. Someone in the list without a seat on the body
+ * (a deputy mayor listed with the council) sorts after the members.
+ *
+ * The elected order carries the party blocks, so two members of one party are
+ * adjacent because their numbers are adjacent, not because this function put
+ * them together.
  */
 export function sortBodyMembers<T extends OrderedPerson>(people: T[], administrativeBodyId: string): T[] {
-    const blocks = partyBlockRanks(people, administrativeBodyId);
     return sortWithKeys(
         people,
         person => {
             const role = bodyRole(person, administrativeBodyId);
-            const partyId = activePartyRole(person)?.partyId;
-            const block = partyId ? blocks.get(partyId) : undefined;
             return {
                 person,
                 mayor: isMayor(person),
                 member: role !== null,
                 chair: role?.isHead ?? false,
-                // No party sorts after every party, so the independents close the list.
-                block: block ?? blocks.size,
                 electedOrder: role?.electedOrder ?? null,
             };
         },
@@ -183,7 +157,6 @@ export function sortBodyMembers<T extends OrderedPerson>(people: T[], administra
             compareFlags(a.mayor, b.mayor)
             || compareFlags(a.member, b.member)
             || compareFlags(a.chair, b.chair)
-            || a.block - b.block
             || compareRanks(a.electedOrder, b.electedOrder)
             || compareByLastName(a.person, b.person),
     );
