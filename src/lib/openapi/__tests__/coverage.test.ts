@@ -29,6 +29,10 @@ const EXPECTED_OPERATIONS = [
     'GET /api/cities/{cityId}/people/{personId}',
     'PUT /api/cities/{cityId}/people/{personId}',
     'DELETE /api/cities/{cityId}/people/{personId}',
+    'GET /api/cities/{cityId}/subjects',
+    'GET /api/cities/{cityId}/meetings/{meetingId}/subjects',
+    'GET /api/cities/{cityId}/meetings/{meetingId}/subjects/{subjectId}',
+    'PATCH /api/cities/{cityId}/meetings/{meetingId}/subjects/{subjectId}',
     'POST /api/search',
     'GET /api/utterance/{utteranceId}/context',
 ].sort();

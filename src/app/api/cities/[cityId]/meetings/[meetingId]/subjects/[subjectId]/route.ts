@@ -1,9 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, withServiceOrUserAuth } from '@/lib/auth';
 import prisma from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/api/errors';
+import { getApiSubject } from '@/lib/db/subjectsApi';
+import { getRealm } from '@/lib/realm.server';
 import { z } from 'zod';
+
+export async function GET(
+    req: NextRequest,
+    props: { params: Promise<{ cityId: string; meetingId: string; subjectId: string }> }
+) {
+    const params = await props.params;
+    try {
+        const includeUnreleased = req.nextUrl.searchParams.get('includeUnreleased') === 'true';
+        if (includeUnreleased) {
+            await withServiceOrUserAuth(req, { cityId: params.cityId });
+        }
+
+        const subject = await getApiSubject(
+            await getRealm(),
+            params.cityId,
+            params.meetingId,
+            params.subjectId,
+            { includeUnreleased }
+        );
+        if (!subject) {
+            return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
+        }
+
+        return NextResponse.json(subject);
+    } catch (error) {
+        return handleApiError(error, 'Failed to fetch subject');
+    }
+}
 
 const patchSchema = z.object({
     nonAgendaReason: z.enum(['beforeAgenda', 'outOfAgenda']).nullable().optional(),
