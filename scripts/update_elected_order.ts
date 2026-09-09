@@ -259,11 +259,16 @@ async function main() {
         .option('dhm-id', { type: 'string', describe: 'Municipality DHM_ID (optional, auto-detected from city name)' })
         .option('dry-run', { type: 'boolean', default: false, describe: 'Preview changes without writing to database' })
         .option('search', { type: 'string', describe: 'Search for a municipality by name' })
+        .option('from-names', { type: 'string', describe: 'Number the council from a text file with one name per line, in the order the municipality publishes; skips the election data' })
         .option('out', { type: 'string', describe: 'Write the planned order as JSON to this file, in the format the elected-order sheet imports' })
         .check(argv => {
             if (argv.search) return true;
             if (argv.city) return true;
             throw new Error('Either --city or --search is required');
+        })
+        .check(argv => {
+            if (argv.fromNames && !fs.existsSync(String(argv.fromNames))) throw new Error(`File not found: ${argv.fromNames}`);
+            return true;
         })
         .help()
         .argv;
@@ -301,9 +306,9 @@ async function main() {
     }
     console.log(`City: ${city.name_municipality} (${city.id})\n`);
 
-    // Resolve DHM_ID
+    // Resolve DHM_ID, unless the order comes from a list of names
     let dhmId: string | undefined = argv.dhmId;
-    if (!dhmId) {
+    if (!dhmId && !argv.fromNames) {
         dhmId = await findDhmId(city.name_municipality) ?? undefined;
         if (!dhmId) {
             process.exit(1);
@@ -363,19 +368,29 @@ async function main() {
 
     console.log(`Loaded ${dbMembers.length} council members from database\n`);
 
-    // Load election data
-    const elected = await loadElectionData(dhmId);
-    console.log(`\nElected members from election data: ${elected.length}\n`);
+    // The order to number from: the election data, or a list of names a
+    // municipality publishes, which it may keep in an order of its own.
+    let elected: ElectedMember[];
+    if (argv.fromNames) {
+        const lines = fs.readFileSync(argv.fromNames, 'utf-8').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        elected = lines.map((line, i) => ({
+            surname: line, firstname: '', partyName: 'list', candId: 0, votes: 0, isPartyHead: false, globalOrder: i + 1, partyInternalRank: i + 1,
+        }));
+        console.log(`\nOrder from ${argv.fromNames}: ${elected.length} names\n`);
+    } else {
+        elected = await loadElectionData(dhmId!);
+        console.log(`\nElected members from election data: ${elected.length}\n`);
 
-    // Print election results
-    let currentParty = -1;
-    for (const e of elected) {
-        if (e.candId !== currentParty) {
-            currentParty = e.candId;
-            console.log(`--- ${e.partyName} ---`);
+        // Print election results
+        let currentParty = -1;
+        for (const e of elected) {
+            if (e.candId !== currentParty) {
+                currentParty = e.candId;
+                console.log(`--- ${e.partyName} ---`);
+            }
+            const label = e.isPartyHead ? '(head)' : `${e.votes} votes`;
+            console.log(`  ${e.globalOrder.toString().padStart(2)}. ${e.surname} ${e.firstname} — ${label}`);
         }
-        const label = e.isPartyHead ? '(head)' : `${e.votes} votes`;
-        console.log(`  ${e.globalOrder.toString().padStart(2)}. ${e.surname} ${e.firstname} — ${label}`);
     }
 
     // Match
@@ -421,7 +436,7 @@ async function main() {
             cityId: city.id,
             administrativeBodyId: councilBody.id,
             exportedAt: new Date().toISOString(),
-            source: { dhmId, matched: matched.size - unmatched.length, unmatched },
+            source: { dhmId: dhmId ?? null, namesFile: argv.fromNames ?? null, matched: matched.size - unmatched.length, unmatched },
             members: sorted.map(([personId, { roleId, order }]) => ({
                 roleId,
                 personId,
