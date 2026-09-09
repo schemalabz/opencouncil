@@ -33,7 +33,7 @@ import dotenv from 'dotenv'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 import { PrismaClient } from '@prisma/client'
-import { matchByName, DbMember } from './lib/greek-name-matching'
+import { matchByName, normalizeGreekName, DbMember } from './lib/greek-name-matching'
 
 dotenv.config()
 
@@ -387,7 +387,7 @@ async function writeCommitteeToDb(
       name: true,
       roles: {
         where: { administrativeBodyId: committeeBody.id },
-        select: { id: true, electedOrder: true },
+        select: { id: true, electedOrder: true, name: true },
         take: 1,
       },
     },
@@ -424,6 +424,7 @@ async function writeCommitteeToDb(
     memberType: 'regular' | 'alternate'
     electedOrder: number
     existingRoleId: string | null
+    existingRoleName: string | null
   }> = []
 
   for (const [personId, candidateIdx] of matched) {
@@ -436,8 +437,18 @@ async function writeCommitteeToDb(
       memberType: member.type,
       electedOrder: candidateIdx + 1,
       existingRoleId: existingRole?.id ?? null,
+      existingRoleName: existingRole?.name ?? null,
     })
   }
+
+  // The vice-president of the committee sits above the members, as the
+  // president does. The decision does not say who it is; the role's name in
+  // our data does. Number them first and the rest in the decision's order.
+  const isVicePresident = (op: { existingRoleName: string | null }) =>
+    op.existingRoleName !== null && normalizeGreekName(op.existingRoleName) === 'αντιπροεδροσ'
+  operations
+    .sort((a, b) => Number(isVicePresident(b)) - Number(isVicePresident(a)) || a.electedOrder - b.electedOrder)
+    .forEach((op, i) => { op.electedOrder = i + 1 })
 
   // Log unmatched committee members (from external data)
   const matchedIndices = new Set(matched.values())
@@ -455,7 +466,7 @@ async function writeCommitteeToDb(
   console.log(`\nPlanned operations:`)
   for (const op of operations.sort((a, b) => a.electedOrder - b.electedOrder)) {
     const action = op.existingRoleId ? 'UPDATE' : 'CREATE'
-    const roleName = op.memberType === 'alternate' ? ' [Αναπληρωματικό Μέλος]' : ''
+    const roleName = op.memberType === 'alternate' ? ' [Αναπληρωματικό Μέλος]' : isVicePresident(op) ? ' [Αντιπρόεδρος]' : ''
     console.log(
       `  ${op.electedOrder.toString().padStart(2)}. ${op.personName} — ${action}${roleName}`
     )
@@ -469,8 +480,11 @@ async function writeCommitteeToDb(
   // Execute
   await prisma.$transaction(async (tx) => {
     for (const op of operations) {
+      // An officer's title on the role (Αντιπρόεδρος) is not the fill's to
+      // remove, so an update keeps a name that is not the alternate marker.
+      const keepsTitle = op.existingRoleName !== null && normalizeGreekName(op.existingRoleName) !== 'αναπληρωματικο μελοσ'
       const roleName =
-        op.memberType === 'alternate' ? 'Αναπληρωματικό Μέλος' : null
+        op.memberType === 'alternate' ? 'Αναπληρωματικό Μέλος' : keepsTitle ? op.existingRoleName : null
 
       if (op.existingRoleId) {
         await tx.role.update({
