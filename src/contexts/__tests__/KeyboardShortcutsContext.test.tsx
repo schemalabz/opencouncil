@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
-import { KeyboardShortcutsProvider, useKeyboardShortcut, ACTIONS } from '../KeyboardShortcutsContext';
+import { KeyboardShortcutsProvider, useKeyboardShortcut, ACTIONS, getActionKeyLabel } from '../KeyboardShortcutsContext';
 
 type Handlers = {
     seekNext: jest.Mock;
@@ -129,5 +129,27 @@ describe('the timeline strip', () => {
         const { handlers, view } = setup(false);
         fireEvent.keyDown(view.getByTestId('strip'), { key: 'ArrowUp' });
         expect(handlers.speedUp).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('the keys a guide shows', () => {
+    it('writes an arrow as an arrow', () => {
+        expect(getActionKeyLabel(ACTIONS.SEEK_NEXT.id)).toBe('→');
+        expect(getActionKeyLabel(ACTIONS.SPEED_UP.id)).toBe('↑');
+    });
+
+    it('keeps the modifier in front of the key', () => {
+        expect(getActionKeyLabel(ACTIONS.SKIP_FORWARD.id)).toBe('Shift+→');
+    });
+
+    it('names the keys that have no glyph', () => {
+        expect(getActionKeyLabel(ACTIONS.PLAY_PAUSE.id)).toBe('Space');
+        expect(getActionKeyLabel(ACTIONS.CLEAR_SELECTION.id)).toBe('Esc');
+        expect(getActionKeyLabel(ACTIONS.EDIT_NEXT_UTTERANCE.id)).toBe('Enter');
+        expect(getActionKeyLabel(ACTIONS.EXTRACT_SEGMENT.id)).toBe('E');
+    });
+
+    it('has no label for an action that does not exist', () => {
+        expect(getActionKeyLabel('NOT_AN_ACTION')).toBeNull();
     });
 });

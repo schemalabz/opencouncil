@@ -93,6 +93,35 @@ const ACTION_DEFINITIONS: Record<string, Omit<KeyboardAction, 'handler'>> = {
     }
 };
 
+// How each key is written for a reader. The dispatcher matches on the
+// KeyboardEvent.key values above; a guide has to show them as keys look.
+const KEY_LABELS: Record<string, string> = {
+    ' ': 'Space',
+    arrowleft: '\u2190',
+    arrowright: '\u2192',
+    arrowup: '\u2191',
+    arrowdown: '\u2193',
+    escape: 'Esc',
+};
+
+/**
+ * The keys an action answers to, written the way a guide shows them.
+ *
+ * This is the single statement of what a shortcut is bound to. Anything that
+ * tells a user about a shortcut reads it from here, so the guide cannot promise
+ * a key the dispatcher does not honour.
+ */
+export function getActionKeyLabel(actionId: string): string | null {
+    const def = ACTION_DEFINITIONS[actionId];
+    if (!def) return null;
+    return def.keys
+        .map(combo => combo
+            .split('+')
+            .map(part => KEY_LABELS[part.toLowerCase()] ?? (part.length === 1 ? part.toUpperCase() : part))
+            .join('+'))
+        .join(' or ');
+}
+
 export function KeyboardShortcutsProvider({ children }: { children: ReactNode }) {
     // Map of actionId -> handler
     const handlers = React.useRef<Map<string, ShortcutRegistration>>(new Map());
@@ -105,10 +134,7 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
         handlers.current.delete(actionId);
     }, []);
 
-    const getShortcutLabel = useCallback((actionId: string) => {
-        const def = ACTION_DEFINITIONS[actionId];
-        return def ? def.keys.join(' or ') : null;
-    }, []);
+    const getShortcutLabel = useCallback((actionId: string) => getActionKeyLabel(actionId), []);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
