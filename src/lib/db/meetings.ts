@@ -114,14 +114,21 @@ export async function editCouncilMeeting(cityId: string, id: string, meetingData
     }
 }
 
+/**
+ * A council meeting, as the current viewer may see it.
+ *
+ * Consults the user session: an unreleased (draft) meeting resolves to `null`
+ * for anyone who cannot edit the city. That is how a meeting page 404s a draft,
+ * so `null` here means "absent or forbidden". Never read it as proof that the
+ * row is gone.
+ *
+ * The session makes this request-scoped twice over. It reads `headers()`, so
+ * the call cannot run inside `unstable_cache`. And with no session it can only
+ * deny, so background work must call `getCouncilMeetingDirect` instead.
+ */
 export async function getCouncilMeeting(cityId: string, id: string): Promise<CouncilMeetingWithAdminBody | null> {
-    const startTime = performance.now();
     try {
-        const meeting = await prisma.councilMeeting.findUnique({
-            where: { cityId_id: { cityId, id } },
-            include: meetingWithAdminBodyInclude,
-        });
-        const endTime = performance.now();
+        const meeting = await getCouncilMeetingDirect(cityId, id);
 
         if (meeting && !meeting.released && !(await isUserAuthorizedToEdit({ cityId }))) {
             return null;
@@ -131,6 +138,21 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
         console.error('Error fetching council meeting:', error);
         throw new Error('Failed to fetch council meeting');
     }
+}
+
+/**
+ * Fetch a council meeting with no visibility gate, for a caller that has no
+ * user session to gate on: the task-server callbacks and the crons. There the
+ * gated getter above can only deny, and callers read its `null` as "the meeting
+ * does not exist".
+ *
+ * `null` here means the row is absent, and nothing else.
+ */
+export async function getCouncilMeetingDirect(cityId: string, id: string): Promise<CouncilMeetingWithAdminBody | null> {
+    return prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId, id } },
+        include: meetingWithAdminBodyInclude,
+    });
 }
 
 const upcomingMeetingInclude = {
