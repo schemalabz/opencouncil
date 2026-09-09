@@ -40,10 +40,14 @@
     { "table": "AdministrativeBody", "column": "contactEmails", "action": "empty-array" },
     { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "callbackUrl" },
     { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "recipientEmails" },
-    { "table": "TaskStatus", "column": "responseBody", "action": "null-when", "when": "type = 'generateVoiceprint'" }
+    { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-key", "key": "voiceprint" },
+    { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "voiceprints" }
   ],
   "subsetOnly": [
-    { "table": "City", "column": "geometry", "action": "null-when", "when": "status <> 'supported'" }
+    { "table": "City", "column": "geometry", "action": "null-when", "when": "status <> 'supported'" },
+    { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-path", "path": ["transcript", "transcription", "utterances"] },
+    { "table": "Decision", "column": "taskId", "action": "null-when", "when": "EXISTS (SELECT 1 FROM public.\"Subject\" s JOIN public.\"TaskStatus\" t ON t.id = \"Decision\".\"taskId\" WHERE s.id = \"Decision\".\"subjectId\" AND (t.\"cityId\", t.\"councilMeetingId\") <> (s.\"cityId\", s.\"councilMeetingId\"))" },
+    { "table": "AttendanceEvent", "column": "taskId", "action": "null-when", "when": "EXISTS (SELECT 1 FROM public.\"TaskStatus\" t WHERE t.id = \"AttendanceEvent\".\"taskId\" AND (t.\"cityId\", t.\"councilMeetingId\") <> (\"AttendanceEvent\".\"cityId\", \"AttendanceEvent\".\"councilMeetingId\"))" }
   ],
   "publicText": [
     "Utterance", "Word", "Summary", "Subject", "SpeakerContribution", "Decision",

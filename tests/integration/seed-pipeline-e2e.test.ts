@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import zlib from 'zlib'
 import { execFileSync, execSync } from 'child_process'
 import { Client } from 'pg'
 import prisma from '@/lib/db/prisma'
@@ -93,10 +94,23 @@ async function markMigrationsApplied(databaseUrl: string): Promise<void> {
     }
 }
 
+type DumpMetadataEntry = { objectType: string; name: string; fileName: string }
+
+/**
+ * Reads every line of a table's data file in an unpacked artifact directory,
+ * the way `privacy-scan.ts` locates a table through `metadata.json`.
+ */
+function readTableDataLines(dir: string, table: string): string[] {
+    const metadata = JSON.parse(fs.readFileSync(path.join(dir, 'metadata.json'), 'utf8')) as { entries: DumpMetadataEntry[] }
+    const entries = metadata.entries.filter((e) => e.objectType === 'TABLE DATA' && e.name.replace(/^"|"$/g, '') === table)
+    return entries.flatMap((e) => zlib.gunzipSync(fs.readFileSync(path.join(dir, e.fileName))).toString('utf8').split('\n'))
+}
+
 maybe('seed pipeline end to end', () => {
     // The describe body also runs when the suite is skipped, and a skipped suite
     // runs no afterAll. The directory is therefore made in beforeAll, not here.
     let root = ''
+    let pollTaskId = ''
 
     beforeAll(async () => {
         root = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-seed-e2e-'))
@@ -125,7 +139,10 @@ maybe('seed pipeline end to end', () => {
             const tag = await prisma.speakerTag.create({ data: { label: `Speaker ${i}` } })
             const seg = await prisma.speakerSegment.create({ data: { startTimestamp: 0, endTimestamp: 10, meetingId: m.id, cityId: athens.id, speakerTagId: tag.id } })
             if (i === 1 || i === 4) {
-                await prisma.speakerIdentification.create({ data: { speakerTagId: tag.id, method: 'transcript', personId: identified.id, actionable: true, evidenceKind: 'named', confidence: 90, evidence: `[00:01] The chair gives the floor to Identified Person (meeting ${i})` } })
+                // The kept meeting's evidence carries an email-like string, the same way
+                // Utterance.text does, so the subset scan's publicText exemption for
+                // SpeakerIdentification has something to cover.
+                await prisma.speakerIdentification.create({ data: { speakerTagId: tag.id, method: 'transcript', personId: identified.id, actionable: true, evidenceKind: 'named', confidence: 90, evidence: `[00:01] The chair gives the floor to Identified Person (meeting ${i}), confirmed by dimos@athens.gr` } })
             }
             await prisma.utterance.create({ data: { text: `Utterance ${i} write to dimos@athens.gr`, startTimestamp: 0, endTimestamp: 5, speakerSegmentId: seg.id } })
             await createTaskStatus(m.id, athens.id, { type: 'summarize', status: 'completed', requestBody: JSON.stringify({ callbackUrl: 'https://x/cb?token=SECRET', mediaUrl: 'https://cdn/x.mp3' }), responseBody: '{"ok":true}' })
@@ -146,11 +163,33 @@ maybe('seed pipeline end to end', () => {
         // removes this key too.
         await createTaskStatus('m1', athens.id, { type: 'transcriptSent', status: 'completed', requestBody: JSON.stringify({ recipientEmails: ['a@b.gr'] }) })
         // A voiceprint is a biometric identifier, so VoicePrint is a private table.
-        // The generateVoiceprint task holds the same embedding in its response, and a
-        // masking rule nulls that column. Both hang off m1, a meeting the subset keeps.
+        // The generateVoiceprint task holds the same embedding in the "voiceprint" key
+        // of its response, and a masking rule removes that key. The audio URL and the
+        // duration stay. Both hang off m1, a meeting the subset keeps.
         const speaker = await createPerson(athens.id, { name: 'Voiced Person' })
         await prisma.voicePrint.create({ data: { embedding: '[0.1,0.2]', sourceAudioUrl: 'https://cdn/voice.mp3', startTimestamp: 0, endTimestamp: 10, personId: speaker.id, sourceSegmentId: segmentIds[1] } })
-        await createTaskStatus('m1', athens.id, { type: 'generateVoiceprint', status: 'completed', requestBody: '{}', responseBody: '{"voiceprint":"[0.1,0.2]"}' })
+        await createTaskStatus('m1', athens.id, { type: 'generateVoiceprint', status: 'completed', requestBody: '{}', responseBody: JSON.stringify({ audioUrl: 'https://cdn/voice.mp3', voiceprint: '[0.1,0.2]', duration: 10 }) })
+        // A transcribe request carries the voiceprints of the speakers, which are
+        // biometric data, and a masking rule removes that key. The response holds
+        // the whole transcript. The Utterance and Word tables hold the same words,
+        // so a subset-only rule removes the utterances from the response. The full
+        // artifact keeps the whole response.
+        await createTaskStatus('m1', athens.id, {
+            type: 'transcribe',
+            status: 'completed',
+            requestBody: JSON.stringify({ youtubeUrl: 'https://youtu.be/x', voiceprints: [{ personId: 'p', voiceprint: '[0.1]' }] }),
+            responseBody: JSON.stringify({
+                videoUrl: 'https://cdn/x.mp4',
+                audioUrl: 'https://cdn/x.mp3',
+                muxPlaybackId: 'mux-x',
+                transcript: { transcription: { utterances: [{ text: 'Utterance 1', start: 0, end: 5, speaker: 0, drift: 0 }], speakers: [{ speaker: 0, match: null, confidence: {} }] } },
+            }),
+        })
+        // One pollDecisions task on m1 creates the decisions of two meetings. In the
+        // subset, d1 keeps the reference to this task, and d2, which sits on m2,
+        // loses it. The full artifact holds every task, so d2 keeps it there.
+        const pollTask = await createTaskStatus('m1', athens.id, { type: 'pollDecisions', status: 'completed', requestBody: '{}', responseBody: '{"decisions":[]}' })
+        pollTaskId = pollTask.id
 
         const user = await createUser('person@test.local')
         // A highlight that a reader made is a private draft until it is showcased. One that
@@ -176,7 +215,20 @@ maybe('seed pipeline end to end', () => {
         await createNotificationPreference({ userId: user.id, cityId: athens.id, locationIds: ['loc-reader'] })
         // d0 hangs off the unreleased meeting the subset drops, d1 off one it keeps.
         await prisma.decision.create({ data: { id: 'd0', subjectId: subjectIds[4], title: 'Dropped decision', pdfUrl: 'https://x/d0.pdf', createdById: user.id } })
-        await prisma.decision.create({ data: { id: 'd1', subjectId: subjectIds[1], title: 'Kept decision', pdfUrl: 'https://x/d1.pdf', createdById: user.id } })
+        await prisma.decision.create({ data: { id: 'd1', subjectId: subjectIds[1], title: 'Kept decision', pdfUrl: 'https://x/d1.pdf', createdById: user.id, taskId: pollTask.id } })
+        // d2 sits on m2, but its task sits on m1. A subset-only rule nulls that reference.
+        await prisma.decision.create({ data: { id: 'd2', subjectId: subjectIds[2], title: 'Cross-meeting decision', pdfUrl: 'https://x/d2.pdf', taskId: pollTask.id } })
+        // A consent period names the account that recorded it, so VoicePrintConsent
+        // is a private table.
+        await prisma.voicePrintConsent.create({ data: { personId: speaker.id, userId: user.id } })
+        // Attendance events follow their meeting. ae-same keeps the task of its own
+        // meeting. ae-cross sits on m2, but its task sits on m1, so a subset-only
+        // rule nulls that reference. ae-null has no anchor subject and no task.
+        // ae-dropped hangs off the unreleased meeting the subset drops.
+        await prisma.attendanceEvent.create({ data: { id: 'ae-same', cityId: athens.id, councilMeetingId: 'm1', personId: speaker.id, kind: 'ARRIVAL', anchorKind: 'SUBJECT', anchorSubjectId: subjectIds[1], rawText: 'Arrived during subject 1', source: 'decision', taskId: pollTask.id } })
+        await prisma.attendanceEvent.create({ data: { id: 'ae-cross', cityId: athens.id, councilMeetingId: 'm2', personId: speaker.id, kind: 'DEPARTURE', anchorKind: 'SUBJECT', anchorSubjectId: subjectIds[2], rawText: 'Left during subject 2', source: 'decision', taskId: pollTask.id } })
+        await prisma.attendanceEvent.create({ data: { id: 'ae-null', cityId: athens.id, councilMeetingId: 'm2', personId: speaker.id, kind: 'DEPARTURE', anchorKind: 'SESSION_END', rawText: 'Left at the end', source: 'manual' } })
+        await prisma.attendanceEvent.create({ data: { id: 'ae-dropped', cityId: athens.id, councilMeetingId: 'm4', personId: speaker.id, kind: 'ARRIVAL', anchorKind: 'SUBJECT', anchorSubjectId: subjectIds[4], rawText: 'Arrived during subject 4', source: 'decision' } })
 
         const dumpFile = path.join(root, 'backup.sql')
         // Production carries PGSync's change capture: a trigger function that reads
@@ -233,12 +285,14 @@ maybe('seed pipeline end to end', () => {
         expect(manifest.counts.User).toBe(0)
         expect(manifest.counts.NotificationPreference).toBe(0)
         expect(manifest.counts.Subject).toBe(4)
-        expect(manifest.counts.TaskStatus).toBe(7)
+        expect(manifest.counts.TaskStatus).toBe(9)
         expect(manifest.counts.Highlight).toBe(2)
         expect(manifest.counts.DecisionCandidate).toBe(1)
         expect(manifest.counts.VoicePrint).toBe(0)
         expect(manifest.counts.City).toBe(2)
-        expect(manifest.counts.Decision).toBe(1)
+        expect(manifest.counts.Decision).toBe(2)
+        expect(manifest.counts.AttendanceEvent).toBe(3)
+        expect(manifest.counts.VoicePrintConsent).toBe(0)
         expect(fs.existsSync(path.join(outDir, 'subset.tar.zst'))).toBe(true)
         expect(fs.existsSync(path.join(outDir, 'full.tar.zst'))).toBe(true)
         // Greenmask's files of the run sit in their own directory under the work directory.
@@ -253,11 +307,22 @@ maybe('seed pipeline end to end', () => {
         const scans = report.scans
         if (!scans) throw new Error('a passed verify report has scans')
         expect(scans.subset.perTable.Utterance.emails).toBe(4)
+        // The kept meeting's SpeakerIdentification carries one email-like string.
+        // publicText covers the table, so it counts here without becoming a violation.
+        expect(scans.subset.perTable.SpeakerIdentification.emails).toBe(1)
         expect(scans.subset.violations).toEqual([])
         // Both artifacts drop the unreleased m4, so the full artifact holds the same 4
         // utterances with an email as the subset.
         expect(scans.full.perTable.Utterance.emails).toBe(4)
         expect(scans.full.violations).toEqual([])
+
+        // The masking rule for the voiceprint embedding applies to both artifacts, so
+        // the full artifact's TaskStatus rows never carry the embedding value either.
+        // The subsetOnly rule for the transcribe response only applies to the subset,
+        // so the full artifact keeps the whole transcribe response, utterances included.
+        const fullTaskStatusLines = readTableDataLines(path.join(root, 'verify-work', 'full', 'artifact'), 'TaskStatus')
+        expect(fullTaskStatusLines.some((line) => line.includes('[0.1,0.2]'))).toBe(false)
+        expect(fullTaskStatusLines.some((line) => line.includes('"utterances":[{"text":"Utterance 1"'))).toBe(true)
 
         // verify restored the full artifact too. It keeps every meeting, the unreleased m4 included.
         const full = new Client({ connectionString: verifyUrls.full })
@@ -295,13 +360,22 @@ maybe('seed pipeline end to end', () => {
             expect(bodies.rows).toHaveLength(2)
             expect(bodies.rows.every((r) => r.contactEmails.length === 0)).toBe(true)
             const tasks = await restored.query<{ type: string; requestBody: string; responseBody: string | null }>('SELECT type, "requestBody", "responseBody" FROM "TaskStatus"')
-            expect(tasks.rows).toHaveLength(7)
+            expect(tasks.rows).toHaveLength(9)
             expect(tasks.rows.every((r) => !r.requestBody.includes('callbackUrl'))).toBe(true)
             expect(tasks.rows.every((r) => !r.requestBody.includes('recipientEmails'))).toBe(true)
             expect(tasks.rows.every((r) => !r.requestBody.includes('a@b.gr'))).toBe(true)
-            // The rule nulls the response of the voiceprint task only. Every other
-            // task keeps the response it had.
-            expect(tasks.rows.filter((r) => r.type === 'generateVoiceprint').map((r) => r.responseBody)).toEqual([null])
+            expect(tasks.rows.every((r) => !r.requestBody.includes('voiceprints'))).toBe(true)
+            // The voiceprint response loses the embedding only. The transcribe
+            // response loses its utterances only. Every other task keeps the
+            // response it had.
+            const responseOf = (type: string): unknown[] => tasks.rows.filter((r) => r.type === type).map((r) => JSON.parse(r.responseBody ?? 'null'))
+            expect(responseOf('generateVoiceprint')).toEqual([{ audioUrl: 'https://cdn/voice.mp3', duration: 10 }])
+            expect(responseOf('transcribe')).toEqual([{
+                videoUrl: 'https://cdn/x.mp4',
+                audioUrl: 'https://cdn/x.mp3',
+                muxPlaybackId: 'mux-x',
+                transcript: { transcription: { speakers: [{ speaker: 0, match: null, confidence: {} }] } },
+            }])
             expect(tasks.rows.filter((r) => r.type === 'summarize').map((r) => r.responseBody)).toEqual(['{"ok":true}', '{"ok":true}', '{"ok":true}', '{"ok":true}'])
             const voicePrintCount = await restored.query<{ n: string }>('SELECT count(*)::text AS n FROM "VoicePrint"')
             expect(voicePrintCount.rows[0].n).toBe('0')
@@ -320,15 +394,30 @@ maybe('seed pipeline end to end', () => {
             expect(pgSync.rows).toEqual([{ triggers: '0', functions: '0', views: '0' }])
             const cities = await restored.query<{ id: string; hasGeometry: boolean }>('SELECT id, geometry IS NOT NULL AS "hasGeometry" FROM "City" ORDER BY id')
             expect(cities.rows).toEqual([{ id: 'athens', hasGeometry: true }, { id: 'pending-town', hasGeometry: false }])
-            const decisions = await restored.query<{ id: string; createdById: string | null }>('SELECT id, "createdById" FROM "Decision"')
-            expect(decisions.rows).toEqual([{ id: 'd1', createdById: null }])
+            const decisions = await restored.query<{ id: string; createdById: string | null; taskId: string | null }>('SELECT id, "createdById", "taskId" FROM "Decision" ORDER BY id')
+            // d0 hangs off the dropped meeting. d1's task sits on d1's own meeting, so
+            // it keeps the reference; d2's task sits on another meeting, so it loses it.
+            expect(decisions.rows).toEqual([
+                { id: 'd1', createdById: null, taskId: pollTaskId },
+                { id: 'd2', createdById: null, taskId: null },
+            ])
+            const events = await restored.query<{ id: string; anchorSubjectId: string | null; taskId: string | null }>('SELECT id, "anchorSubjectId", "taskId" FROM "AttendanceEvent" ORDER BY id')
+            // ae-dropped hangs off the dropped meeting. ae-cross loses the task of
+            // another meeting, ae-same keeps the task of its own meeting.
+            expect(events.rows).toEqual([
+                { id: 'ae-cross', anchorSubjectId: 's2', taskId: null },
+                { id: 'ae-null', anchorSubjectId: null, taskId: null },
+                { id: 'ae-same', anchorSubjectId: 's1', taskId: pollTaskId },
+            ])
+            const consentCount = await restored.query<{ n: string }>('SELECT count(*)::text AS n FROM "VoicePrintConsent"')
+            expect(consentCount.rows[0].n).toBe('0')
             const selfRef = await restored.query<{ n: string }>("SELECT count(*)::text AS n FROM pg_constraint WHERE conname = 'Subject_discussedInId_fkey'")
             expect(selfRef.rows[0].n).toBe('1')
             // post-restore.sql re-adds the key as the pending migration left it, not as the backup had it.
             const selfRefDefinition = await restored.query<{ def: string }>("SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'Subject_discussedInId_fkey'")
             expect(selfRefDefinition.rows[0].def).toContain('ON DELETE CASCADE')
             const identifications = await restored.query<{ evidence: string }>('SELECT evidence FROM "SpeakerIdentification"')
-            expect(identifications.rows).toEqual([{ evidence: '[00:01] The chair gives the floor to Identified Person (meeting 1)' }])
+            expect(identifications.rows).toEqual([{ evidence: '[00:01] The chair gives the floor to Identified Person (meeting 1), confirmed by dimos@athens.gr' }])
         } finally {
             await restored.end()
         }
