@@ -9,7 +9,7 @@ import { getPeopleForMeeting } from "./people";
 import { getPartiesForCity } from "./parties";
 import { getTopics } from "./topics";
 import { getCity } from "./cities";
-import { getCouncilMeeting } from "./meetings";
+import { getCouncilMeetingDirect } from "./meetings";
 import { RequestOnTranscript, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
 import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
@@ -31,7 +31,8 @@ type PrismaTxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '
 
 export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
     const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
-    const councilMeeting = await getCouncilMeeting(cityId, councilMeetingId);
+    // Ungated: the task-server callback carries no session (see getCouncilMeetingDirect).
+    const councilMeeting = await getCouncilMeetingDirect(cityId, councilMeetingId);
 
     if (!councilMeeting) {
         throw new Error('Council meeting not found');
