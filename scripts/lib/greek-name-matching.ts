@@ -10,7 +10,7 @@
  * parenthetical nicknames like "(ΜΠΑΜΠΗΣ)", collapse whitespace, lowercase.
  */
 export function normalizeGreekName(name: string): string {
-    return name
+    const lowered = name
         .replace(/\s*\([^)]*\)\s*/g, ' ')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
@@ -18,6 +18,22 @@ export function normalizeGreekName(name: string): string {
         .replace(/ς/g, 'σ')
         .replace(/\s+/g, ' ')
         .trim();
+    return /[α-ω]/.test(lowered) ? foldLatinLookalikes(lowered) : lowered;
+}
+
+/**
+ * Latin letters that stand in for Greek ones in a Greek name. Text extracted
+ * from a PDF, by OCR or by a model, carries them: "ΔΕΛΗS", "ΓΕRASΙΜΟΣ". Only
+ * applied to a name that already contains Greek letters, so a Latin name is
+ * left alone.
+ */
+const LATIN_TO_GREEK: Record<string, string> = {
+    a: 'α', b: 'β', e: 'ε', z: 'ζ', h: 'η', i: 'ι', k: 'κ', m: 'μ', n: 'ν',
+    o: 'ο', p: 'ρ', r: 'ρ', s: 'σ', t: 'τ', y: 'υ', x: 'χ',
+};
+
+function foldLatinLookalikes(lowered: string): string {
+    return lowered.replace(/[a-z]/g, ch => LATIN_TO_GREEK[ch] ?? ch);
 }
 
 /**
