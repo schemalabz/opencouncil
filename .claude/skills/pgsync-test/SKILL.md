@@ -39,7 +39,7 @@ nix run .#dev-db-nix        # runs postgres in the FOREGROUND — background it 
 
 - It `exec`s postgres directly, so stopping the background task stops postgres cleanly (single process — the "never kill the background task" rule for `nix run .#dev` does not apply here).
 - `OC_DB_PORT=<port>` overrides the port if 5432 is taken (then also override `PG_URL` for the harness).
-- `nix run .#dev-db-nix-locked` runs the production-matching PostGIS 3.3.5 build.
+- `nix run .#oc-dev-db-nix-locked` runs the production-matching PostGIS 3.3.5 build. Use it for any Prisma command that replays the migrations — `migrate reset`, and `migrate dev` with its shadow database. Migration `20241221130119_` pins `CREATE EXTENSION postgis WITH VERSION "3.3.5"`, which the default build (PostGIS 3.5) cannot install, so the replay fails with `no installation script nor update path`.
 
 **pgsync image parity with production.** The harness uses `toluaina1/pgsync:latest`, but `docker run` never re-pulls a tag that exists locally — a cached image can be months behind what production runs, and pgsync behavior differs across versions (see the README FAQ on deletes that do not propagate). Test with the version production runs:
 ```bash
@@ -52,6 +52,8 @@ ssh root@134.122.74.255 'docker save toluaina1/pgsync:latest | gzip' > /tmp/pgsy
 **Test data model — two layers.** The full seed dump is the *substrate*: real production-derived data whose shape variety (NULL relations, geometries, unidentified speakers) is what makes bootstrap a meaningful coverage test — a bootstrap that "passes" on a few hand-made rows proves almost nothing. On top of it, each behavioral recipe (section 3) inserts its own *probe rows* with self-chosen `test-` prefixed IDs and controlled content. Assert only on probe rows, never on dump rows — the dump is regenerated from production and its contents drift.
 
 When the change under test introduces **new data shapes** (a new column, a new tagged form, a legacy-vs-new distinction), the dump predates them and cannot cover them: build fixtures for exactly those shapes — but on top of the seeded substrate, not instead of it.
+
+**The views come from the migrations** (#638), so `prisma migrate reset` recreates them. Step 1 of the harness re-applies `views.sql` on top, which is a no-op on a migrated database. Compare `pg_get_viewdef` before and after the run when you want that in writing.
 
 **Verify the substrate is present** before testing:
 ```bash

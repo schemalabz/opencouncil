@@ -33,6 +33,8 @@ npx prisma migrate dev --name <migration_name> --create-only
 ```
 This allows testing the migration against a local database first before applying to production. Never run `npx prisma migrate dev` directly, as it both creates and applies the migration to whatever database `DATABASE_URL` points to.
 
+**PGSync views**: `elasticsearch/views.sql` reaches every database through generated `essync_` migrations. After you edit that file, run `npx prisma migrate dev --create-only --name essync_<what_changed>` and then `npm run views:migration`. A CI test compares the newest generated migration with `views.sql`. See [elasticsearch/README.md](./elasticsearch/README.md#carry-a-view-change-into-a-migration).
+
 ### Direct Database Access
 
 When you need to query the database directly (e.g. to find test data, verify state, or debug):

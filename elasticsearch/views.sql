@@ -1,9 +1,15 @@
 -- ============================================================================
 -- Elasticsearch PGSync Views
 -- ============================================================================
--- These views are required for PGSync to properly sync data to Elasticsearch
--- Run this file whenever setting up a new database or environment
--- Usage: psql "$DATABASE_URL" < elasticsearch/views.sql
+-- These views are required for PGSync to properly sync data to Elasticsearch.
+-- A Prisma migration applies them to every database, so no environment needs a
+-- manual step. This file stays the single place that defines them, and it stays
+-- runnable for local iteration and for the E2E harness:
+--   psql "$DATABASE_URL" < elasticsearch/views.sql
+--
+-- After an edit, generate the migration that carries the change (issue #638):
+--   npx prisma migrate dev --create-only --name essync_<what_changed>
+--   npm run views:migration
 -- ============================================================================
 
 \echo '========================================='
