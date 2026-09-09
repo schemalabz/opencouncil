@@ -115,17 +115,13 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
 
     const onKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (duration <= 0) return;
-        // Shift steps ten seconds: the keyboard's counterpart to the lens's precision.
-        // Left and right seek; up and down are the dock's speed keys, so the strip
-        // lets them through to the shortcut the editing guide advertises.
-        const step = e.shiftKey ? 10 : duration * 0.01;
-        if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            seekTo(Math.min(duration, currentTimeRef.current + step));
-        } else if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            seekTo(Math.max(0, currentTimeRef.current - step));
-        } else if (e.key === 'PageUp' || e.key === 'PageDown') {
+        // The strip claims no arrow key. All four belong to the shortcuts the
+        // editing guide advertises: left and right step utterance to utterance,
+        // shifted they skip the interval the operator configured, and up and
+        // down set the speed. A one-percent step looked like a slider's job,
+        // but on a three-hour meeting it is nearly two minutes, and it skipped
+        // the utterances the operator was trying to walk through.
+        if (e.key === 'PageUp' || e.key === 'PageDown') {
             // The slider's large step, and the only way to the chapters without
             // a pointer: the rail draws them, and until now nothing but the
             // rail knew they existed.

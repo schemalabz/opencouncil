@@ -117,3 +117,17 @@ describe('bare arrows for a reader', () => {
         expect(handlers.playPause).toHaveBeenCalledTimes(1);
     });
 });
+
+describe('the timeline strip', () => {
+    it('passes its arrows to the shortcuts, though it is a slider', () => {
+        const { handlers, view } = setup(true);
+        fireEvent.keyDown(view.getByTestId('strip'), { key: 'ArrowRight' });
+        expect(handlers.seekNext).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets a reader reach the speed keys there', () => {
+        const { handlers, view } = setup(false);
+        fireEvent.keyDown(view.getByTestId('strip'), { key: 'ArrowUp' });
+        expect(handlers.speedUp).toHaveBeenCalledTimes(1);
+    });
+});
