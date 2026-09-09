@@ -51,7 +51,7 @@ const FORMAL_FIRST_NAMES: Record<string, string> = {
     στελιοσ: 'στυλιανοσ', σπυροσ: 'σπυριδων', τρυφωνασ: 'τρυφων', αλεξησ: 'αλεξιοσ', αλεκοσ: 'αλεξανδροσ',
     θοδωρησ: 'θεοδωροσ', θοδωροσ: 'θεοδωροσ', χαρησ: 'χαραλαμποσ', μπαμπησ: 'χαραλαμποσ', πανοσ: 'παναγιωτησ',
     στρατοσ: 'ευστρατιοσ', βαγγελησ: 'ευαγγελοσ', κατερινα: 'αικατερινη', ρενα: 'ειρηνη', ντινα: 'κωνσταντινα',
-    λενα: 'ελενη', βουλα: 'παρασκευη', χρηστοσ: 'χρηστοσ',
+    λενα: 'ελενη', ελενα: 'ελενη', βουλα: 'παρασκευη', θανοσ: 'αθανασιοσ', φανησ: 'θεοφανησ',
 };
 
 /** The same name with every informal first name replaced by its formal form. */
@@ -88,6 +88,16 @@ export function tokenSortKeys(name: string): string[] {
     const formalKey = buildSortKey(formalizeFirstNames(normalizeGreekName(name)));
     if (formalKey !== keys[0]) {
         keys.push(formalKey);
+    }
+
+    // A compound name in one source and the plain one in the other: the list
+    // writes "Τζίμα Λαμπρινή - Λίλη" or "Ζαχαράκη-Κώφου Παρασκευή", our data
+    // holds "Λαμπρινή Τζίμα". Keep the first part of every hyphenated group.
+    const plain = name.replace(/(\S+)\s*[-–—]\s*\S+/g, '$1');
+    if (plain !== name) {
+        for (const key of [buildSortKey(normalizeGreekName(plain)), buildSortKey(formalizeFirstNames(normalizeGreekName(plain)))]) {
+            if (!keys.includes(key)) keys.push(key);
+        }
     }
 
     const nicknameMatch = name.match(/(\S+)\s*\(([^)]+)\)/);
@@ -163,9 +173,44 @@ export function matchByName(
         }
     }
 
+    // Second pass for the members still unmatched: one edit apart from exactly
+    // one unused candidate, on the full key. This catches a spelling slip
+    // ("Στράντζελης" for Στράντζαλης) or a transposition ("ΠΕΡΤΟΣ" for Πέτρος)
+    // and nothing looser; two candidates within one edit leave the member
+    // unmatched rather than guess.
+    for (const m of dbMembers) {
+        if (matched.has(m.id)) continue;
+        const memberKeys = tokenSortKeys(m.name).filter(k => k.length >= 8);
+        if (memberKeys.length === 0) continue;
+        const near = candidates.filter(c => !usedCandidates.has(c.index)
+            && tokenSortKeys(c.name).some(ck => memberKeys.some(mk => editDistance(mk, ck) <= 1)));
+        if (near.length === 1) {
+            matched.set(m.id, near[0].index);
+            usedCandidates.add(near[0].index);
+            console.log(`  ~ ${m.name} matched by one edit to ${near[0].name}`);
+        }
+    }
+
     const unmatched = dbMembers
         .filter(m => !matched.has(m.id))
         .map(m => m.name);
 
     return { matched, unmatched };
+}
+
+/** Damerau-Levenshtein distance, with adjacent transposition as one edit. */
+export function editDistance(a: string, b: string): number {
+    const d: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+    for (let i = 0; i <= a.length; i++) d[i][0] = i;
+    for (let j = 0; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+            if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+                d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+            }
+        }
+    }
+    return d[a.length][b.length];
 }
