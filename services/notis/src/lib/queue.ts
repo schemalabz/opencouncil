@@ -650,6 +650,19 @@ async function runOneWake(
     await alert(`wake for ${sub.id} scheduled an unparseable instant (${at}) — note dropped`);
   }
 
+  // The prompt reserves web_search for a reader's question. The tool list is
+  // byte-identical across wakes on purpose — it is the head of the cached
+  // prefix — so this boundary cannot be a runtime gate without paying for a
+  // second prefix. It is watched instead: searches bill per request, and a
+  // proactive wake that searched is the model ignoring the rule.
+  const searches = trace.usageTotal.webSearches ?? 0;
+  if (searches > 0 && !finalEvents.some((e) => e.type === "user_message")) {
+    await alert(
+      `proactive wake for ${sub.id} ran ${searches} web search(es) — the prompt reserves ` +
+        "search for a reader's question",
+    );
+  }
+
   if (outcome.partialDeliveryError) {
     await alert(
       `wake for ${sub.id} finalized after a partial delivery ` +
