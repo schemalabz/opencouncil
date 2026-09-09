@@ -6,18 +6,23 @@ import { XCircle } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
 // Token-personalized page — keep it out of search indexes.
-export const metadata: Metadata = {
-    title: 'Απεγγραφή | OpenCouncil',
-    robots: { index: false, follow: false },
-};
+export async function generateMetadata(props: Props): Promise<Metadata> {
+    const { locale } = await props.params;
+    const t = await getTranslations({ locale, namespace: 'Unsubscribe' });
+    return {
+        title: t('metaTitle'),
+        robots: { index: false, follow: false },
+    };
+}
 
 interface Props {
+    params: Promise<{ locale: string }>;
     searchParams: Promise<{ token?: string }>;
 }
 
 export default async function UnsubscribePage(props: Props) {
-    const searchParams = await props.searchParams;
-    const t = await getTranslations('Unsubscribe');
+    const [searchParams, { locale }] = await Promise.all([props.searchParams, props.params]);
+    const t = await getTranslations({ locale, namespace: 'Unsubscribe' });
     const token = searchParams.token;
 
     const data = token ? await verifyUnsubscribeToken(token) : null;
