@@ -259,6 +259,7 @@ async function main() {
         .option('dhm-id', { type: 'string', describe: 'Municipality DHM_ID (optional, auto-detected from city name)' })
         .option('dry-run', { type: 'boolean', default: false, describe: 'Preview changes without writing to database' })
         .option('search', { type: 'string', describe: 'Search for a municipality by name' })
+        .option('out', { type: 'string', describe: 'Write the planned order as JSON to this file, in the format the elected-order sheet imports' })
         .check(argv => {
             if (argv.search) return true;
             if (argv.city) return true;
@@ -413,6 +414,23 @@ async function main() {
     for (const [personId, { order }] of sorted) {
         const member = dbMembers.find(m => m.personId === personId)!;
         console.log(`  ${order.toString().padStart(2)}. ${member.name}`);
+    }
+
+    if (argv.out) {
+        const exported = {
+            cityId: city.id,
+            administrativeBodyId: councilBody.id,
+            exportedAt: new Date().toISOString(),
+            source: { dhmId, matched: matched.size - unmatched.length, unmatched },
+            members: sorted.map(([personId, { roleId, order }]) => ({
+                roleId,
+                personId,
+                name: dbMembers.find(m => m.personId === personId)!.name,
+                electedOrder: order,
+            })),
+        };
+        fs.writeFileSync(argv.out, JSON.stringify(exported, null, 2));
+        console.log(`\nPlanned order saved to ${argv.out}`);
     }
 
     // Write to database
