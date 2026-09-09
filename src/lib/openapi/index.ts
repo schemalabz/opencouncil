@@ -5,6 +5,7 @@ import './routes/meetings';
 import './routes/search';
 import './routes/parties';
 import './routes/people';
+import './routes/subjects';
 import './routes/utterances';
 
 import { registry, generateSpec } from './registry';
