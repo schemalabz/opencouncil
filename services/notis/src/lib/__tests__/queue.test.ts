@@ -1,5 +1,7 @@
-import { FakeAnthropic, makeDeps, toolUse } from "../../agent/__tests__/helpers";
+import { FakeAnthropic, makeDeps, meetingEvent, toolUse } from "../../agent/__tests__/helpers";
+import type { AnthropicLike, ModelRequest } from "@/agent/types";
 import { MAX_ATTEMPTS, type ClaimedItem } from "../queue-core";
+import { PROACTIVE_PAUSED_KEY } from "../settings";
 import { MAX_OPEN_COMMITMENTS, processItem, resendStalePendingMessages } from "../queue";
 import { type Row, makeFakeDb } from "./fake-db";
 import { FakeBird } from "./fake-bird";
@@ -48,7 +50,66 @@ function seedClaim(db: ReturnType<typeof makeFakeDb>, attempts = 1) {
   db.store.queue.set("q1", { id: "q1", status: "running", attempts });
 }
 
+/** A model that answers one silent turn and reports web searches on it. */
+function searchingModel(searches: number): AnthropicLike {
+  return {
+    async create(_params: ModelRequest) {
+      return {
+        content: [toolUse("t1", "finish_wake", { rationale: "Τίποτα άξιο." })],
+        stop_reason: "tool_use",
+        usage: {
+          input_tokens: 1000,
+          output_tokens: 100,
+          server_tool_use: { web_search_requests: searches },
+        },
+      };
+    },
+  };
+}
+
 describe("processItem", () => {
+  it("alerts when a proactive wake searches the web — the prompt reserves search for a question", async () => {
+    const db = makeFakeDb({
+      subscriptions: [{ ...SUB }],
+      settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }],
+    });
+    seedClaim(db);
+    const alerts: string[] = [];
+
+    await processItem(
+      { ...ITEM, events: [meetingEvent()] },
+      {
+        db,
+        bird: new FakeBird(),
+        deps: makeDeps(searchingModel(2)),
+        alert: async (m) => {
+          alerts.push(m);
+        },
+      },
+    );
+
+    expect(alerts).toEqual([expect.stringContaining("ran 2 web search(es)")]);
+    // The cost of those searches is on the wake row either way.
+    expect(db.store.wakes[0].costUsd).toBeCloseTo(0.02 + 1000 * 3e-6 + 100 * 15e-6, 10);
+  });
+
+  it("stays quiet when a reactive wake searches", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seedClaim(db);
+    const alerts: string[] = [];
+
+    await processItem(ITEM, {
+      db,
+      bird: new FakeBird(),
+      deps: makeDeps(searchingModel(1)),
+      alert: async (m) => {
+        alerts.push(m);
+      },
+    });
+
+    expect(alerts).toHaveLength(0);
+  });
+
   it("delivers the reply mid-wake, then persists the wake and adopts the rows", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     seedClaim(db);

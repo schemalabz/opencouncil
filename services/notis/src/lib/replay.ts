@@ -1,3 +1,4 @@
+import { normalizeUsage } from "@/agent/pricing";
 import { AnthropicLike, ModelRequest, ModelResponse, RecordedTurn } from "@/agent/types";
 
 /**
@@ -29,6 +30,9 @@ export class ReplayAnthropic implements AnthropicLike {
       );
     }
     this.cursor++;
+    // The inverse of normalizeUsage: a replayed wake must cost what the
+    // recorded one cost, so every billed dimension makes the round trip —
+    // the TTL split and the per-request searches included.
     return {
       content: turn.content,
       stop_reason: turn.stopReason,
@@ -37,6 +41,13 @@ export class ReplayAnthropic implements AnthropicLike {
         output_tokens: turn.usage.output,
         cache_creation_input_tokens: turn.usage.cacheWrite,
         cache_read_input_tokens: turn.usage.cacheRead,
+        cache_creation:
+          turn.usage.cacheWrite1h === undefined
+            ? null
+            : { ephemeral_1h_input_tokens: turn.usage.cacheWrite1h },
+        server_tool_use: turn.usage.webSearches
+          ? { web_search_requests: turn.usage.webSearches }
+          : null,
       },
     };
   }
@@ -52,12 +63,9 @@ export class RecordingAnthropic implements AnthropicLike {
     this.recorded.push({
       content: response.content,
       stopReason: response.stop_reason ?? "unknown",
-      usage: {
-        input: response.usage.input_tokens ?? 0,
-        output: response.usage.output_tokens ?? 0,
-        cacheWrite: response.usage.cache_creation_input_tokens ?? 0,
-        cacheRead: response.usage.cache_read_input_tokens ?? 0,
-      },
+      // The same projection the wake bills on, so a fixture carries every
+      // dimension of what the recorded turn cost.
+      usage: normalizeUsage(response.usage),
     });
     return response;
   }
