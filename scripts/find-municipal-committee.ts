@@ -273,6 +273,14 @@ type CommitteeMember = {
   side: 'majority' | 'minority' | 'unknown'
 }
 
+/** What --out writes and --from-json reads: the extraction, with where it came from. */
+type SavedExtraction = {
+  municipality: { uid: string; label: string }
+  term: string
+  decision: { ada: string; subject: string; issueDate: string; url: string }
+  committee: CommitteeData
+}
+
 type CommitteeData = {
   regular: CommitteeMember[]
   alternate: CommitteeMember[]
@@ -511,6 +519,14 @@ async function main() {
       type: 'string',
       description: 'ADA of the committee election decision; skips the Diavgeia search',
     })
+    .option('out', {
+      type: 'string',
+      description: 'Write the extraction as JSON to this file, to review and apply later with --from-json',
+    })
+    .option('from-json', {
+      type: 'string',
+      description: 'Apply a saved extraction from this file; skips the Diavgeia search, the PDF and the model',
+    })
     .option('json', {
       type: 'boolean',
       default: false,
@@ -540,13 +556,18 @@ async function main() {
       return true
     }).argv
 
-  const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY!,
-  })
+  // A saved extraction carries the municipality, the decision and the roster,
+  // so a write can apply exactly what someone reviewed, with no new model call.
+  const saved: SavedExtraction | null = argv.fromJson
+    ? JSON.parse(fs.readFileSync(argv.fromJson, 'utf8'))
+    : null
+  if (saved) {
+    console.error(`Using the saved extraction ${argv.fromJson}: ${saved.decision.ada} (${saved.decision.issueDate})`)
+  }
 
-  // Resolve org ID — three sources: --org, --name, or --city (DB lookup)
-  let orgId = argv.org
-  let orgLabel: string | undefined
+  // Resolve org ID — four sources: the saved file, --org, --name, or --city (DB lookup)
+  let orgId = saved?.municipality.uid ?? argv.org
+  let orgLabel: string | undefined = saved?.municipality.label
 
   if (!orgId && argv.city) {
     // Look up the city's diavgeiaUid from the database
@@ -611,9 +632,11 @@ async function main() {
   console.error(
     `Searching for committee election decision (term ${argv.term})...`
   )
-  const decision = argv.ada
-    ? await diavgeiaApi<Decision>(`/decisions/${encodeURIComponent(argv.ada)}.json`)
-    : await findCommitteeDecision(orgId, dateRange)
+  const decision: Decision | null = saved
+    ? { ada: saved.decision.ada, subject: saved.decision.subject, issueDate: Date.parse(saved.decision.issueDate), organizationId: orgId, decisionTypeId: '', documentUrl: saved.decision.url }
+    : argv.ada
+      ? await diavgeiaApi<Decision>(`/decisions/${encodeURIComponent(argv.ada)}.json`)
+      : await findCommitteeDecision(orgId, dateRange)
 
   if (!decision) {
     console.error(
@@ -627,23 +650,29 @@ async function main() {
   )
   console.error(`Subject: ${decision.subject}`)
 
-  // Download PDF and extract text
-  console.error('Downloading PDF...')
-  const pdfPath = await downloadPdf(decision.ada)
-  const pdfText = pdfToText(pdfPath)
-  fs.unlinkSync(pdfPath)
+  let committee: CommitteeData
+  if (saved) {
+    committee = saved.committee
+  } else {
+    // Download PDF and extract text
+    console.error('Downloading PDF...')
+    const pdfPath = await downloadPdf(decision.ada)
+    const pdfText = pdfToText(pdfPath)
+    fs.unlinkSync(pdfPath)
 
-  // Extract committee composition via LLM
-  console.error('Extracting committee composition...')
-  const committee = await extractWithLLM(anthropic, pdfText)
+    // Extract committee composition via LLM
+    console.error('Extracting committee composition...')
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+    committee = await extractWithLLM(anthropic, pdfText)
+  }
 
   // Build output
-  const output = {
+  const output: SavedExtraction = {
     municipality: {
       uid: orgId,
       label: orgLabel || orgId,
     },
-    term: argv.term,
+    term: saved?.term ?? argv.term,
     decision: {
       ada: decision.ada,
       subject: decision.subject,
@@ -651,6 +680,11 @@ async function main() {
       url: `https://diavgeia.gov.gr/doc/${decision.ada}`,
     },
     committee,
+  }
+
+  if (argv.out) {
+    fs.writeFileSync(argv.out, JSON.stringify(output, null, 2))
+    console.error(`Extraction saved to ${argv.out}`)
   }
 
   if (argv.json) {
