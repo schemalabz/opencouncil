@@ -175,7 +175,11 @@ export function InspectorPane({ item, trace, profile, memory, sim }: Props) {
                         {JSON.stringify(b.input).slice(0, 120)})
                       </p>
                     );
-                  if (b.type === "mcp_tool_result" || b.type === "web_fetch_tool_result")
+                  if (
+                    b.type === "mcp_tool_result" ||
+                    b.type === "web_fetch_tool_result" ||
+                    b.type === "web_search_tool_result"
+                  )
                     return (
                       <p key={j} className="font-mono text-xs text-muted-foreground">
                         ↳ result ({JSON.stringify(b.content).length} chars)
@@ -246,6 +250,12 @@ export function InspectorPane({ item, trace, profile, memory, sim }: Props) {
                   <td>cache read</td>
                   <td className="text-right">{fmtInt(trace.usageTotal.cacheRead)}</td>
                 </tr>
+                {trace.usageTotal.webSearches ? (
+                  <tr>
+                    <td>web searches</td>
+                    <td className="text-right">{fmtInt(trace.usageTotal.webSearches)}</td>
+                  </tr>
+                ) : null}
                 <tr className="font-medium">
                   <td>κόστος</td>
                   <td className="text-right">${trace.costUsd.toFixed(3)}</td>

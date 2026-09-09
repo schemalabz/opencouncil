@@ -54,6 +54,9 @@ export const realAnthropic: AnthropicLike = {
         cache_read_input_tokens: response.usage.cache_read_input_tokens,
         cache_creation: (response.usage as { cache_creation?: ModelResponse["usage"]["cache_creation"] })
           .cache_creation ?? null,
+        server_tool_use: (response.usage as {
+          server_tool_use?: ModelResponse["usage"]["server_tool_use"];
+        }).server_tool_use ?? null,
       },
     };
   },

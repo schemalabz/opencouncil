@@ -66,6 +66,8 @@ export interface Usage {
   /** The 1h-TTL share of cacheWrite (bills at 2× vs 1.25×); absent = unknown split. */
   cacheWrite1h?: number;
   cacheRead: number;
+  /** Server-side web searches. They bill per request, not per token. */
+  webSearches?: number;
 }
 
 /** One turn as recorded for the trace and for golden replays. */
@@ -128,6 +130,10 @@ export interface ModelResponse {
     cache_creation?: {
       ephemeral_5m_input_tokens?: number | null;
       ephemeral_1h_input_tokens?: number | null;
+    } | null;
+    /** Server tool requests. Web search bills per request, outside token pricing. */
+    server_tool_use?: {
+      web_search_requests?: number | null;
     } | null;
   };
 }
