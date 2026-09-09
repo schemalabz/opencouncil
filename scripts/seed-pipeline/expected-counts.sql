@@ -1,9 +1,13 @@
--- Known gap: this file does not follow the "taskId" edge.
--- Decision, SubjectVote, SubjectAttendance, MeetingAttendance, and
--- AttendanceEvent all reference TaskStatus. TaskStatus rows are themselves
--- subset-derived.
--- A task can belong to a meeting outside the subset. Greenmask can then
--- drop the row that holds the reference, but this file still counts it.
+-- This file does not follow the "taskId" edge. Decision, SubjectVote,
+-- SubjectAttendance, MeetingAttendance, and AttendanceEvent reference
+-- TaskStatus, and the subset keeps only the tasks of the selected meetings.
+-- A reference to a task of another meeting can make Greenmask drop the row
+-- that holds the reference, but this file still counts that row.
+-- Two subset-only rules of tables.json null such references before the
+-- subset dump: Decision.taskId and AttendanceEvent.taskId. The full artifact
+-- holds every task, so it keeps these references.
+-- On the backup of 2026-09-09, SubjectVote, SubjectAttendance, and
+-- MeetingAttendance held 0 cross-meeting references, so they have no rule.
 -- The invariant query of `measure-tasks` measures this edge.
 -- Do not change the counts here to compensate.
 WITH mtg AS (SELECT c, m FROM sel),
