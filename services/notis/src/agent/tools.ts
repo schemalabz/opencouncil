@@ -171,10 +171,33 @@ export const WEB_FETCH_TOOL = {
   max_content_tokens: 15_000,
 };
 
+/**
+ * Anthropic's server-side search — the last resort when the municipal record
+ * cannot answer; the prompt («The open web») says when that is. Bills per
+ * search ($0.01), so max_uses is a ceiling, not a budget. Basic variant to
+ * match web_fetch above, and a Greek location so results come back local.
+ *
+ * A result URL enters the conversation, and web_fetch may open any URL that
+ * is in it — so search widens what the agent can read beyond reader-sent
+ * links. The prompt keeps the rule that a page is never a source for what a
+ * council said.
+ */
+export const WEB_SEARCH_TOOL = {
+  type: "web_search_20250305",
+  name: "web_search",
+  max_uses: 3,
+  user_location: {
+    type: "approximate",
+    country: "GR",
+    timezone: "Europe/Athens",
+  },
+};
+
 export function buildTools(): unknown[] {
   return [
     { type: "mcp_toolset", mcp_server_name: MCP_SERVER_NAME },
     WEB_FETCH_TOOL,
+    WEB_SEARCH_TOOL,
     ...CLIENT_TOOLS,
   ];
 }

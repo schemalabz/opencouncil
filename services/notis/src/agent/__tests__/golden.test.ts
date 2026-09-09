@@ -79,15 +79,23 @@ describe("golden scenarios (recorded replay)", () => {
       for (const req of replay.requests) {
         const tools = (req.tools ?? []) as Array<{ type?: string; name?: string }>;
         expect(tools[0]).toMatchObject({ type: "mcp_toolset", mcp_server_name: "opencouncil" });
-        // Server-side URL fetcher rides along, capped: reader-shared links only.
+        // Server-side URL fetcher rides along, capped: reader-shared links and
+        // search results only.
         expect(tools[1]).toMatchObject({
           type: "web_fetch_20250910",
           name: "web_fetch",
           max_uses: 3,
           max_content_tokens: 15_000,
         });
+        // Server-side search, capped the same way and priced per request.
+        expect(tools[2]).toMatchObject({
+          type: "web_search_20250305",
+          name: "web_search",
+          max_uses: 3,
+        });
         expect(tools.map((t) => t.name).filter(Boolean)).toEqual([
           "web_fetch",
+          "web_search",
           "finish_wake",
           "record_commitment",
           "resolve_commitment",

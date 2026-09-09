@@ -1,4 +1,4 @@
-import { addUsage, emptyUsage, usageToCost } from "../pricing";
+import { addUsage, emptyUsage, normalizeUsage, usageToCost } from "../pricing";
 
 describe("pricing", () => {
   it("prices each token class at sonnet-5 rates", () => {
@@ -17,6 +17,26 @@ describe("pricing", () => {
     expect(usageToCost({ input: 0, output: 1_000_000, cacheWrite: 0, cacheRead: 0 }, "claude-opus-5")).toBe(25);
   });
 
+  it("prices web searches per request, on top of the tokens", () => {
+    const usage = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0, webSearches: 3 };
+    expect(usageToCost(usage)).toBeCloseTo(0.03, 10);
+    // The per-request price does not move with the model.
+    expect(usageToCost(usage, "claude-opus-5")).toBeCloseTo(0.03, 10);
+  });
+
+  it("normalizeUsage carries web searches, and omits the field when none ran", () => {
+    expect(
+      normalizeUsage({
+        input_tokens: 1,
+        output_tokens: 2,
+        server_tool_use: { web_search_requests: 2 },
+      }).webSearches,
+    ).toBe(2);
+    expect(
+      normalizeUsage({ input_tokens: 1, output_tokens: 2 }),
+    ).not.toHaveProperty("webSearches");
+  });
+
   it("addUsage sums fields", () => {
     const sum = addUsage(
       { input: 1, output: 2, cacheWrite: 3, cacheRead: 4 },
@@ -24,5 +44,11 @@ describe("pricing", () => {
     );
     expect(sum).toEqual({ input: 11, output: 22, cacheWrite: 33, cacheRead: 44 });
     expect(usageToCost(emptyUsage())).toBe(0);
+    expect(
+      addUsage(
+        { input: 0, output: 0, cacheWrite: 0, cacheRead: 0, webSearches: 1 },
+        { input: 0, output: 0, cacheWrite: 0, cacheRead: 0, webSearches: 2 },
+      ).webSearches,
+    ).toBe(3);
   });
 });

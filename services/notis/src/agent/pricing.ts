@@ -35,6 +35,9 @@ const RATES_BY_MODEL_PREFIX: Array<[prefix: string, rates: Rates]> = [
 
 export const SONNET_5_RATES = ratesFrom(3, 15);
 
+/** Web search bills per request, not per token: $10 per 1,000 searches. */
+export const WEB_SEARCH_PER_REQUEST = 0.01;
+
 function ratesFor(model: string | undefined): Rates {
   if (model) {
     for (const [prefix, rates] of RATES_BY_MODEL_PREFIX) {
@@ -47,12 +50,14 @@ function ratesFor(model: string | undefined): Rates {
 /** Normalize the wire usage shape, keeping the TTL split when the SDK reports it. */
 export function normalizeUsage(u: ModelResponse["usage"]): Usage {
   const write1h = u.cache_creation?.ephemeral_1h_input_tokens;
+  const searches = u.server_tool_use?.web_search_requests;
   return {
     input: u.input_tokens ?? 0,
     output: u.output_tokens ?? 0,
     cacheWrite: u.cache_creation_input_tokens ?? 0,
     ...(write1h != null ? { cacheWrite1h: write1h } : {}),
     cacheRead: u.cache_read_input_tokens ?? 0,
+    ...(searches ? { webSearches: searches } : {}),
   };
 }
 
@@ -62,6 +67,7 @@ export function emptyUsage(): Usage {
 
 export function addUsage(a: Usage, b: Usage): Usage {
   const write1h = (a.cacheWrite1h ?? 0) + (b.cacheWrite1h ?? 0);
+  const searches = (a.webSearches ?? 0) + (b.webSearches ?? 0);
   return {
     input: a.input + b.input,
     output: a.output + b.output,
@@ -70,6 +76,7 @@ export function addUsage(a: Usage, b: Usage): Usage {
       ? { cacheWrite1h: write1h }
       : {}),
     cacheRead: a.cacheRead + b.cacheRead,
+    ...(searches ? { webSearches: searches } : {}),
   };
 }
 
@@ -86,6 +93,7 @@ export function usageToCost(usage: Usage, model?: string): number {
     (usage.output / m) * rates.outputPerMTok +
     (write1h / m) * rates.cacheWrite1hPerMTok +
     (write5m / m) * rates.cacheWrite5mPerMTok +
-    (usage.cacheRead / m) * rates.cacheReadPerMTok
+    (usage.cacheRead / m) * rates.cacheReadPerMTok +
+    (usage.webSearches ?? 0) * WEB_SEARCH_PER_REQUEST
   );
 }
