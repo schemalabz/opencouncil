@@ -158,19 +158,22 @@ export interface RailsNow {
   settings: { paused: boolean };
   heldUntilRelease: number;
   atCapCount: number;
-  /** Wakes in trouble: terminal failures in the last 7 days, and live items
-   *  that have failed at least once and are waiting to retry. Zero on a
-   *  healthy system, so the overview can shout when it is not. */
+  /** Wakes in trouble: terminal failures inside the window the caller asked
+   *  for, and live items that have failed at least once and are waiting to
+   *  retry. Retries are a now-fact and ignore the window. Zero on a healthy
+   *  system, so the overview can shout when it is not. */
   queueTrouble: { failed: number; retrying: number };
 }
 
-/** The lightweight "now" slice the overview strip needs. */
-export async function getRailsNow(): Promise<RailsNow | null> {
+/** The lightweight "now" slice the overview strip needs. `failedSince` is
+ *  the start of the window the failure count covers — the overview passes
+ *  its selected range, so the strip and the charts count the same days. */
+export async function getRailsNow(failedSince?: Date): Promise<RailsNow | null> {
   if (!hasNotisDb()) return null;
   const db = notisDb();
   const now = new Date();
   const phase = activePhase(now);
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60_000);
+  const since = failedSince ?? new Date(now.getTime() - 7 * 24 * 60 * 60_000);
   const [settings, capped, queueCounts] = await Promise.all([
     getProactiveSettings(db),
     usersAtCap(db),
@@ -179,21 +182,21 @@ export async function getRailsNow(): Promise<RailsNow | null> {
     // running counts a retry only from the second claim — the first run
     // holds claim #1.
     db.$queryRaw<
-      Array<{ held: number; failed7d: number; retry_pending: number; retry_running: number }>
+      Array<{ held: number; failed: number; retry_pending: number; retry_running: number }>
     >`
       SELECT
         count(*) FILTER (
           WHERE status = 'pending' AND "runAfter" > ${now} AND attempts = 0
         )::int AS held,
         count(*) FILTER (
-          WHERE status = 'failed' AND "updatedAt" >= ${weekAgo}
-        )::int AS failed7d,
+          WHERE status = 'failed' AND "updatedAt" >= ${since}
+        )::int AS failed,
         count(*) FILTER (WHERE status = 'pending' AND attempts > 0)::int AS retry_pending,
         count(*) FILTER (WHERE status = 'running' AND attempts > 1)::int AS retry_running
       FROM "NotisWakeQueue"
     `,
   ]);
-  const q = queueCounts[0] ?? { held: 0, failed7d: 0, retry_pending: 0, retry_running: 0 };
+  const q = queueCounts[0] ?? { held: 0, failed: 0, retry_pending: 0, retry_running: 0 };
   return {
     phase: {
       kind: phase.phase,
@@ -203,7 +206,7 @@ export async function getRailsNow(): Promise<RailsNow | null> {
     settings,
     heldUntilRelease: q.held,
     atCapCount: capped.length,
-    queueTrouble: { failed: q.failed7d, retrying: q.retry_pending + q.retry_running },
+    queueTrouble: { failed: q.failed, retrying: q.retry_pending + q.retry_running },
   };
 }
 

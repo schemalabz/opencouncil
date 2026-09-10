@@ -21,6 +21,7 @@ import {
   getOverviewStats,
   liveData,
   parseRange,
+  replyRate,
 } from "./_lib/metrics";
 
 export const metadata = { title: "Νότης · admin" };
@@ -77,13 +78,23 @@ function fmtBucketLabel(key: string, bucket: BucketUnit): string {
 
 function seriesFor(
   series: SeriesPoint[],
-  key: "activeUsers" | "sent" | "received" | "unsubscribes",
+  key: "activeUsers" | "sent" | "received" | "unsubscribes" | "errors",
   bucket: BucketUnit,
 ): MetricPoint[] {
   return series.map((point) => ({
     key: point.key,
     label: fmtBucketLabel(point.key, bucket),
     value: point[key],
+  }));
+}
+
+/** The reply rate per bucket, in whole percent. A bucket that sent nothing
+ *  plots as zero: there is no rate to draw, and a gap would read as one. */
+function replyRateSeries(series: SeriesPoint[], bucket: BucketUnit): MetricPoint[] {
+  return series.map((point) => ({
+    key: point.key,
+    label: fmtBucketLabel(point.key, bucket),
+    value: Math.round((replyRate(point.proactiveSends, point.proactiveAnswered) ?? 0) * 100),
   }));
 }
 
@@ -374,8 +385,14 @@ function RecentInboundList({ stats }: { stats: OverviewStats }) {
   );
 }
 
-async function RailsStrip({ suppressions }: { suppressions: Array<{ reason: string; count: number }> }) {
-  const rails = await getRailsNow();
+async function RailsStrip({
+  suppressions,
+  range,
+}: {
+  suppressions: Array<{ reason: string; count: number }>;
+  range: RangeKey;
+}) {
+  const rails = await getRailsNow(new Date(Date.now() - RANGES[range].ms));
   if (!rails) return null;
   const suppressedTotal = suppressions.reduce((a, r) => a + r.count, 0);
   const cell = "flex items-center gap-2.5 px-4";
@@ -422,7 +439,7 @@ async function RailsStrip({ suppressions }: { suppressions: Array<{ reason: stri
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
               {[
                 rails.queueTrouble.failed > 0
-                  ? `απέτυχαν ${rails.queueTrouble.failed} (7ημ)`
+                  ? `απέτυχαν ${rails.queueTrouble.failed} (${RANGES[range].short})`
                   : "",
                 rails.queueTrouble.retrying > 0
                   ? `ξαναδοκιμάζει ${rails.queueTrouble.retrying}`
@@ -498,6 +515,13 @@ export default async function DashboardPage(props: {
   const range = parseRange((await props.searchParams).range);
   const stats = await getOverviewStats(range);
   const { current, previous, totals } = stats;
+  const currentReplyRate = replyRate(current.proactiveSends, current.proactiveAnswered);
+  const previousReplyRate = replyRate(previous.proactiveSends, previous.proactiveAnswered);
+  // Both shapes in one number: the wake that erred and the wake that never
+  // ran. A model outage produces only the second, so a chart of the first
+  // alone stays flat through it.
+  const currentErrors = current.wakesByDecision.error + current.droppedWakes;
+  const previousErrors = previous.wakesByDecision.error + previous.droppedWakes;
 
   return (
     <>
@@ -514,7 +538,7 @@ export default async function DashboardPage(props: {
       </PageHeader>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-        <RailsStrip suppressions={current.suppressions} />
+        <RailsStrip suppressions={current.suppressions} range={range} />
         <div className="grid divide-y rounded-lg border bg-background sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4 xl:divide-x">
           <MetricCard
             label="Ενεργοί χρήστες"
@@ -549,6 +573,31 @@ export default async function DashboardPage(props: {
             invert
             tone="red"
             detail={`${fmtInt(totals.unsubscribed)} συνολικά σε ΣΤΟΠ`}
+          />
+        </div>
+
+        <div className="grid divide-y rounded-lg border bg-background sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+          <MetricCard
+            label="Ποσοστό απάντησης"
+            value={currentReplyRate === null ? "—" : `${Math.round(currentReplyRate * 100)}%`}
+            current={currentReplyRate ?? 0}
+            previous={previousReplyRate ?? 0}
+            points={replyRateSeries(stats.series, RANGES[range].bucket)}
+            detail={
+              current.proactiveSends === 0
+                ? "κανένα proactive μήνυμα στην περίοδο"
+                : `${fmtInt(current.proactiveAnswered)} από ${fmtInt(current.proactiveSends)} proactive μηνύματα πήραν απάντηση`
+            }
+          />
+          <MetricCard
+            label="Σφάλματα"
+            value={fmtInt(currentErrors)}
+            current={currentErrors}
+            previous={previousErrors}
+            points={seriesFor(stats.series, "errors", RANGES[range].bucket)}
+            invert
+            tone="red"
+            detail={`${fmtInt(current.wakesByDecision.error)} σε wake · ${fmtInt(current.droppedWakes)} χάθηκαν πριν φτάσουν στο μοντέλο`}
           />
         </div>
 

@@ -80,6 +80,18 @@ export function parseRange(value: string | undefined): RangeKey {
   return value && Object.hasOwn(RANGES, value) ? (value as RangeKey) : "7d";
 }
 
+/**
+ * The share of proactive sends the reader answered; null when nothing was
+ * sent, so the card can say so instead of showing a confident 0%.
+ *
+ * The most recent buckets read low by nature: a reader who has not answered
+ * yet is counted as not answering, and there is no way to tell the two
+ * apart until they do.
+ */
+export function replyRate(sends: number, answered: number): number | null {
+  return sends > 0 ? answered / sends : null;
+}
+
 /** Relative change in percent; null when the previous period is empty. */
 export function pctChange(current: number, previous: number): number | null {
   if (previous === 0) return null;
@@ -105,6 +117,15 @@ export interface PeriodStats {
   failureReasons: Array<{ reason: string; count: number }>;
   wakesTotal: number;
   wakesByDecision: { send: number; silence: number; error: number };
+  /** Proactive sends in the period, and how many of them the reader answered.
+   *  A send counts as answered when an inbound message arrives after it and
+   *  before the next proactive send to the same reader. */
+  proactiveSends: number;
+  proactiveAnswered: number;
+  /** Wakes the queue gave up on in the period. Distinct from a wake whose
+   *  decision was `error`: this one never reached the model, so it leaves no
+   *  wake row at all — which is exactly what a model outage looks like. */
+  droppedWakes: number;
   wakesByEvent: WakeEventStats[];
   costUsd: number;
   /** Shared editorial passes in the period — once per meeting event, on top
@@ -131,6 +152,10 @@ export interface SeriesPoint {
   sent: number;
   received: number;
   unsubscribes: number;
+  proactiveSends: number;
+  proactiveAnswered: number;
+  /** Wake errors and dropped wakes together — see PeriodStats. */
+  errors: number;
 }
 
 export interface OverviewStats {
@@ -153,6 +178,9 @@ const EMPTY_PERIOD: PeriodStats = {
   failureReasons: [],
   wakesTotal: 0,
   wakesByDecision: { send: 0, silence: 0, error: 0 },
+  proactiveSends: 0,
+  proactiveAnswered: 0,
+  droppedWakes: 0,
   wakesByEvent: [],
   costUsd: 0,
   editorialCostUsd: 0,
@@ -222,6 +250,9 @@ export function fillSeries(
     received: BucketCount[];
     activeUsers: BucketCount[];
     unsubscribes: BucketCount[];
+    proactiveSends: BucketCount[];
+    proactiveAnswered: BucketCount[];
+    errors: BucketCount[];
   },
 ): SeriesPoint[] {
   const lookup = (list: BucketCount[], key: string) =>
@@ -232,6 +263,9 @@ export function fillSeries(
     received: lookup(rows.received, key),
     activeUsers: lookup(rows.activeUsers, key),
     unsubscribes: lookup(rows.unsubscribes, key),
+    proactiveSends: lookup(rows.proactiveSends, key),
+    proactiveAnswered: lookup(rows.proactiveAnswered, key),
+    errors: lookup(rows.errors, key),
   }));
 }
 
@@ -250,7 +284,7 @@ async function bucketedSeries(
     count: row.count,
   });
 
-  const [messages, actives, unsubscribes] = await Promise.all([
+  const [messages, actives, unsubscribes, proactive, errors] = await Promise.all([
     db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
       SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              direction::text AS direction, COUNT(*)::int AS count
@@ -276,6 +310,49 @@ async function bucketedSeries(
       WHERE "unsubscribedAt" >= ${from} AND "unsubscribedAt" < ${to}
       GROUP BY 1
     `,
+    // The window runs over every proactive send, not only the period's, so a
+    // send at the edge still knows what followed it.
+    db.$queryRaw<Array<{ bucket: Date; sends: number; answered: number }>>`
+      WITH proactive AS (
+        SELECT "subscriptionId", "createdAt",
+               LEAD("createdAt") OVER (
+                 PARTITION BY "subscriptionId" ORDER BY "createdAt"
+               ) AS next_send
+        FROM "NotisMessage"
+        WHERE direction = 'outbound'::"MessageDirection" AND proactive = true
+      )
+      SELECT date_trunc(${bucket}, p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
+             COUNT(*)::int AS sends,
+             COUNT(*) FILTER (WHERE EXISTS (
+               SELECT 1 FROM "NotisMessage" r
+               WHERE r."subscriptionId" = p."subscriptionId"
+                 AND r.direction = 'inbound'::"MessageDirection"
+                 AND r."createdAt" > p."createdAt"
+                 AND (p.next_send IS NULL OR r."createdAt" < p.next_send)
+             ))::int AS answered
+      FROM proactive p
+      WHERE p."createdAt" >= ${from} AND p."createdAt" < ${to}
+      GROUP BY 1
+    `,
+    // Both failure shapes in one line: a wake that ran and erred, and a wake
+    // the queue dropped before the model ever saw it.
+    db.$queryRaw<Array<{ bucket: Date; count: number }>>`
+      SELECT bucket, SUM(count)::int AS count FROM (
+        SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
+               COUNT(*)::int AS count
+        FROM "NotisWake"
+        WHERE decision = 'error'::"WakeDecision"
+          AND "createdAt" >= ${from} AND "createdAt" < ${to}
+        GROUP BY 1
+        UNION ALL
+        SELECT date_trunc(${bucket}, "updatedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens'),
+               COUNT(*)::int
+        FROM "NotisWakeQueue"
+        WHERE status = 'failed'::"QueueItemStatus"
+          AND "updatedAt" >= ${from} AND "updatedAt" < ${to}
+        GROUP BY 1
+      ) t GROUP BY 1
+    `,
   ]);
 
   return fillSeries(from, to, bucket, {
@@ -283,6 +360,15 @@ async function bucketedSeries(
     received: messages.filter((r) => r.direction === "inbound").map(rawKey),
     activeUsers: actives.map(rawKey),
     unsubscribes: unsubscribes.map(rawKey),
+    proactiveSends: proactive.map((r) => ({
+      key: r.bucket.toISOString().slice(0, slice),
+      count: r.sends,
+    })),
+    proactiveAnswered: proactive.map((r) => ({
+      key: r.bucket.toISOString().slice(0, slice),
+      count: r.answered,
+    })),
+    errors: errors.map(rawKey),
   });
 }
 
@@ -300,6 +386,8 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     wakesByEvent,
     editorialCost,
     suppressed,
+    proactive,
+    droppedWakes,
   ] = await Promise.all([
     db.notisMessage.groupBy({ by: ["direction"], where: createdInPeriod, _count: { _all: true } }),
     db.notisMessage.groupBy({
@@ -334,6 +422,29 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       where: { ...createdInPeriod, direction: "outbound", status: "suppressed" },
       _count: { _all: true },
     }),
+    // Same rule as the series: answered means an inbound message after this
+    // send and before the next proactive send to the same reader.
+    db.$queryRaw<Array<{ sends: number; answered: number }>>`
+      WITH proactive AS (
+        SELECT "subscriptionId", "createdAt",
+               LEAD("createdAt") OVER (
+                 PARTITION BY "subscriptionId" ORDER BY "createdAt"
+               ) AS next_send
+        FROM "NotisMessage"
+        WHERE direction = 'outbound'::"MessageDirection" AND proactive = true
+      )
+      SELECT COUNT(*)::int AS sends,
+             COUNT(*) FILTER (WHERE EXISTS (
+               SELECT 1 FROM "NotisMessage" r
+               WHERE r."subscriptionId" = p."subscriptionId"
+                 AND r.direction = 'inbound'::"MessageDirection"
+                 AND r."createdAt" > p."createdAt"
+                 AND (p.next_send IS NULL OR r."createdAt" < p.next_send)
+             ))::int AS answered
+      FROM proactive p
+      WHERE p."createdAt" >= ${from} AND p."createdAt" < ${to}
+    `,
+    db.notisWakeQueue.count({ where: { status: "failed", updatedAt: { gte: from, lt: to } } }),
   ]);
 
   const directionCount = (d: string) =>
@@ -379,6 +490,9 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       error: decisionCount("error"),
     },
     wakesByEvent: byEvent,
+    proactiveSends: proactive[0]?.sends ?? 0,
+    proactiveAnswered: proactive[0]?.answered ?? 0,
+    droppedWakes,
     costUsd: byEvent.reduce((a, r) => a + r.costUsd, 0),
     editorialCostUsd: editorialCost._sum.briefCostUsd ?? 0,
     suppressions: suppressed
@@ -401,6 +515,9 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
       series: fillSeries(currentFrom, now, bucket, {
         sent: [],
         received: [],
+        proactiveSends: [],
+        proactiveAnswered: [],
+        errors: [],
         activeUsers: [],
         unsubscribes: [],
       }),
