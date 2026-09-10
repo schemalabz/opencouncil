@@ -2,14 +2,20 @@
 
 import prisma from '@/lib/db/prisma';
 import { FixTranscriptResult } from '../apiTypes';
-import { getRequestOnTranscriptRequestBody } from '../db/utils';
+import { withUserAuthorizedToEdit } from '../auth';
+import { requestFixTranscriptInternal } from './fixTranscriptInternal';
 
+/**
+ * Browser-facing entry point for the admin panel's fix-transcript button.
+ *
+ * The city and meeting ids arrive from the caller, so this gate is what stops
+ * one city's admin from queueing a transcript rewrite on another city's
+ * meeting. Background callers have no session to gate on and use
+ * requestFixTranscriptInternal.
+ */
 export const requestFixTranscript = async (councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
-    let requestBody = await getRequestOnTranscriptRequestBody(councilMeetingId, cityId);
-
-    // Start the task
-    const { startTask } = await import('./tasks');
-    return startTask('fixTranscript', requestBody, councilMeetingId, cityId, options);
+    await withUserAuthorizedToEdit({ cityId });
+    return requestFixTranscriptInternal(councilMeetingId, cityId, options);
 };
 
 export const handleFixTranscriptResult = async (taskId: string, result: FixTranscriptResult) => {
