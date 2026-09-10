@@ -14,6 +14,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BookOpen } from 'lucide-react';
+import { ACTIONS, getActionKeyLabel } from '@/contexts/KeyboardShortcutsContext';
+
+/**
+ * The keys for one action, read from the definitions the dispatcher runs on.
+ * The shortcuts this guide does not own — the ones the utterance editor and the
+ * mouse handle — stay written out below.
+ */
+function ActionKey({ actionId }: { actionId: string }) {
+    return <Badge variant="secondary">{getActionKeyLabel(actionId)}</Badge>;
+}
 
 interface EditingGuideDialogProps {
     children: React.ReactNode;
@@ -108,31 +118,31 @@ export function EditingGuideDialog({ children, onOpenChange }: EditingGuideDialo
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center py-2 border-b">
                                         <span className="text-sm">{t('shortcuts.playback.playPause')}</span>
-                                        <Badge variant="secondary">Space</Badge>
+                                        <ActionKey actionId={ACTIONS.PLAY_PAUSE.id} />
                                     </div>
                                     <div className="flex justify-between items-center py-2 border-b">
                                         <span className="text-sm">{t('shortcuts.playback.previous')}</span>
-                                        <Badge variant="secondary">←</Badge>
+                                        <ActionKey actionId={ACTIONS.SEEK_PREVIOUS.id} />
                                     </div>
                                     <div className="flex justify-between items-center py-2 border-b">
                                         <span className="text-sm">{t('shortcuts.playback.next')}</span>
-                                        <Badge variant="secondary">→</Badge>
+                                        <ActionKey actionId={ACTIONS.SEEK_NEXT.id} />
                                     </div>
                                     <div className="flex justify-between items-center py-2 border-b">
                                         <span className="text-sm">{t('shortcuts.playback.skipBackward')}</span>
-                                        <Badge variant="secondary">Shift+←</Badge>
+                                        <ActionKey actionId={ACTIONS.SKIP_BACKWARD.id} />
                                     </div>
                                     <div className="flex justify-between items-center py-2 border-b">
                                         <span className="text-sm">{t('shortcuts.playback.skipForward')}</span>
-                                        <Badge variant="secondary">Shift+→</Badge>
+                                        <ActionKey actionId={ACTIONS.SKIP_FORWARD.id} />
                                     </div>
                                     <div className="flex justify-between items-center py-2 border-b">
                                         <span className="text-sm">{t('shortcuts.playback.speedUp')}</span>
-                                        <Badge variant="secondary">↑</Badge>
+                                        <ActionKey actionId={ACTIONS.SPEED_UP.id} />
                                     </div>
                                     <div className="flex justify-between items-center py-2">
                                         <span className="text-sm">{t('shortcuts.playback.speedDown')}</span>
-                                        <Badge variant="secondary">↓</Badge>
+                                        <ActionKey actionId={ACTIONS.SPEED_DOWN.id} />
                                     </div>
                                 </div>
                             </CardContent>
@@ -146,7 +156,7 @@ export function EditingGuideDialog({ children, onOpenChange }: EditingGuideDialo
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center py-2 border-b">
                                         <span className="text-sm">{t('shortcuts.editing.saveAndNext')}</span>
-                                        <Badge variant="secondary">Enter</Badge>
+                                        <ActionKey actionId={ACTIONS.EDIT_NEXT_UTTERANCE.id} />
                                     </div>
                                     <div className="flex justify-between items-center py-2">
                                         <span className="text-sm">{t('shortcuts.editing.cancel')}</span>
@@ -202,11 +212,11 @@ export function EditingGuideDialog({ children, onOpenChange }: EditingGuideDialo
                                     </div>
                                     <div className="flex justify-between items-center py-2 border-b">
                                         <span className="text-sm">{t('shortcuts.selection.extract')}</span>
-                                        <Badge variant="secondary">e</Badge>
+                                        <ActionKey actionId={ACTIONS.EXTRACT_SEGMENT.id} />
                                     </div>
                                     <div className="flex justify-between items-center py-2">
                                         <span className="text-sm">{t('shortcuts.selection.clear')}</span>
-                                        <Badge variant="secondary">Esc</Badge>
+                                        <ActionKey actionId={ACTIONS.CLEAR_SELECTION.id} />
                                     </div>
                                 </div>
                             </CardContent>

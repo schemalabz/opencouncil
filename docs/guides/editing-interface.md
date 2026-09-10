@@ -11,7 +11,6 @@ The system divides editing into distinct categories and modes:
 1.  **Editing Mode Lifecycle**:
     *   **Activation**: Users enter "Editing Mode" via the `EditButton` in the global header. This activates `options.editable` in the `TranscriptOptionsContext`.
     *   **Context Bar**: When active, the `EditingModeBar` appears at the top of the transcript, providing specialized controls:
-        *   **Playback Speed**: Adjust video playback speed (0.5x - 2.0x)
         *   **Skip Interval**: Configure time skip interval for Shift+Arrow navigation (2-30 seconds, default 5s)
         *   **Next Unknown Speaker**: Jump to next segment with unidentified speaker
         *   **Speakers Overview**: View statistics and navigate by speaker
@@ -70,41 +69,14 @@ The system divides editing into distinct categories and modes:
     *   These are treated similarly to user edits but are attributed to 'task' in the `lastModifiedBy` field and `UtteranceEdit` records.
 
 6.  **Interaction Enhancements**:
-    *   **Keyboard Shortcuts**: Centralized management via `KeyboardShortcutsContext` and `EditingContext`. Key shortcuts include:
-        *   **Utterance Navigation**: Arrow keys to jump between utterances
-        *   **Time-based Navigation**: `Shift+Arrow` keys to skip forward/backward by configurable interval (2-30s) - useful for manual transcription and reviewing audio
-        *   **Playback Control**: Space for play/pause, Up/Down arrows for speed adjustment
-        *   **While Editing Utterances**: When actively editing utterance text, all Shift-based shortcuts continue to work:
-            *   Video control (`Shift+Space` for play/pause)
-            *   Time-based navigation (`Shift+Arrow` keys for skip forward/backward)
-            *   Timestamp setting (`Shift+[` and `Shift+]` to set start/end timestamps to current video time)
+    *   **Keyboard Shortcuts**: `ACTION_DEFINITIONS` in `KeyboardShortcutsContext` states what each shortcut is bound to. The in-app `EditingGuideDialog` renders its keys from that list. The guide therefore cannot show a key that the dispatcher does not honour. Do not write the key list down a second time. The rules that the code does not state are:
+        *   **Editing mode claims the bare arrows.** In editing mode the four arrow keys drive playback from anywhere on the page. Focus can stay on the transcript.
+        *   **A reader gets seek, but not speed.** `ArrowLeft` and `ArrowRight` do not scroll a transcript, so a reader keeps them as seek. `ArrowUp` and `ArrowDown` stay scroll keys for a reader. The chosen speed persists in `localStorage`. One stray press would therefore change the speed of every later meeting. A reader changes the speed from the playback dock.
+        *   **A control that owns the keyboard keeps it.** Menus, listboxes, sliders, tab lists, comboboxes and selects keep every key. A focused button keeps only `Space` and `Enter`, which activate it. The button passes every other key to its shortcut. The playback dock's timeline strip claims no arrow key.
+        *   **The utterance editor holds its own keys.** `Utterance` handles the Shift-based shortcuts on its textarea. The dispatcher ignores keys that a user types into a text field.
     *   **Selection Mode**: Managed via `EditingContext`. Supports **Shift+Click** for range selection (selecting multiple sequential utterances) and **Ctrl+Click** for toggling individual selections.
     *   **Speakers Overview**: A dedicated sheet (`SpeakersOverviewSheet`) provides real-time statistics (duration, segment count) and navigation for every speaker in the meeting.
     *   **In-App Guide**: A comprehensive `EditingGuideDialog` provides immediate access to shortcuts and workflow instructions.
-
-**Shortcuts Reference**
-
-| Category | Key(s) | Action |
-| :--- | :--- | :--- |
-| **Playback** | `Space` | Play / Pause |
-| | `ArrowLeft` | Seek to previous utterance |
-| | `ArrowRight` | Seek to next utterance |
-| | `Shift + ArrowLeft` | Skip backward by interval (2-30s, configurable) |
-| | `Shift + ArrowRight` | Skip forward by interval (2-30s, configurable) |
-| | `ArrowUp` | Increase Playback Speed |
-| | `ArrowDown` | Decrease Playback Speed |
-| **Text Editing** | `Enter` | Edit active utterance / Save & Close |
-| | `Escape` | Cancel text edit |
-| **While Editing Utterance** | `Shift + Space` | Play / Pause (works in text editor) |
-| | `Shift + ArrowLeft` | Skip backward (works in text editor) |
-| | `Shift + ArrowRight` | Skip forward (works in text editor) |
-| | `Shift + [` | Set start timestamp to current video time |
-| | `Shift + ]` | Set end timestamp to current video time |
-| **Selection** | `Shift + Click` | Select Range of Utterances |
-| | `Ctrl + Click` | Toggle Selection of Utterance |
-| | `e` | Extract selected utterances to new segment |
-| | `Escape` | Clear selection |
-| **Global** | `Ctrl + b` | Toggle Sidebar |
 
 **Sequence Diagram**
 
@@ -118,7 +90,7 @@ sequenceDiagram
     %% Mode Activation
     User->>Frontend: Clicks "Enable Editing" (EditButton)
     Frontend->>Frontend: Sets options.editable = true
-    Frontend->>Frontend: Shows EditingModeBar (Speed, Unknown Speaker controls)
+    Frontend->>Frontend: Shows EditingModeBar (skip interval, unknown speaker, review)
 
     %% Text Editing Flow
     User->>Frontend: Clicks "Edit" on Utterance
@@ -166,37 +138,6 @@ sequenceDiagram
     Backend->>Database: Recalculate Segment Timestamps
     Backend-->>Frontend: Return updated Segment
 ```
-
-**Key Component Pointers**
-
-*   **Data Models**:
-    *   `Utterance`: [`prisma/schema.prisma`](../../prisma/schema.prisma)
-    *   `UtteranceEdit`: [`prisma/schema.prisma`](../../prisma/schema.prisma)
-    *   `SpeakerSegment`: [`prisma/schema.prisma`](../../prisma/schema.prisma)
-
-*   **Frontend Components**:
-    *   `EditingModeBar`: [`src/components/meetings/EditingModeBar.tsx`](../../src/components/meetings/EditingModeBar.tsx) (Contextual bar with tools and navigation)
-    *   `SpeakersOverviewSheet`: [`src/components/meetings/transcript/SpeakersOverviewSheet.tsx`](../../src/components/meetings/transcript/SpeakersOverviewSheet.tsx) (Speaker statistics and navigation)
-    *   `EditingGuideDialog`: [`src/components/meetings/EditingGuideDialog.tsx`](../../src/components/meetings/EditingGuideDialog.tsx) (In-app user guide)
-    *   `EditButton`: [`src/components/meetings/EditButton.tsx`](../../src/components/meetings/EditButton.tsx) (Entry point in global header)
-    *   `TranscriptControls`: [`src/components/meetings/TranscriptControls.tsx`](../../src/components/meetings/TranscriptControls.tsx) (Video player and clip navigation)
-    *   `Utterance`: [`src/components/meetings/transcript/Utterance.tsx`](../../src/components/meetings/transcript/Utterance.tsx) (Inline editing, visual state)
-    *   `PersonBadge`: [`src/components/persons/PersonBadge.tsx`](../../src/components/persons/PersonBadge.tsx) (Speaker autocomplete and assignment)
-    *   `SpeakerSegment`: [`src/components/meetings/transcript/SpeakerSegment.tsx`](../../src/components/meetings/transcript/SpeakerSegment.tsx) (Displays empty state UI with "Add Utterance" button via `EmptySegmentState` component)
-
-*   **State & Context**:
-    *   `TranscriptOptionsContext`: [`src/components/meetings/options/OptionsContext.tsx`](../../src/components/meetings/options/OptionsContext.tsx) (Manages `editable` state)
-    *   `CouncilMeetingDataContext`: [`src/components/meetings/CouncilMeetingDataContext.tsx`](../../src/components/meetings/CouncilMeetingDataContext.tsx)
-    *   `EditingContext`: [`src/components/meetings/EditingContext.tsx`](../../src/components/meetings/EditingContext.tsx) (Manages utterance selection state and extraction logic)
-    *   `KeyboardShortcutsContext`: [`src/contexts/KeyboardShortcutsContext.tsx`](../../src/contexts/KeyboardShortcutsContext.tsx) (Centralized keyboard shortcut management)
-
-*   **Backend Logic**:
-    *   `editUtterance`: [`src/lib/db/utterance.ts`](../../src/lib/db/utterance.ts)
-    *   `moveUtterancesToSegment`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts)
-    *   `extractSpeakerSegment`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles extracting utterance ranges into new segments)
-    *   `createEmptySpeakerSegmentBefore/After`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles creating new segments with "New speaker segment" tag)
-    *   `addUtteranceToSegment`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Unified function for adding utterances to any segment - handles both empty and non-empty cases with automatic timestamp calculation)
-    *   `updateSpeakerSegmentData`: [`src/lib/db/speakerSegments.ts`](../../src/lib/db/speakerSegments.ts) (Handles batch updates, utterance creation/deletion via temp IDs, and timestamp recalculation - used for advanced editing)
 
 **Business Rules & Assumptions**
 

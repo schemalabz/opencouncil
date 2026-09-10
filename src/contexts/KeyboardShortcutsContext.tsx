@@ -3,6 +3,21 @@ import React, { createContext, useContext, ReactNode, useCallback, useEffect } f
 
 export type KeyboardActionHandler = () => void;
 
+export interface ShortcutRegistrationOptions {
+    /**
+     * Bare arrows scroll the page while reading, so a reader's playback actions
+     * run only from inside the dock. The editing surface claims them outright:
+     * an editor drives the audio while the caret and the focus stay on the
+     * transcript. Defaults to the action definition.
+     */
+    requiresPlaybackFocus?: boolean;
+}
+
+interface ShortcutRegistration {
+    handler: KeyboardActionHandler;
+    requiresPlaybackFocus?: boolean;
+}
+
 export interface KeyboardAction {
     id: string;
     description: string;
@@ -13,7 +28,7 @@ export interface KeyboardAction {
 }
 
 interface KeyboardShortcutsContextType {
-    registerShortcut: (actionId: string, handler: KeyboardActionHandler) => void;
+    registerShortcut: (actionId: string, handler: KeyboardActionHandler, options?: ShortcutRegistrationOptions) => void;
     unregisterShortcut: (actionId: string) => void;
     getShortcutLabel: (actionId: string) => string | null;
 }
@@ -78,22 +93,48 @@ const ACTION_DEFINITIONS: Record<string, Omit<KeyboardAction, 'handler'>> = {
     }
 };
 
+// How each key is written for a reader. The dispatcher matches on the
+// KeyboardEvent.key values above; a guide has to show them as keys look.
+const KEY_LABELS: Record<string, string> = {
+    ' ': 'Space',
+    arrowleft: '\u2190',
+    arrowright: '\u2192',
+    arrowup: '\u2191',
+    arrowdown: '\u2193',
+    escape: 'Esc',
+};
+
+/**
+ * The keys an action answers to, written the way a guide shows them.
+ *
+ * This is the single statement of what a shortcut is bound to. Anything that
+ * tells a user about a shortcut reads it from here, so the guide cannot promise
+ * a key the dispatcher does not honour.
+ */
+export function getActionKeyLabel(actionId: string): string | null {
+    const def = ACTION_DEFINITIONS[actionId];
+    if (!def) return null;
+    return def.keys
+        .map(combo => combo
+            .split('+')
+            .map(part => KEY_LABELS[part.toLowerCase()] ?? (part.length === 1 ? part.toUpperCase() : part))
+            .join('+'))
+        .join(' or ');
+}
+
 export function KeyboardShortcutsProvider({ children }: { children: ReactNode }) {
     // Map of actionId -> handler
-    const handlers = React.useRef<Map<string, KeyboardActionHandler>>(new Map());
+    const handlers = React.useRef<Map<string, ShortcutRegistration>>(new Map());
 
-    const registerShortcut = useCallback((actionId: string, handler: KeyboardActionHandler) => {
-        handlers.current.set(actionId, handler);
+    const registerShortcut = useCallback((actionId: string, handler: KeyboardActionHandler, options?: ShortcutRegistrationOptions) => {
+        handlers.current.set(actionId, { handler, requiresPlaybackFocus: options?.requiresPlaybackFocus });
     }, []);
 
     const unregisterShortcut = useCallback((actionId: string) => {
         handlers.current.delete(actionId);
     }, []);
 
-    const getShortcutLabel = useCallback((actionId: string) => {
-        const def = ACTION_DEFINITIONS[actionId];
-        return def ? def.keys.join(' or ') : null;
-    }, []);
+    const getShortcutLabel = useCallback((actionId: string) => getActionKeyLabel(actionId), []);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -111,61 +152,69 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
             }
             const inPlaybackDock = event.target instanceof HTMLElement
                 && event.target.closest('[data-playback-focus]') !== null;
-            // Keys mean something else on interactive controls: Space activates a
-            // focused button, arrows move menus, selects, sliders and tab lists.
-            const onInteractiveControl = event.target instanceof HTMLElement && (
+            // A composite widget owns every key: menus, listboxes, sliders, tab
+            // lists, comboboxes and selects move their own selection with the
+            // arrows, close on Escape and jump to a letter as you type it.
+            const onCompositeWidget = event.target instanceof HTMLElement && (
                 event.target instanceof HTMLSelectElement ||
-                event.target instanceof HTMLButtonElement ||
                 event.target.closest('[role="menu"], [role="menubar"], [role="listbox"], [role="slider"], [role="tablist"], [role="combobox"]') !== null
             );
-            // The dock is all buttons and one slider, so this return would reject
-            // every key the dock's own actions claim. It defers to the per-action
-            // check below there, and keeps its verdict everywhere else.
-            if (onInteractiveControl && !inPlaybackDock) {
-                return;
-            }
+            // A focused button owns Space and Enter, which activate it. It owns
+            // no other key, so the rest of the shortcuts still reach their action.
+            const onButton = event.target instanceof HTMLButtonElement;
 
             // Check all definitions
             for (const action of Object.values(ACTION_DEFINITIONS)) {
-                const isMatch = action.keys.some(keyCombo => {
+                const matchedKey = action.keys.map(keyCombo => {
                     const parts = keyCombo.toLowerCase().split('+');
                     const key = parts.pop();
                     const modifiers = parts;
-                    
-                    if (event.key.toLowerCase() !== key) return false;
-                    
+
+                    if (event.key.toLowerCase() !== key) return undefined;
+
                     const ctrl = modifiers.includes('control') || modifiers.includes('ctrl');
                     const meta = modifiers.includes('meta') || modifiers.includes('cmd');
                     const shift = modifiers.includes('shift');
                     const alt = modifiers.includes('alt');
 
-                    return (
+                    const modifiersMatch = (
                         event.ctrlKey === ctrl &&
                         event.metaKey === meta &&
                         event.shiftKey === shift &&
                         event.altKey === alt
                     );
-                });
+                    return modifiersMatch ? key : undefined;
+                }).find(key => key !== undefined);
 
-                if (isMatch) {
-                    // Bare arrows stay scroll keys while reading; they drive
-                    // playback only when focus sits inside the dock (or the
-                    // floating player). Space stays global.
-                    if (action.requiresPlaybackFocus && !inPlaybackDock) {
+                if (matchedKey === undefined) {
+                    continue;
+                }
+
+                const registration = handlers.current.get(action.id);
+                if (!registration) {
+                    continue;
+                }
+
+                const isArrow = matchedKey.startsWith('arrow');
+
+                // Inside the dock the arrow actions outrank the widget under
+                // focus, which is how the dock's own strip and buttons work.
+                if (onCompositeWidget && !(inPlaybackDock && isArrow)) {
+                    continue;
+                }
+                if (onButton && (matchedKey === ' ' || matchedKey === 'enter')) {
+                    continue;
+                }
+                if (isArrow) {
+                    const requiresPlaybackFocus = registration.requiresPlaybackFocus ?? action.requiresPlaybackFocus;
+                    if (requiresPlaybackFocus && !inPlaybackDock) {
                         continue;
-                    }
-                    // Inside the dock only the arrow actions outrank the control
-                    // under focus: Space still activates the focused button.
-                    if (onInteractiveControl && !action.requiresPlaybackFocus) {
-                        continue;
-                    }
-                    const handler = handlers.current.get(action.id);
-                    if (handler) {
-                        event.preventDefault();
-                        handler();
-                        return;
                     }
                 }
+
+                event.preventDefault();
+                registration.handler();
+                return;
             }
         };
 
@@ -180,18 +229,25 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
     );
 }
 
-export function useKeyboardShortcut(actionId: string, handler: KeyboardActionHandler, enabled: boolean = true) {
+export function useKeyboardShortcut(
+    actionId: string,
+    handler: KeyboardActionHandler,
+    enabled: boolean = true,
+    options?: ShortcutRegistrationOptions
+) {
     const context = useContext(KeyboardShortcutsContext);
     if (context === undefined) {
         throw new Error('useKeyboardShortcut must be used within a KeyboardShortcutsProvider');
     }
 
+    const requiresPlaybackFocus = options?.requiresPlaybackFocus;
+
     useEffect(() => {
         if (enabled) {
-            context.registerShortcut(actionId, handler);
+            context.registerShortcut(actionId, handler, { requiresPlaybackFocus });
             return () => context.unregisterShortcut(actionId);
         }
-    }, [actionId, handler, enabled, context]);
+    }, [actionId, handler, enabled, requiresPlaybackFocus, context]);
 }
 
 export const ACTIONS = ACTION_DEFINITIONS;
