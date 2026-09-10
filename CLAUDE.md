@@ -33,6 +33,10 @@ npx prisma migrate dev --name <migration_name> --create-only
 ```
 This allows testing the migration against a local database first before applying to production. Never run `npx prisma migrate dev` directly, as it both creates and applies the migration to whatever database `DATABASE_URL` points to.
 
+**A destructive migration goes in its own commit.** A migration that drops a column or a table, renames one, or changes a column type must be the only change in its commit. The commit that removes the field from `prisma/schema.prisma` and stops the code from reading it comes first. A separate commit then adds the migration.
+
+The reason is the deploy. `prisma migrate deploy` runs at the start of the App Platform build, and the old instances serve every request until the new ones pass their health checks. Prisma writes an explicit column list into every query, so the deployed code keeps selecting a column that the migration has already dropped. Two commits let `/release` deploy the code first and the drop second, which removes the window. One commit does not, and `/release` must then rewrite `main` to make the split.
+
 ### Direct Database Access
 
 When you need to query the database directly (e.g. to find test data, verify state, or debug):

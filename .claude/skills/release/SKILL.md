@@ -163,6 +163,25 @@ git push $REMOTE $SOURCE_BRANCH --force-with-lease
 
 **Always confirm with the user before force-pushing.** After the rebase, re-run the pre-flight checks.
 
+## Step 1.5: Destructive Migration Check
+
+A migration applies at the **start** of the App Platform build. The old instances serve every request until the new ones pass their health checks. So a release whose migration drops a column that the deployed code still selects breaks every such query for the length of the build. Release 2026.9.5 did this for 9 minutes and 36 seconds.
+
+Run the check on the content range:
+
+```bash
+.claude/skills/release/scripts/check-destructive-migrations.sh "$LAST_TAG" "$REMOTE/$SOURCE_BRANCH"
+```
+
+`SAFE` means the release deploys as one build. Continue to Step 2 and use Step 6 unchanged.
+
+An `UNSAFE` line means the release needs the two-build deploy in Step 6b. Read the `split=` field:
+
+- `split=<sha>` — a valid split point exists. Record the SHA. Go to Step 2.
+- `split=none` — the same commit drops the column and stops reading it, so no split point exists. Run **Step 1.6** to create one.
+
+With no tags yet, `$LAST_TAG` is empty and this step does not apply. Skip it.
+
 ## Step 2: Gather Context
 
 Determine the last release tag. It defines `$RANGE` — **unless** Argument Parsing already set one from an explicit `<ref>..<ref>`, which must win:
