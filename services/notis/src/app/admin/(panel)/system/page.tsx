@@ -23,6 +23,7 @@ import { Pager } from "../_components/Pager";
 import { AutoRefresh } from "../_components/AutoRefresh";
 import { Countdown } from "../_components/Countdown";
 import { PageHeader } from "../_components/PageHeader";
+import { RetryFailures } from "../_components/RetryFailures";
 import { UserAvatar } from "../_components/UserAvatar";
 
 export const metadata = { title: "Σύστημα · Νότης admin" };
@@ -382,6 +383,7 @@ export default async function SystemPage(props: {
               </ul>
             )}
             {snap.queue.failures.count > 0 && (
+              <>
               <p className="flex items-center gap-1.5 border-t px-4 py-2.5 text-xs text-destructive">
                 <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
                 {snap.queue.failures.count}{" "}
@@ -396,6 +398,8 @@ export default async function SystemPage(props: {
                   ? ` · +${snap.queue.failures.older} παλαιότερες`
                   : ""}
               </p>
+              <RetryFailures />
+              </>
             )}
           </section>
 
