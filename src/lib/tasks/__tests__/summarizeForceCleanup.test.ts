@@ -124,22 +124,22 @@ describe('handleSummarizeResult — always cleans up stale data on success', () 
     jest.clearAllMocks();
   });
 
-  it('deletes topic labels scoped to the meeting', async () => {
+  it('deletes topic labels scoped to the meeting segments', async () => {
     await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
 
     expect(mockTopicLabelDeleteMany).toHaveBeenCalledWith({
       where: {
-        speakerSegment: { meetingId: MEETING_ID, cityId: CITY_ID },
+        speakerSegmentId: { in: [] },
       },
     });
   });
 
-  it('resets utterance discussion statuses scoped to the meeting', async () => {
+  it('resets utterance discussion statuses scoped to the meeting segments', async () => {
     await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
 
     expect(mockUtteranceUpdateMany).toHaveBeenCalledWith({
       where: {
-        speakerSegment: { meetingId: MEETING_ID, cityId: CITY_ID },
+        speakerSegmentId: { in: [] },
       },
       data: {
         discussionStatus: null,
@@ -148,7 +148,25 @@ describe('handleSummarizeResult — always cleans up stale data on success', () 
     });
   });
 
-  it('cleans up before saving new data', async () => {
+  it('passes the cleanup ops into the same $transaction array (atomicity)', async () => {
+    // Sentinel return values so we can assert by identity that the cleanup ops are
+    // ELEMENTS of the array handed to $transaction — not awaited separately before it.
+    // A sequential-await version would still call all three mocks, so asserting only
+    // "was called" wouldn't actually guard the atomicity invariant this PR introduces.
+    const deleteOp = Symbol('deleteTopicLabels');
+    const resetOp = Symbol('resetUtterances');
+    mockTopicLabelDeleteMany.mockReturnValueOnce(deleteOp);
+    mockUtteranceUpdateMany.mockReturnValueOnce(resetOp);
+
+    await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
+
+    expect(mockTransaction).toHaveBeenCalled();
+    const [transactionArg] = mockTransaction.mock.calls[0];
+    expect(transactionArg).toContain(deleteOp);
+    expect(transactionArg).toContain(resetOp);
+  });
+
+  it('builds cleanup before saving new data', async () => {
     const callOrder: string[] = [];
     mockTopicLabelDeleteMany.mockImplementation(() => { callOrder.push('deleteTopicLabels'); return Promise.resolve({ count: 0 }); });
     mockUtteranceUpdateMany.mockImplementation(() => { callOrder.push('resetUtterances'); return Promise.resolve({ count: 0 }); });

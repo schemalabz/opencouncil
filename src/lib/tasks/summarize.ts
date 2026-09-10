@@ -44,34 +44,6 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
 
     const { councilMeeting } = task;
 
-    // Clean up stale data before saving new results.
-    // This runs on every successful callback (not just force), ensuring the DB
-    // is consistent even if a previous run left partial data.
-    // Summaries use upsert (keyed on speakerSegmentId) so they're overwritten naturally.
-    // TopicLabels and utterance discussion statuses need explicit cleanup because:
-    // - TopicLabels: upsert only creates/updates matching pairs; old labels for topics
-    //   no longer assigned to a segment remain as stale data.
-    // - Utterance statuses: only utterances present in the new response get updated;
-    //   utterances that had statuses from the previous run but aren't in the new
-    //   response keep their old (now stale) values.
-    console.log(`Cleaning up stale summarize data for meeting ${councilMeeting.id}`);
-
-    await prisma.topicLabel.deleteMany({
-        where: {
-            speakerSegment: { meetingId: councilMeeting.id, cityId: councilMeeting.cityId }
-        }
-    });
-
-    await prisma.utterance.updateMany({
-        where: {
-            speakerSegment: { meetingId: councilMeeting.id, cityId: councilMeeting.cityId }
-        },
-        data: {
-            discussionStatus: null,
-            discussionSubjectId: null
-        }
-    });
-
     const availableSpeakerSegmentIds = await getAvailableSpeakerSegmentIds(councilMeeting.id, councilMeeting.cityId);
 
     // Pre-fetch all topics to avoid repeated queries
@@ -87,8 +59,22 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     });
     const topicByName = new Map(topics.map(t => [t.name, t]));
 
-    // Prepare all operations for batch execution
-    const operations: any[] = [];
+    // Prepare all operations for batch execution.
+    // Stale-data cleanup is PREPENDED so it runs in the SAME transaction as the
+    // repopulation below: if repopulation fails, the cleanup rolls back too and the
+    // meeting keeps its old data instead of being left empty. This runs on every
+    // successful callback (not just force) — summaries upsert by speakerSegmentId, but
+    // TopicLabels and utterance discussion statuses need explicit cleanup because old
+    // rows for segments/topics no longer in the new response would otherwise persist.
+    const operations: any[] = [
+        prisma.topicLabel.deleteMany({
+            where: { speakerSegmentId: { in: availableSpeakerSegmentIds } }
+        }),
+        prisma.utterance.updateMany({
+            where: { speakerSegmentId: { in: availableSpeakerSegmentIds } },
+            data: { discussionStatus: null, discussionSubjectId: null }
+        }),
+    ];
 
     for (const segmentSummary of response.speakerSegmentSummaries) {
         if (!availableSpeakerSegmentIds.includes(segmentSummary.speakerSegmentId)) {
