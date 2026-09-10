@@ -9,7 +9,7 @@ import type { Prisma } from '@prisma/client';
 import prisma from "./prisma";
 
 const meetingForCalendarSyncInclude = {
-    city: { select: { name: true, timezone: true } },
+    city: { select: { name: true, timezone: true, realm: true } },
     administrativeBody: { select: { name: true } },
     meetingOperator: { include: { user: { select: { email: true } } } },
 } satisfies Prisma.CouncilMeetingInclude;

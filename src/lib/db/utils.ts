@@ -18,6 +18,7 @@ import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
 import { roleWithRelationsInclude } from "./types";
 import { categorizeSubjectsForUpsert } from "./subject-helpers";
 import { getRealmCountry } from "@/lib/realm";
+import { getCityRealm } from "./cityRealm";
 
 // discussionStatus arrives from the external task server, so it is validated before it
 // reaches Prisma. An unknown value is a PrismaClientValidationError, which would abort the
@@ -175,11 +176,11 @@ async function validateSubjectPersons(subjects: Subject[], cityId: string) {
     // Otherwise a subject's topicLabel could resolve to another realm's
     // identically-named topic, and Object.fromEntries would pick a duplicate name
     // non-deterministically.
-    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { realm: true } });
-    if (!city) {
+    const realm = await getCityRealm(cityId);
+    if (!realm) {
         throw new Error(`City not found: ${cityId}`);
     }
-    const topics = await prisma.topic.findMany({ where: { deprecated: false, realm: city.realm } });
+    const topics = await prisma.topic.findMany({ where: { deprecated: false, realm } });
     const topicsByName = Object.fromEntries(topics.map(t => [t.name, t]));
 
     const speakerIds = subjects

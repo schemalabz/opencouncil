@@ -82,18 +82,28 @@ describe('generateUnsubscribeToken / verifyUnsubscribeToken', () => {
 });
 
 describe('buildUnsubscribeUrl', () => {
-    it('defaults to the /el/ locale when none is provided', async () => {
-        const url = await buildUnsubscribeUrl('user-1', 'city-1');
+    it("links to the realm's domain, in that realm's language", async () => {
+        const url = await buildUnsubscribeUrl('user-1', { cityId: 'city-1', realm: 'france' });
+        expect(url.startsWith('https://opencouncil.fr/fr/unsubscribe?token=')).toBe(true);
+    });
+
+    it('defaults to the /el/ locale for a Greek city', async () => {
+        const url = await buildUnsubscribeUrl('user-1', { cityId: 'city-1', realm: 'greece' });
+        expect(url.startsWith('https://opencouncil.gr/el/unsubscribe?token=')).toBe(true);
+    });
+
+    it('keeps the configured host and Greek without a realm', async () => {
+        const url = await buildUnsubscribeUrl('user-1', { cityId: 'city-1' });
         expect(url.startsWith('https://opencouncil.gr/el/unsubscribe?token=')).toBe(true);
     });
 
     it('interpolates the provided locale into the path', async () => {
-        const url = await buildUnsubscribeUrl('user-1', 'city-1', 'en');
+        const url = await buildUnsubscribeUrl('user-1', { cityId: 'city-1', locale: 'en' });
         expect(url.startsWith('https://opencouncil.gr/en/unsubscribe?token=')).toBe(true);
     });
 
     it('produces a URL whose token round-trips through verify', async () => {
-        const url = await buildUnsubscribeUrl('user-1', 'city-1');
+        const url = await buildUnsubscribeUrl('user-1', { cityId: 'city-1' });
         const token = decodeURIComponent(url.split('token=')[1]);
 
         const data = await verifyUnsubscribeToken(token);
@@ -102,10 +112,11 @@ describe('buildUnsubscribeUrl', () => {
         expect(data!.cityId).toBe('city-1');
     });
 
-    it('builds a city-less URL whose token verifies with no cityId', async () => {
+    it('builds a city-less URL', async () => {
         const url = await buildUnsubscribeUrl('user-1');
-        const token = decodeURIComponent(url.split('token=')[1]);
+        expect(url.startsWith('https://opencouncil.gr/el/unsubscribe?token=')).toBe(true);
 
+        const token = decodeURIComponent(url.split('token=')[1]);
         const data = await verifyUnsubscribeToken(token);
         expect(data).not.toBeNull();
         expect(data!.userId).toBe('user-1');

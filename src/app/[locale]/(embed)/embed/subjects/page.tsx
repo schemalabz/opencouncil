@@ -4,7 +4,7 @@ import { getCityCached, getCityIdForGeohashCached } from '@/lib/cache';
 import { EmbedSubjectCard } from '@/components/embed/EmbedSubjectCard';
 import { EmbedFooter } from '@/components/embed/EmbedFooter';
 import { parseEmbedConfig, type EmbedSearchParams } from '@/lib/utils/embedParams';
-import { embedBaseUrl } from '@/lib/utils/embedBaseUrl';
+import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import { getHotSubjectCards } from '@/lib/hotSubjectCards';
 import { isValidGeohash } from '@/lib/geo';
 import { cn } from '@/lib/utils';
@@ -39,7 +39,7 @@ export default async function EmbedSubjectsPage(props: EmbedSubjectsPageProps) {
     if (searchParams.cityId && !city) notFound();
 
     const { limit, administrativeBodyTypes, administrativeBodyIds, themeVars, appThemeShim } = parseEmbedConfig(searchParams);
-    const baseUrl = embedBaseUrl(city?.realm);
+    const baseUrl = realmBaseUrl(city?.realm);
 
     const cards = city
         ? await getHotSubjectCards(city.id, { limit, administrativeBodyTypes, administrativeBodyIds, geohash })

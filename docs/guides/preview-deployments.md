@@ -259,7 +259,7 @@ chmod 600 /var/lib/opencouncil-previews/.env
 
 The NixOS module loads this file via systemd `EnvironmentFile=`. Optional vars (Discord, Bird, Google Calendar, etc.) can be added to the same file — see `src/env.mjs` for the full list.
 
-**Base URL note:** All base URL usage in this codebase now uses `NEXTAUTH_URL` (server-side, read at runtime), so previews work correctly without build-time URL injection. Client-side code that needs the base URL uses `window.location.origin` instead.
+**Base URL note:** Server-side base URLs come from `NEXTAUTH_URL`, read at runtime, so previews work correctly without build-time URL injection. Links to a city's content go through `realmBaseUrl`, which rewrites to the realm's own domain only when `NEXTAUTH_URL` is a production apex — a preview host is kept as is, so preview links stay on the preview. Client-side code that needs the base URL uses `window.location.origin` instead.
 
 ### GitHub Secrets
 

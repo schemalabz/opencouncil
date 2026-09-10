@@ -5,7 +5,7 @@ import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches } from './types';
 import { buildSearchQuery } from './query';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters';
-import { sendErrorAdminAlert } from '@/lib/discord';
+import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { executeElasticsearchWithRetry } from './retry';
 import { partitionHits, reportOrphanedHits, type EsHit } from './hits';
 import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';

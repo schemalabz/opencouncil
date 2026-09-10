@@ -229,7 +229,7 @@ export async function sendTestBeforeMeetingNotification(input: {
                     ? { name: notification.meeting.administrativeBody.name }
                     : null,
             },
-            city: { name_municipality: notification.city.name_municipality },
+            city: { name_municipality: notification.city.name_municipality, realm: notification.city.realm },
         });
 
         await prisma.notificationDelivery.create({

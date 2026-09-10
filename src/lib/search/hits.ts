@@ -1,4 +1,4 @@
-import { sendErrorAdminAlert } from '@/lib/discord';
+import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { env } from '@/env.mjs';
 
 interface EsInnerHit {

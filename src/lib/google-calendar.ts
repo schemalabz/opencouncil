@@ -10,6 +10,7 @@ import { addHours } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { getMeetingForCalendarSync, setMeetingCalendarEventId, MeetingForCalendarSync } from '@/lib/db/meetingsCalendarSync';
 import { sendTaskAdminAlert } from '@/lib/discord';
+import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 
 // Bounds each Google API call so a hung request cannot stall the admin
 // routes that await the sync (googleapis sets no timeout by default).
@@ -64,7 +65,7 @@ function buildMeetingEventPayload(meeting: MeetingForCalendarSync) {
         ? `${meeting.city.name}: ${meeting.administrativeBody.name}`
         : meeting.city.name;
 
-    const meetingUrl = `${env.NEXTAUTH_URL}/${meeting.cityId}/${meeting.id}`;
+    const meetingUrl = `${realmBaseUrl(meeting.city.realm)}/${meeting.cityId}/${meeting.id}`;
     const descriptionParts: string[] = [];
     if (meeting.agendaUrl) {
         descriptionParts.push(`Ημερήσια Διάταξη: ${meeting.agendaUrl}`);

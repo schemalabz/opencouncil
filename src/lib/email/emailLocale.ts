@@ -1,6 +1,5 @@
 import type { Realm } from '@prisma/client';
-import { REALMS, getRealmBaseUrl, isRealmApexHost } from '@/lib/realm';
-import { env } from '@/env.mjs';
+import { REALMS } from '@/lib/realm';
 
 /**
  * The locales a realm-addressed email can be written in: every realm's default
@@ -13,30 +12,13 @@ import { env } from '@/env.mjs';
  */
 export type EmailLocale = (typeof REALMS)[Realm]['defaultLocale'];
 
-/** The language to write an email about `realm`'s content in. */
-export function emailLocaleForRealm(realm: Realm): EmailLocale {
-    return REALMS[realm].defaultLocale;
-}
-
 /**
- * Absolute base URL for a link in an email about `realm`'s content.
+ * The language to write an email about `realm`'s content in.
  *
- * In production this must be the realm's own domain: `NEXTAUTH_URL` is a single
- * build-time host, so using it sends every realm's readers to opencouncil.gr —
- * where the link 404s, because the city lives on another realm's site.
- *
- * On a preview or local instance `NEXTAUTH_URL` is not a production apex, and
- * the reader is testing *that* instance rather than production, so it wins.
- * Caveat: a preview host resolves to the greece realm, so a link to another
- * realm's content opens there in Greek — realm is a property of the domain, and
- * a preview has only one. Append `?realm=…` by hand when that matters.
+ * A null realm means there is no city to derive one from — a product-update
+ * broadcast. It falls back to greece, matching `realmForHost`'s default for an
+ * unknown host and the `el` these emails defaulted to before realms existed.
  */
-export function emailBaseUrlForRealm(realm: Realm): string {
-    try {
-        const configured = env.NEXTAUTH_URL.replace(/\/$/, '');
-        if (!isRealmApexHost(new URL(configured).host)) return configured;
-    } catch {
-        // unset or malformed NEXTAUTH_URL — the realm's canonical domain still works
-    }
-    return getRealmBaseUrl(realm);
+export function emailLocaleForRealm(realm: Realm | null): EmailLocale {
+    return REALMS[realm ?? 'greece'].defaultLocale;
 }

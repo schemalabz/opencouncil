@@ -72,6 +72,31 @@ export default defineConfig([{
         }],
     },
 }, {
+    // The Edge-reachable alerting path must stay free of node-only imports.
+    // Next compiles `onRequestError` in src/instrumentation.ts for the Edge
+    // runtime as well as node — that is how proxy failures reach the team
+    // channel — and evaluating PrismaClient on edge throws, which would break
+    // the error handler on exactly the path that must work. The build does NOT
+    // fail on this: the module bundles fine and only throws at request time in
+    // production, so a comment is not enough to hold the boundary.
+    files: ["src/lib/discord-core.ts", "src/instrumentation.ts"],
+    rules: {
+        "no-restricted-imports": ["error", {
+            paths: [{
+                name: "@prisma/client",
+                importNames: ["PrismaClient"],
+                message: "discord-core.ts and instrumentation.ts are compiled for the Edge runtime, where PrismaClient throws. Keep database access in src/lib/discord.ts. Type-only imports are fine.",
+            }, {
+                name: "@/lib/discord",
+                message: "src/lib/discord.ts reads the database, so importing it here would pull Prisma into the Edge bundle. Import from @/lib/discord-core instead.",
+            }],
+            patterns: [{
+                group: ["**/db/**", "@/lib/db/**"],
+                message: "The Edge-reachable alerting path must not touch the database. Resolve what you need in src/lib/discord.ts and pass it in.",
+            }],
+        }],
+    },
+}, {
     // Date text must render identically on the server (UTC machine) and in the
     // visitor's browser, or hydration breaks (React error #418) and printed
     // days go wrong near midnight. Raw toLocaleDateString/Intl.DateTimeFormat

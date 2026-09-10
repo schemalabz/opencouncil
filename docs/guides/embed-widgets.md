@@ -11,7 +11,7 @@ A site owner opens the configurator at `/{cityId}/widget`, chooses a widget type
 1. Reads its configuration from the query string. `parseEmbedConfig` handles the params that every widget shares (accent color, dark mode, corner radius, card limit, administrative-body filter). Widget-specific params stay in the route.
 2. Loads data through the public cached queries in `src/lib/cache/queries.ts`. These queries return released meetings only and never call `headers()`, so a page can be served from the CDN.
 3. Renders plain HTML with a small stylesheet (`embed.css`) driven by `--embed-*` CSS variables from `generateThemeVars`. The pages are Server Components. The subjects widget is the exception: it renders the app's shared `SubjectCardContent`, so it also applies `generateAppThemeShim`.
-4. Links back to OpenCouncil with `embedBaseUrl(city.realm)`. In production the links use the realm's own domain (a Cypriot city links to opencouncil.cy). On a preview or local host the links keep `NEXTAUTH_URL`.
+4. Links back to OpenCouncil with `realmBaseUrl(city.realm)`. In production the links use the realm's own domain (a Cypriot city links to opencouncil.cy). On a preview or local host the links keep `NEXTAUTH_URL`.
 
 The `(embed)` route group has a minimal layout with `robots: noindex`. `next.config.mjs` adds `Content-Security-Policy: frame-ancestors *` and a CDN `Cache-Control` header to every `/:locale/embed/:path*` response. `EMBED_PATH` in `src/lib/utils/embed.ts` keeps analytics, SEO redirects and the dev login bar out of the iframe.
 
@@ -59,7 +59,7 @@ Routes and layout:
 
 Configuration and theming:
 - `parseEmbedConfig`, `parseBoundedInt`, `EMBED_SUMMARY_LIMITS`, `embedLocalePrefix`: [`src/lib/utils/embedParams.ts`](../../src/lib/utils/embedParams.ts)
-- `embedBaseUrl`: [`src/lib/utils/embedBaseUrl.ts`](../../src/lib/utils/embedBaseUrl.ts) (realm-aware link base)
+- `realmBaseUrl`: [`src/lib/utils/realmBaseUrl.ts`](../../src/lib/utils/realmBaseUrl.ts) (realm-aware link base, shared with alerts and emails)
 - `generateThemeVars`, `generateAppThemeShim`: [`src/lib/utils/embedTheme.ts`](../../src/lib/utils/embedTheme.ts)
 - `EMBED_PATH`: [`src/lib/utils/embed.ts`](../../src/lib/utils/embed.ts)
 - Frame and cache headers: [`next.config.mjs`](../../next.config.mjs)

@@ -1,7 +1,8 @@
 import { sendEmail } from './resend';
 import { renderReactEmailToHtml } from './render';
 import { HighlightCompleteEmail, highlightCompleteCopy } from './templates/HighlightCompleteEmail';
-import { emailBaseUrlForRealm, emailLocaleForRealm } from './emailLocale';
+import { emailLocaleForRealm } from './emailLocale';
+import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import prisma from '@/lib/db/prisma';
 import { formatDate, formatDuration } from '@/lib/formatters/time';
 import { getLocalizedName } from '@/lib/formatters/name';
@@ -85,7 +86,7 @@ export async function sendHighlightCompleteEmail({
         const { realm } = highlight.meeting.city;
         const locale = emailLocaleForRealm(realm);
         const copy = highlightCompleteCopy(locale);
-        const highlightUrl = `${emailBaseUrlForRealm(realm)}/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`;
+        const highlightUrl = `${realmBaseUrl(realm)}/${highlight.cityId}/${highlight.meetingId}/highlights/${highlight.id}`;
 
         // Prepare email data
         const userName = user.name || user.email.split('@')[0];

@@ -877,7 +877,8 @@ export async function createNotificationsForMeeting(
                         administrativeBody: meeting.administrativeBody
                     },
                     city: {
-                        name_municipality: meeting.city.name_municipality
+                        name_municipality: meeting.city.name_municipality,
+                        realm: meeting.city.realm
                     }
                 };
 

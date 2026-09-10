@@ -4,7 +4,7 @@ import { getCityCached } from '@/lib/cache';
 import { EmbedMeetingSummary, type EmbedSummaryTranslations } from '@/components/embed/EmbedMeetingSummary';
 import { EmbedFooter } from '@/components/embed/EmbedFooter';
 import { parseEmbedConfig, parseBoundedInt, EMBED_SUMMARY_LIMITS, type EmbedSearchParams } from '@/lib/utils/embedParams';
-import { embedBaseUrl } from '@/lib/utils/embedBaseUrl';
+import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import { getMeetingSummaries } from '@/lib/meetingSummaries';
 import '../meetings/embed.css';
 
@@ -39,7 +39,7 @@ export default async function EmbedSummaryPage(props: EmbedSummaryPageProps) {
     const { limit, administrativeBodyTypes, administrativeBodyIds, themeVars } =
         parseEmbedConfig(searchParams, { limit: EMBED_SUMMARY_LIMITS.meetings });
     const maxSubjects = parseBoundedInt(searchParams.subjects, EMBED_SUMMARY_LIMITS.subjects);
-    const baseUrl = embedBaseUrl(city.realm);
+    const baseUrl = realmBaseUrl(city.realm);
 
     const summaries = await getMeetingSummaries(cityId, { meetingId, limit, administrativeBodyTypes, administrativeBodyIds });
 

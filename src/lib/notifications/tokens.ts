@@ -1,6 +1,10 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from 'crypto';
 import { env } from '@/env.mjs';
+import type { Realm } from '@prisma/client';
+import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
+import { emailLocaleForRealm } from '@/lib/email/emailLocale';
+import { urlPrefixForLocale } from '@/i18n/config';
 
 interface UnsubscribeTokenData {
     userId: string;
@@ -55,7 +59,19 @@ export async function verifyUnsubscribeToken(token: string): Promise<Unsubscribe
     }
 }
 
-export async function buildUnsubscribeUrl(userId: string, cityId?: string, locale: string = 'el'): Promise<string> {
+/**
+ * Unsubscribe link for a notification about a city.
+ *
+ * `realm` is passed in, not looked up: this runs once per recipient in a
+ * notification fan-out. Without one — a product-update broadcast — the
+ * configured host and Greek stand, as before realms.
+ */
+export async function buildUnsubscribeUrl(
+    userId: string,
+    { cityId, locale, realm }: { cityId?: string; locale?: string; realm?: Realm | null } = {},
+): Promise<string> {
     const token = await generateUnsubscribeToken(userId, cityId);
-    return `${env.NEXTAUTH_URL}/${locale}/unsubscribe?token=${encodeURIComponent(token)}`;
+    // urlPrefixForLocale, not the locale id: sr-Latn is served at /lat.
+    const prefix = urlPrefixForLocale(locale ?? emailLocaleForRealm(realm ?? null));
+    return `${realmBaseUrl(realm)}/${prefix}/unsubscribe?token=${encodeURIComponent(token)}`;
 }

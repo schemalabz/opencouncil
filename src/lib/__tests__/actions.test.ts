@@ -2,7 +2,7 @@ import axios from 'axios';
 import type { Result } from '@/lib/result';
 
 jest.mock('axios');
-jest.mock('@/lib/discord', () => ({
+jest.mock('@/lib/discord-core', () => ({
     sendErrorAdminAlert: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -18,7 +18,7 @@ const load = (deploymentEnv: string) => {
         jest.doMock('@/env.mjs', () => ({
             env: { GOOGLE_API_KEY: 'test-google-key', DEPLOYMENT_ENV: deploymentEnv },
         }));
-        discord = require('@/lib/discord');
+        discord = require('@/lib/discord-core');
         actions = require('../actions');
     });
     return { ...actions, alert: discord.sendErrorAdminAlert };

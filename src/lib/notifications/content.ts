@@ -2,7 +2,10 @@ import "server-only";
 
 import { render } from '@react-email/render';
 import { NotificationEmail } from '@/lib/email/templates/NotificationEmail';
-import { env } from '@/env.mjs';
+import type { Realm } from '@prisma/client';
+import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
+import { emailLocaleForRealm } from '@/lib/email/emailLocale';
+import { urlPrefixForLocale } from '@/i18n/config';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { buildUnsubscribeUrl } from '@/lib/notifications/tokens';
 import { formatNumericDate } from '@/lib/formatters/time';
@@ -31,6 +34,8 @@ interface NotificationData {
     };
     city: {
         name_municipality: string;
+        /** Decides the link domain and the language. The caller has the city loaded. */
+        realm: Realm;
     };
 }
 
@@ -46,7 +51,14 @@ export async function generateEmailContent(notification: NotificationData): Prom
 
     const title = `${notification.city.name_municipality}: ${notification.meeting.administrativeBody?.name || 'Συνεδρίαση'} - ${meetingDateFormatted}`;
 
-    const unsubscribeUrl = await buildUnsubscribeUrl(notification.userId, notification.cityId);
+    // Off the record, not getRealm(): a send has no request to read.
+    const realm = notification.city.realm;
+    const locale = emailLocaleForRealm(realm);
+    const unsubscribeUrl = await buildUnsubscribeUrl(notification.userId, {
+        cityId: notification.cityId,
+        locale,
+        realm,
+    });
 
     const body = await render(
         NotificationEmail({
@@ -58,7 +70,7 @@ export async function generateEmailContent(notification: NotificationData): Prom
                 ...subject,
                 description: stripMarkdown(subject.description)
             })),
-            notificationUrl: `${env.NEXTAUTH_URL || 'https://opencouncil.gr'}/el/notifications/${notification.id}`,
+            notificationUrl: `${realmBaseUrl(realm)}/${urlPrefixForLocale(locale)}/notifications/${notification.id}`,
             unsubscribeUrl,
         })
     );
@@ -75,7 +87,8 @@ export async function generateSmsContent(notification: NotificationData): Promis
     const subjectCount = notification.subjects.length;
 
     const adminBody = notification.meeting.administrativeBody?.name || 'συνεδρίαση';
-    const notificationUrl = `${env.NEXTAUTH_URL || 'https://opencouncil.gr'}/el/notifications/${notification.id}`;
+    const realm = notification.city.realm;
+    const notificationUrl = `${realmBaseUrl(realm)}/${urlPrefixForLocale(emailLocaleForRealm(realm))}/notifications/${notification.id}`;
 
     const subjectNames =
         subjectCount > 3

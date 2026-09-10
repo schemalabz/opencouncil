@@ -6,7 +6,7 @@ import { sendEmail } from '@/lib/email/resend';
 import { TranscriptEmail } from '@/lib/email/templates/TranscriptEmail';
 import { generateMeetingDocxBuffer } from '@/lib/export/meetings-server';
 import { sendTranscriptSentAdminAlert, sendTranscriptSendFailedAdminAlert } from '@/lib/discord';
-import { env } from '@/env.mjs';
+import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import { formatDate } from '@/lib/formatters/time';
 import { revalidateTag } from 'next/cache';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
@@ -75,8 +75,7 @@ export async function sendTranscriptToMunicipality(
         // Filename format matches generateMeetingFileName in src/lib/export/meetings.tsx
         const filename = `${cityId}_council_meeting_${meetingId}.docx`;
 
-        // Build transcript URL (links to the /transcript page)
-        const transcriptUrl = `${env.NEXTAUTH_URL}/${cityId}/${meetingId}/transcript`;
+        const transcriptUrl = `${realmBaseUrl(meeting.city.realm)}/${cityId}/${meetingId}/transcript`;
 
         // Render email template
         const administrativeBodyName = meeting.administrativeBody?.name || meeting.city.name_municipality;

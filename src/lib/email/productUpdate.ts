@@ -84,7 +84,7 @@ export async function sendProductUpdateToAll(params: {
     const extraTags = customLabelTags(customTags);
     const prepared = await Promise.all(
         recipients.map(async (r) => {
-            const unsubscribeUrl = await buildUnsubscribeUrl(r.userId, undefined, 'el');
+            const unsubscribeUrl = await buildUnsubscribeUrl(r.userId, { locale: 'el' });
             const html = await renderForRecipient(bodyHtml, r.name, unsubscribeUrl);
             return {
                 from: FROM_ADDRESS,
@@ -144,7 +144,7 @@ export async function sendProductUpdateTest(params: {
 }): Promise<SendProductUpdateResult> {
     const { subject, bodyHtml, testEmail, testName, adminUserId, customTags } = params;
     try {
-        const unsubscribeUrl = await buildUnsubscribeUrl(adminUserId, undefined, 'el');
+        const unsubscribeUrl = await buildUnsubscribeUrl(adminUserId, { locale: 'el' });
         const html = await renderForRecipient(bodyHtml, testName ?? '', unsubscribeUrl);
         const result = await sendEmail({
             from: FROM_ADDRESS,

@@ -1,7 +1,7 @@
 import type { EsHit } from '../hits';
 
 jest.mock('@/env.mjs', () => ({ env: { DEPLOYMENT_ENV: 'production' } }));
-jest.mock('@/lib/discord', () => ({
+jest.mock('@/lib/discord-core', () => ({
     sendErrorAdminAlert: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -13,7 +13,7 @@ const load = (deploymentEnv: string) => {
     let discord!: { sendErrorAdminAlert: jest.Mock };
     jest.isolateModules(() => {
         jest.doMock('@/env.mjs', () => ({ env: { DEPLOYMENT_ENV: deploymentEnv } }));
-        discord = require('@/lib/discord');
+        discord = require('@/lib/discord-core');
         hits = require('../hits');
     });
     return { ...hits, alert: discord.sendErrorAdminAlert };

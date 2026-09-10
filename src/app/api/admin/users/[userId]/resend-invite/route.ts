@@ -19,7 +19,7 @@ export async function POST(request: Request, props: { params: Promise<{ userId: 
             return new NextResponse("User not found", { status: 404 })
         }
 
-        const sent = await sendInviteEmail(user.email, user.name)
+        const sent = await sendInviteEmail(user.email, user.name, request)
 
         if (!sent) {
             return new NextResponse("Failed to send invite email", { status: 500 })
