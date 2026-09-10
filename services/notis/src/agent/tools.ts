@@ -175,7 +175,7 @@ export const WEB_FETCH_TOOL = {
  * Anthropic's server-side search — the last resort when the municipal record
  * cannot answer; the prompt («The open web») says when that is. Bills per
  * search ($0.01), so max_uses is a ceiling, not a budget. Basic variant to
- * match web_fetch above, and a Greek location so results come back local.
+ * match web_fetch above, with the reader's timezone so results read local.
  *
  * A result URL enters the conversation, and web_fetch may open any URL that
  * is in it — so search widens what the agent can read beyond reader-sent
@@ -186,9 +186,11 @@ export const WEB_SEARCH_TOOL = {
   type: "web_search_20250305",
   name: "web_search",
   max_uses: 3,
+  // Timezone only. The API keeps a list of countries it accepts here, and GR
+  // is not on it: `country: "GR"` makes every request 400 on tool validation,
+  // which takes down every wake, because this tool is in every tool list.
   user_location: {
     type: "approximate",
-    country: "GR",
     timezone: "Europe/Athens",
   },
 };
