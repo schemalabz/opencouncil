@@ -182,6 +182,40 @@ An `UNSAFE` line means the release needs the two-build deploy in Step 6b. Read t
 
 With no tags yet, `$LAST_TAG` is empty and this step does not apply. Skip it.
 
+## Step 1.6: Make a Split Point
+
+Run this only when Step 1.5 reports `split=none`. The branch broke the destructive migration rule in `CLAUDE.md`, so the same commit drops the column and stops reading it.
+
+The fix rewrites the source branch. Three conditions protect it:
+
+1. **The backup exists.** Step 1's `backup/$SOURCE_BRANCH-pre-release-<timestamp>` branch must already point at the old tip. Confirm it before you start.
+2. **The diff is zero.** The script asserts this and exits non-zero if the rewrite changed any content.
+3. **The user confirms.** A force-push to the default branch is a public action.
+
+Check the branch is unprotected first. An enabled ruleset makes this path impossible:
+
+```bash
+gh api "repos/$REPO/rulesets" -q '.[] | select(.target=="branch") | "\(.name): \(.enforcement)"'
+```
+
+If a ruleset covering `$SOURCE_BRANCH` reports `active`, **stop**. Report it, and hand the split to the user.
+
+Otherwise, from a clean working tree:
+
+```bash
+git checkout $SOURCE_BRANCH && git reset --hard $REMOTE/$SOURCE_BRANCH
+OLD_TIP=$(git rev-parse $SOURCE_BRANCH)
+.claude/skills/release/scripts/split-migration-commit.sh <migration-path> $SOURCE_BRANCH
+```
+
+The script prints the old tip, the new tip, both new commits and a `zero diff: confirmed` line. Its last line is the split SHA. Show all of it to the user. **Wait for a yes.** Then:
+
+```bash
+git push $REMOTE $SOURCE_BRANCH --force-with-lease=$SOURCE_BRANCH:$OLD_TIP
+```
+
+Re-run Step 1.5. It must now report `split=<sha>` with the SHA the script printed. Record it and continue to Step 2.
+
 ## Step 2: Gather Context
 
 Determine the last release tag. It defines `$RANGE` — **unless** Argument Parsing already set one from an explicit `<ref>..<ref>`, which must win:
