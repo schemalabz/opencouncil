@@ -10,7 +10,8 @@ A portable Claude Code skill for CalVer releases with multi-channel content gene
 2. **Content generation** — reads the diff between staging and production, generates two markdown outputs:
    - **GitHub Release notes** — technical, for developers and contributors
    - **Discord announcement** — casual, for the community
-3. **Release** — fast-forwards production to staging, tags a CalVer version, creates a GitHub release
+3. **Migration safety** — scans the migrations the release adds and detects one that breaks the code currently serving traffic
+4. **Release** — fast-forwards production, tags a CalVer version, creates a GitHub release. A release carrying a destructive migration deploys in two builds, so the site never serves old code against a new schema.
 
 You review and approve everything before any public-facing action.
 

@@ -352,6 +352,8 @@ Present both outputs to the user for review before proceeding.
 
 **Skip this step if `$ARGUMENTS` contains `dry-run`.**
 
+**If Step 1.5 reported an `UNSAFE` line, use [Step 6b](#step-6b-two-build-deploy) for the production push.** The single fast-forward below takes the site down for the length of the build.
+
 After the user approves the outputs:
 
 1. **Tag the release** at the source branch's tip — the exact commit production is about to serve:
@@ -396,6 +398,33 @@ After the user approves the outputs:
 git fetch $REMOTE --tags && git log --oneline -1 $REMOTE/production
 gh release view $NEXT_VERSION --repo $REPO --json tagName,isDraft,url
 ```
+
+## Step 6b: Two-Build Deploy
+
+Use this instead of Step 6's item 2 when Step 1.5 reported an `UNSAFE` line. Everything else in Step 6 is unchanged: the tag still names the source branch's tip, and the GitHub release still targets `production`.
+
+`$SPLIT` is the SHA that Step 1.5 reported, or the one Step 1.6 produced.
+
+1. **Deploy the code that stops reading the column:**
+   ```bash
+   git push $REMOTE $SPLIT:production
+   ```
+   This is a fast-forward, because `$SPLIT` is an ancestor of the tip. The migration is not in this tree, so the schema does not change.
+
+2. **Wait for it to serve traffic:**
+   ```bash
+   .claude/skills/release/scripts/wait-for-commit.sh https://opencouncil.gr/api/health $SPLIT
+   ```
+   This takes about 10 minutes. The script prints a line every 30 seconds. Report progress to the user; do not wait silently.
+
+   If it times out, **stop**. Do not push the second build. Production serves `$SPLIT`, which is a working tree, so there is no incident. Report it and hand the check to the user.
+
+3. **Deploy the migration:** continue with Step 6 from item 2 onward, unchanged. The code serving traffic during that build is `$SPLIT`, which no longer reads the dropped column.
+
+Only the tip is tagged. One release produces one tag, and `$SPLIT` gets none.
+
+**The first release that ships `/api/health` cannot poll it**, because the route reaches production only through that release. Skip item 2 for that release. This is accepted; do not build a fallback.
+
 
 ## Notes
 
