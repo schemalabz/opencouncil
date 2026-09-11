@@ -3,7 +3,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { generateUniqueMeetingId } from '@/lib/db/meetings';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
-import { createCouncilMeetingDirect } from '@/lib/db/meetingsCreate';
+import { createCouncilMeetingDirect } from '@/lib/db/meetings';
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { syncMeetingToCalendar } from '@/lib/google-calendar';

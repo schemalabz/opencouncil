@@ -1,8 +1,7 @@
-// Server-only (NOT a "use server" action module). Every function here takes
-// `includeUnreleased` from its caller, so as exported actions they would hand
-// unreleased meetings to anyone who posted the right argument. The gated
-// callers are the cached wrappers in lib/cache/queries.ts and the API route,
-// which authorize first. Same reason as meetingsCreate.ts.
+// Server-only. Every function here takes `includeUnreleased` from its caller,
+// so the gated callers — the cached wrappers in lib/cache/queries.ts and the
+// API route — authorize before calling. Kept apart from meetings.ts as its own
+// concern: the list queries, their payload types and the page size.
 import "server-only";
 import { AdministrativeBodyType, Prisma } from '@prisma/client';
 import prisma from "./prisma";

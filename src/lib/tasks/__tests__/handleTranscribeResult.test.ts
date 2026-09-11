@@ -1,5 +1,6 @@
 /** @jest-environment node */
 
+const mockRequestFixTranscriptInternal = jest.fn();
 const mockRequestFixTranscript = jest.fn();
 const mockSendAutoFixAlert = jest.fn();
 const mockTaskFindUnique = jest.fn();
@@ -30,6 +31,11 @@ jest.mock('../transcribeInternal', () => ({
   requestTranscribeInternal: jest.fn(),
   deleteExistingSpeakerData: jest.fn(),
 }));
+jest.mock('../fixTranscriptInternal', () => ({
+  requestFixTranscriptInternal: (...args: unknown[]) => mockRequestFixTranscriptInternal(...args),
+}));
+// Mocked so a test can assert it is never reached: it gates on the user
+// session, which a task-server callback does not have.
 jest.mock('../fixTranscript', () => ({
   requestFixTranscript: (...args: unknown[]) => mockRequestFixTranscript(...args),
 }));
@@ -74,7 +80,7 @@ beforeEach(() => {
   mockMeetingUpdate.mockResolvedValue({ id: MEETING_ID });
   mockSpeakerTagCreate.mockResolvedValue({ id: 'tag-1' });
   mockSpeakerSegmentCreate.mockResolvedValue({ id: 'segment-1' });
-  mockRequestFixTranscript.mockResolvedValue({ id: 'fix-task-1' });
+  mockRequestFixTranscriptInternal.mockResolvedValue({ id: 'fix-task-1' });
   mockSendAutoFixAlert.mockResolvedValue(undefined);
 });
 
@@ -82,13 +88,16 @@ describe('handleTranscribeResult — fixTranscript auto-chain', () => {
   it('auto-triggers fixTranscript with force after a successful import', async () => {
     await handleTranscribeResult('task-1', response as never);
 
-    expect(mockRequestFixTranscript).toHaveBeenCalledTimes(1);
-    expect(mockRequestFixTranscript).toHaveBeenCalledWith(MEETING_ID, CITY_ID, { force: true });
+    expect(mockRequestFixTranscriptInternal).toHaveBeenCalledTimes(1);
+    expect(mockRequestFixTranscriptInternal).toHaveBeenCalledWith(MEETING_ID, CITY_ID, { force: true });
+    // The gated entry point authorizes against the user session. The callback
+    // carries a callback token and no session, so it must never go that way.
+    expect(mockRequestFixTranscript).not.toHaveBeenCalled();
     expect(mockSendAutoFixAlert).not.toHaveBeenCalled();
   });
 
   it('does not throw when the fixTranscript trigger fails, and sends a Discord alert', async () => {
-    mockRequestFixTranscript.mockRejectedValue(new Error('task server unreachable'));
+    mockRequestFixTranscriptInternal.mockRejectedValue(new Error('task server unreachable'));
 
     // Must resolve: a throw here would mark the succeeded transcribe task as failed
     await expect(handleTranscribeResult('task-1', response as never)).resolves.toBeUndefined();
@@ -105,7 +114,7 @@ describe('handleTranscribeResult — fixTranscript auto-chain', () => {
   });
 
   it('stringifies non-Error throws in the alert instead of crashing', async () => {
-    mockRequestFixTranscript.mockRejectedValue('ECONNREFUSED');
+    mockRequestFixTranscriptInternal.mockRejectedValue('ECONNREFUSED');
 
     await expect(handleTranscribeResult('task-1', response as never)).resolves.toBeUndefined();
 
@@ -115,7 +124,7 @@ describe('handleTranscribeResult — fixTranscript auto-chain', () => {
   });
 
   it('does not throw even when the failure alert itself rejects', async () => {
-    mockRequestFixTranscript.mockRejectedValue(new Error('task server unreachable'));
+    mockRequestFixTranscriptInternal.mockRejectedValue(new Error('task server unreachable'));
     mockSendAutoFixAlert.mockRejectedValue(new Error('discord down'));
 
     await expect(handleTranscribeResult('task-1', response as never)).resolves.toBeUndefined();
@@ -126,7 +135,7 @@ describe('handleTranscribeResult — fixTranscript auto-chain', () => {
 
     await expect(handleTranscribeResult('task-1', response as never)).rejects.toThrow('Task not found');
 
-    expect(mockRequestFixTranscript).not.toHaveBeenCalled();
+    expect(mockRequestFixTranscriptInternal).not.toHaveBeenCalled();
   });
 });
 

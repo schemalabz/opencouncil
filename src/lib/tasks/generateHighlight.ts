@@ -1,4 +1,8 @@
-"use server";
+// Server-only, and deliberately NOT a "use server" module. No client component
+// calls anything here. requestGenerateHighlight is reached through the
+// generate-highlight API route, which authorizes first, and
+// handleGenerateHighlightResult is the task-server callback's handler.
+import "server-only";
 
 import prisma from '@/lib/db/prisma';
 import { GenerateHighlightRequest, GenerateHighlightResult } from '@/lib/apiTypes';

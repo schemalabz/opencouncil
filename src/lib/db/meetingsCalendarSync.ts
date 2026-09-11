@@ -1,9 +1,6 @@
-// Server-only (NOT a "use server" action — see the note in meetingsCreate.ts).
-// These helpers skip auth checks on purpose: their sole caller,
+// Server-only. These helpers skip auth checks on purpose: their sole caller,
 // syncMeetingToCalendar, runs after the triggering route has already
-// authorized the write. Keeping them out of the "use server" module keeps
-// them off the Server Action surface, so a client cannot invoke them
-// directly to read the operator's email or rewrite calendarEventId.
+// authorized the write.
 import "server-only";
 import type { Prisma } from '@prisma/client';
 import prisma from "./prisma";

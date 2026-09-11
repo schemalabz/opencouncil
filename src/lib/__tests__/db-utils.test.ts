@@ -14,7 +14,12 @@ jest.mock('../db/topics', () => ({
     getTopics: jest.fn(),
 }));
 jest.mock('../db/cities', () => ({ getCity: jest.fn() }));
-jest.mock('../db/meetings', () => ({ getCouncilMeeting: jest.fn() }));
+jest.mock('../db/meetings', () => ({
+    getCouncilMeetingDirect: jest.fn(),
+    // Mocked so a test can assert it is never reached: it consults the session,
+    // which does not exist on the task-server callback path.
+    getCouncilMeeting: jest.fn(),
+}));
 
 import prisma from '../db/prisma';
 import { getTranscript } from '../db/transcript';
@@ -22,11 +27,12 @@ import { getPeopleForMeeting } from '../db/people';
 import { getPartiesForCity } from '../db/parties';
 import { getTopics } from '../db/topics';
 import { getCity } from '../db/cities';
-import { getCouncilMeeting } from '../db/meetings';
+import { getCouncilMeeting, getCouncilMeetingDirect } from '../db/meetings';
 import { getRequestOnTranscriptRequestBody } from '../db/utils';
 import { makeTranscriptSegment, makePersonWithRoles } from '../../../tests/helpers/builders';
 
 const mockGetTranscript = getTranscript as jest.MockedFunction<typeof getTranscript>;
+const mockGetCouncilMeetingDirect = getCouncilMeetingDirect as jest.MockedFunction<typeof getCouncilMeetingDirect>;
 const mockGetCouncilMeeting = getCouncilMeeting as jest.MockedFunction<typeof getCouncilMeeting>;
 const mockGetPeopleForMeeting = getPeopleForMeeting as jest.MockedFunction<typeof getPeopleForMeeting>;
 const mockGetPartiesForCity = getPartiesForCity as jest.MockedFunction<typeof getPartiesForCity>;
@@ -46,7 +52,7 @@ type MockedCity = NonNullable<Awaited<ReturnType<typeof getCity>>>;
 const mockCity = (city: Partial<MockedCity>) => mockGetCity.mockResolvedValue(city as MockedCity);
 
 function setupCommonMocks() {
-    mockGetCouncilMeeting.mockResolvedValue({
+    mockGetCouncilMeetingDirect.mockResolvedValue({
         id: MEETING_ID,
         cityId: CITY_ID,
         administrativeBodyId: ADMIN_BODY_ID,
@@ -75,6 +81,19 @@ describe('getRequestOnTranscriptRequestBody', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         setupCommonMocks();
+    });
+
+    it('reads the meeting through the ungated getter, so a callback with no session still resolves a draft', async () => {
+        mockGetTranscript.mockResolvedValue([]);
+        mockGetPeopleForMeeting.mockResolvedValue([]);
+
+        await getRequestOnTranscriptRequestBody(MEETING_ID, CITY_ID);
+
+        expect(mockGetCouncilMeetingDirect).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
+        // getCouncilMeeting returns null for an unreleased meeting when no
+        // session can edit the city. The transcribe callback never has one, so
+        // reaching for it fails every draft meeting with "not found".
+        expect(mockGetCouncilMeeting).not.toHaveBeenCalled();
     });
 
     it('resolves identified speakers with correct name, party, role, and speakerId', async () => {

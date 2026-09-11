@@ -1,4 +1,10 @@
-"use server";
+// Server-only, and deliberately NOT a "use server" module. No client component
+// calls anything here; the directive only published eight task-orchestration
+// endpoints, startTask and handleTaskUpdate among them. handleTaskUpdate is the
+// body of the task-server callback, which authenticates with a callback token
+// (see the taskStatuses route) — as an action it was reachable around that
+// check.
+import "server-only";
 
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
