@@ -1,10 +1,11 @@
 import type { AdministrativeBody, AdministrativeBodyType, NonAgendaReason, Topic } from '@prisma/client';
 import { bodyFilterKey, createCache } from '@/lib/cache';
-import { getBatchStatisticsForSubjects, type Statistics } from '@/lib/statistics';
+import { getBatchStatisticsForSubjects } from '@/lib/statistics';
 import { getSubjectCardExtras } from '@/lib/db/subject';
 import type { PersonWithRelations } from '@/lib/db/people';
 import { computeRecentHotSubjects, getRecentHotSubjects, getHotSubjectsNearGeohash, type HotSubject } from '@/lib/hotSubjects';
 import { subjectCardStats, type SubjectCardStats } from '@/lib/subjectCardStats';
+import { subjectSpeakersFromStatistics } from '@/lib/subjectSpeakers';
 
 /** The subject fields a card draws — not the row, which is mostly prose. */
 export interface HotCardSubject {
@@ -68,16 +69,6 @@ interface Args {
     withSpeakers?: boolean;
 }
 
-/** Introducer (if any) + up to 5 top speakers by speaking time. */
-function displayedSpeakers(statistics: Statistics | undefined, introducedBy: PersonWithRelations | null): PersonWithRelations[] {
-    const ranked = [...(statistics?.people ?? [])]
-        .sort((a, b) => b.speakingSeconds - a.speakingSeconds)
-        .slice(0, 5)
-        .map(p => p.item);
-    if (!introducedBy) return ranked;
-    return [introducedBy, ...ranked.filter(s => s.id !== introducedBy.id)];
-}
-
 /**
  * Hydrate the ranked top-N hot subjects with just what the card shows — the
  * location text and the footer stats, plus the speakers where a surface asked
@@ -116,7 +107,7 @@ async function buildCards(top: HotSubject[], withSpeakers: boolean): Promise<Hot
                 administrativeBody: meeting.administrativeBody,
             },
             locationText: extra?.locationText ?? null,
-            ...(withSpeakers ? { speakers: displayedSpeakers(statistics, extra?.introducedBy ?? null) } : {}),
+            ...(withSpeakers ? { speakers: subjectSpeakersFromStatistics(statistics, extra?.introducedBy) } : {}),
             stats: subjectCardStats(statistics, subject._count?.contributions),
         };
     });
