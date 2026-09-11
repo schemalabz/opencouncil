@@ -329,3 +329,37 @@
 .embed-summary-link:hover {
     text-decoration: underline;
 }
+
+/* A pinned subject keeps its source action within the standard 420px iframe. */
+.embed-single-subject {
+    min-height: 340px;
+}
+.embed-single-subject > div {
+    min-height: 340px;
+}
+.embed-single-subject .embed-single-title {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.embed-single-subject .line-clamp-2 {
+    display: block;
+    -webkit-line-clamp: unset;
+}
+.embed-single-subject .line-clamp-4 {
+    font-size: 14px;
+    line-height: 1.65;
+}
+.embed-single-subject .text-\[10px\] {
+    font-size: 12px;
+}
+.embed-single-subject [class*="text-muted-foreground"] {
+    color: var(--embed-text-muted);
+}
+.embed-single-widget {
+    font-family: var(--font-sans), sans-serif;
+    min-height: 100vh;
+}
+.embed-single-widget.dark .embed-footer-logo {
+    filter: invert(1);
+}

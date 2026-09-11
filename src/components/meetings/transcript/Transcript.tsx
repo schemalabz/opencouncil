@@ -12,6 +12,8 @@ import { useTranslations } from 'next-intl';
 import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
 import { UtteranceContextMenu } from "./UtteranceContextMenu";
 import { getScrollContainer } from "@/lib/utils/scrollAnchor";
+import { ExcerptSelectionToolbar, useExcerptSources } from '@/components/sharing/ExcerptSelectionToolbar';
+import { ExcerptRangeHighlight } from '@/components/sharing/ExcerptRangeHighlight';
 
 // Helper functions for speaker segment identification and parsing
 const SPEAKER_SEGMENT_PREFIX = 'speaker-segment-';
@@ -29,7 +31,7 @@ const createSegmentId = (index: number): string => {
 };
 
 export default function Transcript() {
-    const { transcript: speakerSegments, getHighlight, taskStatus, transcriptHiddenForReview } = useCouncilMeetingData();
+    const { transcript: speakerSegments, getHighlight, taskStatus, transcriptHiddenForReview, meeting } = useCouncilMeetingData();
     const { options } = useTranscriptOptions();
     const tTranscript = useTranslations('transcript');
     const t = useTranslations('Common');
@@ -39,6 +41,7 @@ export default function Transcript() {
     const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
     const [isScrolled, setIsScrolled] = useState(false);
     const searchParams = useSearchParams();
+    const excerptSources = useExcerptSources();
 
     // Check if transcript is unverified (humanReview not completed)
     const isUnverified = !taskStatus.humanReview && !options.editsAllowed;
@@ -178,8 +181,9 @@ export default function Transcript() {
                     onBannerHeightChange={setBannerHeight}
                 />
             )}
-            <UtteranceContextMenu>
-                <div ref={containerRef} role="list" aria-label={t('transcript')}>
+            <ExcerptRangeHighlight sources={excerptSources} rootRef={containerRef}>
+            <UtteranceContextMenu canShareExcerpt={meeting.released && !transcriptHiddenForReview}>
+                <div ref={containerRef} data-excerpt-root role="list" aria-label={t('transcript')}>
                 {displayedSegments.map((segment, index: number) => (
                     <div
                         key={index}
@@ -195,6 +199,8 @@ export default function Transcript() {
                 ))}
                 </div>
             </UtteranceContextMenu>
+            </ExcerptRangeHighlight>
+            <ExcerptSelectionToolbar rootRef={containerRef} disabled={!meeting.released || !!editingHighlight || transcriptHiddenForReview} editable={options.editable} />
         </div>
     );
 }

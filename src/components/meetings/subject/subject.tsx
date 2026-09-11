@@ -48,7 +48,7 @@ import { surfaceCardClass } from '@/components/ui/surface-card';
 import { RailCard } from '@/components/ui/rail-card';
 import { MountOnVisible } from '@/components/MountOnVisible';
 
-export default function Subject({ subjectId }: { subjectId?: string }) {
+export default function Subject({ subjectId, highlightedContributionId }: { subjectId?: string; highlightedContributionId?: string }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
     // What the empty summary and statements say while the meeting is not complete.
     const { stage, deadline } = useMeetingStage();
@@ -393,6 +393,7 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                                         <ContributionCard
                                             key={contribution.id}
                                             contribution={contribution}
+                                            highlighted={contribution.id === highlightedContributionId}
                                             subjectId={subject.id}
                                             meeting={meeting}
                                             speaker={contribution.speakerId ? getPerson(contribution.speakerId) ?? null : null}

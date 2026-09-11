@@ -12,13 +12,16 @@ import {
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Checkbox } from "../ui/checkbox";
-import { CheckCircle, CopyIcon, Share, Instagram } from "lucide-react";
+import { CheckCircle, CopyIcon, Share2, Instagram, Code2 } from "lucide-react";
 import { useVideo } from './VideoProvider';
-import { usePathname } from 'next/navigation';
+import { usePathname, useParams } from 'next/navigation';
 import { useShare } from '@/contexts/ShareContext';
 import { formatTimestamp } from '@/lib/utils';
 import StoryTemplatePickerDialog from './StoryTemplatePickerDialog';
 import posthog from 'posthog-js';
+import { SubjectEmbedDialog } from '@/components/embed/SubjectEmbedDialog';
+import { validSourceId } from '@/lib/sharing/excerptSelector';
+import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 
 
 interface ShareDropdownProps {
@@ -46,6 +49,10 @@ const SHARE_CONTEXT_KEYS: Record<string, string> = {
 
 export default function ShareDropdown({ meetingId, cityId, className }: ShareDropdownProps) {
     const t = useTranslations('ShareDropdown');
+    const tSharing = useTranslations('sharing');
+    const params = useParams();
+    const { meeting } = useCouncilMeetingData();
+    const subjectId = meeting.released && validSourceId(params.subjectId) ? params.subjectId : null;
     const [url, setUrl] = useState('');
     const [includeTimestamp, setIncludeTimestamp] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
@@ -54,6 +61,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const pathname = usePathname();
     const [internalOpen, setInternalOpen] = useState(false);
     const [storyPickerOpen, setStoryPickerOpen] = useState(false);
+    const [embedOpen, setEmbedOpen] = useState(false);
 
     useEffect(() => {
         setUrl(window.location.href);
@@ -184,7 +192,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     className={`h-9 w-9 lg:w-auto lg:px-3 gap-1.5 rounded-full text-foreground/80 transition-colors hover:bg-foreground/[0.06] hover:text-foreground shrink-0 ${className || ''}`}
                     title={t('title')}
                 >
-                    <Share className="h-4 w-4 shrink-0" />
+                    <Share2 className="h-4 w-4 shrink-0" />
                     <span className="hidden text-sm lg:inline">{t('title')}</span>
                 </Button>
             </DropdownMenuTrigger>
@@ -251,6 +259,15 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     )}
                 </div>
 
+                {subjectId && <>
+                    <DropdownMenuSeparator />
+                    <div className="p-3">
+                        <Button variant="outline" className="min-h-11 w-full justify-start gap-2" onClick={() => {
+                            closeShareDropdown(); setInternalOpen(false);
+                            window.setTimeout(() => setEmbedOpen(true), 0);
+                        }}><Code2 className="size-4" />{tSharing('embedSubject')}</Button>
+                    </div>
+                </>}
                 {!pathname.includes('/subjects/') && (
                     <>
                         <DropdownMenuSeparator />
@@ -279,6 +296,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                 onOpenChange={setStoryPickerOpen}
                 meetingId={meetingId}
             />
+            {subjectId && <SubjectEmbedDialog key={subjectId} open={embedOpen} onOpenChange={setEmbedOpen} target={{ cityId, meetingId, subjectId }} />}
         </DropdownMenu>
     );
 }
