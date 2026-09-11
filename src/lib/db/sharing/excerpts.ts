@@ -41,7 +41,8 @@ function boundary(source: Source, direction: 'gte' | 'lte'): Prisma.UtteranceWhe
 export async function getPublicExcerpt(selector: ExcerptSelector, realm: Realm): Promise<ExcerptResult> {
     const meeting = await getPublicMeeting(selector.cityId, selector.meetingId, realm);
     if (!meeting || !transcriptIsPublic(meeting)) return { status: 'unavailable' };
-    const scope = { speakerSegment: { cityId: selector.cityId, meetingId: selector.meetingId } };
+    const driftFilter = selector.maxDrift === undefined ? {} : { drift: { lte: selector.maxDrift } };
+    const scope = { speakerSegment: { cityId: selector.cityId, meetingId: selector.meetingId }, ...driftFilter };
     const endpoints = await prisma.utterance.findMany({
         where: { ...scope, id: { in: [selector.firstUtteranceId, selector.lastUtteranceId] } },
         select: utteranceSelect, take: 2,
@@ -66,11 +67,11 @@ export async function getPublicExcerpt(selector: ExcerptSelector, realm: Realm):
     // Stay within each endpoint's speaker segment so context has honest attribution.
     const [previous, next] = await Promise.all([
         prisma.utterance.findFirst({
-            where: { speakerSegmentId: first.speakerSegmentId, OR: [{ startTimestamp: { lt: first.startTimestamp } }, { startTimestamp: first.startTimestamp, id: { lt: first.id } }] },
+            where: { ...driftFilter, speakerSegmentId: first.speakerSegmentId, OR: [{ startTimestamp: { lt: first.startTimestamp } }, { startTimestamp: first.startTimestamp, id: { lt: first.id } }] },
             orderBy: [{ startTimestamp: 'desc' }, { id: 'desc' }], select: { text: true },
         }),
         prisma.utterance.findFirst({
-            where: { speakerSegmentId: last.speakerSegmentId, OR: [{ startTimestamp: { gt: last.startTimestamp } }, { startTimestamp: last.startTimestamp, id: { gt: last.id } }] },
+            where: { ...driftFilter, speakerSegmentId: last.speakerSegmentId, OR: [{ startTimestamp: { gt: last.startTimestamp } }, { startTimestamp: last.startTimestamp, id: { gt: last.id } }] },
             orderBy: [{ startTimestamp: 'asc' }, { id: 'asc' }], select: { text: true },
         }),
     ]);

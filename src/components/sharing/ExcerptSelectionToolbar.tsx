@@ -9,14 +9,17 @@ import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataC
 import { getLocalizedName } from '@/lib/formatters/name';
 import { formatDate } from '@/lib/formatters/time';
 import { localizeText } from '@/lib/serbian';
-import { digestExcerpt, excerptPath, type ExcerptSelector, type ExcerptSource } from '@/lib/sharing/excerptSelector';
-import { captureExcerptSelection, type SelectionResult, type CapturedExcerpt } from '@/lib/sharing/selection';
+import { digestExcerpt, excerptPath, excerptSourceIsVisible, type ExcerptSelector, type ExcerptSource } from '@/lib/sharing/excerptSelector';
+import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
+import { captureExcerptSelection, captureExcerptSegment, type SelectionResult, type CapturedExcerpt } from '@/lib/sharing/selection';
 import { Button } from '@/components/ui/button';
 import { ContentShareDialog } from './ContentShareDialog';
 import { ExcerptQuote, excerptQuoteText } from './ExcerptQuote';
 import { TranscriptReviewNotice } from './TranscriptReviewNotice';
+import { storyImagePath } from '@/lib/sharing/story';
 
 export const EXCERPT_SHARE_EVENT = 'oc:share-excerpt';
+export type ExcerptShareEventDetail = { range: Range | null; utteranceId: string } | { utteranceIds: string[] };
 export function useExcerptSources() {
     const { transcript, getPerson, getSpeakerTag, speakerTags } = useCouncilMeetingData();
     const locale = useLocale();
@@ -24,7 +27,7 @@ export function useExcerptSources() {
         const tag = getSpeakerTag(segment.speakerTagId) ?? segment.speakerTag;
         const person = tag.personId ? getPerson(tag.personId) : null;
         return segment.utterances.map(utterance => ({
-            id: utterance.id, text: localizeText(utterance.text, locale), startTimestamp: utterance.startTimestamp,
+            id: utterance.id, text: localizeText(utterance.text, locale), startTimestamp: utterance.startTimestamp, drift: utterance.drift,
             speakerTagId: tag.id, personId: tag.personId,
             speakerName: person ? getLocalizedName(person, locale) : null,
         }));
@@ -35,12 +38,16 @@ export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootR
     const { city, meeting, subjects, transcript, taskStatus } = useCouncilMeetingData();
     const locale = useLocale() as AppLocale;
     const t = useTranslations('sharing');
-    const sources = useExcerptSources();
+    const allSources = useExcerptSources();
+    const { options: { maxUtteranceDrift } } = useTranscriptOptions();
+    const sources = useMemo(() => allSources.filter(source => excerptSourceIsVisible(source, maxUtteranceDrift)), [allSources, maxUtteranceDrift]);
     const reviewNotice = taskStatus.humanReview ? null : t('unreviewedNotice');
     const [selection, setSelection] = useState<SelectionResult>({ status: 'empty' });
     const [active, setActive] = useState<CapturedExcerpt | null>(null);
     const [url, setUrl] = useState('');
+    const [storyImageUrl, setStoryImageUrl] = useState('');
     const [open, setOpen] = useState(false);
+    const [wholeSegment, setWholeSegment] = useState(false);
     const [pending, setPending] = useState(false);
     const [error, setError] = useState('');
     const openRef = useRef(false);
@@ -54,9 +61,9 @@ export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootR
     }, [active, transcript, subjects]);
     const context = `${getLocalizedName(city, locale)} · ${formatDate(meeting.dateTime, city.timezone, locale)}`;
 
-    const openSelection = useCallback(async (captured: SelectionResult) => {
+    const openSelection = useCallback(async (captured: SelectionResult, isSegment = false) => {
         if (captured.status !== 'ok') {
-            setError(t(captured.status === 'too-long' ? 'selectionTooLong' : 'selectionInvalid'));
+            setError(t(captured.status === 'too-long' ? (isSegment ? 'segmentTooLong' : 'selectionTooLong') : (isSegment ? 'segmentUnavailable' : 'selectionInvalid')));
             return;
         }
         setPending(true); setError('');
@@ -64,15 +71,19 @@ export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootR
             const { selection: value } = captured;
             const selector: ExcerptSelector = {
                 cityId: city.id, meetingId: meeting.id, firstUtteranceId: value.firstUtteranceId, lastUtteranceId: value.lastUtteranceId,
-                textLocale: locale, digest: await digestExcerpt(value.runs),
+                textLocale: locale, digest: await digestExcerpt(value.runs), maxDrift: maxUtteranceDrift,
             };
-            setActive(value); setUrl(new URL(excerptPath(selector), window.location.origin).href); setOpen(true);
+            setActive(value); setWholeSegment(isSegment); setUrl(new URL(excerptPath(selector), window.location.origin).href); setOpen(true);
+            setStoryImageUrl(storyImagePath({ type: 'excerpt', selector }));
         } catch { setError(t('selectionInvalid')); }
         finally { setPending(false); }
-    }, [city.id, meeting.id, locale, t]);
+    }, [city.id, meeting.id, locale, t, maxUtteranceDrift]);
 
     useEffect(() => {
-        if (disabled) { setSelection({ status: 'empty' }); return; }
+        if (disabled) {
+            setSelection(previous => previous.status === 'empty' ? previous : { status: 'empty' });
+            return;
+        }
         let frame = 0;
         const readSelection = () => {
             cancelAnimationFrame(frame);
@@ -85,7 +96,11 @@ export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootR
         };
         const shareContext = (event: Event) => {
             if (!rootRef.current) return;
-            const detail = (event as CustomEvent<{ range: Range | null; utteranceId: string }>).detail;
+            const detail = (event as CustomEvent<ExcerptShareEventDetail>).detail;
+            if ('utteranceIds' in detail) {
+                void openSelection(captureExcerptSegment(rootRef.current, sources, detail.utteranceIds), true);
+                return;
+            }
             const selected = captureExcerptSelection(rootRef.current, detail.range, sources);
             void openSelection(selected.status === 'empty' ? captureExcerptSelection(rootRef.current, null, sources, detail.utteranceId) : selected);
         };
@@ -112,7 +127,7 @@ export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootR
             </Button>
         </div>}
         {(error || selection.status === 'too-long') && !open && <div role="status" className="fixed bottom-5 left-1/2 z-40 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 border bg-background p-4 text-sm shadow-lg">{error || t('selectionTooLong')}</div>}
-        <ContentShareDialog open={open} onOpenChange={setOpen} title={t('shareExcerpt')} description={t('excerptDescription')} url={url}
+        <ContentShareDialog open={open} onOpenChange={setOpen} title={t(wholeSegment ? 'shareSegment' : 'shareExcerpt')} description={t('excerptDescription')} url={url} storyImageUrl={storyImageUrl}
             sourceText={active ? [reviewNotice, `${excerptQuoteText(active.runs, t('unknownSpeaker'))}\n${context}\n${getLocalizedName(meeting, locale)}`].filter(Boolean).join('\n\n') : ''} copyTextLabel={t('copyQuote')}>
             {active && <div className="space-y-5">
                 <p className="text-xs font-medium leading-5 text-muted-foreground">{selectedSubject?.name ?? getLocalizedName(meeting, locale)}<br />{context}</p>

@@ -3,6 +3,7 @@ jest.mock('next-intl/server', () => ({ getTranslations: jest.fn().mockResolvedVa
 jest.mock('@/lib/sharing/excerpts', () => ({ getPublicExcerpt: jest.fn() }));
 jest.mock('@/lib/sharing/contributions', () => ({ getPublicContribution: jest.fn() }));
 jest.mock('@/components/sharing/SharedExcerpt', () => ({ SharedExcerpt: jest.fn() }));
+jest.mock('@/components/sharing/SharePageShell', () => ({ SharePageShell: jest.fn() }));
 jest.mock('next/og', () => ({ ImageResponse: jest.fn().mockImplementation((element, options) => ({ element, options })) }));
 jest.mock('@/lib/og/serverAssets', () => ({ OG_FONTS: [], LOGO_BLACK_DATA_URI: '' }));
 jest.mock('@/lib/og/sharingAssets', () => ({ SHARING_OG_FONTS: [] }));

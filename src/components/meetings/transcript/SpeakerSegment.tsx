@@ -19,6 +19,8 @@ import { useTranslations } from 'next-intl';
 import { useToast } from '@/hooks/use-toast';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { UNKNOWN_SPEAKER_COLOR } from '@/lib/utils';
+import { SegmentShareButton } from '@/components/sharing/SegmentShareButton';
+import { excerptSourceIsVisible } from '@/lib/sharing/excerptSelector';
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingActions();
@@ -171,9 +173,10 @@ const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
     );
 };
 
-const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
+const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }: {
     segment: TranscriptType[number],
-    isFirstSegment?: boolean
+    isFirstSegment?: boolean,
+    canShare?: boolean
 }) => {
     // useCouncilMeetingMeta() — not useCouncilMeetingData() — so this
     // component bails on transcript-only edits.
@@ -292,30 +295,35 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                         <div className='flex flex-col w-full'>
                                 {/* Collapsed header (mobile only, shown when collapsed) */}
                                 {isCollapsed && (
-                                    <button
-                                        onClick={() => handleCollapseToggle(false)}
-                                        {...speakerBarHover}
-                                        className='flex md:hidden items-center justify-between w-full px-2.5 py-1.5 hover:bg-accent/20 transition-colors bg-background border-b border-border/40'
-                                    >
-                                        <PersonBadge
-                                            person={headerData.person}
-                                            speakerTag={headerData.speakerTag}
-                                            variant="inline"
-                                            className="flex-1 min-w-0"
-                                            date={meetingDate}
-                                        />
-                                        <div className='flex items-center gap-1.5 shrink-0'>
-                                            <span className='text-[10px] text-muted-foreground font-medium'>
-                                                {formatTimestamp(segment.startTimestamp)}
-                                            </span>
-                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                        </div>
-                                    </button>
+                                    <div className="flex md:hidden items-center w-full gap-1 pl-2.5 pr-1 bg-background">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCollapseToggle(false)}
+                                            {...speakerBarHover}
+                                            aria-expanded={false}
+                                            className='flex flex-1 min-w-0 min-h-11 items-center justify-between gap-2 py-1.5 text-left hover:bg-accent/20 transition-colors'
+                                        >
+                                            <PersonBadge
+                                                person={headerData.person}
+                                                speakerTag={headerData.speakerTag}
+                                                variant="inline"
+                                                className="flex-1 min-w-0"
+                                                date={meetingDate}
+                                            />
+                                            <div className='flex items-center gap-1.5 shrink-0'>
+                                                <span className='text-[10px] text-muted-foreground font-medium'>
+                                                    {formatTimestamp(segment.startTimestamp)}
+                                                </span>
+                                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                            </div>
+                                        </button>
+                                        {canShare && !isEmpty && <SegmentShareButton utteranceIds={utterances.filter(utterance => excerptSourceIsVisible(utterance, options.maxUtteranceDrift)).map(utterance => utterance.id)} />}
+                                    </div>
                                 )}
 
                                 {/* Full header (always on desktop, conditional on mobile) */}
                                 <div className={`${isCollapsed ? 'hidden md:flex' : 'flex'} flex-col w-full space-y-2 py-2`}>
-                                    <div className='flex items-center justify-between w-full px-2.5 sm:px-4 gap-2'>
+                                    <div className='grid grid-cols-[minmax(0,1fr)_auto] md:flex items-center justify-between w-full px-2.5 sm:px-4 gap-x-2 gap-y-1'>
                                         <div className='flex-grow overflow-hidden min-w-0' {...speakerBarHover}>
                                             {headerData.speakerTag && (
                                                 <PersonBadge
@@ -335,17 +343,18 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                                 />
                                             )}
                                         </div>
-                                        <div className='flex items-center gap-1.5 sm:gap-3 shrink-0'>
-                                            {/* Manual collapse button (mobile only) */}
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 md:hidden"
-                                                onClick={() => handleCollapseToggle(true)}
-                                                aria-label={tCommon('collapse')}
-                                            >
-                                                <ChevronUp className="h-4 w-4" />
-                                            </Button>
+                                        {/* Manual collapse button (mobile only) */}
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="size-11 rounded-full md:hidden"
+                                            onClick={() => handleCollapseToggle(true)}
+                                            aria-label={tCommon('collapse')}
+                                            aria-expanded={true}
+                                        >
+                                            <ChevronUp className="h-4 w-4" />
+                                        </Button>
+                                        <div className='col-span-2 flex items-center gap-1 md:gap-2 shrink-0'>
                                             {options.editable && isEmpty && (
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
@@ -385,7 +394,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                        className="size-11 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
                                                         onClick={handleCopySegment}
                                                         aria-label={tCopy('button')}
                                                     >
@@ -396,7 +405,8 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment }: {
                                                     <p>{tCopy('button')}</p>
                                                 </TooltipContent>
                                             </Tooltip>
-                                            <div className='flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground'>
+                                            {canShare && !isEmpty && <SegmentShareButton utteranceIds={utterances.filter(utterance => excerptSourceIsVisible(utterance, options.maxUtteranceDrift)).map(utterance => utterance.id)} />}
+                                            <div className='ml-auto md:ml-0 flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground'>
                                                 <span className='font-medium whitespace-nowrap'>{formatTimestamp(segment.startTimestamp)}</span>
                                             </div>
                                         </div>

@@ -10,6 +10,7 @@ export interface ExcerptSelector {
     lastUtteranceId: string;
     textLocale: AppLocale;
     digest: string;
+    maxDrift?: number;
 }
 export interface ExcerptRun {
     id: string;
@@ -18,7 +19,8 @@ export interface ExcerptRun {
     personId: string | null;
     speakerName: string | null;
 }
-export interface ExcerptSource extends ExcerptRun { startTimestamp: number }
+export interface ExcerptSource extends ExcerptRun { startTimestamp: number; drift?: number }
+export const excerptSourceIsVisible = (source: { drift?: number }, maxDrift: number) => (source.drift ?? 0) <= maxDrift;
 
 const keys = ['cityId', 'meetingId', 'firstUtteranceId', 'lastUtteranceId', 'textLocale', 'digest'] as const;
 export const validSourceId = (value: unknown): value is string => typeof value === 'string' && /^[\p{L}\p{N}_-]{1,160}$/u.test(value);
@@ -30,11 +32,15 @@ export function parseExcerptSelector(input: URLSearchParams | QueryParams): Exce
     if (!keys.every(key => typeof values[key] === 'string')) return null;
     if (!['cityId', 'meetingId', 'firstUtteranceId', 'lastUtteranceId'].every(key => validSourceId(values[key]))) return null;
     if (!LOCALES.includes(values.textLocale as AppLocale) || !/^[a-f0-9]{64}$/.test(values.digest as string)) return null;
-    return values as unknown as ExcerptSelector;
+    const drift = input instanceof URLSearchParams ? (input.getAll('maxDrift').length > 1 ? [] : input.get('maxDrift')) : input.maxDrift;
+    if (drift != null && (typeof drift !== 'string' || !/^\d{1,3}$/.test(drift) || Number(drift) > 500)) return null;
+    return { ...values, ...(drift != null ? { maxDrift: Number(drift) } : {}) } as unknown as ExcerptSelector;
 }
 
 export function serializeExcerptSelector(selector: ExcerptSelector): URLSearchParams {
-    return new URLSearchParams(keys.map(key => [key, String(selector[key])]));
+    const query = new URLSearchParams(keys.map(key => [key, String(selector[key])]));
+    if (selector.maxDrift !== undefined) query.set('maxDrift', String(selector.maxDrift));
+    return query;
 }
 
 export const localePath = (locale: string, path: string) => `/${urlPrefixForLocale(locale)}${path}`;

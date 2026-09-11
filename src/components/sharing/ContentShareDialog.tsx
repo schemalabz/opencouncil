@@ -2,11 +2,13 @@
 
 import { useEffect, useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, Copy, Link2, Loader2, Share2 } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Instagram, Link2, Loader2, Share2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { StorySharePanel } from './StorySharePanel';
+import { cn } from '@/lib/utils';
 
 interface Props {
     open: boolean;
@@ -17,17 +19,21 @@ interface Props {
     sourceText: string;
     copyTextLabel: string;
     children: React.ReactNode;
+    storyImageUrl?: string;
+    initialMode?: 'link' | 'story';
 }
 
-export function ContentShareDialog({ open, onOpenChange, title, description, url, sourceText, copyTextLabel, children }: Props) {
+export function ContentShareDialog({ open, onOpenChange, title, description, url, sourceText, copyTextLabel, children, storyImageUrl, initialMode = 'link' }: Props) {
     const t = useTranslations('sharing');
     const fieldId = useId();
     const [pending, setPending] = useState<string | null>(null);
     const [copied, setCopied] = useState<string | null>(null);
     const [error, setError] = useState(false);
     const [nativeShare, setNativeShare] = useState(false);
+    const [mode, setMode] = useState(initialMode);
     useEffect(() => { setNativeShare(typeof navigator.share === 'function'); }, []);
-    useEffect(() => { setCopied(null); setError(false); }, [open, url]);
+    useEffect(() => { setCopied(null); setError(false); setMode(initialMode); }, [open, url, initialMode]);
+    const showStory = mode === 'story' && !!storyImageUrl;
 
     async function copy(kind: 'link' | 'text') {
         setPending(kind); setError(false); setCopied(null);
@@ -60,11 +66,15 @@ export function ContentShareDialog({ open, onOpenChange, title, description, url
     }
 
     return <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent align="start" className="justify-items-stretch rounded-2xl border-foreground/15 text-left [&>button]:right-2 [&>button]:top-2 [&>button]:flex [&>button]:size-11 [&>button]:items-center [&>button]:justify-center max-h-[90dvh] w-[calc(100%-2rem)] gap-0 overflow-y-auto p-0 sm:max-w-[620px] sm:rounded-2xl">
-            <DialogHeader className="w-full px-6 pb-5 pt-7 text-left sm:px-8">
-                <DialogTitle className="pr-6 !text-left !text-xl !font-semibold tracking-tight">{title}</DialogTitle>
-                <DialogDescription className="pt-1 leading-relaxed">{description}</DialogDescription>
+        <DialogContent align="start" className={cn('grid-cols-1 justify-items-stretch rounded-2xl border-foreground/15 text-left [&>button]:right-2 [&>button]:top-2 [&>button]:flex [&>button]:size-11 [&>button]:items-center [&>button]:justify-center max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] gap-0 overflow-y-auto p-0 sm:max-w-[620px] sm:rounded-2xl', showStory && 'sm:max-w-[760px]')}>
+            <DialogHeader className={cn('w-full px-6 pb-5 pt-7 text-left sm:px-8', showStory && '!space-y-0 !px-4 !py-3 sm:!px-6')}>
+                <div className="flex items-center gap-2">
+                    {showStory && <Button variant="ghost" size="icon" onClick={() => setMode('link')} className="size-11 shrink-0 rounded-full text-muted-foreground" aria-label={t('storyBack')}><ArrowLeft className="size-4" /></Button>}
+                    <DialogTitle className="pr-8 !text-left !text-xl !font-semibold tracking-tight">{showStory ? t('storyTitle') : title}</DialogTitle>
+                </div>
+                <DialogDescription className={showStory ? 'sr-only' : 'pt-1 leading-relaxed'}>{showStory ? t('storyDescription') : description}</DialogDescription>
             </DialogHeader>
+            {showStory ? open && <StorySharePanel key={storyImageUrl} imageUrl={storyImageUrl!} url={url} /> : <>
             <div className="w-full border-y bg-muted/30 px-6 py-6 sm:px-8">{children}</div>
             <div className="w-full space-y-4 px-6 py-6 sm:px-8">
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -80,7 +90,8 @@ export function ContentShareDialog({ open, onOpenChange, title, description, url
                         </DropdownMenuContent>
                     </DropdownMenu>}
                 </div>
-                <Button className="min-h-11 w-full gap-2 rounded-full text-sm font-normal text-muted-foreground hover:text-foreground" variant="ghost" disabled={shareDisabled} onClick={() => copy('text')}>
+                {storyImageUrl && <Button variant="outline" className="min-h-11 w-full gap-2 rounded-full font-medium" onClick={() => setMode('story')}><Instagram className="size-4" />{t('storyTitle')}</Button>}
+                <Button className="h-auto min-h-11 w-full gap-2 whitespace-normal rounded-full px-3 py-2.5 text-sm font-normal text-muted-foreground hover:text-foreground" variant="ghost" disabled={shareDisabled} onClick={() => copy('text')}>
                     {statusIcon('text')}{copied === 'text' ? t('copied') : copyTextLabel}
                 </Button>
                 {error && <div className="space-y-1.5">
@@ -89,6 +100,7 @@ export function ContentShareDialog({ open, onOpenChange, title, description, url
                 </div>}
                 <p aria-live="polite" className={error ? 'text-sm text-destructive' : 'sr-only'}>{error ? t('copyError') : copied ? t('copied') : ''}</p>
             </div>
+            </>}
         </DialogContent>
     </Dialog>;
 }

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type RefObject } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { digestExcerpt, parseExcerptSelector, selectExcerptRuns, type ExcerptSource } from '@/lib/sharing/excerptSelector';
+import { digestExcerpt, parseExcerptSelector, selectExcerptRuns, excerptSourceIsVisible, type ExcerptSource } from '@/lib/sharing/excerptSelector';
 
 const HighlightedUtterances = createContext<ReadonlySet<string>>(new Set());
 export const useExcerptHighlighted = (id: string) => useContext(HighlightedUtterances).has(id);
@@ -18,7 +18,7 @@ export function ExcerptRangeHighlight({ sources, rootRef, children }: { sources:
         const first = sources.findIndex(source => source.id === selector.firstUtteranceId);
         const last = sources.findIndex(source => source.id === selector.lastUtteranceId);
         if (first < 0 || last < first) return;
-        const selected = sources.slice(first, last + 1);
+        const selected = sources.slice(first, last + 1).filter(source => excerptSourceIsVisible(source, selector.maxDrift ?? Infinity));
         const runs = selectExcerptRuns(selected);
         if (!runs) return;
         void digestExcerpt(runs).then(digest => {

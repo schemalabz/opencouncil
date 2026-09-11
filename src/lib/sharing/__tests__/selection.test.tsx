@@ -1,5 +1,5 @@
-import { captureExcerptSelection } from '../selection';
-import type { ExcerptSource } from '../excerptSelector';
+import { captureExcerptSelection, captureExcerptSegment } from '../selection';
+import { MAX_EXCERPT_LENGTH, MAX_EXCERPT_UTTERANCES, excerptSourceIsVisible, type ExcerptSource } from '../excerptSelector';
 
 const sources: ExcerptSource[] = [
     { id: 'u1', text: 'Η πλατεία 🌳', speakerTagId: 'a', personId: 'anna', speakerName: 'Άννα', startTimestamp: 0 },
@@ -71,5 +71,45 @@ describe('native transcript selection', () => {
     it('shares the saved full utterance from edit-mode context menus', () => {
         const result = captureExcerptSelection(fixture(), null, sources, 'u1');
         expect(result.status === 'ok' && result.selection.runs[0].text).toBe(sources[0].text);
+    });
+    it('captures a continuous visible passage across a drift-hidden utterance', () => {
+        const root = fixture(); const range = document.createRange(); range.selectNodeContents(root);
+        const rawSources = [sources[0], { ...sources[0], id: 'hidden', drift: 600 }, sources[1]];
+        const visible = rawSources.filter(source => excerptSourceIsVisible(source, 500));
+        expect(captureExcerptSelection(root, range, visible)).toMatchObject({ status: 'ok', selection: { runs: sources } });
+        expect(captureExcerptSegment(root, visible, ['u1', 'u2'])).toMatchObject({ status: 'ok', selection: { runs: sources } });
+    });
+
+    it('captures the complete requested turn, without neighboring text or controls', () => {
+        const root = fixture();
+        const result = captureExcerptSegment(root, sources, ['u2']);
+        expect(result.status).toBe('ok');
+        if (result.status !== 'ok') throw new Error('Expected a complete segment');
+        expect(result.selection).toMatchObject({ firstUtteranceId: 'u2', lastUtteranceId: 'u2', startTimestamp: 10, runs: [sources[1]] });
+        expect(captureExcerptSegment(root, sources, ['u1', 'u2'])).toMatchObject({ status: 'ok', selection: { runs: sources } });
+    });
+
+    it('rejects hidden passages, unsaved editors and non-contiguous segment IDs instead of shortening the turn', () => {
+        const root = fixture();
+        expect(captureExcerptSegment(root, sources, ['u2', 'u1']).status).toBe('invalid');
+        expect(captureExcerptSegment(root, [...sources.slice(0, 1), { ...sources[0], id: 'omitted' }, sources[1]], ['u1', 'u2']).status).toBe('invalid');
+        root.querySelector('[data-utterance-id="u2"]')!.remove();
+        expect(captureExcerptSegment(root, sources, ['u1', 'u2']).status).toBe('invalid');
+        root.querySelector('mark')!.textContent = 'Unsaved edit';
+        expect(captureExcerptSegment(root, sources, ['u1']).status).toBe('invalid');
+    });
+
+    it.each(['length', 'count'])('rejects segments exceeding the %s limit without truncation', limit => {
+        const segment = Array.from({ length: limit === 'count' ? MAX_EXCERPT_UTTERANCES + 1 : 1 }, (_, index) => ({
+            ...sources[0], id: `u${index}`, text: limit === 'length' ? 'a'.repeat(MAX_EXCERPT_LENGTH + 1) : 'Saved text.',
+        }));
+        const root = document.createElement('div');
+        segment.forEach(source => {
+            const span = document.createElement('span');
+            span.dataset.utteranceId = source.id;
+            span.textContent = source.text;
+            root.appendChild(span);
+        });
+        expect(captureExcerptSegment(root, segment, segment.map(source => source.id)).status).toBe('too-long');
     });
 });
