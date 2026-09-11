@@ -4,7 +4,7 @@ import prisma from "@/lib/db/prisma";
 import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches, RelatedScope } from './types';
 import { buildSearchQuery } from './query';
-import { buildRelatedSubjectsQuery, relatedScopeCityIds, type RelatedSubjectSeed } from './related';
+import { buildRelatedSubjectsQuery, relatedScopeCityIds, RELATED_MIN_SIMILARITY, RELATED_SUBJECTS_SIZE, type RelatedSubjectSeed } from './related';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { executeElasticsearchWithRetry } from './retry';
@@ -567,13 +567,23 @@ const MAX_CACHE_TAGS = 128;
  * - `city:{id}:meeting:{id}`: the seed itself is renamed or regenerated.
  * - `city:{id}:meetings` for every municipality of the scope: a meeting
  *   there is released, unreleased, deleted or reprocessed, so a neighbour
- *   appears or disappears. Dropped when they do not fit under Next's limit;
- *   the TTL then covers them.
+ *   appears or disappears. As many as fit under Next's limit; the TTL
+ *   covers the rest.
  */
 function relatedCacheTags(seed: RelatedSubjectSeed, scopeCityIds: string[]): string[] {
     const fixed = ['cities:all', `city:${seed.cityId}:meeting:${seed.councilMeetingId}`];
     const perCity = scopeCityIds.map(id => `city:${id}:meetings`);
-    return fixed.length + perCity.length <= MAX_CACHE_TAGS ? [...fixed, ...perCity] : fixed;
+    return [...fixed, ...perCity.slice(0, MAX_CACHE_TAGS - fixed.length)];
+}
+
+/**
+ * The parts of the answer that no tag can invalidate: the floor and the page
+ * size are constants, and the index is swapped under an alias without a
+ * deploy. Putting them in the key retires the entries written under the old
+ * values, where a version string would have to be bumped by hand.
+ */
+function relatedCacheKey(seed: RelatedSubjectSeed, scope: RelatedScope, realm: Realm): string[] {
+    return ['subject', seed.id, 'related', scope, realm, String(RELATED_MIN_SIMILARITY), String(RELATED_SUBJECTS_SIZE), env.ELASTICSEARCH_INDEX];
 }
 
 /**
@@ -618,7 +628,7 @@ export async function searchRelatedSubjectsInRealm(
                 );
                 return response.hits.hits.map(hit => ({ _score: hit._score, _source: hit._source }));
             },
-            ['subject', seed.id, 'related', scope, realm],
+            relatedCacheKey(seed, scope, realm),
             { tags: relatedCacheTags(seed, scopeCityIds), revalidate: RELATED_CACHE_TTL_SECONDS },
         )();
         const { hits } = await resolveVisibleHits(esHits, 'Related subjects', seed.name);
