@@ -10,8 +10,16 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 jest.mock('@/lib/discord-core', () => ({ sendErrorAdminAlert: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('@/lib/db/searchQueries', () => ({ logSearchQuery: jest.fn() }));
-// Pass-through: the cases below assert what the cache is asked to key and tag, not Next's data cache.
-jest.mock('@/lib/cache/index', () => ({ createCache: jest.fn((fn: () => unknown) => fn) }));
+// A memo per key, so a second call with the same key is a cache hit: the
+// cases below assert what is keyed and tagged, and what still runs on a hit.
+const cacheEntries = new Map<string, Promise<unknown>>();
+jest.mock('@/lib/cache/index', () => ({
+    createCache: jest.fn((fn: () => Promise<unknown>, keyParts: string[]) => () => {
+        const key = keyParts.join(':');
+        if (!cacheEntries.has(key)) cacheEntries.set(key, fn());
+        return cacheEntries.get(key);
+    }),
+}));
 jest.mock('@/lib/db/cities', () => ({
     getCities: jest.fn(),
     getListedCitiesCached: jest.fn(),
@@ -65,6 +73,7 @@ const requestSentToElasticsearch = (): SearchRequest => buildSearchQueryMock.moc
 
 beforeEach(() => {
     jest.clearAllMocks();
+    cacheEntries.clear();
     esSearchMock.mockResolvedValue({ hits: { total: { value: 0, relation: 'eq' }, hits: [] }, took: 1 });
     getCitiesMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
     getListedCitiesCachedMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
@@ -358,15 +367,17 @@ describe('searchRelatedSubjectsInRealm', () => {
         expect(esSearchMock).toHaveBeenCalled();
     });
 
-    // The realm is in the key because the city set differs per realm. The
-    // tags name what changes the answer: the city list, the seed's own
-    // meeting, and the meetings of every municipality the scope searches.
-    it('caches the index answer per subject, scope and realm, under the tags that change it', async () => {
+    // The realm is in the key because the city set differs per realm; the
+    // floor, the page size and the index are in it because no tag can name
+    // a change to them. The tags name what changes the answer: the city
+    // list, the seed's own meeting, and the meetings of every municipality
+    // the scope searches.
+    it('caches the index answer per subject, scope, realm, floor, size and index, under the tags that change it', async () => {
         await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'city', 'greece'],
+            ['subject', 'seed', 'related', 'city', 'greece', '0.93', '5', 'subjects-test'],
             { tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:athens:meetings'], revalidate: 86400 },
         );
     });
@@ -376,7 +387,7 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'other', 'greece'],
+            ['subject', 'seed', 'related', 'other', 'greece', '0.93', '5', 'subjects-test'],
             {
                 tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:chania:meetings', 'city:argos:meetings'],
                 revalidate: 86400,
@@ -384,16 +395,30 @@ describe('searchRelatedSubjectsInRealm', () => {
         );
     });
 
+    // Next drops every tag past its ceiling, not the ones that fit, so the
+    // per-city tags are cut to fit instead of dropped as a block.
+    it('keeps as many per-city tags as fit under the tag ceiling', async () => {
+        const many = Array.from({ length: 200 }, (_, i) => `city-${i}`);
+        getListedCitiesCachedMock.mockResolvedValue([...many, 'athens'].map(id => ({ id })) as never);
+
+        await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');
+
+        const { tags } = createCacheMock.mock.calls[0][2] as { tags: string[] };
+        expect(tags).toHaveLength(128);
+        expect(tags.slice(0, 2)).toEqual(['cities:all', 'city:athens:meeting:meeting-1']);
+        expect(tags[2]).toBe('city:city-0:meetings');
+    });
+
     it('re-checks visibility outside the cache, so a stale entry cannot show an unpublished subject', async () => {
         esSearchMock.mockResolvedValue({ hits: { total: { value: 1, relation: 'eq' }, hits: [{ _score: 0.95, _source: { id: 'stale' } }] }, took: 1 });
-        findManyMock.mockResolvedValueOnce([{ id: 'stale', councilMeeting: { released: false } }]);
+        findManyMock.mockResolvedValue([{ id: 'stale', councilMeeting: { released: false } }]);
 
         await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
+        // The entry is written now; this visit is a cache hit.
+        await expect(searchRelatedSubjectsInRealm(SEED, 'city', 'greece')).resolves.toEqual([]);
 
-        // The cached function returned the hit; the database query that dropped it ran after.
-        const cachedResult = await createCacheMock.mock.results[0].value();
-        expect(cachedResult).toEqual([{ _score: 0.95, _source: { id: 'stale' } }]);
-        expect(findManyMock).toHaveBeenCalled();
+        expect(esSearchMock).toHaveBeenCalledTimes(1);
+        expect(findManyMock).toHaveBeenCalledTimes(2);
     });
 
     // The index embeds the title before it applies the filter, so a scope
