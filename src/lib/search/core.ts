@@ -9,7 +9,7 @@ import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters'
 import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { executeElasticsearchWithRetry } from './retry';
 import { partitionHits, reportOrphanedHits, type EsHit } from './hits';
-import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
+import { getCities, getListedCitiesCached, filterCityIdsByRealm } from '@/lib/db/cities';
 import { logSearchQuery } from '@/lib/db/searchQueries';
 import { createCache } from '@/lib/cache/index';
 import { env } from '@/env.mjs';
@@ -85,37 +85,40 @@ export type SubjectSearchHits = {
 };
 
 /**
+ * What a failure log and alert say about the call that failed: the query and
+ * whatever locates it — the filters of a typed search, the seed and scope of
+ * a related-subjects lookup. Strings only, because that is what the alert
+ * renders; an undefined field is left out of it.
+ */
+type SearchFailureContext = Record<string, string | undefined>;
+
+/** The context a typed search fails with: what the person asked for. */
+function searchFailureContext(request: SearchRequest): SearchFailureContext {
+    return {
+        query: request.query,
+        cityIds: request.cityIds?.join(', '),
+        personIds: request.personIds?.join(', '),
+        partyIds: request.partyIds?.join(', '),
+        topicIds: request.topicIds?.join(', '),
+        dateRange: request.dateRange ? `${request.dateRange.start}..${request.dateRange.end}` : undefined,
+        hasLocations: request.locations?.length ? 'true' : undefined,
+    };
+}
+
+/**
  * Log the failure, alert the team, and raise a message that leaks nothing.
  * `source` names the caller in the log and the alert, so a related-subjects
- * failure is not read as a search a person typed.
+ * failure is not read as a search a person typed. The context is a plain bag
+ * rather than a SearchRequest, so a caller with no request — the related
+ * path — is not made to fake one that misdescribes what ran.
  */
-function failSearch(request: SearchRequest, error: unknown, source = 'Search'): never {
+function failSearch(error: unknown, source: string, context: SearchFailureContext): never {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    logEssential(`${source} Session Failed`, {
-        query: request.query,
-        error: errorMessage,
-        filters: {
-            cityIds: request.cityIds,
-            personIds: request.personIds,
-            partyIds: request.partyIds,
-            topicIds: request.topicIds,
-            dateRange: request.dateRange,
-            hasLocations: request.locations ? request.locations.length > 0 : false
-        }
-    });
+    logEssential(`${source} Session Failed`, { error: errorMessage, ...context });
 
     // Notify team via Discord (fire-and-forget)
-    sendErrorAdminAlert({
-        source,
-        error: errorMessage,
-        context: {
-            query: request.query,
-            cityIds: request.cityIds?.join(', '),
-            personIds: request.personIds?.join(', '),
-            partyIds: request.partyIds?.join(', '),
-        },
-    }).catch(() => {});
+    sendErrorAdminAlert({ source, error: errorMessage, context }).catch(() => {});
 
     throw new Error('Failed to execute search');
 }
@@ -133,11 +136,12 @@ export type RealmSource = Realm | (() => Promise<Realm>);
  * surface. The database is the source of truth, so every id the index answers
  * with is re-checked here before anything downstream trusts it. Only the
  * release flag is read, so the check costs one narrow query instead of riding
- * along with the full hydration it used to sit inside. `queryLabel` names the
- * search in the alert a dropped hit raises.
+ * along with the full hydration it used to sit inside. `source` and
+ * `queryLabel` name the caller and its query in the alert a dropped hit raises.
  */
 async function resolveVisibleHits(
-    esHits: Array<{ _score?: number | null; _source?: SubjectDocument }>,
+    esHits: EsHit[],
+    source: string,
     queryLabel: string,
 ): Promise<{ hits: SubjectSearchHit[]; dropped: number }> {
     const hitIds = esHits
@@ -164,6 +168,7 @@ async function resolveVisibleHits(
             droppedWithoutSource,
             query: queryLabel,
             index: env.ELASTICSEARCH_INDEX,
+            source,
         });
     }
 
@@ -329,6 +334,7 @@ export async function searchSubjectsInRealm(
 
         const { hits, dropped } = await resolveVisibleHits(
             response.hits.hits,
+            'Search',
             // Filter-only searches have no query text; label them so the
             // alert reads sensibly instead of showing an empty string.
             queryText || '(filter-only)',
@@ -340,7 +346,7 @@ export async function searchSubjectsInRealm(
         // hidden content should withhold the total whenever `dropped` > 0.
         return { hits, total: totalHits - dropped, dropped, derivedFilters };
     } catch (error) {
-        failSearch(request, error);
+        failSearch(error, 'Search', searchFailureContext(request));
     }
 }
 
@@ -534,20 +540,10 @@ export async function searchInRealm(
 
         return { results, total, dropped, derivedFilters };
     } catch (error) {
-        failSearch(request, error);
+        failSearch(error, 'Search', searchFailureContext(request));
     }
 }
 
-/**
- * The subjects most similar to one subject, hydrated into the search's row
- * shape. `city` stays inside the subject's municipality, `other` looks at
- * every other municipality of the realm.
- *
- * Reuses the search's tenant cap, retry, visibility re-check and hydration,
- * and none of its query text handling: there is no typed query to log, and
- * no prose to read filters out of. A seed outside the realm — a subject id
- * from another tenant — relates to nothing, rather than reaching across.
- */
 /**
  * How long a subject's related-subjects answer may go stale.
  *
@@ -580,16 +576,32 @@ function relatedCacheTags(seed: RelatedSubjectSeed, scopeCityIds: string[]): str
     return fixed.length + perCity.length <= MAX_CACHE_TAGS ? [...fixed, ...perCity] : fixed;
 }
 
+/**
+ * The subjects most similar to one subject, hydrated into the search's row
+ * shape. `city` stays inside the subject's municipality, `other` looks at
+ * every other municipality of the realm.
+ *
+ * Reuses the search's tenant cap, retry, visibility re-check and hydration,
+ * and none of its query text handling: there is no typed query to log, and
+ * no prose to read filters out of. A seed outside the realm — a subject id
+ * from another tenant — relates to nothing, rather than reaching across.
+ */
 export async function searchRelatedSubjectsInRealm(
     seed: RelatedSubjectSeed,
     scope: RelatedScope,
     realmSource: RealmSource,
 ): Promise<SearchResultLight[]> {
-    const request: SearchRequest = { query: seed.name, cityIds: scope === 'city' ? [seed.cityId] : undefined };
     try {
         const realm = typeof realmSource === 'function' ? await realmSource() : realmSource;
-        const realmCityIds = (await getCities({}, realm)).map(city => city.id);
+        const realmCityIds = (await getListedCitiesCached(realm)).map(city => city.id);
         if (!realmCityIds.includes(seed.cityId)) return [];
+
+        // The `other` scope of a realm with one municipality. The empty city
+        // filter would match nothing anyway, but only after the index has
+        // embedded the title, which is the cost this function exists to spend
+        // carefully.
+        const scopeCityIds = relatedScopeCityIds(seed, scope, realmCityIds);
+        if (scopeCityIds.length === 0) return [];
 
         // The query embeds the title with a hosted model on every call, which
         // is the one cost in this function. Only the index's answer is cached
@@ -598,7 +610,6 @@ export async function searchRelatedSubjectsInRealm(
         // visibility re-check and the hydration below run on every request,
         // so a neighbour that is unpublished after the entry was written
         // still drops out on the next visit.
-        const scopeCityIds = relatedScopeCityIds(seed, scope, realmCityIds);
         const esHits = await createCache(
             async () => {
                 const response = await executeElasticsearchWithRetry(
@@ -610,10 +621,10 @@ export async function searchRelatedSubjectsInRealm(
             ['subject', seed.id, 'related', scope, realm],
             { tags: relatedCacheTags(seed, scopeCityIds), revalidate: RELATED_CACHE_TTL_SECONDS },
         )();
-        const { hits } = await resolveVisibleHits(esHits, `related:${scope}:${seed.id}`);
+        const { hits } = await resolveVisibleHits(esHits, 'Related subjects', seed.name);
         if (hits.length === 0) return [];
         return await hydrateSubjectHits(hits, false);
     } catch (error) {
-        failSearch(request, error, 'Related subjects');
+        failSearch(error, 'Related subjects', { query: seed.name, subjectId: seed.id, cityId: seed.cityId, scope });
     }
 }
