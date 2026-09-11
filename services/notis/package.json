@@ -15,7 +15,7 @@
     "eval:prompt": "tsx scripts/eval-prompt.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.123.0",
+    "@anthropic-ai/sdk": "^0.124.0",
     "@opencouncil/ui": "*",
     "@prisma/client": "^5.22.0",
     "@t3-oss/env-nextjs": "^0.13.11",
