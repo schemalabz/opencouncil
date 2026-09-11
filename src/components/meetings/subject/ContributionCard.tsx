@@ -32,7 +32,7 @@ interface ContributionCardProps {
     contribution: SpeakerContribution & { id: string };
     subjectId: string;
     highlighted?: boolean;
-    meeting: { id: string; cityId: string; released?: boolean };
+    meeting: { id: string; cityId: string; released: boolean };
     speaker: PersonWithRelations | null;
     /** Subject-lead head, for pages where the subject is the news (Person, Party). */
     contextHeader?: {
@@ -167,7 +167,7 @@ export const ContributionCard = memo(function ContributionCard({
             )}
         </span>
     ) : null;
-    const shareButton = meeting.released !== false ? <ContributionShareButton
+    const shareButton = meeting.released === true ? <ContributionShareButton
         cityId={meeting.cityId} meetingId={meeting.id} subjectId={subjectId} contributionId={contribution.id}
         text={contribution.text} speakerName={speaker ? getLocalizedName(speaker, locale) : contribution.speakerName ?? null}
         subjectName={contextHeader?.subjectName}

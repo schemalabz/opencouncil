@@ -1,5 +1,5 @@
-import { LOGO_BLACK_DATA_URI } from '@/lib/og/serverAssets';
 import { truncatePreview } from '@/lib/sharing/excerptSelector';
+import { SharingBrand } from './SharingBrand';
 
 interface Props {
     label: string; title: string; text: string; attribution?: string; context?: string; administrativeBody?: string; quote?: boolean;
@@ -8,23 +8,12 @@ interface Props {
     speakerImage?: string | null;
 }
 
-// Match the mark stroke to the brand wordmark, as documented by layout/Logo.
-const WORDMARK_SIZE = 24;
-const LOGO_SCALE = WORDMARK_SIZE / (0.954 * 0.477 * 1354);
-
 export function SharedContentOgImage({ label, title, text, attribution, context, administrativeBody, quote, passages, additionalSpeakers, speakerImage }: Props) {
     const preview = truncatePreview(text.replace(/\s+/g, ' ').trim(), 310);
     return <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%', padding: '44px 58px', background: '#faf8f5', color: '#24211e', fontFamily: 'Inter' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 26, borderBottom: '1px solid #ded8d1' }}>
             <span style={{ display: 'flex', color: '#ae3904', fontSize: 19, fontWeight: 600 }}>{label}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: WORDMARK_SIZE, fontFamily: 'Relative Book Pro', fontWeight: 400 }}>
-                <div style={{ display: 'flex', position: 'relative', overflow: 'hidden', width: 777 * LOGO_SCALE, height: 646 * LOGO_SCALE }}>
-                    {/* Crop only transparent padding; preserve the PNG's natural geometry. */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={LOGO_BLACK_DATA_URI} width={1606 * LOGO_SCALE} height={1354 * LOGO_SCALE} alt="" style={{ position: 'absolute', left: -414 * LOGO_SCALE, top: -354 * LOGO_SCALE }} />
-                </div>
-                <span>OpenCouncil</span>
-            </div>
+            <SharingBrand />
         </div>
         <div style={{ display: 'flex', marginTop: 26, fontSize: 23, color: '#6b6056', lineHeight: 1.35 }}>{truncatePreview(title, 95)}</div>
         {passages ? <div style={{ display: 'flex', flex: 1, flexDirection: 'column', justifyContent: 'center', gap: 16, padding: '12px 0' }}>

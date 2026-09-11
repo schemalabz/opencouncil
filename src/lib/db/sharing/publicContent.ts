@@ -1,6 +1,7 @@
 import 'server-only';
 import type { Prisma, Realm } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
+import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
 
 export const publicMeetingSelect = {
     id: true, cityId: true, name: true, name_en: true, dateTime: true,
@@ -22,13 +23,13 @@ export const transcriptIsPublic = (meeting: PublicMeeting) => meeting.administra
 
 export async function getPublicMeeting(cityId: string, meetingId: string, realm: Realm) {
     return prisma.councilMeeting.findFirst({
-        where: { cityId, id: meetingId, released: true, city: { realm } }, select: publicMeetingSelect,
+        where: { cityId, id: meetingId, released: true, city: { ...PUBLIC_CITY_WHERE, realm } }, select: publicMeetingSelect,
     });
 }
 
 export async function getPublicSubject(cityId: string, meetingId: string, subjectId: string, realm: Realm) {
     return prisma.subject.findFirst({
-        where: { id: subjectId, cityId, councilMeetingId: meetingId, councilMeeting: { released: true, city: { realm } } },
+        where: { id: subjectId, cityId, councilMeetingId: meetingId, councilMeeting: { released: true, city: { ...PUBLIC_CITY_WHERE, realm } } },
         select: publicSubjectSelect,
     });
 }

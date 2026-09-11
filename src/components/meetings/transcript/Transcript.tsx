@@ -42,6 +42,7 @@ export default function Transcript() {
     const [isScrolled, setIsScrolled] = useState(false);
     const searchParams = useSearchParams();
     const excerptSources = useExcerptSources();
+    const canShareExcerpt = meeting.released && !editingHighlight && !transcriptHiddenForReview;
 
     // Check if transcript is unverified (humanReview not completed)
     const isUnverified = !taskStatus.humanReview && !options.editsAllowed;
@@ -182,7 +183,7 @@ export default function Transcript() {
                 />
             )}
             <ExcerptRangeHighlight sources={excerptSources} rootRef={containerRef}>
-            <UtteranceContextMenu canShareExcerpt={meeting.released && !transcriptHiddenForReview}>
+            <UtteranceContextMenu canShareExcerpt={canShareExcerpt}>
                 <div ref={containerRef} data-excerpt-root role="list" aria-label={t('transcript')}>
                 {displayedSegments.map((segment, index: number) => (
                     <div
@@ -194,13 +195,14 @@ export default function Transcript() {
                         <SpeakerSegment
                             segment={segment}
                             isFirstSegment={index === 0}
+                            canShare={canShareExcerpt}
                         />
                     </div>
                 ))}
                 </div>
             </UtteranceContextMenu>
             </ExcerptRangeHighlight>
-            <ExcerptSelectionToolbar rootRef={containerRef} disabled={!meeting.released || !!editingHighlight || transcriptHiddenForReview} editable={options.editable} />
+            <ExcerptSelectionToolbar rootRef={containerRef} disabled={!canShareExcerpt} editable={options.editable} />
         </div>
     );
 }

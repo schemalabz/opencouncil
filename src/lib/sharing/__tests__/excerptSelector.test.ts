@@ -6,6 +6,20 @@ const run: ExcerptRun = { id: 'u1', text: 'Λέμε ναι 🌳 στην πλα�
 const selector: ExcerptSelector = { cityId: 'athens', meetingId: 'sep10_2026', firstUtteranceId: 'u1', lastUtteranceId: 'u1', textLocale: 'el', digest: 'a'.repeat(64) };
 
 describe('source-backed excerpt selectors', () => {
+    it('round-trips the display filter while keeping old links valid', () => {
+        for (const maxDrift of [0, 100, 500]) {
+            const filtered = { ...selector, maxDrift };
+            expect(parseExcerptSelector(serializeExcerptSelector(filtered))).toEqual(filtered);
+            expect(transcriptExcerptPath(filtered, 0)).toContain(`maxDrift=${maxDrift}`);
+        }
+        for (const value of ['-1', '501', 'Infinity', '1.5', '']) {
+            const query = serializeExcerptSelector(selector); query.set('maxDrift', value);
+            expect(parseExcerptSelector(query)).toBeNull();
+        }
+        const repeated = serializeExcerptSelector({ ...selector, maxDrift: 0 }); repeated.append('maxDrift', '500');
+        expect(parseExcerptSelector(repeated)).toBeNull();
+        expect(parseExcerptSelector(serializeExcerptSelector(selector))).not.toHaveProperty('maxDrift');
+    });
     it('round-trips only its own fields and rejects ambiguous, fractional and unsupported inputs', () => {
         expect(parseExcerptSelector(serializeExcerptSelector(selector))).toEqual(selector);
         for (const [key, value] of [['startOffset', '-1'], ['endOffset', '1.2'], ['textLocale', 'de'], ['digest', 'forged'], ['firstUtteranceId', 'a/b']]) {

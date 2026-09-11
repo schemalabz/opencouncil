@@ -1,3 +1,4 @@
+import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
 jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: { speakerContribution: { findFirst: jest.fn() }, utterance: { findMany: jest.fn(), findFirst: jest.fn() } } }));
 import prisma from '@/lib/db/prisma';
 import { getPublicContribution } from '../contributions';
@@ -16,7 +17,7 @@ describe('public contribution references', () => {
     });
     it('enforces release and realm and resolves zero-timestamp sources without a matched person', async () => {
         const result = await getPublicContribution('contribution', 'greece', 'en');
-        expect(findContribution.mock.calls[0][0].where).toEqual({ id: 'contribution', subject: { councilMeeting: { released: true, city: { realm: 'greece' } } } });
+        expect(findContribution.mock.calls[0][0].where).toEqual({ id: 'contribution', subject: { councilMeeting: { released: true, city: { ...PUBLIC_CITY_WHERE, realm: 'greece' } } } });
         expect(result?.referenceLinks).toEqual({ u1: '/en/city/meeting/transcript?t=0#u1' });
         expect(result?.playbackUrl).toBe('/en/city/meeting/transcript?t=0');
         expect(result?.subjectUrl).toBe('/en/city/meeting/subjects/subject?contribution=contribution#contribution-contribution');

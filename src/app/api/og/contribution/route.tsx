@@ -9,6 +9,7 @@ import { stripMarkdown } from '@/lib/formatters/markdown';
 import { localizeText } from '@/lib/serbian';
 import { SHARING_OG_FONTS } from '@/lib/og/sharingAssets';
 import { SharedContentOgImage } from '@/components/og/SharedContentOgImage';
+import { getPortraitData } from '@/lib/og/portrait';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
         title={contribution ? localizeText(contribution.subject.name, locale) : ''}
         text={contribution ? localizeText(stripMarkdown(contribution.text), locale) : t('unavailableTitle')}
         attribution={contribution ? contribution.speakerName ?? t('unknownSpeaker') : undefined}
-        speakerImage={contribution?.speakerImage}
+        speakerImage={await getPortraitData(contribution?.speakerImage)}
         administrativeBody={contribution?.meeting.administrativeBody ? getLocalizedName(contribution.meeting.administrativeBody, locale) : undefined}
         context={contribution ? `${getLocalizedName(contribution.meeting.city, locale)} · ${formatDate(contribution.meeting.dateTime, contribution.meeting.city.timezone, locale)}` : undefined}
     />, { width: 1200, height: 630, fonts: SHARING_OG_FONTS, headers: { 'Cache-Control': 'private, no-store' } });

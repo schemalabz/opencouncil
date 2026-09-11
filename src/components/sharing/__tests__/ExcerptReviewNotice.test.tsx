@@ -2,11 +2,18 @@ import { useRef } from 'react';
 import { webcrypto } from 'crypto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ExcerptSelectionToolbar, EXCERPT_SHARE_EVENT } from '../ExcerptSelectionToolbar';
+import { SegmentShareButton } from '../SegmentShareButton';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { digestExcerpt } from '@/lib/sharing/excerptSelector';
+
+jest.mock('@/components/meetings/options/OptionsContext', () => ({ useTranscriptOptions: () => ({ options: { maxUtteranceDrift: 500 } }) }));
 
 jest.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }));
 const mockTaskStatus = { humanReview: false };
 const mockTag = { id: 'tag', personId: null };
-const mockTranscript = [{ speakerTagId: 'tag', speakerTag: mockTag, utterances: [{ id: 'u1', text: 'Saved transcript text.', startTimestamp: 0, discussionSubjectId: null }] }];
+const mockTranscript = ['Saved transcript text.', 'The rest of the same speaker turn.', 'A neighboring turn.'].map((text, index) => ({
+    speakerTagId: 'tag', speakerTag: mockTag, utterances: [{ id: `u${index + 1}`, text, startTimestamp: index * 10, discussionSubjectId: null }],
+}));
 jest.mock('@/components/meetings/CouncilMeetingDataContext', () => ({ useCouncilMeetingData: () => ({
     city: { id: 'city', name: 'Πόλη', name_en: 'City', timezone: 'Europe/Athens' },
     meeting: { id: 'meeting', name: 'Συνεδρίαση', name_en: 'Meeting', dateTime: new Date('2026-09-10') },
@@ -16,9 +23,12 @@ jest.mock('@/components/meetings/CouncilMeetingDataContext', () => ({ useCouncil
 
 const writeText = jest.fn().mockResolvedValue(undefined);
 const nativeShare = jest.fn().mockResolvedValue(undefined);
-function Fixture({ editable = false }: { editable?: boolean }) {
+function Fixture({ editable = false, disabled = false, missingPassage = false }: { editable?: boolean; disabled?: boolean; missingPassage?: boolean }) {
     const rootRef = useRef<HTMLDivElement>(null);
-    return <><div ref={rootRef} data-testid="transcript"><span data-utterance-id="u1">Saved transcript text.</span></div><ExcerptSelectionToolbar rootRef={rootRef} disabled={false} editable={editable} /></>;
+    return <TooltipProvider><div ref={rootRef} data-excerpt-root data-testid="transcript">
+        {mockTranscript.flatMap(segment => segment.utterances).filter(utterance => !missingPassage || utterance.id !== 'u2').map(utterance => <span key={utterance.id} data-utterance-id={utterance.id}>{utterance.text}</span>)}
+        <SegmentShareButton utteranceIds={['u1', 'u2']} />
+    </div><ExcerptSelectionToolbar rootRef={rootRef} disabled={disabled} editable={editable} /></TooltipProvider>;
 }
 async function openExcerpt() {
     fireEvent(screen.getByTestId('transcript'), new CustomEvent(EXCERPT_SHARE_EVENT, { detail: { range: null, utteranceId: 'u1' } }));
@@ -54,5 +64,45 @@ describe('excerpt review disclosure', () => {
         await waitFor(() => expect(writeText).toHaveBeenCalled());
         expect(writeText.mock.calls[0][0]).not.toContain('unreviewedNotice');
         expect(writeText.mock.calls[0][0]).toContain('«Saved transcript text.»');
+    });
+
+    it('shares a joined speaker turn with the correct digest, review warning and saved-edit disclosure', async () => {
+        const { container } = render(<Fixture editable />);
+        const range = document.createRange();
+        range.selectNodeContents(container.querySelector('[data-utterance-id="u3"]')!);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+
+        fireEvent.click(screen.getByRole('button', { name: 'shareSegment' }));
+        const dialog = await screen.findByRole('dialog', { name: 'shareSegment' });
+        expect(dialog).toHaveTextContent('Saved transcript text.');
+        expect(dialog).toHaveTextContent('The rest of the same speaker turn.');
+        expect(dialog).not.toHaveTextContent('A neighboring turn.');
+        expect(dialog).toHaveTextContent('savedTextOnly');
+        expect(screen.getByRole('note')).toHaveTextContent('unreviewedNotice');
+        expect(screen.getByRole('button', { name: 'storyTitle' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'copyLink' }));
+        await waitFor(() => expect(writeText).toHaveBeenCalled());
+        const url = new URL(writeText.mock.calls[0][0]);
+        expect(url.searchParams.get('firstUtteranceId')).toBe('u1');
+        expect(url.searchParams.get('lastUtteranceId')).toBe('u2');
+        expect(url.searchParams.get('digest')).toBe(await digestExcerpt(mockTranscript.slice(0, 2).flatMap(segment => segment.utterances).map(utterance => ({
+            id: utterance.id, text: utterance.text, speakerTagId: 'tag', personId: null, speakerName: null,
+        }))));
+        window.getSelection()!.removeAllRanges();
+    });
+
+    it('explains when a complete turn cannot be shared instead of omitting a passage', async () => {
+        render(<Fixture missingPassage editable />);
+        fireEvent.click(screen.getByRole('button', { name: 'shareSegment' }));
+        expect(await screen.findByRole('status')).toHaveTextContent('segmentUnavailable');
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('does not open segment sharing when transcript sharing is disabled', () => {
+        render(<Fixture disabled />);
+        fireEvent.click(screen.getByRole('button', { name: 'shareSegment' }));
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(writeText).not.toHaveBeenCalled();
     });
 });

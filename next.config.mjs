@@ -26,6 +26,7 @@ const nextConfig = {
     outputFileTracingIncludes: {
         '/api/og': ['./node_modules/next/dist/compiled/@vercel/og/**/*'],
         '/api/og/*': ['./node_modules/next/dist/compiled/@vercel/og/**/*'],
+        '/api/share/story': ['./node_modules/next/dist/compiled/@vercel/og/**/*'],
     },
     cacheHandler: process.env.NODE_ENV === 'production'
         ? new URL('./cache-handler.mjs', import.meta.url).pathname

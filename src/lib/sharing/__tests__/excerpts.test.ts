@@ -44,6 +44,13 @@ describe('bounded public excerpt reconstruction', () => {
         expect(reviewed.excerpt.selector).toEqual(unreviewed.excerpt.selector);
         expect(reviewed.excerpt.runs).toEqual(unreviewed.excerpt.runs);
     });
+    it('applies the exact display filter before bounding text and context queries', async () => {
+        const result = await getPublicExcerpt({ ...selector, maxDrift: 100 }, 'greece');
+        expect(result.status).toBe('ok');
+        expect(query.mock.calls[0][0].where.drift).toEqual({ lte: 100 });
+        expect(query.mock.calls[1][0].where.AND[0].drift).toEqual({ lte: 100 });
+        for (const [args] of (prisma.utterance.findFirst as jest.Mock).mock.calls) expect(args.where.drift).toEqual({ lte: 100 });
+    });
     it('does not read text for unreleased, foreign-realm or hidden unreviewed meetings', async () => {
         (getPublicMeeting as jest.Mock).mockResolvedValueOnce(null);
         expect(await getPublicExcerpt(selector, 'france')).toEqual({ status: 'unavailable' });

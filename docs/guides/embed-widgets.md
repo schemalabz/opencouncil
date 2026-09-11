@@ -2,37 +2,26 @@
 
 **Concept**
 
-Iframe widgets show OpenCouncil content on an external website: meetings, recent subjects, meeting summaries, or one exact public subject.
+Iframe widgets that show OpenCouncil content on an external website: the meetings of a municipality, its hottest subjects, or a summary of one or more meetings.
 
 **Architectural Overview**
 
-A city editor opens the feed configurator at `/{cityId}/widget`, chooses a widget and copies an `<iframe>` snippet.
-Readers can also choose **Embed this subject** in a released subject's share menu. That dialog needs no editor account.
-The iframe loads a page under `/embed/`. Each feed embed page:
+A site owner opens the configurator at `/{cityId}/widget`, chooses a widget type and its appearance, and copies an `<iframe>` snippet. The iframe loads a page under `/embed/`. Each embed page:
 
 1. Reads its configuration from the query string. `parseEmbedConfig` handles the params that every widget shares (accent color, dark mode, corner radius, card limit, administrative-body filter). Widget-specific params stay in the route.
 2. Loads data through the public cached queries in `src/lib/cache/queries.ts`. These queries return released meetings only and never call `headers()`, so a page can be served from the CDN.
 3. Renders plain HTML with a small stylesheet (`embed.css`) driven by `--embed-*` CSS variables from `generateThemeVars`. The pages are Server Components. The subjects widget is the exception: it renders the app's shared `SubjectCardContent`, so it also applies `generateAppThemeShim`.
 4. Links back to OpenCouncil with `realmBaseUrl(city.realm)`. In production the links use the realm's own domain (a Cypriot city links to opencouncil.cy). On a preview or local host the links keep `NEXTAUTH_URL`.
 
-The `(embed)` route group has a minimal layout with `robots: noindex`.
-`next.config.mjs` permits iframe framing and adds CDN cache headers to feed widgets.
-The single-subject route overrides caching with `private, no-store` while retaining `frame-ancestors *`.
-`EMBED_PATH` in `src/lib/utils/embed.ts` keeps analytics, SEO redirects and the dev login bar out of the iframe.
+The `(embed)` route group has a minimal layout with `robots: noindex`. `next.config.mjs` adds `Content-Security-Policy: frame-ancestors *` and a CDN `Cache-Control` header to every `/:locale/embed/:path*` response. `EMBED_PATH` in `src/lib/utils/embed.ts` keeps analytics, SEO redirects and the dev login bar out of the iframe.
 
 | Widget | Route | Own params | Shows |
 |---|---|---|---|
 | Meetings | `/embed/meetings` | `cityId`, `showSubjects` | Upcoming and recent meetings with their top subjects |
 | Hot subjects | `/embed/subjects` | `cityId` or `geohash` | The most discussed subjects of recent meetings, optionally near a location |
 | Meeting summary | `/embed/summary` | `cityId`, `meetingId`, `subjects` | One block per meeting: the body, the meeting, its most discussed subjects, and its stats |
-| Single subject | `/embed/subject` | `cityId`, `meetingId`, `subjectId`, `mode` | One exact released subject with its summary, context and source link |
 
-Shared feed params: `accent` (hex without `#`), `mode` (`light`/`dark`), `radius` (`sharp`/`rounded`/`pill`), `limit`, `bodies` (comma-separated body types), `bodyIds` (comma-separated body ids).
-
-The single-subject dialog offers light and dark modes with OpenCouncil styling.
-Its copied URL uses explicit locale prefixes, including `/el/` and Serbian `/lat/`.
-Preview and copied HTML use the same 420px height. The iframe can scroll when content exceeds that height.
-All source links open in a new tab. See [Sharing](./sharing.md) for access checks and URL semantics.
+Shared params: `accent` (hex without `#`), `mode` (`light`/`dark`), `radius` (`sharp`/`rounded`/`pill`), `limit`, `bodies` (comma-separated body types), `bodyIds` (comma-separated body ids).
 
 `/api/embed/subjects` returns the subjects widget's data as JSON with open CORS, so an embedding site can hide the iframe when there is nothing to show.
 
@@ -99,8 +88,7 @@ Components:
 - The summary widget shows no votes, outcomes or attendance. The subject text is the AI summary (`Subject.description`), stripped of markdown and clamped to two lines.
 - A meeting's duration is the span from its first to its last speaker segment. The speaker count is the number of distinct people with a speaker segment. Both stats are hidden before transcription.
 - The subject timestamp is the first utterance tagged `SUBJECT_DISCUSSION` for that subject. Subjects without tagged utterances show no timestamp.
-- Feed widget pages revalidate every 5 minutes. `revalidateMeeting` invalidates the per-meeting cache when summarization writes new subjects.
-- The single-subject widget reads its exact source without caching. A deleted, mismatched or unreleased subject shows a neutral unavailable card.
+- Every widget page revalidates every 5 minutes. `revalidateMeeting` busts the per-meeting cache as soon as summarization writes new subjects.
 - The configurator is visible to city editors only. Its meeting picker offers released past meetings only, because the widget is public.
 
 See also: [meeting-lifecycle.md](./meeting-lifecycle.md) for how subjects and summaries are produced, and [../infrastructure.md](../infrastructure.md) for the CDN in front of the app.
