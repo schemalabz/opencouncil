@@ -1,13 +1,13 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import { useContributionBarHover, useSpeakerBarHover } from '@/components/meetings/bar/BarHighlightContext';
 import { captureEvent } from '@/lib/analytics/capture';
 import { ArrowUpRight, FileText, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
 import { FormattedTextDisplay } from "@/components/FormattedTextDisplay";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { SpeakerContribution } from "@/lib/apiTypes";
 import { PlayPauseButton } from "@/components/meetings/PlayPauseButton";
 import { formatDate, formatTimestamp } from "@/lib/formatters/time";
@@ -18,6 +18,8 @@ import { TopicIcon } from '@/components/TopicIcon';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { AgendaStateChip } from "@/components/subject/AgendaStateChip";
 import { surfaceCardClass } from '@/components/ui/surface-card';
+import { ContributionShareButton } from '@/components/sharing/ContributionShareButton';
+import { getLocalizedName } from '@/lib/formatters/name';
 
 interface UtteranceTimeRange {
     startTimestamp: number;
@@ -29,7 +31,8 @@ const fetcher = (url: string) => fetch(url).then(res => res.ok ? res.json() : nu
 interface ContributionCardProps {
     contribution: SpeakerContribution & { id: string };
     subjectId: string;
-    meeting: { id: string; cityId: string };
+    highlighted?: boolean;
+    meeting: { id: string; cityId: string; released?: boolean };
     speaker: PersonWithRelations | null;
     /** Subject-lead head, for pages where the subject is the news (Person, Party). */
     contextHeader?: {
@@ -67,6 +70,7 @@ interface ContributionCardProps {
 export const ContributionCard = memo(function ContributionCard({
     contribution,
     subjectId,
+    highlighted = false,
     meeting,
     speaker,
     contextHeader,
@@ -77,6 +81,12 @@ export const ContributionCard = memo(function ContributionCard({
     sourcePage = 'subject',
 }: ContributionCardProps) {
     const t = useTranslations("Subject");
+    const locale = useLocale();
+    const sharing = useTranslations('sharing');
+    const articleRef = useRef<HTMLElement>(null);
+    useEffect(() => {
+        if (highlighted) articleRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+    }, [highlighted]);
 
     const { data: utteranceInfo } = useSWR<UtteranceTimeRange>(
         contribution.speakerId
@@ -119,8 +129,8 @@ export const ContributionCard = memo(function ContributionCard({
         : null;
     const speakerLine = [cityRoleName, party?.name].filter(Boolean).join(' · ');
 
-    const chips = (
-        <span className="flex shrink-0 items-center gap-1.5">
+    const chips = utteranceInfo ? (
+        <span className="flex flex-wrap items-center gap-2 sm:gap-1.5">
             {/* The whole chip is the control — a pill you can only hit on its glyph is a
                 fiddle. With a video it plays from here; without one it opens the
                 transcript at the same second. */}
@@ -129,7 +139,7 @@ export const ContributionCard = memo(function ContributionCard({
                     startTimestamp={utteranceInfo.startTimestamp}
                     endTimestamp={utteranceInfo.endTimestamp}
                     onPressPlay={() => captureCardAction('contribution_play')}
-                    className="h-7 gap-1.5 rounded-full border-border bg-card px-2.5 text-[11px] font-semibold tabular-nums text-foreground shadow-none hover:!bg-muted hover:!text-foreground [&_svg]:!h-3 [&_svg]:!w-3"
+                    className="h-11 gap-2 rounded-full border-border bg-card px-3.5 text-[13px] font-semibold tabular-nums text-foreground shadow-none hover:!bg-muted hover:!text-foreground sm:h-7 sm:gap-1.5 sm:px-2.5 sm:text-[11px] [&_svg]:!size-3.5 sm:[&_svg]:!size-3"
                 >
                     {formatTimestamp(utteranceInfo.startTimestamp)}
                 </PlayPauseButton>
@@ -137,7 +147,7 @@ export const ContributionCard = memo(function ContributionCard({
                 <Link
                     href={transcriptUrl}
                     onClick={() => captureCardAction('contribution_transcript')}
-                    className="inline-flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-[11px] tabular-nums text-muted-foreground transition-colors hover:text-foreground hover:no-underline"
+                    className="inline-flex h-11 items-center rounded-full border border-border bg-card px-3.5 text-[13px] tabular-nums text-muted-foreground transition-colors hover:text-foreground hover:no-underline sm:h-7 sm:px-2.5 sm:text-[11px]"
                 >
                     {formatTimestamp(utteranceInfo.startTimestamp)}
                 </Link>
@@ -150,16 +160,22 @@ export const ContributionCard = memo(function ContributionCard({
                     onClick={() => captureCardAction('contribution_transcript')}
                     title={t("transcript")}
                     aria-label={t("transcript")}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground"
+                    className="inline-flex size-11 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:text-foreground sm:size-7"
                 >
-                    <FileText className="h-3.5 w-3.5" aria-hidden />
+                    <FileText className="size-4 sm:size-3.5" aria-hidden />
                 </Link>
             )}
         </span>
-    );
+    ) : null;
+    const shareButton = meeting.released !== false ? <ContributionShareButton
+        cityId={meeting.cityId} meetingId={meeting.id} subjectId={subjectId} contributionId={contribution.id}
+        text={contribution.text} speakerName={speaker ? getLocalizedName(speaker, locale) : contribution.speakerName ?? null}
+        subjectName={contextHeader?.subjectName}
+    /> : null;
+    const speakerNameClass = cn("min-w-0 break-words font-semibold text-foreground", contextHeader ? "text-sm" : "text-base leading-6 sm:text-sm sm:leading-5");
 
     const speakerRow = showSpeaker && (
-        <div className={cn("flex flex-wrap items-center gap-x-2 gap-y-1", contextHeader && "mt-3")}>
+        <div className={cn("flex min-w-0 items-center gap-3", contextHeader && "mt-3 gap-2")}>
             {!contextHeader && (
                 <span className="block h-10 w-10 shrink-0">
                     <ImageOrInitials
@@ -179,21 +195,21 @@ export const ContributionCard = memo(function ContributionCard({
             <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 {speaker ? (
                     disableSpeakerNavigation ? (
-                        <span className="text-sm font-bold">{speaker.name}</span>
+                        <span className={speakerNameClass}>{speaker.name}</span>
                     ) : (
                         <Link
                             href={`/${meeting.cityId}/people/${speaker.id}`}
                             onClick={() => captureEvent('person_opened', { surface: 'contribution_speaker', city_id: meeting.cityId, person_id: speaker.id, page: sourcePage })}
-                            className="text-sm font-bold text-foreground hover:no-underline"
+                            className={cn(speakerNameClass, "hover:no-underline")}
                             {...speakerNameHover}
                         >
                             {speaker.name}
                         </Link>
                     )
                 ) : contribution.speakerName ? (
-                    <span className="text-sm font-medium">{contribution.speakerName}</span>
+                    <span className={speakerNameClass}>{contribution.speakerName}</span>
                 ) : (
-                    <span className="inline-flex items-center gap-1.5 text-sm italic text-muted-foreground">
+                    <span className="inline-flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
                         <Users className="h-3.5 w-3.5" aria-hidden />
                         {t("unknownSpeaker")}
                     </span>
@@ -203,16 +219,19 @@ export const ContributionCard = memo(function ContributionCard({
                         {t("introducer")}
                     </span>
                 )}
-                {speakerLine && <span className="text-[11.5px] text-muted-foreground">{speakerLine}</span>}
+                {speakerLine && <span className="basis-full break-words text-xs leading-5 text-muted-foreground">{speakerLine}</span>}
             </span>
-            {!contextHeader && chips}
         </div>
     );
 
     const body = (
         // The measure comes from the column on context pages (the card fills it);
         // only the subject page's wide main column needs the card to cap itself.
-        <div className={cn('mt-2 text-[14.5px] leading-[1.62] text-foreground/85', !contextHeader && 'max-w-[66ch]')}>
+        <div className={cn(
+            'mt-3 min-w-0 break-words [&>.prose]:text-base [&>.prose]:leading-[1.65] [&>.prose]:text-foreground/90 sm:[&>.prose]:text-[14.5px]',
+            '[&>.prose>:first-child]:mt-0 [&>.prose>:last-child]:mb-0 [&>.prose_a]:decoration-foreground/40 [&>.prose_a]:underline-offset-4 [&>.prose_a:hover]:decoration-foreground',
+            !contextHeader && 'max-w-[66ch]',
+        )}>
             <FormattedTextDisplay
                 text={contribution.text}
                 meetingId={meeting.id}
@@ -224,12 +243,18 @@ export const ContributionCard = memo(function ContributionCard({
     );
 
     if (!contextHeader) {
-        // Plain: the speaker leads. The avatar spans the head; the quote hangs under it.
+        // On phones the controls get their own row, leaving the name and text room to breathe.
         return (
-            <article className="flex gap-3.5 py-[18px]" {...cardBarHover}>
+            <article ref={articleRef} id={`contribution-${contribution.id}`} data-shared-contribution={highlighted || undefined}
+                className={cn("scroll-mt-40 py-5", highlighted && "bg-[hsl(var(--orange)/0.05)] px-4")} {...cardBarHover}>
                 <div className="min-w-0 flex-1">
-                    {speakerRow}
-                    <div className={cn(showSpeaker && "pl-[54px]")}>{body}</div>
+                    {highlighted && <p className="mb-2 text-xs font-medium text-[hsl(var(--orange-deep))] dark:text-[hsl(var(--orange))]">{sharing('sharedContribution')}</p>}
+                    <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                        <div className="min-w-0">{speakerRow}</div>
+                        {shareButton && <div className="col-start-2 row-start-1 sm:col-start-3">{shareButton}</div>}
+                        {chips && <div className="col-span-2 sm:col-span-1 sm:col-start-2 sm:row-start-1">{chips}</div>}
+                    </header>
+                    <div className={cn(showSpeaker && "sm:pl-[52px]")}>{body}</div>
                 </div>
             </article>
         );
@@ -239,11 +264,12 @@ export const ContributionCard = memo(function ContributionCard({
     const subjectUrl = `/${meeting.cityId}/${meeting.id}/subjects/${subjectId}`;
     return (
         <article
-            className={cn(surfaceCardClass, "px-[18px] py-4 transition-shadow hover:shadow-md")}
+            id={`contribution-${contribution.id}`}
+            className={cn(surfaceCardClass, "scroll-mt-40 px-[18px] py-4 transition-shadow hover:shadow-md")}
             style={{ borderLeft: `3px solid ${party?.colorHex ?? 'hsl(var(--border))'}` }}
             {...cardBarHover}
         >
-            <div className="flex items-start gap-2.5">
+            <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-2.5 gap-y-2">
                 <TopicIcon color={contextHeader.topic?.colorHex} icon={contextHeader.topic?.icon} size="md" />
                 <div className="min-w-0 flex-1">
                     {/* The title is the way into the subject — say so: a standing
@@ -280,8 +306,9 @@ export const ContributionCard = memo(function ContributionCard({
                         </span>
                     </div>
                 </div>
-                {chips}
-            </div>
+                {shareButton}
+                {chips && <div className="col-span-3">{chips}</div>}
+            </header>
             {speakerRow}
             <div className="mt-1">{body}</div>
         </article>

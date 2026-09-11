@@ -1,7 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeftToLine, ArrowRightToLine, Clapperboard, ClipboardCopy, Copy, ListEnd, ListStart, Loader2, Scissors } from 'lucide-react';
+import { ArrowLeftToLine, ArrowRightToLine, Clapperboard, ClipboardCopy, Copy, ListEnd, ListStart, Loader2, Scissors, Share2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useShare } from '@/contexts/ShareContext';
 import { useToast } from '@/hooks/use-toast';
+import { EXCERPT_SHARE_EVENT } from '@/components/sharing/ExcerptSelectionToolbar';
 
 import { useCouncilMeetingActions } from '../CouncilMeetingDataContext';
 import { useEditing } from '../EditingContext';
@@ -29,6 +30,8 @@ interface ContextTarget {
     // collapse the selection before "Copy text" runs.
     selectedText: string;
     utteranceText: string;
+    range: Range | null;
+    root: HTMLElement | null;
 }
 
 /**
@@ -44,10 +47,11 @@ interface ContextTarget {
  * `closest('[data-utterance-id]')`, and opens a controlled DropdownMenu
  * positioned at the cursor via a virtual trigger.
  */
-export function UtteranceContextMenu({ children }: { children: React.ReactNode }) {
+export function UtteranceContextMenu({ children, canShareExcerpt = true }: { children: React.ReactNode; canShareExcerpt?: boolean }) {
     const [open, setOpen] = useState(false);
     const [target, setTarget] = useState<ContextTarget | null>(null);
     const pendingShareRef = useRef<number | null>(null);
+    const pendingExcerptRef = useRef<ContextTarget | null>(null);
     // Tracks whether handleContextMenu applied a temp utterance selection
     // for visual feedback, so the close handler only clears what it added.
     const didTempSelectRef = useRef(false);
@@ -63,6 +67,7 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
     const { openShareDropdownAndCopy } = useShare();
     const { toast } = useToast();
     const t = useTranslations('transcript.utterance');
+    const tSharing = useTranslations('sharing');
 
     const canStartHighlight = options.canCreateHighlights && !editingHighlight && !options.editable;
     const canShare = !editingHighlight && !options.editable;
@@ -90,9 +95,11 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
         // user has nothing selected, this is an empty string.
         const selectedText = window.getSelection()?.toString() ?? '';
         const utteranceText = (span.textContent ?? '').trim();
+        const selection = window.getSelection();
+        const range = selection?.rangeCount && !selection.isCollapsed ? selection.getRangeAt(0).cloneRange() : null;
 
         e.preventDefault();
-        setTarget({ id, segmentId, startTimestamp, x: e.clientX, y: e.clientY, selectedText, utteranceText });
+        setTarget({ id, segmentId, startTimestamp, x: e.clientX, y: e.clientY, selectedText, utteranceText, range, root: span.closest<HTMLElement>('[data-excerpt-root]') });
         setOpen(true);
 
         // Temp-select the right-clicked utterance for visual feedback —
@@ -115,6 +122,11 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
         if (pendingShareRef.current !== null) {
             openShareDropdownAndCopy(pendingShareRef.current);
             pendingShareRef.current = null;
+        }
+        if (pendingExcerptRef.current) {
+            const source = pendingExcerptRef.current;
+            pendingExcerptRef.current = null;
+            window.setTimeout(() => source.root?.dispatchEvent(new CustomEvent(EXCERPT_SHARE_EVENT, { detail: { utteranceId: source.id, range: source.range } })), 0);
         }
         if (didTempSelectRef.current) {
             clearSelection();
@@ -243,6 +255,11 @@ export function UtteranceContextMenu({ children }: { children: React.ReactNode }
                         <DropdownMenuItem onClick={handleCopyText}>
                             <ClipboardCopy className="h-4 w-4 mr-2" />
                             {t('contextMenu.copyText')}
+                        </DropdownMenuItem>
+                    )}
+                    {target && canShareExcerpt && !editingHighlight && (
+                        <DropdownMenuItem onClick={() => { pendingExcerptRef.current = target; }}>
+                            <Share2 className="h-4 w-4 mr-2" />{tSharing('shareExcerpt')}
                         </DropdownMenuItem>
                     )}
                     {target && canRangeSelect && (
