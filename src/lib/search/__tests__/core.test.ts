@@ -14,6 +14,7 @@ jest.mock('@/lib/db/searchQueries', () => ({ logSearchQuery: jest.fn() }));
 jest.mock('@/lib/cache/index', () => ({ createCache: jest.fn((fn: () => unknown) => fn) }));
 jest.mock('@/lib/db/cities', () => ({
     getCities: jest.fn(),
+    getListedCitiesCached: jest.fn(),
     filterCityIdsByRealm: jest.fn(),
 }));
 jest.mock('../filters', () => ({
@@ -32,7 +33,8 @@ jest.mock('../related', () => ({
 
 import { Client } from '@elastic/elasticsearch';
 import prisma from '@/lib/db/prisma';
-import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
+import { getCities, getListedCitiesCached, filterCityIdsByRealm } from '@/lib/db/cities';
+import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '../filters';
 import { buildSearchQuery } from '../query';
 import { buildRelatedSubjectsQuery } from '../related';
@@ -46,6 +48,8 @@ const buildSearchQueryMock = buildSearchQuery as jest.MockedFunction<typeof buil
 const buildRelatedSubjectsQueryMock = buildRelatedSubjectsQuery as jest.MockedFunction<typeof buildRelatedSubjectsQuery>;
 const createCacheMock = createCache as jest.MockedFunction<typeof createCache>;
 const getCitiesMock = getCities as jest.MockedFunction<typeof getCities>;
+const getListedCitiesCachedMock = getListedCitiesCached as jest.MockedFunction<typeof getListedCitiesCached>;
+const sendErrorAdminAlertMock = sendErrorAdminAlert as jest.MockedFunction<typeof sendErrorAdminAlert>;
 const filterCityIdsByRealmMock = filterCityIdsByRealm as jest.MockedFunction<typeof filterCityIdsByRealm>;
 
 const REALM_CITIES = ['athens', 'chania', 'argos'];
@@ -63,6 +67,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     esSearchMock.mockResolvedValue({ hits: { total: { value: 0, relation: 'eq' }, hits: [] }, took: 1 });
     getCitiesMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
+    getListedCitiesCachedMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
     // Every candidate id is inside the realm unless a case says otherwise.
     filterCityIdsByRealmMock.mockImplementation(async (ids: string[]) => ids.filter(id => REALM_CITIES.includes(id)));
     findManyMock.mockResolvedValue([]);
@@ -389,6 +394,29 @@ describe('searchRelatedSubjectsInRealm', () => {
         const cachedResult = await createCacheMock.mock.results[0].value();
         expect(cachedResult).toEqual([{ _score: 0.95, _source: { id: 'stale' } }]);
         expect(findManyMock).toHaveBeenCalled();
+    });
+
+    // The index embeds the title before it applies the filter, so a scope
+    // that can match nothing is answered without asking it.
+    it('answers the other scope of a one-municipality realm without asking the index', async () => {
+        getListedCitiesCachedMock.mockResolvedValue([{ id: 'athens' }] as never);
+
+        await expect(searchRelatedSubjectsInRealm(SEED, 'other', 'greece')).resolves.toEqual([]);
+
+        expect(esSearchMock).not.toHaveBeenCalled();
+        expect(createCacheMock).not.toHaveBeenCalled();
+    });
+
+    it('alerts a failure with the seed and the scope, not as a typed search', async () => {
+        esSearchMock.mockRejectedValue(new Error('index down'));
+
+        await expect(searchRelatedSubjectsInRealm(SEED, 'other', 'greece')).rejects.toThrow('Failed to execute search');
+
+        expect(sendErrorAdminAlertMock).toHaveBeenCalledWith({
+            source: 'Related subjects',
+            error: 'index down',
+            context: { query: SEED.name, subjectId: 'seed', cityId: 'athens', scope: 'other' },
+        });
     });
 
     // A subject id from another tenant must not become a way to read that

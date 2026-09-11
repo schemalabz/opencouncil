@@ -248,8 +248,10 @@ async function runQuery(
  * subject, both scopes, against the whole index. Prints what the subject page
  * would list, without the realm cap: the harness has no request to read a
  * realm from, so `other` here is every other municipality in the index.
+ * `--min-score` replaces RELATED_MIN_SIMILARITY, so the sweep that measured
+ * it can be re-run.
  */
-async function runRelated(subjectId: string): Promise<void> {
+async function runRelated(subjectId: string, minScore?: number): Promise<void> {
     const seedRes = await client.search<EvalSource & { city_id?: string; councilMeeting_id?: string }>({
         index: process.env.ELASTICSEARCH_INDEX,
         size: 1,
@@ -272,7 +274,10 @@ async function runRelated(subjectId: string): Promise<void> {
     const cityIds = buckets.map(b => String(b.key));
 
     for (const scope of ['city', 'other'] as RelatedScope[]) {
-        const q = buildRelatedSubjectsQuery(seed, scope, cityIds);
+        const q = {
+            ...buildRelatedSubjectsQuery(seed, scope, cityIds),
+            ...(minScore !== undefined && { min_score: minScore }),
+        };
         const res = await client.search<EvalSource>({
             ...q,
             _source: ['id', 'name', 'city_name', 'administrative_body_type', 'meeting_date', 'discussion_speaking_seconds'],
@@ -607,7 +612,7 @@ async function main() {
     const relatedTo = flagValue('--related');
 
     if (relatedTo !== undefined) {
-        await runRelated(relatedTo);
+        await runRelated(relatedTo, semanticMinScore);
         return;
     }
 
