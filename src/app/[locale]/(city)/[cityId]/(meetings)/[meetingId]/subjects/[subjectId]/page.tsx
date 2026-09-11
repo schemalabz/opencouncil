@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { Suspense } from "react";
 import Subject from "@/components/meetings/subject/subject";
 import { RelatedSubjectsSection } from "@/components/meetings/subject/RelatedSubjectsSection";
+import { OptionalSectionBoundary } from "@/components/ui/OptionalSectionBoundary";
 import SubjectReadTracker from "@/components/analytics/SubjectReadTracker";
 import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
 import { notFound } from "next/navigation";
@@ -134,19 +135,23 @@ export default async function SubjectPage(
             <Subject
                 subjectId={params.subjectId}
                 related={
-                    // Its own boundary: two index queries and a hydration
-                    // must not hold back the page they decorate.
-                    <Suspense fallback={null}>
-                        <RelatedSubjectsSection
-                            seed={{
-                                id: subject.id,
-                                name: subject.name,
-                                cityId: subject.cityId,
-                                councilMeetingId: subject.councilMeetingId,
-                            }}
-                            cityName={getLocalizedName(meetingData.city, params.locale)}
-                        />
-                    </Suspense>
+                    // Its own boundaries: two index queries and a hydration
+                    // must neither hold back the page they decorate (the
+                    // Suspense) nor take it down when one of them throws
+                    // (the error boundary — Suspense catches promises only).
+                    <OptionalSectionBoundary label="Related subjects">
+                        <Suspense fallback={null}>
+                            <RelatedSubjectsSection
+                                seed={{
+                                    id: subject.id,
+                                    name: subject.name,
+                                    cityId: subject.cityId,
+                                    councilMeetingId: subject.councilMeetingId,
+                                }}
+                                cityName={getLocalizedName(meetingData.city, params.locale)}
+                            />
+                        </Suspense>
+                    </OptionalSectionBoundary>
                 }
             />
         </>
