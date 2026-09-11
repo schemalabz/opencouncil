@@ -1,4 +1,4 @@
-import { FakeAnthropic, makeDeps, meetingEvent, toolUse } from "../../agent/__tests__/helpers";
+import { FIXED_NOW, FakeAnthropic, makeDeps, meetingEvent, toolUse } from "../../agent/__tests__/helpers";
 import type { AnthropicLike, ModelRequest } from "@/agent/types";
 import { MAX_ATTEMPTS, type ClaimedItem } from "../queue-core";
 import { PROACTIVE_PAUSED_KEY } from "../settings";
@@ -66,6 +66,27 @@ function searchingModel(searches: number): AnthropicLike {
     },
   };
 }
+
+const DO_NOT_FAKE = [
+  "setTimeout",
+  "setInterval",
+  "clearTimeout",
+  "clearInterval",
+  "setImmediate",
+  "nextTick",
+  "queueMicrotask",
+] as const;
+
+// processItem's pre-model quiet check and resendStalePendingMessages both read
+// the wall clock, so an unpinned suite passes by day and fails between 23:00
+// and 09:00 Athens. Pin it to FIXED_NOW — 12:00 Athens, the instant the
+// fixtures above are already dated at.
+beforeEach(() => {
+  jest.useFakeTimers({ now: FIXED_NOW, doNotFake: [...DO_NOT_FAKE] });
+});
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe("processItem", () => {
   it("alerts when a proactive wake searches the web — the prompt reserves search for a question", async () => {
