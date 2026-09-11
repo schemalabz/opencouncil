@@ -67,8 +67,11 @@ export function partitionHits<T>(
     return { resolved, orphanedIds, unreleasedIds, droppedWithoutSource };
 }
 
-// Each id alerts once per server instance, not once per search (resets on deploy).
-const reportedIds = new Set<string>();
+// Each id alerts once per server instance, not once per search (resets on
+// deploy). Keyed by source as well as id: the related-subjects path re-checks
+// its ids on every subject page view, and must not spend the one alert a
+// later typed search would have raised for the same id.
+const reportedKeys = new Set<string>();
 const MISSING_SOURCE_KEY = '__missing_source__';
 // Separate keyspace: the same subject can be orphaned and (earlier) unreleased.
 const unreleasedKey = (id: string) => `unreleased:${id}`;
@@ -76,34 +79,39 @@ const unreleasedKey = (id: string) => `unreleased:${id}`;
 /**
  * Best-effort, never throws: Discord alert on production, console warning
  * elsewhere (see partitionHits for why drift is expected outside production).
+ * `source` names the caller in the alert, as failSearch does, so a drop on
+ * the related-subjects path does not read as a search somebody typed.
  */
 export async function reportOrphanedHits(
-    params: { orphanedIds: string[]; unreleasedIds?: string[]; droppedWithoutSource?: number; query: string; index: string },
+    params: { orphanedIds: string[]; unreleasedIds?: string[]; droppedWithoutSource?: number; query: string; index: string; source: string },
 ): Promise<void> {
-    const newIds = [...new Set(params.orphanedIds)].filter(id => !reportedIds.has(id));
-    const newUnreleased = [...new Set(params.unreleasedIds ?? [])].filter(id => !reportedIds.has(unreleasedKey(id)));
-    const missingSource = (params.droppedWithoutSource ?? 0) > 0 && !reportedIds.has(MISSING_SOURCE_KEY)
+    const reported = (key: string) => reportedKeys.has(`${params.source}:${key}`);
+    const remember = (key: string) => reportedKeys.add(`${params.source}:${key}`);
+
+    const newIds = [...new Set(params.orphanedIds)].filter(id => !reported(id));
+    const newUnreleased = [...new Set(params.unreleasedIds ?? [])].filter(id => !reported(unreleasedKey(id)));
+    const missingSource = (params.droppedWithoutSource ?? 0) > 0 && !reported(MISSING_SOURCE_KEY)
         ? params.droppedWithoutSource ?? 0
         : 0;
     if (newIds.length === 0 && newUnreleased.length === 0 && missingSource === 0) return;
 
-    newIds.forEach(id => reportedIds.add(id));
-    newUnreleased.forEach(id => reportedIds.add(unreleasedKey(id)));
-    if (missingSource > 0) reportedIds.add(MISSING_SOURCE_KEY);
+    newIds.forEach(remember);
+    newUnreleased.forEach(id => remember(unreleasedKey(id)));
+    if (missingSource > 0) remember(MISSING_SOURCE_KEY);
 
     const parts: string[] = [];
     if (newIds.length > 0) parts.push(`${newIds.length} orphaned hit(s) — subjects in index "${params.index}" missing from the database`);
     if (newUnreleased.length > 0) parts.push(`${newUnreleased.length} stale unreleased hit(s) — the index says released, the database disagrees (check PGSync / reindex)`);
     if (missingSource > 0) parts.push(`${missingSource} hit(s) without _source`);
-    const message = `Dropped ${parts.join(' and ')} from search results.`;
+    const message = `Dropped ${parts.join(' and ')} from the ${params.source.toLowerCase()} results.`;
 
     if (env.DEPLOYMENT_ENV !== 'production') {
-        console.warn(`[Search] ${message}`, { orphanedIds: newIds, unreleasedIds: newUnreleased, query: params.query });
+        console.warn(`[${params.source}] ${message}`, { orphanedIds: newIds, unreleasedIds: newUnreleased, query: params.query });
         return;
     }
 
     await sendErrorAdminAlert({
-        source: 'Search',
+        source: params.source,
         error: message,
         context: {
             orphanedSubjectIds: newIds.length > 0 ? newIds.join(', ') : undefined,

@@ -18,6 +18,13 @@ function cityTerms(query: estypes.SearchRequest): string[] {
 }
 
 describe('buildRelatedSubjectsQuery', () => {
+    // The floor is the product decision the feature turns on, measured on
+    // the production index; the cases below read it back, so this one pins it.
+    it('keeps the measured similarity floor and the page size', () => {
+        expect(RELATED_MIN_SIMILARITY).toBe(0.93);
+        expect(RELATED_SUBJECTS_SIZE).toBe(5);
+    });
+
     it('asks the semantic fields with the subject name and nothing else', () => {
         const query = buildRelatedSubjectsQuery(SEED, 'city', REALM_CITIES);
         const must = boolOf(query).must as estypes.QueryDslQueryContainer[];
