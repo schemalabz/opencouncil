@@ -3,6 +3,7 @@
 import { memo, useEffect, useRef } from "react";
 import { useContributionBarHover, useSpeakerBarHover } from '@/components/meetings/bar/BarHighlightContext';
 import { captureEvent } from '@/lib/analytics/capture';
+import { captureSharingEvent } from '@/lib/analytics/sharing';
 import { ArrowUpRight, FileText, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "@/i18n/routing";
@@ -85,8 +86,11 @@ export const ContributionCard = memo(function ContributionCard({
     const sharing = useTranslations('sharing');
     const articleRef = useRef<HTMLElement>(null);
     useEffect(() => {
-        if (highlighted) articleRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
-    }, [highlighted]);
+        if (highlighted) {
+            articleRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' });
+            captureSharingEvent('sharing_received', { content_type: 'contribution', surface: sourcePage, city_id: meeting.cityId, meeting_id: meeting.id, subject_id: subjectId, contribution_id: contribution.id, locale });
+        }
+    }, [highlighted, sourcePage, meeting.cityId, meeting.id, subjectId, contribution.id, locale]);
 
     const { data: utteranceInfo } = useSWR<UtteranceTimeRange>(
         contribution.speakerId
@@ -168,6 +172,7 @@ export const ContributionCard = memo(function ContributionCard({
         </span>
     ) : null;
     const shareButton = meeting.released === true ? <ContributionShareButton
+        surface={sourcePage}
         cityId={meeting.cityId} meetingId={meeting.id} subjectId={subjectId} contributionId={contribution.id}
         text={contribution.text} speakerName={speaker ? getLocalizedName(speaker, locale) : contribution.speakerName ?? null}
         subjectName={contextHeader?.subjectName}

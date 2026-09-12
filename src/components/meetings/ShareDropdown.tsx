@@ -24,7 +24,8 @@ import { formatTimestamp } from '@/lib/formatters/time';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import StoryTemplatePickerDialog from './StoryTemplatePickerDialog';
-import posthog from 'posthog-js';
+import { captureEvent } from '@/lib/analytics/capture';
+import { useSharingTracker } from '@/lib/analytics/sharing';
 import { SubjectEmbedDialog } from '@/components/embed/SubjectEmbedDialog';
 import { validSourceId } from '@/lib/sharing/excerptSelector';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
@@ -95,6 +96,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const shareTitle = subject ? localizeText(subject.name, locale) : getLocalizedName(meeting, locale);
     const actionDisabled = !shareableUrl || pending !== null;
     const operationRef = useRef(0);
+    const track = useSharingTracker({ content_type: subject ? 'subject' : 'meeting', surface: subjectPage ? 'subject_menu' : pathname.includes('/transcript') ? 'transcript_menu' : 'meeting_menu', city_id: cityId, meeting_id: meetingId, subject_id: subject?.id, locale });
     const itemClass = 'min-h-11 cursor-pointer gap-3 rounded-xl px-3 text-sm font-medium';
 
     useEffect(() => {
@@ -111,13 +113,16 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
 
     const copyUrl = useCallback(async (link: string) => {
         const operation = ++operationRef.current;
+        const details = { action: 'copy_link' as const, mode: 'menu' as const, includes_timestamp: new URL(link).searchParams.has('t') };
+        track('sharing_action_started', details);
         setPending('copy'); setCopySuccess(false); setError(false);
         try {
             await navigator.clipboard.writeText(link);
+            track('sharing_action_succeeded', details);
             if (operation === operationRef.current) setCopySuccess(true);
-        } catch { if (operation === operationRef.current) setError(true); }
+        } catch { track('sharing_action_failed', details); if (operation === operationRef.current) setError(true); }
         finally { if (operation === operationRef.current) setPending(null); }
-    }, []);
+    }, [track]);
 
     // Handle automatic copy trigger
     useEffect(() => {
@@ -140,11 +145,15 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     };
     const share = async () => {
         const operation = ++operationRef.current;
+        const details = { action: 'native_share' as const, mode: 'menu' as const, includes_timestamp: includeTimestamp };
+        track('sharing_action_started', details);
         setPending('share'); setError(false);
         try {
             await navigator.share({ title: shareTitle, url: shareableUrl });
+            track('sharing_action_succeeded', details);
             if (operation === operationRef.current) closeMenu();
         } catch (error) {
+            track(error instanceof Error && error.name === 'AbortError' ? 'sharing_action_cancelled' : 'sharing_action_failed', details);
             if (operation === operationRef.current && !(error instanceof Error && error.name === 'AbortError')) setError(true);
         } finally { if (operation === operationRef.current) setPending(null); }
     };
@@ -184,13 +193,14 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     useEffect(() => {
         const justOpened = dropdownOpen && !prevDropdownOpen.current;
         prevDropdownOpen.current = dropdownOpen;
-        if (!justOpened || !posthog.__loaded) return;
-        posthog.capture('share_clicked', {
+        if (!justOpened) return;
+        track('sharing_opened', { mode: 'menu' });
+        captureEvent('share_clicked', {
             city_id: cityId,
             meeting_id: meetingId,
             page: shareContextKey,
         });
-    }, [dropdownOpen, cityId, meetingId, shareContextKey]);
+    }, [dropdownOpen, cityId, meetingId, shareContextKey, track]);
 
     const handleOpenChange = (open: boolean) => {
         if (open) {
@@ -244,11 +254,11 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                         <DropdownMenuSubTrigger className={itemClass} disabled={actionDisabled}><Share2 className="size-4 text-muted-foreground" />{tSharing('share')}</DropdownMenuSubTrigger>
                         <DropdownMenuSubContent className="min-w-44 rounded-xl p-1.5">
                             {[
-                                { label: 'WhatsApp', href: `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${shareableUrl}`)}` },
-                                { label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareableUrl)}` },
-                                { label: tSharing('email'), href: `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareableUrl)}` },
+                                { destination: 'whatsapp' as const, label: 'WhatsApp', href: `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${shareableUrl}`)}` },
+                                { destination: 'facebook' as const, label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareableUrl)}` },
+                                { destination: 'email' as const, label: tSharing('email'), href: `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareableUrl)}` },
                             ].map(destination => <DropdownMenuItem key={destination.label} asChild className="min-h-11 cursor-pointer rounded-lg px-3">
-                                <a href={destination.href} target="_blank" rel="noopener noreferrer">{destination.label}</a>
+                                <a href={destination.href} onClick={() => track('sharing_destination_selected', { destination: destination.destination, mode: 'menu' })} target="_blank" rel="noopener noreferrer">{destination.label}</a>
                             </DropdownMenuItem>)}
                         </DropdownMenuSubContent>
                     </DropdownMenuSub>}

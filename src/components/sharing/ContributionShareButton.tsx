@@ -10,7 +10,7 @@ import { contributionSubjectPath } from '@/lib/sharing/contributionUrl';
 import { ContentShareDialog } from './ContentShareDialog';
 import { storyImagePath } from '@/lib/sharing/story';
 
-export function ContributionShareButton({ contributionId, cityId, meetingId, subjectId, text, speakerName, subjectName }: { contributionId: string; cityId: string; meetingId: string; subjectId: string; text: string; speakerName: string | null; subjectName?: string }) {
+export function ContributionShareButton({ contributionId, cityId, meetingId, subjectId, text, speakerName, subjectName, surface = 'subject' }: { contributionId: string; cityId: string; meetingId: string; subjectId: string; text: string; speakerName: string | null; subjectName?: string; surface?: 'subject' | 'person' | 'party' }) {
     const locale = useLocale();
     const t = useTranslations('sharing');
     const [open, setOpen] = useState(false);
@@ -26,6 +26,7 @@ export function ContributionShareButton({ contributionId, cityId, meetingId, sub
             <Share2 className="size-4" aria-hidden />
         </Button>
         <ContentShareDialog open={open} onOpenChange={setOpen} title={t('shareContribution')} description={t('contributionDescription')} url={url} storyImageUrl={storyImagePath({ type: 'contribution', id: contributionId, locale })}
+            analytics={{ content_type: 'contribution', surface, city_id: cityId, meeting_id: meetingId, subject_id: subjectId, contribution_id: contributionId, locale }}
             sourceText={`${name}${subjectName ? ` · ${subjectName}` : ''}\n${t('summary')}\n\n${summary}`} copyTextLabel={t('copySummary')}>
             <div className="space-y-4">
                 {subjectName && <p className="text-xs leading-5 text-muted-foreground">{localizeText(subjectName, locale)}</p>}

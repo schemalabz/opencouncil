@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Check, Copy, Loader2, Moon, Sun } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { SUBJECT_EMBED_HEIGHT, subjectEmbedSnippet, subjectEmbedUrl, type SubjectEmbedMode, type SubjectEmbedTarget } from '@/lib/sharing/subjectEmbed';
+import { useSharingTracker } from '@/lib/analytics/sharing';
 
 export function SubjectEmbedDialog({ open, onOpenChange, target }: { open: boolean; onOpenChange: (open: boolean) => void; target: SubjectEmbedTarget }) {
     const t = useTranslations('sharing');
@@ -14,14 +15,22 @@ export function SubjectEmbedDialog({ open, onOpenChange, target }: { open: boole
     const [mode, setMode] = useState<SubjectEmbedMode>('light');
     const [origin, setOrigin] = useState('');
     const [status, setStatus] = useState<'idle' | 'pending' | 'copied' | 'error'>('idle');
+    const track = useSharingTracker({ content_type: 'subject', surface: 'subject_menu', city_id: target.cityId, meeting_id: target.meetingId, subject_id: target.subjectId, locale });
+    const wasOpen = useRef(false);
+    useEffect(() => {
+        if (open && !wasOpen.current) track('sharing_opened', { mode: 'embed' });
+        wasOpen.current = open;
+    }, [open, track]);
     useEffect(() => { if (open) { setOrigin(window.location.origin); setStatus('idle'); } }, [open]);
     useEffect(() => { setStatus('idle'); }, [mode, target.subjectId]);
     const url = origin ? subjectEmbedUrl(origin, locale, target, mode) : '';
     const snippet = url ? subjectEmbedSnippet(url, t('embedTitle')) : '';
     async function copy() {
+        const details = { action: 'copy_embed' as const, mode: 'embed' as const, theme: mode };
+        track('sharing_action_started', details);
         setStatus('pending');
-        try { await navigator.clipboard.writeText(snippet); setStatus('copied'); }
-        catch { setStatus('error'); }
+        try { await navigator.clipboard.writeText(snippet); setStatus('copied'); track('sharing_action_succeeded', details); }
+        catch { setStatus('error'); track('sharing_action_failed', details); }
     }
     return <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent align="start" className="justify-items-stretch rounded-2xl border-foreground/15 text-left [&>button]:right-2 [&>button]:top-2 [&>button]:flex [&>button]:size-11 [&>button]:items-center [&>button]:justify-center max-h-[92dvh] w-[calc(100%-2rem)] gap-0 overflow-y-auto p-0 sm:max-w-[680px] sm:rounded-2xl">
@@ -33,7 +42,7 @@ export function SubjectEmbedDialog({ open, onOpenChange, target }: { open: boole
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <span className="text-xs font-medium text-muted-foreground">{t('preview')}</span>
                     <div role="group" aria-label={t('appearance')} className="flex rounded-full border bg-background p-1">
-                        {(['light', 'dark'] as const).map(value => <Button key={value} variant="ghost" size="sm" className={`min-h-11 gap-2 rounded-full px-3 ${mode === value ? 'bg-muted font-semibold text-foreground' : 'text-muted-foreground'}`} aria-pressed={mode === value} onClick={() => setMode(value)}>
+                        {(['light', 'dark'] as const).map(value => <Button key={value} variant="ghost" size="sm" className={`min-h-11 gap-2 rounded-full px-3 ${mode === value ? 'bg-muted font-semibold text-foreground' : 'text-muted-foreground'}`} aria-pressed={mode === value} onClick={() => { setMode(value); track('sharing_action_succeeded', { action: 'change_embed_theme', mode: 'embed', theme: value }); }}>
                             {value === 'light' ? <Sun className="size-4" /> : <Moon className="size-4" />}{t(value)}
                         </Button>)}
                     </div>
