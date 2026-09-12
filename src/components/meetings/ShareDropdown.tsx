@@ -1,24 +1,35 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
-import { Button } from "../ui/button";
+import { useState, useEffect, useRef, useCallback, useId } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuCheckboxItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
-    DropdownMenuTrigger
-} from "../ui/dropdown-menu";
-import { Input } from "../ui/input";
-import { Checkbox } from "../ui/checkbox";
-import { CheckCircle, CopyIcon, Share, Instagram } from "lucide-react";
+    DropdownMenuTrigger,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Check, Link2, Loader2, Share2, Instagram, Code2, ChevronRight } from 'lucide-react';
 import { useVideo } from './VideoProvider';
-import { usePathname } from 'next/navigation';
+import { usePathname, useParams } from 'next/navigation';
 import { useShare } from '@/contexts/ShareContext';
-import { formatTimestamp } from '@/lib/utils';
+import { formatTimestamp } from '@/lib/formatters/time';
+import { getLocalizedName } from '@/lib/formatters/name';
+import { localizeText } from '@/lib/serbian';
 import StoryTemplatePickerDialog from './StoryTemplatePickerDialog';
-import posthog from 'posthog-js';
+import { captureEvent } from '@/lib/analytics/capture';
+import { useSharingTracker } from '@/lib/analytics/sharing';
+import { SubjectEmbedDialog } from '@/components/embed/SubjectEmbedDialog';
+import { validSourceId } from '@/lib/sharing/excerptSelector';
+import { useCouncilMeetingData } from './CouncilMeetingDataContext';
+import { SubjectShareDialog } from '@/components/sharing/SubjectShareDialog';
 
 
 interface ShareDropdownProps {
@@ -44,73 +55,107 @@ const SHARE_CONTEXT_KEYS: Record<string, string> = {
     meeting: 'shareMeeting',
 };
 
+function buildShareUrl(source: string, timestamp: number | null, subjectPage: boolean) {
+    if (!source) return '';
+    const result = new URL(source);
+    result.searchParams.delete('t');
+    if (timestamp !== null) result.searchParams.set('t', Math.floor(timestamp).toString());
+    if (subjectPage) {
+        result.searchParams.delete('contribution');
+        if (result.hash.startsWith('#contribution-')) result.hash = '';
+    }
+    return result.href;
+}
+
 export default function ShareDropdown({ meetingId, cityId, className }: ShareDropdownProps) {
     const t = useTranslations('ShareDropdown');
+    const tSharing = useTranslations('sharing');
+    const locale = useLocale();
+    const fallbackId = useId();
+    const params = useParams();
+    const { meeting, subjects } = useCouncilMeetingData();
+    const subjectId = meeting.released && validSourceId(params.subjectId) ? params.subjectId : null;
+    const subject = subjects.find(item => item.id === subjectId);
     const [url, setUrl] = useState('');
     const [includeTimestamp, setIncludeTimestamp] = useState(false);
     const [copySuccess, setCopySuccess] = useState(false);
+    const [pending, setPending] = useState<'copy' | 'share' | null>(null);
+    const [error, setError] = useState(false);
+    const [nativeShare, setNativeShare] = useState(false);
     const { currentTime } = useVideo();
     const { isOpen, targetTimestamp, shouldTriggerCopy, closeShareDropdown, resetCopyTrigger } = useShare();
     const pathname = usePathname();
     const [internalOpen, setInternalOpen] = useState(false);
     const [storyPickerOpen, setStoryPickerOpen] = useState(false);
+    const [embedOpen, setEmbedOpen] = useState(false);
+    const [subjectStoryOpen, setSubjectStoryOpen] = useState(false);
+    const dropdownOpen = isOpen || internalOpen;
+    const subjectPage = pathname.includes('/subjects/');
+    const effectiveTime = targetTimestamp ?? currentTime;
+    const shareableUrl = buildShareUrl(url, includeTimestamp ? effectiveTime : null, subjectPage);
+    const shareTitle = subject ? localizeText(subject.name, locale) : getLocalizedName(meeting, locale);
+    const actionDisabled = !shareableUrl || pending !== null;
+    const operationRef = useRef(0);
+    const track = useSharingTracker({ content_type: subject ? 'subject' : 'meeting', surface: subjectPage ? 'subject_menu' : pathname.includes('/transcript') ? 'transcript_menu' : 'meeting_menu', city_id: cityId, meeting_id: meetingId, subject_id: subject?.id, locale });
+    const itemClass = 'min-h-11 cursor-pointer gap-3 rounded-xl px-3 text-sm font-medium';
 
     useEffect(() => {
+        operationRef.current += 1;
+        setPending(null);
+        if (!dropdownOpen) return;
         setUrl(window.location.href);
-    }, [pathname]);
+        setIncludeTimestamp(targetTimestamp !== null || new URL(window.location.href).searchParams.has('t'));
+        setCopySuccess(false);
+        setError(false);
+        return () => { operationRef.current += 1; };
+    }, [dropdownOpen, pathname, targetTimestamp]);
+    useEffect(() => { setNativeShare(typeof navigator.share === 'function'); }, []);
 
-    // Handle opening with a specific timestamp from context
-    useEffect(() => {
-        if (isOpen && targetTimestamp !== null) {
-            setIncludeTimestamp(true);
-        }
-    }, [isOpen, targetTimestamp]);
+    const copyUrl = useCallback(async (link: string) => {
+        const operation = ++operationRef.current;
+        const details = { action: 'copy_link' as const, mode: 'menu' as const, includes_timestamp: new URL(link).searchParams.has('t') };
+        track('sharing_action_started', details);
+        setPending('copy'); setCopySuccess(false); setError(false);
+        try {
+            await navigator.clipboard.writeText(link);
+            track('sharing_action_succeeded', details);
+            if (operation === operationRef.current) setCopySuccess(true);
+        } catch { track('sharing_action_failed', details); if (operation === operationRef.current) setError(true); }
+        finally { if (operation === operationRef.current) setPending(null); }
+    }, [track]);
 
     // Handle automatic copy trigger
     useEffect(() => {
         if (shouldTriggerCopy && isOpen && targetTimestamp !== null) {
-            // When auto-copying, targetTimestamp is always provided by context
-            const currentUrl = window.location.href;
-            const urlObj = new URL(currentUrl);
-            urlObj.searchParams.delete('t');
-            urlObj.searchParams.set('t', Math.floor(targetTimestamp).toString());
-            const shareableUrl = urlObj.toString();
-
-            navigator.clipboard.writeText(shareableUrl).then(() => {
-                setCopySuccess(true);
-                setTimeout(() => setCopySuccess(false), 3000);
-            }).catch(console.error);
-
+            void copyUrl(buildShareUrl(window.location.href, targetTimestamp, subjectPage));
             resetCopyTrigger();
         }
-    }, [shouldTriggerCopy, isOpen, targetTimestamp, resetCopyTrigger]);
+    }, [shouldTriggerCopy, isOpen, targetTimestamp, resetCopyTrigger, copyUrl, subjectPage]);
 
-    const getShareableUrl = () => {
-        const effectiveTime = targetTimestamp !== null ? targetTimestamp : currentTime;
-        if (includeTimestamp && effectiveTime > 0) {
-            // Parse the current URL and remove any existing timestamp parameters
-            const urlObj = new URL(url);
-            urlObj.searchParams.delete('t'); // Remove existing timestamp parameter
-            urlObj.searchParams.set('t', Math.floor(effectiveTime).toString()); // Add new timestamp
-            return urlObj.toString();
-        }
-        return url;
+    const closeMenu = () => {
+        operationRef.current += 1;
+        setPending(null);
+        closeShareDropdown();
+        setInternalOpen(false);
     };
-
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(getShareableUrl());
-        setCopySuccess(true);
-        setTimeout(() => setCopySuccess(false), 3000);
+    const openDialog = (setOpen: (open: boolean) => void) => {
+        closeMenu();
+        // Let the menu release focus before opening the dialog.
+        window.setTimeout(() => setOpen(true), 0);
     };
-
-    const openStoryPicker = () => {
-        // Close the dropdown when opening the dialog so they don't stack.
-        if (isOpen) {
-            closeShareDropdown();
-        } else {
-            setInternalOpen(false);
-        }
-        setStoryPickerOpen(true);
+    const share = async () => {
+        const operation = ++operationRef.current;
+        const details = { action: 'native_share' as const, mode: 'menu' as const, includes_timestamp: includeTimestamp };
+        track('sharing_action_started', details);
+        setPending('share'); setError(false);
+        try {
+            await navigator.share({ title: shareTitle, url: shareableUrl });
+            track('sharing_action_succeeded', details);
+            if (operation === operationRef.current) closeMenu();
+        } catch (error) {
+            track(error instanceof Error && error.name === 'AbortError' ? 'sharing_action_cancelled' : 'sharing_action_failed', details);
+            if (operation === operationRef.current && !(error instanceof Error && error.name === 'AbortError')) setError(true);
+        } finally { if (operation === operationRef.current) setPending(null); }
     };
 
     // Determine what's being shared based on the current path
@@ -139,9 +184,6 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const shareContextKey = getShareContextKey();
     const shareContext = t(SHARE_CONTEXT_KEYS[shareContextKey]);
 
-    // Use a single controlled state - prioritize context state when active
-    const dropdownOpen = isOpen || internalOpen;
-
     // Each open counts as one share intent, whether triggered by the button
     // or programmatically from the transcript context menu. Capture strictly
     // on the closed→open transition: shareContextKey is in the deps, so a
@@ -151,13 +193,14 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     useEffect(() => {
         const justOpened = dropdownOpen && !prevDropdownOpen.current;
         prevDropdownOpen.current = dropdownOpen;
-        if (!justOpened || !posthog.__loaded) return;
-        posthog.capture('share_clicked', {
+        if (!justOpened) return;
+        track('sharing_opened', { mode: 'menu' });
+        captureEvent('share_clicked', {
             city_id: cityId,
             meeting_id: meetingId,
             page: shareContextKey,
         });
-    }, [dropdownOpen, cityId, meetingId, shareContextKey]);
+    }, [dropdownOpen, cityId, meetingId, shareContextKey, track]);
 
     const handleOpenChange = (open: boolean) => {
         if (open) {
@@ -166,12 +209,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                 setInternalOpen(true);
             }
         } else {
-            // Closing - close whichever state is active
-            if (isOpen) {
-                closeShareDropdown();
-            } else {
-                setInternalOpen(false);
-            }
+            closeMenu();
         }
     };
 
@@ -184,94 +222,63 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     className={`h-9 w-9 lg:w-auto lg:px-3 gap-1.5 rounded-full text-foreground/80 transition-colors hover:bg-foreground/[0.06] hover:text-foreground shrink-0 ${className || ''}`}
                     title={t('title')}
                 >
-                    <Share className="h-4 w-4 shrink-0" />
+                    <Share2 className="h-4 w-4 shrink-0" />
                     <span className="hidden text-sm lg:inline">{t('title')}</span>
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-80 sm:w-96" align="end">
-                <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{t('title')}</p>
-                        <p className="text-xs leading-none text-muted-foreground">
-                            {shareContext}
-                        </p>
-                    </div>
+            <DropdownMenuContent className="w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl p-2 shadow-xl shadow-black/10" align="end" sideOffset={8} collisionPadding={12}>
+                <DropdownMenuLabel className="px-3 pb-3 pt-2 font-normal">
+                    <p className="text-base font-semibold leading-6 text-foreground">{subject ? tSharing('shareSubject') : t('title')}</p>
+                    <p className="mt-1 line-clamp-2 break-words text-sm leading-5 text-muted-foreground">{subject ? shareTitle : shareContext}</p>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
 
-                <div className="p-3 space-y-4">
-                    {/* URL Input and Copy Button */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground">
-                            {t('link')}
-                        </label>
-                        <div className="flex gap-2">
-                            <Input
-                                value={getShareableUrl()}
-                                readOnly
-                                className="flex-grow text-xs font-mono h-9"
-                                onClick={(e) => (e.target as HTMLInputElement).select()}
-                            />
-                            <Button
-                                onClick={copyToClipboard}
-                                variant={copySuccess ? "default" : "outline"}
-                                disabled={copySuccess}
-                                className="flex-shrink-0 min-w-[80px] h-9"
-                            >
-                                {copySuccess ? (
-                                    <>
-                                        <CheckCircle className="w-3 h-3 mr-1" />
-                                        <span className="text-xs">{t('copied')}</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <CopyIcon className="w-3 h-3 mr-1" />
-                                        <span className="text-xs">{t('copy')}</span>
-                                    </>
-                                )}
-                            </Button>
-                        </div>
-                    </div>
+                {(currentTime > 0 || targetTimestamp !== null || includeTimestamp) && <DropdownMenuCheckboxItem
+                    className="mb-2 min-h-11 cursor-pointer rounded-xl pr-3 text-sm"
+                    checked={includeTimestamp}
+                    onCheckedChange={checked => { setIncludeTimestamp(checked); setCopySuccess(false); setError(false); }}
+                >{t('startFrom', { timestamp: formatTimestamp(effectiveTime) })}</DropdownMenuCheckboxItem>}
 
-                    {/* Timestamp Checkbox */}
-                    {(currentTime > 0 || targetTimestamp !== null) && (
-                        <div className="flex items-center space-x-2 p-2 rounded-md">
-                            <Checkbox
-                                id="timestamp"
-                                checked={includeTimestamp}
-                                onCheckedChange={(checked) => setIncludeTimestamp(checked as boolean)}
-                            />
-                            <label
-                                htmlFor="timestamp"
-                                className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1"
-                            >
-                                <span>{t('startFrom', { timestamp: formatTimestamp(targetTimestamp !== null ? targetTimestamp : currentTime) })}</span>
-                            </label>
-                        </div>
-                    )}
+                <DropdownMenuItem
+                    className="min-h-12 cursor-pointer justify-center gap-2 rounded-full bg-[hsl(var(--orange-deep))] px-4 text-sm font-semibold text-white focus:bg-[color-mix(in_srgb,hsl(var(--orange-deep)),black_8%)] focus:text-white"
+                    disabled={actionDisabled}
+                    onSelect={event => { event.preventDefault(); void copyUrl(shareableUrl); }}
+                >
+                    {pending === 'copy' ? <Loader2 className="size-4 animate-spin" /> : copySuccess ? <Check className="size-4" /> : <Link2 className="size-4" />}
+                    {tSharing(copySuccess ? 'copied' : 'copyLink')}
+                </DropdownMenuItem>
+
+                <div className="mt-2">
+                    {nativeShare ? <DropdownMenuItem className={itemClass} disabled={actionDisabled} onSelect={event => { event.preventDefault(); void share(); }}>
+                        {pending === 'share' ? <Loader2 className="size-4 animate-spin" /> : <Share2 className="size-4 text-muted-foreground" />}{tSharing('share')}
+                    </DropdownMenuItem> : <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className={itemClass} disabled={actionDisabled}><Share2 className="size-4 text-muted-foreground" />{tSharing('share')}</DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="min-w-44 rounded-xl p-1.5">
+                            {[
+                                { destination: 'whatsapp' as const, label: 'WhatsApp', href: `https://wa.me/?text=${encodeURIComponent(`${shareTitle}\n${shareableUrl}`)}` },
+                                { destination: 'facebook' as const, label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareableUrl)}` },
+                                { destination: 'email' as const, label: tSharing('email'), href: `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(shareableUrl)}` },
+                            ].map(destination => <DropdownMenuItem key={destination.label} asChild className="min-h-11 cursor-pointer rounded-lg px-3">
+                                <a href={destination.href} onClick={() => track('sharing_destination_selected', { destination: destination.destination, mode: 'menu' })} target="_blank" rel="noopener noreferrer">{destination.label}</a>
+                            </DropdownMenuItem>)}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>}
+                    {(subject || !subjectPage) && <DropdownMenuItem className={itemClass} onSelect={() => openDialog(subject ? setSubjectStoryOpen : setStoryPickerOpen)}>
+                        <Instagram className="size-4 text-muted-foreground" />{tSharing('storyTitle')}<ChevronRight className="ml-auto size-4 text-muted-foreground/60" />
+                    </DropdownMenuItem>}
+                    {subjectId && <>
+                        <DropdownMenuSeparator className="mx-3 my-1" />
+                        <DropdownMenuItem className={`${itemClass} text-muted-foreground`} onSelect={() => openDialog(setEmbedOpen)}>
+                            <Code2 className="size-4" />{tSharing('embedSubject')}<ChevronRight className="ml-auto size-4 text-muted-foreground/60" />
+                        </DropdownMenuItem>
+                    </>}
                 </div>
 
-                {!pathname.includes('/subjects/') && (
-                    <>
-                        <DropdownMenuSeparator />
-                        <div className="p-3 space-y-2">
-                            <label className="text-xs font-medium text-muted-foreground block">
-                                {t('exportPreviewAsImage')}
-                            </label>
-
-                            <Button
-                                onClick={openStoryPicker}
-                                variant="outline"
-                                size="sm"
-                                className="w-full h-8 flex items-center gap-1.5"
-                            >
-                                <Instagram className="w-3 h-3" />
-                                <span className="text-xs">Story</span>
-                                <span className="text-[10px] text-muted-foreground">(9:16)</span>
-                            </Button>
-                        </div>
-                    </>
-                )}
+                {error && <div className="space-y-2 px-3 pb-2 pt-3">
+                    <p className="text-xs leading-5 text-destructive" role="alert">{tSharing('copyError')}</p>
+                    <label htmlFor={fallbackId} className="sr-only">{tSharing('link')}</label>
+                    <Input id={fallbackId} value={shareableUrl} readOnly autoFocus onFocus={event => event.target.select()} className="h-11 rounded-lg text-xs" />
+                </div>}
+                <p role="status" className="sr-only">{copySuccess ? tSharing('copied') : ''}</p>
             </DropdownMenuContent>
 
             <StoryTemplatePickerDialog
@@ -279,6 +286,8 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                 onOpenChange={setStoryPickerOpen}
                 meetingId={meetingId}
             />
+            {subjectId && <SubjectEmbedDialog key={subjectId} open={embedOpen} onOpenChange={setEmbedOpen} target={{ cityId, meetingId, subjectId }} />}
+            {subject && <SubjectShareDialog key={`story-${subject.id}`} open={subjectStoryOpen} onOpenChange={setSubjectStoryOpen} cityId={cityId} meetingId={meetingId} subject={subject} />}
         </DropdownMenu>
     );
 }

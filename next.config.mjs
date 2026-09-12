@@ -25,6 +25,8 @@ const nextConfig = {
     // 500s on every OG image. Prod (buildpack, full node_modules) is unaffected.
     outputFileTracingIncludes: {
         '/api/og': ['./node_modules/next/dist/compiled/@vercel/og/**/*'],
+        '/api/og/*': ['./node_modules/next/dist/compiled/@vercel/og/**/*'],
+        '/api/share/story': ['./node_modules/next/dist/compiled/@vercel/og/**/*'],
     },
     cacheHandler: process.env.NODE_ENV === 'production'
         ? new URL('./cache-handler.mjs', import.meta.url).pathname
@@ -56,6 +58,24 @@ const nextConfig = {
                     { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
                     { key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=3600' },
                 ],
+            },
+            {
+                source: '/:locale(en|el|fr|sr|lat)/embed/subject',
+                headers: [
+                    { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
+                    { key: 'Cache-Control', value: 'private, no-store' },
+                ],
+            },
+            {
+                source: '/embed/subject',
+                headers: [
+                    { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
+                    { key: 'Cache-Control', value: 'private, no-store' },
+                ],
+            },
+            {
+                source: '/api/og/:kind(excerpt|contribution)',
+                headers: [{ key: 'Cache-Control', value: 'private, no-store' }],
             },
             {
                 // HTML pages vary by auth (per-user profile data, admin-only UI, the admin
@@ -181,4 +201,3 @@ export default withPostHogConfig(withNextIntl(nextConfig), {
         deleteAfterUpload: true,
     },
 });
-
