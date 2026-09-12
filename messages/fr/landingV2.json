@@ -82,7 +82,8 @@
   },
   "subject": {
     "view": "Voir le sujet",
-    "discussionMinutes": "{min}′ de discussion"
+    "discussionMinutes": "{min}′ de discussion",
+    "aiImage": "Image générée par IA"
   },
   "municipality": {
     "subjects": "Sujets",

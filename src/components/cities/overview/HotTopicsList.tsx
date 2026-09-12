@@ -37,7 +37,6 @@ interface HotTopicsListProps {
  */
 export function HotTopicsList({ cards, cityId, timezone, locale }: HotTopicsListProps) {
     const [openId, setOpenId] = useState(cards[0]?.subject.id ?? null);
-    const maxSeconds = Math.max(0, ...cards.map(c => c.stats.speakingSeconds));
     // The ranking re-computes every 15 minutes, so a refresh can drop the open
     // subject out of the set while this instance survives. Falling back to the
     // leader keeps the section's one invariant — something is always open.
@@ -52,7 +51,6 @@ export function HotTopicsList({ cards, cityId, timezone, locale }: HotTopicsList
                             <HotTopicLead
                                 card={card}
                                 rank={i + 1}
-                                maxSeconds={maxSeconds}
                                 cityId={cityId}
                                 timezone={timezone}
                                 locale={locale}
@@ -62,7 +60,6 @@ export function HotTopicsList({ cards, cityId, timezone, locale }: HotTopicsList
                         <HotTopicRow
                             card={card}
                             rank={i + 1}
-                            maxSeconds={maxSeconds}
                             timezone={timezone}
                             locale={locale}
                             onOpen={() => {

@@ -42,7 +42,7 @@ export default async function EmbedSubjectsPage(props: EmbedSubjectsPageProps) {
     const baseUrl = realmBaseUrl(city?.realm);
 
     const cards = city
-        ? await getHotSubjectCards(city.id, { limit, administrativeBodyTypes, administrativeBodyIds, geohash })
+        ? await getHotSubjectCards(city.id, { limit, administrativeBodyTypes, administrativeBodyIds, geohash, withSpeakers: true })
         : [];
 
     const t = await getTranslations('EmbedWidget');
@@ -66,7 +66,7 @@ export default async function EmbedSubjectsPage(props: EmbedSubjectsPageProps) {
                                 subject={subject}
                                 meeting={meeting}
                                 locationText={locationText}
-                                speakers={speakers}
+                                speakers={speakers ?? []}
                                 stats={stats}
                                 locale={locale}
                                 baseUrl={baseUrl}

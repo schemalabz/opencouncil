@@ -151,27 +151,14 @@ const BAR_MIN_PCT = 6;
 /**
  * Width of a bar drawn against the largest value beside it, as a percentage.
  *
- * The one place the geometry of a measured bar lives — the hot-topic rows and the
- * rail cards both draw through it. Total over every ratio a caller can arrive at,
- * including the ones a division produces on the way: `0 / 0` is NaN and `n / 0` is
- * Infinity, and both mean "there is nothing to compare against yet", which is the
- * floor rather than a bar of NaN pixels or one wider than its own track.
+ * The one place the geometry of a measured bar lives — the rail cards draw
+ * through it. Total over every ratio a caller can arrive at, including the ones
+ * a division produces on the way: `0 / 0` is NaN and `n / 0` is Infinity, and
+ * both mean "there is nothing to compare against yet", which is the floor rather
+ * than a bar of NaN pixels or one wider than its own track.
  */
 export function meterBarWidth(ratio: number): number {
     if (!Number.isFinite(ratio)) return BAR_MIN_PCT;
     return Math.min(100, Math.max(BAR_MIN_PCT, 100 * ratio));
 }
 
-/**
- * Width of a subject's discussion-time bar, as a percentage of the most-discussed
- * subject in the same list. Ranking is relative by design — the bar answers "how
- * does this compare with the one at the top", not "how long in absolute terms",
- * which the minutes label already says.
- *
- * `maxSeconds <= 0` means nothing in the list has been transcribed yet, so there is
- * no ratio to draw; every bar sits at the floor.
- */
-export function hotTopicBarWidth(seconds: number, maxSeconds: number): number {
-    if (maxSeconds <= 0) return BAR_MIN_PCT;
-    return meterBarWidth(Math.max(0, seconds) / maxSeconds);
-}
