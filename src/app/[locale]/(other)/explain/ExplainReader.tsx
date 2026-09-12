@@ -87,6 +87,30 @@ export function ExplainReader({
                 ?.closest("[data-toc-group]")
                 ?.querySelector("[data-toc-grouphead]")
                 ?.setAttribute("aria-current", "true");
+
+            // The pinned column scrolls its own content on a short screen, so the
+            // active entry can sit outside it. Move the column to the entry, and
+            // move nothing else: scrollIntoView walks every scrollable ancestor,
+            // and on this sticky box it drags the page instead of the column.
+            //
+            // Stop at the neighbour past the active entry, so the entry the reader
+            // wants never sits flush against the edge of the column. Entries wrap
+            // to two lines, so their heights differ and a fixed margin would cut a
+            // wrapped neighbour in half.
+            const aside = activeLink?.closest<HTMLElement>("[data-toc]");
+            if (aside && activeLink) {
+                const entries = [...aside.querySelectorAll<HTMLElement>("a")];
+                const i = entries.indexOf(activeLink);
+                const box = aside.getBoundingClientRect();
+                const link = activeLink.getBoundingClientRect();
+                if (link.top < box.top) {
+                    const lead = (i > 0 ? entries[i - 1] : null) ?? activeLink;
+                    aside.scrollTop += lead.getBoundingClientRect().top - box.top;
+                } else if (link.bottom > box.bottom) {
+                    const lead = (i >= 0 ? entries[i + 1] : null) ?? activeLink;
+                    aside.scrollTop += lead.getBoundingClientRect().bottom - box.bottom;
+                }
+            }
         }
 
         if (active >= 0) {
