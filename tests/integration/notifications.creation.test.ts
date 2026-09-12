@@ -89,12 +89,13 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         expect(nEmailOnly.deliveries.some((d) => d.medium === 'email' && d.status === 'pending')).toBeTruthy()
         expect(nEmailOnly.deliveries.some((d) => d.medium === 'message')).toBeFalsy()
 
-        // phone user: should have proximity for A and generalInterest for B; deliveries include message
+        // phone user: should have proximity for A and generalInterest for B; the
+        // email delivery only — WhatsApp and SMS are Notis's, never a delivery here
         const nPhone = byUser('phone@example.com')
         expect(nPhone.subjects.some((s) => s.subjectId === subjectA.id && s.reason === 'proximity')).toBeTruthy()
         expect(nPhone.subjects.some((s) => s.subjectId === subjectB.id && s.reason === 'generalInterest')).toBeTruthy()
         expect(nPhone.deliveries.some((d) => d.medium === 'email' && d.status === 'pending')).toBeTruthy()
-        expect(nPhone.deliveries.some((d) => d.medium === 'message' && d.status === 'pending')).toBeTruthy()
+        expect(nPhone.deliveries.some((d) => d.medium === 'message')).toBeFalsy()
 
         // far user: only generalInterest for B
         const nFar = byUser('far@example.com')
@@ -108,30 +109,22 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         expect(nInterested.subjects.some((s) => s.subjectId === subjectB.id && s.reason === 'generalInterest')).toBeTruthy()
     })
 
-    test('respects notifyByEmail / notifyByPhone channel preferences', async () => {
+    test("respects the preference's notifyByEmail and the person's notifyByPhone", async () => {
         const city = await createCity({ id: 'c4', name_municipality: 'X', name_municipality_en: 'X' })
         const body = await createAdministrativeBody(city.id)
         const meeting = await createMeeting(city.id, { id: 'm2', administrativeBodyId: body.id })
         await createSubject(meeting.id, city.id, { id: 'sh', topicId: null, locationId: null, name: 'High' })
 
-        const uEmail = await createUser('email@example.com', { phone: '+306900000001' })
+        const uEmail = await createUser('email@example.com', { phone: '+306900000001', notifyByPhone: false })
         await createNotificationPreference({ userId: uEmail.id, cityId: city.id })
-        const uSms = await createUser('sms@example.com', { phone: '+306900000002' })
+        const uSms = await createUser('sms@example.com', { phone: '+306900000002', notifyByPhone: true })
         await createNotificationPreference({ userId: uSms.id, cityId: city.id })
-        const uNone = await createUser('none@example.com', { phone: '+306900000003' })
+        const uNone = await createUser('none@example.com', { phone: '+306900000003', notifyByPhone: false })
         await createNotificationPreference({ userId: uNone.id, cityId: city.id })
 
-        await prisma.notificationPreference.update({
-            where: { userId_cityId: { userId: uEmail.id, cityId: city.id } },
-            data: { notifyByEmail: true, notifyByPhone: false },
-        })
-        await prisma.notificationPreference.update({
-            where: { userId_cityId: { userId: uSms.id, cityId: city.id } },
-            data: { notifyByEmail: false, notifyByPhone: true },
-        })
-        await prisma.notificationPreference.update({
-            where: { userId_cityId: { userId: uNone.id, cityId: city.id } },
-            data: { notifyByEmail: false, notifyByPhone: false },
+        await prisma.notificationPreference.updateMany({
+            where: { userId: { in: [uSms.id, uNone.id] }, cityId: city.id },
+            data: { notifyByEmail: false },
         })
 
         await createNotificationsForMeeting(city.id, meeting.id, 'beforeMeeting', {
@@ -145,7 +138,9 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         const byEmail = (e: string) => notifs.find(n => n.user.email === e)!
 
         expect(byEmail('email@example.com').deliveries.map(d => d.medium).sort()).toEqual(['email'])
-        expect(byEmail('sms@example.com').deliveries.map(d => d.medium).sort()).toEqual(['message'])
+        // Phone-only: the in-app notification exists with no deliveries at all —
+        // the WhatsApp side is Notis's.
+        expect(byEmail('sms@example.com').deliveries).toEqual([])
         expect(notifs.find(n => n.user.email === 'none@example.com')).toBeUndefined()
     })
 })

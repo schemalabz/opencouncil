@@ -13,6 +13,7 @@ import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
 import { publicMeetingStage, stageSignalsFromPreview } from "@/lib/meetingStage";
+import { readerPhoneChannel } from "@/lib/notis/reader";
 
 export default async function TabsLayout(
     props: {
@@ -60,10 +61,18 @@ export default async function TabsLayout(
         // than sitting as a plain sibling.
         currentUserPromise.then(user => user ? getNotificationPreferenceForCity(user.id, cityId) : null),
     ]);
-
     if (!city) {
         notFound();
     }
+
+    // Only the subscribed card reads this, so only that card pays for it: an
+    // unread answer would still cost a request to a second service on every
+    // city page a signed-in reader opens. Not awaited — it streams into the
+    // card behind a Suspense boundary rather than holding the page.
+    const phoneChannel =
+        currentUser && notificationPreference && city.supportsNotifications
+            ? readerPhoneChannel(currentUser)
+            : Promise.resolve<boolean | null>(false);
 
     // The rail is a Client Component, so the two clock-dependent facts of a row
     // — the stage and the chip's relative time — are read here, against one
@@ -131,6 +140,7 @@ export default async function TabsLayout(
                         isSuperAdmin={isSuperAdmin}
                         hasNoData={hasNoData}
                         notificationPreference={notificationPreference}
+                        phoneChannel={phoneChannel}
                         petitionBucket={petitionBucket}
                         allMeetings={bookends(upcoming[0], past[0])}
                         councilMeetings={bookends(councilUpcoming[0], councilPast[0])}

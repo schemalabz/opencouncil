@@ -65,9 +65,10 @@ stateless playground-only mode:
 ### Bird (WhatsApp)
 
 Notis has its OWN Bird webhook subscription and signing key, separate from
-the main app's. Both subscriptions receive all conversation events during
-the rollout. Each service filters to the users it serves: notis answers
-rollout-enabled users, the main app answers everyone else. See
+the main app's. Both subscriptions receive all conversation events. Notis
+answers every reader; the main app's webhook only reconciles the delivery
+status of its own sends (the admin test-send tool). A message from a phone
+no reader has draws silence from both. See
 [docs/bird-setup.md](../../docs/bird-setup.md), "The Notis webhook
 subscription".
 
@@ -80,6 +81,13 @@ events in production and outbound sends fail with an alert:
   unmatched channel id classifies as WhatsApp.
 - `BIRD_WEBHOOK_SECRET` — the signing key of the NOTIS subscription. Do not
   reuse the main app's secret.
+- `BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION`, `BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO`,
+  `BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA`, `BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS`,
+  `BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP` (and `..._DEMOS_INTRO` for the
+  threads it opened before notis_intro existed) — the Bird project id of each
+  shell in `src/agent/templates.ts`. A shell without its id is unaddressable:
+  the poller holds the readers who need it and alerts, instead of enrolling
+  them into a thread that never opens.
 
 To exercise the inbound path locally without Bird, send a signed synthetic
 event: `npx tsx --env-file=.env scripts/send-test-webhook.ts +306990000001 "γεια σου"`.
@@ -100,9 +108,9 @@ The app spec lives in the DO dashboard, not the repo. The Notis component:
 | Health check | `GET /api/health` |
 | Domain | `notis.opencouncil.gr` |
 | Instance | smallest available (stateless, I/O-bound) |
-| Env (secret, run+build) | `ANTHROPIC_API_KEY`, `NOTIS_DATABASE_URL`, `MAIN_DATABASE_URL` |
+| Env (secret, run+build) | `ANTHROPIC_API_KEY`, `NOTIS_DATABASE_URL`, `MAIN_DATABASE_URL`, `NOTIS_SERVICE_TOKEN` (see [Subscriptions API](#subscriptions-api-service-token)) |
 | Env (build-time, plain) | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` (public token; baked at build — without it the wizard's map/address search degrades to text chips) |
-| Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL`, `MAIN_SESSION_COOKIE_NAME`, `BIRD_API_KEY`, `BIRD_WORKSPACE_ID`, `BIRD_WHATSAPP_CHANNEL_ID`, `BIRD_SMS_CHANNEL_ID`, `BIRD_WEBHOOK_SECRET` (see [Bird](#bird-whatsapp)) |
+| Env (optional) | `NOTIS_MCP_URL` (defaults to `https://opencouncil.gr/mcp`), `OPENCOUNCIL_BASE_URL`, `MAIN_SESSION_COOKIE_NAME`, `BIRD_API_KEY`, `BIRD_WORKSPACE_ID`, `BIRD_WHATSAPP_CHANNEL_ID`, `BIRD_SMS_CHANNEL_ID`, `BIRD_WEBHOOK_SECRET`, the `BIRD_WHATSAPP_TEMPLATE_*` project ids (see [Bird](#bird-whatsapp)) |
 | Env (operational, set it) | `NOTIS_ALERT_WEBHOOK_URL` — Discord webhook for janitor refusals, queue give-ups and poller failures; without it those alarms only reach the logs |
 
 Same branch wiring as the main component: `production` branch → production,
@@ -122,8 +130,9 @@ runs at the root and ignores `services/`.
 
 ## Admin auth (shared cookie)
 
-`/admin/*` and `/api/*` (minus health) authenticate with the main app's
-session. The main app mirrors a **SHA-256 of** the Auth.js session token into
+`/admin/*` and `/api/*` (minus health, the Bird webhook and the
+[subscriptions API](#subscriptions-api-service-token)) authenticate with the
+main app's session. The main app mirrors a **SHA-256 of** the Auth.js session token into
 a domain-scoped cookie (`__Secure-oc-session`, staging `-staging`-suffixed,
 `Domain` set by `SESSION_COOKIE_DOMAIN` on the main app) — set and cleared on
 the Auth.js responses that write the session cookie, refreshed on page
@@ -149,20 +158,47 @@ override the suffix, set Notis's `MAIN_SESSION_COOKIE_NAME` to match. The
 main-DB migration needs the `pgcrypto` extension (created by the migration
 itself).
 
+## Subscriptions API (service token)
+
+The main app's profile switch («Ο Νότης στο WhatsApp») reads and flips a
+reader's subscription through `GET|PATCH /api/subscriptions/{userId}`,
+called server-side with `Authorization: Bearer $NOTIS_SERVICE_TOKEN` — the
+same value on both components, at least 32 characters. `requireService()`
+compares it in constant time and answers 503 while the variable is unset,
+so a deployment that forgot the secret exposes nothing. The edge proxy lets
+a bearer request through on this prefix only; the auth-guard test keeps
+`requireService()` from spreading to any other route.
+
+- `GET` → `{ subscription: null | { status, phone, origin, unsubscribedAt,
+  createdAt } }`.
+- `PATCH { status: "unsubscribed" }` on an active reader runs the same
+  ceremony as ΣΤΟΠ (status flip, pending outbound suppressed, open
+  commitments resolved) and records a system decision. Already unsubscribed,
+  or no subscription: a no-op.
+- `PATCH { status: "active" }` on an unsubscribed reader reactivates the row
+  with the number the main database holds now (409 `phone_empty` /
+  `phone_invalid` / `phone_not_mobile` / `phone_in_use` when it cannot) and
+  records a system decision. **Nothing is sent** — the next relevant meeting
+  reopens the thread with its own template. A reader with no subscription
+  gets `{ subscription: null, next: "poller" }`: the main app has set
+  `notifyByPhone`, and the poller enrolls them with the right intro on its
+  next tick.
+
+Notis owns the status (schema.prisma); the main app is a client that asks
+for a state on the reader's explicit action.
+
 ## Known gaps (tracked for later PRs)
 
-- **A ΣΤΟΠ from a notis-served reader is recorded in notis only.** That is the
-  intended end state (PRD §2.1), and it is safe while `notisEnabledAt` is set,
-  because the matching engine skips those users. Clearing the flag is what
-  bites: the old path sees `notifyByPhone: true` and resumes messaging someone
-  who asked to be left alone, and the release panel shows no sign they ever
-  sent ΣΤΟΠ. PRD §9 promises narrowing never unsubscribes anyone — this is the
-  mirror case. Deferred to the rollout PRs, where the profile checkbox becomes
-  a client of the notis API and one place can answer "is this reader
-  subscribed"; adding a second copy of the opt-out here would re-create the
-  divergence that copy was collapsed to avoid. Until then, treat clearing the
-  flag for an individual as an action that needs a look at their notis
-  subscription first.
+- **notifyByPhone is the reader's request; the subscription status is the
+  truth.** ΣΤΟΠ writes only this database, so a reader who said it still
+  carries `User.notifyByPhone: true` in the main one (one request per
+  reader, repeated on every row of the view). Every page of the main app
+  shows what this API says and falls back to the flag only for a reader
+  Notis has not met; both flips of the switch ask this API first and write
+  the flag after a confirmed answer. The flag gates enrollment and the
+  proactive audience but never re-activates anyone — only the switch does,
+  through the subscriptions API. `User.notisEnabledAt` and its two view columns are
+  unread since PR 5 and go with a view-recreating migration in PR 6.
 
 - **The wake trace shares a table with the wake's scalars.** `NotisWake.trace`
   is one Json value of a few hundred KB — the system prompt, the rendered user

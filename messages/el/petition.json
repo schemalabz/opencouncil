@@ -1,0 +1,61 @@
+{
+  "metaTitle": "Φέρε το OpenCouncil στον δήμο σου | OpenCouncil",
+  "metaDescription": "Ζήτησε να μπει ο δήμος σου στο OpenCouncil. Το όνομά σου μετράει όταν του μιλάμε.",
+  "eyebrow": "Αίτημα",
+  "pickerTitle": "Φέρε το OpenCouncil στον δήμο σου",
+  "pickerLead": "Όσο περισσότεροι το ζητούν, τόσο πιο εύκολα μπαίνει ένας δήμος. Το όνομά σου μετράει όταν του μιλάμε.",
+  "pickerEyebrow": "Βρες τον δήμο σου",
+  "pickerHint": "Δύο βήματα, ένα λεπτό.",
+  "whatYouGet": "Αυτό θα λαμβάνεις όταν ο δήμος σου μπει.",
+  "introTitle": {
+    "municipality": "Ο δήμος {qualifier} δεν είναι ακόμα στο OpenCouncil",
+    "region": "Η περιφέρεια {qualifier} δεν είναι ακόμα στο OpenCouncil"
+  },
+  "lead": "Ζήτησέ το. Όσο περισσότεροι το ζητούν, τόσο πιο εύκολα μπαίνει ένας δήμος, και το όνομά σου μετράει όταν του μιλάμε.",
+  "notInNetwork": "Δεν είναι ακόμα στο OpenCouncil",
+  "pricingNote": "Έχουμε εμπορική δραστηριότητα με τους δήμους που συνεργαζόμαστε. Οι τιμές μας είναι δημόσιες στο <link>opencouncil.gr/about</link>.",
+  "introNote": "Το όνομά σου το χρησιμοποιούμε μόνο όταν μιλάμε με τον δήμο, ως δημότη που το θέλει.",
+  "alreadyRequestedBody": "Το έχεις ήδη ζητήσει — ευχαριστούμε. Στο επόμενο βήμα ενημερώνεις τα στοιχεία σου.",
+  "ctaStart": "Θέλω το OpenCouncil στον δήμο μου",
+  "ctaUpdate": "Ενημέρωση στοιχείων",
+  "ctaSubmit": "Υποβολή αιτήματος",
+  "ctaSubmitting": "Αποστολή…",
+  "formTitle": "Ποιος το ζητάει;",
+  "formLead": "Το όνομά σου, ως δημότη που θέλει το OpenCouncil στον δήμο του.",
+  "relationTitle": {
+    "municipality": "Ποια είναι η σχέση σου με τον δήμο;",
+    "region": "Ποια είναι η σχέση σου με την περιφέρεια;"
+  },
+  "relationEyebrow": {
+    "municipality": "Η σχέση σου με τον δήμο",
+    "region": "Η σχέση σου με την περιφέρεια"
+  },
+  "relationHint": "Διάλεξε ό,τι ισχύει.",
+  "isResident": "Είμαι κάτοικος",
+  "isResidentHint": {
+    "municipality": "Μένω στον δήμο.",
+    "region": "Μένω στην περιφέρεια."
+  },
+  "isCitizen": "Είμαι δημότης",
+  "isCitizenHint": {
+    "municipality": "Ψηφίζω στον δήμο.",
+    "region": "Ψηφίζω στην περιφέρεια."
+  },
+  "isOther": "Άλλο",
+  "isOtherHint": "Πες το με δυο λόγια.",
+  "otherPlaceholder": "Είμαι παραθεριστής",
+  "accountHint": "Για να σου γράψουμε όταν ο δήμος μπει.",
+  "phoneHint": "προαιρετικό",
+  "consent": "Θα σου γράψουμε μόνο για την πορεία του αιτήματος.",
+  "doneTitle": "Ευχαριστούμε — το αίτημά σου καταγράφηκε",
+  "doneTitleUpdated": "Τα στοιχεία σου ενημερώθηκαν",
+  "doneLead": {
+    "municipality": "Θα σου γράψουμε όταν ο δήμος {qualifier} μπει στο OpenCouncil.",
+    "region": "Θα σου γράψουμε όταν η περιφέρεια {qualifier} μπει στο OpenCouncil."
+  },
+  "meanwhileEyebrow": "Στο μεταξύ",
+  "meanwhileExplain": "Πώς δουλεύει το OpenCouncil",
+  "meanwhileExplainHint": "Τι βλέπεις για έναν δήμο που είναι ήδη μέσα",
+  "meanwhileOther": "Ζήτησέ το και για άλλον δήμο",
+  "meanwhileOtherHint": "Εκεί που δουλεύεις, εκεί που μεγάλωσες"
+}

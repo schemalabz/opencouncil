@@ -826,10 +826,15 @@ model User {
   allowProductUpdates  Boolean  @default(true)
   allowPetitionUpdates Boolean  @default(false)
   allowFeedbackCalls   Boolean  @default(true)
+  /// WhatsApp/SMS consent, one per person: Νότης is one conversation, not
+  /// one per municipality. The signup's card and the profile switch write it;
+  /// the notis_fanout_targets view carries it on every row.
+  notifyByPhone        Boolean  @default(true)
   isSuperAdmin  Boolean         @default(false)
-  // Notis rollout flag: null = old WhatsApp/SMS notification path. Set from
-  // the /admin release panel; Notis reads it through the notis_* views and
-  // enrolls the user on its next poll. Nulling it sends them back.
+  // The retired Notis rollout flag. Unread since PR 5 (every reader is
+  // served by Notis); the notis_users and notis_fanout_targets views still
+  // carry it, so it goes with a view-recreating migration in PR 6 rather
+  // than while the previous Notis build may still be polling those views.
   notisEnabledAt DateTime?
   accounts      Account[]
   sessions      Session[]
@@ -1034,7 +1039,9 @@ model Petition {
   // Fields from PRD
   is_resident Boolean @default(false)
   is_citizen Boolean @default(false)
-  
+  /// The reader's own words for a relation that is neither («Είμαι παραθεριστής»).
+  other_relation String?
+
   @@unique([userId, cityId])
   @@index([userId])
   @@index([cityId])
@@ -1052,9 +1059,8 @@ model NotificationPreference {
   city      City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId    String
   
-  // Channel preferences
+  // The email summary, per municipality. The phone channel is the person's (User.notifyByPhone).
   notifyByEmail Boolean @default(true)
-  notifyByPhone Boolean @default(true)
 
   // Many-to-many relations with locations and topics/interests
   locations Location[] @relation("NotificationLocation")

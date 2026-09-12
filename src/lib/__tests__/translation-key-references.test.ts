@@ -268,7 +268,14 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         group: 'Subject.proximityImportance.',
         why: 'the column is a plain String? in the Prisma schema; the values live in a comment',
     },
-    { group: 'Onboarding.errors.', why: 'the error reaches the component as string | null; no type states the set' },
+    {
+        group: 'signup.issues.',
+        members: { file: 'src/components/signup/signup-shared.ts', type: 'SignupIssue' },
+    },
+    {
+        group: 'signup.errors.',
+        why: "saveErrorKey maps the save actions' string codes; no type states the set, and the group also holds the literal signIn leaf",
+    },
     { group: 'Profile.admin', why: 'the leaf is an object key (city/party/person) capitalised in place' },
     {
         group: 'reviews.completeDialog.runSummarize.unavailable.',

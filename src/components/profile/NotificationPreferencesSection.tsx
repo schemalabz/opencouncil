@@ -15,6 +15,7 @@ import { CityComboboxItem } from '@/components/cities/CityComboboxItem';
 import { Link } from '@/i18n/routing';
 import { format } from 'date-fns';
 import { getDateFnsLocale } from '@/lib/formatters/time';
+import { NotisSwitch } from './NotisSwitch';
 
 interface CitySelectorProps {
     label: string;
@@ -97,7 +98,6 @@ interface NotificationPreference {
         name_municipality: string;
     };
     notifyByEmail: boolean;
-    notifyByPhone: boolean;
     locations: Array<{
         id: string;
         text: string;
@@ -228,9 +228,11 @@ export function NotificationPreferencesSection() {
         }
     };
 
+    // Email is the only per-city channel left: WhatsApp is one switch for the
+    // whole account (NotisSwitch), because Νότης is one conversation.
     const updateChannels = async (
         preferenceId: string,
-        changes: Partial<Pick<NotificationPreference, 'notifyByEmail' | 'notifyByPhone'>>,
+        changes: Pick<NotificationPreference, 'notifyByEmail'>,
     ) => {
         const previous = preferences.find(p => p.id === preferenceId);
         setPreferences(prev =>
@@ -252,7 +254,7 @@ export function NotificationPreferencesSection() {
             if (previous) {
                 setPreferences(prev =>
                     prev.map(p => p.id === preferenceId
-                        ? { ...p, notifyByEmail: previous.notifyByEmail, notifyByPhone: previous.notifyByPhone }
+                        ? { ...p, notifyByEmail: previous.notifyByEmail }
                         : p)
                 );
             }
@@ -284,6 +286,7 @@ export function NotificationPreferencesSection() {
     if (preferences.length === 0) {
         return (
             <div className="space-y-4">
+                <NotisSwitch hasPreferences={false} />
                 <p className="text-sm text-muted-foreground">
                     {t('noPreferencesDescription')}
                 </p>
@@ -296,26 +299,28 @@ export function NotificationPreferencesSection() {
         );
     }
 
-    const allDisabled = preferences.every(p => !p.notifyByEmail && !p.notifyByPhone);
+    const allDisabled = preferences.every(p => !p.notifyByEmail);
 
     const disableAll = async () => {
-        const toDisable = preferences.filter(p => p.notifyByEmail || p.notifyByPhone);
+        const toDisable = preferences.filter(p => p.notifyByEmail);
         if (toDisable.length === 0) return;
         await Promise.all(
-            toDisable.map(p => updateChannels(p.id, { notifyByEmail: false, notifyByPhone: false }))
+            toDisable.map(p => updateChannels(p.id, { notifyByEmail: false }))
         );
     };
 
     const enableAll = async () => {
-        const toEnable = preferences.filter(p => !p.notifyByEmail || !p.notifyByPhone);
+        const toEnable = preferences.filter(p => !p.notifyByEmail);
         if (toEnable.length === 0) return;
         await Promise.all(
-            toEnable.map(p => updateChannels(p.id, { notifyByEmail: true, notifyByPhone: true }))
+            toEnable.map(p => updateChannels(p.id, { notifyByEmail: true }))
         );
     };
 
     return (
         <div className="space-y-8">
+            <NotisSwitch hasPreferences />
+
             {/* Preferences table */}
             <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between gap-2">
@@ -362,26 +367,15 @@ export function NotificationPreferencesSection() {
                                 )}
                             </div>
                             <div className="flex flex-col justify-between pt-1 gap-5">
-                                <div className="flex flex-col gap-4">
-                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-                                        <Checkbox
-                                            checked={pref.notifyByEmail}
-                                            onCheckedChange={(checked) =>
-                                                updateChannels(pref.id, { notifyByEmail: checked as boolean })
-                                            }
-                                        />
-                                        <Mail className="h-3 w-3" /> {t('notifyByEmail')}
-                                    </label>
-                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-                                        <Checkbox
-                                            checked={pref.notifyByPhone}
-                                            onCheckedChange={(checked) =>
-                                                updateChannels(pref.id, { notifyByPhone: checked as boolean })
-                                            }
-                                        />
-                                        <Phone className="h-3 w-3" /> {t('notifyBySms')}
-                                    </label>
-                                </div>
+                                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                                    <Checkbox
+                                        checked={pref.notifyByEmail}
+                                        onCheckedChange={(checked) =>
+                                            updateChannels(pref.id, { notifyByEmail: checked as boolean })
+                                        }
+                                    />
+                                    <Mail className="h-3 w-3" /> {t('notifyByEmail')}
+                                </label>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="outline" size="sm" className="gap-1 bg-gray-100">
@@ -420,11 +414,8 @@ export function NotificationPreferencesSection() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>{t('municipality')}</TableHead>
-                                    <TableHead className="text-center w-16">
-                                        <span className="flex items-center justify-center gap-1">{t('notifyByEmail')}</span>
-                                    </TableHead>
                                     <TableHead className="text-center w-20">
-                                        <span className="flex items-center justify-center gap-1">{t('notifyBySms')}</span>
+                                        <span className="flex items-center justify-center gap-1">{t('notifyByEmail')}</span>
                                     </TableHead>
                                     <TableHead className="text-center w-20">
                                         <span className="flex items-center justify-center gap-1">{t('actions')}</span>
@@ -470,14 +461,6 @@ export function NotificationPreferencesSection() {
                                                 checked={pref.notifyByEmail}
                                                 onCheckedChange={(checked) =>
                                                     updateChannels(pref.id, { notifyByEmail: checked as boolean })
-                                                }
-                                            />
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <Checkbox
-                                                checked={pref.notifyByPhone}
-                                                onCheckedChange={(checked) =>
-                                                    updateChannels(pref.id, { notifyByPhone: checked as boolean })
                                                 }
                                             />
                                         </TableCell>

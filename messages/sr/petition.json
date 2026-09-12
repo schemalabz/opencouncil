@@ -1,0 +1,61 @@
+{
+  "metaTitle": "Доведите OpenCouncil у своју општину | OpenCouncil",
+  "metaDescription": "Затражите да се ваша општина придружи OpenCouncil-у. Ваше име се рачуна када разговарамо са њом.",
+  "eyebrow": "Захтев",
+  "pickerTitle": "Доведите OpenCouncil у своју општину",
+  "pickerLead": "Што више људи тражи, општина се лакше придружује. Ваше име се рачуна када разговарамо са њом.",
+  "pickerEyebrow": "Пронађите своју општину",
+  "pickerHint": "Два корака, један минут.",
+  "whatYouGet": "Ово ћете добијати када се ваша општина придружи.",
+  "introTitle": {
+    "municipality": "Општина {qualifier} још није на OpenCouncil-у",
+    "region": "Регион {qualifier} још није на OpenCouncil-у"
+  },
+  "lead": "Затражите то. Што више људи тражи, општина се лакше придружује, а ваше име се рачуна када разговарамо са њом.",
+  "notInNetwork": "Још није на OpenCouncil-у",
+  "pricingNote": "Комерцијално сарађујемо са општинама које опслужујемо. Наше цене су јавне на <link>opencouncil.gr/about</link>.",
+  "introNote": "Ваше име користимо само када разговарамо са општином, као становника који то жели.",
+  "alreadyRequestedBody": "Већ сте затражили — хвала. У следећем кораку ажурирате своје податке.",
+  "ctaStart": "Желим OpenCouncil у својој општини",
+  "ctaUpdate": "Ажурирај податке",
+  "ctaSubmit": "Пошаљи захтев",
+  "ctaSubmitting": "Слање…",
+  "formTitle": "Ко тражи?",
+  "formLead": "Ваше име, као становника који жели OpenCouncil у својој општини.",
+  "relationTitle": {
+    "municipality": "Каква је ваша веза са општином?",
+    "region": "Каква је ваша веза са регионом?"
+  },
+  "relationEyebrow": {
+    "municipality": "Ваша веза са општином",
+    "region": "Ваша веза са регионом"
+  },
+  "relationHint": "Изаберите шта важи.",
+  "isResident": "Становник сам",
+  "isResidentHint": {
+    "municipality": "Живим у општини.",
+    "region": "Живим у региону."
+  },
+  "isCitizen": "Уписан сам у бирачки списак",
+  "isCitizenHint": {
+    "municipality": "Гласам у општини.",
+    "region": "Гласам у региону."
+  },
+  "isOther": "Друго",
+  "isOtherHint": "Реците у пар речи.",
+  "otherPlaceholder": "Овде проводим лета",
+  "accountHint": "Да вам пишемо када се општина придружи.",
+  "phoneHint": "необавезно",
+  "consent": "Писаћемо вам само о захтеву.",
+  "doneTitle": "Хвала — ваш захтев је забележен",
+  "doneTitleUpdated": "Ваши подаци су ажурирани",
+  "doneLead": {
+    "municipality": "Писаћемо вам када се општина {qualifier} придружи OpenCouncil-у.",
+    "region": "Писаћемо вам када се регион {qualifier} придружи OpenCouncil-у."
+  },
+  "meanwhileEyebrow": "У међувремену",
+  "meanwhileExplain": "Како ради OpenCouncil",
+  "meanwhileExplainHint": "Шта видите за општину која је већ унутра",
+  "meanwhileOther": "Затражите и за другу општину",
+  "meanwhileOtherHint": "Тамо где радите, тамо где сте одрасли"
+}

@@ -86,11 +86,13 @@ export const env = createEnv({
     DEPLOYMENT_ENV: z.enum(['development', 'preview', 'staging', 'production'])
         .default(process.env.NODE_ENV === 'development' ? 'development' : 'production'),
 
-    // Whether a reader who does not yet get notifications is invited to. Off
-    // everywhere until the rollout says otherwise, so the card shows only to
-    // people who already subscribed. Temporary: the PR that turns the invite on
-    // for good deletes this variable and its reads.
-    SHOW_NOTIS_PROMO: z.enum(['true', 'false']).default('false'),
+    // The Notis service (services/notis), which this app calls server-side
+    // on a reader's behalf: the profile switch reads and flips their
+    // subscription through /api/subscriptions/{userId}. Both optional — a
+    // deployment without them shows the switch as unavailable and still
+    // writes notifyByPhone, which is what the poller enrolls on.
+    NOTIS_API_URL: z.string().url().optional(),
+    NOTIS_SERVICE_TOKEN: z.string().optional(),
 
     // Discord Admin Alerts
     DISCORD_WEBHOOK_URL: z.string().url().optional(),
@@ -171,7 +173,8 @@ export const env = createEnv({
     ELASTICSEARCH_API_KEY: process.env.ELASTICSEARCH_API_KEY,
     ELASTICSEARCH_INDEX: process.env.ELASTICSEARCH_INDEX,
     DEPLOYMENT_ENV: process.env.DEPLOYMENT_ENV,
-    SHOW_NOTIS_PROMO: process.env.SHOW_NOTIS_PROMO,
+    NOTIS_API_URL: process.env.NOTIS_API_URL,
+    NOTIS_SERVICE_TOKEN: process.env.NOTIS_SERVICE_TOKEN,
     DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL,
     BIRD_API_KEY: process.env.BIRD_API_KEY,
     BIRD_WORKSPACE_ID: process.env.BIRD_WORKSPACE_ID,

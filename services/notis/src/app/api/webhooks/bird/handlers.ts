@@ -3,17 +3,13 @@ import type { WakeEvent } from "@/agent/types";
 import { alert as sendAlert } from "@/lib/alert";
 import { BirdLike } from "@/lib/bird";
 import { ExtractedMessageFields } from "@/lib/bird-extract";
-import { citiesForUser, findEnabledUserByPhone } from "@/lib/fanout";
+import { citiesForUser, findUserByPhone } from "@/lib/fanout";
 import { hasMainDb, mainDb } from "@/lib/main-db";
 import { normalizePhone } from "@/lib/phone";
-import {
-  maybeSendSmsFallback,
-  sendPendingMessages,
-  sendSmsAndRecord,
-  suppressPendingOutbound,
-} from "@/lib/queue";
+import { maybeSendSmsFallback, sendPendingMessages, sendSmsAndRecord } from "@/lib/queue";
 import { enqueueLiveWake } from "@/lib/queue-core";
 import { STOP_ALREADY_TEXT, STOP_CONFIRMATION_TEXT, isBareStop } from "@/lib/stop";
+import { markUnsubscribed } from "@/lib/subscription";
 import type {
   MessageStatus,
   NotisMessage,
@@ -25,10 +21,10 @@ import type {
 /**
  * The webhook's routing decisions, separated from the HTTP shell so tests
  * drive them with fakes. Two subscriptions (main app + notis) receive every
- * Bird conversation event during rollout; this side serves ONLY rollout-
- * enabled users and stays silent for everyone else — the main app's webhook
- * still answers old-path users and unknown numbers, and one inbound message
- * must never draw two replies.
+ * Bird conversation event; this side answers every reader, and the main
+ * app's webhook only reconciles the status of its own sends (the admin
+ * test-send tool). A stranger's message — a phone no reader has — draws
+ * silence from both, by design.
  */
 
 export interface HandlerDeps {
@@ -148,6 +144,14 @@ export async function handleOutboundStatus(
         await webhookAlert(deps.alert)(
           `SMS delivery failed for message ${existing.id}: ${fields.failureReason ?? "unknown error"}`,
         );
+      } else if (isMetaThrottleFailure(fields.failureReason)) {
+        // Meta throttled the NUMBER, not this reader: the message was never
+        // refused for them, and a rate limit answered with a seven-segment
+        // SMS per reader is the wrong lever. The operator hears about it;
+        // the reader gets the next message.
+        await webhookAlert(deps.alert)(
+          `WhatsApp throttled message ${existing.id} (${fields.failureReason}) — no SMS fallback; slow the sends down`,
+        );
       } else {
         // Any terminal WhatsApp failure — template news OR a freeform reply
         // — continues over SMS: the conversation's second leg.
@@ -161,11 +165,22 @@ export async function handleOutboundStatus(
 
 
 /**
+ * Meta's rate-limit outcomes, by the codes Bird relays in the failure text:
+ * 130429 (throughput), 131048 (spam rate limit), 131056 (pair rate limit).
+ */
+const META_THROTTLE_CODES = ["130429", "131048", "131056"];
+
+export function isMetaThrottleFailure(reason: string | null | undefined): boolean {
+  if (!reason) return false;
+  return META_THROTTLE_CODES.some((code) => reason.includes(code)) || /rate limit/i.test(reason);
+}
+
+/**
  * Inbound SMS for a phone notis serves. SMS exists here because our own
  * fallback footer says «ΣΤΟΠ για διακοπή» — so ΣΤΟΠ must work over SMS,
  * and any other reply deserves the agent, not a void. No enrollment on SMS
  * contact: an eligible first message enrolls via WhatsApp, never here.
- * Unknown phones stay ignored — the main app's webhook owns them.
+ * Unknown phones stay ignored.
  */
 export async function handleSmsInbound(
   fields: ExtractedMessageFields,
@@ -182,9 +197,9 @@ export async function handleSmsInbound(
   if (duplicate) return { action: "ignored", reason: "duplicate birdMessageId" };
 
   const found = await findSubscriptionByPhone(db, fields.phone);
-  if (!found) return { action: "ignored", reason: "sms from a phone notis does not serve" };
-  // The same gate as WhatsApp: a rolled-back user or a reassigned number
-  // must not be agent-served — or unsubscribed by a stranger — over SMS.
+  if (!found) return { action: "ignored", reason: "sms from an unknown phone" };
+  // The same gate as WhatsApp: a reassigned number must not be agent-served
+  // — or unsubscribed by a stranger — over SMS.
   const gated = await gateExistingSubscription(db, found, fields.phone);
   if ("ignored" in gated) {
     return { action: "ignored", reason: gated.ignored };
@@ -227,12 +242,11 @@ export async function handleSmsInbound(
 }
 
 /**
- * The main-DB gate for an EXISTING subscription, channel-agnostic: a
- * rolled-back user (notisEnabledAt cleared) is the main app's again, and a
- * number the user no longer owns is not the user — on WhatsApp or SMS.
- * Returns the (possibly phone-canonicalized) subscription or the ignore
- * reason. Fails open when the main DB is unreachable: dropping a served
- * reader's message is worse than a rare double answer during an outage.
+ * The main-DB gate for an EXISTING subscription, channel-agnostic: a number
+ * the user no longer owns is not the user — on WhatsApp or SMS. Returns the
+ * (possibly phone-canonicalized) subscription or the ignore reason. Fails
+ * open when the main DB is unreachable: dropping a served reader's message
+ * is worse than a rare wrong answer during an outage.
  */
 async function gateExistingSubscription(
   db: PrismaClient,
@@ -242,16 +256,14 @@ async function gateExistingSubscription(
   if (!hasMainDb()) return { sub };
   const user = await mainDb().notisUserRow.findUnique({
     where: { id: sub.userId },
-    select: { notisEnabledAt: true, phone: true },
+    select: { phone: true },
   });
-  if (!user?.notisEnabledAt) {
-    return { ignored: "user rolled back to the old path" };
-  }
+  // A deleted account: the janitor purges the subscription; until then its
+  // old number is nobody's.
+  if (!user) return { ignored: "user no longer exists" };
   // A number this reader no longer owns is not this reader. After a phone
-  // change, the OLD number still matches the stored subscription here while
-  // the main app's gate (which looks up User.phone) misses — treat it like
-  // a rollback and stay silent; the new number self-heals through the
-  // enrollment upsert.
+  // change, the OLD number still matches the stored subscription here —
+  // stay silent; the new number self-heals through the enrollment upsert.
   const current = normalizePhone(user.phone);
   if (current && current !== normalizePhone(phone)) {
     return { ignored: "message from a number the user no longer has" };
@@ -279,9 +291,9 @@ async function findSubscriptionByPhone(
   });
 }
 
-/** Enroll a rollout-enabled user on their first inbound message: subscription
- *  with origin `inbound`, profile seeded exactly as migration will seed it.
- *  No transition template — they opened the conversation themselves.
+/** Enroll a reader on their first inbound message: subscription with origin
+ *  `inbound`, profile seeded exactly as the poller would seed it. No intro
+ *  template — they opened the conversation themselves.
  *
  *  Upsert on userId, not create: the serve-or-enroll decision is phone-keyed,
  *  so a user whose main-app phone changed after enrollment lands here with a
@@ -293,7 +305,7 @@ async function enrollFromInbound(
   fields: ExtractedMessageFields,
 ): Promise<NotisSubscription | null> {
   if (!hasMainDb()) return null;
-  const user = await findEnabledUserByPhone(fields.phone!);
+  const user = await findUserByPhone(fields.phone!);
   if (!user) return null;
 
   const cities = await citiesForUser(user.id);
@@ -341,24 +353,10 @@ async function handleBareStop(
         birdMessageId: fields.birdMessageId,
       },
     });
-    // Always touched: updatedAt is the conversation list's activity sort key.
-    await tx.notisSubscription.update({
-      where: { id: sub.id },
-      data: {
-        updatedAt: at,
-        ...(alreadyUnsubscribed ? {} : { status: "unsubscribed" as const, unsubscribedAt: at }),
-      },
-    });
-    // Nothing queued may outlive a ΣΤΟΠ. The confirmation reply is created
+    // The state flip and its cleanup. The confirmation reply is created
     // below, after this statement, so it is the one outbound row that
-    // survives.
-    await suppressPendingOutbound(tx, sub.id);
-    // Promises die with the subscription too, or the panel shows live
-    // commitments to someone who left.
-    await tx.notisCommitment.updateMany({
-      where: { subscriptionId: sub.id, resolvedAt: null },
-      data: { resolvedAt: at },
-    });
+    // survives the suppression.
+    await markUnsubscribed(tx, sub, { at });
     // A model-less wake row records the decision (the reader's text lives on
     // the inbound message row, the reply on its own row below — this is only
     // the "what happened and why"). model/trace stay null: no model ran.
@@ -457,13 +455,13 @@ export async function handleInbound(
   if (!sub) {
     sub = await enrollFromInbound(db, fields);
     if (!sub) {
-      // Old-path user or unknown number: the main app's webhook answers
-      // them; a second reply from here would double up.
-      return { action: "ignored", reason: "not a notis-served phone" };
+      // A phone no reader has. Silence, on purpose: there is nobody to
+      // serve and nothing to promise.
+      return { action: "ignored", reason: "unknown phone" };
     }
   } else {
-    // The gate holds for EXISTING subscriptions too: answering a
-    // rolled-back user here as well as in the main app would double-reply.
+    // The gate holds for EXISTING subscriptions too: a number the reader no
+    // longer owns must not be answered as the reader.
     const gated = await gateExistingSubscription(db, sub, fields.phone);
     if ("ignored" in gated) {
       return { action: "ignored", reason: gated.ignored };

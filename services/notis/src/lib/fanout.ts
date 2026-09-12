@@ -81,17 +81,18 @@ export async function citiesForUsers(
 }
 
 /**
- * The inbound gate: the rollout-enabled user this phone belongs to, or null.
+ * The inbound gate: the user this phone belongs to, or null for a stranger.
  * Stored phone formats are mixed (E.164-ish with or without '+'), so the
  * lookup tolerates both — same approach as the main app's message queries.
+ * Two accounts can share a number (the main app only refuses that on new
+ * writes); the oldest one is the original, so the pick is the same every
+ * time rather than whatever row the planner returns first.
  */
-export async function findEnabledUserByPhone(phone: string) {
+export async function findUserByPhone(phone: string) {
   const normalized = normalizePhone(phone);
   if (!normalized) return null;
   return mainDb().notisUserRow.findFirst({
-    where: {
-      phone: { in: [normalized, normalized.slice(1)] },
-      notisEnabledAt: { not: null },
-    },
+    where: { phone: { in: [normalized, normalized.slice(1)] } },
+    orderBy: { createdAt: "asc" },
   });
 }

@@ -1,6 +1,6 @@
 # Bird Messaging Setup (WhatsApp + SMS)
 
-This guide walks you through configuring [Bird](https://bird.com) for OpenCouncil's notification system: **outbound** WhatsApp/SMS (meeting reminders, welcome messages) and **inbound** WhatsApp replies (the unsubscribe-by-reply flow). By the end you'll have all the `BIRD_*` environment variables filled in and a local ngrok tunnel that lets Bird POST inbound events back to your machine.
+This guide walks you through configuring [Bird](https://bird.com) for OpenCouncil's messaging. The Notis service (`services/notis`) sends every WhatsApp and SMS message to readers, and it answers every reply. The main app keeps its Bird configuration for its webhook handler, which reconciles the delivery status of the messages the app sent before the switch to Notis, and for the admin conversation pages. Both components share one Bird workspace, so most steps below apply to both. The Notis-specific parts are in [the Notis section](#the-notis-webhook-subscription) and in [`services/notis/README.md`](../services/notis/README.md). By the end you'll have all the `BIRD_*` environment variables filled in and a local ngrok tunnel that lets Bird POST inbound events back to your machine.
 
 For the canonical list of variables and their default values, see [`.env.example`](../.env.example) and [`environment-variables.md`](./environment-variables.md).
 
@@ -42,13 +42,13 @@ The channel is what Bird uses to deliver WhatsApp messages and receive inbound r
 
 Repeat Step 2 picking **SMS** instead. Only needed if you want SMS fallback for users without WhatsApp.
 
-> ⚠️ **Inbound SMS is not supported by OpenCouncil.** Bird does support it, but it requires extra account setup (see [Receiving inbound SMS](https://docs.bird.com/connectivity-platform/receiving-sms/setting-your-account-up-to-receive-inbound-sms)) and OpenCouncil's webhook handler currently only routes inbound WhatsApp through the unsubscribe flow. SMS in OpenCouncil is outbound-only.
+> Inbound SMS requires extra account setup on Bird's side (see [Receiving inbound SMS](https://docs.bird.com/connectivity-platform/receiving-sms/setting-your-account-up-to-receive-inbound-sms)). The Notis service receives inbound SMS through the same webhook events as WhatsApp. The main app's webhook handler ignores every inbound message.
 
 Copy the channel ID into `BIRD_SMS_CHANNEL_ID`.
 
 ## Step 4: Create the WhatsApp templates
 
-WhatsApp Business restricts outbound messages outside a 24-hour reply window to **pre-approved templates**. OpenCouncil uses three:
+WhatsApp Business restricts outbound messages outside a 24-hour reply window to **pre-approved templates**. The three templates below belong to the main app's legacy sender. The main app sends none of them since the switch to Notis; the variables stay until the sender code is removed. The templates that readers receive belong to the Notis service. [`services/notis/README.md`](../services/notis/README.md) lists them and their variables.
 
 | Env var | Used for | Variables it must accept |
 |---|---|---|
@@ -104,7 +104,7 @@ BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING=<uuid>
 BIRD_WEBHOOK_SECRET=<openssl-output-from-step-6>
 ```
 
-At this point **outbound** sends will work — you can use the admin `/conversations` page to fire test WhatsApp messages and they'll reach a real phone. **Inbound** still requires the next two steps.
+At this point the main app can reconcile outbound delivery statuses. It sends no messages to readers: the meeting test-send on the admin conversation page reports that Notis serves WhatsApp and SMS. The page's raw test tools (a template, an SMS, a reply) still send through the main app's Bird client until the sender is removed. To exercise a real reader's thread, run the Notis service with the same Bird variables and use its playground. **Inbound** still requires the next two steps.
 
 ## Step 8: Expose the webhook locally with ngrok
 
@@ -152,18 +152,9 @@ Bird needs a publicly reachable URL to POST inbound events to. In production tha
 
 > The two events together cover the inbound path: `conversation.created` fires when a contact replies to one of your messages for the first time, `conversation.updated` fires for every subsequent message in that thread (which is where the inbound WhatsApp body and unsubscribe-detection logic actually run).
 
-## Step 10: Verify the full inbound path
+## Step 10: Verify the inbound path
 
-1. Open `http://localhost:3000/admin/conversations` (you need to be logged in as an admin).
-2. Click **Send test message** and pick one of the templates (e.g. welcome). Send it to a phone number you control that has WhatsApp installed.
-3. On that phone, reply to the message — try `STOP` to exercise the unsubscribe flow.
-4. Watch your dev server logs. A successful inbound looks like:
-
-   ```
-   Bird webhook: disabled phone notifications for user <id> across all cities (delivery <id>)
-   ```
-
-   Refresh `/admin/conversations` and the inbound message row should appear in the thread.
+The main app's webhook handler verifies the signature, reconciles the delivery status of its own outbound messages, and returns `ok` for every inbound message. It answers nobody. To verify the inbound path end to end, use the Notis service: register its webhook subscription (next section), then send a message from a phone that belongs to a reader. Watch the Notis logs and its admin feed.
 
 If signature verification fails you'll see a warning like:
 
@@ -177,11 +168,11 @@ The most common causes are:
 - ngrok was restarted and the URL on the Bird subscription is stale (update it).
 - Your `.env` was loaded before you set `BIRD_WEBHOOK_SECRET` — restart `npm run dev`.
 
-## The Notis webhook subscription (rollout)
+## The Notis webhook subscription
 
-The Notis service (`services/notis`) carries its own inbound WhatsApp path.
-During the rollout, register a SECOND webhook subscription beside the one
-from Step 9:
+The Notis service (`services/notis`) carries the inbound WhatsApp path for
+every reader. It has a SECOND webhook subscription beside the one from
+Step 9:
 
 | Field | Value |
 |---|---|
@@ -190,14 +181,14 @@ from Step 9:
 | **Service** | `Conversations` |
 | **Events** | `conversation.created`, `conversation.updated` |
 
-Both subscriptions receive every conversation event. Each service filters to
-the users it serves:
+Both subscriptions receive every conversation event:
 
-- Notis answers users with `notisEnabledAt` set. It also reconciles the
-  delivery status of its own sends.
-- The main app answers everyone else (the unsubscribe flow and the
-  "replies not supported" auto-reply). It skips notis-served users, so one
-  inbound message never draws two replies.
+- Notis answers every reader: it enrolls a main-app user on their first
+  message, serves ΣΤΟΠ and every reply, and reconciles the delivery status
+  of its own sends. A message from a phone no reader has is ignored.
+- The main app only reconciles the delivery status of the messages it sent
+  before the switch to Notis. It answers nobody, so one inbound message
+  never draws two replies.
 
 > **Production only.** Register webhook subscriptions for production, not
 > for staging. Bird sends every event to every subscription in the

@@ -17,8 +17,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle, MessageSquare, ChevronRight } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
-import { ReplyForm } from '@/components/admin/conversations/ReplyForm';
-import { SendTemplateDialog } from '@/components/admin/conversations/SendTemplateDialog';
 import { ScrollableThread } from '@/components/admin/conversations/ScrollableThread';
 import { ConversationsPagination } from '@/components/admin/conversations/ConversationsPagination';
 import { RefreshButton } from '@/components/admin/conversations/RefreshButton';
@@ -154,16 +152,7 @@ function ConversationMobileCard({
     lastMessage: Message;
     messageCount: number;
 }) {
-    const replyTarget = lastMessage.conversationId
-        ? {
-            conversationId: lastMessage.conversationId,
-            phone,
-            channel: lastMessage.channel,
-        }
-        : null;
-    const expandable = messageCount > 1 || replyTarget !== null;
-
-    if (expandable) {
+    if (messageCount > 1) {
         return (
             <details className="group rounded-md border bg-background overflow-hidden">
                 <summary className="cursor-pointer list-none p-3 flex items-start gap-2">
@@ -177,7 +166,7 @@ function ConversationMobileCard({
                     </div>
                 </summary>
                 <div className="border-t bg-muted/30 p-3">
-                    <ThreadDetail messages={messages} replyTarget={replyTarget} />
+                    <ThreadDetail messages={messages} />
                 </div>
             </details>
         );
@@ -196,21 +185,10 @@ function ConversationMobileCard({
 /**
  * Chat-style thread view — outbound messages align right with a tinted bubble
  * (our side), inbound messages align left in a muted bubble (their side).
- * Timestamp + non-final status sits above each bubble. Oldest first.
+ * Timestamp + non-final status sits above each bubble. Oldest first. Read
+ * only: every reply is Notis's now, from its own panel.
  */
-function ThreadDetail({
-    messages,
-    replyTarget,
-}: {
-    messages: Message[];
-    /**
-     * If the conversation has a Bird conversationId we can post replies to it
-     * via the Conversations API. Carries the channel so the reply goes out on
-     * the right WA/SMS channel. Without it, no Bird thread exists yet so a
-     * free-form reply has nowhere to go.
-     */
-    replyTarget?: { conversationId: string; phone: string; channel: Message['channel'] } | null;
-}) {
+function ThreadDetail({ messages }: { messages: Message[] }) {
     return (
         <div className="flex flex-col">
             {/* Capped + scrollable thread; auto-scrolls to bottom on mount so
@@ -256,15 +234,6 @@ function ThreadDetail({
                     );
                 })}
             </ScrollableThread>
-            {/* Reply form sits outside the scroll container so it stays
-              * visible regardless of how long the thread gets. */}
-            {replyTarget && (
-                <ReplyForm
-                    conversationId={replyTarget.conversationId}
-                    phone={replyTarget.phone}
-                    channel={replyTarget.channel}
-                />
-            )}
         </div>
     );
 }
@@ -309,7 +278,6 @@ export default async function ConversationsPage(props: PageProps) {
                         {showAll ? 'Only with replies' : 'Show all threads'}
                     </Link>
                     <RefreshButton />
-                    <SendTemplateDialog />
                 </div>
             </div>
 
@@ -326,7 +294,7 @@ export default async function ConversationsPage(props: PageProps) {
                             </p>
                             <p className="text-sm">
                                 {showAll
-                                    ? 'Send a test WhatsApp from the trigger above to see it land here.'
+                                    ? 'Messages this app sent before Notis took over land here; Notis has its own panel.'
                                     : 'No participant has replied yet. Switch to "Show all threads" to see outbound-only messages.'}
                             </p>
                         </div>
@@ -369,29 +337,16 @@ export default async function ConversationsPage(props: PageProps) {
                                         {conversations.map((c) => {
                                             const lastMessage = c.messages[c.messages.length - 1];
                                             const count = c.messages.length;
-                                            const replyTarget = lastMessage.conversationId
-                                                ? {
-                                                    conversationId: lastMessage.conversationId,
-                                                    phone: c.phone,
-                                                    channel: lastMessage.channel,
-                                                }
-                                                : null;
-                                            const expandable = count > 1 || replyTarget !== null;
                                             // Composite key — same phone on WA + SMS is two rows.
                                             const rowKey = `${c.channel}:${c.phone}`;
 
-                                            if (expandable) {
+                                            if (count > 1) {
                                                 return (
                                                     <ExpandableTableRow
                                                         key={rowKey}
                                                         rowId={rowKey}
                                                         ariaLabel={`${c.channel} conversation with ${c.phone}`}
-                                                        expandedContent={
-                                                            <ThreadDetail
-                                                                messages={c.messages}
-                                                                replyTarget={replyTarget}
-                                                            />
-                                                        }
+                                                        expandedContent={<ThreadDetail messages={c.messages} />}
                                                     >
                                                         <ConversationCells
                                                             phone={c.phone}

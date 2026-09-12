@@ -60,24 +60,26 @@ interface FakeMainSeed {
   events?: Row[];
 }
 
+const USER_CREATED_AT = new Date("2026-06-01T00:00:00.000Z");
+
 function makeFakeMain(seed: FakeMainSeed = {}) {
-  const users = seed.users ?? [];
   const targets = seed.targets ?? [];
+  // Reconcile reads the account's phone and name from notis_users. A seed
+  // that names only targets gets one user row per target, so the two views
+  // agree the way the real ones do.
+  const users =
+    seed.users ??
+    [...new Map(targets.map((t) => [t.userId as string, t])).values()].map((t) => ({
+      id: t.userId,
+      name: t.userName ?? null,
+      phone: t.phone ?? null,
+      createdAt: USER_CREATED_AT,
+    }));
   const events = seed.events ?? [];
   return {
     notisUserRow: {
-      findMany: async ({
-        where,
-      }: {
-        where: { id: { in: string[] }; notisEnabledAt?: { not: null } };
-      }) =>
-        users.filter((u) => {
-          if (!where.id.in.includes(u.id as string)) return false;
-          // The rollout-flag filter (fireScheduledWakes uses it); reconcile
-          // omits it and gets every row.
-          if (where.notisEnabledAt && u.notisEnabledAt === null) return false;
-          return true;
-        }),
+      findMany: async ({ where }: { where: { id: { in: string[] } } }) =>
+        users.filter((u) => where.id.in.includes(u.id as string)),
     },
     fanoutTargetRow: {
       findMany: async ({ where }: { where: Row }) =>
@@ -86,7 +88,6 @@ function makeFakeMain(seed: FakeMainSeed = {}) {
             return false;
           if (where.cityId && !(where.cityId as { in: string[] }).in.includes(t.cityId as string))
             return false;
-          if (where.notisEnabledAt && t.notisEnabledAt === null) return false;
           if (where.notifyByPhone !== undefined && t.notifyByPhone !== where.notifyByPhone)
             return false;
           if (where.phone && t.phone === null) return false;
@@ -126,7 +127,6 @@ function target(userId: string, cityId: string, overrides: Row = {}): Row {
     locations: [],
     phone: "+306900000001",
     userName: "Μαρία",
-    notisEnabledAt: new Date("2026-08-01"),
     notifyByPhone: true,
     updatedAt: new Date(),
     ...overrides,
@@ -184,28 +184,25 @@ describe("enrollment", () => {
     expect(bird.created).toHaveLength(0);
   });
 
-  it("enrolls nobody while the transition template has no project id, and says so", async () => {
+  it("enrolls nobody while their intro template has no project id, and says so once", async () => {
     const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
     const bird = new FakeBird();
     bird.templatesConfigured = false;
     const main = makeFakeMain({ targets: [target("user9", "athens", { phone: "306999999999" })] });
     const alerts: string[] = [];
+    const alert = async (m: string) => {
+      alerts.push(m);
+    };
 
-    const result = await runPollerTick({
-      db,
-      main,
-      bird,
-      alert: async (m) => {
-        alerts.push(m);
-      },
-      now,
-    });
+    const result = await runPollerTick({ db, main, bird, alert, now });
+    await runPollerTick({ db, main, bird, alert, now });
 
     // Enrolling here would burn the cohort: the subscription exists forever
     // after, and every later tick skips it — with no intro ever sent.
     expect(result.enrolled).toBe(0);
+    expect(result.enrollmentDeferred).toBe(1);
     expect(db.store.subscriptions.size).toBe(0);
-    expect(alerts.some((m) => m.includes("demos_transition"))).toBe(true);
+    expect(alerts.filter((m) => m.includes("notis_intro template has no Bird project id"))).toHaveLength(1);
   });
 
   it("unpaused: creates the subscription and sends the intro via a new conversation", async () => {
@@ -220,9 +217,10 @@ describe("enrollment", () => {
     expect(result.enrolled).toBe(1);
     expect(result.introsSent).toBe(1);
     const sub = [...db.store.subscriptions.values()][0];
+    // Every reader arrives through the site's signup now.
     expect(sub).toMatchObject({
       userId: "user9",
-      origin: "transition",
+      origin: "signup",
       status: "active",
       phone: "+306999999999",
       birdConversationId: "conv-new-1",
@@ -232,9 +230,61 @@ describe("enrollment", () => {
     // the conversation (its message row) once sent.
     expect(db.store.wakes).toHaveLength(0);
     expect(bird.created).toHaveLength(1);
-    expect(bird.created[0].template).toBe("demos_transition");
+    expect(bird.created[0].template).toBe("notis_intro");
     const intro = db.store.messages[0];
-    expect(intro).toMatchObject({ status: "sent", template: "demos_transition", proactive: true });
+    expect(intro).toMatchObject({ status: "sent", template: "notis_intro", proactive: true });
+  });
+
+  it("enrolls every waiting reader in one tick, each with the signup intro", async () => {
+    const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
+    const bird = new FakeBird();
+    const main = makeFakeMain({
+      targets: [
+        target("reader-a", "athens", { phone: "+306900000011" }),
+        target("reader-b", "athens", { phone: "+306900000012" }),
+        target("reader-c", "athens", { phone: "+306900000013" }),
+      ],
+    });
+
+    const result = await runPollerTick({ db, main, bird, alert: async () => {}, now });
+
+    // No pacing and no second shell: the readers of the old templates moved
+    // over from the release panel before the signup switched to Νότης.
+    expect(result.enrolled).toBe(3);
+    expect(result.enrollmentDeferred).toBe(0);
+    expect(bird.created.map((c) => c.template)).toEqual(["notis_intro", "notis_intro", "notis_intro"]);
+    expect([...db.store.subscriptions.values()].map((s) => s.origin)).toEqual(["signup", "signup", "signup"]);
+  });
+
+  it("holds a +1 number while the intro shell is marketing, and says so once", async () => {
+    const db = makeFakeDb({ settings: [{ key: PROACTIVE_PAUSED_KEY, value: false }] });
+    const bird = new FakeBird();
+    const main = makeFakeMain({
+      targets: [
+        target("us-reader", "athens", { phone: "+16174613635" }),
+        target("gr-reader", "athens", { phone: "+306900000012" }),
+      ],
+    });
+    const alerts: string[] = [];
+    const deps = {
+      db,
+      main,
+      bird,
+      alert: async (m: string) => {
+        alerts.push(m);
+      },
+      now,
+    };
+
+    const result = await runPollerTick(deps);
+    await runPollerTick(deps);
+
+    // notis_intro is marketing, which Meta refuses to +1 (131049). The
+    // reader's own reply opens the thread without a template.
+    expect(result.enrolled).toBe(1);
+    expect(result.enrollmentHeld).toBe(1);
+    expect(bird.created.map((c) => c.phone)).toEqual(["+306900000012"]);
+    expect(alerts.filter((m) => m.includes("us-reader (+1 number while notis_intro is a marketing shell)"))).toHaveLength(1);
   });
 
   it("repairs a Greek mobile behind a bare plus and enrolls it with its country code", async () => {
@@ -437,56 +487,6 @@ describe("scheduled fires", () => {
     expect(db.store.queue.size).toBe(0);
   });
 
-  it("consumes a note without a wake when the reader was rolled back in the panel", async () => {
-    // Disable in the release panel clears notisEnabledAt. The poller never
-    // removes the subscription, so the scheduled leg is where the rollback
-    // must bite — otherwise a promised follow-up double-serves a reader the
-    // old notification path now handles again.
-    const db = makeFakeDb({ subscriptions: [activeSub("sub1", "user1")] });
-    db.store.scheduled.push({
-      id: "sw1",
-      subscriptionId: "sub1",
-      runAfter: new Date(NOW.getTime() - 60_000),
-      reason: "υποσχέθηκα",
-      origin: "reply",
-      firedAt: null,
-    });
-    // Rolled back: still a user row (so reconcile leaves the sub alone), phone
-    // intact, but notisEnabledAt cleared.
-    const main = makeFakeMain({
-      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001", notisEnabledAt: null }],
-    });
-
-    const result = await runPollerTick({ db, main, bird: new FakeBird(), alert: async () => {}, now });
-
-    expect(result.scheduledFired).toBe(0);
-    expect(db.store.scheduled[0].firedAt).not.toBeNull(); // consumed, not left to retry
-    expect(db.store.queue.size).toBe(0);
-    expect(db.store.subscriptions.get("sub1")!.status).toBe("active"); // rollback does not unsubscribe
-  });
-
-  it("fires the note when the reader still carries the rollout flag", async () => {
-    const db = makeFakeDb({ subscriptions: [activeSub("sub1", "user1")] });
-    db.store.scheduled.push({
-      id: "sw1",
-      subscriptionId: "sub1",
-      runAfter: new Date(NOW.getTime() - 60_000),
-      reason: "υποσχέθηκα",
-      origin: "reply",
-      firedAt: null,
-    });
-    const main = makeFakeMain({
-      users: [
-        { id: "user1", name: "Μαρία", phone: "+306900000001", notisEnabledAt: new Date("2026-08-01") },
-      ],
-    });
-
-    const result = await runPollerTick({ db, main, bird: new FakeBird(), alert: async () => {}, now });
-
-    expect(result.scheduledFired).toBe(1);
-    expect(db.store.queue.size).toBe(1);
-  });
-
   it("a note due at 02:00 Athens lands after the 09:00 release", async () => {
     const nightNow = () => new Date("2026-08-18T23:30:00.000Z"); // 02:30 Athens (next day)
     const db = makeFakeDb({ subscriptions: [activeSub("sub1", "user1")] });
@@ -535,6 +535,32 @@ describe("meeting events", () => {
     ])("%s dated %s → %s (%s)", (type, meetingDate, expected) => {
       expect(on(type, meetingDate)).toBe(expected);
     });
+  });
+
+  it("wakes nobody for a city whose reader switched phone delivery off", async () => {
+    // notifyByPhone=false is also what a ΣΤΟΠ to the old templates left
+    // behind: that reader has a live subscription from an inbound message
+    // and must not be woken for the city they opted out of.
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens", { notifyByPhone: false })],
+      events: [meetingRow("task-1")],
+    });
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async () => {},
+      now,
+      editorial: editorialOk,
+    });
+
+    expect(result.wakesEnqueued).toBe(0);
+    expect(result.eventsProcessed).toBe(1); // consumed: nobody to wake
+    expect(editorialOk).not.toHaveBeenCalled();
+    expect(db.store.queue.size).toBe(0);
   });
 
   it("consumes a late agenda without editorial spend or a wake", async () => {

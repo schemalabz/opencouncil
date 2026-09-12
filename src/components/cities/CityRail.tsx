@@ -14,6 +14,8 @@ interface CityRailProps {
     isSuperAdmin: boolean;
     hasNoData: boolean;
     notificationPreference: CityNotificationPreference | null;
+    /** The reader's WhatsApp channel as Notis has it, still being asked; resolves false when nobody is signed in. */
+    phoneChannel: Promise<boolean | null>;
     /** The public "N+" bucket of the city's petitions, for a city not covered yet. */
     petitionBucket: PetitionBucket | null;
     allMeetings: MeetingBookends;
@@ -39,6 +41,7 @@ export function CityRail({
     isSuperAdmin,
     hasNoData,
     notificationPreference,
+    phoneChannel,
     petitionBucket,
     allMeetings,
     councilMeetings,
@@ -80,7 +83,7 @@ export function CityRail({
                 />
             </div>
             <div className="max-lg:order-2">
-                <CityNotificationCard city={city} preference={notificationPreference} locale={locale} />
+                <CityNotificationCard city={city} preference={notificationPreference} phoneChannel={phoneChannel} locale={locale} />
             </div>
             <div className="max-lg:order-4 lg:contents">
                 <CityPetitionCard city={city} bucket={petitionBucket} locale={locale} />

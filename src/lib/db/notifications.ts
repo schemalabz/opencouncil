@@ -13,8 +13,9 @@ import { phoneBelongsToAnotherUser } from "./users";
 import { NotFoundError } from "@/lib/api/errors";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
-import { generateEmailContent, generateSmsContent } from "@/lib/notifications/content";
-import { sendWelcomeMessages } from "@/lib/notifications/welcome";
+import { generateEmailContent } from "@/lib/notifications/content";
+import { sendWelcomeEmail } from "@/lib/notifications/welcome";
+import { setNotisSubscription } from "@/lib/notis/client";
 import { IS_DEV } from "@/lib/utils";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 
@@ -37,6 +38,7 @@ export type UserPreference = {
         name: string;
         isResident: boolean;
         isCitizen: boolean;
+        otherRelation: string | null;
         phone?: string;
     };
     locations?: {
@@ -45,6 +47,8 @@ export type UserPreference = {
         coordinates: [number, number];
     }[];
     topics?: Topic[];
+    // The email summary, on notification preferences only; the phone channel is the person's.
+    notifyByEmail?: boolean;
 };
 
 /**
@@ -104,6 +108,36 @@ export async function getNotificationPreferenceForCity(userId: string, cityId: s
 export type CityNotificationPreference = NonNullable<Awaited<ReturnType<typeof getNotificationPreferenceForCity>>>;
 
 /**
+ * The point of each location, by id. A location whose geometry is missing or
+ * not a point is absent from the map; `withCoordinates` gives it the (0,0)
+ * sentinel the rest of the app reads as "no coordinates".
+ */
+export async function getLocationCoordinates(locationIds: string[]): Promise<Record<string, [number, number]>> {
+    if (locationIds.length === 0) return {};
+    const rows = await prisma.$queryRaw<{ id: string; geometry: string | null }[]>`
+        SELECT l."id" AS id, ST_AsGeoJSON(l.coordinates)::text AS geometry
+        FROM "Location" l
+        WHERE l.id IN (${Prisma.join(locationIds)})
+    `;
+    const coordinates: Record<string, [number, number]> = {};
+    for (const row of rows) {
+        if (!row.geometry) continue;
+        const parsed = JSON.parse(row.geometry);
+        if (parsed.type === 'Point' && Array.isArray(parsed.coordinates) && parsed.coordinates.length === 2) {
+            coordinates[row.id] = parsed.coordinates as [number, number];
+        }
+    }
+    return coordinates;
+}
+
+export function withCoordinates<L extends { id: string; text: string }>(
+    locations: L[],
+    coordinates: Record<string, [number, number]>,
+): { id: string; text: string; coordinates: [number, number] }[] {
+    return locations.map(loc => ({ id: loc.id, text: loc.text, coordinates: coordinates[loc.id] ?? [0, 0] }));
+}
+
+/**
  * Get all user preferences (notifications and petitions)
  */
 export async function getUserPreferences(): Promise<UserPreference[]> {
@@ -145,63 +179,9 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
         const cities = [...notificationPreferences.map(np => np.city), ...petitions.map(p => p.city)];
         const citiesWithGeometry = await attachGeometryToCities(cities);
 
-        // Get all location IDs that need coordinates
-        const allLocationIds = notificationPreferences.flatMap(np =>
-            np.locations.map(loc => loc.id)
+        const coordinates = await getLocationCoordinates(
+            notificationPreferences.flatMap(np => np.locations.map(loc => loc.id))
         );
-
-        console.log('All location IDs to fetch:', allLocationIds);
-
-        // Prepare to store the locations with proper coordinates
-        let locationsWithCoordinates: Record<string, { id: string, text: string, coordinates: [number, number] }> = {};
-
-        // If there are any locations, get their coordinates using the same pattern as attachGeometryToCities
-        if (allLocationIds.length > 0) {
-            try {
-                const locationsWithGeometry = await prisma.$queryRaw<
-                    ({ id: string, text: string, geometry: string | null })[]
-                >`SELECT 
-                    l."id" AS id,
-                    l."text" AS text,
-                    ST_AsGeoJSON(l.coordinates)::text AS geometry
-                FROM "Location" l
-                WHERE l.id IN (${Prisma.join(allLocationIds)})
-                `;
-
-                console.log('Raw locations with geometry:', locationsWithGeometry);
-
-                // Process each location to extract coordinates from GeoJSON
-                locationsWithGeometry.forEach(loc => {
-                    if (loc.geometry) {
-                        try {
-                            const parsed = JSON.parse(loc.geometry);
-                            console.log(`Parsed geometry for location ${loc.id}:`, parsed);
-
-                            // Extract coordinates if it's a point
-                            if (parsed.type === 'Point' &&
-                                Array.isArray(parsed.coordinates) &&
-                                parsed.coordinates.length === 2) {
-
-                                // Store the location with its coordinates
-                                locationsWithCoordinates[loc.id] = {
-                                    id: loc.id,
-                                    text: loc.text,
-                                    coordinates: parsed.coordinates as [number, number]
-                                };
-
-                                console.log(`Extracted coordinates for location ${loc.id}:`, parsed.coordinates);
-                            }
-                        } catch (err) {
-                            console.error(`Error parsing geometry for location ${loc.id}:`, err);
-                        }
-                    }
-                });
-
-                console.log('Processed locations with coordinates:', locationsWithCoordinates);
-            } catch (error) {
-                console.error('Error fetching location geometry:', error);
-            }
-        }
 
         const preferences: UserPreference[] = [];
 
@@ -210,27 +190,7 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
             const cityWithGeometry = citiesWithGeometry.find(c => c.id === np.cityId);
 
             if (cityWithGeometry) {
-                // Map locations, using coordinates from our processed locations
-                const processedLocations = np.locations.map(loc => {
-                    // Look up the location with coordinates
-                    const locationWithCoords = locationsWithCoordinates[loc.id];
-
-                    if (locationWithCoords) {
-                        console.log(`Using processed location ${loc.id} with coordinates:`, locationWithCoords.coordinates);
-                        return {
-                            id: loc.id,
-                            text: loc.text,
-                            coordinates: locationWithCoords.coordinates
-                        };
-                    } else {
-                        console.warn(`No coordinates found for location ${loc.id}, using default [0,0]`);
-                        return {
-                            id: loc.id,
-                            text: loc.text,
-                            coordinates: [0, 0] as [number, number]
-                        };
-                    }
-                });
+                const processedLocations = withCoordinates(np.locations, coordinates);
 
                 preferences.push({
                     cityId: np.cityId,
@@ -238,6 +198,7 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
                     isPetition: false,
                     locations: processedLocations,
                     topics: np.interests,
+                    notifyByEmail: np.notifyByEmail,
                 });
             }
         }
@@ -258,7 +219,8 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
                     petitionData: {
                         name: petitionName,
                         isResident: petition.is_resident,
-                        isCitizen: petition.is_citizen
+                        isCitizen: petition.is_citizen,
+                        otherRelation: petition.other_relation,
                     }
                 });
             }
@@ -304,12 +266,22 @@ function sanitizeSeedUser(
 export async function saveNotificationPreferences(data: OnboardingData & {
     locations: { text: string; coordinates: [number, number] }[];
     topicIds: string[];
+    /**
+     * Channel consent from the delivery step; omitted by older callers, who
+     * keep the defaults. The phone channel is the person's (User.notifyByPhone),
+     * the email summary is this municipality's.
+     */
+    notifyByPhone?: boolean;
+    notifyByEmail?: boolean;
 }): Promise<Result<NotificationPreference>> {
     const validation = saveNotificationPreferencesSchema.safeParse(data);
     if (!validation.success) {
         return createError('Invalid input');
     }
-    const { cityId, locations, topicIds, phone: rawPhone, email, name, seedUser: rawSeedUser } = data;
+    const {
+        cityId, locations, topicIds, phone: rawPhone, email, name, seedUser: rawSeedUser,
+        notifyByPhone, notifyByEmail,
+    } = data;
     // A phone is stored as a mobile number in E.164 or not at all (@/lib/phone):
     // the old input let national numbers through, and they reached nobody.
     let phone: string | undefined;
@@ -348,6 +320,12 @@ export async function saveNotificationPreferences(data: OnboardingData & {
 
             userId = user.id;
 
+            // WhatsApp consent needs a number to reach: the one given now, or
+            // the one already on the account.
+            if (notifyByPhone && !phone && !user.phone) {
+                return createError(PHONE_REJECTION_CODES.empty);
+            }
+
             // Update phone if provided
             if (phone) {
                 if (await phoneBelongsToAnotherUser(phone, user.id)) {
@@ -359,6 +337,9 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 });
             }
         } else if (email) {
+            if (notifyByPhone && !phone) {
+                return createError(PHONE_REJECTION_CODES.empty);
+            }
             // Non-authenticated user
             // Check if this email already exists
             let user = await prisma.user.findUnique({
@@ -436,6 +417,14 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 ? { connect: validTopicIds.map(id => ({ id })) }
                 : undefined;
 
+            // Only the channels the caller decided on are written: an older
+            // caller that sends neither leaves the flags alone and a new row on
+            // the schema defaults.
+            const channels = notifyByEmail !== undefined ? { notifyByEmail } : {};
+            if (notifyByPhone !== undefined) {
+                await tx.user.update({ where: { id: userId }, data: { notifyByPhone } });
+            }
+
             const existing = await tx.notificationPreference.findUnique({
                 where: { userId_cityId: { userId, cityId } },
                 select: { id: true },
@@ -449,14 +438,14 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 });
                 const updated = await tx.notificationPreference.update({
                     where: { id: existing.id },
-                    data: { locations: locationConnect, interests: interestConnect },
+                    data: { locations: locationConnect, interests: interestConnect, ...channels },
                     include: { city: true, locations: true, interests: true },
                 });
                 return { preference: updated, wasNew: false };
             }
 
             const created = await tx.notificationPreference.create({
-                data: { userId, cityId, locations: locationConnect, interests: interestConnect },
+                data: { userId, cityId, locations: locationConnect, interests: interestConnect, ...channels },
                 include: { city: true, locations: true, interests: true },
             });
             return { preference: created, wasNew: true };
@@ -480,9 +469,10 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 });
             }
 
-            // Send welcome messages to new signups (non-blocking)
-            sendWelcomeMessages(userId, preference.city, phone).catch(err =>
-                console.error('Error sending welcome messages:', err)
+            // The welcome email, non-blocking. The WhatsApp welcome is Notis's:
+            // its poller enrolls the reader and opens the thread with the intro.
+            sendWelcomeEmail(userId, preference.city).catch(err =>
+                console.error('Error sending welcome email:', err)
             );
         }
 
@@ -499,12 +489,19 @@ export async function saveNotificationPreferences(data: OnboardingData & {
 export async function savePetition(data: OnboardingData & {
     isResident: boolean;
     isCitizen: boolean;
+    /** The reader's own words for a third relation; null clears it, undefined keeps it. */
+    otherRelation?: string | null;
 }): Promise<Result<Petition>> {
     const validation = savePetitionSchema.safeParse(data);
     if (!validation.success) {
         return createError('Invalid input');
     }
-    const { cityId, isResident, isCitizen, phone: rawPhone, email, name, seedUser: rawSeedUser } = data;
+    const { cityId, isResident, isCitizen, otherRelation, phone: rawPhone, email, name, seedUser: rawSeedUser } = data;
+    const relation = {
+        is_resident: isResident,
+        is_citizen: isCitizen,
+        ...(otherRelation !== undefined ? { other_relation: otherRelation?.trim() || null } : {}),
+    };
     // Same rule as saveNotificationPreferences: a mobile in E.164 or nothing.
     let phone: string | undefined;
     if (rawPhone) {
@@ -599,10 +596,7 @@ export async function savePetition(data: OnboardingData & {
             // Update existing petition
             const result = await prisma.petition.update({
                 where: { id: existingPetition.id },
-                data: {
-                    is_resident: isResident,
-                    is_citizen: isCitizen
-                },
+                data: relation,
                 include: {
                     city: true
                 }
@@ -614,8 +608,7 @@ export async function savePetition(data: OnboardingData & {
                 data: {
                     userId,
                     cityId,
-                    is_resident: isResident,
-                    is_citizen: isCitizen
+                    ...relation,
                 },
                 include: {
                     city: true
@@ -821,7 +814,7 @@ export async function createNotificationsForMeeting(
             const userPref = userPrefMap.get(userId)!;
             const user = userPref.user;
 
-            if (!userPref.notifyByEmail && !userPref.notifyByPhone) {
+            if (!userPref.notifyByEmail && !user.notifyByPhone) {
                 continue;
             }
 
@@ -897,22 +890,11 @@ export async function createNotificationsForMeeting(
                     });
                 }
 
-                // Create message delivery if user has phone and wants to be notified by phone.
-                // Users on the Notis rollout (notisEnabledAt set) get their WhatsApp
-                // messages from Notis — creating a message delivery here would serve
-                // them by both paths. Email stays untouched.
-                if (userPref.notifyByPhone && user.phone && !user.notisEnabledAt) {
-                    const smsBody = await generateSmsContent(notificationData);
-                    await prisma.notificationDelivery.create({
-                        data: {
-                            notificationId: notification.id,
-                            medium: 'message',
-                            status: 'pending',
-                            phone: user.phone,
-                            body: smsBody
-                        }
-                    });
-                }
+                // No message delivery: WhatsApp and SMS are Notis's for every
+                // reader (services/notis enrolls anyone with phone delivery on
+                // and writes its own messages). A phone-only reader keeps the
+                // in-app notification with zero deliveries, which the admin
+                // views read as "skipped".
             } catch (error: any) {
                 // Handle unique constraint error - notification already exists
                 if (error?.code === 'P2002' && error?.meta?.target?.includes('userId') && error?.meta?.target?.includes('cityId') && error?.meta?.target?.includes('meetingId') && error?.meta?.target?.includes('type')) {
@@ -1346,12 +1328,13 @@ export async function getUserNotificationPreferences(userId: string) {
 }
 
 /**
- * Update notification channel preferences (email/phone) for a preference
+ * Update the email summary of one preference. The phone channel is the
+ * person's, not the preference's (setNotifyByPhoneForUser).
  */
 export async function updateNotificationPreferenceChannels(
     preferenceId: string,
     userId: string,
-    channels: { notifyByEmail?: boolean; notifyByPhone?: boolean }
+    channels: { notifyByEmail?: boolean }
 ) {
     await requireSelfOrSuperadmin(userId);
     const preference = await prisma.notificationPreference.findUnique({
@@ -1366,6 +1349,22 @@ export async function updateNotificationPreferenceChannels(
         where: { id: preferenceId },
         data: channels,
     });
+}
+
+/**
+ * The reader's phone channel as this database knows it: their consent (the
+ * poller's enrollment gate and the fan-out audience filter) and the number
+ * it would reach. The subscription itself is Notis's;
+ * src/lib/actions/notis.ts joins the two.
+ */
+export async function getPhoneChannelState(userId: string): Promise<{ notifyByPhone: boolean; phone: string | null }> {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true, notifyByPhone: true } });
+    return { notifyByPhone: user?.notifyByPhone ?? false, phone: user?.phone ?? null };
+}
+
+/** The profile's single Νότης switch and the signup's card write the same fact. */
+export async function setNotifyByPhoneForUser(userId: string, enabled: boolean): Promise<void> {
+    await prisma.user.update({ where: { id: userId }, data: { notifyByPhone: enabled } });
 }
 
 /**
@@ -1416,12 +1415,12 @@ export async function getUnsubscribeContext(userId: string, cityId?: string): Pr
             : Promise.resolve(null),
         prisma.user.findUnique({
             where: { id: userId },
-            select: { email: true, allowProductUpdates: true, allowPetitionUpdates: true },
+            select: { email: true, allowProductUpdates: true, allowPetitionUpdates: true, notifyByPhone: true },
         }),
         cityId
             ? prisma.notificationPreference.findUnique({
                 where: { userId_cityId: { userId, cityId } },
-                select: { notifyByEmail: true, notifyByPhone: true },
+                select: { notifyByEmail: true },
             })
             : Promise.resolve(null),
     ]);
@@ -1433,9 +1432,7 @@ export async function getUnsubscribeContext(userId: string, cityId?: string): Pr
         userEmail: user.email,
         allowProductUpdates: user.allowProductUpdates,
         allowPetitionUpdates: user.allowPetitionUpdates,
-        citySubscribed: Boolean(
-            cityPreference && (cityPreference.notifyByEmail || cityPreference.notifyByPhone),
-        ),
+        citySubscribed: Boolean(cityPreference && (cityPreference.notifyByEmail || user.notifyByPhone)),
     };
 }
 
@@ -1445,10 +1442,19 @@ export async function getUnsubscribeContext(userId: string, cityId?: string): Pr
 // unsubscribe context. This module intentionally has no `"use server"`
 // directive, so clients cannot call them directly and bypass the token check.
 export async function disableAllNotificationPreferences(userId: string) {
-    await prisma.notificationPreference.updateMany({
-        where: { userId },
-        data: { notifyByEmail: false, notifyByPhone: false },
-    });
+    await Promise.all([
+        prisma.notificationPreference.updateMany({
+            where: { userId },
+            data: { notifyByEmail: false },
+        }),
+        prisma.user.updateMany({
+            where: { id: userId },
+            data: { notifyByPhone: false },
+        }),
+    ]);
+    // "All" includes Νότης. Best effort: the flag already mutes the proactive
+    // audience, and the reader can still say ΣΤΟΠ to him.
+    await setNotisSubscription(userId, 'unsubscribed');
 }
 
 /**
@@ -1474,7 +1480,7 @@ export async function disableNotificationPreferenceByCityId(userId: string, city
     // time (or whose city preference was already removed) shouldn't see an error.
     await prisma.notificationPreference.updateMany({
         where: { userId, cityId },
-        data: { notifyByEmail: false, notifyByPhone: false },
+        data: { notifyByEmail: false },
     });
 }
 

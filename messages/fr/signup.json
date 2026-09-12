@@ -1,0 +1,56 @@
+{
+  "stepOf": "Étape {step} sur {total}",
+  "back": "Retour",
+  "changeCity": "Changer",
+  "privacy": "Politique de confidentialité",
+  "doneMagicLink": "Un lien pour vous connecter sans mot de passe vous attend dans votre e-mail.",
+  "account": {
+    "eyebrow": "Votre compte",
+    "nameLabel": "Nom",
+    "namePlaceholder": "Votre nom",
+    "emailLabel": "E-mail",
+    "emailPlaceholder": "vous@email.fr",
+    "emailHint": "Vous vous connectez par un lien envoyé par e-mail, sans mot de passe."
+  },
+  "phone": {
+    "label": "Mobile",
+    "placeholder": "6X XX XX XX XX"
+  },
+  "map": {
+    "open": "Ouvrir la carte",
+    "title": "Vos lieux"
+  },
+  "errors": {
+    "phoneMissing": "Indiquez votre mobile pour que Notis puisse vous écrire.",
+    "phoneInvalid": "Ce numéro ne semble pas correct.",
+    "phoneNotMobile": "Il faut un numéro de mobile, pas de fixe.",
+    "phoneInUse": "Ce mobile appartient déjà à un autre compte.",
+    "emailExists": "Un compte existe déjà avec cet e-mail.",
+    "notisUnreachable": "Vos préférences sont enregistrées, mais Notis ne répond pas pour le moment. Réessayez dans un moment pour WhatsApp.",
+    "signIn": "Se connecter",
+    "generic": "Un problème est survenu. Réessayez."
+  },
+  "issues": {
+    "no_channel": "Choisissez au moins un canal.",
+    "phone_missing": "Indiquez votre mobile pour que Notis puisse vous écrire.",
+    "phone_invalid": "Ce numéro ne semble pas correct.",
+    "name_missing": "Indiquez votre nom.",
+    "email_invalid": "Indiquez un e-mail valide.",
+    "relation_missing": "Indiquez votre lien avec la commune.",
+    "other_relation_missing": "Dites en quelques mots quel est votre lien."
+  },
+  "picker": {
+    "searchLabel": "Rechercher une commune",
+    "searchPlaceholder": "Trouvez votre commune",
+    "signUp": "S'inscrire",
+    "changePreferences": "Modifier les préférences",
+    "subscribed": "Vous êtes inscrit",
+    "request": "Demandez-le",
+    "changeRequest": "Modifier les informations",
+    "requested": "Vous l'avez déjà demandé",
+    "notSupportedYet": "Pas encore sur OpenCouncil",
+    "supportedAlready": "Envoient déjà des alertes",
+    "noResults": "Aucune commune pour « {query} ».",
+    "noResultsPetition": "Demandez le soutien de votre commune"
+  }
+}

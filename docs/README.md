@@ -29,6 +29,9 @@ Deep dives into specific features — architecture, data flow, and implementatio
 - **[guides/qr-campaigns.md](./guides/qr-campaigns.md)** — QR code redirect system with UTM tracking and analytics
 - **[guides/embed-widgets.md](./guides/embed-widgets.md)** — Iframe widgets for external sites: the meetings, hot subjects and meeting summary widgets, their params, theming, caching and the configurator
 - **[guides/serbian-localization.md](./guides/serbian-localization.md)** — Serbian dual-script support: Cyrillic-canonical catalogs, generated Latin, render-time transliteration, glossary, and the native-review workflow gating the serbia realm launch
+- **[notifications.prd.md](./notifications.prd.md)** — Notifications: matching subjects to preferences, email deliveries, admin approval, the signup flow, the profile switch
+- **[../services/notis/README.md](../services/notis/README.md)** — Νότης, the WhatsApp agent: enrollment, wakes, templates, and the subscriptions API the main app calls
+- **[bird-setup.md](./bird-setup.md)** — Bird (WhatsApp + SMS): workspace, channels, webhook secret, and the two webhook subscriptions
 
 ## Operations & Infrastructure
 

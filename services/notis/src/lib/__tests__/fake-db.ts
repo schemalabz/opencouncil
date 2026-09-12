@@ -83,8 +83,11 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
     calls,
     store,
     notisSubscription: {
-      findUnique: async ({ where }: { where: { id: string } }) =>
-        store.subscriptions.get(where.id) ?? null,
+      // By id, or by the unique userId the subscriptions API addresses.
+      findUnique: async ({ where }: { where: { id?: string; userId?: string } }) =>
+        where.id !== undefined
+          ? (store.subscriptions.get(where.id) ?? null)
+          : ([...store.subscriptions.values()].find((s) => s.userId === where.userId) ?? null),
       findMany: async ({ where }: { where?: Row } = {}) =>
         [...store.subscriptions.values()].filter((s) => {
           const w = (where ?? {}) as { userId?: { in: string[] }; status?: string };
@@ -408,6 +411,18 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         return { count: 1 };
       },
       findUnique: async ({ where }: { where: { id: string } }) => store.queue.get(where.id) ?? null,
+      // Reactivation drops the pending batch rows of a returning reader:
+      // scalar equality on every key given, like findMany above.
+      deleteMany: async ({ where }: { where?: Row } = {}) => {
+        let count = 0;
+        for (const [key, row] of store.queue) {
+          if (!Object.entries(where ?? {}).every(([k, v]) => row[k] === v)) continue;
+          store.queue.delete(key);
+          count++;
+        }
+        calls.push("queue-deleted");
+        return { count };
+      },
     },
     // Real rollback semantics: a throw restores the store snapshot, so a
     // transaction that aborts (e.g. the claim fence) leaves no writes.

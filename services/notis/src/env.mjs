@@ -20,6 +20,10 @@ export const env = createEnv({
     // Override for the main app's session cookie name. Defaults per
     // environment; see src/lib/session-cookie.ts.
     MAIN_SESSION_COOKIE_NAME: z.string().optional(),
+    // The bearer token the main app presents on the subscriptions API (the
+    // profile switch). Same value on both components. Without it those
+    // routes answer 503 — they fail closed, never open.
+    NOTIS_SERVICE_TOKEN: z.string().min(32).optional(),
     // Webhook (e.g. Discord) for operational alarms — janitor refusals and
     // failures. Optional: without it alarms only reach the logs.
     NOTIS_ALERT_WEBHOOK_URL: z.string().url().optional(),
@@ -37,10 +41,14 @@ export const env = createEnv({
     BIRD_SMS_CHANNEL_ID: z.string().optional(),
     BIRD_WEBHOOK_SECRET: z.string().optional(),
     // Bird template project ids (UUIDs from the Bird dashboard), one per
-    // approved demos_* shell. A cold send with a missing id fails visibly.
+    // approved shell. A cold send with a missing id fails visibly.
     // demos_checkin has no send path and deliberately no id.
     BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION: z.string().optional(),
     BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO: z.string().optional(),
+    // The intro a site signup opens with (see agent/templates.ts). Without
+    // it the poller holds signups and alerts, rather than enrolling them
+    // into a thread that never opens.
+    BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO: z.string().optional(),
     BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA: z.string().optional(),
     BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS: z.string().optional(),
     BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP: z.string().optional(),
@@ -57,6 +65,7 @@ export const env = createEnv({
     NOTIS_DATABASE_URL: process.env.NOTIS_DATABASE_URL,
     MAIN_DATABASE_URL: process.env.MAIN_DATABASE_URL,
     MAIN_SESSION_COOKIE_NAME: process.env.MAIN_SESSION_COOKIE_NAME,
+    NOTIS_SERVICE_TOKEN: process.env.NOTIS_SERVICE_TOKEN,
     NOTIS_ALERT_WEBHOOK_URL: process.env.NOTIS_ALERT_WEBHOOK_URL,
     BIRD_API_KEY: process.env.BIRD_API_KEY,
     BIRD_WORKSPACE_ID: process.env.BIRD_WORKSPACE_ID,
@@ -65,10 +74,14 @@ export const env = createEnv({
     BIRD_WEBHOOK_SECRET: process.env.BIRD_WEBHOOK_SECRET,
     BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION,
     BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO,
+    BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO: process.env.BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO,
     BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA,
     BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS,
     BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP,
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
+  // A blank platform secret (`NOTIS_SERVICE_TOKEN=`) is "unset", not a
+  // token of length zero that fails min(32) and stops the service at boot.
+  emptyStringAsUndefined: true,
 });

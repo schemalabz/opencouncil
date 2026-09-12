@@ -13,11 +13,22 @@ import { sessionCookieName } from "@/lib/session-cookie";
 // The Bird webhook carries no session cookie; it authenticates with its own
 // HMAC signature inside the route.
 const PUBLIC_API = ["/api/health", "/api/webhooks/bird"];
+// The main app calls these server-side with a bearer token, not a cookie.
+// Presence only, like the cookie check: requireService() in the route does
+// the comparison.
+const SERVICE_API_PREFIXES = ["/api/subscriptions/"];
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_API.some((p) => pathname === p)) {
+    return NextResponse.next();
+  }
+
+  if (
+    SERVICE_API_PREFIXES.some((p) => pathname.startsWith(p)) &&
+    request.headers.get("authorization")?.startsWith("Bearer ")
+  ) {
     return NextResponse.next();
   }
 
