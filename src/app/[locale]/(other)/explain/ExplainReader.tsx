@@ -33,14 +33,10 @@ export function ExplainReader({
     // on mobile so the current subtitle stays visible while reading the content.
     const [stickyIdx, setStickyIdx] = useState(-1);
 
-    // Track the section in view and pin the desktop table of contents.
+    // Track the section in view. The ToC itself pins with CSS position: sticky.
     useEffect(() => {
         const els = sections.map((s) => document.getElementById(s.id));
-        const aside = document.querySelector<HTMLElement>("[data-toc]");
-        const grid = aside?.parentElement ?? null;
         const OFFSET = 120; // spy threshold, below the fixed header
-        const PIN_TOP = 96; // where the ToC pins (matches the header offset)
-        const LG = 1024;
         let raf = 0;
 
         const compute = () => {
@@ -60,19 +56,6 @@ export function ExplainReader({
             // the Substack "further reading" section shouldn't pin its title
             const show = idx >= 0 && passed && sections[idx].id !== "substack";
             setStickyIdx(show ? idx : -1);
-
-            // pin the ToC: position: sticky is broken by an overflow-hidden
-            // ancestor, so translate it to hold PIN_TOP while it's in range.
-            if (aside && grid) {
-                if (window.innerWidth < LG) {
-                    aside.style.transform = "";
-                } else {
-                    const gridTop = grid.getBoundingClientRect().top;
-                    const max = Math.max(0, grid.offsetHeight - aside.offsetHeight);
-                    const t = Math.min(Math.max(0, PIN_TOP - gridTop), max);
-                    aside.style.transform = `translateY(${t}px)`;
-                }
-            }
         };
         const onScroll = () => {
             if (!raf) raf = requestAnimationFrame(compute);
@@ -85,7 +68,6 @@ export function ExplainReader({
             window.removeEventListener("scroll", onScroll);
             window.removeEventListener("resize", onScroll);
             if (raf) cancelAnimationFrame(raf);
-            if (aside) aside.style.transform = "";
         };
     }, [sections]);
 
@@ -105,6 +87,30 @@ export function ExplainReader({
                 ?.closest("[data-toc-group]")
                 ?.querySelector("[data-toc-grouphead]")
                 ?.setAttribute("aria-current", "true");
+
+            // The pinned column scrolls its own content on a short screen, so the
+            // active entry can sit outside it. Move the column to the entry, and
+            // move nothing else: scrollIntoView walks every scrollable ancestor,
+            // and on this sticky box it drags the page instead of the column.
+            //
+            // Stop at the neighbour past the active entry, so the entry the reader
+            // wants never sits flush against the edge of the column. Entries wrap
+            // to two lines, so their heights differ and a fixed margin would cut a
+            // wrapped neighbour in half.
+            const aside = activeLink?.closest<HTMLElement>("[data-toc]");
+            if (aside && activeLink) {
+                const entries = [...aside.querySelectorAll<HTMLElement>("a")];
+                const i = entries.indexOf(activeLink);
+                const box = aside.getBoundingClientRect();
+                const link = activeLink.getBoundingClientRect();
+                if (link.top < box.top) {
+                    const lead = (i > 0 ? entries[i - 1] : null) ?? activeLink;
+                    aside.scrollTop += lead.getBoundingClientRect().top - box.top;
+                } else if (link.bottom > box.bottom) {
+                    const lead = (i >= 0 ? entries[i + 1] : null) ?? activeLink;
+                    aside.scrollTop += lead.getBoundingClientRect().bottom - box.bottom;
+                }
+            }
         }
 
         if (active >= 0) {

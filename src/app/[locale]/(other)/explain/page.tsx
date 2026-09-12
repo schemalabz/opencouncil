@@ -204,10 +204,10 @@ export default async function ExplainPage() {
             <NeighborhoodIllustration subjects={neighborhoodSubjects} />
 
             <div className="mt-12 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-12 lg:items-start">
-                {/* table of contents (desktop) — pinned via ExplainReader, since a
-                    parent layout uses overflow-hidden which breaks position: sticky */}
+                {/* table of contents (desktop) — pinned with native sticky, which the
+                    compositor keeps in place; top-24 matches the fixed header offset */}
                 <aside
-                    className="hidden self-start lg:block lg:will-change-transform"
+                    className="hidden self-start lg:sticky lg:top-24 lg:block lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:overscroll-contain"
                     data-toc
                     aria-label="Περιεχόμενα"
                 >
