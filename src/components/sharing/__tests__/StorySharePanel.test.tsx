@@ -1,6 +1,9 @@
+import { captureEvent } from '@/lib/analytics/capture';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { StorySharePanel } from '../StorySharePanel';
 import { ContentShareDialog } from '../ContentShareDialog';
+
+jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
 
 jest.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
 const fetchImage = jest.fn();
@@ -8,7 +11,7 @@ const share = jest.fn();
 const canShare = jest.fn();
 const writeText = jest.fn();
 const revoke = jest.fn();
-const props = { imageUrl: '/api/share/story?type=contribution&id=c1&locale=el', url: 'https://opencouncil.gr/city/meeting/subjects/subject?contribution=c1#contribution-c1' };
+const props = { analytics: { content_type: 'excerpt' as const, surface: 'transcript_selection', city_id: 'city', meeting_id: 'meeting', locale: 'en' }, imageUrl: '/api/share/story?type=contribution&id=c1&locale=el', url: 'https://opencouncil.gr/city/meeting/subjects/subject?contribution=c1#contribution-c1' };
 const png = new Blob(['PNG fixture'], { type: 'image/png' });
 
 beforeEach(() => {
@@ -29,10 +32,12 @@ it('prepares one PNG, shares only that file, and preserves the contribution link
     render(<StorySharePanel {...props} />);
     expect(screen.getByRole('button', { name: 'storyShareImage' })).toBeDisabled();
     await screen.findByRole('img');
+    expect(captureEvent).toHaveBeenCalledWith('sharing_story_ready', expect.objectContaining({ ...props.analytics, file_sharing_supported: true }));
     expect(fetchImage).toHaveBeenCalledWith(props.imageUrl, expect.objectContaining({ cache: 'no-store' }));
     fireEvent.click(screen.getByRole('button', { name: 'copyLink' }));
     await screen.findByRole('button', { name: 'storyLinkCopied' });
     expect(writeText).toHaveBeenCalledWith(props.url);
+    expect(captureEvent).toHaveBeenCalledWith('sharing_action_succeeded', expect.objectContaining({ action: 'copy_link', mode: 'story' }));
     fireEvent.click(screen.getByRole('button', { name: 'storyShareImage' }));
     await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
     expect(Object.keys(share.mock.calls[0][0])).toEqual(['files']);
@@ -40,6 +45,7 @@ it('prepares one PNG, shares only that file, and preserves the contribution link
     expect(file).toBeInstanceOf(File);
     expect(file).toMatchObject({ name: 'opencouncil-story.png', type: 'image/png', size: png.size });
     expect(canShare).toHaveBeenCalledWith({ files: [file] });
+    await waitFor(() => expect(captureEvent).toHaveBeenCalledWith('sharing_action_succeeded', expect.objectContaining({ action: 'share_image', mode: 'story' })));
     expect(screen.getByRole('link', { name: 'storySave' })).toHaveAttribute('href', screen.getByRole('img').getAttribute('src'));
 });
 
@@ -77,8 +83,10 @@ it('treats cancelled sharing as cancellation and offers saving after other failu
     fireEvent.click(screen.getByRole('button', { name: 'storyShareImage' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'storyShareImage' })).toBeEnabled());
     expect(screen.queryByText('storyShareError')).not.toBeInTheDocument();
+    expect(captureEvent).toHaveBeenCalledWith('sharing_action_cancelled', expect.objectContaining({ action: 'share_image' }));
     fireEvent.click(screen.getByRole('button', { name: 'storyShareImage' }));
     await screen.findByText('storyShareError');
+    expect(captureEvent).toHaveBeenCalledWith('sharing_action_failed', expect.objectContaining({ action: 'share_image' }));
     expect(screen.getByRole('link', { name: 'storySave' })).toBeInTheDocument();
 });
 

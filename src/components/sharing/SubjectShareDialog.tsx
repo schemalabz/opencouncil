@@ -21,6 +21,7 @@ export function SubjectShareDialog({ open, onOpenChange, cityId, meetingId, subj
     const name = localizeText(subject.name, locale);
     const summary = localizeText(stripMarkdown(subject.description ?? ''), locale);
     return <ContentShareDialog open={open} onOpenChange={onOpenChange} initialMode="story"
+        analytics={{ content_type: 'subject', surface: 'subject_menu', city_id: cityId, meeting_id: meetingId, subject_id: subject.id, locale }}
         title={t('shareSubject')} description={t('storySubjectDescription')} url={url}
         storyImageUrl={storyImagePath({ type: 'subject', cityId, meetingId, subjectId: subject.id, locale })}
         sourceText={[name, summary && t('summary'), summary].filter(Boolean).join('\n\n')} copyTextLabel={t('copySummary')}>

@@ -1,3 +1,4 @@
+import { captureEvent } from '@/lib/analytics/capture';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ShareDropdown from '../ShareDropdown';
 import { ShareProvider, useShare } from '@/contexts/ShareContext';
@@ -12,7 +13,7 @@ jest.mock('../CouncilMeetingDataContext', () => ({ useCouncilMeetingData: () => 
     meeting: { id: 'meeting', cityId: 'city', released: true, name: 'Council meeting', name_en: 'Council meeting' },
     subjects: [{ id: 'subject', name: 'A safer square' }],
 }) }));
-jest.mock('posthog-js', () => ({ __loaded: false }));
+jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
 jest.mock('../StoryTemplatePickerDialog', () => ({ __esModule: true, default: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="meetingStory" /> : null }));
 jest.mock('@/components/sharing/SubjectShareDialog', () => ({ SubjectShareDialog: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="subjectStory" /> : null }));
 jest.mock('@/components/embed/SubjectEmbedDialog', () => ({ SubjectEmbedDialog: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="embed" /> : null }));
@@ -61,6 +62,8 @@ describe('meeting and subject sharing menu', () => {
         fireEvent.click(copy);
         await screen.findByRole('menuitem', { name: 'copied' });
         expect(writeText).toHaveBeenCalledWith(subjectUrl);
+        expect(captureEvent).toHaveBeenCalledWith('sharing_opened', expect.objectContaining({ content_type: 'subject', surface: 'subject_menu', subject_id: 'subject', mode: 'menu' }));
+        expect(captureEvent).toHaveBeenCalledWith('sharing_action_succeeded', expect.objectContaining({ action: 'copy_link', includes_timestamp: false }));
     });
 
     it('confirms copying only after the clipboard resolves', async () => {

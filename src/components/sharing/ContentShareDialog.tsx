@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Check, Copy, Instagram, Link2, Loader2, Share2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { StorySharePanel } from './StorySharePanel';
 import { cn } from '@/lib/utils';
+import { useSharingTracker, type SharingContext } from '@/lib/analytics/sharing';
 
 interface Props {
     open: boolean;
@@ -21,9 +22,10 @@ interface Props {
     children: React.ReactNode;
     storyImageUrl?: string;
     initialMode?: 'link' | 'story';
+    analytics?: SharingContext;
 }
 
-export function ContentShareDialog({ open, onOpenChange, title, description, url, sourceText, copyTextLabel, children, storyImageUrl, initialMode = 'link' }: Props) {
+export function ContentShareDialog({ open, onOpenChange, title, description, url, sourceText, copyTextLabel, children, storyImageUrl, initialMode = 'link', analytics }: Props) {
     const t = useTranslations('sharing');
     const fieldId = useId();
     const [pending, setPending] = useState<string | null>(null);
@@ -31,22 +33,36 @@ export function ContentShareDialog({ open, onOpenChange, title, description, url
     const [error, setError] = useState(false);
     const [nativeShare, setNativeShare] = useState(false);
     const [mode, setMode] = useState(initialMode);
+    const track = useSharingTracker(analytics);
+    const wasOpen = useRef(false);
+    useEffect(() => {
+        if (open && !wasOpen.current) track('sharing_opened', { mode: initialMode });
+        wasOpen.current = open;
+    }, [open, initialMode, track]);
     useEffect(() => { setNativeShare(typeof navigator.share === 'function'); }, []);
     useEffect(() => { setCopied(null); setError(false); setMode(initialMode); }, [open, url, initialMode]);
     const showStory = mode === 'story' && !!storyImageUrl;
 
     async function copy(kind: 'link' | 'text') {
+        const action = kind === 'link' ? 'copy_link' : 'copy_text';
+        track('sharing_action_started', { action });
         setPending(kind); setError(false); setCopied(null);
         try {
             await navigator.clipboard.writeText(kind === 'link' ? url : `${sourceText}\n\n${url}`);
             setCopied(kind);
-        } catch { setError(true); }
+            track('sharing_action_succeeded', { action });
+        } catch { setError(true); track('sharing_action_failed', { action }); }
         finally { setPending(null); }
     }
     async function share() {
+        track('sharing_action_started', { action: 'native_share' });
         setError(false); setPending('share');
-        try { await navigator.share({ title, text: sourceText, url }); }
-        catch (error) { if (!(error instanceof Error && error.name === 'AbortError')) setError(true); }
+        try { await navigator.share({ title, text: sourceText, url }); track('sharing_action_succeeded', { action: 'native_share' }); }
+        catch (error) {
+            const cancelled = error instanceof Error && error.name === 'AbortError';
+            track(cancelled ? 'sharing_action_cancelled' : 'sharing_action_failed', { action: 'native_share' });
+            if (!cancelled) setError(true);
+        }
         finally { setPending(null); }
     }
     const shareDisabled = !url || pending !== null;
@@ -54,9 +70,9 @@ export function ContentShareDialog({ open, onOpenChange, title, description, url
         {pending === 'share' ? <Loader2 className="size-4 animate-spin" /> : <Share2 className="size-4" />}{t('share')}
     </Button>;
     const destinations = [
-        { label: 'WhatsApp', href: `https://wa.me/?text=${encodeURIComponent(`${title}\n${url}`)}` },
-        { label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
-        { label: t('email'), href: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${sourceText}\n\n${url}`)}` },
+        { destination: 'whatsapp' as const, label: 'WhatsApp', href: `https://wa.me/?text=${encodeURIComponent(`${title}\n${url}`)}` },
+        { destination: 'facebook' as const, label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
+        { destination: 'email' as const, label: t('email'), href: `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`${sourceText}\n\n${url}`)}` },
     ];
 
     function statusIcon(kind: 'link' | 'text') {
@@ -74,7 +90,7 @@ export function ContentShareDialog({ open, onOpenChange, title, description, url
                 </div>
                 <DialogDescription className={showStory ? 'sr-only' : 'pt-1 leading-relaxed'}>{showStory ? t('storyDescription') : description}</DialogDescription>
             </DialogHeader>
-            {showStory ? open && <StorySharePanel key={storyImageUrl} imageUrl={storyImageUrl!} url={url} /> : <>
+            {showStory ? open && <StorySharePanel key={storyImageUrl} imageUrl={storyImageUrl!} url={url} analytics={analytics} /> : <>
             <div className="w-full border-y bg-muted/30 px-6 py-6 sm:px-8">{children}</div>
             <div className="w-full space-y-4 px-6 py-6 sm:px-8">
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -85,7 +101,7 @@ export function ContentShareDialog({ open, onOpenChange, title, description, url
                         <DropdownMenuTrigger asChild>{shareButton}</DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="min-w-44 rounded-xl p-1.5">
                             {destinations.map(destination => <DropdownMenuItem key={destination.label} asChild className="min-h-11 rounded-lg">
-                                <a href={destination.href} target="_blank" rel="noopener noreferrer">{destination.label}</a>
+                                <a href={destination.href} onClick={() => track('sharing_destination_selected', { destination: destination.destination })} target="_blank" rel="noopener noreferrer">{destination.label}</a>
                             </DropdownMenuItem>)}
                         </DropdownMenuContent>
                     </DropdownMenu>}
