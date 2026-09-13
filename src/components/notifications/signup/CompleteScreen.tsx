@@ -8,6 +8,7 @@ import { OsektutuBanner } from '@/components/onboarding/OsektutuBanner';
 import { MeanwhileLinks, type MeanwhileLink } from '@/components/signup/MeanwhileLinks';
 import { StepHeading } from '@/components/signup/SignupChrome';
 import { maskPhone } from '@/components/signup/signup-shared';
+import { useCelebration } from '@/components/signup/useCelebration';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
@@ -48,6 +49,7 @@ export function CompleteScreen({
     const t = useTranslations('notificationSignup');
     const ts = useTranslations('signup');
     const tc = useTranslations('cityOverview');
+    useCelebration();
     const osektutuNeighbourhood = findOsektutuNeighbourhood(locations);
     const maskedPhone = phone ? maskPhone(phone) : t('yourPhone');
     const intro = phoneChannel && !known;
