@@ -21,6 +21,9 @@ import { captureMenuLink, footerGroups, isInternalHref, reopenCookiePreferences 
 import ScriptSwitcher from '@/components/layout/ScriptSwitcher';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import type { Realm } from '@prisma/client';
+import { useInstallApp } from '@/hooks/useInstallApp';
+import InstallAppMenuItem from '@/components/pwa/InstallAppMenuItem';
+import InstallStepsDialog from '@/components/pwa/InstallStepsDialog';
 
 /* The desktop landing's left nav rail: brand at the top, the three view items centered,
    and a Policy popover + Account control at the bottom. Selecting an item opens the
@@ -52,6 +55,8 @@ export function LandingAside({
     // (unseeded SessionProvider) → React #418. Gate on a mounted flag so both render null first.
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
+    const install = useInstallApp();
+    const [installStepsOpen, setInstallStepsOpen] = useState(false);
 
     return (
         // Inner nav-rail column of the unified aside card (DesktopLayout owns the card chrome).
@@ -152,6 +157,11 @@ export function LandingAside({
                             <HelpCircle className="h-4 w-4" />
                             {t('info.title')}
                         </DropdownMenuItem>
+                        <InstallAppMenuItem
+                            install={install}
+                            onShowSteps={() => setInstallStepsOpen(true)}
+                            className="flex items-center gap-2 rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
+                        />
                         <DropdownMenuSeparator className="bg-muted" />
                         {footerGroups(realm).map((group, gi) => (
                             <div key={group.title}>
@@ -287,6 +297,7 @@ export function LandingAside({
                     </Link>
                 )}
             </div>
+            <InstallStepsDialog open={installStepsOpen} onOpenChange={setInstallStepsOpen} platform={install.platform} />
         </div>
     );
 }

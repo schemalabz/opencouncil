@@ -1,9 +1,9 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Menu, Home, ChevronDown, User, LogOut, LogIn, Search, Plug, Bell, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
+import { Menu, Home, ChevronDown, User, LogOut, LogIn, Search, Plug, Bell, Phone, Mail, ArrowRight, HelpCircle, Download, Check } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link } from '@/i18n/routing';
 import { useAccountLinks } from '@/components/layout/account-links';
@@ -14,6 +14,9 @@ import ScriptSwitcher from '@/components/layout/ScriptSwitcher';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import type { InfoSurface } from '@/lib/landing/landingCore';
 import type { Realm } from '@prisma/client';
+import { useInstallApp } from '@/hooks/useInstallApp';
+import { installAction } from '@/components/pwa/InstallAppMenuItem';
+import InstallStepsDialog from '@/components/pwa/InstallStepsDialog';
 
 /* Mobile top bar — a pill with the burger nav-drawer trigger + logo on the left and a separate
    bordered keyword-search box on the right. Tapping search opens the search overlay (owned by the
@@ -40,6 +43,10 @@ export function MobileHeader({
     const tAccount = useTranslations('account');
     const accountLinks = useAccountLinks();
     const { data: session, status } = useSession();
+    const tInstall = useTranslations('pwa.install');
+    const install = useInstallApp();
+    const [installStepsOpen, setInstallStepsOpen] = useState(false);
+    const installEntry = installAction(install, () => setInstallStepsOpen(true));
     return (
         <div className="absolute inset-x-3 top-3 z-[9] flex items-center gap-1.5">
             {/* header pill: burger + logo + brand (both the burger/logo open the nav drawer). While a
@@ -108,6 +115,24 @@ export function MobileHeader({
                         >
                             {t('footer.links.ai')}
                         </DrawerLink>
+                        {installEntry.state === 'installed' && (
+                            <div className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground/60">
+                                <Check className="h-[18px] w-[18px] shrink-0" />
+                                {tInstall('installed')}
+                            </div>
+                        )}
+                        {installEntry.state === 'install' && (
+                            <SheetClose asChild>
+                                <button
+                                    type="button"
+                                    onClick={installEntry.onSelect}
+                                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                >
+                                    <Download className="h-[18px] w-[18px] shrink-0" />
+                                    {tInstall('menu')}
+                                </button>
+                            </SheetClose>
+                        )}
                         {footerGroups(realm).map((group) => (
                             <details key={group.title} className="group">
                                 <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted [&::-webkit-details-marker]:hidden">
@@ -181,6 +206,7 @@ export function MobileHeader({
                     </div>
                 </SheetContent>
             </Sheet>
+            <InstallStepsDialog open={installStepsOpen} onOpenChange={setInstallStepsOpen} platform={install.platform} />
 
             <span className="truncate text-base text-foreground">OpenCouncil</span>
             </div>

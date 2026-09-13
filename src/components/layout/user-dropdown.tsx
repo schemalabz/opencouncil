@@ -27,6 +27,9 @@ import ScriptSwitcher from "./ScriptSwitcher"
 import { TrackedLink } from "@/components/analytics/TrackedLink"
 import { notificationsSignupHref } from "@/lib/utils/notificationsSignupHref"
 import type { City } from "@prisma/client"
+import { useInstallApp } from "@/hooks/useInstallApp"
+import InstallAppMenuItem from "@/components/pwa/InstallAppMenuItem"
+import InstallStepsDialog from "@/components/pwa/InstallStepsDialog"
 
 interface UserDropdownProps {
     currentEntity?: { cityId: string }
@@ -56,6 +59,8 @@ export default function UserDropdown({ currentEntity, city, showExplain = false 
     const locale = useLocale()
     const router = useRouter()
     const [canEdit, setCanEdit] = useState(false);
+    const install = useInstallApp();
+    const [installStepsOpen, setInstallStepsOpen] = useState(false);
 
     const cityId = currentEntity?.cityId;
     const userId = session?.user?.id;
@@ -89,9 +94,14 @@ export default function UserDropdown({ currentEntity, city, showExplain = false 
     // The notifications signup, MCP, the guide and the script switch: app-wide,
     // so a phone-width bar names them here instead of showing more glyphs. From
     // `lg` the bar has room for the first three itself, and drops them here to
-    // avoid offering the same link twice on one screen.
+    // avoid offering the same link twice on one screen. The install entry has
+    // no place in the bar at any width, so it stays here.
+    const installItem = <InstallAppMenuItem install={install} onShowSteps={() => setInstallStepsOpen(true)} />;
+    const installSteps = <InstallStepsDialog open={installStepsOpen} onOpenChange={setInstallStepsOpen} platform={install.platform} />;
     const appLinks = (
         <>
+            <DropdownMenuSeparator />
+            {installItem}
             <DropdownMenuSeparator className="lg:hidden" />
             <DropdownMenuItem asChild className="lg:hidden">
                 <TrackedLink
@@ -150,6 +160,7 @@ export default function UserDropdown({ currentEntity, city, showExplain = false 
                     </DropdownMenuItem>
                     {appLinks}
                 </DropdownMenuContent>
+                {installSteps}
             </DropdownMenu>
         )
     }
@@ -217,6 +228,7 @@ export default function UserDropdown({ currentEntity, city, showExplain = false 
                     {tAccount("signOut")}
                 </DropdownMenuItem>
             </DropdownMenuContent>
+            {installSteps}
         </DropdownMenu>
     )
 }
