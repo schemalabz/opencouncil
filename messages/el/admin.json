@@ -71,8 +71,6 @@
       "notificationsSubtitle": "Δημιουργία ειδοποιήσεων για χρήστες που ενδιαφέρονται για τα θέματα αυτής της συνεδρίασης.",
       "cacheManagement": "Διαχείριση Cache",
       "cacheManagementSubtitle": "Εξαναγκασμός ανανέωσης των δεδομένων cache για άμεση προβολή αλλαγών.",
-      "minutes": "Προεπισκόπηση Πρακτικών",
-      "minutesSubtitle": "Προεπισκόπηση και εξαγωγή πρακτικών συνεδρίασης σε DOCX από τα δεδομένα της βάσης.",
       "export": "Εξαγωγή",
       "exportSubtitle": "Λήψη δεδομένων συνεδρίασης σε διάφορες μορφές."
     },
@@ -90,9 +88,7 @@
       "starting": "Ξεκινάει...",
       "syncing": "Συγχρονισμός...",
       "process": "Επεξεργασία",
-      "extractDecisions": "Εξαγωγή Αποφάσεων",
-      "previewMinutes": "Προεπισκόπηση Πρακτικών",
-      "exportMinutesDocx": "Εξαγωγή DOCX"
+      "extractDecisions": "Εξαγωγή Αποφάσεων"
     },
     "forms": {
       "enterMediaUrl": "Εισάγετε URL Μέσου",
@@ -205,7 +201,6 @@
     },
     "minutes": {
       "title": "Προεπισκόπηση Πρακτικών",
-      "loading": "Δημιουργία προεπισκόπησης πρακτικών...",
       "noSubjects": "Δεν βρέθηκαν θέματα για αυτή τη συνεδρίαση.",
       "exportSuccess": "Τα πρακτικά DOCX εξήχθησαν",
       "exportError": "Σφάλμα εξαγωγής πρακτικών"
@@ -384,13 +379,14 @@
     "eventArrivals": "{names} {n, plural, one {προσέρχεται} other {προσέρχονται}}",
     "eventDepartures": "{names} {n, plural, one {αποχωρεί} other {αποχωρούν}}",
     "eventUrgencyVote": "Ψηφοφορία κατεπείγοντος — {subject}",
-    "eventWithdrawalVote": "Ψηφοφορία απόσυρσης — {subject}",
+    "eventProceduralVote": "Διαδικαστική ψηφοφορία — {subject}",
     "eventProceduralNote": "Μια διαδικαστική ψηφοφορία δεν τοποθετεί το θέμα.",
     "metaPosition": "Συζητήθηκε {n}ο.",
     "metaDiscussedWith": "Συζητήθηκε με {label}",
     "metaPositionInferred": "Θέση από την ημερήσια διάταξη",
     "metaDiscussed": "Συζήτηση {minutes} λεπ.",
     "metaVoteOnly": "Μόνο ψηφοφορία — χωρίς συζήτηση",
+    "metaOtherUtterances": "Συνδεδεμένα utterances, χωρίς συζήτηση ή ψηφοφορία",
     "metaNoUtterances": "Χωρίς συνδεδεμένα utterances",
     "metaNoAttendance": "Χωρίς παρουσίες",
     "metaNoVote": "Χωρίς ψηφοφορία",
@@ -401,8 +397,10 @@
     "factsDiscussionOrder": "Σειρά συζήτησης",
     "factsDiffersFromAgenda": "διαφέρει από την ημερήσια διάταξη",
     "factsFollowsAgenda": "ακολουθεί την ημερήσια διάταξη",
+    "factsNoOrder": "δεν καταγράφηκε σειρά συζήτησης — κανένα utterance δεν έχει συνδεθεί με θέμα",
     "factsProceduralVotes": "Διαδικαστικές ψηφοφορίες",
-    "minutesLoadFailed": "Τα δεδομένα των πρακτικών δεν φορτώθηκαν. Οι γραμμές δείχνουν μόνο τις αποφάσεις."
+    "minutesLoadFailed": "Τα δεδομένα των πρακτικών δεν φορτώθηκαν. Οι γραμμές δείχνουν μόνο τις αποφάσεις.",
+    "minutesRefreshFailed": "Τα πρακτικά δεν ανανεώθηκαν — τα στοιχεία πρακτικών παρακάτω μπορεί να μην είναι ενημερωμένα."
   },
   "decisionsOverview": {
     "title": "Αποφάσεις",

@@ -28,6 +28,10 @@ import { normalizeText } from '@/lib/utils';
 import { diavgeiaDocUrl, diavgeiaSearchUrl } from '@/components/meetings/decisions/pdfUrl';
 import { parseDiavgeiaUnitScopes } from '@/lib/utils/diavgeiaUnitScope';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
+import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
+import { SubjectMinutesMeta } from '@/components/meetings/decisions/SubjectMinutesMeta';
+import { MeetingFactsBlock } from '@/components/meetings/decisions/MeetingFactsBlock';
+import { subjectHasGaps } from '@/components/meetings/decisions/timeline';
 
 interface ManualEntryState {
     pdfUrl: string;
@@ -48,7 +52,7 @@ type CandidateView = Omit<MeetingCandidate, 'publishDate' | 'meetingDate'> & {
     meetingDate: string | null;
 };
 
-type SubjectStatus = 'linked' | 'none';
+type SubjectStatus = 'linked' | 'none' | 'gaps';
 
 /** The document fields every sheet action carries, projected once. */
 interface DecisionDoc {
@@ -118,6 +122,8 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     // Empty selection means no status filter (BadgePicker's "all" state).
     const [statusFilter, setStatusFilter] = useState<SubjectStatus[]>([]);
     const [subjectQuery, setSubjectQuery] = useState('');
+    const [minutes, setMinutes] = useState<MinutesData | null>(null);
+    const [minutesFailed, setMinutesFailed] = useState(false);
     // The sheet stays mounted while it animates out — same dismissable-layer
     // bug as the modal={false} note on the row menu below.
     const lastActionRef = useRef<PendingAction | null>(null);
@@ -161,6 +167,26 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             .then(setPollingStatus)
             .catch(() => { /* silent */ });
     }, [fetchDecisions, meeting.cityId, meeting.id]);
+
+    // The minutes route is the one source of the discussion order and the
+    // per-subject minutes facts, so the page and the DOCX cannot drift apart.
+    const fetchMinutes = useCallback(async () => {
+        setMinutesFailed(false);
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/minutes?format=json`);
+            if (!response.ok) { setMinutesFailed(true); return; }
+            setMinutes(await response.json() as MinutesData);
+        } catch {
+            setMinutesFailed(true);
+        }
+    }, [meeting.cityId, meeting.id]);
+
+    useEffect(() => { fetchMinutes(); }, [fetchMinutes]);
+
+    const minutesById = useMemo(
+        () => new Map<string, MinutesSubject>((minutes?.subjects ?? []).map(s => [s.subjectId, s])),
+        [minutes],
+    );
 
     const validateForm = (): boolean => {
         const errors: FormErrors = {};
@@ -249,7 +275,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 throw new Error(err?.error ?? 'Failed to save decision');
             }
 
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
             setExpandedManualEntry(null);
             setEditState({ pdfUrl: '', ada: '', decisionNumber: '', protocolNumber: '', title: '' });
             toast({ title: t('toasts.decisionLinked.title') });
@@ -280,7 +306,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             );
             if (!response.ok) throw new Error('Failed to remove decision');
             toast({ title: tPage('decisionRemoved') });
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
             return true;
         } catch (error) {
             toast({ title: t('toasts.errorRemovingDecision.title'), description: `${error}`, variant: 'destructive' });
@@ -303,7 +329,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 throw new Error(err?.error ?? 'Assignment failed');
             }
             toast({ title: tPage('unplacedAssigned') });
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
             return true;
         } catch (error) {
             toast({ title: `${error instanceof Error ? error.message : error}`, variant: 'destructive' });
@@ -323,7 +349,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             });
             if (!response.ok) throw new Error('Dismiss failed');
             toast({ title: tPage('unplacedDismissed') });
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
             return true;
         } catch (error) {
             toast({ title: `${error}`, variant: 'destructive' });
@@ -343,7 +369,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             });
             if (!response.ok) throw new Error('Failed to reset extraction');
             toast({ title: tPage('extractionReset') });
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
         } catch (error) {
             toast({ title: tPage('resetError'), description: `${error}`, variant: 'destructive' });
         } finally {
@@ -401,7 +427,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             if (!response.ok) throw new Error('Failed to reset extractions');
             const result = await response.json();
             toast({ title: `${tPage('resetExtractions')}: ${result.clearedCount}` });
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
         } catch (error) {
             toast({ title: tPage('resetError'), description: `${error}`, variant: 'destructive' });
         } finally {
@@ -458,9 +484,33 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         return !!d && [d.title, d.ada, d.decisionNumber, d.protocolNumber]
             .some(v => v && normalizeText(v).includes(query));
     };
-    const filteredSubjects = allDisplaySubjects.filter(s =>
-        (statusFilter.length === 0 || statusFilter.includes(subjectStatus(s.id))) && matchesQuery(s.id, s.name));
+    const matchesStatus = (subjectId: string): boolean => {
+        if (statusFilter.length === 0) return true;
+        const minutesSubject = minutesById.get(subjectId);
+        return statusFilter.some(f =>
+            f === 'gaps' ? (minutesSubject ? subjectHasGaps(minutesSubject) : false) : subjectStatus(subjectId) === f);
+    };
+    const filteredSubjects = allDisplaySubjects.filter(s => matchesStatus(s.id) && matchesQuery(s.id, s.name));
     const stats = computeDecisionStats(eligibleSubjects.map(s => s.id), decisions, candidates);
+
+    // 1-based position in discussion order, for the non-withdrawn subjects the minutes carry.
+    const positionById = useMemo(() => {
+        const map = new Map<string, number>();
+        let n = 0;
+        for (const s of minutes?.subjects ?? []) {
+            if (!s.withdrawn) map.set(s.subjectId, ++n);
+        }
+        return map;
+    }, [minutes]);
+
+    const minutesStats = useMemo(() => {
+        const rows = (minutes?.subjects ?? []).filter(s => !s.withdrawn);
+        return {
+            noUtterances: rows.filter(s => s.discussion.kind === 'none').length,
+            noVote: rows.filter(s => s.voteResult === null).length,
+            withdrawn: (minutes?.subjects ?? []).filter(s => s.withdrawn).length,
+        };
+    }, [minutes]);
 
     /** Run the sheet-confirmed action; close the sheet only when it succeeds,
      * so a failure keeps the document context for the retry. */
@@ -694,26 +744,28 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                     {subject.description}
                                 </div>
                             ) : null}
-                            {/* Inline attendance & vote summary */}
-                            {extracted && (extracted.attendance.length > 0 || extracted.votes.length > 0) && (() => {
-                                const filteredInline = splitAttendance(extracted.attendance, mayorPersonId);
-                                const present = filteredInline.present;
-                                const absent = filteredInline.absent;
-                                const voteResult = extracted.votes.length > 0 ? calculateVoteResult(extracted.votes) : null;
+                            {(() => {
+                                const filteredInline = extracted ? splitAttendance(extracted.attendance, mayorPersonId) : { present: [], absent: [] };
+                                const attendanceLabel = extracted && extracted.attendance.length > 0
+                                    ? `${filteredInline.present.length}/${filteredInline.absent.length}`
+                                    : null;
+                                const voteLabel = extracted && extracted.votes.length > 0 ? voteSummaryText(calculateVoteResult(extracted.votes)) : null;
+                                const minutesSubject = minutesById.get(subject.id);
+                                if (minutesSubject) {
+                                    return (
+                                        <SubjectMinutesMeta
+                                            subject={minutesSubject}
+                                            position={positionById.get(subject.id) ?? null}
+                                        />
+                                    );
+                                }
+                                // No minutes data for this row (the minutes did not load, or the
+                                // subject is outside the minutes): the decisions summary as before.
+                                if (!attendanceLabel && !voteLabel) return null;
                                 return (
                                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                                        {extracted.attendance.length > 0 && (
-                                            <span className="inline-flex items-center gap-1">
-                                                <Users className="h-3 w-3" />
-                                                {present.length}/{absent.length}
-                                            </span>
-                                        )}
-                                        {voteResult && (
-                                            <span className="inline-flex items-center gap-1">
-                                                <Vote className="h-3 w-3" />
-                                                {voteSummaryText(voteResult)}
-                                            </span>
-                                        )}
+                                        {attendanceLabel && <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{attendanceLabel}</span>}
+                                        {voteLabel && <span className="inline-flex items-center gap-1"><Vote className="h-3 w-3" />{voteLabel}</span>}
                                     </div>
                                 );
                             })()}
@@ -1055,6 +1107,22 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         <span className="mx-2 text-gray-300">|</span>
                         <b className="text-base font-bold text-red-700">{stats.conflicts}</b> {tPage('statsConflicts', { n: stats.conflicts })}
                     </p>
+                    {minutes && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                            {tPage('minutesStatsPrefix')}{' '}
+                            <b className="text-base font-bold text-amber-700">{minutesStats.noUtterances}</b> {tPage('minutesStatsNoUtterances', { n: minutesStats.noUtterances })}
+                            <span className="mx-2 text-gray-300">|</span>
+                            <b className="text-base font-bold text-amber-700">{minutesStats.noVote}</b> {tPage('minutesStatsNoVote', { n: minutesStats.noVote })}
+                            <span className="mx-2 text-gray-300">|</span>
+                            <b className="text-base font-bold text-muted-foreground">{minutesStats.withdrawn}</b> {tPage('minutesStatsWithdrawn', { n: minutesStats.withdrawn })}
+                        </p>
+                    )}
+                    {minutesFailed && !minutes && (
+                        <p className="text-sm text-amber-700 mt-1">{tPage('minutesLoadFailed')}</p>
+                    )}
+                    {minutesFailed && minutes && (
+                        <p className="text-sm text-amber-700 mt-1">{tPage('minutesRefreshFailed')}</p>
+                    )}
                 </div>
 
                 {/* Poll actions — cost-incurring operations, superadmin only */}
@@ -1181,6 +1249,8 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 />
             )}
 
+            {minutes && <MeetingFactsBlock data={minutes} />}
+
             {isLoading ? (
                 <div className="p-8 flex justify-center">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1192,6 +1262,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                             options={[
                                 { value: 'linked' as const, label: tPage('filterLinked') },
                                 { value: 'none' as const, label: tPage('filterNone') },
+                                ...(minutes ? [{ value: 'gaps' as const, label: tPage('filterGaps') }] : []),
                             ]}
                             selectedValues={statusFilter}
                             onSelectionChange={(values) => setStatusFilter(values)}

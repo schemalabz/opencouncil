@@ -71,8 +71,6 @@
       "notificationsSubtitle": "Créez des notifications pour les utilisateurs intéressés par les sujets de cette séance.",
       "cacheManagement": "Gestion du cache",
       "cacheManagementSubtitle": "Forcez l'actualisation des données en cache pour voir immédiatement les dernières modifications.",
-      "minutes": "Aperçu des procès-verbaux",
-      "minutesSubtitle": "Prévisualisez et exportez les procès-verbaux de la séance au format DOCX à partir des données de la base.",
       "export": "Exporter",
       "exportSubtitle": "Téléchargez les données de la séance dans divers formats."
     },
@@ -90,9 +88,7 @@
       "starting": "Démarrage...",
       "syncing": "Synchronisation...",
       "process": "Traiter",
-      "extractDecisions": "Extraire les décisions",
-      "previewMinutes": "Aperçu des procès-verbaux",
-      "exportMinutesDocx": "Exporter en DOCX"
+      "extractDecisions": "Extraire les décisions"
     },
     "forms": {
       "enterMediaUrl": "Saisir l'URL du média",
@@ -205,7 +201,6 @@
     },
     "minutes": {
       "title": "Aperçu des procès-verbaux",
-      "loading": "Génération de l'aperçu des procès-verbaux...",
       "noSubjects": "Aucun sujet trouvé pour cette séance.",
       "exportSuccess": "Procès-verbaux DOCX exportés",
       "exportError": "Erreur lors de l'exportation des procès-verbaux"
@@ -384,13 +379,14 @@
     "eventArrivals": "{names} {n, plural, one {arrive} other {arrivent}}",
     "eventDepartures": "{names} {n, plural, one {part} other {partent}}",
     "eventUrgencyVote": "Vote d'urgence — {subject}",
-    "eventWithdrawalVote": "Vote de retrait — {subject}",
+    "eventProceduralVote": "Vote de procédure — {subject}",
     "eventProceduralNote": "Un vote de procédure ne place pas le sujet.",
     "metaPosition": "Discuté {n}e.",
     "metaDiscussedWith": "Discuté avec {label}",
     "metaPositionInferred": "Position déduite de l'ordre du jour",
     "metaDiscussed": "Discuté {minutes} min",
     "metaVoteOnly": "Vote seul — sans discussion",
+    "metaOtherUtterances": "Énoncés liés, sans discussion ni vote",
     "metaNoUtterances": "Aucun énoncé lié",
     "metaNoAttendance": "Pas de présences",
     "metaNoVote": "Pas de vote",
@@ -401,8 +397,10 @@
     "factsDiscussionOrder": "Ordre de discussion",
     "factsDiffersFromAgenda": "diffère de l'ordre du jour",
     "factsFollowsAgenda": "suit l'ordre du jour",
+    "factsNoOrder": "aucun ordre de discussion enregistré — aucun énoncé n'est lié à un sujet",
     "factsProceduralVotes": "Votes de procédure",
-    "minutesLoadFailed": "Les données du procès-verbal n'ont pas été chargées. Les lignes n'affichent que les décisions."
+    "minutesLoadFailed": "Les données du procès-verbal n'ont pas été chargées. Les lignes n'affichent que les décisions.",
+    "minutesRefreshFailed": "Le procès-verbal n'a pas pu être actualisé — les données ci-dessous peuvent être obsolètes."
   },
   "decisionsOverview": {
     "title": "Décisions",

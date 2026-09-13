@@ -71,8 +71,6 @@
       "notificationsSubtitle": "Create notifications for users interested in this meeting's subjects.",
       "cacheManagement": "Cache Management",
       "cacheManagementSubtitle": "Force refresh of cached data to see latest changes immediately.",
-      "minutes": "Minutes Preview",
-      "minutesSubtitle": "Preview and export meeting minutes as DOCX from database data.",
       "export": "Export",
       "exportSubtitle": "Download meeting data in various formats."
     },
@@ -90,9 +88,7 @@
       "starting": "Starting...",
       "syncing": "Syncing...",
       "process": "Process",
-      "extractDecisions": "Extract Decisions",
-      "previewMinutes": "Preview Minutes",
-      "exportMinutesDocx": "Export DOCX"
+      "extractDecisions": "Extract Decisions"
     },
     "forms": {
       "enterMediaUrl": "Enter Media URL",
@@ -205,7 +201,6 @@
     },
     "minutes": {
       "title": "Minutes Preview",
-      "loading": "Generating minutes preview...",
       "noSubjects": "No subjects found for this meeting.",
       "exportSuccess": "Minutes DOCX exported",
       "exportError": "Error exporting minutes"
@@ -384,13 +379,14 @@
     "eventArrivals": "{names} {n, plural, one {arrives} other {arrive}}",
     "eventDepartures": "{names} {n, plural, one {leaves} other {leave}}",
     "eventUrgencyVote": "Urgency vote — {subject}",
-    "eventWithdrawalVote": "Withdrawal vote — {subject}",
+    "eventProceduralVote": "Procedural vote — {subject}",
     "eventProceduralNote": "A procedural vote does not place the subject.",
     "metaPosition": "Discussed {n}.",
     "metaDiscussedWith": "Discussed with {label}",
     "metaPositionInferred": "Position inferred from the agenda",
     "metaDiscussed": "Discussed {minutes} min",
     "metaVoteOnly": "Vote only — no discussion",
+    "metaOtherUtterances": "Linked utterances, no discussion or vote",
     "metaNoUtterances": "No utterances linked",
     "metaNoAttendance": "No attendance",
     "metaNoVote": "No vote",
@@ -401,8 +397,10 @@
     "factsDiscussionOrder": "Discussion order",
     "factsDiffersFromAgenda": "differs from the agenda",
     "factsFollowsAgenda": "follows the agenda",
+    "factsNoOrder": "no discussion order recorded — no utterance is linked to a subject",
     "factsProceduralVotes": "Procedural votes",
-    "minutesLoadFailed": "The minutes data did not load. Rows show the decisions only."
+    "minutesLoadFailed": "The minutes data did not load. Rows show the decisions only.",
+    "minutesRefreshFailed": "The minutes could not be refreshed — the minutes facts below may be out of date."
   },
   "decisionsOverview": {
     "title": "Decisions",
