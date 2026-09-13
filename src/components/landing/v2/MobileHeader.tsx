@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Menu, Home, ChevronDown, User, LogOut, LogIn, Search, Bot, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
+import { Menu, Home, ChevronDown, User, LogOut, LogIn, Search, Plug, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link } from '@/i18n/routing';
 import { openAfterMenuCloses } from '@/lib/utils/menus';
@@ -105,7 +105,7 @@ export function MobileHeader({
                         </DrawerLink>
                         <DrawerLink
                             href="/mcp"
-                            icon={<Bot className="h-[18px] w-[18px]" />}
+                            icon={<Plug className="h-[18px] w-[18px]" />}
                             onNavigate={() => captureLandingAction('nav_link', { target: 'mcp', surface: 'drawer' })}
                         >
                             {t('footer.links.ai')}

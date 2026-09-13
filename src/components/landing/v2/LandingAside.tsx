@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Shapes, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight, Search, Bot } from 'lucide-react';
+import { Shapes, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight, Search, Plug } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link, getPathname } from '@/i18n/routing';
 import { openAfterMenuCloses } from '@/lib/utils/menus';
@@ -126,7 +126,7 @@ export function LandingAside({
                     links go to hide — these two are product surfaces, so they get their own
                     rows, in the sign-in link's shape but muted (orange stays the CTA). */}
                 <RailLink href="/search" icon={<Search className="h-5 w-5" />} label={t('nav.searchPage')} target="search" />
-                <RailLink href="/mcp" icon={<Bot className="h-5 w-5" />} label={t('nav.mcp')} ariaLabel="OpenCouncil MCP" target="mcp" />
+                <RailLink href="/mcp" icon={<Plug className="h-5 w-5" />} label={t('nav.mcp')} ariaLabel="OpenCouncil MCP" target="mcp" />
                 <ScriptSwitcher />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
