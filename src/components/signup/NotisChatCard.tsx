@@ -3,21 +3,36 @@
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { NotisConversation } from '@/components/cities/overview/NotisConversation';
+import { RailDisclosure } from '@/components/cities/overview/RailDisclosure';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { cn } from '@/lib/utils';
 
 /**
  * Νότης in his box: the header a WhatsApp thread has (avatar, name, a
- * one-line about) over the playable example conversation the city page
- * already carries. The signups' first steps and both municipality pickers
- * show it, because the fastest way to explain what he is, is to let him
- * do it.
+ * one-line about) over the playable example conversation, and whatever the
+ * surface puts under it (the city page's call to action). The city page,
+ * the signup's first step and the municipality picker show it, because the
+ * fastest way to explain what he is, is to let him do it.
+ *
+ * With a `summary` the box is shut on a phone and open from `lg`, the way
+ * the city page's rail cards are: one line and a chevron, so what the page
+ * is for stays above the fold.
  */
-export function NotisChatCard({ intro, className }: { intro: string; className?: string }) {
+export function NotisChatCard({
+    intro,
+    summary,
+    className,
+    children,
+}: {
+    intro: string;
+    summary?: string;
+    className?: string;
+    children?: React.ReactNode;
+}) {
     const t = useTranslations('cityOverview');
-    return (
-        <section className={cn(surfaceCardClass, 'overflow-hidden', className)} aria-label={t('notisName')}>
-            <div className="flex items-center gap-3 border-b border-border px-3.5 py-2.5">
+    const body = (
+        <>
+            <div className={cn('flex items-center gap-3 border-b border-border px-3.5 py-2.5', summary && 'max-lg:border-t')}>
                 <Image
                     src="/logo.png"
                     alt=""
@@ -31,6 +46,20 @@ export function NotisChatCard({ intro, className }: { intro: string; className?:
                 </span>
             </div>
             <NotisConversation />
+            {children}
+        </>
+    );
+
+    if (summary) {
+        return (
+            <RailDisclosure summary={summary} className={className}>
+                {body}
+            </RailDisclosure>
+        );
+    }
+    return (
+        <section className={cn(surfaceCardClass, 'overflow-hidden', className)} aria-label={t('notisName')}>
+            {body}
         </section>
     );
 }

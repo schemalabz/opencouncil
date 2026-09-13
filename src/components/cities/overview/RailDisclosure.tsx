@@ -8,6 +8,7 @@ import { surfaceCardClass } from '@/components/ui/surface-card';
 interface RailDisclosureProps {
     /** The one line that stands for the card while it is shut. */
     summary: string;
+    className?: string;
     children: React.ReactNode;
 }
 
@@ -22,11 +23,11 @@ interface RailDisclosureProps {
  * From `lg` the summary goes and the body is simply there: no state to get
  * wrong, and a reader on a desktop never meets a control they do not need.
  */
-export function RailDisclosure({ summary, children }: RailDisclosureProps) {
+export function RailDisclosure({ summary, className, children }: RailDisclosureProps) {
     const [open, setOpen] = useState(false);
 
     return (
-        <div className={cn(surfaceCardClass, "overflow-hidden")}>
+        <div className={cn(surfaceCardClass, "overflow-hidden", className)}>
             <button
                 type="button"
                 onClick={() => setOpen(value => !value)}
