@@ -6,7 +6,6 @@
   "pickerLead": "The more people ask, the easier a municipality joins. Your name counts when we talk to it.",
   "pickerEyebrow": "Find your municipality",
   "pickerHint": "Two steps, one minute.",
-  "whatYouGet": "This is what you get once your municipality joins.",
   "introTitle": {
     "municipality": "{qualifier} is not on OpenCouncil yet",
     "region": "{qualifier} is not on OpenCouncil yet"

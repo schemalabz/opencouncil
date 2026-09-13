@@ -4,7 +4,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { authorityKey } from '@/components/cities/overview/authorityKey';
 import { CityCard } from '@/components/signup/CityCard';
-import { NotisChatCard } from '@/components/signup/NotisChatCard';
 import { StepHeading } from '@/components/signup/SignupChrome';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
@@ -13,9 +12,8 @@ import type { PetitionBucket } from '@/lib/landing/petitions';
 /**
  * Step 1: why the municipality is not here yet and what a name does about
  * it. The card shows how many have asked already, in the same coarse
- * buckets the landing map uses. Νότης's box shows what the reader is
- * asking for; it sits in the column on a phone and beside it on a desktop
- * (PetitionIntroAside).
+ * buckets the landing map uses. Νότης stays out of it: the petition asks
+ * for the municipality, not for him.
  */
 export function PetitionIntroStep({
     city,
@@ -44,8 +42,6 @@ export function PetitionIntroStep({
                 status={bucket !== null ? tc('petitionCount', { count: bucket }) : t('notInNetwork')}
             />
 
-            <NotisChatCard intro={t('whatYouGet')} className="mt-4 lg:hidden" />
-
             <p className="mt-3.5 text-xs leading-[1.45] text-muted-foreground lg:mt-5 lg:text-[13px]">
                 {existing ? t('alreadyRequestedBody') : t('introNote')}
             </p>
@@ -62,10 +58,4 @@ export function PetitionIntroStep({
             )}
         </div>
     );
-}
-
-/** Beside step 1 on a desktop: what the reader is asking for. */
-export function PetitionIntroAside() {
-    const t = useTranslations('petition');
-    return <NotisChatCard intro={t('whatYouGet')} />;
 }
