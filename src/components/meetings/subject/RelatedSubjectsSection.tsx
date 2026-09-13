@@ -1,11 +1,10 @@
 import 'server-only';
-import { getRealm } from '@/lib/realm.server';
-import { searchRelatedSubjectsInRealm } from '@/lib/search/core';
 import { getBatchStatisticsForSubjects, type Statistics } from '@/lib/statistics';
 import { subjectSpeakersFromStatistics } from '@/lib/subjectSpeakers';
 import type { PersonWithRelations } from '@/lib/db/people';
 import type { RelatedSubjectSeed } from '@/lib/search/related';
 import type { RelatedScope, SearchResultLight } from '@/lib/search/types';
+import { loadRelatedNeighbours } from './relatedSubjectsData';
 import { RelatedSubjects, type RelatedCurrent, type RelatedLevel, type RelatedLevels } from './RelatedSubjects';
 
 /**
@@ -32,12 +31,11 @@ const byMeetingDate = (a: SearchResultLight, b: SearchResultLight) =>
 /**
  * The related-subjects section, loaded on the server so the rows and their
  * links are in the page's HTML for crawlers and for readers without
- * JavaScript. Both levels load here, side by side. Renders nothing at all
- * when neither level has a subject, and a level that fails to load counts
- * as empty: the search core has already logged and alerted, and a
- * recommendation list must not take the page down with it. The statistics
- * query has no such guard here; the page wraps the section in an error
- * boundary that hides it instead.
+ * JavaScript. Both levels come from loadRelatedNeighbours, shared with the
+ * header's recurrence strip, which treats a level that failed to load as
+ * empty. Renders nothing at all when neither level has a subject. The
+ * statistics query has no such guard here; the page wraps the section in an
+ * error boundary that hides it instead.
  *
  * A row also needs the subject's speaking statistics and the people on its
  * avatar row. The search page's list container fetches those on the client,
@@ -47,9 +45,7 @@ const byMeetingDate = (a: SearchResultLight, b: SearchResultLight) =>
  * only the people a row shows travel to the client.
  */
 export async function RelatedSubjectsSection({ seed, current }: { seed: RelatedSubjectSeed; current: RelatedCurrent }) {
-    const load = (scope: RelatedScope): Promise<SearchResultLight[]> =>
-        searchRelatedSubjectsInRealm(seed, scope, getRealm).catch(() => []);
-    const [city, other] = await Promise.all([load('city'), load('other')]);
+    const { city, other } = await loadRelatedNeighbours(seed);
     if (city.length === 0 && other.length === 0) return null;
 
     const statistics = await statisticsAcrossMeetings([...city, ...other]);

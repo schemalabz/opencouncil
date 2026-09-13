@@ -53,7 +53,13 @@ import { MountOnVisible } from '@/components/MountOnVisible';
  * server (RelatedSubjectsSection) and handed in as a slot: this component is
  * a client component, and the section's rows have to be in the HTML.
  */
-export default function Subject({ subjectId, related }: { subjectId?: string; related?: React.ReactNode }) {
+export default function Subject({ subjectId, related, relatedStrip }: {
+    subjectId?: string;
+    /** The related-subjects section, below the statements. */
+    related?: React.ReactNode;
+    /** The recurrence strip, under the title's meta row. */
+    relatedStrip?: React.ReactNode;
+}) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
     // What the empty summary and statements say while the meeting is not complete.
     const { stage, deadline } = useMeetingStage();
@@ -270,6 +276,7 @@ export default function Subject({ subjectId, related }: { subjectId?: string; re
                                 </span>
                             )}
                         </div>
+                        {relatedStrip}
                     </div>
                     {/* One primary action for the whole page, instead of a button row on
                         every card below: jump the video to where this subject starts. */}
