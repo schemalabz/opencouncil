@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { useTranslations } from 'next-intl';
-import { FileText, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Search, MoreHorizontal, RotateCcw } from 'lucide-react';
+import { FileText, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Search, MoreHorizontal, RotateCcw, FileDown, Eye } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DecisionWithSource, MeetingAttendanceRecord, SubjectExtractedData } from '@/lib/db/decisions';
 import { MeetingCandidate } from '@/lib/db/decisionCandidateShape';
@@ -32,6 +32,8 @@ import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 import { SubjectMinutesMeta } from '@/components/meetings/decisions/SubjectMinutesMeta';
 import { MeetingFactsBlock } from '@/components/meetings/decisions/MeetingFactsBlock';
 import { subjectHasGaps } from '@/components/meetings/decisions/timeline';
+import { downloadFile } from '@/lib/export/download';
+import { MinutesPreviewDialog } from '@/components/meetings/decisions/MinutesPreviewDialog';
 
 interface ManualEntryState {
     pdfUrl: string;
@@ -124,6 +126,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const [subjectQuery, setSubjectQuery] = useState('');
     const [minutes, setMinutes] = useState<MinutesData | null>(null);
     const [minutesFailed, setMinutesFailed] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
     // The sheet stays mounted while it animates out — same dismissable-layer
     // bug as the modal={false} note on the row menu below.
     const lastActionRef = useRef<PendingAction | null>(null);
@@ -180,6 +183,17 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             setMinutesFailed(true);
         }
     }, [meeting.cityId, meeting.id]);
+
+    const handleExportDocx = async () => {
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/minutes`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            downloadFile(await response.blob(), `minutes-${city.id}-${meeting.id}.docx`);
+            toast({ title: t('minutes.exportSuccess') });
+        } catch {
+            toast({ title: t('minutes.exportError'), variant: 'destructive' });
+        }
+    };
 
     useEffect(() => { fetchMinutes(); }, [fetchMinutes]);
 
@@ -1085,6 +1099,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         <div className="container mx-auto max-w-5xl py-6 space-y-6">
             {/* Header */}
             <div className="space-y-3 border-b pb-4">
+                <div className="flex items-start justify-between gap-4">
                 <div>
                     <h1 className="text-xl font-semibold">{tPage('title')}</h1>
                     <p className="text-sm text-muted-foreground">{tPage('description')}</p>
@@ -1123,6 +1138,15 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                     {minutesFailed && minutes && (
                         <p className="text-sm text-amber-700 mt-1">{tPage('minutesRefreshFailed')}</p>
                     )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0 pt-1">
+                    <Button variant="outline" size="sm" className="h-8 text-xs" disabled={!minutes} onClick={() => setPreviewOpen(true)}>
+                        <Eye className="h-3.5 w-3.5 mr-1" />{tPage('previewMinutes')}
+                    </Button>
+                    <Button size="sm" className="h-8 text-xs" onClick={handleExportDocx}>
+                        <FileDown className="h-3.5 w-3.5 mr-1" />{tPage('exportDocx')}
+                    </Button>
+                </div>
                 </div>
 
                 {/* Poll actions — cost-incurring operations, superadmin only */}
@@ -1401,6 +1425,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                     </div>
                 </div>
             )}
+            {minutes && <MinutesPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} data={minutes} />}
         </div>
     );
 }
