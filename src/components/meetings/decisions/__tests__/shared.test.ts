@@ -10,7 +10,7 @@ jest.mock('react-markdown', () => ({
     default: () => null,
 }));
 
-import { splitAttendance } from '../shared';
+import { splitAttendance, opensOutOfAgendaSection } from '../shared';
 
 describe('splitAttendance', () => {
     const rows = [
@@ -26,5 +26,26 @@ describe('splitAttendance', () => {
     });
     it('keeps every member when there is no mayor', () => {
         expect(splitAttendance(rows, null).present.map(r => r.personId)).toEqual(['mayor', 'a']);
+    });
+});
+
+describe('opensOutOfAgendaSection', () => {
+    const agenda = { nonAgendaReason: null };
+    const ooa = { nonAgendaReason: 'outOfAgenda' };
+
+    it('opens the section on the first out-of-agenda row', () => {
+        expect(opensOutOfAgendaSection([agenda, ooa, ooa], 1, true)).toBe(true);
+    });
+    it('does not reopen it on a later out-of-agenda row', () => {
+        expect(opensOutOfAgendaSection([agenda, ooa, ooa], 2, true)).toBe(false);
+    });
+    it('never opens it on an agenda row', () => {
+        expect(opensOutOfAgendaSection([agenda, ooa, ooa], 0, true)).toBe(false);
+    });
+    it('opens it on an out-of-agenda row at index 0', () => {
+        expect(opensOutOfAgendaSection([ooa], 0, true)).toBe(true);
+    });
+    it('never opens it when section labels are off', () => {
+        expect(opensOutOfAgendaSection([ooa], 0, false)).toBe(false);
     });
 });

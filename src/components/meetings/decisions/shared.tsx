@@ -67,6 +67,22 @@ export function splitAttendance<T extends { personId: string; status: string }>(
     return { present: filtered.filter(a => a.status === 'PRESENT'), absent: filtered.filter(a => a.status === 'ABSENT') };
 }
 
+/**
+ * Whether a row opens the "Out of agenda" section of a list: the first
+ * out-of-agenda row of `section`. Never true when the list carries no section
+ * labels (the discussion-order timeline interleaves ΕΗΔ items with agenda items).
+ */
+export function opensOutOfAgendaSection(
+    section: ReadonlyArray<{ nonAgendaReason: string | null }>,
+    index: number,
+    sectionLabels: boolean,
+): boolean {
+    if (!sectionLabels) return false;
+    const row = section[index];
+    if (!row || row.nonAgendaReason !== 'outOfAgenda') return false;
+    return index === 0 || section[index - 1].nonAgendaReason !== 'outOfAgenda';
+}
+
 /** Sort names by elected order, falling back to alphabetical. */
 export function sortNamesByElectedOrder(
     items: { personId: string; personName: string }[],

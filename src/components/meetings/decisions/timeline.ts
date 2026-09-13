@@ -105,8 +105,17 @@ export function matchesStatusFilter(
     minutesSubject: MinutesSubject | undefined,
 ): boolean {
     if (filter.length === 0) return true;
-    return filter.some(f =>
-        f === 'gaps' ? (minutesSubject ? subjectHasGaps(minutesSubject) : false)
-            : f === 'linked' ? hasDecision
-                : !hasDecision);
+    return filter.some(f => {
+        switch (f) {
+            case 'gaps':
+                return minutesSubject ? subjectHasGaps(minutesSubject) : false;
+            case 'linked':
+                return hasDecision;
+            case 'none':
+                return !hasDecision;
+            default:
+                const exhaustive: never = f;
+                return exhaustive;
+        }
+    });
 }
