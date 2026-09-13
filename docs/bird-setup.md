@@ -46,24 +46,9 @@ Repeat Step 2 picking **SMS** instead. Only needed if you want SMS fallback for 
 
 Copy the channel ID into `BIRD_SMS_CHANNEL_ID`.
 
-## Step 4: Create the WhatsApp templates
+## Step 4: The WhatsApp templates
 
-WhatsApp Business restricts outbound messages outside a 24-hour reply window to **pre-approved templates**. The three templates below belong to the main app's legacy sender. The main app sends none of them since the switch to Notis; the variables stay until the sender code is removed. The templates that readers receive belong to the Notis service. [`services/notis/README.md`](../services/notis/README.md) lists them and their variables.
-
-| Env var | Used for | Variables it must accept |
-|---|---|---|
-| `BIRD_WHATSAPP_TEMPLATE_WELCOME` | First message after a user signs up | user name, city name |
-| `BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING` | Notification sent before a meeting | meeting title, date, link |
-| `BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING` | Notification sent after a meeting | meeting title, link |
-
-For each template:
-
-1. Open **Bird Studio** (sidebar → **Studio**) and create a new WhatsApp template. See [Bird — WhatsApp templates](https://docs.bird.com/api/channels-api/supported-channels/programmable-whatsapp) for syntax and approval requirements.
-2. Submit it for WhatsApp approval (usually a few minutes).
-3. Once approved, copy the **template project ID (UUID)** from the URL or the template detail panel.
-4. Map each UUID into its env var (`BIRD_WHATSAPP_TEMPLATE_*`).
-
-> The actual template wording is yours to write — but match the variable list above so the substitution code in `src/lib/notifications/bird.ts` doesn't break.
+WhatsApp Business restricts outbound messages outside a 24-hour reply window to **pre-approved templates**. The main app sends no WhatsApp or SMS message to readers: the Notis service does, and the templates belong to it. [`services/notis/README.md`](../services/notis/README.md) lists the shells, their variables and the `BIRD_WHATSAPP_TEMPLATE_*` variables that hold their Bird project ids. The main app needs no template variable.
 
 ## Step 5: Generate an API key
 
@@ -90,7 +75,7 @@ Save the **same value** in two places:
 
 ## Step 7: Fill in `.env`
 
-After Steps 1–6 you should have all eight variables. Add them to your `.env`:
+After Steps 1–6 you should have all five variables. Add them to your `.env`:
 
 ```bash
 # Bird API for WhatsApp/SMS notifications
@@ -98,13 +83,10 @@ BIRD_WORKSPACE_ID=<workspace-uuid>
 BIRD_API_KEY=<your-api-key>
 BIRD_WHATSAPP_CHANNEL_ID=<whatsapp-channel-uuid>
 BIRD_SMS_CHANNEL_ID=<optional>
-BIRD_WHATSAPP_TEMPLATE_WELCOME=<uuid>
-BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING=<uuid>
-BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING=<uuid>
 BIRD_WEBHOOK_SECRET=<openssl-output-from-step-6>
 ```
 
-At this point the main app can reconcile outbound delivery statuses. It sends no messages to readers: the meeting test-send on the admin conversation page reports that Notis serves WhatsApp and SMS. The page's raw test tools (a template, an SMS, a reply) still send through the main app's Bird client until the sender is removed. To exercise a real reader's thread, run the Notis service with the same Bird variables and use its playground. **Inbound** still requires the next two steps.
+At this point the main app can reconcile the delivery status of its past outbound messages. It sends nothing to readers: every message is Notis's. To exercise a real reader's thread, run the Notis service with the same Bird variables and use its playground. **Inbound** still requires the next two steps.
 
 ## Step 8: Expose the webhook locally with ngrok
 

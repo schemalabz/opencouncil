@@ -12,7 +12,7 @@ jest.mock('@/lib/email/templates/NotificationEmail', () => ({
     NotificationEmail: (props: unknown) => notificationEmail(props),
 }));
 
-import { generateSmsContent, generateEmailContent } from '../content';
+import { generateEmailContent } from '../content';
 
 const notification = {
     id: 'n-1',
@@ -23,19 +23,6 @@ const notification = {
     meeting: { dateTime: new Date('2026-09-08T18:00:00Z'), administrativeBody: { name: 'Conseil' } },
     city: { name_municipality: 'Rennes', realm: 'france' as const },
 };
-
-describe('generateSmsContent', () => {
-    it("links to the city realm's domain, in that realm's language", async () => {
-        expect(await generateSmsContent(notification))
-            .toContain('https://opencouncil.fr/fr/notifications/n-1');
-    });
-
-    it('keeps a Greek city on the Greek domain', async () => {
-        const greek = { ...notification, cityId: 'athens', city: { ...notification.city, realm: 'greece' as const } };
-        expect(await generateSmsContent(greek))
-            .toContain('https://opencouncil.gr/el/notifications/n-1');
-    });
-});
 
 describe('generateEmailContent', () => {
     /** The props handed to the email template for `notification`. */
