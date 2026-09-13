@@ -6,6 +6,7 @@ import {
     sortSubjectsByDiscussionOrder,
     sortByElectedOrder,
     buildDiscussionSummary,
+    buildProceduralVotes,
     MemberResolver,
     ElectedOrderGetter,
 } from '../builders';
@@ -630,5 +631,57 @@ describe('buildDiscussionSummary', () => {
         const result = buildDiscussionSummary([u(500, 510, 'SUBJECT_DISCUSSION'), u(400, 410, 'SUBJECT_DISCUSSION')]);
         expect(result.start).toBe(400);
         expect(result.seconds).toBe(20);
+    });
+});
+
+// --- buildProceduralVotes ---
+
+describe('buildProceduralVotes', () => {
+    const subjects = [
+        { id: 's1', name: 'Θέμα 1', agendaItemIndex: 1, nonAgendaReason: null },
+        { id: 'oa1', name: 'Κατεπείγον', agendaItemIndex: null, nonAgendaReason: 'outOfAgenda' as const },
+        { id: 's5', name: 'Θέμα 5', agendaItemIndex: 5, nonAgendaReason: null },
+    ];
+    const u = (start: number, status: string | null, subjectId: string | null) => ({ startTimestamp: start, discussionStatus: status, discussionSubjectId: subjectId });
+
+    it('emits one vote per subject, at its first procedural utterance', () => {
+        const result = buildProceduralVotes([
+            u(30, 'PROCEDURAL_VOTE', 'oa1'),
+            u(35, 'PROCEDURAL_VOTE', 'oa1'),
+        ], subjects);
+        expect(result).toHaveLength(1);
+        expect(result[0].subjectId).toBe('oa1');
+        expect(result[0].timestamp).toBe(30);
+    });
+
+    it('orders the votes by timestamp', () => {
+        const result = buildProceduralVotes([
+            u(900, 'PROCEDURAL_VOTE', 's5'),
+            u(30, 'PROCEDURAL_VOTE', 'oa1'),
+            u(100, 'SUBJECT_DISCUSSION', 's1'),
+        ], subjects);
+        expect(result.map(v => v.subjectId)).toEqual(['oa1', 's5']);
+    });
+
+    it('marks an outOfAgenda subject as an urgency vote', () => {
+        const result = buildProceduralVotes([
+            u(30, 'PROCEDURAL_VOTE', 'oa1'),
+        ], subjects);
+        expect(result[0].kind).toBe('urgency');
+    });
+
+    it('marks every other subject as a withdrawal vote', () => {
+        const result = buildProceduralVotes([
+            u(900, 'PROCEDURAL_VOTE', 's5'),
+        ], subjects);
+        expect(result[0].kind).toBe('withdrawal');
+    });
+
+    it('ignores procedural utterances linked to a subject outside the list', () => {
+        expect(buildProceduralVotes([u(10, 'PROCEDURAL_VOTE', 'other')], subjects)).toEqual([]);
+    });
+
+    it('ignores procedural utterances with no subject', () => {
+        expect(buildProceduralVotes([u(10, 'PROCEDURAL_VOTE', null)], subjects)).toEqual([]);
     });
 });

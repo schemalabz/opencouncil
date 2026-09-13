@@ -129,6 +129,22 @@ export interface MinutesAttendanceChange {
     };
 }
 
+/**
+ * A procedural vote on a subject: the vote to admit an out-of-agenda item
+ * (urgency), or to withdraw or postpone an item. One per subject, at its
+ * first PROCEDURAL_VOTE utterance. These votes never place a subject in the
+ * discussion order; the page shows them as events.
+ */
+export interface MinutesProceduralVote {
+    subjectId: string;
+    name: string;
+    agendaItemIndex: number | null;
+    nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
+    /** outOfAgenda subjects vote on admission; every other subject on withdrawal */
+    kind: 'urgency' | 'withdrawal';
+    timestamp: number;
+}
+
 export interface MinutesData {
     city: {
         name: string;
