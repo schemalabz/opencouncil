@@ -81,11 +81,10 @@ events in production and outbound sends fail with an alert:
   unmatched channel id classifies as WhatsApp.
 - `BIRD_WEBHOOK_SECRET` — the signing key of the NOTIS subscription. Do not
   reuse the main app's secret.
-- `BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION`, `BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO`,
+- `BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO`,
   `BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA`, `BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS`,
-  `BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP` (and `..._DEMOS_INTRO` for the
-  threads it opened before notis_intro existed) — the Bird project id of each
-  shell in `src/agent/templates.ts`. A shell without its id is unaddressable:
+  `BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP` — the Bird project id of each
+  shell in `src/agent/templates.ts` that still has a send path. A shell without its id is unaddressable:
   the poller holds the readers who need it and alerts, instead of enrolling
   them into a thread that never opens.
 

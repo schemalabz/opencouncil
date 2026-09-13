@@ -43,8 +43,6 @@ export const env = createEnv({
     // Bird template project ids (UUIDs from the Bird dashboard), one per
     // approved shell. A cold send with a missing id fails visibly.
     // demos_checkin has no send path and deliberately no id.
-    BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION: z.string().optional(),
-    BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO: z.string().optional(),
     // The intro a site signup opens with (see agent/templates.ts). Without
     // it the poller holds signups and alerts, rather than enrolling them
     // into a thread that never opens.
@@ -72,8 +70,6 @@ export const env = createEnv({
     BIRD_WHATSAPP_CHANNEL_ID: process.env.BIRD_WHATSAPP_CHANNEL_ID,
     BIRD_SMS_CHANNEL_ID: process.env.BIRD_SMS_CHANNEL_ID,
     BIRD_WEBHOOK_SECRET: process.env.BIRD_WEBHOOK_SECRET,
-    BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION,
-    BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO,
     BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO: process.env.BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO,
     BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA,
     BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS,

@@ -100,10 +100,6 @@ export function hasBird(): boolean {
 /** Bird addresses templates by project id, not by name. */
 export function templateProjectId(name: TemplateName): string | undefined {
   switch (name) {
-    case "demos_transition":
-      return env.BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION;
-    case "demos_intro":
-      return env.BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO;
     case "notis_intro":
       return env.BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO;
     case "demos_update_agenda":
@@ -113,7 +109,9 @@ export function templateProjectId(name: TemplateName): string | undefined {
     case "demos_followup":
       return env.BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP;
     default:
-      // demos_checkin has no send path and deliberately no project id.
+      // demos_checkin has no send path and deliberately no project id;
+      // demos_transition opened the transition cohort's threads and opens
+      // no new ones.
       return undefined;
   }
 }

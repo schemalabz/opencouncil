@@ -176,8 +176,6 @@ export default async function SettingsPage() {
               />
               {(
                 [
-                  "BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION",
-                  "BIRD_WHATSAPP_TEMPLATE_DEMOS_INTRO",
                   "BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA",
                   "BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS",
                   "BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP",
