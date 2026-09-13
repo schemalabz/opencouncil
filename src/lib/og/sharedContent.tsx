@@ -23,7 +23,7 @@ export async function sharedContext(meeting: SharedMeeting, locale: string): Pro
     return { text: parts.join(' · '), logoSrc: await getImageData(meeting.city.logoImage, SEAL_BOX) };
 }
 
-/** The subject a passage belongs to, as the picture tile beside it; nothing when the passage spans subjects. */
+/** The subject a passage belongs to, as the picture tile beside it; nothing when its meeting gives no clue. */
 export async function sharedSubjectTile(subject: SharedSubject, locale: string, box: ImageBox, glyphSize = 64): Promise<SharedSubjectTile | undefined> {
     if (!subject) return undefined;
     const colors = topicStyleHex(subject.topic?.colorHex);

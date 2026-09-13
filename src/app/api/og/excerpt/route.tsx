@@ -40,7 +40,7 @@ export async function GET(request: Request) {
             initials: initialsOf(single),
             detail: formatDate(excerpt.meeting.dateTime, excerpt.meeting.city.timezone, locale),
         } : undefined}
-        // A passage that spans subjects has no one subject to show; the meeting names the context instead.
+        // A passage with no subject clue in its meeting names the meeting as its context instead.
         subject={subject ?? (excerpt ? { title: getLocalizedName(excerpt.meeting, locale), src: null, wash: '#e7e5e4' } : undefined)}
     />, { width: 1200, height: 630, fonts: OG_FONTS, headers: { 'Cache-Control': 'private, no-store' } });
 }

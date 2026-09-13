@@ -7,9 +7,19 @@ import { getLocalizedName } from '@/lib/formatters/name';
 import { getPublicMeeting, transcriptIsPublic, type PublicMeeting } from './publicContent';
 import { canonicalExcerpt, MAX_EXCERPT_UTTERANCES, selectExcerptRuns, type ExcerptRun, type ExcerptSelector } from '@/lib/sharing/excerptSelector';
 
+const subjectSelect = { id: true, name: true, topic: { select: { name: true, name_en: true, colorHex: true, icon: true } } } satisfies Prisma.SubjectSelect;
+type SubjectRow = Prisma.SubjectGetPayload<{ select: typeof subjectSelect }>;
+
+/**
+ * How far, in seconds, a passage looks for an assigned utterance to borrow a
+ * subject from. Asides inside a discussion sit seconds from it; the opening
+ * of a meeting sits minutes before its first subject.
+ */
+const NEAREST_SUBJECT_WINDOW_S = 120;
+
 const utteranceSelect = {
-    id: true, text: true, startTimestamp: true, speakerSegmentId: true,
-    discussionSubject: { select: { id: true, name: true, topic: { select: { name: true, name_en: true, colorHex: true, icon: true } } } },
+    id: true, text: true, startTimestamp: true, speakerSegmentId: true, discussionStatus: true,
+    discussionSubject: { select: subjectSelect },
     speakerSegment: { select: {
         id: true, startTimestamp: true,
         speakerTag: { select: { id: true, personId: true, person: { select: { name: true, name_en: true } } } },
@@ -21,7 +31,8 @@ export interface PublicExcerpt {
     isReviewed: boolean;
     selector: ExcerptSelector;
     runs: ExcerptRun[];
-    subject: { id: string; name: string; topic: { name: string; name_en: string | null; colorHex: string | null; icon: string | null } | null } | null;
+    /** The subject the passage belongs to, for its title and its picture; null when the meeting gives no clue. */
+    subject: SubjectRow | null;
     before: string;
     after: string;
     startTimestamp: number;
@@ -36,6 +47,45 @@ function boundary(source: Source, direction: 'gte' | 'lte'): Prisma.UtteranceWhe
         { speakerSegmentId: source.speakerSegmentId, startTimestamp: { [strict]: source.startTimestamp } },
         { speakerSegmentId: source.speakerSegmentId, startTimestamp: source.startTimestamp, id: { [direction]: source.id } },
     ] };
+}
+
+/**
+ * The subject a passage belongs to.
+ *
+ * The summarize task assigns a subject to each utterance it places inside a
+ * subject's discussion and leaves the rest unassigned: the roll call, procedure,
+ * an aside. A passage can hold both kinds, so it takes the subject most of its
+ * utterances carry. A roll call belongs to no subject. Any other passage with
+ * none takes the nearest assigned utterance of the meeting, within the window,
+ * since a remark seconds from a discussion is about that discussion. A meeting
+ * with one subject names it.
+ */
+async function resolveSubject(sources: Source[], scope: Prisma.UtteranceWhereInput, first: Source, last: Source, meeting: PublicMeeting): Promise<SubjectRow | null> {
+    const counts = new Map<string, { subject: SubjectRow; count: number }>();
+    for (const { discussionSubject } of sources) {
+        if (!discussionSubject) continue;
+        const entry = counts.get(discussionSubject.id) ?? { subject: discussionSubject, count: 0 };
+        entry.count += 1;
+        counts.set(discussionSubject.id, entry);
+    }
+    const majority = [...counts.values()].sort((a, b) => b.count - a.count)[0]?.subject;
+    if (majority) return majority;
+    if (sources.every(source => source.discussionStatus === 'ATTENDANCE')) return null;
+
+    const assigned = { ...scope, discussionSubjectId: { not: null } };
+    const select = { startTimestamp: true, discussionSubject: { select: subjectSelect } };
+    const [before, after] = await Promise.all([
+        prisma.utterance.findFirst({ where: { ...assigned, startTimestamp: { lt: first.startTimestamp } }, orderBy: [{ startTimestamp: 'desc' }, { id: 'desc' }], select }),
+        prisma.utterance.findFirst({ where: { ...assigned, startTimestamp: { gt: last.startTimestamp } }, orderBy: [{ startTimestamp: 'asc' }, { id: 'asc' }], select }),
+    ]);
+    const nearby: { subject: SubjectRow; distance: number }[] = [];
+    if (before?.discussionSubject) nearby.push({ subject: before.discussionSubject, distance: first.startTimestamp - before.startTimestamp });
+    if (after?.discussionSubject) nearby.push({ subject: after.discussionSubject, distance: after.startTimestamp - last.startTimestamp });
+    const nearest = nearby.filter(entry => entry.distance <= NEAREST_SUBJECT_WINDOW_S).sort((a, b) => a.distance - b.distance)[0]?.subject;
+    if (nearest) return nearest;
+
+    const subjects = await prisma.subject.findMany({ where: { cityId: meeting.cityId, councilMeetingId: meeting.id }, select: subjectSelect, take: 2 });
+    return subjects.length === 1 ? subjects[0] : null;
 }
 
 export async function getPublicExcerpt(selector: ExcerptSelector, realm: Realm): Promise<ExcerptResult> {
@@ -62,8 +112,6 @@ export async function getPublicExcerpt(selector: ExcerptSelector, realm: Realm):
     }));
     if (!runs) return { status: 'invalid' };
     if (createHash('sha256').update(canonicalExcerpt(runs)).digest('hex') !== selector.digest) return { status: 'source-changed' };
-    const subject = sources[0].discussionSubject;
-    const singleSubject = subject && sources.every(source => source.discussionSubject?.id === subject.id) ? { id: subject.id, name: localizeText(subject.name, selector.textLocale), topic: subject.topic } : null;
     // Stay within each endpoint's speaker segment so context has honest attribution.
     const [previous, next] = await Promise.all([
         prisma.utterance.findFirst({
@@ -77,8 +125,11 @@ export async function getPublicExcerpt(selector: ExcerptSelector, realm: Realm):
     ]);
     const before = previous ? localizeText(previous.text, selector.textLocale).slice(-120) : '';
     const after = next ? localizeText(next.text, selector.textLocale).slice(0, 120) : '';
+    const subject = await resolveSubject(sources, scope, first, last, meeting);
     return { status: 'ok', excerpt: {
-        meeting, isReviewed: meeting.taskStatuses.length > 0, selector, runs, subject: singleSubject, startTimestamp: first.startTimestamp,
+        meeting, isReviewed: meeting.taskStatuses.length > 0, selector, runs,
+        subject: subject && { ...subject, name: localizeText(subject.name, selector.textLocale) },
+        startTimestamp: first.startTimestamp,
         before, after,
     } };
 }
