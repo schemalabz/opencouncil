@@ -148,7 +148,13 @@ export default async function SubjectPage(
                                     cityId: subject.cityId,
                                     councilMeetingId: subject.councilMeetingId,
                                 }}
-                                cityName={getLocalizedName(meetingData.city, params.locale)}
+                                current={{
+                                    dateTime: new Date(meetingData.meeting.dateTime).toISOString(),
+                                    administrativeBodyName: meetingData.meeting.administrativeBody
+                                        ? getLocalizedName(meetingData.meeting.administrativeBody, params.locale)
+                                        : null,
+                                    timezone: meetingData.city.timezone,
+                                }}
                             />
                         </Suspense>
                     </OptionalSectionBoundary>

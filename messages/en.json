@@ -1129,7 +1129,8 @@
         "relatedSubjects": "Related subjects",
         "relatedOtherCities": "Other municipalities",
         "relatedSeeMore": "See more in search",
-        "relatedScopeLabel": "Scope of related subjects"
+        "relatedSameCity": "In this municipality, over time",
+        "relatedCurrent": "This subject"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",

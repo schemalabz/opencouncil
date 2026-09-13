@@ -6,7 +6,7 @@ import { subjectSpeakersFromStatistics } from '@/lib/subjectSpeakers';
 import type { PersonWithRelations } from '@/lib/db/people';
 import type { RelatedSubjectSeed } from '@/lib/search/related';
 import type { RelatedScope, SearchResultLight } from '@/lib/search/types';
-import { RelatedSubjects, type RelatedLevel, type RelatedLevels } from './RelatedSubjects';
+import { RelatedSubjects, type RelatedCurrent, type RelatedLevel, type RelatedLevels } from './RelatedSubjects';
 
 /**
  * Statistics for subjects that span meetings. The batch takes one meeting
@@ -26,15 +26,18 @@ async function statisticsAcrossMeetings(subjects: SearchResultLight[]): Promise<
     return new Map(groups.flatMap(group => [...group]));
 }
 
+const byMeetingDate = (a: SearchResultLight, b: SearchResultLight) =>
+    new Date(a.councilMeeting.dateTime).getTime() - new Date(b.councilMeeting.dateTime).getTime();
+
 /**
  * The related-subjects section, loaded on the server so the rows and their
  * links are in the page's HTML for crawlers and for readers without
- * JavaScript. Both levels load here, side by side; the client half only
- * switches between them. Renders nothing at all when neither level has a
- * subject, and a level that fails to load counts as empty: the search core
- * has already logged and alerted, and a recommendation list must not take
- * the page down with it. The statistics query has no such guard here; the
- * page wraps the section in an error boundary that hides it instead.
+ * JavaScript. Both levels load here, side by side. Renders nothing at all
+ * when neither level has a subject, and a level that fails to load counts
+ * as empty: the search core has already logged and alerted, and a
+ * recommendation list must not take the page down with it. The statistics
+ * query has no such guard here; the page wraps the section in an error
+ * boundary that hides it instead.
  *
  * A row also needs the subject's speaking statistics and the people on its
  * avatar row. The search page's list container fetches those on the client,
@@ -43,7 +46,7 @@ async function statisticsAcrossMeetings(subjects: SearchResultLight[]): Promise<
  * hydration carries the introducer, so the avatar row needs no roster, and
  * only the people a row shows travel to the client.
  */
-export async function RelatedSubjectsSection({ seed, cityName }: { seed: RelatedSubjectSeed; cityName: string }) {
+export async function RelatedSubjectsSection({ seed, current }: { seed: RelatedSubjectSeed; current: RelatedCurrent }) {
     const load = (scope: RelatedScope): Promise<SearchResultLight[]> =>
         searchRelatedSubjectsInRealm(seed, scope, getRealm).catch(() => []);
     const [city, other] = await Promise.all([load('city'), load('other')]);
@@ -62,18 +65,18 @@ export async function RelatedSubjectsSection({ seed, cityName }: { seed: Related
         return { scope, subjects: withStatistics, persons: [...persons.values()] };
     };
 
+    // The same municipality's level is drawn as a timeline, so it reads in
+    // meeting order; the other level keeps the index's order, closest first.
     // Only the levels with subjects cross to the client, and at least one
     // does: the client never has to decide what an empty section shows.
-    const levels = [level('city', city), level('other', other)].filter(l => l.subjects.length > 0);
+    const levels = [level('city', [...city].sort(byMeetingDate)), level('other', other)].filter(l => l.subjects.length > 0);
     if (levels.length === 0) return null;
 
     return (
         <RelatedSubjects
             subjectId={seed.id}
             subjectName={seed.name}
-            meetingId={seed.councilMeetingId}
-            cityId={seed.cityId}
-            cityName={cityName}
+            current={current}
             levels={levels as RelatedLevels}
         />
     );
