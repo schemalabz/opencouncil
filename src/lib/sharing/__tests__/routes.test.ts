@@ -6,7 +6,9 @@ jest.mock('@/components/sharing/SharedExcerpt', () => ({ SharedExcerpt: jest.fn(
 jest.mock('@/components/sharing/SharePageShell', () => ({ SharePageShell: jest.fn() }));
 jest.mock('next/og', () => ({ ImageResponse: jest.fn().mockImplementation((element, options) => ({ element, options })) }));
 jest.mock('@/lib/og/serverAssets', () => ({ OG_FONTS: [], LOGO_BLACK_DATA_URI: '' }));
-jest.mock('@/lib/og/sharingAssets', () => ({ SHARING_OG_FONTS: [] }));
+// The illustration loader reads the environment and the bucket; the images under test carry no pictures.
+jest.mock('@/lib/og/illustration', () => ({ ILLUSTRATION_BOX: { hero: {}, tile: {}, band: {} }, getSubjectIllustrationData: jest.fn().mockResolvedValue(null), getSubjectIllustrations: jest.fn().mockResolvedValue(new Map()) }));
+jest.mock('@/lib/og/portrait', () => ({ getPortraitData: jest.fn().mockResolvedValue(null) }));
 
 jest.mock('next/navigation', () => ({ redirect: jest.fn((url: string) => { throw new Error(`REDIRECT:${url}`); }), notFound: jest.fn(() => { throw new Error('NOT_FOUND'); }) }));
 jest.mock('@/components/meetings/subject/subject', () => ({ __esModule: true, default: jest.fn() }));
@@ -75,15 +77,15 @@ describe('server-rendered social preview contracts', () => {
         await excerptImage(new Request(`https://example.test/api/og/excerpt?${serializeExcerptSelector(selector)}`));
         const [element, options] = (ImageResponse as unknown as jest.Mock).mock.calls[0];
         expect(element.props.passages).toEqual([{ speakerName: 'Άννα', text: 'Λόγια Άννας' }, { speakerName: 'Νίκος', text: 'Λόγια Νίκου' }]);
-        expect(element.props.administrativeBody).toBe('Δημοτικό Συμβούλιο');
+        expect(element.props.context.text).toContain('Δημοτικό Συμβούλιο');
         expect(options).toMatchObject({ width: 1200, height: 630, headers: { 'Cache-Control': 'private, no-store' } });
     });
-    it('localizes the administrative body independently of city/date on contribution images', async () => {
+    it('localizes the city and the administrative body in the header chip, and keeps the date with the speaker', async () => {
         await contributionImage(new Request('https://example.test/api/og/contribution?id=c1&locale=en'));
         const [element] = (ImageResponse as unknown as jest.Mock).mock.calls[0];
-        expect(element.props.administrativeBody).toBe('Municipal Council');
-        expect(element.props.context).toContain('Athens');
-        expect(element.props.context).not.toContain('Municipal Council');
+        expect(element.props.context.text).toBe('Athens · Municipal Council');
+        expect(element.props.attribution.name).toBe('Άννα');
+        expect(element.props.attribution.detail).not.toContain('Municipal Council');
     });
     it('omits absent administrative bodies on either preview', async () => {
         const noBody = { ...meeting, administrativeBody: null };
@@ -91,7 +93,8 @@ describe('server-rendered social preview contracts', () => {
         resolveContribution.mockResolvedValue({ id: 'c1', text: 'Περίληψη.', subject: { name: 'Πλατεία' }, speakerName: 'Άννα', meeting: noBody });
         await excerptImage(new Request(`https://example.test/api/og/excerpt?${serializeExcerptSelector(selector)}`));
         await contributionImage(new Request('https://example.test/api/og/contribution?id=c1&locale=en'));
-        for (const [element] of (ImageResponse as unknown as jest.Mock).mock.calls) expect(element.props.administrativeBody).toBeUndefined();
+        // The excerpt renders in the selector's locale and the contribution in the query's; neither names a body.
+        for (const [element] of (ImageResponse as unknown as jest.Mock).mock.calls) expect(element.props.context.text).toMatch(/^(Αθήνα|Athens)$/);
     });
     it('carries the AI review warning in excerpt metadata and OG, then removes it after review', async () => {
         resolveExcerpt.mockResolvedValue({ status: 'ok', excerpt: { isReviewed: false, selector, runs, meeting, subject: { name: 'Πλατεία' } } });
@@ -100,10 +103,11 @@ describe('server-rendered social preview contracts', () => {
         expect(metadata.description).toMatch(/^unreviewedNotice\n\n/);
         expect(metadata.description).toContain('«Λόγια Άννας»');
         await excerptImage(new Request(`https://example.test/api/og/excerpt?${serializeExcerptSelector(selector)}`));
-        expect((ImageResponse as unknown as jest.Mock).mock.calls.at(-1)[0].props.label).toBe('unreviewedLabel');
+        expect((ImageResponse as unknown as jest.Mock).mock.calls.at(-1)[0].props.warning).toBe('unreviewedLabel');
         resolveExcerpt.mockResolvedValue({ status: 'ok', excerpt: { isReviewed: true, selector, runs, meeting, subject: { name: 'Πλατεία' } } });
         expect((await excerptMetadata(props)).description).not.toContain('unreviewedNotice');
         await excerptImage(new Request(`https://example.test/api/og/excerpt?${serializeExcerptSelector(selector)}`));
+        expect((ImageResponse as unknown as jest.Mock).mock.calls.at(-1)[0].props.warning).toBeUndefined();
         expect((ImageResponse as unknown as jest.Mock).mock.calls.at(-1)[0].props.label).toBe('excerpt');
     });
     it('uses neutral images without attribution for invalid/hidden sources', async () => {
@@ -114,7 +118,7 @@ describe('server-rendered social preview contracts', () => {
         for (const [element, options] of (ImageResponse as unknown as jest.Mock).mock.calls) {
             expect(element.props.text).toBe('unavailableTitle');
             expect(element.props.attribution).toBeUndefined();
-            expect(element.props.administrativeBody).toBeUndefined();
+            expect(element.props.context).toBeUndefined();
             expect(options.headers['Cache-Control']).toBe('private, no-store');
         }
     });

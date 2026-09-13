@@ -9,7 +9,7 @@ import { canonicalExcerpt, MAX_EXCERPT_UTTERANCES, selectExcerptRuns, type Excer
 
 const utteranceSelect = {
     id: true, text: true, startTimestamp: true, speakerSegmentId: true,
-    discussionSubject: { select: { id: true, name: true } },
+    discussionSubject: { select: { id: true, name: true, topic: { select: { name: true, name_en: true, colorHex: true, icon: true } } } },
     speakerSegment: { select: {
         id: true, startTimestamp: true,
         speakerTag: { select: { id: true, personId: true, person: { select: { name: true, name_en: true } } } },
@@ -21,7 +21,7 @@ export interface PublicExcerpt {
     isReviewed: boolean;
     selector: ExcerptSelector;
     runs: ExcerptRun[];
-    subject: { id: string; name: string } | null;
+    subject: { id: string; name: string; topic: { name: string; name_en: string | null; colorHex: string | null; icon: string | null } | null } | null;
     before: string;
     after: string;
     startTimestamp: number;
@@ -63,7 +63,7 @@ export async function getPublicExcerpt(selector: ExcerptSelector, realm: Realm):
     if (!runs) return { status: 'invalid' };
     if (createHash('sha256').update(canonicalExcerpt(runs)).digest('hex') !== selector.digest) return { status: 'source-changed' };
     const subject = sources[0].discussionSubject;
-    const singleSubject = subject && sources.every(source => source.discussionSubject?.id === subject.id) ? { id: subject.id, name: localizeText(subject.name, selector.textLocale) } : null;
+    const singleSubject = subject && sources.every(source => source.discussionSubject?.id === subject.id) ? { id: subject.id, name: localizeText(subject.name, selector.textLocale), topic: subject.topic } : null;
     // Stay within each endpoint's speaker segment so context has honest attribution.
     const [previous, next] = await Promise.all([
         prisma.utterance.findFirst({

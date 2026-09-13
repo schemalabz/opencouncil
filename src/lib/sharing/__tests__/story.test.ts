@@ -4,8 +4,10 @@ jest.mock('@/lib/sharing/excerpts', () => ({ getPublicExcerpt: jest.fn() }));
 jest.mock('@/lib/sharing/contributions', () => ({ getPublicContribution: jest.fn() }));
 jest.mock('@/lib/sharing/publicContent', () => ({ getPublicSubject: jest.fn() }));
 jest.mock('next/og', () => ({ ImageResponse: jest.fn().mockImplementation((element, options) => ({ element, options })) }));
-jest.mock('@/lib/og/sharingAssets', () => ({ SHARING_OG_FONTS: [] }));
-jest.mock('@/lib/og/serverAssets', () => ({ LOGO_BLACK_DATA_URI: '' }));
+jest.mock('@/lib/og/serverAssets', () => ({ OG_FONTS: [], LOGO_BLACK_DATA_URI: '' }));
+// The illustration loader reads the environment and the bucket; the images under test carry no pictures.
+jest.mock('@/lib/og/illustration', () => ({ ILLUSTRATION_BOX: { hero: {}, tile: {}, band: {} }, getSubjectIllustrationData: jest.fn().mockResolvedValue(null), getSubjectIllustrations: jest.fn().mockResolvedValue(new Map()) }));
+jest.mock('@/lib/og/portrait', () => ({ getPortraitData: jest.fn().mockResolvedValue(null) }));
 
 import { ImageResponse } from 'next/og';
 import { GET } from '@/app/api/share/story/route';
@@ -34,7 +36,8 @@ it('renders an unreviewed, attributed excerpt in 1080×1920 without caching', as
     await call(excerptUrl);
     expect(getPublicExcerpt).toHaveBeenCalledWith(selector, 'greece');
     const [element, options] = imageMock.mock.calls[0];
-    expect(element.props).toMatchObject({ kind: 'excerpt', warning: 'unreviewedNotice', administrativeBody: 'Δημοτικό Συμβούλιο', city: 'Αθήνα', passages: [{ speakerName: 'Άννα', text: 'Λόγια Άννας' }, { speakerName: 'unknownSpeaker', text: 'Άγνωστα λόγια' }] });
+    expect(element.props).toMatchObject({ kind: 'excerpt', warning: 'unreviewedNotice', band: { title: 'Πλατεία' }, context: { text: 'Αθήνα' }, passages: [{ speakerName: 'Άννα', text: 'Λόγια Άννας' }, { speakerName: 'unknownSpeaker', text: 'Άγνωστα λόγια' }] });
+    expect(element.props.footer.facts).toEqual(expect.arrayContaining(['Αθήνα', 'Δημοτικό Συμβούλιο']));
     expect(options).toMatchObject({ width: 1080, height: 1920, headers: { 'Cache-Control': 'private, no-store' } });
 });
 
@@ -47,14 +50,15 @@ it('removes the warning only after human review', async () => {
 it('renders contribution summaries separately from verbatim quotes', async () => {
     await call(storyImagePath({ type: 'contribution', id: 'c1', locale: 'en' }));
     expect(getPublicContribution).toHaveBeenCalledWith('c1', 'greece', 'en');
-    expect(imageMock.mock.calls[0][0].props).toMatchObject({ kind: 'contribution', title: 'Πλατεία', text: 'Περίληψη.', speakerName: 'Άννα', administrativeBody: 'Municipal Council', summaryLabel: 'summary' });
+    expect(imageMock.mock.calls[0][0].props).toMatchObject({ kind: 'contribution', band: { title: 'Πλατεία' }, text: 'Περίληψη.', note: 'summary', attribution: { name: 'Άννα' } });
+    expect(imageMock.mock.calls[0][0].props.footer.facts).toContain('Municipal Council');
     expect(imageMock.mock.calls[0][0].props.passages).toBeUndefined();
 });
 
 it('checks the complete public subject tuple and realm', async () => {
     await call(storyImagePath({ type: 'subject', cityId: 'city', meetingId: 'meeting', subjectId: 'subject', locale: 'sr-Latn' }));
     expect(getPublicSubject).toHaveBeenCalledWith('city', 'meeting', 'subject', 'greece');
-    expect(imageMock.mock.calls[0][0].props).toMatchObject({ kind: 'subject', title: 'Πλατεία', text: 'Σύνοψη', summaryLabel: 'summary' });
+    expect(imageMock.mock.calls[0][0].props).toMatchObject({ kind: 'subject', band: { title: 'Πλατεία' }, text: 'Σύνοψη', label: 'summary' });
 });
 
 it.each(['&startOffset=0', '&type=subject', '&digest=bad'])('rejects ambiguous or partial selectors: %s', async suffix => {

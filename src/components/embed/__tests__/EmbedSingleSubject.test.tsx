@@ -5,7 +5,7 @@ jest.mock('@/components/icon', () => ({ __esModule: true, default: () => null })
 
 const subject: PublicSubject = {
     id: 'historic', name: 'Η πλατεία', description: '**Πράσινο** και [δέντρα](https://example.com).', cityId: 'city', councilMeetingId: 'old_2020', topic: null, location: null,
-    councilMeeting: { id: 'old_2020', cityId: 'city', name: 'Συνεδρίαση', name_en: 'Meeting', dateTime: new Date('2020-04-06T10:00:00Z'), administrativeBody: null, taskStatuses: [], city: { id: 'city', name: 'Αθήνα', name_en: 'Athens', timezone: 'Europe/Athens', realm: 'greece' } },
+    councilMeeting: { id: 'old_2020', cityId: 'city', name: 'Συνεδρίαση', name_en: 'Meeting', dateTime: new Date('2020-04-06T10:00:00Z'), administrativeBody: null, taskStatuses: [], city: { id: 'city', name: 'Αθήνα', name_en: 'Athens', timezone: 'Europe/Athens', realm: 'greece', logoImage: null } },
 };
 
 describe('one public subject in a third-party iframe', () => {
