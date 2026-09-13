@@ -24,8 +24,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * The municipality-agnostic entry: what Νότης is, then which municipality.
  * A tap on a municipality lands on step 2 of its signup — the explainer has
  * just been read here. A municipality he does not serve yet is found by the
- * search and offered the petition. Νότης's box sits in the column on a
- * phone and beside it on a desktop.
+ * search and offered the petition. Νότης's box sits beside the column on a
+ * desktop; on a phone it is in the column, shut, so the list is what the
+ * reader meets first.
  */
 export default async function NotificationsPickerPage() {
     const [realm, user, t, tc] = await Promise.all([
@@ -44,7 +45,7 @@ export default async function NotificationsPickerPage() {
         <SignupLayout aside={<NotisChatCard intro={intro} />} className="pb-10">
             <StepHeading eyebrow={t("eyebrow")} title={t("pickerTitle")} lead={t("lead")} className="pt-7 lg:pt-10" />
 
-            <NotisChatCard intro={intro} className="mt-5 lg:hidden" />
+            <NotisChatCard intro={intro} summary={t("pickerPreview")} className="mt-5 lg:hidden" />
 
             <div className="mt-7 flex items-baseline gap-2 lg:mt-9">
                 <Eyebrow>{t("pickerEyebrow")}</Eyebrow>

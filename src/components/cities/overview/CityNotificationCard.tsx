@@ -8,7 +8,7 @@ import type { CityNotificationPreference } from '@/lib/db/notifications';
 import { getLocalizedName, getMunicipalityQualifier } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { authorityKey } from './authorityKey';
-import { NotisConversation } from './NotisConversation';
+import { NotisChatCard } from '@/components/signup/NotisChatCard';
 import { TopicPill } from '@/components/TopicPill';
 import { FactDot } from '@/components/ui/fact-dot';
 import { RailDisclosure } from './RailDisclosure';
@@ -51,25 +51,7 @@ function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) 
     const t = useTranslations('cityOverview');
 
     return (
-        <RailDisclosure summary={t('notisTeaser')}>
-            <div className="flex items-center gap-3 border-b border-border px-3.5 py-2.5 max-lg:border-t">
-                <Image
-                    src="/logo.png"
-                    alt="OpenCouncil"
-                    width={34}
-                    height={34}
-                    className="h-[34px] w-[34px] shrink-0 rounded-full object-contain"
-                />
-                <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] leading-tight">{t('notisName')}</span>
-                    <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
-                        {t(authorityKey('notisIntro', city))}
-                    </span>
-                </span>
-            </div>
-
-            <NotisConversation />
-
+        <NotisChatCard summary={t('notisTeaser')} intro={t(authorityKey('notisIntro', city))}>
             <div className="flex flex-col gap-3 px-4 pb-4 pt-3">
                 <TrackedLink
                     href={`/${city.id}/notifications`}
@@ -82,7 +64,7 @@ function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) 
                 </TrackedLink>
                 <p className="max-w-sm text-center text-[11px] text-muted-foreground">{t('notisChannels')}</p>
             </div>
-        </RailDisclosure>
+        </NotisChatCard>
     );
 }
 
