@@ -1,5 +1,10 @@
 {
     "manifest": {
         "description": "Your municipal council, in your pocket. Meetings, decisions and who said what, in plain language."
+    },
+    "offline": {
+        "title": "You are offline",
+        "body": "OpenCouncil needs a connection to load this page. Check your network and try again.",
+        "retry": "Try again"
     }
 }

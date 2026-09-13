@@ -4,6 +4,7 @@ import React, { Suspense } from "react"
 import PlausibleAnalytics from "@/components/analytics/PlausibleAnalytics"
 import PostHogPageView from "@/components/analytics/PostHogPageView"
 import PostHogAuthSync from "@/components/analytics/PostHogAuthSync"
+import ServiceWorkerRegistration from "@/components/pwa/ServiceWorkerRegistration"
 import { SessionProvider } from "next-auth/react"
 import { Toaster } from "@/components/ui/toaster";
 import { inter, roboto, robotoMono } from "@/lib/fonts";
@@ -137,6 +138,7 @@ export default async function RootLayout(
                         <PostHogPageView />
                     </Suspense>
                     <PostHogAuthSync />
+                    <ServiceWorkerRegistration />
                 </SessionProvider>
             </body>
         </html>
