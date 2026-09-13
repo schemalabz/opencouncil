@@ -160,7 +160,9 @@ itself).
 ## Subscriptions API (service token)
 
 The main app's profile switch («Ο Νότης στο WhatsApp») reads and flips a
-reader's subscription through `GET|PATCH /api/subscriptions/{userId}`,
+reader's subscription through `GET|PATCH /api/subscriptions/{userId}`, and
+its `/admin/signups` page reads `GET /api/subscriptions/stats` (active
+subscribers per municipality, weekly starts and stops — aggregates only),
 called server-side with `Authorization: Bearer $NOTIS_SERVICE_TOKEN` — the
 same value on both components, at least 32 characters. `requireService()`
 compares it in constant time and answers 503 while the variable is unset,
