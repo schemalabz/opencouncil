@@ -38,7 +38,14 @@ function city(id: string, name: string, extra: Partial<CityMinimalWithCounts> = 
 const athens = city('athens', 'Αθήνα');
 const chania = city('chania', 'Χανιά');
 const thessaloniki = city('thessaloniki', 'Θεσσαλονίκη', { supportsNotifications: false, status: 'pending' });
-const cities = [athens, chania, thessaloniki];
+const patras = city('patras', 'Πάτρα', { supportsNotifications: false, status: 'pending' });
+const larissa = city('larissa', 'Λάρισα', { supportsNotifications: false, status: 'pending' });
+const cities = [athens, chania, thessaloniki, patras, larissa];
+/** The landing map's ranked list: Πάτρα ahead of Θεσσαλονίκη, Λάρισα under the threshold. */
+const petitioned = [
+    { id: 'patras', bucket: 25 as const },
+    { id: 'thessaloniki', bucket: 10 as const },
+];
 const nobody = { subscribedCityIds: [], petitionedCityIds: [] };
 
 const search = () => screen.getByRole('searchbox', { name: 'picker.searchLabel' });
@@ -101,12 +108,38 @@ describe('MunicipalityPicker for notifications', () => {
 });
 
 describe('MunicipalityPicker for the petition', () => {
-    it('lists every municipality that can be asked for, with the search on top', () => {
+    it('lists the municipalities already being asked for, ranked, with their coarse counts', () => {
+        render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} petitioned={petitioned} />);
+
+        expect(rowNames()).toEqual([expect.stringContaining('Πάτρα'), expect.stringContaining('Θεσσαλονίκη')]);
+        expect(screen.getByText('picker.petitioned 25')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Θεσσαλονίκη/ })).toHaveAttribute('href', '/thessaloniki/petition?step=2');
+        expect(screen.getByText('picker.searchForYours')).toBeInTheDocument();
+        expect(search()).toBeInTheDocument();
+    });
+
+    it('finds a municipality under the threshold by search, and keeps the asked-for ones on top', () => {
+        render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} petitioned={petitioned} />);
+
+        fireEvent.change(search(), { target: { value: 'Λάρ' } });
+        expect(rowNames()).toEqual([expect.stringContaining('Λάρισα')]);
+        expect(screen.queryByText('picker.searchForYours')).toBeNull();
+
+        // «Δήμος …» matches every municipality name: the asked-for ones lead, in rank order.
+        fireEvent.change(search(), { target: { value: 'δήμος' } });
+        expect(rowNames().slice(0, 3)).toEqual([
+            expect.stringContaining('Πάτρα'),
+            expect.stringContaining('Θεσσαλονίκη'),
+            expect.stringContaining('Λάρισα'),
+        ]);
+    });
+
+    it('lists nothing before a search when no municipality is being asked for yet', () => {
         render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} />);
 
+        expect(screen.queryAllByRole('link')).toHaveLength(0);
+        fireEvent.change(search(), { target: { value: 'Θ' } });
         expect(rowNames()).toEqual([expect.stringContaining('Θεσσαλονίκη')]);
-        expect(screen.getByRole('link', { name: /Θεσσαλονίκη/ })).toHaveAttribute('href', '/thessaloniki/petition?step=2');
-        expect(search()).toBeInTheDocument();
     });
 
     it('starts from the query the reader typed on the other picker', () => {
@@ -120,7 +153,7 @@ describe('MunicipalityPicker for the petition', () => {
     it('lists the petitionable matches first and the served ones under their own label', () => {
         render(<MunicipalityPicker cities={cities} mode="petition" membership={{ ...nobody, petitionedCityIds: ['thessaloniki'] }} />);
 
-        fireEvent.change(search(), { target: { value: 'Θ' } });
+        fireEvent.change(search(), { target: { value: 'Θεσ' } });
         expect(rowNames()).toEqual([expect.stringContaining('Θεσσαλονίκη')]);
         const row = screen.getByRole('link', { name: /Θεσσαλονίκη/ });
         expect(within(row).getByText('picker.requested')).toBeInTheDocument();

@@ -57,6 +57,8 @@
     "notSupportedYet": "Δεν είναι ακόμα στο OpenCouncil",
     "supportedAlready": "Ήδη στο OpenCouncil",
     "noResults": "Κανένας δήμος για «{query}».",
-    "noResultsPetition": "Ζήτησε την υποστήριξη του δήμου σου"
+    "noResultsPetition": "Ζήτησε την υποστήριξη του δήμου σου",
+    "petitioned": "{count}+ δημότες το ζήτησαν ήδη",
+    "searchForYours": "Δεν βλέπεις τον δήμο σου; Ψάξε τον πιο πάνω."
   }
 }
