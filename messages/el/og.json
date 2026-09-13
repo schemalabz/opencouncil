@@ -1,40 +1,49 @@
 {
     "meeting": {
+        "eyebrow": "Συνεδρίαση",
         "subjects": "{count, plural, =0 {Χωρίς θέματα} one {# θέμα} other {# θέματα}}",
         "moreSubjects": "{count, plural, one {+# ακόμα θέμα} other {+# ακόμα θέματα}}"
     },
     "city": {
-        "meetingsRecorded": "{count, plural, =0 {Καμία καταγεγραμμένη συνεδρίαση} one {# καταγεγραμμένη συνεδρίαση} other {# καταγεγραμμένες συνεδριάσεις}}",
-        "stats": {
-            "meetings": "Συνεδριάσεις",
-            "people": "Μέλη",
-            "parties": "Παρατάξεις"
-        },
-        "supportedByMunicipality": "Με την υποστήριξη του δήμου",
-        "supportedByRegion": "Με την υποστήριξη της περιφέρειας",
-        "noSupportFromMunicipality": "Χωρίς επίσημη υποστήριξη του δήμου",
-        "noSupportFromRegion": "Χωρίς επίσημη υποστήριξη της περιφέρειας"
+        "meetings": "{count, plural, =0 {Καμία συνεδρίαση} one {# συνεδρίαση} other {# συνεδριάσεις}}",
+        "people": "{count, plural, one {# μέλος} other {# μέλη}}",
+        "parties": "{count, plural, one {# παράταξη} other {# παρατάξεις}}",
+        "hotTopics": "Πολυσυζητημένα θέματα"
     },
     "consultation": {
-        "badge": "Δημόσια Διαβούλευση",
-        "keyTopics": "Κύρια Θέματα:",
-        "untitledChapter": "Άτιτλο Κεφάλαιο"
+        "badge": "Δημόσια διαβούλευση",
+        "keyTopics": "Κύρια θέματα",
+        "untitledChapter": "Άτιτλο κεφάλαιο",
+        "chapters": "{count, plural, one {# κεφάλαιο} other {# κεφάλαια}}",
+        "areas": "{count, plural, one {# περιοχή} other {# περιοχές}}",
+        "comments": "{count, plural, one {# σχόλιο} other {# σχόλια}}"
     },
     "person": {
-        "council": "Δημοτικό Συμβούλιο"
+        "council": "Δημοτικό Συμβούλιο",
+        "recent": "Πρόσφατες τοποθετήσεις"
+    },
+    "party": {
+        "members": "{count, plural, one {# μέλος} other {# μέλη}}",
+        "leader": "Επικεφαλής: {name}"
     },
     "people": {
-        "title": "Δημοτικοί Σύμβουλοι",
-        "count": "{count, plural, one {# σύμβουλος} other {# σύμβουλοι}}",
-        "more": "και {count} ακόμα..."
+        "title": "Δημοτικοί Σύμβουλοι"
     },
     "subject": {
-        "minutes": "λεπτά"
+        "speakers": "{count, plural, one {# ομιλητής} other {# ομιλητές}}",
+        "discussion": "{minutes, number}′ συζήτηση",
+        "notFound": "Το θέμα δεν βρέθηκε"
     },
     "search": {
         "title": "Αναζήτηση",
-        "description": "Βρείτε αναφορές σε θέματα, τοποθετήσεις συμβούλων και στατιστικά από όλα τα δημοτικά συμβούλια",
-        "footer": "OpenCouncil • Έξυπνη Αναζήτηση"
+        "subtitle": "σε όλα τα δημοτικά συμβούλια",
+        "placeholder": "Αναζήτηση θέματος ή διεύθυνσης…",
+        "chips": [
+            "Θέματα",
+            "Τοποθετήσεις συμβούλων",
+            "Πρόσωπα",
+            "Αποφάσεις"
+        ]
     },
     "about": {
         "tags": [
@@ -47,12 +56,6 @@
     "landing": {
         "headlineTop": "Τι συζητά το δημοτικό συμβούλιο,",
         "headlineBottom": "σε έναν χάρτη",
-        "subtitle": "Θέματα από τις συνεδριάσεις των δημοτικών συμβουλίων — ανά περιοχή, κατηγορία και ημερομηνία.",
-        "tags": [
-            "Χάρτης θεμάτων",
-            "Αναζήτηση",
-            "Ειδοποιήσεις",
-            "Συνεδριάσεις"
-        ]
+        "subtitle": "Θέματα από τις συνεδριάσεις των δημοτικών συμβουλίων, ανά περιοχή, κατηγορία και ημερομηνία."
     }
 }

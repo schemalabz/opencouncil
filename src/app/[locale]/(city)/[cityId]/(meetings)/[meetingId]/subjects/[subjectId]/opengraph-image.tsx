@@ -1,14 +1,17 @@
 // See src/app/api/og/route.tsx for why we use @vercel/og directly instead of next/og.
 import { ImageResponse } from "@vercel/og";
 import { getTranslations } from "next-intl/server";
-import { Container, OgHeader, formatCityDisplayName } from "@/components/og/shared-components";
 import { getMeetingDataForOG } from "@/lib/db/meetings";
-import { getPeopleForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from "@/lib/cache/queries";
+import { getSubjectsForMeetingCached, getSubjectStatisticsCached } from "@/lib/cache/queries";
 import { LOGO_BLACK_DATA_URI, OG_FONTS } from "@/lib/og/serverAssets";
-import { PersonWithRelations } from '@/lib/db/people';
-import { getInitials, getLocalizedMunicipalityName, getLocalizedName } from "@/lib/formatters/name";
+import { getImageData } from "@/lib/og/remoteImage";
+import { getSubjectIllustrationData, ILLUSTRATION_BOX } from "@/lib/og/illustration";
+import { topicGlyph } from "@/lib/og/topicIcon";
+import { topicStyleHex } from "@/lib/topicStyle";
+import { getLocalizedMunicipalityName, getLocalizedName } from "@/lib/formatters/name";
+import { formatDate } from "@/lib/formatters/time";
 import { localizeText } from "@/lib/serbian";
-import { ColorPercentageRingProps } from "@/components/ui/color-percentage-ring";
+import { OG, OgContextChip, OgFacts, OgFoot, OgFrame, OgHeader, OgTitle, OgTopicPill } from "@/components/og/frame";
 
 // Image configuration
 export const size = {
@@ -18,142 +21,15 @@ export const size = {
 
 export const contentType = "image/png";
 
-// Function to create color percentage ring for OG image
-// Follows the same design src/components/ui/color-percentage-ring.tsx
-function ColorPercentageRing({
-    data,
-    totalMinutes,
-    minutesLabel,
-    size = 120,
-    thickness = 14,
-    emptyColor = "#e5e7eb",
-}: Omit<ColorPercentageRingProps, "children"> & {
-    totalMinutes: number;
-    /** Localized unit under the number, e.g. "λεπτά". */
-    minutesLabel: string;
-}) {
-    const radius = size / 2;
-    let startAngle = 0;
+/** The header row: the lockup (39px) or the seal chip (44px), whichever is taller, inside its padding. */
+const HEADER_HEIGHT = 44 + 44 + 24;
+const HERO_HEIGHT = size.height - HEADER_HEIGHT;
 
-    // Calculate total percentage
-    const totalPercentage = data.reduce((sum, item) => sum + item.percentage, 0);
-
-    // Create a copy of data with sorted percentages (largest first) for better visual appearance
-    const sortedData = [...data].sort((a, b) => b.percentage - a.percentage);
-
-    // Add remaining percentage if total is less than 100
-    const dataWithEmpty =
-        totalPercentage < 100 ? [...sortedData, { color: emptyColor, percentage: 100 - totalPercentage }] : sortedData;
-
-    // Function to describe arc paths for the ring
-    function describeArc(
-        x: number,
-        y: number,
-        radius: number,
-        startAngle: number,
-        endAngle: number,
-        thickness: number,
-    ) {
-        const innerStart = polarToCartesian(x, y, radius - thickness, endAngle);
-        const innerEnd = polarToCartesian(x, y, radius - thickness, startAngle);
-        const outerStart = polarToCartesian(x, y, radius, endAngle);
-        const outerEnd = polarToCartesian(x, y, radius, startAngle);
-
-        const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-
-        return [
-            "M",
-            innerStart.x,
-            innerStart.y,
-            "A",
-            radius - thickness,
-            radius - thickness,
-            0,
-            largeArcFlag,
-            0,
-            innerEnd.x,
-            innerEnd.y,
-            "L",
-            outerEnd.x,
-            outerEnd.y,
-            "A",
-            radius,
-            radius,
-            0,
-            largeArcFlag,
-            1,
-            outerStart.x,
-            outerStart.y,
-            "L",
-            innerStart.x,
-            innerStart.y,
-            "Z",
-        ].join(" ");
-    }
-
-    function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
-        const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
-        return {
-            x: centerX + radius * Math.cos(angleInRadians),
-            y: centerY + radius * Math.sin(angleInRadians),
-        };
-    }
-
-    return (
-        <div style={{ position: "relative", display: "flex" }}>
-            <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
-                {/* Background circle */}
-                <path d={describeArc(radius, radius, radius, 0, 360, thickness)} fill='#f3f4f6' />
-
-                {dataWithEmpty.map((item, index) => {
-                    const endAngle = startAngle + (item.percentage / 100) * 360;
-                    const path = describeArc(radius, radius, radius, startAngle, endAngle, thickness);
-                    const currentStartAngle = startAngle;
-                    startAngle = endAngle;
-
-                    return <path key={index} d={path} fill={item.color} />;
-                })}
-            </svg>
-
-            {/* Number display positioned in the center of the ring */}
-            <div
-                style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    flexDirection: "column",
-                }}
-            >
-                <div
-                    style={{
-                        fontSize: 56,
-                        fontWeight: 600,
-                        color: "#111827",
-                        display: "flex",
-                    }}
-                >
-                    {totalMinutes}
-                </div>
-                <div
-                    style={{
-                        fontSize: 22,
-                        color: "#6b7280",
-                        display: "flex",
-                    }}
-                >
-                    {minutesLabel}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// Generate the OpenGraph image for subject pages
+/**
+ * The subject page's own header, as an unfurl: the illustration edge to edge
+ * under the site's chrome, the topic and the title on its foot. Without an
+ * illustration, the topic's wash and glyph, as the page draws the placeholder.
+ */
 export default async function SubjectOgImage({
     params,
 }: {
@@ -167,26 +43,21 @@ export default async function SubjectOgImage({
     const { locale, cityId, meetingId, subjectId } = await params;
     const t = await getTranslations({ locale, namespace: "og" });
 
-    const [meeting, subjects, people] = await Promise.all([
+    const [meeting, subjects] = await Promise.all([
         getMeetingDataForOG(cityId, meetingId),
         getSubjectsForMeetingCached(cityId, meetingId),
-        getPeopleForCityCached(cityId),
     ]);
+    const subject = subjects.find(s => s.id === subjectId);
 
-    const subject = subjects?.find(s => s.id === subjectId);
-
-    // Return a blank image if no data
-    if (!meeting || !subjects || !subject) {
+    if (!meeting || !subject) {
         return new ImageResponse(
             (
-                <div
-                    style={{
-                        width: "100%",
-                        height: "100%",
-                        backgroundColor: "#ffffff",
-                        display: "flex",
-                    }}
-                />
+                <OgFrame>
+                    <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={24} />
+                    <div style={{ display: "flex", flex: 1, alignItems: "center", padding: `0 ${OG.PAD}px ${OG.PAD}px` }}>
+                        <OgTitle size={44} color={OG.MUTED}>{t("subject.notFound")}</OgTitle>
+                    </div>
+                </OgFrame>
             ),
             { ...size, fonts: OG_FONTS },
         );
@@ -194,306 +65,53 @@ export default async function SubjectOgImage({
 
     const statisticsRecord = await getSubjectStatisticsCached(cityId, meetingId, subjects, meeting.dateTime);
     const statistics = statisticsRecord[subject.id];
+    // statistics.speakingSeconds, as the subject page counts it.
+    const minutes = Math.round((statistics?.speakingSeconds ?? 0) / 60);
+    const speakers = statistics?.people?.length ?? 0;
 
-    // Use statistics.speakingSeconds (same as subject page)
-    const totalMinutes = Math.round(
-        statistics?.speakingSeconds ? statistics.speakingSeconds / 60 : 0
-    );
-
-    // Get top speaker IDs from statistics
-    const topSpeakersIds =
-        statistics?.people?.sort((a, b) => b.speakingSeconds - a.speakingSeconds).map(p => p.item.id) || [];
-
-    // Add the introducer at the start if they exist and aren't already in top speakers
-    const introducedByPerson = subject.introducedBy;
-    if (introducedByPerson && !topSpeakersIds.includes(introducedByPerson.id)) {
-        topSpeakersIds.unshift(introducedByPerson.id);
-    }
-
-    // Filter and sort to get top speakers
-    const topSpeakers = topSpeakersIds
-        .map(id => people.find(p => p.id === id))
-        .filter((p): p is PersonWithRelations => p !== undefined);
-
-    // Prepare color percentages data for the ring
-    const colorPercentages =
-        statistics?.parties?.map(p => ({
-            color: p.item.colorHex,
-            percentage: (p.speakingSeconds / statistics!.speakingSeconds) * 100,
-        })) || [];
+    const [illustration, seal] = await Promise.all([
+        getSubjectIllustrationData(subject.id, ILLUSTRATION_BOX.hero),
+        getImageData(meeting.city.logoImage, { width: 88, height: 88, fit: "inside" }),
+    ]);
+    const colors = topicStyleHex(subject.topic?.colorHex);
+    const context = [getLocalizedMunicipalityName(meeting.city, locale), meeting.administrativeBody ? getLocalizedName(meeting.administrativeBody, locale) : null]
+        .filter(Boolean).join(" · ");
+    const facts = [formatDate(new Date(meeting.dateTime), undefined, locale)];
+    if (speakers > 0) facts.push(t("subject.speakers", { count: speakers }));
+    if (minutes > 0) facts.push(t("subject.discussion", { minutes }));
 
     return new ImageResponse(
         (
-            <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI} watermarkProps={{ logoOnly: true, size: 80 }}>
-                {/* Color Percentage Ring in the absolute top right corner */}
-                <div
-                    style={{
-                        position: "absolute",
-                        top: "50px", // Some padding from the top edge
-                        right: "50px", // Some padding from the right edge
-                        display: "flex",
-                    }}
-                >
-                    <ColorPercentageRing
-                        data={colorPercentages}
-                        totalMinutes={totalMinutes}
-                        minutesLabel={t("subject.minutes")}
-                        size={180}
-                        thickness={20}
-                    />
-                </div>
-
-                <OgHeader
-                    city={{
-                        name: formatCityDisplayName(
-                            getLocalizedMunicipalityName(meeting.city, locale),
-                            meeting.administrativeBody ? getLocalizedName(meeting.administrativeBody, locale) : null,
-                        ),
-                        logoImage: meeting.city.logoImage,
-                    }}
-                />
-
-                {/* Main Layout */}
-                <div
-                    style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        flex: 1,
-                    }}
-                >
-                    {/* Meeting title above subject name */}
-                    <span
-                        style={{
-                            fontSize: "28px",
-                            color: "#6b7280",
-                            display: "flex",
-                            marginBottom: "8px",
-                        }}
-                    >
-                        {getLocalizedName(meeting, locale)}
-                    </span>
-
-                    {/* Subject name with padding on the right to make room for the ring */}
-                    <h1
-                        style={{
-                            fontSize: 56,
-                            fontWeight: 700,
-                            color: "#111827",
-                            lineHeight: 1.3,
-                            margin: 0,
-                            marginBottom: "24px",
-                            paddingRight: "180px", // Make room for the ring
-                            display: "flex",
-                        }}
-                    >
-                        {localizeText(subject.name, locale)}
-                    </h1>
-
-                    {/* Topic and location badges */}
-                    <div
-                        style={{
-                            display: "flex",
-                            gap: "16px",
-                            alignItems: "center",
-                            flexWrap: "wrap",
-                            marginBottom: "24px",
-                        }}
-                    >
-                        {/* Topic badge if available */}
-                        {subject.topic && (
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "8px",
-                                    backgroundColor: subject.topic.colorHex || "#e5e7eb",
-                                    padding: "8px 16px",
-                                    borderRadius: "6px",
-                                    color: "#ffffff",
-                                    fontSize: 28,
-                                    fontWeight: 600,
-                                }}
-                            >
-                                {/* Circle indicator */}
-                                <div
-                                    style={{
-                                        width: "14px",
-                                        height: "14px",
-                                        borderRadius: "50%",
-                                        backgroundColor: "#ffffff",
-                                        display: "flex",
-                                    }}
-                                />
-                                <span style={{ display: "flex" }}>{getLocalizedName(subject.topic, locale)}</span>
-                            </div>
-                        )}
-
-                        {/* Location badge if available */}
-                        {subject.location && (
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "8px",
-                                    backgroundColor: "#f3f4f6",
-                                    padding: "8px 16px",
-                                    borderRadius: "6px",
-                                    color: "#4b5563",
-                                    fontSize: 28,
-                                    fontWeight: 500,
-                                }}
-                            >
-                                <span style={{ display: "flex" }}>📍</span>
-                                <span style={{ display: "flex" }}>{localizeText(subject.location.text, locale)}</span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Speakers section */}
-                    {topSpeakers.length > 0 && (
-                        <div
-                            style={{
-                                marginTop: "32px",
-                                display: "flex",
-                                flexDirection: "column",
-                            }}
-                        >
-                            {/* Speakers avatar list - styled like src/components/persons/PersonAvatarList.tsx */}
-                            <div
-                                style={{
-                                    display: "flex",
-                                    marginLeft: "8px",
-                                }}
-                            >
-                                {topSpeakers.slice(0, 9).map((person, index) => {
-                                    // The party only tints the avatar ring here — its name is not drawn.
-                                    const partyColor = person.roles?.find(r => r.party)?.party?.colorHex ?? null;
-
-                                    // Check if this is the introducer
-                                    const isIntroducer = introducedByPerson && person.id === introducedByPerson.id;
-
-                                    const personName = getLocalizedName(person, locale);
-                                    const initials = getInitials(personName);
-
-                                    return (
-                                        <div
-                                            key={index}
-                                            style={{
-                                                position: "relative",
-                                                marginLeft: index === 0 ? "0px" : "-16px", // Create overlap
-                                                display: "flex",
-                                            }}
-                                        >
-                                            {/* Person Badge */}
-                                            <div
-                                                style={{
-                                                    position: "relative",
-                                                    width: "100px",
-                                                    height: "100px",
-                                                    borderRadius: "50%",
-                                                    backgroundColor: "#ffffff",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    overflow: "hidden",
-                                                    border: `5px solid ${partyColor || "#e5e7eb"}`,
-                                                    boxShadow:
-                                                        "0 6px 8px -1px rgba(0, 0, 0, 0.12), 0 4px 6px -1px rgba(0, 0, 0, 0.08)",
-                                                }}
-                                            >
-                                                {person.image ? (
-                                                    // Note: Using <img> instead of Next.js <Image /> because this is server-side
-                                                    // OpenGraph image generation with ImageResponse. Next.js Image component
-                                                    // doesn't work in this context and <img> is the standard approach.
-                                                    // eslint-disable-next-line @next/next/no-img-element
-                                                    <img
-                                                        src={person.image}
-                                                        alt={personName}
-                                                        width='100'
-                                                        height='100'
-                                                        style={{ objectFit: "cover" }}
-                                                    />
-                                                ) : (
-                                                    <span
-                                                        style={{
-                                                            color: partyColor || "#6b7280",
-                                                            fontSize: "36px",
-                                                            fontWeight: 600,
-                                                            display: "flex",
-                                                        }}
-                                                    >
-                                                        {initials}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {/* Introducer Icon */}
-                                            {isIntroducer && (
-                                                <div
-                                                    style={{
-                                                        position: "absolute",
-                                                        top: "0",
-                                                        left: "0",
-                                                        backgroundColor: "#ffffff",
-                                                        borderRadius: "50%",
-                                                        width: "36px",
-                                                        height: "36px",
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        justifyContent: "center",
-                                                        border: "2px solid #ffffff",
-                                                        boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                                                    }}
-                                                >
-                                                    <span
-                                                        style={{
-                                                            display: "flex",
-                                                            fontSize: "22px",
-                                                        }}
-                                                    >
-                                                        ✏️
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-
-                                {/* Add +N more if there are more speakers */}
-                                {topSpeakers.length > 9 && (
-                                    <div
-                                        style={{
-                                            position: "relative",
-                                            marginLeft: "-22px",
-                                            display: "flex",
-                                        }}
-                                    >
-                                        <div
-                                            style={{
-                                                width: "100px",
-                                                height: "100px",
-                                                borderRadius: "50%",
-                                                backgroundColor: "#f3f4f6",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                border: "5px solid #ffffff",
-                                                boxShadow:
-                                                    "0 6px 8px -1px rgba(0, 0, 0, 0.12), 0 4px 6px -1px rgba(0, 0, 0, 0.08)",
-                                                color: "#6b7280",
-                                                fontSize: "30px",
-                                                fontWeight: "600",
-                                            }}
-                                        >
-                                            +{topSpeakers.length - 9}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+            <OgFrame>
+                <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={24}>
+                    <OgContextChip text={context} logoSrc={seal} />
+                </OgHeader>
+                <div style={{ display: "flex", position: "relative", width: size.width, height: HERO_HEIGHT, overflow: "hidden", background: colors.background }}>
+                    {illustration ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={illustration} width={size.width} height={HERO_HEIGHT} alt="" style={{ position: "absolute", top: 0, left: 0, objectFit: "cover" }} />
+                    ) : (
+                        <div style={{ display: "flex", position: "absolute", top: 0, left: 0, width: size.width, height: HERO_HEIGHT, alignItems: "center", justifyContent: "center" }}>
+                            {topicGlyph(subject.topic?.icon, 160, colors.icon)}
                         </div>
                     )}
+                    <OgFoot padding={`120px ${OG.PAD}px 44px`}>
+                        {subject.topic && (
+                            <OgTopicPill
+                                name={getLocalizedName(subject.topic, locale)}
+                                colors={colors}
+                                glyph={topicGlyph(subject.topic.icon, 22, colors.icon)}
+                            />
+                        )}
+                        <div style={{ display: "flex", marginTop: 16 }}>
+                            <OgTitle size={52} color="#ffffff" maxWidth={1000}>{localizeText(subject.name, locale)}</OgTitle>
+                        </div>
+                        <div style={{ display: "flex", marginTop: 16 }}>
+                            <OgFacts items={facts} color="rgba(255,255,255,0.85)" />
+                        </div>
+                    </OgFoot>
                 </div>
-            </Container>
+            </OgFrame>
         ),
         { ...size, fonts: OG_FONTS },
     );

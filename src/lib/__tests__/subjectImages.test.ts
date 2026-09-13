@@ -1,14 +1,6 @@
 /** @jest-environment node */
 
-import {
-    generateImageForSubject,
-    generateImagesForMeeting,
-    isSubjectImageGenerationEnabled,
-    listSubjectsWithImages,
-    reportLookupFailure,
-    resolveSubjectImage,
-    storeSubjectImage,
-} from '../subjectImages';
+import { generateImageForSubject, generateImagesForMeeting, isSubjectImageGenerationEnabled, listSubjectsWithImages, reportLookupFailure, resolveSubjectImage, storeSubjectImage, publicSubjectImageUrl } from '../subjectImages';
 
 const mockEnv: { GEMINI_API_KEY?: string; DO_SPACES_BUCKET: string; SUBJECT_IMAGES_PREFIX: string; CDN_URL: string } = {
     GEMINI_API_KEY: 'gemini-key',
@@ -58,6 +50,8 @@ const mockListStoredSubjectIds = jest.fn();
 const mockGenerate = jest.fn();
 const mockToWebp = jest.fn(async (b: Buffer) => b);
 jest.mock('@opencouncil/subject-images', () => ({
+    // The pure helpers stay real: the URL builder under test relies on the id guard and the key layout.
+    ...jest.requireActual('@opencouncil/subject-images'),
     buildPrompt: ({ title, description }: { title: string; description: string }) => `${title}|${description}`,
     generate: (...args: unknown[]) => mockGenerate(...args),
     listStoredSubjectIds: (...args: unknown[]) => mockListStoredSubjectIds(...args),
@@ -93,6 +87,17 @@ beforeEach(() => {
 
 afterEach(() => {
     jest.useRealTimers();
+});
+
+describe('publicSubjectImageUrl', () => {
+    it('names the object on the CDN without asking the bucket', () => {
+        expect(publicSubjectImageUrl('abc_123-x')).toBe('https://cdn.example/subject-images/8bit/abc_123-x.webp');
+    });
+
+    it('refuses an id that could escape the folder', () => {
+        expect(publicSubjectImageUrl('../secret')).toBeNull();
+        expect(publicSubjectImageUrl('')).toBeNull();
+    });
 });
 
 describe('resolveSubjectImage', () => {

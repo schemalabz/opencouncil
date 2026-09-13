@@ -68,3 +68,24 @@ export function topicStyle(color?: string | null, variant: 'soft' | 'solid' = 's
         icon: `color-mix(in srgb, ${c} 65%, black)`,
     };
 }
+
+/** Channel-wise mix of `hex` with `into` (both `#rrggbb`): `weight` is the share of `hex`. */
+function mixHex(hex: string, weight: number, into: string): string {
+    const parse = (h: string) => {
+        const c = h.replace('#', '');
+        return [0, 2, 4].map(i => parseInt(c.slice(i, i + 2), 16));
+    };
+    const a = parse(hex.length === 7 ? hex : NEUTRAL);
+    const b = parse(into);
+    return '#' + a.map((v, i) => Math.round(v * weight + b[i] * (1 - weight)).toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * The `soft` recipe of {@link topicStyle} with the mixes resolved to plain hex.
+ * For renderers with no `color-mix()`: the OG images (satori) and anything
+ * else that draws outside a browser.
+ */
+export function topicStyleHex(color?: string | null): TopicStyle {
+    const c = color && color.length === 7 ? color : NEUTRAL;
+    return { background: mixHex(c, 0.24, '#ffffff'), border: c, icon: mixHex(c, 0.65, '#000000') };
+}

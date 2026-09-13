@@ -1,5 +1,5 @@
 import 'server-only';
-import { buildPrompt, generate, listStoredSubjectIds, resolve, store, toWebp, type ResolvedImage } from '@opencouncil/subject-images';
+import { buildPrompt, generate, listStoredSubjectIds, resolve, store, toWebp, type ResolvedImage, objectKey, isSubjectImageId } from '@opencouncil/subject-images';
 import { env } from '@/env.mjs';
 import { cacheAcquire, cacheDelete, cacheGetJSON, cacheSetJSON } from '@/lib/cache/valkey';
 import { getSubjectIdsForMeeting, getSubjectPromptInput } from '@/lib/db/subject';
@@ -88,6 +88,18 @@ function reportFailure(message: string, error: unknown, context: Record<string, 
 /** Generation is on wherever a Gemini key is set; previews and dev without one serve only misses. */
 export function isSubjectImageGenerationEnabled(): boolean {
     return Boolean(env.GEMINI_API_KEY);
+}
+
+/**
+ * Where a subject's illustration is served from, without asking the bucket
+ * whether it exists. For a reader that fetches it anyway and treats a 404 as
+ * "no picture", such as the OG images; the read route keeps using `resolve`,
+ * whose ETag makes a replaced picture a new URL.
+ */
+export function publicSubjectImageUrl(subjectId: string): string | null {
+    if (!isSubjectImageId(subjectId)) return null;
+    const path = objectKey(subjectId, env.SUBJECT_IMAGES_PREFIX).split('/').map(encodeURIComponent).join('/');
+    return `${env.CDN_URL.replace(/\/+$/, '')}/${path}`;
 }
 
 export function resolveSubjectImage(subjectId: string): Promise<ResolvedImage | null> {

@@ -2,7 +2,7 @@
 
 **Concept**
 
-Every subject gets one AI-generated illustration. The landing cards, the subject page and the city page's top subject show it. A subject without an image shows a placeholder in its topic colour, which the browser draws.
+Every subject gets one AI-generated illustration. The landing cards, the subject page, the city page's top subject and the Open Graph images (see [og-images.md](./og-images.md)) show it. A subject without an image shows a placeholder in its topic colour, which the browser draws.
 
 **Architectural Overview**
 

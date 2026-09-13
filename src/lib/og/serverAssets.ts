@@ -25,28 +25,28 @@ export const LOGO_WHITE_DATA_URI = loadLogoAsDataUri("white-logo.png");
 /**
  * Fonts for the satori renderer.
  *
- * Given no `fonts`, `@vercel/og` renders with its bundled Geist and fetches a
- * Noto Sans subset from Google Fonts for each code point Geist misses. Geist
- * carries a few Greek code points without carrying the Greek alphabet: it has
- * U+03C9 (ω) — drawn as a capital Ω, the way a Latin font ships an ohm sign —
- * but not α, τ or ώ. Which font wins for ω then depends on how the runtime
- * splits the text into runs, so the same string renders "των" in one
- * environment and "τΩν" in another. A PR preview showed the second.
+ * Relative Book Pro is the site's typeface (`packages/ui/tailwind-preset.ts`),
+ * so the images set their text in it, and in its one weight: size and colour
+ * carry the hierarchy, as they do on the pages. It covers Greek and Latin.
+ * Inter follows it for the glyphs it lacks — Cyrillic for opencouncil.rs —
+ * because satori falls through the list for a missing glyph.
  *
- * Pinning a font that covers every script we publish in — Greek, Cyrillic for
- * opencouncil.rs, Latin for opencouncil.fr — settles the glyphs and drops a
- * network fetch from each render. Inter is the site's own UI typeface
- * (`src/lib/fonts.ts`) and already ships in the repo for the PDF renderer, so
- * the images now match the pages they unfurl.
- *
- * Emoji are unaffected: `@vercel/og` resolves those through its own asset
- * loader rather than through these fonts.
+ * Given no `fonts`, `@vercel/og` would render with its bundled Geist and fetch
+ * a Noto Sans subset from Google Fonts for each code point Geist misses, and
+ * Geist draws ω as a capital Ω. Pinning the fonts settles the glyphs and drops
+ * a network fetch from each render. Emoji are unaffected: `@vercel/og`
+ * resolves those through its own asset loader rather than through these fonts.
  */
-const INTER_WEIGHTS = [400, 500, 600, 700] as const;
+function font(file: string, name: string, weight: 400 | 500 | 600 | 700) {
+    return { name, data: fs.readFileSync(path.join(process.cwd(), 'public', 'fonts', 'pdf', file)), weight, style: 'normal' as const };
+}
 
-export const OG_FONTS = INTER_WEIGHTS.map(weight => ({
-    name: 'Inter',
-    data: fs.readFileSync(path.join(process.cwd(), 'public', 'fonts', 'pdf', `inter-${weight}.ttf`)),
-    weight,
-    style: 'normal' as const,
-}));
+export const OG_FONT_FAMILY = 'Relative Book Pro';
+
+export const OG_FONTS = [
+    font('relative-pro-book.ttf', OG_FONT_FAMILY, 400),
+    font('inter-400.ttf', 'Inter', 400),
+    font('inter-500.ttf', 'Inter', 500),
+    font('inter-600.ttf', 'Inter', 600),
+    font('inter-700.ttf', 'Inter', 700),
+];
