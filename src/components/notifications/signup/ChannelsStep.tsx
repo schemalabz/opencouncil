@@ -26,6 +26,7 @@ export function ChannelsStep({
     phoneChannelPending,
     issues,
     saveError,
+    failures,
     onChange,
     onPhoneValidity,
 }: {
@@ -42,6 +43,8 @@ export function ChannelsStep({
     issues: SignupIssue[];
     /** The save action's answer, as a key under `signup.errors`. */
     saveError: string | null;
+    /** Failed presses of submit on this step; each one scrolls the alert into view. */
+    failures: number;
     onChange: (patch: Partial<SignupState>) => void;
     onPhoneValidity: (validity: PhoneFieldValidity) => void;
 }) {
@@ -52,7 +55,7 @@ export function ChannelsStep({
         <div>
             <StepHeading title={t('channelsTitle')} lead={t('channelsLead')} />
 
-            <IssuesAlert saveError={saveError} issues={issues} signInHref={signInHrefFor(state.email)} />
+            <IssuesAlert saveError={saveError} issues={issues} failures={failures} signInHref={signInHrefFor(state.email)} />
 
             <div className="mt-5 flex flex-col gap-3">
                 <CheckboxCard

@@ -26,6 +26,7 @@ export function PetitionFormStep({
     signedIn,
     issues,
     saveError,
+    failures,
     onChange,
     onPhoneValidity,
 }: {
@@ -36,6 +37,8 @@ export function PetitionFormStep({
     issues: SignupIssue[];
     /** The save action's answer, as a key under `signup.errors`. */
     saveError: string | null;
+    /** Failed presses of submit on this step; each one scrolls the alert into view. */
+    failures: number;
     onChange: (patch: Partial<PetitionState>) => void;
     onPhoneValidity: (validity: PhoneFieldValidity) => void;
 }) {
@@ -50,7 +53,7 @@ export function PetitionFormStep({
                 <StepHeading title={t('formTitle')} lead={t('formLead')} />
             )}
 
-            <IssuesAlert saveError={saveError} issues={issues} signInHref={signInHrefFor(state.email)} />
+            <IssuesAlert saveError={saveError} issues={issues} failures={failures} signInHref={signInHrefFor(state.email)} />
 
             <section className="mt-5 flex flex-col gap-2.5">
                 {!signedIn && (

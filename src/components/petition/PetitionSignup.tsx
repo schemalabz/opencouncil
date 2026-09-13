@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { LocationPreview } from '@/components/signup/LocationPreview';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
-import { saveErrorKey, type SignupAccount } from '@/components/signup/signup-shared';
+import { failureKind, saveErrorKey, type SignupAccount } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { savePetition } from '@/lib/actions/notifications';
 import { captureEvent } from '@/lib/analytics/capture';
@@ -51,9 +51,11 @@ export function PetitionSignup({
         signedIn,
         events: { stepViewed: 'petition_step_viewed', failed: 'petition_failed' },
     });
-    const { state, patch, goTo, done, submitting, attempted, saveError, validity, phoneValidity, setPhoneValidity } = flow;
+    const { state, patch, goTo, done, submitting, attempted, failures, saveError, validity, phoneValidity, setPhoneValidity } =
+        flow;
 
     const issues = attempted ? petitionIssues(state, validity) : [];
+    const failure = failureKind(issues, saveError);
 
     const submit = () =>
         flow.submit(async () => {
@@ -99,6 +101,7 @@ export function PetitionSignup({
                     signedIn={signedIn}
                     issues={issues}
                     saveError={saveError}
+                    failures={failures}
                     onChange={patch}
                     onPhoneValidity={setPhoneValidity}
                 />
@@ -112,6 +115,8 @@ export function PetitionSignup({
                     actionLabel={submitting ? t('ctaSubmitting') : t('ctaSubmit')}
                     onAction={submit}
                     disabled={submitting}
+                    failure={failure}
+                    failures={failures}
                     backLabel={ts('back')}
                     onBack={() => goTo(1)}
                 />

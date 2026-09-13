@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
-import { saveErrorKey } from '@/components/signup/signup-shared';
+import { failureKind, saveErrorKey } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { saveNotificationPreferences } from '@/lib/actions/notifications';
 import { getNotisChannelState, setNotisEnabled } from '@/lib/actions/notis';
@@ -65,7 +65,7 @@ export function NotificationSignup({
         signedIn,
         events: { stepViewed: 'notification_signup_step_viewed', failed: 'notification_signup_failed' },
     });
-    const { state, patch, goTo, done, submitting, attempted, saveError, validity, setPhoneValidity } = flow;
+    const { state, patch, goTo, done, submitting, attempted, failures, saveError, validity, setPhoneValidity } = flow;
 
     // 'pending' until Notis has answered for a signed-in reader; a signed-out
     // reader has nothing to ask about.
@@ -103,6 +103,7 @@ export function NotificationSignup({
     // silent Notis stays that way: the rest of the step still saves.
     const channelLocked = notisPending || phoneChannelLocked(notisStatus);
     const issues = attempted ? channelIssues(state, validity) : [];
+    const failure = failureKind(issues, saveError);
 
     const submit = () =>
         flow.submit(async () => {
@@ -192,6 +193,7 @@ export function NotificationSignup({
                     phoneChannelPending={notisPending}
                     issues={issues}
                     saveError={saveError}
+                    failures={failures}
                     onChange={(next) => {
                         if (next.phoneChannel !== undefined) touchedPhoneChannel.current = true;
                         patch(next);
@@ -214,6 +216,8 @@ export function NotificationSignup({
                     actionLabel={submitting ? t('ctaSubmitting') : t('ctaSubmit')}
                     onAction={submit}
                     disabled={submitting || notisPending}
+                    failure={failure}
+                    failures={failures}
                     backLabel={ts('back')}
                     onBack={() => goTo(2)}
                 />

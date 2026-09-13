@@ -1,6 +1,12 @@
 {
   "stepOf": "Étape {step} sur {total}",
   "back": "Retour",
+  "failure": {
+    "issuesButton": "Vérifiez les informations",
+    "issuesLine": "Vérifiez les informations ci-dessus.",
+    "refusedButton": "Non enregistré",
+    "refusedLine": "Non enregistré — voyez pourquoi ci-dessus."
+  },
   "changeCity": "Changer",
   "privacy": "Politique de confidentialité",
   "doneMagicLink": "Un lien pour vous connecter sans mot de passe vous attend dans votre e-mail.",

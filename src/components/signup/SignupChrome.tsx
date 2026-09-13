@@ -1,9 +1,13 @@
 'use client';
 
-import { ArrowRight } from 'lucide-react';
+import { useEffect, useId, useState } from 'react';
+import { useAnimate, useReducedMotion } from 'framer-motion';
+import { AlertCircle, ArrowRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Eyebrow } from '@/components/landing/v2/shared';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import type { SignupFailure } from './signup-shared';
 
 export { Eyebrow };
 
@@ -83,45 +87,107 @@ export function StepHeading({
     );
 }
 
+/** How long the button wears a failed press before it settles back. */
+const FAILURE_FLASH_MS = 1400;
+
 /**
  * The action bar. On a phone it sticks to the bottom of the screen: one
  * full-width call to action on the first step, back plus continue on the
- * others. Sticky rather than fixed, so it never covers the page footer. On
- * a desktop it sits in the flow, under the step, where a form's buttons go.
+ * others. Sticky rather than fixed, so it stays inside the page. On a
+ * desktop it sits in the flow, under the step, where a form's buttons go.
+ *
+ * A failed press has a moment and a state. The moment: the button shakes
+ * once and turns red, wearing the short reason («Έλεγξε τα στοιχεία»),
+ * then settles back into the call to action. The state: while the reason
+ * stands, a quiet line under the buttons points at the alert with the
+ * details, which on a phone is a screen above. `failures` marks the
+ * moments; `failure` is the state, and it clears itself as the reader
+ * fixes things.
  */
 export function SignupFooter({
     actionLabel,
     onAction,
     disabled,
+    failure = null,
+    failures = 0,
     backLabel,
     onBack,
 }: {
     actionLabel: string;
     onAction: () => void;
     disabled?: boolean;
+    failure?: SignupFailure | null;
+    /** Failed presses of submit on this step; each one plays the moment again. */
+    failures?: number;
     backLabel?: string;
     onBack?: () => void;
 }) {
+    const t = useTranslations('signup');
+    const lineId = useId();
+    const [scope, animate] = useAnimate();
+    const reduced = useReducedMotion();
+    const [flashing, setFlashing] = useState(false);
+
+    useEffect(() => {
+        if (failures === 0) {
+            setFlashing(false);
+            return;
+        }
+        setFlashing(true);
+        if (!reduced) animate(scope.current, { x: [0, -8, 8, -6, 6, -3, 3, 0] }, { duration: 0.45, ease: 'easeInOut' });
+        const timer = setTimeout(() => setFlashing(false), FAILURE_FLASH_MS);
+        return () => clearTimeout(timer);
+    }, [animate, failures, reduced, scope]);
+
+    const flash = flashing && failure !== null;
+    const line = failure !== null && !flashing;
+
     return (
         <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border bg-background/90 px-4 py-3 backdrop-blur lg:static lg:mx-0 lg:mt-10 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none">
-            <div className="mx-auto flex max-w-md items-center justify-between gap-3 lg:mx-0 lg:max-w-none">
-                {onBack && backLabel ? (
-                    <Button type="button" variant="ghost" onClick={onBack} className="h-11 px-3 text-[15px] text-muted-foreground lg:-ml-3">
-                        {backLabel}
-                    </Button>
-                ) : null}
-                <Button
-                    type="button"
-                    onClick={onAction}
-                    disabled={disabled}
-                    className={cn(
-                        'group/cta h-12 gap-2 rounded-[10px] bg-[hsl(var(--orange-deep))] px-5 text-[15px] font-medium text-white hover:bg-[hsl(var(--orange-deep))]/90',
-                        onBack ? 'min-w-[160px]' : 'w-full lg:w-auto lg:min-w-[240px]',
-                    )}
-                >
-                    {actionLabel}
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
-                </Button>
+            <div className="mx-auto max-w-md lg:mx-0 lg:max-w-none">
+                {line && (
+                    <p
+                        id={lineId}
+                        className="mb-2.5 flex items-center gap-1.5 text-[13px] leading-snug text-red-700 animate-in fade-in duration-300"
+                    >
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        {failure === 'issues' ? t('failure.issuesLine') : t('failure.refusedLine')}
+                    </p>
+                )}
+                <div className="flex items-center justify-between gap-3">
+                    {onBack && backLabel ? (
+                        <Button type="button" variant="ghost" onClick={onBack} className="h-11 px-3 text-[15px] text-muted-foreground lg:-ml-3">
+                            {backLabel}
+                        </Button>
+                    ) : null}
+                    {/* The shake moves this wrapper, so the button keeps its focus. */}
+                    <div ref={scope} className={onBack ? 'min-w-[160px]' : 'w-full lg:w-auto lg:min-w-[240px]'}>
+                        <Button
+                            type="button"
+                            onClick={onAction}
+                            disabled={disabled}
+                            aria-describedby={line ? lineId : undefined}
+                            className={cn(
+                                'group/cta h-12 w-full gap-2 rounded-[10px] px-5 text-[15px] font-medium text-white transition-colors duration-300',
+                                flash
+                                    ? 'bg-red-600 hover:bg-red-600'
+                                    : 'bg-[hsl(var(--orange-deep))] hover:bg-[hsl(var(--orange-deep))]/90',
+                            )}
+                        >
+                            {flash ? (
+                                <>
+                                    <AlertCircle className="h-4 w-4" aria-hidden />
+                                    {failure === 'issues' ? t('failure.issuesButton') : t('failure.refusedButton')}
+                                </>
+                            ) : (
+                                <>
+                                    {actionLabel}
+                                    <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </div>
             </div>
         </div>
     );
