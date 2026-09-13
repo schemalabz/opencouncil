@@ -6,6 +6,7 @@ import { authorityKey } from '@/components/cities/overview/authorityKey';
 import { DoneCheck } from '@/components/notifications/signup/CompleteScreen';
 import { MeanwhileLinks, type MeanwhileLink } from '@/components/signup/MeanwhileLinks';
 import { StepHeading } from '@/components/signup/SignupChrome';
+import { useCelebration } from '@/components/signup/useCelebration';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
 
@@ -29,6 +30,7 @@ export function PetitionComplete({
     const ts = useTranslations('signup');
     const locale = useLocale();
     const qualifier = getMunicipalityQualifier(city, locale);
+    useCelebration();
 
     return (
         <div>
