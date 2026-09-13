@@ -30,6 +30,14 @@ export async function generateMetadata(): Promise<Metadata> {
         description: 'Ανοιχτή τοπική αυτοδιοίκηση',
         icons: {
             icon: '/favicon.ico',
+            apple: '/icons/apple-touch-icon.png',
+        },
+        // iOS reads these instead of the manifest: without them "Add to Home
+        // Screen" opens the site in a Safari tab, not as a standalone app.
+        appleWebApp: {
+            capable: true,
+            title: 'OpenCouncil',
+            statusBarStyle: 'default',
         },
         metadataBase: new URL(metadataBase),
         openGraph: {
@@ -69,6 +77,9 @@ export const viewport = {
     // and in-app WebViews) assume the page simply hasn't been updated and algorithmically invert
     // it, which darkens some surfaces and not others. `only light` is the documented opt-out.
     colorScheme: 'only light',
+    // The installed app's title bar (Android) and the browser UI on mobile
+    // take this colour; white matches the header.
+    themeColor: '#ffffff',
 }
 
 export default async function RootLayout(
