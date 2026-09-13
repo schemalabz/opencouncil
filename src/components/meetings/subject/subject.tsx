@@ -48,6 +48,7 @@ import { voteResultSentence } from '@/lib/utils/votes';
 import { surfaceCardClass, TWO_COLUMN_GRID } from '@/components/ui/surface-card';
 import { RailCard } from '@/components/ui/rail-card';
 import { MountOnVisible } from '@/components/MountOnVisible';
+import { RELATED_SUBJECTS_ID } from '@/components/meetings/subject/RelatedSubjects';
 import { SubjectImage } from '@/components/subject/SubjectImage';
 import { SubjectImageAdminControls } from '@/components/subject/SubjectImageAdminControls';
 import { adminToolClass } from '@/components/admin/AdminStrip';
@@ -58,7 +59,14 @@ import { AIDisclosure } from '@/components/AIDisclosure';
  * server (RelatedSubjectsSection) and handed in as a slot: this component is
  * a client component, and the section's rows have to be in the HTML.
  */
-export default function Subject({ subjectId, highlightedContributionId, related }: { subjectId?: string; highlightedContributionId?: string; related?: React.ReactNode }) {
+export default function Subject({ subjectId, highlightedContributionId, related, relatedStrip }: {
+    subjectId?: string;
+    highlightedContributionId?: string;
+    /** The related-subjects section, below the statements. */
+    related?: React.ReactNode;
+    /** The recurrence strip, under the title's meta row. */
+    relatedStrip?: React.ReactNode;
+}) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
     // What the empty summary and statements say while the meeting is not complete.
     const { stage, deadline } = useMeetingStage();
@@ -307,6 +315,7 @@ export default function Subject({ subjectId, highlightedContributionId, related 
                                 </span>
                             )}
                         </div>
+                        {relatedStrip}
                         {/* One robot for the picture and the summary alike; the badge beside
                             the summary still names the text it sits next to. */}
                         <AIDisclosure className="absolute bottom-5 right-3 md:bottom-6 md:right-6" />
@@ -428,7 +437,7 @@ export default function Subject({ subjectId, highlightedContributionId, related 
                             )}
                         </section>
 
-                        {related}
+                        {related && <div id={RELATED_SUBJECTS_ID}>{related}</div>}
                     </div>
 
                     <aside className="flex min-w-0 flex-col gap-3.5">

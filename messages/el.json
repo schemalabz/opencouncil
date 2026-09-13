@@ -1078,7 +1078,8 @@
         "relatedOtherCities": "Άλλοι δήμοι",
         "relatedSeeMore": "Δες περισσότερα στην αναζήτηση",
         "relatedSameCity": "Στον ίδιο δήμο, στον χρόνο",
-        "relatedCurrent": "Αυτό το θέμα"
+        "relatedCurrent": "Αυτό το θέμα",
+        "relatedRecurring": "Συζητήθηκε ξανά μέσα σε έξι μήνες"
     },
     "PersonCard": {
         "party": "Παράταξη",

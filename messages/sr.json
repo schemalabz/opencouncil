@@ -1083,7 +1083,8 @@
         "relatedOtherCities": "Друге општине",
         "relatedSeeMore": "Погледајте више у претрази",
         "relatedSameCity": "У истој општини, кроз време",
-        "relatedCurrent": "Ова тема"
+        "relatedCurrent": "Ова тема",
+        "relatedRecurring": "Поново разматрано у року од шест месеци"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Нема седница} one {# седница} few {# седнице} other {# седница}}",

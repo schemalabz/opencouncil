@@ -48,7 +48,12 @@ interface RelatedSubjectsProps {
     levels: RelatedLevels;
 }
 
-/** The DOM id the page's header strip scrolls to. */
+/**
+ * The DOM id the header strip scrolls to. subject.tsx puts it on the wrapper
+ * around the section's slot, outside the section's error boundary, so the
+ * strip's link has a target even when the section fails after the strip
+ * has rendered.
+ */
 export const RELATED_SUBJECTS_ID = 'related-subjects';
 
 const subjectHref = (subject: RelatedSubject) => `/${subject.cityId}/${subject.councilMeetingId}/subjects/${subject.id}`;
@@ -290,7 +295,7 @@ export function RelatedSubjects({ subjectId, subjectName, current, levels }: Rel
     const searchHref = buildSearchHref({ query: localize(subjectName) });
 
     return (
-        <section id={RELATED_SUBJECTS_ID}>
+        <section>
             <h2 className="!m-0 !text-left tracking-[.01em]">{t("relatedSubjects")}</h2>
             {city && <RelatedTimeline level={city} current={current} currentName={localize(subjectName)} onOpen={onOpen} />}
             {other && <RelatedElsewhere level={other} onOpen={onOpen} />}

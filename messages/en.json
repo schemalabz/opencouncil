@@ -1083,7 +1083,8 @@
         "relatedOtherCities": "Other municipalities",
         "relatedSeeMore": "See more in search",
         "relatedSameCity": "In this municipality, over time",
-        "relatedCurrent": "This subject"
+        "relatedCurrent": "This subject",
+        "relatedRecurring": "Discussed again within six months"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
