@@ -35,9 +35,9 @@ export function captureExcerptSegment(root: HTMLElement, sources: ExcerptSource[
 }
 
 export function captureExcerptSelection(root: HTMLElement, range: Range | null, sources: ExcerptSource[], fullUtteranceId?: string): SelectionResult {
-    const sourceMap = new Map(sources.map(source => [source.id, source]));
     if (!fullUtteranceId && (!range || range.collapsed)) return { status: 'empty' };
     if (!fullUtteranceId && range && (!root.contains(range.startContainer) || !root.contains(range.endContainer))) return { status: 'invalid' };
+    const sourceMap = new Map(sources.map(source => [source.id, source]));
     const elements = Array.from(root.querySelectorAll<HTMLElement>('[data-utterance-id]'));
     const selected: { element: HTMLElement; source: ExcerptSource }[] = [];
     for (const element of elements) {

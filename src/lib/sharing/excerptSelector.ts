@@ -1,4 +1,4 @@
-import { LOCALES, type AppLocale, urlPrefixForLocale } from '@/i18n/config';
+import { LOCALES, type AppLocale, localePathPrefix } from '@/i18n/config';
 
 export const MAX_EXCERPT_LENGTH = 20_000;
 export const MAX_EXCERPT_UTTERANCES = 40;
@@ -43,7 +43,7 @@ export function serializeExcerptSelector(selector: ExcerptSelector): URLSearchPa
     return query;
 }
 
-export const localePath = (locale: string, path: string) => `/${urlPrefixForLocale(locale)}${path}`;
+export const localePath = (locale: string, path: string) => `${localePathPrefix(locale)}${path}`;
 export const excerptPath = (selector: ExcerptSelector, uiLocale: string = selector.textLocale) => `${localePath(uiLocale, '/share/excerpt')}?${serializeExcerptSelector(selector)}`;
 export function transcriptExcerptPath(selector: ExcerptSelector, timestamp: number) {
     const query = serializeExcerptSelector(selector);
@@ -68,7 +68,3 @@ export async function digestExcerpt(runs: ExcerptRun[]): Promise<string> {
     return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export function truncatePreview(text: string, limit: number): string {
-    const characters = Array.from(text);
-    return characters.length <= limit ? text : `${characters.slice(0, limit - 1).join('').trimEnd()}…`;
-}

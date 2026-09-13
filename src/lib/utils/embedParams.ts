@@ -1,5 +1,5 @@
 import { AdministrativeBodyType } from '@prisma/client';
-import { DEFAULT_LOCALE, urlPrefixForLocale } from '@/i18n/config';
+import { localePathPrefix } from '@/i18n/config';
 import {
     generateThemeVars,
     generateAppThemeShim,
@@ -41,7 +41,7 @@ export function parseBoundedInt(raw: string | undefined, { default: fallback, mi
  * English one to `/en/...`.
  */
 export function embedLocalePrefix(locale: string): string {
-    return locale === DEFAULT_LOCALE ? '' : `/${urlPrefixForLocale(locale)}`;
+    return localePathPrefix(locale);
 }
 
 /** Raw query params shared by every embed widget variant. */

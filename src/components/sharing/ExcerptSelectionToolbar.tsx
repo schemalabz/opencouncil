@@ -17,6 +17,7 @@ import { ContentShareDialog } from './ContentShareDialog';
 import { ExcerptQuote, excerptQuoteText } from './ExcerptQuote';
 import { TranscriptReviewNotice } from './TranscriptReviewNotice';
 import { storyImagePath } from '@/lib/sharing/story';
+import { majoritySubject, nearestSubject } from '@/lib/sharing/passageSubject';
 import { captureSharingEvent } from '@/lib/analytics/sharing';
 
 export const EXCERPT_SHARE_EVENT = 'oc:share-excerpt';
@@ -54,12 +55,23 @@ export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootR
     const [error, setError] = useState('');
     const openRef = useRef(false);
     openRef.current = open;
+    // The subject the share page and its images will name, by the rules the server applies (passageSubject.ts).
     const selectedSubject = useMemo(() => {
         if (!active) return null;
+        const byId = (id: string | null) => (id && subjects.find(subject => subject.id === id)) || null;
+        const utterances = transcript.flatMap(segment => segment.utterances);
         const selectedIds = new Set(active.runs.map(run => run.id));
-        const utterances = transcript.flatMap(segment => segment.utterances).filter(utterance => selectedIds.has(utterance.id));
-        const ids = new Set(utterances.map(utterance => utterance.discussionSubjectId));
-        return ids.size === 1 && !ids.has(null) ? subjects.find(subject => ids.has(subject.id)) : null;
+        const selected = utterances.filter(utterance => selectedIds.has(utterance.id));
+        const majority = majoritySubject(selected.map(utterance => byId(utterance.discussionSubjectId)));
+        if (majority) return majority;
+        const passage = { start: Math.min(...selected.map(u => u.startTimestamp)), end: Math.max(...selected.map(u => u.startTimestamp)) };
+        const neighbour = (utterance: { startTimestamp: number; discussionSubjectId: string | null } | undefined) => {
+            const subject = utterance ? byId(utterance.discussionSubjectId) : null;
+            return utterance && subject ? { at: utterance.startTimestamp, subject } : null;
+        };
+        const assigned = utterances.filter(utterance => utterance.discussionSubjectId);
+        const nearest = nearestSubject(passage, neighbour(assigned.filter(u => u.startTimestamp < passage.start).at(-1)), neighbour(assigned.find(u => u.startTimestamp > passage.end)));
+        return nearest ?? (subjects.length === 1 ? subjects[0] : null);
     }, [active, transcript, subjects]);
     const context = `${getLocalizedName(city, locale)} · ${formatDate(meeting.dateTime, city.timezone, locale)}`;
 

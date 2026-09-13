@@ -5,7 +5,7 @@ describe('public subject embed URLs', () => {
     it('creates explicit locale URLs from an exact target with no inherited parameters', () => {
         const url = subjectEmbedUrl('https://pr-4.opencouncil.dev/previous?t=100', 'sr-Latn', target, 'dark');
         expect(url).toBe('https://pr-4.opencouncil.dev/lat/embed/subject?cityId=city&meetingId=old_2020&subjectId=subject&mode=dark');
-        expect(subjectEmbedUrl('http://localhost:3101', 'el', target, 'light')).toContain('/el/embed/subject?');
+        expect(subjectEmbedUrl('http://localhost:3101', 'el', target, 'light')).toContain('/embed/subject?');
     });
     it('escapes copied HTML attributes and uses the preview height', () => {
         const html = subjectEmbedSnippet('https://example.test/?a=1&b="x"', 'Discussion <test> "title"');

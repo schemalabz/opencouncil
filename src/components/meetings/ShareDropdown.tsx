@@ -91,8 +91,10 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const [subjectStoryOpen, setSubjectStoryOpen] = useState(false);
     const dropdownOpen = isOpen || internalOpen;
     const subjectPage = pathname.includes('/subjects/');
-    const effectiveTime = targetTimestamp ?? currentTime;
-    const shareableUrl = buildShareUrl(url, includeTimestamp ? effectiveTime : null, subjectPage);
+    // An explicit target keeps its value, zero included; the player's position counts only once it has moved.
+    const effectiveTime = targetTimestamp ?? (currentTime > 0 ? currentTime : null);
+    const sharedTime = includeTimestamp && effectiveTime !== null ? effectiveTime : null;
+    const shareableUrl = buildShareUrl(url, sharedTime, subjectPage);
     const shareTitle = subject ? localizeText(subject.name, locale) : getLocalizedName(meeting, locale);
     const actionDisabled = !shareableUrl || pending !== null;
     const operationRef = useRef(0);
@@ -145,7 +147,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     };
     const share = async () => {
         const operation = ++operationRef.current;
-        const details = { action: 'native_share' as const, mode: 'menu' as const, includes_timestamp: includeTimestamp };
+        const details = { action: 'native_share' as const, mode: 'menu' as const, includes_timestamp: sharedTime !== null };
         track('sharing_action_started', details);
         setPending('share'); setError(false);
         try {
@@ -232,7 +234,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                     <p className="mt-1 line-clamp-2 break-words text-sm leading-5 text-muted-foreground">{subject ? shareTitle : shareContext}</p>
                 </DropdownMenuLabel>
 
-                {(currentTime > 0 || targetTimestamp !== null || includeTimestamp) && <DropdownMenuCheckboxItem
+                {effectiveTime !== null && <DropdownMenuCheckboxItem
                     className="mb-2 min-h-11 cursor-pointer rounded-xl pr-3 text-sm"
                     checked={includeTimestamp}
                     onCheckedChange={checked => { setIncludeTimestamp(checked); setCopySuccess(false); setError(false); }}

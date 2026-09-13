@@ -134,6 +134,18 @@ describe('meeting and subject sharing menu', () => {
         expect(screen.getByRole('menuitem', { name: 'email' })).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
+    it('writes no timestamp when the meeting has no playback position, even if the URL carried one', async () => {
+        mockPathname = '/en/city/meeting/transcript';
+        mockSubjectId = undefined;
+        window.history.replaceState({}, '', `${mockPathname}?textLocale=el&t=95`);
+        mount();
+        await openMenu();
+        expect(screen.queryByRole('menuitemcheckbox', { name: 'startFrom' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('menuitem', { name: 'copyLink' }));
+        await screen.findByRole('menuitem', { name: 'copied' });
+        expect(writeText).toHaveBeenCalledWith('http://localhost/en/city/meeting/transcript?textLocale=el');
+    });
+
     it('preserves zero for automatic timestamp copies and removes the timestamp when unchecked', async () => {
         mockPathname = '/en/city/meeting/transcript';
         mockSubjectId = undefined;
