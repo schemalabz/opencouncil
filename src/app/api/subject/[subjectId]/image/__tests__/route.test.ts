@@ -20,13 +20,17 @@ jest.mock('next/server', () => {
     return { ...actual, after: (fn: () => unknown) => mockAfter(fn) };
 });
 
+const mockIsUserAuthorizedToEdit = jest.fn().mockResolvedValue(false);
 jest.mock('@/lib/auth', () => ({
     getCurrentUser: jest.fn(),
+    isUserAuthorizedToEdit: (...args: unknown[]) => mockIsUserAuthorizedToEdit(...args),
 }));
 
 const mockSubjectExists = jest.fn();
+const mockSubjectIsPublic = jest.fn();
 jest.mock('@/lib/db/subject', () => ({
     subjectExists: (...args: unknown[]) => mockSubjectExists(...args),
+    subjectIsPublic: (...args: unknown[]) => mockSubjectIsPublic(...args),
 }));
 
 jest.mock('@/lib/subjectImages', () => ({
@@ -69,12 +73,12 @@ describe('GET /api/subject/[subjectId]/image', () => {
         expect(res.status).toBe(302);
         expect(res.headers.get('location')).toBe('https://cdn/subject-images/8bit/subj-1.webp?v=abc');
         expect(res.headers.get('cache-control')).toContain('public');
-        expect(mockSubjectExists).not.toHaveBeenCalled();
+        expect(mockSubjectIsPublic).not.toHaveBeenCalled();
     });
 
     it('answers a cacheable 404 and schedules a generation on a miss', async () => {
         mockResolve.mockResolvedValue(null);
-        mockSubjectExists.mockResolvedValue(true);
+        mockSubjectIsPublic.mockResolvedValue({ cityId: 'city', public: true });
 
         const res = await GET(new NextRequest(url), context);
 
@@ -87,7 +91,7 @@ describe('GET /api/subject/[subjectId]/image', () => {
     it('does not schedule a generation when generation is off', async () => {
         mockResolve.mockResolvedValue(null);
         mockEnabled.mockReturnValue(false);
-        mockSubjectExists.mockResolvedValue(true);
+        mockSubjectIsPublic.mockResolvedValue({ cityId: 'city', public: true });
 
         const res = await GET(new NextRequest(url), context);
 
@@ -98,7 +102,7 @@ describe('GET /api/subject/[subjectId]/image', () => {
     it('answers a miss without a generation when the bucket lookup fails, and reports it', async () => {
         const failure = new Error('PermanentRedirect');
         mockResolve.mockRejectedValue(failure);
-        mockSubjectExists.mockResolvedValue(true);
+        mockSubjectIsPublic.mockResolvedValue({ cityId: 'city', public: true });
 
         const res = await GET(new NextRequest(url), context);
 
@@ -115,18 +119,42 @@ describe('GET /api/subject/[subjectId]/image', () => {
 
         expect(res.status).toBe(400);
         expect(mockResolve).not.toHaveBeenCalled();
-        expect(mockSubjectExists).not.toHaveBeenCalled();
+        expect(mockSubjectIsPublic).not.toHaveBeenCalled();
     });
 
     it('returns an uncached 404 for an unknown subject', async () => {
         mockResolve.mockResolvedValue(null);
-        mockSubjectExists.mockResolvedValue(false);
+        mockSubjectIsPublic.mockResolvedValue(null);
 
         const res = await GET(new NextRequest(url), context);
 
         expect(res.status).toBe(404);
         expect(res.headers.get('cache-control')).toBeNull();
         expect(mockAfter).not.toHaveBeenCalled();
+    });
+
+    it('asks for no generation for a subject the requester may not see', async () => {
+        mockResolve.mockResolvedValue(null);
+        mockSubjectIsPublic.mockResolvedValue({ cityId: 'city', public: false });
+
+        const res = await GET(new NextRequest(url), context);
+
+        expect(res.status).toBe(404);
+        expect(res.headers.get('cache-control')).toBeNull();
+        expect(mockAfter).not.toHaveBeenCalled();
+        expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'city' });
+    });
+
+    it('draws an unreleased subject for an editor of its city', async () => {
+        mockResolve.mockResolvedValue(null);
+        mockSubjectIsPublic.mockResolvedValue({ cityId: 'city', public: false });
+        mockIsUserAuthorizedToEdit.mockResolvedValueOnce(true);
+
+        const res = await GET(new NextRequest(url), context);
+
+        expect(res.status).toBe(404);
+        expect(res.headers.get('cache-control')).toBe('public, max-age=60, s-maxage=60');
+        expect(mockGenerateInBackground).toHaveBeenCalledWith('subj-1');
     });
 });
 

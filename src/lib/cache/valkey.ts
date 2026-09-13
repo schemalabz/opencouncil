@@ -102,21 +102,33 @@ export async function cacheHas(key: string): Promise<boolean> {
     }
 }
 
+/** Whether markers can be held at all: CACHE_URL names a Valkey. */
+export function isCacheConfigured(): boolean {
+    return Boolean(env.CACHE_URL);
+}
+
+export type CacheClaim =
+    | 'acquired'
+    /** another holder has the marker */
+    | 'held'
+    /** no marker could be set: CACHE_URL is unset, or the command failed */
+    | 'unavailable';
+
 /**
  * Set a marker only when it is absent (SET NX EX): a claim on a piece of work
  * that other containers must not repeat. cacheDelete releases it, or the TTL
- * does if the holder dies first. Returns true when the claim landed. Without
- * CACHE_URL, or on failure, it also returns true: nothing holds a marker then,
- * so a caller that needs a guard in that case must keep its own process-local one.
+ * does if the holder dies first. 'unavailable' means nothing holds a marker:
+ * the caller decides whether its own process-local guard is enough for the
+ * work, or whether the work must wait for Valkey.
  */
-export async function cacheAcquire(key: string, ttlSeconds: number): Promise<boolean> {
+export async function cacheAcquire(key: string, ttlSeconds: number): Promise<CacheClaim> {
     try {
         const redis = await getClient();
-        if (!redis) return true;
-        return (await redis.set(key, '1', { NX: true, EX: ttlSeconds })) === 'OK';
+        if (!redis) return 'unavailable';
+        return (await redis.set(key, '1', { NX: true, EX: ttlSeconds })) === 'OK' ? 'acquired' : 'held';
     } catch (error) {
         console.error(`[valkey] acquire failed for ${key}:`, error instanceof Error ? error.message : error);
-        return true;
+        return 'unavailable';
     }
 }
 

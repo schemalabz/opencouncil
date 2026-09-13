@@ -1,9 +1,10 @@
 import 'server-only';
-import { buildPrompt, generate, listStoredSubjectIds, resolve, store, toWebp, type ResolvedImage, objectKey, isSubjectImageId } from '@opencouncil/subject-images';
+import { buildPrompt, generate, listStoredSubjectIds, resolve, store, toWebp, type ResolvedImage } from '@opencouncil/subject-images';
 import { env } from '@/env.mjs';
-import { cacheAcquire, cacheDelete, cacheGetJSON, cacheSetJSON } from '@/lib/cache/valkey';
+import { cacheAcquire, cacheDelete, cacheGetJSON, cacheSetJSON, isCacheConfigured } from '@/lib/cache/valkey';
 import { getSubjectIdsForMeeting, getSubjectPromptInput } from '@/lib/db/subject';
 import { stripMarkdown } from '@/lib/formatters/markdown';
+import { getRealmDisplayName } from '@/lib/realm';
 import { s3Client } from '@/lib/s3';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
 
@@ -19,7 +20,9 @@ import { sendErrorAdminAlert } from '@/lib/discord-core';
  * TTL, and a refused subject is left alone for a month rather than retried
  * every ten minutes for the life of a process. Without CACHE_URL (dev,
  * previews) there are no markers, and the in-process map below is the only
- * in-flight guard — enough for one container.
+ * in-flight guard — enough for one container. With CACHE_URL, a claim that
+ * Valkey cannot record is no claim: the run stands down, so an outage does
+ * not let every container draw the same subject.
  */
 
 /** How long a failed subject waits before a page view may retry it. */
@@ -40,9 +43,15 @@ const LOOKUP_ALERT_TTL_S = 10 * 60;
 const STORE_BROKEN_TTL_S = 10 * 60;
 /** Generations run at once when a meeting's subjects are processed together. */
 const MEETING_CONCURRENCY = 3;
+/** How long every generation pauses after Gemini answered 429: the daily cap resets once a day, and every attempt meanwhile is a billed refusal. */
+const QUOTA_PAUSE_S = 60 * 60;
 
 /** This process's runs; the Valkey claim is what the other containers see. */
 const inFlight = new Map<string, Promise<GenerateOutcome>>();
+/** When this process last alerted on a lookup failure: the marker's stand-in without CACHE_URL. */
+let lookupAlertedAt = 0;
+/** Until when this process pauses after a quota 429: the marker's stand-in without CACHE_URL. */
+let quotaPausedUntil = 0;
 
 type FailureRecord = { count: number; at: number };
 
@@ -50,6 +59,7 @@ const inFlightKey = (subjectId: string) => `subject-images:in-flight:${subjectId
 const failureKey = (subjectId: string) => `subject-images:failed:${subjectId}`;
 const LOOKUP_ALERT_KEY = 'subject-images:lookup-alerted';
 const STORE_BROKEN_KEY = 'subject-images:store-broken';
+const QUOTA_KEY = 'subject-images:quota-exhausted';
 
 export type GenerateOutcome =
     | 'generated'
@@ -63,6 +73,10 @@ export type GenerateOutcome =
     | 'refused'
     /** the bucket refused a write minutes ago; nothing is drawn until that pause ends */
     | 'store-unavailable'
+    /** Valkey is configured but could not record the claim; nothing is drawn until it can */
+    | 'unguarded'
+    /** Gemini answered 429 within the hour; nothing is drawn until the pause ends */
+    | 'quota-exhausted'
     | 'disabled';
 
 function storeDeps() {
@@ -90,18 +104,6 @@ export function isSubjectImageGenerationEnabled(): boolean {
     return Boolean(env.GEMINI_API_KEY);
 }
 
-/**
- * Where a subject's illustration is served from, without asking the bucket
- * whether it exists. For a reader that fetches it anyway and treats a 404 as
- * "no picture", such as the OG images; the read route keeps using `resolve`,
- * whose ETag makes a replaced picture a new URL.
- */
-export function publicSubjectImageUrl(subjectId: string): string | null {
-    if (!isSubjectImageId(subjectId)) return null;
-    const path = objectKey(subjectId, env.SUBJECT_IMAGES_PREFIX).split('/').map(encodeURIComponent).join('/');
-    return `${env.CDN_URL.replace(/\/+$/, '')}/${path}`;
-}
-
 export function resolveSubjectImage(subjectId: string): Promise<ResolvedImage | null> {
     return resolve(subjectId, resolveDeps());
 }
@@ -126,15 +128,41 @@ export function listSubjectsWithImages(): Promise<Set<string>> {
  * it — once per window, not once per card per page view.
  */
 export async function reportLookupFailure(subjectId: string, error: unknown): Promise<void> {
-    if (await cacheAcquire(LOOKUP_ALERT_KEY, LOOKUP_ALERT_TTL_S)) {
+    const claim = await cacheAcquire(LOOKUP_ALERT_KEY, LOOKUP_ALERT_TTL_S);
+    const windowOpen = Date.now() - lookupAlertedAt >= LOOKUP_ALERT_TTL_S * 1000;
+    if (claim === 'acquired' || (claim === 'unavailable' && windowOpen)) {
+        lookupAlertedAt = Date.now();
         reportFailure(`Subject image lookup failed for ${subjectId}`, error, { subjectId });
     } else {
         console.error(`Subject image lookup failed for ${subjectId}:`, error);
     }
 }
 
+/** The stored image, or null; a bucket that cannot be read is alerted once per window and the error rethrown. */
+async function lookup(subjectId: string): Promise<ResolvedImage | null> {
+    try {
+        return await resolveSubjectImage(subjectId);
+    } catch (error) {
+        await reportLookupFailure(subjectId, error);
+        throw error;
+    }
+}
+
+/** Whether the quota pause is on: the marker with Valkey, this process's memory without. */
+async function quotaPaused(): Promise<boolean> {
+    return isCacheConfigured() ? Boolean(await cacheGetJSON(QUOTA_KEY)) : Date.now() < quotaPausedUntil;
+}
+
+/** A 429 from Gemini: the project's daily cap or its spend-based limit, never the subject's fault. */
+function isQuotaError(error: unknown): boolean {
+    const status = (error as { status?: unknown })?.status;
+    const message = error instanceof Error ? error.message : String(error);
+    return status === 429 || /"code":\s*429|RESOURCE_EXHAUSTED/.test(message);
+}
+
 /** Why a subject must not be drawn now, or null when it may be. */
-async function heldBack(subjectId: string): Promise<'recent-failure' | 'refused' | 'store-unavailable' | null> {
+async function heldBack(subjectId: string): Promise<'recent-failure' | 'refused' | 'store-unavailable' | 'quota-exhausted' | null> {
+    if (await quotaPaused()) return 'quota-exhausted';
     if (await cacheGetJSON(STORE_BROKEN_KEY)) return 'store-unavailable';
     const failure = await cacheGetJSON<FailureRecord>(failureKey(subjectId));
     if (!failure) return null;
@@ -153,41 +181,62 @@ async function recordFailure(subjectId: string, error: unknown): Promise<void> {
     reportFailure(message, error, { subjectId, attempt: String(count) });
 }
 
-async function generateAndStore(subjectId: string, apiKey: string, force: boolean): Promise<GenerateOutcome> {
+/** Draw and store one subject; `before` is the object that was there when the run was claimed. */
+async function generateAndStore(subjectId: string, apiKey: string, before: ResolvedImage | null): Promise<GenerateOutcome> {
+    const subject = await getSubjectPromptInput(subjectId);
+    if (!subject) {
+        // Alerted, not counted: the subject is gone, not refused.
+        const error = new Error(`Subject ${subjectId} not found`);
+        reportFailure(`Subject image generation failed for ${subjectId}`, error, { subjectId });
+        throw error;
+    }
+
+    // Descriptions carry markdown and REF:UTTERANCE links; the model should
+    // read the sentence, not the markup. The scene is set in the subject's city.
+    const prompt = buildPrompt({
+        title: stripMarkdown(subject.name),
+        description: stripMarkdown(subject.description),
+        city: subject.councilMeeting.city.name_en || subject.councilMeeting.city.name,
+        country: getRealmDisplayName(subject.councilMeeting.city.realm, 'en'),
+    });
+    let image: Buffer;
     try {
-        const before = await resolveSubjectImage(subjectId);
-        if (before && !force) return 'exists';
-
-        const subject = await getSubjectPromptInput(subjectId);
-        if (!subject) throw new Error(`Subject ${subjectId} not found`);
-
-        // Descriptions carry markdown and REF:UTTERANCE links; the model should
-        // read the sentence, not the markup.
-        const prompt = buildPrompt({ title: stripMarkdown(subject.name), description: stripMarkdown(subject.description) });
-        const image = await generate(prompt, { apiKey });
-
-        // The model takes tens of seconds. An admin who uploaded meanwhile keeps
-        // their file: the ETag in the URL says whether the object changed. The
-        // window between this check and the write is milliseconds, not seconds.
-        const after = await resolveSubjectImage(subjectId);
-        if (after?.url !== before?.url) return 'superseded';
-
-        try {
-            await store(subjectId, image, storeDeps());
-        } catch (error) {
-            // A bucket that refuses one write (missing, wrong key) refuses them
-            // all. HeadObject cannot tell a missing bucket from a missing object,
-            // so this is where it shows; pausing here keeps a misconfiguration
-            // at one billed call and one alert instead of one per subject.
-            await cacheSetJSON(STORE_BROKEN_KEY, { at: Date.now() }, STORE_BROKEN_TTL_S);
+        image = await generate(prompt, { apiKey });
+    } catch (error) {
+        if (isQuotaError(error)) {
+            // The cap is the project's, not the subject's: one pause and one
+            // alert, instead of a billed 429 per subject until the day resets.
+            const first = !(await quotaPaused());
+            if (isCacheConfigured()) await cacheSetJSON(QUOTA_KEY, { at: Date.now() }, QUOTA_PAUSE_S);
+            else quotaPausedUntil = Date.now() + QUOTA_PAUSE_S * 1000;
+            if (first) reportFailure(`Subject image generation paused for ${QUOTA_PAUSE_S / 60} minutes: Gemini quota exhausted (at ${subjectId})`, error, { subjectId });
             throw error;
         }
-        await cacheDelete(failureKey(subjectId));
-        return 'generated';
-    } catch (error) {
+        // The failure budget counts the model's refusals, which are about the
+        // subject; a bucket or a database that is down is not held against it.
         await recordFailure(subjectId, error);
         throw error;
     }
+
+    // The model takes tens of seconds. An admin who uploaded meanwhile keeps
+    // their file: the ETag in the URL says whether the object changed. The
+    // window between this check and the write is milliseconds, not seconds.
+    const after = await resolveSubjectImage(subjectId);
+    if (after?.url !== before?.url) return 'superseded';
+
+    try {
+        await store(subjectId, image, storeDeps());
+    } catch (error) {
+        // A bucket that refuses one write (missing, wrong key) refuses them
+        // all. HeadObject cannot tell a missing bucket from a missing object,
+        // so this is where it shows; pausing here keeps a misconfiguration
+        // at one billed call and one alert instead of one per subject.
+        await cacheSetJSON(STORE_BROKEN_KEY, { at: Date.now() }, STORE_BROKEN_TTL_S);
+        reportFailure(`Subject image store failed for ${subjectId}`, error, { subjectId });
+        throw error;
+    }
+    await cacheDelete(failureKey(subjectId));
+    return 'generated';
 }
 
 /**
@@ -226,20 +275,28 @@ export async function generateImageForSubject(subjectId: string, options: { forc
     }
 }
 
-/** The back-off check and the cross-container claim, then the run itself. */
+/** The cheap checks, the cross-container claim, then the run itself. */
 async function claimAndGenerate(subjectId: string, apiKey: string, force: boolean): Promise<GenerateOutcome> {
+    let before: ResolvedImage | null = null;
     if (!force) {
+        // The object first: the summarize run asks again for every subject the agenda run drew.
+        before = await lookup(subjectId);
+        if (before) return 'exists';
         const held = await heldBack(subjectId);
         if (held) return held;
     }
 
-    while (!(await cacheAcquire(inFlightKey(subjectId), IN_FLIGHT_TTL_S))) {
+    let claim = await cacheAcquire(inFlightKey(subjectId), IN_FLIGHT_TTL_S);
+    while (claim === 'held') {
         if (!force) return 'in-flight';
         await sleep(CLAIM_POLL_MS);
+        claim = await cacheAcquire(inFlightKey(subjectId), IN_FLIGHT_TTL_S);
     }
+    // Without CACHE_URL the in-process map is the guard, and enough for one container.
+    if (claim === 'unavailable' && isCacheConfigured()) return 'unguarded';
 
     try {
-        return await generateAndStore(subjectId, apiKey, force);
+        return await generateAndStore(subjectId, apiKey, force ? await lookup(subjectId) : before);
     } finally {
         await cacheDelete(inFlightKey(subjectId));
     }

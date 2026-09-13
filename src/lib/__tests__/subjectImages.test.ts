@@ -1,6 +1,6 @@
 /** @jest-environment node */
 
-import { generateImageForSubject, generateImagesForMeeting, isSubjectImageGenerationEnabled, listSubjectsWithImages, reportLookupFailure, resolveSubjectImage, storeSubjectImage, publicSubjectImageUrl } from '../subjectImages';
+import { generateImageForSubject, generateImagesForMeeting, isSubjectImageGenerationEnabled, listSubjectsWithImages, reportLookupFailure, resolveSubjectImage, storeSubjectImage } from '../subjectImages';
 
 const mockEnv: { GEMINI_API_KEY?: string; DO_SPACES_BUCKET: string; SUBJECT_IMAGES_PREFIX: string; CDN_URL: string } = {
     GEMINI_API_KEY: 'gemini-key',
@@ -25,9 +25,14 @@ jest.mock('@/lib/db/subject', () => ({
     getSubjectIdsForMeeting: (...args: unknown[]) => mockGetSubjectIdsForMeeting(...args),
 }));
 
-// Valkey as a map: the value and the TTL each write asked for.
+// Valkey as a map: the value and the TTL each write asked for. `mockCacheDown`
+// makes a claim fail the way an outage does; `mockCacheConfigured` says whether
+// CACHE_URL names a Valkey at all.
 const mockCache = new Map<string, { value: string; ttl: number }>();
+let mockCacheDown = false;
+let mockCacheConfigured = true;
 jest.mock('@/lib/cache/valkey', () => ({
+    isCacheConfigured: () => mockCacheConfigured,
     cacheGetJSON: async (key: string) => {
         const entry = mockCache.get(key);
         return entry ? JSON.parse(entry.value) : null;
@@ -37,9 +42,10 @@ jest.mock('@/lib/cache/valkey', () => ({
         return true;
     },
     cacheAcquire: async (key: string, ttl: number) => {
-        if (mockCache.has(key)) return false;
+        if (mockCacheDown) return 'unavailable';
+        if (mockCache.has(key)) return 'held';
         mockCache.set(key, { value: '1', ttl });
-        return true;
+        return 'acquired';
     },
     cacheDelete: async (key: string) => { mockCache.delete(key); },
 }));
@@ -52,7 +58,7 @@ const mockToWebp = jest.fn(async (b: Buffer) => b);
 jest.mock('@opencouncil/subject-images', () => ({
     // The pure helpers stay real: the URL builder under test relies on the id guard and the key layout.
     ...jest.requireActual('@opencouncil/subject-images'),
-    buildPrompt: ({ title, description }: { title: string; description: string }) => `${title}|${description}`,
+    buildPrompt: ({ title, description, city, country }: { title: string; description: string; city: string; country: string }) => `${title}|${description}|${city}, ${country}`,
     generate: (...args: unknown[]) => mockGenerate(...args),
     listStoredSubjectIds: (...args: unknown[]) => mockListStoredSubjectIds(...args),
     resolve: (...args: unknown[]) => mockResolve(...args),
@@ -61,6 +67,7 @@ jest.mock('@opencouncil/subject-images', () => ({
 }));
 
 const image = Buffer.from('webp');
+const athens = { councilMeeting: { city: { name: 'Αθήνα', name_en: 'Athens', realm: 'greece' } } };
 const DAY_S = 24 * 60 * 60;
 const MINUTE_MS = 60 * 1000;
 
@@ -81,23 +88,14 @@ beforeEach(() => {
     mockEnv.GEMINI_API_KEY = 'gemini-key';
     mockResolve.mockResolvedValue(null);
     mockGenerate.mockResolvedValue(image);
-    mockGetSubjectPromptInput.mockResolvedValue({ name: 'Title', description: 'Desc' });
+    mockCacheDown = false;
+    mockCacheConfigured = true;
+    mockGetSubjectPromptInput.mockResolvedValue({ name: 'Title', description: 'Desc', ...athens });
     jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 
 afterEach(() => {
     jest.useRealTimers();
-});
-
-describe('publicSubjectImageUrl', () => {
-    it('names the object on the CDN without asking the bucket', () => {
-        expect(publicSubjectImageUrl('abc_123-x')).toBe('https://cdn.example/subject-images/8bit/abc_123-x.webp');
-    });
-
-    it('refuses an id that could escape the folder', () => {
-        expect(publicSubjectImageUrl('../secret')).toBeNull();
-        expect(publicSubjectImageUrl('')).toBeNull();
-    });
 });
 
 describe('resolveSubjectImage', () => {
@@ -136,9 +134,9 @@ describe('generateImageForSubject', () => {
         expect(mockGenerate).not.toHaveBeenCalled();
     });
 
-    it('generates from the subject title and description, then stores', async () => {
+    it('generates from the subject title and description, set in its city, then stores', async () => {
         expect(await generateImageForSubject('s1')).toBe('generated');
-        expect(mockGenerate).toHaveBeenCalledWith('Title|Desc', { apiKey: 'gemini-key' });
+        expect(mockGenerate).toHaveBeenCalledWith('Title|Desc|Athens, Greece', { apiKey: 'gemini-key' });
         expect(mockStore).toHaveBeenCalledWith('s1', image, expect.objectContaining({ bucket: 'bucket' }));
     });
 
@@ -146,9 +144,16 @@ describe('generateImageForSubject', () => {
         mockGetSubjectPromptInput.mockResolvedValue({
             name: '**Βλάβη**',
             description: 'Εισήγηση [επί αποτελέσματος](REF:UTTERANCE:abc123) διαγωνισμού.',
+            ...athens,
         });
         await generateImageForSubject('s1');
-        expect(mockGenerate).toHaveBeenCalledWith('Βλάβη|Εισήγηση επί αποτελέσματος διαγωνισμού.', { apiKey: 'gemini-key' });
+        expect(mockGenerate).toHaveBeenCalledWith('Βλάβη|Εισήγηση επί αποτελέσματος διαγωνισμού.|Athens, Greece', { apiKey: 'gemini-key' });
+    });
+
+    it('names a city of another realm in its own country', async () => {
+        mockGetSubjectPromptInput.mockResolvedValue({ name: 'Rue', description: 'Travaux.', councilMeeting: { city: { name: 'Λυών', name_en: 'Lyon', realm: 'france' } } });
+        await generateImageForSubject('s1');
+        expect(mockGenerate).toHaveBeenCalledWith('Rue|Travaux.|Lyon, France', { apiKey: 'gemini-key' });
     });
 
     it('skips a subject that already has an image', async () => {
@@ -183,12 +188,26 @@ describe('generateImageForSubject', () => {
         await expect(generateImageForSubject('s1')).rejects.toThrow('NoSuchBucket');
         expect(mockCache.get('subject-images:store-broken')?.ttl).toBe(600);
         expect(mockSendErrorAdminAlert).toHaveBeenCalledTimes(1);
+        // The bucket's failure is not the subject's: its failure budget is untouched.
+        expect(mockCache.has('subject-images:failed:s1')).toBe(false);
 
         expect(await generateImageForSubject('s2')).toBe('store-unavailable');
         expect(mockGenerate).toHaveBeenCalledTimes(1);
         expect(mockSendErrorAdminAlert).toHaveBeenCalledTimes(1);
 
         expect(await generateImageForSubject('s3', { force: true })).toBe('generated');
+    });
+
+    it('pauses every generation for an hour after a quota 429, without blaming the subject', async () => {
+        mockGenerate.mockRejectedValueOnce(Object.assign(new Error('{"error":{"code":429,"message":"You exceeded your current quota"}}'), { status: 429 }));
+        await expect(generateImageForSubject('s1')).rejects.toThrow('429');
+        expect(mockCache.has('subject-images:failed:s1')).toBe(false);
+        expect(mockCache.get('subject-images:quota-exhausted')?.ttl).toBe(3600);
+        expect(mockSendErrorAdminAlert).toHaveBeenCalledTimes(1);
+
+        expect(await generateImageForSubject('s2')).toBe('quota-exhausted');
+        expect(mockGenerate).toHaveBeenCalledTimes(1);
+        expect(mockSendErrorAdminAlert).toHaveBeenCalledTimes(1);
     });
 
     it('releases its claim after the run, success or not', async () => {
@@ -283,6 +302,25 @@ describe('generateImageForSubject', () => {
         expect(mockCache.has('subject-images:in-flight:s-there')).toBe(true);
     });
 
+    it('stands down when Valkey is configured but cannot record the claim', async () => {
+        mockCacheDown = true;
+        expect(await generateImageForSubject('s1')).toBe('unguarded');
+        expect(await generateImageForSubject('s1', { force: true })).toBe('unguarded');
+        expect(mockGenerate).not.toHaveBeenCalled();
+    });
+
+    it('draws on its own in-process guard when no Valkey is configured', async () => {
+        mockCacheDown = true;
+        mockCacheConfigured = false;
+        expect(await generateImageForSubject('s1')).toBe('generated');
+        const slow = slowGeneration();
+        const first = generateImageForSubject('s-slow');
+        await settle();
+        expect(await generateImageForSubject('s-slow')).toBe('in-flight');
+        slow.finish(image);
+        expect(await first).toBe('generated');
+    });
+
     it("makes a forced call wait for another container's claim", async () => {
         jest.useFakeTimers();
         mockCache.set('subject-images:in-flight:s-there', { value: '1', ttl: 180 });
@@ -300,6 +338,13 @@ describe('generateImageForSubject', () => {
 });
 
 describe('reportLookupFailure', () => {
+    it('alerts once per window from memory when no marker can be held', async () => {
+        mockCacheDown = true;
+        await reportLookupFailure('s1', new Error('PermanentRedirect'));
+        await reportLookupFailure('s2', new Error('PermanentRedirect'));
+        expect(mockSendErrorAdminAlert).toHaveBeenCalledTimes(1);
+    });
+
     it('alerts once per window and logs the rest', async () => {
         await reportLookupFailure('s1', new Error('PermanentRedirect'));
         await reportLookupFailure('s2', new Error('PermanentRedirect'));
@@ -314,7 +359,7 @@ describe('generateImagesForMeeting', () => {
     it('runs every subject of the meeting and swallows failures', async () => {
         mockGetSubjectIdsForMeeting.mockResolvedValue(['a', 'b', 'c', 'd']);
         mockGetSubjectPromptInput.mockImplementation(async (id: string) =>
-            id === 'c' ? null : { name: id, description: 'd' });
+            id === 'c' ? null : { name: id, description: 'd', ...athens });
 
         await expect(generateImagesForMeeting('city', 'meeting')).resolves.toBeUndefined();
 

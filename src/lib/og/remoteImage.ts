@@ -10,6 +10,8 @@ export interface ImageBox {
     height: number;
     /** `cover` crops to the box (the default); `inside` keeps the whole picture within it. */
     fit?: 'cover' | 'inside';
+    /** Quantise to 256 colours: a third of the bytes for the pixel-art illustrations, and wrong for a photograph. */
+    palette?: boolean;
 }
 
 /** The city seal in a header chip: small, whole, on white. */
@@ -50,7 +52,7 @@ export async function getImageData(url: string | null | undefined, box: ImageBox
             }
         } finally { await reader.cancel(); }
         const png = await sharp(Buffer.concat(chunks), { limitInputPixels: 4_000_000, animated: false })
-            .resize(box.width, box.height, { fit: box.fit ?? 'cover', withoutEnlargement: true }).png().toBuffer();
+            .resize(box.width, box.height, { fit: box.fit ?? 'cover', withoutEnlargement: true }).png({ palette: Boolean(box.palette) }).toBuffer();
         return `data:image/png;base64,${png.toString('base64')}`;
     } catch { return null; }
 }

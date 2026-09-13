@@ -98,7 +98,6 @@ export function HotTopicRow({ card, rank, timezone, locale, onOpen }: HotTopicRo
         <button
             type="button"
             onClick={onOpen}
-            aria-expanded={false}
             className="group relative flex w-full items-center gap-3 overflow-hidden border-t border-border px-4 py-3 text-left"
         >
             <span className="absolute inset-0 z-0" aria-hidden>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { UnreadableImageError, isSubjectImageId } from '@opencouncil/subject-images';
-import { subjectExists } from '@/lib/db/subject';
-import { getCurrentUser } from '@/lib/auth';
+import { subjectExists, subjectIsPublic } from '@/lib/db/subject';
+import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
 import { MAX_IMAGE_BYTES } from '@/lib/utils/imageUpload';
 import {
     generateImageForSubject,
@@ -54,7 +54,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         return NextResponse.redirect(resolved.url, { status: 302, headers: { 'Cache-Control': REDIRECT_CACHE } });
     }
 
-    if (!(await subjectExists(subjectId))) {
+    // A generation is billed and its object is public, so only a subject the
+    // requester may see asks for one: a released meeting of a public city, or
+    // any subject for an editor of that city.
+    const visible = await subjectIsPublic(subjectId);
+    if (visible === null) {
+        return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
+    }
+    if (!visible.public && !(await isUserAuthorizedToEdit({ cityId: visible.cityId }))) {
         return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
     }
 

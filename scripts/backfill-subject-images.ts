@@ -48,7 +48,7 @@ async function main() {
     console.log(`${subjects.length} to draw of ${undrawn.length} without an image, in a window of ${candidates.length}; concurrency ${argv.concurrency}${argv.force ? ', force' : ''}`);
 
     const counts: Record<GenerateOutcome | 'failed', number> = {
-        generated: 0, exists: 0, superseded: 0, 'in-flight': 0, 'recent-failure': 0, refused: 0, 'store-unavailable': 0, disabled: 0, failed: 0,
+        generated: 0, exists: 0, superseded: 0, 'in-flight': 0, 'recent-failure': 0, refused: 0, 'store-unavailable': 0, unguarded: 0, 'quota-exhausted': 0, disabled: 0, failed: 0,
     };
     const queue = [...subjects];
     let done = 0;

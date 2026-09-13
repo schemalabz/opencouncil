@@ -50,10 +50,8 @@ export function SubjectImage({
             style={{ backgroundColor: placeholder.background, color: placeholder.icon, containerType: 'size' }}
         >
             {/* A quarter of the box's short side, at whatever size the surface draws the box. */}
-            <span className="absolute inset-0 flex items-center justify-center" aria-hidden>
-                <span className="block h-[25cqmin] w-[25cqmin] [&>svg]:h-full [&>svg]:w-full">
-                    <Icon name={topic?.icon || 'hash'} color="currentColor" size={24} />
-                </span>
+            <span className="absolute inset-0 flex items-center justify-center [&>svg]:h-[25cqmin] [&>svg]:w-[25cqmin]" aria-hidden>
+                <Icon name={topic?.icon || 'hash'} color="currentColor" size={24} />
             </span>
             {missingSrc !== src && (
                 // eslint-disable-next-line @next/next/no-img-element
