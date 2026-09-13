@@ -1,7 +1,7 @@
 const mockEnv: { NOTIS_API_URL?: string; NOTIS_SERVICE_TOKEN?: string } = {};
 jest.mock('@/env.mjs', () => ({ env: mockEnv }));
 
-import { getNotisSubscription, isNotisConfigured, setNotisSubscription } from '../client';
+import { getNotisStats, getNotisSubscription, isNotisConfigured, setNotisSubscription } from '../client';
 
 const ORIGINAL_FETCH = global.fetch;
 
@@ -78,5 +78,15 @@ describe('notis client', () => {
             throw new Error('ECONNREFUSED');
         }) as unknown as typeof fetch;
         expect(await getNotisSubscription('user1')).toEqual({ ok: false, reason: 'unreachable' });
+    });
+
+    it('reads the signup stats from the service route, and treats an empty 2xx as unreachable', async () => {
+        const stats = { active: 3, cities: [], weeks: [], newLast7Days: 1, newPrev7Days: 0, stoppedLast7Days: 0 };
+        const fetchMock = mockFetch(200, stats);
+        expect(await getNotisStats()).toEqual({ ok: true, data: stats });
+        expect(String(fetchMock.mock.calls[0][0])).toBe('https://notis.test/api/subscriptions/stats');
+
+        mockFetch(200, null);
+        expect(await getNotisStats()).toEqual({ ok: false, reason: 'unreachable' });
     });
 });

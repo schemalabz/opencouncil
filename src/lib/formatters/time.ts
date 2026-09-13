@@ -372,6 +372,16 @@ export function formatClockTime(date: Date | string, timezone?: string, locale: 
     }).format(new Date(date));
 }
 
+/** Day and short month, for an axis tick or a chip — "22 Ιουν", "22 Jun". */
+export function formatDayMonth(date: Date, timezone?: string, locale: string = 'el'): string {
+    const intlLocale = locale === 'en' ? 'en-GB' : getIntlLocale(locale);
+    return new Intl.DateTimeFormat(intlLocale, {
+        day: 'numeric',
+        month: 'short',
+        timeZone: timezone || DEFAULT_TIMEZONE,
+    }).format(date);
+}
+
 /** A deadline the way a chip has room for it: short weekday, day and month — "Παρ 13/2". */
 export function formatShortDeadline(date: Date, timezone?: string, locale: string = 'el'): string {
     // en-GB rather than en-US so English output stays day-first numeric.
