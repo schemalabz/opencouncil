@@ -429,6 +429,8 @@ export default function Subject({ subjectId, highlightedContributionId, related 
                                 </div>
                             )}
                         </section>
+
+                        {related}
                     </div>
 
                     <aside className="flex min-w-0 flex-col gap-3.5">
@@ -525,8 +527,6 @@ export default function Subject({ subjectId, highlightedContributionId, related 
                         )}
                     </aside>
                 </div>
-
-                {related}
 
                 {/* Voting Section (skip for withdrawn subjects; counselors only, hidden from the public) */}
                 {!subject.withdrawn && options.editsAllowed && <CollapsibleCard
