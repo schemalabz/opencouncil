@@ -55,7 +55,7 @@
     "changeRequest": "Update details",
     "requested": "You already asked",
     "notSupportedYet": "Not on OpenCouncil yet",
-    "supportedAlready": "Already send updates",
+    "supportedAlready": "Already on OpenCouncil",
     "noResults": "No municipality matches “{query}”.",
     "noResultsPetition": "Ask for your municipality to be supported"
   }

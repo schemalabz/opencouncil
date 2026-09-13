@@ -55,7 +55,7 @@
     "changeRequest": "Αλλαγή στοιχείων",
     "requested": "Το ζήτησες ήδη",
     "notSupportedYet": "Δεν είναι ακόμα στο OpenCouncil",
-    "supportedAlready": "Έχουν ήδη ειδοποιήσεις",
+    "supportedAlready": "Ήδη στο OpenCouncil",
     "noResults": "Κανένας δήμος για «{query}».",
     "noResultsPetition": "Ζήτησε την υποστήριξη του δήμου σου"
   }
