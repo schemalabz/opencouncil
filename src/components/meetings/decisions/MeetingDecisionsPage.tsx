@@ -22,7 +22,7 @@ import { calculateVoteResult } from '@/lib/utils/votes';
 import { formatDate } from '@/lib/formatters/time';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
 import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
-import { CollapsibleMarkdown, NameList, MeetingAttendanceSummary, sortNamesByElectedOrder } from '@/components/meetings/decisions/shared';
+import { CollapsibleMarkdown, NameList, MeetingAttendanceSummary, sortNamesByElectedOrder, splitAttendance } from '@/components/meetings/decisions/shared';
 import { computeDecisionStats } from '@/components/meetings/decisions/stats';
 import { normalizeText } from '@/lib/utils';
 import { diavgeiaDocUrl, diavgeiaSearchUrl } from '@/components/meetings/decisions/pdfUrl';
@@ -536,13 +536,13 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
 
                         {/* Attendance */}
                         {extracted && extracted.attendance.length > 0 && (() => {
-                            const filteredAttendance = extracted.attendance.filter(a => a.personId !== mayorPersonId);
+                            const filteredAttendance = splitAttendance(extracted.attendance, mayorPersonId);
                             const present = sortNamesByElectedOrder(
-                                filteredAttendance.filter(a => a.status === 'PRESENT'),
+                                filteredAttendance.present,
                                 getPerson, administrativeBodyId,
                             );
                             const absent = sortNamesByElectedOrder(
-                                filteredAttendance.filter(a => a.status === 'ABSENT'),
+                                filteredAttendance.absent,
                                 getPerson, administrativeBodyId,
                             );
                             return (
@@ -696,9 +696,9 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                             ) : null}
                             {/* Inline attendance & vote summary */}
                             {extracted && (extracted.attendance.length > 0 || extracted.votes.length > 0) && (() => {
-                                const filteredInline = extracted.attendance.filter(a => a.personId !== mayorPersonId);
-                                const present = filteredInline.filter(a => a.status === 'PRESENT');
-                                const absent = filteredInline.filter(a => a.status === 'ABSENT');
+                                const filteredInline = splitAttendance(extracted.attendance, mayorPersonId);
+                                const present = filteredInline.present;
+                                const absent = filteredInline.absent;
                                 const voteResult = extracted.votes.length > 0 ? calculateVoteResult(extracted.votes) : null;
                                 return (
                                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
