@@ -51,6 +51,20 @@ export function saveErrorKey(code: string): string {
     return SAVE_ERROR_KEYS[code] ?? 'generic';
 }
 
+/** Why the last press of submit failed: the flow's own rules, or the save action's answer. */
+export type SignupFailure = 'issues' | 'refused';
+
+/**
+ * What the action bar shows after a failed press. The alert with the
+ * details is a screen above on a phone, so the bar says it too, in the
+ * words of the kind. Null while nothing is wrong.
+ */
+export function failureKind(issues: SignupIssue[], saveError: string | null): SignupFailure | null {
+    if (issues.length > 0) return 'issues';
+    if (saveError !== null) return 'refused';
+    return null;
+}
+
 /**
  * «+30 694 ··· 2297»: enough for the reader to recognise their own number
  * on a completion screen, not enough for a shoulder to read it.

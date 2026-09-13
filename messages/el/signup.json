@@ -1,6 +1,12 @@
 {
   "stepOf": "Βήμα {step} από {total}",
   "back": "Πίσω",
+  "failure": {
+    "issuesButton": "Έλεγξε τα στοιχεία",
+    "issuesLine": "Έλεγξε τα στοιχεία πιο πάνω.",
+    "refusedButton": "Δεν έγινε",
+    "refusedLine": "Δεν έγινε — δες γιατί πιο πάνω."
+  },
   "changeCity": "Αλλαγή",
   "privacy": "Πολιτική απορρήτου",
   "doneMagicLink": "Στο email σου ήρθε ένας σύνδεσμος για να συνδέεσαι χωρίς κωδικό.",

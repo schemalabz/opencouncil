@@ -1,4 +1,4 @@
-import { accountIssues, maskPhone, saveErrorKey } from '../signup-shared';
+import { accountIssues, failureKind, maskPhone, saveErrorKey } from '../signup-shared';
 
 describe('accountIssues', () => {
     it('needs a name and something that looks like an email', () => {
@@ -14,6 +14,15 @@ describe('saveErrorKey', () => {
         expect(saveErrorKey('phone_in_use')).toBe('phoneInUse');
         expect(saveErrorKey('email_exists')).toBe('emailExists');
         expect(saveErrorKey('An unexpected error occurred.')).toBe('generic');
+    });
+});
+
+describe('failureKind', () => {
+    it('names the issues first, then a refusal, and nothing otherwise', () => {
+        expect(failureKind(['phone_missing'], null)).toBe('issues');
+        expect(failureKind(['phone_missing'], 'generic')).toBe('issues');
+        expect(failureKind([], 'notisUnreachable')).toBe('refused');
+        expect(failureKind([], null)).toBeNull();
     });
 });
 

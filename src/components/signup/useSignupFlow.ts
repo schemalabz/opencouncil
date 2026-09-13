@@ -27,6 +27,11 @@ export function useSignupFlow<S extends { step: number }>(opts: {
     const [done, setDone] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [attempted, setAttempted] = useState(false);
+    // Failed presses of submit since the reader arrived on the step — the
+    // flow's rules stopping it, or a refusal. The issues alert scrolls into
+    // view on each one, and stays put when the reader merely comes back to
+    // the step with the old issues still standing.
+    const [failures, setFailures] = useState(0);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [phoneValidity, setPhoneValidity] = useState<PhoneFieldValidity>(INITIAL_VALIDITY);
     const viewed = useRef<Set<number>>(new Set());
@@ -41,6 +46,7 @@ export function useSignupFlow<S extends { step: number }>(opts: {
 
     const goTo = useCallback((step: S['step']) => {
         setState((s) => ({ ...s, step }));
+        setFailures(0);
         const url = new URL(window.location.href);
         url.searchParams.set('step', String(step));
         window.history.replaceState(window.history.state, '', url);
@@ -60,9 +66,13 @@ export function useSignupFlow<S extends { step: number }>(opts: {
         setSubmitting(true);
         try {
             const outcome = await run();
-            if (outcome === 'blocked') return;
+            if (outcome === 'blocked') {
+                setFailures((n) => n + 1);
+                return;
+            }
             if (!outcome.ok) {
                 setSaveError(outcome.error);
+                setFailures((n) => n + 1);
                 return;
             }
             setDone(true);
@@ -70,11 +80,25 @@ export function useSignupFlow<S extends { step: number }>(opts: {
         } catch (error) {
             console.error('Signup failed:', error);
             setSaveError('generic');
+            setFailures((n) => n + 1);
             captureEvent(events.failed, { city_id: cityId, code: 'exception' });
         } finally {
             setSubmitting(false);
         }
     };
 
-    return { state, patch, goTo, done, submitting, attempted, saveError, phoneValidity, setPhoneValidity, validity, submit };
+    return {
+        state,
+        patch,
+        goTo,
+        done,
+        submitting,
+        attempted,
+        failures,
+        saveError,
+        phoneValidity,
+        setPhoneValidity,
+        validity,
+        submit,
+    };
 }

@@ -1,6 +1,12 @@
 {
   "stepOf": "Step {step} of {total}",
   "back": "Back",
+  "failure": {
+    "issuesButton": "Check the details",
+    "issuesLine": "Check the details above.",
+    "refusedButton": "Not saved",
+    "refusedLine": "Not saved — see why above."
+  },
   "changeCity": "Change",
   "privacy": "Privacy policy",
   "doneMagicLink": "A link to sign in without a password is in your email.",
