@@ -22,9 +22,9 @@ describe('contrastText', () => {
         expect(contrastText('eab308')).toBe(contrastText('#eab308'));
     });
 
-    it('falls back to white on a too-short / malformed hex', () => {
-        expect(contrastText('#fff')).toBe('#ffffff');
-        expect(contrastText('')).toBe('#ffffff');
+    it('expands the three-digit form, and reads a malformed hex as the neutral grey', () => {
+        expect(contrastText('#fff')).toBe('#0c0a09');
+        expect(contrastText('')).toBe(contrastText('#9ca3af'));
     });
 });
 

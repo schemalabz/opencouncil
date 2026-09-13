@@ -1,40 +1,49 @@
 {
     "meeting": {
+        "eyebrow": "Meeting",
         "subjects": "{count, plural, =0 {No subjects} one {# subject} other {# subjects}}",
         "moreSubjects": "{count, plural, one {+# more subject} other {+# more subjects}}"
     },
     "city": {
-        "meetingsRecorded": "{count, plural, =0 {No meetings recorded} one {# meeting recorded} other {# meetings recorded}}",
-        "stats": {
-            "meetings": "Meetings",
-            "people": "Members",
-            "parties": "Parties"
-        },
-        "supportedByMunicipality": "Supported by the municipality",
-        "supportedByRegion": "Supported by the region",
-        "noSupportFromMunicipality": "No official support from the municipality",
-        "noSupportFromRegion": "No official support from the region"
+        "meetings": "{count, plural, =0 {No meetings} one {# meeting} other {# meetings}}",
+        "people": "{count, plural, one {# member} other {# members}}",
+        "parties": "{count, plural, one {# party} other {# parties}}",
+        "hotTopics": "Most discussed"
     },
     "consultation": {
         "badge": "Public consultation",
-        "keyTopics": "Key topics:",
-        "untitledChapter": "Untitled chapter"
+        "keyTopics": "Key topics",
+        "untitledChapter": "Untitled chapter",
+        "chapters": "{count, plural, one {# chapter} other {# chapters}}",
+        "areas": "{count, plural, one {# area} other {# areas}}",
+        "comments": "{count, plural, one {# comment} other {# comments}}"
     },
     "person": {
-        "council": "City council"
+        "council": "City council",
+        "recent": "Recent statements"
+    },
+    "party": {
+        "members": "{count, plural, one {# member} other {# members}}",
+        "leader": "Leader: {name}"
     },
     "people": {
-        "title": "Council members",
-        "count": "{count, plural, one {# member} other {# members}}",
-        "more": "and {count} more..."
+        "title": "Council members"
     },
     "subject": {
-        "minutes": "minutes"
+        "speakers": "{count, plural, one {# speaker} other {# speakers}}",
+        "discussion": "{minutes, number}′ of debate",
+        "notFound": "Subject not found"
     },
     "search": {
         "title": "Search",
-        "description": "Find mentions of subjects, council member statements and statistics from every city council",
-        "footer": "OpenCouncil • Smart search"
+        "subtitle": "across every city council",
+        "placeholder": "Search a subject or an address…",
+        "chips": [
+            "Subjects",
+            "Council member statements",
+            "People",
+            "Decisions"
+        ]
     },
     "about": {
         "tags": [
@@ -47,12 +56,6 @@
     "landing": {
         "headlineTop": "What your council is discussing,",
         "headlineBottom": "on one map",
-        "subtitle": "Subjects from council meetings — by area, by category and by date.",
-        "tags": [
-            "Subject map",
-            "Search",
-            "Notifications",
-            "Meetings"
-        ]
+        "subtitle": "Subjects from council meetings, by area, by category and by date."
     }
 }

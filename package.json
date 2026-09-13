@@ -63,6 +63,7 @@
     "@modelcontextprotocol/server": "^2.0.0",
     "@mux/mux-video": "^0.31.2",
     "@mux/mux-video-react": "^0.31.2",
+    "@opencouncil/subject-images": "*",
     "@opencouncil/ui": "*",
     "@posthog/mcp": "^0.12.0",
     "@posthog/nextjs-config": "^1.11.0",

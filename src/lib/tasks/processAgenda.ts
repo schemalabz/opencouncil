@@ -5,6 +5,8 @@ import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
 import { saveSubjectsForMeeting } from "../db/utils";
 import { withUserAuthorizedToEdit } from "../auth";
+import { after } from "next/server";
+import { generateImagesForMeeting } from "../subjectImages";
 import { requestProcessAgendaInternal } from "./processAgendaInternal";
 
 /**
@@ -87,6 +89,12 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
     // (~500ms/recipient), so revalidating only after it finishes would let early
     // recipients open the meeting and see stale content.
     revalidateMeeting(task.councilMeeting.cityId, task.councilMeeting.id);
+
+    // Illustrations for the agenda subjects, days before the meeting. Through
+    // after(): the callback must not wait on Gemini, and minutes of Gemini
+    // calls must outlive the response rather than escape it. Each failure
+    // alerts on its own.
+    after(() => generateImagesForMeeting(task.councilMeeting.cityId, task.councilMeeting.id));
 
     // Create notifications if administrative body allows it
     const adminBody = task.councilMeeting.administrativeBody;

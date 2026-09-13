@@ -214,6 +214,7 @@ export async function getConsultationDataForOG(cityId: string, consultationId: s
                 select: {
                     id: true,
                     name: true,
+                    name_en: true,
                     name_municipality: true,
                     name_municipality_en: true,
                     logoImage: true,

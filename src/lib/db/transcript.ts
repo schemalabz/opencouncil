@@ -46,9 +46,7 @@ export async function getTranscript(meetingId: string, cityId: string, {
     include: {
       speakerTag: true,
       utterances: {
-        orderBy: {
-          startTimestamp: 'asc'
-        }
+        orderBy: [{ startTimestamp: 'asc' }, { id: 'asc' }]
       },
       topicLabels: {
         include: {
@@ -57,9 +55,7 @@ export async function getTranscript(meetingId: string, cityId: string, {
       },
       summary: true
     },
-    orderBy: {
-      startTimestamp: 'asc'
-    }
+    orderBy: [{ startTimestamp: 'asc' }, { id: 'asc' }]
   });
 
   if (joinAdjacentSameSpeakerSegments) {

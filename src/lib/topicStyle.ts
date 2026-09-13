@@ -21,14 +21,25 @@ export const TOPICLESS_COLOR = '#9ca3af';
 
 const NEUTRAL = TOPICLESS_COLOR;
 
+/** The soft recipe: how much of the topic goes into the wash over white, and into the icon over black. */
+const WASH = 0.24;
+const INK = 0.65;
+
+/** `#rrggbb` for any stored colour: the admin form and the API accept `#rgb` too, and everything below reads six digits. */
+function expandHex(color: string | null | undefined): string {
+    const c = (color ?? '').replace('#', '');
+    if (/^[0-9a-f]{6}$/i.test(c)) return `#${c}`;
+    if (/^[0-9a-f]{3}$/i.test(c)) return `#${c.split('').map(digit => digit + digit).join('')}`;
+    return NEUTRAL;
+}
+
 /**
  * Black or white — whichever stays readable on `hex`. The topic palette runs from near-black browns
  * to a near-fluorescent yellow, so a fixed white would vanish on the light end: measured against a
  * full-strength fill, white clears the 3:1 an icon needs on only 7 of the 13 topics in use.
  */
 export function contrastText(hex: string): string {
-    const c = hex.replace('#', '');
-    if (c.length < 6) return '#ffffff';
+    const c = expandHex(hex).replace('#', '');
     const r = parseInt(c.slice(0, 2), 16);
     const g = parseInt(c.slice(2, 4), 16);
     const b = parseInt(c.slice(4, 6), 16);
@@ -63,8 +74,29 @@ export function topicStyle(color?: string | null, variant: 'soft' | 'solid' = 's
     const c = color || NEUTRAL;
     if (variant === 'solid') return { background: c, border: c, icon: contrastText(c) };
     return {
-        background: `color-mix(in srgb, ${c} 24%, white)`,
+        background: `color-mix(in srgb, ${c} ${WASH * 100}%, white)`,
         border: c,
-        icon: `color-mix(in srgb, ${c} 65%, black)`,
+        icon: `color-mix(in srgb, ${c} ${INK * 100}%, black)`,
     };
+}
+
+/** Channel-wise mix of `hex` with `into` (both `#rrggbb`): `weight` is the share of `hex`. */
+function mixHex(hex: string, weight: number, into: string): string {
+    const parse = (h: string) => {
+        const c = h.replace('#', '');
+        return [0, 2, 4].map(i => parseInt(c.slice(i, i + 2), 16));
+    };
+    const a = parse(hex);
+    const b = parse(into);
+    return '#' + a.map((v, i) => Math.round(v * weight + b[i] * (1 - weight)).toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * The `soft` recipe of {@link topicStyle} with the mixes resolved to plain hex.
+ * For renderers with no `color-mix()`: the OG images (satori) and anything
+ * else that draws outside a browser.
+ */
+export function topicStyleHex(color?: string | null): TopicStyle {
+    const c = expandHex(color);
+    return { background: mixHex(c, WASH, '#ffffff'), border: c, icon: mixHex(c, INK, '#000000') };
 }

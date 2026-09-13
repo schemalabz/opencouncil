@@ -25,6 +25,7 @@ const nextConfig = {
     // 500s on every OG image. Prod (buildpack, full node_modules) is unaffected.
     outputFileTracingIncludes: {
         '/api/og': ['./node_modules/next/dist/compiled/@vercel/og/**/*'],
+        '/api/share/story': ['./node_modules/next/dist/compiled/@vercel/og/**/*'],
     },
     cacheHandler: process.env.NODE_ENV === 'production'
         ? new URL('./cache-handler.mjs', import.meta.url).pathname
@@ -37,7 +38,7 @@ const nextConfig = {
     images: {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
     },
-    transpilePackages: ['@opencouncil/ui'],
+    transpilePackages: ['@opencouncil/ui', '@opencouncil/subject-images'],
     // Next 16 answers /_next/* and /__nextjs* requests that carry an Origin
     // outside this list with 403 (Next 15 only warned). The mobile preview
     // opens the app through the LAN IP, so the phone's HMR socket and
@@ -55,6 +56,20 @@ const nextConfig = {
                 headers: [
                     { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
                     { key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=3600' },
+                ],
+            },
+            {
+                source: '/:locale(en|el|fr|sr|lat)/embed/subject',
+                headers: [
+                    { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
+                    { key: 'Cache-Control', value: 'private, no-store' },
+                ],
+            },
+            {
+                source: '/embed/subject',
+                headers: [
+                    { key: 'Content-Security-Policy', value: 'frame-ancestors *' },
+                    { key: 'Cache-Control', value: 'private, no-store' },
                 ],
             },
             {
@@ -181,4 +196,3 @@ export default withPostHogConfig(withNextIntl(nextConfig), {
         deleteAfterUpload: true,
     },
 });
-

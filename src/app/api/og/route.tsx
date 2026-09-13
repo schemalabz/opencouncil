@@ -4,27 +4,40 @@
 // ships satori@0.25 with those fixes.
 import { ImageResponse } from '@vercel/og';
 import type { Realm } from '@prisma/client';
+import type { ReactElement, ReactNode } from 'react';
+import { icons } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 import { getMeetingDataForOG } from '@/lib/db/meetings';
 import { getCity } from '@/lib/db/cities';
 import { getConsultationDataForOG } from '@/lib/db/consultations';
-import { RegulationData } from '@/components/consultations/types';
-import prisma from '@/lib/db/prisma';
-import { getPartiesForCity } from '@/lib/db/parties';
+import { getLatestSubjectsForSpeaker } from '@/lib/db/subject';
+import { getParty, getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
-import { getInitials } from '@/lib/formatters/name';
+import prisma from '@/lib/db/prisma';
+import { RegulationData } from '@/components/consultations/types';
+import { getHotSubjectCardsCached } from '@/lib/hotSubjectCards';
+import { getInitials, getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
+import { formatDateStamp, formatDateTime, getIntlLocale } from '@/lib/formatters/time';
 import { sortSubjectsByImportance } from '@/lib/utils';
-import { Container, DarkHeroOGImage, MeetingMetaRow, OgHeader, SubjectPills, formatCityDisplayName } from '@/components/og/shared-components';
+import { getPartyFromRoles, getRoleLabelAt, isActivePartyMember, isRoleActive } from '@/lib/utils/roles';
+import { localizeText } from '@/lib/serbian';
+import { getRealm } from '@/lib/realm.server';
+import { getRealmDisplayName } from '@/lib/realm';
+import { storyPreview } from '@/lib/sharing/story';
+import { topicStyleHex } from '@/lib/topicStyle';
 import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
 import { OG_LOCALE_PARAM, resolveOgLocale } from '@/lib/og/locale';
 import { LOGO_BLACK_DATA_URI, OG_FONTS } from '@/lib/og/serverAssets';
-import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
-import { isCustomer } from "@/lib/cityStatus";
-import { getTranslations } from 'next-intl/server';
-import { getRealm } from '@/lib/realm.server';
-import { getRealmDisplayName } from '@/lib/realm';
-import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
-import { localizeText } from '@/lib/serbian';
-import { formatDate, getIntlLocale } from '@/lib/formatters/time';
+import { getImageData, SEAL_BOX } from '@/lib/og/remoteImage';
+import { getPortraitData } from '@/lib/og/portrait';
+import { allIllustrated, getStaticIllustrations, getSubjectIllustrations, ILLUSTRATION_BOX } from '@/lib/og/illustration';
+import { ogCacheControl } from '@/lib/og/render';
+import { subjectOgElement } from '@/lib/og/subjectImage';
+import { topicGlyph } from '@/lib/og/topicIcon';
+import {
+    OG, OgAvatar, OgBody, OgChip, OgChips, OgContextChip, OgEyebrow, OgFacts, OgFrame, OgHeader, OgHeadline,
+    OgRow, OgStack, OgTile, OgTileGrid, OgTitle,
+} from '@/components/og/frame';
 
 /**
  * A `getTranslations` result. The `og` catalog holds every string these images
@@ -32,12 +45,45 @@ import { formatDate, getIntlLocale } from '@/lib/formatters/time';
  */
 type Translator = Awaited<ReturnType<typeof getTranslations>>;
 
-/**
- * Subject names are stored in the city's own language and have no translated
- * column, so the only thing a locale changes about them is the Serbian script.
- */
-const localizeSubjectNames = <T extends { name: string }>(subjects: T[], locale: string): T[] =>
-    subjects.map(subject => ({ ...subject, name: localizeText(subject.name, locale) }));
+const TILE = { width: 286, height: 163 };
+const STACKED_TILE = { width: 300, height: 171 };
+
+type TileSubject = { id: string; name: string; topic?: { colorHex?: string | null; icon?: string | null } | null };
+
+/** An image that draws illustrations, and whether every one it wanted was there; see ogCacheControl. */
+type OgRender = { element: ReactElement; settled: boolean } | null;
+
+/** One subject as a tile: its illustration, or its topic's wash and glyph while it has none. */
+function subjectTile(subject: TileSubject, src: string | null, locale: string, size = TILE): ReactNode {
+    const colors = topicStyleHex(subject.topic?.colorHex);
+    return (
+        <OgTile
+            key={subject.id}
+            src={src}
+            title={localizeText(subject.name, locale)}
+            wash={colors.background}
+            glyph={topicGlyph(subject.topic?.icon, Math.round(size.height * 0.34), colors.icon)}
+            width={size.width}
+            height={size.height}
+        />
+    );
+}
+
+/** The header chip's text: the city's short name, as every image's chip says it, and the body. */
+function cityDisplayName(city: { name: string; name_en: string | null }, body: { name: string; name_en: string | null } | null, locale: string): string {
+    const name = getLocalizedName(city, locale);
+    return body ? `${name} · ${getLocalizedName(body, locale)}` : name;
+}
+
+/** A column of tiles under a small eyebrow, as the meeting and city images draw the subjects they show. */
+function tileColumn(label: string, locale: string, tiles: ReactNode): ReactNode {
+    return (
+        <OgStack gap={10}>
+            <OgEyebrow text={label} locale={locale} size={14} color={OG.MUTED} />
+            {tiles}
+        </OgStack>
+    );
+}
 
 // Hard ceiling on each render. Pairs with the in-process concurrency cap in
 // `@/lib/og/concurrency` to keep a single hung satori call from blocking a slot forever.
@@ -52,7 +98,8 @@ function logSubjectCounts(reqId: string, variant: string, subjects: { nonAgendaR
     console.log(`[og:${reqId}] fetched variant=${variant} total=${subjects.length} agenda=${agenda} beforeAgenda=${beforeAgenda} outOfAgenda=${outOfAgenda} in ${fetchMs}ms`);
 }
 
-// Meeting OG Image (Landscape - 1200x630)
+// Meeting: the date stamp the meeting card anchors on, and the four subjects
+// that took the most debate, as pictures.
 const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string, locale: string, t: Translator) => {
     const fetchT0 = Date.now();
     console.log(`[og:${reqId}] fetching variant=default city=${cityId} meeting=${meetingId}`);
@@ -63,240 +110,112 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string, 
     }
     logSubjectCounts(reqId, 'default', data.subjects ?? [], Date.now() - fetchT0);
 
-    const formattedDate = formatDate(new Date(data.dateTime), undefined, locale);
+    const sorted = sortSubjectsByImportance(data.subjects);
+    const top = sorted.slice(0, 4);
+    const [illustrations, seal] = await Promise.all([
+        getSubjectIllustrations(top.map(s => s.id), ILLUSTRATION_BOX.tile),
+        getImageData(data.city.logoImage, SEAL_BOX),
+    ]);
+    const date = new Date(data.dateTime);
+    const stamp = formatDateStamp(date, data.city.timezone, locale);
+    // The meeting card's own facts line under its stamp; the stamp carries the day and the month.
+    const when = formatDateTime(date, data.city.timezone, 'medium', locale);
+    const remaining = sorted.length - top.length;
 
-    const sortT0 = Date.now();
-    const sortedSubjects = sortSubjectsByImportance(data.subjects);
-    console.log(`[og:${reqId}] sorted variant=default in ${Date.now() - sortT0}ms`);
-
-    const cityDisplayName = formatCityDisplayName(
-        getLocalizedMunicipalityName(data.city, locale),
-        data.administrativeBody ? getLocalizedName(data.administrativeBody, locale) : null,
-    );
-
-    return (
-        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI} watermarkProps={{ logoOnly: true, size: 80 }}>
-            <OgHeader
-                city={{
-                    name: cityDisplayName,
-                    logoImage: data.city.logoImage
-                }}
-            />
-
-            {/* Main Content */}
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '24px',
-                paddingTop: '8px',
-            }}>
-                <h1 style={{
-                    fontSize: 56,
-                    fontWeight: 700,
-                    color: '#111827',
-                    lineHeight: 1.3,
-                    margin: 0,
-                    maxWidth: '95%',
-                }}>
-                    {getLocalizedName(data, locale)}
-                </h1>
-
-                <MeetingMetaRow
-                    formattedDate={formattedDate}
-                    subjectsLabel={t('meeting.subjects', { count: data.subjects?.length || 0 })}
-                    fontSize={28}
-                    gap={24}
-                    iconGap={8}
-                />
-
-                {sortedSubjects.length > 0 && (
-                    <SubjectPills
-                        subjects={localizeSubjectNames(sortedSubjects, locale)}
-                        limit={3}
-                        remainingLabel={count => t('meeting.moreSubjects', { count })}
-                        styles={{
-                            containerGap: 10,
-                            containerMarginTop: 16,
-                            pillPadding: [10, 20],
-                            pillRadius: 9999,
-                            pillFontSize: 22,
-                            pillFontWeight: 600,
-                            pillBoxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-                            pillMaxWidth: '85%',
-                            remainingFontSize: 18,
-                            remainingMarginTop: 4,
-                            remainingColor: '#6b7280',
-                        }}
-                    />
+    const element = (
+        <OgFrame>
+            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={28}>
+                <OgContextChip text={cityDisplayName(data.city, data.administrativeBody, locale)} logoSrc={seal} />
+            </OgHeader>
+            <OgBody
+                left={
+                    <OgStack gap={0}>
+                        <OgEyebrow text={t('meeting.eyebrow')} locale={locale} color={OG.MUTED} />
+                        <OgRow gap={16} style={{ alignItems: 'flex-end', marginTop: 18 }}>
+                            <span style={{ fontSize: 96, lineHeight: 0.9, letterSpacing: '-0.03em' }}>{stamp.day}</span>
+                            <OgEyebrow text={stamp.monthYear} locale={locale} size={18} color={OG.MUTED} />
+                        </OgRow>
+                        <div style={{ display: 'flex', marginTop: 22 }}>
+                            <OgTitle size={40} maxWidth={440}>{getLocalizedName(data, locale)}</OgTitle>
+                        </div>
+                        <div style={{ display: 'flex', marginTop: 14 }}>
+                            <OgFacts items={[when, t('meeting.subjects', { count: data.subjects.length })]} />
+                        </div>
+                    </OgStack>
+                }
+                right={top.length > 0 && (
+                    <OgStack gap={10}>
+                        <OgTileGrid width={TILE.width}>{top.map(s => subjectTile(s, illustrations.get(s.id) ?? null, locale))}</OgTileGrid>
+                        {remaining > 0 && <span style={{ fontSize: 16, color: OG.MUTED }}>{t('meeting.moreSubjects', { count: remaining })}</span>}
+                    </OgStack>
                 )}
-            </div>
-        </Container>
+            />
+        </OgFrame>
     );
+    return { element, settled: allIllustrated(illustrations) };
 };
 
-// City OG Image
+// City: the seal, the name and the counts of the identity band, beside the
+// subjects the council has been arguing about, as the hot-topics list ranks them.
 const CityOGImage = async (cityId: string, locale: string, t: Translator) => {
-    // Fetch only the data we need in parallel
-    const [city, counts] = await Promise.all([
+    const [city, counts, cards] = await Promise.all([
         getCity(cityId),
         prisma.$transaction([
             prisma.person.count({ where: { cityId } }),
-            prisma.party.count({ where: { cityId } })
-        ])
+            prisma.party.count({ where: { cityId } }),
+        ]),
+        getHotSubjectCardsCached(cityId, { limit: 4, months: 3 }).catch(error => {
+            console.error('[og] hot subjects failed:', error);
+            return [];
+        }),
     ]);
-
     if (!city) return null;
 
+    const [seal, illustrations] = await Promise.all([
+        getImageData(city.logoImage, { width: 224, height: 224, fit: 'inside' }),
+        getSubjectIllustrations(cards.map(c => c.subject.id), ILLUSTRATION_BOX.tile),
+    ]);
     const [peopleCount, partiesCount] = counts;
     const meetingsCount = city._count.councilMeetings;
-    const cityName = getLocalizedName(city, locale);
-    const isMunicipality = city.authorityType === 'municipality';
-    const supportLabel = isCustomer(city.status)
-        ? t(isMunicipality ? 'city.supportedByMunicipality' : 'city.supportedByRegion')
-        : t(isMunicipality ? 'city.noSupportFromMunicipality' : 'city.noSupportFromRegion');
 
-    return (
-        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '48px',
-            }}>
-                {/* City Logo */}
-                <div style={{
-                    width: '160px',
-                    height: '160px',
-                    position: 'relative',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}>
-                    {city.logoImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={city.logoImage}
-                            height="160"
-                            alt={`${cityName} logo`}
-                            style={{
-                                objectFit: 'contain',
-                            }}
-                        />
-                    ) : (
-                        <div style={{
-                            width: '160px',
-                            height: '160px',
-                            backgroundColor: '#f3f4f6',
-                            borderRadius: '16px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#9ca3af',
-                            fontSize: '64px',
-                        }}>
-                            🏛️
+    const element = (
+        <OgFrame>
+            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={28} />
+            <OgBody
+                left={
+                    <OgStack gap={0}>
+                        <div style={{ display: 'flex', width: 112, height: 112, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 9999, background: '#ffffff', padding: 8, border: `1px solid ${OG.BORDER}` }}>
+                            {seal ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={seal} width={96} height={96} alt="" style={{ objectFit: 'contain' }} />
+                            ) : (
+                                <icons.Landmark size={48} color={OG.MUTED} />
+                            )}
                         </div>
-                    )}
-                </div>
-
-                {/* City Info */}
-                <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '24px',
-                    flex: 1,
-                }}>
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '16px',
-                    }}>
-                        <h1 style={{
-                            fontSize: 64,
-                            fontWeight: 500,
-                            color: '#111827',
-                            margin: 0,
-                            lineHeight: 1.2,
-                        }}>
-                            {cityName}
-                        </h1>
-                        <div style={{
-                            display: 'flex',
-                            fontSize: 24,
-                            color: '#6b7280',
-                        }}>
-                            {t('city.meetingsRecorded', { count: meetingsCount })}
+                        <div style={{ display: 'flex', marginTop: 24 }}><OgTitle size={60} maxWidth={560}>{getLocalizedName(city, locale)}</OgTitle></div>
+                        <span style={{ marginTop: 6, fontSize: 24, color: OG.MUTED }}>{getLocalizedMunicipalityName(city, locale)}</span>
+                        <div style={{ display: 'flex', marginTop: 20 }}>
+                            <OgFacts items={[
+                                t('city.meetings', { count: meetingsCount }),
+                                t('city.people', { count: peopleCount }),
+                                t('city.parties', { count: partiesCount }),
+                            ]} />
                         </div>
-                    </div>
-
-                    {/* Stats */}
-                    <div style={{
-                        display: 'flex',
-                        gap: '32px',
-                        marginTop: '8px',
-                    }}>
-                        {[
-                            { value: meetingsCount, label: t('city.stats.meetings') },
-                            { value: peopleCount, label: t('city.stats.people') },
-                            { value: partiesCount, label: t('city.stats.parties') }
-                        ].map(({ value, label }) => (
-                            <div key={label} style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '4px',
-                            }}>
-                                <div style={{
-                                    display: 'flex',
-                                    fontSize: 36,
-                                    fontWeight: 600,
-                                    color: '#111827',
-                                }}>
-                                    {value}
-                                </div>
-                                <div style={{
-                                    display: 'flex',
-                                    fontSize: 18,
-                                    color: '#6b7280',
-                                }}>
-                                    {label}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Official Support Badge */}
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        background: isCustomer(city.status)
-                            ? 'linear-gradient(to right, #fc550a, #a4c0e1)'
-                            : '#f3f4f6',
-                        color: isCustomer(city.status) ? '#ffffff' : '#6b7280',
-                        padding: '8px 16px',
-                        borderRadius: '9999px',
-                        fontSize: 16,
-                        fontWeight: 500,
-                        marginTop: '8px',
-                        alignSelf: 'flex-start',
-                        border: isCustomer(city.status) ? 'none' : '1px solid #e5e7eb'
-                    }}>
-                        <span style={{
-                            display: 'flex'
-                        }}>
-                            {supportLabel}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </Container>
+                    </OgStack>
+                }
+                right={cards.length > 0 && tileColumn(
+                    t('city.hotTopics'),
+                    locale,
+                    <OgTileGrid width={TILE.width}>{cards.map(c => subjectTile(c.subject, illustrations.get(c.subject.id) ?? null, locale))}</OgTileGrid>,
+                )}
+            />
+        </OgFrame>
     );
+    return { element, settled: allIllustrated(illustrations) };
 };
 
-// Consultation OG Image
+// Consultation: the regulation's title and its shape, in chapters.
 const ConsultationOGImage = async (cityId: string, consultationId: string, locale: string, t: Translator) => {
-    // Helper function to fetch regulation data
     const fetchRegulationData = async (jsonUrl: string): Promise<RegulationData | null> => {
         try {
             const response = await fetch(jsonUrl, { cache: 'no-store' });
@@ -308,458 +227,319 @@ const ConsultationOGImage = async (cityId: string, consultationId: string, local
         }
     };
 
-    // Fetch consultation data with city info and comment count
-    const consultationData = await getConsultationDataForOG(cityId, consultationId);
-
-    if (!consultationData) return null;
-
-    // Fetch regulation data
-    const regulationData = await fetchRegulationData(consultationData.jsonUrl);
-
-    // Calculate statistics
-    const chaptersCount = regulationData?.regulation?.filter(item => item.type === 'chapter').length || 0;
-    const geosetsCount = regulationData?.regulation?.filter(item => item.type === 'geoset').length || 0;
-    const commentsCount = consultationData._count.comments;
-
-    // Note: Removed date display to keep the layout clean
+    const consultation = await getConsultationDataForOG(cityId, consultationId);
+    if (!consultation) return null;
+    const [regulation, seal] = await Promise.all([fetchRegulationData(consultation.jsonUrl), getImageData(consultation.city.logoImage, SEAL_BOX)]);
+    const items = regulation?.regulation ?? [];
+    const chapters = items.filter(item => item.type === 'chapter');
+    const geosets = items.filter(item => item.type === 'geoset');
+    const facts = [
+        t('consultation.chapters', { count: chapters.length }),
+        t('consultation.areas', { count: geosets.length }),
+        t('consultation.comments', { count: consultation._count.comments }),
+    ];
 
     return (
-        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI} watermarkProps={{ logoOnly: true, size: 80 }}>
-            <OgHeader
-                city={{
-                    name: getLocalizedMunicipalityName(consultationData.city, locale),
-                    logoImage: consultationData.city.logoImage
-                }}
+        <OgFrame>
+            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20}>
+                <OgContextChip text={getLocalizedName(consultation.city, locale)} logoSrc={seal} />
+            </OgHeader>
+            <OgBody
+                left={
+                    <OgStack gap={0}>
+                        <OgEyebrow text={t('consultation.badge')} locale={locale} />
+                        <div style={{ display: 'flex', marginTop: 18 }}>
+                            <OgTitle size={44} lines={3} maxWidth={620}>{localizeText(regulation?.title || consultation.name, locale)}</OgTitle>
+                        </div>
+                        <div style={{ display: 'flex', marginTop: 18 }}><OgFacts items={facts} size={20} /></div>
+                    </OgStack>
+                }
+                right={chapters.length > 0 && (
+                    <OgStack gap={10} style={{ width: 420 }}>
+                        <OgEyebrow text={t('consultation.keyTopics')} locale={locale} size={14} color={OG.MUTED} />
+                        {chapters.slice(0, 4).map((chapter, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 16, border: `1px solid ${OG.BORDER}`, background: '#ffffff', padding: '16px 20px', fontSize: 20, color: OG.INK }}>
+                                <icons.ScrollText size={22} color={OG.MUTED} />
+                                <span style={{ whiteSpace: 'nowrap' }}>{storyPreview(localizeText(chapter.title ?? '', locale) || t('consultation.untitledChapter'), 34)}</span>
+                            </div>
+                        ))}
+                    </OgStack>
+                )}
             />
+        </OgFrame>
+    );
+};
 
-            {/* Main Content */}
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '24px',
-                paddingTop: '8px',
-            }}>
-                {/* Consultation Badge */}
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    backgroundColor: '#dbeafe',
-                    color: '#1d4ed8',
-                    padding: '10px 20px',
-                    borderRadius: '9999px',
-                    fontSize: 20,
-                    fontWeight: 600,
-                    alignSelf: 'flex-start',
-                    marginBottom: '8px',
-                }}>
-                    <span>💬</span>
-                    <span>{t('consultation.badge')}</span>
-                </div>
+// Person: the portrait in the party's ring, and the last subjects they spoke on.
+const PersonOGImage = async (cityId: string, personId: string, locale: string, t: Translator) => {
+    const [person, city] = await Promise.all([getPerson(personId), getCity(cityId)]);
+    if (!person || !city || person.cityId !== cityId) return null;
 
-                {/* Title */}
-                <h1 style={{
-                    fontSize: 44,
-                    fontWeight: 700,
-                    color: '#111827',
-                    lineHeight: 1.2,
-                    margin: 0,
-                    maxWidth: '95%',
-                    marginBottom: '24px',
-                }}>
-                    {localizeText(regulationData?.title || consultationData.name, locale)}
-                </h1>
+    const party = getPartyFromRoles(person.roles);
+    // The label the site's badges give the role, so the mayor reads as the mayor here too.
+    const tPerson = await getTranslations({ locale, namespace: 'Person' });
+    const roleName = getRoleLabelAt(person.roles, tPerson, new Date()) ?? t('person.council');
+    // Released meetings only: this image is public and cached, whoever asked for it.
+    const [portrait, seal, subjects] = await Promise.all([
+        getPortraitData(person.image),
+        getImageData(city.logoImage, SEAL_BOX),
+        getLatestSubjectsForSpeaker(person.id, 2).catch(() => []),
+    ]);
+    const illustrations = await getSubjectIllustrations(subjects.map(s => s.id), ILLUSTRATION_BOX.tile);
+    const name = getLocalizedName(person, locale);
 
+    const element = (
+        <OgFrame>
+            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20}>
+                <OgContextChip text={getLocalizedName(city, locale)} logoSrc={seal} />
+            </OgHeader>
+            <OgBody
+                left={
+                    <OgRow gap={32}>
+                        <OgAvatar src={portrait} initials={getInitials(name)} size={168} ring={party?.colorHex ?? OG.BORDER} />
+                        <OgStack gap={14}>
+                            <OgTitle size={48} maxWidth={520}>{name}</OgTitle>
+                            <span style={{ fontSize: 22, lineHeight: 1.3, color: OG.MUTED }}>{localizeText(roleName, locale)}</span>
+                            {party && (
+                                <OgRow gap={10} style={{ fontSize: 22, color: OG.MUTED }}>
+                                    <span style={{ width: 12, height: 12, borderRadius: 9999, background: party.colorHex ?? OG.MUTED }} />
+                                    <span>{getLocalizedName(party, locale)}</span>
+                                </OgRow>
+                            )}
+                        </OgStack>
+                    </OgRow>
+                }
+                right={subjects.length > 0 && tileColumn(
+                    t('person.recent'),
+                    locale,
+                    <OgStack gap={12}>{subjects.map(s => subjectTile(s, illustrations.get(s.id) ?? null, locale, STACKED_TILE))}</OgStack>,
+                )}
+            />
+        </OgFrame>
+    );
+    return { element, settled: allIllustrated(illustrations) };
+};
 
+// Party: the logo, the colour, and the members.
+const PartyOGImage = async (cityId: string, partyId: string, locale: string, t: Translator) => {
+    const [party, city] = await Promise.all([getParty(partyId), getCity(cityId)]);
+    if (!party || !city || party.cityId !== cityId) return null;
 
-                {/* Key highlights */}
-                {regulationData?.regulation && chaptersCount > 0 && (
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                    }}>
-                        <div style={{
-                            fontSize: 20,
-                            fontWeight: 600,
-                            color: '#374151',
-                            marginBottom: '4px',
-                        }}>
-                            {t('consultation.keyTopics')}
+    const members = party.people.filter(person => isActivePartyMember(person, party.id));
+    const leader = members.find(person => person.roles.some(role => role.partyId === party.id && role.isHead && isRoleActive(role)));
+    const shown = members.slice(0, 12);
+    const [seal, logo, portraits] = await Promise.all([
+        getImageData(city.logoImage, SEAL_BOX),
+        getImageData(party.logo, { width: 240, height: 240, fit: 'inside' }),
+        Promise.all(shown.map(person => getPortraitData(person.image))),
+    ]);
+    const color = party.colorHex ?? OG.MUTED;
+    const facts = [t('party.members', { count: members.length })];
+    if (leader) facts.push(t('party.leader', { name: getLocalizedName(leader, locale) }));
+
+    return (
+        <OgFrame>
+            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20}>
+                <OgContextChip text={getLocalizedName(city, locale)} logoSrc={seal} />
+            </OgHeader>
+            <OgBody
+                left={
+                    <OgRow gap={28} style={{ alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', width: 120, height: 120, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 16, background: logo ? '#ffffff' : color, padding: 10, border: `1px solid ${OG.BORDER}` }}>
+                            {logo && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={logo} width={100} height={100} alt="" style={{ objectFit: 'contain' }} />
+                            )}
                         </div>
-                        <div style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: '8px',
-                        }}>
-                            {regulationData.regulation
-                                .filter(item => item.type === 'chapter')
-                                .slice(0, 3)
-                                .map((chapter, index) => (
-                                    <div key={chapter.id} style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        backgroundColor: '#e0f2fe',
-                                        color: '#0369a1',
-                                        padding: '8px 16px',
-                                        borderRadius: '20px',
-                                        fontSize: 16,
-                                        fontWeight: 500,
-                                        maxWidth: '300px',
-                                    }}>
-                                        <span style={{
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                        }}>
-                                            {chapter.num ? `${chapter.num}. ` : ''}{localizeText(chapter.title ?? '', locale).substring(0, 40) || t('consultation.untitledChapter')}{chapter.title && chapter.title.length > 40 ? '...' : ''}
-                                        </span>
-                                    </div>
-                                ))
-                            }
-                        </div>
+                        <OgStack gap={12}>
+                            <OgTitle size={44} maxWidth={560}>{getLocalizedName(party, locale)}</OgTitle>
+                            <span style={{ width: 96, height: 6, borderRadius: 9999, background: color }} />
+                            <OgFacts items={facts} />
+                        </OgStack>
+                    </OgRow>
+                }
+                right={shown.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, width: 6 * 52 + 5 * 10 }}>
+                        {shown.map((person, i) => (
+                            <OgAvatar key={person.id} src={portraits[i]} initials={getInitials(getLocalizedName(person, locale))} size={52} ring={color} />
+                        ))}
+                        {members.length > shown.length && (
+                            <div style={{ display: 'flex', width: 52, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: `2px dashed ${OG.BORDER}`, fontSize: 16, color: OG.MUTED }}>
+                                +{members.length - shown.length}
+                            </div>
+                        )}
                     </div>
                 )}
-            </div>
-        </Container>
+            />
+        </OgFrame>
     );
 };
 
-// Person OG Image
-const PersonOGImage = async (cityId: string, personId: string, locale: string, t: Translator) => {
-    const [person, city, parties] = await Promise.all([
-        getPerson(personId),
-        getCity(cityId),
-        getPartiesForCity(cityId)
-    ]);
-
-    if (!person || !city) return null;
-
-    // Find the person's current party
-    const currentRole = person.roles.find(role => {
-        const now = new Date();
-        return (!role.startDate || role.startDate <= now) &&
-            (!role.endDate || role.endDate > now);
-    });
-
-    const currentParty = currentRole?.party;
-    const personName = getLocalizedName(person, locale);
-
-    return (
-        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '48px',
-            }}>
-                {/* Person Avatar or Initials */}
-                <div style={{
-                    width: '160px',
-                    height: '160px',
-                    borderRadius: '80px',
-                    backgroundColor: '#f3f4f6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '64px',
-                    fontWeight: 'bold',
-                    color: '#6b7280',
-                    border: '4px solid #e5e7eb',
-                }}>
-                    {person.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={person.image}
-                            alt={personName}
-                            width="160"
-                            height="160"
-                            style={{ borderRadius: '80px', objectFit: 'cover' }}
-                        />
-                    ) : (
-                        getInitials(personName)
-                    )}
-                </div>
-
-                {/* Person Info */}
-                <div style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px',
-                }}>
-                    <div style={{
-                        fontSize: '48px',
-                        fontWeight: 'bold',
-                        color: '#1f2937',
-                        lineHeight: 1.2,
-                    }}>
-                        {personName}
-                    </div>
-
-                    {currentParty && (
-                        <div style={{
-                            fontSize: '24px',
-                            color: '#6b7280',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                        }}>
-                            <div style={{
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '4px',
-                                backgroundColor: currentParty.colorHex || '#6b7280',
-                            }} />
-                            {getLocalizedName(currentParty, locale)}
-                        </div>
-                    )}
-
-                    <div style={{
-                        fontSize: '20px',
-                        color: '#9ca3af',
-                    }}>
-                        {getLocalizedName(city, locale)} • {t('person.council')}
-                    </div>
-                </div>
-            </div>
-        </Container>
-    );
-};
-
-// People List OG Image  
+// People: the council as a row of faces, and how the parties share it.
 const PeopleOGImage = async (cityId: string, locale: string, t: Translator) => {
-    const [city, people, parties] = await Promise.all([
-        getCity(cityId),
-        getPeopleForCity(cityId),
-        getPartiesForCity(cityId)
-    ]);
-
+    const [city, people, parties] = await Promise.all([getCity(cityId), getPeopleForCity(cityId, true), getPartiesForCity(cityId)]);
     if (!city) return null;
 
-    // Get first 6 people for display
-    const displayPeople = people.slice(0, 6);
-    const cityName = getLocalizedName(city, locale);
+    const shown = people.slice(0, 8);
+    const [seal, portraits] = await Promise.all([
+        getImageData(city.logoImage, SEAL_BOX),
+        Promise.all(shown.map(person => getPortraitData(person.image))),
+    ]);
+    const partyCounts = parties
+        .map(party => ({ party, count: people.filter(person => isActivePartyMember(person, party.id)).length }))
+        .filter(entry => entry.count > 0)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 4);
 
     return (
-        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '32px',
-            }}>
-                {/* Header */}
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '24px',
-                }}>
-                    {city.logoImage && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                            src={city.logoImage}
-                            alt={cityName}
-                            width="80"
-                            height="80"
-                            style={{ objectFit: 'contain' }}
-                        />
+        <OgFrame>
+            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20}>
+                <OgContextChip text={getLocalizedName(city, locale)} logoSrc={seal} />
+            </OgHeader>
+            <div style={{ display: 'flex', flex: 1, flexDirection: 'column', justifyContent: 'center', gap: 28, padding: `0 ${OG.PAD}px ${OG.PAD}px` }}>
+                <OgStack gap={12}>
+                    <OgTitle size={52}>{t('people.title')}</OgTitle>
+                    <OgFacts items={[t('city.people', { count: people.length }), t('city.parties', { count: parties.length })]} />
+                </OgStack>
+                <OgRow gap={14}>
+                    {shown.map((person, i) => (
+                        <OgAvatar key={person.id} src={portraits[i]} initials={getInitials(getLocalizedName(person, locale))} size={84} ring={getPartyFromRoles(person.roles)?.colorHex ?? OG.BORDER} />
+                    ))}
+                    {people.length > shown.length && (
+                        <div style={{ display: 'flex', width: 84, height: 84, alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: `2px dashed ${OG.BORDER}`, fontSize: 24, color: OG.MUTED }}>
+                            +{people.length - shown.length}
+                        </div>
                     )}
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px',
-                    }}>
-                        <div style={{
-                            fontSize: '36px',
-                            fontWeight: 'bold',
-                            color: '#1f2937',
-                        }}>
-                            {t('people.title')}
-                        </div>
-                        <div style={{
-                            fontSize: '24px',
-                            color: '#6b7280',
-                        }}>
-                            {cityName} • {t('people.count', { count: people.length })}
-                        </div>
-                    </div>
-                </div>
-
-                {/* People Grid */}
-                <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '16px',
-                }}>
-                    {displayPeople.map(person => {
-                        const personName = getLocalizedName(person, locale);
-                        return (
-                            <div key={person.id} style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px',
-                                padding: '12px 16px',
-                                backgroundColor: '#f9fafb',
-                                borderRadius: '8px',
-                                border: '1px solid #e5e7eb',
-                            }}>
-                                <div style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    borderRadius: '20px',
-                                    backgroundColor: '#e5e7eb',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '16px',
-                                    fontWeight: 'bold',
-                                    color: '#6b7280',
-                                }}>
-                                    {person.image ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
-                                            src={person.image}
-                                            alt={personName}
-                                            width="40"
-                                            height="40"
-                                            style={{ borderRadius: '20px', objectFit: 'cover' }}
-                                        />
-                                    ) : (
-                                        getInitials(personName)
-                                    )}
-                                </div>
-                                <div style={{
-                                    fontSize: '18px',
-                                    color: '#1f2937',
-                                    fontWeight: '500',
-                                }}>
-                                    {personName.length > 20 ? personName.substring(0, 20) + '...' : personName}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {people.length > 6 && (
-                    <div style={{
-                        fontSize: '16px',
-                        color: '#9ca3af',
-                        textAlign: 'center',
-                    }}>
-                        {t('people.more', { count: people.length - 6 })}
-                    </div>
+                </OgRow>
+                {partyCounts.length > 0 && (
+                    <OgChips gap={12}>
+                        {partyCounts.map(({ party, count }) => (
+                            <OgChip key={party.id} size={20}>
+                                <span style={{ width: 12, height: 12, borderRadius: 9999, background: party.colorHex ?? OG.MUTED }} />
+                                <span>{getLocalizedName(party, locale)}</span>
+                                <span style={{ color: OG.MUTED }}>{count}</span>
+                            </OgChip>
+                        ))}
+                    </OgChips>
                 )}
             </div>
-        </Container>
+        </OgFrame>
     );
 };
 
-// About Page OG Image. Headline and counter labels come from the about page's
-// own hero copy, so the unfurl and the page it links to say the same thing; the
-// figures stay pinned here because the hero animates them from live stats.
+/** A row of illustrations shipped with the build: what the site is about, drawn as the site draws it. */
+function staticStrip(pictures: string[], width: number, height: number): ReactNode {
+    return (
+        <OgRow gap={12}>
+            {pictures.map((src, i) => <OgTile key={i} src={src} wash={OG.BORDER} width={width} height={height} />)}
+        </OgRow>
+    );
+}
+
+// Site pages: the same frame, and no database. The landing unfurl is the one
+// every share of the bare domain hits, so it stays the cheapest render.
+const LandingOGImage = async (t: Translator, realm: Realm, locale: string) => {
+    const pictures = (await getStaticIllustrations()).slice(0, 5);
+    return (
+        <OgFrame>
+            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={24}>
+                {/* The realm decides which country the map covers, so the unfurl names it. */}
+                <OgChip size={20}>{getRealmDisplayName(realm, locale)}</OgChip>
+            </OgHeader>
+            <div style={{ display: 'flex', flex: 1, flexDirection: 'column', justifyContent: 'space-between', padding: `8px ${OG.PAD}px ${OG.PAD - 8}px` }}>
+                <OgStack gap={18}>
+                    <OgHeadline top={t('landing.headlineTop')} bottom={t('landing.headlineBottom')} />
+                    <span style={{ maxWidth: 780, fontSize: 24, lineHeight: 1.4, color: OG.MUTED }}>{t('landing.subtitle')}</span>
+                </OgStack>
+                {pictures.length > 0 && staticStrip(pictures, 208, 119)}
+            </div>
+        </OgFrame>
+    );
+};
+
 const AboutOGImage = async (locale: string, t: Translator) => {
     const tHero = await getTranslations({ locale, namespace: 'about.hero' });
     const number = new Intl.NumberFormat(getIntlLocale(locale));
-
+    const pictures = (await getStaticIllustrations()).slice(0, 4);
     return (
-        <DarkHeroOGImage
-            headline={[tHero('title'), tHero('titleHighlight')]}
-            statPills={[
-                `${number.format(10)} ${tHero('counters.municipalities')}`,
-                `${number.format(5000)}+ ${tHero('counters.subjects')}`,
-                `${number.format(400)}+ ${tHero('counters.meetingHours')}`,
-            ]}
-            tags={t.raw('about.tags') as string[]}
-        />
+        <OgFrame>
+            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={24} />
+            <OgBody
+                left={
+                    <OgStack gap={24}>
+                        <OgHeadline top={tHero('title')} bottom={tHero('titleHighlight')} size={50} />
+                        <OgChips>
+                            {[
+                                `${number.format(10)} ${tHero('counters.municipalities')}`,
+                                `${number.format(5000)}+ ${tHero('counters.subjects')}`,
+                                `${number.format(400)}+ ${tHero('counters.meetingHours')}`,
+                            ].map(label => <OgChip key={label}>{label}</OgChip>)}
+                        </OgChips>
+                        <OgChips>
+                            {(t.raw('about.tags') as string[]).map(tag => <OgChip key={tag} tone="orange" size={16}>{tag}</OgChip>)}
+                        </OgChips>
+                    </OgStack>
+                }
+                right={pictures.length > 0 && (
+                    <OgTileGrid width={216}>{pictures.map((src, i) => <OgTile key={i} src={src} wash={OG.BORDER} width={216} height={123} />)}</OgTileGrid>
+                )}
+            />
+        </OgFrame>
     );
 };
 
-// Landing Page OG Image (the subjects map at `/`).
-//
-// Deliberately built on the same dark-hero scaffold as the about image: it draws
-// text only — no city logo, no avatar, no remote `<img>` for satori to fetch —
-// and reads nothing from the database. The landing page itself is the heaviest
-// query in the app, and its unfurl is the one every share of the bare domain
-// hits, so this variant stays the cheapest thing the renderer can produce.
-const LandingOGImage = (t: Translator, realm: Realm, locale: string) => (
-    <DarkHeroOGImage
-        headline={[t('landing.headlineTop'), t('landing.headlineBottom')]}
-        // The realm decides which country the map covers, so the unfurl names it:
-        // "Ελλάδα" on .gr, "France" on .fr, "Србија" on .rs. `Intl.DisplayNames`
-        // derives the label from the realm's country code, so a new realm needs no
-        // new string. It is a locale-aware name, so /lat on .rs reads "Srbija".
-        statPills={[getRealmDisplayName(realm, locale)]}
-        subtitle={t('landing.subtitle')}
-        tags={t.raw('landing.tags') as string[]}
-    />
-);
+// /explain is a Greece-realm page and 404s everywhere else (see hasExplainPage),
+// so there is nothing to translate it into.
+const EXPLAIN_CHAPTERS: [keyof typeof icons, string][] = [
+    ['Landmark', 'Έσοδα των δήμων'],
+    ['Users', 'Όργανα & συνεδριάσεις'],
+    ['Vote', 'Αποφάσεις'],
+    ['Search', 'Πώς δουλεύει το OpenCouncil'],
+];
 
-// Explain Page OG Image (/explain — "Η τοπική αυτοδιοίκηση, απλά"). Greek only,
-// like the article itself: /explain is a Greece-realm page (see hasExplainPage)
-// and 404s everywhere else, so there is nothing to translate it into.
 const ExplainOGImage = () => (
-    <DarkHeroOGImage
-        headline={['Η τοπική αυτοδιοίκηση,', 'απλά']}
-        subtitle="Πώς λειτουργούν οι δήμοι στην Ελλάδα — και πώς το OpenCouncil τους κάνει κατανοητούς"
-        tags={['Έσοδα των δήμων', 'Όργανα & συνεδριάσεις', 'Αποφάσεις', 'Πώς δουλεύει το OpenCouncil']}
-    />
+    <OgFrame>
+        <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={24} />
+        <OgBody
+            left={
+                <OgStack gap={18}>
+                    <OgHeadline top="Η τοπική αυτοδιοίκηση," bottom="απλά" />
+                    <span style={{ maxWidth: 560, fontSize: 24, lineHeight: 1.4, color: OG.MUTED }}>Πώς λειτουργούν οι δήμοι στην Ελλάδα, και πώς το OpenCouncil τους κάνει κατανοητούς.</span>
+                </OgStack>
+            }
+            right={
+                <OgStack gap={10} style={{ width: 420 }}>
+                    <OgEyebrow text="Κεφάλαια" locale="el" size={14} color={OG.MUTED} />
+                    {EXPLAIN_CHAPTERS.map(([icon, label]) => {
+                        const Glyph = icons[icon];
+                        return (
+                            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 16, border: `1px solid ${OG.BORDER}`, background: '#ffffff', padding: '16px 20px', fontSize: 20, color: OG.INK }}>
+                                <Glyph size={22} color={OG.ORANGE} />
+                                <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
+                            </div>
+                        );
+                    })}
+                </OgStack>
+            }
+        />
+    </OgFrame>
 );
 
-// Search Page OG Image
-const SearchOGImage = (t: Translator) => {
-    return (
-        <Container watermarkLogoSrc={LOGO_BLACK_DATA_URI}>
-            <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '32px',
-                textAlign: 'center',
-            }}>
-                <div style={{
-                    width: '120px',
-                    height: '120px',
-                    borderRadius: '60px',
-                    backgroundColor: '#f3f4f6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '48px',
-                }}>
-                    🔍
-                </div>
-
-                <div style={{
-                    fontSize: '48px',
-                    fontWeight: 'bold',
-                    color: '#1f2937',
-                }}>
-                    {t('search.title')}
-                </div>
-
-                <div style={{
-                    fontSize: '24px',
-                    color: '#6b7280',
-                    maxWidth: '600px',
-                    lineHeight: 1.4,
-                }}>
-                    {t('search.description')}
-                </div>
-
-                <div style={{
-                    fontSize: '18px',
-                    color: '#9ca3af',
-                }}>
-                    {t('search.footer')}
-                </div>
+const SearchOGImage = (t: Translator) => (
+    <OgFrame>
+        <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={8} />
+        <div style={{ display: 'flex', flex: 1, flexDirection: 'column', justifyContent: 'center', gap: 28, padding: `0 ${OG.PAD}px ${OG.PAD}px` }}>
+            <OgHeadline top={t('search.title')} bottom={t('search.subtitle')} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, width: 760, borderRadius: 9999, border: `1px solid ${OG.BORDER}`, background: '#ffffff', padding: '20px 28px' }}>
+                <icons.Search size={26} color={OG.MUTED} />
+                <span style={{ fontSize: 24, color: OG.MUTED }}>{t('search.placeholder')}</span>
             </div>
-        </Container>
-    );
-};
+            <OgChips>
+                {(t.raw('search.chips') as string[]).map(chip => <OgChip key={chip} size={20}>{chip}</OgChip>)}
+            </OgChips>
+        </div>
+    </OgFrame>
+);
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -767,6 +547,7 @@ export async function GET(request: Request) {
     const meetingId = searchParams.get('meetingId');
     const consultationId = searchParams.get('consultationId');
     const personId = searchParams.get('personId');
+    const partyId = searchParams.get('partyId');
     const subjectId = searchParams.get('subjectId');
     const pageType = searchParams.get('pageType'); // 'people', 'landing', 'about', 'explain', 'search'
 
@@ -793,14 +574,17 @@ export async function GET(request: Request) {
     const t0 = Date.now();
     try {
         let element;
+        // False when a picture the image wanted was still missing, or the subject was not found: the cache then keeps it for an hour, not a year.
+        let settled = true;
+        const drew = (built: OgRender) => { if (built) settled = built.settled; return built?.element ?? null; };
         const width = 1200;
         const height = 630;
 
         if (consultationId && cityId) {
             element = await ConsultationOGImage(cityId, consultationId, locale, t);
         } else if (subjectId && meetingId && cityId) {
-            // Subject-specific OG image - reuse the native opengraph-image.tsx logic
-            return await SubjectOgImage({ params: Promise.resolve({ locale, cityId, meetingId, subjectId }) });
+            // The element the subject page's opengraph-image.tsx serves, rendered here inside the slot.
+            element = drew(await subjectOgElement(locale, cityId, meetingId, subjectId));
         } else if (meetingId && cityId) {
             // ?variant=story and ?variant=feed are no longer served here — story exports
             // render client-side via src/lib/export/storyImage.tsx (moved off the server
@@ -808,13 +592,15 @@ export async function GET(request: Request) {
             // export was removed with the "Post" share option. A stray variant request
             // falls through to the default landscape, which is a reasonable fallback for
             // any external caller still on the old URL shape.
-            element = await MeetingOGImage(cityId, meetingId, reqId, locale, t);
+            element = drew(await MeetingOGImage(cityId, meetingId, reqId, locale, t));
         } else if (personId && cityId) {
-            element = await PersonOGImage(cityId, personId, locale, t);
+            element = drew(await PersonOGImage(cityId, personId, locale, t));
+        } else if (partyId && cityId) {
+            element = await PartyOGImage(cityId, partyId, locale, t);
         } else if (pageType === 'people' && cityId) {
             element = await PeopleOGImage(cityId, locale, t);
         } else if (pageType === 'landing') {
-            element = LandingOGImage(t, realm, locale);
+            element = await LandingOGImage(t, realm, locale);
         } else if (pageType === 'about') {
             element = await AboutOGImage(locale, t);
         } else if (pageType === 'explain') {
@@ -822,7 +608,7 @@ export async function GET(request: Request) {
         } else if (pageType === 'search') {
             element = SearchOGImage(t);
         } else if (cityId) {
-            element = await CityOGImage(cityId, locale, t);
+            element = drew(await CityOGImage(cityId, locale, t));
         } else {
             return new Response('Missing required parameters', { status: 400 });
         }
@@ -853,21 +639,16 @@ export async function GET(request: Request) {
             clearInterval(heartbeat);
         }
         console.log(`[og:${reqId}] rendered bytes=${buffer.byteLength} satori=${Date.now() - satoriT0}ms`);
-        // Restore the Cache-Control that next/og's ImageResponse sets by default —
-        // dropping it would make every crawler unfurl re-render, defeating the cap.
-        // Matches next/og's exact defaults including the dev no-cache branch.
+        // Without a Cache-Control every crawler unfurl would re-render, defeating the cap.
         return new Response(buffer, {
             status: 200,
-            headers: {
-                'content-type': 'image/png',
-                'cache-control': process.env.NODE_ENV === 'development'
-                    ? 'no-cache, no-store'
-                    : 'public, immutable, no-transform, max-age=31536000',
-            },
+            headers: { 'content-type': 'image/png', 'cache-control': ogCacheControl(settled) },
         });
     } catch (e) {
         console.error(`[og:${reqId}] error:`, e);
-        return new Response('Failed to generate image', { status: 500 });
+        // The reason rides along in development only, where the log is not always in view.
+        const detail = process.env.NODE_ENV === 'development' && e instanceof Error ? `: ${e.message}` : '';
+        return new Response(`Failed to generate image${detail}`, { status: 500 });
     } finally {
         slot.release();
         const stats = getOgConcurrencyStats();

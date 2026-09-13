@@ -9,13 +9,10 @@
  *   { cityId: 'chania', identifier: 'aug15_2025', suffix: 'agenda' } → chania_aug15_2025_agenda.pdf
  *   { cityId: 'chania', identifier: 'democrats', suffix: 'logo' } → chania_democrats_logo.png
  */
-/**
- * Content types accepted for logo uploads (cities, parties). Raster-only by
- * design: SVG is disallowed because logos are embedded in generated PDFs and
- * react-pdf can only draw PNG/JPEG. The upload UI's crop step already
- * converts everything to PNG — this guards direct API calls.
- */
-export const ALLOWED_LOGO_CONTENT_TYPES = ['image/png', 'image/jpeg'];
+import { LOGO_IMAGE_TYPES } from '@/lib/utils/imageUpload';
+
+/** Content types accepted for logo uploads (cities, parties); the reason for the set is with the list. */
+export const ALLOWED_LOGO_CONTENT_TYPES = LOGO_IMAGE_TYPES;
 
 export interface UploadConfig {
     /** City identifier for authorization and naming */

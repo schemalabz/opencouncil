@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { cache } from "react";
 import Subject from "@/components/meetings/subject/subject";
 import SubjectReadTracker from "@/components/analytics/SubjectReadTracker";
 import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
@@ -7,14 +8,28 @@ import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { localizeText } from "@/lib/serbian";
 import { compactMetadataDescription } from "@/lib/seo/metadataDescription";
-import { getRealmBaseUrlFromRequest } from "@/lib/realm.server";
+import { getRealm, getRealmBaseUrlFromRequest } from "@/lib/realm.server";
 import { buildSubjectStructuredData, serializeStructuredData } from "@/lib/seo/subjectStructuredData";
 import { formatNumericDate } from '@/lib/formatters/time';
+import { getPublicContribution } from '@/lib/sharing/contributions';
+import { contributionMetadata } from '@/lib/sharing/contributionMetadata';
+import type { QueryParams } from '@/lib/sharing/excerptSelector';
+
+interface SubjectPageProps {
+    params: Promise<{ cityId: string; meetingId: string; subjectId: string; locale: string }>;
+    searchParams?: Promise<QueryParams>;
+}
+const resolveSharedContribution = cache(async (id: string, cityId: string, meetingId: string, subjectId: string, locale: string) => {
+    const contribution = await getPublicContribution(id, await getRealm(), locale);
+    return contribution?.meeting.cityId === cityId && contribution.meeting.id === meetingId && contribution.subject.id === subjectId ? contribution : null;
+});
+async function selectedContribution(props: SubjectPageProps) {
+    const [{ contribution }, params] = await Promise.all([props.searchParams ?? Promise.resolve({} as QueryParams), props.params]);
+    return typeof contribution === 'string' ? resolveSharedContribution(contribution, params.cityId, params.meetingId, params.subjectId, params.locale) : null;
+}
 
 export async function generateMetadata(
-    props: {
-        params: Promise<{ cityId: string; meetingId: string; subjectId: string; locale: string }>;
-    }
+    props: SubjectPageProps
 ): Promise<Metadata> {
     const params = await props.params;
     // First try to get the subject from the cached meeting data
@@ -58,6 +73,8 @@ export async function generateMetadata(
         ? compactMetadataDescription(localizeText(subject.description, params.locale))
         : `Θέμα που συζητήθηκε | ${cityName} | ${formatNumericDate(new Date(meetingData.meeting.dateTime), meetingData.city.timezone)}`;
 
+    const shared = await selectedContribution(props);
+    const sharedMetadata = shared ? await contributionMetadata(shared, params.locale) : {};
     return {
         title,
         description,
@@ -73,12 +90,13 @@ export async function generateMetadata(
             title,
             description,
         },
+        ...sharedMetadata,
     };
 }
 
 // Server component that renders the Subject component
 export default async function SubjectPage(
-    props: { params: Promise<{ cityId: string; meetingId: string; subjectId: string; locale: string }> }
+    props: SubjectPageProps
 ) {
     const params = await props.params;
 
@@ -89,9 +107,10 @@ export default async function SubjectPage(
         notFound();
     }
 
-    const [meetingData, baseUrl] = await Promise.all([
+    const [meetingData, baseUrl, shared] = await Promise.all([
         getMeetingDataCached(params.cityId, params.meetingId),
         getRealmBaseUrlFromRequest(),
+        selectedContribution(props),
     ]);
     if (!meetingData) {
         notFound();
@@ -129,7 +148,7 @@ export default async function SubjectPage(
                 meetingId={params.meetingId}
                 subjectId={params.subjectId}
             />
-            <Subject subjectId={params.subjectId} />
+            <Subject subjectId={params.subjectId} highlightedContributionId={shared?.id} />
         </>
     );
 }

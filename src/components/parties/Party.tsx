@@ -288,6 +288,7 @@ function SegmentsTab({
                                     meeting={{
                                         id: contribution.subject.councilMeetingId,
                                         cityId: contribution.subject.cityId,
+                                        released: contribution.subject.councilMeeting.released,
                                     }}
                                     speaker={contribution.speaker}
                                     contextHeader={{

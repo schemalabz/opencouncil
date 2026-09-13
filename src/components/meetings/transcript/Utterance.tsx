@@ -21,6 +21,7 @@ import { useEditing } from "../EditingContext";
 import { formatTimestamp } from "@/lib/formatters/time";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { captureScrollAnchor, restoreScrollAnchor } from "@/lib/utils/scrollAnchor";
+import { useExcerptHighlighted } from '@/components/sharing/ExcerptRangeHighlight';
 
 /**
  * Resolve the character offset of a click within a text span.
@@ -75,6 +76,7 @@ const UtteranceC: React.FC<{
     const { toast } = useToast();
     const t = useTranslations('transcript.utterance');
     const localize = useLocalizeText();
+    const excerptHighlighted = useExcerptHighlighted(localUtterance.id);
 
     // Check if selected in Editing Context
     const isSelected = selectedUtteranceIds.has(localUtterance.id);
@@ -106,6 +108,8 @@ const UtteranceC: React.FC<{
     );
 
     const handleClick = (e: React.MouseEvent) => {
+        // Finishing a native text selection must not seek or open the editor.
+        if (!e.shiftKey && !e.ctrlKey && !e.metaKey && window.getSelection()?.toString()) return;
         // Shift-click extends the browser's native text selection in
         // addition to firing onClick. In modes where shift/ctrl/meta mean
         // "extend the utterance range", clear that parallel text selection
@@ -454,7 +458,9 @@ const UtteranceC: React.FC<{
             data-start-timestamp={localUtterance.startTimestamp}
             onClick={handleClick}
         >
-            {displayText}
+            {excerptHighlighted && !options.editable
+                ? <mark className="bg-[hsl(var(--orange)/0.16)] text-inherit dark:bg-[hsl(var(--orange)/0.25)]">{displayText}</mark>
+                : displayText}
         </span>
     );
 

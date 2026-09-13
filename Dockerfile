@@ -12,6 +12,7 @@ RUN apk add --no-cache openssl openssl-dev
 # Workspace member manifests must be present before npm install, or npm
 # resolves the workspace-shaped lockfile against missing directories.
 COPY package*.json .npmrc ./
+COPY packages/subject-images/package.json packages/subject-images/
 COPY packages/ui/package.json packages/ui/
 COPY services/notis/package.json services/notis/
 

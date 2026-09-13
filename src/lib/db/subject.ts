@@ -1,4 +1,5 @@
 import prisma from './prisma';
+import type { CityStatus } from '@prisma/client';
 import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import {
     Subject,
@@ -184,7 +185,7 @@ export async function getSubjectCountsByCityCached(realm: Realm): Promise<Record
                     councilMeeting: {
                         released: true,
                         dateTime: { lte: new Date() },
-                        city: { ...PUBLIC_CITY_WHERE, realm },
+                        city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
                     },
                 },
                 _count: { _all: true },
@@ -333,7 +334,8 @@ type MapSubjectPayload = Prisma.SubjectGetPayload<{ include: typeof mapSubjectIn
  * (locationId set) vs the general/city list (locationId null). Future-dated meetings are always
  * excluded; explicit from/to overrides the quick range; allTime drops only the lower bound.
  */
-export function buildMapSubjectWhere(realm: Realm, f: MapSubjectFilters): Prisma.SubjectWhereInput {
+/** `realm: null` spans every realm — for a caller that ranks the whole platform, like the image backfill. */
+export function buildMapSubjectWhere(realm: Realm | null, f: MapSubjectFilters): Prisma.SubjectWhereInput {
     const now = new Date();
     const dateTime: { gte?: Date; lte: Date } = { lte: now };
     if (f.dateFrom || f.dateTo) {
@@ -362,7 +364,7 @@ export function buildMapSubjectWhere(realm: Realm, f: MapSubjectFilters): Prisma
         councilMeeting: {
             released: true,
             dateTime,
-            city: { ...PUBLIC_CITY_WHERE, realm },
+            city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
             ...(f.bodyTypes?.length ? { administrativeBody: { type: { in: f.bodyTypes } } } : {}),
         },
     };
@@ -717,4 +719,101 @@ export async function getUtterancesForSubject(subjectId: string) {
     });
 
     return utterances;
+}
+
+/** What the illustration prompt is built from: the text, and the city the scene is set in. `null` when the subject does not exist. */
+export async function getSubjectPromptInput(subjectId: string) {
+    return prisma.subject.findUnique({
+        where: { id: subjectId },
+        select: { name: true, description: true, councilMeeting: { select: { city: { select: { name: true, name_en: true, realm: true } } } } },
+    });
+}
+
+/**
+ * The subjects a person spoke on most recently, newest meeting first, from
+ * released meetings only: for a reader with no session, such as the person's
+ * OG image, which is public and cached whoever asked for it.
+ */
+export async function getLatestSubjectsForSpeaker(personId: string, take: number) {
+    // A subject with several contributions by the same speaker repeats; a few more rows cover that.
+    const contributions = await prisma.speakerContribution.findMany({
+        where: { speakerId: personId, subject: { councilMeeting: { released: true } } },
+        select: { subject: { select: { id: true, name: true, topic: { select: { colorHex: true, icon: true } } } } },
+        orderBy: [{ subject: { councilMeeting: { dateTime: 'desc' } } }, { order: 'asc' }],
+        take: take * 4,
+    });
+    const subjects = new Map(contributions.map(({ subject }) => [subject.id, subject]));
+    return [...subjects.values()].slice(0, take);
+}
+
+/**
+ * Whether a subject is public: its meeting released and its city public, the
+ * same test every public reader applies. `null` when the subject does not exist.
+ */
+export async function subjectIsPublic(subjectId: string): Promise<{ cityId: string; public: boolean } | null> {
+    const row = await prisma.subject.findUnique({
+        where: { id: subjectId },
+        select: { cityId: true, councilMeeting: { select: { released: true, city: { select: { status: true } } } } },
+    });
+    if (!row) return null;
+    const publicStatuses: readonly CityStatus[] = PUBLIC_CITY_WHERE.status.in;
+    return { cityId: row.cityId, public: row.councilMeeting.released && publicStatuses.includes(row.councilMeeting.city.status) };
+}
+
+export async function subjectExists(subjectId: string): Promise<boolean> {
+    const row = await prisma.subject.findUnique({ where: { id: subjectId }, select: { id: true } });
+    return row !== null;
+}
+
+export async function getSubjectIdsForMeeting(cityId: string, councilMeetingId: string): Promise<string[]> {
+    const rows = await prisma.subject.findMany({
+        where: { cityId, councilMeetingId },
+        select: { id: true },
+    });
+    return rows.map((row) => row.id);
+}
+
+/** What the image backfill ranks a subject on — the same signals the landing feeds the ranker. */
+export type SubjectImageBackfillRow = {
+    id: string;
+    cityId: string;
+    meetingDate: Date;
+    adminBodyType: AdministrativeBodyType | null;
+    discussionSeconds: number;
+    hasLocation: boolean;
+};
+
+/** Under PostgreSQL's 65535 bind parameters; the discussion-time query spends one per subject. */
+const MAX_BACKFILL_WINDOW = 60_000;
+
+/**
+ * The newest `take` subjects the landing can show, at most MAX_BACKFILL_WINDOW
+ * of them. Newest first because the ranker weighs recency most; bounded
+ * because the discussion-time query binds one parameter per id.
+ */
+export async function getSubjectsForImageBackfill(options: { cityId?: string; monthsBack?: number; take: number }): Promise<SubjectImageBackfillRow[]> {
+    const rows = await prisma.subject.findMany({
+        where: buildMapSubjectWhere(null, {
+            cityIds: options.cityId ? [options.cityId] : undefined,
+            monthsBack: options.monthsBack,
+            allTime: options.monthsBack === undefined,
+        }),
+        select: {
+            id: true,
+            cityId: true,
+            locationId: true,
+            councilMeeting: { select: { dateTime: true, administrativeBody: { select: { type: true } } } },
+        },
+        orderBy: { councilMeeting: { dateTime: 'desc' } },
+        take: Math.min(options.take, MAX_BACKFILL_WINDOW),
+    });
+    const discussionSeconds = await getDiscussionSecondsForSubjects(rows.map((row) => row.id));
+    return rows.map((row) => ({
+        id: row.id,
+        cityId: row.cityId,
+        meetingDate: row.councilMeeting.dateTime,
+        adminBodyType: row.councilMeeting.administrativeBody?.type ?? null,
+        discussionSeconds: discussionSeconds.get(row.id) ?? 0,
+        hasLocation: row.locationId !== null,
+    }));
 }

@@ -33,6 +33,15 @@ export function urlPrefixForLocale(locale: string): string {
 }
 
 /**
+ * The path prefix a locale gets under next-intl's `as-needed` routing: nothing
+ * for the default locale, `/en` or `/lat` otherwise. A link built with the
+ * default locale's prefix is a redirect, not a page.
+ */
+export function localePathPrefix(locale: string): string {
+    return locale === DEFAULT_LOCALE ? '' : `/${urlPrefixForLocale(locale)}`;
+}
+
+/**
  * Regex alternation of every locale's URL prefix (`en|el|fr|sr|lat`), for
  * path-prefix matching in the proxy and route regexes. `next.config.mjs` must
  * inline the same set (it can't import TS); a test guards against drift.

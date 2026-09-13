@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { SidebarTrigger } from '../ui/sidebar'
 import { City } from '@prisma/client'
 import { Input } from "@/components/ui/input"
-import { Search, Bot, Building2, ChevronLeft, ChevronRight, HelpCircle, type LucideIcon } from "lucide-react"
+import { Search, Plug, Building2, ChevronLeft, ChevronRight, HelpCircle, type LucideIcon } from "lucide-react"
 import { useRouter, useSelectedLayoutSegment } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
 import { createPortal } from "react-dom"
@@ -394,7 +394,7 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
                 className={cn(headerControlClass, 'hidden px-3 lg:flex')}
                 title={t('mcp')}
             >
-                <Bot className="h-4 w-4 shrink-0" />
+                <Plug className="h-4 w-4 shrink-0" />
                 <span className="text-sm">{t('mcpShort')}</span>
             </Link>
             {showExplain && (

@@ -12,11 +12,10 @@ import { renderStoryTemplate } from "@/components/og/story-templates";
 import { getSubjectSections, SECTION_LIMITS } from "@/components/og/story-templates/sections";
 import type { PreviewData } from "@/components/og/story-templates/types";
 import { downloadFile } from "@/lib/export/download";
+import { STORY_HEIGHT, STORY_WIDTH } from "@/lib/sharing/story";
 import { renderStoryToBlob, resolveImageToDataUri } from "@/lib/export/storyImage";
 
 // Native template dimensions. Previews use CSS transform: scale() to fit thumbnail tiles.
-const STORY_WIDTH = 1080;
-const STORY_HEIGHT = 1920;
 
 // Each preview tile renders an actual story template (full-size) scaled down via CSS
 // transform so the dialog stays fast even on slow devices. Layout dimensions are still

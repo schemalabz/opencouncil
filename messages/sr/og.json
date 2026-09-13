@@ -1,40 +1,49 @@
 {
     "meeting": {
+        "eyebrow": "Седница",
         "subjects": "{count, plural, =0 {Нема тема} one {# тема} few {# теме} other {# тема}}",
         "moreSubjects": "{count, plural, one {још # тема} few {још # теме} other {још # тема}}"
     },
     "city": {
-        "meetingsRecorded": "{count, plural, =0 {Нема снимљених седница} one {# снимљена седница} few {# снимљене седнице} other {# снимљених седница}}",
-        "stats": {
-            "meetings": "Седнице",
-            "people": "Чланови",
-            "parties": "Одборничке групе"
-        },
-        "supportedByMunicipality": "Уз подршку општине",
-        "supportedByRegion": "Уз подршку региона",
-        "noSupportFromMunicipality": "Без званичне подршке општине",
-        "noSupportFromRegion": "Без званичне подршке региона"
+        "meetings": "{count, plural, =0 {Нема седница} one {# седница} few {# седнице} other {# седница}}",
+        "people": "{count, plural, one {# члан} few {# члана} other {# чланова}}",
+        "parties": "{count, plural, one {# одборничка група} few {# одборничке групе} other {# одборничких група}}",
+        "hotTopics": "Најдискутованије теме"
     },
     "consultation": {
         "badge": "Јавна расправа",
-        "keyTopics": "Главне теме:",
-        "untitledChapter": "Поглавље без наслова"
+        "keyTopics": "Главне теме",
+        "untitledChapter": "Поглавље без наслова",
+        "chapters": "{count, plural, one {# поглавље} few {# поглавља} other {# поглавља}}",
+        "areas": "{count, plural, one {# подручје} few {# подручја} other {# подручја}}",
+        "comments": "{count, plural, one {# коментар} few {# коментара} other {# коментара}}"
     },
     "person": {
-        "council": "Скупштина града"
+        "council": "Скупштина града",
+        "recent": "Недавна излагања"
+    },
+    "party": {
+        "members": "{count, plural, one {# члан} few {# члана} other {# чланова}}",
+        "leader": "Шеф групе: {name}"
     },
     "people": {
-        "title": "Одборници",
-        "count": "{count, plural, one {# одборник} few {# одборника} other {# одборника}}",
-        "more": "и још {count}..."
+        "title": "Одборници"
     },
     "subject": {
-        "minutes": "минута"
+        "speakers": "{count, plural, one {# говорник} few {# говорника} other {# говорника}}",
+        "discussion": "{minutes, number}′ расправе",
+        "notFound": "Тема није пронађена"
     },
     "search": {
         "title": "Претрага",
-        "description": "Пронађите теме, излагања одборника и статистику са седница свих скупштина",
-        "footer": "OpenCouncil • Паметна претрага"
+        "subtitle": "у свим скупштинама",
+        "placeholder": "Претражите тему или адресу…",
+        "chips": [
+            "Теме",
+            "Излагања одборника",
+            "Особе",
+            "Одлуке"
+        ]
     },
     "about": {
         "tags": [
@@ -47,12 +56,6 @@
     "landing": {
         "headlineTop": "О чему расправља скупштина,",
         "headlineBottom": "на једној мапи",
-        "subtitle": "Теме са седница скупштине — по подручју, по категорији и по датуму.",
-        "tags": [
-            "Мапа тема",
-            "Претрага",
-            "Обавештења",
-            "Седнице"
-        ]
+        "subtitle": "Теме са седница скупштине, по подручју, по категорији и по датуму."
     }
 }

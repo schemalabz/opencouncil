@@ -35,7 +35,7 @@ export async function generateMetadata(
     const partyName = getLocalizedName(party, params.locale);
     const cityName = getLocalizedName(city, params.locale);
     const description = `Η παράταξη ${partyName} στο Δημοτικό Συμβούλιο του Δήμου ${cityName}. Δείτε τα μέλη, τις τοποθετήσεις και τη δραστηριότητά της στις συνεδριάσεις.`;
-    const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId });
+    const ogImageUrl = buildOgImageUrl(params.locale, { cityId: params.cityId, partyId: params.partyId });
 
     return {
         title: `${partyName} | ${cityName} | OpenCouncil`,

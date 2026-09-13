@@ -15,6 +15,7 @@ jest.mock('next/navigation', () => ({
 }));
 jest.mock('@/lib/statistics', () => ({ getBatchStatisticsForSubjects: jest.fn().mockResolvedValue(new Map()) }));
 jest.mock('@/components/TopicIcon', () => ({ TopicIcon: () => <span data-testid="topic-icon" /> }));
+jest.mock('@/components/icon', () => ({ __esModule: true, default: () => null }));
 jest.mock('@/components/persons/PersonAvatarList', () => ({ PersonAvatarList: () => null }));
 jest.mock('@/components/meetings/HighlightVideo', () => ({ HighlightVideo: () => null }));
 // A row lights its runs on the playback bar; that context reaches prisma and
@@ -95,5 +96,18 @@ describe.each(['row', 'card'] as const)('SubjectListContainer variant=%s', (vari
         const { container } = await renderList(variant, makeSubject());
         expect(container.querySelector('mark')).toBeNull();
         expect(screen.getByText(/Αίτηση για/)).toHaveTextContent(NAME);
+    });
+});
+
+describe('SubjectListContainer rosters', () => {
+    it('fetches the city rosters for the card, which draws speakers and parties', async () => {
+        await renderList('card', makeSubject());
+        expect(global.fetch).toHaveBeenCalledWith('/api/cities/athens/people');
+        expect(global.fetch).toHaveBeenCalledWith('/api/cities/athens/parties');
+    });
+
+    it('fetches no roster for the row, which draws neither', async () => {
+        await renderList('row', makeSubject());
+        expect(global.fetch).not.toHaveBeenCalled();
     });
 });

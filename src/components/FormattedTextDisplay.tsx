@@ -9,6 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import type { Element, ElementContent } from 'hast';
 import { UtteranceReferenceLink } from "./meetings/subject/UtteranceReferenceLink";
 import { serbianScriptForLocale, toScript, type SerbianScript } from "@/lib/serbian";
+import { localePath } from '@/lib/sharing/excerptSelector';
 
 // Rehype plugin transliterating only TEXT nodes to the active Serbian script.
 // Operating on the hast tree (rather than the raw markdown string) keeps
@@ -46,6 +47,8 @@ interface FormattedTextDisplayProps {
      * where the expansion mini-transcript cannot resolve utterance data.
      */
     disableUtteranceExpansion?: boolean;
+    /** Server-validated source links for pages without a meeting provider. */
+    utteranceLinks?: Record<string, string>;
 }
 
 export const FormattedTextDisplay = memo(function FormattedTextDisplay({
@@ -55,6 +58,7 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
     cityId,
     linkColor = 'blue',
     disableUtteranceExpansion = false,
+    utteranceLinks,
 }: FormattedTextDisplayProps) {
     const locale = useLocale();
     const script = serbianScriptForLocale(locale);
@@ -78,7 +82,7 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
 
         return (
             <a
-                href={href}
+                href={localePath(locale, href)}
                 onClick={() => captureEvent('subject_action', {
                     action: entityType === 'people' ? 'ref_person' : 'ref_subject',
                     ref_id: id,
@@ -96,7 +100,7 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
     return (
         <div className="prose prose-sm max-w-none dark:prose-invert">
             <ReactMarkdown
-                urlTransform={(url) => url} // Pass through all URLs unchanged
+                urlTransform={(url) => url.startsWith('REF:') || /^(https?:\/\/|\/(?!\/)|#)/i.test(url) ? url : ''}
                 rehypePlugins={rehypePlugins}
                 components={{
                     // A block element inside a <p> is invalid HTML. Only a paragraph
@@ -111,7 +115,8 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
 
                     // Custom link renderer to handle REF:TYPE:ID links
                     a: ({ href, children }) => {
-                        if (!href || !href.startsWith('REF:')) {
+                        if (!href) return <span>{children}</span>;
+                        if (!href.startsWith('REF:')) {
                             // Regular link
                             return <a href={href} target="_blank" rel="noopener noreferrer" className={linkClassName} style={linkStyle}>{children}</a>;
                         }
@@ -125,6 +130,10 @@ export const FormattedTextDisplay = memo(function FormattedTextDisplay({
 
                         switch (refType) {
                             case 'utterance':
+                                if (utteranceLinks !== undefined) {
+                                    const sourceHref = utteranceLinks[id];
+                                    return sourceHref ? <a href={sourceHref} className={`${linkClassName} inline`} style={linkStyle} onClick={() => captureEvent('subject_action', { action: 'ref_utterance', surface: 'shared_contribution', ref_id: id, city_id: cityId, meeting_id: meetingId })}>{children}</a> : <span>{children}</span>;
+                                }
                                 if (disableUtteranceExpansion) {
                                     // No expansion here means the ref is inert — plain text,
                                     // not an underline promising a click that does nothing.
