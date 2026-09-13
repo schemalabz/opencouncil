@@ -57,6 +57,8 @@
     "notSupportedYet": "Pas encore sur OpenCouncil",
     "supportedAlready": "Déjà sur OpenCouncil",
     "noResults": "Aucune commune pour « {query} ».",
-    "noResultsPetition": "Demandez le soutien de votre commune"
+    "noResultsPetition": "Demandez le soutien de votre commune",
+    "petitioned": "{count}+ habitants l'ont déjà demandé",
+    "searchForYours": "Vous ne voyez pas votre commune ? Cherchez-la ci-dessus."
   }
 }

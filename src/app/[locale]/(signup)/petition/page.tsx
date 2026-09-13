@@ -5,6 +5,7 @@ import { MunicipalityPicker } from "@/components/signup/MunicipalityPicker";
 import { Eyebrow, SignupLayout, StepHeading } from "@/components/signup/SignupChrome";
 import { getCurrentUser } from "@/lib/auth";
 import { getAllCitiesMinimalCached } from "@/lib/cache/queries";
+import { getPetitionedMapCitiesCached } from "@/lib/db/cities";
 import { getUserSignupCityIds } from "@/lib/db/signup";
 import { getRealm } from "@/lib/realm.server";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
@@ -22,9 +23,12 @@ export async function generateMetadata(): Promise<Metadata> {
  * The petition's municipality-agnostic entry: what asking does, then which
  * municipality — found by the search, because a few hundred are too many to
  * scan. A tap lands on step 2 of the petition; a municipality that already
- * has notifications is offered the signup instead. `?q=` is what the reader
- * typed on /notifications before it sent them here, so they do not type it
- * twice. Νότης is not on this page: the petition is not about him.
+ * has notifications is offered the signup instead. Before any search the
+ * list is the municipalities already being asked for, in the landing map's
+ * order and with its coarse counts — a few hundred can be asked for, and a
+ * list of all of them said nothing. `?q=` is what the reader typed on
+ * /notifications before it sent them here, so they do not type it twice.
+ * Νότης is not on this page: the petition is not about him.
  */
 export default async function PetitionPickerPage(props: { searchParams: Promise<{ q?: string }> }) {
     const [{ q }, realm, user, t] = await Promise.all([
@@ -33,8 +37,9 @@ export default async function PetitionPickerPage(props: { searchParams: Promise<
         getCurrentUser(),
         getTranslations("petition"),
     ]);
-    const [cities, membership] = await Promise.all([
+    const [cities, petitioned, membership] = await Promise.all([
         getAllCitiesMinimalCached(realm),
+        getPetitionedMapCitiesCached(realm),
         user ? getUserSignupCityIds(user.id) : { subscribedCityIds: [], petitionedCityIds: [] },
     ]);
 
@@ -50,6 +55,7 @@ export default async function PetitionPickerPage(props: { searchParams: Promise<
                 cities={cities}
                 mode="petition"
                 membership={membership}
+                petitioned={petitioned.cities.map((city) => ({ id: city.id, bucket: city.bucket }))}
                 initialQuery={q ?? ""}
                 className="mt-2.5"
             />

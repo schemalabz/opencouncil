@@ -57,6 +57,8 @@
     "notSupportedYet": "Још није на OpenCouncil-у",
     "supportedAlready": "Већ на OpenCouncil-у",
     "noResults": "Ниједна општина за „{query}“.",
-    "noResultsPetition": "Затражите подршку своје општине"
+    "noResultsPetition": "Затражите подршку своје општине",
+    "petitioned": "{count}+ грађана је већ затражило",
+    "searchForYours": "Не видите своју општину? Потражите је изнад."
   }
 }

@@ -7,6 +7,7 @@ import { Link } from '@/i18n/routing';
 import { captureEvent } from '@/lib/analytics/capture';
 import { isPetitionable } from '@/lib/cityStatus';
 import type { CityMinimalWithCounts } from '@/lib/db/cities';
+import type { PetitionBucket } from '@/lib/landing/petitions';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { cn, normalizeText } from '@/lib/utils';
@@ -14,6 +15,13 @@ import { CitySeal } from './CityCard';
 import { Eyebrow } from './SignupChrome';
 
 export type PickerMode = 'notifications' | 'petition';
+
+/** A municipality with enough petitions to be shown, in the landing map's rank order. */
+export interface PetitionedEntry {
+    id: string;
+    /** The public "N+" bucket; the exact count never reaches the client. */
+    bucket: PetitionBucket;
+}
 
 /** The municipalities a signed-in reader is already in, so a row can say so. */
 export interface PickerMembership {
@@ -26,10 +34,12 @@ export interface PickerMembership {
  *
  * In notifications mode the list is the municipalities Νότης serves; a
  * search also finds the ones he does not, and offers the petition for them.
- * In petition mode the list is every municipality that can be asked for,
- * and a search hit that already has notifications offers the signup
- * instead. A row the reader is already in says so, and its action changes
- * from joining to editing.
+ * In petition mode the list is the municipalities already being asked for,
+ * ranked as the landing map ranks them (`petitioned`, 10+ petitions, exact
+ * counts never shown) — a few hundred more can be asked for, and the search
+ * finds every one of them. A search hit that already has notifications
+ * offers the signup instead. A row the reader is already in says so, and
+ * its action changes from joining to editing.
  *
  * A search that finds nothing in notifications mode sends the reader to the
  * petition with what they typed, and the petition's picker starts from it —
@@ -39,18 +49,25 @@ export function MunicipalityPicker({
     cities,
     mode,
     membership,
+    petitioned = [],
     initialQuery = '',
     className,
 }: {
     cities: CityMinimalWithCounts[];
     mode: PickerMode;
     membership: PickerMembership;
+    /** Petition mode: the municipalities to list before any search, ranked. */
+    petitioned?: PetitionedEntry[];
     initialQuery?: string;
     className?: string;
 }) {
     const t = useTranslations('signup');
     const [query, setQuery] = useState(initialQuery);
     const needle = normalizeText(query.trim());
+
+    // Rank and bucket by id, so a row can say «10+ δημότες το ζήτησαν ήδη»
+    // and a search keeps the asked-for municipalities on top.
+    const petitionedById = useMemo(() => new Map(petitioned.map((entry, rank) => [entry.id, { ...entry, rank }])), [petitioned]);
 
     const { primary, secondary } = useMemo(() => {
         // A word start, so «Θ» lists Θεσσαλονίκη and not every name with a theta
@@ -63,16 +80,22 @@ export function MunicipalityPicker({
         const matches = (city: CityMinimalWithCounts) =>
             !needle || [city.name, city.name_en, city.name_municipality, city.name_municipality_en].some(hit);
         const supported = cities.filter((city) => city.supportsNotifications);
-        const petitionable = cities.filter((city) => !city.supportsNotifications && isPetitionable(city.status));
+        const rankOf = (city: CityMinimalWithCounts) => petitionedById.get(city.id)?.rank ?? Number.MAX_SAFE_INTEGER;
+        const petitionable = cities
+            .filter((city) => !city.supportsNotifications && isPetitionable(city.status))
+            .sort((a, b) => rankOf(a) - rankOf(b));
+        if (mode === 'petition' && !needle) {
+            return { primary: petitionable.filter((city) => petitionedById.has(city.id)), secondary: [] };
+        }
         const [first, second] = mode === 'notifications' ? [supported, petitionable] : [petitionable, supported];
         return {
             primary: first.filter(matches),
             secondary: needle ? second.filter(matches) : [],
         };
-    }, [cities, mode, needle]);
+    }, [cities, mode, needle, petitionedById]);
 
     const subscribed = new Set(membership.subscribedCityIds);
-    const petitioned = new Set(membership.petitionedCityIds);
+    const petitionedBy = new Set(membership.petitionedCityIds);
     const nothingFound = needle !== '' && primary.length === 0 && secondary.length === 0;
 
     return (
@@ -111,11 +134,16 @@ export function MunicipalityPicker({
                         key={city.id}
                         city={city}
                         kind={mode === 'notifications' ? 'signup' : 'petition'}
-                        member={mode === 'notifications' ? subscribed.has(city.id) : petitioned.has(city.id)}
+                        member={mode === 'notifications' ? subscribed.has(city.id) : petitionedBy.has(city.id)}
+                        bucket={petitionedById.get(city.id)?.bucket ?? null}
                         surface={mode}
                     />
                 ))}
             </ul>
+
+            {mode === 'petition' && !needle && (
+                <p className="border-t border-border px-3.5 py-3 text-sm text-muted-foreground">{t('picker.searchForYours')}</p>
+            )}
 
             {secondary.length > 0 && (
                 <>
@@ -128,7 +156,8 @@ export function MunicipalityPicker({
                                 key={city.id}
                                 city={city}
                                 kind={mode === 'notifications' ? 'petition' : 'signup'}
-                                member={mode === 'notifications' ? petitioned.has(city.id) : subscribed.has(city.id)}
+                                member={mode === 'notifications' ? petitionedBy.has(city.id) : subscribed.has(city.id)}
+                                bucket={petitionedById.get(city.id)?.bucket ?? null}
                                 surface={mode}
                             />
                         ))}
@@ -148,12 +177,15 @@ function PickerRow({
     city,
     kind,
     member,
+    bucket,
     surface,
 }: {
     city: CityMinimalWithCounts;
     kind: 'signup' | 'petition';
     /** The reader is already in: subscribed, or on the petition. */
     member: boolean;
+    /** How many have asked already, as the public "N+" bucket; null when too few to say. */
+    bucket: PetitionBucket | null;
     surface: PickerMode;
 }) {
     const t = useTranslations('signup');
@@ -193,7 +225,7 @@ function PickerRow({
                         </span>
                     ) : (
                         <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                            {getLocalizedMunicipalityName(city, locale)}
+                            {bucket !== null ? t('picker.petitioned', { count: bucket }) : getLocalizedMunicipalityName(city, locale)}
                         </span>
                     )}
                 </span>

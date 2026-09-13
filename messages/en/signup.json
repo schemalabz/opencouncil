@@ -57,6 +57,8 @@
     "notSupportedYet": "Not on OpenCouncil yet",
     "supportedAlready": "Already on OpenCouncil",
     "noResults": "No municipality matches “{query}”.",
-    "noResultsPetition": "Ask for your municipality to be supported"
+    "noResultsPetition": "Ask for your municipality to be supported",
+    "petitioned": "{count}+ residents have already asked",
+    "searchForYours": "Do not see your municipality? Search for it above."
   }
 }
