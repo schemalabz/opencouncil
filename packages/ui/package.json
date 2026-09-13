@@ -40,7 +40,7 @@
     "date-fns": "^3.6.0",
     "framer-motion": "^12.40.0",
     "libphonenumber-js": "^1.13.12",
-    "lucide-react": "^0.436.0",
+    "lucide-react": "^1.42.0",
     "react-day-picker": "^8.10.1",
     "react-hook-form": "^7.87.0",
     "react-international-phone": "^4.8.0",
