@@ -13,8 +13,8 @@ import { DecisionCard } from "./DecisionCard";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { Link } from "@/i18n/routing";
 import { ColorPercentageRing } from "@/components/ui/color-percentage-ring";
-import { cn, sortSubjectsByAgendaIndex, subjectToMapFeature } from "@/lib/utils";
-import { categorizeSubjects } from "@/lib/utils/subjects";
+import { cn, subjectToMapFeature } from "@/lib/utils";
+import { categorizeSubjectsInAgendaOrder } from "@/lib/utils/subjects";
 import { hasExplainPage } from "@/lib/explain/availability";
 import { notFound } from "next/navigation";
 import { SubjectContext } from "./context";
@@ -159,8 +159,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
     // The subjects either side of this one, in the order the sidebar lists them:
     // before the agenda, outside it, then the agenda by its numbers.
     const neighbours = useMemo(() => {
-        const grouped = categorizeSubjects(subjects);
-        const ordered = [...grouped.beforeAgenda, ...grouped.outOfAgenda, ...sortSubjectsByAgendaIndex(grouped.agenda)];
+        const grouped = categorizeSubjectsInAgendaOrder(subjects);
+        const ordered = [...grouped.beforeAgenda, ...grouped.outOfAgenda, ...grouped.agenda];
         const index = ordered.findIndex(candidate => candidate.id === subject.id);
         // A subject in no category is in no list to step through.
         if (index === -1) return { previous: null, next: null };

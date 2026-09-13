@@ -21,8 +21,8 @@ import Link from "next/link"
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext"
 import { useState, useEffect, useMemo } from "react"
 import { usePathname } from "next/navigation"
-import { cn, sortSubjectsByAgendaIndex } from "@/lib/utils"
-import { categorizeSubjects, getSubjectCategories } from "@/lib/utils/subjects"
+import { cn } from "@/lib/utils"
+import { categorizeSubjectsInAgendaOrder, getSubjectCategories } from "@/lib/utils/subjects"
 import { useTranscriptOptions } from "./options/OptionsContext"
 import { useTranslations } from 'next-intl'
 
@@ -40,13 +40,7 @@ export default function MeetingSidebar() {
     const canEdit = options.editsAllowed
     const canCreateHighlights = options.canCreateHighlights
 
-    const { beforeAgenda, outOfAgenda, agenda } = useMemo(() => {
-        const categorized = categorizeSubjects(subjects)
-        return {
-            ...categorized,
-            agenda: sortSubjectsByAgendaIndex(categorized.agenda),
-        }
-    }, [subjects])
+    const { beforeAgenda, outOfAgenda, agenda } = useMemo(() => categorizeSubjectsInAgendaOrder(subjects), [subjects])
 
     // Sync with pathname when it changes
     useEffect(() => {
