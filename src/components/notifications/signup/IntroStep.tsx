@@ -4,6 +4,7 @@ import { CheckCircle2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { authorityKey } from '@/components/cities/overview/authorityKey';
 import { CityCard } from '@/components/signup/CityCard';
+import { MemberNote } from '@/components/signup/MemberNote';
 import { NotisChatCard } from '@/components/signup/NotisChatCard';
 import { StepHeading } from '@/components/signup/SignupChrome';
 import type { CityWithGeometry } from '@/lib/db/cities';
@@ -46,9 +47,11 @@ export function IntroStep({ city, existing }: { city: CityWithGeometry; existing
 
             <NotisChatCard intro={tc(authorityKey('notisIntro', city))} className="mt-4 lg:hidden" />
 
-            <p className="mt-3.5 text-xs leading-[1.45] text-muted-foreground lg:mt-5 lg:text-[13px]">
-                {existing ? t('alreadySubscribedBody') : t('introNote')}
-            </p>
+            {existing ? (
+                <MemberNote title={ts('picker.subscribed')} body={t('alreadySubscribedBody')} className="mt-3.5 lg:mt-5" />
+            ) : (
+                <p className="mt-3.5 text-xs leading-[1.45] text-muted-foreground lg:mt-5 lg:text-[13px]">{t('introNote')}</p>
+            )}
         </div>
     );
 }

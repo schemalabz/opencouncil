@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { authorityKey } from '@/components/cities/overview/authorityKey';
 import { CityCard } from '@/components/signup/CityCard';
+import { MemberNote } from '@/components/signup/MemberNote';
 import { StepHeading } from '@/components/signup/SignupChrome';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
@@ -42,9 +43,11 @@ export function PetitionIntroStep({
                 status={bucket !== null ? tc('petitionCount', { count: bucket }) : t('notInNetwork')}
             />
 
-            <p className="mt-3.5 text-xs leading-[1.45] text-muted-foreground lg:mt-5 lg:text-[13px]">
-                {existing ? t('alreadyRequestedBody') : t('introNote')}
-            </p>
+            {existing ? (
+                <MemberNote title={ts('picker.requested')} body={t('alreadyRequestedBody')} className="mt-3.5 lg:mt-5" />
+            ) : (
+                <p className="mt-3.5 text-xs leading-[1.45] text-muted-foreground lg:mt-5 lg:text-[13px]">{t('introNote')}</p>
+            )}
             {!existing && (
                 <p className="mt-2 text-xs leading-[1.45] text-muted-foreground lg:text-[13px]">
                     {t.rich('pricingNote', {
