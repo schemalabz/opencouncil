@@ -60,7 +60,14 @@ const TWO_COLUMN_GRID = 'grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10
  * server (RelatedSubjectsSection) and handed in as a slot: this component is
  * a client component, and the section's rows have to be in the HTML.
  */
-export default function Subject({ subjectId, highlightedContributionId, related }: { subjectId?: string; highlightedContributionId?: string; related?: React.ReactNode }) {
+export default function Subject({ subjectId, highlightedContributionId, related, relatedStrip }: {
+    subjectId?: string;
+    highlightedContributionId?: string;
+    /** The related-subjects section, below the statements. */
+    related?: React.ReactNode;
+    /** The recurrence strip, under the title's meta row. */
+    relatedStrip?: React.ReactNode;
+}) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
     // What the empty summary and statements say while the meeting is not complete.
     const { stage, deadline } = useMeetingStage();
@@ -309,6 +316,7 @@ export default function Subject({ subjectId, highlightedContributionId, related 
                                 </span>
                             )}
                         </div>
+                        {relatedStrip}
                         {/* One robot for the picture and the summary alike; the badge beside
                             the summary still names the text it sits next to. */}
                         <AIDisclosure className="absolute bottom-5 right-3 md:bottom-6 md:right-6" />
