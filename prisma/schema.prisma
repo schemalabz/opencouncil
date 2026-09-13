@@ -821,7 +821,8 @@ model User {
   name          String?
   email         String          @unique
   emailVerified DateTime?
-  phone         String?
+  /// One account per mobile number: Νότης is one conversation per number.
+  phone         String?         @unique
   onboarded     Boolean         @default(false)
   allowProductUpdates  Boolean  @default(true)
   allowPetitionUpdates Boolean  @default(false)
@@ -857,8 +858,6 @@ model User {
   mcpTokens UserMcpToken[]
   searchQueries SearchQuery[]
 
-  // Webhook gates resolve senders by phone on every WhatsApp event.
-  @@index([phone])
 }
  
 model Account {

@@ -23,6 +23,7 @@ const MIGRATION_PATHS = [
     '20260906210000_phone_consent_per_user',
     '20260913120000_drop_preference_phone_consent',
     '20260913120100_drop_notis_rollout_flag',
+    '20260913120200_unique_user_phone',
 ].map((name) => path.join(__dirname, `../../prisma/migrations/${name}/migration.sql`))
 
 /** The consumer's half of the contract: the Prisma models Notis reads the
