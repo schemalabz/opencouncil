@@ -1,5 +1,10 @@
 {
     "manifest": {
         "description": "Votre conseil municipal, dans votre poche. Séances, décisions et qui a dit quoi, en langage clair."
+    },
+    "offline": {
+        "title": "Vous êtes hors ligne",
+        "body": "OpenCouncil a besoin d'une connexion pour charger cette page. Vérifiez votre réseau et réessayez.",
+        "retry": "Réessayer"
     }
 }
