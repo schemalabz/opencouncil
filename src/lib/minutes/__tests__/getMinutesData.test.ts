@@ -37,7 +37,7 @@ function subjectRow(o: {
     name: string;
     agendaItemTitle: string | null;
     agendaItemIndex: number;
-    discussedIn?: { id: string; name: string; agendaItemTitle: string | null; agendaItemIndex: number };
+    discussedIn?: { id: string; name: string; agendaItemTitle: string | null; agendaItemIndex: number; nonAgendaReason?: string | null };
 }) {
     return {
         id: o.id,
@@ -46,7 +46,7 @@ function subjectRow(o: {
         agendaItemIndex: o.agendaItemIndex,
         nonAgendaReason: null,
         withdrawn: false,
-        discussedIn: o.discussedIn ?? null,
+        discussedIn: o.discussedIn ? { nonAgendaReason: null, ...o.discussedIn } : null,
         decision: null,
         highlights: [],
         contributions: [],
@@ -55,14 +55,14 @@ function subjectRow(o: {
     };
 }
 
-function utterance(o: { id: string; start: number; end: number; subjectId: string }) {
+function utterance(o: { id: string; start: number; end: number; subjectId: string; status?: string }) {
     return {
         id: o.id,
         text: `text ${o.id}`,
         startTimestamp: o.start,
         endTimestamp: o.end,
         discussionSubjectId: o.subjectId,
-        discussionStatus: 'DISCUSSED',
+        discussionStatus: o.status ?? 'DISCUSSED',
         speakerSegment: { speakerTag: { label: 'Ομιλητής', personId: null } },
     };
 }
@@ -108,7 +108,7 @@ describe('getMinutesData — subject names carry the agenda title', () => {
         const data = await getMinutesData(CITY_ID, MEETING_ID);
         const s3 = data.subjects.find(s => s.subjectId === 's3')!;
 
-        expect(s3.discussedWith).toEqual({ id: 's1', name: 'ΤΙΤΛΟΣ ΕΝΑ', agendaItemIndex: 1 });
+        expect(s3.discussedWith).toEqual({ id: 's1', name: 'ΤΙΤΛΟΣ ΕΝΑ', agendaItemIndex: 1, nonAgendaReason: null });
     });
 
     it('prints the title in the discussedElsewhere back-reference', async () => {
@@ -130,5 +130,42 @@ describe('getMinutesData — subject names carry the agenda title', () => {
 
         expect(crossNames.length).toBeGreaterThan(0);
         expect(new Set(crossNames)).toEqual(new Set(['ΤΙΤΛΟΣ ΤΡΙΑ']));
+    });
+});
+
+describe('getMinutesData — discussion summary and procedural votes', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockGetCouncilMeeting.mockResolvedValue({
+            id: MEETING_ID, cityId: CITY_ID, name: 'Συνεδρίαση', dateTime: new Date('2026-06-15T18:00:00Z'), administrativeBody: null,
+        });
+        mockGetCity.mockResolvedValue({ name: 'Δήμος', name_municipality: 'Δήμος', timezone: 'Europe/Athens', logoImage: null, realm: 'greece' });
+        mockGetSubjectsForMeeting.mockResolvedValue([
+            subjectRow({ id: 's1', name: 'Ένα', agendaItemTitle: null, agendaItemIndex: 1 }),
+            subjectRow({ id: 's2', name: 'Δύο', agendaItemTitle: null, agendaItemIndex: 2 }),
+            { ...subjectRow({ id: 'oa1', name: 'Κατεπείγον', agendaItemTitle: null, agendaItemIndex: 0 }), agendaItemIndex: null, nonAgendaReason: 'outOfAgenda' },
+        ]);
+        mockUtteranceFindMany.mockResolvedValue([
+            utterance({ id: 'u0', start: 10, end: 20, subjectId: 'oa1', status: 'PROCEDURAL_VOTE' }),
+            utterance({ id: 'u1', start: 100, end: 160, subjectId: 's1', status: 'SUBJECT_DISCUSSION' }),
+            utterance({ id: 'u2', start: 200, end: 210, subjectId: 's2', status: 'VOTE' }),
+            utterance({ id: 'u3', start: 300, end: 330, subjectId: 'oa1', status: 'SUBJECT_DISCUSSION' }),
+        ]);
+    });
+
+    it('carries the discussion summary of every subject', async () => {
+        const data = await getMinutesData(CITY_ID, MEETING_ID);
+        const byId = new Map(data.subjects.map(s => [s.subjectId, s.discussion]));
+        expect(byId.get('s1')).toEqual({ kind: 'discussed', seconds: 60, start: 100 });
+        expect(byId.get('s2')).toEqual({ kind: 'voteOnly', seconds: 0, start: 200 });
+        expect(byId.get('oa1')).toEqual({ kind: 'discussed', seconds: 30, start: 300 });
+    });
+
+    it('lists the urgency vote as a procedural vote and does not move the subject', async () => {
+        const data = await getMinutesData(CITY_ID, MEETING_ID);
+        expect(data.proceduralVotes).toEqual([
+            { subjectId: 'oa1', name: 'Κατεπείγον', agendaItemIndex: null, nonAgendaReason: 'outOfAgenda', kind: 'urgency', timestamp: 10 },
+        ]);
+        expect(data.subjects.map(s => s.subjectId)).toEqual(['s1', 's2', 'oa1']);
     });
 });

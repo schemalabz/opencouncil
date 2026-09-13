@@ -40,8 +40,13 @@ export interface MinutesVoteResult {
  * there is — the same rule `sortSubjectsByDiscussionOrder` receives.
  */
 export interface MinutesDiscussionSummary {
-    /** 'discussed' = SUBJECT_DISCUSSION present; 'voteOnly' = only VOTE; 'none' = neither */
-    kind: 'discussed' | 'voteOnly' | 'none';
+    /**
+     * 'discussed' = SUBJECT_DISCUSSION present; 'voteOnly' = only VOTE; 'other'
+     * = linked utterances exist but none is SUBJECT_DISCUSSION or VOTE
+     * (ATTENDANCE, OTHER, null status, or only PROCEDURAL_VOTE); 'none' = no
+     * linked utterance at all.
+     */
+    kind: 'discussed' | 'voteOnly' | 'other' | 'none';
     /** Seconds of SUBJECT_DISCUSSION utterances. 0 unless kind is 'discussed'. */
     seconds: number;
     /** Timestamp in seconds, null when the subject has no linked utterance. */
@@ -89,6 +94,7 @@ export interface MinutesSubject {
         id: string;
         name: string;
         agendaItemIndex: number | null;
+        nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
     } | null;
 
     /** Subjects whose discussion partially occurred within another subject's section */
@@ -109,6 +115,7 @@ export interface MinutesSubject {
 
     attendance: MinutesAttendance | null;
     voteResult: MinutesVoteResult | null;
+    discussion: MinutesDiscussionSummary;
     /** Orphaned utterances that fall between the previous subject and this one */
     preDiscussionEntries: MinutesTranscriptEntry[];
     transcriptEntries: MinutesTranscriptEntry[];
@@ -139,9 +146,14 @@ export interface MinutesProceduralVote {
     subjectId: string;
     name: string;
     agendaItemIndex: number | null;
-    nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
-    /** outOfAgenda subjects vote on admission; every other subject on withdrawal */
-    kind: 'urgency' | 'withdrawal';
+    /** Section subjects never carry beforeAgenda — only outOfAgenda ones vote on admission. */
+    nonAgendaReason: 'outOfAgenda' | null;
+    /**
+     * An outOfAgenda subject's procedural vote is the vote on its admission
+     * (urgency). For any other subject the stored status has no subtype, so
+     * it is only "procedural".
+     */
+    kind: 'urgency' | 'procedural';
     timestamp: number;
 }
 
@@ -170,6 +182,8 @@ export interface MinutesData {
     attendanceChanges: MinutesAttendanceChange[];
     /** Discussion order summary, only set when subjects were discussed out of natural order */
     discussionOrderLabel: string | null;
+    /** Procedural votes in time order. Empty when the transcript has none. */
+    proceduralVotes: MinutesProceduralVote[];
     subjects: MinutesSubject[];
     /** Orphaned utterances after the last subject (closing remarks) */
     epilogueEntries: MinutesTranscriptEntry[];

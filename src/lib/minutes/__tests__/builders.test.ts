@@ -622,9 +622,14 @@ describe('buildDiscussionSummary', () => {
         expect(buildDiscussionSummary([])).toEqual({ kind: 'none', seconds: 0, start: null });
     });
 
-    it('is none but placed by the procedural vote when that is all there is', () => {
+    it('is other, placed by the procedural vote, when that is all there is', () => {
         const result = buildDiscussionSummary([u(40, 50, 'PROCEDURAL_VOTE'), u(50, 55, 'PROCEDURAL_VOTE')]);
-        expect(result).toEqual({ kind: 'none', seconds: 0, start: 40 });
+        expect(result).toEqual({ kind: 'other', seconds: 0, start: 40 });
+    });
+
+    it('is other for utterances of ATTENDANCE or OTHER status only', () => {
+        const result = buildDiscussionSummary([u(70, 75, 'ATTENDANCE'), u(80, 85, 'OTHER')]);
+        expect(result).toEqual({ kind: 'other', seconds: 0, start: 70 });
     });
 
     it('takes the earliest start even when utterances arrive out of order', () => {
@@ -670,11 +675,11 @@ describe('buildProceduralVotes', () => {
         expect(result[0].kind).toBe('urgency');
     });
 
-    it('marks every other subject as a withdrawal vote', () => {
+    it('marks every other subject as a procedural vote', () => {
         const result = buildProceduralVotes([
             u(900, 'PROCEDURAL_VOTE', 's5'),
         ], subjects);
-        expect(result[0].kind).toBe('withdrawal');
+        expect(result[0].kind).toBe('procedural');
     });
 
     it('ignores procedural utterances linked to a subject outside the list', () => {

@@ -449,13 +449,13 @@ export function buildDiscussionSummary(utterances: SummaryUtterance[]): MinutesD
             hasVote = true;
         }
     }
-    const kind = hasDiscussion ? 'discussed' : hasVote ? 'voteOnly' : 'none';
+    const kind = hasDiscussion ? 'discussed' : hasVote ? 'voteOnly' : utterances.length > 0 ? 'other' : 'none';
     return { kind, seconds, start: start ?? proceduralStart };
 }
 
 export function buildProceduralVotes(
     utterances: Array<{ startTimestamp: number; discussionStatus: string | null; discussionSubjectId: string | null }>,
-    subjects: Array<{ id: string; name: string; agendaItemIndex: number | null; nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null }>,
+    subjects: Array<{ id: string; name: string; agendaItemIndex: number | null; nonAgendaReason: 'outOfAgenda' | null }>,
 ): MinutesProceduralVote[] {
     const byId = new Map(subjects.map(s => [s.id, s]));
     const first = new Map<string, number>();
@@ -473,7 +473,7 @@ export function buildProceduralVotes(
             name: s.name,
             agendaItemIndex: s.agendaItemIndex,
             nonAgendaReason: s.nonAgendaReason,
-            kind: s.nonAgendaReason === 'outOfAgenda' ? 'urgency' : 'withdrawal',
+            kind: s.nonAgendaReason === 'outOfAgenda' ? 'urgency' : 'procedural',
             timestamp,
         });
     }
