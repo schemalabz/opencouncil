@@ -55,7 +55,7 @@
     "changeRequest": "Modifier les informations",
     "requested": "Vous l'avez déjà demandé",
     "notSupportedYet": "Pas encore sur OpenCouncil",
-    "supportedAlready": "Envoient déjà des alertes",
+    "supportedAlready": "Déjà sur OpenCouncil",
     "noResults": "Aucune commune pour « {query} ».",
     "noResultsPetition": "Demandez le soutien de votre commune"
   }

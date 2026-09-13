@@ -55,7 +55,7 @@
     "changeRequest": "Промени податке",
     "requested": "Већ сте затражили",
     "notSupportedYet": "Још није на OpenCouncil-у",
-    "supportedAlready": "Већ шаљу обавештења",
+    "supportedAlready": "Већ на OpenCouncil-у",
     "noResults": "Ниједна општина за „{query}“.",
     "noResultsPetition": "Затражите подршку своје општине"
   }
