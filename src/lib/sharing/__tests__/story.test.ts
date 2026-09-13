@@ -3,7 +3,8 @@ jest.mock('next-intl/server', () => ({ getTranslations: jest.fn().mockResolvedVa
 jest.mock('@/lib/sharing/excerpts', () => ({ getPublicExcerpt: jest.fn() }));
 jest.mock('@/lib/sharing/contributions', () => ({ getPublicContribution: jest.fn() }));
 jest.mock('@/lib/sharing/publicContent', () => ({ getPublicSubject: jest.fn() }));
-jest.mock('next/og', () => ({ ImageResponse: jest.fn().mockImplementation((element, options) => ({ element, options })) }));
+// The routes read the image inside the render slot; the mock hands back empty bytes and the headers it was given.
+jest.mock('next/og', () => ({ ImageResponse: jest.fn().mockImplementation((element, options) => ({ element, options, headers: new Headers(options?.headers), arrayBuffer: async () => new ArrayBuffer(0) })) }));
 jest.mock('@/lib/og/serverAssets', () => ({ OG_FONTS: [], LOGO_BLACK_DATA_URI: '' }));
 // The illustration loader reads the environment and the bucket; the images under test carry no pictures.
 jest.mock('@/lib/og/illustration', () => ({ ILLUSTRATION_BOX: { hero: {}, tile: {}, band: {} }, getSubjectIllustrationData: jest.fn().mockResolvedValue(null), getSubjectIllustrations: jest.fn().mockResolvedValue(new Map()) }));
@@ -32,13 +33,31 @@ beforeEach(() => {
     (getPublicSubject as jest.Mock).mockResolvedValue({ name: 'Πλατεία', description: '**Σύνοψη**', councilMeeting: meeting });
 });
 
-it('renders an unreviewed, attributed excerpt in 1080×1920 without caching', async () => {
+it('renders an unreviewed, attributed excerpt in 1080×1920 with a short public cache', async () => {
     await call(excerptUrl);
     expect(getPublicExcerpt).toHaveBeenCalledWith(selector, 'greece');
     const [element, options] = imageMock.mock.calls[0];
     expect(element.props).toMatchObject({ kind: 'excerpt', warning: 'unreviewedNotice', band: { title: 'Πλατεία' }, context: { text: 'Αθήνα' }, passages: [{ speakerName: 'Άννα', text: 'Λόγια Άννας' }, { speakerName: 'unknownSpeaker', text: 'Άγνωστα λόγια' }] });
     expect(element.props.footer.facts).toEqual(expect.arrayContaining(['Αθήνα', 'Δημοτικό Συμβούλιο']));
-    expect(options).toMatchObject({ width: 1080, height: 1920, headers: { 'Cache-Control': 'private, no-store' } });
+    expect(options).toMatchObject({ width: 1080, height: 1920, headers: { 'Cache-Control': 'public, max-age=600' } });
+});
+
+it('says how many passages the two shown leave out', async () => {
+    const third = { id: 'u3', text: 'Τρίτη φωνή', speakerName: 'Νίκος', personId: 'p3', speakerTagId: 'tag3' };
+    excerptMock.mockResolvedValue({ status: 'ok', excerpt: { isReviewed: true, selector, runs: [...runs, third], meeting, subject: null } });
+    await call(excerptUrl);
+    expect(imageMock.mock.calls[0][0].props).toMatchObject({ more: 'additionalPassages', band: { title: 'Συνεδρίαση' } });
+    expect(imageMock.mock.calls[0][0].props.passages).toHaveLength(3);
+});
+
+it('answers 429 at capacity instead of rendering', async () => {
+    const { tryAcquireOgSlot } = jest.requireActual('@/lib/og/concurrency');
+    const slots = [tryAcquireOgSlot(), tryAcquireOgSlot()];
+    try {
+        const response = await call(excerptUrl);
+        expect(response.status).toBe(429);
+        expect(imageMock).not.toHaveBeenCalled();
+    } finally { slots.forEach(slot => slot?.release()); }
 });
 
 it('removes the warning only after human review', async () => {

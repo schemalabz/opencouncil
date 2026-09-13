@@ -7,9 +7,14 @@ describe('topicStyleHex', () => {
         expect(topicStyleHex('#F44336')).toEqual({ background: '#fcd2cf', border: '#F44336', icon: '#9f2c23' });
     });
 
+    it('reads the three-digit form the admin form accepts', () => {
+        expect(topicStyleHex('#abc')).toEqual(topicStyleHex('#aabbcc'));
+        expect(contrastText('#fff')).toBe('#0c0a09');
+    });
+
     it('falls back to the neutral grey for a missing or malformed colour', () => {
         expect(topicStyleHex(null)).toEqual(topicStyleHex('#9ca3af'));
-        expect(topicStyleHex('#abc')).toEqual(topicStyleHex('#9ca3af'));
+        expect(topicStyleHex('#12345')).toEqual(topicStyleHex('#9ca3af'));
     });
 
     it('keeps the ring the same colour as the css recipe', () => {

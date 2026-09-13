@@ -4,22 +4,22 @@
 // ships satori@0.25 with those fixes.
 import { ImageResponse } from '@vercel/og';
 import type { Realm } from '@prisma/client';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { icons } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { getMeetingDataForOG } from '@/lib/db/meetings';
 import { getCity } from '@/lib/db/cities';
 import { getConsultationDataForOG } from '@/lib/db/consultations';
-import { getLatestContributionsForSpeaker } from '@/lib/db/contributions';
+import { getLatestSubjectsForSpeaker } from '@/lib/db/subject';
 import { getParty, getPartiesForCity } from '@/lib/db/parties';
 import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
 import { RegulationData } from '@/components/consultations/types';
 import { getHotSubjectCardsCached } from '@/lib/hotSubjectCards';
-import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
+import { getInitials, getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
 import { formatDateStamp, formatDateTime, getIntlLocale } from '@/lib/formatters/time';
 import { sortSubjectsByImportance } from '@/lib/utils';
-import { getPartyFromRoles, isActivePartyMember, isRoleActive } from '@/lib/utils/roles';
+import { getPartyFromRoles, getRoleLabelAt, isActivePartyMember, isRoleActive } from '@/lib/utils/roles';
 import { localizeText } from '@/lib/serbian';
 import { getRealm } from '@/lib/realm.server';
 import { getRealmDisplayName } from '@/lib/realm';
@@ -30,13 +30,14 @@ import { OG_LOCALE_PARAM, resolveOgLocale } from '@/lib/og/locale';
 import { LOGO_BLACK_DATA_URI, OG_FONTS } from '@/lib/og/serverAssets';
 import { getImageData, SEAL_BOX } from '@/lib/og/remoteImage';
 import { getPortraitData } from '@/lib/og/portrait';
-import { getStaticIllustrations, getSubjectIllustrations, ILLUSTRATION_BOX } from '@/lib/og/illustration';
+import { allIllustrated, getStaticIllustrations, getSubjectIllustrations, ILLUSTRATION_BOX } from '@/lib/og/illustration';
+import { ogCacheControl } from '@/lib/og/render';
+import { subjectOgElement } from '@/lib/og/subjectImage';
 import { topicGlyph } from '@/lib/og/topicIcon';
 import {
     OG, OgAvatar, OgBody, OgChip, OgChips, OgContextChip, OgEyebrow, OgFacts, OgFrame, OgHeader, OgHeadline,
-    OgRow, OgStack, OgTile, OgTileGrid, OgTitle, initialsOf,
+    OgRow, OgStack, OgTile, OgTileGrid, OgTitle,
 } from '@/components/og/frame';
-import SubjectOgImage from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/opengraph-image';
 
 /**
  * A `getTranslations` result. The `og` catalog holds every string these images
@@ -48,6 +49,9 @@ const TILE = { width: 286, height: 163 };
 const STACKED_TILE = { width: 300, height: 171 };
 
 type TileSubject = { id: string; name: string; topic?: { colorHex?: string | null; icon?: string | null } | null };
+
+/** An image that draws illustrations, and whether every one it wanted was there; see ogCacheControl. */
+type OgRender = { element: ReactElement; settled: boolean } | null;
 
 /** One subject as a tile: its illustration, or its topic's wash and glyph while it has none. */
 function subjectTile(subject: TileSubject, src: string | null, locale: string, size = TILE): ReactNode {
@@ -65,8 +69,9 @@ function subjectTile(subject: TileSubject, src: string | null, locale: string, s
     );
 }
 
-function cityDisplayName(city: { name_municipality: string; name_municipality_en: string | null }, body: { name: string; name_en: string | null } | null, locale: string): string {
-    const name = getLocalizedMunicipalityName(city, locale);
+/** The header chip's text: the city's short name, as every image's chip says it, and the body. */
+function cityDisplayName(city: { name: string; name_en: string | null }, body: { name: string; name_en: string | null } | null, locale: string): string {
+    const name = getLocalizedName(city, locale);
     return body ? `${name} · ${getLocalizedName(body, locale)}` : name;
 }
 
@@ -112,12 +117,12 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string, 
         getImageData(data.city.logoImage, SEAL_BOX),
     ]);
     const date = new Date(data.dateTime);
-    const stamp = formatDateStamp(date, undefined, locale);
+    const stamp = formatDateStamp(date, data.city.timezone, locale);
     // The meeting card's own facts line under its stamp; the stamp carries the day and the month.
-    const when = formatDateTime(date, undefined, 'medium', locale);
+    const when = formatDateTime(date, data.city.timezone, 'medium', locale);
     const remaining = sorted.length - top.length;
 
-    return (
+    const element = (
         <OgFrame>
             <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={28}>
                 <OgContextChip text={cityDisplayName(data.city, data.administrativeBody, locale)} logoSrc={seal} />
@@ -131,7 +136,7 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string, 
                             <OgEyebrow text={stamp.monthYear} locale={locale} size={18} color={OG.MUTED} />
                         </OgRow>
                         <div style={{ display: 'flex', marginTop: 22 }}>
-                            <OgTitle size={40} maxWidth={440}>{data.administrativeBody ? getLocalizedName(data.administrativeBody, locale) : getLocalizedName(data, locale)}</OgTitle>
+                            <OgTitle size={40} maxWidth={440}>{getLocalizedName(data, locale)}</OgTitle>
                         </div>
                         <div style={{ display: 'flex', marginTop: 14 }}>
                             <OgFacts items={[when, t('meeting.subjects', { count: data.subjects.length })]} />
@@ -147,6 +152,7 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string, 
             />
         </OgFrame>
     );
+    return { element, settled: allIllustrated(illustrations) };
 };
 
 // City: the seal, the name and the counts of the identity band, beside the
@@ -172,7 +178,7 @@ const CityOGImage = async (cityId: string, locale: string, t: Translator) => {
     const [peopleCount, partiesCount] = counts;
     const meetingsCount = city._count.councilMeetings;
 
-    return (
+    const element = (
         <OgFrame>
             <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={28} />
             <OgBody
@@ -205,6 +211,7 @@ const CityOGImage = async (cityId: string, locale: string, t: Translator) => {
             />
         </OgFrame>
     );
+    return { element, settled: allIllustrated(illustrations) };
 };
 
 // Consultation: the regulation's title and its shape, in chapters.
@@ -235,7 +242,7 @@ const ConsultationOGImage = async (cityId: string, consultationId: string, local
     return (
         <OgFrame>
             <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20}>
-                <OgContextChip text={getLocalizedMunicipalityName(consultation.city, locale)} logoSrc={seal} />
+                <OgContextChip text={getLocalizedName(consultation.city, locale)} logoSrc={seal} />
             </OgHeader>
             <OgBody
                 left={
@@ -269,29 +276,27 @@ const PersonOGImage = async (cityId: string, personId: string, locale: string, t
     if (!person || !city || person.cityId !== cityId) return null;
 
     const party = getPartyFromRoles(person.roles);
-    const roleName = person.roles.filter(isRoleActive).map(role => role.name).find(Boolean) ?? t('person.council');
-    const contributions = await getLatestContributionsForSpeaker(person.id, 1, 8).catch(() => ({ results: [] }));
-    const subjects: TileSubject[] = [];
-    for (const contribution of contributions.results) {
-        if (!subjects.some(s => s.id === contribution.subject.id)) subjects.push(contribution.subject);
-        if (subjects.length === 2) break;
-    }
-    const [portrait, seal, illustrations] = await Promise.all([
+    // The label the site's badges give the role, so the mayor reads as the mayor here too.
+    const tPerson = await getTranslations({ locale, namespace: 'Person' });
+    const roleName = getRoleLabelAt(person.roles, tPerson, new Date()) ?? t('person.council');
+    // Released meetings only: this image is public and cached, whoever asked for it.
+    const [portrait, seal, subjects] = await Promise.all([
         getPortraitData(person.image),
         getImageData(city.logoImage, SEAL_BOX),
-        getSubjectIllustrations(subjects.map(s => s.id), ILLUSTRATION_BOX.tile),
+        getLatestSubjectsForSpeaker(person.id, 2).catch(() => []),
     ]);
+    const illustrations = await getSubjectIllustrations(subjects.map(s => s.id), ILLUSTRATION_BOX.tile);
     const name = getLocalizedName(person, locale);
 
-    return (
+    const element = (
         <OgFrame>
             <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20}>
-                <OgContextChip text={getLocalizedMunicipalityName(city, locale)} logoSrc={seal} />
+                <OgContextChip text={getLocalizedName(city, locale)} logoSrc={seal} />
             </OgHeader>
             <OgBody
                 left={
                     <OgRow gap={32}>
-                        <OgAvatar src={portrait} initials={initialsOf(name)} size={168} ring={party?.colorHex ?? OG.BORDER} />
+                        <OgAvatar src={portrait} initials={getInitials(name)} size={168} ring={party?.colorHex ?? OG.BORDER} />
                         <OgStack gap={14}>
                             <OgTitle size={48} maxWidth={520}>{name}</OgTitle>
                             <span style={{ fontSize: 22, lineHeight: 1.3, color: OG.MUTED }}>{localizeText(roleName, locale)}</span>
@@ -312,6 +317,7 @@ const PersonOGImage = async (cityId: string, personId: string, locale: string, t
             />
         </OgFrame>
     );
+    return { element, settled: allIllustrated(illustrations) };
 };
 
 // Party: the logo, the colour, and the members.
@@ -334,7 +340,7 @@ const PartyOGImage = async (cityId: string, partyId: string, locale: string, t: 
     return (
         <OgFrame>
             <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20}>
-                <OgContextChip text={getLocalizedMunicipalityName(city, locale)} logoSrc={seal} />
+                <OgContextChip text={getLocalizedName(city, locale)} logoSrc={seal} />
             </OgHeader>
             <OgBody
                 left={
@@ -355,7 +361,7 @@ const PartyOGImage = async (cityId: string, partyId: string, locale: string, t: 
                 right={shown.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, width: 6 * 52 + 5 * 10 }}>
                         {shown.map((person, i) => (
-                            <OgAvatar key={person.id} src={portraits[i]} initials={initialsOf(getLocalizedName(person, locale))} size={52} ring={color} />
+                            <OgAvatar key={person.id} src={portraits[i]} initials={getInitials(getLocalizedName(person, locale))} size={52} ring={color} />
                         ))}
                         {members.length > shown.length && (
                             <div style={{ display: 'flex', width: 52, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: `2px dashed ${OG.BORDER}`, fontSize: 16, color: OG.MUTED }}>
@@ -388,7 +394,7 @@ const PeopleOGImage = async (cityId: string, locale: string, t: Translator) => {
     return (
         <OgFrame>
             <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20}>
-                <OgContextChip text={getLocalizedMunicipalityName(city, locale)} logoSrc={seal} />
+                <OgContextChip text={getLocalizedName(city, locale)} logoSrc={seal} />
             </OgHeader>
             <div style={{ display: 'flex', flex: 1, flexDirection: 'column', justifyContent: 'center', gap: 28, padding: `0 ${OG.PAD}px ${OG.PAD}px` }}>
                 <OgStack gap={12}>
@@ -397,7 +403,7 @@ const PeopleOGImage = async (cityId: string, locale: string, t: Translator) => {
                 </OgStack>
                 <OgRow gap={14}>
                     {shown.map((person, i) => (
-                        <OgAvatar key={person.id} src={portraits[i]} initials={initialsOf(getLocalizedName(person, locale))} size={84} ring={getPartyFromRoles(person.roles)?.colorHex ?? OG.BORDER} />
+                        <OgAvatar key={person.id} src={portraits[i]} initials={getInitials(getLocalizedName(person, locale))} size={84} ring={getPartyFromRoles(person.roles)?.colorHex ?? OG.BORDER} />
                     ))}
                     {people.length > shown.length && (
                         <div style={{ display: 'flex', width: 84, height: 84, alignItems: 'center', justifyContent: 'center', borderRadius: 9999, border: `2px dashed ${OG.BORDER}`, fontSize: 24, color: OG.MUTED }}>
@@ -568,14 +574,17 @@ export async function GET(request: Request) {
     const t0 = Date.now();
     try {
         let element;
+        // False when a picture the image wanted was still missing, or the subject was not found: the cache then keeps it for an hour, not a year.
+        let settled = true;
+        const drew = (built: OgRender) => { if (built) settled = built.settled; return built?.element ?? null; };
         const width = 1200;
         const height = 630;
 
         if (consultationId && cityId) {
             element = await ConsultationOGImage(cityId, consultationId, locale, t);
         } else if (subjectId && meetingId && cityId) {
-            // Subject-specific OG image - reuse the native opengraph-image.tsx logic
-            return await SubjectOgImage({ params: Promise.resolve({ locale, cityId, meetingId, subjectId }) });
+            // The element the subject page's opengraph-image.tsx serves, rendered here inside the slot.
+            element = drew(await subjectOgElement(locale, cityId, meetingId, subjectId));
         } else if (meetingId && cityId) {
             // ?variant=story and ?variant=feed are no longer served here — story exports
             // render client-side via src/lib/export/storyImage.tsx (moved off the server
@@ -583,9 +592,9 @@ export async function GET(request: Request) {
             // export was removed with the "Post" share option. A stray variant request
             // falls through to the default landscape, which is a reasonable fallback for
             // any external caller still on the old URL shape.
-            element = await MeetingOGImage(cityId, meetingId, reqId, locale, t);
+            element = drew(await MeetingOGImage(cityId, meetingId, reqId, locale, t));
         } else if (personId && cityId) {
-            element = await PersonOGImage(cityId, personId, locale, t);
+            element = drew(await PersonOGImage(cityId, personId, locale, t));
         } else if (partyId && cityId) {
             element = await PartyOGImage(cityId, partyId, locale, t);
         } else if (pageType === 'people' && cityId) {
@@ -599,7 +608,7 @@ export async function GET(request: Request) {
         } else if (pageType === 'search') {
             element = SearchOGImage(t);
         } else if (cityId) {
-            element = await CityOGImage(cityId, locale, t);
+            element = drew(await CityOGImage(cityId, locale, t));
         } else {
             return new Response('Missing required parameters', { status: 400 });
         }
@@ -630,17 +639,10 @@ export async function GET(request: Request) {
             clearInterval(heartbeat);
         }
         console.log(`[og:${reqId}] rendered bytes=${buffer.byteLength} satori=${Date.now() - satoriT0}ms`);
-        // Restore the Cache-Control that next/og's ImageResponse sets by default —
-        // dropping it would make every crawler unfurl re-render, defeating the cap.
-        // Matches next/og's exact defaults including the dev no-cache branch.
+        // Without a Cache-Control every crawler unfurl would re-render, defeating the cap.
         return new Response(buffer, {
             status: 200,
-            headers: {
-                'content-type': 'image/png',
-                'cache-control': process.env.NODE_ENV === 'development'
-                    ? 'no-cache, no-store'
-                    : 'public, immutable, no-transform, max-age=31536000',
-            },
+            headers: { 'content-type': 'image/png', 'cache-control': ogCacheControl(settled) },
         });
     } catch (e) {
         console.error(`[og:${reqId}] error:`, e);

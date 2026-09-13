@@ -4,7 +4,8 @@ jest.mock('@/lib/sharing/excerpts', () => ({ getPublicExcerpt: jest.fn() }));
 jest.mock('@/lib/sharing/contributions', () => ({ getPublicContribution: jest.fn() }));
 jest.mock('@/components/sharing/SharedExcerpt', () => ({ SharedExcerpt: jest.fn() }));
 jest.mock('@/components/sharing/SharePageShell', () => ({ SharePageShell: jest.fn() }));
-jest.mock('next/og', () => ({ ImageResponse: jest.fn().mockImplementation((element, options) => ({ element, options })) }));
+// The routes read the image inside the render slot; the mock hands back empty bytes and the headers it was given.
+jest.mock('next/og', () => ({ ImageResponse: jest.fn().mockImplementation((element, options) => ({ element, options, headers: new Headers(options?.headers), arrayBuffer: async () => new ArrayBuffer(0) })) }));
 jest.mock('@/lib/og/serverAssets', () => ({ OG_FONTS: [], LOGO_BLACK_DATA_URI: '' }));
 // The illustration loader reads the environment and the bucket; the images under test carry no pictures.
 jest.mock('@/lib/og/illustration', () => ({ ILLUSTRATION_BOX: { hero: {}, tile: {}, band: {} }, getSubjectIllustrationData: jest.fn().mockResolvedValue(null), getSubjectIllustrations: jest.fn().mockResolvedValue(new Map()) }));
@@ -73,12 +74,12 @@ describe('server-rendered social preview contracts', () => {
         expect(metadata.description).toBe('summary: Περίληψη.');
         expect(metadata.openGraph?.images).toEqual([{ url: 'https://pr-123.opencouncil.dev/api/og/contribution?id=c1&locale=en', width: 1200, height: 630 }]);
     });
-    it('renders distinct named excerpt passages and a 1200×630 no-store image', async () => {
+    it('renders distinct named excerpt passages and a 1200×630 image with a short public cache', async () => {
         await excerptImage(new Request(`https://example.test/api/og/excerpt?${serializeExcerptSelector(selector)}`));
         const [element, options] = (ImageResponse as unknown as jest.Mock).mock.calls[0];
         expect(element.props.passages).toEqual([{ speakerName: 'Άννα', text: 'Λόγια Άννας' }, { speakerName: 'Νίκος', text: 'Λόγια Νίκου' }]);
         expect(element.props.context.text).toContain('Δημοτικό Συμβούλιο');
-        expect(options).toMatchObject({ width: 1200, height: 630, headers: { 'Cache-Control': 'private, no-store' } });
+        expect(options).toMatchObject({ width: 1200, height: 630, headers: { 'Cache-Control': 'public, max-age=600' } });
     });
     it('localizes the city and the administrative body in the header chip, and keeps the date with the speaker', async () => {
         await contributionImage(new Request('https://example.test/api/og/contribution?id=c1&locale=en'));
@@ -119,7 +120,7 @@ describe('server-rendered social preview contracts', () => {
             expect(element.props.text).toBe('unavailableTitle');
             expect(element.props.attribution).toBeUndefined();
             expect(element.props.context).toBeUndefined();
-            expect(options.headers['Cache-Control']).toBe('private, no-store');
+            expect(options.headers['Cache-Control']).toBe('public, max-age=600');
         }
     });
     it('redirects legacy contribution links to their real subject', async () => {

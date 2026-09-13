@@ -212,9 +212,12 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
                 },
                 city: {
                     select: {
+                        name: true,
+                        name_en: true,
                         name_municipality: true,
                         name_municipality_en: true,
-                        logoImage: true
+                        logoImage: true,
+                        timezone: true
                     }
                 },
                 administrativeBody: {

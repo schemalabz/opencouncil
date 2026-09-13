@@ -1,21 +1,23 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { getIntlLocale } from '@/lib/formatters/time';
+import { STORY_HEIGHT, STORY_WIDTH } from '@/lib/sharing/story';
 
 /**
  * The one frame every Open Graph image and story image is drawn in.
  *
  * Tokens are the site's own, resolved to plain values because satori reads
  * no CSS variables: the warm ground, the ink and muted ink, the hairline and
- * the brand orange from `packages/ui/src/styles/tokens.css`. Every element
- * sets `display: flex`, which satori requires of any box with children, and
- * nothing here imports Node modules, so a client-side rasterizer could draw
- * the same frame.
+ * the brand orange from `packages/ui/src/styles/tokens.css`. Every box with
+ * children sets `display: flex`, which satori requires of it; a block that
+ * holds text alone sets `display: block`, the one display satori clamps lines
+ * on. Nothing here imports Node modules, so a client-side rasterizer could
+ * draw the same frame.
  */
 export const OG = {
     WIDTH: 1200,
     HEIGHT: 630,
-    STORY_WIDTH: 1080,
-    STORY_HEIGHT: 1920,
+    STORY_WIDTH,
+    STORY_HEIGHT,
     PAD: 56,
     GROUND: '#fafaf9',
     INK: '#0c0a09',
@@ -30,6 +32,8 @@ export const OG = {
 } as const;
 
 const flex: CSSProperties = { display: 'flex' };
+/** Text alone, clamped to its lines: satori honours `lineClamp` on a block only, and a block may hold nothing but text. */
+const textBlock: CSSProperties = { display: 'block' };
 
 export function OgFrame({ children, width = OG.WIDTH, height = OG.HEIGHT, ground = OG.GROUND }: {
     children: ReactNode; width?: number; height?: number; ground?: string;
@@ -104,9 +108,9 @@ export function OgEyebrow({ text, locale, size = 16, color = OG.ORANGE }: { text
 }
 
 /** satori rejects an undefined style value, so the optional width joins the style only when set. */
-export function OgTitle({ children, size = 52, color = OG.INK, maxWidth, lines = 2 }: { children: ReactNode; size?: number; color?: string; maxWidth?: number | string; lines?: number }) {
+export function OgTitle({ children, size = 52, color = OG.INK, maxWidth, lines = 2 }: { children: string; size?: number; color?: string; maxWidth?: number | string; lines?: number }) {
     const width = maxWidth === undefined ? {} : { maxWidth };
-    return <div style={{ ...flex, fontSize: size, lineHeight: 1.15, letterSpacing: '-0.01em', color, lineClamp: lines, ...width }}>{children}</div>;
+    return <div style={{ ...textBlock, fontSize: size, lineHeight: 1.15, letterSpacing: '-0.01em', color, lineClamp: lines, ...width }}>{children}</div>;
 }
 
 /** Facts on one line, separated by the middle dot the pages use. */
@@ -178,7 +182,7 @@ export function OgTile({ src, title, wash, glyph, width, height, titleSize = 17,
             {title && (
                 <OgFoot padding={`${Math.round(height * 0.42)}px 16px 14px`}>
                     {pill}
-                    <div style={{ ...flex, fontSize: titleSize, lineHeight: 1.25, color: '#ffffff', lineClamp: 2 }}>{title}</div>
+                    <div style={{ ...textBlock, fontSize: titleSize, lineHeight: 1.25, color: '#ffffff', lineClamp: 2 }}>{title}</div>
                 </OgFoot>
             )}
         </div>
@@ -221,8 +225,4 @@ export function OgStack({ children, gap = 12, style }: { children: ReactNode; ga
 
 export function OgRow({ children, gap = 12, style }: { children: ReactNode; gap?: number; style?: CSSProperties }) {
     return <div style={{ ...flex, alignItems: 'center', gap, ...style }}>{children}</div>;
-}
-
-export function initialsOf(name: string): string {
-    return name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part.charAt(0)).join('').toUpperCase();
 }

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { storyPreview } from '@/lib/sharing/story';
-import { OG, OgAvatar, OgBrand, OgContextChip, OgEyebrow, OgFacts, OgFoot, OgRow, OgStack, OgTitle } from './frame';
+import { OG, OgAvatar, OgBrand, OgContextChip, OgEyebrow, OgFacts, OgFoot, OgFrame, OgRow, OgStack, OgTitle } from './frame';
 import { quoted, type SharedAttribution } from './SharedContentOgImage';
 
 export interface ContentStoryImageProps {
@@ -9,30 +9,37 @@ export interface ContentStoryImageProps {
     locale: string;
     context?: { text: string; logoSrc?: string | null };
     /** The illustration band under the header: the subject's picture, its topic and its title. */
-    band: { src: string | null; wash: string; glyph?: ReactNode; pill?: ReactNode; title: string; facts?: string[] };
+    band: { src: string | null; wash: string; glyph?: ReactNode; pill?: ReactNode; title: string };
     /** The eyebrow over the body: what this is. */
     label: string;
     /** The AI-summary note, drawn as a small line with the eyebrow. */
     note?: string;
     text?: string;
     passages?: { speakerName: string; text: string }[];
+    /** How much of the excerpt the two passages shown leave out. */
+    more?: string;
     attribution?: SharedAttribution;
     warning?: string;
     footer: { facts: string[]; previewLabel: string };
 }
 
-const BAND_HEIGHT = { subject: 640, contribution: 440, excerpt: 440 } as const;
+/** What each kind of story sizes differently: a summary gets a taller band and a longer preview than a quote. */
+const STORY_KIND = {
+    subject: { bandHeight: 640, preview: 520, titleSize: 56, textSize: 36 },
+    contribution: { bandHeight: 440, preview: 400, titleSize: 44, textSize: 38 },
+    excerpt: { bandHeight: 440, preview: 400, titleSize: 44, textSize: 38 },
+} as const;
 
 /**
  * A subject, a contribution or an excerpt as an Instagram story: the same
  * frame the unfurls use, stretched tall. The lockup and the seal at the top,
  * the illustration as a band, the text at story scale, the source at the foot.
  */
-export function ContentStoryImage({ kind, markSrc, locale, context, band, label, note, text, passages, attribution, warning, footer }: ContentStoryImageProps) {
-    const bandHeight = BAND_HEIGHT[kind];
-    const summary = text ? storyPreview(text, kind === 'subject' ? 520 : 400) : '';
+export function ContentStoryImage({ kind, markSrc, locale, context, band, label, note, text, passages, more, attribution, warning, footer }: ContentStoryImageProps) {
+    const { bandHeight, preview, titleSize, textSize } = STORY_KIND[kind];
+    const summary = text ? storyPreview(text, preview) : '';
     return (
-        <div style={{ display: 'flex', position: 'relative', flexDirection: 'column', width: OG.STORY_WIDTH, height: OG.STORY_HEIGHT, overflow: 'hidden', background: OG.GROUND, color: OG.INK, fontFamily: OG.FONT }}>
+        <OgFrame width={OG.STORY_WIDTH} height={OG.STORY_HEIGHT}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '72px 64px 40px' }}>
                 <OgBrand markSrc={markSrc} size={34} />
                 {context ? <OgContextChip text={context.text} logoSrc={context.logoSrc} size={26} /> : <div style={{ display: 'flex' }} />}
@@ -47,11 +54,8 @@ export function ContentStoryImage({ kind, markSrc, locale, context, band, label,
                 <OgFoot padding="160px 64px 48px">
                     {band.pill}
                     <div style={{ display: 'flex', marginTop: 18 }}>
-                        <OgTitle size={kind === 'subject' ? 56 : 44} color="#ffffff" maxWidth={950} lines={3}>{band.title}</OgTitle>
+                        <OgTitle size={titleSize} color="#ffffff" maxWidth={950} lines={3}>{band.title}</OgTitle>
                     </div>
-                    {band.facts && band.facts.length > 0 && (
-                        <div style={{ display: 'flex', marginTop: 18 }}><OgFacts items={band.facts} size={26} color="rgba(255,255,255,0.85)" /></div>
-                    )}
                 </OgFoot>
             </div>
             <div style={{ display: 'flex', flex: 1, flexDirection: 'column', gap: 28, padding: '56px 64px 0' }}>
@@ -75,7 +79,7 @@ export function ContentStoryImage({ kind, markSrc, locale, context, band, label,
                     <OgStack gap={40}>
                         {passages.slice(0, 2).map((passage, i) => (
                             <OgStack key={i} gap={18}>
-                                <div style={{ display: 'flex', fontSize: passages.length > 1 ? 40 : 46, lineHeight: 1.32, color: OG.INK, lineClamp: passages.length > 1 ? 5 : 9 }}>
+                                <div style={{ display: 'block', fontSize: passages.length > 1 ? 40 : 46, lineHeight: 1.32, color: OG.INK, lineClamp: passages.length > 1 ? 5 : 9 }}>
                                     {quoted(storyPreview(passage.text, passages.length > 1 ? 180 : 420))}
                                 </div>
                                 <OgRow gap={16} style={{ fontSize: 28, color: OG.MUTED }}>
@@ -84,15 +88,16 @@ export function ContentStoryImage({ kind, markSrc, locale, context, band, label,
                                 </OgRow>
                             </OgStack>
                         ))}
+                        {more && <span style={{ fontSize: 26, color: OG.MUTED }}>{more}</span>}
                     </OgStack>
                 ) : summary && (
-                    <div style={{ display: 'flex', fontSize: kind === 'subject' ? 36 : 38, lineHeight: 1.4, color: OG.INK_SOFT, lineClamp: 11 }}>{summary}</div>
+                    <div style={{ display: 'block', fontSize: textSize, lineHeight: 1.4, color: OG.INK_SOFT, lineClamp: 11 }}>{summary}</div>
                 )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, margin: '40px 64px 0', padding: '40px 0 96px', borderTop: `1px solid ${OG.BORDER}` }}>
                 <OgFacts items={footer.facts} size={26} />
                 <span style={{ fontSize: 24, color: OG.MUTED }}>{footer.previewLabel}</span>
             </div>
-        </div>
+        </OgFrame>
     );
 }

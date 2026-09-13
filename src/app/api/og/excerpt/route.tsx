@@ -1,19 +1,20 @@
-import { ImageResponse } from 'next/og';
 import { getTranslations } from 'next-intl/server';
 import { getRealm } from '@/lib/realm.server';
 import { getPublicExcerpt } from '@/lib/sharing/excerpts';
 import { parseExcerptSelector } from '@/lib/sharing/excerptSelector';
-import { getLocalizedName } from '@/lib/formatters/name';
+import { getInitials, getLocalizedName } from '@/lib/formatters/name';
 import { formatDate } from '@/lib/formatters/time';
 import { LOGO_BLACK_DATA_URI, OG_FONTS } from '@/lib/og/serverAssets';
 import { ILLUSTRATION_BOX } from '@/lib/og/illustration';
 import { sharedContext, sharedSubjectTile } from '@/lib/og/sharedContent';
 import { SharedContentOgImage } from '@/components/og/SharedContentOgImage';
-import { initialsOf } from '@/components/og/frame';
+import { renderImage, shareCacheControl } from '@/lib/og/render';
 import { groupExcerptSpeakers } from '@/components/sharing/ExcerptQuote';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+// Pairs with the render slot: a hung render must not hold it forever.
+export const maxDuration = 60;
 export async function GET(request: Request) {
     const selector = parseExcerptSelector(new URL(request.url).searchParams);
     const locale = selector?.textLocale ?? 'el';
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
         ? await Promise.all([sharedContext(excerpt.meeting, locale), sharedSubjectTile(excerpt.subject, locale, ILLUSTRATION_BOX.tile)])
         : [undefined, undefined];
     const single = groups.length === 1 ? groups[0].speakerName ?? t('unknownSpeaker') : null;
-    return new ImageResponse(<SharedContentOgImage
+    return renderImage(<SharedContentOgImage
         markSrc={LOGO_BLACK_DATA_URI}
         locale={locale}
         context={context}
@@ -37,10 +38,10 @@ export async function GET(request: Request) {
         additionalSpeakers={groups.length > 2 ? t('additionalPassages', { count: groups.length - 2 }) : undefined}
         attribution={excerpt && single ? {
             name: single,
-            initials: initialsOf(single),
+            initials: getInitials(single),
             detail: formatDate(excerpt.meeting.dateTime, excerpt.meeting.city.timezone, locale),
         } : undefined}
         // A passage with no subject clue in its meeting names the meeting as its context instead.
         subject={subject ?? (excerpt ? { title: getLocalizedName(excerpt.meeting, locale), src: null, wash: '#e7e5e4' } : undefined)}
-    />, { width: 1200, height: 630, fonts: OG_FONTS, headers: { 'Cache-Control': 'private, no-store' } });
+    />, { width: 1200, height: 630, fonts: OG_FONTS, headers: { 'Cache-Control': shareCacheControl() } });
 }

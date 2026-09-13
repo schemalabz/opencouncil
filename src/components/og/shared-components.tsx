@@ -5,10 +5,6 @@ import type React from "react";
 // Logo data is supplied by callers via the `logoSrc` prop — server callers pass
 // data URIs (see src/lib/og/serverAssets.ts), client callers pass URL paths.
 
-export function formatCityDisplayName(cityName: string, adminBodyName?: string | null): string {
-    return adminBodyName ? `${cityName} · ${adminBodyName}` : cityName;
-}
-
 // Logo aspect ratio: 1606x1354
 const LOGO_ASPECT_RATIO = 1606 / 1354;
 

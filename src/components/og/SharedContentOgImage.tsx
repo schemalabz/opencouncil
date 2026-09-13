@@ -74,14 +74,14 @@ export function SharedContentOgImage({ markSrc, locale, context, label, warning,
                             <OgStack gap={18} style={{ marginTop: 20 }}>
                                 {passages.slice(0, 2).map((passage, i) => (
                                     <OgStack key={i} gap={6}>
-                                        <span style={{ fontSize: 24, lineHeight: 1.35, color: OG.INK, lineClamp: 3 }}>{quoted(storyPreview(passage.text, 120))}</span>
+                                        <div style={{ display: 'block', fontSize: 24, lineHeight: 1.35, color: OG.INK, lineClamp: 3 }}>{quoted(storyPreview(passage.text, 120))}</div>
                                         <span style={{ fontSize: 18, color: OG.MUTED }}>{passage.speakerName}</span>
                                     </OgStack>
                                 ))}
                                 {additionalSpeakers && <span style={{ fontSize: 16, color: OG.MUTED }}>{additionalSpeakers}</span>}
                             </OgStack>
                         ) : (
-                            <div style={{ display: 'flex', marginTop: 20, fontSize: quote ? (preview.length > 170 ? 28 : 32) : 27, lineHeight: 1.4, color: quote ? OG.INK : OG.INK_SOFT, maxWidth: 700, lineClamp: 6 }}>
+                            <div style={{ display: 'block', marginTop: 20, fontSize: quote ? (preview.length > 170 ? 28 : 32) : 27, lineHeight: 1.4, color: quote ? OG.INK : OG.INK_SOFT, maxWidth: 700, lineClamp: 6 }}>
                                 {quote ? quoted(preview) : preview}
                             </div>
                         )}
