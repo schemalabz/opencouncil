@@ -32,7 +32,6 @@ const realUserSchema = z.object({
   userId: z.string(),
   name: z.string().nullable(),
   phone: z.string().nullable(),
-  notisEnabledAt: z.string().nullable(),
   cities: z.array(
     z.object({
       cityId: z.string(),

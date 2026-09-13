@@ -196,8 +196,7 @@ for a state on the reader's explicit action.
   Notis has not met; both flips of the switch ask this API first and write
   the flag after a confirmed answer. The flag gates enrollment and the
   proactive audience but never re-activates anyone — only the switch does,
-  through the subscriptions API. `User.notisEnabledAt` and its two view columns are
-  unread since PR 5 and go with a view-recreating migration in PR 6.
+  through the subscriptions API.
 
 - **The wake trace shares a table with the wake's scalars.** `NotisWake.trace`
   is one Json value of a few hundred KB — the system prompt, the rendered user

@@ -23,7 +23,6 @@ model NotisUserRow {
   id             String    @id
   name           String?
   phone          String?
-  notisEnabledAt DateTime?
   createdAt      DateTime
   updatedAt      DateTime
 
@@ -34,7 +33,6 @@ model FanoutTargetRow {
   userId         String
   userName       String?
   phone          String?
-  notisEnabledAt DateTime?
   notifyByPhone  Boolean
   cityId         String
   cityName       String

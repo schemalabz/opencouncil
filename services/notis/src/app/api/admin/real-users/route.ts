@@ -7,9 +7,8 @@ import { requireAdmin } from "@/lib/session-auth";
  * Real users for the playground picker, from the notis_fanout_targets view —
  * one entry per user, cities carrying Greek topic labels and locations with
  * their coordinates (the view emits geometry centroids), so the wizard can
- * seed the CityPreference shape AND pin the map. Exposes notisEnabledAt so
- * the picker can badge who is on the rollout; it never filters on it (the
- * playground may simulate anyone).
+ * seed the CityPreference shape AND pin the map. Unfiltered: the playground
+ * may simulate anyone.
  */
 
 interface RealUserCity {
@@ -23,7 +22,6 @@ interface RealUser {
   userId: string;
   name: string | null;
   phone: string | null;
-  notisEnabledAt: string | null;
   cities: RealUserCity[];
 }
 
@@ -69,7 +67,6 @@ export async function GET(request: NextRequest) {
       userId: row.userId,
       name: row.userName,
       phone: row.phone,
-      notisEnabledAt: row.notisEnabledAt?.toISOString() ?? null,
       cities: [],
     };
     user.cities.push({

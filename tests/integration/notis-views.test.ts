@@ -21,6 +21,8 @@ import {
 const MIGRATION_PATHS = [
     '20260815120000_notis_views_and_rollout',
     '20260906210000_phone_consent_per_user',
+    '20260913120000_drop_preference_phone_consent',
+    '20260913120100_drop_notis_rollout_flag',
 ].map((name) => path.join(__dirname, `../../prisma/migrations/${name}/migration.sql`))
 
 /** The consumer's half of the contract: the Prisma models Notis reads the
@@ -75,8 +77,8 @@ describe('notis views migration', () => {
     beforeAll(async () => {
         await ensureTestDb()
         // Twice on purpose: the migrations must be idempotent (the test
-        // database comes from `prisma db push`, which already created the
-        // notisEnabledAt column and the skipped enum value).
+        // database comes from `prisma db push`, which already holds the
+        // final schema — the columns the later migrations drop are gone).
         await applyNotisMigration()
         await applyNotisMigration()
     })
@@ -132,7 +134,6 @@ describe('notis views migration', () => {
         const row = rows[0]
         expect(row.userId).toBe(user.id)
         expect(row.phone).toBe('+306900000001')
-        expect(row.notisEnabledAt).toBeNull()
         expect(row.cityId).toBe(city.id)
         expect(row.realm).toBe('greece')
         expect(row.language).toBe('el')
@@ -150,20 +151,15 @@ describe('notis views migration', () => {
         ])
     })
 
-    test('notis_fanout_targets still carries the retired rollout flag, unfiltered, until PR 6 drops it', async () => {
+    test('notis_fanout_targets gives a preference with no topics or locations empty arrays', async () => {
         const city = await createCity({ id: 'nv_city' })
-        const enabledAt = new Date('2026-08-01T00:00:00Z')
-        const user = await createUser('enabled@example.com', {
-            phone: '+306900000002',
-            notisEnabledAt: enabledAt,
-        })
+        const user = await createUser('bare@example.com', { phone: '+306900000002' })
         await createNotificationPreference({ userId: user.id, cityId: city.id })
 
-        const rows = await prisma.$queryRawUnsafe<
-            Array<{ notisEnabledAt: Date | null; topics: unknown; locations: unknown }>
-        >('SELECT * FROM notis_fanout_targets')
+        const rows = await prisma.$queryRawUnsafe<Array<{ topics: unknown; locations: unknown }>>(
+            'SELECT * FROM notis_fanout_targets',
+        )
         expect(rows).toHaveLength(1)
-        expect(rows[0].notisEnabledAt).toEqual(enabledAt)
         // This preference has neither topics nor locations, which is the
         // COALESCE branch: drop it and the columns come back SQL NULL, while
         // both consumer converters turn a non-array into [] and say nothing.

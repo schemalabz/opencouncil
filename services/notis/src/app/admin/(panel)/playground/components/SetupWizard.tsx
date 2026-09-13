@@ -307,11 +307,6 @@ export function SetupWizard({ mapboxToken, onComplete }: Props) {
                                 {u.phone && (
                                   <span className="text-xs text-muted-foreground">{u.phone}</span>
                                 )}
-                                {u.notisEnabledAt && (
-                                  <span className="text-[10px] font-medium uppercase tracking-wider text-orange">
-                                    notis
-                                  </span>
-                                )}
                               </span>
                               <span className="mt-0.5 block text-xs text-muted-foreground">
                                 {u.cities.map((c) => c.cityName).join(", ")}
