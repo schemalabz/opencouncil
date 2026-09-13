@@ -10,7 +10,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bot, HelpCircle, LogIn, LogOut, Pencil } from "lucide-react"
+import { HelpCircle, LogIn, LogOut, Pencil, Plug } from "lucide-react"
 import { useAccountLinks } from "./account-links"
 // The locale-aware router: next/navigation's would push a bare "/sign-in",
 // dropping the locale prefix and landing the user on the Greek sign-in page.
@@ -93,7 +93,7 @@ export default function UserDropdown({ currentEntity, city, showExplain = false 
             <DropdownMenuSeparator className="lg:hidden" />
             <DropdownMenuItem asChild className="lg:hidden">
                 <Link href="/mcp" className="cursor-pointer">
-                    <Bot className="mr-2 h-4 w-4" />
+                    <Plug className="mr-2 h-4 w-4" />
                     {t("mcp")}
                 </Link>
             </DropdownMenuItem>
