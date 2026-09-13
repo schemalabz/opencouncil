@@ -5,6 +5,7 @@ import {
     buildCouncilComposition,
     sortSubjectsByDiscussionOrder,
     sortByElectedOrder,
+    buildDiscussionSummary,
     MemberResolver,
     ElectedOrderGetter,
 } from '../builders';
@@ -593,5 +594,41 @@ describe('sortByElectedOrder', () => {
 
         expect(sortByElectedOrder(a, b, noElectedOrder)).toBeGreaterThan(0);
         expect(sortByElectedOrder(b, a, noElectedOrder)).toBeLessThan(0);
+    });
+});
+
+// --- buildDiscussionSummary ---
+
+describe('buildDiscussionSummary', () => {
+    const u = (start: number, end: number, status: string | null) => ({ startTimestamp: start, endTimestamp: end, discussionStatus: status });
+
+    it('sums SUBJECT_DISCUSSION seconds and starts at the first non-procedural utterance', () => {
+        const result = buildDiscussionSummary([
+            u(10, 20, 'PROCEDURAL_VOTE'),
+            u(100, 160, 'SUBJECT_DISCUSSION'),
+            u(160, 190, 'SUBJECT_DISCUSSION'),
+            u(190, 200, 'VOTE'),
+        ]);
+        expect(result).toEqual({ kind: 'discussed', seconds: 90, start: 100 });
+    });
+
+    it('is voteOnly when the subject has VOTE utterances and no discussion', () => {
+        const result = buildDiscussionSummary([u(300, 320, 'VOTE')]);
+        expect(result).toEqual({ kind: 'voteOnly', seconds: 0, start: 300 });
+    });
+
+    it('is none with no utterances', () => {
+        expect(buildDiscussionSummary([])).toEqual({ kind: 'none', seconds: 0, start: null });
+    });
+
+    it('is none but placed by the procedural vote when that is all there is', () => {
+        const result = buildDiscussionSummary([u(40, 50, 'PROCEDURAL_VOTE'), u(50, 55, 'PROCEDURAL_VOTE')]);
+        expect(result).toEqual({ kind: 'none', seconds: 0, start: 40 });
+    });
+
+    it('takes the earliest start even when utterances arrive out of order', () => {
+        const result = buildDiscussionSummary([u(500, 510, 'SUBJECT_DISCUSSION'), u(400, 410, 'SUBJECT_DISCUSSION')]);
+        expect(result.start).toBe(400);
+        expect(result.seconds).toBe(20);
     });
 });

@@ -33,6 +33,21 @@ export interface MinutesVoteResult {
     isUnanimous: boolean;
 }
 
+/**
+ * What the transcript holds for a subject, in the terms of DiscussionStatus.
+ * `start` is where the subject sits in the meeting: the first utterance that
+ * is not a procedural vote, or the first procedural vote when that is all
+ * there is — the same rule `sortSubjectsByDiscussionOrder` receives.
+ */
+export interface MinutesDiscussionSummary {
+    /** 'discussed' = SUBJECT_DISCUSSION present; 'voteOnly' = only VOTE; 'none' = neither */
+    kind: 'discussed' | 'voteOnly' | 'none';
+    /** Seconds of SUBJECT_DISCUSSION utterances. 0 unless kind is 'discussed'. */
+    seconds: number;
+    /** Timestamp in seconds, null when the subject has no linked utterance. */
+    start: number | null;
+}
+
 export interface MinutesSpeakerEntry {
     type: 'speaker';
     speakerName: string;

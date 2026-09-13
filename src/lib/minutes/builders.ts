@@ -8,6 +8,7 @@ import {
     MinutesVoteResult,
     MinutesCouncilComposition,
     MinutesAttendanceChange,
+    MinutesDiscussionSummary,
 } from './types';
 
 // --- Dependency types for testability ---
@@ -416,4 +417,37 @@ export function formatSubjectLabel(atSubject: MinutesAttendanceChange['atSubject
         return `${atSubject.agendaItemIndex}ο θέμα`;
     }
     return atSubject.name;
+}
+
+export interface SummaryUtterance {
+    startTimestamp: number;
+    endTimestamp: number;
+    discussionStatus: string | null;
+}
+
+/**
+ * The transcript's account of one subject: see MinutesDiscussionSummary.
+ * Takes the utterances linked to the subject (discussionSubjectId), any status.
+ */
+export function buildDiscussionSummary(utterances: SummaryUtterance[]): MinutesDiscussionSummary {
+    let seconds = 0;
+    let hasDiscussion = false;
+    let hasVote = false;
+    let start: number | null = null;
+    let proceduralStart: number | null = null;
+    for (const u of utterances) {
+        if (u.discussionStatus === 'PROCEDURAL_VOTE') {
+            if (proceduralStart === null || u.startTimestamp < proceduralStart) proceduralStart = u.startTimestamp;
+            continue;
+        }
+        if (start === null || u.startTimestamp < start) start = u.startTimestamp;
+        if (u.discussionStatus === 'SUBJECT_DISCUSSION') {
+            hasDiscussion = true;
+            seconds += Math.max(0, u.endTimestamp - u.startTimestamp);
+        } else if (u.discussionStatus === 'VOTE') {
+            hasVote = true;
+        }
+    }
+    const kind = hasDiscussion ? 'discussed' : hasVote ? 'voteOnly' : 'none';
+    return { kind, seconds, start: start ?? proceduralStart };
 }
