@@ -48,7 +48,12 @@ import { surfaceCardClass } from '@/components/ui/surface-card';
 import { RailCard } from '@/components/ui/rail-card';
 import { MountOnVisible } from '@/components/MountOnVisible';
 
-export default function Subject({ subjectId }: { subjectId?: string }) {
+/**
+ * `related` is the related-subjects section, rendered by the page on the
+ * server (RelatedSubjectsSection) and handed in as a slot: this component is
+ * a client component, and the section's rows have to be in the HTML.
+ */
+export default function Subject({ subjectId, related }: { subjectId?: string; related?: React.ReactNode }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
     // What the empty summary and statements say while the meeting is not complete.
     const { stage, deadline } = useMeetingStage();
@@ -497,6 +502,8 @@ export default function Subject({ subjectId }: { subjectId?: string }) {
                         )}
                     </aside>
                 </div>
+
+                {related}
 
                 {/* Voting Section (skip for withdrawn subjects; counselors only, hidden from the public) */}
                 {!subject.withdrawn && options.editsAllowed && <CollapsibleCard

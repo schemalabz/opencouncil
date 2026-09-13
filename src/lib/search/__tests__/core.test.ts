@@ -10,8 +10,19 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 jest.mock('@/lib/discord-core', () => ({ sendErrorAdminAlert: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('@/lib/db/searchQueries', () => ({ logSearchQuery: jest.fn() }));
+// A memo per key, so a second call with the same key is a cache hit: the
+// cases below assert what is keyed and tagged, and what still runs on a hit.
+const cacheEntries = new Map<string, Promise<unknown>>();
+jest.mock('@/lib/cache/index', () => ({
+    createCache: jest.fn((fn: () => Promise<unknown>, keyParts: string[]) => () => {
+        const key = keyParts.join(':');
+        if (!cacheEntries.has(key)) cacheEntries.set(key, fn());
+        return cacheEntries.get(key);
+    }),
+}));
 jest.mock('@/lib/db/cities', () => ({
     getCities: jest.fn(),
+    getListedCitiesCached: jest.fn(),
     filterCityIdsByRealm: jest.fn(),
 }));
 jest.mock('../filters', () => ({
@@ -23,19 +34,30 @@ jest.mock('../retry', () => ({
     executeElasticsearchWithRetry: jest.fn((run: () => unknown) => run()),
 }));
 jest.mock('../query', () => ({ buildSearchQuery: jest.fn(() => ({ query: { match_all: {} } })) }));
+jest.mock('../related', () => ({
+    ...jest.requireActual<typeof import('../related')>('../related'),
+    buildRelatedSubjectsQuery: jest.fn(() => ({ query: { match_all: {} } })),
+}));
 
 import { Client } from '@elastic/elasticsearch';
 import prisma from '@/lib/db/prisma';
-import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
+import { getCities, getListedCitiesCached, filterCityIdsByRealm } from '@/lib/db/cities';
+import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '../filters';
 import { buildSearchQuery } from '../query';
-import { searchInRealm, searchSubjectsInRealm } from '../core';
+import { buildRelatedSubjectsQuery } from '../related';
+import { createCache } from '@/lib/cache/index';
+import { searchInRealm, searchSubjectsInRealm, searchRelatedSubjectsInRealm } from '../core';
 import type { SearchRequest } from '../types';
 
 const extractFiltersMock = extractFilters as jest.MockedFunction<typeof extractFilters>;
 const processFiltersMock = processFilters as jest.MockedFunction<typeof processFilters>;
 const buildSearchQueryMock = buildSearchQuery as jest.MockedFunction<typeof buildSearchQuery>;
+const buildRelatedSubjectsQueryMock = buildRelatedSubjectsQuery as jest.MockedFunction<typeof buildRelatedSubjectsQuery>;
+const createCacheMock = createCache as jest.MockedFunction<typeof createCache>;
 const getCitiesMock = getCities as jest.MockedFunction<typeof getCities>;
+const getListedCitiesCachedMock = getListedCitiesCached as jest.MockedFunction<typeof getListedCitiesCached>;
+const sendErrorAdminAlertMock = sendErrorAdminAlert as jest.MockedFunction<typeof sendErrorAdminAlert>;
 const filterCityIdsByRealmMock = filterCityIdsByRealm as jest.MockedFunction<typeof filterCityIdsByRealm>;
 
 const REALM_CITIES = ['athens', 'chania', 'argos'];
@@ -51,8 +73,10 @@ const requestSentToElasticsearch = (): SearchRequest => buildSearchQueryMock.moc
 
 beforeEach(() => {
     jest.clearAllMocks();
+    cacheEntries.clear();
     esSearchMock.mockResolvedValue({ hits: { total: { value: 0, relation: 'eq' }, hits: [] }, took: 1 });
     getCitiesMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
+    getListedCitiesCachedMock.mockResolvedValue(REALM_CITIES.map(id => ({ id })) as never);
     // Every candidate id is inside the realm unless a case says otherwise.
     filterCityIdsByRealmMock.mockImplementation(async (ids: string[]) => ids.filter(id => REALM_CITIES.includes(id)));
     findManyMock.mockResolvedValue([]);
@@ -330,5 +354,132 @@ describe('search matches cross the retrieval/hydration seam', () => {
             { name: NAME_FRAGMENT, description: DESCRIPTION_FRAGMENT },
             undefined,
         ]);
+    });
+});
+
+describe('searchRelatedSubjectsInRealm', () => {
+    const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1' };
+
+    it('caps the query to the realm and passes the scope through', async () => {
+        await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');
+
+        expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'other', REALM_CITIES);
+        expect(esSearchMock).toHaveBeenCalled();
+    });
+
+    // The realm is in the key because the city set differs per realm; the
+    // floor, the page size and the index are in it because no tag can name
+    // a change to them. The tags name what changes the answer: the city
+    // list, the seed's own meeting, and the meetings of every municipality
+    // the scope searches.
+    it('caches the index answer per subject, scope, realm, floor, size and index, under the tags that change it', async () => {
+        await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
+
+        expect(createCacheMock).toHaveBeenCalledWith(
+            expect.any(Function),
+            ['subject', 'seed', 'related', 'city', 'greece', '0.93', '5', 'subjects-test'],
+            { tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:athens:meetings'], revalidate: 86400 },
+        );
+    });
+
+    it('tags the other scope with the meetings of every other municipality of the realm', async () => {
+        await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');
+
+        expect(createCacheMock).toHaveBeenCalledWith(
+            expect.any(Function),
+            ['subject', 'seed', 'related', 'other', 'greece', '0.93', '5', 'subjects-test'],
+            {
+                tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:chania:meetings', 'city:argos:meetings'],
+                revalidate: 86400,
+            },
+        );
+    });
+
+    // Next drops every tag past its ceiling, not the ones that fit, so the
+    // per-city tags are cut to fit instead of dropped as a block.
+    it('keeps as many per-city tags as fit under the tag ceiling', async () => {
+        const many = Array.from({ length: 200 }, (_, i) => `city-${i}`);
+        getListedCitiesCachedMock.mockResolvedValue([...many, 'athens'].map(id => ({ id })) as never);
+
+        await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');
+
+        const { tags } = createCacheMock.mock.calls[0][2] as { tags: string[] };
+        expect(tags).toHaveLength(128);
+        expect(tags.slice(0, 2)).toEqual(['cities:all', 'city:athens:meeting:meeting-1']);
+        expect(tags[2]).toBe('city:city-0:meetings');
+    });
+
+    it('re-checks visibility outside the cache, so a stale entry cannot show an unpublished subject', async () => {
+        esSearchMock.mockResolvedValue({ hits: { total: { value: 1, relation: 'eq' }, hits: [{ _score: 0.95, _source: { id: 'stale' } }] }, took: 1 });
+        findManyMock.mockResolvedValue([{ id: 'stale', councilMeeting: { released: false } }]);
+
+        await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
+        // The entry is written now; this visit is a cache hit.
+        await expect(searchRelatedSubjectsInRealm(SEED, 'city', 'greece')).resolves.toEqual([]);
+
+        expect(esSearchMock).toHaveBeenCalledTimes(1);
+        expect(findManyMock).toHaveBeenCalledTimes(2);
+    });
+
+    // The index embeds the title before it applies the filter, so a scope
+    // that can match nothing is answered without asking it.
+    it('answers the other scope of a one-municipality realm without asking the index', async () => {
+        getListedCitiesCachedMock.mockResolvedValue([{ id: 'athens' }] as never);
+
+        await expect(searchRelatedSubjectsInRealm(SEED, 'other', 'greece')).resolves.toEqual([]);
+
+        expect(esSearchMock).not.toHaveBeenCalled();
+        expect(createCacheMock).not.toHaveBeenCalled();
+    });
+
+    it('alerts a failure with the seed and the scope, not as a typed search', async () => {
+        esSearchMock.mockRejectedValue(new Error('index down'));
+
+        await expect(searchRelatedSubjectsInRealm(SEED, 'other', 'greece')).rejects.toThrow('Failed to execute search');
+
+        expect(sendErrorAdminAlertMock).toHaveBeenCalledWith({
+            source: 'Related subjects',
+            error: 'index down',
+            context: { query: SEED.name, subjectId: 'seed', cityId: 'athens', scope: 'other' },
+        });
+    });
+
+    // A subject id from another tenant must not become a way to read that
+    // tenant's neighbours: nothing is asked of the index at all.
+    it('relates a subject outside the realm to nothing', async () => {
+        await expect(searchRelatedSubjectsInRealm({ ...SEED, cityId: 'paris' }, 'city', 'greece')).resolves.toEqual([]);
+
+        expect(esSearchMock).not.toHaveBeenCalled();
+    });
+
+    it('drops a hit whose meeting the database no longer marks released', async () => {
+        esSearchMock.mockResolvedValue({ hits: { total: { value: 1, relation: 'eq' }, hits: [{ _score: 0.95, _source: { id: 'stale' } }] }, took: 1 });
+        findManyMock.mockResolvedValueOnce([{ id: 'stale', councilMeeting: { released: false } }]);
+
+        await expect(searchRelatedSubjectsInRealm(SEED, 'city', 'greece')).resolves.toEqual([]);
+    });
+
+    it('hydrates the surviving hits in relevance order, with their scores', async () => {
+        esSearchMock.mockResolvedValue({
+            hits: {
+                total: { value: 2, relation: 'eq' },
+                hits: [{ _score: 0.95, _source: { id: 'near' } }, { _score: 0.94, _source: { id: 'far' } }],
+            },
+            took: 1,
+        });
+        const meeting = { id: 'meeting-2', city: { id: 'athens' }, administrativeBody: null };
+        findManyMock
+            .mockResolvedValueOnce([
+                { id: 'near', councilMeeting: { released: true } },
+                { id: 'far', councilMeeting: { released: true } },
+            ])
+            .mockResolvedValueOnce([
+                { id: 'far', location: null, councilMeeting: meeting },
+                { id: 'near', location: null, councilMeeting: meeting },
+            ]);
+
+        const results = await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
+
+        expect(results.map(r => [r.id, r.score])).toEqual([['near', 0.95], ['far', 0.94]]);
     });
 });

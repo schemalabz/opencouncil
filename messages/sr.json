@@ -1125,7 +1125,11 @@
         "previousSubject": "Претходна тачка",
         "nextSubject": "Следећа тачка",
         "noDecisionBeforeAgenda": "Тачке покренуте пре дневног реда никада немају одлуку.",
-        "learnWhy": "Сазнајте зашто"
+        "learnWhy": "Сазнајте зашто",
+        "relatedSubjects": "Повезане теме",
+        "relatedOtherCities": "Друге општине",
+        "relatedSeeMore": "Погледајте више у претрази",
+        "relatedScopeLabel": "Обим повезаних тема"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Нема седница} one {# седница} few {# седнице} other {# седница}}",

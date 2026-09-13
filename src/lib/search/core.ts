@@ -2,14 +2,16 @@ import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
 import { MATCH_FIELDS } from './constants';
-import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches } from './types';
+import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches, RelatedScope } from './types';
 import { buildSearchQuery } from './query';
+import { buildRelatedSubjectsQuery, relatedScopeCityIds, RELATED_MIN_SIMILARITY, RELATED_SUBJECTS_SIZE, type RelatedSubjectSeed } from './related';
 import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from './filters';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
 import { executeElasticsearchWithRetry } from './retry';
 import { partitionHits, reportOrphanedHits, type EsHit } from './hits';
-import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
+import { getCities, getListedCitiesCached, filterCityIdsByRealm } from '@/lib/db/cities';
 import { logSearchQuery } from '@/lib/db/searchQueries';
+import { createCache } from '@/lib/cache/index';
 import { env } from '@/env.mjs';
 
 // Initialize Elasticsearch client
@@ -82,34 +84,41 @@ export type SubjectSearchHits = {
     derivedFilters: DerivedFilters;
 };
 
-/** Log the failure, alert the team, and raise a message that leaks nothing. */
-function failSearch(request: SearchRequest, error: unknown): never {
+/**
+ * What a failure log and alert say about the call that failed: the query and
+ * whatever locates it — the filters of a typed search, the seed and scope of
+ * a related-subjects lookup. Strings only, because that is what the alert
+ * renders; an undefined field is left out of it.
+ */
+type SearchFailureContext = Record<string, string | undefined>;
+
+/** The context a typed search fails with: what the person asked for. */
+function searchFailureContext(request: SearchRequest): SearchFailureContext {
+    return {
+        query: request.query,
+        cityIds: request.cityIds?.join(', '),
+        personIds: request.personIds?.join(', '),
+        partyIds: request.partyIds?.join(', '),
+        topicIds: request.topicIds?.join(', '),
+        dateRange: request.dateRange ? `${request.dateRange.start}..${request.dateRange.end}` : undefined,
+        hasLocations: request.locations?.length ? 'true' : undefined,
+    };
+}
+
+/**
+ * Log the failure, alert the team, and raise a message that leaks nothing.
+ * `source` names the caller in the log and the alert, so a related-subjects
+ * failure is not read as a search a person typed. The context is a plain bag
+ * rather than a SearchRequest, so a caller with no request — the related
+ * path — is not made to fake one that misdescribes what ran.
+ */
+function failSearch(error: unknown, source: string, context: SearchFailureContext): never {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    logEssential('Search Session Failed', {
-        query: request.query,
-        error: errorMessage,
-        filters: {
-            cityIds: request.cityIds,
-            personIds: request.personIds,
-            partyIds: request.partyIds,
-            topicIds: request.topicIds,
-            dateRange: request.dateRange,
-            hasLocations: request.locations ? request.locations.length > 0 : false
-        }
-    });
+    logEssential(`${source} Session Failed`, { error: errorMessage, ...context });
 
     // Notify team via Discord (fire-and-forget)
-    sendErrorAdminAlert({
-        source: 'Search',
-        error: errorMessage,
-        context: {
-            query: request.query,
-            cityIds: request.cityIds?.join(', '),
-            personIds: request.personIds?.join(', '),
-            partyIds: request.partyIds?.join(', '),
-        },
-    }).catch(() => {});
+    sendErrorAdminAlert({ source, error: errorMessage, context }).catch(() => {});
 
     throw new Error('Failed to execute search');
 }
@@ -121,6 +130,58 @@ function failSearch(request: SearchRequest, error: unknown): never {
  * throwing raw past it in the caller's argument list.
  */
 export type RealmSource = Realm | (() => Promise<Realm>);
+
+/**
+ * The index can be stale: a meeting unreleased after indexing must not
+ * surface. The database is the source of truth, so every id the index answers
+ * with is re-checked here before anything downstream trusts it. Only the
+ * release flag is read, so the check costs one narrow query instead of riding
+ * along with the full hydration it used to sit inside. `source` and
+ * `queryLabel` name the caller and its query in the alert a dropped hit raises.
+ */
+async function resolveVisibleHits(
+    esHits: EsHit[],
+    source: string,
+    queryLabel: string,
+): Promise<{ hits: SubjectSearchHit[]; dropped: number }> {
+    const hitIds = esHits
+        .map(hit => hit._source?.id)
+        .filter((id): id is string => id !== undefined);
+
+    const visible = await prisma.subject.findMany({
+        where: { id: { in: hitIds } },
+        select: { id: true, councilMeeting: { select: { released: true } } },
+    });
+    const visibleById = new Map(visible.map(subject => [subject.id, subject]));
+
+    const { resolved, orphanedIds, unreleasedIds, droppedWithoutSource } = partitionHits(
+        esHits,
+        visibleById,
+        subject => subject.councilMeeting.released,
+    );
+
+    if (orphanedIds.length > 0 || unreleasedIds.length > 0 || droppedWithoutSource > 0) {
+        logEssential('[Search] Dropped unresolvable hits', { orphanedIds, unreleasedIds, droppedWithoutSource });
+        void reportOrphanedHits({
+            orphanedIds,
+            unreleasedIds,
+            droppedWithoutSource,
+            query: queryLabel,
+            index: env.ELASTICSEARCH_INDEX,
+            source,
+        });
+    }
+
+    const dropped = esHits.length - resolved.length;
+    return {
+        hits: resolved.map(({ hit, subject }) => ({
+            id: subject.id,
+            score: hit._score || 0,
+            matches: matchesOf(hit.highlight),
+        })),
+        dropped,
+    };
+}
 
 /**
  * Retrieval: everything up to the point where a hit becomes a row. Runs the
@@ -271,58 +332,190 @@ export async function searchSubjectsInRealm(
             }
         });
 
-        // The index can be stale: a meeting unreleased after indexing must not
-        // surface. The database is the source of truth, so re-check before
-        // anything downstream trusts these ids. Only the release flag is read,
-        // so the check costs one narrow query instead of riding along with the
-        // full hydration it used to sit inside.
-        const hitIds = response.hits.hits
-            .map(hit => hit._source?.id)
-            .filter((id): id is string => id !== undefined);
-
-        const visible = await prisma.subject.findMany({
-            where: { id: { in: hitIds } },
-            select: { id: true, councilMeeting: { select: { released: true } } },
-        });
-        const visibleById = new Map(visible.map(subject => [subject.id, subject]));
-
-        const { resolved, orphanedIds, unreleasedIds, droppedWithoutSource } = partitionHits(
+        const { hits, dropped } = await resolveVisibleHits(
             response.hits.hits,
-            visibleById,
-            subject => subject.councilMeeting.released,
+            'Search',
+            // Filter-only searches have no query text; label them so the
+            // alert reads sensibly instead of showing an empty string.
+            queryText || '(filter-only)',
         );
-
-        if (orphanedIds.length > 0 || unreleasedIds.length > 0 || droppedWithoutSource > 0) {
-            logEssential('[Search] Dropped unresolvable hits', { orphanedIds, unreleasedIds, droppedWithoutSource });
-            void reportOrphanedHits({
-                orphanedIds,
-                unreleasedIds,
-                droppedWithoutSource,
-                // Filter-only searches have no query text; label them so the
-                // alert reads sensibly instead of showing an empty string.
-                query: queryText || '(filter-only)',
-                index: env.ELASTICSEARCH_INDEX,
-            });
-        }
 
         // ES's total includes hits we dropped; subtract this page's drops so the
         // count degrades along with the results. Still approximate — other pages
         // may hold more drops, so callers that must not leak the existence of
         // hidden content should withhold the total whenever `dropped` > 0.
-        const dropped = response.hits.hits.length - resolved.length;
-        return {
-            hits: resolved.map(({ hit, subject }) => ({
-                id: subject.id,
-                score: hit._score || 0,
-                matches: matchesOf(hit.highlight),
-            })),
-            total: totalHits - dropped,
-            dropped,
-            derivedFilters,
-        };
+        return { hits, total: totalHits - dropped, dropped, derivedFilters };
     } catch (error) {
-        failSearch(request, error);
+        failSearch(error, 'Search', searchFailureContext(request));
     }
+}
+
+/**
+ * Hydration: the rows behind a list of ranked ids, in relevance order. Shared
+ * by the search and by the related-subjects list, so both surfaces show a
+ * subject the same way. `detailed` adds the speaker segments that discussed
+ * each subject, for callers that show the debate itself.
+ */
+async function hydrateSubjectHits(hits: SubjectSearchHit[], detailed: boolean): Promise<SearchResultLight[]> {
+    const subjectIds = hits.map(hit => hit.id);
+
+    // Fetch all subjects in a single query
+    const subjects = await prisma.subject.findMany({
+        where: { id: { in: subjectIds } },
+        include: {
+            location: true,
+            topic: true,
+            councilMeeting: {
+                include: {
+                    city: true,
+                    administrativeBody: true
+                }
+            },
+            introducedBy: {
+                include: {
+                    roles: {
+                        include: {
+                            party: true,
+                            city: true,
+                            administrativeBody: true
+                        }
+                    }
+                }
+            },
+            contributions: {
+                include: {
+                    speaker: {
+                        include: {
+                            roles: {
+                                include: {
+                                    party: true,
+                                    city: true,
+                                    administrativeBody: true
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            highlights: true,
+            decision: true,
+            discussedIn: {
+                include: {
+                    topic: true
+                }
+            }
+        }
+    });
+
+    // Create a map of subjects by ID for efficient lookup
+    const subjectMap = new Map(subjects.map(subject => [subject.id, subject]));
+
+    // For detailed results, fetch the speaker segments discussing each subject
+    // (segments whose utterances are tagged with the subject via discussionSubjectId)
+    const segmentsBySubject = new Map<string, SubjectDiscussionSegment[]>();
+    if (detailed && subjectIds.length > 0) {
+        const subjectIdSet = new Set(subjectIds);
+        const segments = await prisma.speakerSegment.findMany({
+            where: {
+                utterances: { some: { discussionSubjectId: { in: subjectIds } } }
+            },
+            include: subjectDiscussionSegmentInclude,
+            orderBy: { startTimestamp: 'asc' }
+        });
+        for (const segment of segments) {
+            const discussedSubjectIds = new Set(
+                segment.utterances
+                    .map(u => u.discussionSubjectId)
+                    .filter((id): id is string => id !== null && subjectIdSet.has(id))
+            );
+            for (const discussedSubjectId of discussedSubjectIds) {
+                const list = segmentsBySubject.get(discussedSubjectId);
+                if (list) {
+                    list.push(segment);
+                } else {
+                    segmentsBySubject.set(discussedSubjectId, [segment]);
+                }
+            }
+        }
+    }
+
+    // Get all location IDs for coordinates query
+    const locationIds = subjects
+        .map(subject => subject.location?.id)
+        .filter((id): id is string => id !== undefined);
+
+    // Fetch all location coordinates in a single query
+    const locationCoordinates = await prisma.$queryRaw<Array<{ id: string; x: number; y: number }>>`
+        SELECT id, ST_X(coordinates::geometry) as x, ST_Y(coordinates::geometry) as y
+        FROM "Location"
+        WHERE id = ANY(${locationIds})
+        AND type = 'point'
+    `;
+
+    // Create a map of location coordinates by ID
+    const locationCoordinatesMap = new Map(
+        locationCoordinates.map(loc => [loc.id, { x: loc.x, y: loc.y }])
+    );
+
+    const results = hits.flatMap(({ id, score, matches }) => {
+        const subject = subjectMap.get(id);
+        // Retrieval already re-checked every id against the database, so a
+        // miss here means the row went away between the two queries. Drop
+        // it rather than fail the search over a race.
+        if (!subject) return [];
+
+        // Get location coordinates if available
+        let locationWithCoordinates = null;
+        if (subject.location) {
+            const coordinates = locationCoordinatesMap.get(subject.location.id);
+            if (coordinates) {
+                locationWithCoordinates = {
+                    ...subject.location,
+                    coordinates
+                };
+            }
+        }
+
+        // Base result with common fields
+        const baseResult: SearchResultLight = {
+            ...subject,
+            location: locationWithCoordinates,
+            score,
+            matches,
+            councilMeeting: subject.councilMeeting,
+            votes: [],
+            attendance: []
+        };
+
+        // If detailed results are requested, add speaker segment text
+        if (detailed) {
+            const speakerSegments = (segmentsBySubject.get(subject.id) ?? [])
+                .filter(segment => {
+                    const text = segment.utterances.map(u => u.text).join(' ');
+                    const hasPerson = segment.speakerTag?.person != null;
+                    const hasRoles = Array.isArray(segment.speakerTag?.person?.roles);
+                    return text.length >= 100 && hasPerson && hasRoles;
+                })
+                .map(segment => ({
+                    id: segment.id,
+                    startTimestamp: segment.startTimestamp,
+                    endTimestamp: segment.endTimestamp,
+                    meeting: segment.meeting,
+                    person: segment.speakerTag?.person || null,
+                    text: segment.utterances.map(u => u.text).join(' '),
+                    summary: segment.summary ? { text: segment.summary.text } : null
+                }));
+
+            return [{
+                ...baseResult,
+                speakerSegments,
+                context: subject.context
+            } as SearchResultDetailed];
+        }
+
+        return [baseResult];
+    });
+    return results;
 }
 
 /**
@@ -343,167 +536,105 @@ export async function searchInRealm(
     if (hits.length === 0) return { results: [], total, dropped, derivedFilters };
 
     try {
-        const subjectIds = hits.map(hit => hit.id);
-
-        // Fetch all subjects in a single query
-        const subjects = await prisma.subject.findMany({
-            where: { id: { in: subjectIds } },
-            include: {
-                location: true,
-                topic: true,
-                councilMeeting: {
-                    include: {
-                        city: true,
-                        administrativeBody: true
-                    }
-                },
-                introducedBy: {
-                    include: {
-                        roles: {
-                            include: {
-                                party: true,
-                                city: true,
-                                administrativeBody: true
-                            }
-                        }
-                    }
-                },
-                contributions: {
-                    include: {
-                        speaker: {
-                            include: {
-                                roles: {
-                                    include: {
-                                        party: true,
-                                        city: true,
-                                        administrativeBody: true
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                highlights: true,
-                decision: true,
-                discussedIn: {
-                    include: {
-                        topic: true
-                    }
-                }
-            }
-        });
-
-        // Create a map of subjects by ID for efficient lookup
-        const subjectMap = new Map(subjects.map(subject => [subject.id, subject]));
-
-        // For detailed results, fetch the speaker segments discussing each subject
-        // (segments whose utterances are tagged with the subject via discussionSubjectId)
-        const segmentsBySubject = new Map<string, SubjectDiscussionSegment[]>();
-        if (request.config?.detailed && subjectIds.length > 0) {
-            const subjectIdSet = new Set(subjectIds);
-            const segments = await prisma.speakerSegment.findMany({
-                where: {
-                    utterances: { some: { discussionSubjectId: { in: subjectIds } } }
-                },
-                include: subjectDiscussionSegmentInclude,
-                orderBy: { startTimestamp: 'asc' }
-            });
-            for (const segment of segments) {
-                const discussedSubjectIds = new Set(
-                    segment.utterances
-                        .map(u => u.discussionSubjectId)
-                        .filter((id): id is string => id !== null && subjectIdSet.has(id))
-                );
-                for (const discussedSubjectId of discussedSubjectIds) {
-                    const list = segmentsBySubject.get(discussedSubjectId);
-                    if (list) {
-                        list.push(segment);
-                    } else {
-                        segmentsBySubject.set(discussedSubjectId, [segment]);
-                    }
-                }
-            }
-        }
-
-        // Get all location IDs for coordinates query
-        const locationIds = subjects
-            .map(subject => subject.location?.id)
-            .filter((id): id is string => id !== undefined);
-
-        // Fetch all location coordinates in a single query
-        const locationCoordinates = await prisma.$queryRaw<Array<{ id: string; x: number; y: number }>>`
-            SELECT id, ST_X(coordinates::geometry) as x, ST_Y(coordinates::geometry) as y
-            FROM "Location"
-            WHERE id = ANY(${locationIds})
-            AND type = 'point'
-        `;
-
-        // Create a map of location coordinates by ID
-        const locationCoordinatesMap = new Map(
-            locationCoordinates.map(loc => [loc.id, { x: loc.x, y: loc.y }])
-        );
-
-        const results = hits.flatMap(({ id, score, matches }) => {
-            const subject = subjectMap.get(id);
-            // Retrieval already re-checked every id against the database, so a
-            // miss here means the row went away between the two queries. Drop
-            // it rather than fail the search over a race.
-            if (!subject) return [];
-
-            // Get location coordinates if available
-            let locationWithCoordinates = null;
-            if (subject.location) {
-                const coordinates = locationCoordinatesMap.get(subject.location.id);
-                if (coordinates) {
-                    locationWithCoordinates = {
-                        ...subject.location,
-                        coordinates
-                    };
-                }
-            }
-
-            // Base result with common fields
-            const baseResult: SearchResultLight = {
-                ...subject,
-                location: locationWithCoordinates,
-                score,
-                matches,
-                councilMeeting: subject.councilMeeting,
-                votes: [],
-                attendance: []
-            };
-
-            // If detailed results are requested, add speaker segment text
-            if (request.config?.detailed) {
-                const speakerSegments = (segmentsBySubject.get(subject.id) ?? [])
-                    .filter(segment => {
-                        const text = segment.utterances.map(u => u.text).join(' ');
-                        const hasPerson = segment.speakerTag?.person != null;
-                        const hasRoles = Array.isArray(segment.speakerTag?.person?.roles);
-                        return text.length >= 100 && hasPerson && hasRoles;
-                    })
-                    .map(segment => ({
-                        id: segment.id,
-                        startTimestamp: segment.startTimestamp,
-                        endTimestamp: segment.endTimestamp,
-                        meeting: segment.meeting,
-                        person: segment.speakerTag?.person || null,
-                        text: segment.utterances.map(u => u.text).join(' '),
-                        summary: segment.summary ? { text: segment.summary.text } : null
-                    }));
-
-                return [{
-                    ...baseResult,
-                    speakerSegments,
-                    context: subject.context
-                } as SearchResultDetailed];
-            }
-
-            return [baseResult];
-        });
+        const results = await hydrateSubjectHits(hits, request.config?.detailed ?? false);
 
         return { results, total, dropped, derivedFilters };
     } catch (error) {
-        failSearch(request, error);
+        failSearch(error, 'Search', searchFailureContext(request));
+    }
+}
+
+/**
+ * How long a subject's related-subjects answer may go stale.
+ *
+ * The tags below cover the events the code can name: a meeting of the scope
+ * released, deleted or reprocessed, a subject edited, a municipality's status
+ * or realm changed. The window covers what they cannot, such as index drift,
+ * and is the ceiling when a realm has more municipalities than one entry can
+ * carry tags for. Expiry is lazy — the first visitor after the deadline pays
+ * for the query — so a shorter window raises the inference cost in proportion.
+ */
+const RELATED_CACHE_TTL_SECONDS = 86400;
+
+/** Next's ceiling on tags per cache entry. */
+const MAX_CACHE_TAGS = 128;
+
+/**
+ * The tags a related-subjects entry carries, so the events that change the
+ * answer revalidate it instead of waiting for the TTL:
+ * - `cities:all`: a municipality's status or realm changes, which changes
+ *   the city set the query is capped to.
+ * - `city:{id}:meeting:{id}`: the seed itself is renamed or regenerated.
+ * - `city:{id}:meetings` for every municipality of the scope: a meeting
+ *   there is released, unreleased, deleted or reprocessed, so a neighbour
+ *   appears or disappears. As many as fit under Next's limit; the TTL
+ *   covers the rest.
+ */
+function relatedCacheTags(seed: RelatedSubjectSeed, scopeCityIds: string[]): string[] {
+    const fixed = ['cities:all', `city:${seed.cityId}:meeting:${seed.councilMeetingId}`];
+    const perCity = scopeCityIds.map(id => `city:${id}:meetings`);
+    return [...fixed, ...perCity.slice(0, MAX_CACHE_TAGS - fixed.length)];
+}
+
+/**
+ * The parts of the answer that no tag can invalidate: the floor and the page
+ * size are constants, and the index is swapped under an alias without a
+ * deploy. Putting them in the key retires the entries written under the old
+ * values, where a version string would have to be bumped by hand.
+ */
+function relatedCacheKey(seed: RelatedSubjectSeed, scope: RelatedScope, realm: Realm): string[] {
+    return ['subject', seed.id, 'related', scope, realm, String(RELATED_MIN_SIMILARITY), String(RELATED_SUBJECTS_SIZE), env.ELASTICSEARCH_INDEX];
+}
+
+/**
+ * The subjects most similar to one subject, hydrated into the search's row
+ * shape. `city` stays inside the subject's municipality, `other` looks at
+ * every other municipality of the realm.
+ *
+ * Reuses the search's tenant cap, retry, visibility re-check and hydration,
+ * and none of its query text handling: there is no typed query to log, and
+ * no prose to read filters out of. A seed outside the realm — a subject id
+ * from another tenant — relates to nothing, rather than reaching across.
+ */
+export async function searchRelatedSubjectsInRealm(
+    seed: RelatedSubjectSeed,
+    scope: RelatedScope,
+    realmSource: RealmSource,
+): Promise<SearchResultLight[]> {
+    try {
+        const realm = typeof realmSource === 'function' ? await realmSource() : realmSource;
+        const realmCityIds = (await getListedCitiesCached(realm)).map(city => city.id);
+        if (!realmCityIds.includes(seed.cityId)) return [];
+
+        // The `other` scope of a realm with one municipality. The empty city
+        // filter would match nothing anyway, but only after the index has
+        // embedded the title, which is the cost this function exists to spend
+        // carefully.
+        const scopeCityIds = relatedScopeCityIds(seed, scope, realmCityIds);
+        if (scopeCityIds.length === 0) return [];
+
+        // The query embeds the title with a hosted model on every call, which
+        // is the one cost in this function. Only the index's answer is cached
+        // — a handful of ids and scores — and the realm is part of the key
+        // because the city set the query is capped to differs per realm. The
+        // visibility re-check and the hydration below run on every request,
+        // so a neighbour that is unpublished after the entry was written
+        // still drops out on the next visit.
+        const esHits = await createCache(
+            async () => {
+                const response = await executeElasticsearchWithRetry(
+                    () => client.search<SubjectDocument>(buildRelatedSubjectsQuery(seed, scope, realmCityIds)),
+                    'Related subjects'
+                );
+                return response.hits.hits.map(hit => ({ _score: hit._score, _source: hit._source }));
+            },
+            relatedCacheKey(seed, scope, realm),
+            { tags: relatedCacheTags(seed, scopeCityIds), revalidate: RELATED_CACHE_TTL_SECONDS },
+        )();
+        const { hits } = await resolveVisibleHits(esHits, 'Related subjects', seed.name);
+        if (hits.length === 0) return [];
+        return await hydrateSubjectHits(hits, false);
+    } catch (error) {
+        failSearch(error, 'Related subjects', { query: seed.name, subjectId: seed.id, cityId: seed.cityId, scope });
     }
 }

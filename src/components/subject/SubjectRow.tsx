@@ -74,7 +74,9 @@ export function SubjectRow({ subject, city, meeting, persons, showContext = true
     const barHover = useSubjectBarHover(subject.id);
     const handleClick = (e: React.MouseEvent) => {
         onOpen?.();
-        if (openInNewTab) return; // let the Link handle it
+        // Let the Link handle it: a new-tab row, or a click whose modifier
+        // asks the browser for a new tab or window.
+        if (openInNewTab || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
         e.preventDefault();
         setIsLoading(true);
         router.push(href);
