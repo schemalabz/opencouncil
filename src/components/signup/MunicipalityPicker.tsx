@@ -30,20 +30,26 @@ export interface PickerMembership {
  * and a search hit that already has notifications offers the signup
  * instead. A row the reader is already in says so, and its action changes
  * from joining to editing.
+ *
+ * A search that finds nothing in notifications mode sends the reader to the
+ * petition with what they typed, and the petition's picker starts from it —
+ * a municipality that is not here yet is exactly the one to ask for.
  */
 export function MunicipalityPicker({
     cities,
     mode,
     membership,
+    initialQuery = '',
     className,
 }: {
     cities: CityMinimalWithCounts[];
     mode: PickerMode;
     membership: PickerMembership;
+    initialQuery?: string;
     className?: string;
 }) {
     const t = useTranslations('signup');
-    const [query, setQuery] = useState('');
+    const [query, setQuery] = useState(initialQuery);
     const needle = normalizeText(query.trim());
 
     const { primary, secondary } = useMemo(() => {
@@ -89,7 +95,7 @@ export function MunicipalityPicker({
                     <span className="text-sm text-muted-foreground">{t('picker.noResults', { query: query.trim() })}</span>
                     {mode === 'notifications' && (
                         <Link
-                            href="/petition"
+                            href={`/petition?q=${encodeURIComponent(query.trim())}`}
                             className="group/cta inline-flex min-h-10 items-center gap-1.5 self-start text-sm text-[hsl(var(--orange-deep))] hover:no-underline"
                         >
                             {t('picker.noResultsPetition')}

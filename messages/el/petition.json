@@ -6,7 +6,6 @@
   "pickerLead": "Όσο περισσότεροι το ζητούν, τόσο πιο εύκολα μπαίνει ένας δήμος. Το όνομά σου μετράει όταν του μιλάμε.",
   "pickerEyebrow": "Βρες τον δήμο σου",
   "pickerHint": "Δύο βήματα, ένα λεπτό.",
-  "whatYouGet": "Αυτό θα λαμβάνεις όταν ο δήμος σου μπει.",
   "introTitle": {
     "municipality": "Ο δήμος {qualifier} δεν είναι ακόμα στο OpenCouncil",
     "region": "Η περιφέρεια {qualifier} δεν είναι ακόμα στο OpenCouncil"

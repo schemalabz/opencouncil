@@ -11,7 +11,7 @@ import type { CityWithGeometry } from '@/lib/db/cities';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 import { PetitionComplete, PetitionCompleteAside } from './PetitionComplete';
 import { PetitionFormStep } from './PetitionFormStep';
-import { PetitionIntroAside, PetitionIntroStep } from './PetitionIntroStep';
+import { PetitionIntroStep } from './PetitionIntroStep';
 import {
     type ExistingPetition,
     type PetitionState,
@@ -84,8 +84,8 @@ export function PetitionSignup({
         );
     }
 
-    // The desktop's second column: what the reader is asking for, then the place they are asking it for.
-    const aside = state.step === 1 ? <PetitionIntroAside /> : <LocationPreview city={city} locations={[]} variant="panel" />;
+    // The desktop's second column: the place the reader is asking for.
+    const aside = <LocationPreview city={city} locations={[]} variant="panel" />;
 
     return (
         <SignupLayout aside={aside}>

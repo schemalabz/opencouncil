@@ -2,7 +2,6 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { MunicipalityPicker } from "@/components/signup/MunicipalityPicker";
-import { NotisChatCard } from "@/components/signup/NotisChatCard";
 import { Eyebrow, SignupLayout, StepHeading } from "@/components/signup/SignupChrome";
 import { getCurrentUser } from "@/lib/auth";
 import { getAllCitiesMinimalCached } from "@/lib/cache/queries";
@@ -23,26 +22,37 @@ export async function generateMetadata(): Promise<Metadata> {
  * The petition's municipality-agnostic entry: what asking does, then which
  * municipality — found by the search, because a few hundred are too many to
  * scan. A tap lands on step 2 of the petition; a municipality that already
- * has notifications is offered the signup instead.
+ * has notifications is offered the signup instead. `?q=` is what the reader
+ * typed on /notifications before it sent them here, so they do not type it
+ * twice. Νότης is not on this page: the petition is not about him.
  */
-export default async function PetitionPickerPage() {
-    const [realm, user, t] = await Promise.all([getRealm(), getCurrentUser(), getTranslations("petition")]);
+export default async function PetitionPickerPage(props: { searchParams: Promise<{ q?: string }> }) {
+    const [{ q }, realm, user, t] = await Promise.all([
+        props.searchParams,
+        getRealm(),
+        getCurrentUser(),
+        getTranslations("petition"),
+    ]);
     const [cities, membership] = await Promise.all([
         getAllCitiesMinimalCached(realm),
         user ? getUserSignupCityIds(user.id) : { subscribedCityIds: [], petitionedCityIds: [] },
     ]);
 
     return (
-        <SignupLayout aside={<NotisChatCard intro={t("whatYouGet")} />} className="pb-10">
+        <SignupLayout className="pb-10">
             <StepHeading eyebrow={t("eyebrow")} title={t("pickerTitle")} lead={t("pickerLead")} className="pt-7 lg:pt-10" />
-
-            <NotisChatCard intro={t("whatYouGet")} className="mt-5 lg:hidden" />
 
             <div className="mt-7 flex items-baseline gap-2 lg:mt-9">
                 <Eyebrow>{t("pickerEyebrow")}</Eyebrow>
                 <span className="text-xs text-muted-foreground">{t("pickerHint")}</span>
             </div>
-            <MunicipalityPicker cities={cities} mode="petition" membership={membership} className="mt-2.5" />
+            <MunicipalityPicker
+                cities={cities}
+                mode="petition"
+                membership={membership}
+                initialQuery={q ?? ""}
+                className="mt-2.5"
+            />
 
             <p className="mt-4 text-[11px] leading-[1.4] text-muted-foreground">
                 {t.rich("pricingNote", {

@@ -87,13 +87,16 @@ describe('MunicipalityPicker for notifications', () => {
         expect(screen.queryByRole('link', { name: /Αθήνα/ })).toBeNull();
     });
 
-    it('offers the petition when nothing matches at all', () => {
+    it('offers the petition when nothing matches at all, with the query along', () => {
         render(<MunicipalityPicker cities={cities} mode="notifications" membership={nobody} />);
 
-        fireEvent.change(search(), { target: { value: 'Ξάνθη' } });
+        fireEvent.change(search(), { target: { value: ' Ξάνθη ' } });
 
         expect(screen.getByText('picker.noResults Ξάνθη')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'picker.noResultsPetition' })).toHaveAttribute('href', '/petition');
+        expect(screen.getByRole('link', { name: 'picker.noResultsPetition' })).toHaveAttribute(
+            'href',
+            `/petition?q=${encodeURIComponent('Ξάνθη')}`,
+        );
     });
 });
 
@@ -104,6 +107,14 @@ describe('MunicipalityPicker for the petition', () => {
         expect(rowNames()).toEqual([expect.stringContaining('Θεσσαλονίκη')]);
         expect(screen.getByRole('link', { name: /Θεσσαλονίκη/ })).toHaveAttribute('href', '/thessaloniki/petition?step=2');
         expect(search()).toBeInTheDocument();
+    });
+
+    it('starts from the query the reader typed on the other picker', () => {
+        render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} initialQuery="Ξάνθη" />);
+
+        expect(search()).toHaveValue('Ξάνθη');
+        expect(screen.getByText('picker.noResults Ξάνθη')).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'picker.noResultsPetition' })).toBeNull();
     });
 
     it('lists the petitionable matches first and the served ones under their own label', () => {
