@@ -16,6 +16,7 @@ const searchMock = searchRelatedSubjectsInRealm as jest.MockedFunction<typeof se
 const statisticsMock = getBatchStatisticsForSubjects as jest.MockedFunction<typeof getBatchStatisticsForSubjects>;
 
 const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1' };
+const CURRENT = { dateTime: '2026-02-15T00:00:00.000Z', administrativeBodyName: 'Δημοτικό Συμβούλιο', timezone: 'Europe/Athens' };
 
 const person = (id: string) => ({ id, roles: [] }) as never;
 
@@ -42,7 +43,7 @@ async function render(city: SearchResultLight[] | Error, other: SearchResultLigh
         if (answer instanceof Error) throw answer;
         return answer;
     });
-    lastElement = await RelatedSubjectsSection({ seed: SEED, cityName: 'Αθήνα' });
+    lastElement = await RelatedSubjectsSection({ seed: SEED, current: CURRENT });
     return lastElement;
 }
 
@@ -83,6 +84,27 @@ describe('RelatedSubjectsSection', () => {
         expect(renderedLevels().map(level => level.scope)).toEqual(['city', 'other']);
     });
 
+    // The city level is drawn as a timeline, so it has to arrive in meeting
+    // order; the index ranks by similarity. The other level is a ranked list
+    // and keeps the index's order.
+    it('orders the same-municipality level by meeting date, oldest first, and leaves the other level ranked', async () => {
+        await render(
+            [subject('newest', 'athens', '2026-03-01'), subject('oldest', 'athens', '2023-01-01'), subject('middle', 'athens', '2025-06-01')],
+            [subject('closest', 'chania', '2026-03-01'), subject('older', 'argos', '2020-01-01')],
+        );
+
+        const [city, other] = renderedLevels();
+        expect(city.subjects.map(s => s.id)).toEqual(['oldest', 'middle', 'newest']);
+        expect(other.subjects.map(s => s.id)).toEqual(['closest', 'older']);
+    });
+
+    it('hands the client the subject on screen, so the timeline can place it', async () => {
+        const element = await render([subject('a', 'athens', '2026-02-01')], []) as { props: { current: unknown; subjectId: string } };
+
+        expect(element.props.current).toEqual(CURRENT);
+        expect(element.props.subjectId).toBe('seed');
+    });
+
     // A speaker's party is read off the roles active on the meeting's date,
     // so subjects from different meetings cannot share one statistics call.
     it('asks for statistics per meeting date, so each row reads its speakers as of its own meeting', async () => {
@@ -95,5 +117,17 @@ describe('RelatedSubjectsSection', () => {
             [['a', 'c'], '2026-02-01T00:00:00.000Z'],
             [['b'], '2026-03-01T00:00:00.000Z'],
         ]);
+    });
+
+    it('builds each level its avatar people from the statistics and the introducer, without a roster', async () => {
+        statisticsMock.mockImplementation(async ids => new Map(ids.map(id => [id, {
+            speakingSeconds: 10,
+            people: [{ item: person(`speaker-of-${id}`), speakingSeconds: 10, count: 1 }],
+        }])));
+
+        await render([subject('a', 'athens', '2026-02-01', 'introducer')], []);
+
+        const [level] = renderedLevels();
+        expect(level.persons.map(p => p.id)).toEqual(['introducer', 'speaker-of-a']);
     });
 });

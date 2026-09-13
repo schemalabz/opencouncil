@@ -1077,7 +1077,8 @@
         "relatedSubjects": "Σχετικά θέματα",
         "relatedOtherCities": "Άλλοι δήμοι",
         "relatedSeeMore": "Δες περισσότερα στην αναζήτηση",
-        "relatedScopeLabel": "Εύρος σχετικών θεμάτων"
+        "relatedSameCity": "Στον ίδιο δήμο, στον χρόνο",
+        "relatedCurrent": "Αυτό το θέμα"
     },
     "PersonCard": {
         "party": "Παράταξη",
