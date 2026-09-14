@@ -1,0 +1,22 @@
+{
+    "manifest": {
+        "description": "Your municipal council, in your pocket. Meetings, decisions and who said what, in plain language."
+    },
+    "installPrompt": {
+        "title": "Your council, one tap away.",
+        "subtitle": "Add OpenCouncil to your home screen. Free, no app store.",
+        "install": "Install",
+        "notNow": "Not now",
+        "close": "Close",
+        "iosStep1": "Tap the Share button in the browser bar",
+        "iosStep2": "Choose “Add to Home Screen”",
+        "iosStep3": "Tap “Add”",
+        "androidStep1": "Open the browser menu",
+        "androidStep2": "Choose “Add to Home screen” or “Install app”"
+    },
+    "offline": {
+        "title": "You are offline",
+        "body": "OpenCouncil needs a connection to load this page. Check your network and try again.",
+        "retry": "Try again"
+    }
+}
