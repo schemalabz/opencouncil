@@ -63,6 +63,10 @@ export interface BirdLike {
    *  configured? Asked BEFORE work that commits to sending it, so a missing
    *  env var stops the ceremony instead of burning it. */
   canSendTemplate(template: TemplateName): boolean;
+  /** One message record, read from the conversation. A failure event that
+   *  names no reason is repaired through this: the record's terminal state
+   *  carries Bird's `error`. Null when the call fails. */
+  fetchMessage(input: { conversationId: string; messageId: string }): Promise<BirdMessageLike | null>;
   /** The text of one message, read from the conversation. Webhook events
    *  that carry only Bird's conversation-list snippet are repaired through
    *  this. Null when the call fails or the message holds no text — the
@@ -405,7 +409,7 @@ export const realBird: BirdLike = {
     };
   },
 
-  async fetchMessageBody({ conversationId, messageId }) {
+  async fetchMessage({ conversationId, messageId }) {
     if (!hasBird()) return null;
     const raw = await birdRequest(`${conversationMessagesUrl(conversationId)}/${messageId}`, {
       method: "GET",
@@ -418,7 +422,12 @@ export const realBird: BirdLike = {
       );
       return null;
     }
-    return fullBodyText((raw.json as BirdMessageLike | null) ?? undefined) ?? null;
+    return (raw.json as BirdMessageLike | null) ?? null;
+  },
+
+  async fetchMessageBody(input) {
+    const message = await realBird.fetchMessage(input);
+    return fullBodyText(message ?? undefined) ?? null;
   },
 
   async sendSms({ phone, text }) {
