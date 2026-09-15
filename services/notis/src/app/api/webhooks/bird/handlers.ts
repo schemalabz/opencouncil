@@ -2,7 +2,7 @@ import { seedProfileFromPreferences } from "@/agent/profileSeed";
 import type { WakeEvent } from "@/agent/types";
 import { alert as sendAlert } from "@/lib/alert";
 import { BirdLike } from "@/lib/bird";
-import { ExtractedMessageFields } from "@/lib/bird-extract";
+import { ExtractedMessageFields, failureReasonOf } from "@/lib/bird-extract";
 import { citiesForUser, findUserByPhone } from "@/lib/fanout";
 import { hasMainDb, mainDb } from "@/lib/main-db";
 import { normalizePhone } from "@/lib/phone";
@@ -124,8 +124,30 @@ export async function handleOutboundStatus(
     return { action: "ignored", reason: "not a notis outbound message" };
   }
   if (existing.status && isForwardProgression(existing.status, fields.status)) {
-    await db.notisMessage.update({
-      where: { id: existing.id },
+    // The status the progression check saw, kept apart from `existing`:
+    // the write below is fenced on it.
+    const observedStatus = existing.status;
+    let failureReason = fields.status === "failed" ? fields.failureReason : undefined;
+    if (fields.status === "failed" && !failureReason && fields.conversationId) {
+      // The status event has not carried the detail so far — every failed
+      // row read «άγνωστος λόγος» in the panel — but the record's terminal
+      // state does. One read, and the row says why.
+      const record = await deps.bird.fetchMessage({
+        conversationId: fields.conversationId,
+        messageId: fields.birdMessageId,
+      });
+      failureReason = failureReasonOf(record ?? undefined);
+      if (!failureReason) {
+        console.warn(
+          `[notis:webhook] message ${fields.birdMessageId} failed with no reason on the event or the record (record keys: ${record ? Object.keys(record).join(",") : "none"})`,
+        );
+      }
+    }
+    // Fenced on the status the progression check saw: the read-back above
+    // is a network round trip, and a `delivered` event that lands during it
+    // must not be overwritten by this `failed` — nor answered with an SMS.
+    const { count } = await db.notisMessage.updateMany({
+      where: { id: existing.id, status: observedStatus },
       data: {
         status: fields.status,
         // Only keep a reason on failure; clear it otherwise (same rule as
@@ -133,24 +155,24 @@ export async function handleOutboundStatus(
         // `?? null` must come LAST: a `(x ?? null)?.slice()` on a missing
         // reason yields undefined, which Prisma reads as "leave unchanged" —
         // keeping a stale reason from an earlier failure.
-        failureReason:
-          fields.status === "failed" ? (fields.failureReason?.slice(0, 300) ?? null) : null,
+        failureReason: failureReason?.slice(0, 300) ?? null,
       },
     });
+    if (count === 0) return { action: "ignored", reason: "status moved during read-back" };
     if (fields.status === "failed") {
       if (existing.channel === "sms") {
         // The SMS WAS the fallback — there is no next channel. The reader
         // missed a notification; the operator hears about it.
         await webhookAlert(deps.alert)(
-          `SMS delivery failed for message ${existing.id}: ${fields.failureReason ?? "unknown error"}`,
+          `SMS delivery failed for message ${existing.id}: ${failureReason ?? "unknown error"}`,
         );
-      } else if (isMetaThrottleFailure(fields.failureReason)) {
+      } else if (isMetaThrottleFailure(failureReason)) {
         // Meta throttled the NUMBER, not this reader: the message was never
         // refused for them, and a rate limit answered with a seven-segment
         // SMS per reader is the wrong lever. The operator hears about it;
         // the reader gets the next message.
         await webhookAlert(deps.alert)(
-          `WhatsApp throttled message ${existing.id} (${fields.failureReason}) — no SMS fallback; slow the sends down`,
+          `WhatsApp throttled message ${existing.id} (${failureReason}) — no SMS fallback; slow the sends down`,
         );
       } else {
         // Any terminal WhatsApp failure — template news OR a freeform reply

@@ -309,6 +309,38 @@ describe("extractMessageFields", () => {
     expect(fields.status).toBe("read");
   });
 
+  it("reads Bird's error object: the WhatsApp code first, then the description", () => {
+    const event = {
+      event: "whatsapp.failed",
+      payload: {
+        message: {
+          id: "msg-fail",
+          status: "delivery_failed",
+          direction: "outbound",
+          error: { code: "unreachable", description: "Message undeliverable", meta_error_code: 131026 },
+          recipients: [{ identifierValue: "+306900000400" }],
+        },
+      },
+    };
+
+    const fields = extractMessageFields(event, channelIds);
+    expect(fields.status).toBe("failed");
+    expect(fields.failureReason).toBe("131026: Message undeliverable");
+  });
+
+  it("reads the error object beside the message when the event puts it there, and Bird's own code without a WhatsApp one", () => {
+    const event = {
+      payload: {
+        message: { id: "msg-fail", status: "failed", direction: "outbound" },
+        error: { code: "blocked_by_carrier", description: "Carrier refused the message" },
+      },
+    };
+
+    expect(extractMessageFields(event, channelIds).failureReason).toBe(
+      "blocked_by_carrier: Carrier refused the message",
+    );
+  });
+
   it("maps a failed status and surfaces the failure reason", () => {
     const event = {
       payload: {

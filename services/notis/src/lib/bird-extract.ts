@@ -12,6 +12,20 @@ import type { MessageDirection, MessageStatus } from "../../generated/client";
 /** Bird channel is not a notis enum — SMS conversations are out of scope. */
 export type MessageChannel = "whatsapp" | "sms";
 
+/**
+ * Bird's failure detail, on a terminal event (`whatsapp.failed`,
+ * `whatsapp.rejected`, `sms.failed`) and on the message record: a stable
+ * Bird code, a description, and the original WhatsApp or carrier code when
+ * there is one.
+ */
+export interface BirdError {
+  code?: string;
+  description?: string;
+  meta_error_code?: string | number;
+  carrier_error_code?: string | number;
+  occurred_at?: string;
+}
+
 export interface BirdMessageLike {
   id?: string;
   messageId?: string;
@@ -22,6 +36,8 @@ export interface BirdMessageLike {
   direction?: string;
   kind?: string;
   status?: string;
+  error?: BirdError;
+  // Older shapes, kept for the events that still carry them.
   reason?: string;
   failure?: { description?: string };
   sender?: {
@@ -47,6 +63,7 @@ export interface BirdMessageLike {
 export interface BirdWebhookPayload {
   id?: string;
   channelId?: string;
+  error?: BirdError;
   lastMessage?: BirdMessageLike;
   message?: BirdMessageLike;
   // Outbound events fall back to this when `lastMessage.recipients` is
@@ -226,6 +243,27 @@ export function extractChannel(
   return "whatsapp";
 }
 
+/**
+ * The one line that says why a message failed, for the row and the panel:
+ * the WhatsApp or carrier code first when Bird passes one (the throttle
+ * detection keys off those), then Bird's own code, then the description.
+ * `error` lives on the message or, on a status event, beside it. The older
+ * `reason` / `failure.description` shapes are read last. Undefined when
+ * Bird said nothing.
+ */
+export function failureReasonOf(
+  message: BirdMessageLike | undefined,
+  payload?: BirdWebhookPayload,
+): string | undefined {
+  const error = message?.error ?? payload?.error;
+  if (error) {
+    const code = error.meta_error_code ?? error.carrier_error_code ?? error.code;
+    const parts = [code, error.description].filter((part) => part !== undefined && part !== "");
+    if (parts.length > 0) return parts.join(": ");
+  }
+  return message?.reason ?? message?.failure?.description ?? undefined;
+}
+
 export function extractMessageFields(event: unknown, channelIds: ChannelIds): ExtractedMessageFields {
   const { payload, message, conversationId, payloadChannelId } = unwrapEvent(event);
 
@@ -243,6 +281,6 @@ export function extractMessageFields(event: unknown, channelIds: ChannelIds): Ex
     bodyFromPreview: bodyIsPreviewOnly(message),
     channel,
     status: mapBirdMessageStatus(message?.status),
-    failureReason: message?.reason ?? message?.failure?.description ?? undefined,
+    failureReason: failureReasonOf(message, payload),
   };
 }

@@ -418,6 +418,131 @@ describe("inbound SMS for served phones", () => {
   });
 });
 
+describe("a failure the event does not explain", () => {
+  it("reads the record back from Bird and stores its error as the reason", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB, status: "unsubscribed" }] });
+    await db.notisMessage.create({
+      data: {
+        subscriptionId: "sub1",
+        direction: "outbound",
+        body: "Νέα από τον δήμο.",
+        birdMessageId: "bm-out",
+        status: "sent",
+        channel: "whatsapp",
+      },
+    });
+    const bird = new FakeBird();
+    bird.message = {
+      id: "bm-out",
+      status: "delivery_failed",
+      error: { code: "unreachable", description: "Message undeliverable", meta_error_code: 131026 },
+    };
+
+    await handleOutboundStatus(inbound({ birdMessageId: "bm-out", direction: "outbound", status: "failed" }), {
+      db,
+      bird,
+    });
+
+    expect(bird.messageReads).toEqual([{ conversationId: "conv-1", messageId: "bm-out" }]);
+    expect(db.store.messages[0]).toMatchObject({ status: "failed", failureReason: "131026: Message undeliverable" });
+  });
+
+  it("recognises a throttle from the record it read back, so no SMS goes out", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: [{ key: "proactivePaused", value: false }] });
+    await db.notisMessage.create({
+      data: {
+        subscriptionId: "sub1",
+        direction: "outbound",
+        body: "Νέα από τον δήμο.",
+        birdMessageId: "bm-out",
+        status: "sent",
+        channel: "whatsapp",
+        proactive: true,
+        railed: true,
+      },
+    });
+    const bird = new FakeBird();
+    bird.message = { id: "bm-out", status: "failed", error: { code: "rate_limited", meta_error_code: 131048 } };
+    const alerts: string[] = [];
+
+    await handleOutboundStatus(inbound({ birdMessageId: "bm-out", direction: "outbound", status: "failed" }), {
+      db,
+      bird,
+      alert: async (m) => {
+        alerts.push(m);
+      },
+    });
+
+    expect(db.store.messages[0]).toMatchObject({ status: "failed", failureReason: "131048" });
+    expect(bird.smsSends).toHaveLength(0);
+    expect(alerts.some((m) => m.includes("throttled"))).toBe(true);
+  });
+
+  it("does not overwrite a status that moved on while it was reading the record", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: [{ key: "proactivePaused", value: false }] });
+    await db.notisMessage.create({
+      data: {
+        subscriptionId: "sub1",
+        direction: "outbound",
+        body: "Νέα από τον δήμο.",
+        birdMessageId: "bm-out",
+        status: "sent",
+        channel: "whatsapp",
+        proactive: true,
+        railed: true,
+      },
+    });
+    const bird = new FakeBird();
+    // A `delivered` event lands while this handler waits on Bird.
+    const rowId = db.store.messages[0].id as string;
+    bird.fetchMessage = async (input) => {
+      bird.messageReads.push(input);
+      await db.notisMessage.update({ where: { id: rowId }, data: { status: "delivered" } });
+      return { id: "bm-out", status: "delivery_failed", error: { code: "unreachable" } };
+    };
+
+    const result = await handleOutboundStatus(
+      inbound({ birdMessageId: "bm-out", direction: "outbound", status: "failed" }),
+      { db, bird },
+    );
+
+    expect(result).toEqual({ action: "ignored", reason: "status moved during read-back" });
+    expect(db.store.messages[0].status).toBe("delivered");
+    expect(bird.smsSends).toHaveLength(0);
+  });
+
+  it("leaves the reason empty when the record says nothing either, and still falls back", async () => {
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+    jest.setSystemTime(new Date("2026-03-11T10:00:00.000Z"));
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }], settings: [{ key: "proactivePaused", value: false }] });
+    await db.notisMessage.create({
+      data: {
+        subscriptionId: "sub1",
+        direction: "outbound",
+        body: "Νέα από τον δήμο.",
+        birdMessageId: "bm-out",
+        status: "sent",
+        channel: "whatsapp",
+        proactive: true,
+        railed: true,
+      },
+    });
+    const bird = new FakeBird();
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    await handleOutboundStatus(inbound({ birdMessageId: "bm-out", direction: "outbound", status: "failed" }), {
+      db,
+      bird,
+    });
+
+    expect(db.store.messages[0]).toMatchObject({ status: "failed", failureReason: null });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("no reason on the event or the record"));
+    expect(bird.smsSends).toHaveLength(1);
+    warn.mockRestore();
+    jest.useRealTimers();
+  });
+});
+
 describe("SMS fallback on failed proactive templates", () => {
   const LIVE = [{ key: "proactivePaused", value: false }];
 

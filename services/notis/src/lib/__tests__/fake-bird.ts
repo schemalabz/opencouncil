@@ -1,5 +1,6 @@
 import type { TemplateName } from "../../agent/templates";
 import type { BirdLike, BirdSendResult } from "../bird";
+import type { BirdMessageLike } from "../bird-extract";
 
 /**
  * The shared Bird fake: records every call per method. Without an explicit
@@ -30,6 +31,8 @@ export class FakeBird implements BirdLike {
   /** What fetchMessageBody returns. Null stands for a failed read — the
    *  caller then keeps Bird's truncated preview. */
   public messageBody: string | null = null;
+  /** What fetchMessage returns: the record a failure event is repaired from. */
+  public message: BirdMessageLike | null = null;
 
   /** Configured by default — the fake stands in for a workspace where every
    *  shell has its project id. Set false to exercise the unaddressable-
@@ -81,6 +84,11 @@ export class FakeBird implements BirdLike {
     this.created.push(input);
     if (this.createResult) return this.createResult;
     return { ...this.nextResult(), conversationId: `conv-new-${this.created.length}` };
+  }
+
+  async fetchMessage(input: { conversationId: string; messageId: string }) {
+    this.messageReads.push(input);
+    return this.message;
   }
 
   async fetchMessageBody(input: { conversationId: string; messageId: string }) {
