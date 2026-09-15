@@ -161,7 +161,17 @@ function templateBody(template: TemplateName, text: string, linkPath?: string) {
       value: linkPath?.trim() || FALLBACK_LINK_PATH,
     });
   }
-  return { projectId, version: "latest", locale: "el", parameters };
+  return {
+    projectId,
+    version: "latest",
+    locale: "el",
+    parameters,
+    // Bird rewrites every link inside a template variable into a brd1.eu
+    // short link unless told not to. Behind BIRD_SHORT_LINKS=off, because
+    // Bird validates the request strictly and a misplaced field is a 422 on
+    // every send: staging turns it on first.
+    ...(env.BIRD_SHORT_LINKS === "off" ? { shortLinks: { enabled: false } } : {}),
+  };
 }
 
 interface RawBirdResponse {
