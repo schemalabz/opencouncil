@@ -78,32 +78,3 @@ export async function generateEmailContent(notification: NotificationData): Prom
     return { title, body };
 }
 
-/**
- * Generate SMS body text for a notification
- */
-export async function generateSmsContent(notification: NotificationData): Promise<string> {
-    const meetingDate = new Date(notification.meeting.dateTime);
-    const meetingDateFormatted = formatNumericDate(meetingDate);
-    const subjectCount = notification.subjects.length;
-
-    const adminBody = notification.meeting.administrativeBody?.name || 'συνεδρίαση';
-    const realm = notification.city.realm;
-    const notificationUrl = `${realmBaseUrl(realm)}/${urlPrefixForLocale(emailLocaleForRealm(realm))}/notifications/${notification.id}`;
-
-    const subjectNames =
-        subjectCount > 3
-            ? `${notification.subjects.slice(0, 3).map(s => s.name).join(', ')} και άλλα`
-            : notification.subjects.map(s => s.name).join(', ');
-
-    return `${notification.city.name_municipality} - ${adminBody} στις ${meetingDateFormatted}: ${subjectCount} νέα θέματα για εσάς. ${subjectNames}. Δείτε περισσότερα: ${notificationUrl}`;
-}
-
-/**
- * Welcome SMS body
- */
-export async function generateWelcomeSmsContent(
-    userName: string,
-    cityName: string,
-): Promise<string> {
-    return `Γεια σας ${userName}! Εγγραφήκατε επιτυχώς για ειδοποιήσεις από το OpenCouncil για ${cityName}. Θα λαμβάνετε ενημερώσεις για θέματα που σας αφορούν.`;
-}

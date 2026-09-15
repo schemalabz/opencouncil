@@ -4,16 +4,12 @@ import { StatsCard } from '@/components/ui/stats-card';
 import { Suspense } from 'react';
 import { ReviewsOverviewWidget, ReviewsOverviewSkeleton } from '@/components/admin/reviews/ReviewsOverviewWidget';
 import AdminWidgetErrorBoundary from '@/components/admin/AdminWidgetErrorBoundary';
-import { NotificationSubscribersChart } from '@/components/admin/NotificationSubscribersChart';
-import { getAdminDashboardStats, getNotificationSubscribersByCity } from '@/lib/db/adminStats';
+import { getAdminDashboardStats } from '@/lib/db/adminStats';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 export default async function Page() {
     await withUserAuthorizedToEdit({});
-    const [stats, citySubscribers] = await Promise.all([
-        getAdminDashboardStats(),
-        getNotificationSubscribersByCity(),
-    ]);
+    const stats = await getAdminDashboardStats();
 
     const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -57,9 +53,6 @@ export default async function Page() {
                         },
                     ]}
                 />
-                <div className="mt-4">
-                    <NotificationSubscribersChart data={citySubscribers} />
-                </div>
             </section>
 
             <section>

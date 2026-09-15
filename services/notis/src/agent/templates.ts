@@ -23,7 +23,6 @@ import { WakeEvent } from "./types";
  */
 
 export type TemplateName =
-  | "demos_intro"
   | "demos_transition"
   | "notis_intro"
   | "demos_update_agenda"
@@ -75,20 +74,6 @@ const STOP_FOOTER = "Μήνυμα με τεχνητή νοημοσύνη. ΣΤΟ
 const STOP_FOOTER_EMAIL = "Μήνυμα με τεχνητή νοημοσύνη. ΣΤΟΠ για μόνο email.";
 
 export const TEMPLATES: Record<TemplateName, TemplateDef> = {
-  demos_intro: {
-    name: "demos_intro",
-    category: "marketing",
-    bodyPrefix:
-      "Γεια σου! Είμαι ο Νότης, ο βοηθός του OpenCouncil για τον δήμο σου. Θα σου γράφω σπάνια — μόνο όταν συμβαίνει κάτι που πιστεύω ότι σε αφορά — και μπορείς να μου απαντάς και να με ρωτάς οτιδήποτε για το δημοτικό συμβούλιο.",
-    bodySuffix: "",
-    hasVariable: false,
-    hasLinkPath: false,
-    footer: STOP_FOOTER,
-    buttons: [
-      { label: "Περισσότερα", kind: "url" },
-      { label: "Τι είναι αυτό;", kind: "quick_reply" },
-    ],
-  },
   demos_transition: {
     name: "demos_transition",
     category: "utility",
@@ -199,8 +184,9 @@ export type EnrollmentOrigin = "transition" | "signup";
  * Which shell opens the thread, by how the reader entered Notis. A
  * transition reader was getting the old notification templates and is told
  * the sender changed; a signup reader asked for this on the site and gets
- * the confirmation they expect. demos_intro stays in the mirror for the
- * conversations it opened before notis_intro existed.
+ * the confirmation they expect. demos_transition stays in the mirror for
+ * the threads it opened: the admin chat renders a thread's intro from its
+ * origin, and no new thread opens with it.
  */
 export function introTemplateFor(origin: EnrollmentOrigin): TemplateName {
   return origin === "transition" ? "demos_transition" : "notis_intro";

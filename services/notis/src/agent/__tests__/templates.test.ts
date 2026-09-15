@@ -51,15 +51,14 @@ describe("templates", () => {
 
   it("mirrors the categories WhatsApp Manager shows, appeals included", () => {
     // Read from WhatsApp Manager 2026-09-06: the transition and news appeals
-    // won; the intro shells stay marketing (demos_intro's appeals are
-    // exhausted, notis_intro's is pending). The poller keys the +1 hold off
+    // won; the intro shell stays marketing (notis_intro's appeal is
+    // pending). The poller keys the +1 hold off
     // this, so a stale entry either blocks a reachable number or sends a
     // shell Meta refuses.
     expect(TEMPLATES.demos_transition.category).toBe("utility");
     expect(TEMPLATES.demos_update_agenda.category).toBe("utility");
     expect(TEMPLATES.demos_update_news.category).toBe("utility");
     expect(TEMPLATES.demos_followup.category).toBe("utility");
-    expect(TEMPLATES.demos_intro.category).toBe("marketing");
     expect(TEMPLATES.notis_intro.category).toBe("marketing");
   });
 
@@ -120,7 +119,6 @@ describe("link_path", () => {
     expect(TEMPLATES.demos_update_agenda.hasLinkPath).toBe(true);
     expect(TEMPLATES.demos_update_news.hasLinkPath).toBe(true);
     expect(TEMPLATES.demos_followup.hasLinkPath).toBe(true);
-    expect(TEMPLATES.demos_intro.hasLinkPath).toBe(false);
     expect(TEMPLATES.demos_transition.hasLinkPath).toBe(false);
     expect(TEMPLATES.notis_intro.hasLinkPath).toBe(false);
     expect(TEMPLATES.demos_checkin.hasLinkPath).toBe(false);

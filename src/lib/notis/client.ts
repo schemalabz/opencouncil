@@ -25,6 +25,16 @@ export interface NotisSubscriptionView {
     createdAt: string;
 }
 
+/** What Notis knows about signups and the main database cannot: see services/notis/src/lib/subscription-stats.ts. */
+export interface NotisStats {
+    active: number;
+    cities: Array<{ cityId: string; active: number }>;
+    weeks: Array<{ start: string; fresh: number; stopped: number; active: number }>;
+    newLast7Days: number;
+    newPrev7Days: number;
+    stoppedLast7Days: number;
+}
+
 export type NotisClientResult<T> =
     | { ok: true; data: T }
     | { ok: false; reason: "unconfigured" | "unreachable" }
@@ -84,4 +94,11 @@ export async function setNotisSubscription(
         { method: "PATCH", body: { status } },
     );
     return result.ok ? { ok: true, data: result.data ?? { subscription: null } } : result;
+}
+
+/** The aggregates behind /admin/signups. A 2xx without a body reads as unreachable, like everywhere else here. */
+export async function getNotisStats(): Promise<NotisClientResult<NotisStats>> {
+    const result = await call<NotisStats | null>("/api/subscriptions/stats", { method: "GET" });
+    if (!result.ok) return result;
+    return result.data ? { ok: true, data: result.data } : { ok: false, reason: "unreachable" };
 }

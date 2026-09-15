@@ -4,6 +4,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { subDays } from "date-fns";
 import { CUSTOMER_CITY_WHERE } from "../cityStatus";
+import { cumulativeByWeek, lastTwoWeeks, type WeekTotal } from "../admin/signup-series";
 
 export interface AdminDashboardStats {
     users: {
@@ -34,12 +35,24 @@ export interface AdminDashboardStats {
     };
 }
 
-export interface CitySubscriberStats {
+/** A supported municipality with a population, so a per-capita figure means something. */
+export interface SignupCity {
     cityId: string;
     name: string;
-    subscribers: number;
     population: number;
-    perMille: number;
+}
+
+/** The email half of the signups page. The Notis half comes from the Notis service. */
+export interface EmailSignupStats {
+    cities: SignupCity[];
+    /** Preferences with the email summary on, per municipality. */
+    subscribersByCity: Record<string, number>;
+    /** People with the email summary on in at least one municipality. */
+    people: number;
+    /** Running total of people, at the end of each of the last SIGNUP_WEEKS weeks. */
+    weeks: WeekTotal[];
+    newLast7Days: number;
+    newPrev7Days: number;
 }
 
 function percentChange(current: number, previous: number): number {
@@ -145,38 +158,44 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
 }
 
 /**
- * Notification subscribers per supported municipality, as thousandths (‰) of
- * its population — the marketing penetration metric. Sorted highest to lowest.
- * Supported cities without a recorded population are omitted (the ratio is
- * undefined for them).
+ * The signups page's email numbers: the supported municipalities (with a
+ * population, so ‰ means something), how many preferences in each have the
+ * email summary on, and the people behind them over the last twelve weeks.
+ * A person is counted from their first email preference; a person in two
+ * municipalities counts once here and once per municipality in the bars.
+ * Only preferences in those municipalities count, so the tiles and the
+ * bars describe the same people over the same residents.
  */
-export async function getNotificationSubscribersByCity(): Promise<CitySubscriberStats[]> {
+export async function getEmailSignupStats(): Promise<EmailSignupStats> {
     await withUserAuthorizedToEdit({});
 
-    const [cities, subscriberCounts] = await Promise.all([
-        prisma.city.findMany({
+    const cities = (
+        await prisma.city.findMany({
             where: CUSTOMER_CITY_WHERE,
             select: { id: true, name: true, population: true },
-        }),
-        prisma.notificationPreference.groupBy({
-            by: ["cityId"],
-            _count: { _all: true },
-        }),
-    ]);
-
-    const subscribersByCity = new Map(subscriberCounts.map(c => [c.cityId, c._count._all]));
-
-    return cities
-        .filter((city): city is typeof city & { population: number } => !!city.population)
-        .map(city => {
-            const subscribers = subscribersByCity.get(city.id) ?? 0;
-            return {
-                cityId: city.id,
-                name: city.name,
-                subscribers,
-                population: city.population,
-                perMille: (subscribers / city.population) * 1000,
-            };
         })
-        .sort((a, b) => b.perMille - a.perMille);
+    ).filter((city): city is typeof city & { population: number } => !!city.population);
+    const preferences = await prisma.notificationPreference.findMany({
+        where: { notifyByEmail: true, cityId: { in: cities.map((city) => city.id) } },
+        select: { userId: true, cityId: true, createdAt: true },
+    });
+
+    const subscribersByCity: Record<string, number> = {};
+    const firstByUser = new Map<string, Date>();
+    for (const pref of preferences) {
+        subscribersByCity[pref.cityId] = (subscribersByCity[pref.cityId] ?? 0) + 1;
+        const first = firstByUser.get(pref.userId);
+        if (!first || pref.createdAt < first) firstByUser.set(pref.userId, pref.createdAt);
+    }
+    const firstDates = [...firstByUser.values()];
+    const recent = lastTwoWeeks(firstDates);
+
+    return {
+        cities: cities.map((city) => ({ cityId: city.id, name: city.name, population: city.population })),
+        subscribersByCity,
+        people: firstByUser.size,
+        weeks: cumulativeByWeek(firstDates),
+        newLast7Days: recent.last7Days,
+        newPrev7Days: recent.prev7Days,
+    };
 }

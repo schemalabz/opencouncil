@@ -81,11 +81,10 @@ events in production and outbound sends fail with an alert:
   unmatched channel id classifies as WhatsApp.
 - `BIRD_WEBHOOK_SECRET` — the signing key of the NOTIS subscription. Do not
   reuse the main app's secret.
-- `BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION`, `BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO`,
+- `BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO`,
   `BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA`, `BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS`,
-  `BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP` (and `..._DEMOS_INTRO` for the
-  threads it opened before notis_intro existed) — the Bird project id of each
-  shell in `src/agent/templates.ts`. A shell without its id is unaddressable:
+  `BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP` — the Bird project id of each
+  shell in `src/agent/templates.ts` that still has a send path. A shell without its id is unaddressable:
   the poller holds the readers who need it and alerts, instead of enrolling
   them into a thread that never opens.
 
@@ -161,7 +160,9 @@ itself).
 ## Subscriptions API (service token)
 
 The main app's profile switch («Ο Νότης στο WhatsApp») reads and flips a
-reader's subscription through `GET|PATCH /api/subscriptions/{userId}`,
+reader's subscription through `GET|PATCH /api/subscriptions/{userId}`, and
+its `/admin/signups` page reads `GET /api/subscriptions/stats` (active
+subscribers per municipality, weekly starts and stops — aggregates only),
 called server-side with `Authorization: Bearer $NOTIS_SERVICE_TOKEN` — the
 same value on both components, at least 32 characters. `requireService()`
 compares it in constant time and answers 503 while the variable is unset,
@@ -197,8 +198,7 @@ for a state on the reader's explicit action.
   Notis has not met; both flips of the switch ask this API first and write
   the flag after a confirmed answer. The flag gates enrollment and the
   proactive audience but never re-activates anyone — only the switch does,
-  through the subscriptions API. `User.notisEnabledAt` and its two view columns are
-  unread since PR 5 and go with a view-recreating migration in PR 6.
+  through the subscriptions API.
 
 - **The wake trace shares a table with the wake's scalars.** `NotisWake.trace`
   is one Json value of a few hundred KB — the system prompt, the rendered user

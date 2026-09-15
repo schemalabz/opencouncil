@@ -6,7 +6,6 @@ jest.mock("@/env.mjs", () => ({
     BIRD_WORKSPACE_ID: "ws-1",
     BIRD_WHATSAPP_CHANNEL_ID: "wa-channel",
     BIRD_SMS_CHANNEL_ID: "sms-channel",
-    BIRD_WHATSAPP_TEMPLATE_DEMOS_TRANSITION: "proj-transition",
     BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO: "proj-notis-intro",
     BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS: "proj-news",
     // demos_followup deliberately unset: the missing-id path.
@@ -85,7 +84,7 @@ describe("sendTemplate", () => {
 });
 
 describe("createConversationWithTemplate", () => {
-  it("sends creation with the fixed transition template (no parameters) and returns the ids", async () => {
+  it("sends creation with the fixed intro template (no parameters) and returns the ids", async () => {
     const fetchMock = mockFetch(200, {
       id: "conv-9",
       initialMessage: { id: "bm-9" },
@@ -94,7 +93,7 @@ describe("createConversationWithTemplate", () => {
     const result = await realBird.createConversationWithTemplate({
       phone: "+306900000001",
       name: "Notis +306900000001",
-      template: "demos_transition",
+      template: "notis_intro",
       text: "",
       idempotencyKey: "msg-3",
     });
@@ -108,7 +107,7 @@ describe("createConversationWithTemplate", () => {
       { type: "contact", identifierKey: "phonenumber", identifierValue: "+306900000001" },
     ]);
     expect(payload.initialMessage.template).toEqual({
-      projectId: "proj-transition",
+      projectId: "proj-notis-intro",
       version: "latest",
       locale: "el",
       parameters: [],
@@ -123,7 +122,7 @@ describe("createConversationWithTemplate", () => {
     const result = await realBird.createConversationWithTemplate({
       phone: "+306900000001",
       name: "n",
-      template: "demos_transition",
+      template: "notis_intro",
       text: "",
       idempotencyKey: "msg-4",
     });
@@ -303,7 +302,7 @@ describe("template parameters", () => {
     await realBird.sendTemplate({
       conversationId: "c1",
       phone: "+306900000001",
-      template: "demos_transition",
+      template: "notis_intro",
       text: "ignored",
       idempotencyKey: "k3",
     });

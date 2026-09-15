@@ -821,7 +821,8 @@ model User {
   name          String?
   email         String          @unique
   emailVerified DateTime?
-  phone         String?
+  /// One account per mobile number: Νότης is one conversation per number.
+  phone         String?         @unique
   onboarded     Boolean         @default(false)
   allowProductUpdates  Boolean  @default(true)
   allowPetitionUpdates Boolean  @default(false)
@@ -831,11 +832,6 @@ model User {
   /// the notis_fanout_targets view carries it on every row.
   notifyByPhone        Boolean  @default(true)
   isSuperAdmin  Boolean         @default(false)
-  // The retired Notis rollout flag. Unread since PR 5 (every reader is
-  // served by Notis); the notis_users and notis_fanout_targets views still
-  // carry it, so it goes with a view-recreating migration in PR 6 rather
-  // than while the previous Notis build may still be polling those views.
-  notisEnabledAt DateTime?
   accounts      Account[]
   sessions      Session[]
   Authenticator Authenticator[]
@@ -862,8 +858,6 @@ model User {
   mcpTokens UserMcpToken[]
   searchQueries SearchQuery[]
 
-  // Webhook gates resolve senders by phone on every WhatsApp event.
-  @@index([phone])
 }
  
 model Account {

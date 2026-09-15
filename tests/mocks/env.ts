@@ -23,9 +23,6 @@ const defaults: Record<string, string> = {
     BIRD_WORKSPACE_ID: 'test-workspace',
     BIRD_WHATSAPP_CHANNEL_ID: 'test-channel',
     BIRD_SMS_CHANNEL_ID: 'test-sms',
-    BIRD_WHATSAPP_TEMPLATE_BEFORE_MEETING: 'tmpl-before',
-    BIRD_WHATSAPP_TEMPLATE_AFTER_MEETING: 'tmpl-after',
-    BIRD_WHATSAPP_TEMPLATE_WELCOME: 'tmpl-welcome',
 }
 
 export const env = new Proxy(defaults, {
