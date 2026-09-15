@@ -1,3 +1,4 @@
+import { env } from "@/env.mjs";
 import { FALLBACK_LINK_PATH, extractConflictingConversationId, realBird } from "../bird";
 
 jest.mock("@/env.mjs", () => ({
@@ -243,6 +244,33 @@ describe("extractConflictingConversationId", () => {
 
   it("returns undefined when nothing looks like a UUID", () => {
     expect(extractConflictingConversationId({}, "nope")).toBeUndefined();
+  });
+});
+
+describe("Bird's link shortening", () => {
+  const mutableEnv = env as { BIRD_SHORT_LINKS?: "on" | "off" };
+  afterEach(() => {
+    delete mutableEnv.BIRD_SHORT_LINKS;
+  });
+
+  it("asks Bird not to shorten the template's links when BIRD_SHORT_LINKS is off, and says nothing otherwise", async () => {
+    const send = async () => {
+      const fetchMock = mockFetch(200, { id: "bm-1" });
+      await realBird.sendTemplate({
+        conversationId: "conv-1",
+        phone: "+306900000001",
+        template: "demos_update_news",
+        text: "Νέα.",
+        linkPath: "athens/x",
+        idempotencyKey: "m-1",
+      });
+      const [, init] = fetchMock.mock.calls[0] as unknown as [string, { body: string }];
+      return JSON.parse(init.body).template as Record<string, unknown>;
+    };
+
+    expect(await send()).not.toHaveProperty("shortLinks");
+    mutableEnv.BIRD_SHORT_LINKS = "off";
+    expect((await send()).shortLinks).toEqual({ enabled: false });
   });
 });
 

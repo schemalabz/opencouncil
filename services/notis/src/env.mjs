@@ -40,6 +40,10 @@ export const env = createEnv({
     // classifies as WhatsApp by default.
     BIRD_SMS_CHANNEL_ID: z.string().optional(),
     BIRD_WEBHOOK_SECRET: z.string().optional(),
+    // "off" asks Bird not to rewrite the links in a template send into its
+    // brd1.eu short links. Unset (the default) leaves Bird's behaviour as it
+    // is, so a deployment can prove the field on staging before production.
+    BIRD_SHORT_LINKS: z.enum(["on", "off"]).optional(),
     // Bird template project ids (UUIDs from the Bird dashboard), one per
     // approved shell. A cold send with a missing id fails visibly.
     // demos_checkin has no send path and deliberately no id.
@@ -70,6 +74,7 @@ export const env = createEnv({
     BIRD_WHATSAPP_CHANNEL_ID: process.env.BIRD_WHATSAPP_CHANNEL_ID,
     BIRD_SMS_CHANNEL_ID: process.env.BIRD_SMS_CHANNEL_ID,
     BIRD_WEBHOOK_SECRET: process.env.BIRD_WEBHOOK_SECRET,
+    BIRD_SHORT_LINKS: process.env.BIRD_SHORT_LINKS,
     BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO: process.env.BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO,
     BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA,
     BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS: process.env.BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS,
