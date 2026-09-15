@@ -257,16 +257,42 @@ export function linkPathForEvent(event: WakeEvent): string | undefined {
 }
 
 const OPENCOUNCIL_LINK = /https?:\/\/(?:www\.)?opencouncil\.gr\/([^\s)\]»,;]+)/i;
+const OPENCOUNCIL_LINKS = new RegExp(OPENCOUNCIL_LINK.source, "gi");
 
-export function linkPathFromText(text: string): string | undefined {
-  const match = OPENCOUNCIL_LINK.exec(text);
-  if (!match) return undefined;
+/** The path of one matched link, as the button can take it. */
+function pathOf(match: string): string | undefined {
   // A query or fragment is not part of the path, and Bird substitutes this
   // into an approved base URL that expects a path segment — sending
   // «athens/x?utm=wa» risks the same 422 this whole mechanism exists to avoid.
-  const path = match[1]
+  const path = match
     .split(/[?#]/)[0]
     // Trailing sentence punctuation is prose, not path.
     .replace(/[.,;:!?»)\]]+$/, "");
   return path || undefined;
+}
+
+/** Every opencouncil.gr path the text links to, in order, with duplicates. */
+export function linkPathsInText(text: string): string[] {
+  return [...text.matchAll(OPENCOUNCIL_LINKS)].flatMap((m) => {
+    const path = pathOf(m[1]);
+    return path ? [path] : [];
+  });
+}
+
+export function linkPathFromText(text: string): string | undefined {
+  return linkPathsInText(text)[0];
+}
+
+/**
+ * The button's path for a template send: the event's meeting page, deepened
+ * to the body's own link when the message is about exactly one thing on
+ * that page (one link, under the meeting's path — a subject, a moment). Two
+ * links mean two subjects, and the meeting page is the only destination
+ * that is not wrong for one of them. Without a meeting, the body's first
+ * link is all there is.
+ */
+export function linkPathForTemplate(eventPath: string | undefined, text: string): string | undefined {
+  const paths = linkPathsInText(text);
+  if (!eventPath) return paths[0];
+  return paths.length === 1 && paths[0].startsWith(`${eventPath}/`) ? paths[0] : eventPath;
 }

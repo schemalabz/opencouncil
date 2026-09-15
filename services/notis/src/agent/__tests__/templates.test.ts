@@ -13,6 +13,7 @@ import {
   introTemplateFor,
   isWindowOpen,
   linkPathForEvent,
+  linkPathForTemplate,
   linkPathFromText,
   renderTemplate,
   templateForEvent,
@@ -157,6 +158,32 @@ describe("link_path", () => {
     expect(linkPathFromText("https://example.com/athens/x")).toBeUndefined();
     // The bare domain has no path to send.
     expect(linkPathFromText("https://opencouncil.gr/")).toBeUndefined();
+  });
+});
+
+describe("linkPathForTemplate", () => {
+  const meeting = "athens/jul29_2_2026";
+
+  it("deepens the meeting page to the body's one link under it", () => {
+    expect(
+      linkPathForTemplate(meeting, "Το «Παλάς»: … https://opencouncil.gr/athens/jul29_2_2026/subjects/abc123"),
+    ).toBe("athens/jul29_2_2026/subjects/abc123");
+  });
+
+  it("keeps the meeting page when the body links two subjects, or somewhere else", () => {
+    expect(
+      linkPathForTemplate(
+        meeting,
+        "https://opencouncil.gr/athens/jul29_2_2026/subjects/a και https://opencouncil.gr/athens/jul29_2_2026/subjects/b",
+      ),
+    ).toBe(meeting);
+    expect(linkPathForTemplate(meeting, "Δες https://opencouncil.gr/athens/aug18_2026")).toBe(meeting);
+    expect(linkPathForTemplate(meeting, "Χωρίς σύνδεσμο.")).toBe(meeting);
+  });
+
+  it("takes the body's first link when the event names no meeting", () => {
+    expect(linkPathForTemplate(undefined, "Δες https://opencouncil.gr/athens/aug18_2026.")).toBe("athens/aug18_2026");
+    expect(linkPathForTemplate(undefined, "Χωρίς σύνδεσμο.")).toBeUndefined();
   });
 });
 
