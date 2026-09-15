@@ -1,6 +1,9 @@
 import { Metadata } from "next";
-import { cache } from "react";
+import { cache, Suspense } from "react";
 import Subject from "@/components/meetings/subject/subject";
+import { RelatedSubjectsSection } from "@/components/meetings/subject/RelatedSubjectsSection";
+import { RelatedRecurrenceStrip } from "@/components/meetings/subject/RelatedRecurrenceStrip";
+import { OptionalSectionBoundary } from "@/components/ui/OptionalSectionBoundary";
 import SubjectReadTracker from "@/components/analytics/SubjectReadTracker";
 import { getMeetingDataCached, getSubjectFromMeetingCached } from "@/lib/getMeetingData";
 import { notFound } from "next/navigation";
@@ -137,6 +140,14 @@ export default async function SubjectPage(
         citations: [...new Set(subject.contextCitationUrls)],
     });
 
+    const seed = {
+        id: subject.id,
+        name: subject.name,
+        cityId: subject.cityId,
+        councilMeetingId: subject.councilMeetingId,
+    };
+    const meetingDate = new Date(meetingData.meeting.dateTime).toISOString();
+
     return (
         <>
             <script
@@ -148,7 +159,40 @@ export default async function SubjectPage(
                 meetingId={params.meetingId}
                 subjectId={params.subjectId}
             />
-            <Subject subjectId={params.subjectId} highlightedContributionId={shared?.id} />
+            <Subject
+                subjectId={params.subjectId}
+                highlightedContributionId={shared?.id}
+                related={
+                    // Its own boundaries: two index queries and a hydration
+                    // must neither hold back the page they decorate (the
+                    // Suspense) nor take it down when one of them throws
+                    // (the error boundary — Suspense catches promises only).
+                    <OptionalSectionBoundary label="Related subjects">
+                        <Suspense fallback={null}>
+                            <RelatedSubjectsSection
+                                seed={seed}
+                                current={{
+                                    dateTime: meetingDate,
+                                    administrativeBodyName: meetingData.meeting.administrativeBody
+                                        ? getLocalizedName(meetingData.meeting.administrativeBody, params.locale)
+                                        : null,
+                                    timezone: meetingData.city.timezone,
+                                }}
+                            />
+                        </Suspense>
+                    </OptionalSectionBoundary>
+                }
+                relatedStrip={
+                    // Reads the section's lookup — one request, one set of
+                    // index queries — so it only waits, never adds; its own
+                    // boundaries keep the header from waiting with it.
+                    <OptionalSectionBoundary label="Related recurrence">
+                        <Suspense fallback={null}>
+                            <RelatedRecurrenceStrip seed={seed} meetingDate={meetingDate} />
+                        </Suspense>
+                    </OptionalSectionBoundary>
+                }
+            />
         </>
     );
 }
