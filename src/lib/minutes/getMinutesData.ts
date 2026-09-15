@@ -22,6 +22,8 @@ import {
     buildAttendanceChanges,
     sortSubjectsByDiscussionOrder,
     sortByElectedOrder,
+    buildDiscussionSummary,
+    buildProceduralVotes,
     MemberResolver,
     ElectedOrderGetter,
 } from './builders';
@@ -89,6 +91,14 @@ export async function getMinutesData(
         },
         orderBy: { startTimestamp: 'asc' },
     });
+
+    // Linked utterances per subject, any status — the discussion summary's input.
+    const linkedBySubject = new Map<string, typeof allUtterances>();
+    for (const u of allUtterances) {
+        if (!u.discussionSubjectId) continue;
+        const list = linkedBySubject.get(u.discussionSubjectId);
+        if (list) list.push(u); else linkedBySubject.set(u.discussionSubjectId, [u]);
+    }
 
     // Subject title map for cross-subject annotations (includes all subjects)
     const subjectNameMap = new Map(subjects.map(s => [s.id, agendaItemTitleOrName(s)]));
@@ -249,6 +259,7 @@ export async function getMinutesData(
                 id: s.discussedIn.id,
                 name: agendaItemTitleOrName(s.discussedIn),
                 agendaItemIndex: s.discussedIn.agendaItemIndex,
+                nonAgendaReason: s.discussedIn.nonAgendaReason as 'beforeAgenda' | 'outOfAgenda' | null,
             } : null,
             discussedElsewhere,
             decision: s.decision ? {
@@ -259,6 +270,7 @@ export async function getMinutesData(
             } : null,
             attendance,
             voteResult,
+            discussion: buildDiscussionSummary(linkedBySubject.get(s.id) ?? []),
             preDiscussionEntries: buildOrphanTranscriptEntries(preDiscussionUtterances),
             transcriptEntries: buildTranscriptEntries(s.id),
         };
@@ -411,6 +423,15 @@ export async function getMinutesData(
         preambleEntries,
         attendanceChanges,
         discussionOrderLabel,
+        proceduralVotes: buildProceduralVotes(
+            allUtterances,
+            sectionSubjects.filter(s => s.nonAgendaReason !== 'beforeAgenda').map(s => ({
+                id: s.id,
+                name: agendaItemTitleOrName(s),
+                agendaItemIndex: s.agendaItemIndex,
+                nonAgendaReason: s.nonAgendaReason === 'outOfAgenda' ? 'outOfAgenda' : null,
+            })),
+        ),
         subjects: minutesSubjects,
         epilogueEntries,
     };

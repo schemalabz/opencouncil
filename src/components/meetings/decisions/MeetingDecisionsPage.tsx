@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useToast } from '@/hooks/use-toast';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { useTranslations } from 'next-intl';
-import { FileText, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Search, MoreHorizontal, RotateCcw } from 'lucide-react';
+import { FileText, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Search, MoreHorizontal, RotateCcw, FileDown, Eye } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DecisionWithSource, MeetingAttendanceRecord, SubjectExtractedData } from '@/lib/db/decisions';
 import { MeetingCandidate } from '@/lib/db/decisionCandidateShape';
@@ -22,12 +22,20 @@ import { calculateVoteResult } from '@/lib/utils/votes';
 import { formatDate } from '@/lib/formatters/time';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
 import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
-import { CollapsibleMarkdown, NameList, MeetingAttendanceSummary, sortNamesByElectedOrder } from '@/components/meetings/decisions/shared';
+import { CollapsibleMarkdown, NameList, MeetingAttendanceSummary, sortNamesByElectedOrder, splitAttendance, opensOutOfAgendaSection } from '@/components/meetings/decisions/shared';
 import { computeDecisionStats } from '@/components/meetings/decisions/stats';
 import { normalizeText } from '@/lib/utils';
 import { diavgeiaDocUrl, diavgeiaSearchUrl } from '@/components/meetings/decisions/pdfUrl';
 import { parseDiavgeiaUnitScopes } from '@/lib/utils/diavgeiaUnitScope';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
+import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
+import { SubjectMinutesMeta } from '@/components/meetings/decisions/SubjectMinutesMeta';
+import { MeetingFactsBlock } from '@/components/meetings/decisions/MeetingFactsBlock';
+import { buildTimeline, hasDiscussionOrder, matchesStatusFilter, positionsById, SubjectStatusFilter } from '@/components/meetings/decisions/timeline';
+import { TimelineEvent } from '@/components/meetings/decisions/TimelineEvent';
+import { downloadFile } from '@/lib/export/download';
+import { MinutesPreviewDialog } from '@/components/meetings/decisions/MinutesPreviewDialog';
+import { InlineToggle } from '@/components/ui/inline-toggle';
 
 interface ManualEntryState {
     pdfUrl: string;
@@ -47,8 +55,6 @@ type CandidateView = Omit<MeetingCandidate, 'publishDate' | 'meetingDate'> & {
     publishDate: string | null;
     meetingDate: string | null;
 };
-
-type SubjectStatus = 'linked' | 'none';
 
 /** The document fields every sheet action carries, projected once. */
 interface DecisionDoc {
@@ -116,8 +122,12 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
     const [trayOpen, setTrayOpen] = useState(false);
     // Empty selection means no status filter (BadgePicker's "all" state).
-    const [statusFilter, setStatusFilter] = useState<SubjectStatus[]>([]);
+    const [statusFilter, setStatusFilter] = useState<SubjectStatusFilter[]>([]);
     const [subjectQuery, setSubjectQuery] = useState('');
+    const [minutes, setMinutes] = useState<MinutesData | null>(null);
+    const [minutesFailed, setMinutesFailed] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [order, setOrder] = useState<'discussion' | 'agenda'>('discussion');
     // The sheet stays mounted while it animates out — same dismissable-layer
     // bug as the modal={false} note on the row menu below.
     const lastActionRef = useRef<PendingAction | null>(null);
@@ -161,6 +171,37 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             .then(setPollingStatus)
             .catch(() => { /* silent */ });
     }, [fetchDecisions, meeting.cityId, meeting.id]);
+
+    // The minutes route is the one source of the discussion order and the
+    // per-subject minutes facts, so the page and the DOCX cannot drift apart.
+    const fetchMinutes = useCallback(async () => {
+        setMinutesFailed(false);
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/minutes?format=json`);
+            if (!response.ok) { setMinutesFailed(true); return; }
+            setMinutes(await response.json() as MinutesData);
+        } catch {
+            setMinutesFailed(true);
+        }
+    }, [meeting.cityId, meeting.id]);
+
+    const handleExportDocx = async () => {
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/minutes`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            downloadFile(await response.blob(), `minutes-${city.id}-${meeting.id}.docx`);
+            toast({ title: t('minutes.exportSuccess') });
+        } catch {
+            toast({ title: t('minutes.exportError'), variant: 'destructive' });
+        }
+    };
+
+    useEffect(() => { fetchMinutes(); }, [fetchMinutes]);
+
+    const minutesById = useMemo(
+        () => new Map<string, MinutesSubject>((minutes?.subjects ?? []).map(s => [s.subjectId, s])),
+        [minutes],
+    );
 
     const validateForm = (): boolean => {
         const errors: FormErrors = {};
@@ -249,7 +290,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 throw new Error(err?.error ?? 'Failed to save decision');
             }
 
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
             setExpandedManualEntry(null);
             setEditState({ pdfUrl: '', ada: '', decisionNumber: '', protocolNumber: '', title: '' });
             toast({ title: t('toasts.decisionLinked.title') });
@@ -280,7 +321,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             );
             if (!response.ok) throw new Error('Failed to remove decision');
             toast({ title: tPage('decisionRemoved') });
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
             return true;
         } catch (error) {
             toast({ title: t('toasts.errorRemovingDecision.title'), description: `${error}`, variant: 'destructive' });
@@ -303,7 +344,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 throw new Error(err?.error ?? 'Assignment failed');
             }
             toast({ title: tPage('unplacedAssigned') });
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
             return true;
         } catch (error) {
             toast({ title: `${error instanceof Error ? error.message : error}`, variant: 'destructive' });
@@ -323,6 +364,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             });
             if (!response.ok) throw new Error('Dismiss failed');
             toast({ title: tPage('unplacedDismissed') });
+            // Dismissing a candidate changes nothing MinutesData carries — no need to refetch it.
             await fetchDecisions();
             return true;
         } catch (error) {
@@ -343,7 +385,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             });
             if (!response.ok) throw new Error('Failed to reset extraction');
             toast({ title: tPage('extractionReset') });
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
         } catch (error) {
             toast({ title: tPage('resetError'), description: `${error}`, variant: 'destructive' });
         } finally {
@@ -401,7 +443,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             if (!response.ok) throw new Error('Failed to reset extractions');
             const result = await response.json();
             toast({ title: `${tPage('resetExtractions')}: ${result.clearedCount}` });
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
         } catch (error) {
             toast({ title: tPage('resetError'), description: `${error}`, variant: 'destructive' });
         } finally {
@@ -448,7 +490,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     }
     const pickableCandidates = candidates.filter(c => !c.conflict);
 
-    const subjectStatus = (subjectId: string): SubjectStatus =>
+    const subjectStatus = (subjectId: string): SubjectStatusFilter =>
         decisions[subjectId] ? 'linked' : 'none';
     const query = normalizeText(subjectQuery.trim());
     const matchesQuery = (subjectId: string, name: string): boolean => {
@@ -458,9 +500,30 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         return !!d && [d.title, d.ada, d.decisionNumber, d.protocolNumber]
             .some(v => v && normalizeText(v).includes(query));
     };
-    const filteredSubjects = allDisplaySubjects.filter(s =>
-        (statusFilter.length === 0 || statusFilter.includes(subjectStatus(s.id))) && matchesQuery(s.id, s.name));
+    const matchesStatus = (subjectId: string): boolean =>
+        matchesStatusFilter(statusFilter, subjectStatus(subjectId) === 'linked', minutesById.get(subjectId));
+    const filteredSubjects = allDisplaySubjects.filter(s => matchesStatus(s.id) && matchesQuery(s.id, s.name));
     const stats = computeDecisionStats(eligibleSubjects.map(s => s.id), decisions, candidates);
+
+    // 1-based position in discussion order, for the non-withdrawn subjects the minutes carry.
+    const positionById = useMemo(() => (minutes ? positionsById(minutes) : new Map<string, number>()), [minutes]);
+
+    const subjectById = useMemo(() => new Map(subjects.map(s => [s.id, s])), [subjects]);
+    const visibleIds = useMemo(() => new Set(filteredSubjects.map(s => s.id)), [filteredSubjects]);
+
+    const minutesStats = useMemo(() => {
+        const rows = (minutes?.subjects ?? []).filter(s => !s.withdrawn);
+        return {
+            noUtterances: rows.filter(s => s.discussion.kind === 'none').length,
+            noVote: rows.filter(s => s.voteResult === null).length,
+            withdrawn: (minutes?.subjects ?? []).filter(s => s.withdrawn).length,
+        };
+    }, [minutes]);
+
+    // The transcript gives an order only when at least one subject has a start.
+    const discussionOrderAvailable = minutes !== null && hasDiscussionOrder(minutes);
+    const effectiveOrder: 'discussion' | 'agenda' = discussionOrderAvailable ? order : 'agenda';
+    const timeline = useMemo(() => (minutes ? buildTimeline(minutes) : null), [minutes]);
 
     /** Run the sheet-confirmed action; close the sheet only when it succeeds,
      * so a failure keeps the document context for the retry. */
@@ -536,13 +599,13 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
 
                         {/* Attendance */}
                         {extracted && extracted.attendance.length > 0 && (() => {
-                            const filteredAttendance = extracted.attendance.filter(a => a.personId !== mayorPersonId);
+                            const filteredAttendance = splitAttendance(extracted.attendance, mayorPersonId);
                             const present = sortNamesByElectedOrder(
-                                filteredAttendance.filter(a => a.status === 'PRESENT'),
+                                filteredAttendance.present,
                                 getPerson, administrativeBodyId,
                             );
                             const absent = sortNamesByElectedOrder(
-                                filteredAttendance.filter(a => a.status === 'ABSENT'),
+                                filteredAttendance.absent,
                                 getPerson, administrativeBodyId,
                             );
                             return (
@@ -611,7 +674,12 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         );
     };
 
-    const renderSubjectRow = (subject: (typeof subjects)[number], index: number, sectionSubjects: typeof subjects) => {
+    const renderSubjectRow = (
+        subject: (typeof subjects)[number],
+        index: number,
+        sectionSubjects: typeof subjects,
+        options: { sectionLabels: boolean } = { sectionLabels: true }
+    ) => {
         const decision = decisions[subject.id];
         const extracted = extractedData[subject.id];
         const sourceInfo = decision ? getSourceInfo(decision) : null;
@@ -619,8 +687,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         const isSaving = savingSubjectId === subject.id;
         const isRemoving = removingSubjectId === subject.id;
 
-        const showOutOfAgendaSeparator = subject.nonAgendaReason === 'outOfAgenda' &&
-            (index === 0 || sectionSubjects[index - 1].nonAgendaReason !== 'outOfAgenda');
+        const showOutOfAgendaSeparator = opensOutOfAgendaSection(sectionSubjects, index, options.sectionLabels);
 
         return (
             <Fragment key={subject.id}>
@@ -694,26 +761,28 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                     {subject.description}
                                 </div>
                             ) : null}
-                            {/* Inline attendance & vote summary */}
-                            {extracted && (extracted.attendance.length > 0 || extracted.votes.length > 0) && (() => {
-                                const filteredInline = extracted.attendance.filter(a => a.personId !== mayorPersonId);
-                                const present = filteredInline.filter(a => a.status === 'PRESENT');
-                                const absent = filteredInline.filter(a => a.status === 'ABSENT');
-                                const voteResult = extracted.votes.length > 0 ? calculateVoteResult(extracted.votes) : null;
+                            {(() => {
+                                const filteredInline = extracted ? splitAttendance(extracted.attendance, mayorPersonId) : { present: [], absent: [] };
+                                const attendanceLabel = extracted && extracted.attendance.length > 0
+                                    ? `${filteredInline.present.length}/${filteredInline.absent.length}`
+                                    : null;
+                                const voteLabel = extracted && extracted.votes.length > 0 ? voteSummaryText(calculateVoteResult(extracted.votes)) : null;
+                                const minutesSubject = minutesById.get(subject.id);
+                                if (minutesSubject) {
+                                    return (
+                                        <SubjectMinutesMeta
+                                            subject={minutesSubject}
+                                            position={positionById.get(subject.id) ?? null}
+                                        />
+                                    );
+                                }
+                                // No minutes data for this row (the minutes did not load, or the
+                                // subject is outside the minutes): the decisions summary as before.
+                                if (!attendanceLabel && !voteLabel) return null;
                                 return (
                                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                                        {extracted.attendance.length > 0 && (
-                                            <span className="inline-flex items-center gap-1">
-                                                <Users className="h-3 w-3" />
-                                                {present.length}/{absent.length}
-                                            </span>
-                                        )}
-                                        {voteResult && (
-                                            <span className="inline-flex items-center gap-1">
-                                                <Vote className="h-3 w-3" />
-                                                {voteSummaryText(voteResult)}
-                                            </span>
-                                        )}
+                                        {attendanceLabel && <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" />{attendanceLabel}</span>}
+                                        {voteLabel && <span className="inline-flex items-center gap-1"><Vote className="h-3 w-3" />{voteLabel}</span>}
                                     </div>
                                 );
                             })()}
@@ -1033,6 +1102,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         <div className="container mx-auto max-w-5xl py-6 space-y-6">
             {/* Header */}
             <div className="space-y-3 border-b pb-4">
+                <div className="flex items-start justify-between gap-4">
                 <div>
                     <h1 className="text-xl font-semibold">{tPage('title')}</h1>
                     <p className="text-sm text-muted-foreground">{tPage('description')}</p>
@@ -1055,6 +1125,31 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         <span className="mx-2 text-gray-300">|</span>
                         <b className="text-base font-bold text-red-700">{stats.conflicts}</b> {tPage('statsConflicts', { n: stats.conflicts })}
                     </p>
+                    {minutes && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                            {tPage('minutesStatsPrefix')}{' '}
+                            <b className="text-base font-bold text-amber-700">{minutesStats.noUtterances}</b> {tPage('minutesStatsNoUtterances', { n: minutesStats.noUtterances })}
+                            <span className="mx-2 text-gray-300">|</span>
+                            <b className="text-base font-bold text-amber-700">{minutesStats.noVote}</b> {tPage('minutesStatsNoVote', { n: minutesStats.noVote })}
+                            <span className="mx-2 text-gray-300">|</span>
+                            <b className="text-base font-bold text-muted-foreground">{minutesStats.withdrawn}</b> {tPage('minutesStatsWithdrawn', { n: minutesStats.withdrawn })}
+                        </p>
+                    )}
+                    {minutesFailed && !minutes && (
+                        <p className="text-sm text-amber-700 mt-1">{tPage('minutesLoadFailed')}</p>
+                    )}
+                    {minutesFailed && minutes && (
+                        <p className="text-sm text-amber-700 mt-1">{tPage('minutesRefreshFailed')}</p>
+                    )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0 pt-1">
+                    <Button variant="outline" size="sm" className="h-8 text-xs" disabled={!minutes} onClick={() => setPreviewOpen(true)}>
+                        <Eye className="h-3.5 w-3.5 mr-1" />{tPage('previewMinutes')}
+                    </Button>
+                    <Button size="sm" className="h-8 text-xs" onClick={handleExportDocx}>
+                        <FileDown className="h-3.5 w-3.5 mr-1" />{tPage('exportDocx')}
+                    </Button>
+                </div>
                 </div>
 
                 {/* Poll actions — cost-incurring operations, superadmin only */}
@@ -1181,6 +1276,8 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 />
             )}
 
+            {minutes && effectiveOrder === 'agenda' && <MeetingFactsBlock data={minutes} />}
+
             {isLoading ? (
                 <div className="p-8 flex justify-center">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1192,6 +1289,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                             options={[
                                 { value: 'linked' as const, label: tPage('filterLinked') },
                                 { value: 'none' as const, label: tPage('filterNone') },
+                                ...(minutes ? [{ value: 'gaps' as const, label: tPage('filterGaps') }] : []),
                             ]}
                             selectedValues={statusFilter}
                             onSelectionChange={(values) => setStatusFilter(values)}
@@ -1208,10 +1306,41 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                 onChange={e => setSubjectQuery(e.target.value)}
                             />
                         </div>
+                        <InlineToggle
+                            className="shrink-0"
+                            value={effectiveOrder}
+                            onChange={setOrder}
+                            options={[
+                                { value: 'discussion', label: tPage('orderDiscussion'), disabled: !discussionOrderAvailable, title: discussionOrderAvailable ? undefined : tPage('orderUnavailable') },
+                                { value: 'agenda', label: tPage('orderAgenda') },
+                            ]}
+                        />
                     </div>
 
                     {filteredSubjects.length === 0 ? (
                         <div className="p-8 text-center text-gray-500">{tPage('filterEmpty')}</div>
+                    ) : effectiveOrder === 'discussion' && timeline ? (
+                        <div className="space-y-1">
+                            {timeline.items.map((item, i) => {
+                                if (item.type !== 'subject') return <TimelineEvent key={`${item.type}-${i}`} item={item} />;
+                                const row = subjectById.get(item.subjectId);
+                                if (!row || !visibleIds.has(row.id)) return null;
+                                // The timeline interleaves out-of-agenda items with agenda items, so no section label applies here.
+                                return <Fragment key={row.id}>{renderSubjectRow(row, 0, [row], { sectionLabels: false })}</Fragment>;
+                            })}
+                            {/* Rows the minutes do not carry (a subject added after the minutes response) sit before
+                                "Not discussed", indented the same way as its withdrawn rows since neither has a position. */}
+                            {filteredSubjects.filter(s => !minutesById.has(s.id)).map(s => <Fragment key={s.id}>{renderSubjectRow(s, 0, [s], { sectionLabels: false })}</Fragment>)}
+                            {timeline.notDiscussed.some(s => visibleIds.has(s.subjectId)) && (
+                                <>
+                                    <div className="pt-3 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">{tPage('notDiscussed')}</div>
+                                    {timeline.notDiscussed.map(s => {
+                                        const row = subjectById.get(s.subjectId);
+                                        return row && visibleIds.has(row.id) ? <Fragment key={row.id}>{renderSubjectRow(row, 0, [row], { sectionLabels: false })}</Fragment> : null;
+                                    })}
+                                </>
+                            )}
+                        </div>
                     ) : (
                         <div className="space-y-1">
                             {filteredSubjects.map((subject, index, arr) => renderSubjectRow(subject, index, arr))}
@@ -1330,6 +1459,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                     </div>
                 </div>
             )}
+            {minutes && <MinutesPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} data={minutes} />}
         </div>
     );
 }

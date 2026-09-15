@@ -61,6 +61,28 @@ export function NameList({ names, label }: { names: string[]; label: string }) {
     );
 }
 
+/** The council's attendance for one record set, the mayor set aside — the ΔΗΜΑΡΧΟΣ line is separate. */
+export function splitAttendance<T extends { personId: string; status: string }>(attendance: T[], mayorPersonId: string | null): { present: T[]; absent: T[] } {
+    const filtered = attendance.filter(a => a.personId !== mayorPersonId);
+    return { present: filtered.filter(a => a.status === 'PRESENT'), absent: filtered.filter(a => a.status === 'ABSENT') };
+}
+
+/**
+ * Whether a row opens the "Out of agenda" section of a list: the first
+ * out-of-agenda row of `section`. Never true when the list carries no section
+ * labels (the discussion-order timeline interleaves ΕΗΔ items with agenda items).
+ */
+export function opensOutOfAgendaSection(
+    section: ReadonlyArray<{ nonAgendaReason: string | null }>,
+    index: number,
+    sectionLabels: boolean,
+): boolean {
+    if (!sectionLabels) return false;
+    const row = section[index];
+    if (!row || row.nonAgendaReason !== 'outOfAgenda') return false;
+    return index === 0 || section[index - 1].nonAgendaReason !== 'outOfAgenda';
+}
+
 /** Sort names by elected order, falling back to alphabetical. */
 export function sortNamesByElectedOrder(
     items: { personId: string; personName: string }[],
@@ -84,9 +106,7 @@ export function MeetingAttendanceSummary({ attendance, getPerson, administrative
 }) {
     const t = useTranslations('admin.decisionsPage');
     const [expanded, setExpanded] = useState(false);
-    const filtered = attendance.filter(a => a.personId !== mayorPersonId);
-    const present = filtered.filter(a => a.status === 'PRESENT');
-    const absent = filtered.filter(a => a.status === 'ABSENT');
+    const { present, absent } = splitAttendance(attendance, mayorPersonId);
 
     const sortedPresent = sortNamesByElectedOrder(
         present.map(a => ({ personId: a.personId, personName: a.person.name })),
@@ -109,7 +129,7 @@ export function MeetingAttendanceSummary({ attendance, getPerson, administrative
                     {t('rollCall')}
                 </span>
                 <span className="text-xs text-muted-foreground ml-1">
-                    {t('rollCallCounts', { present: present.length, absent: absent.length, total: filtered.length })}
+                    {t('rollCallCounts', { present: present.length, absent: absent.length, total: present.length + absent.length })}
                 </span>
             </button>
             {expanded && (

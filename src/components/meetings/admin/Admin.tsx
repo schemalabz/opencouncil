@@ -19,9 +19,8 @@ import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { requestProcessAgenda } from '@/lib/tasks/processAgenda';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
-import { Pencil, Bell, BellOff, Eye } from 'lucide-react';
+import { Pencil, Bell, BellOff } from 'lucide-react';
 import { Link } from '@/i18n/routing';
-import { MinutesPreviewDialog } from './MinutesPreviewDialog';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { MeetingExportButtons } from '../MeetingExportButtons';
 import { CreateNotificationModal } from './CreateNotificationModal';
@@ -37,7 +36,6 @@ export default function AdminActions({
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
-    const [minutesPreviewOpen, setMinutesPreviewOpen] = React.useState(false);
     const [mediaUrl, setMediaUrl] = React.useState('');
     const [agendaUrl, setAgendaUrl] = React.useState(meeting.agendaUrl || '');
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
@@ -424,17 +422,6 @@ export default function AdminActions({
                 </Button>
             </div>
         </div>
-        <div className="mt-6">
-            <h3 className="text-lg font-semibold">{t('sections.minutes')}</h3>
-            <p className="text-sm text-muted-foreground mb-4">{t('sections.minutesSubtitle')}</p>
-            <Button variant="outline" onClick={() => setMinutesPreviewOpen(true)}>
-                <Eye className="w-4 h-4 mr-2" />
-                {t('buttons.previewMinutes')}
-            </Button>
-        </div>
-
-        <MinutesPreviewDialog open={minutesPreviewOpen} onOpenChange={setMinutesPreviewOpen} />
-
         <div className="mt-6">
             <h3 className="text-lg font-semibold">{t('sections.meetingRelease')}</h3>
             <p className="text-sm text-muted-foreground mb-4">{t('sections.meetingReleaseSubtitle')}</p>

@@ -8,6 +8,8 @@ import {
     MinutesVoteResult,
     MinutesCouncilComposition,
     MinutesAttendanceChange,
+    MinutesDiscussionSummary,
+    MinutesProceduralVote,
 } from './types';
 
 // --- Dependency types for testability ---
@@ -416,4 +418,64 @@ export function formatSubjectLabel(atSubject: MinutesAttendanceChange['atSubject
         return `${atSubject.agendaItemIndex}ο θέμα`;
     }
     return atSubject.name;
+}
+
+export interface SummaryUtterance {
+    startTimestamp: number;
+    endTimestamp: number;
+    discussionStatus: string | null;
+}
+
+/**
+ * The transcript's account of one subject: see MinutesDiscussionSummary.
+ * Takes the utterances linked to the subject (discussionSubjectId), any status.
+ */
+export function buildDiscussionSummary(utterances: SummaryUtterance[]): MinutesDiscussionSummary {
+    let seconds = 0;
+    let hasDiscussion = false;
+    let hasVote = false;
+    let start: number | null = null;
+    let proceduralStart: number | null = null;
+    for (const u of utterances) {
+        if (u.discussionStatus === 'PROCEDURAL_VOTE') {
+            if (proceduralStart === null || u.startTimestamp < proceduralStart) proceduralStart = u.startTimestamp;
+            continue;
+        }
+        if (start === null || u.startTimestamp < start) start = u.startTimestamp;
+        if (u.discussionStatus === 'SUBJECT_DISCUSSION') {
+            hasDiscussion = true;
+            seconds += Math.max(0, u.endTimestamp - u.startTimestamp);
+        } else if (u.discussionStatus === 'VOTE') {
+            hasVote = true;
+        }
+    }
+    const kind = hasDiscussion ? 'discussed' : hasVote ? 'voteOnly' : utterances.length > 0 ? 'other' : 'none';
+    return { kind, seconds, start: start ?? proceduralStart };
+}
+
+export function buildProceduralVotes(
+    utterances: Array<{ startTimestamp: number; discussionStatus: string | null; discussionSubjectId: string | null }>,
+    subjects: Array<{ id: string; name: string; agendaItemIndex: number | null; nonAgendaReason: 'outOfAgenda' | null }>,
+): MinutesProceduralVote[] {
+    const byId = new Map(subjects.map(s => [s.id, s]));
+    const first = new Map<string, number>();
+    for (const u of utterances) {
+        if (u.discussionStatus !== 'PROCEDURAL_VOTE' || !u.discussionSubjectId) continue;
+        if (!byId.has(u.discussionSubjectId)) continue;
+        const seen = first.get(u.discussionSubjectId);
+        if (seen === undefined || u.startTimestamp < seen) first.set(u.discussionSubjectId, u.startTimestamp);
+    }
+    const out: MinutesProceduralVote[] = [];
+    for (const [subjectId, timestamp] of first) {
+        const s = byId.get(subjectId)!;
+        out.push({
+            subjectId,
+            name: s.name,
+            agendaItemIndex: s.agendaItemIndex,
+            nonAgendaReason: s.nonAgendaReason,
+            kind: s.nonAgendaReason === 'outOfAgenda' ? 'urgency' : 'procedural',
+            timestamp,
+        });
+    }
+    return out.sort((a, b) => a.timestamp - b.timestamp);
 }

@@ -71,8 +71,6 @@
             "notificationsSubtitle": "Креирајте обавештења за кориснике заинтересоване за теме ове седнице.",
             "cacheManagement": "Управљање кешом",
             "cacheManagementSubtitle": "Принудно освежите кеширане податке да бисте одмах видели најновије измене.",
-            "minutes": "Преглед записника",
-            "minutesSubtitle": "Прегледајте и извезите записник седнице као DOCX из података у бази.",
             "export": "Извоз",
             "exportSubtitle": "Преузмите податке седнице у различитим форматима."
         },
@@ -90,9 +88,7 @@
             "starting": "Покретање...",
             "syncing": "Синхронизација...",
             "process": "Обради",
-            "extractDecisions": "Издвоји одлуке",
-            "previewMinutes": "Преглед записника",
-            "exportMinutesDocx": "Извези DOCX"
+            "extractDecisions": "Издвоји одлуке"
         },
         "forms": {
             "enterMediaUrl": "Унесите URL медија",
@@ -205,7 +201,6 @@
         },
         "minutes": {
             "title": "Преглед записника",
-            "loading": "Генерисање прегледа записника...",
             "noSubjects": "Нису пронађене теме за ову седницу.",
             "exportSuccess": "Записник је извезен као DOCX",
             "exportError": "Грешка при извозу записника"
@@ -368,7 +363,44 @@
                 "interval": "аутоматски упит свака {days} дана"
             }
         },
-        "resetError": "Грешка при поништавању извлачења"
+        "resetError": "Грешка при поништавању извлачења",
+        "minutesStatsNoUtterances": "{n, plural, one {тачка без повезаних исказа} other {тачке без повезаних исказа}}",
+        "minutesStatsNoVote": "{n, plural, one {тачка без гласања} other {тачке без гласања}}",
+        "minutesStatsWithdrawn": "{n, plural, one {повучена тачка} other {повучене тачке}}",
+        "minutesStatsPrefix": "Записник:",
+        "previewMinutes": "Преглед записника",
+        "exportDocx": "Извези DOCX",
+        "orderDiscussion": "Редослед расправе",
+        "orderAgenda": "Редослед дневног реда",
+        "orderUnavailable": "Ниједан исказ није повезан са тачком — транскрипт не даје редослед расправе.",
+        "filterGaps": "Са празнинама",
+        "notDiscussed": "Није расправљано",
+        "eventRollCall": "Прозивка",
+        "eventArrivals": "{names} {n, plural, one {долази} other {долазе}}",
+        "eventDepartures": "{names} {n, plural, one {одлази} other {одлазе}}",
+        "eventUrgencyVote": "Гласање о хитности — {subject}",
+        "eventProceduralVote": "Процедурално гласање — {subject}",
+        "eventProceduralNote": "Процедурално гласање не одређује место тачке.",
+        "metaPosition": "Расправљано {n}.",
+        "metaDiscussedWith": "Расправљано са {label}",
+        "metaPositionInferred": "Место изведено из дневног реда",
+        "metaDiscussed": "Расправа {minutes} мин",
+        "metaVoteOnly": "Само гласање — без расправе",
+        "metaOtherUtterances": "Повезани искази, без расправе или гласања",
+        "metaNoUtterances": "Нема повезаних исказа",
+        "metaNoAttendance": "Нема присуства",
+        "metaNoVote": "Нема гласања",
+        "factsArrivalsDepartures": "Доласци / одласци",
+        "factsArrivalAt": "+{n} код {label}",
+        "factsDepartureAt": "−{n} код {label}",
+        "factsNone": "нема",
+        "factsDiscussionOrder": "Редослед расправе",
+        "factsDiffersFromAgenda": "разликује се од дневног реда",
+        "factsFollowsAgenda": "прати дневни ред",
+        "factsNoOrder": "редослед расправе није забележен — ниједан исказ није повезан са тачком",
+        "factsProceduralVotes": "Процедурална гласања",
+        "minutesLoadFailed": "Подаци записника нису учитани. Редови приказују само одлуке.",
+        "minutesRefreshFailed": "Записник није освежен — подаци записника у наставку могу бити застарели."
     },
     "decisionsOverview": {
         "title": "Одлуке",
