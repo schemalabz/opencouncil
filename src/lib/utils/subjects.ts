@@ -1,4 +1,4 @@
-import { sortSubjectsBySpeakerContributionCount, sortSubjectsByImportance } from "@/lib/utils";
+import { sortSubjectsByAgendaIndex, sortSubjectsBySpeakerContributionCount, sortSubjectsByImportance } from "@/lib/utils";
 import type { Statistics } from "@/lib/statistics";
 
 /**
@@ -68,6 +68,16 @@ export function categorizeSubjects<T extends CategorizableSubject>(subjects: T[]
         ),
         agenda: subjects.filter(s => subjectCategory(s) === 'agenda'),
     };
+}
+
+/**
+ * The buckets in the order the meeting sidebar lists them: before the agenda,
+ * outside it, then the agenda by its numbers. Every surface that promises
+ * parity with the sidebar reads this one function.
+ */
+export function categorizeSubjectsInAgendaOrder<T extends CategorizableSubject>(subjects: T[]) {
+    const buckets = categorizeSubjects(subjects);
+    return { ...buckets, agenda: sortSubjectsByAgendaIndex(buckets.agenda) };
 }
 
 /**
