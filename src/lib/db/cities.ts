@@ -691,7 +691,7 @@ export async function canUseCityCreator(cityId: string): Promise<boolean> {
  * Fetches cities with logos for display purposes (e.g., infinite scroller).
  * Returns only listed cities that have logos.
  */
-export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string; logoImage: string; name_municipality: string; name_municipality_en: string }>> {
+export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string; logoImage: string; name_municipality: string; name_municipality_en: string; realm: Realm }>> {
     try {
         const cities = await prisma.city.findMany({
             where: {
@@ -704,14 +704,15 @@ export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string;
                 id: true,
                 logoImage: true,
                 name_municipality: true,
-                name_municipality_en: true
+                name_municipality_en: true,
+                realm: true
             },
             orderBy: [
                 { name: 'asc' }
             ]
         });
 
-        return cities.filter(city => city.logoImage !== null) as Array<{ id: string; logoImage: string; name_municipality: string; name_municipality_en: string }>;
+        return cities.filter(city => city.logoImage !== null) as Array<{ id: string; logoImage: string; name_municipality: string; name_municipality_en: string; realm: Realm }>;
     } catch (error) {
         console.error('Error fetching cities with logos:', error);
         throw new Error('Failed to fetch cities with logos');
@@ -720,6 +721,7 @@ export async function getSupportedCitiesWithLogos(): Promise<Array<{ id: string;
 
 export interface AboutPageStats {
     municipalityCount: number
+    meetingCount: number
     subjectCount: number
     meetingHours: number
 }
@@ -727,6 +729,7 @@ export interface AboutPageStats {
 /**
  * Fetches aggregate stats for the about page:
  * - Number of officially supported municipalities
+ * - Number of released meetings
  * - Total subject count across all released meetings
  * - Total meeting hours (estimated from speaker segment timestamps)
  *
@@ -736,10 +739,14 @@ export interface AboutPageStats {
  */
 export async function getAboutPageStats(): Promise<AboutPageStats> {
     try {
-        const [municipalityCount, subjectCount, meetingDurations] = await Promise.all([
+        const [municipalityCount, meetingCount, subjectCount, meetingDurations] = await Promise.all([
             // Count officially supported cities
             prisma.city.count({
                 where: CUSTOMER_CITY_WHERE
+            }),
+            // Count published meetings
+            prisma.councilMeeting.count({
+                where: { released: true }
             }),
             // Count subjects in released meetings only
             prisma.subject.count({
@@ -764,6 +771,7 @@ export async function getAboutPageStats(): Promise<AboutPageStats> {
 
         return {
             municipalityCount,
+            meetingCount,
             subjectCount,
             meetingHours: Math.round(totalHours)
         }

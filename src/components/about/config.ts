@@ -1,6 +1,7 @@
-import { Mic2, Search, Bell, Map, FileText, ScrollText, Scale, Printer } from 'lucide-react'
+import { Search, Bell, Map, FileText, Mic2, ScrollText, Scale, Printer, Video, Clock, Megaphone, Rocket, Languages, PhoneCall, Users, Landmark } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Realm } from '@prisma/client'
+import shotManifest from '../../../public/about/shots/manifest.json'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,7 @@ export interface RecognitionItem {
 }
 
 /**
- * Which scenario the /about mockups (search results, map pins) illustrate. The
+ * Which scenario the /explain mockups (search results, map pins) illustrate. The
  * mockups name real streets, people and funding programmes, so a realm that
  * shows Chania and ΕΣΠΑ grants reads as wrong outside Greece. A realm with no
  * scenario of its own falls back to another one, as `demoUrlByRealm` does.
@@ -45,7 +46,153 @@ export interface TeamMember {
     }
 }
 
-// ─── Data ────────────────────────────────────────────────────────────────────
+// ─── Product screenshots ─────────────────────────────────────────────────────
+
+/**
+ * The screenshots the page shows are real captures of the product, one set per
+ * realm, taken by `scripts/capture-about-shots.mjs` from that realm's demo or
+ * flagship city. The script writes the manifest; nothing here is typed by hand.
+ */
+export const SHOT_NAMES = [
+    'hero-desktop',
+    'staff-transcript',
+    'mobile-subject',
+    'mobile-transcript',
+    'mobile-search',
+    'mobile-map',
+] as const
+
+export type ShotName = (typeof SHOT_NAMES)[number]
+
+/** An image with its intrinsic size, as next/image wants it. */
+export interface Shot {
+    src: string
+    width: number
+    height: number
+}
+
+export interface RealmShots {
+    shots: Record<ShotName, Shot>
+    /**
+     * The subject page the hero shows, on this realm's own domain, without a
+     * locale prefix (the i18n Link adds one). Undefined when the realm borrows
+     * another realm's shots: a link to a city on another realm's domain is a 404.
+     */
+    subjectPath?: string
+}
+
+interface ShotManifest {
+    [realm: string]: {
+        subject: string
+        files: Record<string, { file: string; width: number; height: number }>
+    }
+}
+
+const manifest = shotManifest as ShotManifest
+
+/** The realm whose shots stand in for a realm that has none of its own. */
+const FALLBACK_SHOT_REALM: Realm = 'greece'
+
+/** `/fr/rennes/...` → `/rennes/...`: captured URLs carry the realm's locale prefix. */
+const stripLocalePrefix = (pathname: string) => pathname.replace(/^\/(?:en|el|fr|sr|lat)(?=\/)/, '')
+
+export function shotsForRealm(realm: Realm): RealmShots {
+    const own = realm in manifest
+    const entry = manifest[own ? realm : FALLBACK_SHOT_REALM]
+    const dir = own ? realm : FALLBACK_SHOT_REALM
+    const shots = Object.fromEntries(
+        SHOT_NAMES.map((name) => {
+            const file = entry.files[name]
+            return [name, { src: `/about/shots/${dir}/${file.file}`, width: file.width, height: file.height }]
+        }),
+    ) as Record<ShotName, Shot>
+    return { shots, subjectPath: own ? stripLocalePrefix(entry.subject) : undefined }
+}
+
+// ─── Sections ────────────────────────────────────────────────────────────────
+
+/** The hero's two lines, one per audience: the page's two halves in one breath. */
+export type HeroAudienceId = 'residents' | 'services';
+
+export const HERO_AUDIENCES: Array<{ id: HeroAudienceId; icon: LucideIcon }> = [
+    { id: 'residents', icon: Users },
+    { id: 'services', icon: Landmark },
+]
+
+// Literal unions rather than `(typeof IDS)[number]`: translation-key-references.test.ts reads
+// the members off the type to check every one has its copy.
+export type ResidentFeatureId = 'subjects' | 'search' | 'notifications' | 'map';
+
+export interface ResidentFeature {
+    id: ResidentFeatureId
+    icon: LucideIcon
+    /** The phone screenshot the card shows; the notifications card draws a WhatsApp message instead. */
+    shot?: ShotName
+    /** How far down the screenshot the card starts, as a share of its width (the map card skips the page header). */
+    offsetPct?: number
+}
+
+export const RESIDENT_FEATURES: ResidentFeature[] = [
+    { id: 'subjects', icon: FileText, shot: 'mobile-subject' },
+    { id: 'search', icon: Search, shot: 'mobile-search' },
+    { id: 'notifications', icon: Bell },
+    { id: 'map', icon: Map, shot: 'mobile-map', offsetPct: 100 },
+]
+
+/** Where each resident card's "see it live" link goes on a realm; undefined hides the link. */
+export function residentDemoHref(id: ResidentFeatureId, realmShots: RealmShots): string | undefined {
+    switch (id) {
+        case 'subjects':
+            return realmShots.subjectPath
+        case 'search':
+            return '/search'
+        case 'notifications':
+            return '/notifications'
+        case 'map':
+            return '/'
+    }
+}
+
+export type ServiceFeatureId = 'transcription' | 'minutes' | 'diavgeia' | 'printArchive';
+
+export interface ServiceFeature {
+    id: ServiceFeatureId
+    icon: LucideIcon
+    /** Shown only on these realms; Diavgeia is a Greek institution. */
+    realms?: Realm[]
+    status: FeatureStatus
+}
+
+export const SERVICE_FEATURES: ServiceFeature[] = [
+    { id: 'transcription', icon: Mic2, status: 'live' },
+    { id: 'minutes', icon: ScrollText, status: 'live' },
+    { id: 'diavgeia', icon: Scale, realms: ['greece'], status: 'upcoming' },
+    { id: 'printArchive', icon: Printer, status: 'live' },
+]
+
+export function serviceFeaturesForRealm(realm: Realm): ServiceFeature[] {
+    return SERVICE_FEATURES.filter((feature) => !feature.realms || feature.realms.includes(realm))
+}
+
+export type ProcessStepId = 'record' | 'hours' | 'publish';
+
+export const PROCESS_STEPS: Array<{ id: ProcessStepId; icon: LucideIcon }> = [
+    { id: 'record', icon: Video },
+    { id: 'hours', icon: Clock },
+    { id: 'publish', icon: Megaphone },
+]
+
+export type PilotPointId = 'setup' | 'language' | 'contact';
+
+export const PILOT_POINTS: Array<{ id: PilotPointId; icon: LucideIcon }> = [
+    { id: 'setup', icon: Rocket },
+    { id: 'language', icon: Languages },
+    { id: 'contact', icon: PhoneCall },
+]
+
+// ─── /explain demos ──────────────────────────────────────────────────────────
+// The /explain page still shows the drawn mockups of these features; /about
+// shows the real product instead.
 
 export const DEMO_SCENARIO_BY_REALM: Record<Realm, DemoScenario> = {
     greece: 'greece',
@@ -93,30 +240,7 @@ export const OPENNESS_FEATURES: Feature[] = [
     },
 ]
 
-export const INTERNAL_FEATURES: Feature[] = [
-    {
-        id: 'transcription',
-        status: 'live',
-        demoUrl: '/chania/mar26_2026/transcript',
-        demoUrlByRealm: { france: '/rennes/apr27_2026/transcript' },
-        icon: Mic2,
-    },
-    {
-        id: 'minutes',
-        status: 'live',
-        icon: ScrollText,
-    },
-    {
-        id: 'diavgeia',
-        status: 'upcoming',
-        icon: Scale,
-    },
-    {
-        id: 'printArchive',
-        status: 'live',
-        icon: Printer,
-    },
-]
+// ─── Proof and people ────────────────────────────────────────────────────────
 
 export const RECOGNITION_ITEMS: RecognitionItem[] = [
     {
@@ -124,22 +248,22 @@ export const RECOGNITION_ITEMS: RecognitionItem[] = [
         linkUrl: '',
     },
     {
-        id: 'oecd',
-        linkUrl: 'https://oecd.ai/en/gov/issues/civic-engagement-open-government',
-        logoUrl: '/about/oecd.png',
-        logoClassName: 'max-h-7 max-w-[116px]',
+        id: 'epsa',
+        linkUrl: 'https://www.eipa.eu/epsa-2025-26/',
+        logoUrl: '/about/eipa.png',
+        logoClassName: 'max-h-7 max-w-[128px]',
     },
     {
         id: 'innovationInPolitics',
         linkUrl: 'https://event.innovationinpolitics.eu/InnovationinPoliticsAwards2026#/Finalists?lang=en',
         logoUrl: '/about/innovation-politics-figure.png',
-        logoClassName: 'max-h-11 max-w-[64px]',
+        logoClassName: 'max-h-10 max-w-[56px]',
     },
     {
-        id: 'epsa',
-        linkUrl: 'https://www.eipa.eu/epsa-2025-26/',
-        logoUrl: '/about/eipa.png',
-        logoClassName: 'max-h-8 max-w-[128px]',
+        id: 'oecd',
+        linkUrl: 'https://oecd.ai/en/gov/issues/civic-engagement-open-government',
+        logoUrl: '/about/oecd.png',
+        logoClassName: 'max-h-6 max-w-[104px]',
     },
     {
         id: 'kede',
@@ -151,7 +275,7 @@ export const RECOGNITION_ITEMS: RecognitionItem[] = [
         id: 'wired',
         linkUrl: 'https://wired.com.gr/article/ai-kai-dimotika-symvoulia-stin-akri-tis-elladas/',
         logoUrl: '/about/wired.svg',
-        logoClassName: 'max-h-6 max-w-[112px]',
+        logoClassName: 'max-h-5 max-w-[104px]',
     },
 ]
 
@@ -200,10 +324,18 @@ export const TEAM_MEMBERS: TeamMember[] = [
     },
 ]
 
-export const ROADMAP_ITEM_IDS = ['diavgeia', 'bidirectional', 'fineTuned'] as const
+export const ROADMAP_ITEM_IDS = ['diavgeia', 'budgets'] as const
 
-export const ROADMAP_TIMEFRAMES: Record<typeof ROADMAP_ITEM_IDS[number], string> = {
-    diavgeia: 'Q2 2026',
-    bidirectional: 'Q3 2026',
-    fineTuned: 'Q3 2026',
+/** Roadmap items that only make sense on a realm: Diavgeia decisions are Greek. */
+export const ROADMAP_ITEM_REALMS: Partial<Record<(typeof ROADMAP_ITEM_IDS)[number], Realm[]>> = {
+    diavgeia: ['greece'],
 }
+
+export const OFFICE = {
+    mapsUrl: 'https://maps.app.goo.gl/o1k1gqz9uiqw9FmW9',
+    email: 'space@opencouncil.gr',
+    image: '/about/office.jpg',
+}
+
+export const GITHUB_REPO_URL = 'https://github.com/schemalabz/opencouncil'
+export const ROADMAP_URL = 'https://github.com/orgs/schemalabz/projects/1'
