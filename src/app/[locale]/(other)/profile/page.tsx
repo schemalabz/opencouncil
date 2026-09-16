@@ -51,7 +51,7 @@ export default async function ProfilePage(props: { searchParams: Promise<{ claim
             {claimKey && claimShown && (
                 <ClaimNotice
                     variant={claimKey === "alreadyYours" ? "default" : "destructive"}
-                    title={claimKey === "alreadyYours" || claimKey === "alreadyLinked" ? t("claim.usedTitle") : t("claim.title")}
+                    title={claimKey === "alreadyYours" || claimKey === "alreadyLinked" ? t("claim.usedTitle") : t("claim.invalidTitle")}
                     description={
                         claimKey === "alreadyYours" ? t("claim.alreadyYours")
                         : claimKey === "alreadyLinked" ? t("claim.alreadyLinked")
