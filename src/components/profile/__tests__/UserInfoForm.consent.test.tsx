@@ -86,6 +86,15 @@ describe('UserInfoForm voiceprint consent', () => {
         expect((screen.getByLabelText('voicePrintConsentLabel') as HTMLButtonElement).getAttribute('aria-checked')).toBe('true');
     });
 
+    it('prefills an empty name from the council record, and keeps a name the account already has', () => {
+        const persons = [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: false }];
+        const { unmount } = render(createElement(UserInfoForm, { user: { ...user, name: null } as User, isOnboarded: false, persons }));
+        expect((document.getElementById('name') as HTMLInputElement).value).toBe('Αδάμ Μπούτζουκας');
+        unmount();
+        render(createElement(UserInfoForm, { user, isOnboarded: true, persons }));
+        expect((document.getElementById('name') as HTMLInputElement).value).toBe('Α. Β.');
+    });
+
     it('does not call the action when the tick did not change', async () => {
         render(createElement(UserInfoForm, {
             user,

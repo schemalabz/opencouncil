@@ -751,11 +751,10 @@
     "voicePrintConsentLabel": "J'accepte le traitement de ma voix pour une empreinte vocale",
     "voicePrintConsentDescription": "OpenCouncil peut créer une empreinte vocale à partir d'une intervention enregistrée de {name} en séance et l'utiliser pour reconnaître l'orateur dans les enregistrements futurs. Vous pouvez la retirer à tout moment.",
     "claim": {
-      "linkedOnboarding": "Votre compte est maintenant lié à votre fiche d'élu. Renseignez vos informations ci-dessous pour terminer votre inscription. Vous pourrez ensuite gérer votre page depuis ce profil.",
       "title": "Fiche d'élu",
-      "linked": "Votre compte est maintenant lié à votre fiche d'élu. Vous pouvez modifier votre page depuis la section d'administration ci-dessous.",
-      "alreadyYours": "Votre compte est déjà lié à cette fiche d'élu.",
-      "alreadyLinked": "Un autre compte est déjà lié à cette fiche d'élu. Contactez l'équipe OpenCouncil si c'est une erreur.",
+      "usedTitle": "Ce code QR a déjà été utilisé",
+      "alreadyYours": "Votre compte est déjà lié à cet élu. Vous n'avez rien d'autre à faire.",
+      "alreadyLinked": "Cet élu est déjà lié à un autre compte. Si ce n'était pas vous, contactez l'équipe OpenCouncil.",
       "notFound": "Ce QR renvoie à un élu qui n'existe plus.",
       "invalid": "Ce lien QR n'est pas valide ou a expiré. Demandez-en un nouveau à l'équipe OpenCouncil."
     },

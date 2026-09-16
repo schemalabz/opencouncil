@@ -57,7 +57,9 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
     const [serverPhoneError, setServerPhoneError] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
-        name: user.name || "",
+        // A councillor who signed up through their QR has no name yet: start
+        // from the name on their council record. Saved only with the form.
+        name: user.name || persons[0]?.name || "",
         phone: user.phone || "",
         allowProductUpdates: user.allowProductUpdates,
         allowPetitionUpdates: user.allowPetitionUpdates,

@@ -25,7 +25,7 @@ export default async function ClaimResultPage(props: { searchParams: Promise<{ c
         <div className="container max-w-2xl py-8 !px-3 sm:!px-8">
             <ClaimNotice
                 variant="destructive"
-                title={t("claim.title")}
+                title={key === "alreadyLinked" ? t("claim.usedTitle") : t("claim.title")}
                 description={
                     key === "alreadyLinked" ? t("claim.alreadyLinked")
                     : key === "notFound" ? t("claim.notFound")

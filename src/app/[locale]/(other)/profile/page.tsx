@@ -34,7 +34,10 @@ export default async function ProfilePage(props: { searchParams: Promise<{ claim
     // A success needs the link to exist: the status is a query parameter,
     // and anyone can type one.
     const claimKey = claimMessageKey(claim);
-    const claimShown = claimKey === "linked" || claimKey === "alreadyYours" ? persons.length > 0 : claimKey !== null;
+    // A first claim needs no notice: the profile itself is the answer. A code
+    // scanned again says so. "Already yours" needs the link to exist, since
+    // the status is a query parameter and anyone can type one.
+    const claimShown = claimKey === "alreadyYours" ? persons.length > 0 : claimKey !== null && claimKey !== "linked";
 
     const [t, tAccount, highlightsAllowed] = await Promise.all([
         getTranslations("Profile"),
@@ -47,15 +50,13 @@ export default async function ProfilePage(props: { searchParams: Promise<{ claim
             <h1 className="text-3xl font-bold">{t("title")}</h1>
             {claimKey && claimShown && (
                 <ClaimNotice
-                    variant={claimKey === "linked" || claimKey === "alreadyYours" ? "default" : "destructive"}
-                    title={t("claim.title")}
+                    variant={claimKey === "alreadyYours" ? "default" : "destructive"}
+                    title={claimKey === "alreadyYours" || claimKey === "alreadyLinked" ? t("claim.usedTitle") : t("claim.title")}
                     description={
-                        claimKey === "linked"
-                            ? user.onboarded ? t("claim.linked") : t("claim.linkedOnboarding")
-                            : claimKey === "alreadyYours" ? t("claim.alreadyYours")
-                            : claimKey === "alreadyLinked" ? t("claim.alreadyLinked")
-                            : claimKey === "notFound" ? t("claim.notFound")
-                            : t("claim.invalid")
+                        claimKey === "alreadyYours" ? t("claim.alreadyYours")
+                        : claimKey === "alreadyLinked" ? t("claim.alreadyLinked")
+                        : claimKey === "notFound" ? t("claim.notFound")
+                        : t("claim.invalid")
                     }
                 />
             )}
