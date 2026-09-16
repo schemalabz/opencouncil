@@ -43,6 +43,18 @@ export function fmtInt(n: number): string {
   return n.toLocaleString("el-GR");
 }
 
+/**
+ * A fraction as an el-GR percentage, at most one decimal. `fixed` pins that
+ * decimal on a round number too: a rate the eye is meant to track over time
+ * must not change width as it moves.
+ */
+export function fmtPct(fraction: number, fixed = false): string {
+  return `${(fraction * 100).toLocaleString("el-GR", {
+    minimumFractionDigits: fixed ? 1 : 0,
+    maximumFractionDigits: 1,
+  })}%`;
+}
+
 /** «μόλις τώρα», «πριν 5′», «πριν 3 ώρες», «χθες 14:35», «πριν 4 ημέρες». */
 export function fmtTimeAgo(iso: string, now: Date = new Date()): string {
   const ms = now.getTime() - new Date(iso).getTime();
