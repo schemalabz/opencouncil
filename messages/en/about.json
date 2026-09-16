@@ -34,12 +34,7 @@
     },
     "scheduleCall": "Book a presentation",
     "becomePilot": "Become the first pilot municipality",
-    "frameAlt": "A meeting subject page on OpenCouncil",
-    "counters": {
-      "municipalities": "municipalities",
-      "subjects": "subjects",
-      "meetingHours": "hours of meetings"
-    }
+    "frameAlt": "A meeting subject page on OpenCouncil"
   },
   "strip": {
     "line": "In <b>{count, plural, one {# municipality} other {# municipalities}}</b> across Greece, from Samothraki to Athens. <b>{meetings, plural, one {# meeting} other {# meetings}} published</b>.",

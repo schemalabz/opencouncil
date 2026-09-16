@@ -1,61 +1,56 @@
 {
-    "meeting": {
-        "eyebrow": "Séance",
-        "subjects": "{count, plural, =0 {Aucun sujet} one {# sujet} other {# sujets}}",
-        "moreSubjects": "{count, plural, one {+# autre sujet} other {+# autres sujets}}"
-    },
-    "city": {
-        "meetings": "{count, plural, =0 {Aucune séance} one {# séance} other {# séances}}",
-        "people": "{count, plural, one {# membre} other {# membres}}",
-        "parties": "{count, plural, one {# groupe} other {# groupes}}",
-        "hotTopics": "Sujets les plus débattus"
-    },
-    "consultation": {
-        "badge": "Consultation publique",
-        "keyTopics": "Sujets principaux",
-        "untitledChapter": "Chapitre sans titre",
-        "chapters": "{count, plural, one {# chapitre} other {# chapitres}}",
-        "areas": "{count, plural, one {# zone} other {# zones}}",
-        "comments": "{count, plural, one {# commentaire} other {# commentaires}}"
-    },
-    "person": {
-        "council": "Conseil municipal",
-        "recent": "Interventions récentes"
-    },
-    "party": {
-        "members": "{count, plural, one {# membre} other {# membres}}",
-        "leader": "Chef de file : {name}"
-    },
-    "people": {
-        "title": "Conseillers municipaux"
-    },
-    "subject": {
-        "speakers": "{count, plural, one {# intervenant} other {# intervenants}}",
-        "discussion": "{minutes, number}′ de débat",
-        "notFound": "Sujet introuvable"
-    },
-    "search": {
-        "title": "Rechercher",
-        "subtitle": "dans tous les conseils municipaux",
-        "placeholder": "Rechercher un sujet ou une adresse…",
-        "chips": [
-            "Sujets",
-            "Interventions des conseillers",
-            "Personnes",
-            "Décisions"
-        ]
-    },
-    "about": {
-        "tags": [
-            "Transcriptions",
-            "Procès-verbaux",
-            "Alertes citoyennes",
-            "Carte des sujets"
-        ]
-    },
-    "landing": {
-        "headlineTop": "Ce dont parle le conseil municipal,",
-        "headlineBottom": "sur une carte",
-        "subtitle": "Les sujets des séances du conseil municipal, par quartier, par catégorie et par date."
-    }
+  "meeting": {
+    "eyebrow": "Séance",
+    "subjects": "{count, plural, =0 {Aucun sujet} one {# sujet} other {# sujets}}",
+    "moreSubjects": "{count, plural, one {+# autre sujet} other {+# autres sujets}}"
+  },
+  "city": {
+    "meetings": "{count, plural, =0 {Aucune séance} one {# séance} other {# séances}}",
+    "people": "{count, plural, one {# membre} other {# membres}}",
+    "parties": "{count, plural, one {# groupe} other {# groupes}}",
+    "hotTopics": "Sujets les plus débattus"
+  },
+  "consultation": {
+    "badge": "Consultation publique",
+    "keyTopics": "Sujets principaux",
+    "untitledChapter": "Chapitre sans titre",
+    "chapters": "{count, plural, one {# chapitre} other {# chapitres}}",
+    "areas": "{count, plural, one {# zone} other {# zones}}",
+    "comments": "{count, plural, one {# commentaire} other {# commentaires}}"
+  },
+  "person": {
+    "council": "Conseil municipal",
+    "recent": "Interventions récentes"
+  },
+  "party": {
+    "members": "{count, plural, one {# membre} other {# membres}}",
+    "leader": "Chef de file : {name}"
+  },
+  "people": {
+    "title": "Conseillers municipaux"
+  },
+  "subject": {
+    "speakers": "{count, plural, one {# intervenant} other {# intervenants}}",
+    "discussion": "{minutes, number}′ de débat",
+    "notFound": "Sujet introuvable"
+  },
+  "search": {
+    "title": "Rechercher",
+    "subtitle": "dans tous les conseils municipaux",
+    "placeholder": "Rechercher un sujet ou une adresse…",
+    "chips": [
+      "Sujets",
+      "Interventions des conseillers",
+      "Personnes",
+      "Décisions"
+    ]
+  },
+  "about": {
+    "municipalities": "{count, plural, one {# commune} other {# communes}}"
+  },
+  "landing": {
+    "headlineTop": "Ce dont parle le conseil municipal,",
+    "headlineBottom": "sur une carte",
+    "subtitle": "Les sujets des séances du conseil municipal, par quartier, par catégorie et par date."
+  }
 }

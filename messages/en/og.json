@@ -1,61 +1,56 @@
 {
-    "meeting": {
-        "eyebrow": "Meeting",
-        "subjects": "{count, plural, =0 {No subjects} one {# subject} other {# subjects}}",
-        "moreSubjects": "{count, plural, one {+# more subject} other {+# more subjects}}"
-    },
-    "city": {
-        "meetings": "{count, plural, =0 {No meetings} one {# meeting} other {# meetings}}",
-        "people": "{count, plural, one {# member} other {# members}}",
-        "parties": "{count, plural, one {# party} other {# parties}}",
-        "hotTopics": "Most discussed"
-    },
-    "consultation": {
-        "badge": "Public consultation",
-        "keyTopics": "Key topics",
-        "untitledChapter": "Untitled chapter",
-        "chapters": "{count, plural, one {# chapter} other {# chapters}}",
-        "areas": "{count, plural, one {# area} other {# areas}}",
-        "comments": "{count, plural, one {# comment} other {# comments}}"
-    },
-    "person": {
-        "council": "City council",
-        "recent": "Recent statements"
-    },
-    "party": {
-        "members": "{count, plural, one {# member} other {# members}}",
-        "leader": "Leader: {name}"
-    },
-    "people": {
-        "title": "Council members"
-    },
-    "subject": {
-        "speakers": "{count, plural, one {# speaker} other {# speakers}}",
-        "discussion": "{minutes, number}′ of debate",
-        "notFound": "Subject not found"
-    },
-    "search": {
-        "title": "Search",
-        "subtitle": "across every city council",
-        "placeholder": "Search a subject or an address…",
-        "chips": [
-            "Subjects",
-            "Council member statements",
-            "People",
-            "Decisions"
-        ]
-    },
-    "about": {
-        "tags": [
-            "Transcripts",
-            "Minutes",
-            "Citizen notifications",
-            "Subject map"
-        ]
-    },
-    "landing": {
-        "headlineTop": "What your council is discussing,",
-        "headlineBottom": "on one map",
-        "subtitle": "Subjects from council meetings, by area, by category and by date."
-    }
+  "meeting": {
+    "eyebrow": "Meeting",
+    "subjects": "{count, plural, =0 {No subjects} one {# subject} other {# subjects}}",
+    "moreSubjects": "{count, plural, one {+# more subject} other {+# more subjects}}"
+  },
+  "city": {
+    "meetings": "{count, plural, =0 {No meetings} one {# meeting} other {# meetings}}",
+    "people": "{count, plural, one {# member} other {# members}}",
+    "parties": "{count, plural, one {# party} other {# parties}}",
+    "hotTopics": "Most discussed"
+  },
+  "consultation": {
+    "badge": "Public consultation",
+    "keyTopics": "Key topics",
+    "untitledChapter": "Untitled chapter",
+    "chapters": "{count, plural, one {# chapter} other {# chapters}}",
+    "areas": "{count, plural, one {# area} other {# areas}}",
+    "comments": "{count, plural, one {# comment} other {# comments}}"
+  },
+  "person": {
+    "council": "City council",
+    "recent": "Recent statements"
+  },
+  "party": {
+    "members": "{count, plural, one {# member} other {# members}}",
+    "leader": "Leader: {name}"
+  },
+  "people": {
+    "title": "Council members"
+  },
+  "subject": {
+    "speakers": "{count, plural, one {# speaker} other {# speakers}}",
+    "discussion": "{minutes, number}′ of debate",
+    "notFound": "Subject not found"
+  },
+  "search": {
+    "title": "Search",
+    "subtitle": "across every city council",
+    "placeholder": "Search a subject or an address…",
+    "chips": [
+      "Subjects",
+      "Council member statements",
+      "People",
+      "Decisions"
+    ]
+  },
+  "about": {
+    "municipalities": "{count, plural, one {# municipality} other {# municipalities}}"
+  },
+  "landing": {
+    "headlineTop": "What your council is discussing,",
+    "headlineBottom": "on one map",
+    "subtitle": "Subjects from council meetings, by area, by category and by date."
+  }
 }

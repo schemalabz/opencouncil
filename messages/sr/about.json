@@ -34,12 +34,7 @@
     },
     "scheduleCall": "Закажите презентацију",
     "becomePilot": "Постаните прва пилот општина",
-    "frameAlt": "Страница теме са седнице на OpenCouncil-у",
-    "counters": {
-      "municipalities": "општина",
-      "subjects": "тема",
-      "meetingHours": "сати седница"
-    }
+    "frameAlt": "Страница теме са седнице на OpenCouncil-у"
   },
   "strip": {
     "line": "У <b>{count, plural, one {# општини} few {# општине} other {# општина}}</b> у Грчкој, од Самотраке до Атине. <b>{meetings, plural, one {# седница објављена} few {# седнице објављене} other {# седница објављено}}</b>.",

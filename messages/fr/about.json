@@ -34,12 +34,7 @@
     },
     "scheduleCall": "Réserver une présentation",
     "becomePilot": "Devenir la première commune pilote",
-    "frameAlt": "La page d’un sujet de séance sur OpenCouncil",
-    "counters": {
-      "municipalities": "communes",
-      "subjects": "sujets",
-      "meetingHours": "heures de séances"
-    }
+    "frameAlt": "La page d’un sujet de séance sur OpenCouncil"
   },
   "strip": {
     "line": "Dans <b>{count, plural, one {# commune} other {# communes}}</b> en Grèce, de Samothrace à Athènes. <b>{meetings, plural, one {# séance publiée} other {# séances publiées}}</b>.",

@@ -34,12 +34,7 @@
     },
     "scheduleCall": "Κλείστε μία παρουσίαση",
     "becomePilot": "Γίνετε ο πρώτος πιλοτικός δήμος",
-    "frameAlt": "Η σελίδα ενός θέματος συνεδρίασης στο OpenCouncil",
-    "counters": {
-      "municipalities": "δήμοι",
-      "subjects": "θέματα",
-      "meetingHours": "ώρες συνεδριάσεων"
-    }
+    "frameAlt": "Η σελίδα ενός θέματος συνεδρίασης στο OpenCouncil"
   },
   "strip": {
     "line": "Σε <b>{count, plural, one {# δήμο} other {# δήμους}}</b> στην Ελλάδα, από τη Σαμοθράκη ως την Αθήνα. <b>{meetings, plural, one {# συνεδρίαση δημοσιευμένη} other {# συνεδριάσεις δημοσιευμένες}}</b>.",

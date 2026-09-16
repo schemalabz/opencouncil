@@ -1,4 +1,5 @@
 import 'server-only';
+import path from 'path';
 import sharp from 'sharp';
 
 // Only our public image origins may be fetched by an anonymous image request.
@@ -55,4 +56,20 @@ export async function getImageData(url: string | null | undefined, box: ImageBox
             .resize(box.width, box.height, { fit: box.fit ?? 'cover', withoutEnlargement: true }).png({ palette: Boolean(box.palette) }).toBuffer();
         return `data:image/png;base64,${png.toString('base64')}`;
     } catch { return null; }
+}
+
+/**
+ * A picture shipped with the build, under `public/`, sized to its box and
+ * embedded the same way: the product screenshots the about image shows.
+ */
+export async function getPublicImageData(publicPath: string, box: ImageBox): Promise<string | null> {
+    try {
+        const file = path.join(process.cwd(), 'public', publicPath.replace(/^\//, ''));
+        const png = await sharp(file, { limitInputPixels: 4_000_000 })
+            .resize(box.width, box.height, { fit: box.fit ?? 'cover', withoutEnlargement: true }).png({ palette: Boolean(box.palette) }).toBuffer();
+        return `data:image/png;base64,${png.toString('base64')}`;
+    } catch (error) {
+        console.error(`[og] ${publicPath} could not be decoded:`, error);
+        return null;
+    }
 }

@@ -17,7 +17,7 @@ import prisma from '@/lib/db/prisma';
 import { RegulationData } from '@/components/consultations/types';
 import { getHotSubjectCardsCached } from '@/lib/hotSubjectCards';
 import { getInitials, getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
-import { formatDateStamp, formatDateTime, getIntlLocale } from '@/lib/formatters/time';
+import { formatDateStamp, formatDateTime } from '@/lib/formatters/time';
 import { sortSubjectsByImportance } from '@/lib/utils';
 import { getPartyFromRoles, getRoleLabelAt, isActivePartyMember, isRoleActive } from '@/lib/utils/roles';
 import { localizeText } from '@/lib/serbian';
@@ -28,7 +28,9 @@ import { topicStyleHex } from '@/lib/topicStyle';
 import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
 import { OG_LOCALE_PARAM, resolveOgLocale } from '@/lib/og/locale';
 import { LOGO_BLACK_DATA_URI, OG_FONTS } from '@/lib/og/serverAssets';
-import { getImageData, SEAL_BOX } from '@/lib/og/remoteImage';
+import { getImageData, getPublicImageData, SEAL_BOX, type ImageBox } from '@/lib/og/remoteImage';
+import { getAboutPageStatsCached } from '@/lib/cache/queries';
+import { HERO_AUDIENCES, shotsForRealm } from '@/components/about/config';
 import { getPortraitData } from '@/lib/og/portrait';
 import { allIllustrated, getStaticIllustrations, getSubjectIllustrations, ILLUSTRATION_BOX } from '@/lib/og/illustration';
 import { ogCacheControl } from '@/lib/og/render';
@@ -457,32 +459,58 @@ const LandingOGImage = async (t: Translator, realm: Realm, locale: string) => {
     );
 };
 
-const AboutOGImage = async (locale: string, t: Translator) => {
+/** The realm's hero screenshot, at twice the size the image draws it so the page inside stays legible. */
+const ABOUT_SHOT_BOX: ImageBox = { width: 920, height: 575 };
+
+/** A screenshot in browser chrome, as the page frames it. */
+function browserTile(src: string, width: number, height: number): ReactNode {
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', width: width + 2, borderRadius: 14, border: `1px solid ${OG.BORDER}`, background: '#ffffff', overflow: 'hidden', boxShadow: '0 24px 48px -24px rgba(12,10,9,0.35)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 28, padding: '0 12px', borderBottom: `1px solid ${OG.BORDER}`, background: '#fafaf9' }}>
+                {['#ff5f57', '#ffbd2e', '#28c840'].map(color => <span key={color} style={{ width: 9, height: 9, borderRadius: 9999, background: color }} />)}
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} width={width} height={height} alt="" />
+        </div>
+    );
+}
+
+// About: the sales page's own words beside the product they describe, with the
+// counts the page shows. The screenshot is the realm's own, as on the page.
+const AboutOGImage = async (locale: string, t: Translator, realm: Realm) => {
     const tHero = await getTranslations({ locale, namespace: 'about.hero' });
-    const number = new Intl.NumberFormat(getIntlLocale(locale));
-    const pictures = (await getStaticIllustrations()).slice(0, 4);
+    const [stats, shot] = await Promise.all([
+        getAboutPageStatsCached().catch(error => {
+            console.error('[og] about stats failed:', error);
+            return null;
+        }),
+        getPublicImageData(shotsForRealm(realm).shots['hero-desktop'].src, ABOUT_SHOT_BOX),
+    ]);
+    const facts = stats
+        ? [t('about.municipalities', { count: stats.municipalityCount }), t('city.meetings', { count: stats.meetingCount })]
+        : [];
     return (
         <OgFrame>
-            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={24} />
+            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20} />
             <OgBody
                 left={
-                    <OgStack gap={24}>
-                        <OgHeadline top={tHero('title')} bottom={tHero('titleHighlight')} size={50} />
-                        <OgChips>
-                            {[
-                                `${number.format(10)} ${tHero('counters.municipalities')}`,
-                                `${number.format(5000)}+ ${tHero('counters.subjects')}`,
-                                `${number.format(400)}+ ${tHero('counters.meetingHours')}`,
-                            ].map(label => <OgChip key={label}>{label}</OgChip>)}
-                        </OgChips>
-                        <OgChips>
-                            {(t.raw('about.tags') as string[]).map(tag => <OgChip key={tag} tone="orange" size={16}>{tag}</OgChip>)}
-                        </OgChips>
+                    <OgStack gap={22}>
+                        <OgHeadline top={tHero('title')} bottom={tHero('titleHighlight')} size={44} />
+                        <OgStack gap={12}>
+                            {HERO_AUDIENCES.map(({ id, icon: Icon }) => (
+                                <OgRow key={id} gap={10} style={{ alignItems: 'flex-start' }}>
+                                    <Icon size={22} color={OG.ORANGE_INK} style={{ marginTop: 2 }} />
+                                    <OgStack gap={2}>
+                                        <span style={{ fontSize: 20, lineHeight: 1.3, color: OG.INK }}>{tHero(`audiences.${id}.lead`)}</span>
+                                        <span style={{ maxWidth: 500, fontSize: 19, lineHeight: 1.35, color: OG.MUTED }}>{tHero(`audiences.${id}.text`)}</span>
+                                    </OgStack>
+                                </OgRow>
+                            ))}
+                        </OgStack>
+                        {facts.length > 0 && <OgChips>{facts.map(fact => <OgChip key={fact}>{fact}</OgChip>)}</OgChips>}
                     </OgStack>
                 }
-                right={pictures.length > 0 && (
-                    <OgTileGrid width={216}>{pictures.map((src, i) => <OgTile key={i} src={src} wash={OG.BORDER} width={216} height={123} />)}</OgTileGrid>
-                )}
+                right={shot && browserTile(shot, ABOUT_SHOT_BOX.width / 2, ABOUT_SHOT_BOX.height / 2)}
             />
         </OgFrame>
     );
@@ -602,7 +630,7 @@ export async function GET(request: Request) {
         } else if (pageType === 'landing') {
             element = await LandingOGImage(t, realm, locale);
         } else if (pageType === 'about') {
-            element = await AboutOGImage(locale, t);
+            element = await AboutOGImage(locale, t, realm);
         } else if (pageType === 'explain') {
             element = ExplainOGImage();
         } else if (pageType === 'search') {
