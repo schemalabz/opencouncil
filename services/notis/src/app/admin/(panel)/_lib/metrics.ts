@@ -89,19 +89,26 @@ export function parseRange(value: string | undefined): RangeKey {
 const NEWS_WAKE_EVENTS = ["agenda_processed", "meeting_summarized"] as const;
 
 /**
- * The share of news wakes the reader answered; null when there was no such
- * wake, so the card can say so instead of showing a confident 0%.
- *
- * The denominator is every news wake, including the ones that decided to stay
- * silent — the question is how often a meeting reaches the reader at all, not
- * how well the sent messages performed.
- *
- * The most recent buckets read low by nature: a reader who has not answered
- * yet is counted as not answering, and there is no way to tell the two
- * apart until they do.
+ * How long a send keeps its claim on the reader's next message. Past it the
+ * message answers something else, whatever the reader had in mind. Nothing
+ * produces `heartbeat` wakes today, so without this cap a reader who gets no
+ * other wake leaves a window open for days.
  */
-export function replyRate(wakes: number, answered: number): number | null {
-  return wakes > 0 ? answered / wakes : null;
+export const REPLY_WINDOW_HOURS = 24;
+
+/**
+ * The share of news sends the reader answered; null when nothing went out, so
+ * the card can say so instead of showing a confident 0%.
+ *
+ * A wake that decided to stay silent is not in the denominator. It could never
+ * draw a reply, so counting it would only drag the rate down.
+ *
+ * The last REPLY_WINDOW_HOURS of any window read low by construction: a send
+ * from an hour ago still has most of its window left, and a reader who has not
+ * answered yet counts as not answering.
+ */
+export function replyRate(sends: number, answered: number): number | null {
+  return sends > 0 ? answered / sends : null;
 }
 
 /** Relative change in percent; null when the previous period is empty. */
@@ -129,11 +136,12 @@ export interface PeriodStats {
   failureReasons: Array<{ reason: string; count: number }>;
   wakesTotal: number;
   wakesByDecision: { send: number; silence: number; error: number };
-  /** News wakes in the period (see NEWS_WAKE_EVENTS), and how many of them
-   *  the reader answered. A wake counts as answered when an inbound message
-   *  arrives after it and before that reader's next wake of ANY type — once
-   *  another wake runs, what the reader says belongs to it. */
-  newsWakes: number;
+  /** News wakes in the period that sent (see NEWS_WAKE_EVENTS), and how many
+   *  of them the reader answered. A send counts as answered when an inbound
+   *  message arrives after it, within REPLY_WINDOW_HOURS, and before that
+   *  reader's next wake of ANY type — once another wake runs, what the reader
+   *  says belongs to it. */
+  newsWakesSent: number;
   newsWakesAnswered: number;
   /** Wakes the queue gave up on in the period. Distinct from a wake whose
    *  decision was `error`: this one never reached the model, so it leaves no
@@ -165,7 +173,7 @@ export interface SeriesPoint {
   sent: number;
   received: number;
   unsubscribes: number;
-  newsWakes: number;
+  newsWakesSent: number;
   newsWakesAnswered: number;
   /** Wake errors and dropped wakes together — see PeriodStats. */
   errors: number;
@@ -191,7 +199,7 @@ const EMPTY_PERIOD: PeriodStats = {
   failureReasons: [],
   wakesTotal: 0,
   wakesByDecision: { send: 0, silence: 0, error: 0 },
-  newsWakes: 0,
+  newsWakesSent: 0,
   newsWakesAnswered: 0,
   droppedWakes: 0,
   wakesByEvent: [],
@@ -263,7 +271,7 @@ export function fillSeries(
     received: BucketCount[];
     activeUsers: BucketCount[];
     unsubscribes: BucketCount[];
-    newsWakes: BucketCount[];
+    newsWakesSent: BucketCount[];
     newsWakesAnswered: BucketCount[];
     errors: BucketCount[];
   },
@@ -276,7 +284,7 @@ export function fillSeries(
     received: lookup(rows.received, key),
     activeUsers: lookup(rows.activeUsers, key),
     unsubscribes: lookup(rows.unsubscribes, key),
-    newsWakes: lookup(rows.newsWakes, key),
+    newsWakesSent: lookup(rows.newsWakesSent, key),
     newsWakesAnswered: lookup(rows.newsWakesAnswered, key),
     errors: lookup(rows.errors, key),
   }));
@@ -297,7 +305,7 @@ async function bucketedSeries(
     count: row.count,
   });
 
-  const [messages, actives, unsubscribes, newsWakes, errors] = await Promise.all([
+  const [messages, actives, unsubscribes, newsSends, errors] = await Promise.all([
     db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
       SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              direction::text AS direction, COUNT(*)::int AS count
@@ -323,15 +331,16 @@ async function bucketedSeries(
       WHERE "unsubscribedAt" >= ${from} AND "unsubscribedAt" < ${to}
       GROUP BY 1
     `,
-    // The window runs over every wake of every type, not only the period's
-    // news wakes, so a wake at the edge still knows what followed it — and
-    // an intervening wake of any kind closes the window, as it must. The
-    // CTE keeps the same lower bound as the outer query and no upper one:
-    // LEAD only looks forward, so every candidate's successor is still in
-    // the set, and the scan stays the period's size rather than all history.
-    db.$queryRaw<Array<{ bucket: Date; wakes: number; answered: number }>>`
+    // Only a news wake that SENT is asked about — a silent one could never
+    // draw a reply. The window runs over every wake of every type, not only
+    // the period's news wakes, so a wake at the edge still knows what
+    // followed it, and an intervening wake of any kind closes the window.
+    // The CTE keeps the same lower bound as the outer query and no upper
+    // one: LEAD only looks forward, so every candidate's successor is still
+    // in the set, and the scan stays the period's size, not all history.
+    db.$queryRaw<Array<{ bucket: Date; sends: number; answered: number }>>`
       WITH spans AS (
-        SELECT "subscriptionId", "eventType", "createdAt",
+        SELECT "subscriptionId", "eventType", decision, "createdAt",
                LEAD("createdAt") OVER (
                  PARTITION BY "subscriptionId" ORDER BY "createdAt", id
                ) AS next_wake
@@ -339,16 +348,18 @@ async function bucketedSeries(
         WHERE "createdAt" >= ${from}
       )
       SELECT date_trunc(${bucket}, w."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
-             COUNT(*)::int AS wakes,
+             COUNT(*)::int AS sends,
              COUNT(*) FILTER (WHERE EXISTS (
                SELECT 1 FROM "NotisMessage" r
                WHERE r."subscriptionId" = w."subscriptionId"
                  AND r.direction = 'inbound'::"MessageDirection"
                  AND r."createdAt" > w."createdAt"
+                 AND r."createdAt" < w."createdAt" + make_interval(hours => ${REPLY_WINDOW_HOURS}::int)
                  AND (w.next_wake IS NULL OR r."createdAt" < w.next_wake)
              ))::int AS answered
       FROM spans w
       WHERE w."eventType" = ANY(${NEWS_WAKE_EVENTS}::text[])
+        AND w.decision = 'send'::"WakeDecision"
         AND w."createdAt" >= ${from} AND w."createdAt" < ${to}
       GROUP BY 1
     `,
@@ -378,11 +389,11 @@ async function bucketedSeries(
     received: messages.filter((r) => r.direction === "inbound").map(rawKey),
     activeUsers: actives.map(rawKey),
     unsubscribes: unsubscribes.map(rawKey),
-    newsWakes: newsWakes.map((r) => ({
+    newsWakesSent: newsSends.map((r) => ({
       key: r.bucket.toISOString().slice(0, slice),
-      count: r.wakes,
+      count: r.sends,
     })),
-    newsWakesAnswered: newsWakes.map((r) => ({
+    newsWakesAnswered: newsSends.map((r) => ({
       key: r.bucket.toISOString().slice(0, slice),
       count: r.answered,
     })),
@@ -404,7 +415,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     wakesByEvent,
     editorialCost,
     suppressed,
-    newsWakes,
+    newsSends,
     droppedWakes,
   ] = await Promise.all([
     db.notisMessage.groupBy({ by: ["direction"], where: createdInPeriod, _count: { _all: true } }),
@@ -441,25 +452,27 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       _count: { _all: true },
     }),
     // Same rule, and the same bounded window, as the series above.
-    db.$queryRaw<Array<{ wakes: number; answered: number }>>`
+    db.$queryRaw<Array<{ sends: number; answered: number }>>`
       WITH spans AS (
-        SELECT "subscriptionId", "eventType", "createdAt",
+        SELECT "subscriptionId", "eventType", decision, "createdAt",
                LEAD("createdAt") OVER (
                  PARTITION BY "subscriptionId" ORDER BY "createdAt", id
                ) AS next_wake
         FROM "NotisWake"
         WHERE "createdAt" >= ${from}
       )
-      SELECT COUNT(*)::int AS wakes,
+      SELECT COUNT(*)::int AS sends,
              COUNT(*) FILTER (WHERE EXISTS (
                SELECT 1 FROM "NotisMessage" r
                WHERE r."subscriptionId" = w."subscriptionId"
                  AND r.direction = 'inbound'::"MessageDirection"
                  AND r."createdAt" > w."createdAt"
+                 AND r."createdAt" < w."createdAt" + make_interval(hours => ${REPLY_WINDOW_HOURS}::int)
                  AND (w.next_wake IS NULL OR r."createdAt" < w.next_wake)
              ))::int AS answered
       FROM spans w
       WHERE w."eventType" = ANY(${NEWS_WAKE_EVENTS}::text[])
+        AND w.decision = 'send'::"WakeDecision"
         AND w."createdAt" >= ${from} AND w."createdAt" < ${to}
     `,
     db.notisWakeQueue.count({ where: { status: "failed", updatedAt: { gte: from, lt: to } } }),
@@ -508,8 +521,8 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       error: decisionCount("error"),
     },
     wakesByEvent: byEvent,
-    newsWakes: newsWakes[0]?.wakes ?? 0,
-    newsWakesAnswered: newsWakes[0]?.answered ?? 0,
+    newsWakesSent: newsSends[0]?.sends ?? 0,
+    newsWakesAnswered: newsSends[0]?.answered ?? 0,
     droppedWakes,
     costUsd: byEvent.reduce((a, r) => a + r.costUsd, 0),
     editorialCostUsd: editorialCost._sum.briefCostUsd ?? 0,
@@ -533,7 +546,7 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
       series: fillSeries(currentFrom, now, bucket, {
         sent: [],
         received: [],
-        newsWakes: [],
+        newsWakesSent: [],
         newsWakesAnswered: [],
         errors: [],
         activeUsers: [],

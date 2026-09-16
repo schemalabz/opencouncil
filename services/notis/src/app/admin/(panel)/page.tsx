@@ -16,6 +16,7 @@ import {
   OverviewStats,
   PeriodStats,
   RANGES,
+  REPLY_WINDOW_HOURS,
   RangeKey,
   SeriesPoint,
   getOverviewStats,
@@ -86,21 +87,21 @@ function seriesFor(
 
 /**
  * The reply rate per bucket, as a percentage on a fixed 0–100 axis. A bucket
- * with no news wake has no rate, so it plots null and the line breaks rather
+ * that sent no news has no rate, so it plots null and the line breaks rather
  * than dipping to a zero nobody earned. The hint carries the counts: at this
- * volume a 100% bucket is usually one wake, and the number alone hides that.
+ * volume a 100% bucket is usually one send, and the number alone hides that.
  */
 function replyRateSeries(series: SeriesPoint[], bucket: BucketUnit): MetricPoint[] {
   return series.map((point) => {
-    const rate = replyRate(point.newsWakes, point.newsWakesAnswered);
+    const rate = replyRate(point.newsWakesSent, point.newsWakesAnswered);
     return {
       key: point.key,
       label: fmtBucketLabel(point.key, bucket),
       value: rate === null ? null : rate * 100,
       hint:
-        point.newsWakes === 0
+        point.newsWakesSent === 0
           ? undefined
-          : `${fmtInt(point.newsWakesAnswered)}/${fmtInt(point.newsWakes)}`,
+          : `${fmtInt(point.newsWakesAnswered)}/${fmtInt(point.newsWakesSent)}`,
     };
   });
 }
@@ -522,8 +523,8 @@ export default async function DashboardPage(props: {
   const range = parseRange((await props.searchParams).range);
   const stats = await getOverviewStats(range);
   const { current, previous, totals } = stats;
-  const currentReplyRate = replyRate(current.newsWakes, current.newsWakesAnswered);
-  const previousReplyRate = replyRate(previous.newsWakes, previous.newsWakesAnswered);
+  const currentReplyRate = replyRate(current.newsWakesSent, current.newsWakesAnswered);
+  const previousReplyRate = replyRate(previous.newsWakesSent, previous.newsWakesAnswered);
   // Both shapes in one number: the wake that erred and the wake that never
   // ran. A model outage produces only the second, so a chart of the first
   // alone stays flat through it.
@@ -592,9 +593,9 @@ export default async function DashboardPage(props: {
             points={replyRateSeries(stats.series, RANGES[range].bucket)}
             unit="percent"
             detail={
-              current.newsWakes === 0
-                ? "καμία αφύπνιση για ατζέντα ή απολογισμό στην περίοδο"
-                : `${fmtInt(current.newsWakesAnswered)} από ${fmtInt(current.newsWakes)} αφυπνίσεις για ατζέντα ή απολογισμό πήραν απάντηση`
+              current.newsWakesSent === 0
+                ? "καμία ενημέρωση για ατζέντα ή απολογισμό στην περίοδο"
+                : `${fmtInt(current.newsWakesAnswered)} από ${fmtInt(current.newsWakesSent)} ενημερώσεις για ατζέντα ή απολογισμό πήραν απάντηση σε ${REPLY_WINDOW_HOURS} ώρες`
             }
           />
           <MetricCard

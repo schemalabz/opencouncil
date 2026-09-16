@@ -103,7 +103,7 @@ describe("fillSeries", () => {
         received: [],
         activeUsers: [{ key: "2026-08-15", count: 1 }],
         unsubscribes: [],
-        newsWakes: [{ key: "2026-08-15", count: 4 }],
+        newsWakesSent: [{ key: "2026-08-15", count: 4 }],
         newsWakesAnswered: [{ key: "2026-08-15", count: 1 }],
         errors: [{ key: "2026-08-16", count: 2 }],
       },
@@ -111,19 +111,19 @@ describe("fillSeries", () => {
     expect(series.map((p) => p.sent)).toEqual([0, 3, 0]);
     expect(series.map((p) => p.received)).toEqual([0, 0, 0]);
     expect(series.find((p) => p.key === "2026-08-15")?.activeUsers).toBe(1);
-    expect(series.map((p) => p.newsWakes)).toEqual([0, 4, 0]);
+    expect(series.map((p) => p.newsWakesSent)).toEqual([0, 4, 0]);
     expect(series.map((p) => p.newsWakesAnswered)).toEqual([0, 1, 0]);
     expect(series.map((p) => p.errors)).toEqual([0, 0, 2]);
   });
 });
 
 describe("replyRate", () => {
-  it("is the share of news wakes the reader answered", () => {
+  it("is the share of news sends the reader answered", () => {
     expect(replyRate(4, 1)).toBe(0.25);
     expect(replyRate(3, 3)).toBe(1);
   });
 
-  it("is null when no news wake ran, so the card says so instead of showing 0%", () => {
+  it("is null when no news went out, so the card says so instead of showing 0%", () => {
     expect(replyRate(0, 0)).toBeNull();
   });
 });
