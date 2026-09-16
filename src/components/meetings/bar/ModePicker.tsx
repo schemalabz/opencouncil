@@ -12,9 +12,11 @@ export type BarMode = 'speakers' | 'subjects';
  * party colours, shapes for the topic colours. Symbols, not words — the
  * labels ride on title/aria.
  */
-export function ModePicker({ mode, onModeChange, compact = false }: {
+export function ModePicker({ mode, onModeChange, onPreview, compact = false }: {
     mode: BarMode;
     onModeChange: (mode: BarMode) => void;
+    /** A mouse resting on the other cell, or leaving the picker: the bar tries that mode on. */
+    onPreview?: (mode: BarMode | null) => void;
     compact?: boolean;
 }) {
     const t = useTranslations('transcript.controls');
@@ -22,6 +24,10 @@ export function ModePicker({ mode, onModeChange, compact = false }: {
         <button
             type="button"
             onClick={() => onModeChange(value)}
+            // A finger has no hover: on touch the enter comes with the tap and
+            // the leave never comes. The cell already in use previews nothing.
+            onPointerEnter={e => { if (e.pointerType !== 'touch' && value !== mode) onPreview?.(value); }}
+            onPointerLeave={() => onPreview?.(null)}
             title={label}
             aria-label={label}
             aria-pressed={mode === value}

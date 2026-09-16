@@ -133,11 +133,22 @@ h2:not(.prose h2) {
   --playback-dock-clearance-mobile: 104px;
 }
 
-/* Playback bar: the mode name shown over the bands after an explicit switch */
+/* Playback bar: the mode name over the bands. `bar-mode-announce` plays after
+   an explicit switch. `-in` brings the name up while the mouse rests on the
+   picker's other cell, and leaves it up. `-out` takes a name the hover already
+   brought up through the same hold and fade, without a second fade-in. */
 @keyframes bar-mode-announce {
   0% { opacity: 0; }
   10% { opacity: 1; }
   78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes bar-mode-announce-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes bar-mode-announce-out {
+  0%, 78% { opacity: 1; }
   100% { opacity: 0; }
 }
 
