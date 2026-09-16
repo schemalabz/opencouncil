@@ -29,7 +29,15 @@ export async function generateMetadata(): Promise<Metadata> {
         title: 'OpenCouncil',
         description: 'Ανοιχτή τοπική αυτοδιοίκηση',
         icons: {
-            icon: '/favicon.ico',
+            // The SVG favicon carries its own `prefers-color-scheme` rule, so the
+            // mark turns white on a dark tab strip. The black mark is close to
+            // invisible there. The SVG comes first, and the .ico keeps an explicit
+            // size, so a browser that reads both prefers the SVG. Browsers without
+            // SVG favicon support fall back to the .ico.
+            icon: [
+                { url: '/favicon.svg', type: 'image/svg+xml' },
+                { url: '/favicon.ico', sizes: '250x250' },
+            ],
         },
         metadataBase: new URL(metadataBase),
         openGraph: {
