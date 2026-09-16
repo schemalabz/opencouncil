@@ -2,7 +2,8 @@
 // components (DeltaChip, rendered inside the client MetricCard). The data
 // readers here are guarded at their server-page call sites; see the
 // (panel) auth-guard test.
-import { hasNotisDb, notisDb } from "@/lib/db";
+import { Prisma, hasNotisDb, notisDb } from "@/lib/db";
+import { WAKE_EVENT_TYPES } from "@/agent/schemas";
 
 /**
  * Overview metrics over a selectable window, always computed twice — the
@@ -86,7 +87,10 @@ export function parseRange(value: string | undefined): RangeKey {
  * a meeting event behind a user message is a user_message wake and does not
  * count here: the reader was already talking.
  */
-const NEWS_WAKE_EVENTS = ["agenda_processed", "meeting_summarized"] as const;
+const NEWS_WAKE_EVENTS = [
+  "agenda_processed",
+  "meeting_summarized",
+] as const satisfies readonly (typeof WAKE_EVENT_TYPES)[number][];
 
 /**
  * How long a send keeps its claim on the reader's next message. Past it the
@@ -210,6 +214,51 @@ const EMPTY_PERIOD: PeriodStats = {
 
 type Db = ReturnType<typeof notisDb>;
 
+/**
+ * The reply rate over one window, as ONE query both readers share — the card's
+ * headline passes no bucket, the chart passes one and gets the same numbers
+ * per bucket. Two hand-kept copies of this drifted apart on every edit.
+ *
+ * `spans` holds only the wakes that DELIVERED, which decides both halves:
+ *  - the denominator, because a silent wake could never draw a reply;
+ *  - `next_send`, because only a later delivery can claim a reply that the
+ *    earlier one might otherwise own. A silent wake between the two delivers
+ *    nothing, so it must not close the window — it cannot take the reply into
+ *    its own count, and the reply would be credited to nobody.
+ * The CTE keeps the outer lower bound and no upper one: LEAD only looks
+ * forward, so every candidate still finds its successor and the scan stays the
+ * size of the period, not of all retained history.
+ */
+function replyRateQuery(from: Date, to: Date, bucket?: BucketUnit): Prisma.Sql {
+  const bucketColumn = bucket
+    ? Prisma.sql`date_trunc(${bucket}, w."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,`
+    : Prisma.empty;
+  return Prisma.sql`
+    WITH spans AS (
+      SELECT "subscriptionId", "eventType", "createdAt",
+             LEAD("createdAt") OVER (
+               PARTITION BY "subscriptionId" ORDER BY "createdAt", id
+             ) AS next_send
+      FROM "NotisWake"
+      WHERE decision = 'send'::"WakeDecision" AND "createdAt" >= ${from}
+    )
+    SELECT ${bucketColumn}
+           COUNT(*)::int AS sends,
+           COUNT(*) FILTER (WHERE EXISTS (
+             SELECT 1 FROM "NotisMessage" r
+             WHERE r."subscriptionId" = w."subscriptionId"
+               AND r.direction = 'inbound'::"MessageDirection"
+               AND r."createdAt" > w."createdAt"
+               AND r."createdAt" < w."createdAt" + make_interval(hours => ${REPLY_WINDOW_HOURS}::int)
+               AND (w.next_send IS NULL OR r."createdAt" < w.next_send)
+           ))::int AS answered
+    FROM spans w
+    WHERE w."eventType" = ANY(${NEWS_WAKE_EVENTS}::text[])
+      AND w."createdAt" >= ${from} AND w."createdAt" < ${to}
+    ${bucket ? Prisma.sql`GROUP BY 1` : Prisma.empty}
+  `;
+}
+
 const BUCKET_STEP_MS: Record<BucketUnit, number> = {
   minute: 60 * 1000,
   hour: HOUR_MS,
@@ -331,38 +380,9 @@ async function bucketedSeries(
       WHERE "unsubscribedAt" >= ${from} AND "unsubscribedAt" < ${to}
       GROUP BY 1
     `,
-    // Only a news wake that SENT is asked about — a silent one could never
-    // draw a reply. The window runs over every wake of every type, not only
-    // the period's news wakes, so a wake at the edge still knows what
-    // followed it, and an intervening wake of any kind closes the window.
-    // The CTE keeps the same lower bound as the outer query and no upper
-    // one: LEAD only looks forward, so every candidate's successor is still
-    // in the set, and the scan stays the period's size, not all history.
-    db.$queryRaw<Array<{ bucket: Date; sends: number; answered: number }>>`
-      WITH spans AS (
-        SELECT "subscriptionId", "eventType", decision, "createdAt",
-               LEAD("createdAt") OVER (
-                 PARTITION BY "subscriptionId" ORDER BY "createdAt", id
-               ) AS next_wake
-        FROM "NotisWake"
-        WHERE "createdAt" >= ${from}
-      )
-      SELECT date_trunc(${bucket}, w."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
-             COUNT(*)::int AS sends,
-             COUNT(*) FILTER (WHERE EXISTS (
-               SELECT 1 FROM "NotisMessage" r
-               WHERE r."subscriptionId" = w."subscriptionId"
-                 AND r.direction = 'inbound'::"MessageDirection"
-                 AND r."createdAt" > w."createdAt"
-                 AND r."createdAt" < w."createdAt" + make_interval(hours => ${REPLY_WINDOW_HOURS}::int)
-                 AND (w.next_wake IS NULL OR r."createdAt" < w.next_wake)
-             ))::int AS answered
-      FROM spans w
-      WHERE w."eventType" = ANY(${NEWS_WAKE_EVENTS}::text[])
-        AND w.decision = 'send'::"WakeDecision"
-        AND w."createdAt" >= ${from} AND w."createdAt" < ${to}
-      GROUP BY 1
-    `,
+    db.$queryRaw<Array<{ bucket: Date; sends: number; answered: number }>>(
+      replyRateQuery(from, to, bucket),
+    ),
     // Both failure shapes in one line: a wake that ran and erred, and a wake
     // the queue dropped before the model ever saw it.
     db.$queryRaw<Array<{ bucket: Date; count: number }>>`
@@ -451,30 +471,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       where: { ...createdInPeriod, direction: "outbound", status: "suppressed" },
       _count: { _all: true },
     }),
-    // Same rule, and the same bounded window, as the series above.
-    db.$queryRaw<Array<{ sends: number; answered: number }>>`
-      WITH spans AS (
-        SELECT "subscriptionId", "eventType", decision, "createdAt",
-               LEAD("createdAt") OVER (
-                 PARTITION BY "subscriptionId" ORDER BY "createdAt", id
-               ) AS next_wake
-        FROM "NotisWake"
-        WHERE "createdAt" >= ${from}
-      )
-      SELECT COUNT(*)::int AS sends,
-             COUNT(*) FILTER (WHERE EXISTS (
-               SELECT 1 FROM "NotisMessage" r
-               WHERE r."subscriptionId" = w."subscriptionId"
-                 AND r.direction = 'inbound'::"MessageDirection"
-                 AND r."createdAt" > w."createdAt"
-                 AND r."createdAt" < w."createdAt" + make_interval(hours => ${REPLY_WINDOW_HOURS}::int)
-                 AND (w.next_wake IS NULL OR r."createdAt" < w.next_wake)
-             ))::int AS answered
-      FROM spans w
-      WHERE w."eventType" = ANY(${NEWS_WAKE_EVENTS}::text[])
-        AND w.decision = 'send'::"WakeDecision"
-        AND w."createdAt" >= ${from} AND w."createdAt" < ${to}
-    `,
+    db.$queryRaw<Array<{ sends: number; answered: number }>>(replyRateQuery(from, to)),
     db.notisWakeQueue.count({ where: { status: "failed", updatedAt: { gte: from, lt: to } } }),
   ]);
 

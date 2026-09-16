@@ -91,6 +91,11 @@ export function MetricCard({
   const [active, setActive] = useState(false);
   const gradientId = useId();
   const colors = TONES[tone];
+  /** A drawn point whose neighbours are both gaps: the line cannot show it. */
+  const isolated = (index: number) =>
+    points[index]?.value != null &&
+    points[index - 1]?.value == null &&
+    points[index + 1]?.value == null;
 
   return (
     <div
@@ -121,6 +126,10 @@ export function MetricCard({
             />
             <Tooltip
               content={<MiniTooltip unit={unit} />}
+              // recharts drops null-valued entries from the payload by
+              // default, so an empty bucket drew a cursor over an empty
+              // popup — which reads as a broken chart, not as "no rate".
+              filterNull={false}
               cursor={{ stroke: colors.stroke, strokeOpacity: 0.35, strokeDasharray: "3 3" }}
               isAnimationActive={false}
             />
@@ -131,6 +140,23 @@ export function MetricCard({
               strokeWidth={1.5}
               strokeOpacity={0.8}
               fill={`url(#${gradientId})`}
+              // A bucket with null neighbours has no segment to draw — the
+              // path is zero-length and paints nothing — so it carries its
+              // own dot. Everything else stays dotless: the line is the mark.
+              dot={(props: { cx?: number; cy?: number; index?: number }) =>
+                isolated(props.index ?? -1) ? (
+                  <circle
+                    key={props.index}
+                    cx={props.cx}
+                    cy={props.cy}
+                    r={2}
+                    fill={colors.stroke}
+                    fillOpacity={0.8}
+                  />
+                ) : (
+                  <g key={props.index} />
+                )
+              }
               isAnimationActive={false}
             />
           </AreaChart>
