@@ -33,6 +33,8 @@ npx prisma migrate dev --name <migration_name> --create-only
 ```
 This allows testing the migration against a local database first before applying to production. Never run `npx prisma migrate dev` directly, as it both creates and applies the migration to whatever database `DATABASE_URL` points to.
 
+**Split a destructive migration across two releases.** Migrations apply at the start of the build, while the old code still serves traffic, so a dropped or renamed column breaks every query that selects it. Release the code that stops using the field first. Add the migration that drops it in a later release.
+
 ### Direct Database Access
 
 When you need to query the database directly (e.g. to find test data, verify state, or debug):
