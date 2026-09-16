@@ -45,9 +45,11 @@ import {
     hasActiveFilters,
     widenRange,
     type DateRangeKey,
+    type DisplayedMunicipality,
     type MapFilters,
     SEARCH_FIELD_STYLE,
 } from '@/lib/landing/landingCore';
+import type { LandingListCity } from '@/lib/landing/landingData';
 
 /* date-range dropdown — badge-style pill, same look as the topic filter pills */
 export function DateRangePill({ value, onChange }: { value: DateRangeKey; onChange: (v: DateRangeKey) => void }) {
@@ -265,42 +267,91 @@ export function CityAvatar({ city, size = 9 }: { city: { name: string; logoImage
     );
 }
 
-/* link button to a δήμος page, shown when an OpenCouncil municipality is under the map center.
-   `nameMunicipality` is the full genitive form from the DB (e.g. "Δήμος Αθηναίων"). */
-export function MunicipalityPageButton({
-    cityId,
-    nameMunicipality,
-    logoImage,
-    large,
+/* A δήμος's numbers on one line — bold figures, quiet words ("112 θέματα · 11 συνεδριάσεις ·
+   148 πρόσωπα"). Shared by the δήμος bar and the δήμος cards, so the two never disagree. Rendered
+   into a muted-text parent; the figures step up to the foreground colour. */
+export function MunicipalityStats({ subjects, meetings, persons }: { subjects: number; meetings: number; persons: number }) {
+    const t = useTranslations('landingV2');
+    return (
+        <>
+            {t.rich('municipality.stats', {
+                subjects,
+                meetings,
+                persons,
+                n: (chunks) => <span className="font-semibold tabular-nums text-foreground">{chunks}</span>,
+            })}
+        </>
+    );
+}
+
+/* The way into the δήμος the map is about — a bar along the bottom of the map, on every view and
+   both layouts. Logo, the full "Δήμος X" name, its numbers when the list has them, and an orange
+   call-to-action; the whole bar is the link. `compact` is the phone layout: tighter, with the
+   call-to-action reduced to its arrow so the name and the numbers keep the width. */
+export function MunicipalityBar({
+    municipality,
+    cities,
+    subjectCountByCity,
+    compact,
+    className,
 }: {
-    cityId: string;
-    nameMunicipality: string;
-    logoImage?: string | null;
-    /** bigger size — used on desktop only */
-    large?: boolean;
+    municipality: DisplayedMunicipality;
+    /** the listed δήμοι, for the bar's numbers (meetings, people) */
+    cities: LandingListCity[];
+    /** unfiltered total subjects per cityId, for the bar's numbers */
+    subjectCountByCity: Record<string, number>;
+    compact?: boolean;
+    className?: string;
 }) {
+    const t = useTranslations('landingV2');
+    const listed = cities.find((c) => c.id === municipality.id);
+    const logo = municipality.logoImage ?? listed?.logoImage ?? null;
     return (
         <Link
-            href={`/${cityId}`}
-            onClick={() => captureLandingAction('city_opened', { city_id: cityId, source: 'page_button' })}
+            href={`/${municipality.id}`}
+            prefetch={false}
+            onClick={() => captureLandingAction('city_opened', { city_id: municipality.id, source: 'page_button' })}
             className={cn(
-                'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border-2 border-[hsl(var(--orange))] bg-white font-semibold text-foreground no-underline shadow-md transition-colors hover:bg-[hsl(24,100%,96%)] hover:no-underline',
-                large ? 'h-12 gap-2.5 px-4 text-[15px]' : 'h-10 px-3 text-[13px]',
+                'group flex w-full items-center rounded-2xl border-2 border-[hsl(var(--orange))] bg-card no-underline shadow-lg transition-colors hover:bg-[hsl(24,100%,97%)] hover:no-underline',
+                compact ? 'h-12 gap-2.5 px-1.5' : 'h-14 gap-3 px-2',
+                className,
             )}
         >
-            {logoImage ? (
-                <Image
-                    src={logoImage}
-                    alt=""
-                    width={32}
-                    height={32}
-                    className={cn('shrink-0 rounded object-contain', large ? 'h-8 w-8' : 'h-6 w-6')}
-                />
-            ) : (
-                <Landmark className={cn('shrink-0 text-[hsl(var(--orange))]', large ? 'h-5 w-5' : 'h-4 w-4')} />
-            )}
-            {nameMunicipality}
-            <ArrowRight className={cn('shrink-0 text-[hsl(var(--orange))]', large ? 'h-5 w-5' : 'h-4 w-4')} />
+            <span
+                className={cn(
+                    'flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-card',
+                    compact ? 'h-9 w-9' : 'h-10 w-10',
+                )}
+            >
+                {logo ? (
+                    <Image src={logo} alt="" width={40} height={40} className="h-full w-full object-contain" />
+                ) : (
+                    <Landmark className={cn('text-[hsl(var(--orange))]', compact ? 'h-5 w-5' : 'h-6 w-6')} />
+                )}
+            </span>
+            <span className="min-w-0 flex-1 leading-tight">
+                <span className={cn('block truncate font-bold text-foreground', compact ? 'text-sm' : 'text-[15px]')}>
+                    {municipality.nameMunicipality}
+                </span>
+                {listed && (
+                    <span className="block truncate text-xs text-muted-foreground">
+                        <MunicipalityStats
+                            subjects={subjectCountByCity[municipality.id] ?? 0}
+                            meetings={listed._count.councilMeetings}
+                            persons={listed._count.persons}
+                        />
+                    </span>
+                )}
+            </span>
+            <span
+                className={cn(
+                    'inline-flex shrink-0 items-center justify-center gap-1.5 bg-[hsl(var(--orange))] font-semibold text-white shadow-sm transition group-hover:brightness-95',
+                    compact ? 'h-9 w-9 rounded-full' : 'h-10 rounded-xl px-4 text-sm',
+                )}
+            >
+                {!compact && t('municipality.openPage')}
+                <ArrowRight className="h-4 w-4 shrink-0" />
+            </span>
         </Link>
     );
 }

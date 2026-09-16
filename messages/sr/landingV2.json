@@ -93,6 +93,12 @@
         "unavailable": "Општина {name} још није доступна — затражите њено додавање",
         "notify": "Обавештења за општину {name}",
         "notifyMeeting": "Обавештења за предстојећу седницу општине {name}",
+        "openPage": "Страница општине",
+        "stats": "<n>{subjects}</n> {subjects, plural, one {тема} few {теме} other {тема}} · <n>{meetings}</n> {meetings, plural, one {седница} few {седнице} other {седница}} · <n>{persons}</n> {persons, plural, one {особа} few {особе} other {особа}}",
+        "notifications": "Обавештења",
+        "showOnMap": "На мапи",
+        "searchPlaceholder": "Претрага општина",
+        "noMatch": "Нема општине са тим називом.",
         "petitionedTitle": "Захтеви за додавање",
         "petitionedMore": "и још {count, plural, one {# општина/град} few {# општине/града} other {# општина/градова}} са мање од {threshold} захтева",
         "petitionedOverflow": "и још {count, plural, one {# општина/град} few {# општине/града} other {# општина/градова}} са {threshold}+ захтева"

@@ -4,9 +4,7 @@ import { useEffect, useRef, type MutableRefObject } from 'react';
 import { useTranslations } from 'next-intl';
 import type { Map as MapboxMap, Marker } from 'mapbox-gl';
 import type { Root } from 'react-dom/client';
-import type { LatLng } from '@/lib/google-maps';
 import {
-    CENTER_QUERY_MOVE_RATIO,
     SUBJECT_DOT_THRESHOLD,
     SUBJECT_FOCUS_ZOOM,
     nextDotMode,
@@ -16,7 +14,6 @@ import {
 import {
     groupByLocation,
     subjectInViewport,
-    type CenterMunicipality,
     type LandingMapCity,
     type LandingPetitionedCity,
     type CoLocatedBox,
@@ -45,11 +42,11 @@ import {
     type Point,
 } from '@/lib/landing/markerDeclutter';
 import { MUNICIPALITY_SATELLITE_SCALE } from '@/lib/landing/donut';
-import type { CityAtPoint } from "@/lib/db/cities";
+import { pickViewportMunicipality } from '@/lib/landing/viewportMunicipality';
 
 /**
- * Capture the map view on every moveend so the list reacts to it. Resolves the municipality under
- * the center; finishes a pending co-located / city-hall pan by opening its box; otherwise closes the
+ * Capture the map view on every moveend so the list reacts to it. Resolves the δήμος the view is
+ * about; finishes a pending co-located / city-hall pan by opening its box; otherwise closes the
  * boxes and publishes the new viewport. Selection pans set `suppressViewCapture` to skip refiltering.
  */
 export function useMapViewCapture({
@@ -59,7 +56,8 @@ export function useMapViewCapture({
     pendingCoLocatedRef,
     pendingGeneralRef,
     setMapZoom,
-    setCenterMunicipality,
+    municipalitiesRef,
+    setViewMunicipality,
     setCoLocated,
     setGeneralBox,
     setMapView,
@@ -72,19 +70,18 @@ export function useMapViewCapture({
     pendingCoLocatedRef: MutableRefObject<LandingSubject[] | null>;
     pendingGeneralRef: MutableRefObject<LandingGeneralCity | null>;
     setMapZoom: (v: number) => void;
-    /** Resolve the δήμος under the center on every meaningful move. Omitted by a map whose
-     *  δήμος is fixed — then no /api/cities/at call is made at all. */
-    setCenterMunicipality?: (v: CenterMunicipality | null) => void;
+    /** The covered δήμοι with their boundaries — the candidates for `setViewMunicipality`. A ref,
+     *  so the capture reads the current list without re-subscribing to the map. */
+    municipalitiesRef?: MutableRefObject<LandingMapCity[]>;
+    /** Resolve the δήμος the view is about on every move, suppressed ones included — the page bar
+     *  has to follow a programmatic fly-to too. Omitted by a map whose δήμος is fixed. */
+    setViewMunicipality?: (v: LandingMapCity | null) => void;
     setCoLocated: (v: CoLocatedBox | null) => void;
     setGeneralBox: (v: GeneralBox | null) => void;
     setMapView: (v: MapViewport) => void;
     /** fired on a genuine user pan/zoom (not a suppressed programmatic move) */
     onUserNavigate?: () => void;
 }) {
-    const centerReqRef = useRef(0);
-    // Center of the last /api/cities/at query — the gate below re-queries only after the
-    // center moves a meaningful fraction of the viewport away.
-    const lastCenterQueryRef = useRef<LatLng | null>(null);
     useEffect(() => {
         if (!mapInstance) return;
         const capture = () => {
@@ -92,38 +89,18 @@ export function useMapViewCapture({
 
             const center = mapInstance.getCenter();
             const bounds = mapInstance.getBounds();
-            // Municipality under the center → drives the "view its page" button. Skip the lookup
-            // unless the center moved > CENTER_QUERY_MOVE_RATIO of the viewport since the last
-            // query, so a pure zoom or tiny pan makes no network call. Threshold scales with zoom.
-            if (bounds && setCenterMunicipality) {
-                const spanLng = Math.abs(bounds.getEast() - bounds.getWest());
-                const spanLat = Math.abs(bounds.getNorth() - bounds.getSouth());
-                const last = lastCenterQueryRef.current;
-                const movedEnough =
-                    !last ||
-                    Math.abs(center.lng - last.lng) > spanLng * CENTER_QUERY_MOVE_RATIO ||
-                    Math.abs(center.lat - last.lat) > spanLat * CENTER_QUERY_MOVE_RATIO;
-                if (movedEnough) {
-                    lastCenterQueryRef.current = { lng: center.lng, lat: center.lat };
-                    const reqId = ++centerReqRef.current;
-                    fetch(`/api/cities/at?lng=${center.lng}&lat=${center.lat}`)
-                        .then((r) => (r.ok ? r.json() : null))
-                        .catch(() => null)
-                        .then((city: Pick<CityAtPoint, 'id' | 'name' | 'name_municipality' | 'status'> | null) => {
-                            if (reqId === centerReqRef.current) {
-                                setCenterMunicipality(
-                                    city
-                                        ? {
-                                              id: city.id,
-                                              name: city.name,
-                                              nameMunicipality: city.name_municipality,
-                                              status: city.status,
-                                          }
-                                        : null,
-                                );
-                            }
-                        });
-                }
+            const viewport: MapViewport | null = bounds
+                ? {
+                      w: bounds.getWest(),
+                      s: bounds.getSouth(),
+                      e: bounds.getEast(),
+                      n: bounds.getNorth(),
+                      clng: center.lng,
+                      clat: center.lat,
+                  }
+                : null;
+            if (viewport && setViewMunicipality) {
+                setViewMunicipality(pickViewportMunicipality(viewport, municipalitiesRef?.current ?? []));
             }
             // a "+N" pan finished → open the box at the now-centered point
             if (pendingCoLocatedRef.current) {
@@ -153,15 +130,7 @@ export function useMapViewCapture({
             }
             // a genuine user pan/zoom — drop any strip preview
             onUserNavigate?.();
-            if (!bounds) return;
-            setMapView({
-                w: bounds.getWest(),
-                s: bounds.getSouth(),
-                e: bounds.getEast(),
-                n: bounds.getNorth(),
-                clng: center.lng,
-                clat: center.lat,
-            });
+            if (viewport) setMapView(viewport);
         };
         capture();
         mapInstance.on('moveend', capture);

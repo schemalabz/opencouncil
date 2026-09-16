@@ -38,6 +38,7 @@ import {
     flyToMunicipality,
     parseInitialUrlState,
     type DateRangeKey,
+    type DisplayedMunicipality,
     type InfoSurface,
     type LandingView,
     type LayoutProps,
@@ -48,7 +49,6 @@ import { calculateGeometryBounds, isInSupportedMunicipality } from '@/lib/geo';
 import { useRouter } from '@/i18n/routing';
 import { hasExplainPage } from '@/lib/explain/availability';
 import type { Realm } from '@prisma/client';
-import { isPublic } from '@/lib/cityStatus';
 import { NotifyPrompt } from './NotifyPrompt';
 import { DesktopLayout } from './DesktopLayout';
 import { MobileLayout } from './MobileLayout';
@@ -164,12 +164,12 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         setCoLocated,
         generalBox,
         setGeneralBox,
-        centerMunicipality,
+        viewMunicipality,
         suppressViewCaptureRef,
         pendingCoLocatedRef,
         pendingGeneralRef,
         previewSubject: previewSubjectObject,
-    } = useSubjectMapState({ mapInstance, initialZoom: initialView.zoom, trackCenterMunicipality: true });
+    } = useSubjectMapState({ mapInstance, initialZoom: initialView.zoom, municipalities: initial.mapCities });
 
     // ---- real data ----
     const { topics } = useTopics();
@@ -368,17 +368,22 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
 
     // The municipality chosen in the filters (single-select) — drives the blue-gray overlay.
     const filterCityId = filters.cityIds[filters.cityIds.length - 1] ?? null;
-    // "View its page" tracks the centered municipality as the user pans/zooms — but only for
-    // δήμοι in OpenCouncil (out-of-network ones have no page to link to), and only once zoomed in
-    // enough that a single δήμος is actually the focus (not the country-level default framing).
-    const displayedMunicipality =
-        centerMunicipality && isPublic(centerMunicipality.status) && mapZoom >= MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM
-            ? {
-                  id: centerMunicipality.id,
-                  name: centerMunicipality.name,
-                  nameMunicipality: centerMunicipality.nameMunicipality,
-              }
-            : null;
+    // The δήμος the map is about, for the bar into its page. A filter names it outright — the
+    // visitor chose it, and the map shows its subjects wherever the camera is. Otherwise it is the
+    // covered δήμος under the middle of the view (see pickViewportMunicipality), once zoomed in
+    // enough that a single δήμος is the focus rather than the country-level framing.
+    const displayedMunicipality = useMemo<DisplayedMunicipality | null>(() => {
+        if (filterCityId) {
+            const mapCity = mapCities.find((c) => c.id === filterCityId);
+            if (mapCity) return mapCity;
+            // A listed δήμος without a boundary is not on the map's city list — still a page to open.
+            const listed = cities.find((c) => c.id === filterCityId);
+            return listed
+                ? { id: listed.id, name: listed.name, nameMunicipality: listed.name_municipality, logoImage: listed.logoImage }
+                : null;
+        }
+        return mapZoom >= MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM ? viewMunicipality : null;
+    }, [filterCityId, mapCities, cities, mapZoom, viewMunicipality]);
     // Lazily fetch its boundary geometry the first time it's selected, then cache it.
     useEffect(() => {
         if (!filterCityId || cityGeometries[filterCityId]) return;
