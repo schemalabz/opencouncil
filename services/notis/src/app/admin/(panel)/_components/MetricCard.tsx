@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { fmtInt } from "../_lib/format";
+import { fmtInt, fmtPct } from "../_lib/format";
 import { DeltaChip } from "./DeltaChip";
 
 /**
@@ -21,7 +21,23 @@ export interface MetricPoint {
   key: string;
   /** Tooltip label, e.g. «Σαβ 16/8». */
   label: string;
-  value: number;
+  /** Null when the bucket has no value to draw — a rate with an empty
+   *  denominator. The line breaks there instead of dipping to zero, which
+   *  would read as a real "nobody answered". */
+  value: number | null;
+  /** Extra tooltip context after the value, e.g. the «3/58» a rate came
+   *  from. Without it a 100% bucket looks the same at 1 wake and at 100. */
+  hint?: string;
+}
+
+/** What a point's value counts, which decides how it reads and how the
+ *  (hidden) y axis is scaled. A rate keeps the full 0–100 range so bucket
+ *  heights compare; a count scales to its own maximum. */
+type MetricUnit = "count" | "percent";
+
+function fmtPointValue(value: number | null, unit: MetricUnit): string {
+  if (value === null) return "—";
+  return unit === "percent" ? fmtPct(value / 100, true) : fmtInt(value);
 }
 
 const TONES = {
@@ -32,16 +48,21 @@ const TONES = {
 function MiniTooltip({
   active,
   payload,
+  unit = "count",
 }: {
   active?: boolean;
   payload?: Array<{ payload: MetricPoint }>;
+  unit?: MetricUnit;
 }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return (
     <div className="rounded border bg-background px-2 py-1 text-[11px] shadow-sm">
       <span className="text-muted-foreground">{point.label}</span>{" "}
-      <span className="font-semibold tabular-nums">{fmtInt(point.value)}</span>
+      <span className="font-semibold tabular-nums">{fmtPointValue(point.value, unit)}</span>
+      {point.hint && (
+        <span className="ml-1 tabular-nums text-muted-foreground">{point.hint}</span>
+      )}
     </div>
   );
 }
@@ -55,6 +76,7 @@ export function MetricCard({
   previous,
   invert = false,
   tone = "orange",
+  unit = "count",
 }: {
   label: string;
   value: string;
@@ -64,10 +86,16 @@ export function MetricCard({
   previous: number;
   invert?: boolean;
   tone?: keyof typeof TONES;
+  unit?: MetricUnit;
 }) {
   const [active, setActive] = useState(false);
   const gradientId = useId();
   const colors = TONES[tone];
+  /** A drawn point whose neighbours are both gaps: the line cannot show it. */
+  const isolated = (index: number) =>
+    points[index]?.value != null &&
+    points[index - 1]?.value == null &&
+    points[index + 1]?.value == null;
 
   return (
     <div
@@ -91,9 +119,17 @@ export function MetricCard({
               </linearGradient>
             </defs>
             <XAxis dataKey="key" hide />
-            <YAxis hide domain={[0, "dataMax"]} allowDecimals={false} />
+            <YAxis
+              hide
+              domain={unit === "percent" ? [0, 100] : [0, "dataMax"]}
+              allowDecimals={unit === "percent"}
+            />
             <Tooltip
-              content={<MiniTooltip />}
+              content={<MiniTooltip unit={unit} />}
+              // recharts drops null-valued entries from the payload by
+              // default, so an empty bucket drew a cursor over an empty
+              // popup — which reads as a broken chart, not as "no rate".
+              filterNull={false}
               cursor={{ stroke: colors.stroke, strokeOpacity: 0.35, strokeDasharray: "3 3" }}
               isAnimationActive={false}
             />
@@ -104,6 +140,23 @@ export function MetricCard({
               strokeWidth={1.5}
               strokeOpacity={0.8}
               fill={`url(#${gradientId})`}
+              // A bucket with null neighbours has no segment to draw — the
+              // path is zero-length and paints nothing — so it carries its
+              // own dot. Everything else stays dotless: the line is the mark.
+              dot={(props: { cx?: number; cy?: number; index?: number }) =>
+                isolated(props.index ?? -1) ? (
+                  <circle
+                    key={props.index}
+                    cx={props.cx}
+                    cy={props.cy}
+                    r={2}
+                    fill={colors.stroke}
+                    fillOpacity={0.8}
+                  />
+                ) : (
+                  <g key={props.index} />
+                )
+              }
               isAnimationActive={false}
             />
           </AreaChart>

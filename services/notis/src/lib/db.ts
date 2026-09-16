@@ -1,4 +1,8 @@
 import { PrismaClient } from "../../generated/client";
+
+// Re-exported so callers can compose raw SQL fragments without reaching past
+// this module for the generated client's path.
+export { Prisma } from "../../generated/client";
 import { env } from "@/env.mjs";
 
 /**

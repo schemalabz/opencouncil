@@ -10,12 +10,13 @@ import { DeltaChip } from "./_components/DeltaChip";
 import { MetricCard, MetricPoint } from "./_components/MetricCard";
 import { PageHeader } from "./_components/PageHeader";
 import { UserAvatar } from "./_components/UserAvatar";
-import { fmtInt, fmtTimeAgo } from "./_lib/format";
+import { fmtInt, fmtPct, fmtTimeAgo } from "./_lib/format";
 import {
   BucketUnit,
   OverviewStats,
   PeriodStats,
   RANGES,
+  REPLY_WINDOW_HOURS,
   RangeKey,
   SeriesPoint,
   getOverviewStats,
@@ -48,10 +49,6 @@ const STATUS_BAR: Record<string, string> = {
   failed: "bg-red-500",
   suppressed: "bg-stone-400/60",
 };
-
-function fmtPct(fraction: number): string {
-  return `${(fraction * 100).toLocaleString("el-GR", { maximumFractionDigits: 1 })}%`;
-}
 
 function fmtUsd(n: number): string {
   return `$${n.toLocaleString("el-GR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -88,14 +85,25 @@ function seriesFor(
   }));
 }
 
-/** The reply rate per bucket, in whole percent. A bucket that sent nothing
- *  plots as zero: there is no rate to draw, and a gap would read as one. */
+/**
+ * The reply rate per bucket, as a percentage on a fixed 0–100 axis. A bucket
+ * that sent no news has no rate, so it plots null and the line breaks rather
+ * than dipping to a zero nobody earned. The hint carries the counts: at this
+ * volume a 100% bucket is usually one send, and the number alone hides that.
+ */
 function replyRateSeries(series: SeriesPoint[], bucket: BucketUnit): MetricPoint[] {
-  return series.map((point) => ({
-    key: point.key,
-    label: fmtBucketLabel(point.key, bucket),
-    value: Math.round((replyRate(point.proactiveSends, point.proactiveAnswered) ?? 0) * 100),
-  }));
+  return series.map((point) => {
+    const rate = replyRate(point.newsWakesSent, point.newsWakesAnswered);
+    return {
+      key: point.key,
+      label: fmtBucketLabel(point.key, bucket),
+      value: rate === null ? null : rate * 100,
+      hint:
+        point.newsWakesSent === 0
+          ? undefined
+          : `${fmtInt(point.newsWakesAnswered)}/${fmtInt(point.newsWakesSent)}`,
+    };
+  });
 }
 
 function StackedBar({
@@ -515,8 +523,8 @@ export default async function DashboardPage(props: {
   const range = parseRange((await props.searchParams).range);
   const stats = await getOverviewStats(range);
   const { current, previous, totals } = stats;
-  const currentReplyRate = replyRate(current.proactiveSends, current.proactiveAnswered);
-  const previousReplyRate = replyRate(previous.proactiveSends, previous.proactiveAnswered);
+  const currentReplyRate = replyRate(current.newsWakesSent, current.newsWakesAnswered);
+  const previousReplyRate = replyRate(previous.newsWakesSent, previous.newsWakesAnswered);
   // Both shapes in one number: the wake that erred and the wake that never
   // ran. A model outage produces only the second, so a chart of the first
   // alone stays flat through it.
@@ -579,14 +587,15 @@ export default async function DashboardPage(props: {
         <div className="grid divide-y rounded-lg border bg-background sm:grid-cols-2 sm:divide-x sm:divide-y-0">
           <MetricCard
             label="Ποσοστό απάντησης"
-            value={currentReplyRate === null ? "—" : `${Math.round(currentReplyRate * 100)}%`}
+            value={currentReplyRate === null ? "—" : fmtPct(currentReplyRate, true)}
             current={currentReplyRate ?? 0}
             previous={previousReplyRate ?? 0}
             points={replyRateSeries(stats.series, RANGES[range].bucket)}
+            unit="percent"
             detail={
-              current.proactiveSends === 0
-                ? "κανένα proactive μήνυμα στην περίοδο"
-                : `${fmtInt(current.proactiveAnswered)} από ${fmtInt(current.proactiveSends)} proactive μηνύματα πήραν απάντηση`
+              current.newsWakesSent === 0
+                ? "καμία ενημέρωση για ατζέντα ή απολογισμό στην περίοδο"
+                : `${fmtInt(current.newsWakesAnswered)} από ${fmtInt(current.newsWakesSent)} ενημερώσεις για ατζέντα ή απολογισμό πήραν απάντηση σε ${REPLY_WINDOW_HOURS} ώρες`
             }
           />
           <MetricCard

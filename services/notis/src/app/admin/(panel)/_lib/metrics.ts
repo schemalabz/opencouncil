@@ -2,7 +2,8 @@
 // components (DeltaChip, rendered inside the client MetricCard). The data
 // readers here are guarded at their server-page call sites; see the
 // (panel) auth-guard test.
-import { hasNotisDb, notisDb } from "@/lib/db";
+import { Prisma, hasNotisDb, notisDb } from "@/lib/db";
+import { WAKE_EVENT_TYPES } from "@/agent/schemas";
 
 /**
  * Overview metrics over a selectable window, always computed twice — the
@@ -81,12 +82,34 @@ export function parseRange(value: string | undefined): RangeKey {
 }
 
 /**
- * The share of proactive sends the reader answered; null when nothing was
- * sent, so the card can say so instead of showing a confident 0%.
+ * Wake event types that carry municipal news — the ones the reply rate asks
+ * about. A coalesced wake records its PRIMARY event, so a wake that absorbed
+ * a meeting event behind a user message is a user_message wake and does not
+ * count here: the reader was already talking.
+ */
+const NEWS_WAKE_EVENTS = [
+  "agenda_processed",
+  "meeting_summarized",
+] as const satisfies readonly (typeof WAKE_EVENT_TYPES)[number][];
+
+/**
+ * How long a send keeps its claim on the reader's next message. Past it the
+ * message answers something else, whatever the reader had in mind. Nothing
+ * produces `heartbeat` wakes today, so without this cap a reader who gets no
+ * other wake leaves a window open for days.
+ */
+export const REPLY_WINDOW_HOURS = 24;
+
+/**
+ * The share of news sends the reader answered; null when nothing went out, so
+ * the card can say so instead of showing a confident 0%.
  *
- * The most recent buckets read low by nature: a reader who has not answered
- * yet is counted as not answering, and there is no way to tell the two
- * apart until they do.
+ * A wake that decided to stay silent is not in the denominator. It could never
+ * draw a reply, so counting it would only drag the rate down.
+ *
+ * The last REPLY_WINDOW_HOURS of any window read low by construction: a send
+ * from an hour ago still has most of its window left, and a reader who has not
+ * answered yet counts as not answering.
  */
 export function replyRate(sends: number, answered: number): number | null {
   return sends > 0 ? answered / sends : null;
@@ -117,11 +140,13 @@ export interface PeriodStats {
   failureReasons: Array<{ reason: string; count: number }>;
   wakesTotal: number;
   wakesByDecision: { send: number; silence: number; error: number };
-  /** Proactive sends in the period, and how many of them the reader answered.
-   *  A send counts as answered when an inbound message arrives after it and
-   *  before the next proactive send to the same reader. */
-  proactiveSends: number;
-  proactiveAnswered: number;
+  /** News wakes in the period that sent (see NEWS_WAKE_EVENTS), and how many
+   *  of them the reader answered. A send counts as answered when an inbound
+   *  message arrives after it, within REPLY_WINDOW_HOURS, and before that
+   *  reader's next wake of ANY type — once another wake runs, what the reader
+   *  says belongs to it. */
+  newsWakesSent: number;
+  newsWakesAnswered: number;
   /** Wakes the queue gave up on in the period. Distinct from a wake whose
    *  decision was `error`: this one never reached the model, so it leaves no
    *  wake row at all — which is exactly what a model outage looks like. */
@@ -152,8 +177,8 @@ export interface SeriesPoint {
   sent: number;
   received: number;
   unsubscribes: number;
-  proactiveSends: number;
-  proactiveAnswered: number;
+  newsWakesSent: number;
+  newsWakesAnswered: number;
   /** Wake errors and dropped wakes together — see PeriodStats. */
   errors: number;
 }
@@ -178,8 +203,8 @@ const EMPTY_PERIOD: PeriodStats = {
   failureReasons: [],
   wakesTotal: 0,
   wakesByDecision: { send: 0, silence: 0, error: 0 },
-  proactiveSends: 0,
-  proactiveAnswered: 0,
+  newsWakesSent: 0,
+  newsWakesAnswered: 0,
   droppedWakes: 0,
   wakesByEvent: [],
   costUsd: 0,
@@ -188,6 +213,51 @@ const EMPTY_PERIOD: PeriodStats = {
 };
 
 type Db = ReturnType<typeof notisDb>;
+
+/**
+ * The reply rate over one window, as ONE query both readers share — the card's
+ * headline passes no bucket, the chart passes one and gets the same numbers
+ * per bucket. Two hand-kept copies of this drifted apart on every edit.
+ *
+ * `spans` holds only the wakes that DELIVERED, which decides both halves:
+ *  - the denominator, because a silent wake could never draw a reply;
+ *  - `next_send`, because only a later delivery can claim a reply that the
+ *    earlier one might otherwise own. A silent wake between the two delivers
+ *    nothing, so it must not close the window — it cannot take the reply into
+ *    its own count, and the reply would be credited to nobody.
+ * The CTE keeps the outer lower bound and no upper one: LEAD only looks
+ * forward, so every candidate still finds its successor and the scan stays the
+ * size of the period, not of all retained history.
+ */
+function replyRateQuery(from: Date, to: Date, bucket?: BucketUnit): Prisma.Sql {
+  const bucketColumn = bucket
+    ? Prisma.sql`date_trunc(${bucket}, w."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,`
+    : Prisma.empty;
+  return Prisma.sql`
+    WITH spans AS (
+      SELECT "subscriptionId", "eventType", "createdAt",
+             LEAD("createdAt") OVER (
+               PARTITION BY "subscriptionId" ORDER BY "createdAt", id
+             ) AS next_send
+      FROM "NotisWake"
+      WHERE decision = 'send'::"WakeDecision" AND "createdAt" >= ${from}
+    )
+    SELECT ${bucketColumn}
+           COUNT(*)::int AS sends,
+           COUNT(*) FILTER (WHERE EXISTS (
+             SELECT 1 FROM "NotisMessage" r
+             WHERE r."subscriptionId" = w."subscriptionId"
+               AND r.direction = 'inbound'::"MessageDirection"
+               AND r."createdAt" > w."createdAt"
+               AND r."createdAt" < w."createdAt" + make_interval(hours => ${REPLY_WINDOW_HOURS}::int)
+               AND (w.next_send IS NULL OR r."createdAt" < w.next_send)
+           ))::int AS answered
+    FROM spans w
+    WHERE w."eventType" = ANY(${NEWS_WAKE_EVENTS}::text[])
+      AND w."createdAt" >= ${from} AND w."createdAt" < ${to}
+    ${bucket ? Prisma.sql`GROUP BY 1` : Prisma.empty}
+  `;
+}
 
 const BUCKET_STEP_MS: Record<BucketUnit, number> = {
   minute: 60 * 1000,
@@ -250,8 +320,8 @@ export function fillSeries(
     received: BucketCount[];
     activeUsers: BucketCount[];
     unsubscribes: BucketCount[];
-    proactiveSends: BucketCount[];
-    proactiveAnswered: BucketCount[];
+    newsWakesSent: BucketCount[];
+    newsWakesAnswered: BucketCount[];
     errors: BucketCount[];
   },
 ): SeriesPoint[] {
@@ -263,8 +333,8 @@ export function fillSeries(
     received: lookup(rows.received, key),
     activeUsers: lookup(rows.activeUsers, key),
     unsubscribes: lookup(rows.unsubscribes, key),
-    proactiveSends: lookup(rows.proactiveSends, key),
-    proactiveAnswered: lookup(rows.proactiveAnswered, key),
+    newsWakesSent: lookup(rows.newsWakesSent, key),
+    newsWakesAnswered: lookup(rows.newsWakesAnswered, key),
     errors: lookup(rows.errors, key),
   }));
 }
@@ -284,7 +354,7 @@ async function bucketedSeries(
     count: row.count,
   });
 
-  const [messages, actives, unsubscribes, proactive, errors] = await Promise.all([
+  const [messages, actives, unsubscribes, newsSends, errors] = await Promise.all([
     db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
       SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              direction::text AS direction, COUNT(*)::int AS count
@@ -310,30 +380,9 @@ async function bucketedSeries(
       WHERE "unsubscribedAt" >= ${from} AND "unsubscribedAt" < ${to}
       GROUP BY 1
     `,
-    // The window runs over every proactive send, not only the period's, so a
-    // send at the edge still knows what followed it.
-    db.$queryRaw<Array<{ bucket: Date; sends: number; answered: number }>>`
-      WITH proactive AS (
-        SELECT "subscriptionId", "createdAt",
-               LEAD("createdAt") OVER (
-                 PARTITION BY "subscriptionId" ORDER BY "createdAt"
-               ) AS next_send
-        FROM "NotisMessage"
-        WHERE direction = 'outbound'::"MessageDirection" AND proactive = true
-      )
-      SELECT date_trunc(${bucket}, p."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
-             COUNT(*)::int AS sends,
-             COUNT(*) FILTER (WHERE EXISTS (
-               SELECT 1 FROM "NotisMessage" r
-               WHERE r."subscriptionId" = p."subscriptionId"
-                 AND r.direction = 'inbound'::"MessageDirection"
-                 AND r."createdAt" > p."createdAt"
-                 AND (p.next_send IS NULL OR r."createdAt" < p.next_send)
-             ))::int AS answered
-      FROM proactive p
-      WHERE p."createdAt" >= ${from} AND p."createdAt" < ${to}
-      GROUP BY 1
-    `,
+    db.$queryRaw<Array<{ bucket: Date; sends: number; answered: number }>>(
+      replyRateQuery(from, to, bucket),
+    ),
     // Both failure shapes in one line: a wake that ran and erred, and a wake
     // the queue dropped before the model ever saw it.
     db.$queryRaw<Array<{ bucket: Date; count: number }>>`
@@ -360,11 +409,11 @@ async function bucketedSeries(
     received: messages.filter((r) => r.direction === "inbound").map(rawKey),
     activeUsers: actives.map(rawKey),
     unsubscribes: unsubscribes.map(rawKey),
-    proactiveSends: proactive.map((r) => ({
+    newsWakesSent: newsSends.map((r) => ({
       key: r.bucket.toISOString().slice(0, slice),
       count: r.sends,
     })),
-    proactiveAnswered: proactive.map((r) => ({
+    newsWakesAnswered: newsSends.map((r) => ({
       key: r.bucket.toISOString().slice(0, slice),
       count: r.answered,
     })),
@@ -386,7 +435,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     wakesByEvent,
     editorialCost,
     suppressed,
-    proactive,
+    newsSends,
     droppedWakes,
   ] = await Promise.all([
     db.notisMessage.groupBy({ by: ["direction"], where: createdInPeriod, _count: { _all: true } }),
@@ -422,28 +471,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       where: { ...createdInPeriod, direction: "outbound", status: "suppressed" },
       _count: { _all: true },
     }),
-    // Same rule as the series: answered means an inbound message after this
-    // send and before the next proactive send to the same reader.
-    db.$queryRaw<Array<{ sends: number; answered: number }>>`
-      WITH proactive AS (
-        SELECT "subscriptionId", "createdAt",
-               LEAD("createdAt") OVER (
-                 PARTITION BY "subscriptionId" ORDER BY "createdAt"
-               ) AS next_send
-        FROM "NotisMessage"
-        WHERE direction = 'outbound'::"MessageDirection" AND proactive = true
-      )
-      SELECT COUNT(*)::int AS sends,
-             COUNT(*) FILTER (WHERE EXISTS (
-               SELECT 1 FROM "NotisMessage" r
-               WHERE r."subscriptionId" = p."subscriptionId"
-                 AND r.direction = 'inbound'::"MessageDirection"
-                 AND r."createdAt" > p."createdAt"
-                 AND (p.next_send IS NULL OR r."createdAt" < p.next_send)
-             ))::int AS answered
-      FROM proactive p
-      WHERE p."createdAt" >= ${from} AND p."createdAt" < ${to}
-    `,
+    db.$queryRaw<Array<{ sends: number; answered: number }>>(replyRateQuery(from, to)),
     db.notisWakeQueue.count({ where: { status: "failed", updatedAt: { gte: from, lt: to } } }),
   ]);
 
@@ -490,8 +518,8 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       error: decisionCount("error"),
     },
     wakesByEvent: byEvent,
-    proactiveSends: proactive[0]?.sends ?? 0,
-    proactiveAnswered: proactive[0]?.answered ?? 0,
+    newsWakesSent: newsSends[0]?.sends ?? 0,
+    newsWakesAnswered: newsSends[0]?.answered ?? 0,
     droppedWakes,
     costUsd: byEvent.reduce((a, r) => a + r.costUsd, 0),
     editorialCostUsd: editorialCost._sum.briefCostUsd ?? 0,
@@ -515,8 +543,8 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
       series: fillSeries(currentFrom, now, bucket, {
         sent: [],
         received: [],
-        proactiveSends: [],
-        proactiveAnswered: [],
+        newsWakesSent: [],
+        newsWakesAnswered: [],
         errors: [],
         activeUsers: [],
         unsubscribes: [],
