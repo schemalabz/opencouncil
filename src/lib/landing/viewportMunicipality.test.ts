@@ -67,10 +67,27 @@ describe('pickViewportMunicipality', () => {
     });
 
     it('breaks a tie in favour of the δήμος under the centre', () => {
-        // tiny covers the centre alone (3); column covers exactly the right ring column (3).
-        const tiny = city('tiny', box(-0.1, -0.1, 0.1, 0.1));
-        const column = city('column', box(0.9, -2, 1.1, 2));
-        expect(pickViewportMunicipality(viewport(0, 0, 5, 5), [column, tiny])?.id).toBe('tiny');
-        expect(pickViewportMunicipality(viewport(0, 0, 5, 5), [tiny, column])?.id).toBe('tiny');
+        // The ring spreads ±0.2 here. middle covers the centre alone (3); column covers exactly
+        // the right ring column (3). Both take up a third of the view, so both are candidates.
+        const middle = city('middle', box(-0.17, -0.17, 0.17, 0.17));
+        const column = city('column', box(0.18, -0.4, 0.22, 0.4));
+        expect(pickViewportMunicipality(viewport(0, 0, 1, 1), [column, middle])?.id).toBe('middle');
+        expect(pickViewportMunicipality(viewport(0, 0, 1, 1), [middle, column])?.id).toBe('middle');
+    });
+
+    it('returns null for a δήμος that takes up too little of the view', () => {
+        // The country-level framing: the centre sits in a, but a is a tenth of the view.
+        expect(pickViewportMunicipality(viewport(5, 5, 100, 100), [a])).toBeNull();
+    });
+
+    it('names a δήμος that fills the view along one side only', () => {
+        // A long, narrow δήμος fills the height of a much wider view — that still counts.
+        const strip = city('strip', box(0, 0, 1, 10));
+        expect(pickViewportMunicipality(viewport(0.5, 5, 30, 10), [strip])?.id).toBe('strip');
+    });
+
+    it('follows the view, not a fixed zoom: the same δήμος drops out as the view widens', () => {
+        expect(pickViewportMunicipality(viewport(5, 5, 20, 20), [a])?.id).toBe('a');
+        expect(pickViewportMunicipality(viewport(5, 5, 40, 40), [a])).toBeNull();
     });
 });
