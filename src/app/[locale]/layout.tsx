@@ -6,6 +6,7 @@ import { routing } from '@/i18n/routing';
 import { notFound } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
 import ConsentChip from "@/components/analytics/ConsentChip";
+import InstallPrompt from "@/components/pwa/InstallPrompt";
 import { env } from "@/env.mjs";
 
 // Dev-only UI. MobilePreviewReporter's literal NODE_ENV comparison lets the
@@ -53,6 +54,7 @@ export default async function LocaleLayout(
 
             <Toaster />
             <ConsentChip />
+            <InstallPrompt />
             {QuickLogin && <QuickLogin isPreview={env.DEPLOYMENT_ENV === 'preview'} />}
             {MobilePreviewReporter && <MobilePreviewReporter />}
         </NextIntlClientProvider>

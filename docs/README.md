@@ -29,6 +29,7 @@ Deep dives into specific features — architecture, data flow, and implementatio
 - **[guides/subject-images.md](./guides/subject-images.md)** — AI-generated illustration per subject: the `@opencouncil/subject-images` library, the image route, pipeline triggers, the placeholder, admin replace, and the backfill script
 - **[guides/og-images.md](./guides/og-images.md)** — Open Graph and story images: the shared frame, where each image renders, how pictures reach the renderer
 - **[guides/qr-campaigns.md](./guides/qr-campaigns.md)** — QR code redirect system with UTM tracking and analytics
+- **[guides/pwa.md](./guides/pwa.md)** — Install as an app: the manifest, the service worker and its caching rules, the offline page, the install prompt and when it stays hidden
 - **[guides/embed-widgets.md](./guides/embed-widgets.md)** — Iframe widgets for external sites: the meetings, hot subjects and meeting summary widgets, their params, theming, caching and the configurator
 - **[guides/serbian-localization.md](./guides/serbian-localization.md)** — Serbian dual-script support: Cyrillic-canonical catalogs, generated Latin, render-time transliteration, glossary, and the native-review workflow gating the serbia realm launch
 - **[notifications.prd.md](./notifications.prd.md)** — Notifications: matching subjects to preferences, email deliveries, admin approval, the signup flow, the profile switch

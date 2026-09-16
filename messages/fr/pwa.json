@@ -1,0 +1,22 @@
+{
+    "manifest": {
+        "description": "Votre conseil municipal, dans votre poche. Séances, décisions et qui a dit quoi, en langage clair."
+    },
+    "installPrompt": {
+        "title": "Votre conseil, à portée de doigt.",
+        "subtitle": "Ajoutez OpenCouncil à votre écran d'accueil. Gratuit, sans store.",
+        "install": "Installer",
+        "notNow": "Pas maintenant",
+        "close": "Fermer",
+        "iosStep1": "Touchez le bouton Partager dans la barre du navigateur",
+        "iosStep2": "Choisissez « Sur l'écran d'accueil »",
+        "iosStep3": "Touchez « Ajouter »",
+        "androidStep1": "Ouvrez le menu du navigateur",
+        "androidStep2": "Choisissez « Ajouter à l'écran d'accueil » ou « Installer l'application »"
+    },
+    "offline": {
+        "title": "Vous êtes hors ligne",
+        "body": "OpenCouncil a besoin d'une connexion pour charger cette page. Vérifiez votre réseau et réessayez.",
+        "retry": "Réessayer"
+    }
+}
