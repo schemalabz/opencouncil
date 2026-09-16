@@ -14,10 +14,8 @@ import type { CityWithGeometry } from '@/lib/db/cities';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
 import { findOsektutuNeighbourhood } from '@/lib/osektutu';
 import type { Location } from '@/lib/types/onboarding';
+import { CHAT_SURFACE } from '@/lib/notis/chat';
 import { cn } from '@/lib/utils';
-
-/** The WhatsApp wallpaper the city page's example conversation uses. */
-const CHAT_SURFACE = { backgroundColor: '#ECE5DD' };
 
 /**
  * Done. What happens next, honestly: the first message comes in minutes —

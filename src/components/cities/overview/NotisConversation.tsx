@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Pointer, RotateCcw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { CHAT_SURFACE_PATTERNED } from '@/lib/notis/chat';
 import { cn } from '@/lib/utils';
 
 /**
@@ -28,12 +29,6 @@ const TYPING_MS = 700;
 const FIRST_NUDGE_MS = 2600;
 /** The hand appears once the nudged bubble has landed and been read. */
 const CUE_DELAY_MS = 1100;
-
-/** The About page's NotificationDemo wallpaper, so the two surfaces match. */
-const CHAT_SURFACE = {
-    backgroundColor: '#ECE5DD',
-    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9c2b7' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-};
 
 /**
  * An example exchange with Νότης, advanced one message at a time.
@@ -156,7 +151,7 @@ export function NotisConversation() {
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/40',
                     awake ? 'opacity-100' : 'opacity-[0.55] hover:opacity-100 focus-visible:opacity-100',
                 )}
-                style={CHAT_SURFACE}
+                style={CHAT_SURFACE_PATTERNED}
             >
                 {visible.map((step, i) => (
                     <Bubble key={step.message} from={step.from} text={t(step.message)} animate={!reduced && i === shown - 1} />
