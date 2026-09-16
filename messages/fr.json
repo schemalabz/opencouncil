@@ -747,6 +747,15 @@
     "deleteNetworkError": "Erreur lors de la suppression"
   },
   "Profile": {
+    "claim": {
+      "linkedOnboarding": "Votre compte est maintenant lié à votre fiche d'élu. Renseignez vos informations ci-dessous pour terminer votre inscription. Vous pourrez ensuite gérer votre page depuis ce profil.",
+      "title": "Fiche d'élu",
+      "linked": "Votre compte est maintenant lié à votre fiche d'élu. Vous pouvez modifier votre page depuis la section d'administration ci-dessous.",
+      "alreadyYours": "Votre compte est déjà lié à cette fiche d'élu.",
+      "alreadyLinked": "Un autre compte est déjà lié à cette fiche d'élu. Contactez l'équipe OpenCouncil si c'est une erreur.",
+      "notFound": "Ce QR renvoie à un élu qui n'existe plus.",
+      "invalid": "Ce lien QR n'est pas valide ou a expiré. Demandez-en un nouveau à l'équipe OpenCouncil."
+    },
     "myHighlightsDescription": "Consultez tous les temps forts que vous avez créés, pour chaque séance.",
     "viewMyHighlights": "Voir vos temps forts",
     "welcomeOnboard": "Bienvenue sur OpenCouncil",

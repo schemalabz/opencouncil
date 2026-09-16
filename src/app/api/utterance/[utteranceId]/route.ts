@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { relativeRedirect } from '@/lib/utils/relativeRedirect';
 import prisma from '@/lib/db/prisma';
 import { DEFAULT_LOCALE, LOCALES, urlPrefixForLocale } from '@/i18n/config';
 
@@ -68,14 +69,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ utter
             ? `/${localePrefix}/${cityId}/${meetingId}/transcript?t=${time}`
             : `/${cityId}/${meetingId}/transcript?t=${time}`;
 
-        // Relative Location on purpose: no absolute base is correct here.
-        // One deployment serves every realm domain, so NEXTAUTH_URL (a single
-        // per-deployment value) bounced .fr/.rs readers onto .gr — and
-        // request.url resolves to the server's bind address behind the
-        // reverse proxy (0.0.0.0:PORT on previews). The browser resolves a
-        // relative Location against the origin it is already on, which is
-        // exactly right for this route's same-origin caller.
-        return new NextResponse(null, { status: 307, headers: { Location: redirectUrl } });
+        return relativeRedirect(redirectUrl, undefined, 307);
     } catch (error) {
         console.error('Error redirecting utterance:', error);
         return NextResponse.json(

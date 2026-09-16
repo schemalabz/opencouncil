@@ -659,6 +659,15 @@
         "deleteNetworkError": "Error while deleting"
     },
     "Profile": {
+        "claim": {
+            "linkedOnboarding": "Your account is now linked to your council record. Fill in your details below to complete your registration. After that you can manage your page from this profile.",
+            "title": "Council record",
+            "linked": "Your account is now linked to your council record. You can edit your page from the admin section below.",
+            "alreadyYours": "Your account is already linked to this council record.",
+            "alreadyLinked": "Another account is already linked to this council record. Ask the OpenCouncil team if that is wrong.",
+            "notFound": "This QR points to a council member who no longer exists.",
+            "invalid": "This QR link is not valid or has expired. Ask the OpenCouncil team for a new one."
+        },
         "myHighlightsDescription": "See all the highlights you have created, from every meeting.",
         "viewMyHighlights": "View your highlights",
         "welcomeOnboard": "Welcome to OpenCouncil",
