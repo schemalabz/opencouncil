@@ -325,14 +325,18 @@ async function bucketedSeries(
     `,
     // The window runs over every wake of every type, not only the period's
     // news wakes, so a wake at the edge still knows what followed it — and
-    // an intervening wake of any kind closes the window, as it must.
+    // an intervening wake of any kind closes the window, as it must. The
+    // CTE keeps the same lower bound as the outer query and no upper one:
+    // LEAD only looks forward, so every candidate's successor is still in
+    // the set, and the scan stays the period's size rather than all history.
     db.$queryRaw<Array<{ bucket: Date; wakes: number; answered: number }>>`
       WITH spans AS (
         SELECT "subscriptionId", "eventType", "createdAt",
                LEAD("createdAt") OVER (
-                 PARTITION BY "subscriptionId" ORDER BY "createdAt"
+                 PARTITION BY "subscriptionId" ORDER BY "createdAt", id
                ) AS next_wake
         FROM "NotisWake"
+        WHERE "createdAt" >= ${from}
       )
       SELECT date_trunc(${bucket}, w."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              COUNT(*)::int AS wakes,
@@ -436,15 +440,15 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       where: { ...createdInPeriod, direction: "outbound", status: "suppressed" },
       _count: { _all: true },
     }),
-    // Same rule as the series: answered means an inbound message after this
-    // wake and before that reader's next wake of any type.
+    // Same rule, and the same bounded window, as the series above.
     db.$queryRaw<Array<{ wakes: number; answered: number }>>`
       WITH spans AS (
         SELECT "subscriptionId", "eventType", "createdAt",
                LEAD("createdAt") OVER (
-                 PARTITION BY "subscriptionId" ORDER BY "createdAt"
+                 PARTITION BY "subscriptionId" ORDER BY "createdAt", id
                ) AS next_wake
         FROM "NotisWake"
+        WHERE "createdAt" >= ${from}
       )
       SELECT COUNT(*)::int AS wakes,
              COUNT(*) FILTER (WHERE EXISTS (
