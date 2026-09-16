@@ -11,6 +11,8 @@ import { formatDate } from '@/lib/formatters/time';
 import { localizeText } from '@/lib/serbian';
 import { digestExcerpt, excerptPath, excerptSourceIsVisible, type ExcerptSelector, type ExcerptSource } from '@/lib/sharing/excerptSelector';
 import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
+import { useMediaQuery } from '@/hooks/use-media-query';
+import { toolbarPlacement } from '@/lib/sharing/toolbarPlacement';
 import { captureExcerptSelection, captureExcerptSegment, type SelectionResult, type CapturedExcerpt } from '@/lib/sharing/selection';
 import { Button } from '@/components/ui/button';
 import { ContentShareDialog } from './ContentShareDialog';
@@ -40,6 +42,19 @@ export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootR
     const { city, meeting, subjects, transcript, taskStatus } = useCouncilMeetingData();
     const locale = useLocale() as AppLocale;
     const t = useTranslations('sharing');
+    const hoverable = useMediaQuery('(hover: hover)');
+    // The input that made the selection decides the button's side. The media
+    // query only names the primary pointer: a finger on a touchscreen laptop
+    // still brings the platform callout, which needs the space above kept
+    // clear. A pen brings the same callout as a finger.
+    const [touchSelection, setTouchSelection] = useState<boolean | null>(null);
+    useEffect(() => {
+        const root = rootRef.current;
+        if (!root) return;
+        const onPointerDown = (event: PointerEvent) => setTouchSelection(event.pointerType !== 'mouse');
+        root.addEventListener('pointerdown', onPointerDown);
+        return () => root.removeEventListener('pointerdown', onPointerDown);
+    }, [rootRef]);
     const allSources = useExcerptSources();
     const { options: { maxUtteranceDrift } } = useTranscriptOptions();
     const sources = useMemo(() => allSources.filter(source => excerptSourceIsVisible(source, maxUtteranceDrift)), [allSources, maxUtteranceDrift]);
@@ -136,8 +151,9 @@ export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootR
 
     const visible = selection.status === 'ok' && !open && !disabled;
     const rect = selection.status === 'ok' ? selection.selection.rect : null;
+    const preferAbove = touchSelection === null ? hoverable : !touchSelection;
     return <>
-        {visible && rect && <div className="fixed z-40 max-w-[calc(100vw-2rem)]" style={{ left: Math.max(16, Math.min(rect.left, window.innerWidth - 300)), top: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 64)) }}>
+        {visible && rect && <div className="fixed z-40 w-max max-w-[calc(100vw-2rem)]" style={toolbarPlacement(rect, { width: document.documentElement.clientWidth, height: window.innerHeight }, preferAbove)}>
             <Button className="min-h-11 gap-2 rounded-full bg-[hsl(var(--orange-deep))] text-white shadow-lg hover:bg-[color-mix(in_srgb,hsl(var(--orange-deep)),black_8%)] hover:opacity-100" onMouseDown={event => event.preventDefault()} onClick={() => openSelection(selection)} disabled={pending}>
                 {pending ? <Loader2 className="size-4 animate-spin" /> : <Share2 className="size-4" />}{t('shareExcerpt')}
             </Button>
