@@ -21,9 +21,9 @@ export const EXPLAIN_LNGLAT: [number, number] = [23.740061, 37.986179];
 // Selecting a subject nudges zoom up to this level, but only when more zoomed-out than it.
 export const SUBJECT_FOCUS_ZOOM = 14;
 
-// The bar that links to the displayed δήμος shows only when the zoom is high enough for a single
-// municipality to fill the view, not at the country-level framing.
-export const MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM = 12;
+// Where the camera goes when it must frame a δήμος that has no boundary to fit — δήμος-level
+// framing, close enough to show the δήμος and its surroundings.
+export const MUNICIPALITY_FOCUS_FALLBACK_ZOOM = 12;
 
 // At or below this zoom the map shows the per-δήμος count numbers; above it, subject pins take over.
 export const MUNICIPALITY_COUNT_MAX_ZOOM = 9;

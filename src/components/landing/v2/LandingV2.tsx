@@ -34,7 +34,7 @@ import {
     DEFAULT_RANGE,
     EMPTY_FILTERS,
     MUNICIPALITY_COUNT_MAX_ZOOM,
-    MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM,
+    MUNICIPALITY_FOCUS_FALLBACK_ZOOM,
     desktopView,
     flyToMunicipality,
     parseInitialUrlState,
@@ -384,9 +384,8 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     const filterCityId = filters.cityIds[filters.cityIds.length - 1] ?? null;
     // The δήμος shown in the page bar. An active city filter has priority: the visitor chose it,
     // and the map shows its subjects wherever the camera is. Next comes a δήμος the visitor clicked
-    // on the map, at any zoom. Otherwise it is the covered δήμος under the middle of the view (see
-    // pickViewportMunicipality), only when the zoom is high enough for a single δήμος to fill the
-    // view rather than the country-level framing.
+    // on the map, at any zoom. Otherwise it is the covered δήμος the view is looking at, which the
+    // map resolves on every move (see pickViewportMunicipality).
     const displayedMunicipality = useMemo<DisplayedMunicipality | null>(() => {
         if (filterCityId) {
             const mapCity = mapCities.find((c) => c.id === filterCityId);
@@ -398,8 +397,8 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
                 : null;
         }
         if (clickedCoveredCity) return clickedCoveredCity;
-        return mapZoom >= MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM ? viewMunicipality : null;
-    }, [filterCityId, mapCities, cities, clickedCoveredCity, mapZoom, viewMunicipality]);
+        return viewMunicipality;
+    }, [filterCityId, mapCities, cities, clickedCoveredCity, viewMunicipality]);
     // Lazily fetch its boundary geometry the first time it's selected, then cache it.
     useEffect(() => {
         if (!filterCityId || cityGeometries[filterCityId]) return;
@@ -596,7 +595,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
             const zoom =
                 fit?.zoom != null
                     ? Math.max(fit.zoom + (isMobile ? 1 : 0), MUNICIPALITY_COUNT_MAX_ZOOM + 1)
-                    : MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM;
+                    : MUNICIPALITY_FOCUS_FALLBACK_ZOOM;
             mapInstance.easeTo({ center: [muni.lng, muni.lat], zoom, offset, duration: 600 });
         },
     });
