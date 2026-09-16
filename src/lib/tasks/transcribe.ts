@@ -6,7 +6,7 @@ import prisma from "../db/prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { buildUnknownSpeakerLabel } from "../utils";
 import { requestTranscribeInternal, deleteExistingSpeakerData } from "./transcribeInternal";
-import { requestFixTranscript } from "./fixTranscript";
+import { requestFixTranscriptInternal } from "./fixTranscriptInternal";
 import { autoTriggerTask } from "./autoTrigger";
 
 // Full-precision doubles are near-incompressible and inflate the meeting page
@@ -241,7 +241,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
             meetingName: task.councilMeeting.name_en,
             source: { taskType: 'transcribe', taskId },
         },
-        () => requestFixTranscript(task.councilMeetingId, task.cityId, { force: true })
+        () => requestFixTranscriptInternal(task.councilMeetingId, task.cityId, { force: true })
     );
 }
 

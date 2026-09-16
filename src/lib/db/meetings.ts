@@ -1,4 +1,12 @@
-"use server";
+// Server-only, not a "use server" module: that directive publishes every export
+// as a Server Action, and only the release toggle is browser-called. It is
+// wrapped in lib/actions/meetings.ts.
+//
+// Keep a gated wrapper and its ungated core next to each other in this file
+// (createCouncilMeeting/createCouncilMeetingDirect,
+// getCouncilMeeting/getCouncilMeetingDirect). Choosing between them is choosing
+// whether the viewer's session applies.
+import "server-only";
 import { CouncilMeeting, AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
@@ -9,13 +17,9 @@ import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
-// createCouncilMeetingDirect lives in a server-only module (not this "use server"
-// one) so it is never a directly-callable action. createCouncilMeeting wraps it
-// with the auth check.
-import { createCouncilMeetingDirect } from './meetingsCreate';
 import { getCityRealm } from "./cityRealm";
-// The list reads live in a server-only module so they are never callable
-// actions: each takes `includeUnreleased` from its caller. Types only here.
+// List reads and their payload types live in meetingsList.ts. Re-exported here
+// as types only, so callers of this module keep one import.
 export type { CouncilMeetingWithAdminBodyAndSubjects, CouncilMeetingWithSubjectPreview, MeetingListOptions } from './meetingsList';
 
 const meetingWithAdminBodyInclude = {
@@ -43,6 +47,21 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
 export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ cityId: meetingData.cityId });
     return createCouncilMeetingDirect(meetingData);
+}
+
+/**
+ * Create a council meeting with no auth check, for a caller that has already
+ * authorized the write: the meetings API route, which admits service keys as
+ * well as user sessions. A session gate inside this function would reject the
+ * service keys.
+ */
+export async function createCouncilMeetingDirect(
+    meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string; videoUrl?: string },
+): Promise<CouncilMeetingWithAdminBody> {
+    return prisma.councilMeeting.create({
+        data: meetingData,
+        include: meetingWithAdminBodyInclude,
+    });
 }
 
 /**
@@ -92,14 +111,21 @@ export async function editCouncilMeeting(cityId: string, id: string, meetingData
     }
 }
 
+/**
+ * A council meeting, as the current viewer may see it.
+ *
+ * Consults the user session: an unreleased (draft) meeting resolves to `null`
+ * for anyone who cannot edit the city. That is how a meeting page 404s a draft,
+ * so `null` here means "absent or forbidden". Never read it as proof that the
+ * row is gone.
+ *
+ * The session makes this request-scoped twice over. It reads `headers()`, so
+ * the call cannot run inside `unstable_cache`. And with no session it can only
+ * deny, so background work must call `getCouncilMeetingDirect` instead.
+ */
 export async function getCouncilMeeting(cityId: string, id: string): Promise<CouncilMeetingWithAdminBody | null> {
-    const startTime = performance.now();
     try {
-        const meeting = await prisma.councilMeeting.findUnique({
-            where: { cityId_id: { cityId, id } },
-            include: meetingWithAdminBodyInclude,
-        });
-        const endTime = performance.now();
+        const meeting = await getCouncilMeetingDirect(cityId, id);
 
         if (meeting && !meeting.released && !(await isUserAuthorizedToEdit({ cityId }))) {
             return null;
@@ -109,6 +135,21 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
         console.error('Error fetching council meeting:', error);
         throw new Error('Failed to fetch council meeting');
     }
+}
+
+/**
+ * Fetch a council meeting with no visibility gate, for a caller that has no
+ * user session to gate on: the task-server callbacks and the crons. There the
+ * gated getter above can only deny, and callers read its `null` as "the meeting
+ * does not exist".
+ *
+ * `null` here means the row is absent, and nothing else.
+ */
+export async function getCouncilMeetingDirect(cityId: string, id: string): Promise<CouncilMeetingWithAdminBody | null> {
+    return prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId, id } },
+        include: meetingWithAdminBodyInclude,
+    });
 }
 
 const upcomingMeetingInclude = {

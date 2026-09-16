@@ -1,4 +1,8 @@
-"use server";
+// Server-only, not a "use server" module (see lib/db/meetings.ts). No client
+// component calls anything here: the API route authorizes before it reaches
+// requestGenerateHighlight, and handleGenerateHighlightResult belongs to the
+// task-server callback.
+import "server-only";
 
 import prisma from '@/lib/db/prisma';
 import { GenerateHighlightRequest, GenerateHighlightResult } from '@/lib/apiTypes';

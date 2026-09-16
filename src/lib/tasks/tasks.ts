@@ -1,4 +1,8 @@
-"use server";
+// Server-only, not a "use server" module: that directive published all eight
+// exports as Server Actions, handleTaskUpdate among them — the body of the
+// task-server callback, which the taskStatuses route protects with a callback
+// token. Only processTaskResponse is browser-called, through lib/actions/tasks.ts.
+import "server-only";
 
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
@@ -331,6 +335,10 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
     if (!task) {
         throw new Error(`Task ${taskId} not found`);
     }
+
+    // The caller supplies the task id, so the gate is what stops one city's
+    // admin from replaying a result onto another city's meeting.
+    await withUserAuthorizedToEdit({ cityId: task.cityId });
 
     const handler = taskHandlers[taskType];
     if (!handler) {

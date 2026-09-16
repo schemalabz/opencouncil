@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import TimeAgo from "react-timeago";
 import { motion, AnimatePresence } from "framer-motion";
-import { processTaskResponse } from "@/lib/tasks/tasks";
+import { processTaskResponse } from "@/lib/actions/tasks";
 import {
     Dialog,
     DialogContent,
