@@ -414,6 +414,49 @@ export function isMayorRole(role: { isHead: boolean; cityId?: string | null; par
   return !!role.cityId && !role.partyId && !role.administrativeBodyId && role.isHead;
 }
 
+type TitledCityRole = { name: string | null; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null };
+
+/**
+ * A role title reduced for matching: compatibility forms folded (the data has
+ * "Αντιδήµαρχος" with a micro sign for μ), accents dropped, lower case.
+ */
+function normalizeRoleTitle(name: string): string {
+  return name.normalize('NFKC').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+}
+
+function isCityLevelRole(role: TitledCityRole): boolean {
+  return !!role.cityId && !role.partyId && !role.administrativeBodyId;
+}
+
+/**
+ * Whether a city-level role is a deputy mayor, by its title: Αντιδήμαρχος and
+ * Αναπληρωτής Δήμαρχος, adjoint(e) au maire ("1er adjoint délégué …"),
+ * заменик градоначелника. The schema has no field for it; the title is all
+ * there is. An unknown title is not a deputy mayor.
+ */
+export function isDeputyMayorRole(role: TitledCityRole): boolean {
+  if (!role.name || !isCityLevelRole(role)) return false;
+  const title = normalizeRoleTitle(role.name);
+  return title.includes('αντιδημαρχ')
+    || /αναπληρωτ\S*\s+δημαρχ/.test(title)
+    || /^(\d+(er|re|e)\s+)?adjointe?\b/.test(title)
+    || title.includes('заменик градоначелника')
+    || title.includes('zamenik gradonacelnika');
+}
+
+/**
+ * Whether a city-level role is an elected councillor, by its title:
+ * Δημοτικός Σύμβουλος, Εντεταλμένος (Δημοτικός) Σύμβουλος, conseiller(ère)
+ * municipal(e). Narrow on purpose: a bare "Σύμβουλος" is also the title of
+ * staff such as a legal advisor.
+ */
+export function isCouncillorTitleRole(role: TitledCityRole): boolean {
+  if (!role.name || !isCityLevelRole(role)) return false;
+  const title = normalizeRoleTitle(role.name);
+  return /^(εντεταλμεν\S*\s+(δημοτικ\S*\s+)?|δημοτικ\S*\s+)συμβουλ/.test(title)
+    || /^conseill(er|ere)\s+mun/.test(title);
+}
+
 /** The fields a mayor test reads off a role. */
 type MayorRoleFields = {
   isHead: boolean;

@@ -1,5 +1,5 @@
 import { Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember } from '../roles';
+import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, isDeputyMayorRole, isCouncillorTitleRole } from '../roles';
 import { RoleWithRelations } from '@/lib/db/types';
 
 function makeRole(overrides: Partial<Role> & { party?: Party | null } = {}): Role & { party?: Party | null; cityId?: string | null } {
@@ -702,4 +702,53 @@ describe('party membership predicates', () => {
       expect(isActivePartyMember(reelected, PARTY)).toBe(true);
     });
   });
+});
+
+describe('role titles', () => {
+    const cityRole = (name: string | null) => ({ name, cityId: 'city', partyId: null, administrativeBodyId: null });
+
+    it.each([
+        'Αντιδήμαρχος Οικονομικών',
+        'Αντιδήµαρχος Καθαριότητας και Ανακύκλωσης', // micro sign for μ
+        'ΑΝΤΙΔΗΜΑΡΧΟΣ ΠΟΛΙΤΙΣΜΟΥ',
+        'Αναπληρωτής Δήμαρχος - Αντιδήμαρχος Οικονομικών Υπηρεσιών',
+        'Αναπληρώτρια Δήμαρχος',
+        '1er adjoint délégué à l’Urbanisme',
+        '10e adjointe déléguée aux Jeunesses',
+        'Adjointe au maire',
+        'Заменик градоначелника',
+        'Zamenik gradonačelnika',
+    ])('recognises the deputy mayor title %s', (name) => {
+        expect(isDeputyMayorRole(cityRole(name))).toBe(true);
+    });
+
+    it.each(['Γενικός Γραμματέας', 'Γενική Γραμματέας', 'Δήμαρχος', 'Πρόεδρος Λιμενικού Ταμείου', 'Заменик председника Скупштине града', 'Conseiller municipal'])(
+        'does not take %s for a deputy mayor', (name) => {
+            expect(isDeputyMayorRole(cityRole(name))).toBe(false);
+        },
+    );
+
+    it.each([
+        'Εντεταλμένος Σύμβουλος',
+        'Εντεταλμένη Δημοτική Σύμβουλο Προσβασιμότητας',
+        'Εντεταλμένος    Σύμβουλος    με    αρμοδιότητα',
+        'Δημοτική Σύμβουλος',
+        'Conseiller municipal',
+        'Conseillère municipale déléguée à la Culture',
+        'Conseiller muncipal',
+    ])('recognises the councillor title %s', (name) => {
+        expect(isCouncillorTitleRole(cityRole(name))).toBe(true);
+    });
+
+    it.each(['Νομικός Σύμβουλος', 'Σύμβουλος Δημάρχου', 'Γενικός Γραμματέας', 'Αντιδήμαρχος Οικονομικών', 'Conseiller technique'])(
+        'does not take %s for a councillor', (name) => {
+            expect(isCouncillorTitleRole(cityRole(name))).toBe(false);
+        },
+    );
+
+    it('only reads city-level roles with a title', () => {
+        expect(isDeputyMayorRole(cityRole(null))).toBe(false);
+        expect(isDeputyMayorRole({ ...cityRole('Αντιδήμαρχος'), administrativeBodyId: 'body' })).toBe(false);
+        expect(isCouncillorTitleRole({ ...cityRole('Δημοτική Σύμβουλος'), partyId: 'party' })).toBe(false);
+    });
 });
