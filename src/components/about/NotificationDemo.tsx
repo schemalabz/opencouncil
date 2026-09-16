@@ -1,6 +1,7 @@
 import { Check, CheckCheck } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
+import { CHAT_SURFACE_PATTERNED } from '@/lib/notis/chat'
 
 /**
  * WhatsApp mobile chat mock — styled to closely match the real WhatsApp UI.
@@ -46,10 +47,7 @@ export default function NotificationDemo() {
             {/* Chat area with WhatsApp wallpaper pattern */}
             <div
                 className="px-2.5 py-3 space-y-1.5 min-h-[220px]"
-                style={{
-                    backgroundColor: '#ECE5DD',
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9c2b7' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                }}
+                style={CHAT_SURFACE_PATTERNED}
             >
                 {/* Date chip */}
                 <div className="flex justify-center mb-1">
