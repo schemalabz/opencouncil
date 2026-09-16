@@ -156,6 +156,7 @@ The Google Calendar integration uses OAuth 2.0 authentication with a Google acco
 |----------|-------------|----------|---------|
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Public contact email. | No | - |
 | `NEXT_PUBLIC_CONTACT_ADDRESS` | Public contact address. | No | - |
+| `NEXT_PUBLIC_BUILD_COMMIT_SHA` | The commit the build carries. `/api/health` publishes it, and a Discord alert names it. App Platform supplies it from `${opencouncil.COMMIT_HASH}`; the scope must include build time, because the bundler freezes the value. A deployment that does not set it reports a null commit. | No | - |
 
 ### Development Configuration
 | Variable | Description | Required | Default |
