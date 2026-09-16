@@ -73,6 +73,7 @@ export function MobileLayout({
     petitionedBelowThreshold,
     onOpenPetitioned,
     displayedMunicipality,
+    municipalityBarPulse,
     mapNode,
 }: LayoutProps) {
     const t = useTranslations('landingV2');
@@ -261,6 +262,7 @@ export function MobileLayout({
                                 municipality={displayedMunicipality}
                                 cities={cities}
                                 subjectCountByCity={subjectCountByCity}
+                                pulse={municipalityBarPulse}
                                 compact
                             />
                         </div>

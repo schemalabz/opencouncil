@@ -398,5 +398,7 @@ export type LayoutProps = {
     /** The δήμος the map is about — the filtered one, else the covered δήμος under the middle of a
      *  zoomed-in view. Drives the bar that leads into its page, on every view and both layouts. */
     displayedMunicipality: DisplayedMunicipality | null;
+    /** a counter — bumped by a click on a covered δήμος's boundary, so the bar pulses once */
+    municipalityBarPulse: number;
     mapNode: ReactNode;
 };

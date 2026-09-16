@@ -61,6 +61,7 @@ export function DesktopLayout({
     zoomIn,
     zoomOut,
     displayedMunicipality,
+    municipalityBarPulse,
     mapNode,
     infoOpen,
     onToggleInfo,
@@ -299,6 +300,7 @@ export function DesktopLayout({
                             municipality={displayedMunicipality}
                             cities={cities}
                             subjectCountByCity={subjectCountByCity}
+                            pulse={municipalityBarPulse}
                             className="max-w-[720px]"
                         />
                     </div>

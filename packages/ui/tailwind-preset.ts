@@ -95,6 +95,13 @@ const preset: Omit<Config, "content"> = {
 					'88%': { transform: 'rotate(348deg)' },
 					'100%': { transform: 'rotate(360deg)' }
 				},
+				// The δήμος bar answering a click on its boundary: it swells a touch and throws an
+				// orange ring that fades as it spreads — one beat, then still.
+				'municipality-pulse': {
+					'0%': { transform: 'scale(1)', 'box-shadow': '0 0 0 0 hsl(24 100% 50% / 0.55)' },
+					'35%': { transform: 'scale(1.035)', 'box-shadow': '0 0 0 12px hsl(24 100% 50% / 0)' },
+					'100%': { transform: 'scale(1)', 'box-shadow': '0 0 0 0 hsl(24 100% 50% / 0)' }
+				},
 				'accordion-down': {
 					from: {
 						height: '0'
@@ -271,6 +278,7 @@ const preset: Omit<Config, "content"> = {
 			},
 			animation: {
 				'search-spin': 'search-spin 0.85s cubic-bezier(0.4, 0, 0.2, 1)',
+				'municipality-pulse': 'municipality-pulse 0.75s cubic-bezier(0.22, 1, 0.36, 1) both',
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'collapsible-down': 'collapsible-down 0.2s ease-out',

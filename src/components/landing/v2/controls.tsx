@@ -287,12 +287,16 @@ export function MunicipalityStats({ subjects, meetings, persons }: { subjects: n
 /* The way into the δήμος the map is about — a bar along the bottom of the map, on every view and
    both layouts. Logo, the full "Δήμος X" name, its numbers when the list has them, and an orange
    call-to-action; the whole bar is the link. `compact` is the phone layout: tighter, with the
-   call-to-action reduced to its arrow so the name and the numbers keep the width. */
+   call-to-action reduced to its arrow so the name and the numbers keep the width.
+
+   `pulse` answers a click on the δήμος's boundary: every new value replays a short swell-and-ring
+   animation (the wrapper is keyed on it), so the bar visibly presents itself as the way in. */
 export function MunicipalityBar({
     municipality,
     cities,
     subjectCountByCity,
     compact,
+    pulse = 0,
     className,
 }: {
     municipality: DisplayedMunicipality;
@@ -301,12 +305,15 @@ export function MunicipalityBar({
     /** unfiltered total subjects per cityId, for the bar's numbers */
     subjectCountByCity: Record<string, number>;
     compact?: boolean;
+    /** a counter — each increment pulses the bar once; 0 never animates */
+    pulse?: number;
     className?: string;
 }) {
     const t = useTranslations('landingV2');
     const listed = cities.find((c) => c.id === municipality.id);
     const logo = municipality.logoImage ?? listed?.logoImage ?? null;
     return (
+        <div key={pulse} className={cn('w-full rounded-2xl', pulse > 0 && 'animate-municipality-pulse', className)}>
         <Link
             href={`/${municipality.id}`}
             prefetch={false}
@@ -314,7 +321,6 @@ export function MunicipalityBar({
             className={cn(
                 'group flex w-full items-center rounded-2xl border-2 border-[hsl(var(--orange))] bg-card no-underline shadow-lg transition-colors hover:bg-[hsl(24,100%,97%)] hover:no-underline',
                 compact ? 'h-12 gap-2.5 px-1.5' : 'h-14 gap-3 px-2',
-                className,
             )}
         >
             <span
@@ -353,6 +359,7 @@ export function MunicipalityBar({
                 <ArrowRight className="h-4 w-4 shrink-0" />
             </span>
         </Link>
+        </div>
     );
 }
 

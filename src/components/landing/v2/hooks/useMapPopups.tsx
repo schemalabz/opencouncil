@@ -5,8 +5,9 @@ import { createRoot } from 'react-dom/client';
 import { NextIntlClientProvider, useLocale, useMessages, type AbstractIntlMessages } from 'next-intl';
 import mapboxgl, { type Map as MapboxMap } from 'mapbox-gl';
 import { EXPLAIN_LNGLAT, flyToMunicipality } from '@/lib/landing/landingCore';
-import type { ClickedMunicipality, LandingSubject } from '@/lib/landing/landingData';
+import type { ClickedMunicipality, LandingMapCity, LandingSubject } from '@/lib/landing/landingData';
 import type { PetitionBucket } from '@/lib/landing/petitions';
+import { isPointInGeometry } from '@/lib/geo';
 import { DesktopSubjectTooltip, ExplainTooltip, MunicipalityTooltip } from '../mapMarkers';
 import type { CityAtPoint } from "@/lib/db/cities";
 import { isPublic } from "@/lib/cityStatus";
@@ -33,8 +34,8 @@ function renderIntlRoot(
 /**
  * Map overlays rendered as Mapbox popups / DOM markers (outside React's tree, so navigation
  * goes through the `navigate` callback). Covers: the desktop subject tooltip, the OpenCouncil
- * badge and its popup, "selecting a subject closes the other previews", the click that shades
- * an out-of-network δήμος, and that δήμος's "request it" popup.
+ * badge and its popup, "selecting a subject closes the other previews", the click that names a
+ * covered δήμος or shades an out-of-network one, and that δήμος's "request it" popup.
  */
 export function useMapPopups({
     mapInstance,
@@ -42,6 +43,8 @@ export function useMapPopups({
     selectedId,
     selectedSubject,
     clickedMunicipality,
+    mapCities,
+    onMunicipalityClick,
     showExplainMarker,
     navigate,
     onClearSelection,
@@ -57,6 +60,10 @@ export function useMapPopups({
     selectedId: string | null;
     selectedSubject: LandingSubject | null;
     clickedMunicipality: ClickedMunicipality | null;
+    /** the covered δήμοι with their boundaries — a click inside one is answered on the client */
+    mapCities: LandingMapCity[];
+    /** a click on the map background: the covered δήμος under it, or null for anywhere else */
+    onMunicipalityClick: (city: LandingMapCity | null) => void;
     /** whether the OpenCouncil office badge is shown — hidden when zoomed out, where it would just
      *  stack onto Athens' cluster number */
     showExplainMarker: boolean;
@@ -84,6 +91,10 @@ export function useMapPopups({
     showExplainLocationRef.current = onShowExplainLocation;
     const isMobileRef = useRef(isMobile);
     isMobileRef.current = isMobile;
+    const mapCitiesRef = useRef(mapCities);
+    mapCitiesRef.current = mapCities;
+    const onMunicipalityClickRef = useRef(onMunicipalityClick);
+    onMunicipalityClickRef.current = onMunicipalityClick;
     // A monotonic token for the map-click municipality lookup. The fetch is async, so a later click
     // — or a subject selection landing before it resolves — bumps this; the stale response then sees
     // its token is no longer current and drops its result instead of re-opening a box over whatever
@@ -230,8 +241,9 @@ export function useMapPopups({
     }, [selectedId]);
 
     // Clicking the map dismisses whatever preview is open (selected subject, OpenCouncil card) and
-    // looks up the municipality there; an out-of-network δήμος gets shaded and shows a "request it"
-    // preview.
+    // looks up the municipality there. A covered δήμος is known on the client from its boundary:
+    // it is named (the page bar answers), and no request is made. Anywhere else asks the server —
+    // an out-of-network δήμος gets shaded and shows a "request it" preview.
     useEffect(() => {
         if (!mapInstance) return;
         const onClick = (e: mapboxgl.MapMouseEvent) => {
@@ -244,6 +256,13 @@ export function useMapPopups({
             closeExplainPopupRef.current?.();
             setExplainOpen(false);
             const seq = ++mapClickSeq.current;
+            const covered =
+                mapCitiesRef.current.find((c) => c.geometry != null && isPointInGeometry([lng, lat], c.geometry)) ?? null;
+            onMunicipalityClickRef.current(covered);
+            if (covered) {
+                setClickedMunicipality(null);
+                return;
+            }
             fetch(`/api/cities/at?lng=${lng}&lat=${lat}`)
                 .then((r) => (r.ok ? r.json() : null))
                 .catch(() => null)
