@@ -21,8 +21,8 @@ export const EXPLAIN_LNGLAT: [number, number] = [23.740061, 37.986179];
 // Selecting a subject nudges zoom up to this level, but only when more zoomed-out than it.
 export const SUBJECT_FOCUS_ZOOM = 14;
 
-// The bar into the δήμος the map is about only makes sense once zoomed in enough that a single
-// municipality is the subject of the view, not the country-level framing.
+// The bar that links to the displayed δήμος shows only when the zoom is high enough for a single
+// municipality to fill the view, not at the country-level framing.
 export const MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM = 12;
 
 // At or below this zoom the map shows the per-δήμος count numbers; above it, subject pins take over.
@@ -219,8 +219,7 @@ export function flyToMunicipality(map: mapboxgl.Map, geometry: GeoJSON.Geometry,
     }
 }
 
-/** The δήμος the map is about, for the bar that leads into its page. `nameMunicipality` is the
- *  genitive form (e.g. "Δήμος Χανίων"). */
+/** The δήμος shown in the page bar. `nameMunicipality` is the genitive form (e.g. "Δήμος Χανίων"). */
 export type DisplayedMunicipality = Pick<LandingMapCity, 'id' | 'name' | 'nameMunicipality' | 'logoImage'>;
 
 /** View mode — drives the aside panel content and the map's marker layer.
@@ -395,10 +394,11 @@ export type LayoutProps = {
     /** the request's realm, resolved server-side — picks the contact number */
     realm: Realm;
     onCloseExplain: () => void;
-    /** The δήμος the map is about — the filtered one, else the covered δήμος under the middle of a
-     *  zoomed-in view. Drives the bar that leads into its page, on every view and both layouts. */
+    /** The δήμος shown in the page bar — the filtered one, else a clicked one, else the covered
+     *  δήμος under the middle of a zoomed-in view. Shown on every view and both layouts. */
     displayedMunicipality: DisplayedMunicipality | null;
-    /** a counter — bumped by a click on a covered δήμος's boundary, so the bar pulses once */
+    /** a counter, incremented by a click inside a covered δήμος's boundary; each increment plays
+     *  the bar's attention animation once */
     municipalityBarPulse: number;
     mapNode: ReactNode;
 };

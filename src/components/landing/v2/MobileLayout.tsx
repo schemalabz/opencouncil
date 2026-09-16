@@ -122,9 +122,10 @@ export function MobileLayout({
 
     // The map is the surface unless the "?" info drawer is open.
     const mapVisible = !infoOpen;
-    // The bar into the δήμος the map is about sits between the list and the tabs — a fixed spot
-    // whatever the list does — and everything above the tabs moves up by its height while it shows.
-    // Hidden with the rest of the bottom band while a subject or the OpenCouncil card covers it.
+    // The bar that links to the displayed δήμος sits between the list and the tabs. Its position
+    // does not depend on the list state. Everything above the tabs moves up by its height while it
+    // shows. It is hidden with the rest of the bottom band while a subject or the OpenCouncil card
+    // covers it.
     const barVisible = !!displayedMunicipality && !selectedSubject && !explainOpen;
 
     return (
@@ -255,7 +256,7 @@ export function MobileLayout({
                     {coLocated && <CoLocatedBox data={coLocated} onSelect={onCoLocatedSelect} onClose={onCoLocatedClose} />}
                     {generalBox && <GeneralSubjectsBox data={generalBox} onSelect={onGeneralSelect} onClose={onGeneralBoxClose} />}
 
-                    {/* the way into the δήμος the map is about — just above the tabs, on both tabs */}
+                    {/* the bar that links to the displayed δήμος — just above the tabs, on both tabs */}
                     {barVisible && displayedMunicipality && (
                         <div className="absolute inset-x-3 bottom-[62px] z-[9]">
                             <MunicipalityBar
@@ -422,8 +423,8 @@ function MobileViewSwitch({
 
 /* Δήμοι list — the same horizontally-scrolled card style as the subjects strip, but for
    municipalities. A card opens its δήμος's page; its "Στον χάρτη" chip filters the map to the
-   δήμος (orange outline) — the tab itself never touches the map view. A petition CTA closes the
-   strip. */
+   δήμος (orange outline) — the tab itself does not change the map view. A petition CTA is the last
+   card of the strip. */
 function MobileMunicipalityStrip({
     cities,
     subjectCountByCity,
@@ -467,9 +468,10 @@ function MobileMunicipalityStrip({
     return (
         <div
             ref={scrollRef}
-            // One fixed height, every card filling it. The scroller takes the touch across its
-            // whole height, so a card taller than the rest (the leaderboard used to be) turned a
-            // band of map into strip: a pan there scrolled the cards instead of the map.
+            // One fixed height, and every card fills it. The scroller receives every touch across
+            // its whole height. Before, the leaderboard card was taller than the rest, so the empty
+            // area above the shorter cards belonged to the scroller: a pan there scrolled the cards
+            // instead of the map.
             className="flex h-[148px] items-stretch gap-3 overflow-x-auto px-3 py-1 [&::-webkit-scrollbar]:hidden"
             style={{ scrollbarWidth: 'none' }}
         >
@@ -524,8 +526,8 @@ function PetitionedStripLeaderboard({
     const t = useTranslations('landingV2');
     const overflow = cities.length - MOBILE_LEADERBOARD_MAX_ROWS;
     return (
-        // The strip's height, like every card in it (see MobileMunicipalityStrip); the row cap is
-        // what keeps the content inside, overflow-hidden is the guard.
+        // The strip's height, like every card in it (see MobileMunicipalityStrip). The row cap keeps
+        // the content inside; overflow-hidden clips anything that still exceeds the height.
         <div className="flex h-full w-[230px] shrink-0 flex-col gap-1.5 overflow-hidden rounded-2xl border border-black/30 bg-card p-3 shadow-sm">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {t('municipality.petitionedTitle')}
@@ -536,9 +538,9 @@ function PetitionedStripLeaderboard({
                     <PetitionedRow key={c.id} city={c} rank={i + 1} onOpen={onOpen} dense />
                 ))}
             </div>
-            {/* room for one tail line at this height: the ranking's own overflow (δήμοι at the
-                threshold or past it) matters more than the below-threshold footnote, which the
-                desktop leaderboard still carries */}
+            {/* this height has room for one tail line. The overflow line (δήμοι at or above the
+                threshold) has priority over the below-threshold line, which the desktop
+                leaderboard still shows. */}
             {overflow > 0 ? (
                 <p className="text-[11px] leading-snug text-muted-foreground">
                     {t('municipality.petitionedOverflow', { count: overflow, threshold: PETITION_DISPLAY_THRESHOLD })}

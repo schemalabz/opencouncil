@@ -267,9 +267,9 @@ export function CityAvatar({ city, size = 9 }: { city: { name: string; logoImage
     );
 }
 
-/* A δήμος's numbers on one line — bold figures, quiet words ("112 θέματα · 11 συνεδριάσεις ·
-   148 πρόσωπα"). Shared by the δήμος bar and the δήμος cards, so the two never disagree. Rendered
-   into a muted-text parent; the figures step up to the foreground colour. */
+/* A δήμος's numbers on one line — bold figures, low-contrast words ("112 θέματα · 11 συνεδριάσεις
+   · 148 πρόσωπα"). Shared by the δήμος bar and the δήμος cards, so both use the same format. The
+   parent sets the muted text colour; the figures use the foreground colour. */
 export function MunicipalityStats({ subjects, meetings, persons }: { subjects: number; meetings: number; persons: number }) {
     const t = useTranslations('landingV2');
     return (
@@ -284,13 +284,13 @@ export function MunicipalityStats({ subjects, meetings, persons }: { subjects: n
     );
 }
 
-/* The way into the δήμος the map is about — a bar along the bottom of the map, on every view and
-   both layouts. Logo, the full "Δήμος X" name, its numbers when the list has them, and an orange
-   call-to-action; the whole bar is the link. `compact` is the phone layout: tighter, with the
-   call-to-action reduced to its arrow so the name and the numbers keep the width.
+/* The link to the page of the δήμος the map shows — a bar along the bottom of the map, on every
+   view and both layouts. Logo, the full "Δήμος X" name, its numbers when the list has them, and an
+   orange call-to-action; the whole bar is the link. `compact` is the phone layout: smaller, with
+   the call-to-action reduced to its arrow so the name and the numbers get the width.
 
-   `pulse` answers a click on the δήμος's boundary: every new value replays a short swell-and-ring
-   animation (the wrapper is keyed on it), so the bar visibly presents itself as the way in. */
+   `pulse` follows clicks on the δήμος's boundary: every new value replays a short scale-and-ring
+   animation (the wrapper is keyed on it) that draws attention to the bar. */
 export function MunicipalityBar({
     municipality,
     cities,

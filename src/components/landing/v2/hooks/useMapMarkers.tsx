@@ -45,8 +45,8 @@ import { MUNICIPALITY_SATELLITE_SCALE } from '@/lib/landing/donut';
 import { pickViewportMunicipality } from '@/lib/landing/viewportMunicipality';
 
 /**
- * Capture the map view on every moveend so the list reacts to it. Resolves the δήμος the view is
- * about; finishes a pending co-located / city-hall pan by opening its box; otherwise closes the
+ * Capture the map view on every moveend so the list reacts to it. Resolves the δήμος the view
+ * shows; finishes a pending co-located / city-hall pan by opening its box; otherwise closes the
  * boxes and publishes the new viewport. Selection pans set `suppressViewCapture` to skip refiltering.
  */
 export function useMapViewCapture({
@@ -73,8 +73,8 @@ export function useMapViewCapture({
     /** The covered δήμοι with their boundaries — the candidates for `setViewMunicipality`. A ref,
      *  so the capture reads the current list without re-subscribing to the map. */
     municipalitiesRef?: MutableRefObject<LandingMapCity[]>;
-    /** Resolve the δήμος the view is about on every move, suppressed ones included — the page bar
-     *  has to follow a programmatic fly-to too. Omitted by a map whose δήμος is fixed. */
+    /** Resolve the δήμος the view shows on every move, suppressed ones included — the page bar
+     *  must also follow a programmatic fly-to. Omitted by a map whose δήμος is fixed. */
     setViewMunicipality?: (v: LandingMapCity | null) => void;
     setCoLocated: (v: CoLocatedBox | null) => void;
     setGeneralBox: (v: GeneralBox | null) => void;

@@ -31,7 +31,7 @@ export type SubjectMapState = {
     /** a municipality's non-located subjects + screen position */
     generalBox: GeneralBox | null;
     setGeneralBox: (v: GeneralBox | null) => void;
-    /** the covered δήμος the view is about — null unless `municipalities` was given */
+    /** the covered δήμος the view shows — null unless `municipalities` was given */
     viewMunicipality: LandingMapCity | null;
     /** set before a programmatic pan so the next moveend doesn't refilter the list */
     suppressViewCaptureRef: MutableRefObject<boolean>;

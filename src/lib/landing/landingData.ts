@@ -409,9 +409,9 @@ function nameMatches(q: string, target: string): boolean {
 }
 
 /**
- * Whether a δήμος answers a name search — the Δήμοι tab's search box. A substring match on any of
- * the names it goes by (the short name, the "Δήμος X" form, a Latin name), accent- and
- * case-insensitive. An empty query matches everything.
+ * Whether a δήμος matches a name search (the Δήμοι tab's search box). A substring match on any of
+ * its names (the short name, the "Δήμος X" form, a Latin name), accent- and case-insensitive. An
+ * empty query matches everything.
  */
 export function matchesMunicipalityName(query: string, ...names: (string | null | undefined)[]): boolean {
     const q = normalizeText(query).trim();

@@ -13,7 +13,8 @@ import { captureLandingAction } from '@/lib/landing/analytics';
 /* Δήμοι tab — one card per municipality, the petitioned-δήμοι leaderboard, and a petition CTA.
    A card opens its δήμος's page; its "Στον χάρτη" chip filters the map to the δήμος instead,
    matching the mobile strip. The lists arrive already narrowed by the tab's search box;
-   `noMatch` says the search emptied both, so the tab can say so rather than show nothing. */
+   `noMatch` is true when the search matched nothing in either list, so the tab shows a message
+   instead of an empty list. */
 export function MunicipalitiesList({
     cities,
     subjectCountByCity,
@@ -34,7 +35,7 @@ export function MunicipalitiesList({
     petitionedCities: LandingPetitionedCity[];
     petitionedBelowThreshold: number;
     onOpenPetitioned: (city: LandingPetitionedCity) => void;
-    /** a name search is on and nothing — no δήμος, no petitioned δήμος — answers it */
+    /** a name search is active and matches no δήμος and no petitioned δήμος */
     noMatch?: boolean;
 }) {
     const t = useTranslations('landingV2');
@@ -57,8 +58,8 @@ export function MunicipalitiesList({
     );
 }
 
-/* The Δήμοι tab's name search — a quiet field in the panel header that narrows the cards and the
-   petition leaderboard as you type (see matchesMunicipalityName for what counts as a match). */
+/* The Δήμοι tab's name search — a low-contrast field in the panel header that narrows the cards
+   and the petition leaderboard on every keystroke (see matchesMunicipalityName for the match rule). */
 export function MunicipalitySearch({ value, onChange }: { value: string; onChange: (v: string) => void }) {
     const t = useTranslations('landingV2');
     return (
@@ -178,7 +179,7 @@ export function PetitionedLeaderboard({
    opens the municipality's page: the header row is the link and its ::after stretches over the
    card, while the two chips at the foot sit above it — the δήμος's notifications, and "Στον
    χάρτη", which filters the map to the δήμος (orange while it is the filter; a second tap clears
-   it). The numbers ride under the name as one quiet line, so the card stays short. */
+   it). The numbers render as one low-contrast line under the header, which keeps the card short. */
 export function MunicipalityCard({
     city,
     subjectCount,
@@ -228,7 +229,8 @@ export function MunicipalityCard({
                 <ArrowRight className="h-5 w-5 shrink-0 text-[hsl(var(--orange))] transition-transform group-hover:translate-x-0.5" />
             </Link>
 
-            {/* the numbers — one quiet line of their own, so the whole line fits beside nothing */}
+            {/* the numbers — one line of their own at full width, so the avatar and the arrow do not
+                truncate it */}
             <div className={cn('truncate text-muted-foreground', strip ? 'mt-2 text-[11px]' : 'mt-2.5 text-xs')}>
                 <MunicipalityStats subjects={subjectCount} meetings={city._count.councilMeetings} persons={city._count.persons} />
             </div>
@@ -243,7 +245,7 @@ export function MunicipalityCard({
                 </div>
             )}
 
-            {/* the chips sit above the stretched link (positioned + z), so they take the tap */}
+            {/* the chips are positioned with a z-index above the stretched link, so they receive the click */}
             <div className={cn('relative z-10 flex items-center gap-2', strip ? 'mt-auto pt-2' : 'mt-3')}>
                 <Link
                     href={`/${city.id}/notifications`}
@@ -272,7 +274,7 @@ export function MunicipalityCard({
     );
 }
 
-/* the card's foot chips — pill-shaped, quiet until hovered; `dense` is the strip size */
+/* the card's foot chips — pill-shaped, low contrast until hovered; `dense` is the strip size */
 function chipClass(dense: boolean) {
     return cn(
         'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background font-semibold text-foreground/80 transition-colors hover:border-foreground/30 hover:text-foreground',

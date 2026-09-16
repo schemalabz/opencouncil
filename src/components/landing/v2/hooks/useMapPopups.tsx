@@ -34,7 +34,7 @@ function renderIntlRoot(
 /**
  * Map overlays rendered as Mapbox popups / DOM markers (outside React's tree, so navigation
  * goes through the `navigate` callback). Covers: the desktop subject tooltip, the OpenCouncil
- * badge and its popup, "selecting a subject closes the other previews", the click that names a
+ * badge and its popup, "selecting a subject closes the other previews", the click that reports a
  * covered δήμος or shades an out-of-network one, and that δήμος's "request it" popup.
  */
 export function useMapPopups({
@@ -60,7 +60,7 @@ export function useMapPopups({
     selectedId: string | null;
     selectedSubject: LandingSubject | null;
     clickedMunicipality: ClickedMunicipality | null;
-    /** the covered δήμοι with their boundaries — a click inside one is answered on the client */
+    /** the covered δήμοι with their boundaries — a click inside one is resolved on the client */
     mapCities: LandingMapCity[];
     /** a click on the map background: the covered δήμος under it, or null for anywhere else */
     onMunicipalityClick: (city: LandingMapCity | null) => void;
@@ -241,9 +241,9 @@ export function useMapPopups({
     }, [selectedId]);
 
     // Clicking the map dismisses whatever preview is open (selected subject, OpenCouncil card) and
-    // looks up the municipality there. A covered δήμος is known on the client from its boundary:
-    // it is named (the page bar answers), and no request is made. Anywhere else asks the server —
-    // an out-of-network δήμος gets shaded and shows a "request it" preview.
+    // looks up the municipality there. A covered δήμος is resolved on the client from its boundary:
+    // it is reported to `onMunicipalityClick`, and no request is made. Any other point is looked up
+    // on the server — an out-of-network δήμος gets shaded and shows a "request it" preview.
     useEffect(() => {
         if (!mapInstance) return;
         const onClick = (e: mapboxgl.MapMouseEvent) => {

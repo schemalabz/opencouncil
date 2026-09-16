@@ -213,8 +213,8 @@ export function CityMapTab({
                     )}
                 </aside>
 
-                {/* `isolate`: the pins carry their own z-indexes, and without a stacking context of
-                    their own they would paint over the strip and the card below. */}
+                {/* `isolate`: the pins set their own z-indexes. Without a stacking context on this
+                    wrapper, they would paint over the strip and the card below. */}
                 <div className="relative isolate min-w-0 flex-1">
                     <Map
                         className="absolute inset-0 h-full w-full"

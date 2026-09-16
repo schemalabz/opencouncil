@@ -11,11 +11,11 @@ const CENTER_WEIGHT = 3;
 /**
  * The covered δήμος the viewport is looking at, resolved from the boundaries the map already holds.
  *
- * Runs on the client on every move, so the answer is never a round trip late and never stale after
- * a pan. Samples the centre and a ring of eight points around it: the centre is what the eye is on
- * and carries the weight, while the ring lets a δήμος that clearly fills the middle of the view win
- * over a neighbour the centre has only just crossed into. A tie goes to the δήμος under the centre.
- * Null when no boundary covers any sample.
+ * Runs on the client on every move, so the result needs no request and is never stale after a
+ * pan. Samples the centre and a ring of eight points around it. The centre has the highest weight,
+ * because it is the point the user looks at. The ring lets a δήμος that covers most of the middle
+ * of the view win over a neighbour that contains only the centre. On a tie, the δήμος under the
+ * centre wins. Returns null when no boundary contains any sample.
  */
 export function pickViewportMunicipality<T extends { geometry: GeoJSON.Geometry | null }>(
     view: MapViewport,

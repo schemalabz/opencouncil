@@ -95,8 +95,9 @@ const preset: Omit<Config, "content"> = {
 					'88%': { transform: 'rotate(348deg)' },
 					'100%': { transform: 'rotate(360deg)' }
 				},
-				// The δήμος bar answering a click on its boundary: it swells a touch and throws an
-				// orange ring that fades as it spreads — one beat, then still.
+				// Played once on the δήμος bar after a click inside that δήμος's boundary: the bar
+				// scales up to 1.035 and back, while an orange box-shadow ring expands to 12px
+				// and fades to transparent. Duration 0.75s, no repeat.
 				'municipality-pulse': {
 					'0%': { transform: 'scale(1)', 'box-shadow': '0 0 0 0 hsl(24 100% 50% / 0.55)' },
 					'35%': { transform: 'scale(1.035)', 'box-shadow': '0 0 0 12px hsl(24 100% 50% / 0)' },

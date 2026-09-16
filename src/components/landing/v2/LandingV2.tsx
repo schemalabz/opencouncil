@@ -174,8 +174,8 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         mapInstance,
         initialZoom: initialView.zoom,
         municipalities: initial.mapCities,
-        // A clicked δήμος holds the bar only while the view holds still; the viewport rule takes
-        // over on the next real pan/zoom, so the bar never lags behind the map again.
+        // A clicked δήμος stays in the bar only until the user pans or zooms. Then the viewport
+        // rule applies again, so the bar always matches the current view.
         onUserNavigate: () => setClickedCoveredCity(null),
     });
 
@@ -186,9 +186,10 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     const [cityGeometries, setCityGeometries] = useState<Record<string, GeoJSON.Geometry>>({});
     // An out-of-network municipality the user clicked on the map — shaded orange.
     const [clickedMunicipality, setClickedMunicipality] = useState<ClickedMunicipality | null>(null);
-    // A covered δήμος the user clicked on the map (its boundary, not a marker) — the page bar names
-    // it, at any zoom, until the next pan/zoom or click elsewhere. `barPulse` counts those clicks so
-    // the bar can pulse once per click, also when it already names that δήμος.
+    // A covered δήμος the user clicked on the map (inside its boundary, not on a marker). The page
+    // bar shows it at any zoom, until the next pan/zoom or a click elsewhere. `barPulse` counts
+    // those clicks, so the bar plays its animation once per click, also when it already shows that
+    // δήμος.
     const [clickedCoveredCity, setClickedCoveredCity] = useState<LandingMapCity | null>(null);
     const [barPulse, setBarPulse] = useState(0);
 
@@ -381,11 +382,11 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
 
     // The municipality chosen in the filters (single-select) — drives the blue-gray overlay.
     const filterCityId = filters.cityIds[filters.cityIds.length - 1] ?? null;
-    // The δήμος the map is about, for the bar into its page. A filter names it outright — the
-    // visitor chose it, and the map shows its subjects wherever the camera is. Then a δήμος the
-    // visitor clicked on the map, at any zoom. Otherwise it is the covered δήμος under the middle
-    // of the view (see pickViewportMunicipality), once zoomed in enough that a single δήμος is the
-    // focus rather than the country-level framing.
+    // The δήμος shown in the page bar. An active city filter has priority: the visitor chose it,
+    // and the map shows its subjects wherever the camera is. Next comes a δήμος the visitor clicked
+    // on the map, at any zoom. Otherwise it is the covered δήμος under the middle of the view (see
+    // pickViewportMunicipality), only when the zoom is high enough for a single δήμος to fill the
+    // view rather than the country-level framing.
     const displayedMunicipality = useMemo<DisplayedMunicipality | null>(() => {
         if (filterCityId) {
             const mapCity = mapCities.find((c) => c.id === filterCityId);
@@ -659,8 +660,8 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         selectedSubject,
         clickedMunicipality,
         mapCities,
-        // A click on a covered δήμος's boundary: the bar names it and pulses once — the click is
-        // the visitor asking "what is this?", and the bar is the answer and the way in.
+        // A click inside a covered δήμος's boundary: the bar shows that δήμος and plays its
+        // animation once. The animation draws attention to the bar as the link to the δήμος page.
         onMunicipalityClick: (city) => {
             setClickedCoveredCity(city);
             if (!city) return;

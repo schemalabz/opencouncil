@@ -72,8 +72,8 @@ export function DesktopLayout({
     const t = useTranslations('landingV2');
     // The list panel beside the rail — collapsible (X), default open.
     const [panelOpen, setPanelOpen] = useState(true);
-    // The Δήμοι tab's name search. Narrows the cards and the petition leaderboard alike; the
-    // below-threshold tail says nothing about a name, so it goes while a search is on.
+    // The Δήμοι tab's name search. It narrows the cards and the petition leaderboard. The
+    // below-threshold count cannot match a name, so it is hidden while a search is active.
     const [municipalityQuery, setMunicipalityQuery] = useState('');
     const municipalityFilter = municipalityQuery.trim();
     const shownCities = municipalityFilter
@@ -162,8 +162,8 @@ export function DesktopLayout({
                         </div>
                     )}
 
-                    {/* the Δήμοι tab's search box — in the white header block, so it stays put while
-                        the cards scroll */}
+                    {/* the Δήμοι tab's search box — in the white header block, outside the scroll
+                        area, so it stays visible while the cards scroll */}
                     {!infoOpen && view === 'municipalities' && (
                         <div className="-mt-1 bg-card px-4 pb-3">
                             <MunicipalitySearch value={municipalityQuery} onChange={setMunicipalityQuery} />
@@ -283,11 +283,11 @@ export function DesktopLayout({
                 <ZoomGroup onZoomIn={zoomIn} onZoomOut={zoomOut} />
             </div>
 
-            {/* bottom of the map: the basemap toggle and the bar into the δήμος the map is about —
-                on every view, in the room left up to the zoom controls. One row from xl up; below
-                that the row is too short for both, so the bar takes a row of its own above the
-                toggle. The block itself lets pointer events through, so the map stays draggable
-                around the two. */}
+            {/* bottom of the map: the basemap toggle and the bar that links to the displayed δήμος —
+                on every view, in the width up to the zoom controls. One row from xl up; below xl
+                the row is too narrow for both, so the bar renders on its own row above the
+                toggle. The block itself has pointer-events: none, so the map stays draggable
+                between the two controls. */}
             <div
                 className={`pointer-events-none absolute bottom-4 right-[72px] z-[6] flex flex-col-reverse items-start gap-3 xl:flex-row xl:items-end xl:gap-4 ${floatLeft}`}
             >
