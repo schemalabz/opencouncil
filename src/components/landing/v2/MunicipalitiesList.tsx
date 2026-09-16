@@ -1,52 +1,89 @@
 'use client';
 
-import { ArrowRight, Bell, CalendarDays } from 'lucide-react';
+import { ArrowRight, Bell, CalendarDays, MapPin, Search, X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/formatters/time';
 import type { LandingListCity, LandingPetitionedCity, UpcomingMeeting } from '@/lib/landing/landingData';
 import { PETITION_DISPLAY_THRESHOLD, petitionFill } from '@/lib/landing/petitions';
-import { CityAvatar } from './controls';
+import { CityAvatar, MunicipalityStats } from './controls';
 import { captureLandingAction } from '@/lib/landing/analytics';
 
 /* Δήμοι tab — one card per municipality, the petitioned-δήμοι leaderboard, and a petition CTA.
-   Selecting a card filters the map to that δήμος rather than navigating away, matching the mobile
-   strip. */
+   A card opens its δήμος's page; its "Στον χάρτη" chip filters the map to the δήμος instead,
+   matching the mobile strip. The lists arrive already narrowed by the tab's search box;
+   `noMatch` is true when the search matched nothing in either list, so the tab shows a message
+   instead of an empty list. */
 export function MunicipalitiesList({
     cities,
     subjectCountByCity,
     upcoming,
     selectedCityId,
-    onSelect,
+    onShowOnMap,
     petitionedCities,
     petitionedBelowThreshold,
     onOpenPetitioned,
+    noMatch,
 }: {
     cities: LandingListCity[];
     subjectCountByCity: Record<string, number>;
     upcoming: UpcomingMeeting[];
     selectedCityId: string | null;
-    onSelect: (id: string) => void;
+    /** the "Στον χάρτη" chip — filter the map to that δήμος (a second call clears it) */
+    onShowOnMap: (id: string) => void;
     petitionedCities: LandingPetitionedCity[];
     petitionedBelowThreshold: number;
     onOpenPetitioned: (city: LandingPetitionedCity) => void;
+    /** a name search is active and matches no δήμος and no petitioned δήμος */
+    noMatch?: boolean;
 }) {
+    const t = useTranslations('landingV2');
     return (
         <>
             {cities.map((c) => (
-                <MuniPanelCard
+                <MunicipalityCard
                     key={c.id}
                     city={c}
                     subjectCount={subjectCountByCity[c.id] ?? 0}
                     next={upcoming.find((m) => m.cityId === c.id)}
                     selected={selectedCityId === c.id}
-                    onSelect={onSelect}
+                    onShowOnMap={onShowOnMap}
                 />
             ))}
             <PetitionedLeaderboard cities={petitionedCities} belowThreshold={petitionedBelowThreshold} onOpen={onOpenPetitioned} />
+            {noMatch && <p className="px-1 py-1 text-sm text-muted-foreground">{t('municipality.noMatch')}</p>}
             <PetitionCta big source="municipalities_list" />
         </>
+    );
+}
+
+/* The Δήμοι tab's name search — a low-contrast field in the panel header that narrows the cards
+   and the petition leaderboard on every keystroke (see matchesMunicipalityName for the match rule). */
+export function MunicipalitySearch({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const t = useTranslations('landingV2');
+    return (
+        <label className="flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm text-foreground transition-colors focus-within:border-foreground/40">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            <input
+                type="search"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={t('municipality.searchPlaceholder')}
+                aria-label={t('municipality.searchPlaceholder')}
+                className="min-w-0 flex-1 bg-transparent placeholder:text-muted-foreground focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+            />
+            {value && (
+                <button
+                    type="button"
+                    onClick={() => onChange('')}
+                    aria-label={t('common.clear')}
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            )}
+        </label>
     );
 }
 
@@ -78,7 +115,7 @@ export function PetitionedRow({
             className={cn(
                 'flex items-center text-left transition-colors',
                 dense
-                    ? 'gap-1.5 rounded-lg px-1 py-1 hover:enabled:bg-muted'
+                    ? 'gap-1.5 rounded-lg px-1 py-0.5 hover:enabled:bg-muted'
                     : 'gap-2.5 rounded-xl border border-black/20 bg-card px-3 py-2 shadow-sm hover:enabled:border-black/50',
                 !focusable && 'cursor-default',
             )}
@@ -138,95 +175,110 @@ export function PetitionedLeaderboard({
     );
 }
 
-/* δήμος card — stats + next meeting. Clicking the card filters to that δήμος (orange border while
-   selected, clicking again clears it); the bell opens its notifications and the arrow its page. */
-function MuniPanelCard({
+/* One δήμος card, for the desktop panel (`panel`) and the phone strip (`strip`). The whole card
+   opens the municipality's page: the header row is the link and its ::after stretches over the
+   card, while the two chips at the foot sit above it — the δήμος's notifications, and "Στον
+   χάρτη", which filters the map to the δήμος (orange while it is the filter; a second tap clears
+   it). The numbers render as one low-contrast line under the header, which keeps the card short. */
+export function MunicipalityCard({
     city,
     subjectCount,
     next,
     selected,
-    onSelect,
+    onShowOnMap,
+    variant = 'panel',
 }: {
     city: LandingListCity;
     subjectCount: number;
     next?: UpcomingMeeting;
+    /** the δήμος is the map's current filter */
     selected: boolean;
-    onSelect: (id: string) => void;
+    onShowOnMap: (id: string) => void;
+    variant?: 'panel' | 'strip';
 }) {
     const t = useTranslations('landingV2');
     const locale = useLocale();
+    const strip = variant === 'strip';
+    const nextLine = next
+        ? formatDateTime(new Date(next.dateTime), next.city.timezone, strip ? 'medium' : 'long', locale)
+        : null;
     return (
         <div
-            role="button"
-            tabIndex={0}
-            onClick={() => onSelect(city.id)}
-            onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onSelect(city.id);
-                }
-            }}
-            aria-pressed={selected}
+            data-city-id={city.id}
             className={cn(
-                'group flex shrink-0 cursor-pointer flex-col gap-3 rounded-2xl border bg-card p-4 shadow-sm transition-colors',
-                selected ? 'border-2 border-[hsl(var(--orange))]' : 'border-black/40 hover:border-black/60',
+                'group relative flex shrink-0 flex-col rounded-2xl border bg-card transition-colors',
+                strip ? 'h-full w-[280px] p-3 shadow-md' : 'p-4 shadow-sm',
+                selected
+                    ? 'border-[hsl(var(--orange))] ring-1 ring-[hsl(var(--orange))]'
+                    : strip
+                      ? 'border-black/20 hover:border-black/40'
+                      : 'border-black/40 hover:border-black/70',
             )}
         >
-            <div className="flex items-center gap-2.5">
+            {/* the link — its ::after covers the whole card, so a tap anywhere but a chip opens the page */}
+            <Link
+                href={`/${city.id}`}
+                prefetch={false}
+                onClick={() => captureLandingAction('city_opened', { city_id: city.id, source: 'municipalities_list' })}
+                className="flex items-center gap-3 no-underline after:absolute after:inset-0 after:rounded-2xl after:content-[''] hover:no-underline"
+            >
                 <CityAvatar city={city} />
-                <span className="min-w-0 flex-1 text-lg font-bold tracking-tight text-foreground">{city.name}</span>
-                {/* notifications bell — its own link, so it doesn't trigger the card's filter */}
+                <span className={cn('min-w-0 flex-1 truncate font-bold tracking-tight text-foreground', strip ? 'text-[15px]' : 'text-lg')}>
+                    {city.name}
+                </span>
+                <ArrowRight className="h-5 w-5 shrink-0 text-[hsl(var(--orange))] transition-transform group-hover:translate-x-0.5" />
+            </Link>
+
+            {/* the numbers — one line of their own at full width, so the avatar and the arrow do not
+                truncate it */}
+            <div className={cn('truncate text-muted-foreground', strip ? 'mt-2 text-[11px]' : 'mt-2.5 text-xs')}>
+                <MunicipalityStats subjects={subjectCount} meetings={city._count.councilMeetings} persons={city._count.persons} />
+            </div>
+
+            {nextLine && (
+                <div className={cn('flex items-center gap-1.5 text-muted-foreground', strip ? 'mt-1 text-[11px]' : 'mt-1.5 text-xs')}>
+                    <CalendarDays className={cn('shrink-0', strip ? 'h-3 w-3' : 'h-3.5 w-3.5')} />
+                    <span className="truncate">
+                        {!strip && <span className="font-medium text-foreground/80">{t('municipality.nextMeeting')} </span>}
+                        {nextLine}
+                    </span>
+                </div>
+            )}
+
+            {/* the chips are positioned with a z-index above the stretched link, so they receive the click */}
+            <div className={cn('relative z-10 flex items-center gap-2', strip ? 'mt-auto pt-2' : 'mt-3')}>
                 <Link
                     href={`/${city.id}/notifications`}
                     aria-label={next ? t('municipality.notifyMeeting', { name: city.name }) : t('municipality.notify', { name: city.name })}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        captureLandingAction('notify_cta', { surface: 'municipalities_list', city_id: city.id });
-                    }}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[hsl(var(--orange))] no-underline transition-colors hover:bg-muted/80 hover:no-underline"
+                    onClick={() => captureLandingAction('notify_cta', { surface: 'municipalities_list', city_id: city.id })}
+                    className={cn(chipClass(strip), 'no-underline hover:no-underline')}
                 >
-                    <Bell className="h-3.5 w-3.5" />
+                    <Bell className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--orange))]" />
+                    {t('municipality.notifications')}
                 </Link>
-                {/* the only route to the municipality page now that the card itself filters */}
-                <Link
-                    href={`/${city.id}`}
-                    aria-label={city.name}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        captureLandingAction('city_opened', { city_id: city.id, source: 'municipalities_list' });
-                    }}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground no-underline transition-transform hover:no-underline group-hover:translate-x-0.5"
+                <button
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => onShowOnMap(city.id)}
+                    className={cn(
+                        chipClass(strip),
+                        selected &&
+                            'border-[hsl(var(--orange))] bg-[hsl(24,100%,96%)] text-[hsl(var(--orange))] hover:border-[hsl(var(--orange))] hover:text-[hsl(var(--orange))]',
+                    )}
                 >
-                    <ArrowRight className="h-4 w-4" />
-                </Link>
+                    <MapPin className="h-3.5 w-3.5 shrink-0" />
+                    {t('municipality.showOnMap')}
+                </button>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-                <MuniStat label={t('municipality.subjects')} value={subjectCount} />
-                <MuniStat label={t('municipality.meetings')} value={city._count.councilMeetings} />
-                <MuniStat label={t('municipality.persons')} value={city._count.persons} />
-            </div>
-            {next && (
-                <>
-                    <div className="h-px bg-border" />
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">
-                            <span className="font-medium text-foreground/80">{t('municipality.nextMeeting')}</span>{' '}
-                            {formatDateTime(new Date(next.dateTime), next.city.timezone, 'long', locale)}
-                        </span>
-                    </div>
-                </>
-            )}
         </div>
     );
 }
 
-function MuniStat({ label, value }: { label: string; value: number }) {
-    return (
-        <div className="rounded-lg bg-muted/60 px-2.5 py-2">
-            <div className="font-mono text-lg font-bold tabular-nums leading-none text-foreground">{value}</div>
-            <div className="mt-1 text-[11px] text-muted-foreground">{label}</div>
-        </div>
+/* the card's foot chips — pill-shaped, low contrast until hovered; `dense` is the strip size */
+function chipClass(dense: boolean) {
+    return cn(
+        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background font-semibold text-foreground/80 transition-colors hover:border-foreground/30 hover:text-foreground',
+        dense ? 'h-7 px-2.5 text-[11px]' : 'h-8 px-3 text-xs',
     );
 }
 

@@ -1,23 +1,21 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowRight, ChevronDown, ChevronUp, X, HelpCircle, Loader2, LocateFixed, CalendarDays, Bell } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, ChevronDown, ChevronUp, X, HelpCircle, Loader2, LocateFixed } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
-import { formatDateTime } from '@/lib/formatters/time';
-import { captureLandingAction } from '@/lib/landing/analytics';
 import { ListHeader, RankedListHint } from './conceptShared';
 import { landingSearchHref, SearchErrorPill, SearchResultsCard } from './searchSummary';
-import { type LandingSubject, type LandingListCity, type LandingPetitionedCity, type UpcomingMeeting } from '@/lib/landing/landingData';
+import { type LandingListCity, type LandingPetitionedCity, type UpcomingMeeting } from '@/lib/landing/landingData';
 import { PETITION_DISPLAY_THRESHOLD } from '@/lib/landing/petitions';
 import { hasActiveFilters, type LayoutProps } from '@/lib/landing/landingCore';
-import { DateRangePill, FilterIconButton, MapStyleToggle, CityAvatar } from './controls';
+import { DateRangePill, FilterIconButton, MapStyleToggle, MunicipalityBar } from './controls';
 import { MobileSearchOverlay } from './SearchPanel';
 import { CoLocatedBox, GeneralSubjectsBox } from './mapMarkers';
 import { MobileHeader } from './MobileHeader';
 import { InfoPanel } from './InfoPanel';
-import { PetitionCta, PetitionedRow } from './MunicipalitiesList';
+import { MunicipalityCard, PetitionCta, PetitionedRow } from './MunicipalitiesList';
 import { SubjectStrip } from '@/components/map/subjects/SubjectStrip';
 import { SubjectExpandedCard } from '@/components/map/subjects/SubjectExpandedCard';
 
@@ -74,6 +72,8 @@ export function MobileLayout({
     petitionedCities,
     petitionedBelowThreshold,
     onOpenPetitioned,
+    displayedMunicipality,
+    municipalityBarPulse,
     mapNode,
 }: LayoutProps) {
     const t = useTranslations('landingV2');
@@ -122,6 +122,11 @@ export function MobileLayout({
 
     // The map is the surface unless the "?" info drawer is open.
     const mapVisible = !infoOpen;
+    // The bar that links to the displayed δήμος sits between the list and the tabs. Its position
+    // does not depend on the list state. Everything above the tabs moves up by its height while it
+    // shows. It is hidden with the rest of the bottom band while a subject or the OpenCouncil card
+    // covers it.
+    const barVisible = !!displayedMunicipality && !selectedSubject && !explainOpen;
 
     return (
         <div className="relative h-[100dvh] w-full overflow-hidden bg-background">
@@ -171,9 +176,9 @@ export function MobileLayout({
                         <>
                             {/* first-visit "Τι είναι αυτό;" hint — a bubble just above the "?".
                                 Gated to the collapsed-list map state with no co-located/general box
-                                open, so it can never cover another element; pointer-events-none
-                                keeps the map behind it interactive. */}
-                            {infoHint && listCollapsed && !coLocated && !generalBox && (
+                                and no δήμος bar open, so it can never cover another element;
+                                pointer-events-none keeps the map behind it interactive. */}
+                            {infoHint && listCollapsed && !coLocated && !generalBox && !barVisible && (
                                 <div className="pointer-events-none absolute bottom-[58px] left-3 z-[10]">
                                     <div className="relative rounded-full bg-[hsl(var(--orange))] px-3 py-1.5 text-[13px] font-bold text-white shadow-lg">
                                         {t('info.title')}
@@ -207,7 +212,12 @@ export function MobileLayout({
                             {/* locate + satellite — hidden while the list (subjects/δήμοι) is open,
                                 so they don't crowd the strip. */}
                             {listCollapsed && (
-                            <div className="absolute bottom-[88px] right-3 z-[10] flex flex-col items-end gap-2">
+                            <div
+                                className={cn(
+                                    'absolute right-3 z-[10] flex flex-col items-end gap-2',
+                                    barVisible ? 'bottom-[124px]' : 'bottom-[88px]',
+                                )}
+                            >
                                 <div className="relative">
                                     {geoError && (
                                         <div className="absolute right-[calc(100%+10px)] top-1/2 w-56 max-w-[70vw] -translate-y-1/2 rounded-xl border border-red-500/40 bg-card py-2 pl-3 pr-7 text-xs font-medium text-red-500 shadow-lg">
@@ -246,6 +256,19 @@ export function MobileLayout({
                     {coLocated && <CoLocatedBox data={coLocated} onSelect={onCoLocatedSelect} onClose={onCoLocatedClose} />}
                     {generalBox && <GeneralSubjectsBox data={generalBox} onSelect={onGeneralSelect} onClose={onGeneralBoxClose} />}
 
+                    {/* the bar that links to the displayed δήμος — just above the tabs, on both tabs */}
+                    {barVisible && displayedMunicipality && (
+                        <div className="absolute inset-x-3 bottom-[62px] z-[9]">
+                            <MunicipalityBar
+                                municipality={displayedMunicipality}
+                                cities={cities}
+                                subjectCountByCity={subjectCountByCity}
+                                pulse={municipalityBarPulse}
+                                compact
+                            />
+                        </div>
+                    )}
+
                     {/* bottom band: an expanded subject · the OpenCouncil card · else the list + tabs */}
                     {selectedSubject ? (
                         <SubjectExpandedCard
@@ -262,9 +285,10 @@ export function MobileLayout({
                         <MobileExplainPreview onClose={onCloseExplain} />
                     ) : (
                         <>
-                            {/* the list (horizontal cards) sits above the tabs, only while expanded */}
+                            {/* the list (horizontal cards) sits above the tabs — or above the δήμος
+                                bar — only while expanded */}
                             {!listCollapsed && (
-                                <div className="absolute inset-x-0 bottom-[62px] z-[9]">
+                                <div className={cn('absolute inset-x-0 z-[9]', barVisible ? 'bottom-[122px]' : 'bottom-[62px]')}>
                                     {/* what the strip actually is — a small pill floating over the
                                         map (costs no layout space). It names the ordering, so a
                                         committed search changes what it says rather than hiding
@@ -306,7 +330,7 @@ export function MobileLayout({
                                             subjectCountByCity={subjectCountByCity}
                                             upcoming={upcoming}
                                             selectedCityId={filters.cityIds[0] ?? null}
-                                            onSelect={(id) => {
+                                            onShowOnMap={(id) => {
                                                 // like picking the δήμος in the filters — filter to it, stay on Δήμοι
                                                 setFilters({ ...filters, cityIds: filters.cityIds[0] === id ? [] : [id] });
                                             }}
@@ -398,14 +422,15 @@ function MobileViewSwitch({
 }
 
 /* Δήμοι list — the same horizontally-scrolled card style as the subjects strip, but for
-   municipalities. Tapping a card filters to that δήμος (orange border); the map view is never
-   touched by the tab. A petition CTA closes the strip. */
+   municipalities. A card opens its δήμος's page; its "Στον χάρτη" chip filters the map to the
+   δήμος (orange outline) — the tab itself does not change the map view. A petition CTA is the last
+   card of the strip. */
 function MobileMunicipalityStrip({
     cities,
     subjectCountByCity,
     upcoming,
     selectedCityId,
-    onSelect,
+    onShowOnMap,
     petitionedCities,
     petitionedBelowThreshold,
     onOpenPetitioned,
@@ -413,15 +438,15 @@ function MobileMunicipalityStrip({
     cities: LandingListCity[];
     subjectCountByCity: Record<string, number>;
     upcoming: UpcomingMeeting[];
-    /** the currently filter-selected δήμος — gets the orange border */
+    /** the currently filter-selected δήμος — gets the orange outline */
     selectedCityId: string | null;
     /** out-of-network δήμοι with enough petitions — thin leaderboard cards at the strip's end */
     petitionedCities: LandingPetitionedCity[];
     /** δήμοι with petitions under the display threshold — aggregate count only */
     petitionedBelowThreshold: number;
     onOpenPetitioned: (city: LandingPetitionedCity) => void;
-    /** tapping the card body filters to that δήμος (the arrow still opens its page) */
-    onSelect: (id: string) => void;
+    /** the "Στον χάρτη" chip — filter the map to that δήμος (a second tap clears it) */
+    onShowOnMap: (id: string) => void;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     // Scroll the selected δήμος into view (centred) when it changes — or once the cards first render
@@ -443,9 +468,11 @@ function MobileMunicipalityStrip({
     return (
         <div
             ref={scrollRef}
-            // items-end (like the subjects strip): cards keep their natural heights, bottom-aligned
-            // above the tab bar — so the taller leaderboard card never stretches the δήμος cards.
-            className="flex items-end gap-3 overflow-x-auto px-3 pb-1 [&::-webkit-scrollbar]:hidden"
+            // One fixed height, and every card fills it. The scroller receives every touch across
+            // its whole height. Before, the leaderboard card was taller than the rest, so the empty
+            // area above the shorter cards belonged to the scroller: a pan there scrolled the cards
+            // instead of the map.
+            className="flex h-[148px] items-stretch gap-3 overflow-x-auto px-3 py-1 [&::-webkit-scrollbar]:hidden"
             style={{ scrollbarWidth: 'none' }}
         >
             {cities.map((c) => (
@@ -455,7 +482,8 @@ function MobileMunicipalityStrip({
                     subjectCount={subjectCountByCity[c.id] ?? 0}
                     next={upcoming.find((m) => m.cityId === c.id)}
                     selected={selectedCityId === c.id}
-                    onSelect={onSelect}
+                    onShowOnMap={onShowOnMap}
+                    variant="strip"
                 />
             ))}
             {/* petitioned-δήμοι leaderboard — one card holding the whole ranking + the tail line.
@@ -475,10 +503,10 @@ function MobileMunicipalityStrip({
     );
 }
 
-/* How many ranked rows the mobile leaderboard card shows. A strip card can't grow with the list
+/* How many ranked rows the mobile leaderboard card shows. The card has the strip's fixed height
    (and nested vertical scroll inside a horizontal strip is miserable on touch), so past this the
    remainder folds into an honest "και N ακόμα δήμοι με 10+ αιτήματα" line. */
-const MOBILE_LEADERBOARD_MAX_ROWS = 5;
+const MOBILE_LEADERBOARD_MAX_ROWS = 3;
 
 /* The petitioned-δήμοι leaderboard as ONE strip card: header, the top ranked rows (rank · name ·
    "N+" badge on the petition ramp), an overflow line when the ranking is longer than the card,
@@ -498,10 +526,9 @@ function PetitionedStripLeaderboard({
     const t = useTranslations('landingV2');
     const overflow = cities.length - MOBILE_LEADERBOARD_MAX_ROWS;
     return (
-        // Natural height — the strip bottom-aligns cards without stretching (see items-end on the
-        // container), so this card is the only one that grows with its content; the top-5 cap
-        // bounds how far.
-        <div className="flex w-[230px] shrink-0 flex-col gap-1.5 rounded-2xl border border-black/30 bg-card p-3 shadow-sm">
+        // The strip's height, like every card in it (see MobileMunicipalityStrip). The row cap keeps
+        // the content inside; overflow-hidden clips anything that still exceeds the height.
+        <div className="flex h-full w-[230px] shrink-0 flex-col gap-1.5 overflow-hidden rounded-2xl border border-black/30 bg-card p-3 shadow-sm">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {t('municipality.petitionedTitle')}
             </div>
@@ -511,99 +538,21 @@ function PetitionedStripLeaderboard({
                     <PetitionedRow key={c.id} city={c} rank={i + 1} onOpen={onOpen} dense />
                 ))}
             </div>
-            {overflow > 0 && (
+            {/* this height has room for one tail line. The overflow line (δήμοι at or above the
+                threshold) has priority over the below-threshold line, which the desktop
+                leaderboard still shows. */}
+            {overflow > 0 ? (
                 <p className="text-[11px] leading-snug text-muted-foreground">
                     {t('municipality.petitionedOverflow', { count: overflow, threshold: PETITION_DISPLAY_THRESHOLD })}
                 </p>
-            )}
-            {belowThreshold > 0 && (
+            ) : belowThreshold > 0 ? (
                 <p className="text-[11px] leading-snug text-muted-foreground">
                     {t('municipality.petitionedMore', { count: belowThreshold, threshold: PETITION_DISPLAY_THRESHOLD })}
                 </p>
-            )}
+            ) : null}
         </div>
     );
 }
-
-/* One δήμος card in the strip — the same content as the desktop Δήμοι card (logo · name · bell ·
-   stats · next meeting). Tapping the card filters to that δήμος (orange border when selected); the
-   bell opens its notifications and the arrow opens its page. */
-function MunicipalityCard({
-    city,
-    subjectCount,
-    next,
-    selected,
-    onSelect,
-}: {
-    city: LandingListCity;
-    subjectCount: number;
-    next?: UpcomingMeeting;
-    selected: boolean;
-    onSelect: (id: string) => void;
-}) {
-    const t = useTranslations('landingV2');
-    const locale = useLocale();
-    return (
-        <div
-            role="button"
-            tabIndex={0}
-            data-city-id={city.id}
-            onClick={() => onSelect(city.id)}
-            className={cn(
-                'group flex w-[264px] shrink-0 cursor-pointer flex-col gap-2.5 rounded-2xl border bg-card p-3 shadow-md transition-colors',
-                selected ? 'border-[hsl(var(--orange))] border-2' : 'border-black/20 hover:border-black/40',
-            )}
-        >
-            <div className="flex items-center gap-2">
-                <CityAvatar city={city} />
-                <span className="min-w-0 flex-1 text-sm font-bold text-foreground">{city.name}</span>
-                <Link
-                    href={`/${city.id}/notifications`}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        captureLandingAction('notify_cta', { surface: 'municipalities_list', city_id: city.id });
-                    }}
-                    aria-label={next ? t('municipality.notifyMeeting', { name: city.name }) : t('municipality.notify', { name: city.name })}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[hsl(var(--orange))] no-underline transition-colors hover:bg-muted/80 hover:no-underline"
-                >
-                    <Bell className="h-3.5 w-3.5" />
-                </Link>
-                <Link
-                    href={`/${city.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    aria-label={city.name}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground no-underline transition-transform hover:no-underline group-hover:translate-x-0.5"
-                >
-                    <ArrowRight className="h-4 w-4" />
-                </Link>
-            </div>
-            <div className="grid grid-cols-3 gap-1.5">
-                <MuniStat label={t('municipality.subjects')} value={subjectCount} />
-                <MuniStat label={t('municipality.meetings')} value={city._count.councilMeetings} />
-                <MuniStat label={t('municipality.persons')} value={city._count.persons} />
-            </div>
-            {next && (
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <CalendarDays className="h-3 w-3 shrink-0" />
-                    <span className="truncate">
-                        <span className="font-medium text-foreground/80">{t('municipality.nextMeeting')}</span>{' '}
-                        {formatDateTime(new Date(next.dateTime), next.city.timezone, 'long', locale)}
-                    </span>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function MuniStat({ label, value }: { label: string; value: number }) {
-    return (
-        <div className="rounded-lg bg-muted/60 px-2 py-1.5 text-center">
-            <div className="font-mono text-base font-bold tabular-nums leading-none text-foreground">{value}</div>
-            <div className="mt-0.5 text-[10px] leading-tight text-muted-foreground">{label}</div>
-        </div>
-    );
-}
-
 
 /* OpenCouncil preview (mobile) — the "this is our office" card from the map badge. */
 function MobileExplainPreview({ onClose }: { onClose: () => void }) {

@@ -93,6 +93,12 @@
     "unavailable": "La commune de {name} n'est pas encore disponible — demandez à l'ajouter",
     "notify": "Notifications pour la commune de {name}",
     "notifyMeeting": "Notifications pour la prochaine séance de {name}",
+    "openPage": "Page de la commune",
+    "stats": "<n>{subjects}</n> {subjects, plural, one {sujet} other {sujets}} · <n>{meetings}</n> {meetings, plural, one {séance} other {séances}} · <n>{persons}</n> {persons, plural, one {personne} other {personnes}}",
+    "notifications": "Notifications",
+    "showOnMap": "Sur la carte",
+    "searchPlaceholder": "Rechercher une commune",
+    "noMatch": "Aucune commune ne correspond à ce nom.",
     "petitionedTitle": "Demandes d'ajout",
     "petitionedMore": "et {count, plural, one {une autre commune} other {# autres communes}} avec moins de {threshold} demandes",
     "petitionedOverflow": "et {count, plural, one {une autre commune} other {# autres communes}} avec {threshold}+ demandes"

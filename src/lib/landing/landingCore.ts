@@ -6,6 +6,7 @@ import { calculateGeometryBounds } from '@/lib/geo';
 import { topicStyle } from '@/lib/topicStyle';
 import type {
     LandingListCity,
+    LandingMapCity,
     LandingPetitionedCity,
     LandingSubject,
     LandingGeneralCity,
@@ -20,8 +21,8 @@ export const EXPLAIN_LNGLAT: [number, number] = [23.740061, 37.986179];
 // Selecting a subject nudges zoom up to this level, but only when more zoomed-out than it.
 export const SUBJECT_FOCUS_ZOOM = 14;
 
-// The "view this δήμος's page" button only makes sense once a single municipality actually fills
-// the view.
+// The bar that links to the displayed δήμος shows only when the zoom is high enough for a single
+// municipality to fill the view, not at the country-level framing.
 export const MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM = 12;
 
 // At or below this zoom the map shows the per-δήμος count numbers; above it, subject pins take over.
@@ -107,12 +108,6 @@ export function toggleValue(list: string[], value: string): string[] {
 export function hasActiveFilters(f: MapFilters): boolean {
     return f.cityIds.length > 0 || f.bodyTypes.length > 0 || !!f.dateFrom || !!f.dateTo || f.minDuration != null;
 }
-
-/**
- * The map-center municipality lookup (/api/cities/at) re-fires only when the center moves more
- * than this fraction of the viewport, so pure zoom and tiny pans skip it. Scales with viewport.
- */
-export const CENTER_QUERY_MOVE_RATIO = 0.2;
 
 /**
  * Subjects in view at or above which pins drop to plain topic-coloured dots. Fewer than this and the
@@ -223,6 +218,9 @@ export function flyToMunicipality(map: mapboxgl.Map, geometry: GeoJSON.Geometry,
         map.easeTo({ center: geometry.coordinates as [number, number], zoom: 16, offset });
     }
 }
+
+/** The δήμος shown in the page bar. `nameMunicipality` is the genitive form (e.g. "Δήμος Χανίων"). */
+export type DisplayedMunicipality = Pick<LandingMapCity, 'id' | 'name' | 'nameMunicipality' | 'logoImage'>;
 
 /** View mode — drives the aside panel content and the map's marker layer.
  *  'home' = intro panel; 'subjects' = subjects list + pins; 'municipalities' = δήμοι + logo markers. */
@@ -396,8 +394,11 @@ export type LayoutProps = {
     /** the request's realm, resolved server-side — picks the contact number */
     realm: Realm;
     onCloseExplain: () => void;
-    /** The municipality shown on the map (clicked or filter-selected) — for its page link.
-     *  nameMunicipality is the genitive form (e.g. "Δήμος Χανίων"). */
-    displayedMunicipality: { id: string; name: string; nameMunicipality: string } | null;
+    /** The δήμος shown in the page bar — the filtered one, else a clicked one, else the covered
+     *  δήμος under the middle of a zoomed-in view. Shown on every view and both layouts. */
+    displayedMunicipality: DisplayedMunicipality | null;
+    /** a counter, incremented by a click inside a covered δήμος's boundary; each increment plays
+     *  the bar's attention animation once */
+    municipalityBarPulse: number;
     mapNode: ReactNode;
 };

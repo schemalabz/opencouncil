@@ -7,10 +7,10 @@ import { useMapViewCapture } from '@/components/landing/v2/hooks/useMapMarkers';
 import { SUBJECT_FOCUS_ZOOM } from '@/lib/landing/landingCore';
 import {
     isValidLngLat,
-    type CenterMunicipality,
     type CoLocatedBox,
     type GeneralBox,
     type LandingGeneralCity,
+    type LandingMapCity,
     type LandingSubject,
     type MapViewport,
 } from '@/lib/landing/landingData';
@@ -31,8 +31,8 @@ export type SubjectMapState = {
     /** a municipality's non-located subjects + screen position */
     generalBox: GeneralBox | null;
     setGeneralBox: (v: GeneralBox | null) => void;
-    /** the municipality under the map center — null unless `trackCenterMunicipality` is on */
-    centerMunicipality: CenterMunicipality | null;
+    /** the covered δήμος the view shows — null unless `municipalities` was given */
+    viewMunicipality: LandingMapCity | null;
     /** set before a programmatic pan so the next moveend doesn't refilter the list */
     suppressViewCaptureRef: MutableRefObject<boolean>;
     pendingCoLocatedRef: MutableRefObject<LandingSubject[] | null>;
@@ -52,7 +52,7 @@ export type SubjectMapState = {
 export function useSubjectMapState({
     mapInstance,
     initialZoom,
-    trackCenterMunicipality = false,
+    municipalities,
     onUserNavigate,
     surface = 'landing',
 }: {
@@ -60,9 +60,10 @@ export function useSubjectMapState({
     initialZoom: number;
     /** Which page the map runs on — off-landing the analytics leave the landing_* family. */
     surface?: MapSurface;
-    /** Resolve the δήμος under the map center on every move (one /api/cities/at call per
-     *  meaningful pan). Only the landing needs it — a city map already knows its δήμος. */
-    trackCenterMunicipality?: boolean;
+    /** The covered δήμοι with their boundaries. When given, `viewMunicipality` follows the map on
+     *  every move (resolved client-side, no request). Only the landing needs it — a city map
+     *  already knows its δήμος. */
+    municipalities?: LandingMapCity[];
     /** extra work on a genuine user pan/zoom, not on a suppressed programmatic move. The preview
      *  is dropped either way — navigating away from it must not snap the map back. */
     onUserNavigate?: () => void;
@@ -73,11 +74,14 @@ export function useSubjectMapState({
     const [mapZoom, setMapZoom] = useState(initialZoom);
     const [coLocated, setCoLocated] = useState<CoLocatedBox | null>(null);
     const [generalBox, setGeneralBox] = useState<GeneralBox | null>(null);
-    const [centerMunicipality, setCenterMunicipality] = useState<CenterMunicipality | null>(null);
+    const [viewMunicipality, setViewMunicipality] = useState<LandingMapCity | null>(null);
 
     const suppressViewCaptureRef = useRef(false);
     const pendingCoLocatedRef = useRef<LandingSubject[] | null>(null);
     const pendingGeneralRef = useRef<LandingGeneralCity | null>(null);
+    // Read by the capture on every move; a ref so a new list identity never re-subscribes it.
+    const municipalitiesRef = useRef<LandingMapCity[]>(municipalities ?? []);
+    municipalitiesRef.current = municipalities ?? [];
 
     useMapViewCapture({
         mapInstance,
@@ -86,7 +90,11 @@ export function useSubjectMapState({
         pendingCoLocatedRef,
         pendingGeneralRef,
         setMapZoom,
-        setCenterMunicipality: trackCenterMunicipality ? setCenterMunicipality : undefined,
+        municipalitiesRef,
+        // Same δήμος → same object, so a pan inside it re-renders nothing.
+        setViewMunicipality: municipalities
+            ? (next) => setViewMunicipality((prev) => (prev?.id === next?.id ? prev : next))
+            : undefined,
         setCoLocated,
         setGeneralBox,
         setMapView,
@@ -123,7 +131,7 @@ export function useSubjectMapState({
         setCoLocated,
         generalBox,
         setGeneralBox,
-        centerMunicipality,
+        viewMunicipality,
         suppressViewCaptureRef,
         pendingCoLocatedRef,
         pendingGeneralRef,

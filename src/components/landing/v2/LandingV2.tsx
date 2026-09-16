@@ -26,6 +26,7 @@ import {
     aggregateMunicipalityCounts,
     detectMunicipalityQuery,
     type ClickedMunicipality,
+    type LandingMapCity,
     type LandingPetitionedCity,
     type MunicipalityInterest,
 } from '@/lib/landing/landingData';
@@ -38,6 +39,7 @@ import {
     flyToMunicipality,
     parseInitialUrlState,
     type DateRangeKey,
+    type DisplayedMunicipality,
     type InfoSurface,
     type LandingView,
     type LayoutProps,
@@ -48,7 +50,6 @@ import { calculateGeometryBounds, isInSupportedMunicipality } from '@/lib/geo';
 import { useRouter } from '@/i18n/routing';
 import { hasExplainPage } from '@/lib/explain/availability';
 import type { Realm } from '@prisma/client';
-import { isPublic } from '@/lib/cityStatus';
 import { NotifyPrompt } from './NotifyPrompt';
 import { DesktopLayout } from './DesktopLayout';
 import { MobileLayout } from './MobileLayout';
@@ -164,12 +165,19 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         setCoLocated,
         generalBox,
         setGeneralBox,
-        centerMunicipality,
+        viewMunicipality,
         suppressViewCaptureRef,
         pendingCoLocatedRef,
         pendingGeneralRef,
         previewSubject: previewSubjectObject,
-    } = useSubjectMapState({ mapInstance, initialZoom: initialView.zoom, trackCenterMunicipality: true });
+    } = useSubjectMapState({
+        mapInstance,
+        initialZoom: initialView.zoom,
+        municipalities: initial.mapCities,
+        // A clicked δήμος stays in the bar only until the user pans or zooms. Then the viewport
+        // rule applies again, so the bar always matches the current view.
+        onUserNavigate: () => setClickedCoveredCity(null),
+    });
 
     // ---- real data ----
     const { topics } = useTopics();
@@ -178,6 +186,12 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
     const [cityGeometries, setCityGeometries] = useState<Record<string, GeoJSON.Geometry>>({});
     // An out-of-network municipality the user clicked on the map — shaded orange.
     const [clickedMunicipality, setClickedMunicipality] = useState<ClickedMunicipality | null>(null);
+    // A covered δήμος the user clicked on the map (inside its boundary, not on a marker). The page
+    // bar shows it at any zoom, until the next pan/zoom or a click elsewhere. `barPulse` counts
+    // those clicks, so the bar plays its animation once per click, also when it already shows that
+    // δήμος.
+    const [clickedCoveredCity, setClickedCoveredCity] = useState<LandingMapCity | null>(null);
+    const [barPulse, setBarPulse] = useState(0);
 
     const [range, setRange] = useState<DateRangeKey>(DEFAULT_RANGE);
     const [filters, setFilters] = useState<MapFilters>(EMPTY_FILTERS);
@@ -368,17 +382,24 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
 
     // The municipality chosen in the filters (single-select) — drives the blue-gray overlay.
     const filterCityId = filters.cityIds[filters.cityIds.length - 1] ?? null;
-    // "View its page" tracks the centered municipality as the user pans/zooms — but only for
-    // δήμοι in OpenCouncil (out-of-network ones have no page to link to), and only once zoomed in
-    // enough that a single δήμος is actually the focus (not the country-level default framing).
-    const displayedMunicipality =
-        centerMunicipality && isPublic(centerMunicipality.status) && mapZoom >= MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM
-            ? {
-                  id: centerMunicipality.id,
-                  name: centerMunicipality.name,
-                  nameMunicipality: centerMunicipality.nameMunicipality,
-              }
-            : null;
+    // The δήμος shown in the page bar. An active city filter has priority: the visitor chose it,
+    // and the map shows its subjects wherever the camera is. Next comes a δήμος the visitor clicked
+    // on the map, at any zoom. Otherwise it is the covered δήμος under the middle of the view (see
+    // pickViewportMunicipality), only when the zoom is high enough for a single δήμος to fill the
+    // view rather than the country-level framing.
+    const displayedMunicipality = useMemo<DisplayedMunicipality | null>(() => {
+        if (filterCityId) {
+            const mapCity = mapCities.find((c) => c.id === filterCityId);
+            if (mapCity) return mapCity;
+            // A listed δήμος without a boundary is not on the map's city list — still a page to open.
+            const listed = cities.find((c) => c.id === filterCityId);
+            return listed
+                ? { id: listed.id, name: listed.name, nameMunicipality: listed.name_municipality, logoImage: listed.logoImage }
+                : null;
+        }
+        if (clickedCoveredCity) return clickedCoveredCity;
+        return mapZoom >= MUNICIPALITY_PAGE_BUTTON_MIN_ZOOM ? viewMunicipality : null;
+    }, [filterCityId, mapCities, cities, clickedCoveredCity, mapZoom, viewMunicipality]);
     // Lazily fetch its boundary geometry the first time it's selected, then cache it.
     useEffect(() => {
         if (!filterCityId || cityGeometries[filterCityId]) return;
@@ -589,6 +610,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         closeExplainPopupRef.current?.();
         setExplainOpen(false);
         setClickedMunicipality(null);
+        setClickedCoveredCity(null);
         setCoLocated(null);
         setGeneralBox(null);
     };
@@ -637,6 +659,15 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         selectedId,
         selectedSubject,
         clickedMunicipality,
+        mapCities,
+        // A click inside a covered δήμος's boundary: the bar shows that δήμος and plays its
+        // animation once. The animation draws attention to the bar as the link to the δήμος page.
+        onMunicipalityClick: (city) => {
+            setClickedCoveredCity(city);
+            if (!city) return;
+            setBarPulse((n) => n + 1);
+            captureLandingAction('municipality_clicked', { city_id: city.id, source: 'map_boundary' });
+        },
         // Hide the office badge in the zoomed-out count view (it would pile onto Athens' number) and
         // while the Δήμοι tab is open, where the map is about the δήμοι themselves. Its popup's only
         // action is a link to /explain, so it is pointless where that page doesn't exist.
@@ -828,6 +859,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         realm,
         onCloseExplain: () => setExplainOpen(false),
         displayedMunicipality,
+        municipalityBarPulse: barPulse,
         mapNode,
     };
 

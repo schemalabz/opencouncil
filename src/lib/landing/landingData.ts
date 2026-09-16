@@ -3,7 +3,7 @@
  * Prisma-derived db-layer types, imported (not re-declared) so server/routes/client can't drift.
  */
 
-import type { AdministrativeBodyType, CityStatus } from '@prisma/client';
+import type { AdministrativeBodyType } from '@prisma/client';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { normalizeText } from '@/lib/utils';
 import { haversineDistance } from '@/lib/geo';
@@ -184,8 +184,6 @@ export function aggregateMunicipalityCounts(
     });
 }
 
-/** The municipality under the map center — drives the "view its page" button. */
-export type CenterMunicipality = { id: string; name: string; nameMunicipality: string; status: CityStatus };
 /** An out-of-network δήμος the visitor clicked on the map (shaded orange, "request it").
  *  `petitionBucket` rides along when the δήμος is on the petition layer, so the preview can say
  *  how many petitions it already has. */
@@ -408,6 +406,17 @@ function nameMatches(q: string, target: string): boolean {
     if (!target) return false;
     if (q === target) return true;
     return q.length >= 4 && (target.includes(q) || q.includes(target));
+}
+
+/**
+ * Whether a δήμος matches a name search (the Δήμοι tab's search box). A substring match on any of
+ * its names (the short name, the "Δήμος X" form, a Latin name), accent- and case-insensitive. An
+ * empty query matches everything.
+ */
+export function matchesMunicipalityName(query: string, ...names: (string | null | undefined)[]): boolean {
+    const q = normalizeText(query).trim();
+    if (!q) return true;
+    return names.some((name) => !!name && normalizeText(name).includes(q));
 }
 
 export function detectMunicipalityQuery(

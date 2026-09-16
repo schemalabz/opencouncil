@@ -213,7 +213,9 @@ export function CityMapTab({
                     )}
                 </aside>
 
-                <div className="relative min-w-0 flex-1">
+                {/* `isolate`: the pins set their own z-indexes. Without a stacking context on this
+                    wrapper, they would paint over the strip and the card below. */}
+                <div className="relative isolate min-w-0 flex-1">
                     <Map
                         className="absolute inset-0 h-full w-full"
                         center={center}
@@ -264,7 +266,7 @@ export function CityMapTab({
                                 }}
                             />
                         ) : (
-                            <div className="absolute inset-x-0 bottom-3">
+                            <div className="absolute inset-x-0 bottom-3 z-[9]">
                                 <SubjectStrip
                                     subjects={listSubjects}
                                     previewId={previewId}

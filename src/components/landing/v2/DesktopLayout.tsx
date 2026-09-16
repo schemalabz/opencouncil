@@ -5,11 +5,12 @@ import { LocateFixed, Loader2, PanelLeftClose } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ListHeader, RankedListHint, ZoomGroup } from './conceptShared';
 import { type LayoutProps, type LandingView } from '@/lib/landing/landingCore';
-import { CategoryFilterBar, DateRangePill, FewResultsHint, MapStyleToggle, MunicipalityPageButton } from './controls';
+import { matchesMunicipalityName } from '@/lib/landing/landingData';
+import { CategoryFilterBar, DateRangePill, FewResultsHint, MapStyleToggle, MunicipalityBar } from './controls';
 import { landingSearchHref, SearchChip, SearchErrorPill, SearchResultsFooter } from './searchSummary';
 import { DesktopSearch } from './SearchPanel';
 import { CoLocatedBox, GeneralSubjectsBox } from './mapMarkers';
-import { MunicipalitiesList } from './MunicipalitiesList';
+import { MunicipalitiesList, MunicipalitySearch } from './MunicipalitiesList';
 import { LandingAside } from './LandingAside';
 import { SubjectList } from './SubjectList';
 import { InfoPanel } from './InfoPanel';
@@ -60,6 +61,7 @@ export function DesktopLayout({
     zoomIn,
     zoomOut,
     displayedMunicipality,
+    municipalityBarPulse,
     mapNode,
     infoOpen,
     onToggleInfo,
@@ -70,6 +72,16 @@ export function DesktopLayout({
     const t = useTranslations('landingV2');
     // The list panel beside the rail — collapsible (X), default open.
     const [panelOpen, setPanelOpen] = useState(true);
+    // The Δήμοι tab's name search. It narrows the cards and the petition leaderboard. The
+    // below-threshold count cannot match a name, so it is hidden while a search is active.
+    const [municipalityQuery, setMunicipalityQuery] = useState('');
+    const municipalityFilter = municipalityQuery.trim();
+    const shownCities = municipalityFilter
+        ? cities.filter((c) => matchesMunicipalityName(municipalityFilter, c.name, c.name_municipality, c.name_en))
+        : cities;
+    const shownPetitioned = municipalityFilter
+        ? petitionedCities.filter((c) => matchesMunicipalityName(municipalityFilter, c.name, c.nameMunicipality))
+        : petitionedCities;
 
     // A rail nav click selects the view and (re)opens the panel; re-clicking the active tab
     // collapses it (but not when coming from the info drawer — then it just opens the tab).
@@ -120,7 +132,7 @@ export function DesktopLayout({
                     <div className="flex w-[400px] flex-col">
                         <ListHeader
                             title={infoOpen ? t('info.title') : view === 'home' ? 'OpenCouncil' : view === 'subjects' ? t('nav.subjects') : t('nav.municipalities')}
-                            count={infoOpen ? undefined : view === 'subjects' ? count : view === 'municipalities' ? cities.length : undefined}
+                            count={infoOpen ? undefined : view === 'subjects' ? count : view === 'municipalities' ? shownCities.length : undefined}
                             className="bg-card"
                             trailing={
                                 <button
@@ -150,22 +162,31 @@ export function DesktopLayout({
                         </div>
                     )}
 
+                    {/* the Δήμοι tab's search box — in the white header block, outside the scroll
+                        area, so it stays visible while the cards scroll */}
+                    {!infoOpen && view === 'municipalities' && (
+                        <div className="-mt-1 bg-card px-4 pb-3">
+                            <MunicipalitySearch value={municipalityQuery} onChange={setMunicipalityQuery} />
+                        </div>
+                    )}
+
                     {infoOpen ? (
                         <InfoPanel explainAvailable={explainAvailable} />
                     ) : view === 'municipalities' ? (
                         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/50 mb-3 px-4 py-4">
                             <MunicipalitiesList
-                                cities={cities}
+                                cities={shownCities}
                                 subjectCountByCity={subjectCountByCity}
                                 upcoming={upcoming}
                                 selectedCityId={filters.cityIds[0] ?? null}
                                 // like picking the δήμος in the filters — filter to it, stay on Δήμοι
-                                onSelect={(id) =>
+                                onShowOnMap={(id) =>
                                     setFilters({ ...filters, cityIds: filters.cityIds[0] === id ? [] : [id] })
                                 }
-                                petitionedCities={petitionedCities}
-                                petitionedBelowThreshold={petitionedBelowThreshold}
+                                petitionedCities={shownPetitioned}
+                                petitionedBelowThreshold={municipalityFilter ? 0 : petitionedBelowThreshold}
                                 onOpenPetitioned={onOpenPetitioned}
+                                noMatch={!!municipalityFilter && shownCities.length === 0 && shownPetitioned.length === 0}
                             />
                         </div>
                     ) : (
@@ -262,22 +283,29 @@ export function DesktopLayout({
                 <ZoomGroup onZoomIn={zoomIn} onZoomOut={zoomOut} />
             </div>
 
-            {/* basemap toggle (bottom, clear of the rail/panel) */}
-            <div className={`absolute bottom-4 z-[6] flex items-center gap-2 ${floatLeft}`}>
-                <MapStyleToggle satellite={satellite} onToggle={toggleMapStyle} />
-            </div>
-
-            {/* displayed δήμος's page link — centered over the map area, subjects view only */}
-            {view === 'subjects' && displayedMunicipality && (
-                <div className="absolute bottom-4 left-2/3 z-[6] -translate-x-1/2">
-                    <MunicipalityPageButton
-                        cityId={displayedMunicipality.id}
-                        nameMunicipality={displayedMunicipality.nameMunicipality}
-                        logoImage={cities.find((c) => c.id === displayedMunicipality.id)?.logoImage}
-                        large
-                    />
+            {/* bottom of the map: the basemap toggle and the bar that links to the displayed δήμος —
+                on every view, in the width up to the zoom controls. One row from xl up; below xl
+                the row is too narrow for both, so the bar renders on its own row above the
+                toggle. The block itself has pointer-events: none, so the map stays draggable
+                between the two controls. */}
+            <div
+                className={`pointer-events-none absolute bottom-4 right-[72px] z-[6] flex flex-col-reverse items-start gap-3 xl:flex-row xl:items-end xl:gap-4 ${floatLeft}`}
+            >
+                <div className="pointer-events-auto shrink-0">
+                    <MapStyleToggle satellite={satellite} onToggle={toggleMapStyle} />
                 </div>
-            )}
+                {displayedMunicipality && (
+                    <div className="pointer-events-auto flex w-full min-w-0 justify-center xl:flex-1">
+                        <MunicipalityBar
+                            municipality={displayedMunicipality}
+                            cities={cities}
+                            subjectCountByCity={subjectCountByCity}
+                            pulse={municipalityBarPulse}
+                            className="max-w-[720px]"
+                        />
+                    </div>
+                )}
+            </div>
 
             {coLocated && <CoLocatedBox data={coLocated} onSelect={onCoLocatedSelect} onClose={onCoLocatedClose} />}
 
