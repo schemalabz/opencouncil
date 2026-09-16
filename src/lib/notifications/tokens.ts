@@ -1,6 +1,5 @@
 import "server-only";
-import { createHmac, timingSafeEqual } from 'crypto';
-import { env } from '@/env.mjs';
+import { signPayload, verifyPayload } from '@/lib/auth/signedPayload';
 import type { Realm } from '@prisma/client';
 import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import { emailLocaleForRealm } from '@/lib/email/emailLocale';
@@ -25,38 +24,19 @@ export async function generateUnsubscribeToken(userId: string, cityId?: string):
         exp: Date.now() + TOKEN_TTL_MS,
     };
     if (cityId) data.cityId = cityId;
-
-    const payload = Buffer.from(JSON.stringify(data)).toString('base64url');
-    const signature = createHmac('sha256', env.NEXTAUTH_SECRET)
-        .update(payload)
-        .digest('base64url');
-
-    return `${payload}.${signature}`;
+    return signPayload('unsubscribe', data);
 }
 
+/**
+ * `allowUnkinded`: links in emails sent before 2026-09-16 carry no kind and
+ * stay valid for TOKEN_TTL_MS. Drop the option after 2026-10-16. The userId
+ * check is what keeps an unkinded token of another shape out.
+ */
 export async function verifyUnsubscribeToken(token: string): Promise<UnsubscribeTokenData | null> {
-    try {
-        const [payload, signature] = token.split('.');
-        if (!payload || !signature) return null;
-
-        const expectedSignature = createHmac('sha256', env.NEXTAUTH_SECRET)
-            .update(payload)
-            .digest('base64url');
-
-        const sigBuf = new Uint8Array(Buffer.from(signature, 'base64url'));
-        const expectedBuf = new Uint8Array(Buffer.from(expectedSignature, 'base64url'));
-        if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) return null;
-
-        const data: UnsubscribeTokenData = JSON.parse(
-            Buffer.from(payload, 'base64url').toString('utf-8')
-        );
-
-        if (Date.now() > data.exp) return null;
-
-        return data;
-    } catch {
-        return null;
-    }
+    const data = verifyPayload<UnsubscribeTokenData>('unsubscribe', token, { allowUnkinded: true });
+    if (!data || typeof data.userId !== 'string' || !data.userId) return null;
+    if (data.cityId !== undefined && typeof data.cityId !== 'string') return null;
+    return data;
 }
 
 /**
