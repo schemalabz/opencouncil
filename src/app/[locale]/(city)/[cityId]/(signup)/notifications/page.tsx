@@ -9,19 +9,24 @@ import { getSignupPreference } from "@/lib/db/signup";
 import { getTopics } from "@/lib/db/topics";
 import { getRealm } from "@/lib/realm.server";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { buildOgImageUrl } from "@/lib/og/locale";
+import { signupOpenGraph } from "@/lib/og/signupMetadata";
 
-export async function generateMetadata(props: { params: Promise<{ cityId: string }> }): Promise<Metadata> {
-    const params = await props.params;
-    const [city, t] = await Promise.all([getCityCached(params.cityId), getTranslations("notificationSignup")]);
+export async function generateMetadata(props: { params: Promise<{ cityId: string; locale: string }> }): Promise<Metadata> {
+    const { cityId, locale } = await props.params;
+    const [city, t] = await Promise.all([getCityCached(cityId), getTranslations("notificationSignup")]);
 
     if (!city) {
         notFound();
     }
 
+    const title = t("metaTitle");
+    const description = t("metaDescription");
     return {
-        title: t("metaTitle"),
-        description: t("metaDescription"),
-        alternates: await buildCanonicalAlternates(`/${params.cityId}/notifications`),
+        title,
+        description,
+        ...signupOpenGraph(locale, title, description, buildOgImageUrl(locale, { pageType: "notifications", cityId })),
+        alternates: await buildCanonicalAlternates(`/${cityId}/notifications`),
     };
 }
 

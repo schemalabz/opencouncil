@@ -9,12 +9,17 @@ import { getPetitionedMapCitiesCached } from "@/lib/db/cities";
 import { getUserSignupCityIds } from "@/lib/db/signup";
 import { getRealm } from "@/lib/realm.server";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { buildOgImageUrl } from "@/lib/og/locale";
+import { signupOpenGraph } from "@/lib/og/signupMetadata";
 
-export async function generateMetadata(): Promise<Metadata> {
-    const t = await getTranslations("petition");
+export async function generateMetadata(props: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+    const [{ locale }, t] = await Promise.all([props.params, getTranslations("petition")]);
+    const title = t("metaTitle");
+    const description = t("metaDescription");
     return {
-        title: t("metaTitle"),
-        description: t("metaDescription"),
+        title,
+        description,
+        ...signupOpenGraph(locale, title, description, buildOgImageUrl(locale, { pageType: "petition" })),
         alternates: await buildCanonicalAlternates("/petition"),
     };
 }

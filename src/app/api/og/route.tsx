@@ -8,7 +8,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { icons } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { getMeetingDataForOG } from '@/lib/db/meetings';
-import { getCity } from '@/lib/db/cities';
+import { getCity, getPetitionedMapCitiesCached } from '@/lib/db/cities';
 import { getConsultationDataForOG } from '@/lib/db/consultations';
 import { getLatestSubjectsForSpeaker } from '@/lib/db/subject';
 import { getParty, getPartiesForCity } from '@/lib/db/parties';
@@ -16,9 +16,13 @@ import { getPeopleForCity, getPerson } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
 import { RegulationData } from '@/components/consultations/types';
 import { getHotSubjectCardsCached } from '@/lib/hotSubjectCards';
-import { getInitials, getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
+import { getInitials, getLocalizedMunicipalityName, getLocalizedName, getMunicipalityQualifier } from '@/lib/formatters/name';
 import { formatDateStamp, formatDateTime } from '@/lib/formatters/time';
 import { sortSubjectsByImportance } from '@/lib/utils';
+import { isCustomer } from '@/lib/cityStatus';
+import { PETITION_BLUE, PETITION_DISPLAY_THRESHOLD } from '@/lib/landing/petitions';
+import { CHAT_SURFACE, NOTIS_CHAT } from '@/lib/notis/chat';
+import { authorityKey } from '@/components/cities/overview/authorityKey';
 import { getPartyFromRoles, getRoleLabelAt, isActivePartyMember, isRoleActive } from '@/lib/utils/roles';
 import { localizeText } from '@/lib/serbian';
 import { getRealm } from '@/lib/realm.server';
@@ -29,7 +33,8 @@ import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
 import { OG_LOCALE_PARAM, resolveOgLocale } from '@/lib/og/locale';
 import { LOGO_BLACK_DATA_URI, OG_FONTS } from '@/lib/og/serverAssets';
 import { getImageData, getPublicImageData, SEAL_BOX, type ImageBox } from '@/lib/og/remoteImage';
-import { getAboutPageStatsCached } from '@/lib/cache/queries';
+import { boundaryPath } from '@/lib/og/boundary';
+import { getAboutPageStatsCached, getAllCitiesMinimalCached, getCityPetitionBucketCached } from '@/lib/cache/queries';
 import { HERO_AUDIENCES, shotsForRealm } from '@/components/about/config';
 import { getPortraitData } from '@/lib/og/portrait';
 import { allIllustrated, getStaticIllustrations, getSubjectIllustrations, ILLUSTRATION_BOX } from '@/lib/og/illustration';
@@ -38,7 +43,7 @@ import { subjectOgElement } from '@/lib/og/subjectImage';
 import { topicGlyph } from '@/lib/og/topicIcon';
 import {
     OG, OgAvatar, OgBody, OgChip, OgChips, OgContextChip, OgEyebrow, OgFacts, OgFrame, OgHeader, OgHeadline,
-    OgRow, OgStack, OgTile, OgTileGrid, OgTitle,
+    OgRow, OgStack, OgTile, OgTileGrid, OgTitle, ogUppercase,
 } from '@/components/og/frame';
 
 /**
@@ -569,6 +574,285 @@ const SearchOGImage = (t: Translator) => (
     </OgFrame>
 );
 
+/** One bubble of Νότης's thread, as the page draws it: his in white at the left, the reader's in green at the right. */
+function chatBubble(text: string, from: 'notis' | 'user', lines: number): ReactNode {
+    const notis = from === 'notis';
+    return (
+        <div
+            key={text}
+            style={{
+                display: 'flex',
+                alignSelf: notis ? 'flex-start' : 'flex-end',
+                maxWidth: '86%',
+                // The squared corner is the tail: satori draws no CSS border triangle.
+                borderRadius: 10,
+                borderTopLeftRadius: notis ? 2 : 10,
+                borderTopRightRadius: notis ? 10 : 2,
+                background: notis ? NOTIS_CHAT.NOTIS_BUBBLE : NOTIS_CHAT.USER_BUBBLE,
+                padding: '9px 12px',
+            }}
+        >
+            <span style={{ display: 'block', fontSize: 16, lineHeight: 1.35, color: NOTIS_CHAT.INK, lineClamp: lines }}>{text}</span>
+        </div>
+    );
+}
+
+/** The widths the signup images are laid out on: the box at the right, and the text column beside it. */
+const NOTIS_BOX = 470;
+const PETITION_BOX = 420;
+const SIGNUP_COLUMN = 540;
+/** The box the municipality itself is drawn in, at the top of the petition's card. */
+const SEAL_CARD = { width: 240, height: 200 };
+/** How far down the petitioned list the image goes before the tail line takes over. */
+const PETITIONED_ROWS = 4;
+
+/**
+ * Νότης in his box, as the city page and the signup's first step show him: the
+ * header a WhatsApp thread has, then the first beat of the example — he says
+ * something, the reader asks, he answers. Labelled an example, as the page
+ * labels it: the script is not a message about this reader's municipality.
+ */
+function notisThread(locale: string, tc: Translator, intro: string): ReactNode {
+    return (
+        <div style={{ display: 'flex', width: NOTIS_BOX, flexDirection: 'column', overflow: 'hidden', borderRadius: 18, border: `1px solid ${OG.BORDER}`, background: '#ffffff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: `1px solid ${OG.BORDER}`, padding: '12px 16px' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={LOGO_BLACK_DATA_URI} width={34} height={34} alt="" style={{ objectFit: 'contain' }} />
+                <div style={{ display: 'flex', minWidth: 0, flexDirection: 'column', gap: 3 }}>
+                    <span style={{ fontSize: 18, lineHeight: 1.1 }}>{tc('notisName')}</span>
+                    <span style={{ display: 'block', width: 360, fontSize: 13, lineHeight: 1.25, color: OG.MUTED, lineClamp: 1 }}>{intro}</span>
+                </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 14, ...CHAT_SURFACE }}>
+                {/* Where WhatsApp puts its date chip, and where the signup's own
+                    preview puts its label. In flow rather than absolute: the pane
+                    clipped an absolute chip against the card's rounded edge. */}
+                <div style={{ display: 'flex', alignSelf: 'center', borderRadius: 9999, background: 'rgba(255,255,255,0.75)', padding: '3px 10px', fontSize: 12, lineHeight: 1.2, color: NOTIS_CHAT.MUTED }}>
+                    {ogUppercase(tc('notisExampleLabel'), locale)}
+                </div>
+                {chatBubble(tc('notisMsg1'), 'notis', 3)}
+                {chatBubble(tc('notisMsg2'), 'user', 1)}
+                {chatBubble(tc('notisMsg3'), 'notis', 3)}
+            </div>
+        </div>
+    );
+}
+
+/** A signup image's lead: the step's own sentence, under its heading. */
+function signupLead(text: string, maxWidth: number): ReactNode {
+    return <span style={{ display: 'block', maxWidth, fontSize: 19, lineHeight: 1.4, color: OG.INK_SOFT, lineClamp: 3 }}>{text}</span>;
+}
+
+/**
+ * The heading block both signup images draw: the eyebrow, the title, the lead
+ * and the footnote of the step the page opens on, in that order, because that
+ * is the order the page reads in.
+ */
+function signupHeading({ locale, eyebrow, title, lead, note, chip }: {
+    locale: string; eyebrow: string; title: string; lead: string; note?: string; chip?: ReactNode;
+}): ReactNode {
+    return (
+        <OgStack gap={16}>
+            <OgEyebrow text={eyebrow} locale={locale} />
+            <OgTitle size={44} lines={3} maxWidth={SIGNUP_COLUMN}>{title}</OgTitle>
+            {signupLead(lead, SIGNUP_COLUMN)}
+            {chip && <OgChips>{chip}</OgChips>}
+            {note && <span style={{ display: 'block', maxWidth: SIGNUP_COLUMN, fontSize: 16, lineHeight: 1.4, color: OG.MUTED, lineClamp: 2 }}>{note}</span>}
+        </OgStack>
+    );
+}
+
+/**
+ * The notifications signup — one municipality's, or the picker that covers
+ * every municipality Νότης serves.
+ *
+ * Νότης is what the page offers, so he is what the image shows: the same box,
+ * the same first beat of the same example. Beside him the step's own heading.
+ * A municipality that is not found, or that Νότης does not serve, has no
+ * image — the page itself redirects to the petition.
+ */
+const NotificationsOGImage = async (locale: string, t: Translator, realm: Realm, cityId: string | null) => {
+    const [tn, tc, city] = await Promise.all([
+        getTranslations({ locale, namespace: 'notificationSignup' }),
+        getTranslations({ locale, namespace: 'cityOverview' }),
+        cityId ? getCity(cityId) : null,
+    ]);
+    if (cityId && (!city || !city.supportsNotifications)) return null;
+
+    const [seal, supported] = await Promise.all([
+        getImageData(city?.logoImage, SEAL_BOX),
+        // The municipalities the picker lists: what the page offers a reader who has not chosen one.
+        city ? null : getAllCitiesMinimalCached(realm).then(cities => cities.filter(c => c.supportsNotifications).length),
+    ]);
+
+    const title = city
+        ? tn(authorityKey('introTitle', city), { qualifier: getMunicipalityQualifier(city, locale) })
+        : tn('pickerTitle');
+    // The city's own chip is the official-support badge its first step shows; the
+    // picker's is how many municipalities there are to pick from.
+    const chip = city
+        ? (isCustomer(city.status) ? <OgChip tone="success">{tn('officialSupport')}</OgChip> : null)
+        : <OgChip>{t('about.municipalities', { count: supported ?? 0 })}</OgChip>;
+
+    return (
+        <OgFrame>
+            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20}>
+                {city && <OgContextChip text={getLocalizedName(city, locale)} logoSrc={seal} />}
+            </OgHeader>
+            <OgBody
+                left={signupHeading({
+                    locale,
+                    eyebrow: tn('eyebrow'),
+                    title,
+                    lead: tn('lead'),
+                    chip,
+                    // The line the step itself closes on: how often he writes and
+                    // how to stop, or which channels the picker's reader will get.
+                    note: city ? tn('introNote') : tn('pickerFootnote'),
+                })}
+                right={notisThread(locale, tc, tc(authorityKey('notisIntro', city ?? { authorityType: 'municipality' })))}
+            />
+        </OgFrame>
+    );
+};
+
+/**
+ * A municipality's seal, or its initial where none is stored — as the signup's
+ * own card draws it. A municipality that is not covered yet rarely has a seal,
+ * which is exactly the municipality the petition images are about.
+ */
+function ogSeal(name: string, src: string | null, size: number): ReactNode {
+    return (
+        <div style={{ display: 'flex', width: size, height: size, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderRadius: 9999, background: src ? '#ffffff' : '#f5f5f4' }}>
+            {src ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={src} width={size} height={size} alt="" style={{ objectFit: 'contain' }} />
+            ) : (
+                <span style={{ fontSize: Math.round(size * 0.4), color: OG.MUTED }}>{Array.from(name)[0] ?? ''}</span>
+            )}
+        </div>
+    );
+}
+
+/**
+ * One municipality already being asked for, as the landing's leaderboard lists
+ * it: its rank, its name, and the coarse "N+" bucket. The exact number of
+ * petitioners is never drawn, because it is never published.
+ */
+function petitionedRow(rank: number, name: string, bucket: number): ReactNode {
+    return (
+        <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 14, width: PETITION_BOX, borderRadius: 14, border: `1px solid ${OG.BORDER}`, background: '#ffffff', padding: '13px 18px' }}>
+            <span style={{ width: 24, fontSize: 17, color: OG.MUTED }}>{rank}.</span>
+            <span style={{ flex: 1, fontSize: 21, lineHeight: 1.15, whiteSpace: 'nowrap' }}>{storyPreview(name, 22)}</span>
+            {/* The ramp's pale end, which is the badge the landing draws for the
+                lowest bucket. The renderer takes no other step of the ramp:
+                `petitionFill` mixes with color-mix, which satori cannot read,
+                and the rank beside the name already carries the order. */}
+            <div style={{ display: 'flex', borderRadius: 9999, background: PETITION_BLUE.pale, padding: '4px 11px', fontSize: 17, lineHeight: 1.2, color: PETITION_BLUE.deep }}>{bucket}+</div>
+        </div>
+    );
+}
+
+/**
+ * The petition — one municipality's, or the picker that opens on the ones
+ * already being asked for.
+ *
+ * The picker shows that list, ranked as the landing map ranks it and with the
+ * landing map's coarse counts; an exact number of petitioners never reaches an
+ * image, as it never reaches a page. One municipality's petition shows the
+ * municipality instead, with how many have asked for it so far. A municipality
+ * that already has notifications has nothing to ask for, and so has no image.
+ */
+const PetitionOGImage = async (locale: string, realm: Realm, cityId: string | null) => {
+    const [tp, tc, tl, city] = await Promise.all([
+        getTranslations({ locale, namespace: 'petition' }),
+        getTranslations({ locale, namespace: 'cityOverview' }),
+        getTranslations({ locale, namespace: 'landingV2' }),
+        cityId ? getCity(cityId, { includeGeometry: true }) : null,
+    ]);
+    if (cityId && (!city || city.supportsNotifications)) return null;
+
+    if (city) {
+        // The boundary is what the step's own second column draws. The seal is
+        // the fallback, and the municipality's initial the fallback after that:
+        // a municipality outside the network often has no seal stored. The seal
+        // is only fetched when the boundary did not draw.
+        const outline = boundaryPath(city.geometry, SEAL_CARD.width, SEAL_CARD.height, 6);
+        const [seal, bucket] = await Promise.all([
+            outline ? null : getImageData(city.logoImage, { width: 300, height: 300, fit: 'inside' }),
+            getCityPetitionBucketCached(city.id).catch(error => {
+                console.error('[og] petition bucket failed:', error);
+                return null;
+            }),
+        ]);
+        return (
+            <OgFrame>
+                <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20} />
+                <OgBody
+                    left={signupHeading({
+                        locale,
+                        eyebrow: tp('eyebrow'),
+                        title: tp(authorityKey('introTitle', city), { qualifier: getMunicipalityQualifier(city, locale) }),
+                        lead: tp('lead'),
+                        note: tp('introNote'),
+                    })}
+                    // The municipality, as the step's own card names it: the place
+                    // itself, its full name, and how many have asked for it.
+                    right={
+                        <div style={{ display: 'flex', width: PETITION_BOX, flexDirection: 'column', alignItems: 'center', gap: 18, borderRadius: 20, border: `1px solid ${OG.BORDER}`, background: '#ffffff', padding: '36px 28px' }}>
+                            {outline ?? ogSeal(getLocalizedName(city, locale), seal, 150)}
+                            <div style={{ display: 'block', maxWidth: 340, fontSize: 24, lineHeight: 1.2, textAlign: 'center', lineClamp: 2 }}>
+                                {getLocalizedMunicipalityName(city, locale)}
+                            </div>
+                            {/* Only when there is something to say. The step's card
+                                falls back to "not in the network yet", which this
+                                image's own headline has already said. */}
+                            {bucket !== null && <OgChip size={18} tone="orange">{tc('petitionCount', { count: bucket })}</OgChip>}
+                        </div>
+                    }
+                />
+            </OgFrame>
+        );
+    }
+
+    const petitioned = await getPetitionedMapCitiesCached(realm).catch(error => {
+        console.error('[og] petitioned cities failed:', error);
+        return null;
+    });
+    const shown = petitioned?.cities ?? [];
+    const top = shown.slice(0, PETITIONED_ROWS);
+    const overflow = shown.length - top.length;
+    // Municipalities with petitions under the display threshold. In a young
+    // realm nobody has reached it yet, and this count is the only petition
+    // signal there is — the landing's leaderboard renders for it alone.
+    const below = petitioned?.belowThresholdCount ?? 0;
+
+    return (
+        <OgFrame>
+            <OgHeader markSrc={LOGO_BLACK_DATA_URI} padBottom={20} />
+            <OgBody
+                left={signupHeading({ locale, eyebrow: tp('eyebrow'), title: tp('pickerTitle'), lead: tp('pickerLead') })}
+                right={(top.length > 0 || below > 0) && (
+                    <OgStack gap={10}>
+                        <OgEyebrow text={tl('municipality.petitionedTitle')} locale={locale} size={14} color={OG.MUTED} />
+                        {top.map((entry, i) => petitionedRow(i + 1, entry.name, entry.bucket))}
+                        {/* One tail line, as the landing's phone strip does it: the
+                            municipalities at or above the threshold come first, because
+                            the rows above are only the top of that list. */}
+                        {(overflow > 0 || below > 0) && (
+                            <span style={{ paddingLeft: 4, maxWidth: PETITION_BOX, fontSize: 16, lineHeight: 1.35, color: OG.MUTED }}>
+                                {overflow > 0
+                                    ? tl('municipality.petitionedOverflow', { count: overflow, threshold: PETITION_DISPLAY_THRESHOLD })
+                                    : tl('municipality.petitionedMore', { count: below, threshold: PETITION_DISPLAY_THRESHOLD })}
+                            </span>
+                        )}
+                    </OgStack>
+                )}
+            />
+        </OgFrame>
+    );
+};
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const cityId = searchParams.get('cityId');
@@ -577,7 +861,7 @@ export async function GET(request: Request) {
     const personId = searchParams.get('personId');
     const partyId = searchParams.get('partyId');
     const subjectId = searchParams.get('subjectId');
-    const pageType = searchParams.get('pageType'); // 'people', 'landing', 'about', 'explain', 'search'
+    const pageType = searchParams.get('pageType'); // 'people', 'landing', 'about', 'explain', 'search', 'notifications', 'petition'
 
     // The page that embeds the image passes its own locale; a request without
     // one falls back to the locale the host's readers see (see resolveOgLocale).
@@ -629,6 +913,12 @@ export async function GET(request: Request) {
             element = await PeopleOGImage(cityId, locale, t);
         } else if (pageType === 'landing') {
             element = await LandingOGImage(t, realm, locale);
+        } else if (pageType === 'notifications') {
+            // Both signup flows read their own cityId: with one, the image is that
+            // municipality's step 1; without one, the picker that opens the flow.
+            element = await NotificationsOGImage(locale, t, realm, cityId);
+        } else if (pageType === 'petition') {
+            element = await PetitionOGImage(locale, realm, cityId);
         } else if (pageType === 'about') {
             element = await AboutOGImage(locale, t, realm);
         } else if (pageType === 'explain') {
