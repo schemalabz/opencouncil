@@ -747,6 +747,9 @@
     "deleteNetworkError": "Erreur lors de la suppression"
   },
   "Profile": {
+    "voicePrintConsentError": "Le consentement n'a pas pu être enregistré. Réessayez.",
+    "voicePrintConsentLabel": "J'accepte le traitement de ma voix pour une empreinte vocale",
+    "voicePrintConsentDescription": "OpenCouncil peut créer une empreinte vocale à partir d'une intervention enregistrée de {name} en séance et l'utiliser pour reconnaître l'orateur dans les enregistrements futurs. Vous pouvez la retirer à tout moment.",
     "claim": {
       "linkedOnboarding": "Votre compte est maintenant lié à votre fiche d'élu. Renseignez vos informations ci-dessous pour terminer votre inscription. Vous pourrez ensuite gérer votre page depuis ce profil.",
       "title": "Fiche d'élu",

@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { NotificationPreferencesSection } from "@/components/profile/NotificationPreferencesSection";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatNumericDateTime } from "@/lib/formatters/time";
+import { setVoicePrintConsent } from "@/lib/actions/personConsent";
 
 // Server phone rejections that have their own message in the Profile namespace.
 const PHONE_ERROR_KEYS: Record<string, string> = {
@@ -26,12 +27,20 @@ const PHONE_ERROR_KEYS: Record<string, string> = {
     phone_in_use: "phoneInUse",
 };
 
+/** A person this account administers: the consent box is theirs, not the account's. */
+export interface ConsentPerson {
+    id: string;
+    name: string;
+    voicePrintConsent: boolean;
+}
+
 interface UserInfoFormProps {
     user: User;
     isOnboarded: boolean;
+    persons?: ConsentPerson[];
 }
 
-export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
+export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormProps) {
     const t = useTranslations("Profile");
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,10 +63,16 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
         allowPetitionUpdates: user.allowPetitionUpdates,
         allowFeedbackCalls: user.allowFeedbackCalls,
     });
+    // Only the boxes the user touched, never the whole set: the saved values
+    // come from `persons`, which router.refresh() keeps current, so a person
+    // linked from another device cannot be reverted by a stale tab.
+    const [consentEdits, setConsentEdits] = useState<Record<string, boolean>>({});
+    const [consentError, setConsentError] = useState(false);
+    const consentOf = (person: ConsentPerson) => consentEdits[person.id] ?? person.voicePrintConsent;
 
     const phoneSubmitBlocked = phoneValidity.isActive && !phoneValidity.isEmpty && !phoneValidity.isValid;
 
-    async function saveToApi(payload: object) {
+    async function saveToApi(payload: object, { refresh = true } = {}): Promise<boolean> {
         setIsSubmitting(true);
         try {
             const response = await fetch("/api/profile", {
@@ -73,27 +88,48 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
                 const key = code ? PHONE_ERROR_KEYS[code] : undefined;
                 if (key) {
                     setServerPhoneError(key);
-                    return;
+                    return false;
                 }
                 throw new Error("Failed to update profile");
             }
             setServerPhoneError(null);
-            router.refresh();
+            if (refresh) router.refresh();
+            return true;
         } catch (error) {
             console.error("Failed to update profile:", error);
+            return false;
         } finally {
             setIsSubmitting(false);
+        }
+    }
+
+    // The consent lives on the Person, so it takes its own action, after the
+    // account's own fields are saved. One refresh at the end covers both.
+    async function saveConsents() {
+        const changed = persons.filter((p) => consentOf(p) !== p.voicePrintConsent);
+        setIsSubmitting(true);
+        try {
+            await Promise.all(changed.map((p) => setVoicePrintConsent(p.id, consentOf(p))));
+            setConsentEdits({});
+            setConsentError(false);
+        } catch (error) {
+            console.error("Failed to save voiceprint consent:", error);
+            setConsentError(true);
+        } finally {
+            setIsSubmitting(false);
+            router.refresh();
         }
     }
 
     async function handlePersonalSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (phoneSubmitBlocked) return;
-        await saveToApi({
+        const saved = await saveToApi({
             name: formData.name,
             phone: phoneValidity.isEmpty ? null : formData.phone,
             onboarded: true,
-        });
+        }, { refresh: persons.length === 0 });
+        if (saved && persons.length > 0) await saveConsents();
     }
 
     async function handleCommunicationSubmit(e: React.FormEvent) {
@@ -199,6 +235,31 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
                                         <p className="text-sm text-red-500">{t(serverPhoneError)}</p>
                                     )}
                                 </div>
+
+                                {persons.length > 0 && (
+                                    <div className="space-y-4">
+                                        {persons.map((person) => (
+                                            <div key={person.id} className="flex items-start space-x-3">
+                                                <Checkbox
+                                                    id={`voicePrintConsent-${person.id}`}
+                                                    checked={consentOf(person)}
+                                                    onCheckedChange={(checked) =>
+                                                        setConsentEdits({ ...consentEdits, [person.id]: checked === true })
+                                                    }
+                                                />
+                                                <div className="space-y-1 leading-none">
+                                                    <Label htmlFor={`voicePrintConsent-${person.id}`}>{t("voicePrintConsentLabel")}</Label>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {t("voicePrintConsentDescription", { name: person.name })}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {consentError && (
+                                            <p className="text-sm text-red-500">{t("voicePrintConsentError")}</p>
+                                        )}
+                                    </div>
+                                )}
 
                                 <div className="flex flex-col justify-between gap-2">
                                     <p className="text-xs text-muted-foreground">

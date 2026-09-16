@@ -182,6 +182,8 @@ model Person {
   updatedAt DateTime @updatedAt
   profileUrl String?
 
+  voicePrintConsent PersonVoicePrintConsent?
+
   speakerTags SpeakerTag[]
   voicePrints VoicePrint[]
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
@@ -278,6 +280,17 @@ model TaskStatus {
   meetingAttendance MeetingAttendance[]
 
   @@index([councilMeetingId, cityId])
+}
+
+/// The person's own consent to a voiceprint, ticked on the profile by the
+/// account that administers them. A row is the consent; withdrawal deletes
+/// it. Its own table, not a column on Person: every public read of a person
+/// (the API, the pages) carries the whole row, and consent is not public.
+/// Recorded only for now: nothing reads it before generation or transcription.
+model PersonVoicePrintConsent {
+  personId    String   @id
+  person      Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  consentedAt DateTime @default(now())
 }
 
 model VoicePrint {

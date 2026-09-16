@@ -4,11 +4,12 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { getCurrentUser } from "@/lib/auth";
 import { canAccessMyHighlights } from "@/lib/db/highlights";
-import { UserInfoForm } from "@/components/profile/UserInfoForm";
+import { UserInfoForm, type ConsentPerson } from "@/components/profile/UserInfoForm";
 import { AdminSection } from "@/components/profile/AdminSection";
 import { DevelopmentSection } from "@/components/profile/DevelopmentSection";
 import { Clapperboard, ChevronRight } from "lucide-react";
 import { ClaimNotice } from "@/components/profile/ClaimNotice";
+import { getVoicePrintConsentedIds } from "@/lib/db/personConsent";
 import { claimMessageKey } from "@/lib/utils/claimStatus";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
@@ -22,11 +23,18 @@ export const metadata: Metadata = {
 export default async function ProfilePage(props: { searchParams: Promise<{ claim?: string }> }) {
     const [user, { claim }] = await Promise.all([getCurrentUser(), props.searchParams]);
     if (!user) redirect("/sign-in");
+    // The persons this account speaks for: their voiceprint consent boxes.
+    const linkedPersons = user.administers.flatMap((a) => (a.person ? [a.person] : []));
+    const consented = await getVoicePrintConsentedIds(linkedPersons.map((p) => p.id));
+    const persons: ConsentPerson[] = linkedPersons.map((p) => ({
+        id: p.id,
+        name: p.name,
+        voicePrintConsent: consented.has(p.id),
+    }));
     // A success needs the link to exist: the status is a query parameter,
     // and anyone can type one.
     const claimKey = claimMessageKey(claim);
-    const hasPerson = user.administers.some((a) => a.person);
-    const claimShown = claimKey === "linked" || claimKey === "alreadyYours" ? hasPerson : claimKey !== null;
+    const claimShown = claimKey === "linked" || claimKey === "alreadyYours" ? persons.length > 0 : claimKey !== null;
 
     const [t, tAccount, highlightsAllowed] = await Promise.all([
         getTranslations("Profile"),
@@ -63,7 +71,7 @@ export default async function ProfilePage(props: { searchParams: Promise<{ claim
                     <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
                 </Link>
             )}
-            <UserInfoForm user={user} isOnboarded={!!user.onboarded} />
+            <UserInfoForm user={user} isOnboarded={!!user.onboarded} persons={persons} />
         </div>
     );
 }
