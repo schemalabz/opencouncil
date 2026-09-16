@@ -9,7 +9,8 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { useStoredState } from '@/hooks/useStoredState';
 import { useBarData } from './BarDataContext';
 import { useBarHighlight } from './BarHighlightContext';
-import { BarTimeline, DIM_OPACITY, type ModeAnnounce } from './BarTimeline';
+import { BarTimeline, DIM_OPACITY } from './BarTimeline';
+import { announcePreview, announceSwitch, type ModeAnnounce } from './modeAnnounce';
 import { useLiveTime } from './useLiveTime';
 import { nowBand, NowPlayingSubjectLink } from './nowPlaying';
 import { DOCK_GAP, DOCK_ROW, DOCK_ROW_COMPACT, MINI_VIDEO_WIDTH } from './geometry';
@@ -69,12 +70,18 @@ export function PlaybackBar() {
     const [collapsed, setCollapsed] = useStoredState(COLLAPSED_KEY, parseCollapsed, false, 'session');
 
     // Set only by the picker, never by the subject page's programmatic preset:
-    // the big label teaches what the button does, so it follows the button.
+    // the big label teaches what the button does, so it follows the button —
+    // and the mouse over it, which tries the other mode on before any click.
     const [announce, setAnnounce] = useState<ModeAnnounce | null>(null);
     const announceSeq = useRef(0);
     const switchMode = (m: BarMode) => {
         setMode(m);
-        setAnnounce({ mode: m, key: ++announceSeq.current });
+        const key = ++announceSeq.current;
+        setAnnounce(previous => announceSwitch(previous, m, key));
+    };
+    const previewMode = (m: BarMode | null) => {
+        const key = ++announceSeq.current;
+        setAnnounce(previous => announcePreview(previous, m, key));
     };
 
     const setCollapsedPersisted = (value: boolean) => {
@@ -85,6 +92,8 @@ export function PlaybackBar() {
     };
 
     const effectiveMode: BarMode = hasSubjectData ? mode : 'speakers';
+    // The strip wears a held preview over the reader's choice; the picker keeps showing the choice.
+    const shownMode: BarMode = announce?.phase === 'hold' ? announce.mode : effectiveMode;
 
     const pill = isMobile && collapsed;
 
@@ -132,8 +141,8 @@ export function PlaybackBar() {
                     <PlayButton compact={isMobile} />
                 </div>
                 <MiniVideo compact={isMobile} />
-                <BarTimeline mode={effectiveMode} compact={isMobile} announce={announce} onAnnounceEnd={() => setAnnounce(null)} dormant={pill} />
-                {hasSubjectData && <ModePicker mode={effectiveMode} onModeChange={switchMode} compact={isMobile} />}
+                <BarTimeline mode={shownMode} compact={isMobile} announce={announce} onAnnounceEnd={() => setAnnounce(null)} dormant={pill} />
+                {hasSubjectData && <ModePicker mode={effectiveMode} onModeChange={switchMode} onPreview={previewMode} compact={isMobile} />}
                 <div className="self-center"><ClipNav /></div>
             </div>
             {isMobile && !pill && <TimeReadout />}

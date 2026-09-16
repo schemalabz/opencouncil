@@ -19,6 +19,7 @@ import { TimelineLens } from './lens/TimelineLens';
 import { HoverBandDetails, SpeakerLine, SubjectLine } from './HoverBandDetails';
 import { Users, Shapes } from 'lucide-react';
 import type { BarMode } from './ModePicker';
+import type { ModeAnnounce } from './modeAnnounce';
 import { cn, formatTimestamp } from '@/lib/utils';
 
 export const DIM_OPACITY = 0.16;
@@ -26,11 +27,16 @@ export const DIM_OPACITY = 0.16;
 /** What Page Up and Page Down seek on a meeting with no chapters to jump between. */
 const PAGE_STEP_SECONDS = 300;
 
-/** One explicit mode switch — the key remounts the overlay so the animation replays. */
-export interface ModeAnnounce {
-    mode: BarMode;
-    key: number;
-}
+/**
+ * The mode name's run, per phase (see modeAnnounce.ts): a hover fades it in
+ * and keeps it; a switch plays it out; a switch made from the hover skips the
+ * fade-in the hover already did. Whole class strings, for Tailwind's scanner.
+ */
+const ANNOUNCE_ANIMATION: Record<ModeAnnounce['phase'], string> = {
+    hold: 'animate-[bar-mode-announce-in_150ms_ease-out_forwards]',
+    play: 'animate-[bar-mode-announce_1.7s_ease-in-out_forwards]',
+    release: 'animate-[bar-mode-announce-out_1.7s_ease-in-out_forwards]',
+};
 
 /**
  * The coloured strip. Three layers with three very different update rates:
@@ -221,9 +227,10 @@ export function BarTimeline({ mode, compact = false, announce = null, onAnnounce
                 {announce && (
                     <div
                         key={announce.key}
-                        onAnimationEnd={onAnnounceEnd}
+                        // a held name ends with the hover, not with its fade-in
+                        onAnimationEnd={announce.phase === 'hold' ? undefined : onAnnounceEnd}
                         aria-hidden
-                        className="pointer-events-none absolute inset-0 flex animate-[bar-mode-announce_2.4s_ease-in-out_forwards] items-center justify-center gap-2 bg-card/85 opacity-0"
+                        className={cn('pointer-events-none absolute inset-0 flex items-center justify-center gap-2 bg-card/85 opacity-0', ANNOUNCE_ANIMATION[announce.phase])}
                         style={{ zIndex: 12 }}
                     >
                         {announce.mode === 'speakers'

@@ -106,3 +106,37 @@ describe('excerpt review disclosure', () => {
         expect(writeText).not.toHaveBeenCalled();
     });
 });
+
+// The floating button's side, from the same fixture: it needs the toolbar's
+// selection path, which the disclosure tests above never take.
+describe('share button placement', () => {
+    // jsdom has no PointerEvent and no layout: give it the one and fake the other.
+    class FakePointerEvent extends MouseEvent {
+        pointerType: string;
+        constructor(type: string, init: PointerEventInit = {}) { super(type, init); this.pointerType = init.pointerType ?? ''; }
+    }
+    beforeAll(() => {
+        Object.defineProperty(window, 'PointerEvent', { configurable: true, value: FakePointerEvent });
+        Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 });
+        Range.prototype.getBoundingClientRect = () => ({ top: 300, bottom: 320, left: 100, right: 300, width: 200, height: 20, x: 100, y: 300, toJSON: () => ({}) });
+    });
+    function selectFirstUtterance() {
+        const range = document.createRange();
+        range.selectNodeContents(screen.getByText('Saved transcript text.'));
+        const selection = window.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(range);
+        fireEvent(document, new Event('selectionchange'));
+    }
+    it('hangs above a selection made with a mouse and sits below one made with a finger', async () => {
+        render(<Fixture />);
+        const transcript = screen.getByTestId('transcript');
+        fireEvent.pointerDown(transcript, { pointerType: 'mouse' });
+        selectFirstUtterance();
+        const button = await screen.findByRole('button', { name: 'shareExcerpt' });
+        expect(button.parentElement).toHaveStyle({ bottom: '508px' });
+        fireEvent.pointerDown(transcript, { pointerType: 'touch' });
+        selectFirstUtterance();
+        await waitFor(() => expect(button.parentElement).toHaveStyle({ top: '328px' }));
+    });
+});
