@@ -13,6 +13,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { Metadata } from "next";
 import { getMetadataBaseFromRequest, getRealmBaseUrlFromRequest } from "@/lib/realm.server";
+import { appleStartupImages } from "@/lib/pwa/splash";
 
 export async function generateMetadata(): Promise<Metadata> {
     // metadataBase is the realm's canonical domain (resolved from the request
@@ -39,6 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
             capable: true,
             title: 'OpenCouncil',
             statusBarStyle: 'default',
+            startupImage: appleStartupImages(),
         },
         metadataBase: new URL(metadataBase),
         openGraph: {

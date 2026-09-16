@@ -1,7 +1,9 @@
 import path from "path";
 import sharp from "sharp";
+import { APPLE_SPLASH_SCREENS, appleSplashPath } from "../src/lib/pwa/splash";
 
-// Renders the PWA icon set from the brand mark in public/logo.png. Run with
+// Renders the PWA icon set and the iOS startup images from the brand mark in
+// public/logo.png. Run with
 // `npm run generate-pwa-icons` after the mark changes; the output is committed
 // because the manifest (src/app/manifest.ts) and the root layout link to
 // these files by name.
@@ -37,6 +39,21 @@ async function render(mark: Buffer, size: number, markRatio: number): Promise<Bu
         .toBuffer();
 }
 
+// A startup image is the splash iOS shows while the app opens: the mark
+// centred on white, sized to the device. The mark takes a quarter of the
+// shorter side, which keeps it inside the notch and home-bar areas.
+async function renderSplash(mark: Buffer, width: number, height: number): Promise<Buffer> {
+    const markSize = Math.round(Math.min(width, height) * 0.25);
+    const resized = await sharp(mark)
+        .resize(markSize, markSize, { fit: "contain", background: { ...WHITE, alpha: 0 } })
+        .png()
+        .toBuffer();
+    return sharp({ create: { width, height, channels: 4, background: WHITE } })
+        .composite([{ input: resized, gravity: "centre" }])
+        .png()
+        .toBuffer();
+}
+
 async function main() {
     // logo.png carries wide transparent margins; trim them so markRatio
     // measures the mark itself, not the file.
@@ -44,6 +61,11 @@ async function main() {
     for (const { file, size, markRatio } of ICONS) {
         const out = path.join(OUT_DIR, file);
         await sharp(await render(mark, size, markRatio)).toFile(out);
+        console.log(`wrote ${path.relative(process.cwd(), out)}`);
+    }
+    for (const screen of APPLE_SPLASH_SCREENS) {
+        const out = path.join(process.cwd(), "public", appleSplashPath(screen));
+        await sharp(await renderSplash(mark, screen.width * screen.ratio, screen.height * screen.ratio)).toFile(out);
         console.log(`wrote ${path.relative(process.cwd(), out)}`);
     }
 }
