@@ -13,6 +13,7 @@ import {
     getRealmCountry,
     getRealmGeocoding,
     getRealmContactPhone,
+    getRealmStage,
     telHref,
     ALL_REALMS,
 } from '../realm';
@@ -238,6 +239,19 @@ describe('getRealmContactPhone', () => {
             france: '+30 211 198 0212',
             cyprus: '+30 211 198 0212',
             serbia: '0800 301167',
+        });
+    });
+});
+
+describe('getRealmStage', () => {
+    // One map, for the same reason as the phone numbers above: a new realm has to
+    // be placed here, and "pending" is the only stage that can be assumed.
+    it('pairs every realm with its stage', () => {
+        expect(Object.fromEntries(ALL_REALMS.map((r) => [r, getRealmStage(r)]))).toEqual({
+            greece: 'active',
+            france: 'pending',
+            cyprus: 'pending',
+            serbia: 'pending',
         });
     });
 });
