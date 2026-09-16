@@ -65,6 +65,12 @@ export default function Marquee({
           .map((_, i) => (
             <div
               key={i}
+              // Only the first copy is the content; the rest exist so the row can
+              // scroll without a seam. A screen reader that read all of them would
+              // announce the same list `copyCount` times, and a keyboard would
+              // tab through it as many times, so the duplicates are inert and
+              // hidden from the accessibility tree.
+              {...(i > 0 ? { "aria-hidden": true, inert: true } : {})}
               className={cn("flex shrink-0 [gap:var(--gap)]", {
                 "animate-marquee flex-row items-center": !vertical,
                 "animate-marquee-vertical flex-col items-center": vertical,

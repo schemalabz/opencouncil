@@ -21,10 +21,19 @@ const OFFICE_PHONE = '+30 211 198 0212';
  * client components (the footer country-switcher) and the edge/middleware bundle
  * (`proxy.ts`). The request-scoped resolver lives in `realm.server.ts`.
  */
+/**
+ * Where a realm stands commercially. `active` realms have paying municipalities:
+ * the sales page quotes prices and shows the realm's own municipalities as
+ * proof. `pending` realms are still looking for their first pilot: the sales
+ * page asks for that pilot instead of quoting prices, and borrows the active
+ * realms' municipalities as proof.
+ */
+export type RealmStage = 'active' | 'pending';
+
 export const REALMS = {
-    greece: { domain: 'opencouncil.gr', defaultLocale: 'el', country: 'GR', contactPhone: OFFICE_PHONE },
-    france: { domain: 'opencouncil.fr', defaultLocale: 'fr', country: 'FR', contactPhone: OFFICE_PHONE },
-    cyprus: { domain: 'opencouncil.cy', defaultLocale: 'el', country: 'CY', contactPhone: OFFICE_PHONE },
+    greece: { domain: 'opencouncil.gr', defaultLocale: 'el', country: 'GR', contactPhone: OFFICE_PHONE, stage: 'active' },
+    france: { domain: 'opencouncil.fr', defaultLocale: 'fr', country: 'FR', contactPhone: OFFICE_PHONE, stage: 'pending' },
+    cyprus: { domain: 'opencouncil.cy', defaultLocale: 'el', country: 'CY', contactPhone: OFFICE_PHONE, stage: 'pending' },
     // Serbian is digraphic: `sr` (Cyrillic) is the default, `sr-Latn` is the
     // realm-exclusive Latin variant reachable via the script switcher.
     // The Serbian number is a domestic toll-free line, so it is shown and
@@ -35,6 +44,7 @@ export const REALMS = {
         extraLocales: ['sr-Latn'],
         country: 'RS',
         contactPhone: '0800 301167',
+        stage: 'pending',
     },
 } as const satisfies Record<
     Realm,
@@ -44,6 +54,7 @@ export const REALMS = {
         country: Country;
         extraLocales?: readonly string[];
         contactPhone: string;
+        stage: RealmStage;
     }
 >;
 
@@ -308,6 +319,11 @@ export function getRealmDefaultMapView(realm: Realm): { center: [number, number]
  */
 export function getRealmContactPhone(realm: Realm): string {
     return REALMS[realm].contactPhone;
+}
+
+/** Whether a realm sells to paying municipalities yet, or is still after its first pilot. */
+export function getRealmStage(realm: Realm): RealmStage {
+    return REALMS[realm].stage;
 }
 
 /**

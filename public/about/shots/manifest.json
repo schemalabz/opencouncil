@@ -1,0 +1,142 @@
+{
+  "greece": {
+    "subject": "/athens/aug26_2026/subjects/cmt48gqmf061i98hh28p90yhp",
+    "files": {
+      "hero-desktop": {
+        "file": "hero-desktop.webp",
+        "width": 1200,
+        "height": 750
+      },
+      "staff-transcript": {
+        "file": "staff-transcript.webp",
+        "width": 1200,
+        "height": 750
+      },
+      "mobile-subject": {
+        "file": "mobile-subject.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-transcript": {
+        "file": "mobile-transcript.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-search": {
+        "file": "mobile-search.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-map": {
+        "file": "mobile-map.webp",
+        "width": 600,
+        "height": 1299
+      }
+    }
+  },
+  "france": {
+    "subject": "/fr/rennes/apr27_2026/subjects/cmqqzisrq02cvf0yhn637jfr7",
+    "files": {
+      "hero-desktop": {
+        "file": "hero-desktop.webp",
+        "width": 1200,
+        "height": 750
+      },
+      "staff-transcript": {
+        "file": "staff-transcript.webp",
+        "width": 1200,
+        "height": 750
+      },
+      "mobile-subject": {
+        "file": "mobile-subject.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-transcript": {
+        "file": "mobile-transcript.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-search": {
+        "file": "mobile-search.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-map": {
+        "file": "mobile-map.webp",
+        "width": 600,
+        "height": 1299
+      }
+    }
+  },
+  "serbia": {
+    "subject": "/sr/nis/mar17_2026/subjects/cmsepbort040ro3iiihd42r67",
+    "files": {
+      "hero-desktop": {
+        "file": "hero-desktop.webp",
+        "width": 1200,
+        "height": 750
+      },
+      "staff-transcript": {
+        "file": "staff-transcript.webp",
+        "width": 1200,
+        "height": 750
+      },
+      "mobile-subject": {
+        "file": "mobile-subject.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-transcript": {
+        "file": "mobile-transcript.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-search": {
+        "file": "mobile-search.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-map": {
+        "file": "mobile-map.webp",
+        "width": 600,
+        "height": 1299
+      }
+    }
+  },
+  "cyprus": {
+    "subject": "/vouli/jul15_2026/subjects/cmtslig9w022r41cma091foyu",
+    "files": {
+      "hero-desktop": {
+        "file": "hero-desktop.webp",
+        "width": 1200,
+        "height": 750
+      },
+      "staff-transcript": {
+        "file": "staff-transcript.webp",
+        "width": 1200,
+        "height": 750
+      },
+      "mobile-subject": {
+        "file": "mobile-subject.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-transcript": {
+        "file": "mobile-transcript.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-search": {
+        "file": "mobile-search.webp",
+        "width": 600,
+        "height": 1299
+      },
+      "mobile-map": {
+        "file": "mobile-map.webp",
+        "width": 600,
+        "height": 1299
+      }
+    }
+  }
+}

@@ -1,32 +1,290 @@
 {
   "nav": {
-    "openness": "Openness",
-    "internal": "For staff",
-    "how-it-works": "How it works",
-    "recognition": "Awards & Mentions",
+    "residents": "For residents",
+    "services": "For staff",
+    "process": "How it works",
+    "proof": "Recognition",
     "pricing": "Pricing",
+    "pilot": "Pilot",
     "team": "Team"
   },
   "metadata": {
-    "title": "OpenCouncil — The operating system for municipal councils",
-    "description": "City councils, committees, and communities — more open for citizens, more efficient for staff. In 10 municipalities across Greece.",
+    "title": "OpenCouncil — Municipal councils and committees, open to everyone",
+    "description": "Video, transcript, search, per-subject summaries, notifications for residents. Your minutes, ready to sign within 48 hours, at a competitive cost.",
     "keywords": "OpenCouncil,artificial intelligence,city councils,transparency,democracy,local government,automation,civic engagement,citizens"
   },
   "hero": {
-    "title": "The operating system",
-    "titleHighlight": "for municipal councils",
-    "subtitle": "City councils, committees, and communities — more open for citizens, more efficient for staff.",
-    "scheduleCall": "Schedule a call",
-    "counters": {
-      "municipalities": "municipalities",
-      "subjects": "subjects",
-      "meetingHours": "hours of meetings"
+    "kicker": "For municipalities",
+    "pilot": {
+      "france": "We are looking for our first pilot municipality in France",
+      "serbia": "We are looking for our first pilot municipality in Serbia",
+      "cyprus": "We are looking for our first pilot municipality in Cyprus"
+    },
+    "title": "Municipal councils and committees,",
+    "titleHighlight": "open to everyone",
+    "audiences": {
+      "residents": {
+        "lead": "For residents:",
+        "text": "video, transcript, search, per-subject summaries, notifications."
+      },
+      "services": {
+        "lead": "For staff:",
+        "text": "the minutes, ready to sign within 48 hours, at a competitive cost."
+      }
+    },
+    "scheduleCall": "Book a presentation",
+    "becomePilot": "Become the first pilot municipality",
+    "frameAlt": "A meeting subject page on OpenCouncil"
+  },
+  "strip": {
+    "line": "In <b>{count, plural, one {# municipality} other {# municipalities}}</b> across Greece, from Samothraki to Athens. <b>{meetings, plural, one {# meeting} other {# meetings}} published</b>.",
+    "linePending": "Live in <b>{count, plural, one {# municipality} other {# municipalities}} in Greece</b>, from Samothraki to Athens. <b>{meetings, plural, one {# meeting} other {# meetings}} published</b>."
+  },
+  "residents": {
+    "kicker": "For residents",
+    "title": "Hours-long meetings, understood in minutes.",
+    "subtitle": "Within 48 hours of every meeting, every subject has its video, summary, contributions per speaker and decision.",
+    "features": {
+      "subjects": {
+        "title": "Subjects and summaries",
+        "description": "Every meeting is split into subjects. For each one: a summary, each speaker’s position in brief, the video and the decision.",
+        "link": "See a subject"
+      },
+      "search": {
+        "title": "Search",
+        "description": "Search everything that has been said, in every meeting, in every municipality.",
+        "link": "Try the search"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "description": "Residents get a WhatsApp, SMS or email message whenever the council discusses their street or neighbourhood.",
+        "link": "Sign up for notifications"
+      },
+      "map": {
+        "title": "Subject map",
+        "description": "The council’s and the communities’ subjects on the map. Zoom into any area, neighbourhood and street.",
+        "link": "See the map"
+      }
     }
   },
-  "socialProof": {
-    "prefix": "In",
-    "municipalities": "{count} municipalities",
-    "suffix": "across Greece, from Samothraki to Athens."
+  "services": {
+    "kicker": "For staff",
+    "title": "What took days now takes hours.",
+    "subtitle": "Transcripts, minutes, decisions: automatically, or with minimal human intervention.",
+    "features": {
+      "transcription": {
+        "title": "Transcript in 48 hours",
+        "description": "A transcript of every meeting, accurate and checked by a person, with automatic speaker recognition."
+      },
+      "minutes": {
+        "title": "Minutes ready to sign",
+        "description": "The meeting’s minutes, with attendance, votes and decisions, ready for review and signature."
+      },
+      "diavgeia": {
+        "title": "Decisions for Diavgeia",
+        "description": "Decision documents ready to be posted on Diavgeia.",
+        "badge": "December 2026"
+      },
+      "printArchive": {
+        "title": "Printed archive",
+        "description": "The transcript archive delivered in print, to your municipality’s specifications."
+      }
+    },
+    "minutes": {
+      "kicker": "Minutes · City Council 26/08/2026",
+      "title": "Item 2 · Removal of the Badminton building, Goudi Park",
+      "meta": "Decision 537 · ΑΔΑ 968ΦΩ6Μ-025 · Unanimous",
+      "status": "Ready to sign"
+    },
+    "punchline": "OpenCouncil replaces your minutes provider, at a similar cost and with ten times the functionality.",
+    "frameAlt": "A meeting transcript on OpenCouncil"
+  },
+  "process": {
+    "kicker": "How it works",
+    "title": "From the meeting to the resident, automatically.",
+    "steps": {
+      "record": {
+        "title": "Recording",
+        "description": "The meeting is recorded or pulled from YouTube. A video or an audio file is enough."
+      },
+      "hours": {
+        "title": "48 hours",
+        "description": "Transcription with speaker recognition, checked by a person. Subjects, summaries and decisions, automatically."
+      },
+      "publish": {
+        "title": "Publication",
+        "description": "The meeting is published, residents are notified and the minutes are ready to sign."
+      }
+    }
+  },
+  "proof": {
+    "kicker": "What municipalities say",
+    "quote": "Within the first five minutes, I knew this was something different.",
+    "name": "Head of Planning, Organisation and IT",
+    "org": "Municipality of Chania",
+    "awardsTitle": "Awards and mentions",
+    "items": {
+      "ministryAward": {
+        "title": "Ministry of Digital Governance Award",
+        "subtitle": "Best Applied Idea, Local Government"
+      },
+      "epsa": {
+        "title": "EPSA 2025-26",
+        "subtitle": "Best Practice Certificate"
+      },
+      "innovationInPolitics": {
+        "title": "Innovation in Politics Awards 2026",
+        "subtitle": "Finalist"
+      },
+      "oecd": {
+        "title": "OECD",
+        "subtitle": "Cited in a report on AI in government"
+      },
+      "kede": {
+        "title": "KEDE",
+        "subtitle": "Article on OpenCouncil in Chania"
+      },
+      "wired": {
+        "title": "WIRED Greece",
+        "subtitle": "Article"
+      }
+    }
+  },
+  "pricing": {
+    "title": "Transparent pricing, for municipalities of every size.",
+    "subtitle": "It costs as much as, or less than, the transcription you already pay for, with ten times the functionality.",
+    "sessionProcessing": "Meeting ingestion",
+    "sessionProcessingDesc": "Includes digitization and human-verified transcription correction",
+    "perHour": "/ hour",
+    "platformUsage": "Platform Usage",
+    "platformUsageDesc": "Pricing based on municipality size",
+    "tiers": [
+      "Up to 2,000 residents",
+      "2,001 - 10,000 residents",
+      "10,001 - 30,000 residents",
+      "30,001 - 50,000 residents",
+      "50,001 - 100,000 residents",
+      "100,001+ residents"
+    ],
+    "free": "Free",
+    "perMonth": "/ month",
+    "showMore": "Show more",
+    "showLess": "Show less",
+    "sessionChecklist": [
+      "Automatic transcription and speaker recognition",
+      "Human-verified transcription correction",
+      "Automatic summaries per speaker contribution"
+    ],
+    "sessionChecklistExtra": [
+      "Embedding generation for each speaker contribution",
+      "Statistics extraction"
+    ],
+    "platformChecklist": [
+      "Free access for all",
+      "All platform features",
+      "Technical support"
+    ],
+    "archiveNote": "Older meetings without human correction: {price} / hour",
+    "vatNote": "Prices do not include VAT. You can look up our existing contracts on Di@vgeia or KIMDIS using our tax ID 802666391.",
+    "calculateContract": "Calculate your contract",
+    "extras": {
+      "title": "Additional benefits",
+      "subtitle": "Every subscription includes",
+      "items": [
+        "Free trial period, for as long as you need",
+        "All current and future features",
+        "Phone support for citizens, staff, and elected officials",
+        "Option to include older meetings",
+        "Printed archive delivery or CD, once per year",
+        "Suggest new features and shape OpenCouncil with us",
+        "Simple and transparent pricing for all municipalities",
+        "Promotion of OpenCouncil to citizens, online and in person"
+      ],
+      "additionalCharges": "Additional optional charges:",
+      "additionalItems": [
+        "Equipment for meeting recording (e.g., Municipal Committee, City Councils, or Community Boards)",
+        "On-site technical support for each meeting"
+      ]
+    },
+    "calculator": {
+      "title": "Calculate the annual cost",
+      "subtitle": "Adjust your municipality's details",
+      "councilsPerYear": "Councils per year",
+      "averageDuration": "Average duration (hours)",
+      "population": "Population",
+      "populationUpTo": "up to 2,000",
+      "populationOver": "200,000+",
+      "calculate": "Calculate"
+    },
+    "kicker": "Pricing",
+    "perHourSession": "/ meeting hour",
+    "perMonthBy": "/ month, by population",
+    "platformSummary": "Every feature, free use for everyone, technical support."
+  },
+  "pilot": {
+    "kicker": "Pilot",
+    "title": {
+      "france": "Become the first pilot municipality in France.",
+      "serbia": "Become the first pilot municipality in Serbia.",
+      "cyprus": "Become the first pilot municipality in Cyprus."
+    },
+    "subtitle": "We are looking for one municipality to launch OpenCouncil in your country. The pilot is free, for as long as it takes.",
+    "points": {
+      "setup": {
+        "title": "Running within days",
+        "description": "A meeting video or a YouTube channel is enough. Nothing to integrate."
+      },
+      "language": {
+        "title": "In your language",
+        "description": "Interface, summaries and notifications in your language; transcripts checked by a person."
+      },
+      "contact": {
+        "title": "A direct line",
+        "description": "From the first call to the first published meeting, you talk to the team that builds the product."
+      }
+    }
+  },
+  "team": {
+    "kicker": "The team",
+    "title": "The team behind OpenCouncil.",
+    "subtitle": "Five people, building technology for local democracy. OpenCouncil P.C. is wholly owned by <link>Schema Labs</link>, a non-profit company.",
+    "openSource": {
+      "title": "Our code is open",
+      "description": "GPL v3 licence. Every line of code is public.",
+      "viewOnGithub": "See it on GitHub",
+      "contributorsLastWeeks": "{count} contributors · Last 12 weeks"
+    },
+    "roadmap": {
+      "title": "Always building",
+      "description": "What is coming to OpenCouncil over the next months.",
+      "viewRoadmap": "See the roadmap",
+      "items": {
+        "diavgeia": {
+          "title": "Automatic Di@vgeia decisions"
+        },
+        "budgets": {
+          "title": "Budgets and technical programmes"
+        }
+      }
+    },
+    "office": {
+      "title": "Our space",
+      "description": "An open space for talking and building in the centre of Athens. Come and meet us, or write to <email>space@opencouncil.gr</email>.",
+      "address": "Smolenski 22, Athens",
+      "imageAlt": "Our space — Smolenski 22, Athens"
+    },
+    "members": {
+      "christos": "Christos Porios",
+      "andreas": "Andreas Kouloumos",
+      "eliza": "Eliza Gkimitzoudi",
+      "thanos": "Thanos Papadogiannis",
+      "myrto": "Myrto Plemmenou"
+    }
+  },
+  "cta": {
+    "title": "Start in your municipality in days, not months.",
+    "subtitle": "A 30-minute presentation is enough. Book it online, or call us.",
+    "scheduleCall": "Book a presentation"
   },
   "openness": {
     "title": "Every meeting,",
@@ -52,33 +310,6 @@
         "title": "Subject map",
         "description": "Every council discussion pinned to the map — zoom into any neighborhood to see what's been decided about the places you care about.",
         "demoLabel": "View the map"
-      }
-    }
-  },
-  "internal": {
-    "title": "What used to take days,",
-    "titleHighlight": "now takes hours",
-    "subtitle": "Transcriptions, minutes, decisions — automatically or with minimal human intervention.",
-    "seeExample": "See example",
-    "comingSoon": "Coming soon",
-    "bottomNote": "OpenCouncil can replace your minutes provider at a similar cost — with ten times the functionality and speed.",
-    "features": {
-      "transcription": {
-        "title": "Transcriptions in 48 hours",
-        "description": "Accurate, human-verified transcriptions of every meeting, ready within 48 hours. Automatic speaker recognition."
-      },
-      "minutes": {
-        "title": "Automatic minutes generation",
-        "description": "Automatic meeting minutes, ready for review and signing. Saving days of work."
-      },
-      "diavgeia": {
-        "title": "Decisions for Di@vgeia",
-        "description": "Automatic generation of decision documents, ready for publication on Di@vgeia.",
-        "targetDate": "December 2026"
-      },
-      "printArchive": {
-        "title": "Printed archive delivery",
-        "description": "Delivery of transcription archives in printed form, according to each municipality's specifications."
       }
     }
   },
@@ -121,82 +352,6 @@
       }
     }
   },
-  "quotes": {
-    "whatMunicipalitiesSay": "What municipalities say",
-    "items": {
-      "chania": {
-        "quote": "Within the first five minutes, I knew this was something different.",
-        "name": "Head of Planning, Organization & IT",
-        "role": "Municipality of Chania"
-      }
-    }
-  },
-  "recognition": {
-    "title": "Awards & Mentions",
-    "items": {
-      "ministryAward": {
-        "title": "Ministry of Digital Governance Award",
-        "subtitle": "Best Applied Idea — Local Government"
-      },
-      "oecd": {
-        "title": "OECD",
-        "subtitle": "Referenced in OECD report on AI & Civic Engagement"
-      },
-      "innovationInPolitics": {
-        "title": "Innovation in Politics Awards 2026",
-        "subtitle": "Finalists"
-      },
-      "epsa": {
-        "title": "EPSA 2025-26",
-        "subtitle": "Good Practice Certificate"
-      },
-      "kede": {
-        "title": "KEDE",
-        "subtitle": "Article on AI in local democracy on kede.gr"
-      },
-      "wired": {
-        "title": "WIRED Greece",
-        "subtitle": "Article"
-      }
-    }
-  },
-  "team": {
-    "title": "The team behind OpenCouncil",
-    "subtitle": "5 people, building technology for local democracy. OpenCouncil IKE is wholly owned by <link>Schema Labs</link>, a non-profit company.",
-    "members": {
-      "christos": "Christos Porios",
-      "andreas": "Andreas Kouloumos",
-      "eliza": "Eliza Gkimitzoudi",
-      "thanos": "Thanos Papadogiannis",
-      "myrto": "Myrto Plemmenou"
-    },
-    "office": {
-      "title": "Our space",
-      "imageAlt": "Our space — Smolenski 22, Athens",
-      "description": "An open space for discussion and creation in the center of Athens. Come say hello, or email us at <email>space@opencouncil.gr</email> to co-organize an event.",
-      "address": "Smolenski 22, Athens"
-    },
-    "roadmap": {
-      "title": "Always building",
-      "viewRoadmap": "View the roadmap",
-      "items": {
-        "diavgeia": { "title": "Automatic Di@vgeia decisions" },
-        "bidirectional": { "title": "Two-way notifications" },
-        "fineTuned": { "title": "Fine-tuned transcription model" }
-      }
-    },
-    "openSource": {
-      "title": "Our code is open source",
-      "description": "Transparent development under GPL v3. Every line of code is public.",
-      "viewOnGithub": "View on GitHub",
-      "contributorsLastWeeks": "{count} contributors · Last 12 weeks"
-    }
-  },
-  "cta": {
-    "title": "Make every council meeting count.",
-    "subtitle": "Integrate in days, not months.",
-    "scheduleCall": "Schedule a call"
-  },
   "demos": {
     "subject": {
       "meetingLabel": "City Council Meeting 15/01/26",
@@ -227,8 +382,17 @@
         "anexartitoi": "Independents"
       },
       "people": {
-        "georgiou": { "name": "Maria Georgiou", "initials": "MG", "role": "Deputy Mayor of Technical Works", "roleShort": "Deputy Mayor" },
-        "papadakis": { "name": "Nikos Papadakis", "initials": "NP", "role": "City Councilor" }
+        "georgiou": {
+          "name": "Maria Georgiou",
+          "initials": "MG",
+          "role": "Deputy Mayor of Technical Works",
+          "roleShort": "Deputy Mayor"
+        },
+        "papadakis": {
+          "name": "Nikos Papadakis",
+          "initials": "NP",
+          "role": "City Councilor"
+        }
       },
       "contributionTexts": {
         "georgiou": "The renovation of the square is a priority. The budget is covered by ESPA funds and the competition will be announced within three months.",
@@ -413,73 +577,6 @@
       }
     }
   },
-  "pricing": {
-    "title": "Transparent pricing",
-    "subtitle": "Comparable or lower cost than the transcription you already do — with 10x the functionality. For municipalities of all sizes.",
-    "sessionProcessing": "Meeting ingestion",
-    "sessionProcessingDesc": "Includes digitization and human-verified transcription correction",
-    "perHour": "/ hour",
-    "platformUsage": "Platform Usage",
-    "platformUsageDesc": "Pricing based on municipality size",
-    "tiers": [
-      "Up to 2,000 residents",
-      "2,001 - 10,000 residents",
-      "10,001 - 30,000 residents",
-      "30,001 - 50,000 residents",
-      "50,001 - 100,000 residents",
-      "100,001+ residents"
-    ],
-    "free": "Free",
-    "perMonth": "/ month",
-    "showMore": "Show more",
-    "showLess": "Show less",
-    "sessionChecklist": [
-      "Automatic transcription and speaker recognition",
-      "Human-verified transcription correction",
-      "Automatic summaries per speaker contribution"
-    ],
-    "sessionChecklistExtra": [
-      "Embedding generation for each speaker contribution",
-      "Statistics extraction"
-    ],
-    "platformChecklist": [
-      "Free access for all",
-      "All platform features",
-      "Technical support"
-    ],
-    "archiveNote": "Older meetings without human correction: {price} / hour",
-    "vatNote": "Prices do not include VAT. You can look up our existing contracts on Di@vgeia or KIMDIS using our tax ID 802666391.",
-    "calculateContract": "Calculate your contract",
-    "extras": {
-      "title": "Additional benefits",
-      "subtitle": "Every subscription includes",
-      "items": [
-        "Free trial period, for as long as you need",
-        "All current and future features",
-        "Phone support for citizens, staff, and elected officials",
-        "Option to include older meetings",
-        "Printed archive delivery or CD, once per year",
-        "Suggest new features and shape OpenCouncil with us",
-        "Simple and transparent pricing for all municipalities",
-        "Promotion of OpenCouncil to citizens, online and in person"
-      ],
-      "additionalCharges": "Additional optional charges:",
-      "additionalItems": [
-        "Equipment for meeting recording (e.g., Municipal Committee, City Councils, or Community Boards)",
-        "On-site technical support for each meeting"
-      ]
-    },
-    "calculator": {
-      "title": "Calculate the annual cost",
-      "subtitle": "Adjust your municipality's details",
-      "councilsPerYear": "Councils per year",
-      "averageDuration": "Average duration (hours)",
-      "population": "Population",
-      "populationUpTo": "up to 2,000",
-      "populationOver": "200,000+",
-      "calculate": "Calculate"
-    }
-  },
   "contactForm": {
     "title": "Get in touch",
     "subtitle": "Fill in your details and we'll get back to you right away.",
@@ -497,6 +594,7 @@
     "close": "Close",
     "errorTitle": "Something went wrong",
     "errorMessage": "Try again or contact us at <email>sales@touvlo.co</email>",
-    "errorClose": "Close"
+    "errorClose": "Close",
+    "citizenNote": "A resident who wants OpenCouncil in your municipality? Sign the request at <link>{domain}/petition</link>."
   }
 }

@@ -277,7 +277,8 @@ export async function getAllCitiesMinimalCached(realm: Realm) {
 export async function getSupportedCitiesWithLogosCached() {
   return createCache(
     () => getSupportedCitiesWithLogos(),
-    ['cities', 'supported-with-logos', 'global'],
+    // v2: the rows carry `realm` now; a persistent cache must not serve the old shape.
+    ['cities', 'supported-with-logos', 'global', 'v2'],
     { tags: ['cities:all'] }
   )();
 }

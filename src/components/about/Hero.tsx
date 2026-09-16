@@ -1,173 +1,115 @@
+'use client'
+
+import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { PhoneCall, CalendarClock } from 'lucide-react'
+import { CalendarClock, PhoneCall, Rocket } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { Button } from '@/components/ui/button'
-import NumberTicker from '@/components/magicui/number-ticker'
-import BrowserFrame from './BrowserFrame'
-import ShineTitle from './ShineTitle'
-import type { AboutPageStats } from '@/lib/db/cities'
 import type { Realm } from '@prisma/client'
-import { getRealmContactPhone, getRealmDomain, telHref } from '@/lib/realm'
+import { getRealmContactPhone, getRealmDomain, telHref, type RealmStage } from '@/lib/realm'
+import BrowserFrame from './BrowserFrame'
+import { PhonePanel } from './PhonePanel'
+import { Container, Kicker, PillButton } from './primitives'
+import { HERO_AUDIENCES, type RealmShots } from './config'
 
 interface HeroProps {
-    onContactClick: () => void
-    stats?: AboutPageStats | null
     realm: Realm
+    stage: RealmStage
+    shots: RealmShots
+    onContactClick: () => void
 }
 
-export default function Hero({ onContactClick, stats, realm }: HeroProps) {
-    const t = useTranslations('about.hero')
-    const domain = getRealmDomain(realm)
-    const contactPhone = getRealmContactPhone(realm)
+const rise = (delay: number) => ({
+    initial: { opacity: 0, y: 18 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] as const },
+})
 
-    const counters = [
-        { value: stats?.municipalityCount ?? 10, label: t('counters.municipalities') },
-        { value: stats?.subjectCount ?? 500, suffix: '+', label: t('counters.subjects') },
-        { value: stats?.meetingHours ?? 200, suffix: '+', label: t('counters.meetingHours') },
-    ]
+export default function Hero({ realm, stage, shots, onContactClick }: HeroProps) {
+    const t = useTranslations('about.hero')
+    const pending = stage === 'pending'
+    const contactPhone = getRealmContactPhone(realm)
+    // The frame names the page it shows: the city's own page on the realm's domain.
+    const cityPath = shots.subjectPath?.match(/^\/[^/]+/)?.[0] ?? ''
+    const frameUrl = `${getRealmDomain(realm)}${cityPath}`
+    const heroShot = shots.shots['hero-desktop']
 
     return (
-        <section className="relative pt-2 pb-8 sm:py-12 md:py-20 lg:py-28">
-            {/* Mobile background screenshot — faded, right-aligned, behind text */}
-            <motion.div
-                className="absolute inset-y-0 right-0 w-[70%] sm:w-[55%] md:hidden pointer-events-none"
-                initial={{ opacity: 0, x: 40 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3, duration: 0.8 }}
-                style={{
-                    maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.35) 35%, rgba(0,0,0,0.55) 100%)',
-                    WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.35) 35%, rgba(0,0,0,0.55) 100%)',
-                }}
-            >
-                <div
-                    className="h-full flex items-center"
-                    style={{ transform: 'perspective(1200px) rotateY(-6deg) rotateX(2deg)' }}
-                >
-                    <BrowserFrame url={domain} className="shadow-xl">
-                        <div className="aspect-[4/3] bg-black overflow-hidden">
-                            <video
-                                src="https://data.opencouncil.gr/product-demo.mp4"
-                                poster="/about/product-demo-poster.jpg"
-                                autoPlay
-                                muted
-                                loop
-                                playsInline
-                                preload="none"
-                                className="w-full h-full object-fill"
-                            />
-                        </div>
-                    </BrowserFrame>
-                </div>
-            </motion.div>
-
-            <div className="relative grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-10 lg:gap-16 items-center">
-                {/* Left column — text */}
-                <motion.div
-                    className="max-w-full md:max-w-none relative z-10"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.7 }}
-                >
-                    <ShineTitle className="text-2xl sm:text-3xl md:text-5xl lg:text-[3.25rem] xl:text-[3.5rem] font-light tracking-tight leading-[1.1]">
-                        {t('title')}{' '}
-                        <span className="font-medium">
-                            {t('titleHighlight')}
-                        </span>
-                    </ShineTitle>
-
-                    <motion.p
-                        className="mt-4 sm:mt-6 text-sm sm:text-base md:text-xl text-muted-foreground leading-relaxed max-w-[70%] sm:max-w-[65%] md:max-w-none"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2, duration: 0.6 }}
-                    >
-                        {t('subtitle')}
-                    </motion.p>
-
-                    {/* Counters */}
-                    <motion.div
-                        className="mt-5 sm:mt-8 flex gap-6 sm:gap-8 md:gap-12"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.35, duration: 0.6 }}
-                    >
-                        {counters.map((counter) => (
-                            <div key={counter.label} className="flex flex-col">
-                                <span
-                                    className="text-xl sm:text-3xl md:text-5xl font-semibold tracking-tight text-foreground whitespace-nowrap tabular-nums"
-                                    style={{ fontFamily: 'var(--font-roboto), Roboto, sans-serif' }}
-                                >
-                                    <NumberTicker value={counter.value} delay={0.5} useGrouping={false} />
-                                    {counter.suffix && (
-                                        <span className="text-primary">{counter.suffix}</span>
-                                    )}
-                                </span>
-                                <span className="mt-1 text-sm text-muted-foreground">
-                                    {counter.label}
-                                </span>
+        <section className="pt-10 pb-2 md:pt-20 md:pb-10">
+            <Container className="grid grid-cols-1 items-center gap-10 md:grid-cols-[minmax(0,11fr)_minmax(0,10fr)] md:gap-14">
+                <div className="flex flex-col items-start gap-[18px] md:gap-6">
+                    <motion.div {...rise(0)}>
+                        {pending ? (
+                            <div className="inline-flex items-start gap-2 rounded-2xl bg-[hsl(24,100%,96%)] py-[7px] pl-2.5 pr-3 text-[12.5px] font-semibold leading-snug text-[hsl(var(--orange-deep))]">
+                                <span aria-hidden className="mt-[5px] h-[7px] w-[7px] shrink-0 rounded-full bg-[hsl(var(--orange))]" />
+                                <span>{t(`pilot.${realm}`)}</span>
                             </div>
+                        ) : (
+                            <Kicker>{t('kicker')}</Kicker>
+                        )}
+                    </motion.div>
+
+                    <motion.h1
+                        {...rise(0.08)}
+                        className="text-[34px] font-normal leading-[1.08] tracking-[-0.025em] text-foreground text-balance sm:text-[44px] lg:text-[54px]"
+                    >
+                        {t('title')} <em>{t('titleHighlight')}</em>
+                    </motion.h1>
+
+                    <motion.ul {...rise(0.16)} className="m-0 flex list-none flex-col gap-2.5 p-0 text-base leading-relaxed text-muted-foreground md:gap-3 md:text-lg">
+                        {HERO_AUDIENCES.map(({ id, icon: Icon }) => (
+                            <li key={id} className="flex items-start gap-3">
+                                <Icon className="mt-[5px] h-[18px] w-[18px] shrink-0 text-[hsl(var(--orange-deep))]" strokeWidth={1.8} aria-hidden />
+                                <span className="text-pretty">
+                                    <span className="font-semibold text-foreground">{t(`audiences.${id}.lead`)}</span> {t(`audiences.${id}.text`)}
+                                </span>
+                            </li>
                         ))}
-                    </motion.div>
+                    </motion.ul>
 
-                    {/* CTAs */}
-                    <motion.div
-                        className="mt-6 sm:mt-10 flex flex-row gap-2 sm:gap-3"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5, duration: 0.6 }}
-                    >
-                        <Button
-                            size="lg"
-                            className="rounded-xl px-4 py-2.5 sm:px-8 sm:py-6 text-xs sm:text-base shadow-lg hover:shadow-xl transition-all duration-300"
-                            onClick={onContactClick}
-                        >
-                            <CalendarClock className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                            {t('scheduleCall')}
-                        </Button>
-                        <a href={telHref(contactPhone)} className="inline-flex no-underline [&_*]:no-underline">
-                            <Button
-                                size="lg"
-                                variant="outline"
-                                className="rounded-xl px-4 py-2.5 sm:px-8 sm:py-6 text-xs sm:text-base"
-                            >
-                                <PhoneCall className="mr-1.5 sm:mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                {contactPhone}
-                            </Button>
-                        </a>
+                    <motion.div {...rise(0.24)} className="mt-1 flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:flex-wrap sm:gap-3 md:mt-2">
+                        {pending ? (
+                            <>
+                                <PillButton icon={Rocket} onClick={onContactClick}>{t('becomePilot')}</PillButton>
+                                <PillButton icon={CalendarClock} variant="outline" onClick={onContactClick}>{t('scheduleCall')}</PillButton>
+                            </>
+                        ) : (
+                            <>
+                                <PillButton icon={CalendarClock} onClick={onContactClick}>{t('scheduleCall')}</PillButton>
+                                <PillButton icon={PhoneCall} variant="outline" href={telHref(contactPhone)}>{contactPhone}</PillButton>
+                            </>
+                        )}
                     </motion.div>
-                </motion.div>
+                </div>
 
-                {/* Right column — hero screenshot */}
+                {/* Desktop: the subject page in a browser, leaning in a little and settling flat on hover. */}
                 <motion.div
-                    className="relative hidden md:block pr-4"
-                    initial={{ opacity: 0, x: 30 }}
+                    className="hidden md:block md:pl-2"
+                    initial={{ opacity: 0, x: 28 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3, duration: 0.8, ease: 'easeOut' }}
+                    transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 >
-                    <div className="relative animate-float">
-                    <div
-                        className="relative"
-                        style={{ transform: 'perspective(1000px) rotateY(-6deg) rotateX(2deg)' }}
-                    >
-                        <BrowserFrame url={domain} className="shadow-2xl">
-                            <div className="aspect-[4/3] bg-black overflow-hidden">
-                                <video
-                                    src="https://data.opencouncil.gr/product-demo.mp4"
-                                    poster="/about/product-demo-poster.jpg"
-                                    autoPlay
-                                    muted
-                                    loop
-                                    playsInline
-                                    className="w-full h-full object-fill"
+                    <div className="animate-float">
+                        <div className="[transform:perspective(1400px)_rotateY(-6deg)_rotateX(2deg)] transition-transform duration-700 ease-out hover:[transform:none]">
+                            <BrowserFrame url={frameUrl} className="shadow-[0_30px_60px_-28px_rgba(12,10,9,0.35),0_1px_2px_rgba(12,10,9,0.06)]">
+                                <Image
+                                    src={heroShot.src}
+                                    alt={t('frameAlt')}
+                                    width={heroShot.width}
+                                    height={heroShot.height}
+                                    sizes="(min-width: 1280px) 600px, 48vw"
+                                    priority
+                                    className="block h-auto w-full"
                                 />
-                            </div>
-                        </BrowserFrame>
-                        {/* Decorative shadow */}
-                        <div className="absolute -inset-4 -z-10 rounded-2xl bg-primary/[0.03] blur-2xl" />
-                    </div>
+                            </BrowserFrame>
+                        </div>
                     </div>
                 </motion.div>
-            </div>
+
+                {/* Phone: the same subject page, on a phone. */}
+                <motion.div {...rise(0.32)} className="md:hidden">
+                    <PhonePanel shot={shots.shots['mobile-subject']} alt={t('frameAlt')} height={440} inset={28} sizes="100vw" priority />
+                </motion.div>
+            </Container>
         </section>
     )
 }

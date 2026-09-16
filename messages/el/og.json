@@ -1,61 +1,56 @@
 {
-    "meeting": {
-        "eyebrow": "Συνεδρίαση",
-        "subjects": "{count, plural, =0 {Χωρίς θέματα} one {# θέμα} other {# θέματα}}",
-        "moreSubjects": "{count, plural, one {+# ακόμα θέμα} other {+# ακόμα θέματα}}"
-    },
-    "city": {
-        "meetings": "{count, plural, =0 {Καμία συνεδρίαση} one {# συνεδρίαση} other {# συνεδριάσεις}}",
-        "people": "{count, plural, one {# μέλος} other {# μέλη}}",
-        "parties": "{count, plural, one {# παράταξη} other {# παρατάξεις}}",
-        "hotTopics": "Πολυσυζητημένα θέματα"
-    },
-    "consultation": {
-        "badge": "Δημόσια διαβούλευση",
-        "keyTopics": "Κύρια θέματα",
-        "untitledChapter": "Άτιτλο κεφάλαιο",
-        "chapters": "{count, plural, one {# κεφάλαιο} other {# κεφάλαια}}",
-        "areas": "{count, plural, one {# περιοχή} other {# περιοχές}}",
-        "comments": "{count, plural, one {# σχόλιο} other {# σχόλια}}"
-    },
-    "person": {
-        "council": "Δημοτικό Συμβούλιο",
-        "recent": "Πρόσφατες τοποθετήσεις"
-    },
-    "party": {
-        "members": "{count, plural, one {# μέλος} other {# μέλη}}",
-        "leader": "Επικεφαλής: {name}"
-    },
-    "people": {
-        "title": "Δημοτικοί Σύμβουλοι"
-    },
-    "subject": {
-        "speakers": "{count, plural, one {# ομιλητής} other {# ομιλητές}}",
-        "discussion": "{minutes, number}′ συζήτηση",
-        "notFound": "Το θέμα δεν βρέθηκε"
-    },
-    "search": {
-        "title": "Αναζήτηση",
-        "subtitle": "σε όλα τα δημοτικά συμβούλια",
-        "placeholder": "Αναζήτηση θέματος ή διεύθυνσης…",
-        "chips": [
-            "Θέματα",
-            "Τοποθετήσεις συμβούλων",
-            "Πρόσωπα",
-            "Αποφάσεις"
-        ]
-    },
-    "about": {
-        "tags": [
-            "Απομαγνητοφωνήσεις",
-            "Πρακτικά",
-            "Ειδοποιήσεις δημοτών",
-            "Χάρτης θεμάτων"
-        ]
-    },
-    "landing": {
-        "headlineTop": "Τι συζητά το δημοτικό συμβούλιο,",
-        "headlineBottom": "σε έναν χάρτη",
-        "subtitle": "Θέματα από τις συνεδριάσεις των δημοτικών συμβουλίων, ανά περιοχή, κατηγορία και ημερομηνία."
-    }
+  "meeting": {
+    "eyebrow": "Συνεδρίαση",
+    "subjects": "{count, plural, =0 {Χωρίς θέματα} one {# θέμα} other {# θέματα}}",
+    "moreSubjects": "{count, plural, one {+# ακόμα θέμα} other {+# ακόμα θέματα}}"
+  },
+  "city": {
+    "meetings": "{count, plural, =0 {Καμία συνεδρίαση} one {# συνεδρίαση} other {# συνεδριάσεις}}",
+    "people": "{count, plural, one {# μέλος} other {# μέλη}}",
+    "parties": "{count, plural, one {# παράταξη} other {# παρατάξεις}}",
+    "hotTopics": "Πολυσυζητημένα θέματα"
+  },
+  "consultation": {
+    "badge": "Δημόσια διαβούλευση",
+    "keyTopics": "Κύρια θέματα",
+    "untitledChapter": "Άτιτλο κεφάλαιο",
+    "chapters": "{count, plural, one {# κεφάλαιο} other {# κεφάλαια}}",
+    "areas": "{count, plural, one {# περιοχή} other {# περιοχές}}",
+    "comments": "{count, plural, one {# σχόλιο} other {# σχόλια}}"
+  },
+  "person": {
+    "council": "Δημοτικό Συμβούλιο",
+    "recent": "Πρόσφατες τοποθετήσεις"
+  },
+  "party": {
+    "members": "{count, plural, one {# μέλος} other {# μέλη}}",
+    "leader": "Επικεφαλής: {name}"
+  },
+  "people": {
+    "title": "Δημοτικοί Σύμβουλοι"
+  },
+  "subject": {
+    "speakers": "{count, plural, one {# ομιλητής} other {# ομιλητές}}",
+    "discussion": "{minutes, number}′ συζήτηση",
+    "notFound": "Το θέμα δεν βρέθηκε"
+  },
+  "search": {
+    "title": "Αναζήτηση",
+    "subtitle": "σε όλα τα δημοτικά συμβούλια",
+    "placeholder": "Αναζήτηση θέματος ή διεύθυνσης…",
+    "chips": [
+      "Θέματα",
+      "Τοποθετήσεις συμβούλων",
+      "Πρόσωπα",
+      "Αποφάσεις"
+    ]
+  },
+  "about": {
+    "municipalities": "{count, plural, one {# δήμος} other {# δήμοι}}"
+  },
+  "landing": {
+    "headlineTop": "Τι συζητά το δημοτικό συμβούλιο,",
+    "headlineBottom": "σε έναν χάρτη",
+    "subtitle": "Θέματα από τις συνεδριάσεις των δημοτικών συμβουλίων, ανά περιοχή, κατηγορία και ημερομηνία."
+  }
 }
