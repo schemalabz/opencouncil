@@ -410,15 +410,11 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         }
     };
 
-    // Subjects that can carry a decision, in display order. This page discriminates
-    // on nonAgendaReason first, in case an outOfAgenda subject also carries an
-    // agendaItemIndex from PDF data. beforeAgenda subjects are excluded (pre-agenda
-    // announcements without decisions).
-    //
-    // The guard is defensive, not load-bearing: on 2026-09-17 no subject in production
-    // held both a nonAgendaReason and an agendaItemIndex (0 of 12,391). Only such a row
-    // would part this split from isDecisionEligibleSubject — the shared rule would call
-    // a beforeAgenda subject with an index eligible, and this page drops it.
+    // Subjects that can carry a decision, in display order. The two filters below are
+    // the two branches of DECISION_ELIGIBLE_SUBJECT_WHERE, split so each group sorts on
+    // its own terms: agenda items by index, out-of-agenda items in their stored order.
+    // Discriminating on nonAgendaReason first keeps an outOfAgenda subject in its own
+    // group even if it also carries an agendaItemIndex from PDF data.
     const agendaSubjects = subjects
         .filter(s => s.agendaItemIndex != null && s.nonAgendaReason === null)
         .sort((a, b) => a.agendaItemIndex! - b.agendaItemIndex!);

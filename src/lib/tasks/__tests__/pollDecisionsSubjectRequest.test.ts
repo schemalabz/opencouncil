@@ -120,6 +120,17 @@ describe('requestPollDecisionForSubject', () => {
         expect(mockStartTask).not.toHaveBeenCalled();
     });
 
+    it('refuses a before-agenda subject that carries an agenda index', async () => {
+        mockSubjectFindUnique.mockResolvedValue({
+            ...OUT_OF_AGENDA_SUBJECT,
+            agendaItemIndex: 3,
+            nonAgendaReason: 'beforeAgenda',
+        });
+
+        await expect(requestPollDecisionForSubject('subject-1')).rejects.toThrow('not eligible for decisions');
+        expect(mockStartTask).not.toHaveBeenCalled();
+    });
+
     it('does not start a second task while one is already running for the meeting', async () => {
         mockSubjectFindUnique.mockResolvedValue(OUT_OF_AGENDA_SUBJECT);
         mockTaskStatusFindFirst.mockResolvedValue({ id: 'task-running' });

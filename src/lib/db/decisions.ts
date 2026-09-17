@@ -7,7 +7,8 @@ import "server-only";
 import prisma from './prisma';
 import { AttendanceStatus, DataSource, Decision, Prisma, TaskStatus, User, VoteType } from '@prisma/client';
 
-/** Subjects eligible for decisions: agenda + out-of-agenda, excluding withdrawn.
+/** Subjects eligible for decisions: agenda + out-of-agenda, excluding withdrawn
+ *  and excluding before-agenda.
  *  Shared between decision count queries and the polling pipeline. */
 export { DECISION_ELIGIBLE_SUBJECT_WHERE } from './decisionEligibility';
 import { DECISION_ELIGIBLE_SUBJECT_WHERE } from './decisionEligibility';
