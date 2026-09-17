@@ -8,7 +8,7 @@ import { CheckboxCard } from '@/components/ui/checkbox-card';
 import { Label } from '@/components/ui/label';
 import { PhoneField, type PhoneFieldValidity } from '@/components/ui/phone-field';
 import { AccountFields } from '@/components/signup/AccountFields';
-import { IssuesAlert, signInHrefFor } from '@/components/signup/IssuesAlert';
+import { IssuesAlert } from '@/components/signup/IssuesAlert';
 import { StepHeading } from '@/components/signup/SignupChrome';
 import type { SignupIssue } from '@/components/signup/signup-shared';
 import type { SignupState } from './signup-state';
@@ -55,7 +55,13 @@ export function ChannelsStep({
         <div>
             <StepHeading title={t('channelsTitle')} lead={t('channelsLead')} />
 
-            <IssuesAlert saveError={saveError} issues={issues} failures={failures} signInHref={signInHrefFor(state.email)} />
+            <IssuesAlert
+                saveError={saveError}
+                issues={issues}
+                failures={failures}
+                email={state.email}
+                signedIn={signedIn}
+            />
 
             <div className="mt-5 flex flex-col gap-3">
                 <CheckboxCard

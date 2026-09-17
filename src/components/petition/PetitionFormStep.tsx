@@ -8,7 +8,7 @@ import { PhoneField, type PhoneFieldValidity } from '@/components/ui/phone-field
 import { authorityKey } from '@/components/cities/overview/authorityKey';
 import { CheckboxCard } from '@/components/ui/checkbox-card';
 import { AccountFields } from '@/components/signup/AccountFields';
-import { IssuesAlert, signInHrefFor } from '@/components/signup/IssuesAlert';
+import { IssuesAlert } from '@/components/signup/IssuesAlert';
 import { Eyebrow, StepHeading } from '@/components/signup/SignupChrome';
 import type { SignupIssue } from '@/components/signup/signup-shared';
 import type { CityWithGeometry } from '@/lib/db/cities';
@@ -53,7 +53,13 @@ export function PetitionFormStep({
                 <StepHeading title={t('formTitle')} lead={t('formLead')} />
             )}
 
-            <IssuesAlert saveError={saveError} issues={issues} failures={failures} signInHref={signInHrefFor(state.email)} />
+            <IssuesAlert
+                saveError={saveError}
+                issues={issues}
+                failures={failures}
+                email={state.email}
+                signedIn={signedIn}
+            />
 
             <section className="mt-5 flex flex-col gap-2.5">
                 {!signedIn && (

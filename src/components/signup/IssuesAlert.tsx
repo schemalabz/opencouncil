@@ -17,13 +17,16 @@ import { SIGN_IN_LINK_SENT, type SignupIssue } from './signup-shared';
 export function IssuesAlert({
     saveError,
     issues,
-    signInHref,
+    email,
+    signedIn,
     failures,
 }: {
     /** The save action's answer, as a key under `signup.errors`. */
     saveError: string | null;
     issues: SignupIssue[];
-    signInHref: string;
+    /** The email on the form, prefilled into the sign-in link for the account that owns it. */
+    email: string;
+    signedIn: boolean;
     /** Failed presses of submit since the reader arrived on the step. */
     failures: number;
 }) {
@@ -35,6 +38,25 @@ export function IssuesAlert({
     // form, kept by the draft, and one press finishes the job when they
     // return signed in.
     const linkSent = saveError === SIGN_IN_LINK_SENT && issues.length === 0;
+    // A number that belongs to another account is the same dead end as an
+    // email that does, and it has the same way out: sign in as the account
+    // that already holds it, then the same form saves. A reader who is
+    // already signed in has no way out to offer, so they read the shorter
+    // sentence and change the number instead.
+    const otherAccountHoldsPhone = saveError === 'phoneInUse' && !signedIn;
+    const messageKey = saveError === 'phoneInUse' && signedIn ? 'phoneInUseSignedIn' : saveError;
+    // The manual route stays on both email answers: an email can be slow or
+    // filtered, and the reader should never be left with only a message to
+    // look at. The email answers prefill the address the reader typed,
+    // because that is the account; the phone answer prefills nothing — the
+    // account that holds the number is another one, and naming its address
+    // would tell a stranger whose it is.
+    const wayIn =
+        saveError === 'emailExists' || saveError === SIGN_IN_LINK_SENT
+            ? signInHrefFor(email)
+            : otherAccountHoldsPhone
+              ? signInHrefFor()
+              : null;
 
     useEffect(() => {
         if (!shown || failures === 0) return;
@@ -60,16 +82,13 @@ export function IssuesAlert({
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             )}
             <div className="flex flex-col gap-1">
-                {saveError && (
+                {messageKey && (
                     <p>
-                        {t(`errors.${saveError}`)}
-                        {/* The manual route stays on both answers: an email
-                            can be slow or filtered, and the reader should
-                            never be left with only a message to look at. */}
-                        {(saveError === 'emailExists' || saveError === SIGN_IN_LINK_SENT) && (
+                        {t(`errors.${messageKey}`)}
+                        {wayIn && (
                             <>
                                 {' '}
-                                <Link href={signInHref} className="underline">
+                                <Link href={wayIn} className="underline">
                                     {t('errors.signIn')}
                                 </Link>
                             </>
@@ -84,8 +103,14 @@ export function IssuesAlert({
     );
 }
 
-/** Where the sign-in link sends an existing account: back here, with the email filled. */
-export function signInHrefFor(email: string): string {
+/**
+ * Where the sign-in link sends the reader: back here, signed in. An email
+ * names the account to sign in as and fills the sign-in field; without one
+ * the reader names the account themselves.
+ */
+function signInHrefFor(email?: string): string {
     const back = typeof window === 'undefined' ? '/' : window.location.pathname + window.location.search;
-    return `/sign-in?callbackUrl=${encodeURIComponent(back)}&email=${encodeURIComponent(email.trim())}`;
+    const address = email?.trim();
+    const filled = address ? `&email=${encodeURIComponent(address)}` : '';
+    return `/sign-in?callbackUrl=${encodeURIComponent(back)}${filled}`;
 }
