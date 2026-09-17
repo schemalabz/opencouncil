@@ -6,23 +6,13 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { StatsCard } from "@/components/ui/stats-card";
+import type { SignupSummary } from "@/lib/admin/signup-series";
+import type { SignupCity } from "@/lib/db/adminStats";
 import { formatDayMonth } from "@/lib/formatters/time";
 import { cn } from "@/lib/utils";
 
-/** One channel's numbers, in the shape both halves of the page share. */
-export interface ChannelStats {
-    /** People subscribed on this channel, in at least one municipality. */
-    people: number;
-    cities: Array<{ cityId: string; name: string; population: number; subscribers: number }>;
-    /** Running total of people at the end of each week, oldest first. */
-    weeks: Array<{ start: string; total: number }>;
-    newLast7Days: number;
-    newPrev7Days: number;
-    /** Null when the channel cannot know (email keeps no record of a turn-off). */
-    stoppedLast7Days: number | null;
-}
-
-export type SignupChannel = "notis" | "email";
+/** Phone is Notis alone; all is every way a person can subscribe, phone or email. */
+export type SignupChannel = "phone" | "all";
 
 const chartConfig: ChartConfig = {
     total: { label: "Subscribers", color: "hsl(var(--chart-1))" },
@@ -36,26 +26,28 @@ const perMille = (subscribers: number, population: number) => (subscribers / pop
 const fmtPerMille = (x: number) => `${x.toFixed(x >= 10 ? 1 : x >= 1 ? 2 : 3)}‰`;
 // The week starts are UTC Mondays, so the label is pinned to UTC: the same
 // text on the server and in every browser.
-const weekLabel = (start: string) => formatDayMonth(new Date(start), "UTC", "en");
+const dayLabel = (start: string) => formatDayMonth(new Date(start), "UTC", "en");
 
 /**
- * The signups page: one switch between the two channels, and everything under
- * it follows — the tiles, the per-municipality bars, the line. Per capita is
- * the number that matters for marketing, so it leads: ‰ of the residents of
- * each supported municipality, highest first.
+ * The signups page: one switch between the phone subscribers and all of them,
+ * and everything under it follows — the tiles, the per-municipality bars, the
+ * line. Per capita is the number that matters for marketing, so it
+ * leads: ‰ of the residents of each supported municipality, highest first.
  */
 export function SignupsDashboard({
-    notis,
-    email,
+    cities,
+    phone,
+    all,
     notisReason,
 }: {
-    notis: ChannelStats | null;
-    email: ChannelStats;
-    /** Why Notis's half is missing, when it is. */
+    cities: SignupCity[];
+    phone: SignupSummary | null;
+    all: SignupSummary | null;
+    /** Why Notis's half is missing, when it is. Both figures need it. */
     notisReason: string | null;
 }) {
-    const [channel, setChannel] = useState<SignupChannel>("notis");
-    const stats = channel === "notis" ? notis : email;
+    const [channel, setChannel] = useState<SignupChannel>("phone");
+    const summary = channel === "phone" ? phone : all;
 
     return (
         <div className="space-y-6">
@@ -69,8 +61,8 @@ export function SignupsDashboard({
                 <div role="tablist" aria-label="Channel" className="flex h-9 items-center gap-0.5 rounded-md bg-muted p-1">
                     {(
                         [
-                            ["notis", "Notis"],
-                            ["email", "Email"],
+                            ["phone", "Phone"],
+                            ["all", "All"],
                         ] as const
                     ).map(([value, label]) => (
                         <button
@@ -90,8 +82,8 @@ export function SignupsDashboard({
                 </div>
             </div>
 
-            {stats ? (
-                <ChannelView channel={channel} stats={stats} />
+            {summary ? (
+                <ChannelView channel={channel} cities={cities} summary={summary} />
             ) : (
                 <Card disableHover>
                     <CardHeader>
@@ -99,7 +91,8 @@ export function SignupsDashboard({
                         <CardDescription>
                             {notisReason === "unconfigured"
                                 ? "NOTIS_API_URL and NOTIS_SERVICE_TOKEN are not set on this deployment."
-                                : "The Notis service is unreachable right now. Reload in a minute, or look at the email numbers meanwhile."}
+                                : "The Notis service is unreachable right now. Reload in a minute."}{" "}
+                            Both figures count the phone subscribers, so neither is shown without it.
                         </CardDescription>
                     </CardHeader>
                 </Card>
@@ -108,15 +101,17 @@ export function SignupsDashboard({
     );
 }
 
-function ChannelView({ channel, stats }: { channel: SignupChannel; stats: ChannelStats }) {
-    const population = stats.cities.reduce((sum, c) => sum + c.population, 0);
+function ChannelView({ channel, cities, summary }: { channel: SignupChannel; cities: SignupCity[]; summary: SignupSummary }) {
+    const population = cities.reduce((sum, c) => sum + c.population, 0);
     const change =
-        stats.newPrev7Days > 0 ? Math.round(((stats.newLast7Days - stats.newPrev7Days) / stats.newPrev7Days) * 100) : null;
-    const ranked = [...stats.cities].sort((a, b) => perMille(b.subscribers, b.population) - perMille(a.subscribers, a.population));
+        summary.newPrev7Days > 0 ? Math.round(((summary.newLast7Days - summary.newPrev7Days) / summary.newPrev7Days) * 100) : null;
+    const ranked = cities
+        .map((city) => ({ ...city, subscribers: summary.subscribersByCity[city.cityId] ?? 0 }))
+        .sort((a, b) => perMille(b.subscribers, b.population) - perMille(a.subscribers, a.population));
     const scale = Math.max(6, (ranked[0] ? perMille(ranked[0].subscribers, ranked[0].population) : 0) * 1.06);
-    const series = stats.weeks.map((w) => ({ ...w, label: weekLabel(w.start) }));
-    const first = stats.weeks[0]?.total ?? 0;
-    const growth = first > 0 ? Math.round(((stats.people - first) / first) * 100) : null;
+    const weekly = summary.weeks.map((w) => ({ ...w, label: dayLabel(w.start) }));
+    const first = summary.weeks[0]?.total ?? 0;
+    const growth = first > 0 ? Math.round(((summary.people - first) / first) * 100) : null;
 
     return (
         <>
@@ -125,24 +120,23 @@ function ChannelView({ channel, stats }: { channel: SignupChannel; stats: Channe
                 items={[
                     {
                         title: "Subscribers",
-                        value: fmt(stats.people),
+                        value: fmt(summary.people),
                         icon: <Users className="h-4 w-4" />,
-                        description: channel === "notis" ? "active on Notis, as Notis has them" : "with the email summary on",
+                        description: channel === "phone" ? "active on Notis, as Notis has them" : "on the phone, the email summary, or both",
                     },
                     {
                         title: "Per capita",
-                        value: population > 0 ? fmtPerMille(perMille(stats.people, population)) : "—",
+                        value: population > 0 ? fmtPerMille(perMille(summary.people, population)) : "—",
                         icon: <Percent className="h-4 w-4" />,
-                        description: `per 1,000 residents, across ${residents(population)} residents in ${stats.cities.length} municipalities`,
+                        description: `per 1,000 residents, across ${residents(population)} residents in ${cities.length} municipalities`,
                     },
                     {
                         title: "New in the last 7 days",
-                        value: `+${fmt(stats.newLast7Days)}`,
+                        value: `+${fmt(summary.newLast7Days)}`,
                         icon: <TrendingUp className="h-4 w-4" />,
-                        description:
-                            stats.stoppedLast7Days !== null
-                                ? `${fmt(stats.newPrev7Days)} in the previous 7 days · ${fmt(stats.stoppedLast7Days)} said ΣΤΟΠ`
-                                : `${fmt(stats.newPrev7Days)} in the previous 7 days`,
+                        description: `${fmt(summary.newPrev7Days)} in the previous 7 days · ${fmt(summary.stoppedLast7Days)} ${
+                            channel === "phone" ? "said ΣΤΟΠ" : "stopped every channel"
+                        }`,
                         ...(change !== null ? { trend: { value: Math.abs(change), isPositive: change >= 0 } } : {}),
                     },
                 ]}
@@ -152,7 +146,7 @@ function ChannelView({ channel, stats }: { channel: SignupChannel; stats: Channe
                 <CardHeader>
                     <CardTitle className="text-base">Per municipality</CardTitle>
                     <CardDescription>
-                        {channel === "notis" ? "Active Notis subscribers" : "Email-summary subscribers"} per 1,000 residents, highest first.
+                        {channel === "phone" ? "Active Notis subscribers" : "Subscribers on any channel"} per 1,000 residents, highest first.
                         The number on the right is the count. Dashed lines at 1‰ and 5‰.
                     </CardDescription>
                 </CardHeader>
@@ -201,7 +195,7 @@ function ChannelView({ channel, stats }: { channel: SignupChannel; stats: Channe
                         <CardDescription>People subscribed at the end of each week, last 12 weeks, weeks starting Monday.</CardDescription>
                     </div>
                     <div className="flex items-baseline gap-1.5 tabular-nums">
-                        <span className="text-xl font-bold">{fmt(stats.people)}</span>
+                        <span className="text-xl font-bold">{fmt(summary.people)}</span>
                         {growth !== null && (
                             <span className={cn("text-xs font-medium", growth >= 0 ? "text-green-700" : "text-red-700")}>
                                 {growth >= 0 ? "+" : ""}
@@ -212,7 +206,7 @@ function ChannelView({ channel, stats }: { channel: SignupChannel; stats: Channe
                 </CardHeader>
                 <CardContent>
                     <ChartContainer config={chartConfig} className="h-[240px] w-full">
-                        <AreaChart data={series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                        <AreaChart data={weekly} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
                             <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} />
                             <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} width={40} />

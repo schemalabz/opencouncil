@@ -25,14 +25,13 @@ export interface NotisSubscriptionView {
     createdAt: string;
 }
 
-/** What Notis knows about signups and the main database cannot: see services/notis/src/lib/subscription-stats.ts. */
-export interface NotisStats {
-    active: number;
-    cities: Array<{ cityId: string; active: number }>;
-    weeks: Array<{ start: string; fresh: number; stopped: number; active: number }>;
-    newLast7Days: number;
-    newPrev7Days: number;
-    stoppedLast7Days: number;
+/** One subscription Notis knows about and the main database cannot: see services/notis/src/lib/subscription-roster.ts. */
+export interface NotisRosterEntry {
+    userId: string;
+    cityIds: string[];
+    createdAt: string;
+    /** When the subscription stopped. Null while it is on. */
+    endedAt: string | null;
 }
 
 export type NotisClientResult<T> =
@@ -96,9 +95,15 @@ export async function setNotisSubscription(
     return result.ok ? { ok: true, data: result.data ?? { subscription: null } } : result;
 }
 
-/** The aggregates behind /admin/signups. A 2xx without a body reads as unreachable, like everywhere else here. */
-export async function getNotisStats(): Promise<NotisClientResult<NotisStats>> {
-    const result = await call<NotisStats | null>("/api/subscriptions/stats", { method: "GET" });
+/**
+ * The phone half of /admin/signups. A 2xx without the roster reads as
+ * unreachable, like everywhere else here — which also covers the minutes in
+ * which this app is ahead of a Notis that still answers with the old
+ * aggregates.
+ */
+export async function getNotisRoster(): Promise<NotisClientResult<NotisRosterEntry[]>> {
+    const result = await call<{ subscribers?: NotisRosterEntry[] } | null>("/api/subscriptions/stats", { method: "GET" });
     if (!result.ok) return result;
-    return result.data ? { ok: true, data: result.data } : { ok: false, reason: "unreachable" };
+    const subscribers = result.data?.subscribers;
+    return Array.isArray(subscribers) ? { ok: true, data: subscribers } : { ok: false, reason: "unreachable" };
 }
