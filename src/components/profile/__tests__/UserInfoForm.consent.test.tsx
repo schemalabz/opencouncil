@@ -13,9 +13,11 @@ jest.mock('next/navigation', () => ({
     usePathname: () => '/profile',
     useSearchParams: () => new URLSearchParams(),
 }));
-// The Tabs component links tabs through next-intl's Link, which is ESM-only under jest.
+// The Tabs component links tabs through next-intl's Link and reads the path
+// through its usePathname, both ESM-only under jest.
 jest.mock('@/i18n/routing', () => ({
     Link: ({ href, children }: { href: string; children: React.ReactNode }) => createElement('a', { href }, children),
+    usePathname: () => '/profile',
 }));
 jest.mock('next-auth/react', () => ({ signOut: jest.fn() }));
 jest.mock('@/lib/actions/personConsent', () => ({ setVoicePrintConsent: jest.fn() }));
