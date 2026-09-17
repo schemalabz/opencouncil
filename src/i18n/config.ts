@@ -48,6 +48,20 @@ export function localePathPrefix(locale: string): string {
  */
 export const localePrefixPattern = LOCALES.map(urlPrefixForLocale).join('|');
 
+const LOCALE_PREFIX_SEGMENT = new RegExp(`^/(?:${localePrefixPattern})(?=/|$)`);
+
+/**
+ * The path without its locale prefix: `/lat/nis/parties/x` becomes
+ * `/nis/parties/x`. The navigation helpers in `@/i18n/routing` (`Link`,
+ * `useRouter`, `redirect`) add the prefix themselves. A path that already
+ * carries one becomes `/lat/lat/...`, which is a 404. Apply this function to
+ * every path that comes from `window.location` or from `usePathname` of
+ * `next/navigation` before you give the path to those helpers.
+ */
+export function stripLocalePrefix(pathname: string): string {
+    return pathname.replace(LOCALE_PREFIX_SEGMENT, '') || '/';
+}
+
 /**
  * Canonical BCP 47 tag (language-script-region) per app locale — the single
  * place a new locale's full identity is declared. `Intl` consumers
