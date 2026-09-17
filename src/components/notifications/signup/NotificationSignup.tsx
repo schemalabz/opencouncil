@@ -5,7 +5,7 @@ import type { Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
 import { draftKey } from '@/components/signup/signup-draft';
-import { failureKind, saveErrorKey } from '@/components/signup/signup-shared';
+import { SIGN_IN_LINK_SENT, failureKind, saveErrorKey } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { saveNotificationPreferences } from '@/lib/actions/notifications';
 import { getNotisChannelState, setNotisEnabled } from '@/lib/actions/notis';
@@ -150,8 +150,15 @@ export function NotificationSignup({
                 }),
             );
             if (!result.success) {
-                captureEvent('notification_signup_failed', { city_id: city.id, code: result.error });
-                return { ok: false, error: saveErrorKey(result.error) };
+                const key = saveErrorKey(result.error);
+                // The sign-in link went out: a step on the way, not a
+                // failure, and counting it as one would hide whether this
+                // whole detour is getting shorter.
+                captureEvent(
+                    key === SIGN_IN_LINK_SENT ? 'notification_signup_link_sent' : 'notification_signup_failed',
+                    { city_id: city.id, code: result.error },
+                );
+                return { ok: false, error: key };
             }
 
             // The request is written; now the side Notis owns. A refusal or a

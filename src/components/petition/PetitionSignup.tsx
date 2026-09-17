@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { LocationPreview } from '@/components/signup/LocationPreview';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
 import { draftKey } from '@/components/signup/signup-draft';
-import { failureKind, saveErrorKey, type SignupAccount } from '@/components/signup/signup-shared';
+import { SIGN_IN_LINK_SENT, failureKind, saveErrorKey, type SignupAccount } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { savePetition } from '@/lib/actions/notifications';
 import { captureEvent } from '@/lib/analytics/capture';
@@ -102,8 +102,14 @@ export function PetitionSignup({
                 ),
             );
             if (!result.success) {
-                captureEvent('petition_failed', { city_id: city.id, code: result.error });
-                return { ok: false, error: saveErrorKey(result.error) };
+                const key = saveErrorKey(result.error);
+                // See NotificationSignup: the link-sent answer gets its own
+                // event so the failure count keeps meaning failures.
+                captureEvent(key === SIGN_IN_LINK_SENT ? 'petition_link_sent' : 'petition_failed', {
+                    city_id: city.id,
+                    code: result.error,
+                });
+                return { ok: false, error: key };
             }
             captureEvent('petition_submitted', {
                 city_id: city.id,
