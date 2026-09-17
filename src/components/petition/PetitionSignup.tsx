@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { LocationPreview } from '@/components/signup/LocationPreview';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
+import { draftKey } from '@/components/signup/signup-draft';
 import { failureKind, saveErrorKey, type SignupAccount } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { savePetition } from '@/lib/actions/notifications';
@@ -50,6 +51,25 @@ export function PetitionSignup({
         cityId: city.id,
         signedIn,
         events: { stepViewed: 'petition_step_viewed', failed: 'petition_failed' },
+        draft: {
+            key: draftKey('petition', city.id),
+            // The step comes from the URL; the account fields belong to the
+            // session once there is one.
+            apply: (state, stored) => ({
+                ...state,
+                isResident: stored.isResident ?? state.isResident,
+                isCitizen: stored.isCitizen ?? state.isCitizen,
+                other: stored.other ?? state.other,
+                otherText: stored.otherText ?? state.otherText,
+                ...(signedIn
+                    ? {}
+                    : {
+                          name: stored.name ?? state.name,
+                          email: stored.email ?? state.email,
+                          phone: stored.phone ?? state.phone,
+                      }),
+            }),
+        },
     });
     const { state, patch, goTo, done, submitting, attempted, failures, saveError, validity, phoneValidity, setPhoneValidity } =
         flow;

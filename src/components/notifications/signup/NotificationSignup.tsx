@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
+import { draftKey } from '@/components/signup/signup-draft';
 import { failureKind, saveErrorKey } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { saveNotificationPreferences } from '@/lib/actions/notifications';
@@ -64,6 +65,26 @@ export function NotificationSignup({
         cityId: city.id,
         signedIn,
         events: { stepViewed: 'notification_signup_step_viewed', failed: 'notification_signup_failed' },
+        draft: {
+            key: draftKey('notifications', city.id),
+            // The step comes from the URL, not the draft. The account fields
+            // belong to the session once there is one. The WhatsApp tick is
+            // Notis's answer and is never restored — a stale tick could
+            // resubscribe a reader who said ΣΤΟΠ.
+            apply: (state, stored) => ({
+                ...state,
+                locations: stored.locations ?? state.locations,
+                topics: stored.topics ?? state.topics,
+                emailChannel: stored.emailChannel ?? state.emailChannel,
+                ...(signedIn
+                    ? {}
+                    : {
+                          name: stored.name ?? state.name,
+                          email: stored.email ?? state.email,
+                          phone: stored.phone ?? state.phone,
+                      }),
+            }),
+        },
     });
     const { state, patch, goTo, done, submitting, attempted, failures, saveError, validity, setPhoneValidity } = flow;
 
