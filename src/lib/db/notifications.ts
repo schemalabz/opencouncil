@@ -3,6 +3,7 @@ import "server-only";
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
 import { auth, signIn } from "@/auth";
 import { signInFailurePath } from "@/lib/auth/signInResult";
+import { safeRedirectPath } from "@/lib/safeRedirect";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
 import { classifyDeliveries, deliveriesWhereForStatus } from '@/lib/notifications/deliveryStatus';
 import { attachGeometryToCities } from "./cities";
@@ -71,15 +72,25 @@ async function requireSelfOrSuperadmin(userId: string): Promise<void> {
     }
 }
 
-// Helper function to send a magic link to the user
-async function sendMagicLink(email: string) {
+/**
+ * Sends the magic link. `returnTo` is where it lands — the page the reader
+ * was filling in, so an existing account costs them a tap rather than the
+ * whole form. Anything that is not a same-origin relative path falls back to
+ * the profile (safeRedirectPath), so the link can never carry a reader to
+ * another origin.
+ */
+async function sendMagicLink(email: string, returnTo?: string) {
     try {
         // Use the existing signIn function with the resend provider
         // This will create the user if they don't exist and send a magic link.
         // redirect: false — with the default, Auth.js throws NEXT_REDIRECT on
         // success, so every sent magic link landed in the catch below and was
         // logged as a failure.
-        const url: string = await signIn("resend", { email, redirect: false });
+        const url: string = await signIn("resend", {
+            email,
+            ...(returnTo ? { redirectTo: safeRedirectPath(returnTo) } : {}),
+            redirect: false,
+        });
         const failurePath = signInFailurePath(url);
         if (failurePath) {
             console.error(`Magic link not sent to ${email} (redirected to ${failurePath})`);
@@ -239,6 +250,13 @@ type OnboardingData = {
     phone?: string;
     email?: string; // For non-authenticated users
     name?: string;
+    /**
+     * Where the sign-in link should land when the email already has an
+     * account: the page the reader is filling in. Attacker-controllable like
+     * every other field here, so it goes through safeRedirectPath — a
+     * same-origin relative path or the profile, never another origin.
+     */
+    returnTo?: string;
     // Dev-seed-only convenience: lets the seed-users API create users without a
     // session and without a magic link. SECURITY: these actions are reachable as
     // Server Actions from the public onboarding client, so this field is
@@ -280,7 +298,7 @@ export async function saveNotificationPreferences(data: OnboardingData & {
     }
     const {
         cityId, locations, topicIds, phone: rawPhone, email, name, seedUser: rawSeedUser,
-        notifyByPhone, notifyByEmail,
+        notifyByPhone, notifyByEmail, returnTo,
     } = data;
     // A phone is stored as a mobile number in E.164 or not at all (@/lib/phone):
     // the old input let national numbers through, and they reached nobody.
@@ -347,8 +365,15 @@ export async function saveNotificationPreferences(data: OnboardingData & {
             });
 
             if (user) {
-                // Email exists but user is not authenticated - return error
-                return createError("email_exists");
+                // A reader who already has an account, signed out. Sending
+                // them away to type the same email into the sign-in page
+                // loses the form: the link goes out from here instead, and
+                // the draft their browser kept puts the form back when they
+                // return. A send that fails falls back to the sign-in link
+                // in the alert, so the message never promises an email that
+                // was not sent.
+                const sent = await sendMagicLink(email, returnTo);
+                return createError(sent ? "email_exists_link_sent" : "email_exists");
             } else {
                 if (phone && (await phoneBelongsToAnotherUser(phone))) {
                     return createError(PHONE_IN_USE_CODE);
@@ -496,7 +521,7 @@ export async function savePetition(data: OnboardingData & {
     if (!validation.success) {
         return createError('Invalid input');
     }
-    const { cityId, isResident, isCitizen, otherRelation, phone: rawPhone, email, name, seedUser: rawSeedUser } = data;
+    const { cityId, isResident, isCitizen, otherRelation, phone: rawPhone, email, name, seedUser: rawSeedUser, returnTo } = data;
     const relation = {
         is_resident: isResident,
         is_citizen: isCitizen,
@@ -551,8 +576,15 @@ export async function savePetition(data: OnboardingData & {
             });
 
             if (user) {
-                // Email exists but user is not authenticated - return error
-                return createError("email_exists");
+                // A reader who already has an account, signed out. Sending
+                // them away to type the same email into the sign-in page
+                // loses the form: the link goes out from here instead, and
+                // the draft their browser kept puts the form back when they
+                // return. A send that fails falls back to the sign-in link
+                // in the alert, so the message never promises an email that
+                // was not sent.
+                const sent = await sendMagicLink(email, returnTo);
+                return createError(sent ? "email_exists_link_sent" : "email_exists");
             } else {
                 if (phone && (await phoneBelongsToAnotherUser(phone))) {
                     return createError(PHONE_IN_USE_CODE);

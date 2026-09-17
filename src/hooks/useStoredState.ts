@@ -6,7 +6,7 @@ export type StorageArea = 'local' | 'session';
 
 // Every access is guarded: storage is unavailable in a private window and
 // wherever the user blocks site data, and a write can still hit the quota.
-function readStored(kind: StorageArea, key: string): string | null {
+export function readStored(kind: StorageArea, key: string): string | null {
     try {
         return (kind === 'local' ? window.localStorage : window.sessionStorage).getItem(key);
     } catch {
@@ -14,10 +14,16 @@ function readStored(kind: StorageArea, key: string): string | null {
     }
 }
 
-function writeStored(kind: StorageArea, key: string, value: string): void {
+export function writeStored(kind: StorageArea, key: string, value: string): void {
     try {
         (kind === 'local' ? window.localStorage : window.sessionStorage).setItem(key, value);
     } catch { /* the preference simply does not survive this navigation */ }
+}
+
+export function removeStored(kind: StorageArea, key: string): void {
+    try {
+        (kind === 'local' ? window.localStorage : window.sessionStorage).removeItem(key);
+    } catch { /* nothing to clear, or storage is unavailable */ }
 }
 
 /**

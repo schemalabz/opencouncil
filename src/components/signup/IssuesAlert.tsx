@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Mail } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
-import type { SignupIssue } from './signup-shared';
+import { cn } from '@/lib/utils';
+import { SIGN_IN_LINK_SENT, type SignupIssue } from './signup-shared';
 
 /**
  * Why the last step did not submit: the save action's answer first, then
@@ -29,6 +30,11 @@ export function IssuesAlert({
     const t = useTranslations('signup');
     const ref = useRef<HTMLDivElement>(null);
     const shown = saveError !== null || issues.length > 0;
+    // The reader already has an account and the link is on its way: nothing
+    // is wrong, so nothing reads as an error. Their answers are still on the
+    // form, kept by the draft, and one press finishes the job when they
+    // return signed in.
+    const linkSent = saveError === SIGN_IN_LINK_SENT && issues.length === 0;
 
     useEffect(() => {
         if (!shown || failures === 0) return;
@@ -40,15 +46,27 @@ export function IssuesAlert({
     return (
         <div
             ref={ref}
-            role="alert"
-            className="mt-5 flex scroll-mt-24 items-start gap-2 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
+            role={linkSent ? 'status' : 'alert'}
+            className={cn(
+                'mt-5 flex scroll-mt-24 items-start gap-2 rounded-[10px] border px-3 py-2.5 text-sm',
+                linkSent
+                    ? 'border-sky-200 bg-sky-50 text-sky-900'
+                    : 'border-red-200 bg-red-50 text-red-700',
+            )}
         >
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            {linkSent ? (
+                <Mail className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            ) : (
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            )}
             <div className="flex flex-col gap-1">
                 {saveError && (
                     <p>
                         {t(`errors.${saveError}`)}
-                        {saveError === 'emailExists' && (
+                        {/* The manual route stays on both answers: an email
+                            can be slow or filtered, and the reader should
+                            never be left with only a message to look at. */}
+                        {(saveError === 'emailExists' || saveError === SIGN_IN_LINK_SENT) && (
                             <>
                                 {' '}
                                 <Link href={signInHref} className="underline">

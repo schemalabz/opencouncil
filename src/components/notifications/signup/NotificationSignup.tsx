@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
-import { failureKind, saveErrorKey } from '@/components/signup/signup-shared';
+import { draftKey } from '@/components/signup/signup-draft';
+import { SIGN_IN_LINK_SENT, failureKind, saveErrorKey } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { saveNotificationPreferences } from '@/lib/actions/notifications';
 import { getNotisChannelState, setNotisEnabled } from '@/lib/actions/notis';
@@ -31,6 +32,32 @@ import {
 } from './signup-state';
 
 const TOTAL_STEPS = 3;
+
+/**
+ * What a kept draft may put back. The step comes from the URL, not the
+ * draft. The account fields belong to the session once there is one. The
+ * WhatsApp tick is Notis's answer and is never restored — a stale tick over
+ * his could resubscribe a reader who said ΣΤΟΠ.
+ */
+function notificationsDraft(cityId: string, signedIn: boolean) {
+    return {
+        key: draftKey('notifications', cityId),
+        apply: (state: SignupState, stored: Partial<SignupState>): SignupState => ({
+            ...state,
+            locations: stored.locations ?? state.locations,
+            topics: stored.topics ?? state.topics,
+            emailChannel: stored.emailChannel ?? state.emailChannel,
+            ...(signedIn
+                ? {}
+                : {
+                      name: stored.name ?? state.name,
+                      email: stored.email ?? state.email,
+                      phone: stored.phone ?? state.phone,
+                  }),
+        }),
+    };
+}
+
 
 /**
  * The three steps and the completion screen, on one page. The step rides in
@@ -64,6 +91,10 @@ export function NotificationSignup({
         cityId: city.id,
         signedIn,
         events: { stepViewed: 'notification_signup_step_viewed', failed: 'notification_signup_failed' },
+        // Nothing is kept for a reader who is editing what they already
+        // saved: the server's answers are the truth, and a draft from an
+        // abandoned session would put yesterday's places over them.
+        draft: existing ? undefined : notificationsDraft(city.id, signedIn),
     });
     const { state, patch, goTo, done, submitting, attempted, failures, saveError, validity, setPhoneValidity } = flow;
 
@@ -111,11 +142,23 @@ export function NotificationSignup({
             if (channelIssues(state, validity).length > 0) return 'blocked';
 
             const result = await saveNotificationPreferences(
-                buildSubmission(state, city.id, signedIn, { phoneChannelLocked: channelLocked }),
+                buildSubmission(state, city.id, signedIn, {
+                    phoneChannelLocked: channelLocked,
+                    // Where the sign-in link lands if this email already has
+                    // an account: right back here, with the draft in place.
+                    returnTo: window.location.pathname + window.location.search,
+                }),
             );
             if (!result.success) {
-                captureEvent('notification_signup_failed', { city_id: city.id, code: result.error });
-                return { ok: false, error: saveErrorKey(result.error) };
+                const key = saveErrorKey(result.error);
+                // The sign-in link went out: a step on the way, not a
+                // failure, and counting it as one would hide whether this
+                // whole detour is getting shorter.
+                captureEvent(
+                    key === SIGN_IN_LINK_SENT ? 'notification_signup_link_sent' : 'notification_signup_failed',
+                    { city_id: city.id, code: result.error },
+                );
+                return { ok: false, error: key };
             }
 
             // The request is written; now the side Notis owns. A refusal or a

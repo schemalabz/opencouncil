@@ -3,7 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { LocationPreview } from '@/components/signup/LocationPreview';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
-import { failureKind, saveErrorKey, type SignupAccount } from '@/components/signup/signup-shared';
+import { draftKey } from '@/components/signup/signup-draft';
+import { SIGN_IN_LINK_SENT, failureKind, saveErrorKey, type SignupAccount } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { savePetition } from '@/lib/actions/notifications';
 import { captureEvent } from '@/lib/analytics/capture';
@@ -22,6 +23,31 @@ import {
 } from './petition-state';
 
 const TOTAL_STEPS = 2;
+
+/**
+ * What a kept draft may put back. The step comes from the URL; the account
+ * fields belong to the session once there is one.
+ */
+function petitionDraft(cityId: string, signedIn: boolean) {
+    return {
+        key: draftKey('petition', cityId),
+        apply: (state: PetitionState, stored: Partial<PetitionState>): PetitionState => ({
+            ...state,
+            isResident: stored.isResident ?? state.isResident,
+            isCitizen: stored.isCitizen ?? state.isCitizen,
+            other: stored.other ?? state.other,
+            otherText: stored.otherText ?? state.otherText,
+            ...(signedIn
+                ? {}
+                : {
+                      name: stored.name ?? state.name,
+                      email: stored.email ?? state.email,
+                      phone: stored.phone ?? state.phone,
+                  }),
+        }),
+    };
+}
+
 
 /**
  * The petition for one municipality: step 1 explains, step 2 asks who is
@@ -50,6 +76,9 @@ export function PetitionSignup({
         cityId: city.id,
         signedIn,
         events: { stepViewed: 'petition_step_viewed', failed: 'petition_failed' },
+        // Nothing is kept for a reader who is updating a petition they
+        // already signed: the server's answers are the truth.
+        draft: existing ? undefined : petitionDraft(city.id, signedIn),
     });
     const { state, patch, goTo, done, submitting, attempted, failures, saveError, validity, phoneValidity, setPhoneValidity } =
         flow;
@@ -61,10 +90,26 @@ export function PetitionSignup({
         flow.submit(async () => {
             if (petitionIssues(state, validity).length > 0) return 'blocked';
 
-            const result = await savePetition(buildPetitionSubmission(state, city.id, signedIn, phoneValidity.isEmpty));
+            const result = await savePetition(
+                buildPetitionSubmission(
+                    state,
+                    city.id,
+                    signedIn,
+                    phoneValidity.isEmpty,
+                    // Where the sign-in link lands if this email already has
+                    // an account: right back here, with the draft in place.
+                    window.location.pathname + window.location.search,
+                ),
+            );
             if (!result.success) {
-                captureEvent('petition_failed', { city_id: city.id, code: result.error });
-                return { ok: false, error: saveErrorKey(result.error) };
+                const key = saveErrorKey(result.error);
+                // See NotificationSignup: the link-sent answer gets its own
+                // event so the failure count keeps meaning failures.
+                captureEvent(key === SIGN_IN_LINK_SENT ? 'petition_link_sent' : 'petition_failed', {
+                    city_id: city.id,
+                    code: result.error,
+                });
+                return { ok: false, error: key };
             }
             captureEvent('petition_submitted', {
                 city_id: city.id,

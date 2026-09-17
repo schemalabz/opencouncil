@@ -64,6 +64,12 @@ export function petitionIssues(
 
 export interface PetitionSubmission {
     cityId: string;
+    /**
+     * Where the sign-in link lands when this email already has an account:
+     * the page the reader is on. Validated server-side (safeRedirectPath).
+     */
+    returnTo?: string;
+
     isResident: boolean;
     isCitizen: boolean;
     otherRelation: string | null;
@@ -83,9 +89,11 @@ export function buildPetitionSubmission(
     cityId: string,
     signedIn: boolean,
     phoneEmpty: boolean,
+    returnTo?: string,
 ): PetitionSubmission {
     return {
         cityId,
+        ...(returnTo ? { returnTo } : {}),
         isResident: state.isResident,
         isCitizen: state.isCitizen,
         otherRelation: state.other ? state.otherText.trim() : null,

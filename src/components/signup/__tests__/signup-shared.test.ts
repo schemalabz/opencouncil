@@ -23,6 +23,10 @@ describe('failureKind', () => {
         expect(failureKind(['phone_missing'], 'generic')).toBe('issues');
         expect(failureKind([], 'notisUnreachable')).toBe('refused');
         expect(failureKind([], null)).toBeNull();
+        // The sign-in link is on its way: the bar has nothing to report.
+        expect(failureKind([], 'emailExistsLinkSent')).toBeNull();
+        // Unless the reader also left something out — that they must fix.
+        expect(failureKind(['name_missing'], 'emailExistsLinkSent')).toBe('issues');
     });
 });
 
