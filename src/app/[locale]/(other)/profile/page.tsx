@@ -23,9 +23,10 @@ export const metadata: Metadata = {
 export default async function ProfilePage(props: { searchParams: Promise<{ claim?: string }> }) {
     const [user, { claim }] = await Promise.all([getCurrentUser(), props.searchParams]);
     if (!user) redirect("/sign-in");
-    // The persons this account speaks for: their voiceprint consent boxes.
-    const linkedPersons = user.administers.flatMap((a) => (a.person ? [a.person] : []));
-    const consented = await getVoicePrintConsentedIds(linkedPersons.map((p) => p.id));
+    // The persons this account is, by a QR claim: their voiceprint consent
+    // boxes. A person the account only edits for somebody else gets no box.
+    const linkedPersons = user.administers.flatMap((a) => (a.person && a.claimedAt ? [a.person] : []));
+    const consented = await getVoicePrintConsentedIds(linkedPersons.map((p) => p.id), user.id);
     const persons: ConsentPerson[] = linkedPersons.map((p) => ({
         id: p.id,
         name: p.name,

@@ -95,6 +95,15 @@ describe('UserInfoForm voiceprint consent', () => {
         expect((document.getElementById('name') as HTMLInputElement).value).toBe('Α. Β.');
     });
 
+    it('does not guess a name when the account is linked to more than one person', () => {
+        const persons = [
+            { id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: false },
+            { id: 'person-2', name: 'Αικατερίνη Μανιμανάκη', voicePrintConsent: false },
+        ];
+        render(createElement(UserInfoForm, { user: { ...user, name: null } as User, isOnboarded: false, persons }));
+        expect((document.getElementById('name') as HTMLInputElement).value).toBe('');
+    });
+
     it('does not call the action when the tick did not change', async () => {
         render(createElement(UserInfoForm, {
             user,

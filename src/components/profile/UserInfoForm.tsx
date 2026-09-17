@@ -58,8 +58,10 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
 
     const [formData, setFormData] = useState({
         // A councillor who signed up through their QR has no name yet: start
-        // from the name on their council record. Saved only with the form.
-        name: user.name || persons[0]?.name || "",
+        // from the name on their council record. Only with exactly one linked
+        // person: with more, nothing says which name is the account holder's.
+        // Saved only with the form.
+        name: user.name || (persons.length === 1 ? persons[0].name : ""),
         phone: user.phone || "",
         allowProductUpdates: user.allowProductUpdates,
         allowPetitionUpdates: user.allowPetitionUpdates,

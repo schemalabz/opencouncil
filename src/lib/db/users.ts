@@ -151,19 +151,31 @@ export async function updateUser(id: string, data: AdminUserData): Promise<UserW
 
     try {
         if (administers) {
-            const [_, updatedUser] = await prisma.$transaction([
-                // First delete all existing administers relations
-                prisma.administers.deleteMany({ where: { userId: id } }),
-                // Then update the user with new data
-                prisma.user.update({
+            const updatedUser = await prisma.$transaction(async (tx) => {
+                // The rows are recreated from the form, which knows nothing of
+                // claimedAt. A person the form keeps stays claimed; only the
+                // person's own scan can set it, so the form must not lose it.
+                const claimed = await tx.administers.findMany({
+                    where: { userId: id, claimedAt: { not: null } },
+                    select: { personId: true, claimedAt: true },
+                });
+                const claimedAtByPerson = new Map(claimed.map((row) => [row.personId, row.claimedAt]));
+                await tx.administers.deleteMany({ where: { userId: id } });
+                return tx.user.update({
                     where: { id },
                     data: {
                         ...userData,
-                        administers: { create: administers }
+                        administers: {
+                            create: administers.map((row) =>
+                                row.personId && claimedAtByPerson.has(row.personId)
+                                    ? { ...row, claimedAt: claimedAtByPerson.get(row.personId) }
+                                    : row,
+                            ),
+                        },
                     },
-                    include: userWithAdministersInclude
-                })
-            ]);
+                    include: userWithAdministersInclude,
+                });
+            });
             return updatedUser;
         }
 

@@ -139,7 +139,8 @@ async function createTestUsers() {
         case 'person':
           if (testPerson) {
             finalName = `Person Admin (${testPerson.name})`
-            administers = [{ personId: testPerson.id }]
+            // Claimed, as a QR scan would: the test person admin is the person.
+            administers = [{ personId: testPerson.id, claimedAt: new Date() }]
           } else {
             finalName = 'Person Admin (No person available)'
           }
