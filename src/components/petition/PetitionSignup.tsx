@@ -25,6 +25,31 @@ import {
 const TOTAL_STEPS = 2;
 
 /**
+ * What a kept draft may put back. The step comes from the URL; the account
+ * fields belong to the session once there is one.
+ */
+function petitionDraft(cityId: string, signedIn: boolean) {
+    return {
+        key: draftKey('petition', cityId),
+        apply: (state: PetitionState, stored: Partial<PetitionState>): PetitionState => ({
+            ...state,
+            isResident: stored.isResident ?? state.isResident,
+            isCitizen: stored.isCitizen ?? state.isCitizen,
+            other: stored.other ?? state.other,
+            otherText: stored.otherText ?? state.otherText,
+            ...(signedIn
+                ? {}
+                : {
+                      name: stored.name ?? state.name,
+                      email: stored.email ?? state.email,
+                      phone: stored.phone ?? state.phone,
+                  }),
+        }),
+    };
+}
+
+
+/**
  * The petition for one municipality: step 1 explains, step 2 asks who is
  * asking. Built on the notification signup's chrome and rules, so the two
  * flows look and behave the same; `?step=2` is where the municipality
@@ -51,25 +76,9 @@ export function PetitionSignup({
         cityId: city.id,
         signedIn,
         events: { stepViewed: 'petition_step_viewed', failed: 'petition_failed' },
-        draft: {
-            key: draftKey('petition', city.id),
-            // The step comes from the URL; the account fields belong to the
-            // session once there is one.
-            apply: (state, stored) => ({
-                ...state,
-                isResident: stored.isResident ?? state.isResident,
-                isCitizen: stored.isCitizen ?? state.isCitizen,
-                other: stored.other ?? state.other,
-                otherText: stored.otherText ?? state.otherText,
-                ...(signedIn
-                    ? {}
-                    : {
-                          name: stored.name ?? state.name,
-                          email: stored.email ?? state.email,
-                          phone: stored.phone ?? state.phone,
-                      }),
-            }),
-        },
+        // Nothing is kept for a reader who is updating a petition they
+        // already signed: the server's answers are the truth.
+        draft: existing ? undefined : petitionDraft(city.id, signedIn),
     });
     const { state, patch, goTo, done, submitting, attempted, failures, saveError, validity, phoneValidity, setPhoneValidity } =
         flow;

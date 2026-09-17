@@ -63,7 +63,10 @@ export function IssuesAlert({
                 {saveError && (
                     <p>
                         {t(`errors.${saveError}`)}
-                        {saveError === 'emailExists' && (
+                        {/* The manual route stays on both answers: an email
+                            can be slow or filtered, and the reader should
+                            never be left with only a message to look at. */}
+                        {(saveError === 'emailExists' || saveError === SIGN_IN_LINK_SENT) && (
                             <>
                                 {' '}
                                 <Link href={signInHref} className="underline">

@@ -50,30 +50,44 @@ export function useSignupFlow<S extends { step: number }>(opts: {
         captureEvent(events.stepViewed, { city_id: cityId, step: state.step, signed_in: signedIn });
     }, [cityId, done, events.stepViewed, signedIn, state.step]);
 
+    // The flows build `draft` inline, so its identity changes on every
+    // render. A ref holds it and the effects depend on the key alone —
+    // otherwise both of them would run on every render, and the write below
+    // would serialize the whole state on every keystroke.
+    const draftRef = useRef(draft);
+    draftRef.current = draft;
+    const draftKey = draft?.key;
+
     // The draft arrives in a mount effect, never during the first render:
     // reading storage while rendering makes the server HTML and the
-    // hydration render disagree for everyone who has one.
-    const restored = useRef(false);
+    // hydration render disagree for everyone who has one. `restored` is
+    // state, not a ref, so the write below cannot run in the same commit and
+    // put the pre-restore form back over the draft it just read.
+    const [restored, setRestored] = useState(false);
     useEffect(() => {
-        if (!draft || restored.current) return;
-        restored.current = true;
-        const stored = readDraft<Partial<S>>(draft.key);
-        if (stored) setState((s) => draft.apply(s, stored));
-    }, [draft]);
+        if (!draftKey || restored) return;
+        const stored = readDraft<Partial<S>>(draftKey);
+        const apply = draftRef.current?.apply;
+        if (stored && apply) setState((s) => apply(s, stored));
+        setRestored(true);
+    }, [draftKey, restored]);
 
-    // Kept on every change once the draft has had its chance to load, so the
-    // reader's own edits are never overwritten by what the effect above put
-    // back — and cleared the moment the form is saved.
+    // Kept from the reader's first edit — a visitor who types nothing leaves
+    // nothing behind — and cleared the moment the form is saved.
+    const [edited, setEdited] = useState(false);
     useEffect(() => {
-        if (!draft || !restored.current) return;
+        if (!draftKey || !restored) return;
         if (done) {
-            clearDraft(draft.key);
+            clearDraft(draftKey);
             return;
         }
-        writeDraft(draft.key, state);
-    }, [draft, done, state]);
+        if (edited) writeDraft(draftKey, state);
+    }, [draftKey, done, edited, restored, state]);
 
-    const patch = useCallback((next: Partial<S>) => setState((s) => ({ ...s, ...next })), []);
+    const patch = useCallback((next: Partial<S>) => {
+        setEdited(true);
+        setState((s) => ({ ...s, ...next }));
+    }, []);
 
     const goTo = useCallback((step: S['step']) => {
         setState((s) => ({ ...s, step }));

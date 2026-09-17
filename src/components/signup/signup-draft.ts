@@ -42,7 +42,10 @@ export function readDraft<T>(key: string): T | null {
         const parsed = JSON.parse(raw) as StoredDraft<T>;
         if (parsed.version !== VERSION) return null;
         if (!Number.isFinite(parsed.at) || Date.now() - parsed.at > MAX_AGE_MS) return null;
-        return parsed.value ?? null;
+        // A hand-edited or truncated entry can hold anything; only an object
+        // is safe to merge into a form's state.
+        if (typeof parsed.value !== 'object' || parsed.value === null) return null;
+        return parsed.value;
     } catch {
         return null;
     }

@@ -34,6 +34,32 @@ import {
 const TOTAL_STEPS = 3;
 
 /**
+ * What a kept draft may put back. The step comes from the URL, not the
+ * draft. The account fields belong to the session once there is one. The
+ * WhatsApp tick is Notis's answer and is never restored — a stale tick over
+ * his could resubscribe a reader who said ΣΤΟΠ.
+ */
+function notificationsDraft(cityId: string, signedIn: boolean) {
+    return {
+        key: draftKey('notifications', cityId),
+        apply: (state: SignupState, stored: Partial<SignupState>): SignupState => ({
+            ...state,
+            locations: stored.locations ?? state.locations,
+            topics: stored.topics ?? state.topics,
+            emailChannel: stored.emailChannel ?? state.emailChannel,
+            ...(signedIn
+                ? {}
+                : {
+                      name: stored.name ?? state.name,
+                      email: stored.email ?? state.email,
+                      phone: stored.phone ?? state.phone,
+                  }),
+        }),
+    };
+}
+
+
+/**
  * The three steps and the completion screen, on one page. The step rides in
  * the URL (`?step=2` is where the municipality picker lands), so a reload
  * keeps the place; the choices live in memory, so a reload starts them
@@ -65,26 +91,10 @@ export function NotificationSignup({
         cityId: city.id,
         signedIn,
         events: { stepViewed: 'notification_signup_step_viewed', failed: 'notification_signup_failed' },
-        draft: {
-            key: draftKey('notifications', city.id),
-            // The step comes from the URL, not the draft. The account fields
-            // belong to the session once there is one. The WhatsApp tick is
-            // Notis's answer and is never restored — a stale tick could
-            // resubscribe a reader who said ΣΤΟΠ.
-            apply: (state, stored) => ({
-                ...state,
-                locations: stored.locations ?? state.locations,
-                topics: stored.topics ?? state.topics,
-                emailChannel: stored.emailChannel ?? state.emailChannel,
-                ...(signedIn
-                    ? {}
-                    : {
-                          name: stored.name ?? state.name,
-                          email: stored.email ?? state.email,
-                          phone: stored.phone ?? state.phone,
-                      }),
-            }),
-        },
+        // Nothing is kept for a reader who is editing what they already
+        // saved: the server's answers are the truth, and a draft from an
+        // abandoned session would put yesterday's places over them.
+        draft: existing ? undefined : notificationsDraft(city.id, signedIn),
     });
     const { state, patch, goTo, done, submitting, attempted, failures, saveError, validity, setPhoneValidity } = flow;
 
