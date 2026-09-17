@@ -80,15 +80,10 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 ### Notifications
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
-| `BIRD_API_KEY` | API key for Bird messaging service (WhatsApp/SMS). | No | - |
-| `BIRD_WORKSPACE_ID` | Bird workspace identifier for API calls. | No | - |
-| `BIRD_WHATSAPP_CHANNEL_ID` | Bird channel ID for WhatsApp messages. | No | - |
-| `BIRD_SMS_CHANNEL_ID` | Bird channel ID for SMS messages (fallback). | No | - |
-| `BIRD_WEBHOOK_SECRET` | Shared secret for verifying HMAC signatures on inbound Bird webhook events. | No | - |
 | `NOTIS_API_URL` | Base URL of the Notis service (`https://notis.opencouncil.gr`; staging `https://notis.staging.opencouncil.gr`; `http://localhost:3001` in development). The profile's Νότης switch reads and flips the reader's subscription through it, server-side. Without it the switch shows as unavailable. | No | - |
 | `NOTIS_SERVICE_TOKEN` | Bearer token presented on `NOTIS_API_URL/api/subscriptions/*`. The same value as the Notis component's `NOTIS_SERVICE_TOKEN`, at least 32 characters (`openssl rand -hex 32`), different per environment. | No | - |
 
-For full setup instructions (workspace, channels, templates, API key, webhook subscription), see [bird-setup.md](./bird-setup.md). The Notis service's own variables are in [services/notis/README.md](../services/notis/README.md).
+Every WhatsApp and SMS message to a reader belongs to the Notis service, which holds the Bird credentials and its own webhook subscription. Its variables are in [services/notis/README.md](../services/notis/README.md), and the Bird workspace setup in [bird-setup.md](./bird-setup.md).
 
 #### NEXTAUTH_SECRET
 You can quickly create a good value on the command line via this openssl command:

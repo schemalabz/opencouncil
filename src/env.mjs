@@ -103,13 +103,6 @@ export const env = createEnv({
     // Discord Admin Alerts
     DISCORD_WEBHOOK_URL: z.string().url().optional(),
 
-    // Bird API for WhatsApp/SMS notifications
-    BIRD_API_KEY: z.string().optional(),
-    BIRD_WORKSPACE_ID: z.string().optional(),
-    BIRD_WHATSAPP_CHANNEL_ID: z.string().optional(),
-    BIRD_SMS_CHANNEL_ID: z.string().optional(),
-    BIRD_WEBHOOK_SECRET: z.string().optional(), // Shared secret for verifying inbound webhook signatures from Bird
-
     // Google Calendar Integration (OAuth 2.0)
     GOOGLE_CALENDAR_CLIENT_ID: z.string().optional(),
     GOOGLE_CALENDAR_CLIENT_SECRET: z.string().optional(),
@@ -181,11 +174,6 @@ export const env = createEnv({
     NOTIS_API_URL: process.env.NOTIS_API_URL,
     NOTIS_SERVICE_TOKEN: process.env.NOTIS_SERVICE_TOKEN,
     DISCORD_WEBHOOK_URL: process.env.DISCORD_WEBHOOK_URL,
-    BIRD_API_KEY: process.env.BIRD_API_KEY,
-    BIRD_WORKSPACE_ID: process.env.BIRD_WORKSPACE_ID,
-    BIRD_WHATSAPP_CHANNEL_ID: process.env.BIRD_WHATSAPP_CHANNEL_ID,
-    BIRD_SMS_CHANNEL_ID: process.env.BIRD_SMS_CHANNEL_ID,
-    BIRD_WEBHOOK_SECRET: process.env.BIRD_WEBHOOK_SECRET,
     GOOGLE_CALENDAR_CLIENT_ID: process.env.GOOGLE_CALENDAR_CLIENT_ID,
     GOOGLE_CALENDAR_CLIENT_SECRET: process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
     GOOGLE_CALENDAR_REFRESH_TOKEN: process.env.GOOGLE_CALENDAR_REFRESH_TOKEN,
