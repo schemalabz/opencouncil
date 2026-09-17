@@ -1,8 +1,12 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Link } from "@/i18n/routing";
-import { usePathname, useSearchParams } from "next/navigation";
+// `usePathname` must come from the i18n helpers, not from `next/navigation`:
+// it returns the path without the locale prefix, which is what `Link` expects.
+// `next/navigation` keeps the prefix, and `Link` then adds a second one
+// (`/lat/lat/...`), which is a 404 on every locale but the default one.
+import { Link, usePathname } from "@/i18n/routing";
+import { useSearchParams } from "next/navigation";
 import * as React from "react";
 
 interface Context {

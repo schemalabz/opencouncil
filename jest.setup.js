@@ -26,3 +26,10 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
         dispatchEvent: () => false,
     });
 }
+
+// jsdom implements no layout, so it has no Element.scrollIntoView. Components
+// that bring the active item into view (the tab strip, for one) call it on
+// mount. A no-op keeps the render, and the tests assert on the markup instead.
+if (typeof window !== 'undefined' && typeof window.Element.prototype.scrollIntoView !== 'function') {
+    window.Element.prototype.scrollIntoView = () => { };
+}
