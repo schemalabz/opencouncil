@@ -57,7 +57,7 @@ describe('UserInfoForm voiceprint consent', () => {
         expect(screen.queryByText('voicePrintConsentLabel')).toBeNull();
     });
 
-    it('shows one box per administered person, named, and saves the tick with the personal info', async () => {
+    it('shows one box per administered person, named, and saves the tick with its own button', async () => {
         render(createElement(UserInfoForm, {
             user,
             isOnboarded: false,
@@ -66,10 +66,23 @@ describe('UserInfoForm voiceprint consent', () => {
         expect(screen.getByText('voicePrintConsentDescription Αδάμ Μπούτζουκας')).toBeTruthy();
 
         fireEvent.click(screen.getByLabelText('voicePrintConsentLabel'));
-        fireEvent.click(screen.getByText('savePersonalInfo'));
+        fireEvent.click(screen.getByText('voicePrintConsentSave'));
 
         await waitFor(() => expect(mockedSetConsent).toHaveBeenCalledWith('person-1', true));
-        expect(global.fetch).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'POST' }));
+        // Its own form: the account fields are not saved along with it.
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('saves a withdrawal even when the account form would be refused', async () => {
+        global.fetch = jest.fn().mockResolvedValue({ ok: false, json: async () => ({ error: { code: 'phone_in_use' } }) }) as unknown as typeof fetch;
+        render(createElement(UserInfoForm, {
+            user,
+            isOnboarded: true,
+            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: true }],
+        }));
+        fireEvent.click(screen.getByLabelText('voicePrintConsentLabel'));
+        fireEvent.click(screen.getByText('voicePrintConsentSave'));
+        await waitFor(() => expect(mockedSetConsent).toHaveBeenCalledWith('person-1', false));
     });
 
     it('shows an error and keeps the box when the action fails', async () => {
@@ -80,7 +93,7 @@ describe('UserInfoForm voiceprint consent', () => {
             persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: false }],
         }));
         fireEvent.click(screen.getByLabelText('voicePrintConsentLabel'));
-        fireEvent.click(screen.getByText('savePersonalInfo'));
+        fireEvent.click(screen.getByText('voicePrintConsentSave'));
 
         await waitFor(() => expect(screen.getByText('voicePrintConsentError')).toBeTruthy());
         expect((screen.getByLabelText('voicePrintConsentLabel') as HTMLButtonElement).getAttribute('aria-checked')).toBe('true');
@@ -104,14 +117,15 @@ describe('UserInfoForm voiceprint consent', () => {
         expect((document.getElementById('name') as HTMLInputElement).value).toBe('');
     });
 
-    it('does not call the action when the tick did not change', async () => {
+    it('keeps the consent button disabled until a tick changes', () => {
         render(createElement(UserInfoForm, {
             user,
             isOnboarded: true,
             persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: true }],
         }));
-        fireEvent.click(screen.getByText('savePersonalInfo'));
-        await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-        expect(mockedSetConsent).not.toHaveBeenCalled();
+        const save = screen.getByText('voicePrintConsentSave').closest('button') as HTMLButtonElement;
+        expect(save.disabled).toBe(true);
+        fireEvent.click(screen.getByLabelText('voicePrintConsentLabel'));
+        expect(save.disabled).toBe(false);
     });
 });

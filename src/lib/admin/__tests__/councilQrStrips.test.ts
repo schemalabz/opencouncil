@@ -51,24 +51,19 @@ describe('getCouncilQrStrips', () => {
         expect(await getCouncilQrStrips('nowhere')).toBeNull();
     });
 
-    it('gives a strip to every unclaimed council member, with one shared expiry and texts in the city language', async () => {
+    it('gives a strip to every unclaimed council member, in the order of the people page, with one shared expiry and texts in the city language', async () => {
         mockGetCity.mockResolvedValue({ id: 'chania', name: 'Χανιά', realm: 'greece', language: 'el', timezone: 'Europe/Athens' });
+        const seat = (electedOrder: number) => role({ administrativeBodyId: councilBody.id, administrativeBody: councilBody, electedOrder });
+        // Deliberately out of order: the sheet must follow the elected order, not the query.
         mockGetPeopleForCity.mockResolvedValue([
-            person('mayor', 'Βασίλειος Μαμαλάκης', [role({ cityId: 'chania', name: 'Δήμαρχος', isHead: true })]),
-            person('member', 'Αδάμ Μπούτζουκας', [role({ administrativeBodyId: councilBody.id, administrativeBody: councilBody })]),
-            person('claimed', 'Αικατερίνη Μανιμανάκη', [role({ administrativeBodyId: councilBody.id, administrativeBody: councilBody })]),
+            person('member-3', 'Αδάμ Μπούτζουκας', [seat(3)]),
+            // A deputy mayor holds a city-level role and a council seat.
+            person('deputy', 'Ελένη Αντωνάκη', [role({ cityId: 'chania', name: 'Αντιδήμαρχος Πολιτισμού' }), seat(2)]),
+            person('claimed', 'Αικατερίνη Μανιμανάκη', [seat(4)]),
             // City staff, not elected: a city-level role but no council seat.
             person('secretary', 'Νίκος Γραμματικάκης', [role({ cityId: 'chania', name: 'Γενικός Γραμματέας' })]),
-            // A deputy mayor holds a city-level role and a council seat.
-            person('deputy', 'Ελένη Αντωνάκη', [
-                role({ cityId: 'chania', name: 'Αντιδήμαρχος Πολιτισμού' }),
-                role({ administrativeBodyId: councilBody.id, administrativeBody: councilBody }),
-            ]),
-            // Recorded by title only, without a council seat: still elected.
-            person('deputy-title-only', 'Μαρία Κυριακάκη', [role({ cityId: 'chania', name: 'Αντιδήµαρχος Οικονοµικών' })]),
-            person('councillor-title-only', 'Στέλιος Βρυάκης', [role({ cityId: 'chania', name: 'Εντεταλμένος Σύμβουλος Αθλητισμού' })]),
-            // Staff with an adviser title: not elected.
-            person('legal-adviser', 'Ιωάννης Νομικός', [role({ cityId: 'chania', name: 'Νομικός Σύμβουλος' })]),
+            person('member-1', 'Στέλιος Βρυάκης', [seat(1)]),
+            person('mayor', 'Βασίλειος Μαμαλάκης', [role({ cityId: 'chania', name: 'Δήμαρχος', isHead: true })]),
             person('committee-only', 'Γιώργος Παπαδάκης', [
                 role({ administrativeBodyId: 'body-committee', administrativeBody: { id: 'body-committee', name: 'Επιτροπή', type: 'committee' } }),
             ]),
@@ -78,11 +73,11 @@ describe('getCouncilQrStrips', () => {
         const strips = await getCouncilQrStrips('chania');
 
         expect(strips!.cityName).toBe('Χανιά');
-        expect(strips!.people.map((p) => p.id).sort()).toEqual(['councillor-title-only', 'deputy', 'deputy-title-only', 'mayor', 'member']);
+        expect(strips!.people.map((p) => p.id)).toEqual(['mayor', 'member-1', 'deputy', 'member-3']);
         const byId = Object.fromEntries(strips!.people.map((p) => [p.id, p]));
         expect(byId.mayor.role).toBe('Δήμαρχος');
         expect(byId.deputy.role).toBe('Αντιδήμαρχος Πολιτισμού');
-        expect(byId.member.role).toBeNull();
+        expect(byId['member-1'].role).toBeNull();
         for (const p of strips!.people) {
             const token = new URL(p.joinUrl).pathname.slice('/api/join/'.length);
             expect(verifyPersonClaimToken(token)).toBe(p.id);

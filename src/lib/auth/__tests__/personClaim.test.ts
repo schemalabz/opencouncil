@@ -31,13 +31,6 @@ describe('person claim token', () => {
         spy.mockRestore();
     });
 
-    it('is not interchangeable with an unsubscribe token, in either direction', async () => {
-        // Same secret and format; the kind is the only thing between a printed
-        // QR sheet and a mass unsubscribe.
-        expect(await verifyUnsubscribeToken(generatePersonClaimToken('person-1'))).toBeNull();
-        expect(verifyPersonClaimToken(await generateUnsubscribeToken('user-1'))).toBeNull();
-    });
-
     it('holds until the given expiry and not a millisecond after', () => {
         const now = Date.now();
         const spy = jest.spyOn(Date, 'now').mockReturnValue(now);

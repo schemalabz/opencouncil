@@ -660,6 +660,7 @@
     },
     "Profile": {
         "voicePrintConsentError": "The consent could not be saved. Try again.",
+        "voicePrintConsentSave": "Save consent",
         "voicePrintConsentLabel": "I consent to the processing of my voice for a voiceprint",
         "voicePrintConsentDescription": "OpenCouncil can make a voiceprint from a recorded meeting speech of {name} and use it to recognise the speaker in future recordings. You can withdraw this at any time.",
         "claim": {

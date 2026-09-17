@@ -47,12 +47,12 @@ describe('GET /api/join/[token]', () => {
 
     it('links the signed-in user and reports it on the profile', async () => {
         mockGetCurrentUser.mockResolvedValue({ id: 'user-1' });
-        mockClaimPerson.mockResolvedValue({ status: 'linked', cityId: 'chania', personName: 'Α. Β.' });
+        mockClaimPerson.mockResolvedValue({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
         const token = generatePersonClaimToken('person-1');
         const res = await GET(scan(token), params(token));
         expect(mockClaimPerson).toHaveBeenCalledWith('user-1', 'person-1');
         expect(res.headers.get('location')).toBe('/profile?claim=linked');
-        expect(mockAlert).toHaveBeenCalledWith({ cityId: 'chania', personName: 'Α. Β.' });
+        expect(mockAlert).toHaveBeenCalledWith({ cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
     });
 
     it('passes a refusal through without an alert', async () => {

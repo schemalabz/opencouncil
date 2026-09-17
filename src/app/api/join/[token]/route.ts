@@ -37,7 +37,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ token: st
 
     const result = await claimPerson(user.id, personId);
     if (result.status === 'linked') {
-        sendPersonClaimedAdminAlert({ cityId: result.cityId, personName: result.personName });
+        sendPersonClaimedAdminAlert({ cityId: result.cityId, cityName: result.cityName, personName: result.personName });
     }
 
     params.set('claim', result.status);

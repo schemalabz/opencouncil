@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 
 export type PersonClaimResult =
-    | { status: "linked"; cityId: string; personName: string }
+    | { status: "linked"; cityId: string; cityName: string; personName: string }
     /** This user already claimed the person: a second scan of their own QR. */
     | { status: "already_yours" }
     /** Another account already claimed the person. Nothing is created. */
@@ -36,6 +36,7 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
                     select: {
                         cityId: true,
                         name: true,
+                        city: { select: { name: true } },
                         administrators: { select: { id: true, userId: true, claimedAt: true } },
                     },
                 });
@@ -49,7 +50,7 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
                 } else {
                     await tx.administers.create({ data: { userId, personId, claimedAt: new Date() } });
                 }
-                return { status: "linked", cityId: person.cityId, personName: person.name };
+                return { status: "linked", cityId: person.cityId, cityName: person.city.name, personName: person.name };
             },
             { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
         );

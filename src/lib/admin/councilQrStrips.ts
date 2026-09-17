@@ -4,7 +4,7 @@ import { getCity } from "@/lib/db/cities";
 import { getPeopleForCity, type PersonWithRelations } from "@/lib/db/people";
 import { getClaimedPersonIds } from "@/lib/db/personClaim";
 import { claimExpiry, claimLastValidDay, personJoinUrl } from "@/lib/auth/personClaim";
-import { isCouncillorTitleRole, isDeputyMayorRole, isMayor } from "@/lib/utils/roles";
+import { isMayor } from "@/lib/utils/roles";
 import { sortPeople } from "@/lib/sorting/people";
 import { formatDate } from "@/lib/formatters/time";
 
@@ -31,27 +31,21 @@ export interface CouncilQrStrips {
 }
 
 /**
- * The title under a name on a strip: the city-level role (Δήμαρχος,
- * Αντιδήμαρχος …) when there is one, else the council role (Πρόεδρος …).
- * Plain members have neither. The roles are the active ones already: the
- * query below asks for those.
- */
-/**
- * Who gets a strip: a council member, the mayor or a deputy mayor. A council
- * seat is enough on its own; without one, the city-level title decides. Not
- * every city-level role: a General Secretary is city staff, not elected, and
- * must not be able to claim a page, so an unrecognised title gets no strip.
- * The roles are the active ones already.
+ * Who gets a strip: a council member or the mayor. A deputy mayor is
+ * appointed from the council, so the seat covers them. Not every city-level
+ * role: a General Secretary is city staff, not elected, and must not be able
+ * to claim a page. The roles are the active ones already: the query asks
+ * for those.
  */
 function isCouncilMemberOrMayor(person: PersonWithRelations): boolean {
-    return (
-        isMayor(person) ||
-        person.roles.some(
-            (r) => r.administrativeBody?.type === "council" || isDeputyMayorRole(r) || isCouncillorTitleRole(r),
-        )
-    );
+    return isMayor(person) || person.roles.some((r) => r.administrativeBody?.type === "council");
 }
 
+/**
+ * The title under a name on a strip: the city-level role (Δήμαρχος,
+ * Αντιδήμαρχος …) when there is one, else the council role (Πρόεδρος …).
+ * Plain members have neither.
+ */
 function roleLabel(person: PersonWithRelations): string | null {
     const cityRole = person.roles.find((r) => r.cityId && !r.partyId && !r.administrativeBodyId);
     const councilRole = person.roles.find((r) => r.administrativeBody?.type === "council");

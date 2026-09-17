@@ -194,6 +194,7 @@ export async function sendUserOnboardedAdminAlert(data: {
  */
 export async function sendPersonClaimedAdminAlert(data: {
     cityId: string;
+    cityName: string;
     personName: string;
 }): Promise<void> {
     await sendAdminAlert({
@@ -201,7 +202,7 @@ export async function sendPersonClaimedAdminAlert(data: {
         description: `A councillor linked their account through a claim QR. Review the link under ${env.NEXTAUTH_URL}/admin/users.`,
         color: 0x1abc9c, // Teal
         fields: [
-            { name: 'Municipality', value: data.cityId, inline: true },
+            { name: 'Municipality', value: data.cityName, inline: true },
             { name: 'Person', value: data.personName, inline: true },
         ],
         footer: {

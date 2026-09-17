@@ -21,6 +21,7 @@ const claimedAt = new Date('2026-09-16T10:00:00Z');
 const person = (administrators: { id: string; userId: string; claimedAt: Date | null }[]) => ({
     cityId: 'chania',
     name: 'Α. Β.',
+    city: { name: 'Χανιά' },
     administrators,
 });
 
@@ -34,7 +35,7 @@ describe('claimPerson', () => {
     it('claims a person nobody has claimed', async () => {
         mockFindUnique.mockResolvedValue(person([]));
         const result = await claimPerson('user-1', 'person-1');
-        expect(result).toEqual({ status: 'linked', cityId: 'chania', personName: 'Α. Β.' });
+        expect(result).toEqual({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
         expect(mockCreate).toHaveBeenCalledWith({ data: { userId: 'user-1', personId: 'person-1', claimedAt: expect.any(Date) } });
     });
 

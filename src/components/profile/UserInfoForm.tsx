@@ -76,7 +76,7 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
 
     const phoneSubmitBlocked = phoneValidity.isActive && !phoneValidity.isEmpty && !phoneValidity.isValid;
 
-    async function saveToApi(payload: object, { refresh = true } = {}): Promise<boolean> {
+    async function saveToApi(payload: object): Promise<boolean> {
         setIsSubmitting(true);
         try {
             const response = await fetch("/api/profile", {
@@ -97,7 +97,7 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
                 throw new Error("Failed to update profile");
             }
             setServerPhoneError(null);
-            if (refresh) router.refresh();
+            router.refresh();
             return true;
         } catch (error) {
             console.error("Failed to update profile:", error);
@@ -107,13 +107,15 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
         }
     }
 
-    // The consent lives on the Person, so it takes its own action, after the
-    // account's own fields are saved. One refresh at the end covers both.
-    async function saveConsents() {
-        const changed = persons.filter((p) => consentOf(p) !== p.voicePrintConsent);
+    // The consent is the person's, not the account's, and Art. 7(2) GDPR asks
+    // for it to stand apart from other matters. So it has its own form and its
+    // own save: a phone the server refuses cannot swallow a withdrawal.
+    const changedConsents = persons.filter((p) => consentOf(p) !== p.voicePrintConsent);
+    async function handleConsentSubmit(e: React.FormEvent) {
+        e.preventDefault();
         setIsSubmitting(true);
         try {
-            await Promise.all(changed.map((p) => setVoicePrintConsent(p.id, consentOf(p))));
+            await Promise.all(changedConsents.map((p) => setVoicePrintConsent(p.id, consentOf(p))));
             setConsentEdits({});
             setConsentError(false);
         } catch (error) {
@@ -128,12 +130,11 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
     async function handlePersonalSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (phoneSubmitBlocked) return;
-        const saved = await saveToApi({
+        await saveToApi({
             name: formData.name,
             phone: phoneValidity.isEmpty ? null : formData.phone,
             onboarded: true,
-        }, { refresh: persons.length === 0 });
-        if (saved && persons.length > 0) await saveConsents();
+        });
     }
 
     async function handleCommunicationSubmit(e: React.FormEvent) {
@@ -240,31 +241,6 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
                                     )}
                                 </div>
 
-                                {persons.length > 0 && (
-                                    <div className="space-y-4">
-                                        {persons.map((person) => (
-                                            <div key={person.id} className="flex items-start space-x-3">
-                                                <Checkbox
-                                                    id={`voicePrintConsent-${person.id}`}
-                                                    checked={consentOf(person)}
-                                                    onCheckedChange={(checked) =>
-                                                        setConsentEdits({ ...consentEdits, [person.id]: checked === true })
-                                                    }
-                                                />
-                                                <div className="space-y-1 leading-none">
-                                                    <Label htmlFor={`voicePrintConsent-${person.id}`}>{t("voicePrintConsentLabel")}</Label>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        {t("voicePrintConsentDescription", { name: person.name })}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {consentError && (
-                                            <p className="text-sm text-red-500">{t("voicePrintConsentError")}</p>
-                                        )}
-                                    </div>
-                                )}
-
                                 <div className="flex flex-col justify-between gap-2">
                                     <p className="text-xs text-muted-foreground">
                                         {t("lastUpdated", { date: formatNumericDateTime(new Date(user.updatedAt), undefined, 'el', false) })}
@@ -278,6 +254,33 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
                                     </Button>
                                 </div>
                             </form>
+                            {persons.length > 0 && (
+                                <form onSubmit={handleConsentSubmit} className="space-y-4 border-t pt-6">
+                                    {persons.map((person) => (
+                                        <div key={person.id} className="flex items-start space-x-3">
+                                            <Checkbox
+                                                id={`voicePrintConsent-${person.id}`}
+                                                checked={consentOf(person)}
+                                                onCheckedChange={(checked) =>
+                                                    setConsentEdits({ ...consentEdits, [person.id]: checked === true })
+                                                }
+                                            />
+                                            <div className="space-y-1 leading-none">
+                                                <Label htmlFor={`voicePrintConsent-${person.id}`}>{t("voicePrintConsentLabel")}</Label>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {t("voicePrintConsentDescription", { name: person.name })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {consentError && (
+                                        <p className="text-sm text-red-500">{t("voicePrintConsentError")}</p>
+                                    )}
+                                    <Button type="submit" variant="outline" disabled={isSubmitting || changedConsents.length === 0}>
+                                        {isSubmitting ? t("saving") : t("voicePrintConsentSave")}
+                                    </Button>
+                                </form>
+                            )}
                         </div>
                     </TabsContent>
 

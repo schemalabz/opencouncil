@@ -8,7 +8,7 @@ import { UserInfoForm, type ConsentPerson } from "@/components/profile/UserInfoF
 import { AdminSection } from "@/components/profile/AdminSection";
 import { DevelopmentSection } from "@/components/profile/DevelopmentSection";
 import { Clapperboard, ChevronRight } from "lucide-react";
-import { ClaimNotice } from "@/components/profile/ClaimNotice";
+import { ClaimNotice, DropClaimParam } from "@/components/profile/ClaimNotice";
 import { getVoicePrintConsentedIds } from "@/lib/db/personConsent";
 import { claimMessageKey } from "@/lib/utils/claimStatus";
 import { redirect } from "next/navigation";
@@ -49,6 +49,7 @@ export default async function ProfilePage(props: { searchParams: Promise<{ claim
     return (
         <div className="container max-w-2xl py-8 space-y-8 !px-3 sm:!px-8">
             <h1 className="text-3xl font-bold">{t("title")}</h1>
+            {claim !== undefined && !(claimKey && claimShown) && <DropClaimParam />}
             {claimKey && claimShown && (
                 <ClaimNotice
                     variant={claimKey === "alreadyYours" ? "default" : "destructive"}
