@@ -40,6 +40,7 @@ import { TopicPill } from "@/components/TopicPill";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { getAgendaFullLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
+import { isDecisionEligibleSubject } from "@/lib/db/decisionEligibility";
 import { SubjectAdminControls } from "./SubjectAdminControls";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
@@ -96,7 +97,6 @@ export default function Subject({ subjectId, highlightedContributionId }: { subj
         location,
         description,
         name,
-        agendaItemIndex,
         introducedBy,
         contributions,
         topicImportance,
@@ -220,12 +220,17 @@ export default function Subject({ subjectId, highlightedContributionId }: { subj
         return () => setSubjectHeader(null);
     }, [name, topic?.icon, topic?.colorHex, neighbours, setSubjectHeader, localize]);
 
+    // An out-of-agenda item the body approved as urgent carries a decision like
+    // any agenda item. The one eligibility rule decides, so this surface and the
+    // poll it asks for never disagree.
+    const decisionEligible = isDecisionEligibleSubject(subject);
+
     // Fetch last poll time on mount when there's no decision
     useEffect(() => {
-        if (agendaItemIndex != null && !subject.decision && !subject.withdrawn) {
+        if (decisionEligible && !subject.decision) {
             getLastPollTimeForMeeting(meeting.id, meeting.cityId).then(setLastSearchedAt);
         }
-    }, [agendaItemIndex, subject.decision, subject.withdrawn, meeting.id, meeting.cityId]);
+    }, [decisionEligible, subject.decision, meeting.id, meeting.cityId]);
 
     const handleFetchDecision = useCallback(async () => {
         captureSubjectAction('fetch_decision');
@@ -476,6 +481,8 @@ export default function Subject({ subjectId, highlightedContributionId }: { subj
                                     </p>
                                 ) : subject.withdrawn ? (
                                     <p className="pt-1 text-sm text-muted-foreground">{getWithdrawnLabel(t, subject, 'long')}</p>
+                                ) : !decisionEligible ? (
+                                    <p className="pt-1 text-sm text-muted-foreground">{t("noDecisionDescription")}</p>
                                 ) : (
                                     <div className="space-y-3 pt-1 text-center">
                                         <p className="text-sm text-muted-foreground">{t("noDecisionDescription")}</p>

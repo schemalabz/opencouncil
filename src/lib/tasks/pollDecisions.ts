@@ -7,6 +7,7 @@ import { AttendanceStatus, DataSource, VoteType, Prisma } from "@prisma/client";
 import { sortSubjectsByDiscussionOrder } from "../minutes/builders";
 
 import { upsertDecision, deleteDecision, getDecisionForSubject, DECISION_ELIGIBLE_SUBJECT_WHERE } from "../db/decisions";
+import { isDecisionEligibleSubject } from "../db/decisionEligibility";
 export { getDecisionForSubject };
 import { getCurrentUser, withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
@@ -328,12 +329,14 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
             id: true,
             name: true,
             agendaItemIndex: true,
+            nonAgendaReason: true,
+            withdrawn: true,
             cityId: true,
             councilMeetingId: true,
         },
     });
 
-    if (!subject || subject.agendaItemIndex == null) {
+    if (!subject || !isDecisionEligibleSubject(subject)) {
         throw new Error("Subject not found or not eligible for decisions");
     }
 
