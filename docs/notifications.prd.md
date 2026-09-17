@@ -109,7 +109,7 @@ NotificationDeliveries represent the sending of a notification to a user through
 - Uses the title and body content created during delivery creation
 
 **Phone channel:**
-The Notis service owns the WhatsApp templates, the WhatsApp-first delivery with SMS fallback, the quiet hours, and the ΣΤΟΠ ceremony. Its README documents them. The release step marks a `message` delivery row from before the switch as `skipped`. The Bird webhook in this app reconciles only the status of the messages this app sent before the switch.
+The Notis service owns the WhatsApp templates, the WhatsApp-first delivery with SMS fallback, the quiet hours, and the ΣΤΟΠ ceremony. Its README documents them. The release step marks a `message` delivery row from before the switch as `skipped`. This app has no Bird integration left: no sender, no webhook, no credentials.
 
 **Delivery Status Updates:**
 - Successful sending updates the delivery `status` field
@@ -165,16 +165,12 @@ export async function calculateProximityMatches(
 ```typescript
 export async function releaseNotifications(notificationIds: string[]) {
   // Email delivery via Resend
-  // Message delivery via Bird (WhatsApp → SMS fallback)
-  // Update delivery status and messageSentVia
+  // A `message` delivery from before the switch to Notis is skipped
+  // Update delivery status
 }
 
 export async function generateEmailContent(notification: Notification): Promise<{title: string, body: string}> {
   // Generate HTML email with subject cards and navigation buttons
-}
-
-export async function generateMessageContent(notification: Notification): Promise<{body: string}> {
-  // Generate SMS fallback text
 }
 ```
 
@@ -325,10 +321,8 @@ export function NotificationEmailTemplate({notification, subjects, unsubscribeUr
 }
 ```
 
-#### Bird WhatsApp Template Configuration:
-- **Template Names**: `before_meeting_notification`, `after_meeting_notification`
-- **Template Parameters**: date, cityName, subjectsSummary, adminBody, notificationId
-- **Fallback SMS**: Use generated body text for SMS delivery
+#### WhatsApp Templates:
+The Notis service owns every WhatsApp template. [`services/notis/README.md`](../services/notis/README.md) lists the shells, their variables and the `BIRD_WHATSAPP_TEMPLATE_*` variables that hold their Bird project ids.
 
 ### 10. Error Handling & Monitoring
 

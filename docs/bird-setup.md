@@ -1,8 +1,8 @@
 # Bird Messaging Setup (WhatsApp + SMS)
 
-This guide walks you through configuring [Bird](https://bird.com) for OpenCouncil's messaging. The Notis service (`services/notis`) sends every WhatsApp and SMS message to readers, and it answers every reply. The main app keeps its Bird configuration for its webhook handler, which reconciles the delivery status of the messages the app sent before the switch to Notis, and for the admin conversation pages. Both components share one Bird workspace, so most steps below apply to both. The Notis-specific parts are in [the Notis section](#the-notis-webhook-subscription) and in [`services/notis/README.md`](../services/notis/README.md). By the end you'll have all the `BIRD_*` environment variables filled in and a local ngrok tunnel that lets Bird POST inbound events back to your machine.
+This guide walks you through configuring [Bird](https://bird.com) for OpenCouncil's messaging. The Notis service (`services/notis`) sends every WhatsApp and SMS message to readers and answers every reply; it is the only component with Bird credentials. The main app has none — it sends nothing over WhatsApp or SMS and has no Bird webhook. By the end you'll have Notis's `BIRD_*` variables filled in and a local ngrok tunnel that lets Bird POST inbound events to your machine.
 
-For the canonical list of variables and their default values, see [`.env.example`](../.env.example) and [`environment-variables.md`](./environment-variables.md).
+For Notis's own variables and how it uses each template, see [`services/notis/README.md`](../services/notis/README.md).
 
 ## Prerequisites
 
@@ -42,19 +42,19 @@ The channel is what Bird uses to deliver WhatsApp messages and receive inbound r
 
 Repeat Step 2 picking **SMS** instead. Only needed if you want SMS fallback for users without WhatsApp.
 
-> Inbound SMS requires extra account setup on Bird's side (see [Receiving inbound SMS](https://docs.bird.com/connectivity-platform/receiving-sms/setting-your-account-up-to-receive-inbound-sms)). The Notis service receives inbound SMS through the same webhook events as WhatsApp. The main app's webhook handler ignores every inbound message.
+> Inbound SMS requires extra account setup on Bird's side (see [Receiving inbound SMS](https://docs.bird.com/connectivity-platform/receiving-sms/setting-your-account-up-to-receive-inbound-sms)). Notis receives inbound SMS through the same webhook events as WhatsApp.
 
 Copy the channel ID into `BIRD_SMS_CHANNEL_ID`.
 
 ## Step 4: The WhatsApp templates
 
-WhatsApp Business restricts outbound messages outside a 24-hour reply window to **pre-approved templates**. The main app sends no WhatsApp or SMS message to readers: the Notis service does, and the templates belong to it. [`services/notis/README.md`](../services/notis/README.md) lists the shells, their variables and the `BIRD_WHATSAPP_TEMPLATE_*` variables that hold their Bird project ids. The main app needs no template variable.
+WhatsApp Business restricts outbound messages outside a 24-hour reply window to **pre-approved templates**. They belong to Notis: [`services/notis/README.md`](../services/notis/README.md) lists the shells, their variables and the `BIRD_WHATSAPP_TEMPLATE_*` variables that hold their Bird project ids.
 
 ## Step 5: Generate an API key
 
 1. In the workspace sidebar go to **Settings** → **Developers** → **API access** (or **Access keys**, depending on Bird's UI version).
 2. Click **Create access key**, give it a descriptive name (e.g. `opencouncil-local`), and grant it the **Conversations** and **Channels** scopes.
-3. **Copy the key value immediately** — Bird only shows it once. Save it as `BIRD_API_KEY` in `.env`.
+3. **Copy the key value immediately** — Bird only shows it once. Save it as `BIRD_API_KEY` in `services/notis/.env`.
 
 ## Step 6: Generate the webhook signing secret
 
@@ -68,17 +68,17 @@ openssl rand -base64 32
 
 Save the **same value** in two places:
 
-- Locally as `BIRD_WEBHOOK_SECRET` in `.env`.
-- On Bird's side as the `signingKey` of the webhook subscription you'll create in [Step 8](#step-8-register-the-webhook-in-bird).
+- Locally as `BIRD_WEBHOOK_SECRET` in `services/notis/.env`.
+- On Bird's side as the `signingKey` of the webhook subscription you'll create in [Step 9](#step-9-register-the-webhook-in-bird).
 
 > **Treat it like a password.** Anyone with this value can forge requests that look like they came from Bird. Don't commit it; generate a different one per environment (dev, staging, prod) so a leaked dev key doesn't compromise prod. The HMAC scheme itself (HMAC-SHA256 over `timestamp \n url \n sha256(body)`, base64-encoded) is documented in [Bird — Verifying a webhook subscription](https://docs.bird.com/api/notifications-api/api-reference/webhook-subscriptions/verifying-a-webhook-subscription).
 
-## Step 7: Fill in `.env`
+## Step 7: Fill in `services/notis/.env`
 
-After Steps 1–6 you should have all five variables. Add them to your `.env`:
+After Steps 1–6 you should have all five variables. Add them to `services/notis/.env`:
 
 ```bash
-# Bird API for WhatsApp/SMS notifications
+# Bird API for WhatsApp/SMS
 BIRD_WORKSPACE_ID=<workspace-uuid>
 BIRD_API_KEY=<your-api-key>
 BIRD_WHATSAPP_CHANNEL_ID=<whatsapp-channel-uuid>
@@ -86,28 +86,28 @@ BIRD_SMS_CHANNEL_ID=<optional>
 BIRD_WEBHOOK_SECRET=<openssl-output-from-step-6>
 ```
 
-At this point the main app can reconcile the delivery status of its past outbound messages. It sends nothing to readers: every message is Notis's. To exercise a real reader's thread, run the Notis service with the same Bird variables and use its playground. **Inbound** still requires the next two steps.
+The template ids go beside them — one per shell in `src/agent/templates.ts`, listed in [`services/notis/README.md`](../services/notis/README.md). At this point Notis can send; **inbound** still requires the next two steps.
 
 ## Step 8: Expose the webhook locally with ngrok
 
-Bird needs a publicly reachable URL to POST inbound events to. In production that's `https://opencouncil.gr/api/webhooks/bird`; locally we tunnel with ngrok.
+Bird needs a publicly reachable URL to POST inbound events to. In production that's `https://notis.opencouncil.gr/api/webhooks/bird`; locally we tunnel with ngrok.
 
-1. Start the dev server:
+1. Start the Notis dev server:
 
    ```sh
-   npm run dev
+   npm run dev -w notis
    ```
 
-2. In a separate terminal, start an ngrok tunnel pointing at your local Next.js port (default `3000`):
+2. In a separate terminal, start an ngrok tunnel pointing at Notis's local port (default `3001`):
 
    ```sh
-   ngrok http 3000
+   ngrok http 3001
    ```
 
 3. ngrok prints a forwarding URL like:
 
    ```
-   Forwarding  <ngrok-url> -> http://localhost:3000
+   Forwarding  <ngrok-url> -> http://localhost:3001
    ```
 
    Your webhook URL is that forwarding URL plus `/api/webhooks/bird`:
@@ -125,18 +125,20 @@ Bird needs a publicly reachable URL to POST inbound events to. In production tha
 
    | Field | Value |
    |---|---|
-   | **URL** | The ngrok URL from Step 8, e.g. `<ngrok-url>/api/webhooks/bird` |
+   | **URL** | `https://notis.opencouncil.gr/api/webhooks/bird`, or the ngrok URL from Step 8 locally |
    | **Signing key** | The same string you put in `BIRD_WEBHOOK_SECRET` (Step 6) |
    | **Service** | `Conversations` |
    | **Events** | `conversation.created`, `conversation.updated` |
 
 3. Save. Bird will start POSTing matching events to your tunnel.
 
-> The two events together cover the inbound path: `conversation.created` fires when a contact replies to one of your messages for the first time, `conversation.updated` fires for every subsequent message in that thread (which is where the inbound WhatsApp body and unsubscribe-detection logic actually run).
+> The two events together cover the inbound path: `conversation.created` fires when a contact replies to one of your messages for the first time, `conversation.updated` fires for every subsequent message in that thread.
+
+There is one subscription, and it is Notis's. The main app had a second one until 2026-09; it only reconciled the delivery status of messages it had sent itself, and both the sender and the webhook are gone. If that subscription still exists in your workspace, delete it — it POSTs to a route that no longer answers.
 
 ## Step 10: Verify the inbound path
 
-The main app's webhook handler verifies the signature, reconciles the delivery status of its own outbound messages, and returns `ok` for every inbound message. It answers nobody. To verify the inbound path end to end, use the Notis service: register its webhook subscription (next section), then send a message from a phone that belongs to a reader. Watch the Notis logs and its admin feed.
+Send a message from a phone that belongs to a reader, then watch the Notis logs and its admin feed. Notis enrolls a main-app user on their first message, serves ΣΤΟΠ and every reply, and reconciles the delivery status of its own sends. A message from a phone no reader has is ignored.
 
 If signature verification fails you'll see a warning like:
 
@@ -146,31 +148,9 @@ Bird webhook: signature verification failed — signature mismatch
 
 The most common causes are:
 
-- The signing key in Bird's webhook subscription doesn't match `BIRD_WEBHOOK_SECRET` in `.env` (re-paste both).
+- The signing key in Bird's webhook subscription doesn't match `BIRD_WEBHOOK_SECRET` in `services/notis/.env` (re-paste both).
 - ngrok was restarted and the URL on the Bird subscription is stale (update it).
-- Your `.env` was loaded before you set `BIRD_WEBHOOK_SECRET` — restart `npm run dev`.
-
-## The Notis webhook subscription
-
-The Notis service (`services/notis`) carries the inbound WhatsApp path for
-every reader. It has a SECOND webhook subscription beside the one from
-Step 9:
-
-| Field | Value |
-|---|---|
-| **URL** | `https://notis.opencouncil.gr/api/webhooks/bird` (or the notis ngrok tunnel locally) |
-| **Signing key** | A fresh secret (Step 6 command). Set it as `BIRD_WEBHOOK_SECRET` in `services/notis/.env`. Do not reuse the main app's secret. |
-| **Service** | `Conversations` |
-| **Events** | `conversation.created`, `conversation.updated` |
-
-Both subscriptions receive every conversation event:
-
-- Notis answers every reader: it enrolls a main-app user on their first
-  message, serves ΣΤΟΠ and every reply, and reconciles the delivery status
-  of its own sends. A message from a phone no reader has is ignored.
-- The main app only reconciles the delivery status of the messages it sent
-  before the switch to Notis. It answers nobody, so one inbound message
-  never draws two replies.
+- Your `.env` was loaded before you set `BIRD_WEBHOOK_SECRET` — restart the Notis dev server.
 
 > **Production only.** Register webhook subscriptions for production, not
 > for staging. Bird sends every event to every subscription in the

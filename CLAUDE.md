@@ -194,8 +194,7 @@ Located in `src/lib/search/`:
 
 Multi-channel delivery in `src/lib/notifications/`:
 - **Email**: Via Resend
-- **WhatsApp**: Via Bird API
-- **SMS**: Via Bird API
+- **WhatsApp and SMS**: the Notis service (`services/notis`) — this app sends neither
 - Matching engine for user preferences (topics, locations, people, parties)
 - Approval workflow with pending queue
 - Rate limiting (500ms delays between sends)
@@ -208,7 +207,7 @@ Multi-channel delivery in `src/lib/notifications/`:
 | MCP server | AI-assistant access (opencouncil.gr/mcp) | `src/lib/mcp/` |
 | Elasticsearch | Full-text search | `src/lib/search/` |
 | Resend | Email auth & notifications | Auth config, `src/lib/notifications/` |
-| Bird API | WhatsApp/SMS | `src/lib/notifications/bird.ts` |
+| Notis (`services/notis`) | WhatsApp/SMS to readers | `src/lib/notis/client.ts` |
 | DigitalOcean Spaces | Video/audio storage | `src/lib/s3.ts` |
 | Google Calendar | Event scheduling | `src/lib/google-calendar.ts` |
 | Discord | Admin alerts | `src/lib/discord.ts` |
