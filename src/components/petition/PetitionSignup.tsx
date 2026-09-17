@@ -81,7 +81,17 @@ export function PetitionSignup({
         flow.submit(async () => {
             if (petitionIssues(state, validity).length > 0) return 'blocked';
 
-            const result = await savePetition(buildPetitionSubmission(state, city.id, signedIn, phoneValidity.isEmpty));
+            const result = await savePetition(
+                buildPetitionSubmission(
+                    state,
+                    city.id,
+                    signedIn,
+                    phoneValidity.isEmpty,
+                    // Where the sign-in link lands if this email already has
+                    // an account: right back here, with the draft in place.
+                    window.location.pathname + window.location.search,
+                ),
+            );
             if (!result.success) {
                 captureEvent('petition_failed', { city_id: city.id, code: result.error });
                 return { ok: false, error: saveErrorKey(result.error) };

@@ -111,6 +111,12 @@ export function notisActionFor(state: SignupState, signedIn: boolean, notisStatu
 
 export interface SignupSubmission {
     cityId: string;
+    /**
+     * Where the sign-in link lands when this email already has an account:
+     * the page the reader is on. Validated server-side (safeRedirectPath).
+     */
+    returnTo?: string;
+
     locations: { text: string; coordinates: [number, number] }[];
     topicIds: string[];
     notifyByPhone?: boolean;
@@ -131,10 +137,11 @@ export function buildSubmission(
     state: SignupState,
     cityId: string,
     signedIn: boolean,
-    opts: { phoneChannelLocked?: boolean } = {},
+    opts: { phoneChannelLocked?: boolean; returnTo?: string } = {},
 ): SignupSubmission {
     return {
         cityId,
+        ...(opts.returnTo ? { returnTo: opts.returnTo } : {}),
         locations: state.locations.map(({ text, coordinates }) => ({ text, coordinates })),
         topicIds: state.topics.map((topic) => topic.id),
         ...(opts.phoneChannelLocked ? {} : { notifyByPhone: state.phoneChannel }),

@@ -17,6 +17,10 @@ const onboardingBaseFields = {
     email: z.string().optional(),
     phone: z.string().optional(),
     name: z.string().optional(),
+    // Where the sign-in link should land when the email already has an
+    // account: the page the reader is filling in. Validated again server-side
+    // by safeRedirectPath — a relative path only, never another origin.
+    returnTo: z.string().max(512).optional(),
 };
 
 export const saveNotificationPreferencesSchema = z

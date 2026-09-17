@@ -132,7 +132,12 @@ export function NotificationSignup({
             if (channelIssues(state, validity).length > 0) return 'blocked';
 
             const result = await saveNotificationPreferences(
-                buildSubmission(state, city.id, signedIn, { phoneChannelLocked: channelLocked }),
+                buildSubmission(state, city.id, signedIn, {
+                    phoneChannelLocked: channelLocked,
+                    // Where the sign-in link lands if this email already has
+                    // an account: right back here, with the draft in place.
+                    returnTo: window.location.pathname + window.location.search,
+                }),
             );
             if (!result.success) {
                 captureEvent('notification_signup_failed', { city_id: city.id, code: result.error });
