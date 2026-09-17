@@ -4,11 +4,12 @@
  * subscription-roster.ts) and the email preferences this database owns — so
  * one function answers for the phone channel and for every channel together.
  *
- * Weeks are UTC and start on Monday. The last week is the current one, so it
- * reads as of now.
+ * Days and weeks are UTC. Weeks start on Monday. The last week and the last
+ * day are the current ones, so both read as of now.
  */
 
 export const SIGNUP_WEEKS = 12;
+export const SIGNUP_DAYS = 7;
 const DAY_MS = 86_400_000;
 const WEEK_MS = 7 * DAY_MS;
 
@@ -28,6 +29,13 @@ export interface WeekTotal {
     total: number;
 }
 
+export interface DayTotal {
+    /** The day, YYYY-MM-DD. */
+    day: string;
+    /** People who subscribed for the first time on that day. */
+    fresh: number;
+}
+
 /** One channel's numbers, or every channel's together. */
 export interface SignupSummary {
     /** People subscribed now, in at least one municipality. */
@@ -35,6 +43,7 @@ export interface SignupSummary {
     /** People subscribed now, per municipality. A person in two counts in both. */
     subscribersByCity: Record<string, number>;
     weeks: WeekTotal[];
+    days: DayTotal[];
     newLast7Days: number;
     newPrev7Days: number;
     /** People whose last subscription stopped in the last 7 days. */
@@ -43,9 +52,14 @@ export interface SignupSummary {
 
 /** Monday 00:00 UTC of the week that holds `at`. */
 export function weekStart(at: Date): Date {
-    const day = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
+    const day = dayStart(at);
     const offset = (day.getUTCDay() + 6) % 7;
     return new Date(day.getTime() - offset * DAY_MS);
+}
+
+/** 00:00 UTC of the day that holds `at`. */
+export function dayStart(at: Date): Date {
+    return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
 }
 
 const isoDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
@@ -97,6 +111,14 @@ export function summarizeSignups(rows: SignupRow[], now: Date = new Date()): Sig
         weeks.push({ start: isoDay(start), total: everyone.filter((spans) => coversInstant(spans, end)).length });
     }
 
+    const today = dayStart(now).getTime();
+    const days: DayTotal[] = [];
+    for (let i = SIGNUP_DAYS - 1; i >= 0; i--) {
+        const start = today - i * DAY_MS;
+        const end = start + DAY_MS;
+        days.push({ day: isoDay(start), fresh: firstAt.filter((at) => at >= start && at < end).length });
+    }
+
     const newIn = (from: number, to: number) => firstAt.filter((at) => at >= from && at < to).length;
     const stoppedLast7Days = everyone.filter((spans) => {
         if (spans.some((s) => s.to === null)) return false;
@@ -108,6 +130,7 @@ export function summarizeSignups(rows: SignupRow[], now: Date = new Date()): Sig
         people: everyone.filter((spans) => coversInstant(spans, t)).length,
         subscribersByCity: Object.fromEntries([...peopleByCity].map(([cityId, members]) => [cityId, members.size])),
         weeks,
+        days,
         newLast7Days: newIn(t - 7 * DAY_MS, t),
         newPrev7Days: newIn(t - 14 * DAY_MS, t - 7 * DAY_MS),
         stoppedLast7Days,

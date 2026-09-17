@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Percent, TrendingUp, Users } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { StatsCard } from "@/components/ui/stats-card";
@@ -16,6 +16,7 @@ export type SignupChannel = "phone" | "all";
 
 const chartConfig: ChartConfig = {
     total: { label: "Subscribers", color: "hsl(var(--chart-1))" },
+    fresh: { label: "New signups", color: "hsl(var(--chart-1))" },
 };
 
 const fmt = (n: number) => n.toLocaleString("el-GR");
@@ -24,14 +25,14 @@ const residents = (n: number) =>
 const perMille = (subscribers: number, population: number) => (subscribers / population) * 1000;
 // Enough decimals to keep a small municipality's figure from reading as zero.
 const fmtPerMille = (x: number) => `${x.toFixed(x >= 10 ? 1 : x >= 1 ? 2 : 3)}‰`;
-// The week starts are UTC Mondays, so the label is pinned to UTC: the same
+// The week and day starts are UTC, so the label is pinned to UTC: the same
 // text on the server and in every browser.
 const dayLabel = (start: string) => formatDayMonth(new Date(start), "UTC", "en");
 
 /**
  * The signups page: one switch between the phone subscribers and all of them,
  * and everything under it follows — the tiles, the per-municipality bars, the
- * line. Per capita is the number that matters for marketing, so it
+ * two charts. Per capita is the number that matters for marketing, so it
  * leads: ‰ of the residents of each supported municipality, highest first.
  */
 export function SignupsDashboard({
@@ -110,6 +111,13 @@ function ChannelView({ channel, cities, summary }: { channel: SignupChannel; cit
         .sort((a, b) => perMille(b.subscribers, b.population) - perMille(a.subscribers, a.population));
     const scale = Math.max(6, (ranked[0] ? perMille(ranked[0].subscribers, ranked[0].population) : 0) * 1.06);
     const weekly = summary.weeks.map((w) => ({ ...w, label: dayLabel(w.start) }));
+    // The last day is today, and today is not over: its bar is drawn as an
+    // outline so a part-day is not read as a full one.
+    const daily = summary.days.map((d, i) => ({ ...d, label: dayLabel(d.day), partial: i === summary.days.length - 1 }));
+    // The bars cover whole UTC days, and `newLast7Days` a rolling 7×24 hours,
+    // so the two windows differ by the part of today that has passed. The
+    // headline over the bars is their own sum, or it does not add up.
+    const dailyTotal = daily.reduce((sum, d) => sum + d.fresh, 0);
     const first = summary.weeks[0]?.total ?? 0;
     const growth = first > 0 ? Math.round(((summary.people - first) / first) * 100) : null;
 
@@ -185,6 +193,46 @@ function ChannelView({ channel, cities, summary }: { channel: SignupChannel; cit
                             );
                         })}
                     </div>
+                </CardContent>
+            </Card>
+
+            <Card disableHover>
+                <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                    <div className="space-y-1.5">
+                        <CardTitle className="text-base">New signups by day</CardTitle>
+                        <CardDescription>
+                            People who subscribed for the first time, last 7 days, days starting at midnight UTC. Today is an outline, because
+                            the day is not over.
+                        </CardDescription>
+                    </div>
+                    <div className="tabular-nums text-xl font-bold">+{fmt(dailyTotal)}</div>
+                </CardHeader>
+                <CardContent>
+                    <ChartContainer config={chartConfig} className="h-[180px] w-full">
+                        <BarChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} />
+                            <YAxis
+                                allowDecimals={false}
+                                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                                tickLine={false}
+                                axisLine={false}
+                                width={40}
+                            />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <Bar dataKey="fresh" radius={[3, 3, 0, 0]}>
+                                {daily.map((day) => (
+                                    <Cell
+                                        key={day.day}
+                                        fill={day.partial ? "transparent" : "var(--color-fresh)"}
+                                        stroke="var(--color-fresh)"
+                                        strokeWidth={day.partial ? 1.5 : 0}
+                                        strokeDasharray={day.partial ? "3 3" : undefined}
+                                    />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ChartContainer>
                 </CardContent>
             </Card>
 
