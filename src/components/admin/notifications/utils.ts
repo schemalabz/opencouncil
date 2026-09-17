@@ -5,7 +5,7 @@
 export async function releaseNotificationsForMeeting(
     meetingId: string,
     cityId: string
-): Promise<{ success: boolean; emailsSent?: number; messagesSent?: number; error?: string }> {
+): Promise<{ success: boolean; emailsSent?: number; error?: string }> {
     try {
         // Fetch notifications for this meeting
         const res = await fetch(
@@ -20,7 +20,7 @@ export async function releaseNotificationsForMeeting(
             .map((n: any) => n.id);
 
         if (pendingNotificationIds.length === 0) {
-            return { success: true, emailsSent: 0, messagesSent: 0 };
+            return { success: true, emailsSent: 0 };
         }
 
         // Release the notifications
@@ -37,8 +37,7 @@ export async function releaseNotificationsForMeeting(
         const result = await releaseRes.json();
         return {
             success: true,
-            emailsSent: result.emailsSent || 0,
-            messagesSent: result.messagesSent || 0
+            emailsSent: result.emailsSent || 0
         };
     } catch (error) {
         console.error(`Error releasing notifications for meeting ${meetingId}:`, error);

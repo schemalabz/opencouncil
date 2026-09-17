@@ -76,7 +76,7 @@ export async function POST(
     if (sendImmediately && stats.notificationIds.length > 0) {
         console.log('Sending notifications immediately...');
         releaseResult = await releaseNotifications(stats.notificationIds);
-        console.log(`Released notifications: ${releaseResult.emailsSent} emails, ${releaseResult.messagesSent} messages sent`);
+        console.log(`Released notifications: ${releaseResult.emailsSent} emails`);
 
         // Send Discord admin alert about sending
         sendNotificationsSentAdminAlert({
@@ -86,7 +86,6 @@ export async function POST(
             meetingName: meeting?.name ?? params.meetingId,
             notificationCount: stats.notificationsCreated,
             emailsSent: releaseResult.emailsSent,
-            messagesSent: releaseResult.messagesSent,
             failed: releaseResult.failed
         });
     }

@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
             meetingName: notification.meeting.name,
             notificationCount: notificationIds.length,
             emailsSent: result.emailsSent,
-            messagesSent: result.messagesSent,
             failed: result.failed
         });
     }
@@ -45,7 +44,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
         success: result.success,
         emailsSent: result.emailsSent,
-        messagesSent: result.messagesSent,
         failed: result.failed
     });
 }

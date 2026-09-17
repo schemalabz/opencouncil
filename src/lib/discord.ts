@@ -331,11 +331,10 @@ export async function sendNotificationsSentAdminAlert(data: {
     meetingName: string;
     notificationCount: number;
     emailsSent: number;
-    messagesSent: number;
     failed: number;
 }): Promise<void> {
     // Only send if we actually sent some notifications
-    if (data.emailsSent === 0 && data.messagesSent === 0 && data.failed === 0) {
+    if (data.emailsSent === 0 && data.failed === 0) {
         return;
     }
 
@@ -362,11 +361,6 @@ export async function sendNotificationsSentAdminAlert(data: {
             {
                 name: '📧 Emails Sent',
                 value: data.emailsSent.toString(),
-                inline: true,
-            },
-            {
-                name: '💬 Messages Sent',
-                value: data.messagesSent.toString(),
                 inline: true,
             },
             {
