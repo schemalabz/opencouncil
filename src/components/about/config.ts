@@ -2,6 +2,7 @@ import { Search, Bell, Map, FileText, Mic2, ScrollText, Scale, Printer, Video, C
 import type { LucideIcon } from 'lucide-react'
 import type { Realm } from '@prisma/client'
 import shotManifest from '../../../public/about/shots/manifest.json'
+import { stripLocalePrefix } from '@/i18n/config'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -92,9 +93,6 @@ const manifest = shotManifest as ShotManifest
 
 /** The realm whose shots stand in for a realm that has none of its own. */
 const FALLBACK_SHOT_REALM: Realm = 'greece'
-
-/** `/fr/rennes/...` → `/rennes/...`: captured URLs carry the realm's locale prefix. */
-const stripLocalePrefix = (pathname: string) => pathname.replace(/^\/(?:en|el|fr|sr|lat)(?=\/)/, '')
 
 export function shotsForRealm(realm: Realm): RealmShots {
     const own = realm in manifest
