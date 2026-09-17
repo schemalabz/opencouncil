@@ -1,51 +1,43 @@
-import { SignupsDashboard, type ChannelStats } from "@/components/admin/signups/SignupsDashboard";
+import { SignupsDashboard } from "@/components/admin/signups/SignupsDashboard";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
-import { getEmailSignupStats, type EmailSignupStats, type SignupCity } from "@/lib/db/adminStats";
-import { getNotisStats, type NotisStats } from "@/lib/notis/client";
+import { summarizeSignups, type SignupRow } from "@/lib/admin/signup-series";
+import { getEmailSignupData } from "@/lib/db/adminStats";
+import { getNotisRoster, type NotisRosterEntry } from "@/lib/notis/client";
 
 export const dynamic = "force-dynamic";
 
 /**
  * The signups page, for whoever runs marketing: per capita is the figure,
- * Notis the channel that matters, email the other one. The email half comes
- * from this database; the Notis half from the Notis service, which alone
- * knows who is still active. Both are shaped alike here, so the page is one
- * component and a switch.
+ * phone the channel that matters, and the total the headline. The email half
+ * comes from this database; the phone half from the Notis service, which alone
+ * knows who is still active. Both arrive as the same row, so one function
+ * answers for the phone channel and for every channel together.
  */
 export default async function SignupsPage() {
     await withUserAuthorizedToEdit({});
-    const [email, notis] = await Promise.all([getEmailSignupStats(), getNotisStats()]);
+    const [email, notis] = await Promise.all([getEmailSignupData(), getNotisRoster()]);
+    const phoneRows = notis.ok ? notis.data.map(toRow) : null;
+    // One clock for both figures, so the two tabs never land on different
+    // days or different 7-day windows.
+    const now = new Date();
 
     return (
         <div className="container mx-auto px-4 py-8">
             <SignupsDashboard
-                email={emailChannel(email)}
-                notis={notis.ok ? notisChannel(notis.data, email.cities) : null}
+                cities={email.cities}
+                phone={phoneRows ? summarizeSignups(phoneRows, now) : null}
+                all={phoneRows ? summarizeSignups([...phoneRows, ...email.rows], now) : null}
                 notisReason={notis.ok ? null : notis.reason}
             />
         </div>
     );
 }
 
-function emailChannel(email: EmailSignupStats): ChannelStats {
+function toRow(entry: NotisRosterEntry): SignupRow {
     return {
-        people: email.people,
-        cities: email.cities.map((city) => ({ ...city, subscribers: email.subscribersByCity[city.cityId] ?? 0 })),
-        weeks: email.weeks,
-        newLast7Days: email.newLast7Days,
-        newPrev7Days: email.newPrev7Days,
-        stoppedLast7Days: null,
-    };
-}
-
-function notisChannel(stats: NotisStats, cities: SignupCity[]): ChannelStats {
-    const activeByCity = new Map(stats.cities.map((c) => [c.cityId, c.active]));
-    return {
-        people: stats.active,
-        cities: cities.map((city) => ({ ...city, subscribers: activeByCity.get(city.cityId) ?? 0 })),
-        weeks: stats.weeks.map((w) => ({ start: w.start, total: w.active })),
-        newLast7Days: stats.newLast7Days,
-        newPrev7Days: stats.newPrev7Days,
-        stoppedLast7Days: stats.stoppedLast7Days,
+        userId: entry.userId,
+        cityIds: entry.cityIds,
+        createdAt: new Date(entry.createdAt),
+        endedAt: entry.endedAt ? new Date(entry.endedAt) : null,
     };
 }

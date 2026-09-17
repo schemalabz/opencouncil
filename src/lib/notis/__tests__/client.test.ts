@@ -1,7 +1,7 @@
 const mockEnv: { NOTIS_API_URL?: string; NOTIS_SERVICE_TOKEN?: string } = {};
 jest.mock('@/env.mjs', () => ({ env: mockEnv }));
 
-import { getNotisStats, getNotisSubscription, isNotisConfigured, setNotisSubscription } from '../client';
+import { getNotisRoster, getNotisSubscription, isNotisConfigured, setNotisSubscription } from '../client';
 
 const ORIGINAL_FETCH = global.fetch;
 
@@ -80,13 +80,18 @@ describe('notis client', () => {
         expect(await getNotisSubscription('user1')).toEqual({ ok: false, reason: 'unreachable' });
     });
 
-    it('reads the signup stats from the service route, and treats an empty 2xx as unreachable', async () => {
-        const stats = { active: 3, cities: [], weeks: [], newLast7Days: 1, newPrev7Days: 0, stoppedLast7Days: 0 };
-        const fetchMock = mockFetch(200, stats);
-        expect(await getNotisStats()).toEqual({ ok: true, data: stats });
+    it('reads the signup roster from the service route', async () => {
+        const subscribers = [{ userId: 'user1', cityIds: ['athens'], createdAt: '2026-09-01T00:00:00.000Z', endedAt: null }];
+        const fetchMock = mockFetch(200, { subscribers });
+        expect(await getNotisRoster()).toEqual({ ok: true, data: subscribers });
         expect(String(fetchMock.mock.calls[0][0])).toBe('https://notis.test/api/subscriptions/stats');
+    });
 
+    it('treats an empty 2xx, and a Notis that still answers with the old aggregates, as unreachable', async () => {
         mockFetch(200, null);
-        expect(await getNotisStats()).toEqual({ ok: false, reason: 'unreachable' });
+        expect(await getNotisRoster()).toEqual({ ok: false, reason: 'unreachable' });
+
+        mockFetch(200, { active: 3, cities: [], weeks: [] });
+        expect(await getNotisRoster()).toEqual({ ok: false, reason: 'unreachable' });
     });
 });

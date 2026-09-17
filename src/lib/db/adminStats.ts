@@ -4,7 +4,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { subDays } from "date-fns";
 import { CUSTOMER_CITY_WHERE } from "../cityStatus";
-import { cumulativeByWeek, lastTwoWeeks, type WeekTotal } from "../admin/signup-series";
+import type { SignupRow } from "../admin/signup-series";
 
 export interface AdminDashboardStats {
     users: {
@@ -42,17 +42,11 @@ export interface SignupCity {
     population: number;
 }
 
-/** The email half of the signups page. The Notis half comes from the Notis service. */
-export interface EmailSignupStats {
+/** The email half of the signups page. The phone half comes from the Notis service. */
+export interface EmailSignupData {
     cities: SignupCity[];
-    /** Preferences with the email summary on, per municipality. */
-    subscribersByCity: Record<string, number>;
-    /** People with the email summary on in at least one municipality. */
-    people: number;
-    /** Running total of people, at the end of each of the last SIGNUP_WEEKS weeks. */
-    weeks: WeekTotal[];
-    newLast7Days: number;
-    newPrev7Days: number;
+    /** One row per preference with the email summary on. */
+    rows: SignupRow[];
 }
 
 function percentChange(current: number, previous: number): number {
@@ -158,15 +152,15 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
 }
 
 /**
- * The signups page's email numbers: the supported municipalities (with a
- * population, so ‰ means something), how many preferences in each have the
- * email summary on, and the people behind them over the last twelve weeks.
- * A person is counted from their first email preference; a person in two
- * municipalities counts once here and once per municipality in the bars.
- * Only preferences in those municipalities count, so the tiles and the
- * bars describe the same people over the same residents.
+ * The email half of the signups page: the supported municipalities (with a
+ * population, so ‰ means something), and one row per preference that has the
+ * email summary on. Only preferences in those municipalities count, so the
+ * tiles and the bars describe the same people over the same residents.
+ *
+ * The rows carry no end date, because turning the email summary off leaves no
+ * record — the preference simply drops out of this query.
  */
-export async function getEmailSignupStats(): Promise<EmailSignupStats> {
+export async function getEmailSignupData(): Promise<EmailSignupData> {
     await withUserAuthorizedToEdit({});
 
     const cities = (
@@ -180,22 +174,13 @@ export async function getEmailSignupStats(): Promise<EmailSignupStats> {
         select: { userId: true, cityId: true, createdAt: true },
     });
 
-    const subscribersByCity: Record<string, number> = {};
-    const firstByUser = new Map<string, Date>();
-    for (const pref of preferences) {
-        subscribersByCity[pref.cityId] = (subscribersByCity[pref.cityId] ?? 0) + 1;
-        const first = firstByUser.get(pref.userId);
-        if (!first || pref.createdAt < first) firstByUser.set(pref.userId, pref.createdAt);
-    }
-    const firstDates = [...firstByUser.values()];
-    const recent = lastTwoWeeks(firstDates);
-
     return {
         cities: cities.map((city) => ({ cityId: city.id, name: city.name, population: city.population })),
-        subscribersByCity,
-        people: firstByUser.size,
-        weeks: cumulativeByWeek(firstDates),
-        newLast7Days: recent.last7Days,
-        newPrev7Days: recent.prev7Days,
+        rows: preferences.map((pref) => ({
+            userId: pref.userId,
+            cityIds: [pref.cityId],
+            createdAt: pref.createdAt,
+            endedAt: null,
+        })),
     };
 }
