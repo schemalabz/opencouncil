@@ -2,6 +2,7 @@ import "server-only";
 import prisma from '../db/prisma';
 import { getConflictingCandidates } from '../db/decisionCandidates';
 import { getPollableMeetingDateRange, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from './pollDecisionsBackoff';
+import { DECISION_ELIGIBLE_SUBJECT_WHERE } from '../db/decisionEligibility';
 
 /**
  * Polling-effectiveness statistics for the cron stats endpoint. Not an action
@@ -129,10 +130,7 @@ export async function getPollingStats() {
             dateTime: pollableDateRange,
             city: { diavgeiaUid: { not: null } },
             subjects: {
-                some: {
-                    agendaItemIndex: { not: null },
-                    decision: null,
-                },
+                some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null },
             },
         },
         select: {
@@ -140,10 +138,7 @@ export async function getPollingStats() {
             cityId: true,
             dateTime: true,
             subjects: {
-                where: {
-                    agendaItemIndex: { not: null },
-                    decision: null,
-                },
+                where: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null },
                 select: { id: true, name: true },
             },
         },
@@ -179,7 +174,7 @@ export async function getPollingStats() {
             by: ['councilMeetingId', 'cityId'],
             where: {
                 councilMeetingId: { in: stillPollingIds },
-                agendaItemIndex: { not: null },
+                ...DECISION_ELIGIBLE_SUBJECT_WHERE,
             },
             _count: true,
         })
@@ -221,7 +216,7 @@ export async function getPollingStats() {
             where: {
                 dateTime: pollableDateRange,
                 city: { diavgeiaUid: { not: null } },
-                subjects: { some: { agendaItemIndex: { not: null }, decision: null } },
+                subjects: { some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null } },
             },
             distinct: ['cityId'],
             select: { cityId: true },

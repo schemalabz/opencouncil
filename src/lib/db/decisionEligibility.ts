@@ -14,6 +14,13 @@ export const DECISION_ELIGIBLE_SUBJECT_WHERE = {
 } satisfies Prisma.SubjectWhereInput;
 
 /**
+ * The same rule in prose, for an error a person reads. Every throw site quotes
+ * this instead of restating the rule, because prose drifts silently.
+ */
+export const DECISION_ELIGIBILITY_RULE =
+    'a subject must have an agendaItemIndex or be outOfAgenda, and must not be withdrawn';
+
+/**
  * The same rule as DECISION_ELIGIBLE_SUBJECT_WHERE, for a subject that a caller
  * already holds. The two must stay in step: a surface that offers a decision
  * poll and the query that runs it must agree on one answer. This file imports

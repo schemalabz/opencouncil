@@ -21,6 +21,7 @@ import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/p
 import { calculateVoteResult } from '@/lib/utils/votes';
 import { formatDate } from '@/lib/formatters/time';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
+import { isDecisionEligibleSubject } from '@/lib/db/decisionEligibility';
 import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
 import { CollapsibleMarkdown, NameList, MeetingAttendanceSummary, sortNamesByElectedOrder } from '@/components/meetings/decisions/shared';
 import { computeDecisionStats } from '@/components/meetings/decisions/stats';
@@ -409,17 +410,22 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         }
     };
 
-    // Subjects eligible for decisions: agenda items + outOfAgenda, in display order.
-    // Use nonAgendaReason as the primary discriminator — agendaItemIndex alone is not
-    // sufficient because outOfAgenda subjects may also have an agendaItemIndex from PDF data.
-    // beforeAgenda subjects are excluded (pre-agenda announcements without decisions).
+    // Subjects that can carry a decision, in display order. This page discriminates
+    // on nonAgendaReason first, in case an outOfAgenda subject also carries an
+    // agendaItemIndex from PDF data. beforeAgenda subjects are excluded (pre-agenda
+    // announcements without decisions).
+    //
+    // The guard is defensive, not load-bearing: on 2026-09-17 no subject in production
+    // held both a nonAgendaReason and an agendaItemIndex (0 of 12,391). Only such a row
+    // would part this split from isDecisionEligibleSubject — the shared rule would call
+    // a beforeAgenda subject with an index eligible, and this page drops it.
     const agendaSubjects = subjects
         .filter(s => s.agendaItemIndex != null && s.nonAgendaReason === null)
         .sort((a, b) => a.agendaItemIndex! - b.agendaItemIndex!);
     const outOfAgendaSubjects = subjects
         .filter(s => s.nonAgendaReason === 'outOfAgenda');
     const allDisplaySubjects = [...agendaSubjects, ...outOfAgendaSubjects];
-    const eligibleSubjects = allDisplaySubjects.filter(s => !s.withdrawn);
+    const eligibleSubjects = allDisplaySubjects.filter(isDecisionEligibleSubject);
     const extractedSubjects = eligibleSubjects.filter(s => {
         const decision = decisions[s.id];
         return (decision?.excerpt) || extractedData[s.id];
