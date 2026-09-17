@@ -44,12 +44,20 @@ const SAVE_ERROR_KEYS: Record<string, string> = {
     phone_not_mobile: 'phoneNotMobile',
     phone_in_use: 'phoneInUse',
     email_exists: 'emailExists',
+    email_exists_link_sent: 'emailExistsLinkSent',
     notis_unreachable: 'notisUnreachable',
 };
 
 export function saveErrorKey(code: string): string {
     return SAVE_ERROR_KEYS[code] ?? 'generic';
 }
+
+/**
+ * The save action refused because the email already has an account, and the
+ * sign-in link went out from the server. Not a failure the reader has to
+ * fix: the form keeps their answers and the link finishes the job.
+ */
+export const SIGN_IN_LINK_SENT = 'emailExistsLinkSent';
 
 /** Why the last press of submit failed: the flow's own rules, or the save action's answer. */
 export type SignupFailure = 'issues' | 'refused';
@@ -61,7 +69,10 @@ export type SignupFailure = 'issues' | 'refused';
  */
 export function failureKind(issues: SignupIssue[], saveError: string | null): SignupFailure | null {
     if (issues.length > 0) return 'issues';
-    if (saveError !== null) return 'refused';
+    // The link-sent answer is a step forward, not a refusal: the action bar
+    // stays as it was rather than turning red under a message that says
+    // everything is fine.
+    if (saveError !== null && saveError !== SIGN_IN_LINK_SENT) return 'refused';
     return null;
 }
 

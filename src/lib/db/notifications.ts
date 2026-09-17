@@ -347,8 +347,15 @@ export async function saveNotificationPreferences(data: OnboardingData & {
             });
 
             if (user) {
-                // Email exists but user is not authenticated - return error
-                return createError("email_exists");
+                // A reader who already has an account, signed out. Sending
+                // them away to type the same email into the sign-in page
+                // loses the form: the link goes out from here instead, and
+                // the draft their browser kept puts the form back when they
+                // return. A send that fails falls back to the sign-in link
+                // in the alert, so the message never promises an email that
+                // was not sent.
+                const sent = await sendMagicLink(email);
+                return createError(sent ? "email_exists_link_sent" : "email_exists");
             } else {
                 if (phone && (await phoneBelongsToAnotherUser(phone))) {
                     return createError(PHONE_IN_USE_CODE);
@@ -551,8 +558,15 @@ export async function savePetition(data: OnboardingData & {
             });
 
             if (user) {
-                // Email exists but user is not authenticated - return error
-                return createError("email_exists");
+                // A reader who already has an account, signed out. Sending
+                // them away to type the same email into the sign-in page
+                // loses the form: the link goes out from here instead, and
+                // the draft their browser kept puts the form back when they
+                // return. A send that fails falls back to the sign-in link
+                // in the alert, so the message never promises an email that
+                // was not sent.
+                const sent = await sendMagicLink(email);
+                return createError(sent ? "email_exists_link_sent" : "email_exists");
             } else {
                 if (phone && (await phoneBelongsToAnotherUser(phone))) {
                     return createError(PHONE_IN_USE_CODE);
