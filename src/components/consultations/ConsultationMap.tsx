@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/routing";
+import { stripLocalePrefix } from "@/i18n/config";
 import Map, { MapFeature } from "@/components/map/map";
 import { cn } from "@/lib/utils";
 import { RegulationData, RegulationItem, Geometry, ReferenceFormat, StaticGeometry, DerivedGeometry, BufferOperation, DifferenceOperation, CurrentUser, GeoSetData, SEARCH_COLORS } from "./types";
@@ -187,9 +188,13 @@ export default function ConsultationMap({
     const searchParams = useSearchParams();
     const isMobile = useIsMobile();
 
+    // `pathname` from the i18n helpers carries no locale prefix, and the i18n
+    // router adds the prefix back on each navigation. `window.location.pathname`
+    // does carry the prefix, so strip it. Without this step the router builds
+    // `/lat/lat/...`, which is a 404 on every locale but the default one.
     const getLivePathname = useCallback(() => {
         if (typeof window !== "undefined" && window.location.pathname) {
-            return window.location.pathname;
+            return stripLocalePrefix(window.location.pathname);
         }
 
         return pathname;
@@ -647,7 +652,7 @@ export default function ConsultationMap({
         });
 
         if (urlState.needsCanonicalUrl) {
-            const currentUrl = `${window.location.pathname}${window.location.search}`;
+            const currentUrl = `${stripLocalePrefix(window.location.pathname)}${window.location.search}`;
             if (currentUrl !== urlState.canonicalUrl) {
                 router.replace(urlState.canonicalUrl, { scroll: false });
             }
