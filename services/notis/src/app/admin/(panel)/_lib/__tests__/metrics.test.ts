@@ -1,5 +1,14 @@
 import { fmtPct, fmtTimeAgo } from "../format";
-import { fillSeries, listBuckets, parseRange, pctChange, replyRate } from "../metrics";
+import {
+  deltaFor,
+  fillSeries,
+  listBuckets,
+  parseRange,
+  pctChange,
+  pointsChange,
+  replierRate,
+  replyRate,
+} from "../metrics";
 
 describe("parseRange", () => {
   it("accepts known ranges and defaults everything else to 7d", () => {
@@ -103,6 +112,7 @@ describe("fillSeries", () => {
         received: [],
         activeUsers: [{ key: "2026-08-15", count: 1 }],
         unsubscribes: [],
+        repliers: [],
         newsWakesSent: [{ key: "2026-08-15", count: 4 }],
         newsWakesAnswered: [{ key: "2026-08-15", count: 1 }],
         errors: [{ key: "2026-08-16", count: 2 }],
@@ -156,5 +166,68 @@ describe("fmtTimeAgo", () => {
     expect(fmtTimeAgo(ago(30 * 60 * 60_000), now)).toMatch(/^χθες /);
     expect(fmtTimeAgo(ago(4 * 24 * 60 * 60_000), now)).toBe("πριν 4 ημέρες");
     expect(fmtTimeAgo(ago(10 * 24 * 60 * 60_000), now)).toBe("6/8/2026");
+  });
+});
+
+describe("pointsChange", () => {
+  it("reads a rate's move in points, not as a share of itself", () => {
+    // 4,8% → 2,5% over five replies. As a relative change this prints
+    // «↓ 48%», which describes a rounding difference as a collapse.
+    expect(pointsChange(0.0249, 0.0479)).toBeCloseTo(-2.3, 1);
+    expect(pointsChange(0.5, 0.25)).toBeCloseTo(25, 5);
+    expect(pointsChange(0.03, 0.03)).toBe(0);
+  });
+});
+
+describe("replierRate", () => {
+  it("counts a reader once, however many times they wrote", () => {
+    // The whole reason this replaced a per-message rate: five replies from
+    // one enthusiast and five from five people are opposite answers to
+    // "is this worth reading", and a message-level rate cannot tell them
+    // apart.
+    expect(replierRate(12, 102)).toBeCloseTo(0.1176, 4);
+    expect(replierRate(0, 102)).toBe(0);
+  });
+
+  it("has no rate when there is nobody who could have written", () => {
+    expect(replierRate(0, 0)).toBeNull();
+  });
+});
+
+describe("deltaFor", () => {
+  it("calls an absent baseline new, never a rise from zero", () => {
+    // replyRate() returns null when nothing went out. Reading that as 0%
+    // turns the first period after a recess into a confident green rise.
+    expect(deltaFor({ current: 0.0249, previous: null, unit: "percent" })).toEqual({ kind: "new" });
+    expect(deltaFor({ current: null, previous: 0.048, unit: "percent" })).toEqual({ kind: "new" });
+    expect(deltaFor({ current: null, previous: null, unit: "percent" })).toEqual({ kind: "none" });
+  });
+
+  it("reports a rate in points and a count in percent", () => {
+    expect(deltaFor({ current: 0.0249, previous: 0.0479, unit: "percent" })).toMatchObject({
+      kind: "move",
+      up: false,
+      unit: "points",
+    });
+    const rate = deltaFor({ current: 0.0249, previous: 0.0479, unit: "percent" });
+    expect(rate.kind === "move" && rate.magnitude).toBeCloseTo(2.3, 1);
+
+    const count = deltaFor({ current: 40, previous: 20 });
+    expect(count).toMatchObject({ kind: "move", up: true, unit: "percent" });
+    expect(count.kind === "move" && count.magnitude).toBeCloseTo(100, 5);
+  });
+
+  it("ignores a move finer than one reply can express", () => {
+    // At ~200 sends one reply is worth half a point, so anything under that
+    // is the chip reacting to a single reader rather than to a change.
+    expect(deltaFor({ current: 0.025, previous: 0.0262, unit: "percent" })).toEqual({
+      kind: "flat",
+    });
+  });
+
+  it("flips the colour, not the arrow, when growth is bad", () => {
+    const worse = deltaFor({ current: 0.08, previous: 0.02, unit: "percent", invert: true });
+
+    expect(worse).toMatchObject({ kind: "move", up: true, improving: false });
   });
 });

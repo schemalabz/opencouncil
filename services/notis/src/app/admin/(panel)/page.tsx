@@ -16,13 +16,13 @@ import {
   OverviewStats,
   PeriodStats,
   RANGES,
-  REPLY_WINDOW_HOURS,
   RangeKey,
   SeriesPoint,
   getOverviewStats,
   liveData,
   parseRange,
-  replyRate,
+  deltaFor,
+  replierRate,
 } from "./_lib/metrics";
 
 export const metadata = { title: "Νότης · admin" };
@@ -86,22 +86,23 @@ function seriesFor(
 }
 
 /**
- * The reply rate per bucket, as a percentage on a fixed 0–100 axis. A bucket
- * that sent no news has no rate, so it plots null and the line breaks rather
- * than dipping to a zero nobody earned. The hint carries the counts: at this
- * volume a 100% bucket is usually one send, and the number alone hides that.
+ * The share of readers who wrote in each bucket. Per bucket, not cumulative:
+ * every bucket shares one denominator — the readers who could have written —
+ * so a quiet day is a real zero rather than an absent rate, and the line
+ * carries what the period totals cannot, which is when something changed.
  */
-function replyRateSeries(series: SeriesPoint[], bucket: BucketUnit): MetricPoint[] {
+function replierRateSeries(
+  series: SeriesPoint[],
+  readers: number,
+  bucket: BucketUnit,
+): MetricPoint[] {
   return series.map((point) => {
-    const rate = replyRate(point.newsWakesSent, point.newsWakesAnswered);
+    const rate = replierRate(point.repliers, readers);
     return {
       key: point.key,
       label: fmtBucketLabel(point.key, bucket),
       value: rate === null ? null : rate * 100,
-      hint:
-        point.newsWakesSent === 0
-          ? undefined
-          : `${fmtInt(point.newsWakesAnswered)}/${fmtInt(point.newsWakesSent)}`,
+      hint: `${fmtInt(point.repliers)}/${fmtInt(readers)}`,
     };
   });
 }
@@ -240,10 +241,15 @@ function DeliveryPanel({ current, previous }: { current: PeriodStats; previous: 
     ([a], [b]) =>
       Object.keys(STATUS_LABELS).indexOf(a) - Object.keys(STATUS_LABELS).indexOf(b),
   );
-  const pointsDiff =
-    current.failRate !== null && previous.failRate !== null
-      ? (current.failRate - previous.failRate) * 100
-      : null;
+  // The same decision the reply-rate chip makes, so two rates on one screen
+  // agree about what a move is and about an absent baseline. The rendering
+  // stays local: this chip falls back to a label, not to «=».
+  const failDelta = deltaFor({
+    current: current.failRate,
+    previous: previous.failRate,
+    unit: "percent",
+    invert: true,
+  });
   return (
     <section className="rounded-lg border bg-background p-4">
       <div className="flex items-baseline justify-between">
@@ -256,15 +262,15 @@ function DeliveryPanel({ current, previous }: { current: PeriodStats; previous: 
           >
             {current.failRate === null ? "—" : fmtPct(current.failRate)}
           </span>
-          {pointsDiff !== null && Math.abs(pointsDiff) >= 0.5 ? (
+          {failDelta.kind === "move" ? (
             <span
-              className={`rounded px-1.5 py-0.5 text-[11px] font-medium tabular-nums ${
-                pointsDiff < 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+              className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                failDelta.improving ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
               }`}
               title="μεταβολή σε ποσοστιαίες μονάδες"
             >
-              {pointsDiff > 0 ? "↑" : "↓"}{" "}
-              {Math.abs(pointsDiff).toLocaleString("el-GR", { maximumFractionDigits: 1 })} μον.
+              {failDelta.up ? "↑" : "↓"}{" "}
+              {failDelta.magnitude.toLocaleString("el-GR", { maximumFractionDigits: 1 })} μον.
             </span>
           ) : (
             <span className="text-[11px] text-muted-foreground/60">αποτυχίες</span>
@@ -523,8 +529,15 @@ export default async function DashboardPage(props: {
   const range = parseRange((await props.searchParams).range);
   const stats = await getOverviewStats(range);
   const { current, previous, totals } = stats;
-  const currentReplyRate = replyRate(current.newsWakesSent, current.newsWakesAnswered);
-  const previousReplyRate = replyRate(previous.newsWakesSent, previous.newsWakesAnswered);
+  // Readers who could have written: everyone still subscribed, counted now
+  // rather than as the period saw it. One denominator for the chart, for both
+  // periods and for every bucket, so a quiet day reads as a real zero and the
+  // delta moves only when the number of readers writing moves. On a window
+  // long enough for the audience to have grown, the older buckets are
+  // measured against today's readers and read low.
+  const readers = stats.totals.subscriptions - stats.totals.unsubscribed;
+  const currentReplierRate = replierRate(current.repliers, readers);
+  const previousReplierRate = replierRate(previous.repliers, readers);
   // Both shapes in one number: the wake that erred and the wake that never
   // ran. A model outage produces only the second, so a chart of the first
   // alone stays flat through it.
@@ -586,16 +599,18 @@ export default async function DashboardPage(props: {
 
         <div className="grid divide-y rounded-lg border bg-background sm:grid-cols-2 sm:divide-x sm:divide-y-0">
           <MetricCard
-            label="Ποσοστό απάντησης"
-            value={currentReplyRate === null ? "—" : fmtPct(currentReplyRate, true)}
-            current={currentReplyRate ?? 0}
-            previous={previousReplyRate ?? 0}
-            points={replyRateSeries(stats.series, RANGES[range].bucket)}
+            label="Αναγνώστες που απαντούν"
+            value={currentReplierRate === null ? "—" : fmtPct(currentReplierRate, true)}
+            // Passed through as null: with no readers there is no rate, and
+            // reading that as 0% would turn an empty period into a fall.
+            current={currentReplierRate}
+            previous={previousReplierRate}
+            points={replierRateSeries(stats.series, readers, RANGES[range].bucket)}
             unit="percent"
             detail={
-              current.newsWakesSent === 0
-                ? "καμία ενημέρωση για ατζέντα ή απολογισμό στην περίοδο"
-                : `${fmtInt(current.newsWakesAnswered)} από ${fmtInt(current.newsWakesSent)} ενημερώσεις για ατζέντα ή απολογισμό πήραν απάντηση σε ${REPLY_WINDOW_HOURS} ώρες`
+              readers === 0
+                ? "κανένας ενεργός αναγνώστης στην περίοδο"
+                : `${fmtInt(current.repliers)} από ${fmtInt(readers)} αναγνώστες έγραψαν στον Νότη — ο καθένας μετράει μία φορά`
             }
           />
           <MetricCard
