@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
+import { SignupFooter, SignupProgress } from '@/components/signup/SignupChrome';
 import { claimWithToken, sendJoinEmail } from '@/lib/actions/personJoin';
 import { setVoicePrintConsent } from '@/lib/actions/personConsent';
 import { captureEvent } from '@/lib/analytics/capture';
 import { isLikelyEmail, normalizeEmail } from '@/lib/personJoin/email';
 import type { JoinStage } from '@/lib/personJoin/stage';
-import { JoinComplete, JoinProblem } from './JoinScreens';
+import { JoinComplete, JoinLayout, JoinProblem } from './JoinScreens';
 import { ConfirmStep, ConsentStep, EmailStep, NotMeStep, SentStep, type ConsentChoice } from './JoinSteps';
 
 type View = 'confirm' | 'notMe' | 'email' | 'sent' | 'consent' | 'done' | 'used' | 'invalid';
@@ -42,7 +42,6 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
     const [emailError, setEmailError] = useState<EmailError | null>(null);
     const [choice, setChoice] = useState<ConsentChoice | null>(null);
     const [consentError, setConsentError] = useState(false);
-    const [consentGiven, setConsentGiven] = useState(stage.kind === 'consent' && stage.consented);
 
     const person = stage.kind === 'invalid' ? null : stage.person;
     const cityId = person?.cityId ?? null;
@@ -57,11 +56,11 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
         window.scrollTo({ top: 0 });
     };
 
-    if (!person || view === 'invalid') return <SignupLayout><JoinProblem kind="invalid" /></SignupLayout>;
+    if (!person || view === 'invalid') return <JoinProblem kind="invalid" />;
     if (view === 'used') {
-        return <SignupLayout><JoinProblem kind={signedIn ? 'usedOther' : 'usedSignedOut'} person={person} token={token} /></SignupLayout>;
+        return <JoinProblem kind="used" signedIn={signedIn} own={stage.kind === 'used' && stage.own} person={person} />;
     }
-    if (view === 'done') return <SignupLayout><JoinComplete person={person} consentGiven={consentGiven} /></SignupLayout>;
+    if (view === 'done') return <JoinLayout><JoinComplete person={person} /></JoinLayout>;
 
     async function confirm() {
         setConfirmError(false);
@@ -70,7 +69,13 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
         try {
             const status = await claimWithToken(token);
             captureEvent('person_join_claimed', { city_id: cityId, status });
-            if (status === 'linked' || status === 'already_yours') go('consent');
+            if (status === 'linked' || status === 'already_yours') {
+                // Mark the tab as inside the flow, so a reload stays on the consent.
+                const url = new URL(window.location.href);
+                url.searchParams.set('step', '2');
+                window.history.replaceState(window.history.state, '', url);
+                go('consent');
+            }
             else if (status === 'already_linked') go('used');
             else if (status === 'signed_out') {
                 setSignedIn(false);
@@ -127,7 +132,6 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
         setBusy(true);
         try {
             await setVoicePrintConsent(person!.id, true);
-            setConsentGiven(true);
             captureEvent('person_join_consent', { city_id: cityId, granted: true });
             go('done');
         } catch (error) {
@@ -142,7 +146,7 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
     const step = view === 'confirm' || view === 'notMe' ? 1 : view === 'consent' ? total : 2;
 
     return (
-        <SignupLayout>
+        <JoinLayout>
             <SignupProgress step={step} total={total} label={ts('stepOf', { step, total })} />
 
             {view === 'confirm' && <ConfirmStep person={person} error={confirmError} />}
@@ -155,6 +159,7 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
 
             {view === 'confirm' && (
                 <SignupFooter
+                    pinned
                     actionLabel={busy ? t('confirm.working') : t('confirm.yes')}
                     onAction={confirm}
                     disabled={busy}
@@ -164,9 +169,10 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
                     onBack={() => go('notMe')}
                 />
             )}
-            {view === 'notMe' && <SignupFooter actionLabel={t('notMe.back')} onAction={() => go('confirm')} />}
+            {view === 'notMe' && <SignupFooter pinned actionLabel={t('notMe.back')} onAction={() => go('confirm')} />}
             {view === 'email' && (
                 <SignupFooter
+                    pinned
                     actionLabel={busy ? t('email.sending') : t('email.cta')}
                     onAction={() => sendEmail()}
                     disabled={busy}
@@ -178,6 +184,7 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
             )}
             {view === 'consent' && (
                 <SignupFooter
+                    pinned
                     actionLabel={busy ? t('consent.saving') : t('consent.cta')}
                     onAction={finish}
                     disabled={busy || choice === null}
@@ -185,6 +192,6 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
                     failures={failures}
                 />
             )}
-        </SignupLayout>
+        </JoinLayout>
     );
 }

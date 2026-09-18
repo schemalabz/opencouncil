@@ -45,17 +45,24 @@ describe('getJoinStage', () => {
         expect(await getJoinStage(token(), 'user-1')).toMatchObject({ kind: 'confirm', signedIn: true });
     });
 
-    it('is on the consent step for the account that claimed the person, with the answer it already gave', async () => {
+    it('is on the consent step for the claiming account inside the flow, with the answer it already gave', async () => {
         mockGetJoinPerson.mockResolvedValue(row([{ userId: 'user-1' }]));
-        expect(await getJoinStage(token(), 'user-1')).toMatchObject({ kind: 'consent', consented: false });
+        expect(await getJoinStage(token(), 'user-1', true)).toMatchObject({ kind: 'consent', consented: false });
         mockConsented.mockResolvedValue(new Set(['person-1']));
-        expect(await getJoinStage(token(), 'user-1')).toMatchObject({ kind: 'consent', consented: true });
+        expect(await getJoinStage(token(), 'user-1', true)).toMatchObject({ kind: 'consent', consented: true });
         expect(mockConsented).toHaveBeenLastCalledWith(['person-1'], 'user-1');
     });
 
-    it('is used for everybody else, signed in or not', async () => {
+    it('is spent on a fresh scan once the person has an account, for the owner too', async () => {
+        mockGetJoinPerson.mockResolvedValue(row([{ userId: 'user-1' }]));
+        expect(await getJoinStage(token(), 'user-1')).toMatchObject({ kind: 'used', signedIn: true, own: true });
+        expect(mockConsented).not.toHaveBeenCalled();
+    });
+
+    it('is spent for everybody else, signed in or not, inside the flow or not', async () => {
         mockGetJoinPerson.mockResolvedValue(row([{ userId: 'user-9' }]));
-        expect(await getJoinStage(token(), 'user-1')).toMatchObject({ kind: 'used', signedIn: true });
-        expect(await getJoinStage(token(), null)).toMatchObject({ kind: 'used', signedIn: false });
+        expect(await getJoinStage(token(), 'user-1')).toMatchObject({ kind: 'used', signedIn: true, own: false });
+        expect(await getJoinStage(token(), 'user-1', true)).toMatchObject({ kind: 'used', own: false });
+        expect(await getJoinStage(token(), null)).toMatchObject({ kind: 'used', signedIn: false, own: false });
     });
 });

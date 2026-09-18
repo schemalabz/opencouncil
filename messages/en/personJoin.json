@@ -55,8 +55,6 @@
   "done": {
     "title": "All done",
     "lead": "Your account is now linked to your page on OpenCouncil.",
-    "consentYes": "You consented to the recognition of your voice. You can change this at any time from your profile.",
-    "consentNo": "You did not consent to the recognition of your voice. You can change this at any time from your profile.",
     "page": "See your page",
     "profile": "My profile"
   },
@@ -64,9 +62,10 @@
     "invalidTitle": "This QR code does not work",
     "invalid": "The code has expired or is not correct. Ask the OpenCouncil team for a new one.",
     "notFound": "This code points to a person who no longer exists.",
-    "usedTitle": "This QR code has already been used",
-    "usedSignedOut": "{name} is already linked to an account. If it is your account, sign in to continue. If not, contact the OpenCouncil team.",
-    "usedOther": "{name} is already linked to another account. If that was not you, contact the OpenCouncil team.",
-    "signIn": "Sign in"
+    "usedTitle": "This QR code is no longer valid",
+    "signIn": "Sign in",
+    "used": "An account has already been created for: {name}. Each code works only once.",
+    "usedHelp": "If you did not create it, contact the OpenCouncil team.",
+    "usedYours": "Is it your account?"
   }
 }

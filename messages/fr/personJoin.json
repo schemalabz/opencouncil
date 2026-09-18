@@ -55,8 +55,6 @@
   "done": {
     "title": "Tout est prêt",
     "lead": "Votre compte est maintenant lié à votre page sur OpenCouncil.",
-    "consentYes": "Vous avez consenti à la reconnaissance de votre voix. Vous pouvez changer cela à tout moment depuis votre profil.",
-    "consentNo": "Vous n'avez pas consenti à la reconnaissance de votre voix. Vous pouvez changer cela à tout moment depuis votre profil.",
     "page": "Voir votre page",
     "profile": "Mon profil"
   },
@@ -64,9 +62,10 @@
     "invalidTitle": "Ce code QR ne fonctionne pas",
     "invalid": "Le code a expiré ou n'est pas correct. Demandez-en un nouveau à l'équipe OpenCouncil.",
     "notFound": "Ce code renvoie à une personne qui n'existe plus.",
-    "usedTitle": "Ce code QR a déjà été utilisé",
-    "usedSignedOut": "{name} est déjà lié à un compte. Si c'est le vôtre, connectez-vous pour continuer. Sinon, contactez l'équipe OpenCouncil.",
-    "usedOther": "{name} est déjà lié à un autre compte. Si ce n'était pas vous, contactez l'équipe OpenCouncil.",
-    "signIn": "Se connecter"
+    "usedTitle": "Ce code QR n'est plus valable",
+    "signIn": "Se connecter",
+    "used": "Un compte a déjà été créé pour : {name}. Chaque code ne sert qu'une seule fois.",
+    "usedHelp": "Si ce n'est pas vous qui l'avez créé, contactez l'équipe OpenCouncil.",
+    "usedYours": "C'est votre compte ?"
   }
 }

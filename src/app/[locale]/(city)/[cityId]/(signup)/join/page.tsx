@@ -23,15 +23,17 @@ interface PageProps {
  * The join flow behind a councillor's QR: is this you, your email, the
  * consent. Every step is derived from the code, the database and the
  * session, so a reload, a second phone or the link in the email all land in
- * the right place. `step=3` only says that the reader came through the
- * email, so the progress bar counts three steps and not two.
+ * the right place. `step` says the reader is inside the flow (`3`: back
+ * from the email, so the bar counts three steps; `2`: past step 1 in this
+ * tab). Without it, a code whose person has an account is spent.
  */
 export default async function PersonJoinPage(props: PageProps) {
     const [{ cityId }, query, user] = await Promise.all([props.params, props.searchParams, getCurrentUser()]);
     const token = Array.isArray(query.c) ? query.c[0] : query.c;
-    const cameThroughEmail = (Array.isArray(query.step) ? query.step[0] : query.step) === "3";
+    const step = Array.isArray(query.step) ? query.step[0] : query.step;
+    const cameThroughEmail = step === "3";
 
-    const stage = await getJoinStage(token, user?.id ?? null);
+    const stage = await getJoinStage(token, user?.id ?? null, step === "2" || step === "3");
     // A code opened under another city's path: send it to its own.
     if (stage.kind !== "invalid" && token && stage.person.cityId !== cityId) {
         redirect(personJoinPagePath(stage.person.cityId, token));

@@ -118,6 +118,8 @@ describe('PersonJoin, signed in', () => {
         fireEvent.click(screen.getByText('confirm.yes'));
         await waitFor(() => expect(screen.getByText('consent.title')).toBeTruthy());
         expect(mockedClaim).toHaveBeenCalledWith('tok.en');
+        // A reload must stay on the consent, not read as a fresh scan of a spent code.
+        expect(new URL(window.location.href).searchParams.get('step')).toBe('2');
         expect(screen.getByText('stepOf 2 2')).toBeTruthy();
     });
 
@@ -134,7 +136,7 @@ describe('PersonJoin, signed in', () => {
         flow(confirmStage(true), 2);
         fireEvent.click(screen.getByText('confirm.yes'));
         expect(await screen.findByText('problem.usedTitle')).toBeTruthy();
-        expect(screen.getByText('problem.usedOther Αδάμ Μπούτζουκας')).toBeTruthy();
+        expect(screen.getByText('problem.used Αδάμ Μπούτζουκας')).toBeTruthy();
     });
 
     it('stays on the name when the claim throws, and says so', async () => {
@@ -159,7 +161,6 @@ describe('PersonJoin, the consent step', () => {
         fireEvent.click(finish);
         await waitFor(() => expect(screen.getByText('done.title')).toBeTruthy());
         expect(mockedConsent).toHaveBeenCalledWith('person-1', true);
-        expect(screen.getByText('done.consentYes')).toBeTruthy();
     });
 
     it('finishes on "not now" without writing anything', async () => {
@@ -168,7 +169,6 @@ describe('PersonJoin, the consent step', () => {
         fireEvent.click(screen.getByText('consent.cta'));
         await waitFor(() => expect(screen.getByText('done.title')).toBeTruthy());
         expect(mockedConsent).not.toHaveBeenCalled();
-        expect(screen.getByText('done.consentNo')).toBeTruthy();
     });
 
     it('stays on the step when the consent does not save', async () => {
@@ -183,7 +183,6 @@ describe('PersonJoin, the consent step', () => {
     it('opens on the done screen for somebody who already answered yes', () => {
         flow({ kind: 'consent', consented: true, person });
         expect(screen.getByText('done.title')).toBeTruthy();
-        expect(screen.getByText('done.consentYes')).toBeTruthy();
     });
 });
 
@@ -193,16 +192,25 @@ describe('PersonJoin, codes that cannot go on', () => {
         expect(screen.getByText('problem.invalidTitle')).toBeTruthy();
     });
 
-    it('offers sign-in, back to this code, when signed out and the person is taken', () => {
-        flow({ kind: 'used', signedIn: false, person });
-        expect(screen.getByText('problem.usedSignedOut Αδάμ Μπούτζουκας')).toBeTruthy();
+    it('says the code is no longer valid once the person has an account, with a quiet sign-in when signed out', () => {
+        flow({ kind: 'used', signedIn: false, own: false, person });
+        expect(screen.getByText('problem.usedTitle')).toBeTruthy();
+        expect(screen.getByText('problem.used Αδάμ Μπούτζουκας')).toBeTruthy();
         const href = (screen.getByText('problem.signIn').closest('a') as HTMLAnchorElement).getAttribute('href');
-        expect(href).toBe(`/sign-in?callbackUrl=${encodeURIComponent('/chania/join?c=tok.en')}`);
+        expect(href).toBe('/sign-in');
     });
 
-    it('has no sign-in to offer somebody who is signed in to another account', () => {
-        flow({ kind: 'used', signedIn: true, person });
-        expect(screen.getByText('problem.usedOther Αδάμ Μπούτζουκας')).toBeTruthy();
+    it('says the same to another signed-in account, with no sign-in to offer', () => {
+        flow({ kind: 'used', signedIn: true, own: false, person });
+        expect(screen.getByText('problem.usedTitle')).toBeTruthy();
         expect(screen.queryByText('problem.signIn')).toBeNull();
+        expect(screen.getByText('problem.usedHelp')).toBeTruthy();
+    });
+
+    it('sends the owner of a spent code to their profile instead of the team', () => {
+        flow({ kind: 'used', signedIn: true, own: true, person });
+        expect(screen.getByText('problem.usedTitle')).toBeTruthy();
+        expect(screen.queryByText('problem.usedHelp')).toBeNull();
+        expect((screen.getByText('done.profile').closest('a') as HTMLAnchorElement).getAttribute('href')).toBe('/profile');
     });
 });

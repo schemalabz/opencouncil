@@ -10,16 +10,20 @@ export const metadata: Metadata = {
 /**
  * Where /api/join sends a code it cannot place in a city: forged, expired,
  * or for a person that is gone. Every other outcome of a scan is a step of
- * the join flow at /{cityId}/join.
+ * the join flow at /{cityId}/join. Laid out as that flow's problem screen.
  */
 export default async function ClaimResultPage(props: { searchParams: Promise<{ claim?: string }> }) {
     const { claim } = await props.searchParams;
     const t = await getTranslations("personJoin");
     return (
-        <div className="container max-w-md py-24 flex flex-col items-center gap-4 text-center">
-            <XCircle className="h-12 w-12 text-destructive" />
-            <h1 className="text-xl font-semibold">{t("problem.invalidTitle")}</h1>
-            <p className="text-muted-foreground">{claim === "not_found" ? t("problem.notFound") : t("problem.invalid")}</p>
+        <div className="mx-auto flex min-h-[70dvh] w-full max-w-md flex-col items-center justify-center px-6 py-12 text-center">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50" aria-hidden>
+                <XCircle className="h-7 w-7 text-red-600" />
+            </span>
+            <h1 className="mt-6 text-[26px] font-normal leading-tight tracking-[-0.01em] lg:text-[30px]">{t("problem.invalidTitle")}</h1>
+            <p className="mt-3 text-[16px] leading-[1.5] text-muted-foreground">
+                {claim === "not_found" ? t("problem.notFound") : t("problem.invalid")}
+            </p>
         </div>
     );
 }
