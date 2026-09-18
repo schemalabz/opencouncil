@@ -4,6 +4,8 @@ const mockGetCurrentUser = jest.fn();
 jest.mock('@/lib/auth', () => ({ getCurrentUser: () => mockGetCurrentUser() }));
 const mockClaimPerson = jest.fn();
 jest.mock('@/lib/db/personClaim', () => ({ claimPerson: (...args: unknown[]) => mockClaimPerson(...args) }));
+const mockConsents = jest.fn();
+jest.mock('@/lib/db/personConsent', () => ({ getVoicePrintConsents: (...args: unknown[]) => mockConsents(...args) }));
 const mockAlert = jest.fn();
 jest.mock('@/lib/discord', () => ({ sendPersonClaimedAdminAlert: (...args: unknown[]) => mockAlert(...args) }));
 const mockSignIn = jest.fn();
@@ -13,7 +15,8 @@ import { generatePersonClaimToken, verifyJoinConfirmation } from '@/lib/auth/per
 import { claimWithToken, sendJoinEmail } from '../personJoin';
 
 beforeEach(() => {
-    for (const m of [mockGetCurrentUser, mockClaimPerson, mockAlert, mockSignIn]) m.mockReset();
+    for (const m of [mockGetCurrentUser, mockClaimPerson, mockAlert, mockSignIn, mockConsents]) m.mockReset();
+    mockConsents.mockResolvedValue(new Map());
     jest.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -38,6 +41,21 @@ describe('claimWithToken', () => {
         mockClaimPerson.mockResolvedValue({ status: 'already_yours' });
         expect(await claimWithToken(generatePersonClaimToken('person-1'))).toBe('already_yours');
         expect(mockAlert).toHaveBeenCalledTimes(1);
+    });
+
+    it('says when a consent is already in force, so the flow asks nothing more', async () => {
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1' });
+        mockClaimPerson.mockResolvedValue({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
+        mockConsents.mockResolvedValue(new Map([['person-1', 'ADMIN']]));
+        expect(await claimWithToken(generatePersonClaimToken('person-1'))).toBe('consented');
+        expect(mockConsents).toHaveBeenCalledWith(['person-1'], 'user-1');
+        expect(mockAlert).toHaveBeenCalledTimes(1);
+
+        // A refused claim never reads the consent of somebody else's person.
+        mockConsents.mockClear();
+        mockClaimPerson.mockResolvedValue({ status: 'already_linked' });
+        expect(await claimWithToken(generatePersonClaimToken('person-1'))).toBe('already_linked');
+        expect(mockConsents).not.toHaveBeenCalled();
     });
 });
 

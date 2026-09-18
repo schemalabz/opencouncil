@@ -3,11 +3,13 @@
 import { getCurrentUser } from "@/lib/auth";
 import { signJoinConfirmation, verifyPersonClaimToken } from "@/lib/auth/personClaim";
 import { claimPerson, type PersonClaimStatus } from "@/lib/db/personClaim";
+import { getVoicePrintConsents } from "@/lib/db/personConsent";
 import { sendPersonClaimedAdminAlert } from "@/lib/discord";
 import { isLikelyEmail, normalizeEmail } from "@/lib/personJoin/email";
 import { signInWithEmail } from "@/lib/serverSignIn";
 
-export type ClaimWithTokenStatus = PersonClaimStatus | "invalid" | "signed_out";
+/** "consented": the person is this account's, and a consent is already in force, so the flow has no question left. */
+export type ClaimWithTokenStatus = PersonClaimStatus | "consented" | "invalid" | "signed_out";
 
 /** Step 1 of the join flow for a signed-in scanner: "yes, this is me". */
 export async function claimWithToken(token: string): Promise<ClaimWithTokenStatus> {
@@ -19,6 +21,10 @@ export async function claimWithToken(token: string): Promise<ClaimWithTokenStatu
     const result = await claimPerson(user.id, personId);
     if (result.status === "linked") {
         sendPersonClaimedAdminAlert({ cityId: result.cityId, cityName: result.cityName, personName: result.personName });
+    }
+    if (result.status === "linked" || result.status === "already_yours") {
+        const consents = await getVoicePrintConsents([personId], user.id);
+        if (consents.has(personId)) return "consented";
     }
     return result.status;
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import type { User } from "@prisma/client";
+import type { User, VoicePrintConsentSource } from "@prisma/client";
 import { CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -31,8 +31,14 @@ const PHONE_ERROR_KEYS: Record<string, string> = {
 export interface ConsentPerson {
     id: string;
     name: string;
-    voicePrintConsent: boolean;
+    /**
+     * The consent in force, by who recorded it; null when none is. The person
+     * revokes an ADMIN consent by email, not here.
+     */
+    consent: VoicePrintConsentSource | null;
 }
+
+const DPO_EMAIL = "dpo@opencouncil.gr";
 
 interface UserInfoFormProps {
     user: User;
@@ -72,7 +78,17 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
     // linked from another device cannot be reverted by a stale tab.
     const [consentEdits, setConsentEdits] = useState<Record<string, boolean>>({});
     const [consentError, setConsentError] = useState(false);
-    const consentOf = (person: ConsentPerson) => consentEdits[person.id] ?? person.voicePrintConsent;
+    const isLocked = (person: ConsentPerson) => person.consent === "ADMIN";
+    const consentOf = (person: ConsentPerson) => (isLocked(person) ? true : consentEdits[person.id] ?? person.consent !== null);
+    // A box that became locked meanwhile drops its pending edit, so the edit
+    // cannot come back if the recorded consent is withdrawn later.
+    useEffect(() => {
+        setConsentEdits((edits) => {
+            const locked = persons.filter((p) => p.consent === "ADMIN" && p.id in edits);
+            if (locked.length === 0) return edits;
+            return Object.fromEntries(Object.entries(edits).filter(([id]) => !locked.some((p) => p.id === id)));
+        });
+    }, [persons]);
 
     const phoneSubmitBlocked = phoneValidity.isActive && !phoneValidity.isEmpty && !phoneValidity.isValid;
 
@@ -116,7 +132,7 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
     // The consent is the person's, not the account's, so it goes through its
     // own action, next to the profile save and not inside it: a phone the
     // server refuses cannot swallow a withdrawal.
-    const changedConsents = persons.filter((p) => consentOf(p) !== p.voicePrintConsent);
+    const changedConsents = persons.filter((p) => !isLocked(p) && consentOf(p) !== (p.consent !== null));
     async function saveConsents() {
         if (changedConsents.length === 0) return;
         try {
@@ -255,15 +271,30 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
                                                 <Checkbox
                                                     id={`voicePrintConsent-${person.id}`}
                                                     checked={consentOf(person)}
+                                                    disabled={isLocked(person)}
                                                     onCheckedChange={(checked) =>
                                                         setConsentEdits({ ...consentEdits, [person.id]: checked === true })
                                                     }
                                                 />
-                                                <Label htmlFor={`voicePrintConsent-${person.id}`} className="leading-snug">
-                                                    {t("voicePrintConsentLabel")}
-                                                    {/* Only an account that is more than one person needs to know which box is whose. */}
-                                                    {persons.length > 1 && ` (${person.name})`}
-                                                </Label>
+                                                <div className="space-y-1">
+                                                    <Label htmlFor={`voicePrintConsent-${person.id}`} className="leading-snug">
+                                                        {t("voicePrintConsentLabel")}
+                                                        {/* Only an account that is more than one person needs to know which box is whose. */}
+                                                        {persons.length > 1 && ` (${person.name})`}
+                                                    </Label>
+                                                    {isLocked(person) && (
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {t.rich("voicePrintConsentOnPaper", {
+                                                                email: DPO_EMAIL,
+                                                                mail: (chunks) => (
+                                                                    <a href={`mailto:${DPO_EMAIL}`} className="underline text-foreground">
+                                                                        {chunks}
+                                                                    </a>
+                                                                ),
+                                                            })}
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
                                         {consentError && (
@@ -361,8 +392,8 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
                             <h3 className="font-semibold">{t("yourData")}</h3>
                             <p className="text-sm text-muted-foreground">
                                 {t("yourDataDescription")}{" "}
-                                <a href="mailto:dpo@opencouncil.gr" className="underline text-foreground">
-                                    dpo@opencouncil.gr
+                                <a href={`mailto:${DPO_EMAIL}`} className="underline text-foreground">
+                                    {DPO_EMAIL}
                                 </a>
                                 .
                             </p>

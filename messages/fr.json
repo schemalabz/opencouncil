@@ -486,6 +486,21 @@
     "derivedFields": "Noms dérivés"
   },
   "Person": {
+    "voicePrintConsent": {
+      "buttonNone": "Consentement vocal : non",
+      "buttonGiven": "Consentement vocal : oui",
+      "title": "Consentement à l'empreinte vocale : {name}",
+      "none": "Aucun consentement n'est en vigueur.",
+      "byPerson": "La personne a consenti depuis son propre compte, le {date}.",
+      "byAdmin": "Enregistré par {recorder}, le {date}. La personne ne peut pas le modifier depuis son profil.",
+      "unknownAccount": "un compte supprimé",
+      "recordHint": "Enregistrez-le uniquement si la personne a donné son consentement par écrit, sur un formulaire imprimé avec une signature manuscrite. La personne le verra sur son profil, mais ne pourra pas le modifier.",
+      "withdrawHint": "Retirez-le lorsque la personne le demande. La période de consentement reste dans l'historique.",
+      "record": "Enregistrer le consentement",
+      "withdraw": "Retirer le consentement",
+      "saving": "Enregistrement…",
+      "error": "La modification n'a pas été enregistrée. Réessayez."
+    },
     "partyLeader": "Chef de groupe",
     "formerMembers": "Anciens membres",
     "mayor": "Maire",
@@ -749,6 +764,7 @@
   "Profile": {
     "voicePrintConsentError": "Le consentement n'a pas pu être enregistré. Réessayez.",
     "voicePrintConsentLabel": "J'accepte le traitement de ma voix pour une empreinte vocale",
+    "voicePrintConsentOnPaper": "Vous avez donné votre consentement sur un formulaire imprimé, écrit, avec une signature manuscrite. Pour le retirer, envoyez-nous un e-mail à <mail>{email}</mail>.",
     "myHighlightsDescription": "Consultez tous les temps forts que vous avez créés, pour chaque séance.",
     "viewMyHighlights": "Voir vos temps forts",
     "welcomeOnboard": "Bienvenue sur OpenCouncil",
