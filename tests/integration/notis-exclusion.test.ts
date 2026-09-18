@@ -108,7 +108,7 @@ describe('message deliveries are Notis\'s, never this app\'s', () => {
         })
 
         const release = await releaseNotifications(notificationIds)
-        expect(release.messagesSent).toBe(0)
+        expect(release.emailsSent).toBe(0)
         expect(release.skipped).toBe(1)
         expect(release.failed).toBe(0)
 
@@ -116,5 +116,32 @@ describe('message deliveries are Notis\'s, never this app\'s', () => {
             where: { notificationId: { in: notificationIds } },
         })
         expect(after?.status).toBe('skipped')
+        // Nothing reached Bird, so nothing was recorded as sent.
+        expect(await prisma.message.count()).toBe(0)
+    })
+
+    test('a whole cycle writes no Message row: this app has no sender left', async () => {
+        const { city, meeting, topic } = await setupMatchingMeeting()
+        const phoneReader = await createUser('phone@example.com', {
+            phone: '+306900000004',
+            notifyByPhone: true,
+        })
+        await createNotificationPreference({
+            userId: phoneReader.id,
+            cityId: city.id,
+            topicIds: [topic.id],
+        })
+
+        const { notificationIds } = await createNotificationsForMeeting(city.id, meeting.id, 'afterMeeting')
+        const release = await releaseNotifications(notificationIds)
+
+        // The email goes out and nothing else: the reader's phone earns no
+        // delivery of its own, whatever notifyByPhone says.
+        expect(release.emailsSent).toBe(1)
+        // The Message table holds the archive of what this app sent before
+        // Notis (threads were grouped by its conversationId). A row created
+        // here would mean a sender came back — every WhatsApp and SMS
+        // message belongs to Notis now.
+        expect(await prisma.message.count()).toBe(0)
     })
 })

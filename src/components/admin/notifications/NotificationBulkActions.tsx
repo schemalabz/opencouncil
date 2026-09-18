@@ -69,7 +69,7 @@ export function NotificationBulkActions({
                 const result = await releaseNotificationsForMeeting(meeting.meetingId, meeting.cityId);
 
                 if (result.success) {
-                    successCount += (result.emailsSent || 0) + (result.messagesSent || 0);
+                    successCount += result.emailsSent || 0;
                 } else {
                     errorCount++;
                 }

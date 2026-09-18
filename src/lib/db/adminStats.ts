@@ -29,8 +29,6 @@ export interface AdminDashboardStats {
         supportedCities: number;
     };
     engagement: {
-        inbound: { total: number; whatsapp: number; sms: number };
-        outbound: { total: number; whatsapp: number; sms: number };
         searches: { thisWeek: number; prevWeek: number; percentChange: number };
     };
 }
@@ -74,7 +72,6 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         releasedOfThose,
         meetingHoursThisWeek,
         supportedCities,
-        messagesByChannelAndDirection,
         searchesThisWeek,
         searchesPrevWeek,
     ] = await Promise.all([
@@ -101,30 +98,17 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
             ) meetings
         `,
         prisma.city.count({ where: CUSTOMER_CITY_WHERE }),
-        prisma.message.groupBy({
-            by: ['channel', 'direction'],
-            where: { createdAt: { gte: sevenDaysAgo } },
-            _count: { _all: true },
-        }),
         prisma.searchQuery.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
         prisma.searchQuery.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
     ]);
 
     const engagement: AdminDashboardStats['engagement'] = {
-        inbound: { total: 0, whatsapp: 0, sms: 0 },
-        outbound: { total: 0, whatsapp: 0, sms: 0 },
         searches: {
             thisWeek: searchesThisWeek,
             prevWeek: searchesPrevWeek,
             percentChange: percentChange(searchesThisWeek, searchesPrevWeek),
         },
     };
-    for (const group of messagesByChannelAndDirection) {
-        const count = group._count._all;
-        engagement[group.direction][group.channel] += count;
-        engagement[group.direction].total += count;
-    }
-
     return {
         users: {
             total: totalUsers,

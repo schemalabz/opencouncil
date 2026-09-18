@@ -132,7 +132,7 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
             if (autoSend) {
                 console.log('Auto-sending notifications...');
                 const releaseResult = await releaseNotifications(stats.notificationIds);
-                console.log(`Released notifications: ${releaseResult.emailsSent} emails, ${releaseResult.messagesSent} messages sent`);
+                console.log(`Released notifications: ${releaseResult.emailsSent} emails`);
 
                 // Send Discord admin alert about sending
                 sendNotificationsSentAdminAlert({
@@ -142,7 +142,6 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
                     meetingName: task.councilMeeting.name,
                     notificationCount: stats.notificationsCreated,
                     emailsSent: releaseResult.emailsSent,
-                    messagesSent: releaseResult.messagesSent,
                     failed: releaseResult.failed
                 });
             }

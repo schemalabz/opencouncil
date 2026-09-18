@@ -140,7 +140,7 @@ export default function AdminNotificationsPage() {
             if (result.success) {
                 toast({
                     title: 'Notifications released',
-                    description: `Sent ${result.emailsSent} emails and ${result.messagesSent} messages.`,
+                    description: `Sent ${result.emailsSent} emails.`,
                 });
                 fetchNotifications(pagination.page);
             } else {

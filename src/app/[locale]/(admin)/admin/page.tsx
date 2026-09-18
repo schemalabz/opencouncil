@@ -1,5 +1,5 @@
 import { Link } from '@/i18n/routing';
-import { Bell, Clock, FileText, Landmark, MessageCircle, Search, Send, Users } from 'lucide-react';
+import { Bell, Clock, FileText, Landmark, Search, Send, Users } from 'lucide-react';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Suspense } from 'react';
 import { ReviewsOverviewWidget, ReviewsOverviewSkeleton } from '@/components/admin/reviews/ReviewsOverviewWidget';
@@ -58,7 +58,7 @@ export default async function Page() {
             <section>
                 <h2 className="w-fit mb-3">This Week</h2>
                 <StatsCard
-                    columns={4}
+                    columns={5}
                     items={[
                         {
                             title: 'Notifications Sent',
@@ -84,18 +84,6 @@ export default async function Page() {
                             icon: <Landmark className="h-4 w-4" />,
                             description: 'officially supported, all time',
                         },
-                    ]}
-                />
-            </section>
-
-            <section>
-                <h2 className="w-fit">Engagement This Week</h2>
-                <p className="text-sm text-muted-foreground mt-1 mb-3">
-                    Searches and WhatsApp/SMS messages. AI chat queries are not persisted, so they cannot be shown.
-                </p>
-                <StatsCard
-                    columns={4}
-                    items={[
                         {
                             title: 'Searches',
                             value: stats.engagement.searches.thisWeek,
@@ -105,18 +93,6 @@ export default async function Page() {
                                 value: round1(stats.engagement.searches.percentChange),
                                 isPositive: stats.engagement.searches.percentChange >= 0,
                             },
-                        },
-                        {
-                            title: 'Inbound Messages',
-                            value: stats.engagement.inbound.total,
-                            icon: <MessageCircle className="h-4 w-4" />,
-                            description: `${stats.engagement.inbound.whatsapp} WhatsApp · ${stats.engagement.inbound.sms} SMS`,
-                        },
-                        {
-                            title: 'Outbound Messages',
-                            value: stats.engagement.outbound.total,
-                            icon: <Send className="h-4 w-4" />,
-                            description: `${stats.engagement.outbound.whatsapp} WhatsApp · ${stats.engagement.outbound.sms} SMS`,
                         },
                     ]}
                 />

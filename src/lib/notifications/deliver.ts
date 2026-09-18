@@ -8,12 +8,11 @@ import { getPendingDeliveries, updateDeliveryStatus } from '@/lib/db/notificatio
  *
  * Only email is sent from here. WhatsApp and SMS are Notis's for every
  * reader, so a `message` delivery can only be a row created before the
- * switch (or by the admin test-send tool) and is marked skipped, never sent.
+ * switch, and it is marked skipped, never sent.
  */
 export async function releaseNotifications(notificationIds: string[]): Promise<{
     success: boolean;
     emailsSent: number;
-    messagesSent: number;
     skipped: number;
     failed: number;
 }> {
@@ -59,7 +58,6 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
         return {
             success: true,
             emailsSent,
-            messagesSent: 0,
             skipped,
             failed
         };
@@ -68,7 +66,6 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
         return {
             success: false,
             emailsSent,
-            messagesSent: 0,
             skipped,
             failed
         };

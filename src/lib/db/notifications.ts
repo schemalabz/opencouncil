@@ -711,10 +711,10 @@ export async function calculateProximityMatches(
  * Creates notifications for a meeting based on subject importance and user preferences
  */
 // Caller-gated: invoked by the processAgenda/summarize tasks (no user session)
-// as well as the per-city notifications route and the superadmin conversations
-// action. Because a task caller has no session, this cannot take an inner auth
-// gate; its user-facing callers authorize first. This module intentionally has
-// no `"use server"` directive, so this function is not a Server Action.
+// and by the per-city notifications route. Because a task caller has no
+// session, this cannot take an inner auth gate; its user-facing callers
+// authorize first. This module intentionally has no `"use server"` directive,
+// so this function is not a Server Action.
 export async function createNotificationsForMeeting(
     cityId: string,
     meetingId: string,
@@ -958,17 +958,18 @@ export async function createNotificationsForMeeting(
 // Caller-gated: driven by the delivery sender (deliver.ts), which runs from the
 // admin/city "release notifications" routes. No cityId is available here to
 // scope on; the routes authorize. Tracked follow-up to move off the action surface.
+// `messageSentVia` is not written here: this app sends no WhatsApp or SMS
+// message. The column keeps the channel of the messages it sent before Notis,
+// which the notification page and the admin row still show.
 export async function updateDeliveryStatus(
     deliveryId: string,
-    status: 'sent' | 'failed' | 'skipped',
-    messageSentVia?: 'whatsapp' | 'sms'
+    status: 'sent' | 'failed' | 'skipped'
 ) {
     await prisma.notificationDelivery.update({
         where: { id: deliveryId },
         data: {
             status,
-            sentAt: status === 'sent' ? new Date() : undefined,
-            messageSentVia: messageSentVia || undefined
+            sentAt: status === 'sent' ? new Date() : undefined
         }
     });
 }

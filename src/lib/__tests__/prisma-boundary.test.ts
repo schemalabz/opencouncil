@@ -71,7 +71,6 @@ const ALLOWED_FILES = new Set([
     'src/app/api/subject/[subjectId]/first-utterance/[speakerId]/route.ts',
     'src/app/api/subject/voting-utterances/route.ts',
     'src/app/api/utterance/[utteranceId]/route.ts',
-    'src/app/api/webhooks/bird/route.ts',
 ]);
 
 function walk(dir: string, out: string[] = []): string[] {

@@ -14,6 +14,7 @@ module.exports = {
         '^client-only$': '<rootDir>/__mocks__/empty.js',
         '^@/auth$': '<rootDir>/tests/mocks/auth.ts',
         '^@/env.mjs$': '<rootDir>/tests/mocks/env.ts',
+        '^@/lib/email/resend$': '<rootDir>/tests/mocks/emailResend.ts',
         '^@/lib/notifications/content$': '<rootDir>/tests/mocks/notificationsContent.ts',
         '^@/lib/notifications/welcome$': '<rootDir>/tests/mocks/notificationsWelcome.ts',
         '^@/lib/discord$': '<rootDir>/tests/mocks/discord.ts',
