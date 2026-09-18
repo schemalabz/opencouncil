@@ -106,12 +106,25 @@ function makeFakeMain(seed: FakeMainSeed = {}) {
   } as unknown as import("../../../generated/main-client").PrismaClient;
 }
 
+// A brief the poller fans out carries at least one subject: that is what a
+// wake ranks. An empty one means the meeting held nothing to rank, which the
+// tick consumes instead of waking a whole municipality about nothing.
 const BRIEF: EditorialBrief = {
   cityId: "athens",
   meetingId: "m1",
   generatedAt: NOW.toISOString(),
   headline: "x",
-  subjects: [],
+  subjects: [
+    {
+      subjectId: "s1",
+      name: "Ανάπλαση πλατείας",
+      topicLabels: ["Πολεοδομία"],
+      discussionSeconds: 600,
+      scores: { hyperlocal: 4, citywide: 2, contention: 1, novelty: 3, money: 3 },
+      note: "Μεγάλο έργο.",
+      locationHints: [],
+    },
+  ],
 };
 
 function target(userId: string, cityId: string, overrides: Row = {}): Row {
@@ -535,6 +548,79 @@ describe("meeting events", () => {
     ])("%s dated %s → %s (%s)", (type, meetingDate, expected) => {
       expect(on(type, meetingDate)).toBe(expected);
     });
+  });
+
+  const editorialEmpty = () =>
+    jest.fn(async () => ({ brief: { ...BRIEF, subjects: [] }, costUsd: 0 }));
+
+  it("consumes a settled agenda with no subjects, and says why nobody was woken", async () => {
+    // The production incident: an Ειδική Συνεδρίαση Λογοδοσίας, whose agenda
+    // PDF holds no numbered items. The pass raised a 400 («Enum must be a
+    // non-empty array»), no processed row was written, and the tick retried
+    // the same rejected request on every tick until the row aged out.
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [
+        meetingRow("task-agenda", {
+          type: "processAgenda",
+          meetingId: "m-upcoming",
+          meetingDate: new Date("2026-08-20T18:00:00.000Z"),
+        }),
+      ],
+    });
+    const editorial = editorialEmpty();
+    const alerts: string[] = [];
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async (m) => void alerts.push(m),
+      now,
+      editorial,
+    });
+
+    expect(editorial).toHaveBeenCalled();
+    expect(result.emptyBriefConsumed).toBe(1);
+    expect(result.wakesEnqueued).toBe(0);
+    expect(db.store.queue.size).toBe(0);
+    // Consumed, so it stops re-surfacing and stops holding a slot.
+    expect(processedFor(db, "athens", "m-upcoming", "processAgenda")).toBeDefined();
+    // Consuming cannot be undone, so it is never silent.
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toContain("has no subjects");
+    expect(alerts[0]).toContain("deduped away");
+  });
+
+  it("leaves a freshly completed task alone: its subjects may still be landing", async () => {
+    // handleTaskUpdate sets status=succeeded BEFORE processResult writes the
+    // subjects, and the event feed reads that status. Consuming inside that
+    // window would turn a real meeting into permanent silence for a city.
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [meetingRow("task-1", { completedAt: new Date(NOW.getTime() - 30_000) })],
+    });
+    const editorial = editorialEmpty();
+    const alerts: string[] = [];
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async (m) => void alerts.push(m),
+      now,
+      editorial,
+    });
+
+    expect(result.emptyBriefConsumed).toBe(0);
+    expect(result.wakesEnqueued).toBe(0);
+    expect(alerts).toHaveLength(0);
+    // NOT consumed: the next tick reads the meeting again and fans out.
+    expect(processedFor(db, "athens", "m1", "summarize")).toBeUndefined();
   });
 
   it("wakes nobody for a city whose reader switched phone delivery off", async () => {
