@@ -52,6 +52,7 @@ const speakerTag: SpeakerTag = {
     id: 'tag-1',
     label: 'Speaker 1',
     personId: null,
+    personSetBy: null,
     createdAt: new Date(),
     updatedAt: new Date(),
 };
@@ -208,5 +209,68 @@ describe('PersonBadge segment scope', () => {
         open();
 
         expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+});
+
+describe('PersonBadge speaker suggestions', () => {
+    const suggestions = [{ person: people[1], source: 'transcript' as const, reason: 'Discussion text', evidence: '[00:01:14] τον λόγο έχει η κ. Σαλαμανή' }];
+
+    it('leads with the suggested people and why, then heads the full list', () => {
+        renderBadge({ suggestions, suggestionsHeading: 'Suggested', allPeopleHeading: 'All people' });
+        fireEvent.click(screen.getByText('Speaker 1'));
+
+        const suggestedHeading = screen.getByText('Suggested');
+        const unknownSpeaker = screen.getByText('Άγνωστος Ομιλητής');
+        const allPeopleHeading = screen.getByText('All people');
+        // Document order: suggestions, then the unknown-speaker action, then everyone.
+        expect(suggestedHeading.compareDocumentPosition(unknownSpeaker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(unknownSpeaker.compareDocumentPosition(allPeopleHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+        expect(screen.getByText('Discussion text')).toBeInTheDocument();
+        // The line the name rests on, for the reviewer to check it against.
+        expect(screen.getByText('[00:01:14] τον λόγο έχει η κ. Σαλαμανή')).toBeInTheDocument();
+        // Once as a suggestion, once in the full list.
+        expect(screen.getAllByText('Σαλαμανή')).toHaveLength(2);
+    });
+
+    it('shows no "all people" heading when there is nothing suggested', () => {
+        renderBadge({ allPeopleHeading: 'All people' });
+        fireEvent.click(screen.getByText('Speaker 1'));
+        expect(screen.queryByText('All people')).not.toBeInTheDocument();
+    });
+
+    it('assigns a suggestion when it is picked', () => {
+        const onAssign = jest.fn();
+        renderBadge({ suggestions, suggestionsHeading: 'Suggested', onAssign });
+        fireEvent.click(screen.getByText('Speaker 1'));
+        fireEvent.click(screen.getByText('Discussion text'));
+
+        expect(onAssign).toHaveBeenCalledWith({ personId: 'p2', label: undefined }, 'allSegments');
+    });
+
+    it('assigns a suggestion to this segment only when the checkbox is ticked', () => {
+        const onAssign = jest.fn();
+        renderBadge({ suggestions, suggestionsHeading: 'Suggested', segmentCount: 4, onAssign });
+        fireEvent.click(screen.getByText('Speaker 1'));
+        fireEvent.click(screen.getByRole('checkbox'));
+        fireEvent.click(screen.getByText('Discussion text'));
+
+        expect(onAssign).toHaveBeenCalledWith({ personId: 'p2', label: undefined }, 'thisSegment');
+    });
+
+    it('steps the suggestions aside while the reviewer searches', () => {
+        renderBadge({ suggestions, suggestionsHeading: 'Suggested', allPeopleHeading: 'All people' });
+        search('Παπ');
+        expect(screen.queryByText('Suggested')).not.toBeInTheDocument();
+        expect(screen.queryByText('All people')).not.toBeInTheDocument();
+    });
+
+    it('labels the badge when the methods disagree, only for an editor', () => {
+        const { unmount } = renderBadge({ warning: 'Methods disagree' });
+        expect(screen.getByText('Methods disagree')).toBeInTheDocument();
+        unmount();
+
+        renderBadge({ warning: 'Methods disagree', editable: false });
+        expect(screen.queryByText('Methods disagree')).not.toBeInTheDocument();
     });
 });

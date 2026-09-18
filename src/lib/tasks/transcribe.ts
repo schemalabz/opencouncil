@@ -147,8 +147,22 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
                         label: isMatched
                             ? `SPEAKER_${speakerId}`
                             : nextUnknownLabel(),
-                        // Only connect if we verified the person exists
-                        ...(isMatched ? { person: { connect: { id: matchInfo.match! } } } : {})
+                        // Only connect if we verified the person exists. The match is
+                        // also kept as the tag's voiceprint identification, which stays
+                        // as it is when a reviewer or the transcript later changes the
+                        // person. The task server decided it is a match, so it is one
+                        // the method acts on.
+                        ...(isMatched ? {
+                            person: { connect: { id: matchInfo.match! } },
+                            personSetBy: 'voiceprint' as const,
+                            identifications: {
+                                create: {
+                                    method: 'voiceprint' as const,
+                                    personId: matchInfo.match!,
+                                    confidence: matchInfo.confidence[matchInfo.match!] ?? null,
+                                },
+                            },
+                        } : {})
                     }
                 });
 

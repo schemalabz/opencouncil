@@ -8,7 +8,7 @@ jest.mock('../db/prisma', () => ({
     }
 }));
 jest.mock('../db/transcript', () => ({ getTranscript: jest.fn() }));
-jest.mock('../db/people', () => ({ getPeopleForMeeting: jest.fn() }));
+jest.mock('../db/people', () => ({ getPeopleForMeeting: jest.fn(), getPeopleForCity: jest.fn() }));
 jest.mock('../db/parties', () => ({ getPartiesForCity: jest.fn() }));
 jest.mock('../db/topics', () => ({
     getTopics: jest.fn(),
@@ -23,18 +23,19 @@ jest.mock('../db/meetings', () => ({
 
 import prisma from '../db/prisma';
 import { getTranscript } from '../db/transcript';
-import { getPeopleForMeeting } from '../db/people';
+import { getPeopleForCity, getPeopleForMeeting } from '../db/people';
 import { getPartiesForCity } from '../db/parties';
 import { getTopics } from '../db/topics';
 import { getCity } from '../db/cities';
 import { getCouncilMeeting, getCouncilMeetingDirect } from '../db/meetings';
-import { getRequestOnTranscriptRequestBody } from '../db/utils';
+import { getFixTranscriptRequestBody, getRequestOnTranscriptRequestBody } from '../db/utils';
 import { makeTranscriptSegment, makePersonWithRoles } from '../../../tests/helpers/builders';
 
 const mockGetTranscript = getTranscript as jest.MockedFunction<typeof getTranscript>;
 const mockGetCouncilMeetingDirect = getCouncilMeetingDirect as jest.MockedFunction<typeof getCouncilMeetingDirect>;
 const mockGetCouncilMeeting = getCouncilMeeting as jest.MockedFunction<typeof getCouncilMeeting>;
 const mockGetPeopleForMeeting = getPeopleForMeeting as jest.MockedFunction<typeof getPeopleForMeeting>;
+const mockGetPeopleForCity = getPeopleForCity as jest.MockedFunction<typeof getPeopleForCity>;
 const mockGetPartiesForCity = getPartiesForCity as jest.MockedFunction<typeof getPartiesForCity>;
 const mockGetActiveTopicsForTasks = getTopics as jest.MockedFunction<typeof getTopics>;
 const mockGetCity = getCity as jest.MockedFunction<typeof getCity>;
@@ -228,5 +229,44 @@ describe('getRequestOnTranscriptRequestBody', () => {
             where: { id: { in: ['person-1'] } },
             include: { roles: { include: { party: true, administrativeBody: true, city: true } } },
         });
+    });
+});
+
+describe('getFixTranscriptRequestBody', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        setupCommonMocks();
+        mockGetTranscript.mockResolvedValue([makeTranscriptSegment({ id: 'seg-1' })]);
+        mockGetPeopleForMeeting.mockResolvedValue([]);
+        mockPrismaPersonFindMany.mockResolvedValue([]);
+    });
+
+    it('sends the whole city as the roster, and each segment\'s speaker tag', async () => {
+        // A role belongs to a party or to a body, never both (validateRoles), so the
+        // shared builder's combined role is narrowed to a body role here.
+        const withBodyRole = (id: string, name: string, adminBodyId: string) => {
+            const person = makePersonWithRoles({ id, name, partyId: 'party-a', adminBodyId });
+            return { ...person, roles: person.roles.map(role => ({ ...role, partyId: null, party: null })) };
+        };
+        mockGetPeopleForCity.mockResolvedValue([
+            withBodyRole('p-visitor', 'Visiting Councillor', 'another-body'),
+            withBodyRole('p-member', 'Body Member', ADMIN_BODY_ID),
+        ]);
+
+        const result = await getFixTranscriptRequestBody(MEETING_ID, CITY_ID);
+
+        expect(mockGetPeopleForCity).toHaveBeenCalledWith(CITY_ID);
+        expect(result.roster?.map(p => [p.id, p.memberOfMeetingBody])).toEqual([['p-member', true], ['p-visitor', false]]);
+        expect(result.transcript[0].speakerTagId).toBe('tag-seg-1');
+    });
+
+    it('keeps speaker tags apart, which the plain transcript request does not', async () => {
+        mockGetPeopleForCity.mockResolvedValue([]);
+
+        await getFixTranscriptRequestBody(MEETING_ID, CITY_ID);
+        expect(mockGetTranscript).toHaveBeenLastCalledWith(MEETING_ID, CITY_ID, { joinAdjacentSameSpeakerSegments: true, joinSameSpeakerTagOnly: true });
+
+        await getRequestOnTranscriptRequestBody(MEETING_ID, CITY_ID);
+        expect(mockGetTranscript).toHaveBeenLastCalledWith(MEETING_ID, CITY_ID, { joinAdjacentSameSpeakerSegments: true, joinSameSpeakerTagOnly: false });
     });
 });
