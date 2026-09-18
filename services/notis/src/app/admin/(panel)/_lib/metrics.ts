@@ -2,6 +2,7 @@
 // components (DeltaChip, rendered inside the client MetricCard). The data
 // readers here are guarded at their server-page call sites; see the
 // (panel) auth-guard test.
+import type { MessageStatus } from "../../../../../generated/client";
 import { Prisma, hasNotisDb, notisDb } from "@/lib/db";
 import { WAKE_EVENT_TYPES } from "@/agent/schemas";
 
@@ -101,17 +102,45 @@ const NEWS_WAKE_EVENTS = [
 export const REPLY_WINDOW_HOURS = 24;
 
 /**
- * The share of readers who wrote to Νότης at least once in the period; null
- * when there are no readers to count.
+ * The share of the readers Νότης WROTE TO who wrote back; null when he wrote
+ * to nobody, so the card can say so instead of showing a confident 0%.
  *
- * One reader who answers five times counts once, which is the whole point:
- * a per-message rate cannot tell five replies from one enthusiast apart from
- * five replies from five people, and those are opposite answers to "is this
- * worth reading". It also needs no reply window, so nothing about it matures
- * for another day, and every bucket has the same denominator.
+ * One reader who answers five times counts once. A per-message rate cannot
+ * tell five replies from one enthusiast apart from five replies from five
+ * people, and those are opposite answers to "is this worth reading".
+ *
+ * The denominator is the readers who received something, not every reader on
+ * the list. Νότης is quiet by design — three wakes in four end in silence —
+ * so most of the list had nothing to reply to in any given period, and
+ * counting them measures how often he writes rather than how well.
+ *
+ * The coupling runs both ways, and the second direction is easy to misread:
+ * a wider send reaches more readers who were never going to answer, so the
+ * rate FALLS when Νότης writes to more people. A quiet week of 30 recipients
+ * and 9 repliers reads higher than a busy one of 400 and 60, though seven
+ * times as many readers wrote back. Read it beside «ΕΛΗΦΘΗΣΑΝ», not alone.
+ *
+ * A reader who answers this week a message from last week lands in the
+ * numerator without being in this window's denominator. That cannot push the
+ * rate over 100% at any volume this service has seen, and intersecting the
+ * two sets would drop genuinely engaged readers for the accident of when
+ * they were last written to.
  */
-export function replierRate(repliers: number, readers: number): number | null {
-  return readers > 0 ? repliers / readers : null;
+/**
+ * Delivery states that mean an outbound row reached the reader, or still
+ * will. `failed` and `suppressed` never arrived, so a reader whose only
+ * message in the period was held by a rail never had anything to reply to.
+ * The same list, and the same reasoning, as REACHED_STATUSES in queue.ts.
+ */
+const REACHED = ["pending", "sent", "delivered", "read"] as const satisfies readonly MessageStatus[];
+
+export function replierRate(repliers: number, recipients: number): number | null {
+  if (recipients <= 0) return null;
+  // Clamped, because of the leak above. Over a period the numerator cannot
+  // outrun a denominator in the hundreds, but a chart bucket is one minute
+  // wide: two readers answering in the minute Νότης wrote to one plots 200%,
+  // which is not a rate and which drags the chart's whole scale with it.
+  return Math.min(repliers / recipients, 1);
 }
 
 /**
@@ -185,7 +214,10 @@ export function deltaFor({
   if (current === null && previous === null) return { kind: "none" };
   if (current === 0 && previous === 0) return { kind: "none" };
   if (previous === null || (unit === "count" && previous === 0)) return { kind: "new" };
-  if (current === null) return { kind: "new" };
+  // Nothing to compare, and «νέο» would say the opposite of what happened —
+  // it means the PREVIOUS period had no baseline. The headline already reads
+  // «—» here, and the chip says the same.
+  if (current === null) return { kind: "none" };
   const change = unit === "percent" ? pointsChange(current, previous) : pctChange(current, previous);
   if (change === null) return { kind: "new" };
   const threshold = unit === "percent" ? RATE_MOVE_POINTS : COUNT_MOVE_PERCENT;
@@ -230,6 +262,9 @@ export interface PeriodStats {
   /** Distinct subscriptions that sent at least one message in the period.
    *  The reader-level counterpart of `messagesReceived`. */
   repliers: number;
+  /** Distinct subscriptions that received at least one message in the period
+   *  — the readers who had something to reply to. */
+  recipients: number;
   /** Wakes the queue gave up on in the period. Distinct from a wake whose
    *  decision was `error`: this one never reached the model, so it leaves no
    *  wake row at all — which is exactly what a model outage looks like. */
@@ -264,6 +299,8 @@ export interface SeriesPoint {
   newsWakesAnswered: number;
   /** Distinct subscriptions that wrote in this bucket. */
   repliers: number;
+  /** Distinct subscriptions Νότης wrote to in this bucket. */
+  recipients: number;
   /** Wake errors and dropped wakes together — see PeriodStats. */
   errors: number;
 }
@@ -291,6 +328,7 @@ const EMPTY_PERIOD: PeriodStats = {
   newsWakesSent: 0,
   newsWakesAnswered: 0,
   repliers: 0,
+  recipients: 0,
   droppedWakes: 0,
   wakesByEvent: [],
   costUsd: 0,
@@ -406,6 +444,7 @@ export function fillSeries(
     received: BucketCount[];
     activeUsers: BucketCount[];
     repliers: BucketCount[];
+    recipients: BucketCount[];
     unsubscribes: BucketCount[];
     newsWakesSent: BucketCount[];
     newsWakesAnswered: BucketCount[];
@@ -420,6 +459,7 @@ export function fillSeries(
     received: lookup(rows.received, key),
     activeUsers: lookup(rows.activeUsers, key),
     repliers: lookup(rows.repliers, key),
+    recipients: lookup(rows.recipients, key),
     unsubscribes: lookup(rows.unsubscribes, key),
     newsWakesSent: lookup(rows.newsWakesSent, key),
     newsWakesAnswered: lookup(rows.newsWakesAnswered, key),
@@ -442,7 +482,7 @@ async function bucketedSeries(
     count: row.count,
   });
 
-  const [messages, actives, repliers, unsubscribes, newsSends, errors] = await Promise.all([
+  const [messages, actives, people, unsubscribes, newsSends, errors] = await Promise.all([
     db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
       SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              direction::text AS direction, COUNT(*)::int AS count
@@ -461,13 +501,15 @@ async function bucketedSeries(
         FROM "NotisWake" WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
       ) t GROUP BY 1
     `,
-    db.$queryRaw<Array<{ bucket: Date; count: number }>>`
+    // Both directions in one pass. The rate they feed divides one by the
+    // other, so the two halves must agree on what counts — see REACHED.
+    db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
       SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
-             COUNT(DISTINCT "subscriptionId")::int AS count
+             direction::text AS direction, COUNT(DISTINCT "subscriptionId")::int AS count
       FROM "NotisMessage"
-      WHERE direction = 'inbound'::"MessageDirection"
-        AND "createdAt" >= ${from} AND "createdAt" < ${to}
-      GROUP BY 1
+      WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+        AND (direction = 'inbound'::"MessageDirection" OR status = ANY(${[...REACHED]}::text[]))
+      GROUP BY 1, 2
     `,
     db.$queryRaw<Array<{ bucket: Date; count: number }>>`
       SELECT date_trunc(${bucket}, "unsubscribedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
@@ -504,7 +546,8 @@ async function bucketedSeries(
     sent: messages.filter((r) => r.direction === "outbound").map(rawKey),
     received: messages.filter((r) => r.direction === "inbound").map(rawKey),
     activeUsers: actives.map(rawKey),
-    repliers: repliers.map(rawKey),
+    repliers: people.filter((r) => r.direction === "inbound").map(rawKey),
+    recipients: people.filter((r) => r.direction === "outbound").map(rawKey),
     unsubscribes: unsubscribes.map(rawKey),
     newsWakesSent: newsSends.map((r) => ({
       key: r.bucket.toISOString().slice(0, slice),
@@ -523,6 +566,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
   const [
     messagesByDirection,
     repliersByMessage,
+    recipientsByMessage,
     outboundStatus,
     failures,
     activeByMessage,
@@ -540,6 +584,13 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     db.notisMessage.groupBy({
       by: ["subscriptionId"],
       where: { ...createdInPeriod, direction: "inbound" },
+    }),
+    db.notisMessage.groupBy({
+      by: ["subscriptionId"],
+      // A suppressed or failed send reached nobody, so its reader never had
+      // anything to reply to and does not belong in the denominator. The
+      // fail rate below subtracts the same rows for the same reason.
+      where: { ...createdInPeriod, direction: "outbound", status: { in: [...REACHED] } },
     }),
     db.notisMessage.groupBy({
       by: ["status"],
@@ -607,6 +658,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     messagesSent: directionCount("outbound"),
     messagesReceived: directionCount("inbound"),
     repliers: repliersByMessage.length,
+    recipients: recipientsByMessage.length,
     unsubscribes,
     outboundByStatus,
     failRate: sendable > 0 ? failed / sendable : null,
@@ -647,6 +699,7 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
         sent: [],
         received: [],
         repliers: [],
+        recipients: [],
         newsWakesSent: [],
         newsWakesAnswered: [],
         errors: [],
