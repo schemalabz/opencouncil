@@ -6,6 +6,8 @@ import TopicBadge from './Topic';
 import { PersonBadge } from '@/components/persons/PersonBadge';
 import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
+import { useSpeakerIdentifications } from "../SpeakerIdentificationsContext";
+import { listSpeakerSuggestions, speakerIdentificationsStatus } from '@/lib/speakerIdentifications';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy } from "lucide-react";
@@ -191,6 +193,8 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
     const tCopy = useTranslations('transcript.copySegment');
     const tCommon = useTranslations('Common');
     const tTranscript = useTranslations('transcript');
+    const tHints = useTranslations('editing.speakerHints');
+    const { getIdentifications, needsReview } = useSpeakerIdentifications();
     const localize = useLocalizeText();
     const isSuperAdmin = session?.user?.isSuperAdmin;
     const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
@@ -255,6 +259,18 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
     const isEmpty = utterances.length === 0;
 
     const summary = segment.summary;
+
+    // What the voiceprint match and the transcript each say about this speaker.
+    // Empty outside editing mode, where identifications are never loaded.
+    const identifications = headerData.speakerTag ? getIdentifications(headerData.speakerTag.id) : [];
+    const speakerSuggestions = listSpeakerSuggestions(identifications).flatMap(({ personId, source, evidence }) => {
+        const suggested = getPerson(personId);
+        return suggested ? [{ person: suggested, source, reason: tHints(source), evidence }] : [];
+    });
+    const hintsStatus = speakerIdentificationsStatus(identifications);
+    // A confident disagreement nobody has settled yet: the badge says so, and the
+    // picker's two suggestions show who each method points to.
+    const speakerWarning = headerData.speakerTag && needsReview(headerData.speakerTag.id) ? tHints('needsReview') : undefined;
 
     const handleCopySegment = () => {
         // Copy what the reader sees: the displayed utterances are localized to
@@ -325,6 +341,10 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
                                                         ...p,
                                                         party: getPartyFromRoles(p.roles, meetingDate)
                                                     }))}
+                                                    suggestions={speakerSuggestions}
+                                                    suggestionsHeading={hintsStatus ? tHints(`status.${hintsStatus}`) : undefined}
+                                                    allPeopleHeading={tHints('allPeople')}
+                                                    warning={speakerWarning}
                                                     size="sm"
                                                     date={meetingDate}
                                                 />

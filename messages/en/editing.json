@@ -20,6 +20,20 @@
   "stats": {
     "title": "Speakers"
   },
+  "speakerHints": {
+    "status": {
+      "agree": "Both methods agree",
+      "disagree": "The two methods disagree",
+      "voiceprintOnly": "Found by voice recognition only",
+      "transcriptOnly": "Found from the discussion only"
+    },
+    "allPeople": "All people",
+    "voiceprint": "Voice recognition",
+    "transcript": "Discussion text",
+    "both": "Voice recognition and discussion text",
+    "disagree": "Voice recognition and the discussion text point to different people. Pick the right one.",
+    "needsReview": "Methods disagree"
+  },
   "guide": {
     "title": "Editing Guide",
     "description": "Learn how to edit transcripts efficiently with keyboard shortcuts and best practices",

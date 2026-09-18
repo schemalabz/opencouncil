@@ -267,6 +267,7 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         members: { file: 'src/lib/utils/geojson.ts', type: 'BoundaryParseError' },
     },
     { group: 'Common.adminBodyType_', members: { prismaEnum: 'AdministrativeBodyType' } },
+    { group: 'editing.speakerHints.status.', members: { file: 'src/lib/speakerIdentifications.ts', type: 'SpeakerIdentificationsStatus' } },
     { group: 'AddMeetingForm.administrativeBodyType.', members: { prismaEnum: 'AdministrativeBodyType' } },
     { group: 'AdministrativeBodiesList.types.', members: { prismaEnum: 'AdministrativeBodyType' } },
     { group: 'meetingStage.label.', members: { file: 'src/lib/meetingStage.ts', type: 'PublicMeetingStage' } },
