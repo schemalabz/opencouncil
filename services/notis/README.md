@@ -81,6 +81,9 @@ events in production and outbound sends fail with an alert:
   unmatched channel id classifies as WhatsApp.
 - `BIRD_WEBHOOK_SECRET` — the signing key of the NOTIS subscription. Do not
   reuse the main app's secret.
+- `BIRD_SHORT_LINKS=off` — asks Bird not to rewrite the links inside a
+  template variable into `brd1.eu` short links. Unset leaves Bird's default,
+  so the field is proved on staging before production sends carry it.
 - `BIRD_WHATSAPP_TEMPLATE_NOTIS_INTRO`,
   `BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_AGENDA`, `BIRD_WHATSAPP_TEMPLATE_DEMOS_UPDATE_NEWS`,
   `BIRD_WHATSAPP_TEMPLATE_DEMOS_FOLLOWUP` — the Bird project id of each

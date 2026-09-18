@@ -821,6 +821,36 @@ describe("link_path on template sends", () => {
     expect(bird.templateSends[0].linkPath).toBe("athens/jul29_2_2026");
   });
 
+  it("deepens the button to the body's link when it is the one subject on the meeting page", async () => {
+    const db = makeFakeDb({
+      subscriptions: [{ ...SUB }],
+      settings: [{ key: "proactivePaused", value: false }],
+    });
+    db.store.wakes.push(
+      meetingWake({
+        type: "meeting_summarized",
+        at: "2026-07-29T18:00:00.000Z",
+        cityId: "athens",
+        meetingId: "jul29_2_2026",
+        meetingName: "x",
+        meetingDate: "2026-07-29T12:00:00.000Z",
+        brief: { cityId: "athens", meetingId: "jul29_2_2026", generatedAt: "2026-07-29T18:00:00.000Z", headline: "h", subjects: [] },
+      }),
+    );
+    db.store.messages.push(
+      pendingTemplate({
+        body: "Ενημέρωση για το «Παλάς»: πέρασε χωρίς αντιπαράθεση. https://opencouncil.gr/athens/jul29_2_2026/subjects/abc123",
+      }),
+    );
+    const bird = new FakeBird();
+
+    await deliverPendingMessage(db, bird, "m-link", SUB_ARG, async () => {});
+
+    expect(bird.templateSends[0].linkPath).toBe("athens/jul29_2_2026/subjects/abc123");
+    // The body goes as the agent wrote it, link included.
+    expect(bird.templateSends[0].text).toContain("https://opencouncil.gr/athens/jul29_2_2026/subjects/abc123");
+  });
+
   it("falls back to the body link when the event names no meeting", async () => {
     const db = makeFakeDb({
       subscriptions: [{ ...SUB }],

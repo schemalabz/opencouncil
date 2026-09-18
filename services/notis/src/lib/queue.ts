@@ -6,7 +6,7 @@ import { primaryEvent, wakeEventSchema, wakeEventsSchema } from "@/agent/schemas
 import {
   TEMPLATES,
   linkPathForEvent,
-  linkPathFromText,
+  linkPathForTemplate,
   renderTemplate,
   type TemplateName,
 } from "@/agent/templates";
@@ -1300,11 +1300,13 @@ export async function deliverPendingMessage(
 
   // The dynamic URL button. The wake's own event is the first source — it
   // names the meeting deterministically, which is what these shells were
-  // built around. A scheduled follow-up names no meeting, so there the link
-  // the agent wrote into the body is all there is. bird.ts substitutes a real
-  // page if both come back empty: a shell that declares {{link_path}} and
-  // does not receive it is a terminal 422, not a retry.
-  const linkPath = (await linkPathForMessage(db, message)) ?? linkPathFromText(message.body);
+  // built around — deepened to the body's link when the message is about one
+  // thing on that page. A scheduled follow-up names no meeting, so there the
+  // link the agent wrote into the body is all there is. bird.ts substitutes
+  // a real page if both come back empty: a shell that declares {{link_path}}
+  // and does not receive it is a terminal 422, not a retry.
+  const linkPath = linkPathForTemplate(await linkPathForMessage(db, message), message.body);
+  const text = message.body;
   if (!linkPath && TEMPLATES[template].hasLinkPath) {
     // The shell will get FALLBACK_LINK_PATH. Countable rather than silent:
     // "how often is the button generic?" is the question that tells you
@@ -1319,7 +1321,7 @@ export async function deliverPendingMessage(
       conversationId: sub.birdConversationId,
       phone: sub.phone,
       template,
-      text: message.body,
+      text,
       linkPath,
       idempotencyKey: message.id,
     });
@@ -1329,7 +1331,7 @@ export async function deliverPendingMessage(
     phone: sub.phone,
     name: `Notis ${sub.userName ?? sub.phone}`,
     template,
-    text: message.body,
+    text,
     linkPath,
     idempotencyKey: message.id,
   });
