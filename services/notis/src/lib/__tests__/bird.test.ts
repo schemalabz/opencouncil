@@ -46,6 +46,13 @@ describe("sendTemplate", () => {
     expect(templateParam("Δύο γραμμές.\nΚαι η δεύτερη.")).toBe("Δύο γραμμές. Και η δεύτερη.");
     expect(templateParam("στήλη\tστήλη")).toBe("στήλη στήλη");
     expect(templateParam("πέντε     κενά")).toBe("πέντε κενά");
+    // U+2028 and U+2029 are what a validator is most likely to read as a
+    // newline, and NBSP is what a model reaches for between a number and a
+    // unit. None of them is an ASCII space, so a regex narrowed to «\n\t »
+    // would pass every other case here and reopen 132018.
+    expect(templateParam("α\u2028β")).toBe("α β");
+    expect(templateParam("γ\u2029δ")).toBe("γ δ");
+    expect(templateParam("5\u00a0€")).toBe("5 €");
     expect(templateParam("  τριγύρω  ")).toBe("τριγύρω");
     // A message that was always fine is untouched.
     expect(templateParam("Νέα από τον δήμο.")).toBe("Νέα από τον δήμο.");

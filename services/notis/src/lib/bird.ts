@@ -137,25 +137,15 @@ const NOT_CONFIGURED: BirdSendResult = {
 export const FALLBACK_LINK_PATH = "explain";
 
 /**
- * The Bird wire shape for a template send. Every variable the shell declares
- * must be present or Bird rejects the whole send with a 422 — which is
- * terminal, not retryable, so the reader simply never gets the message.
- *
- * `link_path` fills the dynamic URL button on the three update shells. When a
- * shell needs one and the caller has none, fall back to a page that exists
- * rather than send nothing: a button pointing at the explainer is a far
- * smaller loss than a failed delivery.
- *
- * Null when the project id env var is missing.
- */
-/**
  * A template parameter, as Meta will accept it.
  *
  * Meta refuses a parameter carrying a newline, a tab, or more than four
  * consecutive spaces: error 132018, «Param text cannot have new-line/tab
  * characters or more than 4 consecutive spaces». Bird answers 4xx, which
- * `isRetryableStatus` treats as terminal, so the message is simply lost — a
- * production send died this way the day this was written.
+ * `isRetryableStatus` treats as terminal. The queue then falls through to the
+ * SMS leg, so the reader is not lost — but a multi-segment Greek SMS and an
+ * operator alert is a poor way to deliver a message WhatsApp would have taken.
+ * A production send went this way the day this was written.
  *
  * The agent writes multi-sentence Greek into one variable, so a single line
  * break it reaches for costs the whole message. Runs of whitespace collapse
@@ -169,6 +159,18 @@ export function templateParam(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
+/**
+ * The Bird wire shape for a template send. Every variable the shell declares
+ * must be present or Bird rejects the whole send with a 422 — which is
+ * terminal, not retryable, so the reader simply never gets the message.
+ *
+ * `link_path` fills the dynamic URL button on the three update shells. When a
+ * shell needs one and the caller has none, fall back to a page that exists
+ * rather than send nothing: a button pointing at the explainer is a far
+ * smaller loss than a failed delivery.
+ *
+ * Null when the project id env var is missing.
+ */
 function templateBody(template: TemplateName, text: string, linkPath?: string) {
   const projectId = templateProjectId(template);
   if (!projectId) return null;
@@ -181,7 +183,9 @@ function templateBody(template: TemplateName, text: string, linkPath?: string) {
     parameters.push({
       type: "string",
       key: "link_path",
-      value: templateParam(linkPath ?? "") || FALLBACK_LINK_PATH,
+      // Not templateParam: a path cannot legitimately carry whitespace, and
+      // collapsing it would turn a loud 422 into a button that 404s quietly.
+      value: linkPath?.trim() || FALLBACK_LINK_PATH,
     });
   }
   return {
