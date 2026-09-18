@@ -12,9 +12,9 @@ import { relativeRedirect } from '@/lib/utils/relativeRedirect';
  * renders from the code and the session; this route only gets people there.
  *
  * `confirmed` marks the link in the email: the scanner said "yes, this is
- * me" before asking for it. Signed in with that mark, the route claims the
- * person, so the page opens on the consent step. Without it nothing is
- * claimed, and the page asks first.
+ * me" before asking for it. Signed in as the address the email went to, with
+ * that mark, the route claims the person, so the page opens on the consent
+ * step. Without it nothing is claimed, and the page asks first.
  *
  * Under /api because the path holds the code, the code holds a dot, and the
  * proxy skips every dotted path. Redirects are relative, so the reader
@@ -23,9 +23,14 @@ import { relativeRedirect } from '@/lib/utils/relativeRedirect';
 export async function GET(req: NextRequest, props: { params: Promise<{ token: string }> }) {
     const { token } = await props.params;
     const params = new URLSearchParams(req.nextUrl.searchParams);
-    // Only the link in the sign-in email carries a mark the server signed; a
-    // hand-typed `confirmed` claims nothing and extends nothing.
-    const confirmed = verifyJoinConfirmation(token, params.get('confirmed'));
+    // Only the link in the sign-in email carries a mark the server signed,
+    // and it names the address of that email. A hand-typed `confirmed`, or a
+    // link copied into another account's browser, claims nothing and extends
+    // nothing.
+    // A scan carries no mark, and does not read the session.
+    const marker = params.get('confirmed');
+    const user = marker ? await getCurrentUser() : null;
+    const confirmed = user !== null && verifyJoinConfirmation(token, marker, user.email);
     params.delete('confirmed');
 
     // The email link may arrive after the code expired: the reader confirmed
@@ -37,15 +42,12 @@ export async function GET(req: NextRequest, props: { params: Promise<{ token: st
         return relativeRedirect('/claim', params);
     }
 
-    if (confirmed) {
-        const user = await getCurrentUser();
-        if (user) {
-            const result = await claimPerson(user.id, person.id);
-            if (result.status === 'linked') {
-                sendPersonClaimedAdminAlert({ cityId: result.cityId, cityName: result.cityName, personName: result.personName });
-            }
-            params.set('step', '3');
+    if (user && confirmed) {
+        const result = await claimPerson(user.id, person.id);
+        if (result.status === 'linked') {
+            sendPersonClaimedAdminAlert({ cityId: result.cityId, cityName: result.cityName, personName: result.personName });
         }
+        params.set('step', '3');
     }
 
     params.set('c', token);

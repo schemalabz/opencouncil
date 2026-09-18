@@ -38,7 +38,7 @@ export async function sendJoinEmail(token: string, email: string): Promise<SendJ
 
     const form = new FormData();
     form.set("email", normalizeEmail(email));
-    form.set("callbackUrl", `/api/join/${token}?confirmed=${signJoinConfirmation(token)}`);
+    form.set("callbackUrl", `/api/join/${token}?confirmed=${signJoinConfirmation(token, email)}`);
     try {
         await signInWithEmail(form);
         return { ok: true };

@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "crypto";
 import type { Realm } from "@prisma/client";
 import { env } from "@/env.mjs";
+import { normalizeEmail } from "@/lib/personJoin/email";
 import { personJoinPagePath } from "@/lib/personJoin/paths";
 import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
 
@@ -91,22 +92,31 @@ export function verifyPersonClaimToken(token: string, graceMs = 0): string | nul
 
 /**
  * The mark of the sign-in email's link: `<issued at, base-36 seconds>.<mac>`,
- * bound to one code. Only `sendJoinEmail` mints it, and only while the code
- * is valid, so it proves that the reader confirmed the name in time. The
- * email link may then arrive after the code expired: the grace runs from
- * when the email was sent, never from a parameter the caller chose.
+ * bound to one code and to the address the email goes to. Only
+ * `sendJoinEmail` mints it, and only while the code is valid, so it proves
+ * that the reader confirmed the name in time. The email link may then arrive
+ * after the code expired: the grace runs from when the email was sent, never
+ * from a parameter the caller chose. The address is in the mac, so a copied
+ * link claims nothing in a browser that is signed in as somebody else.
  */
-export function signJoinConfirmation(token: string, now: number = Date.now()): string {
+export function signJoinConfirmation(token: string, email: string, now: number = Date.now()): string {
     const at = Math.floor(now / 1000).toString(36);
-    return `${at}.${mac(`join-confirm:${token}:${at}`).toString("base64url")}`;
+    return `${at}.${confirmationMac(token, email, at).toString("base64url")}`;
 }
 
-/** Whether `marker` was minted for `token` while it was valid, and is still within the grace. */
-export function verifyJoinConfirmation(token: string, marker: string | null): boolean {
+function confirmationMac(token: string, email: string, at: string): Buffer {
+    return mac(`join-confirm:${token}:${at}:${normalizeEmail(email)}`);
+}
+
+/**
+ * Whether `marker` was minted for `token` and for the account with `email`
+ * while the code was valid, and is still within the grace.
+ */
+export function verifyJoinConfirmation(token: string, marker: string | null, email: string): boolean {
     if (!marker) return false;
     const [at, tag, ...rest] = marker.split(".");
     if (rest.length || !at || !tag || !/^[0-9a-z]{1,10}$/.test(at) || !/^[A-Za-z0-9_-]{16}$/.test(tag)) return false;
-    if (!macMatches(tag, mac(`join-confirm:${token}:${at}`))) return false;
+    if (!macMatches(tag, confirmationMac(token, email, at))) return false;
     const exp = token.split(".")[1];
     const issuedMs = parseInt(at, 36) * 1000;
     if (!exp || issuedMs > parseInt(exp, 36) * 1000) return false;

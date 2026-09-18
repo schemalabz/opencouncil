@@ -50,7 +50,9 @@ describe('sendJoinEmail', () => {
         expect(form.get('email')).toBe('maria@gmail.com');
         const callback = new URL(form.get('callbackUrl') as string, 'https://opencouncil.gr');
         expect(callback.pathname).toBe(`/api/join/${token}`);
-        expect(verifyJoinConfirmation(token, callback.searchParams.get('confirmed'))).toBe(true);
+        const mark = callback.searchParams.get('confirmed');
+        expect(verifyJoinConfirmation(token, mark, 'maria@gmail.com')).toBe(true);
+        expect(verifyJoinConfirmation(token, mark, 'other@gmail.com')).toBe(false);
     });
 
     it('sends nothing for a bad code or a bad address', async () => {

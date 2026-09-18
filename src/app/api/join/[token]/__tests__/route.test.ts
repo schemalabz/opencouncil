@@ -22,7 +22,8 @@ import { GET } from '../route';
 
 const scan = (token: string, query = '') => new NextRequest(new URL(`/api/join/${token}${query}`, 'https://opencouncil.cy'));
 const params = (token: string) => ({ params: Promise.resolve({ token }) });
-const confirmed = (token: string, at = Date.now()) => `?confirmed=${signJoinConfirmation(token, at)}`;
+const EMAIL = 'maria@gmail.com';
+const confirmed = (token: string, at = Date.now(), email = EMAIL) => `?confirmed=${signJoinConfirmation(token, email, at)}`;
 const location = (res: Response) => new URL(res.headers.get('location') as string, 'https://opencouncil.cy');
 
 beforeEach(() => {
@@ -45,7 +46,7 @@ describe('GET /api/join/[token]', () => {
     });
 
     it('claims nothing without the mark of the email link, even when signed in: the page asks first', async () => {
-        mockGetCurrentUser.mockResolvedValue({ id: 'user-1' });
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: EMAIL });
         const token = generatePersonClaimToken('person-1');
         const res = await GET(scan(token), params(token));
         expect(mockClaimPerson).not.toHaveBeenCalled();
@@ -53,7 +54,7 @@ describe('GET /api/join/[token]', () => {
     });
 
     it('claims for the link in the email and opens the flow on its last step', async () => {
-        mockGetCurrentUser.mockResolvedValue({ id: 'user-1' });
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: EMAIL });
         mockClaimPerson.mockResolvedValue({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
         const token = generatePersonClaimToken('person-1');
         const res = await GET(scan(token, confirmed(token)), params(token));
@@ -65,7 +66,7 @@ describe('GET /api/join/[token]', () => {
     });
 
     it('sends a refused claim to the flow too, without an alert: the page says why', async () => {
-        mockGetCurrentUser.mockResolvedValue({ id: 'user-2' });
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-2', email: EMAIL });
         mockClaimPerson.mockResolvedValue({ status: 'already_linked' });
         const token = generatePersonClaimToken('person-1');
         const res = await GET(scan(token, confirmed(token)), params(token));
@@ -82,7 +83,7 @@ describe('GET /api/join/[token]', () => {
     });
 
     it('still claims for the email link shortly after the code expired, but not a day past the grace', async () => {
-        mockGetCurrentUser.mockResolvedValue({ id: 'user-1' });
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: EMAIL });
         mockClaimPerson.mockResolvedValue({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
         // The email went out while the code was valid; the link is clicked after it expired.
         const justExpired = generatePersonClaimToken('person-1', new Date(Date.now() - 60 * 60 * 1000));
@@ -100,11 +101,24 @@ describe('GET /api/join/[token]', () => {
     });
 
     it('claims nothing and extends nothing for a hand-typed or borrowed mark', async () => {
-        mockGetCurrentUser.mockResolvedValue({ id: 'user-1' });
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: EMAIL });
         const valid = generatePersonClaimToken('person-1');
         const handTyped = await GET(scan(valid, '?confirmed=1'), params(valid));
         expect(mockClaimPerson).not.toHaveBeenCalled();
         expect(location(handTyped).searchParams.has('step')).toBe(false);
+
+        // A link copied into a browser that is signed in as somebody else.
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-2', email: 'other@gmail.com' });
+        const copied = await GET(scan(valid, confirmed(valid)), params(valid));
+        expect(mockClaimPerson).not.toHaveBeenCalled();
+        expect(location(copied).searchParams.has('step')).toBe(false);
+        // The address compares as the sign-in normalises it.
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: ' Maria@Gmail.com' });
+        mockClaimPerson.mockResolvedValue({ status: 'already_yours' });
+        await GET(scan(valid, confirmed(valid)), params(valid));
+        expect(mockClaimPerson).toHaveBeenCalledTimes(1);
+        mockClaimPerson.mockClear();
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: EMAIL });
 
         // A mark minted for one code does not work for another.
         const other = generatePersonClaimToken('person-2');
