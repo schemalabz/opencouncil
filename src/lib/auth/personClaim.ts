@@ -1,19 +1,27 @@
 import "server-only";
+import { createHmac, timingSafeEqual } from "crypto";
 import type { Realm } from "@prisma/client";
-import { signPayload, verifyPayload, type ExpiringPayload } from "@/lib/auth/signedPayload";
+import { env } from "@/env.mjs";
 import { personJoinPagePath } from "@/lib/personJoin/paths";
 import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
 
 /**
  * A person claim link: the QR a councillor scans to get an account that
- * administers their own `Person`. The token names the person, nothing else.
- * "One claim per person" is not in the token: `claimPerson` refuses once an
- * `Administers` row for the person exists, so a leaked sheet is only a race
- * until the councillor scans, and a superadmin can end the race by linking
- * the right account by hand.
+ * administers their own `Person`. The token names the person and when it
+ * expires, nothing else. "One claim per person" is not in the token:
+ * `claimPerson` refuses once the person has a claimed account.
+ *
+ * The token is printed as a QR, so every character is a denser code that a
+ * phone must read off a strip of paper. It is compact on purpose, not the
+ * JSON of `signedPayload.ts`: `<personId>.<expiry in base-36 seconds>.<mac>`,
+ * about 50 characters. The mac is an HMAC-SHA256 over a `person-claim:`
+ * prefix, cut to 96 bits: far beyond guessing online, and the prefix keeps it
+ * from ever matching a token of another purpose.
  */
-interface PersonClaimPayload extends ExpiringPayload {
-    personId: string;
+const MAC_BYTES = 12;
+
+function claimMac(personId: string, exp: string): Buffer {
+    return createHmac("sha256", env.NEXTAUTH_SECRET).update(`person-claim:${personId}:${exp}`).digest().subarray(0, MAC_BYTES);
 }
 
 // Short on purpose: the sheet is printed for one council session and a strip
@@ -37,31 +45,39 @@ export function claimLastValidDay(expiresAt: Date): Date {
     return new Date(expiresAt.getTime() - DAY_MS);
 }
 
-/** `expiresAt`: pass one value for a whole sheet, so the printed date holds for every strip. */
+/**
+ * `expiresAt`: pass one value for a whole sheet, so the printed date holds for
+ * every strip. The expiry is kept to the second, rounded down, so the token
+ * never outlives the date printed from `expiresAt`.
+ */
 export function generatePersonClaimToken(personId: string, expiresAt: Date = claimExpiry()): string {
-    return signPayload<PersonClaimPayload>("person-claim", { personId, exp: expiresAt.getTime() });
+    const exp = Math.floor(expiresAt.getTime() / 1000).toString(36);
+    return `${personId}.${exp}.${claimMac(personId, exp).toString("base64url")}`;
 }
 
 /** The person the token names, or null for a forged, malformed or expired token. */
 export function verifyPersonClaimToken(token: string): string | null {
-    const data = verifyPayload<PersonClaimPayload>("person-claim", token);
-    return data && typeof data.personId === "string" && data.personId ? data.personId : null;
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const [personId, exp, mac] = parts;
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(personId) || !/^[0-9a-z]{1,10}$/.test(exp) || !/^[A-Za-z0-9_-]{16}$/.test(mac)) return null;
+
+    const given = new Uint8Array(Buffer.from(mac, "base64url"));
+    const expected = new Uint8Array(claimMac(personId, exp));
+    if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
+    if (Date.now() > parseInt(exp, 36) * 1000) return null;
+    return personId;
 }
 
 /**
  * The absolute URL to print in a person's QR, on the realm the city lives
- * on: the first page of the join flow. The utm parameters ride along, so
- * Plausible shows scans per sheet and per councillor.
+ * on: the first page of the join flow. Nothing else rides along: every
+ * character makes the code denser, and the flow counts its own scans.
  */
 export function personJoinUrl(
     person: { id: string; cityId: string },
     realm: Realm | null,
     expiresAt: Date = claimExpiry(),
 ): string {
-    const url = new URL(`${realmBaseUrl(realm)}${personJoinPagePath(person.cityId, generatePersonClaimToken(person.id, expiresAt))}`);
-    url.searchParams.set("utm_source", "qr");
-    url.searchParams.set("utm_medium", "print");
-    url.searchParams.set("utm_campaign", `council-${person.cityId}`);
-    url.searchParams.set("utm_content", person.id);
-    return url.toString();
+    return `${realmBaseUrl(realm)}${personJoinPagePath(person.cityId, generatePersonClaimToken(person.id, expiresAt))}`;
 }

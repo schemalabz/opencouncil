@@ -12,15 +12,15 @@ export interface ExpiringPayload {
 
 /**
  * The purpose a token was minted for. Every signer names one and every
- * verifier demands the same one, so a token printed on a QR sheet can never
- * pass as an unsubscribe link: same secret, same format, different kind.
+ * verifier demands the same one, so a token of one purpose never passes as
+ * another: same secret, same format, different kind. (The person claim
+ * token has its own compact format; see `personClaim.ts`.)
  */
 export type TokenKind = "unsubscribe" | "person-claim";
 
 /**
  * `<base64url(json)>.<base64url(hmac)>`, signed with NEXTAUTH_SECRET. No
- * database row: the token is the state. Unsubscribe links and person claim
- * links use it.
+ * database row: the token is the state. Unsubscribe links use it.
  */
 export function signPayload<T extends ExpiringPayload>(kind: TokenKind, data: T): string {
     const payload = Buffer.from(JSON.stringify({ ...data, kind })).toString("base64url");

@@ -5,5 +5,6 @@
  * No server imports: the flow's client components build this path too.
  */
 export function personJoinPagePath(cityId: string, token: string): string {
-    return `/${cityId}/join?c=${encodeURIComponent(token)}`;
+    // A token is [A-Za-z0-9._-] only, which a query takes as it is.
+    return `/${cityId}/join?c=${token}`;
 }

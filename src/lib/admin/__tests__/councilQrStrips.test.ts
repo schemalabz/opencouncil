@@ -84,7 +84,7 @@ describe('getCouncilQrStrips', () => {
         }
         const exps = strips!.people.map((p) => {
             const token = new URL(p.joinUrl).searchParams.get('c') as string;
-            return JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString()).exp;
+            return token.split('.')[1];
         });
         expect(new Set(exps).size).toBe(1);
 
@@ -102,7 +102,8 @@ describe('getCouncilQrStrips', () => {
         const spy = jest.spyOn(Date, 'now');
         spy.mockReturnValue(1_800_000_000_000);
         const first = await getCouncilQrStrips('chania');
-        spy.mockReturnValue(1_800_000_000_001);
+        // The expiry is kept to the second: a download a second later has new codes.
+        spy.mockReturnValue(1_800_000_001_000);
         const second = await getCouncilQrStrips('chania');
         spy.mockRestore();
         expect(first!.people[0].joinUrl).not.toBe(second!.people[0].joinUrl);
