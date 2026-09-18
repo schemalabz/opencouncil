@@ -1053,7 +1053,13 @@
         "replaceImage": "Αντικατάσταση εικόνας…",
         "imageDialogTitle": "Εικόνα θέματος",
         "imageUpdated": "Η εικόνα ενημερώθηκε",
-        "imageUpdateFailed": "Η ενημέρωση της εικόνας απέτυχε"
+        "imageUpdateFailed": "Η ενημέρωση της εικόνας απέτυχε",
+        "relatedSubjects": "Σχετικά θέματα",
+        "relatedOtherCities": "Άλλοι δήμοι",
+        "relatedSeeMore": "Δες περισσότερα στην αναζήτηση",
+        "relatedSameCity": "Στον ίδιο δήμο, στον χρόνο",
+        "relatedCurrent": "Αυτό το θέμα",
+        "relatedRecurring": "Συζητήθηκε ξανά {count, plural, one {# φορά} other {# φορές}} μέσα σε έξι μήνες"
     },
     "PersonCard": {
         "party": "Παράταξη",
