@@ -94,6 +94,9 @@ export interface PollerResult {
   lateAgendaConsumed: number;
   /** Summarize events held back because the meeting is still dated in the future. */
   futureSummaryHeld: number;
+  /** Events whose meeting still held no subjects to rank once it had settled
+   *  — consumed with an alarm, nobody woken. */
+  emptyBriefConsumed: number;
   editorialCostUsd: number;
 }
 
@@ -125,6 +128,15 @@ export const EVENT_LOOKBACK_MS = 7 * 24 * 60 * 60_000;
  * old meeting and WhatsApp whole cohorts about years-old news.
  */
 export const STALE_MEETING_MS = 30 * 24 * 60 * 60_000;
+/**
+ * How long a meeting with no subjects is left alone before it counts as
+ * genuinely empty. A task marks itself succeeded before it finishes writing
+ * its subjects, and the event feed reads that status, so an event can arrive
+ * ahead of the rows it describes. Generous against the summarize task, whose
+ * own comment budgets its transaction at under ten seconds.
+ */
+export const EMPTY_BRIEF_SETTLE_MS = 5 * 60_000;
+
 /** Budget for the meeting fan-out transaction, which grows with the audience.
  *  Well above the queue's 30s persist budget because this one loops over every
  *  subscriber of a meeting; see the call site in processMeetingEvents. */
@@ -145,6 +157,7 @@ const emptyResult = (ran: boolean, reason?: string): PollerResult => ({
   staleConsumed: 0,
   lateAgendaConsumed: 0,
   futureSummaryHeld: 0,
+  emptyBriefConsumed: 0,
   editorialCostUsd: 0,
 });
 
@@ -714,6 +727,34 @@ async function processMeetingEvents(
           error instanceof Error ? error.message : String(error)
         }`,
       );
+      continue;
+    }
+
+    // The meeting holds nothing to rank. Two very different things look like
+    // this, and the difference is time.
+    //
+    // A task sets its status to succeeded BEFORE it writes its subjects, and
+    // the event feed reads that status, so a real meeting looks empty for a
+    // few seconds after its event appears. Leave those alone. The next tick
+    // sees the subjects and fans out as normal — which is what the old 400
+    // did by accident, and what consuming here would have destroyed.
+    //
+    // Past the settle window the emptiness is the meeting's own: a λογοδοσία
+    // session whose agenda has no numbered items, or an extraction that found
+    // none. Consume it, because an event left unconsumed holds one of
+    // MAX_EVENTS_PER_TICK for the whole lookback window and starves the feed.
+    // Alert first, because consuming cannot be undone: the dedup identity is
+    // (city, meeting, type), so a corrected re-run of the same task never
+    // reaches the fan-out again.
+    if (brief.subjects.length === 0) {
+      if (now().getTime() - row.completedAt.getTime() < EMPTY_BRIEF_SETTLE_MS) continue;
+      await alert(
+        `${row.cityId}/${row.meetingId} (${row.taskId}, ${row.type}) has no subjects ${
+          EMPTY_BRIEF_SETTLE_MS / 60_000
+        } minutes after its task completed, so nobody was woken for it. ` +
+          `That is normal for a session with no numbered agenda. If this meeting SHOULD have subjects, re-run the task — and delete its NotisProcessedEvent row for (${row.cityId}, ${row.meetingId}, ${row.type}) first, or the re-run is deduped away.`,
+      );
+      if (await consumeEvent(db, row)) result.emptyBriefConsumed++;
       continue;
     }
 

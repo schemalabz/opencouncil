@@ -37,6 +37,52 @@ function fakeModelBrief() {
 }
 
 describe("editorialPass", () => {
+  it("asks the model nothing about a meeting with no subjects", async () => {
+    // The schema pins subjectId to an enum of the subject ids, and the API
+    // refuses an empty enum outright: 400 «Enum must be a non-empty array».
+    // A λογοδοσία session arrives exactly like this — an agenda PDF with no
+    // numbered items — and the poller retried the rejected request on every
+    // tick until the row aged out of the event feed.
+    const fake = new FakeAnthropic([]);
+    const deps = makeDeps(fake, {
+      mcp: {
+        call: async (tool) =>
+          tool === "get_meeting"
+            ? { id: "m1", name: "Ειδική Συνεδρίαση Λογοδοσίας", subjects: [], url: "https://x/m1" }
+            : null,
+      },
+    });
+
+    const { brief, costUsd } = await editorialPass("chalandri", "m1", deps);
+
+    expect(fake.requests).toHaveLength(0);
+    expect(brief.subjects).toEqual([]);
+    expect(brief.meetingUrl).toBe("https://x/m1");
+    expect(brief.headline).not.toBe("");
+    expect(costUsd).toBe(0);
+  });
+
+  it("does not pin subjectId to the meeting's ids, which made an empty agenda invalid", async () => {
+    // The 400 that started this: an enum of the subject ids is empty for a
+    // meeting with no subjects, and «Enum must be a non-empty array» is a
+    // request the API refuses before it reads anything else. The response is
+    // matched by id afterwards, so the enum bought nothing.
+    const fake = new FakeAnthropic([
+      { content: [text(JSON.stringify(fakeModelBrief()))], stop_reason: "end_turn" },
+    ]);
+    const deps = makeDeps(fake, {
+      mcp: { call: async (tool) => (tool === "get_meeting" ? meeting : null) },
+    });
+
+    await editorialPass("athens", "m1", deps);
+
+    const schema = JSON.stringify(
+      (fake.requests[0] as { output_config?: unknown }).output_config ?? fake.requests[0],
+    );
+    expect(schema).toContain('"subjectId"');
+    expect(schema).not.toContain('"enum"');
+  });
+
   it("fetches the meeting, sorts subjects by discussion time, and clamps scores to 0-5", async () => {
     const calls: Array<{ tool: string; args: Record<string, unknown> }> = [];
     const fake = new FakeAnthropic([

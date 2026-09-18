@@ -5,8 +5,8 @@ import { z } from "zod";
  * ./types derive from these via z.infer, and the API routes validate with
  * them — change a field here and the type, the validation and every consumer
  * follow. (The editorial pass keeps its own hand-built JSON schema for model
- * structured output: it embeds a per-meeting subjectId enum that a static
- * schema cannot express.)
+ * structured output, in the shape the API's structured-output field wants
+ * rather than the shape zod produces.)
  */
 
 export const WAKE_EVENT_TYPES = [

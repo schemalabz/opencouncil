@@ -28,8 +28,17 @@ interface McpMeeting {
   subjects?: McpMeetingSubject[];
 }
 
-/** JSON schema for the model's structured output (scores + notes per subject). */
-function briefSchema(subjectIds: string[]) {
+/**
+ * JSON schema for the model's structured output (scores + notes per subject).
+ *
+ * `subjectId` is a plain string, not an enum of the meeting's ids. The enum
+ * pinned the schema to one meeting and bought nothing: the response is matched
+ * by id below, a subject the model omits already reads as unscored, and an id
+ * it invents lands in the map unread. What the enum did buy was a 400 on any
+ * meeting with no subjects — «Enum must be a non-empty array» — which the
+ * poller then retried on every tick for the whole event window.
+ */
+function briefSchema() {
   return {
     type: "object",
     additionalProperties: false,
@@ -43,7 +52,7 @@ function briefSchema(subjectIds: string[]) {
           additionalProperties: false,
           required: ["subjectId", "scores", "note", "locationHints"],
           properties: {
-            subjectId: { type: "string", enum: subjectIds },
+            subjectId: { type: "string" },
             scores: {
               type: "object",
               additionalProperties: false,
@@ -64,6 +73,11 @@ function briefSchema(subjectIds: string[]) {
     },
   };
 }
+
+/** The headline of a brief for a meeting with no subjects. Not an empty
+ *  string: the admin ledger falls back with `??`, which an empty string
+ *  passes, and it would render a blank row instead of saying why. */
+export const EMPTY_BRIEF_HEADLINE = "Χωρίς θέματα στην ημερήσια διάταξη.";
 
 const clamp = (n: unknown): number => Math.max(0, Math.min(5, Math.round(Number(n) || 0)));
 
@@ -114,6 +128,26 @@ export async function editorialPass(
     .filter((s) => s.id)
     .sort((a, b) => b.discussionSeconds - a.discussionSeconds);
 
+  // Nothing to score, so nothing to ask. Λογοδοσία sessions arrive in exactly
+  // this shape — an agenda PDF with no numbered items — and a task that marks
+  // itself succeeded before it writes its subjects arrives this way for a few
+  // seconds too. The caller decides which of the two it is looking at.
+  if (subjects.length === 0) {
+    return {
+      brief: {
+        cityId,
+        meetingId,
+        generatedAt: deps.now().toISOString(),
+        headline: EMPTY_BRIEF_HEADLINE,
+        ...(meeting.url ? { meetingUrl: meeting.url } : {}),
+        subjects: [],
+      },
+      // Nothing was asked of the model, so nothing was spent.
+      usage: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 },
+      costUsd: 0,
+    };
+  }
+
   // Enrich the most-discussed subjects with their full record — but only for
   // the post-meeting brief. The agenda brief runs before the meeting: subject
   // details carry outcomes and exchanges that must not leak into a preview.
@@ -157,7 +191,7 @@ export async function editorialPass(
     messages: [{ role: "user", content: JSON.stringify(modelInput) }],
     output_config: {
       effort: deps.config.effort,
-      format: { type: "json_schema", schema: briefSchema(subjects.map((s) => s.id)) },
+      format: { type: "json_schema", schema: briefSchema() },
     },
   });
 
