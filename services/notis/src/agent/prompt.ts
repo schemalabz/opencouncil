@@ -3,6 +3,7 @@ import {
   CONVERSATION_WINDOW,
   ConversationMessage,
   DECISION_WINDOW,
+  DecisionEntry,
   EditorialBrief,
   Prompts,
   WakeEvent,
@@ -99,6 +100,15 @@ export function conversationLine(m: ConversationMessage): string {
   return `[${m.at}] ${label}: «${neutralizeFences(m.text)}»`;
 }
 
+/**
+ * What the reader got out of a past wake, in words the next wake cannot read
+ * as anything else. A silence delivered nothing, and saying so beside the
+ * rationale leaves a claim of a send contradicted on the line above it.
+ */
+export function decisionOutcome(d: DecisionEntry): string {
+  return d.decision === "silence" ? "silence (nothing reached the reader)" : d.decision;
+}
+
 export function renderEvent(event: WakeEvent, state: WakeState): string {
   switch (event.type) {
     case "agenda_processed":
@@ -158,17 +168,29 @@ export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Dat
   // decision whose text is absent from the conversation was stopped or
   // failed before it reached the reader; when the proactive limit stopped
   // it, the text is present and marked NOT SENT instead.
+  //
+  // Each `why` is the model's own prose from that wake, and nothing checked
+  // it against what the wake did. A wake that meant to send and never called
+  // send_message writes the same confident sentence as one that sent, so a
+  // later wake read «Sent one short message about it» under a silence and
+  // wrote «όπως σου είχα πει» to a reader who had been told nothing. The
+  // outcome therefore renders as what the reader got, not as a verb the
+  // model can gloss, and the block says in its own words that the prose
+  // proves nothing.
   const decisionsOmitted = Math.max(0, state.decisions.length - DECISION_WINDOW);
   const decisions = state.decisions
     .slice(-DECISION_WINDOW)
     .map(
       (d) =>
-        `[${d.at}] ${d.event}${d.truncated ? " (cut at the token ceiling — not a decision)" : ""} → ${d.decision}${
+        `[${d.at}] ${d.event}${d.truncated ? " (cut at the token ceiling — not a decision)" : ""} → ${decisionOutcome(d)}${
           d.profileRewritten ? "\n  (rewrote the taste profile this wake)" : ""
         }${d.unsubscribed ? "\n  (unsubscribed them this wake)" : ""}\n  why: ${d.rationale}`,
     )
     .join("\n");
-  const decisionsHeader = decisionsOmitted > 0 ? `(${decisionsOmitted} older entries omitted)\n` : "";
+  const decisionsHeader =
+    (state.decisions.length > 0
+      ? "(your own reasoning at the time, never a record of what was sent — the conversation above is that)\n"
+      : "") + (decisionsOmitted > 0 ? `(${decisionsOmitted} older entries omitted)\n` : "");
 
   // Open promises, oldest first. These never age out of the prompt — that is
   // the whole point of them: the decision log that mentions a promise in

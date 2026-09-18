@@ -138,6 +138,53 @@ describe("assembleUserTurn", () => {
     expect(turn).toContain(`entry-10`);
   });
 
+  it("spells out that a past silence reached nobody, and that the log is not a record", () => {
+    // The observed failure: a wake decided silence, wrote «Sent one short
+    // message about it» in its rationale, and the next wake read that as
+    // history and opened with «που σου είχα πει».
+    const turn = assembleUserTurn(
+      makeState({
+        decisions: [
+          {
+            at: "2026-03-01T10:00:00.000Z",
+            event: "agenda_processed",
+            decision: "silence",
+            rationale: "Sent one short message about it; everything else stays silent.",
+          },
+        ],
+      }),
+      [meetingEvent()],
+      FIXED_NOW,
+    );
+    expect(turn).toContain("→ silence (nothing reached the reader)");
+    expect(turn).toContain("never a record of what was sent");
+  });
+
+  it("leaves a send decision as it is: the conversation above carries the text", () => {
+    const turn = assembleUserTurn(
+      makeState({
+        decisions: [
+          {
+            at: "2026-03-01T10:00:00.000Z",
+            event: "meeting_summarized",
+            decision: "send",
+            rationale: "Το έργο την αφορά.",
+          },
+        ],
+      }),
+      [meetingEvent()],
+      FIXED_NOW,
+    );
+    expect(turn).toContain("→ send");
+    expect(turn).not.toContain("send (nothing reached the reader)");
+  });
+
+  it("says nothing about the log when there is no log", () => {
+    const turn = assembleUserTurn(makeState({ decisions: [] }), [meetingEvent()], FIXED_NOW);
+    expect(turn).toContain("(empty — no decisions recorded yet)");
+    expect(turn).not.toContain("never a record of what was sent");
+  });
+
   it("renders a user_message event verbatim", () => {
     const turn = assembleUserTurn(
       makeState(),

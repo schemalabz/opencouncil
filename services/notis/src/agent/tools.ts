@@ -17,7 +17,10 @@ export const CLIENT_TOOLS = [
       properties: {
         rationale: {
           type: "string",
-          description: "The rationale, written for the operator, about the reader — never to them.",
+          description:
+            "Why this was, or was not, worth the reader's attention. Written for the " +
+            "operator, about the reader, never to them. Your judgement, not your actions: " +
+            "the shell records what you sent, and a later wake reads this as memory.",
         },
         // Asking makes the model consider it. Prompt text alone told it to
         // record what a reader reveals and moved a live eval from 0/6 to
