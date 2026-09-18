@@ -7,6 +7,7 @@ import { AttendanceStatus, DataSource, VoteType, Prisma } from "@prisma/client";
 import { sortSubjectsByDiscussionOrder } from "../minutes/builders";
 
 import { upsertDecision, deleteDecision, getDecisionForSubject, DECISION_ELIGIBLE_SUBJECT_WHERE } from "../db/decisions";
+import { isDecisionEligibleSubject, DECISION_ELIGIBILITY_RULE } from "../db/decisionEligibility";
 export { getDecisionForSubject };
 import { getCurrentUser, withUserAuthorizedToEdit } from "../auth";
 import { getPeopleForMeeting } from "../db/people";
@@ -96,7 +97,7 @@ export async function pollDecisionsForMeeting(
     }
 
     if (councilMeeting.subjects.length === 0) {
-        throw new Error("No eligible subjects to poll (subjects must have agendaItemIndex or be outOfAgenda, and not be withdrawn)");
+        throw new Error(`No eligible subjects to poll (${DECISION_ELIGIBILITY_RULE})`);
     }
 
     // Fetch people for name matching during extraction
@@ -328,13 +329,15 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
             id: true,
             name: true,
             agendaItemIndex: true,
+            nonAgendaReason: true,
+            withdrawn: true,
             cityId: true,
             councilMeetingId: true,
         },
     });
 
-    if (!subject || subject.agendaItemIndex == null) {
-        throw new Error("Subject not found or not eligible for decisions");
+    if (!subject || !isDecisionEligibleSubject(subject)) {
+        throw new Error(`Subject not found or not eligible for decisions (${DECISION_ELIGIBILITY_RULE})`);
     }
 
     // Simple rate limit: check for existing pending/running pollDecisions task

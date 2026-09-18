@@ -21,6 +21,7 @@ import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/p
 import { calculateVoteResult } from '@/lib/utils/votes';
 import { formatDate } from '@/lib/formatters/time';
 import { getWithdrawnLabel } from '@/lib/utils/subjects';
+import { isDecisionEligibleSubject } from '@/lib/db/decisionEligibility';
 import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
 import { CollapsibleMarkdown, NameList, MeetingAttendanceSummary, sortNamesByElectedOrder } from '@/components/meetings/decisions/shared';
 import { computeDecisionStats } from '@/components/meetings/decisions/stats';
@@ -409,17 +410,18 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         }
     };
 
-    // Subjects eligible for decisions: agenda items + outOfAgenda, in display order.
-    // Use nonAgendaReason as the primary discriminator — agendaItemIndex alone is not
-    // sufficient because outOfAgenda subjects may also have an agendaItemIndex from PDF data.
-    // beforeAgenda subjects are excluded (pre-agenda announcements without decisions).
+    // Subjects that can carry a decision, in display order. The two filters below are
+    // the two branches of DECISION_ELIGIBLE_SUBJECT_WHERE, split so each group sorts on
+    // its own terms: agenda items by index, out-of-agenda items in their stored order.
+    // Discriminating on nonAgendaReason first keeps an outOfAgenda subject in its own
+    // group even if it also carries an agendaItemIndex from PDF data.
     const agendaSubjects = subjects
         .filter(s => s.agendaItemIndex != null && s.nonAgendaReason === null)
         .sort((a, b) => a.agendaItemIndex! - b.agendaItemIndex!);
     const outOfAgendaSubjects = subjects
         .filter(s => s.nonAgendaReason === 'outOfAgenda');
     const allDisplaySubjects = [...agendaSubjects, ...outOfAgendaSubjects];
-    const eligibleSubjects = allDisplaySubjects.filter(s => !s.withdrawn);
+    const eligibleSubjects = allDisplaySubjects.filter(isDecisionEligibleSubject);
     const extractedSubjects = eligibleSubjects.filter(s => {
         const decision = decisions[s.id];
         return (decision?.excerpt) || extractedData[s.id];
