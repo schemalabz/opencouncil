@@ -137,6 +137,29 @@ const NOT_CONFIGURED: BirdSendResult = {
 export const FALLBACK_LINK_PATH = "explain";
 
 /**
+ * A template parameter, as Meta will accept it.
+ *
+ * Meta refuses a parameter carrying a newline, a tab, or more than four
+ * consecutive spaces: error 132018, «Param text cannot have new-line/tab
+ * characters or more than 4 consecutive spaces». Bird answers 4xx, which
+ * `isRetryableStatus` treats as terminal. The queue then falls through to the
+ * SMS leg, so the reader is not lost — but a multi-segment Greek SMS and an
+ * operator alert is a poor way to deliver a message WhatsApp would have taken.
+ * A production send went this way the day this was written.
+ *
+ * The agent writes multi-sentence Greek into one variable, so a single line
+ * break it reaches for costs the whole message. Runs of whitespace collapse
+ * to one space, which is how the shell renders them anyway: it is a single
+ * paragraph with one hole in it.
+ *
+ * Only the wire value is collapsed. The message row keeps what the agent
+ * wrote, because that is the text the conversation and the admin show.
+ */
+export function templateParam(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/**
  * The Bird wire shape for a template send. Every variable the shell declares
  * must be present or Bird rejects the whole send with a 422 — which is
  * terminal, not retryable, so the reader simply never gets the message.
@@ -153,11 +176,15 @@ function templateBody(template: TemplateName, text: string, linkPath?: string) {
   if (!projectId) return null;
   const def = TEMPLATES[template];
   const parameters: Array<{ type: string; key: string; value: string }> = [];
-  if (def.hasVariable) parameters.push({ type: "string", key: "demos_text", value: text });
+  if (def.hasVariable) {
+    parameters.push({ type: "string", key: "demos_text", value: templateParam(text) });
+  }
   if (def.hasLinkPath) {
     parameters.push({
       type: "string",
       key: "link_path",
+      // Not templateParam: a path cannot legitimately carry whitespace, and
+      // collapsing it would turn a loud 422 into a button that 404s quietly.
       value: linkPath?.trim() || FALLBACK_LINK_PATH,
     });
   }

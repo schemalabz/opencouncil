@@ -1,5 +1,10 @@
 import { env } from "@/env.mjs";
-import { FALLBACK_LINK_PATH, extractConflictingConversationId, realBird } from "../bird";
+import {
+  FALLBACK_LINK_PATH,
+  extractConflictingConversationId,
+  realBird,
+  templateParam,
+} from "../bird";
 
 jest.mock("@/env.mjs", () => ({
   env: {
@@ -34,6 +39,45 @@ afterEach(() => {
 });
 
 describe("sendTemplate", () => {
+  it("flattens whitespace a template parameter cannot carry", () => {
+    // Meta 132018: «Param text cannot have new-line/tab characters or more
+    // than 4 consecutive spaces». Bird answers 4xx, which is terminal, so a
+    // line break the agent reached for costs the whole message.
+    expect(templateParam("Δύο γραμμές.\nΚαι η δεύτερη.")).toBe("Δύο γραμμές. Και η δεύτερη.");
+    expect(templateParam("στήλη\tστήλη")).toBe("στήλη στήλη");
+    expect(templateParam("πέντε     κενά")).toBe("πέντε κενά");
+    // U+2028 and U+2029 are what a validator is most likely to read as a
+    // newline, and NBSP is what a model reaches for between a number and a
+    // unit. None of them is an ASCII space, so a regex narrowed to «\n\t »
+    // would pass every other case here and reopen 132018.
+    expect(templateParam("α\u2028β")).toBe("α β");
+    expect(templateParam("γ\u2029δ")).toBe("γ δ");
+    expect(templateParam("5\u00a0€")).toBe("5 €");
+    expect(templateParam("  τριγύρω  ")).toBe("τριγύρω");
+    // A message that was always fine is untouched.
+    expect(templateParam("Νέα από τον δήμο.")).toBe("Νέα από τον δήμο.");
+  });
+
+  it("sends a multi-line message as one line rather than losing it", async () => {
+    const fetchMock = mockFetch(200, { id: "bm-nl" });
+
+    await realBird.sendTemplate({
+      conversationId: "conv-1",
+      phone: "+306900000001",
+      template: "demos_update_news",
+      text: "Πρώτη γραμμή.\n\nΔεύτερη γραμμή.",
+      linkPath: "athens/jul29_2_2026",
+      idempotencyKey: "msg-nl",
+    });
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(JSON.parse(init.body).template.parameters[0]).toEqual({
+      type: "string",
+      key: "demos_text",
+      value: "Πρώτη γραμμή. Δεύτερη γραμμή.",
+    });
+  });
+
   it("posts the project-id template body with the demos_text parameter", async () => {
     const fetchMock = mockFetch(200, { id: "bm-1" });
 
