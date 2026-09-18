@@ -34,6 +34,14 @@ interface DiscordWebhookPayload {
 }
 
 /**
+ * Bounds how long a webhook post may hold its caller. Alerts are raised from cron
+ * runs and callback handlers that await them in a loop, so an unresponsive endpoint
+ * would otherwise stall real work until the platform deadline. A dropped alert costs
+ * less than a stalled poll, and the failure is logged either way.
+ */
+const WEBHOOK_TIMEOUT_MS = 4000;
+
+/**
  * Send a message to Discord via webhook
  */
 async function sendDiscordMessage(payload: DiscordWebhookPayload): Promise<void> {
@@ -50,6 +58,7 @@ async function sendDiscordMessage(payload: DiscordWebhookPayload): Promise<void>
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
         });
 
         if (!response.ok) {
