@@ -503,12 +503,19 @@ async function bucketedSeries(
     `,
     // Both directions in one pass. The rate they feed divides one by the
     // other, so the two halves must agree on what counts — see REACHED.
+    //
+    // `status::text`, not a bare `status`: the column is the MessageStatus
+    // enum, and Postgres has no `"MessageStatus" = text` operator, so the
+    // bare form does not fail on odd data — it fails always, with «operator
+    // does not exist», and takes the whole overview page down. The eventType
+    // filter in replyRateQuery casts nothing because that column really is
+    // text; copying its shape onto an enum column is what broke this.
     db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
       SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              direction::text AS direction, COUNT(DISTINCT "subscriptionId")::int AS count
       FROM "NotisMessage"
       WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
-        AND (direction = 'inbound'::"MessageDirection" OR status = ANY(${[...REACHED]}::text[]))
+        AND (direction = 'inbound'::"MessageDirection" OR status::text = ANY(${[...REACHED]}::text[]))
       GROUP BY 1, 2
     `,
     db.$queryRaw<Array<{ bucket: Date; count: number }>>`
