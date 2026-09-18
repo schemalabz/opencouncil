@@ -1,6 +1,7 @@
 "use client"
 import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
+import { Party, LastModifiedBy } from '@prisma/client';
+import { PublicSpeakerTag } from '@/lib/db/types/speakerTag';
 import { updateSpeakerTag } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
 import { deleteUtterance } from '@/lib/db/utterance';
@@ -34,7 +35,7 @@ export interface CouncilMeetingActions {
 export interface CouncilMeetingDataContext extends MeetingData, CouncilMeetingActions {
     getPerson: (id: string) => PersonWithRelations | undefined;
     getParty: (id: string) => Party | undefined;
-    getSpeakerTag: (id: string) => SpeakerTag | undefined;
+    getSpeakerTag: (id: string) => PublicSpeakerTag | undefined;
     getSpeakerSegmentCount: (tagId: string) => number;
     getSpeakerSegmentById: (id: string) => Transcript[number] | undefined;
     getPersonsForParty: (partyId: string) => PersonWithRelations[];
@@ -98,18 +99,15 @@ export function CouncilMeetingDataProvider({ children, data }: {
 
     const updateSpeakerTagPerson = useCallback(async (tagId: string, personId: string | null) => {
         console.log(`Updating speaker tag ${tagId} to person ${personId}`);
-        await updateSpeakerTag(tagId, { personId });
-        setSpeakerTags(prevTags =>
-            prevTags.map(tag => (tag.id === tagId ? { ...tag, personId } : tag))
-        );
+        // The server's copy, so personSetBy follows the edit too.
+        const updatedTag = await updateSpeakerTag(tagId, { personId });
+        setSpeakerTags(prevTags => prevTags.map(tag => (tag.id === tagId ? updatedTag : tag)));
     }, []);
 
     const updateSpeakerTagLabel = useCallback(async (tagId: string, label: string) => {
         console.log(`Updating speaker tag ${tagId} label to ${label}`);
-        await updateSpeakerTag(tagId, { label });
-        setSpeakerTags(prevTags =>
-            prevTags.map(tag => (tag.id === tagId ? { ...tag, label } : tag))
-        );
+        const updatedTag = await updateSpeakerTag(tagId, { label });
+        setSpeakerTags(prevTags => prevTags.map(tag => (tag.id === tagId ? updatedTag : tag)));
     }, []);
 
     const createEmptySegmentAfter = useCallback(async (afterSegmentId: string) => {

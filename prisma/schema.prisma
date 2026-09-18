@@ -182,7 +182,9 @@ model Person {
   updatedAt DateTime @updatedAt
   profileUrl String?
 
-  speakerTags SpeakerTag[]
+  speakerTags SpeakerTag[] @relation("SpeakerTagPerson")
+  voiceprintHintedSpeakerTags SpeakerTag[] @relation("SpeakerTagVoiceprintHint")
+  transcriptHintedSpeakerTags SpeakerTag[] @relation("SpeakerTagTranscriptHint")
   voicePrints VoicePrint[]
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
@@ -306,12 +308,37 @@ model SpeakerTag {
   updatedAt       DateTime @updatedAt
   label           String?
 
-  person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
+  person Person? @relation("SpeakerTagPerson", fields: [personId], references: [id], onDelete: SetNull)
   personId String?
+  // Who decided personId. Null on a tag nobody has assigned. An automatic pass
+  // never reassigns a reviewer's tag (see isReviewerAssignment in src/lib/speakerHints.ts).
+  personSetBy SpeakerAssignmentSource?
+
+  // Two independent opinions on who this speaker is. A hint stays as the method
+  // gave it, whatever personId ends up holding, so a reviewer can see where the
+  // methods disagree. Neither hint is public: read tags through
+  // publicSpeakerTagSelect unless the caller may edit the meeting.
+  // Voiceprint: the transcribe task matched the voice to a stored voiceprint.
+  voiceprintPerson Person? @relation("SpeakerTagVoiceprintHint", fields: [voiceprintPersonId], references: [id], onDelete: SetNull)
+  voiceprintPersonId String?
+  voiceprintConfidence Float? // 0–100, pyannote's score for the match
+  // Transcript: the fixTranscript task read who is speaking from the text alone.
+  transcriptPerson Person? @relation("SpeakerTagTranscriptHint", fields: [transcriptPersonId], references: [id], onDelete: SetNull)
+  transcriptPersonId String?
+  transcriptConfidence Float? // 0–100, the model's own confidence
 
   speakerSegments SpeakerSegment[]
 
   @@index([personId])
+  @@index([voiceprintPersonId])
+  @@index([transcriptPersonId])
+}
+
+enum SpeakerAssignmentSource {
+  voiceprint // the voiceprint match alone
+  transcript // the transcript hint alone
+  both       // the two methods agreed
+  user       // a reviewer; automatic passes never overwrite it
 }
 
 model SpeakerSegment {

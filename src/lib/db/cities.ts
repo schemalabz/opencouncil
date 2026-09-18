@@ -2,6 +2,7 @@
 import { City, CityStatus, CouncilMeeting, Prisma, Realm } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import prisma from "./prisma";
+import { publicSpeakerTagSelect } from "./types/speakerTag";
 import { createCache } from "../cache";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { UnauthorizedError } from "../api/errors";
@@ -438,7 +439,7 @@ export async function getFullCity(
             parties: true,
             persons: {
                 include: {
-                    speakerTags: true,
+                    speakerTags: { select: publicSpeakerTagSelect },
                     roles: {
                         include: {
                             party: true,

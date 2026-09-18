@@ -1,5 +1,6 @@
 import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
+import { publicSpeakerTagSelect } from '@/lib/db/types/speakerTag';
 import prisma from "@/lib/db/prisma";
 import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches } from './types';
@@ -33,7 +34,8 @@ const subjectDiscussionSegmentInclude = {
         }
     },
     speakerTag: {
-        include: {
+        select: {
+            ...publicSpeakerTagSelect,
             person: {
                 include: {
                     roles: {

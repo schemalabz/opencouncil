@@ -20,6 +20,20 @@
   "stats": {
     "title": "Intervenants"
   },
+  "speakerHints": {
+    "status": {
+      "agree": "Les deux méthodes concordent",
+      "disagree": "Les deux méthodes divergent",
+      "voiceprintOnly": "Trouvé uniquement par la reconnaissance vocale",
+      "transcriptOnly": "Trouvé uniquement dans le texte de la discussion"
+    },
+    "allPeople": "Toutes les personnes",
+    "voiceprint": "Reconnaissance vocale",
+    "transcript": "Texte de la discussion",
+    "both": "Reconnaissance vocale et texte de la discussion",
+    "disagree": "La reconnaissance vocale et le texte de la discussion désignent des personnes différentes. Choisissez la bonne.",
+    "needsReview": "Les méthodes divergent"
+  },
   "guide": {
     "title": "Guide d'édition",
     "description": "Apprenez à modifier les transcriptions efficacement grâce aux raccourcis clavier et aux bonnes pratiques",

@@ -8,6 +8,8 @@ const passthrough = ({ children }: { children: React.ReactNode }) => children;
 
 jest.mock('../VideoProvider', () => ({ VideoProvider: passthrough }));
 jest.mock('../options/OptionsContext', () => ({ TranscriptOptionsProvider: passthrough }));
+// Pulls the speaker tag server actions, and with them Prisma.
+jest.mock('../SpeakerHintsContext', () => ({ SpeakerHintsProvider: passthrough }));
 jest.mock('../CouncilMeetingDataContext', () => ({ CouncilMeetingDataProvider: passthrough }));
 jest.mock('../HighlightContext', () => ({ HighlightProvider: passthrough }));
 jest.mock('../subject/UtteranceExpansionContext', () => ({ UtteranceExpansionProvider: passthrough }));
