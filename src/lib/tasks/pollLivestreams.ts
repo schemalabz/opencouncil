@@ -340,12 +340,16 @@ export async function pollLivestreamsForRecentMeetings(
                 matched++;
 
                 // One announcement per video, not one per retry: without this a meeting that keeps
-                // failing re-posts the same "matched" alert on every poll tick. Kept off the await
-                // path so Discord cannot slow the trigger loop, with the marker set once the send
-                // settles rather than before it starts.
+                // failing re-posts the same "matched" alert on every poll tick.
+                //
+                // Both awaited, so the marker is written before the cron request can return — a
+                // detached write can be dropped when the runtime freezes, and a lost marker means
+                // the duplicate alerts this key exists to prevent. Nothing is given up by blocking:
+                // the webhook transport logs HTTP and network failures without rejecting, so there
+                // is no delivery signal a non-blocking send could have acted on anyway.
                 const matchedAlertKey = `oc:livestream:matched-alert:${cityId}:${meetingId}:${matchedVideo.videoId}`;
                 if (!(await cacheHas(matchedAlertKey))) {
-                    sendLivestreamMatchedAlert({
+                    await sendLivestreamMatchedAlert({
                         cityId,
                         cityName: meeting.city.name,
                         meetingId,
@@ -354,9 +358,8 @@ export async function pollLivestreamsForRecentMeetings(
                         videoTitle: matchedVideo.title,
                         confidence: decision.confidence,
                         reasoning: decision.reasoning,
-                    })
-                        .then(() => cacheSetJSON(matchedAlertKey, 1, ALERT_DEDUP_TTL_SECONDS))
-                        .catch(err => console.error('[pollLivestreams] matched alert failed:', err));
+                    }).catch(err => console.error('[pollLivestreams] matched alert failed:', err));
+                    await cacheSetJSON(matchedAlertKey, 1, ALERT_DEDUP_TTL_SECONDS);
                 }
 
                 results.push({ cityId, meetingId, decision: 'match', videoId: matchedVideo.videoId, confidence: decision.confidence, action: 'transcribe_triggered' });

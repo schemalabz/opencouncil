@@ -332,6 +332,21 @@ describe('pollLivestreamsForRecentMeetings', () => {
         expect(summary.results[0].action).toBe('transcribe_triggered');
     });
 
+    it('has written the matched-alert marker by the time it returns', async () => {
+        // A marker left to a detached promise can be dropped when the runtime freezes, and a lost
+        // marker re-posts the alert this key exists to suppress.
+        mockMeetingFindMany.mockResolvedValue([meeting()]);
+        taskRows(processAgendaDone());
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'x' });
+
+        await pollLivestreamsForRecentMeetings();
+
+        expect(mockMatchedAlert).toHaveBeenCalledTimes(1);
+        expect(mockCacheSetJSON).toHaveBeenCalledWith(
+            'oc:livestream:matched-alert:athens:m1:v1', 1, expect.any(Number),
+        );
+    });
+
     it('does not report a match as exhausted in a dry run', async () => {
         mockMeetingFindMany.mockResolvedValue([meeting({ youtubeUrl: 'https://www.youtube.com/watch?v=v1' })]);
         taskRows(withFailedTranscribes(5));
