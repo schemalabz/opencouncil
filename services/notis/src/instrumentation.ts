@@ -2,6 +2,9 @@
 // instrumentation discovery (which searches the Turbopack workspace root's
 // src/ as well) picks up the MAIN app's src/instrumentation.ts and tries to
 // bundle its Prisma/cache imports into Notis.
+/** How long a new reader waits for their intro, at worst. See the poller below. */
+export const POLLER_INTERVAL_MS = 2 * 60_000;
+
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   // The daily reconciliation janitor. runJanitor() no-ops (ran:false) when
@@ -29,14 +32,22 @@ export async function register() {
   };
   setInterval(sweep, 60_000);
 
-  // The five-minute poller: enrollments, reconciliation, scheduled fires
-  // and meeting-event fan-out. No-ops without NOTIS_DATABASE_URL; the
-  // main-DB phases no-op without MAIN_DATABASE_URL. Re-entrancy is guarded
-  // inside runPollerTick.
+  // The poller: enrollments, reconciliation, scheduled fires and
+  // meeting-event fan-out. No-ops without NOTIS_DATABASE_URL; the main-DB
+  // phases no-op without MAIN_DATABASE_URL. Re-entrancy is guarded inside
+  // runPollerTick, which skips a tick that lands while one is running
+  // rather than queueing it.
+  //
+  // Two minutes, not five: enrollment happens here and nowhere else, so this
+  // interval is what a reader waits between finishing the signup and their
+  // first message. The per-tick ceilings are therefore rates — at two
+  // minutes MAX_ENROLLMENTS_PER_TICK releases two and a half times the
+  // readers per hour that it did at five, which is the point, and it stays
+  // paced rather than sending a whole launch cohort at once.
   const { runPollerTick } = await import("./lib/poller");
   const pollerTick = () => {
     runPollerTick().catch((e) => console.error("[notis:poller] tick failed:", e));
   };
   setTimeout(pollerTick, 30_000);
-  setInterval(pollerTick, 5 * 60_000);
+  setInterval(pollerTick, POLLER_INTERVAL_MS);
 }
