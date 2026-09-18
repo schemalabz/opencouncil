@@ -105,7 +105,7 @@ export function conversationLine(m: ConversationMessage): string {
  * as anything else. A silence delivered nothing, and saying so beside the
  * rationale leaves a claim of a send contradicted on the line above it.
  */
-export function decisionOutcome(d: DecisionEntry): string {
+export function decisionOutcome(d: Pick<DecisionEntry, "decision">): string {
   return d.decision === "silence" ? "silence (nothing reached the reader)" : d.decision;
 }
 

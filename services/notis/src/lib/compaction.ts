@@ -8,7 +8,7 @@ import {
   Deps,
   MEMORY_MAX_CHARS,
 } from "@/agent/types";
-import { conversationLine } from "@/agent/prompt";
+import { conversationLine, decisionOutcome } from "@/agent/prompt";
 import { normalizeUsage, usageToCost } from "@/agent/pricing";
 import { alert as sendAlert } from "./alert";
 import { buildDeps } from "./deps";
@@ -228,12 +228,20 @@ export async function maybeCompact(
       `</aged_out_messages>`,
       ``,
       `<aged_out_decisions>`,
-      wakes
-        .map(
-          (w) =>
-            `[${w.eventAt.toISOString()}] ${w.eventType} → ${w.decision}\n  why: ${w.rationale}`,
-        )
-        .join("\n") || "(none)",
+      // The live prompt's own renderer, for the same reason as the messages
+      // above. Each `why` is the model's prose from that wake and nothing
+      // checked it against what the wake did, so a silence that wrote «της
+      // έστειλα ένα σύντομο μήνυμα» would otherwise be folded into `memory`
+      // — which never ages out — as a message the reader never received.
+      wakes.length > 0
+        ? "(the agent's own reasoning at the time, never a record of what was sent)\n" +
+          wakes
+            .map(
+              (w) =>
+                `[${w.eventAt.toISOString()}] ${w.eventType} → ${decisionOutcome(w)}\n  why: ${w.rationale}`,
+            )
+            .join("\n")
+        : "(none)",
       `</aged_out_decisions>`,
     ].join("\n");
 
