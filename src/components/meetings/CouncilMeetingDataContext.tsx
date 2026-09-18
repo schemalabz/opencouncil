@@ -2,7 +2,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
 import { assignSpeaker } from '@/lib/actions/speakerTags';
-import type { SpeakerAssignment, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
+import type { SpeakerEdit, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
 import { deleteUtterance } from '@/lib/db/utterance';
 import { Transcript } from '@/lib/db/transcript';
@@ -15,7 +15,7 @@ import type { HighlightWithUtterances } from '@/lib/db/highlights';
 // They are stable references for the lifetime of the provider, so consumers
 // that only need to mutate (e.g. Utterance) never re-render on data changes.
 export interface CouncilMeetingActions {
-    assignSpeaker: (segmentId: string, assignment: SpeakerAssignment, scope: SpeakerAssignmentScope) => Promise<void>;
+    assignSpeaker: (segmentId: string, assignment: SpeakerEdit, scope: SpeakerAssignmentScope) => Promise<void>;
     createEmptySegmentAfter: (afterSegmentId: string) => Promise<void>;
     createEmptySegmentBefore: (beforeSegmentId: string) => Promise<void>;
     moveUtterancesToPrevious: (utteranceId: string, currentSegmentId: string) => Promise<void>;
@@ -96,7 +96,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
         setHighlights(prev => prev.filter(h => h.id !== highlightId));
     }, []);
 
-    const assignSpeakerAction = useCallback(async (segmentId: string, assignment: SpeakerAssignment, scope: SpeakerAssignmentScope) => {
+    const assignSpeakerAction = useCallback(async (segmentId: string, assignment: SpeakerEdit, scope: SpeakerAssignmentScope) => {
         const tag = await assignSpeaker(segmentId, assignment, scope);
         setSpeakerTags(prev => prev.some(t => t.id === tag.id)
             ? prev.map(t => (t.id === tag.id ? tag : t))

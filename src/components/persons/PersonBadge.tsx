@@ -8,8 +8,8 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "@/components/ui/command";
-import { Check, X, Edit2 } from "lucide-react";
+import { Command, CommandInput, CommandList, CommandGroup, CommandItem, CommandSeparator } from "@/components/ui/command";
+import { AlertTriangle, AudioLines, Check, CheckCheck, FileText, X, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,7 +17,7 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { RoleDisplay } from './RoleDisplay';
 import { formatSurnameFirst } from '@/lib/formatters/name';
 import { useLocalizeText } from '@/hooks/useLocalizeText';
-import type { SpeakerAssignment, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
+import type { SpeakerEdit, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
 
 interface PersonDisplayProps {
     person?: PersonWithRelations;
@@ -32,10 +32,26 @@ interface PersonDisplayProps {
     nonInteractive?: boolean;
     /** Resolve the party color as of this date (e.g. the meeting date) instead of today. */
     date?: Date;
+    /** A line under the name and roles, aligned with them. */
+    caption?: React.ReactNode;
 }
 
+/** Someone the speaker identifications suggest, and why (the reason arrives localized). */
+export type PersonSuggestion = {
+    person: PersonWithRelations;
+    source: 'voiceprint' | 'transcript' | 'both';
+    reason: string;
+    /** The transcript line(s) the name rests on, quoted as the task gave them, so a reviewer can check the name. */
+    evidence?: string | null;
+};
+
+const SUGGESTION_ICONS = { voiceprint: AudioLines, transcript: FileText, both: CheckCheck };
+
+/** A selected value no picker item carries: cmdk selects the first item only while the value is empty. */
+const NO_PRESELECTION = 'no-preselection';
+
 // A simpler version of PersonBadge used in search results
-function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false, date }: PersonDisplayProps) {
+function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false, date, caption }: PersonDisplayProps) {
     const localize = useLocalizeText();
     const t = useTranslations('transcript.speakerPicker');
     const activeRoles = person ? filterActiveRoles(person.roles) : [];
@@ -114,6 +130,7 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                             className={cn(roleTextSize, "text-[10px] sm:text-xs")}
                         />
                     </div>
+                    {caption && <div className="mt-1 text-xs text-muted-foreground">{caption}</div>}
                 </div>
             )}
         </div>
@@ -152,8 +169,15 @@ interface PersonBadgeProps extends PersonDisplayProps {
     withBorder?: boolean;
     isSelected?: boolean;
     /** Applies the picked person or label. The picker offers the `thisSegment` scope when the tag has 2 or more segments. */
-    onAssign?: (assignment: SpeakerAssignment, scope: SpeakerAssignmentScope) => void;
+    onAssign?: (assignment: SpeakerEdit, scope: SpeakerAssignmentScope) => void;
     availablePeople?: PersonWithRelations[];
+    /** People to offer ahead of the full list, each with the reason. Headings arrive localized. */
+    suggestions?: PersonSuggestion[];
+    suggestionsHeading?: string;
+    /** Heads the full list, so it reads apart from the suggestions above it. */
+    allPeopleHeading?: string;
+    /** When set, an editor sees this as an amber label on the badge (already localized, a few words). */
+    warning?: string;
     nextUnknownLabel?: string;
     variant?: 'default' | 'inline';
     /** When true, the badge does not navigate or behave like a button (useful on the person's own page). */
@@ -171,6 +195,10 @@ function PersonBadge({
     editable = false,
     onAssign,
     availablePeople,
+    suggestions,
+    suggestionsHeading,
+    allPeopleHeading,
+    warning,
     nextUnknownLabel,
     preferFullName = false,
     size = 'md',
@@ -215,6 +243,15 @@ function PersonBadge({
             .sort((a, b) => b.score - a.score)
             .map(({ person }) => person);
     }, [availablePeople, searchQuery]);
+
+    // Suggestions lead the list, so a single one is what Enter picks. They step
+    // aside while the reviewer searches for someone else.
+    const shownSuggestions = searchQuery ? [] : suggestions ?? [];
+    const hasSuggestions = shownSuggestions.length > 0;
+    // Several suggestions name different people, and the reviewer is there to
+    // decide between them: the picker then opens with nothing selected, so
+    // Enter assigns nobody until the reviewer moves to an item.
+    const suggestionsDiffer = (suggestions?.length ?? 0) > 1;
 
     // The scope choice lasts for one opening of the picker, so the common case
     // (change every segment of the tag) never needs an extra step.
@@ -294,11 +331,17 @@ function PersonBadge({
                 nonInteractive={disableNavigation && !editable}
                 date={date}
             />
+            {editable && warning && (
+                <span className="shrink-0 ml-auto flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    {warning}
+                </span>
+            )}
             {editable && (
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="shrink-0 h-6 w-6 sm:h-8 sm:w-8 ml-auto"
+                    className={cn("shrink-0 h-6 w-6 sm:h-8 sm:w-8", !warning && "ml-auto")}
                     onClick={(e) => {
                         e.stopPropagation();
                         setIsOpen(true);
@@ -317,7 +360,13 @@ function PersonBadge({
                     {badge}
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-0" align="start">
-                    <Command shouldFilter={false}>
+                    {/* Keyed: cmdk reads defaultValue once, and the suggestions can arrive
+                        while the picker is open. It then starts afresh, with nothing selected. */}
+                    <Command
+                        key={suggestionsDiffer ? 'suggestions-differ' : 'default'}
+                        shouldFilter={false}
+                        defaultValue={suggestionsDiffer ? NO_PRESELECTION : undefined}
+                    >
                         <CommandInput
                             autoFocus
                             placeholder={t('searchPlaceholder')}
@@ -332,6 +381,48 @@ function PersonBadge({
                                 remove) show only when not searching. This keeps the top
                                 match highlighted for Enter and stops a zero filter score
                                 from hiding the fallback actions (the bug this fixes). */}
+                            {hasSuggestions && (
+                                <>
+                                    <CommandGroup heading={suggestionsHeading}>
+                                        {shownSuggestions.map(({ person: suggested, source, reason, evidence }) => {
+                                            const SourceIcon = SUGGESTION_ICONS[source];
+                                            return (
+                                                <CommandItem
+                                                    key={suggested.id}
+                                                    value={`suggestion-${suggested.id}`}
+                                                    onSelect={() => applyAssignment(suggested.id)}
+                                                    className="flex items-center gap-2"
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            "shrink-0 h-4 w-4",
+                                                            person?.id === suggested.id ? "opacity-100" : "opacity-0"
+                                                        )}
+                                                    />
+                                                    <PersonDisplay
+                                                        person={suggested}
+                                                        size="sm"
+                                                        date={date}
+                                                        caption={
+                                                            <>
+                                                                <span className="flex items-center gap-1.5">
+                                                                    <SourceIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                                    {reason}
+                                                                </span>
+                                                                {/* The line the transcript name rests on: what a reviewer checks it against. */}
+                                                                {evidence && (
+                                                                    <q className="mt-1 block whitespace-normal break-words italic">{evidence}</q>
+                                                                )}
+                                                            </>
+                                                        }
+                                                    />
+                                                </CommandItem>
+                                            );
+                                        })}
+                                    </CommandGroup>
+                                    <CommandSeparator />
+                                </>
+                            )}
                             {!searchQuery && (
                                 <CommandGroup>
                                     <CommandItem
@@ -346,7 +437,7 @@ function PersonBadge({
                                 </CommandGroup>
                             )}
                             {rankedPeople.length > 0 && (
-                                <CommandGroup>
+                                <CommandGroup heading={hasSuggestions ? allPeopleHeading : undefined}>
                                     {rankedPeople.map((p) => (
                                         <CommandItem
                                             key={p.id}

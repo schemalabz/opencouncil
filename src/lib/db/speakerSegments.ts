@@ -110,11 +110,13 @@ export async function createEmptySpeakerSegmentAfter(
         ? Math.min(startTimestamp + 0.01, nextSegment.startTimestamp)
         : startTimestamp + 0.01;
 
-    // Create a new speaker tag based on the previous one
+    // A new tag with no person. A reviewer made it, so it is the reviewer's:
+    // no automatic pass names it later.
     const newSpeakerTag = await prisma.speakerTag.create({
         data: {
             label: "New speaker segment",
-            personId: null // Reset the person association for the new tag
+            personId: null,
+            personSetBy: 'user'
         }
     });
 
@@ -165,11 +167,12 @@ export async function createEmptySpeakerSegmentBefore(
         throw new Error('Cannot create segment before first segment: insufficient timestamp space');
     }
 
-    // Create a new speaker tag
+    // A new tag with no person, and the reviewer's (see createEmptySpeakerSegmentAfter)
     const newSpeakerTag = await prisma.speakerTag.create({
         data: {
             label: "New speaker segment",
-            personId: null // Reset the person association for the new tag
+            personId: null,
+            personSetBy: 'user'
         }
     });
 
@@ -921,8 +924,10 @@ export async function extractSpeakerSegment(
         const middleStart = middleUtterances[0].startTimestamp;
         const middleEnd = middleUtterances[middleUtterances.length - 1].endTimestamp;
 
+        // The reviewer split these utterances off as someone else's. The new
+        // tag is the reviewer's, so no automatic pass names it later.
         const middleTag = await tx.speakerTag.create({
-            data: { label: 'New speaker segment', personId: null }
+            data: { label: 'New speaker segment', personId: null, personSetBy: 'user' }
         });
 
         const middleSegment = await tx.speakerSegment.create({

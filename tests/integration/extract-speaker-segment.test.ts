@@ -62,6 +62,8 @@ describe('extractSpeakerSegment', () => {
         expect(middle.utterances.map(u => u.id)).toEqual([u1.id])
         expect(middle.speakerTag.personId).toBeNull()
         expect(middle.speakerTagId).not.toBe(speakerTagId)
+        // The reviewer made this tag: no automatic pass may name it later.
+        expect(middle.speakerTag.personSetBy).toBe('user')
 
         expect(after.id).not.toBe(segment.id)
         expect(after.utterances.map(u => u.id)).toEqual([u2.id])

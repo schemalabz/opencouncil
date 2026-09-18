@@ -171,7 +171,7 @@ OpenCouncil uses a **decoupled async job processing system**:
 
 **Task types** in `src/lib/tasks/`:
 - `transcribe.ts` - Audio transcription
-- `fixTranscript.ts` - Automatic transcript correction
+- `fixTranscript.ts` - Automatic transcript correction, and transcript speaker identifications (see `src/lib/speakerIdentifications.ts`)
 - `summarize.ts` - AI-generated summaries
 - `processAgenda.ts` - Subject extraction from the agenda PDF
 - `generateHighlight.ts` - Highlight video rendering

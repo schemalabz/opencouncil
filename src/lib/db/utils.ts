@@ -5,12 +5,13 @@
 import "server-only";
 
 import { getTranscript } from "./transcript";
-import { getPeopleForMeeting } from "./people";
+import { getPeopleWhoMaySpeak } from "./people";
 import { getPartiesForCity } from "./parties";
 import { getTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeetingDirect } from "./meetings";
-import { RequestOnTranscript, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
+import { FixTranscriptRequest, RequestOnTranscript, RosterPerson, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
+import { buildSpeakerRoster } from "@/lib/tasks/speakerRoster";
 import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
 import { DiscussionStatus, Subject as DbSubject } from "@prisma/client";
@@ -29,8 +30,15 @@ const VALID_DISCUSSION_STATUSES = new Set<string>(Object.values(DiscussionStatus
 // Type for the Prisma interactive transaction client
 type PrismaTxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
-export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
-    const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
+export async function getRequestOnTranscriptRequestBody(
+    councilMeetingId: string,
+    cityId: string,
+    { keepSpeakerTagsApart = false }: { keepSpeakerTagsApart?: boolean } = {}
+): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
+    const transcript = await getTranscript(councilMeetingId, cityId, {
+        joinAdjacentSameSpeakerSegments: true,
+        joinSameSpeakerTagOnly: keepSpeakerTagsApart,
+    });
     // Ungated: the task-server callback carries no session (see getCouncilMeetingDirect).
     const councilMeeting = await getCouncilMeetingDirect(cityId, councilMeetingId);
 
@@ -51,8 +59,8 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         })
         : [];
 
-    // People filtered by meeting's administrative body (for LLM context)
-    const meetingPeople = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
+    // The people who may speak at this meeting (for LLM context)
+    const meetingPeople = await getPeopleWhoMaySpeak(cityId, councilMeeting.administrativeBodyId, councilMeeting.dateTime);
     const parties = await getPartiesForCity(cityId);
     const city = await getCity(cityId);
 
@@ -74,6 +82,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
                 speakerParty: party?.name || null,
                 speakerRole: person ? getRoleNameForPerson(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId) || null : null,
                 speakerSegmentId: segment.id,
+                speakerTagId: segment.speakerTagId,
                 speakerId: person?.id || null,
                 text: segment.utterances.map(u => u.text).join(' '),
                 utterances: segment.utterances.map(u => ({
@@ -90,6 +99,8 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         // Scopes geocoding of subject locations to the right country.
         country: getRealmCountry(city.realm),
         administrativeBodyName: councilMeeting.administrativeBody?.name || null,
+        people: buildSpeakerRoster(meetingPeople, councilMeeting.dateTime, councilMeeting.administrativeBodyId),
+        // For a task server that predates `people`: the same people by party.
         partiesWithPeople: parties.map(p => ({
             name: p.name,
             people: meetingPeople.filter(person => {
@@ -104,6 +115,16 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
         })),
         date: councilMeeting.dateTime.toISOString().split('T')[0]
     };
+}
+
+/**
+ * The fixTranscript request. With the meeting's people and a speaker tag id on
+ * every segment, the task returns speaker hints alongside the text corrections.
+ */
+export async function getFixTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<FixTranscriptRequest, 'callbackUrl'>> {
+    // Speaker hints judge each diarization speaker on its own, so two tags the
+    // voiceprint matched to one person must not reach the task as one speaker.
+    return getRequestOnTranscriptRequestBody(councilMeetingId, cityId, { keepSpeakerTagsApart: true });
 }
 
 let getAgendaItemIndex = (subject: DbSubject): number | "BEFORE_AGENDA" | "OUT_OF_AGENDA" | null => {

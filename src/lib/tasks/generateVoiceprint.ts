@@ -5,10 +5,57 @@ import { getCouncilMeeting } from "@/lib/db/meetings";
 import { withUserAuthorizedToEdit } from "../auth";
 import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "../apiTypes";
-import { SpeakerSegment } from "@prisma/client";
+import { Prisma, SpeakerSegment } from "@prisma/client";
 import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
 
 const VOICEPRINT_DURATION = 30;
+
+/**
+ * A person's speaker tags, with what decides whether their audio may become the
+ * person's voiceprint: the completed reviews of each segment's meeting.
+ */
+const voiceprintCandidateTagInclude = {
+    speakerSegments: {
+        include: {
+            meeting: {
+                select: {
+                    taskStatuses: {
+                        where: { type: 'humanReview', status: 'succeeded' },
+                        select: { createdAt: true },
+                    },
+                },
+            },
+        },
+    },
+} satisfies Prisma.SpeakerTagInclude;
+
+type VoiceprintCandidateTag = Prisma.SpeakerTagGetPayload<{ include: typeof voiceprintCandidateTagInclude }>;
+
+/**
+ * Whether a tag's audio may become its person's voiceprint.
+ *
+ * A name only the transcript gave is unreviewed, and a voiceprint built on a
+ * wrong one would make the voiceprint method repeat the transcript's mistake in
+ * every later meeting. Such a tag counts once the review of its meeting is
+ * complete: the reviewer read the name and left it, which is how a reviewer
+ * confirms one.
+ *
+ * The review must be later than the tag. A re-transcribe replaces every tag,
+ * and a review of the earlier transcript says nothing about the new ones.
+ */
+function isVoiceprintSource(tag: VoiceprintCandidateTag): boolean {
+    if (tag.personSetBy !== 'transcript') return true;
+    return tag.speakerSegments.some(segment =>
+        segment.meeting.taskStatuses.some(review => review.createdAt > tag.createdAt)
+    );
+}
+
+/** The segments a person's voiceprint may be cut from, without the review data they were chosen by. */
+function voiceprintSourceSegments(tags: VoiceprintCandidateTag[]): SpeakerSegment[] {
+    return tags
+        .filter(isVoiceprintSource)
+        .flatMap(tag => tag.speakerSegments.map(({ meeting: _meeting, ...segment }) => segment));
+}
 
 /**
  * Find all people in a city who are eligible for voiceprint generation
@@ -33,26 +80,17 @@ export async function findEligiblePeopleForVoiceprintGeneration(cityId: string):
             id: true,
             name: true,
             speakerTags: {
-                include: {
-                    speakerSegments: true
-                }
+                include: voiceprintCandidateTagInclude
             }
         }
     });
 
-    // Filter to only those with segments longer than VOICEPRINT_DURATION
-    const eligiblePeople = peopleWithoutVoiceprints.filter(person => {
-        // Flatten all segments from all speaker tags
-        const allSegments: SpeakerSegment[] = [];
-        for (const tag of person.speakerTags) {
-            allSegments.push(...tag.speakerSegments);
-        }
-
-        // Check if any segment is long enough
-        return allSegments.some(segment =>
+    // Filter to only those with a usable segment longer than VOICEPRINT_DURATION
+    const eligiblePeople = peopleWithoutVoiceprints.filter(person =>
+        voiceprintSourceSegments(person.speakerTags).some(segment =>
             segment.endTimestamp - segment.startTimestamp >= VOICEPRINT_DURATION
-        );
-    });
+        )
+    );
 
     return {
         eligiblePeople: eligiblePeople.map(person => ({ id: person.id, name: person.name })),
@@ -166,22 +204,17 @@ export async function findLongestSpeakerSegmentForPerson(personId: string): Prom
             where: { id: personId },
             include: {
                 speakerTags: {
-                    include: {
-                        speakerSegments: true,
-                    },
+                    include: voiceprintCandidateTagInclude,
                 },
             },
         });
 
-        if (!person || person.speakerTags.length === 0) {
+        if (!person) {
             return null;
         }
 
-        // Collect all speaker segments from all speakerTags
-        const allSegments: SpeakerSegment[] = [];
-        for (const tag of person.speakerTags) {
-            allSegments.push(...tag.speakerSegments);
-        }
+        // Every segment of the tags whose audio may be used
+        const allSegments = voiceprintSourceSegments(person.speakerTags);
 
         if (allSegments.length === 0) {
             return null;

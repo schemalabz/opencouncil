@@ -3,8 +3,9 @@ import { ConflictError, NotFoundError } from "@/lib/api/errors";
 import { startTask } from "./tasks";
 import { Prisma } from "@prisma/client";
 import prisma from "../db/prisma";
-import { getPeopleForMeeting } from "@/lib/db/people";
+import { getPeopleWhoMaySpeak } from "@/lib/db/people";
 import { getRoleTypePriority } from "../utils";
+import { voiceprintPriorityGroup } from "./voiceprintPriority";
 import { getStatisticsFor } from "../statistics";
 
 /**
@@ -92,8 +93,8 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
 
     const city = councilMeeting.city;
 
-    // Get voiceprints for relevant people based on meeting's administrative body
-    const people = await getPeopleForMeeting(cityId, councilMeeting.administrativeBodyId);
+    // Voiceprints of the people who may speak at this meeting
+    const people = await getPeopleWhoMaySpeak(cityId, councilMeeting.administrativeBodyId, councilMeeting.dateTime);
     const voicePrintRows = await prisma.voicePrint.findMany({
         where: { personId: { in: people.map(person => person.id) } },
         orderBy: { createdAt: 'desc' },
@@ -109,16 +110,20 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
         .filter(person => embeddingByPerson.has(person.id));
 
     // Pyannote.ai supports max 50 voiceprints per request.
-    // When over the limit, people are already sorted by role priority from getPeopleForMeeting
-    // (mayors, deputy mayors, council heads, etc.). Use speaking time as tiebreaker within
-    // the same role priority tier.
+    // When over the limit: the mayor and the other city-level roles first, then the
+    // current members of the body that is meeting, then everyone else (see
+    // voiceprintPriorityGroup). Within each group by role priority (council heads,
+    // party leaders, etc.), with speaking time as tiebreaker.
     const MAX_VOICEPRINTS = 50;
     if (peopleWithVoiceprints.length > MAX_VOICEPRINTS) {
         const stats = await getStatisticsFor({ cityId }, ["person"]);
         const speakingByPerson = new Map(
             (stats.people ?? []).map(s => [s.item.id, s.speakingSeconds])
         );
+        const group = (person: typeof people[number]) =>
+            voiceprintPriorityGroup(person, councilMeeting.administrativeBodyId, councilMeeting.dateTime);
         peopleWithVoiceprints.sort((a, b) => {
+            if (group(a) !== group(b)) return group(a) - group(b);
             const priorityA = Math.min(...a.roles.map(getRoleTypePriority));
             const priorityB = Math.min(...b.roles.map(getRoleTypePriority));
             if (priorityA !== priorityB) return priorityA - priorityB;
@@ -126,7 +131,7 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
         });
         console.warn(
             `Found ${peopleWithVoiceprints.length} voiceprints but pyannote.ai supports max ${MAX_VOICEPRINTS}, ` +
-            `sending top by role priority + speaking time`
+            `sending city-level roles and the meeting body's members first, then by role priority + speaking time`
         );
     }
 

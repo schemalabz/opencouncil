@@ -63,6 +63,40 @@ describe('assignSpeaker', () => {
             expect(await tagIdsInOrder()).toEqual([sharedTagId, sharedTagId, sharedTagId])
         })
 
+        test('makes the tag the reviewer\'s, and keeps what each method said about it', async () => {
+            const [target] = await createSegments(2)
+            const other = await createPerson(cityId, { name: 'Actual speaker' })
+            await prisma.speakerTag.update({
+                where: { id: sharedTagId },
+                data: {
+                    personSetBy: 'voiceprint',
+                    identifications: {
+                        create: [
+                            { method: 'voiceprint', personId: originalPersonId, actionable: true, confidence: 90 },
+                            { method: 'transcript', personId: other.id, actionable: true, confidence: 85, evidence: '[00:00:10] τον λόγο έχει ο κ. Ομιλητής' },
+                        ],
+                    },
+                },
+            })
+
+            const tag = await assignSpeaker(target.id, { personId: other.id }, 'allSegments')
+
+            expect(tag.personSetBy).toBe('user')
+            const kept = await prisma.speakerIdentification.findMany({ where: { speakerTagId: sharedTagId }, orderBy: { method: 'asc' } })
+            expect(kept.map(identification => [identification.method, identification.personId])).toEqual([
+                ['voiceprint', originalPersonId],
+                ['transcript', other.id],
+            ])
+        })
+
+        test('a typed label alone makes the tag the reviewer\'s', async () => {
+            const [target] = await createSegments(1)
+
+            const tag = await assignSpeaker(target.id, { personId: null, label: 'Κάτοικος' }, 'allSegments')
+
+            expect(tag.personSetBy).toBe('user')
+        })
+
         test('sets the label and clears the person in one write', async () => {
             const [target] = await createSegments(2)
 
@@ -89,6 +123,24 @@ describe('assignSpeaker', () => {
             expect(sharedTag.personId).toBe(originalPersonId)
         })
 
+        test('the new tag is the reviewer\'s and starts without identifications; the shared tag keeps its own', async () => {
+            const [, target] = await createSegments(2)
+            const other = await createPerson(cityId, { name: 'Actual speaker' })
+            await prisma.speakerTag.update({
+                where: { id: sharedTagId },
+                data: { personSetBy: 'voiceprint', identifications: { create: { method: 'voiceprint', personId: originalPersonId, actionable: true, confidence: 90 } } },
+            })
+
+            const tag = await assignSpeaker(target.id, { personId: other.id }, 'thisSegment')
+
+            expect(tag.personSetBy).toBe('user')
+            expect(await prisma.speakerIdentification.count({ where: { speakerTagId: tag.id } })).toBe(0)
+
+            const sharedTag = await prisma.speakerTag.findUniqueOrThrow({ where: { id: sharedTagId }, include: { identifications: true } })
+            expect(sharedTag.personSetBy).toBe('voiceprint')
+            expect(sharedTag.identifications.map(identification => identification.personId)).toEqual([originalPersonId])
+        })
+
         test('keeps the segment and the data attached to it', async () => {
             const [, target] = await createSegments(2)
             await prisma.summary.create({ data: { speakerSegmentId: target.id, text: 'Segment summary' } })
@@ -111,6 +163,21 @@ describe('assignSpeaker', () => {
 
             expect(tag.personId).toBeNull()
             expect(tag.label).toBe('Άγνωστος Ομιλητής 2')
+        })
+    })
+
+    describe('a person of another city', () => {
+        test.each(['allSegments', 'thisSegment'] as const)('is refused, and nothing changes (%s)', async (scope) => {
+            const [, target] = await createSegments(2)
+            const otherCity = await createCity({ id: 'c2' })
+            const outsider = await createPerson(otherCity.id, { name: 'Outsider' })
+
+            await expect(assignSpeaker(target.id, { personId: outsider.id }, scope)).rejects.toThrow('Person not found in this city')
+
+            expect(await tagIdsInOrder()).toEqual([sharedTagId, sharedTagId])
+            const sharedTag = await prisma.speakerTag.findUniqueOrThrow({ where: { id: sharedTagId } })
+            expect(sharedTag.personId).toBe(originalPersonId)
+            expect(sharedTag.personSetBy).toBeNull()
         })
     })
 })
