@@ -33,14 +33,18 @@ import Icon from '@/components/icon';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { topicStyle } from '@/lib/topicStyle';
 import { topicSurfaceStyle } from '@/components/TopicPill';
+import { VoicePrintConsentControl } from '@/components/persons/VoicePrintConsentControl';
+import type { VoicePrintConsentStatus } from '@/lib/db/personConsent';
 
-export default function PersonC({ city, person, parties, administrativeBodies, statistics, contributionTopics }: {
+export default function PersonC({ city, person, parties, administrativeBodies, statistics, contributionTopics, voicePrintConsent = null }: {
     city: City,
     person: PersonWithRelations,
     parties: Party[],
     administrativeBodies: AdministrativeBody[],
     statistics: Statistics,
     contributionTopics: Topic[],
+    /** The open consent period; the page loads it for a superadmin only. */
+    voicePrintConsent?: VoicePrintConsentStatus | null,
 }) {
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
@@ -310,7 +314,10 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 </>
                             )}
                             {isSuperAdmin && (
-                                <DebugMetadataButton data={person} title="Person Metadata" tooltip="View person metadata" />
+                                <>
+                                    <VoicePrintConsentControl personId={person.id} personName={person.name} status={voicePrintConsent} />
+                                    <DebugMetadataButton data={person} title="Person Metadata" tooltip="View person metadata" />
+                                </>
                             )}
                         </AdminStrip>
                         )}

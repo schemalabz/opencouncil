@@ -3,7 +3,7 @@ jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_SECRET: 'test-secret-do-not-use-
 const mockGetJoinPerson = jest.fn();
 jest.mock('@/lib/db/personClaim', () => ({ getJoinPerson: (...args: unknown[]) => mockGetJoinPerson(...args) }));
 const mockConsented = jest.fn();
-jest.mock('@/lib/db/personConsent', () => ({ getVoicePrintConsentedIds: (...args: unknown[]) => mockConsented(...args) }));
+jest.mock('@/lib/db/personConsent', () => ({ getVoicePrintConsents: (...args: unknown[]) => mockConsented(...args) }));
 
 import { generatePersonClaimToken } from '@/lib/auth/personClaim';
 import { getJoinStage } from '../stage';
@@ -22,7 +22,7 @@ const token = () => generatePersonClaimToken('person-1');
 beforeEach(() => {
     mockGetJoinPerson.mockReset();
     mockConsented.mockReset();
-    mockConsented.mockResolvedValue(new Set());
+    mockConsented.mockResolvedValue(new Map());
 });
 
 describe('getJoinStage', () => {
@@ -48,7 +48,7 @@ describe('getJoinStage', () => {
     it('is on the consent step for the claiming account inside the flow, with the answer it already gave', async () => {
         mockGetJoinPerson.mockResolvedValue(row([{ userId: 'user-1' }]));
         expect(await getJoinStage(token(), 'user-1', true)).toMatchObject({ kind: 'consent', consented: false });
-        mockConsented.mockResolvedValue(new Set(['person-1']));
+        mockConsented.mockResolvedValue(new Map([['person-1', 'PERSON']]));
         expect(await getJoinStage(token(), 'user-1', true)).toMatchObject({ kind: 'consent', consented: true });
         expect(mockConsented).toHaveBeenLastCalledWith(['person-1'], 'user-1');
     });

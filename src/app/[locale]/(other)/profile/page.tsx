@@ -8,7 +8,7 @@ import { UserInfoForm, type ConsentPerson } from "@/components/profile/UserInfoF
 import { AdminSection } from "@/components/profile/AdminSection";
 import { DevelopmentSection } from "@/components/profile/DevelopmentSection";
 import { Clapperboard, ChevronRight } from "lucide-react";
-import { getVoicePrintConsentedIds } from "@/lib/db/personConsent";
+import { getVoicePrintConsents } from "@/lib/db/personConsent";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import { env } from "@/env.mjs";
@@ -24,11 +24,11 @@ export default async function ProfilePage() {
     // The persons this account is, by a QR claim: their voiceprint consent
     // boxes. A person the account only edits for somebody else gets no box.
     const linkedPersons = user.administers.flatMap((a) => (a.person && a.claimedAt ? [a.person] : []));
-    const consented = await getVoicePrintConsentedIds(linkedPersons.map((p) => p.id), user.id);
+    const consents = await getVoicePrintConsents(linkedPersons.map((p) => p.id), user.id);
     const persons: ConsentPerson[] = linkedPersons.map((p) => ({
         id: p.id,
         name: p.name,
-        voicePrintConsent: consented.has(p.id),
+        consent: consents.get(p.id) ?? null,
     }));
     const [t, tAccount, highlightsAllowed] = await Promise.all([
         getTranslations("Profile"),

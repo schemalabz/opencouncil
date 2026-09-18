@@ -138,6 +138,15 @@ describe('PersonJoin, signed in', () => {
         expect(screen.getByText('stepOf 2 2')).toBeTruthy();
     });
 
+    it('skips the consent question when a consent is already in force', async () => {
+        mockedClaim.mockResolvedValue('consented');
+        flow(confirmStage(true), 2);
+        fireEvent.click(screen.getByText('confirm.yes'));
+        await waitFor(() => expect(screen.getByText('done.title')).toBeTruthy());
+        expect(screen.queryByText('consent.title')).toBeNull();
+        expect(mockedConsent).not.toHaveBeenCalled();
+    });
+
     it('asks for the email when the session ended in the meantime', async () => {
         mockedClaim.mockResolvedValue('signed_out');
         flow(confirmStage(true), 2);
