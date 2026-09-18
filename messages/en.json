@@ -1120,7 +1120,13 @@
         "emailPlaceholder": "Enter your email",
         "submit": "Continue with Email",
         "loading": "Please wait...",
-        "error": "There was a problem sending the email. Please try again later."
+        "error": "There was a problem sending the email. Please try again later.",
+        "checkEmail": {
+            "title": "Check your email",
+            "description": "We sent a sign-in link to <strong>{email}</strong>.",
+            "hint": "If you don't see it, check your spam folder.",
+            "useDifferentEmail": "Use a different email"
+        }
     },
     "ShareDropdown": {
         "title": "Share",

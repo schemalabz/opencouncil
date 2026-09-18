@@ -1120,7 +1120,13 @@
     "emailPlaceholder": "Saisissez votre e-mail",
     "submit": "Continuer avec l'e-mail",
     "loading": "Veuillez patienter...",
-    "error": "Un problème est survenu lors de l'envoi de l'e-mail. Veuillez réessayer plus tard."
+    "error": "Un problème est survenu lors de l'envoi de l'e-mail. Veuillez réessayer plus tard.",
+    "checkEmail": {
+      "title": "Vérifiez vos e-mails",
+      "description": "Nous avons envoyé un lien de connexion à <strong>{email}</strong>.",
+      "hint": "Si vous ne le voyez pas, vérifiez votre dossier de courrier indésirable.",
+      "useDifferentEmail": "Utiliser une autre adresse e-mail"
+    }
   },
   "ShareDropdown": {
     "title": "Partager",
