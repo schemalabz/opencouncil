@@ -35,7 +35,7 @@ const tx = {
 const claimedAt = new Date('2026-09-16T10:00:00Z');
 const claimant = { id: 'user-1', isSuperAdmin: false, administers: [{ personId: 'person-1', claimedAt }] };
 const superadmin = { id: 'admin-1', isSuperAdmin: true, administers: [] };
-const open = (source: 'PERSON' | 'ADMIN', userId: string | null = 'user-1') => ({ id: 'consent-1', userId, source });
+const open = (source: 'PERSON' | 'ADMIN', userId: string | null = 'user-1', givenAt = claimedAt) => ({ id: 'consent-1', userId, source, givenAt });
 const closed = { where: { id: 'consent-1' }, data: { withdrawnAt: expect.any(Date) } };
 
 beforeEach(() => {
@@ -75,6 +75,14 @@ describe('setVoicePrintConsent', () => {
         await setVoicePrintConsent('person-1', false);
         expect(txUpdate).toHaveBeenCalledWith(closed);
         expect(txCreate).not.toHaveBeenCalled();
+    });
+
+    it('closes a period at its grant time when the clock of this instance is behind', async () => {
+        mockGetCurrentUser.mockResolvedValue(claimant);
+        const ahead = new Date(Date.now() + 60_000);
+        txFindFirst.mockResolvedValue(open('PERSON', 'user-1', ahead));
+        await setVoicePrintConsent('person-1', false);
+        expect(txUpdate).toHaveBeenCalledWith({ where: { id: 'consent-1' }, data: { withdrawnAt: ahead } });
     });
 
     it('cannot withdraw a consent that a superadmin recorded, and a tick on it changes nothing', async () => {

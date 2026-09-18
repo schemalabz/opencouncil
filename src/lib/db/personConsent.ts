@@ -17,8 +17,16 @@ const claimedRow = (personId: string) => ({ personId, claimedAt: { not: null } }
  */
 const writeConsent = (work: (tx: Prisma.TransactionClient) => Promise<void>) => serializableOnce(work, () => undefined);
 
-const closePeriod = (tx: Prisma.TransactionClient, id: string) =>
-    tx.voicePrintConsent.update({ where: { id }, data: { withdrawnAt: new Date() } });
+/**
+ * Close a period, never before it started. The grant and the withdrawal can
+ * run on two instances, and the check constraint refuses a withdrawal time
+ * before the grant time: a clock that is behind must not block a withdrawal.
+ */
+const closePeriod = (tx: Prisma.TransactionClient, period: { id: string; givenAt: Date }) =>
+    tx.voicePrintConsent.update({
+        where: { id: period.id },
+        data: { withdrawnAt: new Date(Math.max(Date.now(), period.givenAt.getTime())) },
+    });
 
 /**
  * A PERSON period belongs to the account that opened it. When that account
@@ -66,20 +74,20 @@ export async function setVoicePrintConsent(personId: string, consent: boolean): 
 
         const open = await tx.voicePrintConsent.findFirst({
             where: openPeriod(personId),
-            select: { id: true, userId: true, source: true },
+            select: { id: true, userId: true, source: true, givenAt: true },
         });
         if (open?.source === VoicePrintConsentSource.ADMIN) {
             if (consent) return;
             throw new ForbiddenError("A consent that OpenCouncil recorded is withdrawn by email");
         }
         if (!consent) {
-            if (open) await closePeriod(tx, open.id);
+            if (open) await closePeriod(tx, open);
             return;
         }
         if (open && !isStale(open, user.id)) return;
         // Close a stale period, so the open period is always the current
         // account's own.
-        if (open) await closePeriod(tx, open.id);
+        if (open) await closePeriod(tx, open);
         await tx.voicePrintConsent.create({ data: { personId, userId: user.id } });
     });
 }
@@ -100,16 +108,16 @@ export async function recordVoicePrintConsent(personId: string, consent: boolean
     await writeConsent(async (tx) => {
         const open = await tx.voicePrintConsent.findFirst({
             where: openPeriod(personId),
-            select: { id: true, userId: true, source: true },
+            select: { id: true, userId: true, source: true, givenAt: true },
         });
         if (!consent) {
-            if (open) await closePeriod(tx, open.id);
+            if (open) await closePeriod(tx, open);
             return;
         }
         if (open) {
             const claimant = await tx.administers.findFirst({ where: claimedRow(personId), select: { userId: true } });
             if (!isStale(open, claimant?.userId ?? null)) return;
-            await closePeriod(tx, open.id);
+            await closePeriod(tx, open);
         }
         await tx.voicePrintConsent.create({ data: { personId, userId: user.id, source: VoicePrintConsentSource.ADMIN } });
     });
