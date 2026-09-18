@@ -10,6 +10,8 @@ import { PhoneField, type PhoneFieldValidity } from '@/components/ui/phone-field
 import { AccountFields } from '@/components/signup/AccountFields';
 import { IssuesAlert, signInHrefFor } from '@/components/signup/IssuesAlert';
 import { StepHeading } from '@/components/signup/SignupChrome';
+import type { CityWithGeometry } from '@/lib/db/cities';
+import { SignupCityCard } from './SignupCityCard';
 import type { SignupIssue } from '@/components/signup/signup-shared';
 import type { SignupState } from './signup-state';
 
@@ -18,8 +20,15 @@ import type { SignupState } from './signup-state';
  * carries the phone field inside its card; the email summary is the smaller
  * second card. A signed-out reader also gives the name and the email that
  * make the account — the email is always needed, WhatsApp or not.
+ *
+ * The card names the municipality here too: this is the step that saves, and
+ * the picker can land a reader on step 2 without them ever passing step 1.
  */
 export function ChannelsStep({
+    city,
+    pickerQuery,
+    dirty,
+    submitting,
     state,
     signedIn,
     phoneChannelLocked,
@@ -30,6 +39,12 @@ export function ChannelsStep({
     onChange,
     onPhoneValidity,
 }: {
+    city: CityWithGeometry;
+    /** The search the picker row carried here, so «Αλλαγή» returns to that list. */
+    pickerQuery: string;
+    /** The reader has answered something that leaving would discard. */
+    dirty: boolean;
+    submitting: boolean;
     state: SignupState;
     signedIn: boolean;
     /**
@@ -54,6 +69,14 @@ export function ChannelsStep({
     return (
         <div>
             <StepHeading title={t('channelsTitle')} lead={t('channelsLead')} />
+
+            <SignupCityCard
+                city={city}
+                pickerQuery={pickerQuery}
+                dirty={dirty}
+                submitting={submitting}
+                className="mt-5 lg:mt-7"
+            />
 
             <IssuesAlert saveError={saveError} issues={issues} failures={failures} signInHref={signInHrefFor(state.email)} />
 

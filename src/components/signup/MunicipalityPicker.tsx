@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { ArrowRight, CheckCircle2, ChevronRight, Search } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
+import { useQueryParamState } from '@/hooks/useQueryParamState';
 import { captureEvent } from '@/lib/analytics/capture';
 import { isPetitionable } from '@/lib/cityStatus';
 import type { CityMinimalWithCounts } from '@/lib/db/cities';
@@ -15,6 +16,9 @@ import { CitySeal } from './CityCard';
 import { Eyebrow } from './SignupChrome';
 
 export type PickerMode = 'notifications' | 'petition';
+
+/** The search, as both pages carry it: `/petition?q=…`, `/notifications?q=…`. */
+export const QUERY_PARAM = 'q';
 
 /** A municipality with enough petitions to be shown, in the landing map's rank order. */
 export interface PetitionedEntry {
@@ -44,6 +48,11 @@ export interface PickerMembership {
  * A search that finds nothing in notifications mode sends the reader to the
  * petition with what they typed, and the petition's picker starts from it —
  * a municipality that is not here yet is exactly the one to ask for.
+ *
+ * The search lives in the URL (`?q=`), so Back brings the reader to the list
+ * they left rather than to the default order, and a row carries it on to the
+ * flow so the step's «Αλλαγή» link can bring the reader back to this same
+ * list. See `useQueryParamState`.
  */
 export function MunicipalityPicker({
     cities,
@@ -62,7 +71,7 @@ export function MunicipalityPicker({
     className?: string;
 }) {
     const t = useTranslations('signup');
-    const [query, setQuery] = useState(initialQuery);
+    const [query, setQuery, flushQuery] = useQueryParamState(QUERY_PARAM, initialQuery);
     const needle = normalizeText(query.trim());
 
     // Rank and bucket by id, so a row can say «10+ δημότες το ζήτησαν ήδη»
@@ -118,7 +127,7 @@ export function MunicipalityPicker({
                     <span className="text-sm text-muted-foreground">{t('picker.noResults', { query: query.trim() })}</span>
                     {mode === 'notifications' && (
                         <Link
-                            href={`/petition?q=${encodeURIComponent(query.trim())}`}
+                            href={`/petition?${QUERY_PARAM}=${encodeURIComponent(query.trim())}`}
                             className="group/cta inline-flex min-h-10 items-center gap-1.5 self-start text-sm text-[hsl(var(--orange-deep))] hover:no-underline"
                         >
                             {t('picker.noResultsPetition')}
@@ -137,6 +146,8 @@ export function MunicipalityPicker({
                         member={mode === 'notifications' ? subscribed.has(city.id) : petitionedBy.has(city.id)}
                         bucket={petitionedById.get(city.id)?.bucket ?? null}
                         surface={mode}
+                        query={query}
+                        onNavigate={flushQuery}
                     />
                 ))}
             </ul>
@@ -159,6 +170,8 @@ export function MunicipalityPicker({
                                 member={mode === 'notifications' ? petitionedBy.has(city.id) : subscribed.has(city.id)}
                                 bucket={petitionedById.get(city.id)?.bucket ?? null}
                                 surface={mode}
+                                query={query}
+                                onNavigate={flushQuery}
                             />
                         ))}
                     </ul>
@@ -172,6 +185,9 @@ export function MunicipalityPicker({
  * One municipality, one tap. A signup row lands on step 2 of the
  * notifications signup — the reader has just read the explainer; a petition
  * row lands on step 2 of the petition for the same reason.
+ *
+ * The row carries the search along, so the step's «Αλλαγή» link can return
+ * the reader to the list they picked from instead of the default order.
  */
 function PickerRow({
     city,
@@ -179,6 +195,8 @@ function PickerRow({
     member,
     bucket,
     surface,
+    query,
+    onNavigate,
 }: {
     city: CityMinimalWithCounts;
     kind: 'signup' | 'petition';
@@ -187,11 +205,17 @@ function PickerRow({
     /** How many have asked already, as the public "N+" bucket; null when too few to say. */
     bucket: PetitionBucket | null;
     surface: PickerMode;
+    /** What the reader searched for, carried on to the flow. */
+    query: string;
+    /** Writes the pending search to the URL before this row navigates away. */
+    onNavigate: () => void;
 }) {
     const t = useTranslations('signup');
     const locale = useLocale();
     const name = getLocalizedName(city, locale);
-    const href = kind === 'signup' ? `/${city.id}/notifications?step=2` : `/${city.id}/petition?step=2`;
+    const params = new URLSearchParams({ step: '2' });
+    if (query.trim()) params.set(QUERY_PARAM, query.trim());
+    const href = `/${city.id}/${kind === 'signup' ? 'notifications' : 'petition'}?${params.toString()}`;
     const action =
         kind === 'signup'
             ? member
@@ -206,13 +230,17 @@ function PickerRow({
         <li className="border-b border-border/60 last:border-b-0">
             <Link
                 href={href}
-                onClick={() =>
+                onClick={() => {
+                    // The debounced write has not run yet when a row is tapped
+                    // straight after typing; without this the list the reader
+                    // came from is not in the URL to go back to.
+                    onNavigate();
                     captureEvent(kind === 'signup' ? 'notification_city_picked' : 'petition_city_picked', {
                         city_id: city.id,
                         surface,
                         member,
-                    })
-                }
+                    });
+                }}
                 className="flex min-h-14 items-center gap-3 px-3 py-2 hover:bg-muted/40 hover:no-underline"
             >
                 <CitySeal name={name} logoImage={city.logoImage} size={34} />

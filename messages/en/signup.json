@@ -8,6 +8,7 @@
     "refusedLine": "Not saved — see why above."
   },
   "changeCity": "Change",
+  "leaveWarning": "The answers you filled in for this municipality do not travel with you. Do you want to continue?",
   "privacy": "Privacy policy",
   "doneMagicLink": "A link to sign in without a password is in your email.",
   "account": {

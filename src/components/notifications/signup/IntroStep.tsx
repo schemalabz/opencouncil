@@ -1,15 +1,13 @@
 'use client';
 
-import { CheckCircle2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { authorityKey } from '@/components/cities/overview/authorityKey';
-import { CityCard } from '@/components/signup/CityCard';
 import { MemberNote } from '@/components/signup/MemberNote';
 import { NotisChatCard } from '@/components/signup/NotisChatCard';
 import { StepHeading } from '@/components/signup/SignupChrome';
 import type { CityWithGeometry } from '@/lib/db/cities';
-import { isCustomer } from '@/lib/cityStatus';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
+import { SignupCityCard } from './SignupCityCard';
 
 /**
  * Step 1: the explainer, with the municipality already chosen. The entry
@@ -19,7 +17,17 @@ import { getMunicipalityQualifier } from '@/lib/formatters/name';
  * Νότης's box sits in the column on a phone and beside it on a desktop
  * (IntroAside); the hidden copy never wakes, because it is never in view.
  */
-export function IntroStep({ city, existing }: { city: CityWithGeometry; existing: boolean }) {
+export function IntroStep({
+    city,
+    pickerQuery,
+    dirty,
+    existing,
+}: {
+    city: CityWithGeometry;
+    pickerQuery: string;
+    dirty: boolean;
+    existing: boolean;
+}) {
     const t = useTranslations('notificationSignup');
     const ts = useTranslations('signup');
     const tc = useTranslations('cityOverview');
@@ -30,20 +38,7 @@ export function IntroStep({ city, existing }: { city: CityWithGeometry; existing
         <div>
             <StepHeading eyebrow={t('eyebrow')} title={t(authorityKey('introTitle', city), { qualifier })} lead={t('lead')} />
 
-            <CityCard
-                city={city}
-                className="mt-5 lg:mt-7"
-                changeHref="/notifications"
-                changeLabel={ts('changeCity')}
-                status={
-                    isCustomer(city.status) ? (
-                        <>
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" aria-hidden />
-                            {t('officialSupport')}
-                        </>
-                    ) : undefined
-                }
-            />
+            <SignupCityCard city={city} pickerQuery={pickerQuery} dirty={dirty} className="mt-5 lg:mt-7" />
 
             <NotisChatCard intro={tc(authorityKey('notisIntro', city))} className="mt-4 lg:hidden" />
 

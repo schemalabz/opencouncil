@@ -7,6 +7,7 @@ import { getCityPetitionBucketCached } from "@/lib/cache/queries";
 import { getCity } from "@/lib/db/cities";
 import { getUserPetition } from "@/lib/db/signup";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { firstSearchParam } from "@/lib/utils/searchParams";
 import { buildOgImageUrl } from "@/lib/og/locale";
 import { signupOpenGraph } from "@/lib/og/signupMetadata";
 
@@ -25,7 +26,8 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
 
 interface PageProps {
     params: Promise<{ cityId: string }>;
-    searchParams: Promise<{ step?: string }>;
+    /** `q` is the search the picker row came from, so «Αλλαγή» can return to it. */
+    searchParams: Promise<{ step?: string; q?: string | string[] }>;
 }
 
 /**
@@ -35,7 +37,7 @@ interface PageProps {
  * has nothing to ask for; its readers go to the signup.
  */
 export default async function PetitionSignupPage(props: PageProps) {
-    const [{ cityId }, { step }] = await Promise.all([props.params, props.searchParams]);
+    const [{ cityId }, { step, q }] = await Promise.all([props.params, props.searchParams]);
     const [city, user] = await Promise.all([getCity(cityId, { includeGeometry: true }), getCurrentUser()]);
 
     if (!city) {
@@ -55,6 +57,7 @@ export default async function PetitionSignupPage(props: PageProps) {
             city={city}
             bucket={bucket}
             initialStep={step === "2" ? 2 : 1}
+            pickerQuery={firstSearchParam(q)}
             existing={
                 petition
                     ? { isResident: petition.is_resident, isCitizen: petition.is_citizen, otherRelation: petition.other_relation }

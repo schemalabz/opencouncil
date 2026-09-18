@@ -1,5 +1,5 @@
 import { createElement } from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { CityMinimalWithCounts } from '@/lib/db/cities';
 import { MunicipalityPicker } from '../MunicipalityPicker';
 
@@ -50,6 +50,13 @@ const nobody = { subscribedCityIds: [], petitionedCityIds: [] };
 
 const search = () => screen.getByRole('searchbox', { name: 'picker.searchLabel' });
 const rowNames = () => screen.getAllByRole('link').map((a) => a.textContent);
+const queryInUrl = () => new URL(window.location.href).searchParams.get('q');
+
+// The picker writes its search to the URL, and jsdom keeps one URL for the
+// whole file: without this each test would start from the last one's search.
+beforeEach(() => {
+    window.history.replaceState(null, '', '/petition');
+});
 
 describe('MunicipalityPicker for notifications', () => {
     it('lists only the municipalities Νότης serves, each with a signup action', () => {
@@ -89,7 +96,7 @@ describe('MunicipalityPicker for notifications', () => {
 
         expect(screen.getByText('picker.notSupportedYet')).toBeInTheDocument();
         const row = screen.getByRole('link', { name: /Θεσσαλονίκη/ });
-        expect(row).toHaveAttribute('href', '/thessaloniki/petition?step=2');
+        expect(row).toHaveAttribute('href', `/thessaloniki/petition?step=2&q=${encodeURIComponent('θεσσαλονικη')}`);
         expect(within(row).getByText('picker.request')).toBeInTheDocument();
         expect(screen.queryByRole('link', { name: /Αθήνα/ })).toBeNull();
     });
@@ -143,6 +150,8 @@ describe('MunicipalityPicker for the petition', () => {
     });
 
     it('starts from the query the reader typed on the other picker', () => {
+        // The page seeds the prop from the same parameter it renders for.
+        window.history.replaceState(null, '', `/petition?q=${encodeURIComponent('Ξάνθη')}`);
         render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} initialQuery="Ξάνθη" />);
 
         expect(search()).toHaveValue('Ξάνθη');
@@ -161,6 +170,85 @@ describe('MunicipalityPicker for the petition', () => {
 
         fireEvent.change(search(), { target: { value: 'Αθ' } });
         expect(screen.getByText('picker.supportedAlready')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /Αθήνα/ })).toHaveAttribute('href', '/athens/notifications?step=2');
+        expect(screen.getByRole('link', { name: /Αθήνα/ })).toHaveAttribute(
+            'href',
+            `/athens/notifications?step=2&q=${encodeURIComponent('Αθ')}`,
+        );
+    });
+});
+
+describe('MunicipalityPicker search in the URL', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    /** The write waits behind the box; let it land. */
+    const settle = () => act(() => { jest.advanceTimersByTime(400); });
+
+    it('writes what the reader types, and takes it back out when they clear it', () => {
+        render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} petitioned={petitioned} />);
+
+        fireEvent.change(search(), { target: { value: 'Λάρ' } });
+        settle();
+        expect(queryInUrl()).toBe('Λάρ');
+
+        fireEvent.change(search(), { target: { value: '' } });
+        settle();
+        expect(queryInUrl()).toBeNull();
+    });
+
+    it('waits for the reader to stop typing before touching the URL', () => {
+        render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} petitioned={petitioned} />);
+
+        // One history call per keystroke is what a browser rate-limits.
+        fireEvent.change(search(), { target: { value: 'Λ' } });
+        fireEvent.change(search(), { target: { value: 'Λά' } });
+        fireEvent.change(search(), { target: { value: 'Λάρ' } });
+        expect(queryInUrl()).toBeNull();
+
+        settle();
+        expect(queryInUrl()).toBe('Λάρ');
+    });
+
+    it('writes the pending search before a row navigates away', () => {
+        render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} petitioned={petitioned} />);
+
+        fireEvent.change(search(), { target: { value: 'Λάρ' } });
+        fireEvent.click(screen.getByRole('link', { name: /Λάρισα/ }));
+
+        expect(queryInUrl()).toBe('Λάρ');
+    });
+
+    it('keeps whitespace out of the URL', () => {
+        render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} petitioned={petitioned} />);
+
+        fireEvent.change(search(), { target: { value: '   ' } });
+        settle();
+        expect(queryInUrl()).toBeNull();
+    });
+
+    it('restores the list from the URL when the reader comes back, not the default order', () => {
+        // A reader searches, taps a row, then presses Back. Back remounts the
+        // picker, and the server render behind it carries no query. Before the
+        // URL held the search, the list came back in its default order and the
+        // row in the same place was a different municipality.
+        const first = render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} petitioned={petitioned} />);
+        fireEvent.change(search(), { target: { value: 'Λάρ' } });
+        settle();
+        expect(rowNames()).toEqual([expect.stringContaining('Λάρισα')]);
+        first.unmount();
+
+        render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} petitioned={petitioned} />);
+
+        expect(search()).toHaveValue('Λάρ');
+        expect(rowNames()).toEqual([expect.stringContaining('Λάρισα')]);
+    });
+
+    it('drops a search the reader cleared, rather than restoring it', () => {
+        // The cleared box deletes the parameter, so an absent parameter has to
+        // win over whatever the cached server render seeded.
+        window.history.replaceState(null, '', '/petition');
+        render(<MunicipalityPicker cities={cities} mode="petition" membership={nobody} initialQuery="Λάρ" petitioned={petitioned} />);
+
+        expect(search()).toHaveValue('');
     });
 });

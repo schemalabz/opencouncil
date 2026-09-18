@@ -9,6 +9,7 @@ import { getPetitionedMapCitiesCached } from "@/lib/db/cities";
 import { getUserSignupCityIds } from "@/lib/db/signup";
 import { getRealm } from "@/lib/realm.server";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { firstSearchParam } from "@/lib/utils/searchParams";
 import { buildOgImageUrl } from "@/lib/og/locale";
 import { signupOpenGraph } from "@/lib/og/signupMetadata";
 
@@ -35,7 +36,7 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
  * /notifications before it sent them here, so they do not type it twice.
  * Νότης is not on this page: the petition is not about him.
  */
-export default async function PetitionPickerPage(props: { searchParams: Promise<{ q?: string }> }) {
+export default async function PetitionPickerPage(props: { searchParams: Promise<{ q?: string | string[] }> }) {
     const [{ q }, realm, user, t] = await Promise.all([
         props.searchParams,
         getRealm(),
@@ -61,7 +62,7 @@ export default async function PetitionPickerPage(props: { searchParams: Promise<
                 mode="petition"
                 membership={membership}
                 petitioned={petitioned.cities.map((city) => ({ id: city.id, bucket: city.bucket }))}
-                initialQuery={q ?? ""}
+                initialQuery={firstSearchParam(q)}
                 className="mt-2.5"
             />
 

@@ -3,6 +3,35 @@ import { env } from "@/env.mjs";
 import { EMBED_PATH } from "@/lib/utils/embed";
 import { applyStoredAnalyticsConsent, INTERNAL_USER_KEY } from "@/lib/utils/analyticsConsent";
 
+/**
+ * Search boxes keep what the reader typed in the URL, so Back restores the
+ * list they were looking at. That text is the reader's own words — a street,
+ * an employer, a name — and posthog-js copies the whole URL onto every event
+ * it sends, where `person_profiles: "always"` would keep it against a
+ * profile. Strip those parameters before anything leaves the browser, for the
+ * same reason session replay is off below: we do not collect page content the
+ * privacy policy does not describe.
+ */
+const SEARCH_PARAMS = ["q", "search"];
+
+function withoutSearchText(value: unknown): unknown {
+    if (typeof value !== "string") return value;
+    try {
+        const url = new URL(value);
+        let stripped = false;
+        for (const name of SEARCH_PARAMS) {
+            if (url.searchParams.has(name)) {
+                url.searchParams.delete(name);
+                stripped = true;
+            }
+        }
+        return stripped ? url.toString() : value;
+    } catch {
+        // Not an absolute URL; nothing to strip.
+        return value;
+    }
+}
+
 // Without a token (contributor setups, CI), analytics stays fully disabled.
 // Embed routes are excluded like in PlausibleAnalytics: they load inside
 // iframes on third-party sites.
@@ -37,6 +66,11 @@ if (env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && !EMBED_PATH.test(window.location.pa
         // works fine alongside PostHogPageView. Without it, bounce rate and
         // session duration in Web Analytics are inaccurate.
         capture_pageleave: true,
+        sanitize_properties: (properties) => ({
+            ...properties,
+            $current_url: withoutSearchText(properties.$current_url),
+            $referrer: withoutSearchText(properties.$referrer),
+        }),
         debug: process.env.NODE_ENV === "development",
     });
 

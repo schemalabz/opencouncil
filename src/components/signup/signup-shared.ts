@@ -88,3 +88,13 @@ export function maskPhone(e164: string): string {
     const country = parsed ? `+${parsed.countryCallingCode} ` : '';
     return `${country}${head} ··· ${tail}`;
 }
+
+/**
+ * The picker a flow's «Αλλαγή» link returns to, carrying the search the
+ * reader arrived with. Without the search the picker opens on its default
+ * order, which is how a reader who tapped the wrong row taps it again.
+ */
+export function pickerHref(flow: 'petition' | 'notifications', query: string): string {
+    const trimmed = query.trim();
+    return trimmed ? `/${flow}?q=${encodeURIComponent(trimmed)}` : `/${flow}`;
+}

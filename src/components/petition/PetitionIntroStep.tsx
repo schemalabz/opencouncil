@@ -3,12 +3,12 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { authorityKey } from '@/components/cities/overview/authorityKey';
-import { CityCard } from '@/components/signup/CityCard';
 import { MemberNote } from '@/components/signup/MemberNote';
 import { StepHeading } from '@/components/signup/SignupChrome';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import { getMunicipalityQualifier } from '@/lib/formatters/name';
 import type { PetitionBucket } from '@/lib/landing/petitions';
+import { PetitionCityCard } from './PetitionCityCard';
 
 /**
  * Step 1: why the municipality is not here yet and what a name does about
@@ -19,15 +19,18 @@ import type { PetitionBucket } from '@/lib/landing/petitions';
 export function PetitionIntroStep({
     city,
     bucket,
+    pickerQuery,
+    dirty,
     existing,
 }: {
     city: CityWithGeometry;
     bucket: PetitionBucket | null;
+    pickerQuery: string;
+    dirty: boolean;
     existing: boolean;
 }) {
     const t = useTranslations('petition');
     const ts = useTranslations('signup');
-    const tc = useTranslations('cityOverview');
     const locale = useLocale();
     const qualifier = getMunicipalityQualifier(city, locale);
 
@@ -35,13 +38,7 @@ export function PetitionIntroStep({
         <div>
             <StepHeading eyebrow={t('eyebrow')} title={t(authorityKey('introTitle', city), { qualifier })} lead={t('lead')} />
 
-            <CityCard
-                city={city}
-                className="mt-5 lg:mt-7"
-                changeHref="/petition"
-                changeLabel={ts('changeCity')}
-                status={bucket !== null ? tc('petitionCount', { count: bucket }) : t('notInNetwork')}
-            />
+            <PetitionCityCard city={city} bucket={bucket} pickerQuery={pickerQuery} dirty={dirty} className="mt-5 lg:mt-7" />
 
             {existing ? (
                 <MemberNote title={ts('picker.requested')} body={t('alreadyRequestedBody')} className="mt-3.5 lg:mt-5" />
