@@ -19,7 +19,7 @@ import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';
-import { filterActiveRoles, filterInactiveRoles, formatDateRange, getPartyFromRoles, getRoleText } from '@/lib/utils';
+import { cn, filterActiveRoles, filterInactiveRoles, formatDateRange, getPartyFromRoles, getRoleText } from '@/lib/utils';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
 import { TopicFilter } from '@/components/TopicFilter';
 import { RoleWithRelations } from '@/lib/db/types';
@@ -34,6 +34,11 @@ import Icon from '@/components/icon';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { topicStyle } from '@/lib/topicStyle';
 import { topicSurfaceStyle } from '@/components/TopicPill';
+
+// A role name can be a full sentence (a deputy mayor's portfolio), so the chip
+// grows with the text instead of a fixed height that lets the text spill over
+// the rows below. One line still measures 24px: 2px border, 8px padding, 14px line.
+const headerChipClass = 'inline-flex items-start gap-1.5 rounded-[12px] border px-2.5 py-1 text-[11.5px] font-bold leading-[14px]';
 
 export default function PersonC({ city, person, parties, administrativeBodies, statistics, contributionTopics }: {
     city: City,
@@ -244,10 +249,10 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                             key={role.id}
                                             href={`/${city.id}/parties/${role.partyId}`}
                                             onClick={() => captureEvent('party_opened', { surface: 'person_chip', city_id: city.id, party_id: role.partyId })}
-                                            className="inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-[11.5px] font-bold hover:no-underline"
+                                            className={cn(headerChipClass, 'hover:no-underline')}
                                             style={topicSurfaceStyle(role.party.colorHex)}
                                         >
-                                            {role.isHead && <Star className="h-3 w-3 shrink-0" aria-hidden />}
+                                            {role.isHead && <Star className="mt-px h-3 w-3 shrink-0" aria-hidden />}
                                             {getLocalizedName(role.party, locale)}
                                             {role.isHead && ` · ${t('partyLeaderShort')}`}
                                         </Link>
@@ -257,11 +262,11 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 return (
                                     <span
                                         key={role.id}
-                                        className="inline-flex h-6 items-center gap-1.5 rounded-full bg-muted px-2.5 text-[11.5px] font-bold text-muted-foreground"
+                                        className={cn(headerChipClass, 'border-transparent bg-muted text-muted-foreground')}
                                     >
                                         {cityLevel && role.isHead
-                                            ? <Star className="h-3 w-3 shrink-0 text-[hsl(var(--orange-deep))]" aria-hidden />
-                                            : <Landmark className="h-3 w-3 shrink-0" aria-hidden />}
+                                            ? <Star className="mt-px h-3 w-3 shrink-0 text-[hsl(var(--orange-deep))]" aria-hidden />
+                                            : <Landmark className="mt-px h-3 w-3 shrink-0" aria-hidden />}
                                         {getRoleText(role, t)}
                                     </span>
                                 );
