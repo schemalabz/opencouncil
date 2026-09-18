@@ -8,18 +8,20 @@ import { downloadBlob } from "@/lib/utils/download";
  * Shared busy-state + generation flow for client-side PDF download buttons
  * (offer letter, brochure). `load` builds the document element — typically
  * after lazy-importing its module, so @react-pdf/renderer (~500KB gz) stays
- * out of the initial page bundle.
+ * out of the initial page bundle. A `load` that resolves to null has nothing
+ * to download and has told the user why.
  */
 export function usePdfDownload() {
     const [busy, setBusy] = useState(false);
 
     async function download(
-        load: () => Promise<ReactElement<DocumentProps>>,
+        load: () => Promise<ReactElement<DocumentProps> | null>,
         filename: string
     ): Promise<void> {
         setBusy(true);
         try {
             const [{ pdf }, doc] = await Promise.all([import("@react-pdf/renderer"), load()]);
+            if (!doc) return;
             const blob = await pdf(doc).toBlob();
             downloadBlob(blob, filename);
         } catch (err) {

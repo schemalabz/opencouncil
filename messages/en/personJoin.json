@@ -1,0 +1,77 @@
+{
+  "confirm": {
+    "eyebrow": "Personal code",
+    "title": "Is this you?",
+    "lead": "This code is for one person only. Check that this is your name.",
+    "yes": "Yes, this is me",
+    "no": "This is not me",
+    "working": "One moment…",
+    "error": "Something went wrong. Try again."
+  },
+  "notMe": {
+    "title": "This code is not yours",
+    "lead": "It is personal and belongs to: {name}. Please leave the paper where it was, or give it to the right person.",
+    "help": "Do you want your own code? Ask the OpenCouncil team.",
+    "back": "Back"
+  },
+  "email": {
+    "title": "Tell us your email",
+    "lead": "We will send you a message with a button. You press it and continue. You do not need a password.",
+    "label": "Your email",
+    "placeholder": "name@email.com",
+    "cta": "Continue",
+    "sending": "Sending the message…",
+    "invalid": "This does not look like an email. Check it and try again.",
+    "sendFailed": "We could not send the message. Try again in a moment.",
+    "suggestion": "Did you mean {email}?",
+    "useSuggestion": "Yes, fix it"
+  },
+  "sent": {
+    "title": "Check your email",
+    "lead": "We sent a message to:",
+    "step1": "Open your email.",
+    "step2": "Find the message from OpenCouncil.",
+    "step3": "Press the button in the message.",
+    "spam": "You do not see it? Wait a minute, and look in the spam folder too.",
+    "close": "You can close this page. The button in the email brings you back, to the last step.",
+    "resend": "Send it again",
+    "resendIn": "Again in {seconds} sec.",
+    "resent": "We sent it again.",
+    "change": "Wrong email? Change it"
+  },
+  "consent": {
+    "eyebrow": "Last step",
+    "title": "Recognition of your voice",
+    "lead": "Your account is now linked to your page. One question is left.",
+    "explain": "OpenCouncil can make a voiceprint from one of your speeches in a meeting. With it, the system identifies the speaker correctly in later meetings.",
+    "yes": "Yes, I consent",
+    "yesHint": "I consent to the processing of my voice for a voiceprint.",
+    "no": "Not now",
+    "noHint": "Nothing changes. You can consent later from your profile.",
+    "cta": "Finish",
+    "saving": "Saving…",
+    "error": "Your choice was not saved. Try again."
+  },
+  "done": {
+    "title": "All done",
+    "lead": "Your account is now linked to your page on OpenCouncil.",
+    "page": "See your page",
+    "profile": "My profile"
+  },
+  "problem": {
+    "invalidTitle": "This QR code does not work",
+    "invalid": "The code has expired or is not correct. Ask the OpenCouncil team for a new one.",
+    "notFound": "This code points to a person who no longer exists.",
+    "usedTitle": "This QR code is no longer valid",
+    "signIn": "Sign in",
+    "used": "An account has already been created for: {name}. Each code works only once.",
+    "usedHelp": "If you did not create it, contact the OpenCouncil team.",
+    "usedYours": "Is it your account?"
+  },
+  "failure": {
+    "issuesButton": "Check the details",
+    "issuesLine": "Check the details above.",
+    "refusedButton": "It did not work",
+    "refusedLine": "It did not work. See why above."
+  }
+}

@@ -747,6 +747,8 @@
         "deleteNetworkError": "Σφάλμα κατά τη διαγραφή"
     },
     "Profile": {
+        "voicePrintConsentError": "Η συναίνεση δεν αποθηκεύτηκε. Δοκιμάστε ξανά.",
+        "voicePrintConsentLabel": "Συναινώ στην επεξεργασία της φωνής μου για φωνητικό αποτύπωμα",
         "myHighlightsDescription": "Δείτε όλα τα στιγμιότυπα που έχετε δημιουργήσει, από κάθε συνεδρίαση.",
         "viewMyHighlights": "Δείτε τα στιγμιότυπά σας",
         "welcomeOnboard": "Καλώς ήρθατε στο OpenCouncil",

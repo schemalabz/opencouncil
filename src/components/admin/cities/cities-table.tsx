@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { City, CityStatus, Realm } from "@prisma/client";
 import { useLocale, useTranslations } from "next-intl";
+import { CouncilQrStripsButton } from "@/components/admin/cities/CouncilQrStripsButton";
 import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -135,13 +136,16 @@ export function CitiesAdminTable({ cities }: CitiesAdminTableProps) {
                                             <TableCell className="text-right">{city._count.persons}</TableCell>
                                             <TableCell className="text-right">{city._count.parties}</TableCell>
                                             <TableCell className="text-right">
-                                                <FormSheet
-                                                    FormComponent={CityForm}
-                                                    formProps={{ city }}
-                                                    title={t("editCity")}
-                                                    type="edit"
-                                                    closeOnSuccess
-                                                />
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <CouncilQrStripsButton cityId={city.id} />
+                                                    <FormSheet
+                                                        FormComponent={CityForm}
+                                                        formProps={{ city }}
+                                                        title={t("editCity")}
+                                                        type="edit"
+                                                        closeOnSuccess
+                                                    />
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}

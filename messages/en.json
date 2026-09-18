@@ -659,6 +659,8 @@
         "deleteNetworkError": "Error while deleting"
     },
     "Profile": {
+        "voicePrintConsentError": "The consent could not be saved. Try again.",
+        "voicePrintConsentLabel": "I consent to the processing of my voice for a voiceprint",
         "myHighlightsDescription": "See all the highlights you have created, from every meeting.",
         "viewMyHighlights": "View your highlights",
         "welcomeOnboard": "Welcome to OpenCouncil",

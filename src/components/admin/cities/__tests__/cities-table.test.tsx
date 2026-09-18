@@ -18,6 +18,10 @@ jest.mock("@/components/FormSheet", () => ({
     __esModule: true,
     default: () => null,
 }));
+// The QR strips button fetches and renders a PDF; irrelevant to grouping.
+jest.mock("@/components/admin/cities/CouncilQrStripsButton", () => ({
+    CouncilQrStripsButton: () => null,
+}));
 
 type CityRow = City & { _count: { persons: number; parties: number; councilMeetings: number } };
 
