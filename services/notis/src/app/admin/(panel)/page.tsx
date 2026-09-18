@@ -22,6 +22,8 @@ import {
   getOverviewStats,
   liveData,
   parseRange,
+  cumulativeReplyRates,
+  deltaFor,
   replyRate,
 } from "./_lib/metrics";
 
@@ -86,22 +88,24 @@ function seriesFor(
 }
 
 /**
- * The reply rate per bucket, as a percentage on a fixed 0–100 axis. A bucket
- * that sent no news has no rate, so it plots null and the line breaks rather
- * than dipping to a zero nobody earned. The hint carries the counts: at this
- * volume a 100% bucket is usually one send, and the number alone hides that.
+ * `cumulativeReplyRates` as the chart reads it, plus the label and the hint
+ * the tooltip needs. Both of those say «so far», because both numbers are
+ * running totals rather than the bucket's own.
  */
 function replyRateSeries(series: SeriesPoint[], bucket: BucketUnit): MetricPoint[] {
-  return series.map((point) => {
-    const rate = replyRate(point.newsWakesSent, point.newsWakesAnswered);
+  const running = cumulativeReplyRates(series);
+  return series.map((point, i) => {
+    const { sent, answered, rate } = running[i];
     return {
       key: point.key,
-      label: fmtBucketLabel(point.key, bucket),
+      // «έως», because both numbers beside it are running totals. Every other
+      // card on this panel uses this label to mean "in this bucket", and
+      // «Σαβ 16/8 2,5% 5/201» on a Saturday that sent nothing reads as a
+      // fan-out that never happened.
+      label: `έως ${fmtBucketLabel(point.key, bucket)}`,
       value: rate === null ? null : rate * 100,
-      hint:
-        point.newsWakesSent === 0
-          ? undefined
-          : `${fmtInt(point.newsWakesAnswered)}/${fmtInt(point.newsWakesSent)}`,
+      // The counts behind the rate, so a reader can see how thin it is.
+      hint: sent === 0 ? undefined : `${fmtInt(answered)}/${fmtInt(sent)} συνολικά`,
     };
   });
 }
@@ -240,10 +244,15 @@ function DeliveryPanel({ current, previous }: { current: PeriodStats; previous: 
     ([a], [b]) =>
       Object.keys(STATUS_LABELS).indexOf(a) - Object.keys(STATUS_LABELS).indexOf(b),
   );
-  const pointsDiff =
-    current.failRate !== null && previous.failRate !== null
-      ? (current.failRate - previous.failRate) * 100
-      : null;
+  // The same decision the reply-rate chip makes, so two rates on one screen
+  // agree about what a move is and about an absent baseline. The rendering
+  // stays local: this chip falls back to a label, not to «=».
+  const failDelta = deltaFor({
+    current: current.failRate,
+    previous: previous.failRate,
+    unit: "percent",
+    invert: true,
+  });
   return (
     <section className="rounded-lg border bg-background p-4">
       <div className="flex items-baseline justify-between">
@@ -256,15 +265,15 @@ function DeliveryPanel({ current, previous }: { current: PeriodStats; previous: 
           >
             {current.failRate === null ? "—" : fmtPct(current.failRate)}
           </span>
-          {pointsDiff !== null && Math.abs(pointsDiff) >= 0.5 ? (
+          {failDelta.kind === "move" ? (
             <span
-              className={`rounded px-1.5 py-0.5 text-[11px] font-medium tabular-nums ${
-                pointsDiff < 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+              className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                failDelta.improving ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
               }`}
               title="μεταβολή σε ποσοστιαίες μονάδες"
             >
-              {pointsDiff > 0 ? "↑" : "↓"}{" "}
-              {Math.abs(pointsDiff).toLocaleString("el-GR", { maximumFractionDigits: 1 })} μον.
+              {failDelta.up ? "↑" : "↓"}{" "}
+              {failDelta.magnitude.toLocaleString("el-GR", { maximumFractionDigits: 1 })} μον.
             </span>
           ) : (
             <span className="text-[11px] text-muted-foreground/60">αποτυχίες</span>
@@ -588,8 +597,11 @@ export default async function DashboardPage(props: {
           <MetricCard
             label="Ποσοστό απάντησης"
             value={currentReplyRate === null ? "—" : fmtPct(currentReplyRate, true)}
-            current={currentReplyRate ?? 0}
-            previous={previousReplyRate ?? 0}
+            // Passed through as null: a period with no news sends has no
+            // rate, and reading that as 0% turns an absent baseline into a
+            // fall, or the first period after a recess into a rise.
+            current={currentReplyRate}
+            previous={previousReplyRate}
             points={replyRateSeries(stats.series, RANGES[range].bucket)}
             unit="percent"
             detail={

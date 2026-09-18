@@ -121,6 +121,106 @@ export function pctChange(current: number, previous: number): number | null {
   return ((current - previous) / previous) * 100;
 }
 
+/**
+ * Change of a RATE, in percentage points, from two fractions. A rate does not
+ * move by a percentage of itself: 4,8% becoming 2,5% is 2,3 points, and
+ * calling it «48% down» describes five replies as a collapse.
+ */
+export function pointsChange(current: number, previous: number): number {
+  return (current - previous) * 100;
+}
+
+/**
+ * Below this the movement is finer than the data can express. At ~200 news
+ * sends one reply is worth half a point, so a tenth of a point is not a move,
+ * it is the chip reacting to a single reader. The fail rate uses the same
+ * number, so two rates on one screen agree about what counts as a change.
+ */
+export const RATE_MOVE_POINTS = 0.5;
+/** A count moves by a percentage, and half a percent of a count is noise. */
+const COUNT_MOVE_PERCENT = 0.5;
+
+export type Delta =
+  /** Neither period has a value: nothing to say. */
+  | { kind: "none" }
+  /** The previous period has no baseline — not a rise from zero. */
+  | { kind: "new" }
+  | { kind: "flat" }
+  | { kind: "move"; up: boolean; magnitude: number; unit: "percent" | "points"; improving: boolean };
+
+/**
+ * What the delta chip says, decided away from the JSX so it can be tested.
+ * The chip itself lives in a `.tsx`, and this jest project runs `.ts` only.
+ *
+ * `null` means "this period has no value", which is not zero: a rate with no
+ * denominator never had a value, and calling it 0% turns an absent baseline
+ * into a rise. Both callers pass the rate through unchanged for that reason.
+ */
+export function deltaFor({
+  current,
+  previous,
+  unit = "count",
+  invert = false,
+}: {
+  current: number | null;
+  previous: number | null;
+  /** `percent` takes fractions (0,025 = 2,5%) and answers in points. */
+  unit?: "count" | "percent";
+  invert?: boolean;
+}): Delta {
+  if (current === null && previous === null) return { kind: "none" };
+  if (current === 0 && previous === 0) return { kind: "none" };
+  if (previous === null || (unit === "count" && previous === 0)) return { kind: "new" };
+  if (current === null) return { kind: "new" };
+  const change = unit === "percent" ? pointsChange(current, previous) : pctChange(current, previous);
+  if (change === null) return { kind: "new" };
+  const threshold = unit === "percent" ? RATE_MOVE_POINTS : COUNT_MOVE_PERCENT;
+  if (Math.abs(change) < threshold) return { kind: "flat" };
+  return {
+    kind: "move",
+    up: change > 0,
+    magnitude: Math.abs(change),
+    unit: unit === "percent" ? "points" : "percent",
+    improving: invert ? change < 0 : change > 0,
+  };
+}
+
+/**
+ * A cumulative rate is at its wildest where its denominator is smallest: the
+ * first bucket that sends can be 1/1, and a line that opens at 100% sets the
+ * chart's scale from a single reply. Below this many sends there is no rate
+ * worth drawing yet.
+ */
+export const MIN_SENDS_FOR_RATE = 20;
+
+/**
+ * The reply rate SO FAR at each bucket, as running totals.
+ *
+ * News goes out on the days councils meet, so a per-bucket rate is a handful
+ * of sends against a handful of replies: most buckets have no denominator and
+ * the rest swing between 0% and 100% on one reply. Running totals answer what
+ * the card is asked — where the rate is settling — and the last bucket equals
+ * the period figure printed above the chart.
+ *
+ * The early buckets have no rate at all, not a zero: nobody failed to answer a
+ * message that was never sent, and a handful of sends cannot carry a rate.
+ */
+export function cumulativeReplyRates(
+  series: Array<Pick<SeriesPoint, "newsWakesSent" | "newsWakesAnswered">>,
+): Array<{ sent: number; answered: number; rate: number | null }> {
+  let sent = 0;
+  let answered = 0;
+  return series.map((point) => {
+    sent += point.newsWakesSent;
+    answered += point.newsWakesAnswered;
+    return {
+      sent,
+      answered,
+      rate: sent < MIN_SENDS_FOR_RATE ? null : replyRate(sent, answered),
+    };
+  });
+}
+
 export interface WakeEventStats {
   eventType: string;
   count: number;
