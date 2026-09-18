@@ -10,6 +10,7 @@ import { getAllCitiesMinimalCached } from "@/lib/cache/queries";
 import { getUserSignupCityIds } from "@/lib/db/signup";
 import { getRealm } from "@/lib/realm.server";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { firstSearchParam } from "@/lib/utils/searchParams";
 import { buildOgImageUrl } from "@/lib/og/locale";
 import { signupOpenGraph } from "@/lib/og/signupMetadata";
 
@@ -32,9 +33,16 @@ export async function generateMetadata(props: { params: Promise<{ locale: string
  * search and offered the petition. Νότης's box sits beside the column on a
  * desktop; on a phone it is in the column, shut, so the list is what the
  * reader meets first.
+ *
+ * `?q=` is the picker's own search, which it keeps in the URL so Back
+ * restores the list. The server renders the same list the URL asks for, so
+ * a restored page needs no correction after it hydrates.
  */
-export default async function NotificationsPickerPage() {
-    const [realm, user, t, tc] = await Promise.all([
+export default async function NotificationsPickerPage(props: {
+    searchParams: Promise<{ q?: string | string[] }>;
+}) {
+    const [{ q }, realm, user, t, tc] = await Promise.all([
+        props.searchParams,
         getRealm(),
         getCurrentUser(),
         getTranslations("notificationSignup"),
@@ -56,7 +64,13 @@ export default async function NotificationsPickerPage() {
                 <Eyebrow>{t("pickerEyebrow")}</Eyebrow>
                 <span className="text-xs text-muted-foreground">{t("pickerHint")}</span>
             </div>
-            <MunicipalityPicker cities={cities} mode="notifications" membership={membership} className="mt-2.5" />
+            <MunicipalityPicker
+                cities={cities}
+                mode="notifications"
+                membership={membership}
+                initialQuery={firstSearchParam(q)}
+                className="mt-2.5"
+            />
 
             <div className="mt-4 flex flex-col gap-0.5">
                 <span className="text-sm text-muted-foreground">{t("noCityTitle")}</span>
