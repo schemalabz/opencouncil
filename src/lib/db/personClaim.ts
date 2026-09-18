@@ -1,6 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
+import { getActiveRoleCondition } from "@/lib/utils/roles";
 
 export type PersonClaimResult =
     | { status: "linked"; cityId: string; cityName: string; personName: string }
@@ -20,6 +21,11 @@ const CLAIMED_ROW_TAKEN = "P2002";
  * claimedAt set. A row without claimedAt is a delegate a superadmin added;
  * it does not block a claim, and the person's own scan turns it into the
  * claimed row.
+ *
+ * The claim also completes the account: the scanner confirmed the name in
+ * the join flow, so an account without a name takes the person's, and the
+ * account counts as onboarded. A councillor must not meet a second
+ * registration form after the flow told them they are done.
  *
  * The check and the write run in one serializable transaction, so two
  * people who scan the same QR at the same moment cannot both win: the loser
@@ -50,6 +56,11 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
                 } else {
                     await tx.administers.create({ data: { userId, personId, claimedAt: new Date() } });
                 }
+                const account = await tx.user.findUnique({ where: { id: userId }, select: { name: true } });
+                await tx.user.update({
+                    where: { id: userId },
+                    data: { onboarded: true, ...(account?.name ? {} : { name: person.name }) },
+                });
                 return { status: "linked", cityId: person.cityId, cityName: person.city.name, personName: person.name };
             },
             { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -92,4 +103,30 @@ export async function getClaimedPersonIds(cityId: string): Promise<Set<string>> 
         select: { personId: true },
     });
     return new Set(rows.map((r) => r.personId).filter((id): id is string => id !== null));
+}
+
+const joinPersonSelect = {
+    id: true,
+    name: true,
+    image: true,
+    cityId: true,
+    city: { select: { name: true } },
+    roles: {
+        where: { OR: getActiveRoleCondition() },
+        select: {
+            name: true,
+            cityId: true,
+            partyId: true,
+            administrativeBodyId: true,
+            administrativeBody: { select: { type: true } },
+        },
+    },
+    administrators: { where: { claimedAt: { not: null } }, select: { userId: true } },
+} satisfies Prisma.PersonSelect;
+
+export type JoinPerson = Prisma.PersonGetPayload<{ select: typeof joinPersonSelect }>;
+
+/** What the join flow shows of a person, and who has claimed them, if anyone. */
+export async function getJoinPerson(personId: string): Promise<JoinPerson | null> {
+    return prisma.person.findUnique({ where: { id: personId }, select: joinPersonSelect });
 }

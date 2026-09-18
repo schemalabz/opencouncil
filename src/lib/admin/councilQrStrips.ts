@@ -4,7 +4,7 @@ import { getCity } from "@/lib/db/cities";
 import { getPeopleForCity, type PersonWithRelations } from "@/lib/db/people";
 import { getClaimedPersonIds } from "@/lib/db/personClaim";
 import { claimExpiry, claimLastValidDay, personJoinUrl } from "@/lib/auth/personClaim";
-import { isMayor } from "@/lib/utils/roles";
+import { getCouncilTitle, isMayor } from "@/lib/utils/roles";
 import { sortPeople } from "@/lib/sorting/people";
 import { formatDate } from "@/lib/formatters/time";
 
@@ -42,17 +42,6 @@ function isCouncilMemberOrMayor(person: PersonWithRelations): boolean {
 }
 
 /**
- * The title under a name on a strip: the city-level role (Δήμαρχος,
- * Αντιδήμαρχος …) when there is one, else the council role (Πρόεδρος …).
- * Plain members have neither.
- */
-function roleLabel(person: PersonWithRelations): string | null {
-    const cityRole = person.roles.find((r) => r.cityId && !r.partyId && !r.administrativeBodyId);
-    const councilRole = person.roles.find((r) => r.administrativeBody?.type === "council");
-    return cityRole?.name ?? councilRole?.name ?? null;
-}
-
-/**
  * What the strips PDF of a city needs, with claim tokens minted now: every
  * call gives new codes, each valid for the claim lifetime from this moment.
  * Codes from an earlier call stay valid until they expire. Null for an
@@ -81,7 +70,7 @@ export async function getCouncilQrStrips(cityId: string): Promise<CouncilQrStrip
         cityName: city.name,
         people: members
             .filter((p) => !claimed.has(p.id))
-            .map((p) => ({ id: p.id, name: p.name, role: roleLabel(p), joinUrl: personJoinUrl(p, city.realm, expiresAt) })),
+            .map((p) => ({ id: p.id, name: p.name, role: getCouncilTitle(p.roles), joinUrl: personJoinUrl(p, city.realm, expiresAt) })),
         texts: {
             scan: t("scan"),
             validUntil: t("validUntil", { date: formatDate(claimLastValidDay(expiresAt), city.timezone, city.language) }),

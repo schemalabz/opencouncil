@@ -79,11 +79,11 @@ describe('getCouncilQrStrips', () => {
         expect(byId.deputy.role).toBe('Αντιδήμαρχος Πολιτισμού');
         expect(byId['member-1'].role).toBeNull();
         for (const p of strips!.people) {
-            const token = new URL(p.joinUrl).pathname.slice('/api/join/'.length);
+            const token = new URL(p.joinUrl).searchParams.get('c') as string;
             expect(verifyPersonClaimToken(token)).toBe(p.id);
         }
         const exps = strips!.people.map((p) => {
-            const token = new URL(p.joinUrl).pathname.slice('/api/join/'.length);
+            const token = new URL(p.joinUrl).searchParams.get('c') as string;
             return JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString()).exp;
         });
         expect(new Set(exps).size).toBe(1);

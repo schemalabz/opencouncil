@@ -1,0 +1,72 @@
+{
+  "confirm": {
+    "eyebrow": "Code personnel",
+    "title": "Est-ce bien vous ?",
+    "lead": "Ce code est réservé à une seule personne. Vérifiez que c'est bien votre nom.",
+    "yes": "Oui, c'est moi",
+    "no": "Ce n'est pas moi",
+    "working": "Un instant…",
+    "error": "Une erreur s'est produite. Réessayez."
+  },
+  "notMe": {
+    "title": "Ce code n'est pas le vôtre",
+    "lead": "Il est personnel et appartient à : {name}. Merci de laisser le papier à sa place ou de le remettre à la bonne personne.",
+    "help": "Vous voulez votre propre code ? Demandez-le à l'équipe OpenCouncil.",
+    "back": "Retour"
+  },
+  "email": {
+    "title": "Indiquez-nous votre e-mail",
+    "lead": "Nous vous enverrons un message avec un bouton. Vous appuyez dessus et vous continuez. Aucun mot de passe n'est nécessaire.",
+    "label": "Votre e-mail",
+    "placeholder": "nom@email.fr",
+    "cta": "Continuer",
+    "sending": "Envoi du message…",
+    "invalid": "Cela ne ressemble pas à un e-mail. Vérifiez-le et réessayez.",
+    "sendFailed": "Nous n'avons pas pu envoyer le message. Réessayez dans un instant.",
+    "suggestion": "Vouliez-vous dire {email} ?",
+    "useSuggestion": "Oui, corrigez"
+  },
+  "sent": {
+    "title": "Consultez vos e-mails",
+    "lead": "Nous avons envoyé un message à :",
+    "step1": "Ouvrez votre messagerie.",
+    "step2": "Trouvez le message d'OpenCouncil.",
+    "step3": "Appuyez sur le bouton dans le message.",
+    "spam": "Vous ne le voyez pas ? Attendez une minute et regardez aussi dans les indésirables (spam).",
+    "close": "Vous pouvez fermer cette page. Le bouton dans l'e-mail vous ramènera ici, à la dernière étape.",
+    "resend": "Renvoyer le message",
+    "resendIn": "De nouveau dans {seconds} s",
+    "resent": "Nous l'avons renvoyé.",
+    "change": "Mauvais e-mail ? Modifiez-le"
+  },
+  "consent": {
+    "eyebrow": "Dernière étape",
+    "title": "Reconnaissance de votre voix",
+    "lead": "Votre compte est maintenant lié à votre page. Il reste une question.",
+    "explain": "OpenCouncil peut créer une empreinte vocale à partir de l'une de vos interventions en séance. Elle permet d'identifier correctement l'orateur lors des séances suivantes.",
+    "yes": "Oui, je consens",
+    "yesHint": "Je consens au traitement de ma voix pour une empreinte vocale.",
+    "no": "Pas maintenant",
+    "noHint": "Rien ne change. Vous pourrez consentir plus tard depuis votre profil.",
+    "cta": "Terminer",
+    "saving": "Enregistrement…",
+    "error": "Votre choix n'a pas été enregistré. Réessayez."
+  },
+  "done": {
+    "title": "Tout est prêt",
+    "lead": "Votre compte est maintenant lié à votre page sur OpenCouncil.",
+    "consentYes": "Vous avez consenti à la reconnaissance de votre voix. Vous pouvez changer cela à tout moment depuis votre profil.",
+    "consentNo": "Vous n'avez pas consenti à la reconnaissance de votre voix. Vous pouvez changer cela à tout moment depuis votre profil.",
+    "page": "Voir votre page",
+    "profile": "Mon profil"
+  },
+  "problem": {
+    "invalidTitle": "Ce code QR ne fonctionne pas",
+    "invalid": "Le code a expiré ou n'est pas correct. Demandez-en un nouveau à l'équipe OpenCouncil.",
+    "notFound": "Ce code renvoie à une personne qui n'existe plus.",
+    "usedTitle": "Ce code QR a déjà été utilisé",
+    "usedSignedOut": "{name} est déjà lié à un compte. Si c'est le vôtre, connectez-vous pour continuer. Sinon, contactez l'équipe OpenCouncil.",
+    "usedOther": "{name} est déjà lié à un autre compte. Si ce n'était pas vous, contactez l'équipe OpenCouncil.",
+    "signIn": "Se connecter"
+  }
+}

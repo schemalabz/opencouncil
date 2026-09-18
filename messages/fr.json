@@ -751,16 +751,6 @@
     "voicePrintConsentSave": "Enregistrer le consentement",
     "voicePrintConsentLabel": "J'accepte le traitement de ma voix pour une empreinte vocale",
     "voicePrintConsentDescription": "OpenCouncil peut créer une empreinte vocale à partir d'une intervention enregistrée de {name} en séance et l'utiliser pour reconnaître l'orateur dans les enregistrements futurs. Vous pouvez la retirer à tout moment.",
-    "claim": {
-      "invalidTitle": "Ce code QR ne fonctionne pas",
-      "usedSignedOut": "Cet élu est déjà lié à un compte. Si c'est votre compte, connectez-vous pour voir votre page. Sinon, contactez l'équipe OpenCouncil.",
-      "signIn": "Se connecter",
-      "usedTitle": "Ce code QR a déjà été utilisé",
-      "alreadyYours": "Votre compte est déjà lié à cet élu. Vous n'avez rien d'autre à faire.",
-      "alreadyLinked": "Cet élu est déjà lié à un autre compte. Si ce n'était pas vous, contactez l'équipe OpenCouncil.",
-      "notFound": "Ce QR renvoie à un élu qui n'existe plus.",
-      "invalid": "Ce lien QR n'est pas valide ou a expiré. Demandez-en un nouveau à l'équipe OpenCouncil."
-    },
     "myHighlightsDescription": "Consultez tous les temps forts que vous avez créés, pour chaque séance.",
     "viewMyHighlights": "Voir vos temps forts",
     "welcomeOnboard": "Bienvenue sur OpenCouncil",

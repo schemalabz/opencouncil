@@ -57,13 +57,14 @@ describe('person claim token', () => {
 });
 
 describe('personJoinUrl', () => {
-    it('points /join at the realm the city lives on, with per-person utm parameters', () => {
+    it('opens the join flow of the city, on its realm, with the code in the query and per-person utm parameters', () => {
         const url = new URL(personJoinUrl({ id: 'person-1', cityId: 'chania' }, 'greece'));
         expect(url.origin).toBe('https://opencouncil.gr');
-        expect(url.pathname).toMatch(/^\/api\/join\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+        // No dot in the path: the proxy skips dotted paths, and the page needs its locale routing.
+        expect(url.pathname).toBe('/chania/join');
+        expect(verifyPersonClaimToken(url.searchParams.get('c') as string)).toBe('person-1');
         expect(url.searchParams.get('utm_source')).toBe('qr');
         expect(url.searchParams.get('utm_campaign')).toBe('council-chania');
         expect(url.searchParams.get('utm_content')).toBe('person-1');
-        expect(verifyPersonClaimToken(url.pathname.slice('/api/join/'.length))).toBe('person-1');
     });
 });

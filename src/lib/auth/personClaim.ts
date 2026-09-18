@@ -1,6 +1,7 @@
 import "server-only";
 import type { Realm } from "@prisma/client";
 import { signPayload, verifyPayload, type ExpiringPayload } from "@/lib/auth/signedPayload";
+import { personJoinPagePath } from "@/lib/personJoin/paths";
 import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
 
 /**
@@ -48,19 +49,16 @@ export function verifyPersonClaimToken(token: string): string | null {
 }
 
 /**
- * The absolute URL to print in a person's QR, on the realm the city lives on.
- * Under /api on purpose: the token holds a dot, and the proxy matcher skips
- * every dotted path, so a top-level /join would never see the proxy while
- * looking as if it did. /api is excluded by design. The utm parameters ride
- * along to the first page that renders (sign-in or profile), so Plausible
- * shows scans per sheet and per councillor.
+ * The absolute URL to print in a person's QR, on the realm the city lives
+ * on: the first page of the join flow. The utm parameters ride along, so
+ * Plausible shows scans per sheet and per councillor.
  */
 export function personJoinUrl(
     person: { id: string; cityId: string },
     realm: Realm | null,
     expiresAt: Date = claimExpiry(),
 ): string {
-    const url = new URL(`${realmBaseUrl(realm)}/api/join/${generatePersonClaimToken(person.id, expiresAt)}`);
+    const url = new URL(`${realmBaseUrl(realm)}${personJoinPagePath(person.cityId, generatePersonClaimToken(person.id, expiresAt))}`);
     url.searchParams.set("utm_source", "qr");
     url.searchParams.set("utm_medium", "print");
     url.searchParams.set("utm_campaign", `council-${person.cityId}`);

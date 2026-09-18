@@ -3,6 +3,8 @@ const mockFindUnique = jest.fn();
 const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
 const mockTransaction = jest.fn();
+const mockUserFindUnique = jest.fn();
+const mockUserUpdate = jest.fn();
 const mockPersonFindUnique = jest.fn();
 const mockAdministersFindMany = jest.fn();
 jest.mock('@/lib/db/prisma', () => ({
@@ -16,7 +18,11 @@ jest.mock('@/lib/db/prisma', () => ({
 
 import { claimPerson, getClaimablePersonStatus, getClaimedPersonIds } from '../personClaim';
 
-const tx = { person: { findUnique: mockFindUnique }, administers: { create: mockCreate, update: mockUpdate } };
+const tx = {
+    person: { findUnique: mockFindUnique },
+    administers: { create: mockCreate, update: mockUpdate },
+    user: { findUnique: mockUserFindUnique, update: mockUserUpdate },
+};
 const claimedAt = new Date('2026-09-16T10:00:00Z');
 const person = (administrators: { id: string; userId: string; claimedAt: Date | null }[]) => ({
     cityId: 'chania',
@@ -26,7 +32,8 @@ const person = (administrators: { id: string; userId: string; claimedAt: Date | 
 });
 
 beforeEach(() => {
-    for (const m of [mockFindUnique, mockCreate, mockUpdate, mockTransaction, mockPersonFindUnique, mockAdministersFindMany]) m.mockReset();
+    for (const m of [mockFindUnique, mockCreate, mockUpdate, mockTransaction, mockUserFindUnique, mockUserUpdate, mockPersonFindUnique, mockAdministersFindMany]) m.mockReset();
+    mockUserFindUnique.mockResolvedValue({ name: null });
     // Run the callback against the fake client, as the real $transaction does.
     mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => fn(tx));
 });
@@ -37,6 +44,25 @@ describe('claimPerson', () => {
         const result = await claimPerson('user-1', 'person-1');
         expect(result).toEqual({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
         expect(mockCreate).toHaveBeenCalledWith({ data: { userId: 'user-1', personId: 'person-1', claimedAt: expect.any(Date) } });
+    });
+
+    it('completes the account: the confirmed name when it has none, and onboarded', async () => {
+        mockFindUnique.mockResolvedValue(person([]));
+        await claimPerson('user-1', 'person-1');
+        expect(mockUserUpdate).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: { onboarded: true, name: 'Α. Β.' } });
+    });
+
+    it('keeps the name an account already has', async () => {
+        mockFindUnique.mockResolvedValue(person([]));
+        mockUserFindUnique.mockResolvedValue({ name: 'Δικό μου όνομα' });
+        await claimPerson('user-1', 'person-1');
+        expect(mockUserUpdate).toHaveBeenCalledWith({ where: { id: 'user-1' }, data: { onboarded: true } });
+    });
+
+    it('leaves the account alone when nothing is claimed', async () => {
+        mockFindUnique.mockResolvedValue(person([{ id: 'row-9', userId: 'user-9', claimedAt }]));
+        await claimPerson('user-1', 'person-1');
+        expect(mockUserUpdate).not.toHaveBeenCalled();
     });
 
     it('turns the scanner\'s own delegate row into the claimed row instead of adding one', async () => {

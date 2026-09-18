@@ -663,16 +663,6 @@
         "voicePrintConsentSave": "Save consent",
         "voicePrintConsentLabel": "I consent to the processing of my voice for a voiceprint",
         "voicePrintConsentDescription": "OpenCouncil can make a voiceprint from a recorded meeting speech of {name} and use it to recognise the speaker in future recordings. You can withdraw this at any time.",
-        "claim": {
-            "invalidTitle": "This QR code does not work",
-            "usedSignedOut": "This council member is already linked to an account. If it is your account, sign in to see your page. If not, contact the OpenCouncil team.",
-            "signIn": "Sign in",
-            "usedTitle": "This QR code has already been used",
-            "alreadyYours": "Your account is already linked to this council member. You do not need to do anything else.",
-            "alreadyLinked": "This council member is already linked to another account. If that was not you, contact the OpenCouncil team.",
-            "notFound": "This QR points to a council member who no longer exists.",
-            "invalid": "This QR link is not valid or has expired. Ask the OpenCouncil team for a new one."
-        },
         "myHighlightsDescription": "See all the highlights you have created, from every meeting.",
         "viewMyHighlights": "View your highlights",
         "welcomeOnboard": "Welcome to OpenCouncil",

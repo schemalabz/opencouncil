@@ -1,5 +1,5 @@
 import { Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember } from '../roles';
+import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle } from '../roles';
 import { RoleWithRelations } from '@/lib/db/types';
 
 function makeRole(overrides: Partial<Role> & { party?: Party | null } = {}): Role & { party?: Party | null; cityId?: string | null } {
@@ -705,5 +705,18 @@ describe('party membership predicates', () => {
       };
       expect(isActivePartyMember(reelected, PARTY)).toBe(true);
     });
+  });
+});
+
+describe('getCouncilTitle', () => {
+  const council = { type: 'council' };
+  it('prefers the city-level role, then the council role, and is null for a plain member', () => {
+    expect(getCouncilTitle([
+      { name: 'Πρόεδρος', administrativeBodyId: 'b', administrativeBody: council },
+      { name: 'Αντιδήμαρχος Πολιτισμού', cityId: 'c' },
+    ])).toBe('Αντιδήμαρχος Πολιτισμού');
+    expect(getCouncilTitle([{ name: 'Πρόεδρος', administrativeBodyId: 'b', administrativeBody: council }])).toBe('Πρόεδρος');
+    expect(getCouncilTitle([{ name: null, administrativeBodyId: 'b', administrativeBody: council }])).toBeNull();
+    expect(getCouncilTitle([{ name: 'Μέλος', partyId: 'p', cityId: 'c' }])).toBeNull();
   });
 });
