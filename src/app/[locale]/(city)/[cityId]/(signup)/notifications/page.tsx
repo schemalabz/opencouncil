@@ -9,6 +9,7 @@ import { getSignupPreference } from "@/lib/db/signup";
 import { getTopics } from "@/lib/db/topics";
 import { getRealm } from "@/lib/realm.server";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
+import { firstSearchParam } from "@/lib/utils/searchParams";
 import { buildOgImageUrl } from "@/lib/og/locale";
 import { signupOpenGraph } from "@/lib/og/signupMetadata";
 
@@ -32,7 +33,8 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
 
 interface PageProps {
     params: Promise<{ cityId: string }>;
-    searchParams: Promise<{ step?: string }>;
+    /** `q` is the search the picker row came from, so «Αλλαγή» can return to it. */
+    searchParams: Promise<{ step?: string; q?: string | string[] }>;
 }
 
 /**
@@ -43,7 +45,7 @@ interface PageProps {
  * the background for step 3.
  */
 export default async function NotificationSignupPage(props: PageProps) {
-    const [{ cityId }, { step }] = await Promise.all([props.params, props.searchParams]);
+    const [{ cityId }, { step, q }] = await Promise.all([props.params, props.searchParams]);
     const [city, realm, user] = await Promise.all([
         getCity(cityId, { includeGeometry: true }),
         getRealm(),
@@ -67,6 +69,7 @@ export default async function NotificationSignupPage(props: PageProps) {
             city={city}
             topics={topics}
             initialStep={step === "2" ? 2 : 1}
+            pickerQuery={firstSearchParam(q)}
             existing={existing}
             account={
                 user

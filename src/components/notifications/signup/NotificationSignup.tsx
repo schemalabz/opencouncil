@@ -74,12 +74,15 @@ export function NotificationSignup({
     city,
     topics,
     initialStep,
+    pickerQuery,
     existing,
     account,
 }: {
     city: CityWithGeometry;
     topics: Topic[];
     initialStep: 1 | 2;
+    /** The search the picker row carried here, so «Αλλαγή» returns to that list. */
+    pickerQuery: string;
     existing: ExistingPreference | null;
     account: SignupAccount | null;
 }) {
@@ -96,7 +99,7 @@ export function NotificationSignup({
         // abandoned session would put yesterday's places over them.
         draft: existing ? undefined : notificationsDraft(city.id, signedIn),
     });
-    const { state, patch, goTo, done, submitting, attempted, failures, saveError, validity, setPhoneValidity } = flow;
+    const { state, patch, goTo, edited, done, submitting, attempted, failures, saveError, validity, setPhoneValidity } = flow;
 
     // 'pending' until Notis has answered for a signed-in reader; a signed-out
     // reader has nothing to ask about.
@@ -217,10 +220,15 @@ export function NotificationSignup({
         <SignupLayout aside={aside}>
             <SignupProgress step={state.step} total={TOTAL_STEPS} label={ts('stepOf', { step: state.step, total: TOTAL_STEPS })} />
 
-            {state.step === 1 && <IntroStep city={city} existing={existing !== null} />}
+            {state.step === 1 && (
+                <IntroStep city={city} pickerQuery={pickerQuery} dirty={edited} existing={existing !== null} />
+            )}
             {state.step === 2 && (
                 <PreferencesStep
                     city={city}
+                    pickerQuery={pickerQuery}
+                    dirty={edited}
+                    existing={existing !== null}
                     topics={topics}
                     locations={state.locations}
                     selectedTopics={state.topics}
@@ -230,6 +238,10 @@ export function NotificationSignup({
             )}
             {state.step === 3 && (
                 <ChannelsStep
+                    city={city}
+                    pickerQuery={pickerQuery}
+                    dirty={edited}
+                    submitting={submitting}
                     state={state}
                     signedIn={signedIn}
                     phoneChannelLocked={channelLocked}

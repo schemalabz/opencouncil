@@ -26,14 +26,22 @@ export function CityCard({
     status,
     changeHref,
     changeLabel,
+    changeDisabled = false,
+    onChangeClick,
     className,
 }: {
     city: CityIdentity;
     status?: React.ReactNode;
     changeHref: string;
     changeLabel: string;
+    /** While a submit is in flight: the label stays, the navigation does not. */
+    changeDisabled?: boolean;
+    /** Runs before the link navigates; call `preventDefault` to stop it. */
+    onChangeClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
     className?: string;
 }) {
+    const changeClass =
+        '-my-3 inline-flex min-h-11 items-center whitespace-nowrap pl-3 text-[13px] text-[hsl(var(--orange-deep))]';
     const locale = useLocale();
     return (
         <div className={cn(surfaceCardClass, 'flex items-center gap-3 px-3.5 py-3', className)}>
@@ -42,12 +50,15 @@ export function CityCard({
                 <span className="block text-[15px] leading-tight">{getLocalizedMunicipalityName(city, locale)}</span>
                 {status && <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">{status}</span>}
             </span>
-            <Link
-                href={changeHref}
-                className="-my-3 inline-flex min-h-11 items-center whitespace-nowrap pl-3 text-[13px] text-[hsl(var(--orange-deep))] hover:no-underline"
-            >
-                {changeLabel}
-            </Link>
+            {changeDisabled ? (
+                <span className={cn(changeClass, 'opacity-50')} aria-disabled>
+                    {changeLabel}
+                </span>
+            ) : (
+                <Link href={changeHref} onClick={onChangeClick} className={cn(changeClass, 'hover:no-underline')}>
+                    {changeLabel}
+                </Link>
+            )}
         </div>
     );
 }

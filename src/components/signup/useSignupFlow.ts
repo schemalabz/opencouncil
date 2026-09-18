@@ -136,6 +136,8 @@ export function useSignupFlow<S extends { step: number }>(opts: {
         state,
         patch,
         goTo,
+        /** The reader has changed something that a navigation away would discard. */
+        edited,
         done,
         submitting,
         attempted,

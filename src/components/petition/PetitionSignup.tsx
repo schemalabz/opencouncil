@@ -59,12 +59,15 @@ export function PetitionSignup({
     city,
     bucket,
     initialStep,
+    pickerQuery,
     existing,
     account,
 }: {
     city: CityWithGeometry;
     bucket: PetitionBucket | null;
     initialStep: PetitionStep;
+    /** The search the picker row carried here, so «Αλλαγή» returns to that list. */
+    pickerQuery: string;
     existing: ExistingPetition | null;
     account: SignupAccount | null;
 }) {
@@ -80,7 +83,7 @@ export function PetitionSignup({
         // already signed: the server's answers are the truth.
         draft: existing ? undefined : petitionDraft(city.id, signedIn),
     });
-    const { state, patch, goTo, done, submitting, attempted, failures, saveError, validity, phoneValidity, setPhoneValidity } =
+    const { state, patch, goTo, edited, done, submitting, attempted, failures, saveError, validity, phoneValidity, setPhoneValidity } =
         flow;
 
     const issues = attempted ? petitionIssues(state, validity) : [];
@@ -138,10 +141,23 @@ export function PetitionSignup({
         <SignupLayout aside={aside}>
             <SignupProgress step={state.step} total={TOTAL_STEPS} label={ts('stepOf', { step: state.step, total: TOTAL_STEPS })} />
 
-            {state.step === 1 && <PetitionIntroStep city={city} bucket={bucket} existing={existing !== null} />}
+            {state.step === 1 && (
+                <PetitionIntroStep
+                    city={city}
+                    bucket={bucket}
+                    pickerQuery={pickerQuery}
+                    dirty={edited}
+                    existing={existing !== null}
+                />
+            )}
             {state.step === 2 && (
                 <PetitionFormStep
                     city={city}
+                    bucket={bucket}
+                    pickerQuery={pickerQuery}
+                    dirty={edited}
+                    submitting={submitting}
+                    existing={existing !== null}
                     state={state}
                     signedIn={signedIn}
                     issues={issues}
