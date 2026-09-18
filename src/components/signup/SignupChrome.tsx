@@ -113,6 +113,8 @@ export function SignupFooter({
     backLabel,
     onBack,
     pinned = false,
+    arrow = true,
+    failureLabels,
 }: {
     actionLabel: string;
     onAction: () => void;
@@ -129,8 +131,14 @@ export function SignupFooter({
      * The page must keep room under its content for the bar.
      */
     pinned?: boolean;
+    /** The forward arrow after the label; off for an action that goes back. */
+    arrow?: boolean;
+    /** The failure texts, for a flow that speaks in another register than the signups. */
+    failureLabels?: { issuesButton: string; issuesLine: string; refusedButton: string; refusedLine: string };
 }) {
-    const t = useTranslations('signup');
+    const ts = useTranslations('signup');
+    const t = (key: 'failure.issuesButton' | 'failure.issuesLine' | 'failure.refusedButton' | 'failure.refusedLine') =>
+        failureLabels ? failureLabels[key.slice('failure.'.length) as keyof typeof failureLabels] : ts(key);
     const lineId = useId();
     const [scope, animate] = useAnimate();
     const reduced = useReducedMotion();
@@ -197,7 +205,9 @@ export function SignupFooter({
                             ) : (
                                 <>
                                     {actionLabel}
-                                    <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
+                                    {arrow && (
+                                        <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
+                                    )}
                                 </>
                             )}
                         </Button>

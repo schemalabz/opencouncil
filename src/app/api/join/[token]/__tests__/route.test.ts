@@ -80,6 +80,22 @@ describe('GET /api/join/[token]', () => {
         expect(location(res).pathname).toBe('/chania/join');
     });
 
+    it('still claims for the email link shortly after the code expired, but not a day past the grace', async () => {
+        mockGetCurrentUser.mockResolvedValue({ id: 'user-1' });
+        mockClaimPerson.mockResolvedValue({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
+        const justExpired = generatePersonClaimToken('person-1', new Date(Date.now() - 60 * 60 * 1000));
+        const res = await GET(scan(justExpired, '?confirmed=1'), params(justExpired));
+        expect(mockClaimPerson).toHaveBeenCalledWith('user-1', 'person-1');
+        expect(location(res).searchParams.get('step')).toBe('3');
+
+        mockClaimPerson.mockClear();
+        const longExpired = generatePersonClaimToken('person-1', new Date(Date.now() - 25 * 60 * 60 * 1000));
+        expect((await GET(scan(longExpired, '?confirmed=1'), params(longExpired))).headers.get('location')).toBe('/claim?claim=invalid');
+        // Without the mark of the email link, an expired code gets no grace.
+        expect((await GET(scan(justExpired), params(justExpired))).headers.get('location')).toBe('/claim?claim=invalid');
+        expect(mockClaimPerson).not.toHaveBeenCalled();
+    });
+
     it('sends a forged or expired code, or a person that is gone, to /claim without touching the session', async () => {
         const forged = await GET(scan('forged.token', '?utm_source=qr'), params('forged.token'));
         expect(forged.headers.get('location')).toBe('/claim?utm_source=qr&claim=invalid');

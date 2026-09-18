@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { verifyPersonClaimToken } from '@/lib/auth/personClaim';
+import { CLAIM_EMAIL_GRACE_MS, verifyPersonClaimToken } from '@/lib/auth/personClaim';
 import { claimPerson, getJoinPerson } from '@/lib/db/personClaim';
 import { sendPersonClaimedAdminAlert } from '@/lib/discord';
 import { relativeRedirect } from '@/lib/utils/relativeRedirect';
@@ -26,7 +26,9 @@ export async function GET(req: NextRequest, props: { params: Promise<{ token: st
     const confirmed = params.get('confirmed') === '1';
     params.delete('confirmed');
 
-    const personId = verifyPersonClaimToken(token);
+    // The email link may arrive after the code expired: the reader confirmed
+    // in time, and must not be left with an account that is not linked.
+    const personId = verifyPersonClaimToken(token, confirmed ? CLAIM_EMAIL_GRACE_MS : 0);
     const person = personId ? await getJoinPerson(personId) : null;
     if (!person) {
         params.set('claim', 'invalid');

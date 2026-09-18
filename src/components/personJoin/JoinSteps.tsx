@@ -127,11 +127,14 @@ const RESEND_COOLDOWN_SECONDS = 30;
 export function SentStep({
     email,
     busy,
+    error,
     onResend,
     onChange,
 }: {
     email: string;
     busy: boolean;
+    /** A resend that failed. */
+    error: boolean;
     onResend: () => Promise<boolean>;
     onChange: () => void;
 }) {
@@ -192,6 +195,11 @@ export function SentStep({
                 <p role="status" className="-mt-4 pb-8 text-[15px] text-emerald-700">
                     {t('sent.resent')}
                 </p>
+            )}
+            {error && (
+                <div className="-mt-4 pb-8">
+                    <ErrorLine>{t('email.sendFailed')}</ErrorLine>
+                </div>
             )}
         </div>
     );

@@ -55,8 +55,20 @@ export function generatePersonClaimToken(personId: string, expiresAt: Date = cla
     return `${personId}.${exp}.${claimMac(personId, exp).toString("base64url")}`;
 }
 
-/** The person the token names, or null for a forged, malformed or expired token. */
-export function verifyPersonClaimToken(token: string): string | null {
+/**
+ * How long past its expiry a code still counts on the way back from the
+ * sign-in email: the magic link's own lifetime. A councillor who scans just
+ * before the code expires must not end up with an account that the expiry
+ * then refuses to link.
+ */
+export const CLAIM_EMAIL_GRACE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The person the token names, or null for a forged, malformed or expired
+ * token. `graceMs` extends the expiry; only the return from the sign-in email
+ * passes it.
+ */
+export function verifyPersonClaimToken(token: string, graceMs = 0): string | null {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
     const [personId, exp, mac] = parts;
@@ -65,7 +77,7 @@ export function verifyPersonClaimToken(token: string): string | null {
     const given = new Uint8Array(Buffer.from(mac, "base64url"));
     const expected = new Uint8Array(claimMac(personId, exp));
     if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
-    if (Date.now() > parseInt(exp, 36) * 1000) return null;
+    if (Date.now() > parseInt(exp, 36) * 1000 + graceMs) return null;
     return personId;
 }
 

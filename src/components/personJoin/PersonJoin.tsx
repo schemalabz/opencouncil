@@ -44,6 +44,12 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
     const [consentError, setConsentError] = useState(false);
 
     const person = stage.kind === 'invalid' ? null : stage.person;
+    const failureLabels = {
+        issuesButton: t('failure.issuesButton'),
+        issuesLine: t('failure.issuesLine'),
+        refusedButton: t('failure.refusedButton'),
+        refusedLine: t('failure.refusedLine'),
+    };
     const cityId = person?.cityId ?? null;
 
     useEffect(() => {
@@ -154,12 +160,15 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
             {view === 'email' && (
                 <EmailStep email={email} error={emailError} busy={busy} onChange={(value) => { setEmail(value); setEmailError(null); }} onSubmit={() => sendEmail()} />
             )}
-            {view === 'sent' && <SentStep email={email} busy={busy} onResend={() => sendEmail(email)} onChange={() => go('email')} />}
+            {view === 'sent' && (
+                <SentStep email={email} busy={busy} error={emailError !== null} onResend={() => sendEmail(email)} onChange={() => go('email')} />
+            )}
             {view === 'consent' && <ConsentStep choice={choice} error={consentError} onChoice={setChoice} />}
 
             {view === 'confirm' && (
                 <SignupFooter
                     pinned
+                    failureLabels={failureLabels}
                     actionLabel={busy ? t('confirm.working') : t('confirm.yes')}
                     onAction={confirm}
                     disabled={busy}
@@ -169,10 +178,11 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
                     onBack={() => go('notMe')}
                 />
             )}
-            {view === 'notMe' && <SignupFooter pinned actionLabel={t('notMe.back')} onAction={() => go('confirm')} />}
+            {view === 'notMe' && <SignupFooter pinned arrow={false} actionLabel={t('notMe.back')} onAction={() => go('confirm')} />}
             {view === 'email' && (
                 <SignupFooter
                     pinned
+                    failureLabels={failureLabels}
                     actionLabel={busy ? t('email.sending') : t('email.cta')}
                     onAction={() => sendEmail()}
                     disabled={busy}
@@ -185,6 +195,7 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
             {view === 'consent' && (
                 <SignupFooter
                     pinned
+                    failureLabels={failureLabels}
                     actionLabel={busy ? t('consent.saving') : t('consent.cta')}
                     onAction={finish}
                     disabled={busy || choice === null}

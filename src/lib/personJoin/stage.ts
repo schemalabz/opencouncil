@@ -1,5 +1,5 @@
 import "server-only";
-import { verifyPersonClaimToken } from "@/lib/auth/personClaim";
+import { CLAIM_EMAIL_GRACE_MS, verifyPersonClaimToken } from "@/lib/auth/personClaim";
 import { getJoinPerson } from "@/lib/db/personClaim";
 import { getVoicePrintConsentedIds } from "@/lib/db/personConsent";
 import { getCouncilTitle } from "@/lib/utils/roles";
@@ -37,7 +37,10 @@ export type JoinStage =
     | { kind: "consent"; consented: boolean; person: JoinPersonView };
 
 export async function getJoinStage(token: string | undefined, userId: string | null, inFlow = false): Promise<JoinStage> {
-    const personId = token ? verifyPersonClaimToken(token) : null;
+    const current = token ? verifyPersonClaimToken(token) : null;
+    // Past its expiry, a code only still opens the owner's own step inside the
+    // flow: the return from the sign-in email, which linked the account.
+    const personId = current ?? (token && inFlow ? verifyPersonClaimToken(token, CLAIM_EMAIL_GRACE_MS) : null);
     if (!personId) return { kind: "invalid" };
     const row = await getJoinPerson(personId);
     if (!row) return { kind: "invalid" };
@@ -51,10 +54,12 @@ export async function getJoinStage(token: string | undefined, userId: string | n
         cityName: row.city.name,
     };
     const claimedBy = row.administrators[0]?.userId ?? null;
-    if (userId && claimedBy === userId && inFlow) {
+    const own = userId !== null && claimedBy === userId;
+    if (!current && !(own && inFlow)) return { kind: "invalid" };
+    if (own && inFlow) {
         const consented = await getVoicePrintConsentedIds([person.id], userId);
         return { kind: "consent", consented: consented.has(person.id), person };
     }
-    if (claimedBy) return { kind: "used", signedIn: userId !== null, own: userId !== null && claimedBy === userId, person };
+    if (claimedBy) return { kind: "used", signedIn: userId !== null, own, person };
     return { kind: "confirm", signedIn: userId !== null, person };
 }

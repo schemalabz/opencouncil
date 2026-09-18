@@ -102,6 +102,21 @@ describe('PersonJoin, signed out', () => {
         jest.useRealTimers();
     });
 
+    it('says so when a resend fails, instead of leaving the reader waiting', async () => {
+        jest.useFakeTimers();
+        mockedSend.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false, error: 'send_failed' });
+        flow(confirmStage(false));
+        fireEvent.click(screen.getByText('confirm.yes'));
+        typeEmail('maria@gmail.com');
+        fireEvent.click(screen.getByText('email.cta'));
+        await waitFor(() => expect(screen.getByText('sent.title')).toBeTruthy());
+        for (let i = 0; i < 30; i++) act(() => { jest.advanceTimersByTime(1000); });
+        fireEvent.click(screen.getByText('sent.resend'));
+        expect(await screen.findByText('email.sendFailed')).toBeTruthy();
+        expect(screen.queryByText('sent.resent')).toBeNull();
+        jest.useRealTimers();
+    });
+
     it('has a way out for somebody who picked up the wrong strip, and a way back', () => {
         flow(confirmStage(false));
         fireEvent.click(screen.getByText('confirm.no'));

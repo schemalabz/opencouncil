@@ -67,5 +67,11 @@
     "used": "Un compte a déjà été créé pour : {name}. Chaque code ne sert qu'une seule fois.",
     "usedHelp": "Si ce n'est pas vous qui l'avez créé, contactez l'équipe OpenCouncil.",
     "usedYours": "C'est votre compte ?"
+  },
+  "failure": {
+    "issuesButton": "Vérifiez les informations",
+    "issuesLine": "Vérifiez les informations ci-dessus.",
+    "refusedButton": "Cela n'a pas fonctionné",
+    "refusedLine": "Cela n'a pas fonctionné. Voyez pourquoi ci-dessus."
   }
 }

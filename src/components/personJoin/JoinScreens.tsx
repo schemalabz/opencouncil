@@ -15,7 +15,12 @@ import { PersonCard } from './JoinSteps';
  * and on a desktop alike. Room at the bottom for the pinned action bar.
  */
 export function JoinLayout({ children }: { children: React.ReactNode }) {
-    return <div className="mx-auto w-full max-w-lg px-5 pb-32 lg:pb-16">{children}</div>;
+    // The padding outside the measure, as the pinned bar has it, so the two line up.
+    return (
+        <div className="px-5 pb-32 lg:pb-16">
+            <div className="mx-auto w-full max-w-lg">{children}</div>
+        </div>
+    );
 }
 
 /** Done: what happened, and the way to their page. */

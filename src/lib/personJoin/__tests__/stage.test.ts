@@ -59,6 +59,16 @@ describe('getJoinStage', () => {
         expect(mockConsented).not.toHaveBeenCalled();
     });
 
+    it('opens only the owner\'s step for a code that expired during the email round trip', async () => {
+        const justExpired = generatePersonClaimToken('person-1', new Date(Date.now() - 60 * 60 * 1000));
+        mockGetJoinPerson.mockResolvedValue(row([{ userId: 'user-1' }]));
+        expect(await getJoinStage(justExpired, 'user-1', true)).toMatchObject({ kind: 'consent' });
+        expect(await getJoinStage(justExpired, 'user-1')).toEqual({ kind: 'invalid' });
+        expect(await getJoinStage(justExpired, 'user-9', true)).toEqual({ kind: 'invalid' });
+        mockGetJoinPerson.mockResolvedValue(row([]));
+        expect(await getJoinStage(justExpired, 'user-1', true)).toEqual({ kind: 'invalid' });
+    });
+
     it('is spent for everybody else, signed in or not, inside the flow or not', async () => {
         mockGetJoinPerson.mockResolvedValue(row([{ userId: 'user-9' }]));
         expect(await getJoinStage(token(), 'user-1')).toMatchObject({ kind: 'used', signedIn: true, own: false });
