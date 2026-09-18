@@ -117,7 +117,10 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
         // intro. A fake that accepts both writes would let that regress
         // unnoticed, so it refuses the way Postgres does.
         for (const existing of store.subscriptions.values()) {
-          if (existing.userId === data.userId) {
+          // Two rows with no userId at all are not a collision: Postgres
+          // compares values, and a fixture that omits the field would
+          // otherwise draw a unique violation it never asked for.
+          if (data.userId !== undefined && existing.userId === data.userId) {
             throw Object.assign(new Error("Unique constraint failed on the fields: (`userId`)"), {
               code: "P2002",
             });
@@ -177,7 +180,15 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
           calls.push("subscription-upserted:update");
           return existing;
         }
-        const row: Row = { id: id("sub"), status: "active", unsubscribedAt: null, ...create };
+        // Same defaults as `create` above: the inbound-enrollment path upserts,
+        // and every reader of a subscription view calls createdAt.toISOString().
+        const row: Row = {
+          id: id("sub"),
+          status: "active",
+          unsubscribedAt: null,
+          createdAt: new Date(),
+          ...create,
+        };
         store.subscriptions.set(row.id as string, row);
         calls.push("subscription-upserted:create");
         return row;

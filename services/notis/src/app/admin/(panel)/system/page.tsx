@@ -1,3 +1,4 @@
+import { POLLER_INTERVAL_LABEL } from "@/lib/cadence";
 import { getAdminSession } from "@/lib/session-auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -220,7 +221,7 @@ export default async function SystemPage(props: {
                     className="w-full"
                   />
                   <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    τελευταίο {timeAgo(snap.poller.lastTickAt!, now)} · κάθε 5′
+                    τελευταίο {timeAgo(snap.poller.lastTickAt!, now)} · {POLLER_INTERVAL_LABEL}
                   </p>
                 </div>
               ) : (

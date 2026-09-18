@@ -369,6 +369,32 @@ describe("maybeCompact", () => {
     expect(held).not.toContain("you sent");
   });
 
+  test("a silence folds with its outcome spelled out, under the block's own warning", async () => {
+    // The incident this guards: a wake decided silence and wrote «Sent one
+    // short message about it» in its rationale. The live prompt contradicts
+    // that on the line above it. Compaction writes `memory`, which never ages
+    // out, so it has to contradict it too or the claim becomes permanent.
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seed(db, COMPACT_WAKES_AT + 20, COMPACT_MESSAGES_AT + 20);
+    db.store.wakes.push({
+      id: "w-silent",
+      subscriptionId: "sub1",
+      eventType: "agenda_processed",
+      eventAt: new Date(SETTLED.getTime() - 24 * 60 * 60_000),
+      createdAt: new Date(SETTLED.getTime() - 24 * 60 * 60_000),
+      decision: "silence",
+      rationale: "ΨΕΥΤΙΚΟΣ ΙΣΧΥΡΙΣΜΟΣ: της έστειλα ένα σύντομο μήνυμα.",
+    });
+    const fake = new FakeAnthropic([{ content: [text("Σύνοψη.")], stop_reason: "end_turn" }]);
+
+    await maybeCompact(db, { ...SUB_ARG }, { deps: makeDeps(fake), now: () => NOW });
+
+    const input = String((fake.requests[0].messages[0] as { content: unknown }).content);
+    const line = input.split("\n").find((l) => l.includes("agenda_processed"));
+    expect(line).toContain("silence (nothing reached the reader)");
+    expect(input).toContain("never a record of what was sent");
+  });
+
   test("a send another rail stopped never reaches the summariser at all", async () => {
     const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
     db.store.messages.push({

@@ -1,3 +1,4 @@
+import { POLLER_INTERVAL_MS } from "@/lib/cadence";
 import "server-only";
 import { EditorialBrief } from "@/agent/types";
 import { ActivePhase, activePhase, clampToActiveHours } from "@/lib/active-hours";
@@ -12,7 +13,6 @@ import { subscriptionsAtTemplateCap } from "@/lib/queue";
  * worst-first lists, hard take-limits with honest "+N" counts.
  */
 
-export const POLLER_INTERVAL_MS = 5 * 60_000;
 const QUEUE_LIST_LIMIT = 30;
 const SCHEDULE_LIST_LIMIT = 30;
 export const DIGESTED_PAGE_SIZE = 20;

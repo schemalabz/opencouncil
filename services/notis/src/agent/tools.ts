@@ -80,9 +80,10 @@ export const CLIENT_TOOLS = [
   {
     name: "resolve_commitment",
     description:
-      "Close a commitment by its slug — you delivered on it, or the reader no longer " +
-      "wants it. It leaves your list immediately. Say which of the two happened in " +
-      "your rationale.",
+      "Close a commitment by its slug — the thing you owed is covered, or the reader no " +
+      "longer wants it. It leaves your list immediately. Say in your rationale which of " +
+      "the two was true, as a judgement about the reader rather than a record of what " +
+      "you did: the shell records what you sent.",
     input_schema: {
       type: "object" as const,
       properties: {

@@ -2,9 +2,6 @@
 // instrumentation discovery (which searches the Turbopack workspace root's
 // src/ as well) picks up the MAIN app's src/instrumentation.ts and tries to
 // bundle its Prisma/cache imports into Notis.
-/** How long a new reader waits for their intro, at worst. See the poller below. */
-export const POLLER_INTERVAL_MS = 2 * 60_000;
-
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   // The daily reconciliation janitor. runJanitor() no-ops (ran:false) when
@@ -44,6 +41,7 @@ export async function register() {
   // minutes MAX_ENROLLMENTS_PER_TICK releases two and a half times the
   // readers per hour that it did at five, which is the point, and it stays
   // paced rather than sending a whole launch cohort at once.
+  const { POLLER_INTERVAL_MS } = await import("./lib/cadence");
   const { runPollerTick } = await import("./lib/poller");
   const pollerTick = () => {
     runPollerTick().catch((e) => console.error("[notis:poller] tick failed:", e));

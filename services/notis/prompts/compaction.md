@@ -18,7 +18,12 @@ one and the new material merged into one text, not two.
   will care about it again.
 - Positions they took and things they clearly care about, in their own terms.
 - The shape of the relationship: how often they write, whether they ask or mostly read,
-  what has already been covered so it is not offered again as news.
+  what has already been covered so it is not offered again as news. Take coverage from
+  the messages, which are what the reader received. A decision's `why` is the agent's own
+  prose about a wake and is not evidence that anything was sent, so never fold a claim of
+  a send into the memory from there — a memory of a message the reader never got is
+  permanent, and it makes the agent write «όπως σου είχα πει» to someone who was told
+  nothing.
 
 ## Drop
 

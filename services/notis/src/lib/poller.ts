@@ -104,9 +104,12 @@ export const MAX_EVENTS_PER_TICK = 4;
  * Intros one tick may send. Enrollment sends inline, so without a ceiling one
  * tick spends the whole waiting audience against the WhatsApp rate limits in
  * a single burst, and holds the tick lock while it does — the phases after it
- * are skipped and the next ticks are dropped. Eight per two-minute tick is
- * well above any signup rate and under the number's messaging limit; it also
- * keeps a launch cohort paced rather than spending it in one burst.
+ * are skipped and the next ticks are dropped. Eight per two-minute tick is a
+ * ceiling of 8 × 30 × 14 = 3,360 a day across the active hours (09:00–23:00),
+ * against 1,344 at the old five-minute interval. That is far above any signup
+ * rate we have seen, and it keeps a launch cohort paced rather than spending
+ * it in one burst — but it is a ceiling to re-check against the number's own
+ * WhatsApp messaging tier, which is lower than this on the first two rungs.
  */
 export const MAX_ENROLLMENTS_PER_TICK = 8;
 /** How far back the event feed looks. completedAt moves on task-row
@@ -354,7 +357,11 @@ async function enrollNewTargets(
       // in that second — and a counter that reads "sent" for a suppressed
       // message tells the operator this reader was greeted when they were not.
       const outcome = await deliverPendingMessage(db, bird, enrollment.introId, sub, alert);
-      if (outcome?.status === "sent") result.introsSent++;
+      // The SMS leg counts: a WhatsApp template that fails terminally falls
+      // through to SMS with the same body, and that reader was greeted. The
+      // outcome keeps `status: "failed"` for the WhatsApp attempt, so reading
+      // the status alone undercounts every reader without WhatsApp.
+      if (outcome?.status === "sent" || outcome?.smsFallback === "sent") result.introsSent++;
     }
   }
 

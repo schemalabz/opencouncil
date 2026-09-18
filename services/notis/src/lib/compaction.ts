@@ -8,7 +8,12 @@ import {
   Deps,
   MEMORY_MAX_CHARS,
 } from "@/agent/types";
-import { conversationLine, decisionOutcome } from "@/agent/prompt";
+import {
+  DECISIONS_CAVEAT,
+  conversationLine,
+  decisionLine,
+  toDecisionEntry,
+} from "@/agent/prompt";
 import { normalizeUsage, usageToCost } from "@/agent/pricing";
 import { alert as sendAlert } from "./alert";
 import { buildDeps } from "./deps";
@@ -185,7 +190,17 @@ export async function maybeCompact(
       db.notisWake.findMany({
         where: { subscriptionId: sub.id, eventAt: range },
         orderBy: { eventAt: "asc" },
-        select: { eventType: true, eventAt: true, decision: true, rationale: true },
+        select: {
+          eventType: true,
+          eventAt: true,
+          decision: true,
+          rationale: true,
+          // The caveats that say an entry is not a finished decision. Without
+          // them the fold turns a wake cut at the token ceiling into a whole
+          // one, inside the memory that never ages out.
+          truncated: true,
+          outcome: true,
+        },
       }),
       db.notisMessage.findMany({
         where: { ...messageWhere, createdAt: range },
@@ -234,12 +249,9 @@ export async function maybeCompact(
       // έστειλα ένα σύντομο μήνυμα» would otherwise be folded into `memory`
       // — which never ages out — as a message the reader never received.
       wakes.length > 0
-        ? "(the agent's own reasoning at the time, never a record of what was sent)\n" +
+        ? `${DECISIONS_CAVEAT}\n` +
           wakes
-            .map(
-              (w) =>
-                `[${w.eventAt.toISOString()}] ${w.eventType} → ${decisionOutcome(w)}\n  why: ${w.rationale}`,
-            )
+            .map((w) => decisionLine(toDecisionEntry(w)))
             .join("\n")
         : "(none)",
       `</aged_out_decisions>`,

@@ -175,8 +175,10 @@ describe("assembleUserTurn", () => {
       [meetingEvent()],
       FIXED_NOW,
     );
-    expect(turn).toContain("→ send");
-    expect(turn).not.toContain("send (nothing reached the reader)");
+    // Pinned to the whole line: a suffix appended to the send branch later
+    // would be a second outcome claim the shell cannot stand behind, and a
+    // `toContain("→ send")` prefix match would not notice it.
+    expect(turn).toContain("] meeting_summarized → send\n");
   });
 
   it("says nothing about the log when there is no log", () => {

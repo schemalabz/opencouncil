@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { decideDelivery } from "@/agent/delivery";
+import { toDecisionEntry } from "@/agent/prompt";
 import { runWake } from "@/agent/runWake";
 import { primaryEvent, wakeEventSchema, wakeEventsSchema } from "@/agent/schemas";
 import {
@@ -238,18 +239,7 @@ async function runOneWake(
     take: DECISION_WINDOW,
     select: { eventType: true, eventAt: true, decision: true, rationale: true, outcome: true, truncated: true },
   });
-  const decisions: DecisionEntry[] = wakeRows.reverse().map((row) => {
-    const o = row.outcome as { profileRewrite?: string; unsubscribe?: unknown } | null;
-    return {
-      at: row.eventAt.toISOString(),
-      event: row.eventType as DecisionEntry["event"],
-      decision: row.decision,
-      rationale: row.rationale,
-      ...(o?.profileRewrite !== undefined ? { profileRewritten: true } : {}),
-      ...(o?.unsubscribe ? { unsubscribed: true } : {}),
-      ...(row.truncated ? { truncated: true } : {}),
-    };
-  });
+  const decisions: DecisionEntry[] = wakeRows.reverse().map(toDecisionEntry);
 
   const windowOpenedAt = await lastWhatsAppInboundAt(db, sub.id);
 
