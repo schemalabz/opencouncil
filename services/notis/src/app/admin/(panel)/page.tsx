@@ -16,15 +16,13 @@ import {
   OverviewStats,
   PeriodStats,
   RANGES,
-  REPLY_WINDOW_HOURS,
   RangeKey,
   SeriesPoint,
   getOverviewStats,
   liveData,
   parseRange,
-  cumulativeReplyRates,
   deltaFor,
-  replyRate,
+  replierRate,
 } from "./_lib/metrics";
 
 export const metadata = { title: "Νότης · admin" };
@@ -88,24 +86,23 @@ function seriesFor(
 }
 
 /**
- * `cumulativeReplyRates` as the chart reads it, plus the label and the hint
- * the tooltip needs. Both of those say «so far», because both numbers are
- * running totals rather than the bucket's own.
+ * The share of readers who wrote in each bucket. Per bucket, not cumulative:
+ * every bucket shares one denominator — the readers who could have written —
+ * so a quiet day is a real zero rather than an absent rate, and the line
+ * carries what the period totals cannot, which is when something changed.
  */
-function replyRateSeries(series: SeriesPoint[], bucket: BucketUnit): MetricPoint[] {
-  const running = cumulativeReplyRates(series);
-  return series.map((point, i) => {
-    const { sent, answered, rate } = running[i];
+function replierRateSeries(
+  series: SeriesPoint[],
+  readers: number,
+  bucket: BucketUnit,
+): MetricPoint[] {
+  return series.map((point) => {
+    const rate = replierRate(point.repliers, readers);
     return {
       key: point.key,
-      // «έως», because both numbers beside it are running totals. Every other
-      // card on this panel uses this label to mean "in this bucket", and
-      // «Σαβ 16/8 2,5% 5/201» on a Saturday that sent nothing reads as a
-      // fan-out that never happened.
-      label: `έως ${fmtBucketLabel(point.key, bucket)}`,
+      label: fmtBucketLabel(point.key, bucket),
       value: rate === null ? null : rate * 100,
-      // The counts behind the rate, so a reader can see how thin it is.
-      hint: sent === 0 ? undefined : `${fmtInt(answered)}/${fmtInt(sent)} συνολικά`,
+      hint: `${fmtInt(point.repliers)}/${fmtInt(readers)}`,
     };
   });
 }
@@ -532,8 +529,15 @@ export default async function DashboardPage(props: {
   const range = parseRange((await props.searchParams).range);
   const stats = await getOverviewStats(range);
   const { current, previous, totals } = stats;
-  const currentReplyRate = replyRate(current.newsWakesSent, current.newsWakesAnswered);
-  const previousReplyRate = replyRate(previous.newsWakesSent, previous.newsWakesAnswered);
+  // Readers who could have written: everyone still subscribed, counted now
+  // rather than as the period saw it. One denominator for the chart, for both
+  // periods and for every bucket, so a quiet day reads as a real zero and the
+  // delta moves only when the number of readers writing moves. On a window
+  // long enough for the audience to have grown, the older buckets are
+  // measured against today's readers and read low.
+  const readers = stats.totals.subscriptions - stats.totals.unsubscribed;
+  const currentReplierRate = replierRate(current.repliers, readers);
+  const previousReplierRate = replierRate(previous.repliers, readers);
   // Both shapes in one number: the wake that erred and the wake that never
   // ran. A model outage produces only the second, so a chart of the first
   // alone stays flat through it.
@@ -595,19 +599,18 @@ export default async function DashboardPage(props: {
 
         <div className="grid divide-y rounded-lg border bg-background sm:grid-cols-2 sm:divide-x sm:divide-y-0">
           <MetricCard
-            label="Ποσοστό απάντησης"
-            value={currentReplyRate === null ? "—" : fmtPct(currentReplyRate, true)}
-            // Passed through as null: a period with no news sends has no
-            // rate, and reading that as 0% turns an absent baseline into a
-            // fall, or the first period after a recess into a rise.
-            current={currentReplyRate}
-            previous={previousReplyRate}
-            points={replyRateSeries(stats.series, RANGES[range].bucket)}
+            label="Αναγνώστες που απαντούν"
+            value={currentReplierRate === null ? "—" : fmtPct(currentReplierRate, true)}
+            // Passed through as null: with no readers there is no rate, and
+            // reading that as 0% would turn an empty period into a fall.
+            current={currentReplierRate}
+            previous={previousReplierRate}
+            points={replierRateSeries(stats.series, readers, RANGES[range].bucket)}
             unit="percent"
             detail={
-              current.newsWakesSent === 0
-                ? "καμία ενημέρωση για ατζέντα ή απολογισμό στην περίοδο"
-                : `${fmtInt(current.newsWakesAnswered)} από ${fmtInt(current.newsWakesSent)} ενημερώσεις για ατζέντα ή απολογισμό πήραν απάντηση σε ${REPLY_WINDOW_HOURS} ώρες`
+              readers === 0
+                ? "κανένας ενεργός αναγνώστης στην περίοδο"
+                : `${fmtInt(current.repliers)} από ${fmtInt(readers)} αναγνώστες έγραψαν στον Νότη — ο καθένας μετράει μία φορά`
             }
           />
           <MetricCard

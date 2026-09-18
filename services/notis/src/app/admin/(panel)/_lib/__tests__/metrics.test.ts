@@ -1,13 +1,12 @@
 import { fmtPct, fmtTimeAgo } from "../format";
 import {
-  MIN_SENDS_FOR_RATE,
-  cumulativeReplyRates,
   deltaFor,
   fillSeries,
   listBuckets,
   parseRange,
   pctChange,
   pointsChange,
+  replierRate,
   replyRate,
 } from "../metrics";
 
@@ -113,6 +112,7 @@ describe("fillSeries", () => {
         received: [],
         activeUsers: [{ key: "2026-08-15", count: 1 }],
         unsubscribes: [],
+        repliers: [],
         newsWakesSent: [{ key: "2026-08-15", count: 4 }],
         newsWakesAnswered: [{ key: "2026-08-15", count: 1 }],
         errors: [{ key: "2026-08-16", count: 2 }],
@@ -179,46 +179,18 @@ describe("pointsChange", () => {
   });
 });
 
-describe("cumulativeReplyRates", () => {
-  const point = (newsWakesSent: number, newsWakesAnswered: number) => ({
-    newsWakesSent,
-    newsWakesAnswered,
+describe("replierRate", () => {
+  it("counts a reader once, however many times they wrote", () => {
+    // The whole reason this replaced a per-message rate: five replies from
+    // one enthusiast and five from five people are opposite answers to
+    // "is this worth reading", and a message-level rate cannot tell them
+    // apart.
+    expect(replierRate(12, 102)).toBeCloseTo(0.1176, 4);
+    expect(replierRate(0, 102)).toBe(0);
   });
 
-  it("carries the rate forward, so a bucket that sent nothing keeps the line", () => {
-    const running = cumulativeReplyRates([point(20, 2), point(0, 0), point(20, 6)]);
-
-    expect(running.map((r) => r.rate)).toEqual([0.1, 0.1, 0.2]);
-    expect(running.map((r) => `${r.answered}/${r.sent}`)).toEqual(["2/20", "2/20", "8/40"]);
-  });
-
-  it("has no rate before the first send, rather than a zero nobody earned", () => {
-    const running = cumulativeReplyRates([point(0, 0), point(0, 0), point(40, 10)]);
-
-    expect(running.map((r) => r.rate)).toEqual([null, null, 0.25]);
-  });
-
-  it("draws no rate while the denominator is too thin to carry one", () => {
-    // A first bucket of 1/1 is 100%, which would set the chart's whole scale
-    // from a single reply and squash the settled rate onto the floor.
-    const thin = cumulativeReplyRates([point(1, 1), point(1, 0)]);
-    expect(thin.map((r) => r.rate)).toEqual([null, null]);
-
-    const enough = cumulativeReplyRates([point(MIN_SENDS_FOR_RATE, 1)]);
-    expect(enough[0].rate).toBeCloseTo(1 / MIN_SENDS_FOR_RATE, 10);
-  });
-
-  it("ends on the period figure the card prints above it", () => {
-    const series = [point(120, 2), point(0, 0), point(81, 3)];
-
-    const running = cumulativeReplyRates(series);
-
-    const last = running[running.length - 1];
-    expect(last.sent).toBe(201);
-    expect(last.answered).toBe(5);
-    // The card's headline comes from replyRate() over the same period totals,
-    // so the chart's last point and the number above it are one calculation.
-    expect(last.rate).toBe(replyRate(201, 5));
+  it("has no rate when there is nobody who could have written", () => {
+    expect(replierRate(0, 0)).toBeNull();
   });
 });
 

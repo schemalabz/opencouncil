@@ -101,6 +101,20 @@ const NEWS_WAKE_EVENTS = [
 export const REPLY_WINDOW_HOURS = 24;
 
 /**
+ * The share of readers who wrote to Νότης at least once in the period; null
+ * when there are no readers to count.
+ *
+ * One reader who answers five times counts once, which is the whole point:
+ * a per-message rate cannot tell five replies from one enthusiast apart from
+ * five replies from five people, and those are opposite answers to "is this
+ * worth reading". It also needs no reply window, so nothing about it matures
+ * for another day, and every bucket has the same denominator.
+ */
+export function replierRate(repliers: number, readers: number): number | null {
+  return readers > 0 ? repliers / readers : null;
+}
+
+/**
  * The share of news sends the reader answered; null when nothing went out, so
  * the card can say so instead of showing a confident 0%.
  *
@@ -185,41 +199,7 @@ export function deltaFor({
   };
 }
 
-/**
- * A cumulative rate is at its wildest where its denominator is smallest: the
- * first bucket that sends can be 1/1, and a line that opens at 100% sets the
- * chart's scale from a single reply. Below this many sends there is no rate
- * worth drawing yet.
- */
-export const MIN_SENDS_FOR_RATE = 20;
 
-/**
- * The reply rate SO FAR at each bucket, as running totals.
- *
- * News goes out on the days councils meet, so a per-bucket rate is a handful
- * of sends against a handful of replies: most buckets have no denominator and
- * the rest swing between 0% and 100% on one reply. Running totals answer what
- * the card is asked — where the rate is settling — and the last bucket equals
- * the period figure printed above the chart.
- *
- * The early buckets have no rate at all, not a zero: nobody failed to answer a
- * message that was never sent, and a handful of sends cannot carry a rate.
- */
-export function cumulativeReplyRates(
-  series: Array<Pick<SeriesPoint, "newsWakesSent" | "newsWakesAnswered">>,
-): Array<{ sent: number; answered: number; rate: number | null }> {
-  let sent = 0;
-  let answered = 0;
-  return series.map((point) => {
-    sent += point.newsWakesSent;
-    answered += point.newsWakesAnswered;
-    return {
-      sent,
-      answered,
-      rate: sent < MIN_SENDS_FOR_RATE ? null : replyRate(sent, answered),
-    };
-  });
-}
 
 export interface WakeEventStats {
   eventType: string;
@@ -247,6 +227,9 @@ export interface PeriodStats {
    *  says belongs to it. */
   newsWakesSent: number;
   newsWakesAnswered: number;
+  /** Distinct subscriptions that sent at least one message in the period.
+   *  The reader-level counterpart of `messagesReceived`. */
+  repliers: number;
   /** Wakes the queue gave up on in the period. Distinct from a wake whose
    *  decision was `error`: this one never reached the model, so it leaves no
    *  wake row at all — which is exactly what a model outage looks like. */
@@ -279,6 +262,8 @@ export interface SeriesPoint {
   unsubscribes: number;
   newsWakesSent: number;
   newsWakesAnswered: number;
+  /** Distinct subscriptions that wrote in this bucket. */
+  repliers: number;
   /** Wake errors and dropped wakes together — see PeriodStats. */
   errors: number;
 }
@@ -305,6 +290,7 @@ const EMPTY_PERIOD: PeriodStats = {
   wakesByDecision: { send: 0, silence: 0, error: 0 },
   newsWakesSent: 0,
   newsWakesAnswered: 0,
+  repliers: 0,
   droppedWakes: 0,
   wakesByEvent: [],
   costUsd: 0,
@@ -419,6 +405,7 @@ export function fillSeries(
     sent: BucketCount[];
     received: BucketCount[];
     activeUsers: BucketCount[];
+    repliers: BucketCount[];
     unsubscribes: BucketCount[];
     newsWakesSent: BucketCount[];
     newsWakesAnswered: BucketCount[];
@@ -432,6 +419,7 @@ export function fillSeries(
     sent: lookup(rows.sent, key),
     received: lookup(rows.received, key),
     activeUsers: lookup(rows.activeUsers, key),
+    repliers: lookup(rows.repliers, key),
     unsubscribes: lookup(rows.unsubscribes, key),
     newsWakesSent: lookup(rows.newsWakesSent, key),
     newsWakesAnswered: lookup(rows.newsWakesAnswered, key),
@@ -454,7 +442,7 @@ async function bucketedSeries(
     count: row.count,
   });
 
-  const [messages, actives, unsubscribes, newsSends, errors] = await Promise.all([
+  const [messages, actives, repliers, unsubscribes, newsSends, errors] = await Promise.all([
     db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
       SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              direction::text AS direction, COUNT(*)::int AS count
@@ -472,6 +460,14 @@ async function bucketedSeries(
                "subscriptionId"
         FROM "NotisWake" WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
       ) t GROUP BY 1
+    `,
+    db.$queryRaw<Array<{ bucket: Date; count: number }>>`
+      SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
+             COUNT(DISTINCT "subscriptionId")::int AS count
+      FROM "NotisMessage"
+      WHERE direction = 'inbound'::"MessageDirection"
+        AND "createdAt" >= ${from} AND "createdAt" < ${to}
+      GROUP BY 1
     `,
     db.$queryRaw<Array<{ bucket: Date; count: number }>>`
       SELECT date_trunc(${bucket}, "unsubscribedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
@@ -508,6 +504,7 @@ async function bucketedSeries(
     sent: messages.filter((r) => r.direction === "outbound").map(rawKey),
     received: messages.filter((r) => r.direction === "inbound").map(rawKey),
     activeUsers: actives.map(rawKey),
+    repliers: repliers.map(rawKey),
     unsubscribes: unsubscribes.map(rawKey),
     newsWakesSent: newsSends.map((r) => ({
       key: r.bucket.toISOString().slice(0, slice),
@@ -525,6 +522,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
   const createdInPeriod = { createdAt: { gte: from, lt: to } };
   const [
     messagesByDirection,
+    repliersByMessage,
     outboundStatus,
     failures,
     activeByMessage,
@@ -539,6 +537,10 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     droppedWakes,
   ] = await Promise.all([
     db.notisMessage.groupBy({ by: ["direction"], where: createdInPeriod, _count: { _all: true } }),
+    db.notisMessage.groupBy({
+      by: ["subscriptionId"],
+      where: { ...createdInPeriod, direction: "inbound" },
+    }),
     db.notisMessage.groupBy({
       by: ["status"],
       where: { ...createdInPeriod, direction: "outbound", status: { not: null } },
@@ -604,6 +606,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     newSubscriptions,
     messagesSent: directionCount("outbound"),
     messagesReceived: directionCount("inbound"),
+    repliers: repliersByMessage.length,
     unsubscribes,
     outboundByStatus,
     failRate: sendable > 0 ? failed / sendable : null,
@@ -643,6 +646,7 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
       series: fillSeries(currentFrom, now, bucket, {
         sent: [],
         received: [],
+        repliers: [],
         newsWakesSent: [],
         newsWakesAnswered: [],
         errors: [],
