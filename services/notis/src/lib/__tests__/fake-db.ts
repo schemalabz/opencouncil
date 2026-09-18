@@ -111,7 +111,28 @@ export function makeFakeDb(seed: { subscriptions?: Row[]; settings?: Row[] } = {
           return true;
         }) ?? null,
       create: async ({ data }: { data: Row }) => {
-        const row: Row = { id: id("sub"), status: "active", unsubscribedAt: null, ...data };
+        // userId is unique in the schema, and the enrollment ceremony leans
+        // on it: two callers racing both pass the existence pre-read, and the
+        // loser's whole transaction must roll back rather than send a second
+        // intro. A fake that accepts both writes would let that regress
+        // unnoticed, so it refuses the way Postgres does.
+        for (const existing of store.subscriptions.values()) {
+          if (existing.userId === data.userId) {
+            throw Object.assign(new Error("Unique constraint failed on the fields: (`userId`)"), {
+              code: "P2002",
+            });
+          }
+        }
+        // createdAt has a schema default in Prisma, so a caller never passes
+        // one and every read of it — the subscription view included — needs
+        // the fake to supply it too.
+        const row: Row = {
+          id: id("sub"),
+          status: "active",
+          unsubscribedAt: null,
+          createdAt: new Date(),
+          ...data,
+        };
         store.subscriptions.set(row.id as string, row);
         calls.push("subscription-created");
         return row;
