@@ -86,23 +86,20 @@ function seriesFor(
 }
 
 /**
- * The share of readers who wrote in each bucket. Per bucket, not cumulative:
- * every bucket shares one denominator — the readers who could have written —
- * so a quiet day is a real zero rather than an absent rate, and the line
- * carries what the period totals cannot, which is when something changed.
+ * The share of the readers written to in each bucket who wrote back. Per
+ * bucket, not cumulative, so the line carries what the period totals cannot:
+ * when something changed. A bucket Νότης wrote nothing in has no rate at all
+ * — nobody failed to answer a message that was never sent — and the line
+ * breaks there rather than dipping to a zero nobody earned.
  */
-function replierRateSeries(
-  series: SeriesPoint[],
-  readers: number,
-  bucket: BucketUnit,
-): MetricPoint[] {
+function replierRateSeries(series: SeriesPoint[], bucket: BucketUnit): MetricPoint[] {
   return series.map((point) => {
-    const rate = replierRate(point.repliers, readers);
+    const rate = replierRate(point.repliers, point.recipients);
     return {
       key: point.key,
       label: fmtBucketLabel(point.key, bucket),
       value: rate === null ? null : rate * 100,
-      hint: `${fmtInt(point.repliers)}/${fmtInt(readers)}`,
+      hint: point.recipients === 0 ? undefined : `${fmtInt(point.repliers)}/${fmtInt(point.recipients)}`,
     };
   });
 }
@@ -529,15 +526,12 @@ export default async function DashboardPage(props: {
   const range = parseRange((await props.searchParams).range);
   const stats = await getOverviewStats(range);
   const { current, previous, totals } = stats;
-  // Readers who could have written: everyone still subscribed, counted now
-  // rather than as the period saw it. One denominator for the chart, for both
-  // periods and for every bucket, so a quiet day reads as a real zero and the
-  // delta moves only when the number of readers writing moves. On a window
-  // long enough for the audience to have grown, the older buckets are
-  // measured against today's readers and read low.
-  const readers = stats.totals.subscriptions - stats.totals.unsubscribed;
-  const currentReplierRate = replierRate(current.repliers, readers);
-  const previousReplierRate = replierRate(previous.repliers, readers);
+  // Readers who had something to reply to: the ones Νότης actually wrote to
+  // in the period, not everyone on the list. He is quiet by design, so most
+  // of the list hears nothing in any given week, and dividing by all of them
+  // measures how often he writes rather than how well.
+  const currentReplierRate = replierRate(current.repliers, current.recipients);
+  const previousReplierRate = replierRate(previous.repliers, previous.recipients);
   // Both shapes in one number: the wake that erred and the wake that never
   // ran. A model outage produces only the second, so a chart of the first
   // alone stays flat through it.
@@ -601,16 +595,16 @@ export default async function DashboardPage(props: {
           <MetricCard
             label="Αναγνώστες που απαντούν"
             value={currentReplierRate === null ? "—" : fmtPct(currentReplierRate, true)}
-            // Passed through as null: with no readers there is no rate, and
-            // reading that as 0% would turn an empty period into a fall.
+            // Passed through as null: a period he wrote nothing in has no
+            // rate, and reading that as 0% would turn silence into a fall.
             current={currentReplierRate}
             previous={previousReplierRate}
-            points={replierRateSeries(stats.series, readers, RANGES[range].bucket)}
+            points={replierRateSeries(stats.series, RANGES[range].bucket)}
             unit="percent"
             detail={
-              readers === 0
-                ? "κανένας ενεργός αναγνώστης στην περίοδο"
-                : `${fmtInt(current.repliers)} από ${fmtInt(readers)} αναγνώστες έγραψαν στον Νότη — ο καθένας μετράει μία φορά`
+              current.recipients === 0
+                ? "ο Νότης δεν έγραψε σε κανέναν στην περίοδο"
+                : `${fmtInt(current.repliers)} από ${fmtInt(current.recipients)} αναγνώστες που έλαβαν μήνυμα απάντησαν — ο καθένας μετράει μία φορά`
             }
           />
           <MetricCard

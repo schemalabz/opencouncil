@@ -113,6 +113,7 @@ describe("fillSeries", () => {
         activeUsers: [{ key: "2026-08-15", count: 1 }],
         unsubscribes: [],
         repliers: [],
+        recipients: [],
         newsWakesSent: [{ key: "2026-08-15", count: 4 }],
         newsWakesAnswered: [{ key: "2026-08-15", count: 1 }],
         errors: [{ key: "2026-08-16", count: 2 }],
@@ -189,8 +190,37 @@ describe("replierRate", () => {
     expect(replierRate(0, 102)).toBe(0);
   });
 
-  it("has no rate when there is nobody who could have written", () => {
+  it("divides by the readers written to, not by the whole list", () => {
+    // Νότης is quiet by design, so most of the list has nothing to reply to
+    // in any given period. Against 513 subscribers, 52 repliers reads as
+    // 10%; against the 300 he actually wrote to, it is 17%. The second
+    // number is the one that answers "was this worth reading".
+    expect(replierRate(52, 300)).toBeCloseTo(0.173, 3);
+    expect(replierRate(52, 513)).toBeCloseTo(0.101, 3);
+  });
+
+  it("has no rate when he wrote to nobody", () => {
     expect(replierRate(0, 0)).toBeNull();
+    // Not a zero: nobody failed to answer a message that was never sent.
+    expect(replierRate(3, 0)).toBeNull();
+  });
+
+  it("cannot exceed 100%, however narrow the bucket", () => {
+    // A chart bucket is one minute wide. Two readers answering in the minute
+    // Νότης wrote to one is 200% — not a rate, and it drags the chart's
+    // scale with it, flattening every honest bucket onto the floor.
+    expect(replierRate(2, 1)).toBe(1);
+    expect(replierRate(1, 1)).toBe(1);
+  });
+});
+
+describe("deltaFor, on a rate that can be absent", () => {
+  it("says nothing when the current period has no rate", () => {
+    // «νέο» means the PREVIOUS period had no baseline, so it says the
+    // opposite of what happened. The headline reads «—»; so does the chip.
+    expect(deltaFor({ current: null, previous: 0.17, unit: "percent" })).toEqual({
+      kind: "none",
+    });
   });
 });
 
@@ -199,7 +229,6 @@ describe("deltaFor", () => {
     // replyRate() returns null when nothing went out. Reading that as 0%
     // turns the first period after a recess into a confident green rise.
     expect(deltaFor({ current: 0.0249, previous: null, unit: "percent" })).toEqual({ kind: "new" });
-    expect(deltaFor({ current: null, previous: 0.048, unit: "percent" })).toEqual({ kind: "new" });
     expect(deltaFor({ current: null, previous: null, unit: "percent" })).toEqual({ kind: "none" });
   });
 
