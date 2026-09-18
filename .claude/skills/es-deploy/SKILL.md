@@ -29,9 +29,9 @@ Collect the actual state. All credentials come from `.env` (cluster) and the tas
 | Ingest pipeline | `elasticsearch/pipeline.json` | `GET /_ingest/pipeline/strip-refs`, compare normalized JSON |
 | Mapping | the `mapping` block in `schema.json` | `GET /<real-index>/_mapping`: field set and declared types, ignore `_meta` |
 | Deployed schema | `schema.json` at the released ref | `curl $SCHEMA_URL` (serves the **production branch**), diff against `git show upstream/production:elasticsearch/schema.json` — and against `main` to see what a release would deploy |
-| Views | `views.sql` | transactional dry-run on the production DB: `psql -c 'BEGIN' -f elasticsearch/views.sql -c 'ROLLBACK'` — a clean run means the file applies; an undefined-column error means a **pending migration dependency**; also compare the view list in `pg_views` |
+| Views | `views.sql`, applied by the `essync_` Prisma migrations | compare the view list and the definitions in `pg_views` with `views.sql`. A missing or stale view means the database is behind on migrations, or somebody changed a view by hand. The repair is a release, never a `psql` write. A transactional dry-run (`psql -c 'BEGIN' -f elasticsearch/views.sql -c 'ROLLBACK'`) still reads well as a check: an undefined-column error means a **pending migration dependency** |
 | Daemon | running, pgsync ≥ 7.x | `ssh … docker ps`, `pip show pgsync` in the container; env is baked at container creation — `docker inspect` it, and use `--force-recreate` after any `.env` change |
-| View ownership | every view owned by the migration user (`readandwrite`) | `SELECT viewname, viewowner FROM pg_views` — a view owned by anyone else blocks `views.sql` and future migrations |
+| View ownership | every view owned by the migration user (`readandwrite`) | `SELECT viewname, viewowner FROM pg_views` — a view owned by anyone else blocks every migration that replaces or drops it |
 | pgsync role membership | `pgsync` is a member of `readandwrite` | `SELECT pg_has_role('pgsync','readandwrite','member')` — bootstrap drops triggers, which requires table ownership |
 | Default privileges | pgsync-created objects auto-grant the app | `SELECT * FROM pg_default_acl` — the rule that keeps `_view` readable across bootstraps (see README "Production roles") |
 | PGSync redis | one `queue:<db>_<index>:*` set for the current index | inspect the keyspace (`redis-cli --scan`) before touching anything |
@@ -45,13 +45,13 @@ Print the full observation table before planning.
 Derive the action set from the drift, then order it canonically:
 
 - **No drift anywhere** → report "in sync", stop. This is a valid and common outcome.
-- **The release is the middle of every schema-carrying sequence** (`SCHEMA_URL` serves the production branch): bridge views and pipeline changes go before it, daemon/bootstrap/swap after it. The plan states the split explicitly. If the views dry-run fails on a missing column, even the views wait: "views depend on a migration — release first, then re-run `/es-deploy`".
+- **The release is the middle of every schema-carrying sequence** (`SCHEMA_URL` serves the production branch): a pipeline change goes before it, the views ride it as `essync_` migrations, and daemon/bootstrap/swap follow it. The plan states the split explicitly.
 - **Mapping drift** (any kind — new fields, changed types, embedding or analyzer changes, dynamic-mapping damage) → **rebuild**: new versioned index `subjects-YYYY-MM` per the README's "Versioned indices and the alias". There is no in-place mapping path: the mapping block only applies at index creation, and a rebuild is cheap enough that maintaining a second path is not worth its hazards.
 - **Pipeline drift** → `PUT` from `pipeline.json` (idempotent).
 - **Deployed-schema drift** (SCHEMA_URL serves something other than the repo's released schema.json) → the schema travels by release; plan a release and a daemon recreate, never an out-of-band edit.
-- **Views drift that changes the shape of a view the running schema references** → plan a daemon stop before applying views; the daemon comes back as part of the schema+daemon step.
+- **A view change that changes the shape of a view the running schema references** → the release applies it, so plan the daemon stop before the release; the daemon comes back as part of the schema+daemon step.
 - **A rebuild** additionally plans: bump the index name in `schema.json` by commit (+ release, since `SCHEMA_URL` serves production), delete the old index's `queue:*` redis keys by name (never `FLUSHALL` without inspecting the keyspace), bootstrap into the new index, verify it, alias swap, then drop the old slot and redis keys at the swap — the previous index itself stays for the validation window (Phase 7).
-- **Views step is a bridge**: when issue #638 lands (view DDL through Prisma migrations), the apply-views step leaves this skill — only the drift check remains, and the release carries the views too.
+- **Views arrive with the release** (#638): the `essync_` migrations apply `views.sql` to every database at build time. This skill observes the views and reports drift. It never writes them.
 
 Present the plan as a numbered list with the reason for each step.
 
@@ -65,7 +65,7 @@ Run only the planned steps, always in this order:
 
 1. **Lint** — re-assert the schema invariants (`npx jest src/lib/search/__tests__/schema-invariants.test.ts`). CI already guards this; the re-run is belt-and-braces for a stale checkout.
 2. **Pipeline** — `PUT` from `pipeline.json` (README "Create or Update the Pipeline"), then verify with `_simulate`.
-3. **Views** — apply `views.sql` to the production DB (daemon stopped first if planned).
+3. **Views** — confirm the release applied them: the `pg_views` definitions match `views.sql`, and `_prisma_migrations` holds the newest `essync_` migration. A mismatch stops the run — do not repair it with `psql`.
 4. **Schema + daemon** — the schema reaches the daemon from the production branch (merge → release), then recreate the daemon (`docker compose up -d --force-recreate pgsync` — a plain restart keeps env baked at creation). On a rebuild: delete the old redis keys first, run the documented `--bootstrap` command, and monitor progress by the target index's `_count`, not the log — the status line stays silent until the initial pull completes.
 5. **`_view` check** — after any bootstrap, verify the app user appears in `SELECT relacl FROM pg_class WHERE relname='_view'`. The default-privileges rule makes this automatic; its absence means the rule was lost and app writes are failing right now.
 

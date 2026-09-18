@@ -33,7 +33,8 @@
     "generate-seed": "tsx scripts/generate_seed_dump.ts",
     "convert-regulation": "tsx scripts/convert-regulation-pdf.ts",
     "transform-regulation": "tsx scripts/transform-regulation-coordinates.ts",
-    "generate-openapi": "tsx scripts/generate-openapi.ts"
+    "generate-openapi": "tsx scripts/generate-openapi.ts",
+    "views:migration": "tsx scripts/generate-view-migration.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

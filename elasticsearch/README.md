@@ -189,16 +189,6 @@ PostgreSQL holds no country column. `REALMS` in `src/lib/realm.ts` maps a realm 
 `getRealmCountry()` reads that map. A `CASE` expression in SQL would copy the map into a second place
 that no test covers, so a new realm would sync an empty or wrong country. A caller that needs the
 country resolves it from `city_realm` in application code.
-6. **CitySearchView** - Casts the `Realm` enum to text. Every other `City` column reaches the index as a direct column
-
-### Realm, Not Country
-
-The index stores `city_realm` (`greece`, `france`, `cyprus`, `serbia`), not an ISO country code.
-
-PostgreSQL holds no country column. `REALMS` in `src/lib/realm.ts` maps a realm to its country, and
-`getRealmCountry()` reads that map. A `CASE` expression in SQL would copy the map into a second place
-that no test covers, so a new realm would sync an empty or wrong country. A caller that needs the
-country resolves it from `city_realm` in application code.
 
 ### Discussion Metrics
 
@@ -229,28 +219,44 @@ because `calculateMeetingDurationMs()` uses it for a wall-clock span.
 > it is tempting to declare `base_tables: ["Subject"]`. That is what `SubjectSearchView` did, and it
 > made PGSync route `Subject` DELETE events as child re-syncs, so deleted subjects stayed in the
 > index. Declare only the tables the view actually reads.
-4. **SpeakerContributionSearchView** - Denormalizes speaker contributions with party resolution
 
 ### Create the Views
 
-Run the provided SQL script to create all views and verify they work correctly:
+A Prisma migration creates the views. Every database that runs the migrations gets them: local,
+preview, staging, and production. No environment needs a manual step, and a database that lacks a
+view is a database that is behind on migrations.
+
+`elasticsearch/views.sql` stays the definition that you read and edit. It stays runnable too, and
+the E2E harness runs it unchanged:
 
 ```bash
 psql "$DATABASE_URL" < elasticsearch/views.sql
 ```
 
-The script will:
-- Create all four required views
-- Run verification checks on each view
-- Display sample data to confirm everything works
-- Show statistics about data coverage
-
-**Important:** Views are database-specific. You need to run this script:
-- When setting up a new database
-- After cloning/restoring a database
-- In each environment (dev, staging, production)
+The file creates the views, runs verification checks on each one, and prints sample data.
 
 View the full view definitions and verification logic in `elasticsearch/views.sql`.
+
+### Carry a View Change into a Migration
+
+After you edit `views.sql`, generate the migration that applies the change:
+
+```bash
+npx prisma migrate dev --create-only --name essync_<what_changed>
+npm run views:migration
+```
+
+The first command creates an empty migration and names it. The `essync_` segment marks the
+migration as generated. The second command writes the view DDL from `views.sql` into that
+migration. It removes the comments, the `\echo` meta-commands, and the verification checks,
+because a migration runs over a plain database connection that rejects psql meta-commands. It also
+emits a `DROP VIEW IF EXISTS` for a view that `views.sql` no longer defines. It finds such a
+removal by comparing the view names with the newest generated migration.
+
+Commit `views.sql` and the migration together. The test
+`src/lib/search/__tests__/view-migration.test.ts` regenerates the migration from `views.sql` and
+compares the result with the newest generated migration, so CI fails when a view change carries no
+migration. See issue #638.
 
 **`CREATE OR REPLACE VIEW` cannot remove a column.** `views.sql` is written to be re-runnable, so it
 uses `CREATE OR REPLACE`. To drop or rename a view column, add an explicit `DROP VIEW IF EXISTS` above
@@ -259,7 +265,10 @@ the view definition, as the removal of `SubjectSearchView` did.
 **Migrations and views can collide.** PostgreSQL refuses to drop or retype a table column that a view
 reads — and Prisma migrations run at build time on production, so a blocked migration is a failed
 release. A migration that drops or retypes a column used by a view in `views.sql` must `DROP VIEW IF
-EXISTS` that view first; the next deploy detects the missing view as drift and recreates it. A **rename**
+EXISTS` that view first. Then update `views.sql` and generate the `essync_` migration that recreates
+the view without the column: its timestamp is newer, so it runs after the migration that dropped the
+column. Every database now carries the views, so the collision also stops a local `prisma migrate
+dev` and the shadow database. It no longer waits for production. A **rename**
 does not error: PostgreSQL rewrites the stored view definition silently, and the live view then drifts
 from `views.sql` while `schema.json` still names the old column. Treat a rename of any column a view
 reads as a schema change — update `views.sql` and `schema.json` together and redeploy.
@@ -357,6 +366,12 @@ index creation.
 and follow the rebuild procedure above. A full rebuild of the corpus takes minutes, search stays
 available throughout (the alias serves the old index until the swap), and re-writing unchanged text is
 absorbed by the inference cache. There is no cheaper deploy path worth maintaining.
+
+**The views travel with the release.** A change to `views.sql` reaches production as a Prisma
+migration, and migrations run at build time, so the release applies the views to every database. The
+daemon reads `schema.json` from the production branch, so the release also carries the schema. The
+`/es-deploy` skill compares the live views with `views.sql` and reports drift. It no longer applies
+them.
 
 #### Verify (after the bootstrap, before the alias swap)
 
@@ -618,6 +633,10 @@ psql "$PSQL_URL" < elasticsearch/views.sql
 
 # Run validation queries
 psql "$PSQL_URL" < elasticsearch/validate-views.sql
+
+# When the change is final, generate the migration that carries it
+npx prisma migrate dev --create-only --name essync_<what_changed>
+npm run views:migration
 ```
 
 #### Cleanup
