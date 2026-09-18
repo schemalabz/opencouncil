@@ -7,6 +7,15 @@ import { ExternalLink, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { diavgeiaViewUrl, inlinePdfUrl } from './pdfUrl';
 import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
+import { FormattedTextDisplay } from '@/components/FormattedTextDisplay';
+import { RadioList } from './controls';
+
+/** A subject the person can pick for a document that has none. */
+export interface SubjectOption {
+    id: string;
+    label: string;
+    hint?: string | null;
+}
 
 interface ConfirmSheetProps {
     open: boolean;
@@ -27,8 +36,20 @@ interface ConfirmSheetProps {
     onConfirm: () => void;
     /** Inspect mode: the confirm button assigns, and it needs a selected subject. */
     confirmDisabled?: boolean;
+    /** Names the confirm button after its outcome ("Σύνδεση με το θέμα 10"). */
+    confirmLabel?: string;
     /** Inspect mode: renders a dismiss button next to the confirm button. */
     onDismiss?: () => void;
+    dismissLabel?: string;
+    /** A sentence the explanation needs on top, e.g. what a replacement unlinks. */
+    note?: string | null;
+    noteDestructive?: boolean;
+    /** View mode: who linked the decision. */
+    sourceLabel?: string | null;
+    /** Inspect mode without a subject: the subjects the document can go to. */
+    subjectOptions?: SubjectOption[];
+    selectedSubjectId?: string | null;
+    onSelectSubject?: (id: string) => void;
     /** View mode: extraction results rendered in a second in-sheet tab. */
     extraContent?: React.ReactNode;
     /** Cross-meeting callers (the decisions overview) link to the meeting here. */
@@ -42,13 +63,15 @@ interface ConfirmSheetProps {
  * at the document itself, not only at metadata. Inspect mode uses the same
  * surface read-first: the admin opens the document, then assigns or dismisses.
  */
-export function ConfirmSheet({ open, onOpenChange, action, destructive, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, agendaItemTitle, busy, onConfirm, confirmDisabled, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
+export function ConfirmSheet({ open, onOpenChange, action, destructive, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, agendaItemTitle, busy, onConfirm, confirmDisabled, confirmLabel, onDismiss, dismissLabel, note, noteDestructive, sourceLabel, subjectOptions, selectedSubjectId, onSelectSubject, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
     const t = useTranslations('admin.decisionsPage.sheet');
     const [pane, setPane] = useState<'document' | 'extraction'>('document');
     useEffect(() => { if (open) setPane('document'); }, [open]);
     const explain = action === 'inspect'
         ? (subjectName ? t('inspectExplain', { subject: subjectName }) : t('inspectNoSubject'))
         : t(`${action}Explain`, { subject: subjectName ?? '', holder: holderName ?? '' });
+    const confirmText = confirmLabel ?? (action === 'inspect' ? t('assignAction') : t('confirm'));
+    const highlighted = (action === 'unlink' && destructive) || (!!note && noteDestructive);
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent side="right" className="flex w-full flex-col overflow-y-auto sm:max-w-xl">
@@ -57,6 +80,7 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                     <SheetDescription>
                         {decisionNumber ? `${decisionNumber} — ` : ''}{decisionTitle ?? ''}
                         {action === 'view' && subjectName && <><br />{explain}</>}
+                        {action === 'view' && sourceLabel && <><br />{sourceLabel}</>}
                     </SheetDescription>
                     {agendaItemTitle?.trim() && (
                         <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
@@ -66,8 +90,12 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                     )}
                     {subjectDescription && (
                         <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">{t('subjectDescriptionLabel')}</span>{' '}
-                            <span>{subjectDescription}</span>
+                            <span className="font-medium text-foreground">{t('subjectDescriptionLabel')}</span>
+                            {/* The description is markdown with utterance references; rendered,
+                                not echoed, so a reader never sees the raw link syntax. */}
+                            <div className="[&_.prose]:text-xs [&_p]:my-1 [&_p]:leading-relaxed">
+                                <FormattedTextDisplay text={subjectDescription} disableUtteranceExpansion linkColor="black" />
+                            </div>
                             <AIGeneratedBadge className="mt-1 justify-end" />
                         </div>
                     )}
@@ -88,6 +116,23 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                         </div>
                     )}
                 </SheetHeader>
+                {subjectOptions && (
+                    <div className="shrink-0">
+                        <div className="pb-1 text-sm font-semibold">{t('subjectOptionsLabel')}</div>
+                        {subjectOptions.length > 0 ? (
+                            <RadioList
+                                label={t('subjectOptionsLabel')}
+                                options={subjectOptions.map(option => ({ id: option.id, text: option.label, hint: option.hint }))}
+                                value={selectedSubjectId ?? null}
+                                disabled={busy}
+                                onChange={id => onSelectSubject?.(id)}
+                            />
+                        ) : (
+                            // Every subject is taken: say where the way out is, instead of an empty list under a question.
+                            <p className="py-1.5 text-[13.5px] text-muted-foreground">{t('subjectOptionsEmpty')}</p>
+                        )}
+                    </div>
+                )}
                 {extraContent && (
                     <div className="flex gap-4 border-b text-sm">
                         <button
@@ -112,25 +157,26 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                     <iframe title={t('documentTitle')} src={inlinePdfUrl(pdfUrl)} className="h-[60vh] min-h-[320px] w-full shrink-0 rounded border" />
                 )}
                 {action !== 'view' && (
-                    <div className={`rounded-lg px-3 py-2.5 text-sm ${action === 'unlink' && destructive ? 'bg-red-50 dark:bg-red-950/30 text-red-900 dark:text-red-200' : 'bg-muted/60'}`}>
+                    <div className={`rounded-lg px-3 py-2.5 text-sm ${highlighted ? 'bg-red-50 dark:bg-red-950/30 text-red-900 dark:text-red-200' : 'bg-muted/60'}`}>
                         {explain}
                         {action === 'unlink' && (
                             <span className={destructive ? 'font-semibold' : undefined}>
                                 {' '}{destructive ? t('unlinkDestructive') : t('unlinkReversible')}
                             </span>
                         )}
+                        {note && <span className={noteDestructive ? 'font-semibold' : undefined}>{' '}{note}</span>}
                     </div>
                 )}
                 <SheetFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>{t(action === 'view' ? 'close' : 'cancel')}</Button>
                     {onDismiss && (
                         <Button variant="outline" className="text-destructive hover:text-destructive" onClick={onDismiss} disabled={busy}>
-                            {t('dismissAction')}
+                            {dismissLabel ?? t('dismissAction')}
                         </Button>
                     )}
                     {action !== 'view' && !(action === 'inspect' && confirmDisabled) && (
                         <Button variant={destructive ? 'destructive' : 'default'} onClick={onConfirm} disabled={busy}>
-                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : action === 'inspect' ? t('assignAction') : t('confirm')}
+                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : confirmText}
                         </Button>
                     )}
                 </SheetFooter>
