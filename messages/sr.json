@@ -660,9 +660,7 @@
     },
     "Profile": {
         "voicePrintConsentError": "Пристанак није сачуван. Покушајте поново.",
-        "voicePrintConsentSave": "Сачувај пристанак",
         "voicePrintConsentLabel": "Пристајем на обраду мог гласа за гласовни отисак",
-        "voicePrintConsentDescription": "OpenCouncil може да направи гласовни отисак из снимљеног говора особе {name} на седници и да га користи за препознавање говорника у будућим снимцима. Пристанак можете повући у било ком тренутку.",
         "myHighlightsDescription": "Погледајте све истакнуте снимке које сте направили, из сваке седнице.",
         "viewMyHighlights": "Погледајте своје истакнуте снимке",
         "welcomeOnboard": "Добро дошли у OpenCouncil",
