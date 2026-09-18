@@ -5,6 +5,7 @@ import { CouncilMeeting, City, Prisma, AdministrativeBodyType, DiscussionStatus 
 import { PersonWithRelations } from './people';
 import { isRoleActiveAt } from '../utils';
 import { roleWithRelationsInclude } from './types';
+import { publicSpeakerTagSelect } from './types/speakerTag';
 
 export type SegmentWithRelations = {
     id: string;
@@ -21,7 +22,8 @@ export type SegmentWithRelations = {
 const speakerSegmentWithRelationsInclude = {
     utterances: true,
     speakerTag: {
-        include: {
+        select: {
+            ...publicSpeakerTagSelect,
             person: {
                 include: {
                     roles: roleWithRelationsInclude
@@ -520,7 +522,8 @@ export async function getLatestSegmentsForSpeaker(
                     }
                 },
                 speakerTag: {
-                    include: {
+                    select: {
+                        ...publicSpeakerTagSelect,
                         person: {
                             include: {
                                 roles: roleWithRelationsInclude
@@ -615,7 +618,8 @@ export async function getLatestSegmentsForParty(
                     }
                 },
                 speakerTag: {
-                    include: {
+                    select: {
+                        ...publicSpeakerTagSelect,
                         person: {
                             include: {
                                 roles: {

@@ -2,6 +2,7 @@ import prisma from '@/lib/db/prisma';
 import { startTask } from './tasks';
 import { GenerateHighlightRequest } from '@/lib/apiTypes';
 import { getSpeakerDisplayInfo } from '@/lib/utils';
+import { publicSpeakerTagSelect } from '@/lib/db/types/speakerTag';
 
 // NOT a "use server" module: this performs no authorization, so exposing it as
 // a server action would let anyone render any highlight. Callers must check
@@ -33,7 +34,8 @@ export async function requestGenerateHighlightCore(highlightId: string, options?
                             speakerSegment: {
                                 include: {
                                     speakerTag: {
-                                        include: {
+                                        select: {
+                                            ...publicSpeakerTagSelect,
                                             person: {
                                                 include: {
                                                     roles: {

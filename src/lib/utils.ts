@@ -278,7 +278,16 @@ export function sortSubjectsByAgendaIndex<T extends SortableSubject>(subjects: T
 export { calculateOfferTotals } from './pricing'
 
 
-export function joinTranscriptSegments(speakerSegments: Transcript): Transcript {
+/**
+ * Joins adjacent segments of the same person into one.
+ *
+ * With sameSpeakerTagOnly, the segments must also share their speaker tag.
+ * Two tags can point at one person while being two diarization speakers — two
+ * voices the voiceprint matched to the same person. Joining those would pass
+ * the second voice off as the first, so a reader who must judge each voice
+ * on its own (fixTranscript's speaker hints) keeps them apart.
+ */
+export function joinTranscriptSegments(speakerSegments: Transcript, { sameSpeakerTagOnly = false }: { sameSpeakerTagOnly?: boolean } = {}): Transcript {
   if (speakerSegments.length === 0) {
     return speakerSegments;
   }
@@ -290,6 +299,7 @@ export function joinTranscriptSegments(speakerSegments: Transcript): Transcript 
     const nextSegment = speakerSegments[i];
     if (nextSegment.speakerTag.personId && currentSegment.speakerTag.personId
       && nextSegment.speakerTag.personId === currentSegment.speakerTag.personId
+      && (!sameSpeakerTagOnly || nextSegment.speakerTagId === currentSegment.speakerTagId)
       && nextSegment.startTimestamp >= currentSegment.startTimestamp) {
       // Join adjacent segments with the same speaker
       currentSegment = {

@@ -5,7 +5,7 @@ import { getCouncilMeeting } from "@/lib/db/meetings";
 import { withUserAuthorizedToEdit } from "../auth";
 import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "../apiTypes";
-import { SpeakerSegment } from "@prisma/client";
+import { Prisma, SpeakerSegment } from "@prisma/client";
 import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
 
 const VOICEPRINT_DURATION = 30;
@@ -15,6 +15,17 @@ const VOICEPRINT_DURATION = 30;
  * Eligible means: they have at least one speaker segment longer than VOICEPRINT_DURATION
  * and they don't already have a voiceprint
  */
+/**
+ * The speaker tags whose audio may become a person's voiceprint: not the ones
+ * only the transcript hint named. That assignment is unreviewed, and a
+ * voiceprint built on a wrong one would make the voiceprint method repeat the
+ * transcript's mistake in every later meeting. Spelled with an explicit NULL
+ * branch: `not` alone drops tags with no recorded source.
+ */
+const voiceprintSourceTagWhere = {
+    OR: [{ personSetBy: null }, { personSetBy: { not: 'transcript' } }],
+} satisfies Prisma.SpeakerTagWhereInput;
+
 export async function findEligiblePeopleForVoiceprintGeneration(cityId: string): Promise<{
     eligiblePeople: Array<{ id: string; name: string }>;
     count: number;
@@ -33,6 +44,7 @@ export async function findEligiblePeopleForVoiceprintGeneration(cityId: string):
             id: true,
             name: true,
             speakerTags: {
+                where: voiceprintSourceTagWhere,
                 include: {
                     speakerSegments: true
                 }
@@ -166,6 +178,7 @@ export async function findLongestSpeakerSegmentForPerson(personId: string): Prom
             where: { id: personId },
             include: {
                 speakerTags: {
+                    where: voiceprintSourceTagWhere,
                     include: {
                         speakerSegments: true,
                     },

@@ -5,12 +5,13 @@
 import "server-only";
 
 import { getTranscript } from "./transcript";
-import { getPeopleForMeeting } from "./people";
+import { getPeopleForCity, getPeopleForMeeting } from "./people";
 import { getPartiesForCity } from "./parties";
 import { getTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeetingDirect } from "./meetings";
-import { RequestOnTranscript, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
+import { FixTranscriptRequest, RequestOnTranscript, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
+import { buildSpeakerRoster } from "../tasks/speakerRoster";
 import prisma from "./prisma";
 import { getSubjectsForMeeting, extractUtteranceIdsFromContributions } from "./subject";
 import { DiscussionStatus, Subject as DbSubject } from "@prisma/client";
@@ -29,8 +30,15 @@ const VALID_DISCUSSION_STATUSES = new Set<string>(Object.values(DiscussionStatus
 // Type for the Prisma interactive transaction client
 type PrismaTxClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
-export async function getRequestOnTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
-    const transcript = await getTranscript(councilMeetingId, cityId, { joinAdjacentSameSpeakerSegments: true });
+export async function getRequestOnTranscriptRequestBody(
+    councilMeetingId: string,
+    cityId: string,
+    { keepSpeakerTagsApart = false }: { keepSpeakerTagsApart?: boolean } = {}
+): Promise<Omit<RequestOnTranscript, 'callbackUrl'>> {
+    const transcript = await getTranscript(councilMeetingId, cityId, {
+        joinAdjacentSameSpeakerSegments: true,
+        joinSameSpeakerTagOnly: keepSpeakerTagsApart,
+    });
     // Ungated: the task-server callback carries no session (see getCouncilMeetingDirect).
     const councilMeeting = await getCouncilMeetingDirect(cityId, councilMeetingId);
 
@@ -74,6 +82,7 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
                 speakerParty: party?.name || null,
                 speakerRole: person ? getRoleNameForPerson(person.roles, councilMeeting.dateTime, councilMeeting.administrativeBodyId) || null : null,
                 speakerSegmentId: segment.id,
+                speakerTagId: segment.speakerTagId,
                 speakerId: person?.id || null,
                 text: segment.utterances.map(u => u.text).join(' '),
                 utterances: segment.utterances.map(u => ({
@@ -103,6 +112,30 @@ export async function getRequestOnTranscriptRequestBody(councilMeetingId: string
             })
         })),
         date: councilMeeting.dateTime.toISOString().split('T')[0]
+    };
+}
+
+/**
+ * The fixTranscript request: the transcript request plus the city's roster, which
+ * makes the task return speaker hints alongside the text corrections.
+ */
+export async function getFixTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<FixTranscriptRequest, 'callbackUrl'>> {
+    const [baseRequest, councilMeeting, people] = await Promise.all([
+        // Speaker hints judge each diarization speaker on its own, so two tags the
+        // voiceprint matched to one person must not reach the task as one speaker.
+        getRequestOnTranscriptRequestBody(councilMeetingId, cityId, { keepSpeakerTagsApart: true }),
+        // Ungated: the task-server callback carries no session (see getCouncilMeetingDirect).
+        getCouncilMeetingDirect(cityId, councilMeetingId),
+        getPeopleForCity(cityId),
+    ]);
+
+    if (!councilMeeting) {
+        throw new Error('Council meeting not found');
+    }
+
+    return {
+        ...baseRequest,
+        roster: buildSpeakerRoster(people, councilMeeting.dateTime, councilMeeting.administrativeBodyId),
     };
 }
 
