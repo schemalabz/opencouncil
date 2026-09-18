@@ -40,6 +40,19 @@ describe('generateUnsubscribeToken / verifyUnsubscribeToken', () => {
         expect(decoded).not.toHaveProperty('cityId');
     });
 
+    it('still accepts a token minted before kinds existed, but only with a userId', async () => {
+        const sign = (data: object) => {
+            const payload = Buffer.from(JSON.stringify(data)).toString('base64url');
+            const signature = require('crypto').createHmac('sha256', 'test-secret-do-not-use-in-prod').update(payload).digest('base64url');
+            return `${payload}.${signature}`;
+        };
+        const exp = Date.now() + 1000;
+        expect(await verifyUnsubscribeToken(sign({ userId: 'user-1', exp }))).toMatchObject({ userId: 'user-1' });
+        // An unkinded token of another shape must not pass as "every user".
+        expect(await verifyUnsubscribeToken(sign({ personId: 'person-1', exp }))).toBeNull();
+        expect(await verifyUnsubscribeToken(sign({ userId: 42, exp }))).toBeNull();
+    });
+
     it('produces tokens in the form payload.signature', async () => {
         const token = await generateUnsubscribeToken('u', 'c');
         expect(token.split('.')).toHaveLength(2);

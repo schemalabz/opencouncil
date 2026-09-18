@@ -414,6 +414,19 @@ export function isMayorRole(role: { isHead: boolean; cityId?: string | null; par
   return !!role.cityId && !role.partyId && !role.administrativeBodyId && role.isHead;
 }
 
+/**
+ * The title to print under a council member's name: the city-level role
+ * (Δήμαρχος, Αντιδήμαρχος …) when there is one, else the council role
+ * (Πρόεδρος …). Plain members have neither. Pass active roles only.
+ */
+export function getCouncilTitle(
+  roles: { name: string | null; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null; administrativeBody?: { type: string } | null }[],
+): string | null {
+  const cityRole = roles.find((r) => r.cityId && !r.partyId && !r.administrativeBodyId);
+  const councilRole = roles.find((r) => r.administrativeBody?.type === 'council');
+  return cityRole?.name ?? councilRole?.name ?? null;
+}
+
 /** The fields a mayor test reads off a role. */
 type MayorRoleFields = {
   isHead: boolean;
@@ -445,7 +458,9 @@ export function isMayor(person: { roles: MayorRoleFields[] }): boolean {
 export function simplifyRoleName(name: string | null): string | null {
   if (!name) return null;
   const keyword = 'Αντιδήμαρχος';
-  const idx = name.indexOf(keyword);
+  // NFKC folds the micro sign (µ) that some records carry for μ, and keeps
+  // the length, so the index is valid in the original text.
+  const idx = name.normalize('NFKC').indexOf(keyword);
   if (idx !== -1) return name.slice(0, idx + keyword.length);
   return name;
 }

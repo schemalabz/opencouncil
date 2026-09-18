@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
-import type { User } from "@prisma/client";
+import type { User, VoicePrintConsentSource } from "@prisma/client";
 import { CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { NotificationPreferencesSection } from "@/components/profile/NotificationPreferencesSection";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatNumericDateTime } from "@/lib/formatters/time";
+import { setVoicePrintConsent } from "@/lib/actions/personConsent";
 
 // Server phone rejections that have their own message in the Profile namespace.
 const PHONE_ERROR_KEYS: Record<string, string> = {
@@ -26,12 +27,26 @@ const PHONE_ERROR_KEYS: Record<string, string> = {
     phone_in_use: "phoneInUse",
 };
 
+/** A person this account administers: the consent box is theirs, not the account's. */
+export interface ConsentPerson {
+    id: string;
+    name: string;
+    /**
+     * The consent in force, by who recorded it; null when none is. The person
+     * revokes an ADMIN consent by email, not here.
+     */
+    consent: VoicePrintConsentSource | null;
+}
+
+const CONSENT_REVOKE_EMAIL = "info@opencouncil.gr";
+
 interface UserInfoFormProps {
     user: User;
     isOnboarded: boolean;
+    persons?: ConsentPerson[];
 }
 
-export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
+export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormProps) {
     const t = useTranslations("Profile");
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,17 +63,36 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
     const [serverPhoneError, setServerPhoneError] = useState<string | null>(null);
 
     const [formData, setFormData] = useState({
-        name: user.name || "",
+        // A councillor who signed up through their QR has no name yet: start
+        // from the name on their council record. Only with exactly one linked
+        // person: with more, nothing says which name is the account holder's.
+        // Saved only with the form.
+        name: user.name || (persons.length === 1 ? persons[0].name : ""),
         phone: user.phone || "",
         allowProductUpdates: user.allowProductUpdates,
         allowPetitionUpdates: user.allowPetitionUpdates,
         allowFeedbackCalls: user.allowFeedbackCalls,
     });
+    // Only the boxes the user touched, never the whole set: the saved values
+    // come from `persons`, which router.refresh() keeps current, so a person
+    // linked from another device cannot be reverted by a stale tab.
+    const [consentEdits, setConsentEdits] = useState<Record<string, boolean>>({});
+    const [consentError, setConsentError] = useState(false);
+    const isLocked = (person: ConsentPerson) => person.consent === "ADMIN";
+    const consentOf = (person: ConsentPerson) => (isLocked(person) ? true : consentEdits[person.id] ?? person.consent !== null);
+    // A box that became locked meanwhile drops its pending edit, so the edit
+    // cannot come back if the recorded consent is withdrawn later.
+    useEffect(() => {
+        setConsentEdits((edits) => {
+            const locked = persons.filter((p) => p.consent === "ADMIN" && p.id in edits);
+            if (locked.length === 0) return edits;
+            return Object.fromEntries(Object.entries(edits).filter(([id]) => !locked.some((p) => p.id === id)));
+        });
+    }, [persons]);
 
     const phoneSubmitBlocked = phoneValidity.isActive && !phoneValidity.isEmpty && !phoneValidity.isValid;
 
-    async function saveToApi(payload: object) {
-        setIsSubmitting(true);
+    async function saveToApi(payload: object): Promise<boolean> {
         try {
             const response = await fetch("/api/profile", {
                 method: "POST",
@@ -73,36 +107,66 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
                 const key = code ? PHONE_ERROR_KEYS[code] : undefined;
                 if (key) {
                     setServerPhoneError(key);
-                    return;
+                    return false;
                 }
                 throw new Error("Failed to update profile");
             }
             setServerPhoneError(null);
             router.refresh();
+            return true;
         } catch (error) {
             console.error("Failed to update profile:", error);
+            return false;
+        }
+    }
+
+    async function submitting(...work: Promise<unknown>[]) {
+        setIsSubmitting(true);
+        try {
+            await Promise.all(work);
         } finally {
             setIsSubmitting(false);
+        }
+    }
+
+    // The consent is the person's, not the account's, so it goes through its
+    // own action, next to the profile save and not inside it: a phone the
+    // server refuses cannot swallow a withdrawal.
+    const changedConsents = persons.filter((p) => !isLocked(p) && consentOf(p) !== (p.consent !== null));
+    async function saveConsents() {
+        if (changedConsents.length === 0) return;
+        try {
+            await Promise.all(changedConsents.map((p) => setVoicePrintConsent(p.id, consentOf(p))));
+            setConsentEdits({});
+            setConsentError(false);
+        } catch (error) {
+            console.error("Failed to save voiceprint consent:", error);
+            setConsentError(true);
+        } finally {
+            router.refresh();
         }
     }
 
     async function handlePersonalSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (phoneSubmitBlocked) return;
-        await saveToApi({
-            name: formData.name,
-            phone: phoneValidity.isEmpty ? null : formData.phone,
-            onboarded: true,
-        });
+        await submitting(
+            saveConsents(),
+            saveToApi({
+                name: formData.name,
+                phone: phoneValidity.isEmpty ? null : formData.phone,
+                onboarded: true,
+            }),
+        );
     }
 
     async function handleCommunicationSubmit(e: React.FormEvent) {
         e.preventDefault();
-        await saveToApi({
+        await submitting(saveToApi({
             allowProductUpdates: formData.allowProductUpdates,
             allowPetitionUpdates: formData.allowPetitionUpdates,
             allowFeedbackCalls: formData.allowFeedbackCalls,
-        });
+        }));
     }
 
     async function handleDeleteAccount() {
@@ -199,6 +263,45 @@ export function UserInfoForm({ user, isOnboarded }: UserInfoFormProps) {
                                         <p className="text-sm text-red-500">{t(serverPhoneError)}</p>
                                     )}
                                 </div>
+
+                                {persons.length > 0 && (
+                                    <div className="space-y-3">
+                                        {persons.map((person) => (
+                                            <div key={person.id} className="flex items-start space-x-3">
+                                                <Checkbox
+                                                    id={`voicePrintConsent-${person.id}`}
+                                                    checked={consentOf(person)}
+                                                    disabled={isLocked(person)}
+                                                    onCheckedChange={(checked) =>
+                                                        setConsentEdits({ ...consentEdits, [person.id]: checked === true })
+                                                    }
+                                                />
+                                                <div className="space-y-1">
+                                                    <Label htmlFor={`voicePrintConsent-${person.id}`} className="leading-snug">
+                                                        {t("voicePrintConsentLabel")}
+                                                        {/* Only an account that is more than one person needs to know which box is whose. */}
+                                                        {persons.length > 1 && ` (${person.name})`}
+                                                    </Label>
+                                                    {isLocked(person) && (
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {t.rich("voicePrintConsentRevokeByEmail", {
+                                                                email: CONSENT_REVOKE_EMAIL,
+                                                                mail: (chunks) => (
+                                                                    <a href={`mailto:${CONSENT_REVOKE_EMAIL}`} className="underline text-foreground">
+                                                                        {chunks}
+                                                                    </a>
+                                                                ),
+                                                            })}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {consentError && (
+                                            <p className="text-sm text-red-500">{t("voicePrintConsentError")}</p>
+                                        )}
+                                    </div>
+                                )}
 
                                 <div className="flex flex-col justify-between gap-2">
                                     <p className="text-xs text-muted-foreground">

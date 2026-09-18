@@ -117,6 +117,19 @@ export function QRCode({
 // ─── Lucide icons (stroke paths, mirrors the web's lucide-react) ────────────
 export const ICON_PATHS: Record<string, { paths: string[]; circles?: [number, number, number][] }> =
     {
+        // lucide Scissors
+        scissors: {
+            paths: ["M20 4 8.12 15.88", "M14.47 14.48 20 20", "M8.12 8.12 12 12"],
+            circles: [[6, 6, 3], [6, 18, 3]],
+        },
+        // lucide TriangleAlert
+        triangleAlert: {
+            paths: [
+                "m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",
+                "M12 9v4",
+                "M12 17h.01",
+            ],
+        },
         // lucide FileText
         fileText: {
             paths: [
