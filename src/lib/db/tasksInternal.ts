@@ -13,3 +13,28 @@ export async function getTaskStatusDirect(taskStatusId: string): Promise<TaskSta
         where: { id: taskStatusId },
     });
 }
+
+/**
+ * Error bodies of a meeting's most recent failed transcribes, newest first.
+ *
+ * Selects `responseBody` only for FAILED rows: on a failure it holds just the error
+ * string, but on a succeeded transcribe it holds the whole result, and `requestBody`
+ * holds up to 50 voiceprint embeddings. Widening either would make this expensive.
+ *
+ * No user gate, for the same reason as getTaskStatusDirect: the caller is the
+ * poll-livestreams cron, which runs with no session.
+ */
+export async function getRecentTranscribeFailureErrors(
+    cityId: string,
+    councilMeetingId: string,
+    limit: number,
+): Promise<string[]> {
+    const rows = await prisma.taskStatus.findMany({
+        where: { cityId, councilMeetingId, type: 'transcribe', status: 'failed' },
+        select: { responseBody: true },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+    });
+
+    return rows.map(row => row.responseBody ?? '');
+}

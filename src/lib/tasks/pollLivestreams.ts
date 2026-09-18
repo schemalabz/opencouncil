@@ -2,9 +2,11 @@ import prisma from "../db/prisma";
 import { env } from "@/env.mjs";
 import { aiChat } from "../ai";
 import { resolveChannelId, listRecentChannelVideos, watchUrl, type YouTubeVideo } from "../youtube";
+import { parseVideoId } from "../utils/youtube";
+import { getRecentTranscribeFailureErrors } from "../db/tasksInternal";
 import { cacheHas, cacheSetJSON } from "../cache/valkey";
 import { requestTranscribeInternal } from "./transcribeInternal";
-import { sendLivestreamMatchedAlert, sendLivestreamMultipleMeetingsAlert } from "../discord";
+import { sendLivestreamMatchedAlert, sendLivestreamMultipleMeetingsAlert, sendLivestreamRetriesExhaustedAlert } from "../discord";
 
 /** ±12h around a meeting's scheduled time — the window in which its livestream appears. */
 const WINDOW_MS = 12 * 60 * 60 * 1000;
@@ -12,8 +14,18 @@ const WINDOW_MS = 12 * 60 * 60 * 1000;
 const MATCH_CONFIDENCE_THRESHOLD = 0.8;
 /** Safety cap on transcriptions triggered per cron invocation. */
 const MAX_TRANSCRIBES_PER_RUN = 10;
-/** TTL for the "already alerted about a multi-meeting stream" dedup marker. */
-const MULTI_ALERT_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
+/** TTL for every "already alerted about this" dedup marker. */
+const ALERT_DEDUP_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days
+/**
+ * Automatic attempts allowed per meeting on the same video before we stop and ask for a human.
+ * Measured against production history: a budget of 5 covers 93% of the meetings that ever recovered
+ * after a failure, and the rest needed a code fix rather than another attempt. Deliberately counts
+ * only — permanence is never inferred from the error text, because 15 of the 17 meetings that hit
+ * three byte-identical failures in a row went on to succeed.
+ */
+const MAX_AUTO_TRANSCRIBE_ATTEMPTS = 5;
+/** Truncation for failure text carried into the give-up alert, matching pollDecisions. */
+const ERROR_PREVIEW_LENGTH = 200;
 /** Transcribe statuses that mean "already handled" — anything but a failed attempt. */
 const TRANSCRIBE_ACTIVE_STATUSES = new Set(["pending", "processing", "running", "succeeded"]);
 
@@ -102,7 +114,7 @@ export interface PollLivestreamsMeetingResult {
     decision: LivestreamMatchDecision['decision'] | 'error';
     videoId?: string;
     confidence?: number;
-    action: 'transcribe_triggered' | 'alerted_multiple' | 'alerted_multiple_skipped' | 'skipped' | 'dry_run' | 'error';
+    action: 'transcribe_triggered' | 'alerted_multiple' | 'alerted_multiple_skipped' | 'alerted_exhausted' | 'alerted_exhausted_skipped' | 'skipped' | 'dry_run' | 'error';
     error?: string;
 }
 
@@ -110,10 +122,28 @@ export interface PollLivestreamsSummary {
     candidates: number;
     matched: number;
     multipleMeetings: number;
+    exhausted: number;
     skipped: number;
     errors: number;
     dryRun: boolean;
     results: PollLivestreamsMeetingResult[];
+}
+
+/**
+ * The distinct failure messages behind a meeting's exhausted retry budget, newest first.
+ *
+ * Scoped to the attempts the budget actually spent, so the alert explains the decision being
+ * reported rather than the meeting's whole history. Fetched only when an alert is about to be posted.
+ */
+async function distinctFailureErrors(cityId: string, councilMeetingId: string): Promise<string[]> {
+    const errors = await getRecentTranscribeFailureErrors(cityId, councilMeetingId, MAX_AUTO_TRANSCRIBE_ATTEMPTS);
+
+    const distinct: string[] = [];
+    for (const error of errors) {
+        const text = error.trim().slice(0, ERROR_PREVIEW_LENGTH);
+        if (text && !distinct.includes(text)) distinct.push(text);
+    }
+    return distinct;
 }
 
 /**
@@ -122,7 +152,7 @@ export interface PollLivestreamsSummary {
  *
  * Candidate = processAgenda succeeded, scheduled within ±12h of now, the administrative body
  * has a youtubeChannelUrl, and no transcribe is succeeded or in flight (a failed-only meeting
- * is retried).
+ * is retried, up to MAX_AUTO_TRANSCRIBE_ATTEMPTS attempts on the same video).
  *
  * Called by the poll-livestreams cron. Pass { dryRun: true } to log decisions without
  * triggering transcription or posting alerts.
@@ -132,7 +162,7 @@ export async function pollLivestreamsForRecentMeetings(
 ): Promise<PollLivestreamsSummary> {
     const dryRun = options.dryRun ?? false;
     const empty: PollLivestreamsSummary = {
-        candidates: 0, matched: 0, multipleMeetings: 0, skipped: 0, errors: 0, dryRun, results: [],
+        candidates: 0, matched: 0, multipleMeetings: 0, exhausted: 0, skipped: 0, errors: 0, dryRun, results: [],
     };
 
     if (!env.YOUTUBE_API_KEY) {
@@ -176,6 +206,7 @@ export async function pollLivestreamsForRecentMeetings(
 
     const processAgendaSucceeded = new Set<string>();
     const transcribeActive = new Set<string>();
+    const transcribeFailures = new Map<string, number>();
     for (const t of taskStatuses) {
         const key = meetingKey(t.cityId, t.councilMeetingId);
         if (t.type === 'processAgenda' && t.status === 'succeeded') {
@@ -183,6 +214,9 @@ export async function pollLivestreamsForRecentMeetings(
         }
         if (t.type === 'transcribe' && TRANSCRIBE_ACTIVE_STATUSES.has(t.status)) {
             transcribeActive.add(key);
+        }
+        if (t.type === 'transcribe' && t.status === 'failed') {
+            transcribeFailures.set(key, (transcribeFailures.get(key) ?? 0) + 1);
         }
     }
 
@@ -219,6 +253,7 @@ export async function pollLivestreamsForRecentMeetings(
     const results: PollLivestreamsMeetingResult[] = [];
     let matched = 0;
     let multipleMeetings = 0;
+    let exhausted = 0;
     let skipped = 0;
     let errors = 0;
     let transcribesTriggered = 0;
@@ -251,6 +286,43 @@ export async function pollLivestreamsForRecentMeetings(
                 matchedVideo &&
                 decision.confidence >= MATCH_CONFIDENCE_THRESHOLD
             ) {
+                const videoUrl = watchUrl(matchedVideo.videoId);
+                const attempts = transcribeFailures.get(meetingKey(cityId, meetingId)) ?? 0;
+
+                // Only the video we already burned attempts on is capped. A different video means the
+                // council re-uploaded — with working audio, after a silent recording — and that is the
+                // one recovery path needing no human, so it always gets a fresh start.
+                //
+                // Compared by video id: a stored youtu.be link, or a watch URL a human pasted with a
+                // timestamp on it, names the same video as watchUrl() without matching it as a string,
+                // and reading that as a new upload would hand the same video an unlimited budget.
+                const attemptedVideoId = parseVideoId(meeting.youtubeUrl);
+                if (attemptedVideoId === matchedVideo.videoId && attempts >= MAX_AUTO_TRANSCRIBE_ATTEMPTS) {
+                    exhausted++;
+                    const dedupKey = `oc:livestream:exhausted-alert:${cityId}:${meetingId}:${matchedVideo.videoId}`;
+                    const base = { cityId, meetingId, decision: 'match' as const, videoId: matchedVideo.videoId, confidence: decision.confidence };
+
+                    if (dryRun) {
+                        results.push({ ...base, action: 'dry_run' });
+                    } else if (await cacheHas(dedupKey)) {
+                        results.push({ ...base, action: 'alerted_exhausted_skipped' });
+                    } else {
+                        await sendLivestreamRetriesExhaustedAlert({
+                            cityId,
+                            cityName: meeting.city.name,
+                            meetingId,
+                            meetingName: meeting.name,
+                            videoUrl,
+                            videoTitle: matchedVideo.title,
+                            attempts,
+                            errors: await distinctFailureErrors(cityId, meetingId),
+                        });
+                        await cacheSetJSON(dedupKey, 1, ALERT_DEDUP_TTL_SECONDS);
+                        results.push({ ...base, action: 'alerted_exhausted' });
+                    }
+                    continue;
+                }
+
                 if (transcribesTriggered >= MAX_TRANSCRIBES_PER_RUN) {
                     skipped++;
                     results.push({ cityId, meetingId, decision: 'match', videoId: matchedVideo.videoId, confidence: decision.confidence, action: 'skipped', error: 'per-run cap reached' });
@@ -263,20 +335,29 @@ export async function pollLivestreamsForRecentMeetings(
                     continue;
                 }
 
-                const videoUrl = watchUrl(matchedVideo.videoId);
                 await requestTranscribeInternal(videoUrl, meetingId, cityId);
                 transcribesTriggered++;
                 matched++;
-                sendLivestreamMatchedAlert({
-                    cityId,
-                    cityName: meeting.city.name,
-                    meetingId,
-                    meetingName: meeting.name,
-                    videoUrl,
-                    videoTitle: matchedVideo.title,
-                    confidence: decision.confidence,
-                    reasoning: decision.reasoning,
-                }).catch(err => console.error('[pollLivestreams] matched alert failed:', err));
+
+                // One announcement per video, not one per retry: without this a meeting that keeps
+                // failing re-posts the same "matched" alert on every poll tick. Kept off the await
+                // path so Discord cannot slow the trigger loop, with the marker set once the send
+                // settles rather than before it starts.
+                const matchedAlertKey = `oc:livestream:matched-alert:${cityId}:${meetingId}:${matchedVideo.videoId}`;
+                if (!(await cacheHas(matchedAlertKey))) {
+                    sendLivestreamMatchedAlert({
+                        cityId,
+                        cityName: meeting.city.name,
+                        meetingId,
+                        meetingName: meeting.name,
+                        videoUrl,
+                        videoTitle: matchedVideo.title,
+                        confidence: decision.confidence,
+                        reasoning: decision.reasoning,
+                    })
+                        .then(() => cacheSetJSON(matchedAlertKey, 1, ALERT_DEDUP_TTL_SECONDS))
+                        .catch(err => console.error('[pollLivestreams] matched alert failed:', err));
+                }
 
                 results.push({ cityId, meetingId, decision: 'match', videoId: matchedVideo.videoId, confidence: decision.confidence, action: 'transcribe_triggered' });
             } else if (decision.decision === 'multiple_meetings') {
@@ -299,8 +380,10 @@ export async function pollLivestreamsForRecentMeetings(
                         videoUrl,
                         reasoning: decision.reasoning,
                     });
-                    // Set the dedup marker only after a successful alert.
-                    await cacheSetJSON(dedupKey, 1, MULTI_ALERT_TTL_SECONDS);
+                    // Marked once the send has settled. Note this is not proof of delivery: the
+                    // webhook transport logs an HTTP or network failure without rejecting, so a
+                    // dropped alert still suppresses its repeats for the marker's lifetime.
+                    await cacheSetJSON(dedupKey, 1, ALERT_DEDUP_TTL_SECONDS);
                     results.push({ cityId, meetingId, decision: 'multiple_meetings', videoId: decision.videoId, action: 'alerted_multiple' });
                 }
             } else {
@@ -320,6 +403,7 @@ export async function pollLivestreamsForRecentMeetings(
         candidates: candidates.length,
         matched,
         multipleMeetings,
+        exhausted,
         skipped,
         errors,
         dryRun,
