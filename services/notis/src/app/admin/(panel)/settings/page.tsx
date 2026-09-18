@@ -1,3 +1,4 @@
+import { POLLER_INTERVAL_LABEL } from "@/lib/cadence";
 import { getAdminSession } from "@/lib/session-auth";
 import { redirect } from "next/navigation";
 import fs from "node:fs";
@@ -72,7 +73,7 @@ export default async function SettingsPage() {
               </div>
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">
-                Κανένα tick ακόμη — τρέχει κάθε 5 λεπτά, ή χειροκίνητα μέσω POST
+                Κανένα tick ακόμη — τρέχει {POLLER_INTERVAL_LABEL}, ή χειροκίνητα μέσω POST
                 /api/admin/poll.
               </p>
             )}

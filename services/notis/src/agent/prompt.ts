@@ -3,6 +3,7 @@ import {
   CONVERSATION_WINDOW,
   ConversationMessage,
   DECISION_WINDOW,
+  DecisionEntry,
   EditorialBrief,
   Prompts,
   WakeEvent,
@@ -99,6 +100,68 @@ export function conversationLine(m: ConversationMessage): string {
   return `[${m.at}] ${label}: «${neutralizeFences(m.text)}»`;
 }
 
+/**
+ * What the reader got out of a past wake, in words the next wake cannot read
+ * as anything else. A silence delivered nothing, and saying so beside the
+ * rationale leaves a claim of a send contradicted on the line above it.
+ */
+export function decisionOutcome(d: Pick<DecisionEntry, "decision">): string {
+  return d.decision === "silence" ? "silence (nothing reached the reader)" : d.decision;
+}
+
+/** What the block says about itself, above the entries. Both renderers carry
+ *  it: a claim of a send folded into `memory` outlives the window entirely. */
+export const DECISIONS_CAVEAT =
+  "(your own reasoning at the time, never a record of what was sent — the conversation" +
+  " is that; a line marked (σύστημα) is the shell's own and is fact)";
+
+/**
+ * A stored wake row as the decision log sees it. Both readers of that log —
+ * the live prompt and the compaction pass — map rows this way, and the
+ * caveats live in `outcome` and `truncated` rather than in columns of their
+ * own, so a caller that forgets to select them renders a wake as a finished
+ * decision when it was not one.
+ */
+export function toDecisionEntry(row: {
+  eventType: string;
+  eventAt: Date;
+  decision: DecisionEntry["decision"];
+  rationale: string;
+  outcome?: unknown;
+  truncated?: boolean | null;
+}): DecisionEntry {
+  const o = row.outcome as { profileRewrite?: string; unsubscribe?: unknown } | null;
+  return {
+    at: row.eventAt.toISOString(),
+    event: row.eventType as DecisionEntry["event"],
+    decision: row.decision,
+    rationale: row.rationale,
+    ...(o?.profileRewrite !== undefined ? { profileRewritten: true } : {}),
+    ...(o?.unsubscribe ? { unsubscribed: true } : {}),
+    ...(row.truncated ? { truncated: true } : {}),
+  };
+}
+
+/**
+ * One past wake, as both the live prompt and the compaction pass render it.
+ * They drew this line separately once, and the copies drifted: the caveats
+ * that say an entry is NOT a finished decision («cut at the token ceiling»)
+ * reached the prompt and not the fold, so a truncated wake became a whole one
+ * in `memory`, which never ages out.
+ */
+export function decisionLine(
+  d: Pick<DecisionEntry, "at" | "event" | "decision" | "rationale"> &
+    Partial<Pick<DecisionEntry, "truncated" | "profileRewritten" | "unsubscribed">>,
+): string {
+  return (
+    `[${d.at}] ${d.event}${d.truncated ? " (cut at the token ceiling — not a decision)" : ""}` +
+    ` → ${decisionOutcome(d)}` +
+    `${d.profileRewritten ? "\n  (rewrote the taste profile this wake)" : ""}` +
+    `${d.unsubscribed ? "\n  (unsubscribed them this wake)" : ""}` +
+    `\n  why: ${d.rationale}`
+  );
+}
+
 export function renderEvent(event: WakeEvent, state: WakeState): string {
   switch (event.type) {
     case "agenda_processed":
@@ -158,17 +221,23 @@ export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Dat
   // decision whose text is absent from the conversation was stopped or
   // failed before it reached the reader; when the proactive limit stopped
   // it, the text is present and marked NOT SENT instead.
+  //
+  // Each `why` is the model's own prose from that wake — except the
+  // `(σύστημα)` rows, which the shell writes for the wakes it completes
+  // without a model (a cap skip, a ΣΤΟΠ, a phone that went away) and which
+  // exist precisely to be believed. Nothing checks the model's prose against
+  // what the wake did. A wake that meant to send and never called
+  // send_message writes the same confident sentence as one that sent, so a
+  // later wake read «Sent one short message about it» under a silence and
+  // wrote «όπως σου είχα πει» to a reader who had been told nothing. The
+  // outcome therefore renders as what the reader got, not as a verb the
+  // model can gloss, and the block says in its own words that the prose
+  // proves nothing.
   const decisionsOmitted = Math.max(0, state.decisions.length - DECISION_WINDOW);
-  const decisions = state.decisions
-    .slice(-DECISION_WINDOW)
-    .map(
-      (d) =>
-        `[${d.at}] ${d.event}${d.truncated ? " (cut at the token ceiling — not a decision)" : ""} → ${d.decision}${
-          d.profileRewritten ? "\n  (rewrote the taste profile this wake)" : ""
-        }${d.unsubscribed ? "\n  (unsubscribed them this wake)" : ""}\n  why: ${d.rationale}`,
-    )
-    .join("\n");
-  const decisionsHeader = decisionsOmitted > 0 ? `(${decisionsOmitted} older entries omitted)\n` : "";
+  const decisions = state.decisions.slice(-DECISION_WINDOW).map(decisionLine).join("\n");
+  const decisionsHeader =
+    (state.decisions.length > 0 ? `${DECISIONS_CAVEAT}\n` : "") +
+    (decisionsOmitted > 0 ? `(${decisionsOmitted} older entries omitted)\n` : "");
 
   // Open promises, oldest first. These never age out of the prompt — that is
   // the whole point of them: the decision log that mentions a promise in

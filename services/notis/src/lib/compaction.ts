@@ -8,7 +8,12 @@ import {
   Deps,
   MEMORY_MAX_CHARS,
 } from "@/agent/types";
-import { conversationLine } from "@/agent/prompt";
+import {
+  DECISIONS_CAVEAT,
+  conversationLine,
+  decisionLine,
+  toDecisionEntry,
+} from "@/agent/prompt";
 import { normalizeUsage, usageToCost } from "@/agent/pricing";
 import { alert as sendAlert } from "./alert";
 import { buildDeps } from "./deps";
@@ -185,7 +190,17 @@ export async function maybeCompact(
       db.notisWake.findMany({
         where: { subscriptionId: sub.id, eventAt: range },
         orderBy: { eventAt: "asc" },
-        select: { eventType: true, eventAt: true, decision: true, rationale: true },
+        select: {
+          eventType: true,
+          eventAt: true,
+          decision: true,
+          rationale: true,
+          // The caveats that say an entry is not a finished decision. Without
+          // them the fold turns a wake cut at the token ceiling into a whole
+          // one, inside the memory that never ages out.
+          truncated: true,
+          outcome: true,
+        },
       }),
       db.notisMessage.findMany({
         where: { ...messageWhere, createdAt: range },
@@ -228,12 +243,17 @@ export async function maybeCompact(
       `</aged_out_messages>`,
       ``,
       `<aged_out_decisions>`,
-      wakes
-        .map(
-          (w) =>
-            `[${w.eventAt.toISOString()}] ${w.eventType} → ${w.decision}\n  why: ${w.rationale}`,
-        )
-        .join("\n") || "(none)",
+      // The live prompt's own renderer, for the same reason as the messages
+      // above. Each `why` is the model's prose from that wake and nothing
+      // checked it against what the wake did, so a silence that wrote «της
+      // έστειλα ένα σύντομο μήνυμα» would otherwise be folded into `memory`
+      // — which never ages out — as a message the reader never received.
+      wakes.length > 0
+        ? `${DECISIONS_CAVEAT}\n` +
+          wakes
+            .map((w) => decisionLine(toDecisionEntry(w)))
+            .join("\n")
+        : "(none)",
       `</aged_out_decisions>`,
     ].join("\n");
 

@@ -17,7 +17,10 @@ export const CLIENT_TOOLS = [
       properties: {
         rationale: {
           type: "string",
-          description: "The rationale, written for the operator, about the reader — never to them.",
+          description:
+            "Why this was, or was not, worth the reader's attention. Written for the " +
+            "operator, about the reader, never to them. Your judgement, not your actions: " +
+            "the shell records what you sent, and a later wake reads this as memory.",
         },
         // Asking makes the model consider it. Prompt text alone told it to
         // record what a reader reveals and moved a live eval from 0/6 to
@@ -77,9 +80,10 @@ export const CLIENT_TOOLS = [
   {
     name: "resolve_commitment",
     description:
-      "Close a commitment by its slug — you delivered on it, or the reader no longer " +
-      "wants it. It leaves your list immediately. Say which of the two happened in " +
-      "your rationale.",
+      "Close a commitment by its slug — the thing you owed is covered, or the reader no " +
+      "longer wants it. It leaves your list immediately. Say in your rationale which of " +
+      "the two was true, as a judgement about the reader rather than a record of what " +
+      "you did: the shell records what you sent.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -123,7 +127,7 @@ export const CLIENT_TOOLS = [
       "Wake yourself at a future moment for something NO event will cover — a " +
       "process to recheck, a deadline outside the meeting flow. Never schedule " +
       "for a meeting's aftermath: the published record wakes you automatically " +
-      "(meeting_summarized), and your decision log carries any promise you made.",
+      "(meeting_summarized), and record_commitment carries any promise you made.",
     input_schema: {
       type: "object" as const,
       properties: {

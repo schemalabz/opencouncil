@@ -36,11 +36,15 @@ import {
 } from "./settings";
 
 /**
- * The five-minute poller — every link between OpenCouncil and notis is a
- * pull from here (PRD §4): enrollments, subscription reconciliation,
- * scheduled-wake firing, and meeting-event fan-out. OpenCouncil's runtime
- * never calls notis; an hour of downtime just means catching up on the
- * next tick.
+ * The poller — every link between OpenCouncil and notis is a pull from
+ * here (PRD §4): enrollments, subscription reconciliation, scheduled-wake
+ * firing, and meeting-event fan-out. OpenCouncil's runtime never calls
+ * notis; an hour of downtime just means catching up on the next tick.
+ *
+ * It runs every two minutes (POLLER_INTERVAL_MS in instrumentation.ts).
+ * Enrollment happens here and nowhere else, so that interval is what a new
+ * reader waits for their first message, and every per-tick ceiling below is
+ * a rate.
  *
  * Ownership (schema.prisma): notis owns subscription state. This code
  * refreshes phones and unsubscribes when a phone is GONE; it never
@@ -100,9 +104,12 @@ export const MAX_EVENTS_PER_TICK = 4;
  * Intros one tick may send. Enrollment sends inline, so without a ceiling one
  * tick spends the whole waiting audience against the WhatsApp rate limits in
  * a single burst, and holds the tick lock while it does — the phases after it
- * are skipped and the next ticks are dropped. Eight per five-minute tick is
- * ~750 a day across the active hours, well above any signup rate and far
- * under the number's messaging limit.
+ * are skipped and the next ticks are dropped. Eight per two-minute tick is a
+ * ceiling of 8 × 30 × 14 = 3,360 a day across the active hours (09:00–23:00),
+ * against 1,344 at the old five-minute interval. That is far above any signup
+ * rate we have seen, and it keeps a launch cohort paced rather than spending
+ * it in one burst — but it is a ceiling to re-check against the number's own
+ * WhatsApp messaging tier, which is lower than this on the first two rungs.
  */
 export const MAX_ENROLLMENTS_PER_TICK = 8;
 /** How far back the event feed looks. completedAt moves on task-row
@@ -252,7 +259,7 @@ async function enrollNewTargets(
   if (!bird.canSendTemplate(template)) {
     result.enrollmentDeferred += byUser.size;
     // Checked with readers in hand, not every tick, and once per process:
-    // alerting on an idle misconfiguration would page every five minutes
+    // alerting on an idle misconfiguration would page on every tick
     // forever.
     if (!unaddressableAlerted.has(template)) {
       unaddressableAlerted.add(template);
@@ -345,15 +352,23 @@ async function enrollNewTargets(
     enrolled++;
     const sub = await db.notisSubscription.findUnique({ where: { id: enrollment.subId } });
     if (sub) {
-      await deliverPendingMessage(db, bird, enrollment.introId, sub, alert);
-      result.introsSent++;
+      // What the send did, not that it was attempted. A rail can suppress the
+      // intro between the gate above and the handset — the deployment pauses
+      // in that second — and a counter that reads "sent" for a suppressed
+      // message tells the operator this reader was greeted when they were not.
+      const outcome = await deliverPendingMessage(db, bird, enrollment.introId, sub, alert);
+      // The SMS leg counts: a WhatsApp template that fails terminally falls
+      // through to SMS with the same body, and that reader was greeted. The
+      // outcome keeps `status: "failed"` for the WhatsApp attempt, so reading
+      // the status alone undercounts every reader without WhatsApp.
+      if (outcome?.status === "sent" || outcome?.smsFallback === "sent") result.introsSent++;
     }
   }
 
   result.enrollmentHeld = held.length;
   // A held user stays held until someone fixes the number, and the poller
-  // ticks every five minutes — so each one is reported once per process,
-  // not every tick.
+  // ticks every two minutes — so each one is reported once per process, not
+  // every tick.
   const fresh = held.filter((entry) => !heldAlerted.has(entry));
   if (fresh.length > 0) {
     for (const entry of fresh) heldAlerted.add(entry);
@@ -635,7 +650,7 @@ async function processMeetingEvents(
     if (await consumeEvent(db, row)) result.lateAgendaConsumed++;
   }
   // Deliberately NOT consumed — see classifyEvent. The settings key holds the
-  // alarm to once per meeting instead of once per five-minute tick, so the
+  // alarm to once per meeting instead of once per tick, so the
   // alarm has to carry the whole remedy: it is the only one ops gets.
   for (const row of byDisposition.get("future-summary") ?? []) {
     result.futureSummaryHeld++;

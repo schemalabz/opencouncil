@@ -29,14 +29,23 @@ export async function register() {
   };
   setInterval(sweep, 60_000);
 
-  // The five-minute poller: enrollments, reconciliation, scheduled fires
-  // and meeting-event fan-out. No-ops without NOTIS_DATABASE_URL; the
-  // main-DB phases no-op without MAIN_DATABASE_URL. Re-entrancy is guarded
-  // inside runPollerTick.
+  // The poller: enrollments, reconciliation, scheduled fires and
+  // meeting-event fan-out. No-ops without NOTIS_DATABASE_URL; the main-DB
+  // phases no-op without MAIN_DATABASE_URL. Re-entrancy is guarded inside
+  // runPollerTick, which skips a tick that lands while one is running
+  // rather than queueing it.
+  //
+  // Two minutes, not five: enrollment happens here and nowhere else, so this
+  // interval is what a reader waits between finishing the signup and their
+  // first message. The per-tick ceilings are therefore rates — at two
+  // minutes MAX_ENROLLMENTS_PER_TICK releases two and a half times the
+  // readers per hour that it did at five, which is the point, and it stays
+  // paced rather than sending a whole launch cohort at once.
+  const { POLLER_INTERVAL_MS } = await import("./lib/cadence");
   const { runPollerTick } = await import("./lib/poller");
   const pollerTick = () => {
     runPollerTick().catch((e) => console.error("[notis:poller] tick failed:", e));
   };
   setTimeout(pollerTick, 30_000);
-  setInterval(pollerTick, 5 * 60_000);
+  setInterval(pollerTick, POLLER_INTERVAL_MS);
 }
