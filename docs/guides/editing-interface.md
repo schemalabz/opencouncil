@@ -68,6 +68,21 @@ The system divides editing into distinct categories and modes:
     *   Background tasks (like `fixTranscript`) can also modify utterances.
     *   These are treated similarly to user edits but are attributed to 'task' in the `lastModifiedBy` field and `UtteranceEdit` records.
 
+    **Speaker hints.** Two tasks each give an independent opinion on who a speaker is. The opinions live on the `SpeakerTag`:
+    *   The **voiceprint hint** (`voiceprintPersonId`, `voiceprintConfidence`) comes from `transcribe`, which matches the voice against stored voiceprints.
+    *   The **transcript hint** (`transcriptPersonId`, `transcriptConfidence`) comes from `fixTranscript`, which reads who is speaking from the text alone: the chair gives the floor by name, members answer the roll call. It never sees the voiceprint matches, and it works in a city that has no voiceprints.
+    *   `personSetBy` records who decided `personId`: `voiceprint`, `transcript`, `both` or `user`.
+
+    `src/lib/speakerHints.ts` holds the rules, as pure functions that the task handler and the editor share:
+    *   Both methods name the same person: that person.
+    *   The two confidently disagree: nobody. One of them is wrong, so the speaker shows as unknown and the editor alerts the reviewer, who decides.
+    *   Only the voiceprint names someone, or the transcript differs without being confident: the voiceprint's person.
+    *   Only the transcript names someone: that person, if the confidence is at least `TRANSCRIPT_HINT_MIN_CONFIDENCE`.
+    *   **A reviewer's tag is never reassigned.** Any edit of a tag, a typed label included, sets `personSetBy` to `user`. A reviewer who agrees with a name leaves the tag untouched. So once a reviewer has edited any speaker of a meeting, or has completed its review, a run stores hints and changes no assignment. A review counts for the transcript it looked at: after a re-transcribe, hints apply again. A result that a later transcribe or fixTranscript run has superseded is ignored.
+    *   Voiceprint generation never uses a tag that only the transcript hint named.
+
+    Hints are for reviewers only. Every query selects a tag through `publicSpeakerTagSelect` (`src/lib/db/types/speakerTag.ts`), which carries `personSetBy` — how the visible name was decided — and neither hint. The one read of the hint columns that leaves the server is `getSpeakerHintsForMeeting`, which requires edit rights; `SpeakerHintsProvider` calls it when editing mode turns on. The speaker picker then lists each method's suggestion, and a speaker whose methods disagree carries a warning mark, on the segment and in the speakers overview.
+
 6.  **Interaction Enhancements**:
     *   **Keyboard Shortcuts**: `ACTION_DEFINITIONS` in `KeyboardShortcutsContext` states what each shortcut is bound to. The in-app `EditingGuideDialog` renders its keys from that list. The guide therefore cannot show a key that the dispatcher does not honour. Do not write the key list down a second time. The rules that the code does not state are:
         *   **Editing mode claims the bare arrows.** In editing mode the four arrow keys drive playback from anywhere on the page. Focus can stay on the transcript.

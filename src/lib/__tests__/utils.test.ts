@@ -1,3 +1,4 @@
+import type { Transcript } from '@/lib/db/transcript';
 import {
   monthsBetween,
   formatCurrency,
@@ -533,6 +534,28 @@ describe('sortSubjectsByImportance (appearance)', () => {
 });
 
 describe('joinTranscriptSegments', () => {
+  it('keeps two speaker tags of one person apart when asked, and joins them otherwise', () => {
+    const segment = (speakerTagId: string, personId: string | null, start: number) => ({
+      speakerTagId, speakerTag: { id: speakerTagId, personId }, startTimestamp: start, endTimestamp: start + 10,
+      utterances: [{ id: `u${start}` }], topicLabels: [], summary: null,
+    });
+    const segments = [segment('tag-a', 'anna', 0), segment('tag-a', 'anna', 10), segment('tag-b', 'anna', 20), segment('tag-b', 'anna', 30)];
+
+    expect(joinTranscriptSegments(segments as unknown as Transcript)).toHaveLength(1);
+
+    const apart = joinTranscriptSegments(segments as unknown as Transcript, { sameSpeakerTagOnly: true });
+    expect(apart.map(s => [s.speakerTagId, s.utterances.length])).toEqual([['tag-a', 2], ['tag-b', 2]]);
+  });
+
+  it('never joins segments without a person, with or without the option', () => {
+    const segments = [0, 10].map(start => ({
+      speakerTagId: 'tag-a', speakerTag: { id: 'tag-a', personId: null }, startTimestamp: start, endTimestamp: start + 10,
+      utterances: [], topicLabels: [], summary: null,
+    }));
+    expect(joinTranscriptSegments(segments as unknown as Transcript)).toHaveLength(2);
+    expect(joinTranscriptSegments(segments as unknown as Transcript, { sameSpeakerTagOnly: true })).toHaveLength(2);
+  });
+
   it('should join adjacent segments with the same speaker', () => {
     const segments = [
       {

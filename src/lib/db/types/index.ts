@@ -14,6 +14,7 @@ import { CouncilMeetingWithAdminBodyAndSubjects } from '../meetings';
 
 // Re-export db types
 export * from './roles';
+export * from './speakerTag';
 export * from './contribution';
 export * from './meetingSummary';
 

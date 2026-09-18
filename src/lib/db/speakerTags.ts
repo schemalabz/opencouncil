@@ -1,20 +1,47 @@
 "use server";
-import { SpeakerTag, Person } from '@prisma/client';
+import { Person, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from '../auth';
+import { publicSpeakerTagSelect, PublicSpeakerTag } from './types/speakerTag';
 
-export async function getSpeakerTag(id: string): Promise<(SpeakerTag & { person: Person | null }) | null> {
+export async function getSpeakerTag(id: string): Promise<(PublicSpeakerTag & { person: Person | null }) | null> {
     const speakerTag = await prisma.speakerTag.findUnique({
         where: { id },
-        include: {
-            person: true,
-            speakerSegments: true,
-        }
+        select: { ...publicSpeakerTagSelect, person: true },
     });
     return speakerTag;
 }
 
-export async function updateSpeakerTag(id: string, data: Partial<Omit<SpeakerTag, 'id' | 'createdAt' | 'updatedAt'>>): Promise<SpeakerTag> {
+/** What a reviewer may change on a speaker tag. Hints are written by tasks only. */
+type SpeakerTagEdit = { personId?: string | null; label?: string | null };
+
+const speakerHintsSelect = {
+    id: true,
+    voiceprintPersonId: true,
+    voiceprintConfidence: true,
+    transcriptPersonId: true,
+    transcriptConfidence: true,
+} satisfies Prisma.SpeakerTagSelect;
+
+export type SpeakerTagHints = Prisma.SpeakerTagGetPayload<{ select: typeof speakerHintsSelect }>;
+
+/**
+ * The speaker hints of a meeting's tags, for the reviewer's editor. This is the
+ * only read of the hint columns that leaves the server, and it requires edit
+ * rights. Tags without any hint are left out.
+ */
+export async function getSpeakerHintsForMeeting(cityId: string, meetingId: string): Promise<SpeakerTagHints[]> {
+    await withUserAuthorizedToEdit({ cityId });
+    return prisma.speakerTag.findMany({
+        where: {
+            speakerSegments: { some: { cityId, meetingId } },
+            OR: [{ voiceprintPersonId: { not: null } }, { transcriptPersonId: { not: null } }],
+        },
+        select: speakerHintsSelect,
+    });
+}
+
+export async function updateSpeakerTag(id: string, edit: SpeakerTagEdit): Promise<PublicSpeakerTag> {
     const speakerTag = await prisma.speakerTag.findFirst({
         where: { id },
         include: {
@@ -29,14 +56,23 @@ export async function updateSpeakerTag(id: string, data: Partial<Omit<SpeakerTag
     }
 
     await withUserAuthorizedToEdit({ cityId: speakerTag.speakerSegments[0].cityId });
+    // A server action receives whatever the browser sends, so only the two
+    // editable fields are read from it. Any edit makes the tag the reviewer's:
+    // a typed label says who the speaker is as much as a chosen person does,
+    // and from then on no automatic pass reassigns it.
     const updatedSpeakerTag = await prisma.speakerTag.update({
         where: { id },
-        data,
+        data: {
+            ...(edit.personId !== undefined ? { personId: edit.personId } : {}),
+            ...(edit.label !== undefined ? { label: edit.label } : {}),
+            personSetBy: 'user',
+        },
+        select: publicSpeakerTagSelect,
     });
     return updatedSpeakerTag;
 }
 
-export async function getSpeakerTagsForCityCouncilMeeting(cityCouncilMeetingId: string): Promise<SpeakerTag[]> {
+export async function getSpeakerTagsForCityCouncilMeeting(cityCouncilMeetingId: string): Promise<PublicSpeakerTag[]> {
     const speakerTags = await prisma.speakerTag.findMany({
         where: {
             speakerSegments: {
@@ -48,6 +84,7 @@ export async function getSpeakerTagsForCityCouncilMeeting(cityCouncilMeetingId: 
         orderBy: {
             createdAt: 'asc',
         },
+        select: publicSpeakerTagSelect,
     });
     return speakerTags;
 }
@@ -70,7 +107,8 @@ export async function assignSpeakerSegmentToNewSpeakerTag(speakerSegmentId: stri
             speakerSegments: {
                 connect: { id: speakerSegmentId }
             }
-        }
+        },
+        select: publicSpeakerTagSelect,
     });
 
     await prisma.speakerSegment.update({
@@ -124,7 +162,8 @@ export async function createEmptySpeakerSegmentAfter(
         include: {
             utterances: true,
             speakerTag: {
-                include: {
+                select: {
+                    ...publicSpeakerTagSelect,
                     person: {
                         include: {
                             roles: {

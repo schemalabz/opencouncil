@@ -261,6 +261,9 @@ export interface RequestOnTranscript extends TaskRequest {
         speakerRole: string | null;
         speakerId: string | null;  // personId from voiceprint matching
         speakerSegmentId: string;
+        // The diarization speaker this segment belongs to. Every segment of one
+        // voice shares it, whether or not that voice has been matched to a person.
+        speakerTagId?: string;
         text: string;
         utterances: {
             text: string;
@@ -288,7 +291,40 @@ export interface RequestOnTranscript extends TaskRequest {
  * Fix Transcript
  */
 
-export interface FixTranscriptRequest extends RequestOnTranscript { }
+/** Someone a speaker can be identified as: a person record of the city. */
+export interface RosterPerson {
+    id: string;
+    name: string;
+    /** Roles held on the meeting date, the ones in the meeting's body first. */
+    role: string | null;
+    party: string | null;
+    /** Holds an active role in the administrative body that is meeting. */
+    memberOfMeetingBody?: boolean;
+}
+
+/**
+ * Who a diarization speaker is, judged from the transcript text alone (the
+ * chair giving the floor by name, roll calls, self-introductions). Independent
+ * of voiceprint matching: the caller reconciles the two.
+ */
+export interface SpeakerHint {
+    speakerTagId: string;
+    personId: string;
+    /** 0–100. The caller decides how confident a hint must be to act on. */
+    confidence: number;
+    /** The transcript lines the hint rests on, for debugging a wrong name. */
+    evidence: string;
+}
+
+export interface FixTranscriptRequest extends RequestOnTranscript {
+    /**
+     * Every person of the city. When present, and segments carry speakerTagId,
+     * the task also identifies speakers from the transcript text and returns
+     * speakerHints. The whole city rather than the meeting's body: councillors
+     * and officials from outside the body attend and speak.
+     */
+    roster?: RosterPerson[];
+}
 
 export interface FixTranscriptResult {
     updateUtterances: {
@@ -296,6 +332,8 @@ export interface FixTranscriptResult {
         markUncertain: boolean;
         text: string;
     }[];
+    /** One entry per speaker the transcript identifies. Absent when the request had no roster. */
+    speakerHints?: SpeakerHint[];
 }
 
 /*
