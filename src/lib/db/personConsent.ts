@@ -1,9 +1,11 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { BadRequestError, ForbiddenError, UnauthorizedError } from "@/lib/api/errors";
 
 const OPEN_PERIOD_TAKEN = "P2002";
+const SERIALIZATION_FAILURE = "P2034";
 
 /**
  * Record a person's voiceprint consent, as their own account gave it.
@@ -22,34 +24,50 @@ export async function setVoicePrintConsent(personId: string, consent: boolean): 
     if (typeof consent !== "boolean") throw new BadRequestError("consent must be a boolean");
     const user = await getCurrentUser();
     if (!user) throw new UnauthorizedError("Not signed in");
-    if (!user.administers.some((a) => a.personId === personId && a.claimedAt)) {
-        throw new ForbiddenError("Only the account that claimed the person can give voiceprint consent");
-    }
+    const refused = () => new ForbiddenError("Only the account that claimed the person can give voiceprint consent");
+    if (!user.administers.some((a) => a.personId === personId && a.claimedAt)) throw refused();
 
-    if (!consent) {
-        await prisma.voicePrintConsent.updateMany({
-            where: { personId, withdrawnAt: null },
-            data: { withdrawnAt: new Date() },
-        });
-        return;
-    }
+    // Serializable, with the claim read inside: a claim removed meanwhile
+    // refuses the write, and a grant and a withdrawal in flight together
+    // cannot both commit; the one that commits last is the state recorded.
+    const write = () =>
+        prisma.$transaction(
+            async (tx) => {
+                const claimed = await tx.administers.findFirst({
+                    where: { userId: user.id, personId, claimedAt: { not: null } },
+                    select: { id: true },
+                });
+                if (!claimed) throw refused();
+
+                if (!consent) {
+                    await tx.voicePrintConsent.updateMany({
+                        where: { personId, withdrawnAt: null },
+                        data: { withdrawnAt: new Date() },
+                    });
+                    return;
+                }
+                // A period open under another account is stale: that account was
+                // the person once, and this one is now. Close it, so the open
+                // period is always the current account's own.
+                await tx.voicePrintConsent.updateMany({
+                    where: { personId, withdrawnAt: null, NOT: { userId: user.id } },
+                    data: { withdrawnAt: new Date() },
+                });
+                const open = await tx.voicePrintConsent.findFirst({ where: { personId, withdrawnAt: null }, select: { id: true } });
+                if (!open) await tx.voicePrintConsent.create({ data: { personId, userId: user.id } });
+            },
+            { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
 
     try {
-        await prisma.$transaction(async (tx) => {
-            // A period open under another account is stale: that account was
-            // the person once, and this one is now. Close it, so the open
-            // period is always the current account's own.
-            await tx.voicePrintConsent.updateMany({
-                where: { personId, withdrawnAt: null, NOT: { userId: user.id } },
-                data: { withdrawnAt: new Date() },
-            });
-            const open = await tx.voicePrintConsent.findFirst({ where: { personId, withdrawnAt: null }, select: { id: true } });
-            if (!open) await tx.voicePrintConsent.create({ data: { personId, userId: user.id } });
-        });
+        await write();
     } catch (error) {
-        // Two ticks at once: the unique index let one through, and that one
-        // is this account's period. Nothing is missing.
-        if ((error as { code?: string }).code !== OPEN_PERIOD_TAKEN) throw error;
+        const code = (error as { code?: string }).code;
+        // Two grants at once: the unique index let one through, and it is
+        // this account's period. Nothing is missing.
+        if (code === OPEN_PERIOD_TAKEN) return;
+        if (code !== SERIALIZATION_FAILURE) throw error;
+        await write();
     }
 }
 

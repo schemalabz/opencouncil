@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { CLAIM_EMAIL_GRACE_MS, verifyPersonClaimToken } from '@/lib/auth/personClaim';
+import { CLAIM_EMAIL_GRACE_MS, verifyJoinConfirmation, verifyPersonClaimToken } from '@/lib/auth/personClaim';
 import { claimPerson, getJoinPerson } from '@/lib/db/personClaim';
 import { sendPersonClaimedAdminAlert } from '@/lib/discord';
 import { relativeRedirect } from '@/lib/utils/relativeRedirect';
@@ -11,7 +11,7 @@ import { relativeRedirect } from '@/lib/utils/relativeRedirect';
  * to the query. The flow itself is the page at /{cityId}/join, which
  * renders from the code and the session; this route only gets people there.
  *
- * `confirmed=1` marks the link in the email: the scanner said "yes, this is
+ * `confirmed` marks the link in the email: the scanner said "yes, this is
  * me" before asking for it. Signed in with that mark, the route claims the
  * person, so the page opens on the consent step. Without it nothing is
  * claimed, and the page asks first.
@@ -23,7 +23,9 @@ import { relativeRedirect } from '@/lib/utils/relativeRedirect';
 export async function GET(req: NextRequest, props: { params: Promise<{ token: string }> }) {
     const { token } = await props.params;
     const params = new URLSearchParams(req.nextUrl.searchParams);
-    const confirmed = params.get('confirmed') === '1';
+    // Only the link in the sign-in email carries a mark the server signed; a
+    // hand-typed `confirmed` claims nothing and extends nothing.
+    const confirmed = verifyJoinConfirmation(token, params.get('confirmed'));
     params.delete('confirmed');
 
     // The email link may arrive after the code expired: the reader confirmed

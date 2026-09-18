@@ -20,8 +20,18 @@ import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
  */
 const MAC_BYTES = 12;
 
+function mac(input: string): Buffer {
+    return createHmac("sha256", env.NEXTAUTH_SECRET).update(input).digest().subarray(0, MAC_BYTES);
+}
+
 function claimMac(personId: string, exp: string): Buffer {
-    return createHmac("sha256", env.NEXTAUTH_SECRET).update(`person-claim:${personId}:${exp}`).digest().subarray(0, MAC_BYTES);
+    return mac(`person-claim:${personId}:${exp}`);
+}
+
+function macMatches(given: string, expected: Buffer): boolean {
+    const a = new Uint8Array(Buffer.from(given, "base64url"));
+    const b = new Uint8Array(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
 }
 
 // Short on purpose: the sheet is printed for one council session and a strip
@@ -66,19 +76,41 @@ export const CLAIM_EMAIL_GRACE_MS = 24 * 60 * 60 * 1000;
 /**
  * The person the token names, or null for a forged, malformed or expired
  * token. `graceMs` extends the expiry; only the return from the sign-in email
- * passes it.
+ * passes it, after `verifyJoinConfirmation`.
  */
 export function verifyPersonClaimToken(token: string, graceMs = 0): string | null {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-    const [personId, exp, mac] = parts;
-    if (!/^[A-Za-z0-9_-]{1,64}$/.test(personId) || !/^[0-9a-z]{1,10}$/.test(exp) || !/^[A-Za-z0-9_-]{16}$/.test(mac)) return null;
+    const [personId, exp, tag] = parts;
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(personId) || !/^[0-9a-z]{1,10}$/.test(exp) || !/^[A-Za-z0-9_-]{16}$/.test(tag)) return null;
 
-    const given = new Uint8Array(Buffer.from(mac, "base64url"));
-    const expected = new Uint8Array(claimMac(personId, exp));
-    if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
+    if (!macMatches(tag, claimMac(personId, exp))) return null;
     if (Date.now() > parseInt(exp, 36) * 1000 + graceMs) return null;
     return personId;
+}
+
+/**
+ * The mark of the sign-in email's link: `<issued at, base-36 seconds>.<mac>`,
+ * bound to one code. Only `sendJoinEmail` mints it, and only while the code
+ * is valid, so it proves that the reader confirmed the name in time. The
+ * email link may then arrive after the code expired: the grace runs from
+ * when the email was sent, never from a parameter the caller chose.
+ */
+export function signJoinConfirmation(token: string, now: number = Date.now()): string {
+    const at = Math.floor(now / 1000).toString(36);
+    return `${at}.${mac(`join-confirm:${token}:${at}`).toString("base64url")}`;
+}
+
+/** Whether `marker` was minted for `token` while it was valid, and is still within the grace. */
+export function verifyJoinConfirmation(token: string, marker: string | null): boolean {
+    if (!marker) return false;
+    const [at, tag, ...rest] = marker.split(".");
+    if (rest.length || !at || !tag || !/^[0-9a-z]{1,10}$/.test(at) || !/^[A-Za-z0-9_-]{16}$/.test(tag)) return false;
+    if (!macMatches(tag, mac(`join-confirm:${token}:${at}`))) return false;
+    const exp = token.split(".")[1];
+    const issuedMs = parseInt(at, 36) * 1000;
+    if (!exp || issuedMs > parseInt(exp, 36) * 1000) return false;
+    return Date.now() <= issuedMs + CLAIM_EMAIL_GRACE_MS;
 }
 
 /**

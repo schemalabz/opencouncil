@@ -5,6 +5,7 @@ const mockTransaction = jest.fn();
 const txUpdateMany = jest.fn();
 const txFindFirst = jest.fn();
 const txCreate = jest.fn();
+const txClaimed = jest.fn();
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
@@ -20,13 +21,17 @@ jest.mock('@/lib/auth', () => ({ getCurrentUser: () => mockGetCurrentUser() }));
 
 import { setVoicePrintConsent, getVoicePrintConsentedIds } from '../personConsent';
 
-const tx = { voicePrintConsent: { updateMany: txUpdateMany, findFirst: txFindFirst, create: txCreate } };
+const tx = {
+    voicePrintConsent: { updateMany: txUpdateMany, findFirst: txFindFirst, create: txCreate },
+    administers: { findFirst: txClaimed },
+};
 const claimedAt = new Date('2026-09-16T10:00:00Z');
 const claimant = { id: 'user-1', isSuperAdmin: false, administers: [{ personId: 'person-1', claimedAt }] };
 
 beforeEach(() => {
-    for (const m of [mockUpdateMany, mockFindMany, mockTransaction, txUpdateMany, txFindFirst, txCreate, mockGetCurrentUser]) m.mockReset();
+    for (const m of [mockUpdateMany, mockFindMany, mockTransaction, txUpdateMany, txFindFirst, txCreate, txClaimed, mockGetCurrentUser]) m.mockReset();
     mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => fn(tx));
+    txClaimed.mockResolvedValue({ id: 'row-1' });
 });
 
 describe('setVoicePrintConsent', () => {
@@ -57,11 +62,33 @@ describe('setVoicePrintConsent', () => {
     it('closes the open periods on withdrawal and deletes nothing', async () => {
         mockGetCurrentUser.mockResolvedValue(claimant);
         await setVoicePrintConsent('person-1', false);
-        expect(mockUpdateMany).toHaveBeenCalledWith({
+        expect(txUpdateMany).toHaveBeenCalledWith({
             where: { personId: 'person-1', withdrawnAt: null },
             data: { withdrawnAt: expect.any(Date) },
         });
-        expect(mockTransaction).not.toHaveBeenCalled();
+        expect(txCreate).not.toHaveBeenCalled();
+    });
+
+    it('checks the claim inside the write: a claim removed meanwhile refuses it', async () => {
+        mockGetCurrentUser.mockResolvedValue(claimant);
+        txClaimed.mockResolvedValue(null);
+        await expect(setVoicePrintConsent('person-1', true)).rejects.toThrow(/claimed the person/);
+        await expect(setVoicePrintConsent('person-1', false)).rejects.toThrow(/claimed the person/);
+        expect(txCreate).not.toHaveBeenCalled();
+        expect(txUpdateMany).not.toHaveBeenCalled();
+        expect(txClaimed).toHaveBeenCalledWith({
+            where: { userId: 'user-1', personId: 'person-1', claimedAt: { not: null } },
+            select: { id: true },
+        });
+    });
+
+    it('runs serializable, and retries once when a grant and a withdrawal collide', async () => {
+        mockGetCurrentUser.mockResolvedValue(claimant);
+        mockTransaction.mockImplementationOnce(async () => { throw Object.assign(new Error('serialization'), { code: 'P2034' }); });
+        await setVoicePrintConsent('person-1', false);
+        expect(mockTransaction).toHaveBeenCalledTimes(2);
+        expect(mockTransaction.mock.calls[0][1]).toEqual({ isolationLevel: 'Serializable' });
+        expect(txUpdateMany).toHaveBeenCalledTimes(1);
     });
 
     it('refuses a delegate link: only the claimed account is the person', async () => {

@@ -1,7 +1,7 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/auth";
-import { verifyPersonClaimToken } from "@/lib/auth/personClaim";
+import { signJoinConfirmation, verifyPersonClaimToken } from "@/lib/auth/personClaim";
 import { claimPerson, type PersonClaimStatus } from "@/lib/db/personClaim";
 import { sendPersonClaimedAdminAlert } from "@/lib/discord";
 import { isLikelyEmail, normalizeEmail } from "@/lib/personJoin/email";
@@ -27,10 +27,10 @@ export type SendJoinEmailResult = { ok: true } | { ok: false; error: "invalid_co
 
 /**
  * Step 2 for a signed-out scanner: the sign-in email. Its link comes back
- * through /api/join with `confirmed=1`, because the scanner confirmed the
- * name before asking for the email, and that route claims the person. The
- * return path is built here from a verified code, never taken from the
- * browser.
+ * through /api/join with a signed `confirmed` mark, because the scanner
+ * confirmed the name before asking for the email, and that route claims the
+ * person. The return path is built here from a verified code, never taken
+ * from the browser.
  */
 export async function sendJoinEmail(token: string, email: string): Promise<SendJoinEmailResult> {
     if (!verifyPersonClaimToken(token)) return { ok: false, error: "invalid_code" };
@@ -38,7 +38,7 @@ export async function sendJoinEmail(token: string, email: string): Promise<SendJ
 
     const form = new FormData();
     form.set("email", normalizeEmail(email));
-    form.set("callbackUrl", `/api/join/${token}?confirmed=1`);
+    form.set("callbackUrl", `/api/join/${token}?confirmed=${signJoinConfirmation(token)}`);
     try {
         await signInWithEmail(form);
         return { ok: true };

@@ -9,7 +9,7 @@ jest.mock('@/lib/discord', () => ({ sendPersonClaimedAdminAlert: (...args: unkno
 const mockSignIn = jest.fn();
 jest.mock('@/lib/serverSignIn', () => ({ signInWithEmail: (...args: unknown[]) => mockSignIn(...args) }));
 
-import { generatePersonClaimToken } from '@/lib/auth/personClaim';
+import { generatePersonClaimToken, verifyJoinConfirmation } from '@/lib/auth/personClaim';
 import { claimWithToken, sendJoinEmail } from '../personJoin';
 
 beforeEach(() => {
@@ -48,7 +48,9 @@ describe('sendJoinEmail', () => {
         expect(await sendJoinEmail(token, '  Maria@Gmail.com ')).toEqual({ ok: true });
         const form = mockSignIn.mock.calls[0][0] as FormData;
         expect(form.get('email')).toBe('maria@gmail.com');
-        expect(form.get('callbackUrl')).toBe(`/api/join/${token}?confirmed=1`);
+        const callback = new URL(form.get('callbackUrl') as string, 'https://opencouncil.gr');
+        expect(callback.pathname).toBe(`/api/join/${token}`);
+        expect(verifyJoinConfirmation(token, callback.searchParams.get('confirmed'))).toBe(true);
     });
 
     it('sends nothing for a bad code or a bad address', async () => {
