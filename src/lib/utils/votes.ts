@@ -13,6 +13,53 @@ export interface VoteResultSummary {
     passed: boolean;
 }
 
+/** The counts the outcome sentence needs — the subset of {@link VoteResultSummary} it reads. */
+export type VoteOutcomeCounts = Pick<VoteResultSummary, 'forCount' | 'againstCount' | 'abstainCount' | 'passed' | 'isUnanimous'>;
+
+/** A `next-intl` translator, typed structurally so no namespace pins these
+ * helpers to one surface. */
+type VoteTranslator = (key: string, values?: Record<string, string | number>) => string;
+
+/**
+ * The counts alone: "6 for", "8 for, 1 against", with the abstentions appended.
+ *
+ * {@link voteResultSentence} bundles the outcome word and the counts into one
+ * translated string. A surface that already prints the word — the Αποτέλεσμα
+ * column of the Πίνακας αποφάσεων — cannot take the counts out of that sentence
+ * without printing the word twice.
+ *
+ * A zero stays out: "6 for, 0 against" says nothing "6 for" does not.
+ */
+export function voteCountsPhrase(t: VoteTranslator, outcome: VoteOutcomeCounts): string {
+    const parts = [`${outcome.forCount} ${t('voteFor')}`];
+    if (outcome.againstCount > 0) parts.push(`${outcome.againstCount} ${t('voteAgainst')}`);
+    if (outcome.abstainCount > 0) parts.push(`${outcome.abstainCount} ${t('voteAbstain')}`);
+    return parts.join(', ');
+}
+
+/**
+ * The one-line vote outcome sentence: "Unanimous (24 for)", "By majority (14
+ * for, 10 against)", or "Rejected (...)", with the abstentions appended.
+ *
+ * The public subject page and the decisions page both print it. The translator
+ * is typed structurally rather than against one namespace, so neither surface's
+ * message keys can pin the helper to itself.
+ */
+export function voteResultSentence(
+    t: VoteTranslator,
+    outcome: VoteOutcomeCounts,
+): string {
+    const main = outcome.isUnanimous
+        ? t('unanimous', { count: outcome.forCount })
+        : outcome.passed
+            ? t('majorityVote', { for: outcome.forCount, against: outcome.againstCount })
+            : t('rejected', { against: outcome.againstCount, for: outcome.forCount });
+    const abstain = !outcome.isUnanimous && outcome.abstainCount > 0
+        ? `, ${outcome.abstainCount} ${t('voteAbstain')}`
+        : '';
+    return main + abstain;
+}
+
 export function calculateVoteResult(votes: { voteType: VoteType }[]): VoteResultSummary {
     let forCount = 0;
     let againstCount = 0;
