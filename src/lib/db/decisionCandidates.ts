@@ -1,7 +1,8 @@
 import prisma from "./prisma";
-import { DataSource } from "@prisma/client";
 import { localCalendarDate } from "@/lib/formatters/time";
 import { shapeCandidates, type MeetingCandidate } from "./decisionCandidateShape";
+import { DecisionWriteError } from "@/lib/utils/decisionWriteCause";
+import { clearDecisionDerivedFacts } from "./decisions";
 
 export { shapeCandidates, type MeetingCandidate, type AdaHolder } from "./decisionCandidateShape";
 
@@ -44,35 +45,53 @@ export async function getUnresolvedCandidatesForMeeting(cityId: string, meetingI
     });
     if (rows.length === 0) return [];
 
-    const holders = await prisma.decision.findMany({
-        where: { ada: { in: rows.map(r => r.ada) } },
-        select: { ada: true, subjectId: true, subject: { select: { name: true } } },
-    });
+    const [holders, city] = await Promise.all([
+        prisma.decision.findMany({
+            where: { ada: { in: rows.map(r => r.ada) } },
+            select: { ada: true, subjectId: true, subject: { select: { name: true } } },
+        }),
+        prisma.city.findUniqueOrThrow({ where: { id: cityId }, select: { timezone: true } }),
+    ]);
 
     return shapeCandidates(
         rows,
         holders
             .filter((h): h is typeof h & { ada: string } => h.ada !== null)
             .map(h => ({ ada: h.ada, subjectId: h.subjectId, subjectName: h.subject.name })),
+        city.timezone,
     );
 }
 
 /**
  * Assign an unresolved candidate to a subject: creates the Decision and links
- * the candidate to it. Throws with a human-readable message when the subject
- * already has a decision or the ADA is held elsewhere — the panel surfaces it.
+ * the candidate to it. Throws a DecisionWriteError naming the cause when the
+ * subject already has a decision or the ADA is held elsewhere — the row panel
+ * turns that cause into the sentence it shows.
  */
 export async function assignCandidate(cityId: string, meetingId: string, candidateId: string, subjectId: string, userId?: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
         const candidate = await tx.decisionCandidate.findUnique({ where: { id: candidateId } });
-        if (!candidate || candidate.cityId !== cityId || candidate.councilMeetingId !== meetingId) throw new Error('Candidate not found');
-        if (candidate.decisionId || candidate.dismissedAt) throw new Error('Candidate is already resolved');
+        if (!candidate || candidate.cityId !== cityId || candidate.councilMeetingId !== meetingId) {
+            throw new DecisionWriteError({ code: 'candidateNotFound' }, 'Candidate not found');
+        }
+        if (candidate.decisionId || candidate.dismissedAt) {
+            throw new DecisionWriteError({ code: 'candidateResolved' }, 'Candidate is already resolved');
+        }
 
         const subjectTaken = await tx.decision.findUnique({ where: { subjectId }, select: { id: true } });
-        if (subjectTaken) throw new Error('Subject already has a decision — remove it first');
+        if (subjectTaken) {
+            throw new DecisionWriteError({ code: 'subjectHasDecision' }, 'Subject already has a decision — remove it first');
+        }
 
         const adaHolder = await tx.decision.findUnique({ where: { ada: candidate.ada }, select: { subjectId: true } });
-        if (adaHolder) throw new Error('This decision is already linked to another subject');
+        // The holder travels with the failure: a page that only says "linked
+        // elsewhere" leaves the reader hunting for the row that holds it.
+        if (adaHolder) {
+            throw new DecisionWriteError(
+                { code: 'adaLinkedElsewhere', subjectId: adaHolder.subjectId },
+                'This decision is already linked to another subject',
+            );
+        }
 
         const decision = await tx.decision.create({
             data: {
@@ -99,7 +118,7 @@ export async function assignCandidate(cityId: string, meetingId: string, candida
                 ...(candidate.subjectId ? {} : { subjectId }),
             },
         });
-        if (linked.count === 0) throw new Error('Candidate is already resolved');
+        if (linked.count === 0) throw new DecisionWriteError({ code: 'candidateResolved' }, 'Candidate is already resolved');
     });
 }
 
@@ -112,8 +131,32 @@ export async function dismissCandidate(cityId: string, meetingId: string, candid
     });
     if (updated.count === 0) {
         const candidate = await prisma.decisionCandidate.findUnique({ where: { id: candidateId }, select: { cityId: true, councilMeetingId: true } });
-        if (!candidate || candidate.cityId !== cityId || candidate.councilMeetingId !== meetingId) throw new Error('Candidate not found');
-        throw new Error('Candidate is already resolved');
+        if (!candidate || candidate.cityId !== cityId || candidate.councilMeetingId !== meetingId) {
+            throw new DecisionWriteError({ code: 'candidateNotFound' }, 'Candidate not found');
+        }
+        throw new DecisionWriteError({ code: 'candidateResolved' }, 'Candidate is already resolved');
+    }
+}
+
+/**
+ * Put a dismissed candidate back among the unresolved ones.
+ *
+ * The page offers "Αναίρεση" on a dismissal, so the write that hides a
+ * candidate needs a mirror. Conditional on `decisionId: null`: a candidate that
+ * was dismissed and then linked by someone else is resolved, and reopening it
+ * would show a decision twice.
+ */
+export async function undismissCandidate(cityId: string, meetingId: string, candidateId: string): Promise<void> {
+    const updated = await prisma.decisionCandidate.updateMany({
+        where: { id: candidateId, cityId, councilMeetingId: meetingId, decisionId: null, dismissedAt: { not: null } },
+        data: { dismissedAt: null },
+    });
+    if (updated.count === 0) {
+        const candidate = await prisma.decisionCandidate.findUnique({ where: { id: candidateId }, select: { cityId: true, councilMeetingId: true } });
+        if (!candidate || candidate.cityId !== cityId || candidate.councilMeetingId !== meetingId) {
+            throw new DecisionWriteError({ code: 'candidateNotFound' }, 'Candidate not found');
+        }
+        throw new DecisionWriteError({ code: 'candidateNotDismissed' }, 'Candidate is not dismissed');
     }
 }
 
@@ -282,10 +325,8 @@ export async function applyCandidateConflictResolution(
             // the claiming subject with the candidate's reading fields.
             // The extracted rows cascade from Subject, not Decision, so drop
             // them explicitly or the old subject keeps votes and attendance
-            // from a document that no longer belongs to it (mirrors
-            // deleteDecision in ./decisions).
-            await tx.subjectAttendance.deleteMany({ where: { subjectId: holding.subjectId, source: DataSource.decision } });
-            await tx.subjectVote.deleteMany({ where: { subjectId: holding.subjectId, source: DataSource.decision } });
+            // from a document that no longer belongs to it.
+            await Promise.all(clearDecisionDerivedFacts(tx, holding.subjectId));
             await tx.decision.delete({ where: { id: holding.id } });
             const moved = await tx.decision.create({
                 data: {
