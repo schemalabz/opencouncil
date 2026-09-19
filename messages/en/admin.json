@@ -372,20 +372,12 @@
       "waitingAnswer": "waiting on a Yes or No in the table"
     },
     "poll": {
-      "cadence": "{days, plural, one {We check Diavgeia for new decisions every day, next check {date}.} other {We check Diavgeia for new decisions every # days, next check {date}.}}",
-      "cadenceFrequent": "{days, plural, one {We check Diavgeia for new decisions every day.} other {We check Diavgeia for new decisions every # days.}}",
-      "stopped": "We no longer check this meeting automatically.",
-      "manualOnlyAllDecided": "Every topic has a decision, so we no longer check Diavgeia automatically for this meeting.",
-      "manualOnlyExcluded": "We do not check accountability meetings automatically: they publish no decisions on Diavgeia.",
-      "manualOnlyNotYet": "The automatic check starts the day after the meeting.",
-      "prompt": "Did you publish a decision you don't see here?",
-      "action": "Check Diavgeia now",
+      "action": "Check now",
       "running": "We are checking Diavgeia for decisions on this meeting. It usually takes one to two minutes. The page will update itself, you can carry on."
     },
     "status": {
       "loadFailed": "The decisions did not load. The table shows what we last knew.",
       "retry": "Try again",
-      "linked": "{linked} of {total} topics have a decision",
       "lastCheck": "Last Diavgeia check: {date}",
       "lastCheckNever": "Not checked yet"
     },
@@ -423,8 +415,7 @@
       "org": "in organization {org}",
       "orgWide": "with no unit configured",
       "unit": "in unit {unit}",
-      "unitSigner": "in unit {unit} with signer {signer}",
-      "notConfigured": "This city has no Diavgeia connection yet, so decisions are not filled in automatically. You can fill them in with the number or the ADA in the table."
+      "unitSigner": "in unit {unit} with signer {signer}"
     },
     "showLess": "Show less",
     "showMore": "Show more",

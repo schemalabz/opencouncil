@@ -1,4 +1,4 @@
-import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, pollCadence, EVERY_RUN_CADENCE_DAYS, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, MEETING_POLL_DELAY_DAYS, isLogodosiaMeeting, type BackoffTier } from '../pollDecisionsBackoff';
+import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, pollCadence, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, MEETING_POLL_DELAY_DAYS, isLogodosiaMeeting } from '../pollDecisionsBackoff';
 
 // Helper: create a Date that is `daysAgo` days before now
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -261,83 +261,25 @@ describe('getPollableMeetingDateRange', () => {
 });
 
 describe('pollCadence', () => {
-    const cadenceNow = new Date('2026-07-30T12:00:00Z');
-    // Inside the cron's window, with work left to do: the state in which a
-    // cadence is the truth. Each test below takes one gate away.
     const input = (over: Partial<Parameters<typeof pollCadence>[0]> = {}) => ({
         canPoll: true,
         pollInFlight: false,
-        currentTier: null as BackoffTier | null,
-        nextCheck: null as string | null,
-        everySubjectDecided: false,
-        meetingName: 'Τακτική συνεδρίαση',
-        meetingDate: new Date('2026-07-23T17:00:00Z'),
-        now: cadenceNow,
         ...over,
     });
 
-    it('blocks a city with no usable Diavgeia scope, whatever its tier says', () => {
-        expect(pollCadence(input({ canPoll: false, currentTier: { kind: 'everyRun' } }))).toEqual({ kind: 'blocked' });
+    it('blocks a city with no usable Diavgeia scope', () => {
+        expect(pollCadence(input({ canPoll: false }))).toEqual({ kind: 'blocked' });
     });
 
-    it('reports a poll in flight before any cadence', () => {
-        expect(pollCadence(input({ pollInFlight: true, currentTier: { kind: 'interval', week: 2, intervalDays: 2 } })))
-            .toEqual({ kind: 'running' });
+    it('keeps blocking while a poll is in flight, so no button appears', () => {
+        expect(pollCadence(input({ canPoll: false, pollInFlight: true }))).toEqual({ kind: 'blocked' });
     });
 
-    it('names the everyRun tier as the finest cadence the footer can say', () => {
-        expect(pollCadence(input({ currentTier: { kind: 'everyRun' } })))
-            .toEqual({ kind: 'idle', everyDays: EVERY_RUN_CADENCE_DAYS, nextCheck: null });
+    it('reports a poll in flight', () => {
+        expect(pollCadence(input({ pollInFlight: true }))).toEqual({ kind: 'running' });
     });
 
-    it('treats a meeting nobody polled yet as that same cadence, not as stopped', () => {
-        // `null` everyDays is the footer's "we stopped" sentence, and a meeting
-        // the cron has not reached yet has not stopped — it is next in line.
-        expect(pollCadence(input({ currentTier: null })))
-            .toEqual({ kind: 'idle', everyDays: EVERY_RUN_CADENCE_DAYS, nextCheck: null });
-    });
-
-    it.each(BACKOFF_SCHEDULE.filter(tier => tier.minIntervalDays > 0))(
-        'carries the interval and the next date of the week-$afterDays tier',
-        ({ afterDays, minIntervalDays }) => {
-            const tier: BackoffTier = { kind: 'interval', week: Math.floor(afterDays / 7) + 1, intervalDays: minIntervalDays };
-            expect(pollCadence(input({ currentTier: tier, nextCheck: '30 Ιουλίου 2026' })))
-                .toEqual({ kind: 'idle', everyDays: minIntervalDays, nextCheck: '30 Ιουλίου 2026' });
-        },
-    );
-
-    it('drops the date once polling stopped, so no next check is promised', () => {
-        expect(pollCadence(input({ currentTier: { kind: 'stopped', maxDays: MAX_POLLING_DAYS }, nextCheck: '30 Ιουλίου 2026' })))
-            .toEqual({ kind: 'idle', everyDays: null, nextCheck: null });
-    });
-
-    // The cron selects a meeting only while it still has an eligible subject
-    // with no decision, only when its name is not Λογοδοσία, and only inside
-    // getPollableMeetingDateRange(). A cadence named in any of those states
-    // promises a check nobody runs.
-    it('promises no cadence once every subject has a decision', () => {
-        expect(pollCadence(input({ everySubjectDecided: true, currentTier: { kind: 'everyRun' } })))
-            .toEqual({ kind: 'manualOnly', reason: 'allDecided' });
-    });
-
-    it('promises no cadence for a meeting the cron excludes by name', () => {
-        expect(pollCadence(input({ meetingName: 'Λογοδοσία Δημάρχου' })))
-            .toEqual({ kind: 'manualOnly', reason: 'excludedMeeting' });
-    });
-
-    it('says the automatic check has not started yet for a meeting held today', () => {
-        expect(pollCadence(input({ meetingDate: cadenceNow })))
-            .toEqual({ kind: 'manualOnly', reason: 'notYet' });
-    });
-
-    it('reads a meeting past the polling window as stopped, not as a daily check', () => {
-        const old = new Date(cadenceNow.getTime() - (MAX_POLLING_DAYS + 1) * 24 * 60 * 60 * 1000);
-        expect(pollCadence(input({ meetingDate: old })))
-            .toEqual({ kind: 'idle', everyDays: null, nextCheck: null });
-    });
-
-    it('still reports a poll in flight, whatever gate would otherwise apply', () => {
-        expect(pollCadence(input({ pollInFlight: true, everySubjectDecided: true })))
-            .toEqual({ kind: 'running' });
+    it('offers the poll in every other state', () => {
+        expect(pollCadence(input())).toEqual({ kind: 'ready' });
     });
 });

@@ -21,7 +21,10 @@ const props: QuestionsCardProps = {
     subjectCount: 36,
     loadFailed: false,
     onRetryLoad: jest.fn(),
-    pollState: { kind: 'idle' as const, everyDays: 7, nextCheck: '24 Σεπτεμβρίου' },
+    diavgeiaUid: '50026',
+    pollScope: [{ entry: '84655', scope: { unit: '84655' }, error: null }],
+    lastCheck: '16 Σεπτεμβρίου 2026',
+    pollState: { kind: 'ready' as const },
     onPoll: jest.fn(),
     polling: false,
     onOpenDocument: jest.fn(),
@@ -194,16 +197,24 @@ describe('QuestionsCard', () => {
         expect(screen.getByRole('button', { name: 'Αναίρεση: Το θέμα 32 συνδέθηκε με την απόφαση 672/2026.' })).toBeInTheDocument();
     });
 
-    it('offers a Diavgeia check with the reason a person would want one', () => {
+    it('says when Diavgeia was last checked, and where it looks, beside the button', () => {
         renderCard();
-        expect(screen.getByText(/Δημοσιεύσατε/)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Έλεγχος στη Διαύγεια τώρα/ })).toBeInTheDocument();
+        expect(screen.getByText(/Τελευταίος έλεγχος στη Διαύγεια: 16 Σεπτεμβρίου 2026/)).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'στον οργανισμό 50026' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'στη μονάδα 84655' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Έλεγχος τώρα/ })).toBeInTheDocument();
+    });
+
+    it('says a meeting has never been checked, and still offers the check', () => {
+        renderCard({ lastCheck: null });
+        expect(screen.getByText(/Δεν έχει ελεγχθεί ακόμη/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Έλεγχος τώρα/ })).toBeInTheDocument();
     });
 
     it('says a check is running and takes the button away', () => {
         renderCard({ pollState: { kind: 'running' } });
         expect(screen.getByText(/Ελέγχουμε τη Διαύγεια/)).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Έλεγχος στη Διαύγεια τώρα/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Έλεγχος τώρα/ })).not.toBeInTheDocument();
     });
 
     it('says all is well without pointing at a button while a check is already running', () => {
@@ -216,19 +227,10 @@ describe('QuestionsCard', () => {
         expect(screen.getByText(/Ελέγχουμε ήδη τη Διαύγεια/)).toBeInTheDocument();
     });
 
-    it('promises only the manual check once every subject has a decision', () => {
-        // The cron drops a meeting with no undecided subject, so "you will see
-        // it here" was a promise nothing kept.
-        renderCard({ pollState: { kind: 'manualOnly', reason: 'allDecided' } });
-        expect(screen.getByText(/ζητήστε έναν έλεγχο από το κουμπί παρακάτω/)).toBeInTheDocument();
-        expect(screen.getByText(/δεν ελέγχουμε πια αυτόματα/)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /Έλεγχος στη Διαύγεια τώρα/ })).toBeInTheDocument();
-    });
-
     it('takes no second click while the check it asked for is on its way', async () => {
         const onPoll = jest.fn();
         renderCard({ polling: true, onPoll });
-        const button = screen.getByRole('button', { name: /Έλεγχος στη Διαύγεια τώρα/ });
+        const button = screen.getByRole('button', { name: /Έλεγχος τώρα/ });
         expect(button).toBeDisabled();
         await userEvent.click(button);
         expect(onPoll).not.toHaveBeenCalled();
@@ -252,17 +254,25 @@ describe('QuestionsCard', () => {
         expect(screen.queryByText(/Όλα εντάξει/)).not.toBeInTheDocument();
     });
 
-    it('explains a city with no Diavgeia link and still points at the table', () => {
-        renderCard({ pollState: { kind: 'blocked' } });
-        expect(screen.getByText(/δεν έχει ακόμη σύνδεση με τη Διαύγεια/)).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Έλεγχος στη Διαύγεια τώρα/ })).not.toBeInTheDocument();
+    it('names the part of the configuration that is broken, and offers no check that cannot run', () => {
+        renderCard({
+            pollState: { kind: 'blocked' },
+            pollScope: [{ entry: 'bad:1:2', scope: null, error: 'unreadable' }],
+        });
+        expect(screen.getByText(/λανθασμένη ρύθμιση μονάδας: bad:1:2/)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Έλεγχος τώρα/ })).not.toBeInTheDocument();
     });
 
-    it('names no button and no Diavgeia in the all-good hint when the city has no Diavgeia link', () => {
-        // Nothing outstanding + `blocked` used to stack the "all good" hint
-        // ("ask for a check with the button below") directly above the amber
-        // "Diavgeia is not configured" line: a button that was not there, for
-        // a service this city does not have.
+    it('says a municipality has no Diavgeia organisation instead of offering a check', () => {
+        renderCard({ pollState: { kind: 'blocked' }, diavgeiaUid: null, pollScope: [] });
+        expect(screen.getByText(/δεν έχει ID οργανισμού στη Διαύγεια/)).toBeInTheDocument();
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Έλεγχος τώρα/ })).not.toBeInTheDocument();
+    });
+
+    it('names no button in the all-good hint when no check can run at all', () => {
+        // Nothing outstanding + `blocked` used to promise "ask for a check
+        // with the button below" above a footer that has no button.
         renderCard({ pollState: { kind: 'blocked' } });
         expect(screen.getByText(/Όλα εντάξει/)).toBeInTheDocument();
         expect(screen.queryByText(/κουμπί παρακάτω/)).not.toBeInTheDocument();

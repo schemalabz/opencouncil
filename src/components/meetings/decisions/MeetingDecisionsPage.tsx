@@ -28,7 +28,7 @@ import { QuestionsCard, type Receipt } from '@/components/meetings/decisions/Que
 import { DecisionsTable, type TableRow } from '@/components/meetings/decisions/DecisionsTable';
 import { LinkPanel, type PanelConfirm, type PanelSubject } from '@/components/meetings/decisions/LinkPanel';
 import { SubjectPicker } from '@/components/meetings/decisions/SubjectPicker';
-import type { PollFooterState } from '@/components/meetings/decisions/PollFooter';
+import type { DiavgeiaFooterState } from '@/components/meetings/decisions/DiavgeiaFooter';
 import type { AdaEntry } from '@/components/meetings/decisions/AdaForm';
 import { diavgeiaDocUrl } from '@/components/meetings/decisions/pdfUrl';
 import { readDiavgeiaUnitEntries } from '@/lib/utils/diavgeiaUnitScope';
@@ -38,7 +38,6 @@ import { buildTimeline } from '@/components/meetings/decisions/timeline';
 import { downloadFile } from '@/lib/export/download';
 import { MinutesPreviewDialog } from '@/components/meetings/decisions/MinutesPreviewDialog';
 import { DecisionsRail } from '@/components/meetings/decisions/rail/DecisionsRail';
-import { DiavgeiaSourceLink } from '@/components/meetings/decisions/DiavgeiaSource';
 
 /** MeetingCandidate as it arrives over JSON — dates serialized to strings. */
 type CandidateView = Omit<MeetingCandidate, 'publishDate' | 'meetingDate'> & {
@@ -418,7 +417,6 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         .filter(subject => !query || normalizeText(subject.name).includes(query));
 
     const decidableSubjects = recordSubjects.filter(s => !s.withdrawn);
-    const linkedCount = decidableSubjects.filter(s => hasDecision(s.id)).length;
     /** Whether anything on this meeting was extracted — an excerpt counts, so a
      * reset stays offered for a decision whose document yielded no vote. */
     const hasExtractions = decidableSubjects.some(s => decisions[s.id]?.excerpt || extractedData[s.id]);
@@ -465,19 +463,9 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const total = attentionCount(attention, waiting);
     const estimate = estimateWork(attention, waiting);
 
-    const pollState: PollFooterState = pollCadence({
+    const pollState: DiavgeiaFooterState = pollCadence({
         canPoll: Boolean(city.diavgeiaUid) && pollScope.every(entry => entry.scope !== null),
         pollInFlight: Boolean(pollingStatus?.pendingTaskId),
-        currentTier: pollingStatus?.currentTier ?? null,
-        nextCheck: pollingStatus?.nextPollEligible
-            ? formatDate(new Date(pollingStatus.nextPollEligible), city.timezone, locale)
-            : null,
-        // The cron's own gates, so the footer never promises a check it will
-        // not run. `decidableSubjects` is the page's twin of the eligibility
-        // the cron's subject clause states.
-        everySubjectDecided: hasLoaded && linkedCount === decidableSubjects.length,
-        meetingName: meeting.name,
-        meetingDate,
     });
 
     // ─── Writes ──────────────────────────────────────────────────────────
@@ -1166,18 +1154,6 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                 />
                             </div>
                         </div>
-                        {/* Plain inline flow, not a flex row: the Diavgeia clauses
-                            continue the last-check sentence, and a flex gap between
-                            a comma and the link after it would break the sentence. */}
-                        <p className="text-[13px] text-muted-foreground">
-                            <span className="mr-2 inline-block h-2 w-2 rounded-full bg-green-600 align-middle" aria-hidden />
-                            {tPage('status.linked', { linked: linkedCount, total: decidableSubjects.length })}
-                            <span aria-hidden>{' · '}</span>
-                            {pollingStatus?.lastPollAt
-                                ? tPage('status.lastCheck', { date: formatDate(new Date(pollingStatus.lastPollAt), city.timezone, locale) })
-                                : tPage('status.lastCheckNever')}
-                            <DiavgeiaSourceLink diavgeiaUid={city.diavgeiaUid} pollScope={pollScope} dated={Boolean(pollingStatus?.lastPollAt)} />
-                        </p>
                         {minutesFailed && !minutes && (
                             <p className="text-sm text-amber-700">{tPage('minutesLoadFailed')}</p>
                         )}
@@ -1205,6 +1181,11 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                 subjectCount={decidableSubjects.length}
                                 loadFailed={loadFailed}
                                 onRetryLoad={() => { void fetchDecisions(); }}
+                                diavgeiaUid={city.diavgeiaUid}
+                                pollScope={pollScope}
+                                lastCheck={pollingStatus?.lastPollAt
+                                    ? formatDate(new Date(pollingStatus.lastPollAt), city.timezone, locale)
+                                    : null}
                                 pollState={pollState}
                                 onPoll={() => { void handlePoll(false); }}
                                 polling={isPolling}

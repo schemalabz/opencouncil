@@ -372,20 +372,12 @@
       "waitingAnswer": "en attente d'un Oui ou d'un Non dans le tableau"
     },
     "poll": {
-      "cadence": "{days, plural, one {Nous vérifions Diavgeia pour de nouvelles décisions chaque jour, prochaine vérification {date}.} other {Nous vérifions Diavgeia pour de nouvelles décisions tous les # jours, prochaine vérification {date}.}}",
-      "cadenceFrequent": "{days, plural, one {Nous vérifions Diavgeia pour de nouvelles décisions chaque jour.} other {Nous vérifions Diavgeia pour de nouvelles décisions tous les # jours.}}",
-      "stopped": "Nous ne vérifions plus automatiquement cette séance.",
-      "manualOnlyAllDecided": "Tous les sujets ont une décision, nous ne vérifions donc plus Diavgeia automatiquement pour cette séance.",
-      "manualOnlyExcluded": "Nous ne vérifions pas automatiquement les séances de reddition de comptes : elles ne publient aucune décision sur Diavgeia.",
-      "manualOnlyNotYet": "La vérification automatique commence le lendemain de la séance.",
-      "prompt": "Avez-vous publié une décision que vous ne voyez pas ici ?",
-      "action": "Vérifier Diavgeia maintenant",
+      "action": "Vérifier maintenant",
       "running": "Nous vérifions Diavgeia pour les décisions de cette séance. Cela prend généralement une à deux minutes. La page se mettra à jour toute seule, vous pouvez continuer."
     },
     "status": {
       "loadFailed": "Les décisions n'ont pas été chargées. Le tableau affiche ce que nous savions la dernière fois.",
       "retry": "Réessayer",
-      "linked": "{linked} sujets sur {total} ont une décision",
       "lastCheck": "Dernière vérification Diavgeia : {date}",
       "lastCheckNever": "Pas encore vérifié"
     },
@@ -423,8 +415,7 @@
       "org": "dans l'organisation {org}",
       "orgWide": "sans unité configurée",
       "unit": "dans l'unité {unit}",
-      "unitSigner": "dans l'unité {unit} avec le signataire {signer}",
-      "notConfigured": "Cette ville n'a pas encore de connexion à Diavgeia, donc les décisions ne sont pas complétées automatiquement. Vous pouvez les compléter avec le numéro ou l'ADA dans le tableau."
+      "unitSigner": "dans l'unité {unit} avec le signataire {signer}"
     },
     "showLess": "Moins",
     "showMore": "Plus",

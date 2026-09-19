@@ -159,18 +159,11 @@ export function pendingPollTaskId(tasks: ReadonlyArray<{ id: string; status: str
     return tasks.find(t => t.status === 'pending' || t.status === 'processing')?.id ?? null;
 }
 
-// ─── The cadence the decisions page names ────────────────────────────
+// ─── The poll state the decisions page shows ─────────────────────────
 
-/**
- * Why the cron will never reach this meeting, however its backoff tier reads.
- * Each one is a gate in `pollDecisionsForRecentMeetings`'s own query.
- */
-export type ManualOnlyReason = 'allDecided' | 'excludedMeeting' | 'notYet';
-
-/** What the decisions page's poll footer says about automatic polling. */
+/** What the decisions page's poll footer says about a manual poll. */
 export type PollCadence =
-    | { kind: 'idle'; everyDays: number | null; nextCheck: string | null }
-    | { kind: 'manualOnly'; reason: ManualOnlyReason }
+    | { kind: 'ready' }
     | { kind: 'running' }
     | { kind: 'blocked' };
 
@@ -180,54 +173,20 @@ export interface PollCadenceInput {
     canPoll: boolean;
     /** A poll for this meeting is queued or running on the task service. */
     pollInFlight: boolean;
-    currentTier: BackoffTier | null;
-    /** `nextPollEligible`, already formatted for the reader, or null. */
-    nextCheck: string | null;
-    /** The cron selects only meetings that still have an eligible subject with
-     * no decision, so the last row a clerk fills is also the last poll. */
-    everySubjectDecided: boolean;
-    /** The cron excludes Λογοδοσία meetings by name. */
-    meetingName: string;
-    /** The cron only selects meetings inside `getPollableMeetingDateRange()`. */
-    meetingDate: Date;
-    now?: Date;
 }
 
 /**
- * The first tier of BACKOFF_SCHEDULE polls on every cron run, which happens
- * more than once a day. The footer names a cadence in whole days, so one day
- * is the finest cadence it can say.
- */
-export const EVERY_RUN_CADENCE_DAYS = 1;
-
-/**
- * Map a meeting's polling state onto the cadence the page shows.
+ * Map a meeting's polling state onto the footer's three states.
  *
- * A meeting nobody has polled yet has no tier at all. The next cron run picks
- * it up, so it reads as the frequent cadence — `null` `everyDays` is reserved
- * for a meeting that left the polling window, which the footer alone renders
- * as "we stopped".
- *
- * A tier says how often the cron *would* come back; it says nothing about
- * whether the cron selects this meeting at all. The gates below are that
- * query's, in the same order of finality: a page that names a cadence for a
- * meeting the cron skips promises a check nobody will run.
+ * The footer no longer names the cron's cadence, so the cron's own gates —
+ * the pollable date window, the Λογοδοσία exclusion, the undecided-subject
+ * clause and the backoff tier — are not restated here. They stay in
+ * `pollDecisionsForRecentMeetings`'s query and in `shouldSkipPolling()`. A
+ * meeting the cron skips still reads as `ready`, because a manual poll runs
+ * whatever the cron does.
  */
 export function pollCadence(input: PollCadenceInput): PollCadence {
     if (!input.canPoll) return { kind: 'blocked' };
     if (input.pollInFlight) return { kind: 'running' };
-    if (input.everySubjectDecided) return { kind: 'manualOnly', reason: 'allDecided' };
-    if (isLogodosiaMeeting(input.meetingName)) return { kind: 'manualOnly', reason: 'excludedMeeting' };
-
-    const window = getPollableMeetingDateRange(input.now ?? new Date());
-    if (input.meetingDate.getTime() > window.lte.getTime()) return { kind: 'manualOnly', reason: 'notYet' };
-    // Out the far end of the window is the same fact the stopped tier states,
-    // and the footer already has a sentence for it.
-    if (input.meetingDate.getTime() < window.gte.getTime()) return { kind: 'idle', everyDays: null, nextCheck: null };
-    if (input.currentTier?.kind === 'stopped') return { kind: 'idle', everyDays: null, nextCheck: null };
-    return {
-        kind: 'idle',
-        everyDays: input.currentTier?.kind === 'interval' ? input.currentTier.intervalDays : EVERY_RUN_CADENCE_DAYS,
-        nextCheck: input.nextCheck,
-    };
+    return { kind: 'ready' };
 }

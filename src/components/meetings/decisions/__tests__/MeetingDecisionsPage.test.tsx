@@ -354,7 +354,7 @@ describe('MeetingDecisionsPage — a decision set aside', () => {
 });
 
 describe('MeetingDecisionsPage — where the decisions come from', () => {
-    it('names the organization id on the status line, for a city admin too', async () => {
+    it('names the organization id in the card footer, for a city admin too', async () => {
         // The ids used to sit inside the superadmin-only rail block, which is
         // where a city admin cannot read them. A named link then replaced them
         // with prose, which hid them from everyone. They now continue the

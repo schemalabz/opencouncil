@@ -9,8 +9,9 @@ import { cn } from '@/lib/utils';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { ANSWER_ROW, ANSWER_ROW_TEXT, QuietButton } from '@/components/meetings/decisions/controls';
 import { Chip, RecordRow } from '@/components/meetings/decisions/RecordRow';
-import { PollFooter, type PollFooterState } from '@/components/meetings/decisions/PollFooter';
+import { DiavgeiaFooter, type DiavgeiaFooterState } from '@/components/meetings/decisions/DiavgeiaFooter';
 import type { WorkEstimate } from '@/components/meetings/decisions/candidates';
+import type { ReadDiavgeiaUnitEntry } from '@/lib/utils/diavgeiaUnitScope';
 
 export interface Receipt {
     id: string;
@@ -71,7 +72,11 @@ export interface QuestionsCardProps {
     subjectCount: number;
     loadFailed: boolean;
     onRetryLoad: () => void;
-    pollState: PollFooterState;
+    diavgeiaUid: string | null;
+    pollScope: ReadDiavgeiaUnitEntry[];
+    /** The last poll's date, already formatted, or null when none has run. */
+    lastCheck: string | null;
+    pollState: DiavgeiaFooterState;
     onPoll: () => void;
     /** A check this page already asked for is on its way. */
     polling: boolean;
@@ -106,6 +111,9 @@ export function QuestionsCard({
     subjectCount,
     loadFailed,
     onRetryLoad,
+    diavgeiaUid,
+    pollScope,
+    lastCheck,
     pollState,
     onPoll,
     polling,
@@ -122,16 +130,10 @@ export function QuestionsCard({
     const allGood = total === 0 && !loadFailed;
     const waitingCount = waiting ? waiting.proposed + waiting.plain : 0;
 
-    const pollSlot = pollState.kind === 'blocked'
-        ? <p className="border-t border-border/60 px-5 py-3 text-[13px] text-amber-700">{t('scope.notConfigured')}</p>
-        : <PollFooter pollState={pollState} onPoll={onPoll} polling={polling} />;
-
-    // The hint under "all good" points at the button in `pollSlot` — true only
-    // when that button actually renders. `blocked` replaces the footer with
-    // the amber "not configured" line, which already covers what to do
-    // instead, so the all-good hint says nothing there. `running` keeps the
-    // footer but drops the button until the check finishes, so the hint must
-    // not send the reader looking for one.
+    // The hint under "all good" points at the footer's check button — true
+    // only when that button actually renders. `blocked` drops it because no
+    // check can run at all, and `running` drops it until the check in flight
+    // finishes, so neither may send the reader looking for one.
     const allGoodHint = pollState.kind === 'blocked'
         ? null
         : pollState.kind === 'running'
@@ -334,7 +336,14 @@ export function QuestionsCard({
                 </>
             )}
 
-            {pollSlot}
+            <DiavgeiaFooter
+                diavgeiaUid={diavgeiaUid}
+                pollScope={pollScope}
+                lastCheck={lastCheck}
+                pollState={pollState}
+                onPoll={onPoll}
+                polling={polling}
+            />
         </section>
     );
 }
