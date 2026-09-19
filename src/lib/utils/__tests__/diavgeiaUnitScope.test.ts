@@ -1,4 +1,4 @@
-import { parseDiavgeiaUnitScope, parseDiavgeiaUnitScopes, entriesForResolvedUnit } from '../diavgeiaUnitScope';
+import { parseDiavgeiaUnitScope, parseDiavgeiaUnitScopes, entriesForResolvedUnit, readDiavgeiaUnitEntries } from '../diavgeiaUnitScope';
 
 describe('parseDiavgeiaUnitScopes', () => {
     it('reads a bare unit as unit-only', () => {
@@ -83,5 +83,38 @@ describe('entriesForResolvedUnit', () => {
 
     it('is a no-op for a bare entry that already matches', () => {
         expect(entriesForResolvedUnit(['81689'], '81689')).toEqual(['81689']);
+    });
+});
+
+describe('readDiavgeiaUnitEntries', () => {
+    it('reads every well-formed entry, keeping the text it was configured as', () => {
+        expect(readDiavgeiaUnitEntries(['81689', '84655:129415'])).toEqual([
+            { entry: '81689', scope: { unit: '81689' }, error: null },
+            { entry: '84655:129415', scope: { unit: '84655', signer: '129415' }, error: null },
+        ]);
+    });
+
+    it('reports a malformed entry instead of throwing', () => {
+        const [only] = readDiavgeiaUnitEntries(['81689:129415:extra']);
+        expect(only.scope).toBeNull();
+        expect(only.error).toContain('81689:129415:extra');
+    });
+
+    it('marks only the malformed entry, leaving the valid ones beside it readable', () => {
+        // The whole point of reading per entry: one typo must not hide a
+        // configured scope from the admin looking at it.
+        const read = readDiavgeiaUnitEntries(['81689', 'bad:1:2', '84655:129415']);
+        expect(read.map(r => r.scope !== null)).toEqual([true, false, true]);
+        expect(read.filter(r => r.scope).map(r => r.entry)).toEqual(['81689', '84655:129415']);
+    });
+
+    it('skips a blank entry rather than reporting it', () => {
+        expect(readDiavgeiaUnitEntries(['81689', '  '])).toEqual([
+            { entry: '81689', scope: { unit: '81689' }, error: null },
+        ]);
+    });
+
+    it('reads an unset configuration as no entries', () => {
+        expect(readDiavgeiaUnitEntries(undefined)).toEqual([]);
     });
 });
