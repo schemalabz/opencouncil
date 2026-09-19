@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { BadgePicker } from '@/components/ui/badge-picker';
 import type { BodyDecisionHealth, CityDecisionHealth } from '@/lib/db/decisionHealth';
 import { diavgeiaSearchUrl } from '@/components/meetings/decisions/pdfUrl';
-import { parseDiavgeiaUnitScope } from '@/lib/utils/diavgeiaUnitScope';
+import { readDiavgeiaUnitEntries } from '@/lib/utils/diavgeiaUnitScope';
 import { CoverageStrip } from './CoverageStrip';
 import { QueueBadges } from './QueueBadges';
 import { ROW_GRID } from './rowLayout';
@@ -127,17 +127,19 @@ function ConfigLine({ row, organizationUid }: { row: BodyDecisionHealth; organiz
     if (units.length > 0) {
         return (
             <span className="mt-0.5 flex flex-wrap gap-x-2 font-mono text-[10px] text-muted-foreground">
-                {units.map(u => {
-                    // The same parser the poll uses, so a malformed entry shows as text here, not as a wrong link.
-                    let scope = null;
-                    try { scope = parseDiavgeiaUnitScope(u); } catch { scope = null; }
-                    return organizationUid && scope ? (
-                        <a key={u} href={diavgeiaSearchUrl(organizationUid, scope)} target="_blank" rel="noopener noreferrer"
+                {/* The same reader the meeting rail uses, so a malformed entry shows as
+                    text here rather than as a wrong link, and both surfaces agree. */}
+                {readDiavgeiaUnitEntries(units).map(({ entry, scope, error }) => (
+                    organizationUid && scope ? (
+                        <a key={entry} href={diavgeiaSearchUrl(organizationUid, scope)} target="_blank" rel="noopener noreferrer"
                             title={t('bodies.openInDiavgeia')} onClick={e => e.stopPropagation()} className="hover:text-foreground hover:underline">
-                            {u}
+                            {entry}
                         </a>
-                    ) : <span key={u} className={scope ? undefined : 'text-red-700 dark:text-red-500'}>{u}</span>;
-                })}
+                    ) : (
+                        <span key={entry} title={error ?? undefined}
+                            className={scope ? undefined : 'text-red-700 dark:text-red-500'}>{entry}</span>
+                    )
+                ))}
             </span>
         );
     }

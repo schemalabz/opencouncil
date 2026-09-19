@@ -44,16 +44,14 @@ import { SubjectAdminControls } from "./SubjectAdminControls";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { getLocalizedName } from "@/lib/formatters/name";
-import { surfaceCardClass } from '@/components/ui/surface-card';
+import { voteResultSentence } from '@/lib/utils/votes';
+import { surfaceCardClass, TWO_COLUMN_GRID } from '@/components/ui/surface-card';
 import { RailCard } from '@/components/ui/rail-card';
 import { MountOnVisible } from '@/components/MountOnVisible';
 import { SubjectImage } from '@/components/subject/SubjectImage';
 import { SubjectImageAdminControls } from '@/components/subject/SubjectImageAdminControls';
 import { adminToolClass } from '@/components/admin/AdminStrip';
 import { AIDisclosure } from '@/components/AIDisclosure';
-
-/** The content column and the rail. */
-const TWO_COLUMN_GRID = 'grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_336px] xl:gap-14';
 
 export default function Subject({ subjectId, highlightedContributionId }: { subjectId?: string; highlightedContributionId?: string }) {
     const { subjects, getPerson, getParty, meeting, city } = useCouncilMeetingData();
@@ -529,13 +527,7 @@ export default function Subject({ subjectId, highlightedContributionId }: { subj
                             <span className="flex items-center gap-2">
                                 {t("voting")}
                                 <Badge variant="secondary" className="text-xs">
-                                    {voteResult.isUnanimous
-                                        ? t("unanimous", { count: voteResult.forCount })
-                                        : voteResult.passed
-                                            ? t("majorityVote", { for: voteResult.forCount, against: voteResult.againstCount })
-                                            : t("rejected", { against: voteResult.againstCount, for: voteResult.forCount })}
-                                    {!voteResult.isUnanimous && voteResult.abstainCount > 0 &&
-                                        `, ${voteResult.abstainCount} ${t("voteAbstain")}`}
+                                    {voteResultSentence(t, voteResult)}
                                 </Badge>
                             </span>
                         ) : t("voting")

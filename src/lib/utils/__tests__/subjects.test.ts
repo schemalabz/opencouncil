@@ -1,4 +1,4 @@
-import { categorizeSubjects, getNonAgendaLabel, getWithdrawnLabel, getSubjectCategories, pickSummarySubjects, agendaItemTitleOrName } from '../subjects';
+import { categorizeSubjects, getNonAgendaLabel, getWithdrawnLabel, getSubjectCategories, pickSummarySubjects, agendaItemTitleOrName, isRecordSubject, recordSection, sectionHeadingAt } from '../subjects';
 
 // Identity translator: returns the key so tests assert the resolved key path
 // without depending on message-file contents.
@@ -178,5 +178,72 @@ describe('agendaItemTitleOrName', () => {
 
     it('falls back to the summary name for a whitespace-only title', () => {
         expect(agendaItemTitleOrName({ name: 'Περίληψη', agendaItemTitle: '   ' })).toBe('Περίληψη');
+    });
+});
+
+describe('isRecordSubject', () => {
+    it('belongs when the subject has an agenda position', () => {
+        expect(isRecordSubject({ agendaItemIndex: 5, nonAgendaReason: null })).toBe(true);
+    });
+
+    it('belongs when the agenda position is item 0', () => {
+        expect(isRecordSubject({ agendaItemIndex: 0, nonAgendaReason: null })).toBe(true);
+    });
+
+    it('belongs when it was taken up out of the agenda', () => {
+        expect(isRecordSubject({ agendaItemIndex: null, nonAgendaReason: 'outOfAgenda' })).toBe(true);
+    });
+
+    it('never belongs to a beforeAgenda subject, even one carrying an agenda index', () => {
+        expect(isRecordSubject({ agendaItemIndex: 7, nonAgendaReason: 'beforeAgenda' })).toBe(false);
+    });
+
+    it('does not belong when it has neither an agenda position nor an out-of-agenda reason', () => {
+        expect(isRecordSubject({ agendaItemIndex: null, nonAgendaReason: null })).toBe(false);
+    });
+});
+
+describe('recordSection', () => {
+    it('reads the register from nonAgendaReason, not from the index', () => {
+        // The agenda PDF can leave an index on a subject taken up out of the agenda.
+        // Bucketing on the index files it as a regular agenda item.
+        expect(recordSection({ nonAgendaReason: 'outOfAgenda' })).toBe('outOfAgenda');
+        expect(recordSection({ nonAgendaReason: null })).toBe('agenda');
+    });
+
+    it('reads outOfAgenda specifically, not "carries any non-agenda reason"', () => {
+        // isRecordSubject keeps beforeAgenda out of the record, so this pairing
+        // should not reach a list — but the two rules live in different
+        // functions, and only one of them is what this one must not lean on.
+        expect(recordSection({ nonAgendaReason: 'beforeAgenda' })).toBe('agenda');
+    });
+});
+
+describe('sectionHeadingAt', () => {
+    const agenda = { nonAgendaReason: null };
+    const ooa = { nonAgendaReason: 'outOfAgenda' };
+
+    /** The heading each row opens, for a whole list — what the reader actually sees. */
+    const headings = (section: Array<{ nonAgendaReason: string | null }>) =>
+        section.map((_, i) => sectionHeadingAt(section, i));
+
+    it('labels both blocks, in the order the page lists them', () => {
+        expect(headings([ooa, ooa, agenda, agenda])).toEqual(['outOfAgenda', null, 'agenda', null]);
+    });
+
+    it('labels both blocks in the opposite order too', () => {
+        expect(headings([agenda, agenda, ooa])).toEqual(['agenda', null, 'outOfAgenda']);
+    });
+
+    it('opens exactly one heading per block, never one per row', () => {
+        expect(headings([ooa, ooa, ooa]).filter(Boolean)).toEqual(['outOfAgenda']);
+    });
+
+    it('labels a single-block list once', () => {
+        expect(headings([agenda])).toEqual(['agenda']);
+    });
+
+    it('returns null past the end of the list', () => {
+        expect(sectionHeadingAt([agenda], 1)).toBeNull();
     });
 });
