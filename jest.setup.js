@@ -27,6 +27,18 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
     });
 }
 
+// jsdom implements no layout, so it also has no ResizeObserver. Components
+// that re-measure themselves when their container changes width construct one
+// on mount. A no-op keeps the render: nothing in jsdom ever resizes, and a
+// test that cares about a measurement stubs the measurement itself.
+if (typeof global.ResizeObserver === 'undefined') {
+    global.ResizeObserver = class {
+        observe() { }
+        unobserve() { }
+        disconnect() { }
+    };
+}
+
 // jsdom implements no layout, so it has no Element.scrollIntoView. Components
 // that bring the active item into view (the tab strip, for one) call it on
 // mount. A no-op keeps the render, and the tests assert on the markup instead.
