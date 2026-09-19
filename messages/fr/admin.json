@@ -452,7 +452,7 @@
       "otherCity": "La décision appartient à une autre commune et ne peut pas être déplacée ici.",
       "unknown": "Réessayez dans un instant."
     },
-    "previewMinutes": "Aperçu du procès-verbal",
+    "previewMinutes": "Aperçu",
     "exportDocx": "Exporter en DOCX",
     "factsArrivalsDepartures": "Arrivées / départs",
     "factsChangeAt": "au {label}",
@@ -464,7 +464,12 @@
     "factsNoOrder": "aucun ordre de discussion enregistré — aucun énoncé n'est lié à un sujet",
     "rail": {
       "discussedTogether": "Les sujets {first} à {last} ont été discutés ensemble.",
-      "discussedTogetherList": "Les sujets {items} ont été discutés ensemble."
+      "discussedTogetherList": "Les sujets {items} ont été discutés ensemble.",
+      "minutesTitle": "Procès-verbal de la séance",
+      "minutesAllDecided": "Tous les sujets ont une décision",
+      "minutesUndecided": "{n, plural, one {# sujet sans décision} other {# sujets sans décision}}",
+      "minutesUndecidedHint": "{n, plural, one {Il figurera au procès-verbal sans numéro de décision.} other {Ils figureront au procès-verbal sans numéro de décision.}}",
+      "minutesProvenance": "Rédigé à partir de la transcription et des décisions de cette page."
     },
     "presenceHeadline": "{present} présents sur {total}",
     "presenceAbsentInline": "{n} absents :",

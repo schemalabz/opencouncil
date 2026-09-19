@@ -452,7 +452,7 @@
       "otherCity": "The decision belongs to another municipality and cannot be moved here.",
       "unknown": "Try again in a moment."
     },
-    "previewMinutes": "Preview minutes",
+    "previewMinutes": "Preview",
     "exportDocx": "Export DOCX",
     "factsArrivalsDepartures": "Arrivals / departures",
     "factsChangeAt": "at {label}",
@@ -464,7 +464,12 @@
     "factsNoOrder": "no discussion order recorded — no utterance is linked to a subject",
     "rail": {
       "discussedTogether": "Items {first} to {last} were discussed together.",
-      "discussedTogetherList": "Items {items} were discussed together."
+      "discussedTogetherList": "Items {items} were discussed together.",
+      "minutesTitle": "Meeting minutes",
+      "minutesAllDecided": "Every subject has a decision",
+      "minutesUndecided": "{n, plural, one {# subject without a decision} other {# subjects without a decision}}",
+      "minutesUndecidedHint": "{n, plural, one {It will appear in the minutes with no decision number.} other {They will appear in the minutes with no decision number.}}",
+      "minutesProvenance": "Drafted from the transcript and the decisions on this page."
     },
     "presenceHeadline": "{present} present of {total}",
     "presenceAbsentInline": "{n} absent:",

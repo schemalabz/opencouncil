@@ -452,7 +452,7 @@
       "otherCity": "Η απόφαση ανήκει σε άλλον δήμο και δεν μπορεί να μεταφερθεί εδώ.",
       "unknown": "Δοκιμάστε ξανά σε λίγο."
     },
-    "previewMinutes": "Προεπισκόπηση πρακτικών",
+    "previewMinutes": "Προεπισκόπηση",
     "exportDocx": "Εξαγωγή DOCX",
     "factsArrivalsDepartures": "Προσελεύσεις / αποχωρήσεις",
     "factsChangeAt": "στο {label}",
@@ -464,7 +464,12 @@
     "factsNoOrder": "δεν καταγράφηκε σειρά συζήτησης — κανένα utterance δεν έχει συνδεθεί με θέμα",
     "rail": {
       "discussedTogether": "Τα θέματα {first} έως {last} συζητήθηκαν μαζί.",
-      "discussedTogetherList": "Τα θέματα {items} συζητήθηκαν μαζί."
+      "discussedTogetherList": "Τα θέματα {items} συζητήθηκαν μαζί.",
+      "minutesTitle": "Πρακτικά συνεδρίασης",
+      "minutesAllDecided": "Όλα τα θέματα έχουν απόφαση",
+      "minutesUndecided": "{n, plural, one {# θέμα χωρίς απόφαση} other {# θέματα χωρίς απόφαση}}",
+      "minutesUndecidedHint": "{n, plural, one {Θα εμφανιστεί στα πρακτικά χωρίς αριθμό απόφασης.} other {Θα εμφανιστούν στα πρακτικά χωρίς αριθμό απόφασης.}}",
+      "minutesProvenance": "Συντάσσονται από την απομαγνητοφώνηση και τις αποφάσεις αυτής της σελίδας."
     },
     "presenceHeadline": "{present} παρόντες από {total}",
     "presenceAbsentInline": "{n} απόντες:",

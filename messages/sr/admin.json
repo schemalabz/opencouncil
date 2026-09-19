@@ -452,7 +452,7 @@
             "otherCity": "Одлука припада другом граду и не може да се премести овде.",
             "unknown": "Покушајте поново за тренутак."
         },
-        "previewMinutes": "Преглед записника",
+        "previewMinutes": "Преглед",
         "exportDocx": "Извези DOCX",
         "factsArrivalsDepartures": "Доласци / одласци",
         "factsChangeAt": "код {label}",
@@ -464,7 +464,12 @@
         "factsNoOrder": "редослед расправе није забележен — ниједан исказ није повезан са тачком",
         "rail": {
             "discussedTogether": "Тачке {first} до {last} су расправљане заједно.",
-            "discussedTogetherList": "Тачке {items} су расправљане заједно."
+            "discussedTogetherList": "Тачке {items} су расправљане заједно.",
+            "minutesTitle": "Записник седнице",
+            "minutesAllDecided": "Све тачке имају одлуку",
+            "minutesUndecided": "{n, plural, one {# тачка без одлуке} few {# тачке без одлуке} other {# тачака без одлуке}}",
+            "minutesUndecidedHint": "{n, plural, one {Појавиће се у записнику без броја одлуке.} few {Појавиће се у записнику без броја одлуке.} other {Појавиће се у записнику без броја одлуке.}}",
+            "minutesProvenance": "Састављају се из транскрипта и одлука са ове странице."
         },
         "presenceHeadline": "{present} присутних од {total}",
         "presenceAbsentInline": "{n} одсутних:",
