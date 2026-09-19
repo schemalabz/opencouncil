@@ -350,7 +350,6 @@ export function CityRow({ city, state, label, openRequest }: {
                     open
                     onOpenChange={o => { if (!o && !resolving) setSheet(null); }}
                     action={sheet.action}
-                    destructive={false}
                     decisionTitle={sheet.title}
                     decisionNumber={sheet.decisionNumber}
                     subjectName={sheet.subjectName ?? null}

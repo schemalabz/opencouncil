@@ -163,6 +163,14 @@ export function localCalendarDate(d: Date, timeZone: string): string {
  * Presentation inverse of localCalendarDate: renders a city-local
  * 'YYYY-MM-DD' string. The string already names the calendar date, so no
  * timezone math applies — parse and format both use the viewer's zone.
+ *
+ * Pass a calendar date, and nothing else. A UTC instant is a different value:
+ * its first ten characters are the UTC day, which is the day before the city's
+ * for anything published after 21:00 UTC in Athens summer. This function used to
+ * take those ten characters from whatever it got, so an instant rendered a
+ * plausible wrong date that no reader could catch. It now renders `Invalid
+ * Date`, which is loud. Convert the instant at its boundary with
+ * localCalendarDate and pass the result here.
  */
 export function formatCalendarDate(date: string, locale: string = 'el'): string {
     return new Date(`${date}T00:00:00`).toLocaleDateString(getIntlLocale(locale), {

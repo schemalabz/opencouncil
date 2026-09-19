@@ -1,46 +1,44 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, Fragment, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { Loader2, RotateCcw, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
+import { AdminStrip, AdminToolButton } from '@/components/admin/AdminStrip';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
-import { useTranslations } from 'next-intl';
-import { FileText, Loader2, Bot, UserIcon, Plus, X, Clock, ChevronRight, ChevronDown, Users, Vote, Search, MoreHorizontal, RotateCcw } from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { DecisionWithSource, MeetingAttendanceRecord, SubjectExtractedData } from '@/lib/db/decisions';
+import { DecisionWithSource, SubjectExtractedData } from '@/lib/db/decisions';
 import { MeetingCandidate } from '@/lib/db/decisionCandidateShape';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { LinkOrDrop } from '@/components/ui/link-or-drop';
-import { BadgePicker } from '@/components/ui/badge-picker';
-import { getPollingHistoryForMeeting, requestPollDecisions } from '@/lib/tasks/pollDecisions';
-import { calculateVoteResult } from '@/lib/utils/votes';
-import { formatDate } from '@/lib/formatters/time';
-import { getWithdrawnLabel } from '@/lib/utils/subjects';
+import { getPollingHistoryForMeeting, requestPollDecisions, resolveCandidateConflict } from '@/lib/tasks/pollDecisions';
+import { pollCadence } from '@/lib/tasks/pollDecisionsBackoff';
+import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib/utils/votes';
+import { formatCalendarDate, formatDate } from '@/lib/formatters/time';
+import { isRecordSubject, recordSection } from '@/lib/utils/subjects';
+import { splitAttendance } from '@/lib/utils/attendance';
 import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
-import { CollapsibleMarkdown, NameList, MeetingAttendanceSummary, sortNamesByElectedOrder } from '@/components/meetings/decisions/shared';
-import { computeDecisionStats } from '@/components/meetings/decisions/stats';
+import { hasRecordedVote, resultKey } from '@/lib/utils/decisionResult';
+import { causeFromPayload, decisionWriteCause, DecisionWriteError } from '@/lib/utils/decisionWriteCause';
 import { normalizeText } from '@/lib/utils';
-import { diavgeiaDocUrl, diavgeiaSearchUrl } from '@/components/meetings/decisions/pdfUrl';
-import { parseDiavgeiaUnitScopes } from '@/lib/utils/diavgeiaUnitScope';
+import { TWO_COLUMN_GRID } from '@/components/ui/surface-card';
+import { CollapsibleMarkdown, NameList, sortNamesByElectedOrder } from '@/components/meetings/decisions/shared';
+import { scrollElementToContainerTop } from '@/lib/utils/scrollAnchor';
+import { attentionCount, estimateWork, isLikelyMatch, routeCandidates, splitWaitingSubjects } from '@/components/meetings/decisions/candidates';
+import { rowCandidates } from '@/components/meetings/decisions/rowCandidates';
+import { QuestionsCard, type Receipt } from '@/components/meetings/decisions/QuestionsCard';
+import { DecisionsTable, type TableRow } from '@/components/meetings/decisions/DecisionsTable';
+import { LinkPanel, type PanelConfirm, type PanelSubject } from '@/components/meetings/decisions/LinkPanel';
+import { SubjectPicker } from '@/components/meetings/decisions/SubjectPicker';
+import type { PollFooterState } from '@/components/meetings/decisions/PollFooter';
+import type { AdaEntry } from '@/components/meetings/decisions/AdaForm';
+import { diavgeiaDocUrl } from '@/components/meetings/decisions/pdfUrl';
+import { readDiavgeiaUnitEntries } from '@/lib/utils/diavgeiaUnitScope';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
-
-interface ManualEntryState {
-    pdfUrl: string;
-    ada: string;
-    decisionNumber: string;
-    protocolNumber: string;
-    title: string;
-}
-
-interface FormErrors {
-    ada?: string;
-    pdfUrl?: string;
-}
+import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
+import { buildTimeline } from '@/components/meetings/decisions/timeline';
+import { downloadFile } from '@/lib/export/download';
+import { MinutesPreviewDialog } from '@/components/meetings/decisions/MinutesPreviewDialog';
+import { DecisionsRail } from '@/components/meetings/decisions/rail/DecisionsRail';
+import { DiavgeiaSourceLink } from '@/components/meetings/decisions/DiavgeiaSource';
 
 /** MeetingCandidate as it arrives over JSON — dates serialized to strings. */
 type CandidateView = Omit<MeetingCandidate, 'publishDate' | 'meetingDate'> & {
@@ -48,31 +46,82 @@ type CandidateView = Omit<MeetingCandidate, 'publishDate' | 'meetingDate'> & {
     meetingDate: string | null;
 };
 
-type SubjectStatus = 'linked' | 'none';
+/** The decisions route's payload, as the page reads it. */
+interface DecisionsPayload {
+    decisions: DecisionWithSource[];
+    extractedData: SubjectExtractedData[];
+    candidates?: CandidateView[];
+}
 
-/** The document fields every sheet action carries, projected once. */
-interface DecisionDoc {
+/** Every write the page can POST to the decisions route. */
+type DecisionsAction =
+    | { action: 'assignCandidate'; candidateId: string; subjectId: string }
+    | { action: 'dismissCandidate'; candidateId: string }
+    | { action: 'undismissCandidate'; candidateId: string }
+    | { action: 'resetExtraction'; subjectId: string }
+    | { action: 'clearExtractedData' };
+
+/** The row panel: which row it belongs to, what it is doing, what it is asking. */
+interface PanelState {
+    subjectId: string;
+    /** What the person opened it for. A row that fills itself from a background
+     * poll while the panel is open must not re-title the panel mid-task, so the
+     * "current decision" block follows this rather than the live row. */
+    mode: 'link' | 'change';
+    query: string;
+    confirm: PanelConfirm | null;
+    /** A failed write, shown inline. The row is unchanged when this is set. */
+    error: string | null;
+}
+
+/** A rejected proposal, kept on the page so the row and its receipt can undo it together. */
+interface RejectedProposal {
+    candidateId: string;
+    number: string;
+    /** The receipt the same undo removes — otherwise the card keeps offering an
+     * undo for a dismissal the row already took back, and the second click fails. */
+    receiptId: string;
+}
+
+/** What the view sheet shows: a linked decision, or an unplaced candidate's document. */
+interface SheetView {
     title: string | null;
     decisionNumber: string | null;
     pdfUrl: string;
     ada: string | null;
+    /** Set only for a linked decision — the sheet names the subject it belongs to. */
+    subjectId: string | null;
+    subjectName: string | null;
 }
 
-const docOfCandidate = (c: CandidateView): DecisionDoc =>
-    ({ title: c.title, decisionNumber: c.decisionNumber, pdfUrl: c.pdfUrl, ada: c.ada });
+/** The number a decision is known by; Diavgeia's filing protocol stands in until
+ * `decisionNumber` is backfilled, and the label of last resort says only that a
+ * decision is there. */
+const decisionNumberOf = (decision: DecisionWithSource, fallback: string): string =>
+    decision.decisionNumber || decision.protocolNumber || fallback;
 
-/** decisionNumber falls back to Diavgeia's filing protocol until backfilled. */
-const docOfDecision = (d: DecisionWithSource): DecisionDoc =>
-    ({ title: d.title, decisionNumber: d.decisionNumber || d.protocolNumber, pdfUrl: d.pdfUrl, ada: d.ada });
+const candidateNumberOf = (candidate: CandidateView): string => candidate.decisionNumber ?? candidate.ada;
 
-/** A link-changing action awaiting confirmation in the sheet. */
-type PendingAction =
-    | { action: 'assign'; candidateId: string; subjectId: string; subjectName: string; title: string | null; decisionNumber: string | null; pdfUrl: string; ada: string | null }
-    | { action: 'link'; subjectId: string; subjectName: string; title: string | null; decisionNumber: string | null; protocolNumber: string | null; pdfUrl: string; ada: string | null }
-    | { action: 'unlink'; subjectId: string; subjectName: string; title: string | null; decisionNumber: string | null; pdfUrl: string; ada: string | null; destructive: boolean }
-    | { action: 'dismiss'; candidateId: string; subjectName: string | null; title: string | null; decisionNumber: string | null; pdfUrl: string; ada: string | null }
-    | { action: 'inspect'; candidateId: string; subjectId: string | null; subjectName: string | null; title: string | null; decisionNumber: string | null; pdfUrl: string; ada: string | null }
-    | { action: 'view'; subjectId: string; subjectName: string; title: string | null; decisionNumber: string | null; pdfUrl: string; ada: string | null };
+/**
+ * How many receipts the card keeps.
+ *
+ * A receipt exists for its undo, and that undo is short-lived by design — the
+ * next answer supersedes it. Keeping every one of them pushed the Πίνακας off
+ * the screen for the rest of a session on a long meeting, with nothing to
+ * dismiss them.
+ */
+const MAX_RECEIPTS = 4;
+
+/** Clearance from the scroll container's top edge when jumping to the table,
+ * so the card's own border does not sit flush against it (and there is room
+ * for a sticky header the container may gain later). */
+const JUMP_TO_TABLE_MARGIN_PX = 16;
+
+/** Turn a failed response into the error the page reads causes from. */
+const writeFailure = async (response: Response): Promise<DecisionWriteError> => {
+    const payload = await response.json().catch(() => null) as unknown;
+    return new DecisionWriteError(causeFromPayload(payload), `HTTP ${response.status}`);
+};
 
 export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     const { toast } = useToast();
@@ -80,312 +129,696 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const t = useTranslations('admin.adminActions');
     const tPage = useTranslations('admin.decisionsPage');
     const tSubject = useTranslations('Subject');
+    const locale = useLocale();
     const administrativeBodyId = meeting.administrativeBodyId ?? null;
     // What a poll would actually ask Diavgeia for. Parsed through the same
     // helper the task uses, so a malformed entry surfaces here — in the admin
     // page, before it fails a poll — rather than only in the task log.
-    const pollScope = useMemo(() => {
-        const entries = meeting.administrativeBody?.diavgeiaUnitIds ?? [];
-        try {
-            return { scopes: parseDiavgeiaUnitScopes(entries), error: null as string | null };
-        } catch (e) {
-            return { scopes: [], error: e instanceof Error ? e.message : String(e) };
-        }
-    }, [meeting.administrativeBody?.diavgeiaUnitIds]);
+    const pollScope = useMemo(
+        () => readDiavgeiaUnitEntries(meeting.administrativeBody?.diavgeiaUnitIds),
+        [meeting.administrativeBody?.diavgeiaUnitIds],
+    );
     const meetingDate = new Date(meeting.dateTime);
     const mayorPersonId = people.find(p =>
         p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
     )?.id ?? null;
+
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
     const [candidates, setCandidates] = useState<CandidateView[]>([]);
-    const [candidateBusy, setCandidateBusy] = useState<string | null>(null);
     const [extractedData, setExtractedData] = useState<Record<string, SubjectExtractedData>>({});
-    const [meetingAttendance, setMeetingAttendance] = useState<MeetingAttendanceRecord[]>([]);
-    const [expandedManualEntry, setExpandedManualEntry] = useState<string | null>(null);
-    const [editState, setEditState] = useState<ManualEntryState>({ pdfUrl: '', ada: '', decisionNumber: '', protocolNumber: '', title: '' });
-    const [formErrors, setFormErrors] = useState<FormErrors>({});
-    const [showMoreOptions, setShowMoreOptions] = useState(false);
-    const [savingSubjectId, setSavingSubjectId] = useState<string | null>(null);
-    const [removingSubjectId, setRemovingSubjectId] = useState<string | null>(null);
-    const [resettingSubjectId, setResettingSubjectId] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [hasLoaded, setHasLoaded] = useState(false);
+    const [loadFailed, setLoadFailed] = useState(false);
+    const [minutes, setMinutes] = useState<MinutesData | null>(null);
+    const [minutesFailed, setMinutesFailed] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
     const [pollingStatus, setPollingStatus] = useState<Awaited<ReturnType<typeof getPollingHistoryForMeeting>> | null>(null);
     const [isPolling, setIsPolling] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
-    const [skipCache, setSkipCache] = useState(false);
-    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
-    const [trayOpen, setTrayOpen] = useState(false);
-    // Empty selection means no status filter (BadgePicker's "all" state).
-    const [statusFilter, setStatusFilter] = useState<SubjectStatus[]>([]);
+    const [resettingSubjectId, setResettingSubjectId] = useState<string | null>(null);
+    const [busySubjectId, setBusySubjectId] = useState<string | null>(null);
+    const [busyCandidateId, setBusyCandidateId] = useState<string | null>(null);
+
+    const [filter, setFilter] = useState<'all' | 'missing'>('all');
     const [subjectQuery, setSubjectQuery] = useState('');
-    // The sheet stays mounted while it animates out — same dismissable-layer
-    // bug as the modal={false} note on the row menu below.
-    const lastActionRef = useRef<PendingAction | null>(null);
-    if (pendingAction) lastActionRef.current = pendingAction;
-    const sheetAction = pendingAction ?? lastActionRef.current;
+    const [panel, setPanel] = useState<PanelState | null>(null);
+    const [pickerCandidateId, setPickerCandidateId] = useState<string | null>(null);
+    const [pickerQuery, setPickerQuery] = useState('');
+    const [receipts, setReceipts] = useState<Receipt[]>([]);
+    /** Candidates set aside in this session, by id. The route only sends
+     * unresolved candidates, so a dismissed one is gone from `candidates` on
+     * the next load — and its receipt could no longer show what it set aside. */
+    const [setAside, setSetAside] = useState<Record<string, CandidateView>>({});
+    const [rejected, setRejected] = useState<Record<string, RejectedProposal>>({});
+    const [viewing, setViewing] = useState<string | null>(null);
+    // Bumped by handleJumpToTable; the effect below fires after the filter
+    // change it triggers has committed, so it measures the table at its new
+    // (post-filter) height rather than the one before the click.
+    const [jumpToTableRequest, setJumpToTableRequest] = useState(0);
+    const tableRef = useRef<HTMLDivElement>(null);
+    const receiptSeq = useRef(0);
+    /** The last write the row panel sent. Its error strip sends this one again:
+     * a "Δοκιμή ξανά" that only cleared the error flag promised a second attempt
+     * and made none. */
+    const panelRetry = useRef<(() => void) | null>(null);
 
-
-    const fetchDecisions = useCallback(async () => {
-        setIsLoading(true);
+    const fetchDecisions = useCallback(async (): Promise<DecisionsPayload | null> => {
         try {
             const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`);
             if (!response.ok) {
                 // An empty page and a failed load must not look the same: 0/N
                 // linked would invite re-linking work that already exists.
-                toast({ title: t('toasts.errorSavingDecision.title'), description: `HTTP ${response.status}`, variant: 'destructive' });
-                return;
+                setLoadFailed(true);
+                return null;
             }
-            const data: { decisions: DecisionWithSource[]; extractedData: SubjectExtractedData[]; meetingAttendance: MeetingAttendanceRecord[]; candidates?: CandidateView[] } = await response.json();
+            const data = await response.json() as DecisionsPayload;
             const decisionMap: Record<string, DecisionWithSource> = {};
-            for (const d of data.decisions) {
-                decisionMap[d.subjectId] = d;
-            }
+            for (const decision of data.decisions) decisionMap[decision.subjectId] = decision;
+            const extractedMap: Record<string, SubjectExtractedData> = {};
+            for (const extracted of data.extractedData) extractedMap[extracted.subjectId] = extracted;
             setDecisions(decisionMap);
             setCandidates(data.candidates ?? []);
-            const extractedMap: Record<string, SubjectExtractedData> = {};
-            for (const e of data.extractedData) {
-                extractedMap[e.subjectId] = e;
-            }
             setExtractedData(extractedMap);
-            setMeetingAttendance(data.meetingAttendance || []);
+            setLoadFailed(false);
+            return data;
         } catch {
-            // silent
+            setLoadFailed(true);
+            return null;
         } finally {
-            setIsLoading(false);
+            setHasLoaded(true);
+        }
+    }, [meeting.cityId, meeting.id]);
+
+    const refreshPollingStatus = useCallback(async () => {
+        const next = await getPollingHistoryForMeeting(meeting.cityId, meeting.id).catch(() => null);
+        if (next) setPollingStatus(next);
+    }, [meeting.cityId, meeting.id]);
+
+    // The minutes route is the one source of the discussion order and the
+    // per-subject minutes facts, so the page and the DOCX cannot drift apart.
+    const fetchMinutes = useCallback(async () => {
+        setMinutesFailed(false);
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/minutes?format=json`);
+            if (!response.ok) { setMinutesFailed(true); return; }
+            setMinutes(await response.json() as MinutesData);
+        } catch {
+            setMinutesFailed(true);
         }
     }, [meeting.cityId, meeting.id]);
 
     useEffect(() => {
         fetchDecisions();
-        getPollingHistoryForMeeting(meeting.cityId, meeting.id)
-            .then(setPollingStatus)
-            .catch(() => { /* silent */ });
-    }, [fetchDecisions, meeting.cityId, meeting.id]);
+        refreshPollingStatus();
+    }, [fetchDecisions, refreshPollingStatus]);
 
-    const validateForm = (): boolean => {
-        const errors: FormErrors = {};
+    useEffect(() => { fetchMinutes(); }, [fetchMinutes]);
 
-        if (!showMoreOptions) {
-            // ADA-only mode: ADA is required, pdfUrl is auto-derived
-            if (!editState.ada.trim()) {
-                errors.ada = tPage('validation.adaRequired');
+    // A poll runs on another service, so nothing tells the page when it lands.
+    // While one is in flight the page asks again every ten seconds and, the
+    // moment the task is gone, reloads decisions and minutes together — a
+    // landed poll is a write to a subject's decision, so it leaves the
+    // minutes just as stale as `refreshAfterWrite` treats one.
+    useEffect(() => {
+        if (!pollingStatus?.pendingTaskId) return;
+        const timer = setInterval(async () => {
+            const next = await getPollingHistoryForMeeting(meeting.cityId, meeting.id).catch(() => null);
+            if (!next) return;
+            setPollingStatus(next);
+            if (!next.pendingTaskId) await Promise.all([fetchDecisions(), fetchMinutes()]);
+        }, 10_000);
+        return () => clearInterval(timer);
+    }, [pollingStatus?.pendingTaskId, meeting.cityId, meeting.id, fetchDecisions, fetchMinutes]);
+
+    const minutesById = useMemo(
+        () => new Map<string, MinutesSubject>((minutes?.subjects ?? []).map(s => [s.subjectId, s])),
+        [minutes],
+    );
+    const timeline = useMemo(() => (minutes ? buildTimeline(minutes) : null), [minutes]);
+    const subjectById = useMemo(() => new Map(subjects.map(s => [s.id, s])), [subjects]);
+
+    /** The name every surface of the record shows: the agenda item's own title
+     * when the minutes resolved one, the summary's name otherwise. */
+    const displayName = useCallback(
+        (subject: { id: string; name: string }): string => minutesById.get(subject.id)?.name ?? subject.name,
+        [minutesById],
+    );
+
+    /**
+     * How a sentence on this page names a subject — always with its article.
+     *
+     * The Greek copy contracts «σε» with it (`σ{subject}` → "στο θέμα 30"), so a
+     * label built any other way renders ungrammatical Greek. `LinkPanel` and
+     * `SubjectPicker` both document this contract on the props fed from here.
+     */
+    const labelOf = useCallback(
+        (subject: { id: string; name: string; agendaItemIndex: number | null }): string =>
+            subject.agendaItemIndex !== null
+                ? tPage('subjectLabel.numbered', { n: subject.agendaItemIndex })
+                : tPage('subjectLabel.named', { name: displayName(subject) }),
+        [tPage, displayName],
+    );
+
+    const labelOfId = useCallback((subjectId: string): string | null => {
+        const subject = subjectById.get(subjectId);
+        return subject ? labelOf(subject) : null;
+    }, [subjectById, labelOf]);
+
+    /**
+     * What a failed write says to the person who asked for it.
+     *
+     * The server's causes are a closed set (`decisionWriteCause`), and every
+     * one of them has copy here — the panel's error strip and the toasts both
+     * read this, so neither can fall back to the English sentence the server
+     * threw. A cause the set does not name still gets a sentence.
+     */
+    const failureSentence = useCallback((error: unknown): string => {
+        const cause = decisionWriteCause(error);
+        switch (cause.code) {
+            case 'adaLinkedElsewhere': {
+                const holder = cause.subjectId ? labelOfId(cause.subjectId) : null;
+                return holder
+                    ? tPage('writeFailure.adaLinkedTo', { subject: holder })
+                    : tPage('writeFailure.adaLinkedElsewhere');
             }
-        } else {
-            // More options mode: need ADA or a manual pdfUrl
-            if (!editState.ada.trim() && !editState.pdfUrl.trim()) {
-                errors.ada = tPage('validation.adaRequired');
-            }
-            if (editState.pdfUrl.trim() && !editState.pdfUrl.startsWith('http://') && !editState.pdfUrl.startsWith('https://')) {
-                errors.pdfUrl = tPage('validation.pdfUrlInvalid');
-            }
+            case 'subjectHasDecision': return tPage('writeFailure.subjectHasDecision');
+            case 'candidateResolved': return tPage('writeFailure.candidateResolved');
+            case 'candidateNotFound': return tPage('writeFailure.candidateNotFound');
+            case 'candidateNotDismissed': return tPage('writeFailure.candidateNotDismissed');
+            case 'subjectNotFound': return tPage('writeFailure.subjectNotFound');
+            case 'notAllowed': return tPage('writeFailure.notAllowed');
+            case 'otherCity': return tPage('writeFailure.otherCity');
+            case 'unknown': return tPage('writeFailure.unknown');
         }
+    }, [tPage, labelOfId]);
 
-        setFormErrors(errors);
-        return Object.keys(errors).length === 0;
+    // ─── The view model ──────────────────────────────────────────────────
+
+    const recordSubjects = useMemo(() => subjects.filter(isRecordSubject), [subjects]);
+    /** Agenda order, the order a posted Πίνακας is written in: the items taken
+     * up out of the agenda first, then the agenda itself by index. */
+    const orderedSubjects = useMemo(() => [
+        ...recordSubjects.filter(s => recordSection(s) === 'outOfAgenda'),
+        ...recordSubjects.filter(s => recordSection(s) === 'agenda')
+            .sort((a, b) => (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0)),
+    ], [recordSubjects]);
+
+    const hasDecision = useCallback((id: string) => Boolean(decisions[id]), [decisions]);
+    const routed = useMemo(
+        () => routeCandidates(candidates, recordSubjects, hasDecision),
+        [candidates, recordSubjects, hasDecision],
+    );
+    const waiting = useMemo(
+        () => splitWaitingSubjects(orderedSubjects, hasDecision, routed.proposalBySubject),
+        [orderedSubjects, hasDecision, routed],
+    );
+    /** Which subject holds each candidate's ΑΔΑ. The route only sends candidates
+     * nothing has resolved yet, so an entry here is a candidate whose ΑΔΑ a
+     * decision already took — the row panel's "move it here" case. */
+    const subjectByCandidate = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const [subjectId, decision] of Object.entries(decisions)) {
+            const candidate = candidates.find(c => c.ada === decision.ada);
+            if (candidate) map.set(candidate.id, subjectId);
+        }
+        return map;
+    }, [decisions, candidates]);
+
+    const rows: TableRow[] = orderedSubjects.map(subject => {
+        const decision = decisions[subject.id];
+        const votes = extractedData[subject.id]?.votes ?? [];
+        const result = resultKey({ withdrawn: subject.withdrawn, hasDecision: Boolean(decision), votes });
+        const proposal = decision ? undefined : routed.proposalBySubject.get(subject.id);
+        return {
+            subject: {
+                id: subject.id,
+                name: displayName(subject),
+                agendaItemIndex: subject.agendaItemIndex,
+                nonAgendaReason: subject.nonAgendaReason,
+                withdrawn: subject.withdrawn,
+            },
+            decision: decision
+                ? {
+                    number: decisionNumberOf(decision, tPage('table.linked')),
+                    manualBy: decision.createdBy?.name || decision.createdBy?.email || null,
+                }
+                : null,
+            result,
+            // A dash means two different things and only one of them explains
+            // itself: a linked decision whose document records no vote. A row
+            // with nothing linked yet has nothing to explain.
+            resultHint: result === 'noVote' ? tPage('table.noVoteHint') : null,
+            voteCounts: hasRecordedVote(result) ? voteCountsPhrase(tPage, calculateVoteResult(votes)) : null,
+            proposal: proposal
+                ? {
+                    candidateId: proposal.id,
+                    number: candidateNumberOf(proposal),
+                    title: proposal.title,
+                    likely: isLikelyMatch(proposal),
+                }
+                : null,
+            rejected: rejected[subject.id]
+                ? { candidateId: rejected[subject.id].candidateId, number: rejected[subject.id].number }
+                : null,
+        };
+    });
+
+    const query = normalizeText(subjectQuery.trim());
+    const matchesQuery = (row: TableRow): boolean => {
+        if (!query) return true;
+        const subject = subjectById.get(row.subject.id);
+        const haystack = [row.subject.name, subject?.agendaItemTitle ?? null];
+        const decision = decisions[row.subject.id];
+        if (decision) haystack.push(decision.title, decision.ada, decision.decisionNumber, decision.protocolNumber);
+        return haystack.some(value => value !== null && value !== undefined && normalizeText(value).includes(query));
+    };
+    const visibleRows = query ? rows.filter(matchesQuery) : rows;
+    const missingCount = visibleRows.filter(row => row.result === 'none').length;
+
+    // The table hides the all/missing chips at zero, so a filter still set to
+    // 'missing' strands the clerk on an empty table with no control to get
+    // back — at the moment the last row is filled in, which is the success
+    // path of the whole page. Only 'all' is ever set here, so a deliberate
+    // choice of 'all' is never undone.
+    useEffect(() => {
+        if (missingCount === 0) setFilter('all');
+    }, [missingCount]);
+
+    // A poll or another admin can fill a row after its proposal was rejected.
+    // The rejection is settled then, and a kept entry would show its "Αναίρεση"
+    // again the moment the decision is removed later.
+    useEffect(() => {
+        setRejected(current => {
+            const next = Object.fromEntries(Object.entries(current).filter(([subjectId]) => !decisions[subjectId]));
+            return Object.keys(next).length === Object.keys(current).length ? current : next;
+        });
+    }, [decisions]);
+    const beforeAgenda = subjects
+        .filter(subject => !isRecordSubject(subject))
+        .map(subject => ({ id: subject.id, name: displayName(subject) }))
+        .filter(subject => !query || normalizeText(subject.name).includes(query));
+
+    const decidableSubjects = recordSubjects.filter(s => !s.withdrawn);
+    const linkedCount = decidableSubjects.filter(s => hasDecision(s.id)).length;
+    /** Whether anything on this meeting was extracted — an excerpt counts, so a
+     * reset stays offered for a decision whose document yielded no vote. */
+    const hasExtractions = decidableSubjects.some(s => decisions[s.id]?.excerpt || extractedData[s.id]);
+
+    /** Every candidate the card renders as a conflict, so the unmatched list
+     * below it does not offer the same decision a second time. */
+    const conflictCandidateIds = new Set([...routed.conflictsByHolder.values()].map(c => c.id));
+    const conflicts = [...routed.conflictsByHolder.entries()].map(([holderId, candidate]) => {
+        const claimantId = candidate.subjectId && candidate.subjectId !== holderId ? candidate.subjectId : null;
+        const claimantLabel = claimantId ? labelOfId(claimantId) : null;
+        // A subject with no agenda number gets a full-name label too long for
+        // a button (`labelOf` above) — the card's buttons fall back to a
+        // plain outcome word instead, so they need to know this up front
+        // rather than parse it back out of the label.
+        const claimantSubject = claimantId ? subjectById.get(claimantId) : undefined;
+        return {
+            candidateId: candidate.id,
+            number: candidateNumberOf(candidate),
+            title: candidate.title,
+            holder: {
+                id: holderId,
+                // A holder outside this meeting has no row to name, so the
+                // decision's own record of the subject's name stands in.
+                label: labelOfId(holderId)
+                    ?? tPage('subjectLabel.named', { name: candidate.conflict?.subjectName ?? '' }),
+                // A holder outside this meeting has no agenda number either.
+                hasAgendaNumber: subjectById.get(holderId)?.agendaItemIndex != null,
+            },
+            claimant: claimantId && claimantLabel
+                ? { id: claimantId, label: claimantLabel, hasAgendaNumber: claimantSubject?.agendaItemIndex != null }
+                : null,
+        };
+    });
+    const unplacedCandidates = routed.trayCandidates.filter(c => !conflictCandidateIds.has(c.id));
+    const unplaced = unplacedCandidates.map(candidate => ({
+        candidateId: candidate.id,
+        number: candidateNumberOf(candidate),
+        title: candidate.title,
+        publishedOn: candidate.publishDate ? formatCalendarDate(candidate.publishDate, locale) : '',
+    }));
+    // The card counts what it renders: a conflicting candidate is one question,
+    // not two, even though `routeCandidates` reports it in both buckets.
+    const attention = { trayCandidates: unplacedCandidates, conflictsByHolder: routed.conflictsByHolder };
+    const total = attentionCount(attention, waiting);
+    const estimate = estimateWork(attention, waiting);
+
+    const pollState: PollFooterState = pollCadence({
+        canPoll: Boolean(city.diavgeiaUid) && pollScope.every(entry => entry.scope !== null),
+        pollInFlight: Boolean(pollingStatus?.pendingTaskId),
+        currentTier: pollingStatus?.currentTier ?? null,
+        nextCheck: pollingStatus?.nextPollEligible
+            ? formatDate(new Date(pollingStatus.nextPollEligible), city.timezone, locale)
+            : null,
+        // The cron's own gates, so the footer never promises a check it will
+        // not run. `decidableSubjects` is the page's twin of the eligibility
+        // the cron's subject clause states.
+        everySubjectDecided: hasLoaded && linkedCount === decidableSubjects.length,
+        meetingName: meeting.name,
+        meetingDate,
+    });
+
+    // ─── Writes ──────────────────────────────────────────────────────────
+
+    const postAction = async (body: DecisionsAction): Promise<void> => {
+        const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!response.ok) throw await writeFailure(response);
     };
 
-    /** The one-line vote outcome sentence, shared by the row summary and the sheet. */
-    const voteSummaryText = (voteResult: ReturnType<typeof calculateVoteResult>): string => {
-        const main = voteResult.isUnanimous
-            ? tPage('unanimous', { count: voteResult.forCount })
-            : voteResult.passed
-                ? tPage('majorityVote', { for: voteResult.forCount, against: voteResult.againstCount })
-                : tPage('rejected', { against: voteResult.againstCount, for: voteResult.forCount });
-        const abstain = !voteResult.isUnanimous && voteResult.abstainCount > 0
-            ? `, ${voteResult.abstainCount} ${tPage('voteAbstain')}`
-            : '';
-        return main + abstain;
+    const putDecision = async (body: { subjectId: string; ada: string; decisionNumber: string | null; pdfUrl: string }): Promise<void> => {
+        const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subjectId: body.subjectId,
+                ada: body.ada,
+                pdfUrl: body.pdfUrl,
+                ...(body.decisionNumber ? { decisionNumber: body.decisionNumber } : {}),
+            }),
+        });
+        if (!response.ok) throw await writeFailure(response);
     };
 
-    /** The manual-entry values that actually apply: fields hidden behind a
-     * collapsed "more options" section must not leak into the save. */
-    const effectiveEntry = () => {
-        const ada = editState.ada.trim();
-        const extras = showMoreOptions
-            ? {
-                pdfUrl: editState.pdfUrl.trim(),
-                title: editState.title.trim(),
-                decisionNumber: editState.decisionNumber.trim(),
-                protocolNumber: editState.protocolNumber.trim(),
+    const deleteDecision = async (subjectId: string): Promise<void> => {
+        const response = await fetch(
+            `/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions?subjectId=${encodeURIComponent(subjectId)}`,
+            { method: 'DELETE' },
+        );
+        if (!response.ok) throw await writeFailure(response);
+    };
+
+    const addReceipt = (
+        text: string,
+        undo?: (receiptId: string) => void,
+        open?: Receipt['open'],
+    ): string => {
+        const id = `receipt-${++receiptSeq.current}`;
+        setReceipts(list => [
+            ...list,
+            { id, text, ...(open ? { open } : {}), ...(undo ? { undo: () => undo(id) } : {}) },
+        ].slice(-MAX_RECEIPTS));
+        return id;
+    };
+    const dropReceipt = (receiptId: string) => setReceipts(list => list.filter(r => r.id !== receiptId));
+
+    /**
+     * Reload what a write just invalidated.
+     *
+     * The minutes carry each subject's decision number and excerpt, so a write
+     * that changed a subject's decision leaves them stale too — the preview
+     * would then show an item the DOCX export, which fetches fresh, contains.
+     */
+    const refreshAfterWrite = async (changesDecision: boolean): Promise<void> => {
+        if (changesDecision) {
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
+            return;
+        }
+        await fetchDecisions();
+    };
+
+    /**
+     * Run one write and leave the page truthful whatever it does.
+     *
+     * A failure inside the row panel stays in the row panel — the design's rule
+     * that an outcome with a place of its own never becomes a toast — and the
+     * panel's note says the row is unchanged, so only a write that changed
+     * nothing may report itself there.
+     */
+    const runWrite = async (
+        busy: { subjectId?: string; candidateId?: string; inPanel?: boolean; changesDecision?: boolean },
+        write: () => Promise<void>,
+    ): Promise<boolean> => {
+        if (busy.subjectId) setBusySubjectId(busy.subjectId);
+        if (busy.candidateId) setBusyCandidateId(busy.candidateId);
+        if (busy.inPanel) setPanel(p => p && { ...p, error: null });
+        try {
+            await write();
+            await refreshAfterWrite(busy.changesDecision ?? false);
+            return true;
+        } catch (error) {
+            if (busy.inPanel) setPanel(p => p && { ...p, confirm: null, error: failureSentence(error) });
+            // The cause belongs under a title that names what failed: on its
+            // own, "the ΑΔΑ is already on θέμα 30" reads as a statement of
+            // fact rather than as the reason the change did not happen.
+            else toast({ title: tPage('writeError'), description: failureSentence(error), variant: 'destructive' });
+            return false;
+        } finally {
+            setBusySubjectId(null);
+            setBusyCandidateId(null);
+        }
+    };
+
+    /**
+     * Put back the link the first half of a replace or a move already removed.
+     *
+     * Those two are sent as a delete and then a link, with no transaction
+     * between them (a transactional replace is a recorded follow-up). When the
+     * second call fails, a candidate-backed decision can be re-linked from the
+     * candidate the delete returned to the unresolved pool — found by its ΑΔΑ,
+     * which is the only name the pool and the deleted decision share. A
+     * decision no candidate backs cannot come back, and the confirmation said
+     * so before the person pressed the button.
+     *
+     * The reload comes first, before any answer this can give: the delete has
+     * already landed by the time this runs, so a path that returns without it
+     * would leave the table showing a decision that no longer exists while the
+     * toast says the subject has none.
+     */
+    const relinkAfterFailure = async (subjectId: string, removed: DecisionWithSource): Promise<boolean> => {
+        const [data] = await Promise.all([fetchDecisions(), fetchMinutes()]);
+        if (!removed.candidateBacked || !removed.ada) return false;
+        const candidate = data?.candidates?.find(c => c.ada === removed.ada);
+        if (!candidate) return false;
+        try {
+            await postAction({ action: 'assignCandidate', candidateId: candidate.id, subjectId });
+        } catch {
+            return false;
+        }
+        await Promise.all([fetchDecisions(), fetchMinutes()]);
+        return true;
+    };
+
+    /** Delete one link, then make the other: the shared body of replace and move. */
+    const replaceLink = async (args: {
+        loserSubjectId: string;
+        loserDecision: DecisionWithSource;
+        winnerSubjectId: string;
+        candidateId: string;
+        onDone: () => void;
+    }): Promise<void> => {
+        setBusySubjectId(args.winnerSubjectId);
+        setPanel(p => p && { ...p, error: null });
+        try {
+            await deleteDecision(args.loserSubjectId);
+        } catch (error) {
+            setBusySubjectId(null);
+            setPanel(p => p && { ...p, confirm: null, error: failureSentence(error) });
+            return;
+        }
+        try {
+            await postAction({ action: 'assignCandidate', candidateId: args.candidateId, subjectId: args.winnerSubjectId });
+            await refreshAfterWrite(true);
+            args.onDone();
+        } catch (error) {
+            const restored = await relinkAfterFailure(args.loserSubjectId, args.loserDecision);
+            if (restored) {
+                setPanel(p => p && { ...p, confirm: null, error: failureSentence(error) });
+            } else {
+                // The panel's note promises the row is unchanged, which is no
+                // longer true: say what is actually on the screen instead.
+                setPanel(null);
+                toast({
+                    title: tPage('panel.replaceHalfDone', {
+                        number: decisionNumberOf(args.loserDecision, tPage('table.linked')),
+                    }),
+                    variant: 'destructive',
+                });
             }
-            : { pdfUrl: '', title: '', decisionNumber: '', protocolNumber: '' };
-        return { ada, ...extras, effectivePdfUrl: extras.pdfUrl || diavgeiaDocUrl(ada) };
+        } finally {
+            setBusySubjectId(null);
+        }
     };
 
-    /** Validate the manual-entry form and stage the link for sheet confirmation. */
-    const openLinkSheet = (subjectId: string, subjectName: string) => {
-        if (!validateForm()) return;
-        const entry = effectiveEntry();
-        setPendingAction({
-            action: 'link',
+    const handleLink = async (subjectId: string, candidateId: string, inPanel: boolean) => {
+        const candidate = candidates.find(c => c.id === candidateId);
+        const subject = subjectById.get(subjectId);
+        if (!candidate || !subject) return;
+        if (inPanel) panelRetry.current = () => { void handleLink(subjectId, candidateId, true); };
+        const ok = await runWrite({ subjectId, candidateId, inPanel, changesDecision: true }, () =>
+            postAction({ action: 'assignCandidate', candidateId, subjectId }));
+        if (!ok) return;
+        setPanel(null);
+        setPickerCandidateId(null);
+        addReceipt(
+            tPage('receipts.linked', { number: candidateNumberOf(candidate), subject: labelOf(subject) }),
+            receiptId => { void handleUndoLink(subjectId, receiptId); },
+        );
+    };
+
+    const handleUndoLink = async (subjectId: string, receiptId: string) => {
+        const ok = await runWrite({ subjectId, changesDecision: true }, () => deleteDecision(subjectId));
+        if (ok) dropReceipt(receiptId);
+    };
+
+    const handleAdaLink = async (subjectId: string, entry: AdaEntry) => {
+        const subject = subjectById.get(subjectId);
+        if (!subject) return;
+        panelRetry.current = () => { void handleAdaLink(subjectId, entry); };
+        const ok = await runWrite({ subjectId, inPanel: true, changesDecision: true }, () => putDecision({
             subjectId,
-            subjectName,
-            title: entry.title || entry.ada || null,
-            decisionNumber: entry.decisionNumber || null,
-            protocolNumber: entry.protocolNumber || null,
-            pdfUrl: entry.effectivePdfUrl,
-            ada: entry.ada || null,
+            ada: entry.ada,
+            decisionNumber: entry.decisionNumber,
+            pdfUrl: diavgeiaDocUrl(entry.ada),
+        }));
+        if (!ok) return;
+        setPanel(null);
+        addReceipt(tPage('receipts.linked', {
+            number: entry.decisionNumber ?? entry.ada,
+            subject: labelOf(subject),
+        }));
+        // A decision typed in by hand carries no excerpt, no attendance and no
+        // votes. The poll's re-extraction path fills them, so the Αποτέλεσμα
+        // column has something to say without anyone asking for it.
+        await requestPollDecisions(meeting.cityId, meeting.id).catch(() => undefined);
+        await refreshPollingStatus();
+    };
+
+    const handleUnlink = async (subjectId: string) => {
+        panelRetry.current = () => { void handleUnlink(subjectId); };
+        const ok = await runWrite({ subjectId, inPanel: true, changesDecision: true }, () => deleteDecision(subjectId));
+        if (ok) setPanel(null);
+    };
+
+    const handleAccept = (subjectId: string, candidateId: string) => {
+        void handleLink(subjectId, candidateId, false);
+    };
+
+    const handleReject = async (subjectId: string, candidateId: string) => {
+        const candidate = candidates.find(c => c.id === candidateId);
+        if (!candidate) return;
+        const number = candidateNumberOf(candidate);
+        const ok = await runWrite({ subjectId, candidateId }, () =>
+            postAction({ action: 'dismissCandidate', candidateId }));
+        if (!ok) return;
+        // The id has to travel with the call, the way `handleUndoLink` and
+        // `handleUndoDismiss` take theirs: a closure over the `rejected` map
+        // captures the render before this rejection was written to it, so the
+        // receipt would never find itself and would keep offering its undo.
+        const receiptId = addReceipt(
+            tPage('receipts.rejected', { number }),
+            id => { void handleUndoReject(subjectId, candidateId, id); },
+        );
+        setRejected(current => ({ ...current, [subjectId]: { candidateId, number, receiptId } }));
+    };
+
+    const handleUndoReject = async (subjectId: string, candidateId: string, receiptId: string | null) => {
+        const ok = await runWrite({ subjectId, candidateId }, () =>
+            postAction({ action: 'undismissCandidate', candidateId }));
+        if (!ok) return;
+        if (receiptId) dropReceipt(receiptId);
+        setRejected(current => {
+            const next = { ...current };
+            delete next[subjectId];
+            return next;
         });
     };
 
-    const handleSave = async (link: Extract<PendingAction, { action: 'link' }>) => {
-        setSavingSubjectId(link.subjectId);
+    const handleDismiss = async (candidateId: string) => {
+        const candidate = candidates.find(c => c.id === candidateId);
+        if (!candidate) return;
+        const number = candidateNumberOf(candidate);
+        const ok = await runWrite({ candidateId }, () => postAction({ action: 'dismissCandidate', candidateId }));
+        if (!ok) return;
+        setPickerCandidateId(null);
+        setSetAside(current => ({ ...current, [candidateId]: candidate }));
+        addReceipt(
+            tPage('receipts.dismissed', { number }),
+            receiptId => { void handleUndoDismiss(candidateId, receiptId); },
+            { label: number, onOpen: () => setViewing(candidateId) },
+        );
+    };
+
+    const handleUndoDismiss = async (candidateId: string, receiptId: string) => {
+        const ok = await runWrite({ candidateId }, () => postAction({ action: 'undismissCandidate', candidateId }));
+        if (!ok) return;
+        dropReceipt(receiptId);
+        setSetAside(current => {
+            const next = { ...current };
+            delete next[candidateId];
+            return next;
+        });
+    };
+
+    /**
+     * Both answers to a conflict go through the one server action that settles
+     * it inside a transaction — the page never has to take a decision off one
+     * subject and hope the other call lands.
+     */
+    const resolveConflict = async (candidateId: string, resolution: 'reassign' | 'dismiss') => {
+        const conflict = conflicts.find(c => c.candidateId === candidateId);
+        if (!conflict) return;
+        setBusyCandidateId(candidateId);
         try {
-            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    subjectId: link.subjectId,
-                    pdfUrl: link.pdfUrl,
-                    ada: link.ada ?? undefined,
-                    decisionNumber: link.decisionNumber ?? undefined,
-                    protocolNumber: link.protocolNumber ?? undefined,
-                    title: link.title ?? undefined,
-                }),
-            });
-
-            if (!response.ok) {
-                const err = await response.json().catch(() => null);
-                throw new Error(err?.error ?? 'Failed to save decision');
+            const outcome = await resolveCandidateConflict(candidateId, resolution);
+            await refreshAfterWrite(outcome === 'reassigned');
+            // 'noop' means someone else settled it first; the refreshed page
+            // already shows what actually happened, so it gets no receipt.
+            if (outcome === 'reassigned' && conflict.claimant) {
+                addReceipt(tPage('receipts.moved', { number: conflict.number, subject: conflict.claimant.label }));
+            } else if (outcome === 'dismissed') {
+                addReceipt(tPage('receipts.kept', { number: conflict.number, subject: conflict.holder.label }));
             }
-
-            await fetchDecisions();
-            setExpandedManualEntry(null);
-            setEditState({ pdfUrl: '', ada: '', decisionNumber: '', protocolNumber: '', title: '' });
-            toast({ title: t('toasts.decisionLinked.title') });
-
-            // Extraction runs automatically on a manual link: the poll's
-            // re-extraction path picks up the excerpt-less decision.
-            try {
-                await requestPollDecisions(meeting.cityId, meeting.id);
-                toast({ title: tPage('extractionStarted') });
-            } catch {
-                toast({ title: tPage('extractionStartFailed'), variant: 'destructive' });
-            }
-            return true;
         } catch (error) {
-            toast({ title: t('toasts.errorSavingDecision.title'), description: `${error}`, variant: 'destructive' });
-            return false;
+            toast({ title: tPage('writeError'), description: failureSentence(error), variant: 'destructive' });
         } finally {
-            setSavingSubjectId(null);
+            setBusyCandidateId(null);
         }
     };
 
-    const handleRemove = async (subjectId: string) => {
-        setRemovingSubjectId(subjectId);
-        try {
-            const response = await fetch(
-                `/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions?subjectId=${subjectId}`,
-                { method: 'DELETE' }
-            );
-            if (!response.ok) throw new Error('Failed to remove decision');
-            toast({ title: tPage('decisionRemoved') });
-            await fetchDecisions();
-            return true;
-        } catch (error) {
-            toast({ title: t('toasts.errorRemovingDecision.title'), description: `${error}`, variant: 'destructive' });
-            return false;
-        } finally {
-            setRemovingSubjectId(null);
-        }
+    const handleJumpToTable = () => {
+        // A search that matches only linked rows would land the jump on an
+        // empty table, having promised the missing ones.
+        setSubjectQuery('');
+        setFilter('missing');
+        setJumpToTableRequest(request => request + 1);
     };
 
-    const handleAssignCandidate = async (candidateId: string, subjectId: string) => {
-        setCandidateBusy(candidateId);
-        try {
-            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'assignCandidate', candidateId, subjectId }),
-            });
-            if (!response.ok) {
-                const err = await response.json().catch(() => null);
-                throw new Error(err?.error ?? 'Assignment failed');
-            }
-            toast({ title: tPage('unplacedAssigned') });
-            await fetchDecisions();
-            return true;
-        } catch (error) {
-            toast({ title: `${error instanceof Error ? error.message : error}`, variant: 'destructive' });
-            return false;
-        } finally {
-            setCandidateBusy(null);
-        }
-    };
+    // Runs after the filter/query change above has committed and the table
+    // has re-rendered at its new height, so the measurement below reflects
+    // the layout the user actually sees rather than the one before the click.
+    useEffect(() => {
+        if (jumpToTableRequest === 0) return;
+        if (tableRef.current) scrollElementToContainerTop(tableRef.current, JUMP_TO_TABLE_MARGIN_PX);
+    }, [jumpToTableRequest]);
 
-    const handleDismissCandidate = async (candidateId: string) => {
-        setCandidateBusy(candidateId);
+    const handlePoll = async (forceExtract: boolean) => {
+        setIsPolling(true);
         try {
-            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'dismissCandidate', candidateId }),
-            });
-            if (!response.ok) throw new Error('Dismiss failed');
-            toast({ title: tPage('unplacedDismissed') });
-            await fetchDecisions();
-            return true;
+            await requestPollDecisions(meeting.cityId, meeting.id, forceExtract ? { forceExtract: true } : undefined);
+            await refreshPollingStatus();
         } catch (error) {
-            toast({ title: `${error}`, variant: 'destructive' });
-            return false;
+            toast({ title: tPage('pollError'), description: failureSentence(error), variant: 'destructive' });
         } finally {
-            setCandidateBusy(null);
+            setIsPolling(false);
         }
     };
 
     const handleResetExtraction = async (subjectId: string) => {
         setResettingSubjectId(subjectId);
         try {
-            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'resetExtraction', subjectId }),
-            });
-            if (!response.ok) throw new Error('Failed to reset extraction');
+            await postAction({ action: 'resetExtraction', subjectId });
             toast({ title: tPage('extractionReset') });
-            await fetchDecisions();
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
         } catch (error) {
-            toast({ title: tPage('resetError'), description: `${error}`, variant: 'destructive' });
+            toast({ title: tPage('resetError'), description: failureSentence(error), variant: 'destructive' });
         } finally {
             setResettingSubjectId(null);
-        }
-    };
-
-    const toggleManualEntry = (subjectId: string) => {
-        if (expandedManualEntry === subjectId) {
-            setExpandedManualEntry(null);
-        } else {
-            setExpandedManualEntry(subjectId);
-        }
-        setEditState({ pdfUrl: '', ada: '', decisionNumber: '', protocolNumber: '', title: '' });
-        setFormErrors({});
-        setShowMoreOptions(false);
-    };
-
-    const updateEditState = (field: keyof ManualEntryState, value: string) => {
-        setEditState(prev => ({ ...prev, [field]: value }));
-        // Clear error for this field when user starts typing
-        if (field === 'pdfUrl' && formErrors.pdfUrl) {
-            setFormErrors(prev => ({ ...prev, pdfUrl: undefined }));
-        }
-        if (field === 'ada' && formErrors.ada) {
-            setFormErrors(prev => ({ ...prev, ada: undefined }));
-        }
-    };
-
-    const handlePollDecisions = async () => {
-        setIsPolling(true);
-        try {
-            await requestPollDecisions(meeting.cityId, meeting.id, skipCache ? { forceExtract: true } : undefined);
-            toast({ title: tPage('pollRequested') });
-        } catch (error) {
-            toast({
-                title: tPage('pollError'),
-                description: `${error}`,
-                variant: 'destructive',
-            });
-        } finally {
-            setIsPolling(false);
         }
     };
 
@@ -393,943 +826,459 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         if (!confirm(tPage('resetExtractionsConfirm'))) return;
         setIsClearing(true);
         try {
-            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'clearExtractedData' }),
-            });
-            if (!response.ok) throw new Error('Failed to reset extractions');
-            const result = await response.json();
-            toast({ title: `${tPage('resetExtractions')}: ${result.clearedCount}` });
-            await fetchDecisions();
+            await postAction({ action: 'clearExtractedData' });
+            toast({ title: tPage('resetExtractions') });
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
         } catch (error) {
-            toast({ title: tPage('resetError'), description: `${error}`, variant: 'destructive' });
+            toast({ title: tPage('resetError'), description: failureSentence(error), variant: 'destructive' });
         } finally {
             setIsClearing(false);
         }
     };
 
-    // Subjects eligible for decisions: agenda items + outOfAgenda, in display order.
-    // Use nonAgendaReason as the primary discriminator — agendaItemIndex alone is not
-    // sufficient because outOfAgenda subjects may also have an agendaItemIndex from PDF data.
-    // beforeAgenda subjects are excluded (pre-agenda announcements without decisions).
-    const agendaSubjects = subjects
-        .filter(s => s.agendaItemIndex != null && s.nonAgendaReason === null)
-        .sort((a, b) => a.agendaItemIndex! - b.agendaItemIndex!);
-    const outOfAgendaSubjects = subjects
-        .filter(s => s.nonAgendaReason === 'outOfAgenda');
-    const allDisplaySubjects = [...agendaSubjects, ...outOfAgendaSubjects];
-    const eligibleSubjects = allDisplaySubjects.filter(s => !s.withdrawn);
-    const extractedSubjects = eligibleSubjects.filter(s => {
-        const decision = decisions[s.id];
-        return (decision?.excerpt) || extractedData[s.id];
-    });
-
-    // Urgency-first sections: subjects still without a decision (withdrawn ones
-
-    // Subject-centric inversion: an unplaced candidate either proposes itself on
-    // its suggested subject's row, or waits in the tray below the list. A
-    // conflict annotates the subject that holds the ADA.
-    const proposalBySubject = new Map<string, CandidateView>();
-    const trayCandidates: CandidateView[] = [];
-    for (const c of candidates) {
-        const suggested = c.subjectId && !c.conflict ? allDisplaySubjects.find(s => s.id === c.subjectId) : null;
-        if (suggested && !suggested.withdrawn && !decisions[suggested.id] && !proposalBySubject.has(suggested.id)) {
-            proposalBySubject.set(suggested.id, c);
-        } else {
-            trayCandidates.push(c);
+    const handleExportDocx = async () => {
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/minutes`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            downloadFile(await response.blob(), `minutes-${city.id}-${meeting.id}.docx`);
+            toast({ title: t('minutes.exportSuccess') });
+        } catch {
+            toast({ title: t('minutes.exportError'), variant: 'destructive' });
         }
-    }
-    const conflictsByHolder = new Map<string, CandidateView>();
-    for (const c of candidates) {
-        if (c.conflict && !conflictsByHolder.has(c.conflict.subjectId)) {
-            conflictsByHolder.set(c.conflict.subjectId, c);
-        }
-    }
-    const pickableCandidates = candidates.filter(c => !c.conflict);
-
-    const subjectStatus = (subjectId: string): SubjectStatus =>
-        decisions[subjectId] ? 'linked' : 'none';
-    const query = normalizeText(subjectQuery.trim());
-    const matchesQuery = (subjectId: string, name: string): boolean => {
-        if (!query) return true;
-        if (normalizeText(name).includes(query)) return true;
-        const d = decisions[subjectId];
-        return !!d && [d.title, d.ada, d.decisionNumber, d.protocolNumber]
-            .some(v => v && normalizeText(v).includes(query));
-    };
-    const filteredSubjects = allDisplaySubjects.filter(s =>
-        (statusFilter.length === 0 || statusFilter.includes(subjectStatus(s.id))) && matchesQuery(s.id, s.name));
-    const stats = computeDecisionStats(eligibleSubjects.map(s => s.id), decisions, candidates);
-
-    /** Run the sheet-confirmed action; close the sheet only when it succeeds,
-     * so a failure keeps the document context for the retry. */
-    const confirmPending = async () => {
-        if (!pendingAction) return;
-        let ok: boolean;
-        if (pendingAction.action === 'assign') {
-            ok = await handleAssignCandidate(pendingAction.candidateId, pendingAction.subjectId);
-        } else if (pendingAction.action === 'link') {
-            ok = await handleSave(pendingAction);
-        } else if (pendingAction.action === 'dismiss') {
-            ok = await handleDismissCandidate(pendingAction.candidateId);
-        } else if (pendingAction.action === 'view') {
-            ok = true; // read-only: the sheet has no confirm button
-        } else if (pendingAction.action === 'inspect') {
-            // The confirm button assigns; it is disabled without a selected subject.
-            ok = pendingAction.subjectId !== null
-                && await handleAssignCandidate(pendingAction.candidateId, pendingAction.subjectId);
-        } else {
-            ok = await handleRemove(pendingAction.subjectId);
-        }
-        if (ok) setPendingAction(null);
     };
 
-    const sheetBusy = candidateBusy !== null || savingSubjectId !== null || removingSubjectId !== null;
+    // ─── The panel, the picker and the sheet ─────────────────────────────
 
+    const openPanel = (subjectId: string, mode: 'link' | 'change') => {
+        setPickerCandidateId(null);
+        panelRetry.current = null;
+        setPanel({ subjectId, mode, query: '', confirm: null, error: null });
+    };
 
-    // Helper to get source info for a decision
-    const getSourceInfo = (decision: DecisionWithSource) => {
-        if (decision.task) {
-            return { type: 'task' as const, label: tPage('sourceTask') };
-        } else if (decision.createdBy) {
-            return { type: 'user' as const, label: tPage('sourceManual', { name: decision.createdBy.name || decision.createdBy.email || '' }) };
+    /** A pick in the row panel adds when the row is empty and replaces when it
+     * is not. The panel asks for nothing on its own — it does not know that a
+     * row has something to lose, which is what makes a replace a question. */
+    const handlePanelPick = (subjectId: string, candidateId: string) => {
+        const current = decisions[subjectId];
+        if (!current) {
+            void handleLink(subjectId, candidateId, true);
+            return;
         }
-        return null;
+        setPanel(p => p && {
+            ...p,
+            confirm: {
+                kind: 'replace',
+                candidateId,
+                current: {
+                    number: decisionNumberOf(current, tPage('table.linked')),
+                    reversible: current.candidateBacked ?? false,
+                },
+            },
+        });
+    };
+
+    const handlePanelConfirm = (subjectId: string, confirm: PanelConfirm) => {
+        panelRetry.current = () => handlePanelConfirm(subjectId, confirm);
+        if (confirm.kind === 'unlink') {
+            void handleUnlink(subjectId);
+            return;
+        }
+        const subject = subjectById.get(subjectId);
+        const candidate = candidates.find(c => c.id === confirm.candidateId);
+        if (!subject || !candidate) return;
+        const loserSubjectId = confirm.kind === 'replace' ? subjectId : subjectByCandidate.get(confirm.candidateId);
+        const loserDecision = loserSubjectId ? decisions[loserSubjectId] : undefined;
+        // Nothing left to take away — a poll or another admin already emptied
+        // the row this was going to displace. What the person asked for is now
+        // a plain link, so send that rather than stall on a confirmation the
+        // page can no longer act on.
+        if (!loserSubjectId || !loserDecision) {
+            void handleLink(subjectId, confirm.candidateId, true);
+            return;
+        }
+        void replaceLink({
+            loserSubjectId,
+            loserDecision,
+            winnerSubjectId: subjectId,
+            candidateId: confirm.candidateId,
+            onDone: () => {
+                setPanel(null);
+                const number = candidateNumberOf(candidate);
+                const label = labelOf(subject);
+                addReceipt(confirm.kind === 'replace'
+                    ? tPage('receipts.linked', { number, subject: label })
+                    : tPage('receipts.moved', { number, subject: label }));
+            },
+        });
+    };
+
+    /** The other rows a panel's list can name: every subject of the record,
+     * labelled the way the copy expects. */
+    const panelSubjects: PanelSubject[] = orderedSubjects.map(subject => ({ id: subject.id, label: labelOf(subject) }));
+
+    const renderPanel = (subjectId: string): ReactNode => {
+        if (!panel || panel.subjectId !== subjectId) return null;
+        const subject = subjectById.get(subjectId);
+        if (!subject) return null;
+        const current = panel.mode === 'change' ? decisions[subjectId] : undefined;
+        return (
+            <LinkPanel
+                subjectLabel={labelOf(subject)}
+                hasAgendaNumber={subject.agendaItemIndex !== null}
+                current={current
+                    ? {
+                        id: current.id,
+                        number: decisionNumberOf(current, tPage('table.linked')),
+                        title: current.title,
+                        reversible: current.candidateBacked ?? false,
+                    }
+                    : null}
+                rows={rowCandidates({
+                    subjectId,
+                    candidates,
+                    subjectByCandidate,
+                    subjects: panelSubjects,
+                    query: panel.query,
+                })}
+                query={panel.query}
+                onQueryChange={value => setPanel(p => p && { ...p, query: value })}
+                confirm={panel.confirm}
+                onAskConfirm={confirm => setPanel(p => p && { ...p, confirm })}
+                onCancelConfirm={() => setPanel(p => p && { ...p, confirm: null })}
+                onConfirm={confirm => handlePanelConfirm(subjectId, confirm)}
+                onLink={candidateId => handlePanelPick(subjectId, candidateId)}
+                onAdaSubmit={entry => { void handleAdaLink(subjectId, entry); }}
+                onOpenDocument={setViewing}
+                onClose={() => setPanel(null)}
+                saving={busySubjectId === subjectId}
+                error={panel.error}
+                onRetry={() => {
+                    setPanel(p => p && { ...p, error: null });
+                    panelRetry.current?.();
+                }}
+            />
+        );
+    };
+
+    const renderPicker = (candidateId: string): ReactNode => {
+        const candidate = candidates.find(c => c.id === candidateId);
+        if (!candidate) return null;
+        const waitingIds = new Set([...waiting.proposed, ...waiting.plain].map(s => s.id));
+        const pickerQueryText = normalizeText(pickerQuery.trim());
+        const options = orderedSubjects
+            .filter(subject => waitingIds.has(subject.id))
+            // The resolver's own suggestion first: it is the answer the person
+            // is most likely looking for, and the list is otherwise long.
+            .sort((a, b) => Number(b.id === candidate.subjectId) - Number(a.id === candidate.subjectId))
+            .map(subject => ({
+                id: subject.id,
+                label: labelOf(subject),
+                hasAgendaNumber: subject.agendaItemIndex !== null,
+                name: displayName(subject),
+                likely: subject.id === candidate.subjectId && isLikelyMatch(candidate),
+                waitingAnswer: routed.proposalBySubject.has(subject.id),
+            }))
+            .filter(option => !pickerQueryText
+                || normalizeText(option.label).includes(pickerQueryText)
+                || normalizeText(option.name).includes(pickerQueryText));
+        return (
+            <SubjectPicker
+                decisionNumber={candidateNumberOf(candidate)}
+                subjects={options}
+                query={pickerQuery}
+                onQueryChange={setPickerQuery}
+                onPick={subjectId => { void handleLink(subjectId, candidateId, false); }}
+                onDismiss={() => { void handleDismiss(candidateId); }}
+                onClose={() => setPickerCandidateId(null)}
+                saving={busyCandidateId === candidateId}
+            />
+        );
     };
 
     /** The extraction results for a linked subject: excerpt, references, roll call, votes.
-     * Shown in the view sheet's second tab (the old in-row accordion). */
-    const renderExtractedDetails = (subjectId: string) => {
+     * Shown in the view sheet's second tab. */
+    const renderExtractedDetails = (subjectId: string): ReactNode => {
         const decision = decisions[subjectId];
         const extracted = extractedData[subjectId];
         if (!decision?.excerpt && !decision?.references && !extracted) return null;
         return (
             <div className="space-y-3">
-                        {/* Excerpt */}
-                        {decision?.excerpt && (
-                            <div>
-                                <div className="text-xs font-medium text-muted-foreground mb-1">
-                                    {tPage('excerpt')}
-                                </div>
-                                <CollapsibleMarkdown
-                                    content={decision.excerpt}
-                                    showMoreLabel={tPage('showMore')}
-                                    showLessLabel={tPage('showLess')}
-                                />
-                            </div>
-                        )}
-
-                        {/* References */}
-                        {decision?.references && (
-                            <div>
-                                <div className="text-xs font-medium text-muted-foreground mb-1">
-                                    {tPage('references')}
-                                </div>
-                                <CollapsibleMarkdown
-                                    content={decision.references}
-                                    showMoreLabel={tPage('showMore')}
-                                    showLessLabel={tPage('showLess')}
-                                />
-                            </div>
-                        )}
-
-                        {/* Attendance */}
-                        {extracted && extracted.attendance.length > 0 && (() => {
-                            const filteredAttendance = extracted.attendance.filter(a => a.personId !== mayorPersonId);
-                            const present = sortNamesByElectedOrder(
-                                filteredAttendance.filter(a => a.status === 'PRESENT'),
-                                getPerson, administrativeBodyId,
-                            );
-                            const absent = sortNamesByElectedOrder(
-                                filteredAttendance.filter(a => a.status === 'ABSENT'),
-                                getPerson, administrativeBodyId,
-                            );
-                            return (
-                                <div>
-                                    <div className="text-xs font-medium text-muted-foreground mb-1">
-                                        {tPage('attendance')}
-                                    </div>
-                                    <div className="text-xs text-foreground space-y-1">
-                                        <span>
-                                            {present.length} {tPage('present')}, {absent.length} {tPage('absent')}
-                                        </span>
-                                        <div className="flex flex-col gap-1">
-                                            {present.length > 0 && (
-                                                <NameList
-                                                    names={present.map(a => a.personName)}
-                                                    label={`${tPage('showNames')} (${tPage('present')})`}
-                                                />
-                                            )}
-                                            {absent.length > 0 && (
-                                                <NameList
-                                                    names={absent.map(a => a.personName)}
-                                                    label={`${tPage('showNames')} (${tPage('absent')})`}
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })()}
-
-                        {/* Votes */}
-                        {extracted && extracted.votes.length > 0 && (() => {
-                            const voteResult = calculateVoteResult(extracted.votes);
-                            return (
-                                <div>
-                                    <div className="text-xs font-medium text-muted-foreground mb-1">
-                                        {tPage('votes')}
-                                    </div>
-                                    <div className="text-xs text-foreground space-y-1">
-                                        <span>
-                                            {voteSummaryText(voteResult)}
-                                        </span>
-                                        {!voteResult.isUnanimous && (
-                                            <div className="flex flex-col gap-1">
-                                                <NameList
-                                                    names={extracted.votes.filter(v => v.voteType === 'FOR').map(v => v.personName)}
-                                                    label={`${tPage('showNames')} (${voteResult.forCount} ${tPage('voteFor')})`}
-                                                />
-                                                <NameList
-                                                    names={extracted.votes.filter(v => v.voteType === 'AGAINST').map(v => v.personName)}
-                                                    label={`${tPage('showNames')} (${voteResult.againstCount} ${tPage('voteAgainst')})`}
-                                                />
-                                                {voteResult.abstainCount > 0 && (
-                                                    <NameList
-                                                        names={extracted.votes.filter(v => v.voteType === 'ABSTAIN').map(v => v.personName)}
-                                                        label={`${tPage('showNames')} (${voteResult.abstainCount} ${tPage('voteAbstain')})`}
-                                                    />
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })()}
-            </div>
-        );
-    };
-
-    const renderSubjectRow = (subject: (typeof subjects)[number], index: number, sectionSubjects: typeof subjects) => {
-        const decision = decisions[subject.id];
-        const extracted = extractedData[subject.id];
-        const sourceInfo = decision ? getSourceInfo(decision) : null;
-        const isManualExpanded = expandedManualEntry === subject.id;
-        const isSaving = savingSubjectId === subject.id;
-        const isRemoving = removingSubjectId === subject.id;
-
-        const showOutOfAgendaSeparator = subject.nonAgendaReason === 'outOfAgenda' &&
-            (index === 0 || sectionSubjects[index - 1].nonAgendaReason !== 'outOfAgenda');
-
-        return (
-            <Fragment key={subject.id}>
-                {showOutOfAgendaSeparator && (
-                    <div className="pt-3 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {tSubject('categories.outOfAgenda.shortLabel')}
+                {decision?.excerpt && (
+                    <div>
+                        <div className="text-xs font-medium text-muted-foreground mb-1">{tPage('excerpt')}</div>
+                        <CollapsibleMarkdown
+                            content={decision.excerpt}
+                            showMoreLabel={tPage('showMore')}
+                            showLessLabel={tPage('showLess')}
+                        />
                     </div>
                 )}
-            <div
-                id={`subject-row-${subject.id}`}
-                className="py-3 border-b last:border-b-0"
-            >
-                {/* Main row */}
-                <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0 flex items-start gap-2">
-                        <span
-                            className={`mt-[7px] h-2 w-2 rounded-full shrink-0 ${decision ? 'bg-green-600' : proposalBySubject.has(subject.id) ? 'bg-amber-500' : 'border-[1.5px] border-gray-300 bg-transparent'}`}
-                            title={decision ? undefined : tPage('noDecision')}
+
+                {decision?.references && (
+                    <div>
+                        <div className="text-xs font-medium text-muted-foreground mb-1">{tPage('references')}</div>
+                        <CollapsibleMarkdown
+                            content={decision.references}
+                            showMoreLabel={tPage('showMore')}
+                            showLessLabel={tPage('showLess')}
                         />
-                        <div className="min-w-0">
-                            {decision ? (
-                                <button
-                                    type="button"
-                                    className={`font-medium text-sm break-words text-left hover:underline ${subject.withdrawn ? 'text-muted-foreground' : 'text-gray-900'}`}
-                                    onClick={() => setPendingAction({
-                                        action: 'view',
-                                        subjectId: subject.id,
-                                        subjectName: subject.name,
-                                        ...docOfDecision(decision),
-                                    })}
-                                >
-                                    {subject.agendaItemIndex != null && (
-                                        <span className="text-muted-foreground mr-1">#{subject.agendaItemIndex}</span>
-                                    )}
-                                    {subject.name}
-                                </button>
-                            ) : (
-                            <div className={`font-medium text-sm break-words ${subject.withdrawn ? 'text-muted-foreground' : 'text-gray-900'}`}>
-                                {subject.agendaItemIndex != null && (
-                                    <span className="text-muted-foreground mr-1">#{subject.agendaItemIndex}</span>
-                                )}
-                                {subject.name}
-                            </div>
-                            )}
-                            {conflictsByHolder.has(subject.id) && (() => {
-                                const cc = conflictsByHolder.get(subject.id)!;
-                                return (
-                                    <button
-                                        type="button"
-                                        onClick={() => setPendingAction({
-                                            action: 'inspect',
-                                            candidateId: cc.id,
-                                            subjectId: null,
-                                            subjectName: null,
-                                            ...docOfCandidate(cc),
-                                        })}
-                                        className="block text-left text-xs text-destructive mt-1 hover:underline"
-                                    >
-                                        ⚠ {tPage('conflictOnRow')} — {tPage('reviewAction')}
-                                    </button>
-                                );
-                            })()}
-                            {/* Subtitle: the decision's title on linked rows; the subject's own
-                                description on gaps — the context that decides a match. */}
-                            {decision?.title ? (
-                                <div className="text-xs text-muted-foreground mt-0.5 break-words">
-                                    {decision.title}
-                                </div>
-                            ) : !decision && subject.description ? (
-                                <div className="text-xs text-muted-foreground mt-0.5 break-words line-clamp-2">
-                                    {subject.description}
-                                </div>
-                            ) : null}
-                            {/* Inline attendance & vote summary */}
-                            {extracted && (extracted.attendance.length > 0 || extracted.votes.length > 0) && (() => {
-                                const filteredInline = extracted.attendance.filter(a => a.personId !== mayorPersonId);
-                                const present = filteredInline.filter(a => a.status === 'PRESENT');
-                                const absent = filteredInline.filter(a => a.status === 'ABSENT');
-                                const voteResult = extracted.votes.length > 0 ? calculateVoteResult(extracted.votes) : null;
-                                return (
-                                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                                        {extracted.attendance.length > 0 && (
-                                            <span className="inline-flex items-center gap-1">
-                                                <Users className="h-3 w-3" />
-                                                {present.length}/{absent.length}
-                                            </span>
-                                        )}
-                                        {voteResult && (
-                                            <span className="inline-flex items-center gap-1">
-                                                <Vote className="h-3 w-3" />
-                                                {voteSummaryText(voteResult)}
-                                            </span>
-                                        )}
-                                    </div>
-                                );
-                            })()}
-                        </div>
                     </div>
+                )}
 
-                    <div className="flex items-center gap-2 shrink-0">
-                        {subject.withdrawn ? (
-                            <Badge variant="secondary" className="text-xs text-muted-foreground italic">
-                                {getWithdrawnLabel(tSubject, subject)}
-                            </Badge>
-                        ) : decision ? (
-                            <>
-                                {sourceInfo && (
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <span className="text-muted-foreground">
-                                                {sourceInfo.type === 'task' ? (
-                                                    <Bot className="h-4 w-4" />
-                                                ) : (
-                                                    <UserIcon className="h-4 w-4" />
-                                                )}
-                                            </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            {sourceInfo.label}
-                                        </TooltipContent>
-                                    </Tooltip>
-                                )}
-                                {/* Fixed columns keep the badge, the ADA, and the menu vertically
-                                    aligned across rows; empty spans hold the grid when a value is
-                                    missing. The ADA column is monospace — ADAs share one length, so
-                                    they self-align. */}
-                                <span className="flex w-28 justify-end">
-                                    <Badge variant="default" className="bg-green-600 text-xs">
-                                        <FileText className="h-3 w-3 mr-1" />
-                                        {/* The decision's own number; Diavgeia's protocolNumber is a
-                                            filing protocol in some municipalities, so it is only a
-                                            fallback until decisionNumber is backfilled. */}
-                                        {decision.decisionNumber || decision.protocolNumber || tPage('linked')}
-                                    </Badge>
-                                </span>
-                                <span className="w-[88px] font-mono text-xs text-muted-foreground">
-                                    {decision.ada ?? ''}
-                                </span>
-                                {/* modal would set body{pointer-events:none}; with the duplicated
-                                    @radix-ui/react-dismissable-layer copies in the lockfile, the sheet
-                                    opened from a menu item then restores that value on close and
-                                    freezes the page. Non-modal never touches body styles. */}
-                                <DropdownMenu modal={false}>
-                                    <DropdownMenuTrigger asChild>
-                                        <button
-                                            disabled={isRemoving || resettingSubjectId === subject.id}
-                                            className="text-muted-foreground hover:text-foreground disabled:opacity-50"
-                                        >
-                                            {(isRemoving || resettingSubjectId === subject.id) ? (
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            )}
-                                        </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-72">
-                                        {isSuperAdmin && (<>
-                                        <DropdownMenuItem
-                                            onClick={() => handleResetExtraction(subject.id)}
-                                            disabled={resettingSubjectId === subject.id}
-                                        >
-                                            <div>
-                                                <div className="text-sm font-medium">{tPage('resetExtraction')}</div>
-                                                <div className="text-xs text-muted-foreground mt-0.5">{tPage('resetExtractionDescription')}</div>
-                                            </div>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        </>)}
-                                        <DropdownMenuItem
-                                            onClick={() => setPendingAction({
-                                                action: 'unlink',
-                                                subjectId: subject.id,
-                                                subjectName: subject.name,
-                                                ...docOfDecision(decision),
-                                                destructive: !(decision.candidateBacked ?? false),
-                                            })}
-                                            disabled={isRemoving}
-                                            className="text-destructive focus:text-destructive"
-                                        >
-                                            <div>
-                                                <div className="text-sm font-medium">{tPage('removeDecision')}</div>
-                                                <div className="text-xs text-muted-foreground mt-0.5">{tPage('removeDecisionDescription')}</div>
-                                            </div>
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </>
-                        ) : (
-                            <>
-                                {!proposalBySubject.has(subject.id) && pickableCandidates.length > 0 && (
-                                    <Select value="" onValueChange={(cid) => {
-                                        const c = candidates.find(x => x.id === cid);
-                                        if (c) setPendingAction({
-                                            action: 'assign',
-                                            candidateId: c.id,
-                                            subjectId: subject.id,
-                                            subjectName: subject.name,
-                                            ...docOfCandidate(c),
-                                        });
-                                    }}>
-                                        <SelectTrigger className="h-8 w-52 text-xs">
-                                            <SelectValue placeholder={tPage('pickDecision')} />
-                                        </SelectTrigger>
-                                        {/* Real titles are paragraph-long legal sentences: cap the
-                                            panel's width and let titles wrap — the tail is often the
-                                            only thing distinguishing near-identical decisions. */}
-                                        <SelectContent className="max-w-[min(36rem,90vw)]">
-                                            {pickableCandidates.map(c => {
-                                                const elsewhere = c.subjectId && c.subjectId !== subject.id
-                                                    ? subjects.find(s => s.id === c.subjectId)?.agendaItemIndex
-                                                    : null;
-                                                return (
-                                                    <SelectItem key={c.id} value={c.id} className="text-xs">
-                                                        <span className="block max-w-[32rem] whitespace-normal">
-                                                            <span className="font-semibold">{c.decisionNumber || c.ada}</span>
-                                                            {c.title ? ` — ${c.title}` : ''}
-                                                            {elsewhere != null ? ` ${tPage('suggestedElsewhere', { n: elsewhere })}` : ''}
-                                                        </span>
-                                                    </SelectItem>
-                                                );
-                                            })}
-                                        </SelectContent>
-                                    </Select>
-                                )}
-                                <button
-                                    onClick={() => toggleManualEntry(subject.id)}
-                                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                                >
-                                    {isManualExpanded ? (
-                                        <X className="h-3 w-3" />
-                                    ) : (
-                                        <Plus className="h-3 w-3" />
-                                    )}
-                                    {tPage('addManually')}
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                {/* Proposed decision from the resolver: assign or dismiss in place */}
-                {!decision && !isManualExpanded && (() => {
-                    const proposal = proposalBySubject.get(subject.id);
-                    if (!proposal) return null;
-                    const busyC = candidateBusy === proposal.id;
+                {extracted && extracted.attendance.length > 0 && (() => {
+                    const filteredAttendance = splitAttendance(extracted.attendance, mayorPersonId);
+                    const present = sortNamesByElectedOrder(filteredAttendance.present, getPerson, administrativeBodyId);
+                    const absent = sortNamesByElectedOrder(filteredAttendance.absent, getPerson, administrativeBodyId);
                     return (
-                        <div className="mt-2 ml-6 flex items-center gap-2.5 rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 px-3 py-2 text-[13px]">
-                            <span className="shrink-0 font-medium text-amber-800 dark:text-amber-300">{tPage('proposalLabel')}</span>
-                            <button
-                                type="button"
-                                className="truncate text-left font-semibold hover:underline"
-                                onClick={() => setPendingAction({
-                                    action: 'inspect',
-                                    candidateId: proposal.id,
-                                    subjectId: subject.id,
-                                    subjectName: subject.name,
-                                    ...docOfCandidate(proposal),
-                                })}
-                            >
-                                {proposal.title ?? proposal.ada}
-                            </button>
-                            {proposal.decisionNumber && <span className="shrink-0 text-xs text-muted-foreground">{proposal.decisionNumber}</span>}
-                            {proposal.confidence != null && (
-                                <span className="flex shrink-0 items-center gap-1.5">
-                                    <span className="flex gap-0.5">
-                                        {[0, 1, 2, 3].map(i => (
-                                            <span key={i} className={`h-1.5 w-3.5 rounded-full ${i < Math.floor(proposal.confidence! * 4) ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-700'}`} />
-                                        ))}
-                                    </span>
-                                    <span className="text-[11px] font-semibold text-green-600">{Math.round(proposal.confidence * 100)}%</span>
-                                </span>
-                            )}
-                            <span className="ml-auto flex shrink-0 items-center gap-2">
-                                <Button
-                                    size="sm"
-                                    className="h-7 text-xs"
-                                    disabled={busyC}
-                                    onClick={() => setPendingAction({
-                                        action: 'assign',
-                                        candidateId: proposal.id,
-                                        subjectId: subject.id,
-                                        subjectName: subject.name,
-                                        ...docOfCandidate(proposal),
-                                    })}
-                                >
-                                    {busyC ? <Loader2 className="h-3 w-3 animate-spin" /> : tPage('unplacedAssign')}
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs"
-                                    disabled={busyC}
-                                    onClick={() => setPendingAction({
-                                        action: 'dismiss',
-                                        candidateId: proposal.id,
-                                        subjectName: null,
-                                        ...docOfCandidate(proposal),
-                                    })}
-                                >
-                                    {tPage('unplacedDismiss')}
-                                </Button>
-                            </span>
+                        <div>
+                            <div className="text-xs font-medium text-muted-foreground mb-1">{tPage('attendance')}</div>
+                            <div className="text-xs text-foreground space-y-1">
+                                <span>{present.length} {tPage('present')}, {absent.length} {tPage('absent')}</span>
+                                <div className="flex flex-col gap-1">
+                                    {present.length > 0 && (
+                                        <NameList
+                                            names={present.map(a => a.personName)}
+                                            label={`${tPage('showNames')} (${tPage('present')})`}
+                                        />
+                                    )}
+                                    {absent.length > 0 && (
+                                        <NameList
+                                            names={absent.map(a => a.personName)}
+                                            label={`${tPage('showNames')} (${tPage('absent')})`}
+                                        />
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     );
                 })()}
 
-                {/* Manual entry form - expandable */}
-                {isManualExpanded && (
-                    <div className="mt-3 pl-4 border-l-2 border-muted space-y-3">
-                        <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">{tPage('adaLabel')} *</Label>
-                            <Input
-                                placeholder={tPage('adaPlaceholder')}
-                                value={editState.ada}
-                                onChange={e => updateEditState('ada', e.target.value)}
-                                className={`text-sm h-8 ${formErrors.ada ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                            />
-                            {formErrors.ada && (
-                                <p className="text-xs text-destructive">{formErrors.ada}</p>
-                            )}
-                            {!showMoreOptions && editState.ada.trim() && (
-                                <p className="text-xs text-muted-foreground">
-                                    {tPage('autoPdfHint', { ada: editState.ada.trim() })}
-                                </p>
-                            )}
-                        </div>
-
-                        <button
-                            type="button"
-                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                            onClick={() => setShowMoreOptions(prev => !prev)}
-                        >
-                            {showMoreOptions ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                            {tPage('moreOptions')}
-                        </button>
-
-                        {showMoreOptions && (
-                            <div className="space-y-3">
-                                <div className="space-y-1">
-                                    <Label className="text-xs text-muted-foreground">{tPage('pdfUrlLabel')}</Label>
-                                    <LinkOrDrop
-                                        placeholder={tPage('pdfUrlPlaceholder')}
-                                        value={editState.pdfUrl}
-                                        onChange={e => updateEditState('pdfUrl', e.target.value)}
-                                        onUrlChange={url => updateEditState('pdfUrl', url)}
-                                        config={{
-                                            cityId: meeting.cityId,
-                                            identifier: `${meeting.id}_${subject.id}`,
-                                            suffix: 'decision',
-                                        }}
-                                        inputClassName={`text-sm h-8 ${formErrors.pdfUrl ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                                    />
-                                    {formErrors.pdfUrl && (
-                                        <p className="text-xs text-destructive">{formErrors.pdfUrl}</p>
-                                    )}
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs text-muted-foreground">{tPage('titleLabel')}</Label>
-                                    <Input
-                                        placeholder={tPage('titlePlaceholder')}
-                                        value={editState.title}
-                                        onChange={e => updateEditState('title', e.target.value)}
-                                        className="text-sm h-8"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1">
-                                        <Label className="text-xs text-muted-foreground">{tPage('decisionNumberLabel')}</Label>
-                                        <Input
-                                            placeholder={tPage('decisionNumberPlaceholder')}
-                                            value={editState.decisionNumber}
-                                            onChange={e => updateEditState('decisionNumber', e.target.value)}
-                                            className="text-sm h-8"
+                {extracted && extracted.votes.length > 0 && (() => {
+                    const voteResult = calculateVoteResult(extracted.votes);
+                    return (
+                        <div>
+                            <div className="text-xs font-medium text-muted-foreground mb-1">{tPage('votes')}</div>
+                            <div className="text-xs text-foreground space-y-1">
+                                <span>{voteResultSentence(tSubject, voteResult)}</span>
+                                {!voteResult.isUnanimous && (
+                                    <div className="flex flex-col gap-1">
+                                        <NameList
+                                            names={extracted.votes.filter(v => v.voteType === 'FOR').map(v => v.personName)}
+                                            label={`${tPage('showNames')} (${voteResult.forCount} ${tPage('voteFor')})`}
                                         />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label className="text-xs text-muted-foreground">{tPage('protocolNumberLabel')}</Label>
-                                        <Input
-                                            placeholder={tPage('protocolNumberExample')}
-                                            value={editState.protocolNumber}
-                                            onChange={e => updateEditState('protocolNumber', e.target.value)}
-                                            className="text-sm h-8"
+                                        <NameList
+                                            names={extracted.votes.filter(v => v.voteType === 'AGAINST').map(v => v.personName)}
+                                            label={`${tPage('showNames')} (${voteResult.againstCount} ${tPage('voteAgainst')})`}
                                         />
+                                        {voteResult.abstainCount > 0 && (
+                                            <NameList
+                                                names={extracted.votes.filter(v => v.voteType === 'ABSTAIN').map(v => v.personName)}
+                                                label={`${tPage('showNames')} (${voteResult.abstainCount} ${tPage('voteAbstain')})`}
+                                            />
+                                        )}
                                     </div>
-                                </div>
+                                )}
                             </div>
-                        )}
-
-                        <div className="flex justify-end">
-                            <Button
-                                size="sm"
-                                className="h-8"
-                                disabled={isSaving}
-                                onClick={() => openLinkSheet(subject.id, subject.name)}
-                            >
-                                {isSaving ? (
-                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                ) : null}
-                                {tPage('save')}
-                            </Button>
                         </div>
-                    </div>
+                    );
+                })()}
+
+                {isSuperAdmin && (
+                    <AdminStrip>
+                        <AdminToolButton
+                            destructive
+                            disabled={resettingSubjectId === subjectId}
+                            onClick={() => handleResetExtraction(subjectId)}
+                        >
+                            {resettingSubjectId === subjectId
+                                ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                : <RotateCcw className="h-3.5 w-3.5 mr-1.5" />}
+                            {tPage('resetExtraction')}
+                        </AdminToolButton>
+                    </AdminStrip>
                 )}
             </div>
-            </Fragment>
         );
     };
 
+    /** The document the sheet is showing, whether it is a linked decision or a
+     * candidate nothing has placed yet — both are opened by id from the same
+     * "Άνοιγμα εγγράφου" controls. */
+    const view: SheetView | null = (() => {
+        if (!viewing) return null;
+        const candidate = candidates.find(c => c.id === viewing) ?? setAside[viewing];
+        if (candidate) {
+            return {
+                title: candidate.title,
+                decisionNumber: candidate.decisionNumber,
+                pdfUrl: candidate.pdfUrl,
+                ada: candidate.ada,
+                subjectId: null,
+                subjectName: null,
+            };
+        }
+        const entry = Object.entries(decisions).find(([, decision]) => decision.id === viewing);
+        if (!entry) return null;
+        const [subjectId, decision] = entry;
+        const subject = subjectById.get(subjectId);
+        return {
+            title: decision.title,
+            decisionNumber: decisionNumberOf(decision, tPage('table.linked')),
+            pdfUrl: decision.pdfUrl,
+            ada: decision.ada,
+            subjectId,
+            subjectName: subject ? displayName(subject) : null,
+        };
+    })();
+    // The sheet stays mounted while it animates out — same dismissable-layer
+    // bug as the modal={false} note on the old row menu.
+    const lastViewRef = useRef<SheetView | null>(null);
+    if (view) lastViewRef.current = view;
+    const sheetView = view ?? lastViewRef.current;
+
     return (
-        <div className="container mx-auto max-w-5xl py-6 space-y-6">
-            {/* Header */}
-            <div className="space-y-3 border-b pb-4">
-                <div>
-                    <h1 className="text-xl font-semibold">{tPage('title')}</h1>
-                    <p className="text-sm text-muted-foreground">{tPage('description')}</p>
-                    <p className="text-sm text-muted-foreground mt-1.5">
-                        <b className="text-base font-bold text-green-600">{stats.withDecision}/{stats.total}</b> {tPage('statsLinked', { n: stats.withDecision })}
-                        <span className="mx-2 text-gray-300">|</span>
-                        <b className="text-base font-bold text-amber-700">{proposalBySubject.size}</b> {tPage('statsProposed', { n: proposalBySubject.size })}
-                        <span className="mx-2 text-gray-300">|</span>
-                        <button
-                            type="button"
-                            className="hover:underline disabled:no-underline"
-                            disabled={trayCandidates.length === 0}
-                            onClick={() => {
-                                setTrayOpen(true);
-                                requestAnimationFrame(() => document.getElementById('unplaced-tray')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-                            }}
-                        >
-                            <b className="text-base font-bold text-amber-700">{trayCandidates.length}</b> {tPage('statsTray', { n: trayCandidates.length })}
-                        </button>
-                        <span className="mx-2 text-gray-300">|</span>
-                        <b className="text-base font-bold text-red-700">{stats.conflicts}</b> {tPage('statsConflicts', { n: stats.conflicts })}
-                    </p>
-                </div>
-
-                {/* Poll actions — cost-incurring operations, superadmin only */}
-                {isSuperAdmin && (<>
-                <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <div className="text-xs font-medium">
-                            {tPage('pollTitle')}
+        // The width and the padding the other meeting pages use (see the
+        // subject page): a wider container here only narrowed the table.
+        <div className="mx-auto max-w-6xl px-3 py-4 md:px-6 md:py-6">
+            <div className={TWO_COLUMN_GRID}>
+                <div className="min-w-0 space-y-6">
+                    <div className="space-y-3 border-b pb-4">
+                        {/* The title and its description are one block, so the
+                            description wraps inside that block's width instead of
+                            running the whole way under the search field.
+                            `items-start` is what keeps the search opposite the
+                            title rather than opposite the middle of the pair,
+                            where it read as the answer to the description. Below
+                            `sm` the search takes the full width, which wraps it
+                            under the block. */}
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1 space-y-1">
+                                <h1 className="text-xl font-semibold">{tPage('title')}</h1>
+                                <p className="max-w-2xl text-sm text-muted-foreground">{tPage('description')}</p>
+                            </div>
+                            <div className="relative w-full sm:w-72 sm:shrink-0">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    placeholder={tPage('searchSubjects')}
+                                    className="h-9 w-full pl-10"
+                                    value={subjectQuery}
+                                    onChange={e => setSubjectQuery(e.target.value)}
+                                />
+                            </div>
                         </div>
+                        {/* Plain inline flow, not a flex row: the Diavgeia clauses
+                            continue the last-check sentence, and a flex gap between
+                            a comma and the link after it would break the sentence. */}
+                        <p className="text-[13px] text-muted-foreground">
+                            <span className="mr-2 inline-block h-2 w-2 rounded-full bg-green-600 align-middle" aria-hidden />
+                            {tPage('status.linked', { linked: linkedCount, total: decidableSubjects.length })}
+                            <span aria-hidden>{' · '}</span>
+                            {pollingStatus?.lastPollAt
+                                ? tPage('status.lastCheck', { date: formatDate(new Date(pollingStatus.lastPollAt), city.timezone, locale) })
+                                : tPage('status.lastCheckNever')}
+                            <DiavgeiaSourceLink diavgeiaUid={city.diavgeiaUid} pollScope={pollScope} dated={Boolean(pollingStatus?.lastPollAt)} />
+                        </p>
+                        {minutesFailed && !minutes && (
+                            <p className="text-sm text-amber-700">{tPage('minutesLoadFailed')}</p>
+                        )}
+                        {minutesFailed && minutes && (
+                            <p className="text-sm text-amber-700">{tPage('minutesRefreshFailed')}</p>
+                        )}
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                            <Checkbox
-                                id="skip-cache"
-                                checked={skipCache}
-                                onCheckedChange={(checked) => setSkipCache(checked === true)}
-                                className="h-3.5 w-3.5"
-                            />
-                            <span className="text-[11px] text-muted-foreground">
-                                {tPage('skipCacheLabel')}
-                            </span>
-                        </label>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className={`h-7 text-xs ${skipCache ? 'border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100' : ''}`}
-                            disabled={isPolling}
-                            onClick={handlePollDecisions}
-                        >
-                            {isPolling ? (
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                            ) : (
-                                <Search className="h-3 w-3 mr-1" />
-                            )}
-                            {skipCache ? tPage('pollButtonSkipCache') : tPage('pollButton')}
-                        </Button>
-                    </div>
-                </div>
 
-                {/* Skip cache explanation — shown when toggled */}
-                {skipCache && (
-                    <div className="text-[11px] text-muted-foreground bg-amber-50 border border-amber-200 rounded px-2.5 py-1.5">
-                        {tPage('skipCacheHint')}
-                    </div>
-                )}
-                </>)}
-
-                {/* Polling status, visible to city admins: what Diavgeia scope the poll
-                    queries (each id opens the portal search), then the history. */}
-                <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
-                    <Clock className="h-3 w-3" />
-                    {!city.diavgeiaUid ? (
-                        <span className="text-amber-700">{tPage('scope.noOrg')}</span>
-                    ) : pollScope.error ? (
-                        <span className="text-red-700">{tPage('scope.malformed', { error: pollScope.error })}</span>
+                    {!hasLoaded ? (
+                        <div className="flex justify-center p-8">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
                     ) : (
                         <>
-                            <a href={diavgeiaSearchUrl(city.diavgeiaUid)} target="_blank" rel="noopener noreferrer" className="font-mono hover:underline">
-                                {tPage('scope.org', { org: city.diavgeiaUid })}
-                            </a>
-                            {pollScope.scopes.length === 0 ? (
-                                <>
-                                    <span>&middot;</span>
-                                    <span className="text-amber-700">{tPage('scope.orgWide')}</span>
-                                </>
-                            ) : pollScope.scopes.map(scope => (
-                                <span key={`${scope.unit}:${scope.signer ?? ''}`} className="flex items-center gap-1.5">
-                                    <span>&middot;</span>
-                                    <a href={diavgeiaSearchUrl(city.diavgeiaUid!, scope)} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                        {scope.signer
-                                            ? tPage('scope.unitSigner', { unit: scope.unit, signer: scope.signer })
-                                            : tPage('scope.unit', { unit: scope.unit })}
-                                    </a>
-                                </span>
-                            ))}
+                            <QuestionsCard
+                                waiting={{ proposed: waiting.proposed.length, plain: waiting.plain.length }}
+                                onJumpToTable={handleJumpToTable}
+                                conflicts={conflicts}
+                                unplaced={unplaced}
+                                pickerCandidateId={pickerCandidateId}
+                                renderPicker={renderPicker}
+                                receipts={receipts}
+                                estimate={estimate}
+                                total={total}
+                                subjectCount={decidableSubjects.length}
+                                loadFailed={loadFailed}
+                                onRetryLoad={() => { void fetchDecisions(); }}
+                                pollState={pollState}
+                                onPoll={() => { void handlePoll(false); }}
+                                polling={isPolling}
+                                onOpenDocument={setViewing}
+                                onOpenPicker={candidateId => { setPanel(null); setPickerQuery(''); setPickerCandidateId(candidateId); }}
+                                onDismiss={candidateId => { void handleDismiss(candidateId); }}
+                                onKeepHolder={candidateId => { void resolveConflict(candidateId, 'dismiss'); }}
+                                onMoveToClaimant={candidateId => { void resolveConflict(candidateId, 'reassign'); }}
+                                busyCandidateId={busyCandidateId}
+                            />
+
+                            <div ref={tableRef}>
+                                <DecisionsTable
+                                    rows={visibleRows}
+                                    beforeAgenda={beforeAgenda}
+                                    filter={filter}
+                                    missingCount={missingCount}
+                                    onFilterChange={setFilter}
+                                    openPanelSubjectId={panel?.subjectId ?? null}
+                                    onOpenPanel={openPanel}
+                                    renderPanel={renderPanel}
+                                    onAcceptProposal={handleAccept}
+                                    onRejectProposal={(subjectId, candidateId) => { void handleReject(subjectId, candidateId); }}
+                                    onUndoReject={(subjectId, candidateId) => {
+                                        void handleUndoReject(subjectId, candidateId, rejected[subjectId]?.receiptId ?? null);
+                                    }}
+                                    onOpenDecision={subjectId => setViewing(decisions[subjectId]?.id ?? null)}
+                                    onOpenProposalDocument={setViewing}
+                                    busySubjectId={busySubjectId}
+                                />
+                            </div>
                         </>
                     )}
-                    {pollingStatus && pollingStatus.totalPolls > 0 && (
-                        <>
-                            <span>&middot;</span>
-                            <span>{tPage('polling.polled', { n: pollingStatus.totalPolls })}</span>
-                            {pollingStatus.firstPollAt && (
-                                <>
-                                    <span>&middot;</span>
-                                    <span>{tPage('polling.started', { date: formatDate(new Date(pollingStatus.firstPollAt)) })}</span>
-                                </>
-                            )}
-                            {pollingStatus.currentTier?.kind === 'everyRun' && (
-                                <>
-                                    <span>&middot;</span>
-                                    <span>{tPage('polling.tier.everyRun')}</span>
-                                </>
-                            )}
-                            {pollingStatus.currentTier?.kind === 'interval' && (
-                                <>
-                                    <span>&middot;</span>
-                                    <span>{tPage('polling.tier.interval', { days: pollingStatus.currentTier.intervalDays })}</span>
-                                </>
-                            )}
-                            {pollingStatus.nextPollEligible ? (
-                                <>
-                                    <span>&middot;</span>
-                                    <span>{tPage('polling.next', { date: formatDate(new Date(pollingStatus.nextPollEligible)) })}</span>
-                                </>
-                            ) : pollingStatus.currentTier?.kind === 'stopped' ? (
-                                <>
-                                    <span>&middot;</span>
-                                    <span>{tPage('polling.stopped')}</span>
-                                </>
-                            ) : null}
-                        </>
-                    )}
-                </div>
-            </div>
 
-            {/* Meeting-level attendance (initial roll call) — superadmin-only while
-                extraction quality is still being validated */}
-            {isSuperAdmin && meetingAttendance.length > 0 && (
-                <MeetingAttendanceSummary
-                    attendance={meetingAttendance}
-                    getPerson={getPerson}
-                    administrativeBodyId={administrativeBodyId}
-                    mayorPersonId={mayorPersonId}
-                />
-            )}
-
-            {isLoading ? (
-                <div className="p-8 flex justify-center">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-            ) : (
-                <TooltipProvider>
-                    <div className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-center">
-                        <BadgePicker
-                            options={[
-                                { value: 'linked' as const, label: tPage('filterLinked') },
-                                { value: 'none' as const, label: tPage('filterNone') },
-                            ]}
-                            selectedValues={statusFilter}
-                            onSelectionChange={(values) => setStatusFilter(values)}
-                            allLabel={tPage('filterAll')}
-                            collapsible={false}
-                            inline
+                    {sheetView && (
+                        <ConfirmSheet
+                            open={view !== null}
+                            onOpenChange={open => { if (!open) setViewing(null); }}
+                            action="view"
+                            decisionTitle={sheetView.title}
+                            decisionNumber={sheetView.decisionNumber}
+                            subjectName={sheetView.subjectName}
+                            pdfUrl={sheetView.pdfUrl}
+                            ada={sheetView.ada}
+                            subjectDescription={sheetView.subjectId
+                                ? subjectById.get(sheetView.subjectId)?.description ?? null
+                                : null}
+                            agendaItemTitle={sheetView.subjectId
+                                ? subjectById.get(sheetView.subjectId)?.agendaItemTitle ?? null
+                                : null}
+                            busy={false}
+                            extraContent={sheetView.subjectId ? renderExtractedDetails(sheetView.subjectId) : undefined}
+                            onConfirm={() => undefined}
                         />
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-500" />
-                            <Input
-                                placeholder={tPage('searchSubjects')}
-                                className="h-9 w-full pl-10"
-                                value={subjectQuery}
-                                onChange={e => setSubjectQuery(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    {filteredSubjects.length === 0 ? (
-                        <div className="p-8 text-center text-gray-500">{tPage('filterEmpty')}</div>
-                    ) : (
-                        <div className="space-y-1">
-                            {filteredSubjects.map((subject, index, arr) => renderSubjectRow(subject, index, arr))}
-                        </div>
                     )}
 
-                    {/* Documents no subject claims: inspect or dismiss */}
-                    {trayCandidates.length > 0 && (
-                        <div id="unplaced-tray" className="mt-4 border-t border-dashed pt-3">
-                            <button
-                                type="button"
-                                onClick={() => setTrayOpen(o => !o)}
-                                className="flex items-center gap-1 text-[13px] font-medium text-muted-foreground hover:text-foreground"
-                            >
-                                {trayOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                                {tPage('trayTitle')} ({trayCandidates.length})
-                            </button>
-                            {trayOpen && (
-                                <div className="mt-2 space-y-1.5">
-                                    {trayCandidates.map(c => (
-                                        <div key={c.id} className="flex items-center gap-3 rounded-lg border px-3 py-2 text-[13px]">
-                                            <button
-                                                type="button"
-                                                className="truncate text-left font-medium hover:underline"
-                                                onClick={() => setPendingAction({
-                                                    action: 'inspect',
-                                                    candidateId: c.id,
-                                                    subjectId: null,
-                                                    subjectName: null,
-                                                    ...docOfCandidate(c),
-                                                })}
-                                            >
-                                                {c.title ?? c.ada}
-                                            </button>
-                                            {c.decisionNumber && <span className="shrink-0 text-xs text-muted-foreground">{c.decisionNumber}</span>}
-                                            {c.conflict && (
-                                                <span className="truncate text-xs text-destructive">
-                                                    {tPage('unplacedConflict')}: {c.conflict.subjectName}
-                                                </span>
-                                            )}
-                                            <span className="ml-auto shrink-0">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="h-7 text-xs"
-                                                    disabled={candidateBusy === c.id}
-                                                    onClick={() => setPendingAction({
-                                                        action: 'dismiss',
-                                                        candidateId: c.id,
-                                                        subjectName: null,
-                                                        ...docOfCandidate(c),
-                                                    })}
-                                                >
-                                                    {tPage('unplacedDismiss')}
-                                                </Button>
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </TooltipProvider>
-            )}
-
-            {/* Confirmation gate for link-changing actions */}
-            {sheetAction && (
-                <ConfirmSheet
-                    open={pendingAction !== null}
-                    onOpenChange={(o) => { if (!o && !sheetBusy) setPendingAction(null); }}
-                    action={sheetAction.action}
-                    destructive={sheetAction.action === 'unlink' && sheetAction.destructive}
-                    decisionTitle={sheetAction.title}
-                    decisionNumber={sheetAction.decisionNumber}
-                    subjectName={sheetAction.subjectName}
-                    pdfUrl={sheetAction.pdfUrl}
-                    ada={sheetAction.ada}
-                    subjectDescription={'subjectId' in sheetAction && sheetAction.subjectId
-                        ? subjects.find(s => s.id === sheetAction.subjectId)?.description ?? null
-                        : null}
-                    agendaItemTitle={'subjectId' in sheetAction && sheetAction.subjectId
-                        ? subjects.find(s => s.id === sheetAction.subjectId)?.agendaItemTitle ?? null
-                        : null}
-                    busy={sheetBusy}
-                    extraContent={sheetAction.action === 'view' ? renderExtractedDetails(sheetAction.subjectId) : undefined}
-                    onConfirm={confirmPending}
-                    confirmDisabled={sheetAction.action === 'inspect' && sheetAction.subjectId === null}
-                    onDismiss={sheetAction.action === 'inspect' ? async () => {
-                        const ok = await handleDismissCandidate(sheetAction.candidateId);
-                        if (ok) setPendingAction(null);
-                    } : undefined}
-                />
-            )}
-
-            {/* Danger zone — Delete extractions (meeting-wide wipe, superadmin only) */}
-            {isSuperAdmin && !isLoading && extractedSubjects.length > 0 && (
-                <div className="pt-2 border-t border-dashed">
-                    <div className="flex items-center justify-between gap-4">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs shrink-0 border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10"
-                            disabled={isClearing}
-                            onClick={handleClearExtractedData}
-                        >
-                            {isClearing ? (
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                            ) : (
-                                <RotateCcw className="h-3 w-3 mr-1" />
-                            )}
-                            {tPage('resetExtractions')}
-                        </Button>
-                        <span className="text-[11px] text-muted-foreground text-right">
-                            {tPage('resetExtractionsDescription')}
-                        </span>
-                    </div>
+                    {minutes && <MinutesPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} data={minutes} />}
                 </div>
-            )}
+                <aside className="min-w-0">
+                    <DecisionsRail
+                        minutes={minutes}
+                        timeline={timeline}
+                        isSuperAdmin={isSuperAdmin}
+                        onPreviewMinutes={() => setPreviewOpen(true)}
+                        onExportDocx={handleExportDocx}
+                        previewDisabled={!minutes}
+                        isPolling={isPolling}
+                        onPollSkippingCache={() => { void handlePoll(true); }}
+                        isClearing={isClearing}
+                        onResetExtractions={handleClearExtractedData}
+                        showResetExtractions={hasLoaded && hasExtractions}
+                    />
+                </aside>
+            </div>
         </div>
     );
 }

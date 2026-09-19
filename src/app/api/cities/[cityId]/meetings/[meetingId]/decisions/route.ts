@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
-import { getDecisionsForMeeting, getExtractedDataForMeeting, getMeetingAttendance, upsertDecision, deleteDecision, clearExtractedDataForMeeting, resetExtractionForSubject } from '@/lib/db/decisions';
-import { getUnresolvedCandidatesForMeeting, assignCandidate, dismissCandidate, getBackedDecisionIds } from '@/lib/db/decisionCandidates';
+import { getDecisionsForMeeting, getExtractedDataForMeeting, upsertDecision, deleteDecision, clearExtractedDataForMeeting, resetExtractionForSubject } from '@/lib/db/decisions';
+import { getUnresolvedCandidatesForMeeting, assignCandidate, dismissCandidate, undismissCandidate, getBackedDecisionIds } from '@/lib/db/decisionCandidates';
 import prisma from '@/lib/db/prisma';
+import { decisionWriteCause } from '@/lib/utils/decisionWriteCause';
 import { revalidateTag } from 'next/cache';
 import { z } from 'zod';
 
@@ -14,10 +15,9 @@ export async function GET(
     const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
-    const [decisions, extractedData, meetingAttendance, candidates] = await Promise.all([
+    const [decisions, extractedData, candidates] = await Promise.all([
         getDecisionsForMeeting(params.cityId, params.meetingId),
         getExtractedDataForMeeting(params.cityId, params.meetingId),
-        getMeetingAttendance(params.cityId, params.meetingId),
         getUnresolvedCandidatesForMeeting(params.cityId, params.meetingId),
     ]);
 
@@ -27,7 +27,7 @@ export async function GET(
     const backedIds = await getBackedDecisionIds(decisions.map((d) => d.id));
     const decisionsWithBacking = decisions.map((d) => ({ ...d, candidateBacked: backedIds.has(d.id) }));
 
-    return NextResponse.json({ decisions: decisionsWithBacking, extractedData, meetingAttendance, candidates });
+    return NextResponse.json({ decisions: decisionsWithBacking, extractedData, candidates });
 }
 
 const upsertSchema = z.object({
@@ -62,7 +62,14 @@ export async function PUT(
     if (parsed.ada) {
         const holder = await prisma.decision.findUnique({ where: { ada: parsed.ada }, select: { subjectId: true } });
         if (holder && holder.subjectId !== parsed.subjectId) {
-            return NextResponse.json({ error: 'This decision is already linked to another subject' }, { status: 409 });
+            return NextResponse.json(
+                {
+                    error: 'This decision is already linked to another subject',
+                    code: 'adaLinkedElsewhere',
+                    subjectId: holder.subjectId,
+                },
+                { status: 409 },
+            );
         }
     }
 
@@ -131,11 +138,20 @@ export async function DELETE(
     return NextResponse.json({ success: true });
 }
 
+/** A failed write answers with its cause, so the page never has to read the sentence. */
+function writeFailure(error: unknown, fallback: string) {
+    return NextResponse.json(
+        { error: error instanceof Error ? error.message : fallback, ...decisionWriteCause(error) },
+        { status: 409 },
+    );
+}
+
 const postSchema = z.discriminatedUnion('action', [
     z.object({ action: z.literal('clearExtractedData') }),
     z.object({ action: z.literal('resetExtraction'), subjectId: z.string().min(1) }),
     z.object({ action: z.literal('assignCandidate'), candidateId: z.string().min(1), subjectId: z.string().min(1) }),
     z.object({ action: z.literal('dismissCandidate'), candidateId: z.string().min(1) }),
+    z.object({ action: z.literal('undismissCandidate'), candidateId: z.string().min(1) }),
 ]);
 
 export async function POST(
@@ -179,7 +195,7 @@ export async function POST(
         try {
             await assignCandidate(params.cityId, params.meetingId, parsed.data.candidateId, parsed.data.subjectId, session?.user?.id);
         } catch (e) {
-            return NextResponse.json({ error: e instanceof Error ? e.message : 'Assignment failed' }, { status: 409 });
+            return writeFailure(e, 'Assignment failed');
         }
         revalidateTag(`city:${params.cityId}:meetings`, 'max');
         return NextResponse.json({ success: true });
@@ -189,7 +205,16 @@ export async function POST(
         try {
             await dismissCandidate(params.cityId, params.meetingId, parsed.data.candidateId);
         } catch (e) {
-            return NextResponse.json({ error: e instanceof Error ? e.message : 'Dismiss failed' }, { status: 409 });
+            return writeFailure(e, 'Dismiss failed');
+        }
+        return NextResponse.json({ success: true });
+    }
+
+    if (parsed.data.action === 'undismissCandidate') {
+        try {
+            await undismissCandidate(params.cityId, params.meetingId, parsed.data.candidateId);
+        } catch (e) {
+            return writeFailure(e, 'Undismiss failed');
         }
         return NextResponse.json({ success: true });
     }

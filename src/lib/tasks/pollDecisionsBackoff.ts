@@ -1,3 +1,8 @@
+// MeetingDecisionsPage (a client component) imports pollCadence() as a
+// value, not just its types. Keep this module free of server-only imports
+// (Prisma, `server-only`, ...) — one would break the client build from
+// here, with the error pointing at that page instead of this file.
+
 // ─── Λογοδοσία meeting detection ─────────────────────────────────────
 // Stem used to identify Λογοδοσία (accountability) meetings by name.
 // Covers both "Λογοδοσία" and "Λογοδοσίας" (genitive).
@@ -131,4 +136,98 @@ export function getBackoffState(
     }
 
     return { currentTier, currentTierLabel, nextPollEligible };
+}
+
+// ─── Poll task status ─────────────────────────────────────────────────
+
+/**
+ * The poll task still in flight among a set of tasks, if any — the rows are
+ * expected newest first, and the first unfinished one wins. A general
+ * pending/processing check: nothing here assumes the caller already
+ * filtered to those two statuses.
+ *
+ * Split out so the page's "we are checking now" line — `pollInFlight` below
+ * — has a tested rule: `getPollingHistoryForMeeting` counts only succeeded
+ * runs, so without this a poll a person just started reads as nothing
+ * happening.
+ *
+ * Lives here, not in pollDecisions.ts: that module carries `"use server"`,
+ * which requires every export to be an async function, and this one is
+ * synchronous by design (it's a pure array scan with no I/O).
+ */
+export function pendingPollTaskId(tasks: ReadonlyArray<{ id: string; status: string }>): string | null {
+    return tasks.find(t => t.status === 'pending' || t.status === 'processing')?.id ?? null;
+}
+
+// ─── The cadence the decisions page names ────────────────────────────
+
+/**
+ * Why the cron will never reach this meeting, however its backoff tier reads.
+ * Each one is a gate in `pollDecisionsForRecentMeetings`'s own query.
+ */
+export type ManualOnlyReason = 'allDecided' | 'excludedMeeting' | 'notYet';
+
+/** What the decisions page's poll footer says about automatic polling. */
+export type PollCadence =
+    | { kind: 'idle'; everyDays: number | null; nextCheck: string | null }
+    | { kind: 'manualOnly'; reason: ManualOnlyReason }
+    | { kind: 'running' }
+    | { kind: 'blocked' };
+
+export interface PollCadenceInput {
+    /** False when the city has no Diavgeia organisation id, or a configured
+     * unit entry does not parse — either way a poll cannot run at all. */
+    canPoll: boolean;
+    /** A poll for this meeting is queued or running on the task service. */
+    pollInFlight: boolean;
+    currentTier: BackoffTier | null;
+    /** `nextPollEligible`, already formatted for the reader, or null. */
+    nextCheck: string | null;
+    /** The cron selects only meetings that still have an eligible subject with
+     * no decision, so the last row a clerk fills is also the last poll. */
+    everySubjectDecided: boolean;
+    /** The cron excludes Λογοδοσία meetings by name. */
+    meetingName: string;
+    /** The cron only selects meetings inside `getPollableMeetingDateRange()`. */
+    meetingDate: Date;
+    now?: Date;
+}
+
+/**
+ * The first tier of BACKOFF_SCHEDULE polls on every cron run, which happens
+ * more than once a day. The footer names a cadence in whole days, so one day
+ * is the finest cadence it can say.
+ */
+export const EVERY_RUN_CADENCE_DAYS = 1;
+
+/**
+ * Map a meeting's polling state onto the cadence the page shows.
+ *
+ * A meeting nobody has polled yet has no tier at all. The next cron run picks
+ * it up, so it reads as the frequent cadence — `null` `everyDays` is reserved
+ * for a meeting that left the polling window, which the footer alone renders
+ * as "we stopped".
+ *
+ * A tier says how often the cron *would* come back; it says nothing about
+ * whether the cron selects this meeting at all. The gates below are that
+ * query's, in the same order of finality: a page that names a cadence for a
+ * meeting the cron skips promises a check nobody will run.
+ */
+export function pollCadence(input: PollCadenceInput): PollCadence {
+    if (!input.canPoll) return { kind: 'blocked' };
+    if (input.pollInFlight) return { kind: 'running' };
+    if (input.everySubjectDecided) return { kind: 'manualOnly', reason: 'allDecided' };
+    if (isLogodosiaMeeting(input.meetingName)) return { kind: 'manualOnly', reason: 'excludedMeeting' };
+
+    const window = getPollableMeetingDateRange(input.now ?? new Date());
+    if (input.meetingDate.getTime() > window.lte.getTime()) return { kind: 'manualOnly', reason: 'notYet' };
+    // Out the far end of the window is the same fact the stopped tier states,
+    // and the footer already has a sentence for it.
+    if (input.meetingDate.getTime() < window.gte.getTime()) return { kind: 'idle', everyDays: null, nextCheck: null };
+    if (input.currentTier?.kind === 'stopped') return { kind: 'idle', everyDays: null, nextCheck: null };
+    return {
+        kind: 'idle',
+        everyDays: input.currentTier?.kind === 'interval' ? input.currentTier.intervalDays : EVERY_RUN_CADENCE_DAYS,
+        nextCheck: input.nextCheck,
+    };
 }

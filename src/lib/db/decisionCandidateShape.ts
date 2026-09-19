@@ -1,4 +1,5 @@
 import { DecisionCandidate } from "@prisma/client";
+import { localCalendarDate } from "@/lib/formatters/time";
 
 /** Pure shaping for meeting decision candidates — kept prisma-free for unit tests. */
 
@@ -7,7 +8,12 @@ export interface MeetingCandidate {
     ada: string;
     title: string | null;
     pdfUrl: string;
-    publishDate: Date | null;
+    /**
+     * The city-local calendar date (`YYYY-MM-DD`) Diavgeia published it on. Not
+     * the instant: the page prints this date, and Diavgeia publishes late in the
+     * evening often enough that the UTC day is the day before the city's.
+     */
+    publishDate: string | null;
     meetingDate: Date | null;
     decisionNumber: string | null;
     readStatus: string;
@@ -31,8 +37,14 @@ export interface AdaHolder {
     subjectName: string;
 }
 
-/** Pure: attach conflict info (which subject's Decision holds each ADA) to candidate rows. */
-export function shapeCandidates(rows: CandidateRow[], holders: AdaHolder[]): MeetingCandidate[] {
+/**
+ * Pure: attach conflict info (which subject's Decision holds each ADA) to
+ * candidate rows, and put the publish instant on the city's calendar.
+ *
+ * @param timeZone - The city's timezone. Always City.timezone; realms make
+ * Athens an assumption, not a fact.
+ */
+export function shapeCandidates(rows: CandidateRow[], holders: AdaHolder[], timeZone: string): MeetingCandidate[] {
     const holderByAda = new Map(holders.map(h => [h.ada, h]));
     return rows.map(r => {
         // A holder that IS the candidate's own suggested subject is a stale
@@ -45,7 +57,7 @@ export function shapeCandidates(rows: CandidateRow[], holders: AdaHolder[]): Mee
             ada: r.ada,
             title: r.title,
             pdfUrl: r.pdfUrl,
-            publishDate: r.publishDate,
+            publishDate: r.publishDate ? localCalendarDate(r.publishDate, timeZone) : null,
             meetingDate: r.meetingDate,
             decisionNumber: r.decisionNumber,
             readStatus: r.readStatus,

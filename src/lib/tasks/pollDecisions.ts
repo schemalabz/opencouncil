@@ -14,7 +14,7 @@ import { deriveWindowDays } from "./decisionWindow";
 import { localCalendarDate } from "@/lib/formatters/time";
 import { applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } from "../db/decisionCandidates";
 import { isRoleActiveAt, isMayorRole } from "../utils/roles";
-import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, isLogodosiaMeeting, LOGODOSIA_NAME_PATTERN, type BackoffTier } from "./pollDecisionsBackoff";
+import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, isLogodosiaMeeting, LOGODOSIA_NAME_PATTERN, pendingPollTaskId, type BackoffTier } from "./pollDecisionsBackoff";
 import { interleaveByCity } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 import { agendaItemTitleOrName } from "@/lib/utils/subjects";
@@ -388,7 +388,15 @@ export async function getPollingHistoryForMeeting(
     currentTier: BackoffTier | null;
     currentTierLabel: string | null;
     nextPollEligible: string | null;
+    pendingTaskId: string | null;
 }> {
+    const openTasks = await prisma.taskStatus.findMany({
+        where: { councilMeetingId, cityId, type: 'pollDecisions', status: { in: ['pending', 'processing'] } },
+        select: { id: true, status: true },
+        orderBy: { createdAt: 'desc' },
+    });
+    const pendingTaskId = pendingPollTaskId(openTasks);
+
     const history = await prisma.taskStatus.aggregate({
         where: {
             councilMeetingId,
@@ -413,6 +421,7 @@ export async function getPollingHistoryForMeeting(
             currentTier: null,
             currentTierLabel: null,
             nextPollEligible: null,
+            pendingTaskId,
         };
     }
 
@@ -425,6 +434,7 @@ export async function getPollingHistoryForMeeting(
         currentTier,
         currentTierLabel,
         nextPollEligible,
+        pendingTaskId,
     };
 }
 

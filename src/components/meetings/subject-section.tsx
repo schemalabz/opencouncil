@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { HelpCircle, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InlineToggle } from "@/components/ui/inline-toggle";
 
 const INITIAL_VISIBLE = 3;
 
@@ -64,37 +65,18 @@ export function SubjectSection({
                     </div>
 
                     {showSortToggle && onSortModeChange && (
-                        <div className="flex items-center gap-2 text-xs sm:text-sm mt-1">
-                            <button
-                                onClick={() => {
-                                    captureEvent('meeting_page_action', { action: 'sort_discussed', city_id: city.id, meeting_id: meeting.id });
-                                    onSortModeChange('speakingTime');
-                                }}
-                                className={cn(
-                                    "transition-colors",
-                                    sortMode === 'speakingTime'
-                                        ? "text-primary underline underline-offset-4"
-                                        : "text-muted-foreground hover:text-foreground"
-                                )}
-                            >
-                                {t("sortByMostDiscussed")}
-                            </button>
-                            <span className="text-muted-foreground/40">|</span>
-                            <button
-                                onClick={() => {
-                                    captureEvent('meeting_page_action', { action: 'sort_agenda', city_id: city.id, meeting_id: meeting.id });
-                                    onSortModeChange('agendaIndex');
-                                }}
-                                className={cn(
-                                    "transition-colors",
-                                    sortMode === 'agendaIndex'
-                                        ? "text-primary underline underline-offset-4"
-                                        : "text-muted-foreground hover:text-foreground"
-                                )}
-                            >
-                                {t("sortByAgendaOrder")}
-                            </button>
-                        </div>
+                        <InlineToggle
+                            options={[
+                                { value: 'speakingTime', label: t('sortByMostDiscussed') },
+                                { value: 'agendaIndex', label: t('sortByAgendaOrder') },
+                            ]}
+                            value={sortMode}
+                            onChange={(mode) => {
+                                captureEvent('meeting_page_action', { action: mode === 'speakingTime' ? 'sort_discussed' : 'sort_agenda', city_id: city.id, meeting_id: meeting.id });
+                                onSortModeChange(mode);
+                            }}
+                            className="mt-1"
+                        />
                     )}
                 </div>
 

@@ -5,6 +5,7 @@
 // gating must stay at the callers, not inside these functions.
 import "server-only";
 import prisma from './prisma';
+import { localCalendarDate } from '@/lib/formatters/time';
 import { AttendanceStatus, DataSource, Decision, Prisma, TaskStatus, User, VoteType } from '@prisma/client';
 
 /** Subjects eligible for decisions: agenda + out-of-agenda, excluding withdrawn.
@@ -46,59 +47,87 @@ export interface UpsertDecisionData {
     createdById?: string;
 }
 
+/**
+ * What a decision document yields once it is read: the excerpt and the legal
+ * references on the decision itself, and the attendance and the votes extracted
+ * from it. Named once, because four writes have to clear exactly this set —
+ * replacing a document, resetting an extraction, unlinking a decision, and
+ * moving a decision to the subject that claims its ΑΔΑ (`claimCandidate` in
+ * ./decisionCandidates).
+ *
+ * The last two then delete the decision row, so the excerpt update is a no-op
+ * for them. The attendance and the votes are not: those rows cascade from
+ * Subject, not from Decision, so they outlive the decision and leave the subject
+ * stating votes from a document it no longer carries.
+ *
+ * Run the returned writes inside the caller's transaction, beside the write they
+ * belong to.
+ */
+export function clearDecisionDerivedFacts(tx: Prisma.TransactionClient, subjectId: string) {
+    return [
+        tx.decision.updateMany({ where: { subjectId }, data: { excerpt: null, references: null } }),
+        tx.subjectAttendance.deleteMany({ where: { subjectId, source: DataSource.decision } }),
+        tx.subjectVote.deleteMany({ where: { subjectId, source: DataSource.decision } }),
+    ];
+}
+
+/**
+ * Link a decision document to a subject, or replace the one it carries.
+ *
+ * Replacing the document drops what the previous one yielded, in the same
+ * transaction that swaps it: an editor who corrects a wrong ΑΔΑ must never be
+ * shown the old document's attendance and votes underneath the new number, and
+ * the page's own rule is that everything a row states comes from one document.
+ * Re-pointing at the same document — the same ΑΔΑ submitted twice, a corrected
+ * decision number — keeps them, because they still describe what is linked.
+ */
 export async function upsertDecision(data: UpsertDecisionData): Promise<Decision> {
-    return prisma.decision.upsert({
+    const existing = await prisma.decision.findUnique({
         where: { subjectId: data.subjectId },
-        create: {
-            subjectId: data.subjectId,
-            pdfUrl: data.pdfUrl,
-            decisionNumber: data.decisionNumber ?? null,
-            protocolNumber: data.protocolNumber ?? null,
-            ada: data.ada ?? null,
-            title: data.title ?? null,
-            publishDate: data.publishDate ?? null,
-            taskId: data.taskId ?? null,
-            createdById: data.createdById ?? null,
-        },
-        update: {
-            pdfUrl: data.pdfUrl,
-            decisionNumber: data.decisionNumber ?? null,
-            protocolNumber: data.protocolNumber ?? null,
-            ada: data.ada ?? null,
-            title: data.title ?? null,
-            publishDate: data.publishDate ?? null,
-            // Don't update taskId/createdById on updates - preserve original source
-        },
+        select: { ada: true, pdfUrl: true },
+    });
+    const replacesDocument = existing !== null
+        && ((data.ada ?? null) !== existing.ada || data.pdfUrl !== existing.pdfUrl);
+
+    return prisma.$transaction(async tx => {
+        if (replacesDocument) await Promise.all(clearDecisionDerivedFacts(tx, data.subjectId));
+        return tx.decision.upsert({
+            where: { subjectId: data.subjectId },
+            create: {
+                subjectId: data.subjectId,
+                pdfUrl: data.pdfUrl,
+                decisionNumber: data.decisionNumber ?? null,
+                protocolNumber: data.protocolNumber ?? null,
+                ada: data.ada ?? null,
+                title: data.title ?? null,
+                publishDate: data.publishDate ?? null,
+                taskId: data.taskId ?? null,
+                createdById: data.createdById ?? null,
+            },
+            update: {
+                pdfUrl: data.pdfUrl,
+                decisionNumber: data.decisionNumber ?? null,
+                protocolNumber: data.protocolNumber ?? null,
+                ada: data.ada ?? null,
+                title: data.title ?? null,
+                publishDate: data.publishDate ?? null,
+                // Don't update taskId/createdById on updates - preserve original source
+            },
+        });
     });
 }
 
 export async function deleteDecision(subjectId: string): Promise<void> {
-    await prisma.$transaction([
-        prisma.subjectAttendance.deleteMany({
-            where: { subjectId, source: DataSource.decision },
-        }),
-        prisma.subjectVote.deleteMany({
-            where: { subjectId, source: DataSource.decision },
-        }),
-        prisma.decision.deleteMany({
-            where: { subjectId },
-        }),
-    ]);
+    await prisma.$transaction(async tx => {
+        await Promise.all(clearDecisionDerivedFacts(tx, subjectId));
+        await tx.decision.deleteMany({ where: { subjectId } });
+    });
 }
 
 export async function resetExtractionForSubject(subjectId: string): Promise<void> {
-    await prisma.$transaction([
-        prisma.decision.updateMany({
-            where: { subjectId },
-            data: { excerpt: null, references: null },
-        }),
-        prisma.subjectAttendance.deleteMany({
-            where: { subjectId, source: DataSource.decision },
-        }),
-        prisma.subjectVote.deleteMany({
-            where: { subjectId, source: DataSource.decision },
-        }),
-    ]);
+    await prisma.$transaction(async tx => {
+        await Promise.all(clearDecisionDerivedFacts(tx, subjectId));
+    });
 }
 
 /**
@@ -241,6 +270,11 @@ export async function getMeetingAttendance(
     });
 }
 
+/**
+ * The decision a subject carries, as the subject page reads it over JSON.
+ * `publishDate` is a city-local calendar date (`YYYY-MM-DD`); `updatedAt` is an
+ * instant, because the page shows it as a relative time.
+ */
 export async function getDecisionForSubject(subjectId: string): Promise<{
     ada: string | null;
     decisionNumber: string | null;
@@ -252,6 +286,7 @@ export async function getDecisionForSubject(subjectId: string): Promise<{
 } | null> {
     const decision = await prisma.decision.findUnique({
         where: { subjectId },
+        include: { subject: { select: { councilMeeting: { select: { city: { select: { timezone: true } } } } } } },
     });
     if (!decision) return null;
     return {
@@ -260,7 +295,12 @@ export async function getDecisionForSubject(subjectId: string): Promise<{
         protocolNumber: decision.protocolNumber,
         title: decision.title,
         pdfUrl: decision.pdfUrl,
-        publishDate: decision.publishDate?.toISOString() ?? null,
+        // The city's calendar date, not the UTC one: Diavgeia publishes at a
+        // wall-clock time, and a document published after 21:00 Athens-summer
+        // carries the next UTC day. The reader wants the day the city saw.
+        publishDate: decision.publishDate
+            ? localCalendarDate(decision.publishDate, decision.subject.councilMeeting.city.timezone)
+            : null,
         updatedAt: decision.updatedAt?.toISOString() ?? null,
     };
 }

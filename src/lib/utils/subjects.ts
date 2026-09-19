@@ -71,9 +71,16 @@ export function categorizeSubjects<T extends CategorizableSubject>(subjects: T[]
 }
 
 /**
- * The one agenda-category predicate. An assigned agendaItemIndex wins over a
- * lingering nonAgendaReason, exactly as categorizeSubjects has always
- * bucketed — every surface (TOC, chapter rail) must agree on this.
+ * The agenda category of a subject, index first: an assigned `agendaItemIndex`
+ * wins over a `nonAgendaReason` of `outOfAgenda`, so a subject that carries both
+ * counts as a regular agenda item. The public meeting page and its sidebar read
+ * this, through `categorizeSubjects` — the TOC and the chapter rail included.
+ *
+ * `recordSection` below states the opposite precedence, reason first, and the
+ * meeting record (the decisions page, the minutes) reads that one. The two
+ * rules disagree on purpose. Do not change one to match the other: either edit
+ * moves subjects between the blocks of a live page. The TODO in
+ * `src/lib/tasks/pollDecisions.ts` holds the decision to unify them.
  */
 export function subjectCategory(subject: {
     nonAgendaReason: string | null;
@@ -88,6 +95,58 @@ export function subjectCategory(subject: {
 
 export function getNonAgendaLabel(t: Translate, reason: 'beforeAgenda' | 'outOfAgenda'): string {
     return t(`categories.${reason}.shortLabel`);
+}
+
+/**
+ * Whether a subject belongs to the meeting's record — the minutes and the
+ * decisions page must agree on this, or a subject shows on one and not the
+ * other.
+ *
+ * A subject belongs when it has an agenda position (`agendaItemIndex != null`,
+ * so item 0 counts) or it was taken up out of the agenda. A `beforeAgenda`
+ * subject never belongs, whatever index the agenda PDF gave it.
+ */
+export function isRecordSubject(subject: { agendaItemIndex: number | null; nonAgendaReason: string | null }): boolean {
+    if (subject.nonAgendaReason === 'beforeAgenda') return false;
+    return subject.agendaItemIndex != null || subject.nonAgendaReason === 'outOfAgenda';
+}
+
+/** The two registers the meeting's record subjects are listed under. */
+export type RecordSection = 'agenda' | 'outOfAgenda';
+
+/**
+ * Which register a record subject is listed under, reason first: this reads
+ * `nonAgendaReason` and never the index, because an out-of-agenda subject can
+ * carry an `agendaItemIndex` the agenda PDF gave it, and bucketing on the index
+ * alone files it as a regular agenda item. The decisions page and the minutes
+ * read this. Every surface that splits the two blocks or labels them must call
+ * it — a list bucketed one way and labelled the other puts the wrong heading
+ * over the wrong rows.
+ *
+ * `subjectCategory` above states the opposite precedence, index first, and the
+ * public meeting page reads that one. The two rules disagree on purpose. The
+ * TODO in `src/lib/tasks/pollDecisions.ts` holds the decision to unify them.
+ */
+export function recordSection(subject: { nonAgendaReason: string | null }): RecordSection {
+    return subject.nonAgendaReason === 'outOfAgenda' ? 'outOfAgenda' : 'agenda';
+}
+
+/**
+ * The section heading a row opens, or null when it continues the section above it.
+ *
+ * Both blocks carry one. A rule that only ever opened the out-of-agenda block
+ * labelled whichever block followed it, which is what agenda order does now that
+ * it starts with the out-of-agenda rows instead of ending with them.
+ */
+export function sectionHeadingAt(
+    section: ReadonlyArray<{ nonAgendaReason: string | null }>,
+    index: number,
+): RecordSection | null {
+    const row = section[index];
+    if (!row) return null;
+    const here = recordSection(row);
+    if (index === 0) return here;
+    return recordSection(section[index - 1]) === here ? null : here;
 }
 
 /**

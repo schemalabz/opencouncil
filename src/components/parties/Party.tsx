@@ -19,7 +19,8 @@ import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
 import { motion } from 'framer-motion';
 import PersonCard from '../persons/PersonCard';
-import { filterActiveRoles, formatDateRange, isRoleActive, getDateRangeFromRoles } from '@/lib/utils';
+import { cn, filterActiveRoles, formatDateRange, isRoleActive, getDateRangeFromRoles } from '@/lib/utils';
+import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
 import { isActivePartyMember, isPartyRole } from '@/lib/utils/roles';
 import { sortInactivePartyMembers, sortPartyMembers, sortPeople } from '@/lib/sorting/people';
 import { BadgePicker } from '../ui/badge-picker';
@@ -612,7 +613,7 @@ export default function PartyC({ city, party, administrativeBodies }: {
                         rail keeps the party's composition and its επικεφαλής in view
                         whichever tab is open. Underline triggers, not boxed ones — the
                         two views are peers, not modes. */}
-                    <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10">
+                    <div className={cn("mt-8", TWO_COLUMN_GRID_NARROW_RAIL)}>
                         <Tabs defaultValue="people" className="min-w-0">
                             <TabsList className="h-auto w-full justify-start gap-6 overflow-x-visible rounded-none border-b border-border bg-transparent p-0">
                                 <TabsTrigger value="people" className={underlineTabClass}>
