@@ -1,10 +1,12 @@
-import { AttendanceStatus, VoteType } from '@prisma/client';
+import { AttendanceStatus, DiscussionStatus, VoteType } from '@prisma/client';
 import {
     buildAttendance,
     buildVoteResult,
     buildCouncilComposition,
     sortSubjectsByDiscussionOrder,
     sortByElectedOrder,
+    buildDiscussionSummary,
+    buildProceduralVotes,
     MemberResolver,
     ElectedOrderGetter,
 } from '../builders';
@@ -593,5 +595,89 @@ describe('sortByElectedOrder', () => {
 
         expect(sortByElectedOrder(a, b, noElectedOrder)).toBeGreaterThan(0);
         expect(sortByElectedOrder(b, a, noElectedOrder)).toBeLessThan(0);
+    });
+});
+
+// --- buildDiscussionSummary ---
+
+describe('buildDiscussionSummary', () => {
+    const u = (start: number, end: number, status: DiscussionStatus | null) => ({ startTimestamp: start, endTimestamp: end, discussionStatus: status });
+
+    it('sums SUBJECT_DISCUSSION seconds and starts at the first non-procedural utterance', () => {
+        const result = buildDiscussionSummary([
+            u(10, 20, 'PROCEDURAL_VOTE'),
+            u(100, 160, 'SUBJECT_DISCUSSION'),
+            u(160, 190, 'SUBJECT_DISCUSSION'),
+            u(190, 200, 'VOTE'),
+        ]);
+        expect(result).toEqual({ kind: 'discussed', seconds: 90, start: 100 });
+    });
+
+    it('is voteOnly when the subject has VOTE utterances and no discussion', () => {
+        const result = buildDiscussionSummary([u(300, 320, 'VOTE')]);
+        expect(result).toEqual({ kind: 'voteOnly', seconds: 0, start: 300 });
+    });
+
+    it('is none with no utterances', () => {
+        expect(buildDiscussionSummary([])).toEqual({ kind: 'none', seconds: 0, start: null });
+    });
+
+    it('is other, placed by the procedural vote, when that is all there is', () => {
+        const result = buildDiscussionSummary([u(40, 50, 'PROCEDURAL_VOTE'), u(50, 55, 'PROCEDURAL_VOTE')]);
+        expect(result).toEqual({ kind: 'other', seconds: 0, start: 40 });
+    });
+
+    it('is other for utterances of ATTENDANCE or OTHER status only', () => {
+        const result = buildDiscussionSummary([u(70, 75, 'ATTENDANCE'), u(80, 85, 'OTHER')]);
+        expect(result).toEqual({ kind: 'other', seconds: 0, start: 70 });
+    });
+
+    it('takes the earliest start even when utterances arrive out of order', () => {
+        const result = buildDiscussionSummary([u(500, 510, 'SUBJECT_DISCUSSION'), u(400, 410, 'SUBJECT_DISCUSSION')]);
+        expect(result.start).toBe(400);
+        expect(result.seconds).toBe(20);
+    });
+});
+
+// --- buildProceduralVotes ---
+
+describe('buildProceduralVotes', () => {
+    const subjects = [
+        { id: 's1', name: 'Θέμα 1', agendaItemIndex: 1, nonAgendaReason: null },
+        { id: 'oa1', name: 'Κατεπείγον', agendaItemIndex: null, nonAgendaReason: 'outOfAgenda' as const },
+        { id: 's5', name: 'Θέμα 5', agendaItemIndex: 5, nonAgendaReason: null },
+    ];
+    const u = (start: number, status: DiscussionStatus | null, subjectId: string | null) => ({ startTimestamp: start, discussionStatus: status, discussionSubjectId: subjectId });
+
+    it('emits one vote per subject, at its first procedural utterance', () => {
+        const result = buildProceduralVotes([
+            u(30, 'PROCEDURAL_VOTE', 'oa1'),
+            u(35, 'PROCEDURAL_VOTE', 'oa1'),
+        ], subjects);
+        expect(result).toHaveLength(1);
+        expect(result[0].subjectId).toBe('oa1');
+        expect(result[0].timestamp).toBe(30);
+    });
+
+    it('orders the votes by timestamp', () => {
+        const result = buildProceduralVotes([
+            u(900, 'PROCEDURAL_VOTE', 's5'),
+            u(30, 'PROCEDURAL_VOTE', 'oa1'),
+            u(100, 'SUBJECT_DISCUSSION', 's1'),
+        ], subjects);
+        expect(result.map(v => v.subjectId)).toEqual(['oa1', 's5']);
+    });
+
+    it('carries the subject id and the vote time, and nothing else', () => {
+        const result = buildProceduralVotes([u(30, 'PROCEDURAL_VOTE', 'oa1')], subjects);
+        expect(result).toEqual([{ subjectId: 'oa1', timestamp: 30 }]);
+    });
+
+    it('ignores procedural utterances linked to a subject outside the list', () => {
+        expect(buildProceduralVotes([u(10, 'PROCEDURAL_VOTE', 'other')], subjects)).toEqual([]);
+    });
+
+    it('ignores procedural utterances with no subject', () => {
+        expect(buildProceduralVotes([u(10, 'PROCEDURAL_VOTE', null)], subjects)).toEqual([]);
     });
 });
