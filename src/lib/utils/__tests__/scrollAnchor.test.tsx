@@ -1,4 +1,10 @@
-import { captureScrollAnchor, getScrollContainer, restoreScrollAnchor } from '../scrollAnchor';
+import {
+    captureScrollAnchor,
+    getScrollContainer,
+    nextScrollTopForTargetAtTop,
+    restoreScrollAnchor,
+    scrollElementToContainerTop,
+} from '../scrollAnchor';
 
 // Regression guard for #367: saving an utterance mid-segment used to strand the
 // editor near the end of the segment. Named .test.tsx so jest runs it under
@@ -98,5 +104,44 @@ describe('scrollAnchor', () => {
         restoreScrollAnchor(anchor, null);
 
         expect(scrollTop()).toBe(4000);
+    });
+});
+
+// Regression guard: `handleJumpToTable` used to call `scrollIntoView`, which
+// drags the wrong element inside a `[data-scroll-container]` pane and
+// over/undershoots. These pin the direct-scrollTop replacement.
+describe('nextScrollTopForTargetAtTop', () => {
+    it('scrolls down to bring a target below the container up to the margin', () => {
+        // Container top at 100, target top at 810 (below the fold), current
+        // scrollTop 4000, 16px margin: scroll forward by 810 - 100 - 16.
+        expect(nextScrollTopForTargetAtTop(100, 810, 4000, 16)).toBe(4694);
+    });
+
+    it('scrolls up to bring a target above the container down to the margin', () => {
+        expect(nextScrollTopForTargetAtTop(100, 20, 4000, 16)).toBe(3904);
+    });
+
+    it('never asks for a negative scrollTop', () => {
+        expect(nextScrollTopForTargetAtTop(100, 90, 5, 16)).toBe(0);
+    });
+});
+
+describe('scrollElementToContainerTop', () => {
+    it('writes the container scrollTop so the target lands at the margin from its top', () => {
+        // The scroller itself carries no data-top, so the shared mock above
+        // reports its top as 0 — matching the container's own edge.
+        const { scroller, utterance } = build(810);
+        const scrollTop = trackScrollTop(scroller, 43);
+
+        scrollElementToContainerTop(utterance, 16);
+
+        // 43 (current) + 810 (target top) - 0 (container top) - 16 (margin)
+        expect(scrollTop()).toBe(837);
+    });
+
+    it('does nothing for an element outside a scroll container', () => {
+        document.body.innerHTML = '<span id="orphan" data-top="500"></span>';
+        // No scroll container exists to receive a write; the call must not throw.
+        expect(() => scrollElementToContainerTop(document.getElementById('orphan')!, 16)).not.toThrow();
     });
 });
