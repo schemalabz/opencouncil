@@ -161,3 +161,21 @@ export function buildTimeline(data: Pick<MinutesData, 'subjects' | 'attendanceCh
 export function isPendingDecision(subject: { withdrawn: boolean }, hasDecision: boolean): boolean {
     return !hasDecision && !subject.withdrawn;
 }
+
+/**
+ * What the minutes document will carry, counted off the minutes snapshot
+ * itself — the same snapshot the preview renders and the DOCX is built from.
+ *
+ * The card that shows this used to count the decisions payload instead. Both
+ * payloads apply `isRecordSubject` and the same `isPendingDecision` rule, so
+ * the two agree whenever they observed the same writes; they are separate
+ * requests, so a failed or older decisions refresh made the card describe a
+ * document other than the one its own buttons produce.
+ */
+export function minutesReadiness(data: Pick<MinutesData, 'subjects'>): { subjects: number; undecided: number } {
+    const decidable = data.subjects.filter(s => !s.withdrawn);
+    return {
+        subjects: decidable.length,
+        undecided: decidable.filter(s => isPendingDecision(s, s.decision !== null)).length,
+    };
+}

@@ -7,7 +7,7 @@ import { PresenceCard } from '@/components/meetings/decisions/rail/PresenceCard'
 import { AttendanceChangesCard } from '@/components/meetings/decisions/rail/AttendanceChangesCard';
 import { DiscussionOrderCard } from '@/components/meetings/decisions/rail/DiscussionOrderCard';
 import { MinutesCard } from '@/components/meetings/decisions/rail/MinutesCard';
-import type { Timeline } from '@/components/meetings/decisions/timeline';
+import { minutesReadiness, type Timeline } from '@/components/meetings/decisions/timeline';
 import type { MinutesData } from '@/lib/minutes/types';
 
 /**
@@ -34,8 +34,6 @@ export function DecisionsRail({
     onPreviewMinutes,
     onExportDocx,
     previewDisabled,
-    subjectCount,
-    undecidedCount,
     isPolling,
     onPollSkippingCache,
     isClearing,
@@ -50,10 +48,6 @@ export function DecisionsRail({
     onPreviewMinutes: () => void;
     onExportDocx: () => void;
     previewDisabled: boolean;
-    /** Subjects of the record that can carry a decision. */
-    subjectCount: number;
-    /** How many of those still have none. */
-    undecidedCount: number;
     isPolling: boolean;
     /** Polls Diavgeia and re-extracts every document, cache or no cache. */
     onPollSkippingCache: () => void;
@@ -72,8 +66,7 @@ export function DecisionsRail({
                 onPreview={onPreviewMinutes}
                 onExport={onExportDocx}
                 previewDisabled={previewDisabled}
-                subjectCount={subjectCount}
-                undecidedCount={undecidedCount}
+                readiness={minutes && minutesReadiness(minutes)}
             />
             {minutes && timeline && <PresenceCard rollCall={timeline.rollCall} />}
             {minutes && (

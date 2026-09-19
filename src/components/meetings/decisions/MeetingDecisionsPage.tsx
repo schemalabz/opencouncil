@@ -1271,8 +1271,6 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         onPreviewMinutes={() => setPreviewOpen(true)}
                         onExportDocx={handleExportDocx}
                         previewDisabled={!minutes}
-                        subjectCount={decidableSubjects.length}
-                        undecidedCount={decidableSubjects.length - linkedCount}
                         isPolling={isPolling}
                         onPollSkippingCache={() => { void handlePoll(true); }}
                         isClearing={isClearing}

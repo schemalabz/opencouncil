@@ -12,8 +12,7 @@ function renderCard(overrides: Partial<React.ComponentProps<typeof MinutesCard>>
             onPreview={jest.fn()}
             onExport={jest.fn()}
             previewDisabled={false}
-            subjectCount={12}
-            undecidedCount={3}
+            readiness={{ subjects: 12, undecided: 3 }}
             {...overrides}
         />
     );
@@ -50,30 +49,41 @@ describe('MinutesCard', () => {
     });
 
     it('counts the subjects still without a decision, and says what the document will print', () => {
-        renderCard({ subjectCount: 12, undecidedCount: 3 });
+        renderCard({ readiness: { subjects: 12, undecided: 3 } });
         expect(screen.getByText('rail.minutesUndecided{"n":3}')).toBeInTheDocument();
         expect(screen.getByText('rail.minutesUndecidedHint{"n":3}')).toBeInTheDocument();
         expect(screen.queryByText('rail.minutesAllDecided')).not.toBeInTheDocument();
     });
 
     it('states the count as a fact, never as an error', () => {
-        const { container } = renderCard({ subjectCount: 12, undecidedCount: 3 });
+        const { container } = renderCard({ readiness: { subjects: 12, undecided: 3 } });
         expect(screen.getByText('rail.minutesUndecided{"n":3}')).toHaveClass('text-amber-700');
         expect(container.querySelector('[class*="destructive"]')).toBeNull();
     });
 
     it('reports a complete record with no second line', () => {
-        renderCard({ subjectCount: 12, undecidedCount: 0 });
+        renderCard({ readiness: { subjects: 12, undecided: 0 } });
         expect(screen.getByText('rail.minutesAllDecided')).toBeInTheDocument();
         expect(screen.queryByText(/rail\.minutesUndecided/)).not.toBeInTheDocument();
     });
 
     it('explains the unavailable preview when the meeting has no subjects, instead of only greying it', () => {
-        renderCard({ subjectCount: 0, undecidedCount: 0 });
+        renderCard({ readiness: { subjects: 0, undecided: 0 } });
         expect(screen.getByText('minutes.noSubjects')).toBeInTheDocument();
         expect(screen.getByText('previewMinutes').closest('button')).toBeDisabled();
         // A readiness line over zero subjects would report a readiness nobody asked about.
         expect(screen.queryByText('rail.minutesAllDecided')).not.toBeInTheDocument();
         expect(screen.queryByText(/rail\.minutesUndecided/)).not.toBeInTheDocument();
+    });
+    it('says nothing about the document before the minutes snapshot has loaded', () => {
+        // The counts used to come from the decisions payload, a separate
+        // request: the card could report "all decided" over a preview and a
+        // DOCX built from a different snapshot.
+        renderCard({ readiness: null });
+        expect(screen.queryByText('rail.minutesAllDecided')).not.toBeInTheDocument();
+        expect(screen.queryByText(/rail\.minutesUndecided/)).not.toBeInTheDocument();
+        expect(screen.queryByText('minutes.noSubjects')).not.toBeInTheDocument();
+        // The export still stands: the server builds it from its own read.
+        expect(screen.getByText('exportDocx').closest('button')).not.toBeDisabled();
     });
 });

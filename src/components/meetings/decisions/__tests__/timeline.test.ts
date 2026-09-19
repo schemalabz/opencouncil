@@ -1,4 +1,4 @@
-import { buildTimeline, hasDiscussionOrder, isPendingDecision } from '../timeline';
+import { buildTimeline, hasDiscussionOrder, isPendingDecision, minutesReadiness } from '../timeline';
 import type { MinutesSubject, MinutesProceduralVote, MinutesAttendanceChange, MinutesCouncilComposition } from '@/lib/minutes/types';
 import type { MinutesMember } from '@/lib/minutes/types';
 import type { TimelineItem } from '../timeline';
@@ -316,3 +316,25 @@ describe('isPendingDecision', () => {
     });
 });
 
+describe('minutesReadiness', () => {
+    const linked: MinutesSubject['decision'] =
+        { decisionNumber: '643/2026', protocolNumber: null, excerpt: null, references: null };
+
+    it('counts the subjects the minutes snapshot still carries without a decision', () => {
+        // The count used to come off the decisions payload, a separate request.
+        // Read off the minutes, it describes the document the preview renders
+        // and the DOCX is built from.
+        expect(minutesReadiness({ subjects: [
+            subject({ subjectId: 's1', decision: linked }),
+            subject({ subjectId: 's2' }),
+            subject({ subjectId: 's3' }),
+        ] })).toEqual({ subjects: 3, undecided: 2 });
+    });
+
+    it('leaves a withdrawn subject out of both counts, the way isPendingDecision does', () => {
+        expect(minutesReadiness({ subjects: [
+            subject({ subjectId: 's1', decision: linked }),
+            subject({ subjectId: 's2', withdrawn: true }),
+        ] })).toEqual({ subjects: 1, undecided: 0 });
+    });
+});

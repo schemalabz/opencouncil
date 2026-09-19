@@ -47,8 +47,6 @@ function renderRail(overrides: Partial<React.ComponentProps<typeof DecisionsRail
             onPreviewMinutes={jest.fn()}
             onExportDocx={jest.fn()}
             previewDisabled={false}
-            subjectCount={12}
-            undecidedCount={0}
             showResetExtractions={false}
             isClearing={false}
             onResetExtractions={jest.fn()}

@@ -12,25 +12,28 @@ import { cn } from '@/lib/utils';
  *
  * The readiness line is a statement, never a warning: a subject with no
  * decision is normal, and the clerk is being told what the printed minutes
- * will carry, not that the meeting is wrong. */
-export function MinutesCard({ onPreview, onExport, previewDisabled, subjectCount, undecidedCount }: {
+ * will carry, not that the meeting is wrong. It therefore counts the minutes
+ * snapshot, which is what the preview and the DOCX render — never the
+ * decisions payload, which answers a different request. */
+export function MinutesCard({ onPreview, onExport, previewDisabled, readiness }: {
     onPreview: () => void;
     onExport: () => void;
     previewDisabled: boolean;
-    /** Subjects of the record that can carry a decision. */
-    subjectCount: number;
-    /** How many of those still have none. */
-    undecidedCount: number;
+    /** Counted off the minutes snapshot by `minutesReadiness`. Null while the
+     * minutes have not loaded, or failed to: the card then offers the buttons
+     * and says nothing about the document, rather than describing it from the
+     * decisions payload, which is a different request and can be older. */
+    readiness: { subjects: number; undecided: number } | null;
 }) {
     const tPage = useTranslations('admin.decisionsPage');
     const t = useTranslations('admin.adminActions');
 
-    const hasSubjects = subjectCount > 0;
-    const undecided = undecidedCount > 0;
+    const hasSubjects = readiness !== null && readiness.subjects > 0;
+    const undecided = (readiness?.undecided ?? 0) > 0;
 
     return (
         <RailCard title={tPage('rail.minutesTitle')}>
-            {hasSubjects ? (
+            {readiness === null ? null : hasSubjects ? (
                 <div className="flex items-start gap-2">
                     <span
                         className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', undecided ? 'bg-amber-500' : 'bg-green-600')}
@@ -39,12 +42,12 @@ export function MinutesCard({ onPreview, onExport, previewDisabled, subjectCount
                     <div className="min-w-0">
                         <p className={cn('text-xs font-medium', undecided ? 'text-amber-700' : 'text-green-700')}>
                             {undecided
-                                ? tPage('rail.minutesUndecided', { n: undecidedCount })
+                                ? tPage('rail.minutesUndecided', { n: readiness.undecided })
                                 : tPage('rail.minutesAllDecided')}
                         </p>
                         {undecided && (
                             <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                                {tPage('rail.minutesUndecidedHint', { n: undecidedCount })}
+                                {tPage('rail.minutesUndecidedHint', { n: readiness.undecided })}
                             </p>
                         )}
                     </div>
