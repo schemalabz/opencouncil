@@ -8,9 +8,13 @@ import { getTaskStatusDirect } from '@/lib/db/tasksInternal';
 import { verifyCallbackToken } from '@/lib/tasks/callbackToken';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 
-export async function GET(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
-    const params = await props.params;
-    const taskStatus = await getTaskStatusDirect(params.taskStatusId);
+type RouteParams = { cityId: string; meetingId: string; taskStatusId: string };
+
+export async function GET(request: NextRequest, props: { params: Promise<RouteParams> }) {
+    const { cityId, meetingId, taskStatusId } = await props.params;
+    // Scope the lookup to the tenant in the path: a task that exists but belongs to
+    // another city/meeting resolves to null, so it 404s instead of leaking existence.
+    const taskStatus = await getTaskStatusDirect(taskStatusId, { cityId, councilMeetingId: meetingId });
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
     }
@@ -26,19 +30,20 @@ export async function GET(request: NextRequest, props: { params: Promise<{ taskS
     return NextResponse.json(taskStatus);
 }
 
-export async function POST(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
-    const params = await props.params;
-    return handleUpdateRequest(request, params.taskStatusId);
+export async function POST(request: NextRequest, props: { params: Promise<RouteParams> }) {
+    const { cityId, meetingId, taskStatusId } = await props.params;
+    return handleUpdateRequest(request, taskStatusId, { cityId, councilMeetingId: meetingId });
 }
 
-export async function PUT(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
-    const params = await props.params;
-    return handleUpdateRequest(request, params.taskStatusId);
+export async function PUT(request: NextRequest, props: { params: Promise<RouteParams> }) {
+    const { cityId, meetingId, taskStatusId } = await props.params;
+    return handleUpdateRequest(request, taskStatusId, { cityId, councilMeetingId: meetingId });
 }
 
-export async function DELETE(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
-    const params = await props.params;
-    const taskStatus = await getTaskStatusDirect(params.taskStatusId);
+export async function DELETE(request: NextRequest, props: { params: Promise<RouteParams> }) {
+    const { cityId, meetingId, taskStatusId } = await props.params;
+    const scope = { cityId, councilMeetingId: meetingId };
+    const taskStatus = await getTaskStatusDirect(taskStatusId, scope);
 
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
@@ -54,14 +59,23 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ ta
         return NextResponse.json({ error: 'Cannot delete task that has been updated within the last 10 minutes' }, { status: 403 });
     }
 
-    await deleteTaskStatus(params.taskStatusId);
+    // Scoped delete: 0 rows means the task moved or was already removed between the
+    // read and the delete, which is a 404 rather than a silent success.
+    const deleted = await deleteTaskStatus(taskStatusId, scope);
+    if (deleted === 0) {
+        return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+    }
 
     revalidateTag(`city:${taskStatus.cityId}:meeting:${taskStatus.councilMeetingId}:derived`, 'max');
 
     return NextResponse.json({ message: 'Task status deleted successfully' });
 }
 
-async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
+async function handleUpdateRequest(
+    request: NextRequest,
+    taskStatusId: string,
+    scope: { cityId: string; councilMeetingId: string }
+) {
     // The task server is the only caller of this path, and startTask always
     // hands it a tokenized URL. Accepting an untokenized callback would leave
     // a forger the option of simply omitting the token.
@@ -71,7 +85,9 @@ async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
         return NextResponse.json({ error: 'Invalid callback token' }, { status: 401 });
     }
 
-    const taskStatus = await getTaskStatusDirect(taskStatusId);
+    // The token is keyed on the task id alone, so the path tenant is still checked
+    // here: a valid token replayed against another city/meeting resolves to null.
+    const taskStatus = await getTaskStatusDirect(taskStatusId, scope);
 
     if (!taskStatus) {
         return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
