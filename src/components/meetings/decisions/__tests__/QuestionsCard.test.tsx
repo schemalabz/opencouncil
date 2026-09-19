@@ -18,7 +18,6 @@ const props: QuestionsCardProps = {
     receipts: [],
     estimate: { kind: 'underMinute' as const },
     total: 0,
-    subjectCount: 36,
     loadFailed: false,
     onRetryLoad: jest.fn(),
     diavgeiaUid: '50026',
@@ -48,16 +47,30 @@ const renderCard = (over: Partial<typeof props> = {}) => render(
 );
 
 describe('QuestionsCard', () => {
-    it('says all is well only when nothing at all is outstanding', () => {
+    it('collapses to the Diavgeia footer alone when nothing is outstanding', () => {
+        // Nothing to do used to cost a heading, a badge reading zero, a work
+        // estimate and a green "all clear" sentence — four ways to say it.
         renderCard();
-        expect(screen.getByText(/Όλα εντάξει/)).toBeInTheDocument();
-        expect(screen.getByText(/36/)).toBeInTheDocument();
+        expect(screen.queryByText('Χρειάζονται μια ματιά')).not.toBeInTheDocument();
+        expect(screen.queryByText('Λιγότερο από ένα λεπτό')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Όλα εντάξει/)).not.toBeInTheDocument();
+        expect(screen.getByText(/Τελευταίος έλεγχος/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Έλεγχος τώρα/ })).toBeInTheDocument();
+    });
+
+    it('draws no rule above the footer when the footer is the whole card', () => {
+        const { container } = renderCard();
+        expect(container.querySelector('.border-t')).toBeNull();
+    });
+
+    it('keeps the heading it always had once there is something to look at', () => {
+        renderCard({ waiting: { proposed: 1, plain: 2 }, total: 3 });
+        expect(screen.getByText('Χρειάζονται μια ματιά')).toBeInTheDocument();
     });
 
     it('counts waiting subjects as work and sends the person to the table', async () => {
         const onJumpToTable = jest.fn();
         renderCard({ waiting: { proposed: 1, plain: 2 }, total: 3, onJumpToTable });
-        expect(screen.queryByText(/Όλα εντάξει/)).not.toBeInTheDocument();
         await userEvent.click(screen.getByRole('button', { name: /Δείτε τα στον πίνακα/ }));
         expect(onJumpToTable).toHaveBeenCalled();
     });
@@ -217,16 +230,6 @@ describe('QuestionsCard', () => {
         expect(screen.queryByRole('button', { name: /Έλεγχος τώρα/ })).not.toBeInTheDocument();
     });
 
-    it('says all is well without pointing at a button while a check is already running', () => {
-        // The footer drops its button for `running` (a second click must not
-        // queue a second poll), so the "all good" hint can't send the reader
-        // looking for one either.
-        renderCard({ pollState: { kind: 'running' } });
-        expect(screen.getByText(/Όλα εντάξει/)).toBeInTheDocument();
-        expect(screen.queryByText(/κουμπί παρακάτω/)).not.toBeInTheDocument();
-        expect(screen.getByText(/Ελέγχουμε ήδη τη Διαύγεια/)).toBeInTheDocument();
-    });
-
     it('takes no second click while the check it asked for is on its way', async () => {
         const onPoll = jest.fn();
         renderCard({ polling: true, onPoll });
@@ -236,14 +239,14 @@ describe('QuestionsCard', () => {
         expect(onPoll).not.toHaveBeenCalled();
     });
 
-    it('never says all is well when the decisions failed to load', () => {
+    it('stays open when the decisions failed to load, rather than reading as a finished meeting', () => {
         renderCard({ loadFailed: true });
-        expect(screen.queryByText(/Όλα εντάξει/)).not.toBeInTheDocument();
+        expect(screen.getByText('Χρειάζονται μια ματιά')).toBeInTheDocument();
         expect(screen.getByText(/δεν φορτώθηκαν/)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Δοκιμή ξανά/ })).toBeInTheDocument();
     });
 
-    it('shows a receipt alongside outstanding unplaced decisions, without claiming all is well', () => {
+    it('shows a receipt alongside outstanding unplaced decisions', () => {
         renderCard({
             receipts: [{ id: 'r1', text: 'Το θέμα 31 συνδέθηκε με την απόφαση 671/2026.', undo: jest.fn() }],
             unplaced,
@@ -251,7 +254,15 @@ describe('QuestionsCard', () => {
         });
         expect(screen.getByText('Το θέμα 31 συνδέθηκε με την απόφαση 671/2026.')).toBeInTheDocument();
         expect(screen.getByText(/αποφάσεις της Διαύγειας/)).toBeInTheDocument();
-        expect(screen.queryByText(/Όλα εντάξει/)).not.toBeInTheDocument();
+    });
+
+    it('keeps the receipt for the answer that emptied the card, undo and all', () => {
+        // The collapse must not take the undo away with the question it
+        // answered: the receipt is the only way back.
+        renderCard({ receipts: [{ id: 'r1', text: 'Το θέμα 31 συνδέθηκε με την απόφαση 671/2026.', undo: jest.fn() }] });
+        expect(screen.queryByText('Χρειάζονται μια ματιά')).not.toBeInTheDocument();
+        expect(screen.getByText('Το θέμα 31 συνδέθηκε με την απόφαση 671/2026.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Αναίρεση: / })).toBeInTheDocument();
     });
 
     it('names the part of the configuration that is broken, and offers no check that cannot run', () => {
@@ -268,13 +279,5 @@ describe('QuestionsCard', () => {
         expect(screen.getByText(/δεν έχει ID οργανισμού στη Διαύγεια/)).toBeInTheDocument();
         expect(screen.queryByRole('link')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Έλεγχος τώρα/ })).not.toBeInTheDocument();
-    });
-
-    it('names no button in the all-good hint when no check can run at all', () => {
-        // Nothing outstanding + `blocked` used to promise "ask for a check
-        // with the button below" above a footer that has no button.
-        renderCard({ pollState: { kind: 'blocked' } });
-        expect(screen.getByText(/Όλα εντάξει/)).toBeInTheDocument();
-        expect(screen.queryByText(/κουμπί παρακάτω/)).not.toBeInTheDocument();
     });
 });

@@ -3,6 +3,7 @@
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { DiavgeiaSourceLink } from '@/components/meetings/decisions/DiavgeiaSource';
 import type { PollCadence } from '@/lib/tasks/pollDecisionsBackoff';
 import type { ReadDiavgeiaUnitEntry } from '@/lib/utils/diavgeiaUnitScope';
@@ -21,6 +22,9 @@ export interface DiavgeiaFooterProps {
     /** A manual check this page asked for is on its way to the task service.
      * Every run costs an extraction, so the button must not take a second click. */
     polling: boolean;
+    /** False when the footer is the whole card: a rule above nothing reads as
+     * the top edge of an empty box. */
+    dividerAbove: boolean;
 }
 
 /**
@@ -45,13 +49,19 @@ export function DiavgeiaFooter({
     pollState,
     onPoll,
     polling,
+    dividerAbove,
 }: DiavgeiaFooterProps) {
     const t = useTranslations('admin.decisionsPage');
 
     return (
-        // A quieter ground than the rows above, the same one the picker panels
-        // open on: it sets the strip apart from them without a heading.
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border/60 bg-muted/40 px-5 py-3 text-[13px] text-muted-foreground">
+        <div
+            className={cn(
+                // A quieter ground than the rows above, the same one the picker
+                // panels open on: it sets the strip apart without a heading.
+                'flex flex-wrap items-center gap-x-4 gap-y-2 bg-muted/40 px-5 py-3 text-[13px] text-muted-foreground',
+                dividerAbove && 'border-t border-border/60',
+            )}
+        >
             {/* Full width on a phone, so the button wraps under the sentence
                 instead of squeezing it into a column of single words. */}
             <p className="w-full min-w-0 sm:w-auto sm:flex-1">

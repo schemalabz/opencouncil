@@ -69,7 +69,6 @@ export interface QuestionsCardProps {
     estimate: WorkEstimate;
     /** Everything the card counts: waiting subjects + conflicts + unplaced decisions. */
     total: number;
-    subjectCount: number;
     loadFailed: boolean;
     onRetryLoad: () => void;
     diavgeiaUid: string | null;
@@ -95,8 +94,14 @@ export interface QuestionsCardProps {
  * are answered in the table itself (the design's "one item, one place" rule)
  * — this card only counts them and links to the table.
  *
- * Never claims "all is well" while `loadFailed` is set, even when `total`
- * is zero: a failed load and an empty page look identical otherwise.
+ * With nothing outstanding the card collapses to its Diavgeia footer alone.
+ * A heading, a badge reading zero and a green "all clear" sentence were three
+ * ways of saying there is nothing to do, above a table that already showed it.
+ * A receipt still renders, so the undo for the answer that emptied the card
+ * does not vanish with the question it answered.
+ *
+ * `loadFailed` keeps the card open even when `total` is zero: a failed load
+ * and a finished meeting look identical otherwise.
  */
 export function QuestionsCard({
     waiting,
@@ -108,7 +113,6 @@ export function QuestionsCard({
     receipts,
     estimate,
     total,
-    subjectCount,
     loadFailed,
     onRetryLoad,
     diavgeiaUid,
@@ -127,18 +131,8 @@ export function QuestionsCard({
     const t = useTranslations('admin.decisionsPage');
     const [unplacedOpen, setUnplacedOpen] = useState(false);
 
-    const allGood = total === 0 && !loadFailed;
+    const noQuestions = total === 0 && !loadFailed;
     const waitingCount = waiting ? waiting.proposed + waiting.plain : 0;
-
-    // The hint under "all good" points at the footer's check button — true
-    // only when that button actually renders. `blocked` drops it because no
-    // check can run at all, and `running` drops it until the check in flight
-    // finishes, so neither may send the reader looking for one.
-    const allGoodHint = pollState.kind === 'blocked'
-        ? null
-        : pollState.kind === 'running'
-            ? t('attention.allGoodHintRunning')
-            : t('attention.allGoodHint');
 
     return (
         <section className={cn(surfaceCardClass, 'overflow-hidden')}>
@@ -152,15 +146,7 @@ export function QuestionsCard({
                 </div>
             )}
 
-            {allGood ? (
-                <div className="flex items-start gap-2 px-5 py-4">
-                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-green-600" aria-hidden />
-                    <div>
-                        <p className="text-sm font-medium text-green-700">{t('attention.allGood', { n: subjectCount })}</p>
-                        {allGoodHint && <p className="mt-0.5 text-[13px] text-muted-foreground">{allGoodHint}</p>}
-                    </div>
-                </div>
-            ) : (
+            {!noQuestions && (
                 <div className="flex flex-wrap items-center gap-2 px-5 py-4">
                     <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden />
                     <h2 className="text-[15px] font-semibold">{t('attention.title')}</h2>
@@ -176,8 +162,10 @@ export function QuestionsCard({
                 </div>
             )}
 
+            {/* With the heading gone the list has nothing above it, so it
+                supplies the padding the heading's row used to leave. */}
             {receipts.length > 0 && (
-                <ul className="space-y-1 px-5 pb-3">
+                <ul className={cn('space-y-1 px-5 pb-3', noQuestions && 'pt-3')}>
                     {receipts.map(receipt => (
                         <li key={receipt.id} className="flex items-center gap-2 text-[13px] text-muted-foreground">
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-600" aria-hidden />
@@ -192,7 +180,7 @@ export function QuestionsCard({
                 </ul>
             )}
 
-            {!allGood && (
+            {!noQuestions && (
                 <>
                     {waiting && waitingCount > 0 && (
                         <div className="border-t border-border/60 px-5 py-3">
@@ -343,6 +331,7 @@ export function QuestionsCard({
                 pollState={pollState}
                 onPoll={onPoll}
                 polling={polling}
+                dividerAbove={!noQuestions || receipts.length > 0}
             />
         </section>
     );

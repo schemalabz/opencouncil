@@ -1178,7 +1178,6 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                 receipts={receipts}
                                 estimate={estimate}
                                 total={total}
-                                subjectCount={decidableSubjects.length}
                                 loadFailed={loadFailed}
                                 onRetryLoad={() => { void fetchDecisions(); }}
                                 diavgeiaUid={city.diavgeiaUid}
