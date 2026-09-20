@@ -75,12 +75,14 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
         try {
             const status = await claimWithToken(token);
             captureEvent('person_join_claimed', { city_id: cityId, status });
-            if (status === 'linked' || status === 'already_yours') {
+            if (status === 'linked' || status === 'already_yours' || status === 'consented') {
                 // Mark the tab as inside the flow, so a reload stays on the consent.
                 const url = new URL(window.location.href);
                 url.searchParams.set('step', '2');
                 window.history.replaceState(window.history.state, '', url);
-                go('consent');
+                // A consent already in force, the person's own or one that
+                // OpenCouncil recorded, leaves no question to ask.
+                go(status === 'consented' ? 'done' : 'consent');
             }
             else if (status === 'already_linked') go('used');
             else if (status === 'signed_out') {

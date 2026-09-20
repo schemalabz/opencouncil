@@ -1,7 +1,7 @@
 import "server-only";
 import { CLAIM_EMAIL_GRACE_MS, verifyPersonClaimToken } from "@/lib/auth/personClaim";
 import { getJoinPerson } from "@/lib/db/personClaim";
-import { getVoicePrintConsentedIds } from "@/lib/db/personConsent";
+import { getVoicePrintConsents } from "@/lib/db/personConsent";
 import { getCouncilTitle } from "@/lib/utils/roles";
 
 /** What the join flow shows of the person a code names. */
@@ -57,8 +57,8 @@ export async function getJoinStage(token: string | undefined, userId: string | n
     const own = userId !== null && claimedBy === userId;
     if (!current && !(own && inFlow)) return { kind: "invalid" };
     if (own && inFlow) {
-        const consented = await getVoicePrintConsentedIds([person.id], userId);
-        return { kind: "consent", consented: consented.has(person.id), person };
+        const consents = await getVoicePrintConsents([person.id]);
+        return { kind: "consent", consented: consents.has(person.id), person };
     }
     if (claimedBy) return { kind: "used", signedIn: userId !== null, own, person };
     return { kind: "confirm", signedIn: userId !== null, person };

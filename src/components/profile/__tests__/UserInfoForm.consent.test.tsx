@@ -5,8 +5,14 @@ import { UserInfoForm } from '../UserInfoForm';
 import { setVoicePrintConsent } from '@/lib/actions/personConsent';
 
 jest.mock('next-intl', () => ({
-    useTranslations: () => (key: string, values?: Record<string, string | number>) =>
-        values ? `${key} ${Object.values(values).join(' ')}` : key,
+    useTranslations: () => {
+        const t = (key: string, values?: Record<string, string | number>) =>
+            values ? `${key} ${Object.values(values).join(' ')}` : key;
+        // The rich form: the key, then the email inside the tag the message names.
+        t.rich = (key: string, values: { email: string; mail: (chunks: string) => React.ReactNode }) =>
+            createElement('span', null, key, ' ', values.mail(values.email));
+        return t;
+    },
 }));
 jest.mock('next/navigation', () => ({
     useRouter: () => ({ refresh: jest.fn() }),
@@ -54,6 +60,45 @@ beforeEach(() => {
 });
 
 describe('UserInfoForm voiceprint consent', () => {
+    it('shows a consent that OpenCouncil recorded as given and locked, with the way to revoke it', async () => {
+        render(createElement(UserInfoForm, {
+            user,
+            isOnboarded: true,
+            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: 'ADMIN' }],
+        }));
+        const box = screen.getByLabelText('voicePrintConsentLabel') as HTMLButtonElement;
+        expect(box.getAttribute('aria-checked')).toBe('true');
+        expect(box.disabled).toBe(true);
+        expect(screen.getByText('voicePrintConsentHint')).toBeTruthy();
+        expect(screen.getByText('voicePrintConsentOnPaper', { exact: false })).toBeTruthy();
+        expect((screen.getByText('dpo@opencouncil.gr') as HTMLAnchorElement).getAttribute('href')).toBe('mailto:dpo@opencouncil.gr');
+
+        fireEvent.click(box);
+        fireEvent.click(screen.getByText('savePersonalInfo'));
+        await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+        expect(mockedSetConsent).not.toHaveBeenCalled();
+    });
+
+    it('drops a pending edit when the box becomes locked meanwhile', async () => {
+        const mine = { id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: 'PERSON' as const };
+        const { rerender } = render(createElement(UserInfoForm, { user, isOnboarded: true, persons: [mine] }));
+        fireEvent.click(screen.getByLabelText('voicePrintConsentLabel'));
+        // A superadmin records the consent, then withdraws it: the old untick must not come back.
+        rerender(createElement(UserInfoForm, { user, isOnboarded: true, persons: [{ ...mine, consent: 'ADMIN' }] }));
+        rerender(createElement(UserInfoForm, { user, isOnboarded: true, persons: [mine] }));
+        expect(screen.getByLabelText('voicePrintConsentLabel').getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('shows no revoke line for a consent the person gave', () => {
+        render(createElement(UserInfoForm, {
+            user,
+            isOnboarded: true,
+            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: 'PERSON' }],
+        }));
+        expect((screen.getByLabelText('voicePrintConsentLabel') as HTMLButtonElement).disabled).toBe(false);
+        expect(screen.queryByText('dpo@opencouncil.gr')).toBeNull();
+    });
+
     it('shows no box for an account with no person', () => {
         render(createElement(UserInfoForm, { user, isOnboarded: false }));
         expect(screen.queryByText('voicePrintConsentLabel')).toBeNull();
@@ -63,7 +108,7 @@ describe('UserInfoForm voiceprint consent', () => {
         render(createElement(UserInfoForm, {
             user,
             isOnboarded: false,
-            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: false }],
+            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: null }],
         }));
         fireEvent.click(screen.getByLabelText('voicePrintConsentLabel'));
         fireEvent.click(screen.getByText('savePersonalInfo'));
@@ -76,7 +121,7 @@ describe('UserInfoForm voiceprint consent', () => {
         render(createElement(UserInfoForm, {
             user,
             isOnboarded: true,
-            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: true }],
+            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: 'PERSON' }],
         }));
         fireEvent.click(screen.getByText('savePersonalInfo'));
         await waitFor(() => expect(global.fetch).toHaveBeenCalled());
@@ -87,7 +132,7 @@ describe('UserInfoForm voiceprint consent', () => {
         const { unmount } = render(createElement(UserInfoForm, {
             user,
             isOnboarded: true,
-            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: false }],
+            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: null }],
         }));
         expect(screen.getByLabelText('voicePrintConsentLabel')).toBeTruthy();
         unmount();
@@ -95,8 +140,8 @@ describe('UserInfoForm voiceprint consent', () => {
             user,
             isOnboarded: true,
             persons: [
-                { id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: false },
-                { id: 'person-2', name: 'Αικατερίνη Μανιμανάκη', voicePrintConsent: false },
+                { id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: null },
+                { id: 'person-2', name: 'Αικατερίνη Μανιμανάκη', claimed: true, consent: null },
             ],
         }));
         expect(screen.getByLabelText('voicePrintConsentLabel (Αικατερίνη Μανιμανάκη)')).toBeTruthy();
@@ -107,7 +152,7 @@ describe('UserInfoForm voiceprint consent', () => {
         render(createElement(UserInfoForm, {
             user,
             isOnboarded: true,
-            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: true }],
+            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: 'PERSON' }],
         }));
         fireEvent.click(screen.getByLabelText('voicePrintConsentLabel'));
         fireEvent.click(screen.getByText('savePersonalInfo'));
@@ -120,7 +165,7 @@ describe('UserInfoForm voiceprint consent', () => {
         render(createElement(UserInfoForm, {
             user,
             isOnboarded: true,
-            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: false }],
+            persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: null }],
         }));
         fireEvent.click(screen.getByLabelText('voicePrintConsentLabel'));
         fireEvent.click(screen.getByText('savePersonalInfo'));
@@ -130,7 +175,7 @@ describe('UserInfoForm voiceprint consent', () => {
     });
 
     it('prefills an empty name from the council record, and keeps a name the account already has', () => {
-        const persons = [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: false }];
+        const persons = [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: null }];
         const { unmount } = render(createElement(UserInfoForm, { user: { ...user, name: null } as User, isOnboarded: false, persons }));
         expect((document.getElementById('name') as HTMLInputElement).value).toBe('Αδάμ Μπούτζουκας');
         unmount();
@@ -140,8 +185,8 @@ describe('UserInfoForm voiceprint consent', () => {
 
     it('does not guess a name when the account is linked to more than one person', () => {
         const persons = [
-            { id: 'person-1', name: 'Αδάμ Μπούτζουκας', voicePrintConsent: false },
-            { id: 'person-2', name: 'Αικατερίνη Μανιμανάκη', voicePrintConsent: false },
+            { id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: null },
+            { id: 'person-2', name: 'Αικατερίνη Μανιμανάκη', claimed: true, consent: null },
         ];
         render(createElement(UserInfoForm, { user: { ...user, name: null } as User, isOnboarded: false, persons }));
         expect((document.getElementById('name') as HTMLInputElement).value).toBe('');

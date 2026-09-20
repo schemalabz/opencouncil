@@ -7,6 +7,8 @@ import { PeopleStats } from "@/components/admin/people/people-stats";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PersonWithVoicePrints } from "@/lib/db/people";
+import type { VoicePrintConsentStatus } from "@/lib/db/personConsent";
+import { VoicePrintConsentControl } from "@/components/persons/VoicePrintConsentControl";
 import { useTranslations } from "next-intl";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { VoiceprintActions } from "./voiceprint-actions";
@@ -22,11 +24,13 @@ import {
 
 interface PeopleProps {
     people: PersonWithVoicePrints[];
+    /** The voiceprint consent in force, by person id; a person with none has no entry. */
+    consents: Record<string, VoicePrintConsentStatus>;
     currentCityName: string;
     administrativeBodies: AdministrativeBody[];
 }
 
-export default function People({ people, currentCityName, administrativeBodies }: PeopleProps) {
+export default function People({ people, consents, currentCityName, administrativeBodies }: PeopleProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [electedOrderOpen, setElectedOrderOpen] = useState(false);
     const [selectedBodyId, setSelectedBodyId] = useState<string | null>(null);
@@ -123,6 +127,11 @@ export default function People({ people, currentCityName, administrativeBodies }
                                         <PersonBadge person={person} size='sm' />
                                     </div>
                                     <div className='flex gap-2 items-center'>
+                                        <VoicePrintConsentControl
+                                            personId={person.id}
+                                            personName={person.name}
+                                            status={consents[person.id] ?? null}
+                                        />
                                         <VoiceprintActions
                                             personId={person.id}
                                             personName={person.name}

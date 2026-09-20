@@ -1,6 +1,8 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
+import { serializableOnce } from "@/lib/db/serializable";
+import { closeAppConsent } from "@/lib/db/personConsent";
 import { getActiveRoleCondition } from "@/lib/utils/roles";
 
 export type PersonClaimResult =
@@ -13,9 +15,6 @@ export type PersonClaimResult =
 
 export type PersonClaimStatus = PersonClaimResult["status"];
 
-const SERIALIZATION_FAILURE = "P2034";
-const CLAIMED_ROW_TAKEN = "P2002";
-
 /**
  * Make `userId` the account that is `personId`: an Administers row with
  * claimedAt set. A row without claimedAt is a delegate a superadmin added;
@@ -27,53 +26,53 @@ const CLAIMED_ROW_TAKEN = "P2002";
  * account counts as onboarded. A councillor must not meet a second
  * registration form after the flow told them they are done.
  *
- * The check and the write run in one serializable transaction, so two
- * people who scan the same QR at the same moment cannot both win: the loser
- * fails with P2034, and one retry then sees the winner's row. The partial
- * unique index on claimed rows is the backstop; a P2002 from it is the same
- * answer.
+ * The claim closes a consent that an earlier account gave in the app. The
+ * flow asks the question next, and the person answers for themselves. A
+ * consent recorded on paper stays, and the flow skips the question.
+ *
+ * The check and the write run through `serializableOnce`, so two people who
+ * scan the same QR at the same moment cannot both win. The partial unique
+ * index on claimed rows is the backstop: a conflict on it means that a claim
+ * was written meanwhile, by another account or by a second submit of this one.
  */
 export async function claimPerson(userId: string, personId: string): Promise<PersonClaimResult> {
-    const attempt = () =>
-        prisma.$transaction(
-            async (tx): Promise<PersonClaimResult> => {
-                const person = await tx.person.findUnique({
-                    where: { id: personId },
-                    select: {
-                        cityId: true,
-                        name: true,
-                        city: { select: { name: true } },
-                        administrators: { select: { id: true, userId: true, claimedAt: true } },
-                    },
-                });
-                if (!person) return { status: "not_found" };
-                const claimed = person.administrators.find((a) => a.claimedAt);
-                if (claimed) return { status: claimed.userId === userId ? "already_yours" : "already_linked" };
+    return serializableOnce<PersonClaimResult>(
+        async (tx) => {
+            const person = await tx.person.findUnique({
+                where: { id: personId },
+                select: {
+                    cityId: true,
+                    name: true,
+                    city: { select: { name: true } },
+                    administrators: { select: { id: true, userId: true, claimedAt: true } },
+                },
+            });
+            if (!person) return { status: "not_found" };
+            const claimed = person.administrators.find((a) => a.claimedAt);
+            if (claimed) return { status: claimed.userId === userId ? "already_yours" : "already_linked" };
 
-                const own = person.administrators.find((a) => a.userId === userId);
-                if (own) {
-                    await tx.administers.update({ where: { id: own.id }, data: { claimedAt: new Date() } });
-                } else {
-                    await tx.administers.create({ data: { userId, personId, claimedAt: new Date() } });
-                }
-                const account = await tx.user.findUnique({ where: { id: userId }, select: { name: true } });
-                await tx.user.update({
-                    where: { id: userId },
-                    data: { onboarded: true, ...(account?.name ? {} : { name: person.name }) },
-                });
-                return { status: "linked", cityId: person.cityId, cityName: person.city.name, personName: person.name };
-            },
-            { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-        );
-
-    try {
-        return await attempt();
-    } catch (error) {
-        const code = (error as { code?: string }).code;
-        if (code === CLAIMED_ROW_TAKEN) return { status: "already_linked" };
-        if (code !== SERIALIZATION_FAILURE) throw error;
-        return attempt();
-    }
+            const own = person.administrators.find((a) => a.userId === userId);
+            if (own) {
+                await tx.administers.update({ where: { id: own.id }, data: { claimedAt: new Date() } });
+            } else {
+                await tx.administers.create({ data: { userId, personId, claimedAt: new Date() } });
+            }
+            await closeAppConsent(tx, personId);
+            const account = await tx.user.findUnique({ where: { id: userId }, select: { name: true } });
+            await tx.user.update({
+                where: { id: userId },
+                data: { onboarded: true, ...(account?.name ? {} : { name: person.name }) },
+            });
+            return { status: "linked", cityId: person.cityId, cityName: person.city.name, personName: person.name };
+        },
+        async () => {
+            const claimed = await prisma.administers.findFirst({
+                where: { personId, claimedAt: { not: null } },
+                select: { userId: true },
+            });
+            return { status: claimed?.userId === userId ? "already_yours" : "already_linked" };
+        },
+    );
 }
 
 /**

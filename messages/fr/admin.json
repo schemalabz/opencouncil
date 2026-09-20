@@ -1,6 +1,7 @@
 {
   "cities": {
     "qrStrip": {
+      "button": "Codes QR d'inscription",
       "pdf": "Télécharger le PDF",
       "pdfBusy": "Création du PDF…",
       "empty": "Aucun code QR à créer : chaque conseiller a déjà un compte, ou la commune n'a aucun conseiller actif.",

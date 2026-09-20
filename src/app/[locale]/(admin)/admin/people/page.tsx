@@ -1,8 +1,10 @@
 import { getCities } from "@/lib/db/cities";
 import { getPeopleWithVoicePrintsForCity, PersonWithVoicePrints } from "@/lib/db/people";
+import { getVoicePrintConsentStatuses, VoicePrintConsentStatus } from "@/lib/db/personConsent";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { sortPersonsByLastName } from "@/lib/sorting/people";
 import CitySelector from "@/components/admin/people/city-selector";
+import { CouncilQrStripsButton } from "@/components/admin/cities/CouncilQrStripsButton";
 import People from "@/components/admin/people/people";
 import { AdministrativeBody } from "@prisma/client";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
@@ -22,6 +24,7 @@ export default async function PeoplePage(props: PageProps) {
 
     let people: PersonWithVoicePrints[] = [];
     let administrativeBodies: AdministrativeBody[] = [];
+    let consents: Record<string, VoicePrintConsentStatus> = {};
     if (selectedCityId) {
         const [peopleData, bodies] = await Promise.all([
             getPeopleWithVoicePrintsForCity(selectedCityId),
@@ -29,6 +32,7 @@ export default async function PeoplePage(props: PageProps) {
         ]);
         people = sortPersonsByLastName(peopleData);
         administrativeBodies = bodies;
+        consents = Object.fromEntries(await getVoicePrintConsentStatuses(people.map((p) => p.id)));
     }
 
     const currentCityName = cities.find(c => c.id === selectedCityId)?.name || "Select City";
@@ -39,14 +43,16 @@ export default async function PeoplePage(props: PageProps) {
                 <h1 className='text-3xl font-bold'>People Management</h1>
             </div>
 
-            <div className='flex flex-col md:flex-row gap-4 mb-6'>
+            <div className='flex flex-col md:flex-row md:items-center gap-4 mb-6'>
                 <div className='w-full md:w-1/3'>
                     <CitySelector cities={cities} selectedCityId={selectedCityId} />
                 </div>
+                {selectedCityId && <CouncilQrStripsButton cityId={selectedCityId} labelled />}
             </div>
 
             <People
                 people={people}
+                consents={consents}
                 currentCityName={currentCityName}
                 administrativeBodies={administrativeBodies}
             />

@@ -1,6 +1,7 @@
 {
   "cities": {
     "qrStrip": {
+      "button": "Sign-up QR codes",
       "pdf": "Download PDF",
       "pdfBusy": "Creating PDF…",
       "empty": "No QR codes to create: every council member already has an account, or the city has no active council members.",

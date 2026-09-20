@@ -660,7 +660,9 @@
     },
     "Profile": {
         "voicePrintConsentError": "The consent could not be saved. Try again.",
-        "voicePrintConsentLabel": "I consent to the processing of my voice for a voiceprint",
+        "voicePrintConsentLabel": "I agree to the processing and storage of my voice for my automatic recognition as a speaker in meetings.",
+        "voicePrintConsentHint": "With your voiceprint we recognise more accurately when you speak in meetings, and our team needs fewer manual corrections. It is optional.",
+        "voicePrintConsentOnPaper": "You gave your consent on a printed, written form with a physical signature. To withdraw it, send us an email at <mail>{email}</mail>.",
         "myHighlightsDescription": "See all the highlights you have created, from every meeting.",
         "viewMyHighlights": "View your highlights",
         "welcomeOnboard": "Welcome to OpenCouncil",
@@ -794,6 +796,21 @@
         "noSubjects": "No subjects"
     },
     "Person": {
+        "voicePrintConsent": {
+            "buttonNone": "Voice consent: no",
+            "buttonGiven": "Voice consent: yes",
+            "title": "Voiceprint consent: {name}",
+            "none": "No consent is in force.",
+            "byPerson": "Given in the app by {recorder}, on {date}.",
+            "byAdmin": "Recorded by {recorder}, on {date}. The person cannot change it from their profile.",
+            "unknownAccount": "a deleted account",
+            "recordHint": "Record it only if the person gave their consent in writing, on a printed form with a physical signature. The person will see it on their profile, but will not be able to change it.",
+            "withdrawHint": "Withdraw it when the person asks. The consent period stays in the history.",
+            "record": "Record consent",
+            "withdraw": "Withdraw consent",
+            "saving": "Saving…",
+            "error": "The change was not saved. Try again."
+        },
         "partyLeader": "Party Leader",
         "formerMembers": "Former members",
         "mayor": "Mayor",

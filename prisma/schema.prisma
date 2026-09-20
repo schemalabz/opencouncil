@@ -282,10 +282,19 @@ model TaskStatus {
   @@index([councilMeetingId, cityId])
 }
 
+/// Who recorded a consent period. PERSON: the person, from their own
+/// account. ADMIN: a superadmin, for a consent the person gave outside the
+/// app (on paper, for example). Only a superadmin can close an ADMIN period.
+enum VoicePrintConsentSource {
+  PERSON
+  ADMIN
+}
+
 /// A period in which a person consents to a voiceprint, as Role is a period
-/// in which a person holds a seat. The account that ticked the box is the
-/// user; it must hold the claimed Administers row for the person at the
-/// time. A withdrawal sets withdrawnAt and never deletes: Art. 7 GDPR asks
+/// in which a person holds a seat. The account that gave it is the user: for
+/// a PERSON period, an account that held an Administers row for the person
+/// at the time; for an ADMIN period, the superadmin who recorded a consent
+/// given on paper. A withdrawal sets withdrawnAt and never deletes: Art. 7 GDPR asks
 /// us to show who consented and that the consent was in force while a
 /// voiceprint was processed. A partial unique index in the migration keeps
 /// at most one open period per person. A check constraint keeps a period
@@ -297,12 +306,15 @@ model TaskStatus {
 /// with the user set to null: the proof outlives the account.
 /// Recorded only for now: nothing reads it before generation or transcription.
 model VoicePrintConsent {
-  id          String    @id @default(cuid())
+  id          String                  @id @default(cuid())
   personId    String
-  person      Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  person      Person                  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  /// The account that recorded the period: the person's own for PERSON, the
+  /// superadmin's for ADMIN.
   userId      String?
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  givenAt     DateTime  @default(now())
+  user        User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  source      VoicePrintConsentSource @default(PERSON)
+  givenAt     DateTime                @default(now())
   withdrawnAt DateTime?
 
   @@index([personId, givenAt])
@@ -961,7 +973,7 @@ model Administers {
   /// says "this account is this person", where a row without it says only
   /// "this account may edit this person" (a delegate a superadmin added).
   /// A partial unique index in the migration allows one claimed row per
-  /// person. Voiceprint consent needs the claimed row.
+  /// person. Voiceprint consent needs any row for the person, claimed or not.
   claimedAt DateTime?
 
   createdAt DateTime @default(now())
