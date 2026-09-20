@@ -3,7 +3,7 @@
 import prisma from '@/lib/db/prisma'
 import { DataSource } from '@prisma/client'
 import { assignCandidate, dismissCandidate, applyCandidateConflictResolution } from '@/lib/db/decisionCandidates'
-import { deleteDecision } from '@/lib/db/decisions'
+import { deleteDecision, upsertDecision } from '@/lib/db/decisions'
 import { resetDatabase } from '../helpers/test-db'
 import {
     createAdministrativeBody,
@@ -145,6 +145,73 @@ describe('decision candidate actions — assign, dismiss, conflict resolution', 
         await dismissCandidate(cityId, meetingId, candidate.id)
         const after = await prisma.decisionCandidate.findUnique({ where: { id: candidate.id } })
         expect(after!.dismissedAt).not.toBeNull()
+    })
+
+    test('replacing the linked document drops the facts read off the old one', async () => {
+        const subject = await createSubject(meetingId, cityId, { id: 's1', agendaItemIndex: 1 })
+        const person = await createPerson(cityId)
+        await prisma.decision.create({
+            data: {
+                subjectId: subject.id,
+                ada: 'ADA-OLD',
+                pdfUrl: 'https://diavgeia.gov.gr/doc/ADA-OLD',
+                excerpt: 'what the old document said',
+                references: 'the old document\'s references',
+            },
+        })
+        await prisma.subjectAttendance.create({
+            data: { subjectId: subject.id, personId: person.id, status: 'PRESENT', source: DataSource.decision },
+        })
+        await prisma.subjectVote.create({
+            data: { subjectId: subject.id, personId: person.id, voteType: 'FOR', source: DataSource.decision },
+        })
+        // A hand-entered vote belongs to the subject, not to the document
+        await prisma.subjectVote.create({
+            data: { subjectId: subject.id, personId: person.id, voteType: 'AGAINST', source: DataSource.manual },
+        })
+
+        await upsertDecision({
+            subjectId: subject.id,
+            ada: 'ADA-NEW',
+            pdfUrl: 'https://diavgeia.gov.gr/doc/ADA-NEW',
+        })
+
+        const decision = await prisma.decision.findUnique({ where: { subjectId: subject.id } })
+        expect(decision!.ada).toBe('ADA-NEW')
+        expect(decision!.excerpt).toBeNull()
+        expect(decision!.references).toBeNull()
+        expect(await prisma.subjectAttendance.count({ where: { subjectId: subject.id } })).toBe(0)
+        expect(await prisma.subjectVote.findMany({ where: { subjectId: subject.id } }))
+            .toEqual([expect.objectContaining({ source: DataSource.manual, voteType: 'AGAINST' })])
+    })
+
+    test('re-pointing at the same document keeps what was read off it', async () => {
+        const subject = await createSubject(meetingId, cityId, { id: 's1', agendaItemIndex: 1 })
+        const person = await createPerson(cityId)
+        await prisma.decision.create({
+            data: {
+                subjectId: subject.id,
+                ada: 'ADA-1',
+                pdfUrl: 'https://diavgeia.gov.gr/doc/ADA-1',
+                excerpt: 'what the document said',
+            },
+        })
+        await prisma.subjectAttendance.create({
+            data: { subjectId: subject.id, personId: person.id, status: 'PRESENT', source: DataSource.decision },
+        })
+
+        // The editor corrects only the decision number
+        await upsertDecision({
+            subjectId: subject.id,
+            ada: 'ADA-1',
+            pdfUrl: 'https://diavgeia.gov.gr/doc/ADA-1',
+            decisionNumber: '42/2026',
+        })
+
+        const decision = await prisma.decision.findUnique({ where: { subjectId: subject.id } })
+        expect(decision!.decisionNumber).toBe('42/2026')
+        expect(decision!.excerpt).toBe('what the document said')
+        expect(await prisma.subjectAttendance.count({ where: { subjectId: subject.id } })).toBe(1)
     })
 
     test('conflict reassign moves the decision and drops the old subject\'s extracted rows', async () => {

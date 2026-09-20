@@ -1,4 +1,4 @@
-import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, MEETING_POLL_DELAY_DAYS, isLogodosiaMeeting } from '../pollDecisionsBackoff';
+import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, pollCadence, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, MEETING_POLL_DELAY_DAYS, isLogodosiaMeeting } from '../pollDecisionsBackoff';
 
 // Helper: create a Date that is `daysAgo` days before now
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -257,5 +257,29 @@ describe('getPollableMeetingDateRange', () => {
         const lastWeek = new Date(now.getTime() - 7 * dayMs);
         expect(lastWeek.getTime()).toBeGreaterThanOrEqual(range.gte.getTime());
         expect(lastWeek.getTime()).toBeLessThanOrEqual(range.lte.getTime());
+    });
+});
+
+describe('pollCadence', () => {
+    const input = (over: Partial<Parameters<typeof pollCadence>[0]> = {}) => ({
+        canPoll: true,
+        pollInFlight: false,
+        ...over,
+    });
+
+    it('blocks a city with no usable Diavgeia scope', () => {
+        expect(pollCadence(input({ canPoll: false }))).toEqual({ kind: 'blocked' });
+    });
+
+    it('keeps blocking while a poll is in flight, so no button appears', () => {
+        expect(pollCadence(input({ canPoll: false, pollInFlight: true }))).toEqual({ kind: 'blocked' });
+    });
+
+    it('reports a poll in flight', () => {
+        expect(pollCadence(input({ pollInFlight: true }))).toEqual({ kind: 'running' });
+    });
+
+    it('offers the poll in every other state', () => {
+        expect(pollCadence(input())).toEqual({ kind: 'ready' });
     });
 });

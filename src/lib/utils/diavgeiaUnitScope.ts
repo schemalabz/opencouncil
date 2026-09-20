@@ -65,3 +65,31 @@ export function entriesForResolvedUnit(
     );
     return configured.length > 0 ? configured : [resolvedUnit];
 }
+
+/** One configured entry, read: the scope it names, or why it could not be read. */
+export interface ReadDiavgeiaUnitEntry {
+    /** The entry exactly as configured, for display. */
+    entry: string;
+    scope: DiavgeiaUnitScope | null;
+    error: string | null;
+}
+
+/**
+ * Every configured entry, read one at a time.
+ *
+ * A malformed entry must not narrow a poll silently, so {@link parseDiavgeiaUnitScopes}
+ * throws. A page that only wants to *show* the configured scope needs the message
+ * instead of the exception — and needs it per entry, so one bad entry marks itself
+ * rather than hiding the good ones beside it. Both admin surfaces that display a
+ * body's scope read through this, or the same configuration renders two ways.
+ */
+export function readDiavgeiaUnitEntries(entries: string[] | null | undefined): ReadDiavgeiaUnitEntry[] {
+    return (entries ?? []).flatMap((entry): ReadDiavgeiaUnitEntry[] => {
+        try {
+            const scope = parseDiavgeiaUnitScope(entry);
+            return scope ? [{ entry, scope, error: null }] : [];
+        } catch (e) {
+            return [{ entry, scope: null, error: e instanceof Error ? e.message : String(e) }];
+        }
+    });
+}

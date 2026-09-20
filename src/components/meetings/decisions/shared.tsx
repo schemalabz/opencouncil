@@ -1,10 +1,8 @@
 "use client"
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { ChevronDown, ChevronRight, Users } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { MeetingAttendanceRecord } from '@/lib/db/decisions';
 import { PersonWithRelations } from '@/lib/db/people';
 import { compareRanks, getElectedOrderForBody } from '@/lib/sorting/people';
 
@@ -74,58 +72,4 @@ export function sortNamesByElectedOrder(
         if (orderCompare !== 0) return orderCompare;
         return a.personName.localeCompare(b.personName);
     });
-}
-
-export function MeetingAttendanceSummary({ attendance, getPerson, administrativeBodyId, mayorPersonId }: {
-    attendance: MeetingAttendanceRecord[];
-    getPerson: (id: string) => PersonWithRelations | undefined;
-    administrativeBodyId: string | null;
-    mayorPersonId: string | null;
-}) {
-    const t = useTranslations('admin.decisionsPage');
-    const [expanded, setExpanded] = useState(false);
-    const filtered = attendance.filter(a => a.personId !== mayorPersonId);
-    const present = filtered.filter(a => a.status === 'PRESENT');
-    const absent = filtered.filter(a => a.status === 'ABSENT');
-
-    const sortedPresent = sortNamesByElectedOrder(
-        present.map(a => ({ personId: a.personId, personName: a.person.name })),
-        getPerson, administrativeBodyId,
-    );
-    const sortedAbsent = sortNamesByElectedOrder(
-        absent.map(a => ({ personId: a.personId, personName: a.person.name })),
-        getPerson, administrativeBodyId,
-    );
-
-    return (
-        <div className="border rounded-lg p-2.5 bg-muted/30">
-            <button
-                onClick={() => setExpanded(!expanded)}
-                className="flex items-center gap-1.5 w-full text-left"
-            >
-                {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                <Users className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium">
-                    {t('rollCall')}
-                </span>
-                <span className="text-xs text-muted-foreground ml-1">
-                    {t('rollCallCounts', { present: present.length, absent: absent.length, total: filtered.length })}
-                </span>
-            </button>
-            {expanded && (
-                <div className="mt-2 ml-5 space-y-1.5">
-                    <div>
-                        <span className="text-[11px] font-medium text-green-700">{t('rollCallPresent')} ({sortedPresent.length})</span>
-                        <p className="text-[11px] text-muted-foreground">{sortedPresent.map(a => a.personName).join(', ')}</p>
-                    </div>
-                    {sortedAbsent.length > 0 && (
-                        <div>
-                            <span className="text-[11px] font-medium text-red-700">{t('rollCallAbsent')} ({sortedAbsent.length})</span>
-                            <p className="text-[11px] text-muted-foreground">{sortedAbsent.map(a => a.personName).join(', ')}</p>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
 }

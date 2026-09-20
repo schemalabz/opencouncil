@@ -1,3 +1,8 @@
+// MeetingDecisionsPage (a client component) imports pollCadence() as a
+// value, not just its types. Keep this module free of server-only imports
+// (Prisma, `server-only`, ...) — one would break the client build from
+// here, with the error pointing at that page instead of this file.
+
 // ─── Λογοδοσία meeting detection ─────────────────────────────────────
 // Stem used to identify Λογοδοσία (accountability) meetings by name.
 // Covers both "Λογοδοσία" and "Λογοδοσίας" (genitive).
@@ -131,4 +136,57 @@ export function getBackoffState(
     }
 
     return { currentTier, currentTierLabel, nextPollEligible };
+}
+
+// ─── Poll task status ─────────────────────────────────────────────────
+
+/**
+ * The poll task still in flight among a set of tasks, if any — the rows are
+ * expected newest first, and the first unfinished one wins. A general
+ * pending/processing check: nothing here assumes the caller already
+ * filtered to those two statuses.
+ *
+ * Split out so the page's "we are checking now" line — `pollInFlight` below
+ * — has a tested rule: `getPollingHistoryForMeeting` counts only succeeded
+ * runs, so without this a poll a person just started reads as nothing
+ * happening.
+ *
+ * Lives here, not in pollDecisions.ts: that module carries `"use server"`,
+ * which requires every export to be an async function, and this one is
+ * synchronous by design (it's a pure array scan with no I/O).
+ */
+export function pendingPollTaskId(tasks: ReadonlyArray<{ id: string; status: string }>): string | null {
+    return tasks.find(t => t.status === 'pending' || t.status === 'processing')?.id ?? null;
+}
+
+// ─── The poll state the decisions page shows ─────────────────────────
+
+/** What the decisions page's poll footer says about a manual poll. */
+export type PollCadence =
+    | { kind: 'ready' }
+    | { kind: 'running' }
+    | { kind: 'blocked' };
+
+export interface PollCadenceInput {
+    /** False when the city has no Diavgeia organisation id, or a configured
+     * unit entry does not parse — either way a poll cannot run at all. */
+    canPoll: boolean;
+    /** A poll for this meeting is queued or running on the task service. */
+    pollInFlight: boolean;
+}
+
+/**
+ * Map a meeting's polling state onto the footer's three states.
+ *
+ * The footer no longer names the cron's cadence, so the cron's own gates —
+ * the pollable date window, the Λογοδοσία exclusion, the undecided-subject
+ * clause and the backoff tier — are not restated here. They stay in
+ * `pollDecisionsForRecentMeetings`'s query and in `shouldSkipPolling()`. A
+ * meeting the cron skips still reads as `ready`, because a manual poll runs
+ * whatever the cron does.
+ */
+export function pollCadence(input: PollCadenceInput): PollCadence {
+    if (!input.canPoll) return { kind: 'blocked' };
+    if (input.pollInFlight) return { kind: 'running' };
+    return { kind: 'ready' };
 }

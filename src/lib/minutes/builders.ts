@@ -1,13 +1,16 @@
-import { AttendanceStatus, VoteType } from '@prisma/client';
+import { AttendanceStatus, DiscussionStatus, VoteType } from '@prisma/client';
 import { compareRanks } from '@/lib/sorting/people';
 import { formatSurnameFirst } from '@/lib/formatters/name';
 import { calculateVoteResult, getAbsentNonVoterIds } from '@/lib/utils/votes';
+import { splitAttendance } from '@/lib/utils/attendance';
 import {
     MinutesMember,
     MinutesAttendance,
     MinutesVoteResult,
     MinutesCouncilComposition,
     MinutesAttendanceChange,
+    MinutesDiscussionSummary,
+    MinutesProceduralVote,
 } from './types';
 
 // --- Dependency types for testability ---
@@ -89,26 +92,15 @@ export function buildAttendance(
     resolveMember: MemberResolver,
     getElectedOrder: ElectedOrderGetter,
 ): MinutesAttendance {
-    const present: MinutesMember[] = [];
-    const absent: MinutesMember[] = [];
+    const sorted = [...attendance].sort((a, b) =>
+        compareRanks(getElectedOrder(a.personId), getElectedOrder(b.personId))
+        || a.personName.localeCompare(b.personName)
+    );
+    const { present, absent } = splitAttendance(sorted, mayorPersonId);
+    const toMembers = (rows: typeof sorted): MinutesMember[] =>
+        rows.map(a => resolveMember(a.personId, a.personName));
 
-    const sorted = [...attendance]
-        .filter(a => a.personId !== mayorPersonId)
-        .sort((a, b) =>
-            compareRanks(getElectedOrder(a.personId), getElectedOrder(b.personId))
-            || a.personName.localeCompare(b.personName)
-        );
-
-    for (const a of sorted) {
-        const member = resolveMember(a.personId, a.personName);
-        if (a.status === 'PRESENT') {
-            present.push(member);
-        } else {
-            absent.push(member);
-        }
-    }
-
-    return { present, absent };
+    return { present: toMembers(present), absent: toMembers(absent) };
 }
 
 /**
@@ -407,7 +399,13 @@ export function getWithdrawnLabelGreek(subject: { nonAgendaReason: string | null
     return subject.nonAgendaReason === 'outOfAgenda' ? 'Δεν εγκρίθηκε' : 'Αποσύρθηκε';
 }
 
-/** Formats a subject reference for display in attendance change sections. */
+/**
+ * Formats a subject reference for display in attendance change sections.
+ *
+ * Greek-only for the same reason as `getWithdrawnLabelGreek` above: the
+ * minutes are Greek by construction and never render outside the Greek
+ * realm, so this stays out of the i18n catalogue.
+ */
 export function formatSubjectLabel(atSubject: MinutesAttendanceChange['atSubject']): string {
     if (atSubject.nonAgendaReason === 'outOfAgenda' && atSubject.outOfAgendaIndex != null) {
         return `${atSubject.outOfAgendaIndex}ο εκτός ημερήσιας`;
@@ -416,4 +414,54 @@ export function formatSubjectLabel(atSubject: MinutesAttendanceChange['atSubject
         return `${atSubject.agendaItemIndex}ο θέμα`;
     }
     return atSubject.name;
+}
+
+export interface SummaryUtterance {
+    startTimestamp: number;
+    endTimestamp: number;
+    discussionStatus: DiscussionStatus | null;
+}
+
+/**
+ * The transcript's account of one subject: see MinutesDiscussionSummary.
+ * Takes the utterances linked to the subject (discussionSubjectId), any status.
+ */
+export function buildDiscussionSummary(utterances: SummaryUtterance[]): MinutesDiscussionSummary {
+    let seconds = 0;
+    let hasDiscussion = false;
+    let hasVote = false;
+    let start: number | null = null;
+    let proceduralStart: number | null = null;
+    for (const u of utterances) {
+        if (u.discussionStatus === 'PROCEDURAL_VOTE') {
+            if (proceduralStart === null || u.startTimestamp < proceduralStart) proceduralStart = u.startTimestamp;
+            continue;
+        }
+        if (start === null || u.startTimestamp < start) start = u.startTimestamp;
+        if (u.discussionStatus === 'SUBJECT_DISCUSSION') {
+            hasDiscussion = true;
+            seconds += Math.max(0, u.endTimestamp - u.startTimestamp);
+        } else if (u.discussionStatus === 'VOTE') {
+            hasVote = true;
+        }
+    }
+    const kind = hasDiscussion ? 'discussed' : hasVote ? 'voteOnly' : utterances.length > 0 ? 'other' : 'none';
+    return { kind, seconds, start: start ?? proceduralStart };
+}
+
+export function buildProceduralVotes(
+    utterances: Array<{ startTimestamp: number; discussionStatus: DiscussionStatus | null; discussionSubjectId: string | null }>,
+    subjects: Array<{ id: string; name: string; agendaItemIndex: number | null; nonAgendaReason: 'outOfAgenda' | null }>,
+): MinutesProceduralVote[] {
+    const byId = new Map(subjects.map(s => [s.id, s]));
+    const first = new Map<string, number>();
+    for (const u of utterances) {
+        if (u.discussionStatus !== 'PROCEDURAL_VOTE' || !u.discussionSubjectId) continue;
+        if (!byId.has(u.discussionSubjectId)) continue;
+        const seen = first.get(u.discussionSubjectId);
+        if (seen === undefined || u.startTimestamp < seen) first.set(u.discussionSubjectId, u.startTimestamp);
+    }
+    return [...first]
+        .map(([subjectId, timestamp]) => ({ subjectId, timestamp }))
+        .sort((a, b) => a.timestamp - b.timestamp);
 }

@@ -44,3 +44,40 @@ export function restoreScrollAnchor(anchor: ScrollAnchor | null, element: HTMLEl
         anchor.container.scrollTop += drift;
     }
 }
+
+/**
+ * The `scrollTop` that puts `targetTop` `marginPx` below `containerTop`,
+ * measured in the same viewport-relative coordinates `getBoundingClientRect`
+ * returns. Pure so the "jump to a card" math can be asserted without a DOM.
+ */
+export function nextScrollTopForTargetAtTop(
+    containerTop: number,
+    targetTop: number,
+    currentScrollTop: number,
+    marginPx: number,
+): number {
+    return Math.max(currentScrollTop + (targetTop - containerTop) - marginPx, 0);
+}
+
+/**
+ * Scroll `element`'s own `[data-scroll-container]` ancestor so `element`
+ * lands near the top of it, `marginPx` clear of the edge (room for a sticky
+ * header that overlays the container's top).
+ *
+ * `Element.scrollIntoView` walks every scrollable ancestor, including the
+ * `overflow-auto` pane this app nests content in — on that container it
+ * drags the pane by the wrong amount instead of scrolling it directly (the
+ * same failure recorded for the `/explain` reader's table of contents).
+ * Writing `scrollTop` on the located container is the established fix here;
+ * do not revert this back to `scrollIntoView`.
+ */
+export function scrollElementToContainerTop(element: HTMLElement, marginPx = 0): void {
+    const container = getScrollContainer(element);
+    if (!container) return;
+    container.scrollTop = nextScrollTopForTargetAtTop(
+        container.getBoundingClientRect().top,
+        element.getBoundingClientRect().top,
+        container.scrollTop,
+        marginPx,
+    );
+}

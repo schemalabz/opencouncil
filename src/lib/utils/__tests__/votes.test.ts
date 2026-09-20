@@ -1,5 +1,5 @@
 import { VoteType } from '@prisma/client';
-import { calculateVoteResult } from '../votes';
+import { calculateVoteResult, voteCountsPhrase, voteResultSentence, type VoteOutcomeCounts } from '../votes';
 
 function makeVotes(...types: VoteType[]) {
     return types.map(voteType => ({ voteType }));
@@ -99,5 +99,56 @@ describe('calculateVoteResult', () => {
         expect(result.isUnanimous).toBe(false);
         expect(result.abstainCount).toBe(2);
         expect(result.totalVotes).toBe(2);
+    });
+});
+
+describe('voteResultSentence', () => {
+    // Returns the key and its params, so each assertion names the message the
+    // sentence chose without depending on message-file contents. No cast: the
+    // helper takes a plain translator function, not one namespace's translator.
+    const t = (key: string, params?: Record<string, string | number>) =>
+        params ? `${key}${JSON.stringify(params)}` : key;
+
+    const neutral: VoteOutcomeCounts = { forCount: 0, againstCount: 0, abstainCount: 0, passed: true, isUnanimous: true };
+
+    it('is the unanimous sentence when isUnanimous', () => {
+        expect(voteResultSentence(t, { ...neutral, forCount: 5 })).toBe('unanimous{"count":5}');
+    });
+
+    it('is the majority sentence when passed and not unanimous', () => {
+        expect(voteResultSentence(t, { ...neutral, isUnanimous: false, forCount: 3, againstCount: 1 }))
+            .toBe('majorityVote{"for":3,"against":1}');
+    });
+
+    it('is the rejected sentence when not passed', () => {
+        expect(voteResultSentence(t, { ...neutral, isUnanimous: false, passed: false, forCount: 1, againstCount: 3 }))
+            .toBe('rejected{"against":3,"for":1}');
+    });
+
+    it('appends the abstain count when not unanimous and there are abstainers', () => {
+        expect(voteResultSentence(t, { ...neutral, isUnanimous: false, forCount: 2, abstainCount: 2 }))
+            .toBe('majorityVote{"for":2,"against":0}, 2 voteAbstain');
+    });
+
+    it('omits the abstain tail when the vote was unanimous', () => {
+        expect(voteResultSentence(t, { ...neutral, forCount: 5, abstainCount: 3 })).toBe('unanimous{"count":5}');
+    });
+});
+
+describe('voteCountsPhrase', () => {
+    const t = (key: string) => key;
+    const neutral: VoteOutcomeCounts = { forCount: 0, againstCount: 0, abstainCount: 0, passed: true, isUnanimous: true };
+
+    it('is the for count alone when nobody voted against or abstained', () => {
+        expect(voteCountsPhrase(t, { ...neutral, forCount: 6 })).toBe('6 voteFor');
+    });
+
+    it('names the against count beside it', () => {
+        expect(voteCountsPhrase(t, { ...neutral, isUnanimous: false, forCount: 8, againstCount: 1 }))
+            .toBe('8 voteFor, 1 voteAgainst');
+    });
+
+    it('names the abstentions, unanimous or not', () => {
+        expect(voteCountsPhrase(t, { ...neutral, forCount: 5, abstainCount: 3 })).toBe('5 voteFor, 3 voteAbstain');
     });
 });

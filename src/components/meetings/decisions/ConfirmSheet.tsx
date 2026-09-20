@@ -11,9 +11,7 @@ import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 interface ConfirmSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    action: 'assign' | 'link' | 'unlink' | 'dismiss' | 'inspect' | 'view' | 'reassign';
-    /** Unlink of a decision with no backing candidate: data is lost permanently. */
-    destructive: boolean;
+    action: 'view' | 'reassign';
     decisionTitle: string | null;
     decisionNumber: string | null;
     subjectName: string | null;
@@ -25,9 +23,7 @@ interface ConfirmSheetProps {
     agendaItemTitle?: string | null;
     busy: boolean;
     onConfirm: () => void;
-    /** Inspect mode: the confirm button assigns, and it needs a selected subject. */
-    confirmDisabled?: boolean;
-    /** Inspect mode: renders a dismiss button next to the confirm button. */
+    /** Reassign mode: renders a dismiss button next to the confirm button, to keep the current holder instead of moving the decision. */
     onDismiss?: () => void;
     /** View mode: extraction results rendered in a second in-sheet tab. */
     extraContent?: React.ReactNode;
@@ -39,16 +35,13 @@ interface ConfirmSheetProps {
 
 /**
  * The commit gate for link-changing actions: the admin confirms while looking
- * at the document itself, not only at metadata. Inspect mode uses the same
- * surface read-first: the admin opens the document, then assigns or dismisses.
+ * at the document itself, not only at metadata.
  */
-export function ConfirmSheet({ open, onOpenChange, action, destructive, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, agendaItemTitle, busy, onConfirm, confirmDisabled, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
+export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, agendaItemTitle, busy, onConfirm, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
     const t = useTranslations('admin.decisionsPage.sheet');
     const [pane, setPane] = useState<'document' | 'extraction'>('document');
     useEffect(() => { if (open) setPane('document'); }, [open]);
-    const explain = action === 'inspect'
-        ? (subjectName ? t('inspectExplain', { subject: subjectName }) : t('inspectNoSubject'))
-        : t(`${action}Explain`, { subject: subjectName ?? '', holder: holderName ?? '' });
+    const explain = t(`${action}Explain`, { subject: subjectName ?? '', holder: holderName ?? '' });
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent side="right" className="flex w-full flex-col overflow-y-auto sm:max-w-xl">
@@ -112,13 +105,8 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                     <iframe title={t('documentTitle')} src={inlinePdfUrl(pdfUrl)} className="h-[60vh] min-h-[320px] w-full shrink-0 rounded border" />
                 )}
                 {action !== 'view' && (
-                    <div className={`rounded-lg px-3 py-2.5 text-sm ${action === 'unlink' && destructive ? 'bg-red-50 dark:bg-red-950/30 text-red-900 dark:text-red-200' : 'bg-muted/60'}`}>
+                    <div className="rounded-lg bg-muted/60 px-3 py-2.5 text-sm">
                         {explain}
-                        {action === 'unlink' && (
-                            <span className={destructive ? 'font-semibold' : undefined}>
-                                {' '}{destructive ? t('unlinkDestructive') : t('unlinkReversible')}
-                            </span>
-                        )}
                     </div>
                 )}
                 <SheetFooter>
@@ -128,9 +116,9 @@ export function ConfirmSheet({ open, onOpenChange, action, destructive, decision
                             {t('dismissAction')}
                         </Button>
                     )}
-                    {action !== 'view' && !(action === 'inspect' && confirmDisabled) && (
-                        <Button variant={destructive ? 'destructive' : 'default'} onClick={onConfirm} disabled={busy}>
-                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : action === 'inspect' ? t('assignAction') : t('confirm')}
+                    {action !== 'view' && (
+                        <Button onClick={onConfirm} disabled={busy}>
+                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t('confirm')}
                         </Button>
                     )}
                 </SheetFooter>

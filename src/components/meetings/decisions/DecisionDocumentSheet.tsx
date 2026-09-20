@@ -22,7 +22,6 @@ export function DecisionDocumentSheet({ open, onOpenChange, title, decisionNumbe
             open={open}
             onOpenChange={onOpenChange}
             action="view"
-            destructive={false}
             decisionTitle={title}
             decisionNumber={decisionNumber}
             subjectName={null}

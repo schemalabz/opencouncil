@@ -1,4 +1,4 @@
-import type { Realm } from '@prisma/client';
+import type { NonAgendaReason, Realm } from '@prisma/client';
 export interface MinutesMember {
     personId: string;
     name: string;
@@ -31,6 +31,26 @@ export interface MinutesVoteResult {
     absentMembers: MinutesMember[];
     passed: boolean;
     isUnanimous: boolean;
+}
+
+/**
+ * What the transcript holds for a subject, in the terms of DiscussionStatus.
+ * `start` is where the subject sits in the meeting: the first utterance that
+ * is not a procedural vote, or the first procedural vote when that is all
+ * there is — the same rule `sortSubjectsByDiscussionOrder` receives.
+ */
+export interface MinutesDiscussionSummary {
+    /**
+     * 'discussed' = SUBJECT_DISCUSSION present; 'voteOnly' = only VOTE; 'other'
+     * = linked utterances exist but none is SUBJECT_DISCUSSION or VOTE
+     * (ATTENDANCE, OTHER, null status, or only PROCEDURAL_VOTE); 'none' = no
+     * linked utterance at all.
+     */
+    kind: 'discussed' | 'voteOnly' | 'other' | 'none';
+    /** Seconds of SUBJECT_DISCUSSION utterances. 0 unless kind is 'discussed'. */
+    seconds: number;
+    /** Timestamp in seconds, null when the subject has no linked utterance. */
+    start: number | null;
 }
 
 export interface MinutesSpeakerEntry {
@@ -66,7 +86,7 @@ export type MinutesTranscriptEntry = MinutesSpeakerEntry | MinutesCrossSubjectEn
 export interface MinutesSubject {
     subjectId: string;
     agendaItemIndex: number | null;
-    nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
+    nonAgendaReason: NonAgendaReason | null;
     withdrawn: boolean;
     name: string;
 
@@ -74,6 +94,7 @@ export interface MinutesSubject {
         id: string;
         name: string;
         agendaItemIndex: number | null;
+        nonAgendaReason: NonAgendaReason | null;
     } | null;
 
     /** Subjects whose discussion partially occurred within another subject's section */
@@ -94,6 +115,7 @@ export interface MinutesSubject {
 
     attendance: MinutesAttendance | null;
     voteResult: MinutesVoteResult | null;
+    discussion: MinutesDiscussionSummary;
     /** Orphaned utterances that fall between the previous subject and this one */
     preDiscussionEntries: MinutesTranscriptEntry[];
     transcriptEntries: MinutesTranscriptEntry[];
@@ -108,10 +130,24 @@ export interface MinutesAttendanceChange {
         id: string;
         name: string;
         agendaItemIndex: number | null;
-        nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
+        nonAgendaReason: NonAgendaReason | null;
         /** Sequential number among out-of-agenda subjects (1-based), null for regular items */
         outOfAgendaIndex: number | null;
     };
+}
+
+/**
+ * When a subject's procedural vote happened: the vote to admit an out-of-agenda
+ * item, or to withdraw or postpone one. One per subject, at its first
+ * PROCEDURAL_VOTE utterance. These votes never place a subject in the discussion
+ * order — the decisions page reads the timestamp to date a withdrawal.
+ *
+ * Carries the id and the time only. Everything else about the subject is on the
+ * `MinutesSubject` the id names, and this payload ships whole to the browser.
+ */
+export interface MinutesProceduralVote {
+    subjectId: string;
+    timestamp: number;
 }
 
 export interface MinutesData {
@@ -139,6 +175,8 @@ export interface MinutesData {
     attendanceChanges: MinutesAttendanceChange[];
     /** Discussion order summary, only set when subjects were discussed out of natural order */
     discussionOrderLabel: string | null;
+    /** Procedural votes in time order. Empty when the transcript has none. */
+    proceduralVotes: MinutesProceduralVote[];
     subjects: MinutesSubject[];
     /** Orphaned utterances after the last subject (closing remarks) */
     epilogueEntries: MinutesTranscriptEntry[];

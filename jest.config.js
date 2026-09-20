@@ -13,8 +13,15 @@ const shared = {
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/tests/integration/'],
+  // next-intl and its ICU message-formatting dependency chain (use-intl,
+  // intl-messageformat, icu-minify, the @formatjs/* and @schummar/* packages)
+  // ship ESM-only builds. Let ts-jest transpile those too, instead of the
+  // default of skipping all of node_modules, so `require`-based Jest can load them.
+  transformIgnorePatterns: [
+    '<rootDir>/node_modules/(?!(next-intl|use-intl|intl-messageformat|icu-minify|@formatjs|@schummar)/)',
+  ],
   transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', {
+    '^.+\\.(ts|tsx|js|jsx)$': ['ts-jest', {
       tsconfig: 'tsconfig.jest.json',
       isolatedModules: true,
     }],

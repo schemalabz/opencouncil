@@ -5,7 +5,8 @@ import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
-import { agendaItemTitleOrName } from '@/lib/utils/subjects';
+import { agendaItemTitleOrName, isRecordSubject } from '@/lib/utils/subjects';
+import { collapseOrderRuns, type OrderPosition } from '@/lib/utils/discussionOrder';
 import { PersonWithRelations } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
 import {
@@ -22,6 +23,8 @@ import {
     buildAttendanceChanges,
     sortSubjectsByDiscussionOrder,
     sortByElectedOrder,
+    buildDiscussionSummary,
+    buildProceduralVotes,
     MemberResolver,
     ElectedOrderGetter,
 } from './builders';
@@ -55,11 +58,10 @@ export async function getMinutesData(
         extractedData.map(ed => [ed.subjectId, ed])
     );
 
-    // Filter to agenda + outOfAgenda subjects (exclude beforeAgenda)
+    // The meeting's record subjects (agenda + outOfAgenda, excludes beforeAgenda) —
+    // isRecordSubject is the one definition, shared with the decisions page.
     // Includes withdrawn subjects — they appear in the TOC but get empty transcript entries
-    const sectionSubjects = subjects.filter(
-        s => s.agendaItemIndex || s.nonAgendaReason === 'outOfAgenda'
-    );
+    const sectionSubjects = subjects.filter(isRecordSubject);
 
     // Get active (non-withdrawn) subject IDs for temporal window computation
     const activeSubjectIds = sectionSubjects.filter(s => !s.withdrawn).map(s => s.id);
@@ -89,6 +91,14 @@ export async function getMinutesData(
         },
         orderBy: { startTimestamp: 'asc' },
     });
+
+    // Linked utterances per subject, any status — the discussion summary's input.
+    const linkedBySubject = new Map<string, typeof allUtterances>();
+    for (const u of allUtterances) {
+        if (!u.discussionSubjectId) continue;
+        const list = linkedBySubject.get(u.discussionSubjectId);
+        if (list) list.push(u); else linkedBySubject.set(u.discussionSubjectId, [u]);
+    }
 
     // Subject title map for cross-subject annotations (includes all subjects)
     const subjectNameMap = new Map(subjects.map(s => [s.id, agendaItemTitleOrName(s)]));
@@ -242,13 +252,14 @@ export async function getMinutesData(
         return {
             subjectId: s.id,
             agendaItemIndex: s.agendaItemIndex,
-            nonAgendaReason: s.nonAgendaReason as 'beforeAgenda' | 'outOfAgenda' | null,
+            nonAgendaReason: s.nonAgendaReason,
             withdrawn: s.withdrawn,
             name: agendaItemTitleOrName(s),
             discussedWith: s.discussedIn ? {
                 id: s.discussedIn.id,
                 name: agendaItemTitleOrName(s.discussedIn),
                 agendaItemIndex: s.discussedIn.agendaItemIndex,
+                nonAgendaReason: s.discussedIn.nonAgendaReason,
             } : null,
             discussedElsewhere,
             decision: s.decision ? {
@@ -259,6 +270,7 @@ export async function getMinutesData(
             } : null,
             attendance,
             voteResult,
+            discussion: buildDiscussionSummary(linkedBySubject.get(s.id) ?? []),
             preDiscussionEntries: buildOrphanTranscriptEntries(preDiscussionUtterances),
             transcriptEntries: buildTranscriptEntries(s.id),
         };
@@ -380,13 +392,19 @@ export async function getMinutesData(
     let discussionOrderLabel: string | null = null;
     if (!isNaturalOrder && nonWithdrawn.length > 0) {
         let oaCounter = 0;
-        discussionOrderLabel = nonWithdrawn.map(s => {
+        const positions: OrderPosition[] = nonWithdrawn.map((s, i) => {
             if (s.nonAgendaReason === 'outOfAgenda') {
                 oaCounter++;
-                return `ΕΗΔ${oaCounter}`;
+                return { label: `ΕΗΔ${oaCounter}`, sequence: 'outOfAgenda', index: oaCounter };
             }
-            return `${s.agendaItemIndex}ο`;
-        }).join(', ');
+            // An agenda item with no index has no place in the agenda's
+            // counting, so it gets a sequence of its own and never joins a
+            // run with the numbered items around it.
+            return s.agendaItemIndex === null
+                ? { label: `${s.agendaItemIndex}ο`, sequence: `unnumbered-${i}`, index: i }
+                : { label: `${s.agendaItemIndex}ο`, sequence: 'agenda', index: s.agendaItemIndex };
+        });
+        discussionOrderLabel = collapseOrderRuns(positions).join(', ');
     }
 
     return {
@@ -411,6 +429,15 @@ export async function getMinutesData(
         preambleEntries,
         attendanceChanges,
         discussionOrderLabel,
+        proceduralVotes: buildProceduralVotes(
+            allUtterances,
+            sectionSubjects.map(s => ({
+                id: s.id,
+                name: agendaItemTitleOrName(s),
+                agendaItemIndex: s.agendaItemIndex,
+                nonAgendaReason: s.nonAgendaReason === 'outOfAgenda' ? 'outOfAgenda' : null,
+            })),
+        ),
         subjects: minutesSubjects,
         epilogueEntries,
     };

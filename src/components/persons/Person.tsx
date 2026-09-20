@@ -20,6 +20,7 @@ import { motion } from 'framer-motion';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { PersonWithRelations } from '@/lib/db/people';
 import { filterActiveRoles, filterInactiveRoles, formatDateRange, getPartyFromRoles, getRoleText } from '@/lib/utils';
+import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
 import { TopicFilter } from '@/components/TopicFilter';
 import { RoleWithRelations } from '@/lib/db/types';
 import { useSession } from 'next-auth/react';
@@ -316,7 +317,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                         )}
                     />
 
-                    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_316px] lg:gap-10">
+                    <div className={TWO_COLUMN_GRID_NARROW_RAIL}>
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
