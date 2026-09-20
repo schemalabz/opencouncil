@@ -45,7 +45,7 @@
     "lead": "Votre compte est maintenant lié à votre page. Il reste une question.",
     "explain": "OpenCouncil peut créer une empreinte vocale à partir de l'une de vos interventions en séance. Elle permet d'identifier correctement l'orateur lors des séances suivantes.",
     "yes": "Oui, je consens",
-    "yesHint": "Je consens au traitement de ma voix pour une empreinte vocale.",
+    "yesHint": "J'accepte le traitement et le stockage de ma voix pour ma reconnaissance automatique en tant qu'orateur ou oratrice lors des séances.",
     "no": "Pas maintenant",
     "noHint": "Rien ne change. Vous pourrez consentir plus tard depuis votre profil.",
     "cta": "Terminer",

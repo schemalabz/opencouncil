@@ -285,6 +285,7 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
                                                         {/* Only an account that is more than one person needs to know which box is whose. */}
                                                         {persons.length > 1 && ` (${person.name})`}
                                                     </Label>
+                                                    <p className="text-sm text-muted-foreground">{t("voicePrintConsentHint")}</p>
                                                     {isLocked(person) && (
                                                         <p className="text-sm text-muted-foreground">
                                                             {t.rich("voicePrintConsentOnPaper", {

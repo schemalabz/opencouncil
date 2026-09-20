@@ -45,7 +45,7 @@
     "lead": "Your account is now linked to your page. One question is left.",
     "explain": "OpenCouncil can make a voiceprint from one of your speeches in a meeting. With it, the system identifies the speaker correctly in later meetings.",
     "yes": "Yes, I consent",
-    "yesHint": "I consent to the processing of my voice for a voiceprint.",
+    "yesHint": "I agree to the processing and storage of my voice for my automatic recognition as a speaker in meetings.",
     "no": "Not now",
     "noHint": "Nothing changes. You can consent later from your profile.",
     "cta": "Finish",

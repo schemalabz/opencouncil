@@ -763,7 +763,8 @@
   },
   "Profile": {
     "voicePrintConsentError": "Le consentement n'a pas pu être enregistré. Réessayez.",
-    "voicePrintConsentLabel": "J'accepte le traitement de ma voix pour une empreinte vocale",
+    "voicePrintConsentLabel": "J'accepte le traitement et le stockage de ma voix pour ma reconnaissance automatique en tant qu'orateur ou oratrice lors des séances.",
+    "voicePrintConsentHint": "Grâce à votre empreinte vocale, nous reconnaissons plus précisément quand vous prenez la parole en séance, et notre équipe fait moins de corrections manuelles. C'est facultatif.",
     "voicePrintConsentOnPaper": "Vous avez donné votre consentement sur un formulaire imprimé, écrit, avec une signature manuscrite. Pour le retirer, envoyez-nous un e-mail à <mail>{email}</mail>.",
     "myHighlightsDescription": "Consultez tous les temps forts que vous avez créés, pour chaque séance.",
     "viewMyHighlights": "Voir vos temps forts",

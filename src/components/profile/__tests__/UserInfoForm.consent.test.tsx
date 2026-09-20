@@ -69,6 +69,7 @@ describe('UserInfoForm voiceprint consent', () => {
         const box = screen.getByLabelText('voicePrintConsentLabel') as HTMLButtonElement;
         expect(box.getAttribute('aria-checked')).toBe('true');
         expect(box.disabled).toBe(true);
+        expect(screen.getByText('voicePrintConsentHint')).toBeTruthy();
         expect(screen.getByText('voicePrintConsentOnPaper', { exact: false })).toBeTruthy();
         expect((screen.getByText('dpo@opencouncil.gr') as HTMLAnchorElement).getAttribute('href')).toBe('mailto:dpo@opencouncil.gr');
 
