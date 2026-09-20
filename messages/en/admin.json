@@ -1,5 +1,15 @@
 {
   "cities": {
+    "qrStrip": {
+      "pdf": "Download PDF",
+      "pdfBusy": "Creating PDF…",
+      "empty": "No QR codes to create: every council member already has an account, or the city has no active council members.",
+      "scan": "Scan the code with your phone to sign up for OpenCouncil.",
+      "validUntil": "Valid until {date}",
+      "secretCode": "Personal secret code",
+      "privateLead": "Personal.",
+      "private": "Do not share this code. Only for: {name}"
+    },
     "title": "Cities",
     "description": "All cities grouped by realm.",
     "addCity": "Add City",

@@ -37,6 +37,7 @@ jest.mock('../db/prisma', () => ({
       delete: jest.fn(),
     },
     administers: {
+      findMany: jest.fn(),
       deleteMany: jest.fn(),
     },
     $transaction: jest.fn(),
@@ -231,6 +232,34 @@ describe('users db layer - normalization and duplicate handling', () => {
       await expect(
         updateUser('non-existent', { email: 'notfound@example.com' })
       ).rejects.toThrow('User not found');
+    });
+
+    it('keeps claimedAt on a person the form keeps, and never sets it on a new row', async () => {
+      const claimedAt = new Date('2026-09-16T10:00:00Z');
+      const tx = {
+        administers: {
+          findMany: jest.fn().mockResolvedValue([{ personId: 'person-1', claimedAt }]),
+          deleteMany: jest.fn(),
+        },
+        user: { update: mockUpdate },
+      };
+      mockTransaction.mockImplementationOnce(async (fn: (client: typeof tx) => unknown) => fn(tx));
+
+      await updateUser('user-1', {
+        email: 'user@example.com',
+        administers: [{ personId: 'person-1' }, { personId: 'person-2' }, { cityId: 'city-1' }],
+      });
+
+      expect(tx.administers.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            administers: {
+              create: [{ personId: 'person-1', claimedAt }, { personId: 'person-2' }, { cityId: 'city-1' }],
+            },
+          }),
+        })
+      );
     });
 
     it('maps P2002 error to ConflictError in transaction path', async () => {

@@ -112,6 +112,9 @@ export function SignupFooter({
     failures = 0,
     backLabel,
     onBack,
+    pinned = false,
+    arrow = true,
+    failureLabels,
 }: {
     actionLabel: string;
     onAction: () => void;
@@ -121,8 +124,21 @@ export function SignupFooter({
     failures?: number;
     backLabel?: string;
     onBack?: () => void;
+    /**
+     * Fixed to the bottom of a phone's screen instead of sticky. A sticky bar
+     * only reaches the bottom once the step is taller than the screen; a
+     * short step (the join flow's) would leave it floating in the middle.
+     * The page must keep room under its content for the bar.
+     */
+    pinned?: boolean;
+    /** The forward arrow after the label; off for an action that goes back. */
+    arrow?: boolean;
+    /** The failure texts, for a flow that speaks in another register than the signups. */
+    failureLabels?: { issuesButton: string; issuesLine: string; refusedButton: string; refusedLine: string };
 }) {
-    const t = useTranslations('signup');
+    const ts = useTranslations('signup');
+    const t = (key: 'failure.issuesButton' | 'failure.issuesLine' | 'failure.refusedButton' | 'failure.refusedLine') =>
+        failureLabels ? failureLabels[key.slice('failure.'.length) as keyof typeof failureLabels] : ts(key);
     const lineId = useId();
     const [scope, animate] = useAnimate();
     const reduced = useReducedMotion();
@@ -143,8 +159,15 @@ export function SignupFooter({
     const line = failure !== null && !flashing;
 
     return (
-        <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t border-border bg-background/90 px-4 py-3 backdrop-blur lg:static lg:mx-0 lg:mt-10 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none">
-            <div className="mx-auto max-w-md lg:mx-0 lg:max-w-none">
+        <div
+            className={cn(
+                'z-10 border-t border-border bg-background/90 backdrop-blur lg:static lg:mx-0 lg:mt-10 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none',
+                pinned
+                    ? 'fixed inset-x-0 bottom-0 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]'
+                    : 'sticky bottom-0 -mx-4 mt-6 px-4 py-3',
+            )}
+        >
+            <div className={cn('mx-auto lg:mx-0 lg:max-w-none', pinned ? 'max-w-lg' : 'max-w-md')}>
                 {line && (
                     <p
                         id={lineId}
@@ -182,7 +205,9 @@ export function SignupFooter({
                             ) : (
                                 <>
                                     {actionLabel}
-                                    <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
+                                    {arrow && (
+                                        <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
+                                    )}
                                 </>
                             )}
                         </Button>

@@ -1,5 +1,15 @@
 {
   "cities": {
+    "qrStrip": {
+      "pdf": "Télécharger le PDF",
+      "pdfBusy": "Création du PDF…",
+      "empty": "Aucun code QR à créer : chaque conseiller a déjà un compte, ou la commune n'a aucun conseiller actif.",
+      "scan": "Scannez le code avec votre téléphone pour vous inscrire sur OpenCouncil.",
+      "validUntil": "Valable jusqu'au {date}",
+      "secretCode": "Code secret personnel",
+      "privateLead": "Personnel.",
+      "private": "Ne partagez pas ce code. Uniquement pour : {name}"
+    },
     "title": "Communes",
     "description": "Toutes les communes regroupées par groupe (realm).",
     "addCity": "Ajouter une commune",

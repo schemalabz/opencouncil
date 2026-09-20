@@ -747,6 +747,8 @@
     "deleteNetworkError": "Erreur lors de la suppression"
   },
   "Profile": {
+    "voicePrintConsentError": "Le consentement n'a pas pu être enregistré. Réessayez.",
+    "voicePrintConsentLabel": "J'accepte le traitement de ma voix pour une empreinte vocale",
     "myHighlightsDescription": "Consultez tous les temps forts que vous avez créés, pour chaque séance.",
     "viewMyHighlights": "Voir vos temps forts",
     "welcomeOnboard": "Bienvenue sur OpenCouncil",

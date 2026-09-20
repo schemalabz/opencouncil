@@ -189,6 +189,29 @@ export async function sendUserOnboardedAdminAlert(data: {
 }
 
 /**
+ * A councillor scanned their QR and now administers their own Person. The
+ * name is the public council record, not the user's; the account stays out.
+ */
+export async function sendPersonClaimedAdminAlert(data: {
+    cityId: string;
+    cityName: string;
+    personName: string;
+}): Promise<void> {
+    await sendAdminAlert({
+        title: `🪪 Person Claimed - ${data.cityId}`,
+        description: `A councillor linked their account through a claim QR. Review the link under ${env.NEXTAUTH_URL}/admin/users.`,
+        color: 0x1abc9c, // Teal
+        fields: [
+            { name: 'Municipality', value: data.cityName, inline: true },
+            { name: 'Person', value: data.personName, inline: true },
+        ],
+        footer: {
+            text: 'PII not transmitted for privacy',
+        },
+    });
+}
+
+/**
  * Send admin alert when a petition is received
  */
 export async function sendPetitionReceivedAdminAlert(data: {
