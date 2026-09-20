@@ -4,6 +4,7 @@ import { getVoicePrintConsentStatuses, VoicePrintConsentStatus } from "@/lib/db/
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { sortPersonsByLastName } from "@/lib/sorting/people";
 import CitySelector from "@/components/admin/people/city-selector";
+import { CouncilQrStripsButton } from "@/components/admin/cities/CouncilQrStripsButton";
 import People from "@/components/admin/people/people";
 import { AdministrativeBody } from "@prisma/client";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
@@ -42,10 +43,11 @@ export default async function PeoplePage(props: PageProps) {
                 <h1 className='text-3xl font-bold'>People Management</h1>
             </div>
 
-            <div className='flex flex-col md:flex-row gap-4 mb-6'>
+            <div className='flex flex-col md:flex-row md:items-center gap-4 mb-6'>
                 <div className='w-full md:w-1/3'>
                     <CitySelector cities={cities} selectedCityId={selectedCityId} />
                 </div>
+                {selectedCityId && <CouncilQrStripsButton cityId={selectedCityId} labelled />}
             </div>
 
             <People

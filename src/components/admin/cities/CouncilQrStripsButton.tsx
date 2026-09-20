@@ -10,9 +10,9 @@ import type { CouncilQrStrips } from "@/lib/admin/councilQrStrips";
 /**
  * Downloads a city's claim QR codes as strips to cut. Every click asks the
  * server for new codes; the ones in earlier downloads stay valid until they
- * expire.
+ * expire. An icon in a table row; with `labelled`, a button with its name.
  */
-export function CouncilQrStripsButton({ cityId }: { cityId: string }) {
+export function CouncilQrStripsButton({ cityId, labelled = false }: { cityId: string; labelled?: boolean }) {
     const t = useTranslations("admin.cities.qrStrip");
     const { toast } = useToast();
     const { busy, download } = usePdfDownload();
@@ -45,6 +45,15 @@ export function CouncilQrStripsButton({ cityId }: { cityId: string }) {
         }, `OpenCouncil-QR-${cityId}.pdf`);
     }
 
+    const icon = busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />;
+    if (labelled) {
+        return (
+            <Button variant="outline" size="sm" onClick={handleClick} disabled={busy} className="gap-2">
+                {icon}
+                {busy ? t("pdfBusy") : t("button")}
+            </Button>
+        );
+    }
     return (
         <Button
             variant="ghost"
@@ -55,7 +64,7 @@ export function CouncilQrStripsButton({ cityId }: { cityId: string }) {
             aria-label={busy ? t("pdfBusy") : t("pdf")}
             className="text-muted-foreground"
         >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+            {icon}
         </Button>
     );
 }
