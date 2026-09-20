@@ -1,5 +1,6 @@
 import { getCities } from "@/lib/db/cities";
 import { getPeopleWithVoicePrintsForCity, PersonWithVoicePrints } from "@/lib/db/people";
+import { getVoicePrintConsentStatuses, VoicePrintConsentStatus } from "@/lib/db/personConsent";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { sortPersonsByLastName } from "@/lib/sorting/people";
 import CitySelector from "@/components/admin/people/city-selector";
@@ -22,6 +23,7 @@ export default async function PeoplePage(props: PageProps) {
 
     let people: PersonWithVoicePrints[] = [];
     let administrativeBodies: AdministrativeBody[] = [];
+    let consents: Record<string, VoicePrintConsentStatus> = {};
     if (selectedCityId) {
         const [peopleData, bodies] = await Promise.all([
             getPeopleWithVoicePrintsForCity(selectedCityId),
@@ -29,6 +31,7 @@ export default async function PeoplePage(props: PageProps) {
         ]);
         people = sortPersonsByLastName(peopleData);
         administrativeBodies = bodies;
+        consents = Object.fromEntries(await getVoicePrintConsentStatuses(people.map((p) => p.id)));
     }
 
     const currentCityName = cities.find(c => c.id === selectedCityId)?.name || "Select City";
@@ -47,6 +50,7 @@ export default async function PeoplePage(props: PageProps) {
 
             <People
                 people={people}
+                consents={consents}
                 currentCityName={currentCityName}
                 administrativeBodies={administrativeBodies}
             />

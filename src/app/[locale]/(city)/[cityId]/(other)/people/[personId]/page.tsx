@@ -7,8 +7,7 @@ import { notFound } from "next/navigation";
 import Person from "@/components/persons/Person";
 import { getCity } from "@/lib/db/cities";
 import { getStatisticsFor } from "@/lib/statistics";
-import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
-import { getVoicePrintConsentStatus } from "@/lib/db/personConsent";
+import { isUserAuthorizedToEdit } from "@/lib/auth";
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
@@ -102,15 +101,13 @@ export default async function PersonPage(
     const params = await props.params;
     const includeUnreleased = await isUserAuthorizedToEdit({ cityId: params.cityId });
 
-    const [person, city, parties, administrativeBodies, statistics, contributionTopics, voicePrintConsent] = await Promise.all([
+    const [person, city, parties, administrativeBodies, statistics, contributionTopics] = await Promise.all([
         getPerson(params.personId),
         getCity(params.cityId),
         getPartiesForCity(params.cityId),
         getAdministrativeBodiesForCity(params.cityId),
         getStatisticsFor({ personId: params.personId, cityId: params.cityId, includeUnreleased }, ['topic']),
         getDistinctTopicsForSpeakerContributions(params.personId),
-        // Superadmin only: whether a person consented is not public.
-        getCurrentUser().then((user) => (user?.isSuperAdmin ? getVoicePrintConsentStatus(params.personId) : null)),
     ]);
 
     if (!person || !city) {
@@ -124,6 +121,5 @@ export default async function PersonPage(
         administrativeBodies={administrativeBodies}
         statistics={statistics}
         contributionTopics={contributionTopics}
-        voicePrintConsent={voicePrintConsent}
     />;
 }

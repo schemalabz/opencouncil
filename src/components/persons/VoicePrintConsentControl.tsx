@@ -13,10 +13,11 @@ import type { VoicePrintConsentStatus } from "@/lib/db/personConsent";
 type Action = "record" | "withdraw";
 
 /**
- * The superadmin's control for a person's voiceprint consent: record a
- * consent the person gave on paper, or withdraw the consent in force on the
- * person's request. The person does not need an account. A paper consent
- * replaces one given in the app, so both buttons show for that one.
+ * The superadmin's control for a person's voiceprint consent, on the admin
+ * people page: record a consent the person gave on paper, or withdraw the
+ * consent in force on the person's request. The person does not need an
+ * account. A paper consent replaces one given in the app, so both buttons
+ * show for that one.
  */
 export function VoicePrintConsentControl({ personId, personName, status }: {
     personId: string;

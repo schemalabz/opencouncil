@@ -24,7 +24,7 @@ import {
     recordVoicePrintConsent,
     closeAppConsent,
     getVoicePrintConsents,
-    getVoicePrintConsentStatus,
+    getVoicePrintConsentStatuses,
 } from '../personConsent';
 
 const tx = {
@@ -237,13 +237,13 @@ describe('getVoicePrintConsents', () => {
     });
 });
 
-describe('getVoicePrintConsentStatus', () => {
-    it('reads the open period of the person, with the account that gave it', async () => {
-        mockFindFirst.mockResolvedValue(null);
-        expect(await getVoicePrintConsentStatus('person-1')).toBeNull();
-        expect(mockFindFirst.mock.calls[0][0].where).toEqual({ personId: 'person-1', withdrawnAt: null });
-        const status = { source: 'PERSON', userId: 'user-1', givenAt: claimedAt, user: { name: 'Α. Μ.', email: 'a@b.gr' } };
-        mockFindFirst.mockResolvedValue(status);
-        expect(await getVoicePrintConsentStatus('person-1')).toEqual(status);
+describe('getVoicePrintConsentStatuses', () => {
+    it('reads the open period of each person, with the account that gave it, and skips the query for no ids', async () => {
+        const status = { personId: 'person-1', source: 'PERSON', userId: 'user-1', givenAt: claimedAt, user: { name: 'Α. Μ.', email: 'a@b.gr' } };
+        mockFindMany.mockResolvedValue([status]);
+        expect(await getVoicePrintConsentStatuses(['person-1', 'person-2'])).toEqual(new Map([['person-1', status]]));
+        expect(mockFindMany.mock.calls[0][0].where).toEqual({ personId: { in: ['person-1', 'person-2'] }, withdrawnAt: null });
+        expect(await getVoicePrintConsentStatuses([])).toEqual(new Map());
+        expect(mockFindMany).toHaveBeenCalledTimes(1);
     });
 });

@@ -36,7 +36,7 @@ describe('VoicePrintConsentControl', () => {
 
     it('says who recorded a consent and when, and withdraws it', async () => {
         mockedRecord.mockResolvedValue(undefined);
-        control({ source: 'ADMIN', userId: 'admin-1', givenAt, user: { name: 'Δ. Λ.', email: 'd@opencouncil.gr' } });
+        control({ personId: 'person-1', source: 'ADMIN', userId: 'admin-1', givenAt, user: { name: 'Δ. Λ.', email: 'd@opencouncil.gr' } });
         fireEvent.click(screen.getByText('buttonGiven'));
         expect(screen.getByText(/^byAdmin .*Δ\. Λ\./)).toBeTruthy();
         fireEvent.click(screen.getByText('withdraw'));
@@ -45,7 +45,7 @@ describe('VoicePrintConsentControl', () => {
 
     it('offers to record a paper consent over one given in the app, and to withdraw it', async () => {
         mockedRecord.mockResolvedValue(undefined);
-        control({ source: 'PERSON', userId: 'user-1', givenAt, user: { name: 'Α. Μ.', email: 'a@b.gr' } });
+        control({ personId: 'person-1', source: 'PERSON', userId: 'user-1', givenAt, user: { name: 'Α. Μ.', email: 'a@b.gr' } });
         fireEvent.click(screen.getByText('buttonGiven'));
         expect(screen.getByText(/^byPerson .*Α\. Μ\./)).toBeTruthy();
         expect(screen.getByText('recordHint')).toBeTruthy();
@@ -55,7 +55,7 @@ describe('VoicePrintConsentControl', () => {
     });
 
     it('offers only a withdrawal for a recorded consent', () => {
-        control({ source: 'ADMIN', userId: 'admin-1', givenAt, user: null });
+        control({ personId: 'person-1', source: 'ADMIN', userId: 'admin-1', givenAt, user: null });
         fireEvent.click(screen.getByText('buttonGiven'));
         expect(screen.getByText(/^byAdmin .*unknownAccount/)).toBeTruthy();
         expect(screen.getByText('withdrawHint')).toBeTruthy();

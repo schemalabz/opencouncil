@@ -139,6 +139,7 @@ export async function getVoicePrintConsents(personIds: string[]): Promise<Map<st
 }
 
 const consentStatusSelect = {
+    personId: true,
     userId: true,
     source: true,
     givenAt: true,
@@ -147,7 +148,16 @@ const consentStatusSelect = {
 
 export type VoicePrintConsentStatus = Prisma.VoicePrintConsentGetPayload<{ select: typeof consentStatusSelect }>;
 
-/** The consent in force for a person, with the account that gave it, for a superadmin. Null when none is. */
-export async function getVoicePrintConsentStatus(personId: string): Promise<VoicePrintConsentStatus | null> {
-    return prisma.voicePrintConsent.findFirst({ where: openPeriod(personId), select: consentStatusSelect });
+/**
+ * The consent in force for each of `personIds`, with the account that gave
+ * it, for the superadmin's people page. A person with no open period has no
+ * entry.
+ */
+export async function getVoicePrintConsentStatuses(personIds: string[]): Promise<Map<string, VoicePrintConsentStatus>> {
+    if (personIds.length === 0) return new Map();
+    const rows = await prisma.voicePrintConsent.findMany({
+        where: { personId: { in: personIds }, withdrawnAt: null },
+        select: consentStatusSelect,
+    });
+    return new Map(rows.map((r) => [r.personId, r]));
 }
