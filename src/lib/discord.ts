@@ -829,6 +829,69 @@ export async function sendLivestreamMatchedAlert(data: {
  * cover MORE THAN ONE council meeting (e.g. a combined λογοδοσία + τακτική stream).
  * These are handled manually — fired once per meeting (dedup via Valkey at the call site).
  */
+/**
+ * Posted when the poller gives up on a matched video after exhausting its automatic attempts.
+ *
+ * Carries the distinct failure messages rather than only the latest, because the shape of that set is
+ * the signal the cap deliberately refuses to interpret: one message repeated means a code fix is due,
+ * several different ones mean something flakier. Judging that is the reader's job.
+ */
+export async function sendLivestreamRetriesExhaustedAlert(data: {
+    cityId: string;
+    cityName: string;
+    meetingId: string;
+    meetingName: string;
+    videoUrl: string;
+    videoTitle: string;
+    attempts: number;
+    errors: string[];
+}): Promise<void> {
+    const meetingAdminUrl = await meetingUrl(data, '/admin');
+    const errorText = data.errors.length > 0
+        ? data.errors.map(e => `- ${e}`).join('\n')
+        : 'No error text recorded.';
+
+    await sendAdminAlert({
+        title: `\u{1F6D1} Livestream transcription keeps failing - ${data.cityId}`,
+        description:
+            `Gave up on ${data.meetingId} after ${data.attempts} automatic attempts. ` +
+            `Re-trigger from the admin panel once the cause is fixed \u2014 the cap only stops the poller, never a person.`,
+        color: 0xe74c3c, // Red
+        fields: [
+            {
+                name: 'Municipality',
+                value: data.cityName,
+                inline: true,
+            },
+            {
+                name: 'Attempts',
+                value: String(data.attempts),
+                inline: true,
+            },
+            {
+                name: 'Meeting',
+                value: data.meetingName,
+                inline: false,
+            },
+            {
+                name: 'Matched Video',
+                value: `[${truncateField(data.videoTitle, 256)}](${data.videoUrl})`,
+                inline: false,
+            },
+            {
+                name: `Distinct errors (newest first)`,
+                value: truncateField(errorText),
+                inline: false,
+            },
+            {
+                name: 'Admin Panel',
+                value: `[Open Meeting Admin](${meetingAdminUrl})`,
+                inline: false,
+            },
+        ],
+    });
+}
+
 export async function sendLivestreamMultipleMeetingsAlert(data: {
     cityId: string;
     cityName: string;

@@ -36,9 +36,11 @@ jest.mock('../transcribeInternal', () => ({
 
 const mockMatchedAlert = jest.fn().mockResolvedValue(undefined);
 const mockMultiAlert = jest.fn().mockResolvedValue(undefined);
+const mockExhaustedAlert = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../discord', () => ({
     sendLivestreamMatchedAlert: (...args: unknown[]) => mockMatchedAlert(...args),
     sendLivestreamMultipleMeetingsAlert: (...args: unknown[]) => mockMultiAlert(...args),
+    sendLivestreamRetriesExhaustedAlert: (...args: unknown[]) => mockExhaustedAlert(...args),
 }));
 
 // Mutable so individual tests can flip YOUTUBE_API_KEY off.
@@ -85,6 +87,28 @@ beforeEach(() => {
 // processAgenda succeeded, no transcribe in flight.
 function processAgendaDone(meetingId = 'm1', cityId = 'athens') {
     return [{ councilMeetingId: meetingId, cityId, type: 'processAgenda', status: 'succeeded' }];
+}
+
+/** processAgenda done plus `n` failed transcribe attempts. */
+function withFailedTranscribes(n: number, meetingId = 'm1', cityId = 'athens') {
+    return [
+        ...processAgendaDone(meetingId, cityId),
+        ...Array.from({ length: n }, () => ({ councilMeetingId: meetingId, cityId, type: 'transcribe', status: 'failed' })),
+    ];
+}
+
+/**
+ * Serves both taskStatus.findMany calls: the bulk candidacy query, and the narrow
+ * failures-only query the give-up alert makes for its error text.
+ */
+function taskRows(bulk: unknown[], failureErrors: string[] = []) {
+    mockTaskFindMany.mockImplementation((args: { where?: { status?: string } } = {}) =>
+        Promise.resolve(
+            args.where?.status === 'failed'
+                ? failureErrors.map(responseBody => ({ responseBody }))
+                : bulk,
+        ),
+    );
 }
 
 describe('matchMeetingToVideo', () => {
@@ -218,6 +242,121 @@ describe('pollLivestreamsForRecentMeetings', () => {
         expect(mockRequestTranscribeInternal).not.toHaveBeenCalled();
         expect(mockMatchedAlert).not.toHaveBeenCalled();
         expect(summary.matched).toBe(1);
+        expect(summary.results[0].action).toBe('dry_run');
+    });
+
+    it('stops auto-triggering after the attempt cap is spent on the same video', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting({ youtubeUrl: 'https://www.youtube.com/watch?v=v1' })]);
+        taskRows(withFailedTranscribes(5), ['silent audio', 'silent audio', 'yt-dlp broke']);
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'same video again' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(mockRequestTranscribeInternal).not.toHaveBeenCalled();
+        expect(mockExhaustedAlert).toHaveBeenCalledTimes(1);
+        // Distinct messages only, so a repeated failure does not pad the alert.
+        expect(mockExhaustedAlert.mock.calls[0][0]).toMatchObject({
+            attempts: 5,
+            errors: ['silent audio', 'yt-dlp broke'],
+        });
+        expect(mockCacheSetJSON).toHaveBeenCalledWith(
+            'oc:livestream:exhausted-alert:athens:m1:v1', 1, expect.any(Number),
+        );
+        expect(summary.exhausted).toBe(1);
+        expect(summary.results[0].action).toBe('alerted_exhausted');
+    });
+
+    it('recognises the attempted video through a non-canonical stored URL', async () => {
+        // requestTranscribe stores whatever a human pasted, so the same video reaches us
+        // spelled differently. Read as a new upload it would get an unlimited budget.
+        mockMeetingFindMany.mockResolvedValue([meeting({ youtubeUrl: 'https://youtu.be/v1?t=42' })]);
+        taskRows(withFailedTranscribes(5), ['silent audio']);
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'same video again' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(mockRequestTranscribeInternal).not.toHaveBeenCalled();
+        expect(summary.exhausted).toBe(1);
+    });
+
+    it('does not re-alert a meeting whose budget was already reported spent', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting({ youtubeUrl: 'https://www.youtube.com/watch?v=v1' })]);
+        taskRows(withFailedTranscribes(5));
+        mockCacheHas.mockResolvedValue(true);
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'same video again' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(mockExhaustedAlert).not.toHaveBeenCalled();
+        expect(mockRequestTranscribeInternal).not.toHaveBeenCalled();
+        expect(summary.results[0].action).toBe('alerted_exhausted_skipped');
+    });
+
+    it('still retries while the budget holds', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting({ youtubeUrl: 'https://www.youtube.com/watch?v=v1' })]);
+        taskRows(withFailedTranscribes(4));
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'one attempt left' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(mockRequestTranscribeInternal).toHaveBeenCalledTimes(1);
+        expect(mockExhaustedAlert).not.toHaveBeenCalled();
+        expect(summary.matched).toBe(1);
+    });
+
+    it('gives a newly uploaded video a fresh budget even when the old one is spent', async () => {
+        // youtubeUrl still points at the exhausted video; the channel now offers a different one.
+        mockMeetingFindMany.mockResolvedValue([meeting({ youtubeUrl: 'https://www.youtube.com/watch?v=old' })]);
+        taskRows(withFailedTranscribes(9));
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 're-upload' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(mockRequestTranscribeInternal).toHaveBeenCalledWith(
+            'https://www.youtube.com/watch?v=v1', 'm1', 'athens',
+        );
+        expect(mockExhaustedAlert).not.toHaveBeenCalled();
+        expect(summary.matched).toBe(1);
+    });
+
+    it('announces a match once per video rather than on every retry', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting({ youtubeUrl: 'https://www.youtube.com/watch?v=v1' })]);
+        taskRows(withFailedTranscribes(1));
+        mockCacheHas.mockResolvedValue(true); // already announced on an earlier tick
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'retry' });
+
+        const summary = await pollLivestreamsForRecentMeetings();
+
+        expect(mockRequestTranscribeInternal).toHaveBeenCalledTimes(1);
+        expect(mockMatchedAlert).not.toHaveBeenCalled();
+        expect(summary.results[0].action).toBe('transcribe_triggered');
+    });
+
+    it('has written the matched-alert marker by the time it returns', async () => {
+        // A marker left to a detached promise can be dropped when the runtime freezes, and a lost
+        // marker re-posts the alert this key exists to suppress.
+        mockMeetingFindMany.mockResolvedValue([meeting()]);
+        taskRows(processAgendaDone());
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'x' });
+
+        await pollLivestreamsForRecentMeetings();
+
+        expect(mockMatchedAlert).toHaveBeenCalledTimes(1);
+        expect(mockCacheSetJSON).toHaveBeenCalledWith(
+            'oc:livestream:matched-alert:athens:m1:v1', 1, expect.any(Number),
+        );
+    });
+
+    it('does not report a match as exhausted in a dry run', async () => {
+        mockMeetingFindMany.mockResolvedValue([meeting({ youtubeUrl: 'https://www.youtube.com/watch?v=v1' })]);
+        taskRows(withFailedTranscribes(5));
+        aiDecision({ decision: 'match', videoId: 'v1', confidence: 0.95, reasoning: 'same video again' });
+
+        const summary = await pollLivestreamsForRecentMeetings({ dryRun: true });
+
+        expect(mockExhaustedAlert).not.toHaveBeenCalled();
+        expect(mockCacheSetJSON).not.toHaveBeenCalled();
+        expect(summary.exhausted).toBe(1);
         expect(summary.results[0].action).toBe('dry_run');
     });
 

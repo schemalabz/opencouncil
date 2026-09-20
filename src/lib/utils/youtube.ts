@@ -12,6 +12,20 @@ export function isValidYouTubeUrl(url: string): boolean {
 }
 
 /**
+ * The video id inside a YouTube watch/live/shorts/youtu.be URL, or null.
+ *
+ * Needed because a stored URL is whatever a human pasted — `https://youtu.be/ID`,
+ * or a watch URL carrying `&t=`— while code generating one emits the canonical
+ * `watchUrl()` form. Comparing ids rather than URL strings is what makes "is this
+ * the same video we already tried" reliable.
+ */
+export function parseVideoId(url: string | null | undefined): string | null {
+  if (!url) return null
+  const id = url.trim().match(YOUTUBE_URL_REGEX)?.[1]
+  return id ? id : null
+}
+
+/**
  * How a stored YouTube channel URL identifies its channel.
  * - `id`:     /channel/UC… — the canonical channel id, usable directly with the Data API
  * - `handle`: /@handle      — needs resolution via channels?forHandle
