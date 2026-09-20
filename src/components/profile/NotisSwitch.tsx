@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import Image from 'next/image';
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { surfaceCardClass } from '@/components/ui/surface-card';
 import { useTranslations } from 'next-intl';
 import { Switch } from '@/components/ui/switch';
 import { Link } from '@/i18n/routing';
@@ -147,7 +149,7 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
     const disabled = !loaded || saving || !loaded.state.phone || !loaded.state.reachable;
 
     return (
-        <div className="flex items-start gap-3 rounded-lg border p-4">
+        <div className={cn(surfaceCardClass, 'flex items-start gap-3 px-4 py-4 sm:px-5')}>
             <Image
                 src="/logo.png"
                 alt=""
@@ -156,11 +158,11 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
                 className="h-8 w-8 shrink-0 rounded-full bg-muted object-contain p-0.5"
             />
             <div className="min-w-0 flex-1">
-                <label htmlFor={id} className="block font-semibold leading-tight">
+                <label htmlFor={id} className="block text-[15px] font-semibold leading-snug">
                     {t('notisTitle')}
                 </label>
                 {status && (
-                    <p id={`${id}-status`} className={`mt-1 text-sm ${tone}`}>
+                    <p id={`${id}-status`} className={`mt-1 text-[13px] leading-[1.45] ${tone}`}>
                         {status}
                     </p>
                 )}
@@ -173,7 +175,7 @@ export function NotisSwitch({ hasPreferences }: { hasPreferences: boolean }) {
                     onCheckedChange={flip}
                     aria-describedby={status ? `${id}-status` : undefined}
                 />
-            ) : (
+            ) : loadFailed ? null : (
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
             )}
         </div>

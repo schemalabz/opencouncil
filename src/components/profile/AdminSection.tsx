@@ -1,7 +1,7 @@
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { Flag, User, Building } from "lucide-react";
+import { Building, ChevronRight, Flag, ShieldCheck, User, type LucideIcon } from "lucide-react";
+// The locale-aware Link: next/link would drop the locale prefix.
+import { Link } from "@/i18n/routing";
+import { RailCard } from "@/components/ui/rail-card";
 
 type AdminSectionProps = {
     user: {
@@ -17,68 +17,56 @@ type AdminSectionProps = {
     t: (key: string, params?: Record<string, string>) => string;
 };
 
-export function AdminSection({ user, t }: AdminSectionProps) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>{t("administration")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                {user.isSuperAdmin ? (
-                    <div className="space-y-4">
-                        <p className="text-green-600 font-medium">
-                            {t("superAdminAccess")}
-                        </p>
-                        <Button asChild>
-                            <Link href="/admin">{t("goToAdmin")}</Link>
-                        </Button>
-                    </div>
-                ) : user.administers.length > 0 && (
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {user.administers.map((admin) => (
-                            <AdminCard key={admin.id} admin={admin} t={t} />
-                        ))}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
-    );
+interface AdminEntry {
+    key: string;
+    href: string;
+    icon: LucideIcon;
+    label: string;
+    name: string;
 }
-function AdminCard({ admin, t }: { admin: AdminSectionProps['user']['administers'][0], t: AdminSectionProps['t'] }) {
-    const adminType = admin.city ? 'city' : admin.party ? 'party' : 'person';
-    const entity = admin[adminType];
 
-    if (!entity) return null;
-
-    let href = '';
-    if (adminType === 'city') {
-        href = `/${entity.id}`;
-    } else if (adminType === 'party') {
-        href = `/${(entity as { cityId: string }).cityId}/parties/${entity.id}`;
-    } else { // person
-        href = `/${(entity as { cityId: string }).cityId}/people/${entity.id}`;
+/**
+ * What this account can edit, as a rail card of links: the admin panel for
+ * a superadmin, and one row per city, party or person it administers. The
+ * label says the kind, the name says which, and the whole row is the link.
+ */
+export function AdminSection({ user, t }: AdminSectionProps) {
+    const entries: AdminEntry[] = [];
+    if (user.isSuperAdmin) {
+        entries.push({ key: "superadmin", href: "/admin", icon: ShieldCheck, label: t("superAdminAccess"), name: t("goToAdmin") });
     }
+    for (const admin of user.administers) {
+        if (admin.city) {
+            entries.push({ key: admin.id, href: `/${admin.city.id}`, icon: Building, label: t("adminCity"), name: admin.city.name });
+        } else if (admin.party) {
+            entries.push({ key: admin.id, href: `/${admin.party.cityId}/parties/${admin.party.id}`, icon: Flag, label: t("adminParty"), name: admin.party.name });
+        } else if (admin.person) {
+            entries.push({ key: admin.id, href: `/${admin.person.cityId}/people/${admin.person.id}`, icon: User, label: t("adminPerson"), name: admin.person.name });
+        }
+    }
+    if (entries.length === 0) return null;
 
     return (
-        <Card>
-            <CardContent className="pt-6">
-                <div className="flex items-center gap-2">
-                    {adminType === 'city' ? (
-                        <Building className="h-10 w-10" />
-                    ) : adminType === 'party' ? (
-                        <Flag className="h-10 w-10" />
-                    ) : (
-                        <User className="h-10 w-10" />
-                    )}
-                    <h3 className="font-medium">{t(`admin${adminType.charAt(0).toUpperCase() + adminType.slice(1)}`)}</h3>
-                </div>
-                <Link
-                    href={href}
-                    className="text-blue-600 hover:underline mt-2 block"
-                >
-                    {entity.name}
-                </Link>
-            </CardContent>
-        </Card>
+        <RailCard title={t("administration")}>
+            <ul className="-mx-2 -mb-1.5 flex flex-col">
+                {entries.map(({ key, href, icon: Icon, label, name }) => (
+                    <li key={key}>
+                        <Link
+                            href={href}
+                            className="group flex items-center gap-3 rounded-xl px-2 py-2 no-underline transition-colors hover:bg-foreground/[0.04] hover:no-underline"
+                        >
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--orange))]/[0.10] text-[hsl(var(--orange-deep))]">
+                                <Icon className="h-4 w-4" aria-hidden />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-[11px] leading-tight text-muted-foreground">{label}</span>
+                                <span className="block truncate text-[13.5px] font-medium leading-snug text-foreground">{name}</span>
+                            </span>
+                            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+        </RailCard>
     );
 }

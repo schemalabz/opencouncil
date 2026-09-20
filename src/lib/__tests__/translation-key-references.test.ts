@@ -276,7 +276,6 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         group: 'signup.errors.',
         why: "saveErrorKey maps the save actions' string codes; no type states the set, and the group also holds the literal signIn leaf",
     },
-    { group: 'Profile.admin', why: 'the leaf is an object key (city/party/person) capitalised in place' },
     {
         group: 'reviews.completeDialog.runSummarize.unavailable.',
         why: "SummarizeAvailability has three members, but the branch runs only when it is not 'available', so the catalog holds two on purpose",

@@ -4,18 +4,18 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Bell, MapPin, Tag, Edit, Trash2, Loader2, Mail, Phone, MoreVertical, ChevronDown, ExternalLink, Plus } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Bell, MapPin, Edit, Trash2, Loader2, Mail, Phone, MoreVertical, ChevronDown, ExternalLink, Plus } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Combobox from '@/components/Combobox';
 import { CityMinimalWithCounts } from '@/lib/db/cities';
 import { CityComboboxItem } from '@/components/cities/CityComboboxItem';
 import { Link } from '@/i18n/routing';
-import { format } from 'date-fns';
-import { getDateFnsLocale } from '@/lib/formatters/time';
-import { NotisSwitch } from './NotisSwitch';
+import { formatNumericDate, formatNumericDateTime } from '@/lib/formatters/time';
+import { cn } from '@/lib/utils';
+import { NotisSwitch } from '@/components/profile/NotisSwitch';
+import { FieldError, SettingsBody, SettingsCard } from '@/components/profile/SettingsChrome';
 
 interface CitySelectorProps {
     label: string;
@@ -76,10 +76,11 @@ function CitySelector({
                 TriggerComponent={() => (
                     <Button
                         variant="outline"
-                        className="h-11 w-full justify-start sm:h-10 sm:w-auto"
+                        size="sm"
+                        className="h-10 w-full justify-start gap-2 sm:h-9 sm:w-auto"
                         onClick={onFetchCities}
                     >
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus className="h-4 w-4" aria-hidden />
                         {label}
                     </Button>
                 )}
@@ -134,15 +135,49 @@ interface PastNotification {
     }>;
 }
 
+type DeleteErrorKey = 'deleteError' | 'deleteNetworkError';
+
+const DELIVERY_TONES = {
+    sent: 'bg-emerald-50 text-emerald-700',
+    failed: 'bg-red-50 text-red-700',
+    pending: 'bg-amber-50 text-amber-700',
+} as const;
+
+function isBadgedStatus(status: string): status is keyof typeof DELIVERY_TONES {
+    return Object.prototype.hasOwnProperty.call(DELIVERY_TONES, status);
+}
+
+/**
+ * One delivery of a past notification: the channel's glyph and how it went.
+ * A delivery Notis took over (`skipped`) never went out on this channel, so
+ * it gets no badge rather than a wrong one.
+ */
+function Delivery({ medium, status, labels }: {
+    medium: 'email' | 'message';
+    status: string;
+    labels: Record<keyof typeof DELIVERY_TONES, string>;
+}) {
+    if (!isBadgedStatus(status)) return null;
+    const Icon = medium === 'email' ? Mail : Phone;
+    return (
+        <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium', DELIVERY_TONES[status])}>
+            <Icon className="h-3 w-3" aria-hidden />
+            {labels[status]}
+        </span>
+    );
+}
+
 export function NotificationPreferencesSection() {
     const t = useTranslations('NotificationPreferences');
-    const dateLocale = getDateFnsLocale(useLocale());
+    const locale = useLocale();
     const router = useRouter();
     const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
     const [notifications, setNotifications] = useState<PastNotification[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingNotifications, setLoadingNotifications] = useState(false);
-    const [deleting, setDeleting] = useState<string | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<NotificationPreference | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<DeleteErrorKey | null>(null);
     const [cities, setCities] = useState<CityMinimalWithCounts[]>([]);
     const [loadingCities, setLoadingCities] = useState(false);
     const [historyOpen, setHistoryOpen] = useState(false);
@@ -192,24 +227,27 @@ export function NotificationPreferencesSection() {
         }
     };
 
-    const deletePreference = async (preferenceId: string, cityName: string) => {
-        if (!confirm(t('deleteConfirm', { cityName }))) return;
-
-        setDeleting(preferenceId);
+    // The delete asks first, in a dialog rather than the browser's confirm,
+    // and a refusal is a line under the list rather than an alert.
+    const confirmDelete = async () => {
+        if (!pendingDelete) return;
+        setDeleting(true);
+        setDeleteError(null);
         try {
-            const res = await fetch(`/api/user/notification-preferences/${preferenceId}`, {
+            const res = await fetch(`/api/user/notification-preferences/${pendingDelete.id}`, {
                 method: 'DELETE',
             });
             if (res.ok) {
                 fetchPreferences();
             } else {
-                alert(t('deleteError'));
+                setDeleteError('deleteError');
             }
         } catch (error) {
             console.error('Error deleting preference:', error);
-            alert(t('deleteNetworkError'));
+            setDeleteError('deleteNetworkError');
         } finally {
-            setDeleting(null);
+            setDeleting(false);
+            setPendingDelete(null);
         }
     };
 
@@ -277,24 +315,30 @@ export function NotificationPreferencesSection() {
 
     if (loading) {
         return (
-            <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-            </div>
+            <SettingsCard>
+                <div className="flex justify-center py-10">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
+                </div>
+            </SettingsCard>
         );
     }
 
     if (preferences.length === 0) {
         return (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
                 <NotisSwitch hasPreferences={false} />
-                <p className="text-sm text-muted-foreground">
-                    {t('noPreferencesDescription')}
-                </p>
-                <p className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Bell aria-hidden="true" className="h-4 w-4 flex-none mt-0.5" />
-                    <span>{t('sendTiming')}</span>
-                </p>
-                <CitySelector label={t('selectCityButton')} {...citySelectorProps} />
+                <SettingsCard>
+                    <SettingsBody className="flex flex-col items-start gap-4 py-6 sm:py-8">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[hsl(var(--orange))]/[0.10] text-[hsl(var(--orange-deep))]" aria-hidden>
+                            <Bell className="h-5 w-5" />
+                        </span>
+                        <div className="flex flex-col gap-1.5">
+                            <p className="max-w-md text-[15px] leading-[1.5]">{t('noPreferencesDescription')}</p>
+                            <p className="max-w-md text-[13px] leading-[1.45] text-muted-foreground">{t('sendTiming')}</p>
+                        </div>
+                        <CitySelector label={t('selectCityButton')} {...citySelectorProps} />
+                    </SettingsBody>
+                </SettingsCard>
             </div>
         );
     }
@@ -317,331 +361,171 @@ export function NotificationPreferencesSection() {
         );
     };
 
+    const deliveryLabels = { sent: t('statusSent'), failed: t('statusFailed'), pending: t('statusPending') };
+    const lastUpdated = new Date(Math.max(...preferences.map(p => new Date(p.updatedAt).getTime())));
+
     return (
-        <div className="space-y-8">
+        <div className="flex flex-col gap-4">
             <NotisSwitch hasPreferences />
 
-            {/* Preferences table */}
-            <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between gap-2">
-                    <h3 className="font-semibold">{t('preferencesTitle')}</h3>
-                    <Button variant="outline" size="sm" onClick={allDisabled ? enableAll : disableAll}>
+            <SettingsCard
+                title={t('preferencesTitle')}
+                description={t('sendTiming')}
+                action={
+                    <Button variant="ghost" size="sm" className="-mr-2 -mt-1.5 text-[13px]" onClick={allDisabled ? enableAll : disableAll}>
                         {allDisabled ? t('enableAll') : t('disableAll')}
                     </Button>
-                </div>
-                <p className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <Bell aria-hidden="true" className="h-4 w-4 flex-none mt-0.5" />
-                    <span>{t('sendTiming')}</span>
-                </p>
-                {/* Mobile: stacked cards */}
-                <div className="sm:hidden space-y-2">
+                }
+            >
+                <ul className="mt-4 divide-y divide-border border-t border-border">
                     {preferences.map(pref => (
-                        <div key={pref.id} className="rounded-md border p-3 space-y-2">
-                            <div className="space-y-1.5">
-                                <p className="font-medium">{pref.city.name_municipality}</p>
-                                {pref.interests.length > 0 && (
-                                    <div className="flex flex-wrap items-center gap-1">
-                                        <span className="text-xs text-muted-foreground">{t('topics')}</span>
+                        <li key={pref.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:gap-4 sm:px-5">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[15px] font-medium leading-snug">{pref.city.name_municipality}</p>
+                                {(pref.interests.length > 0 || pref.locations.length > 0) && (
+                                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] leading-snug text-muted-foreground">
                                         {pref.interests.map(topic => (
-                                            <Badge
-                                                key={topic.id}
-                                                className="text-xs"
-                                                style={{ backgroundColor: topic.colorHex, color: 'white' }}
-                                            >
-                                                <Tag className="h-3 w-3 mr-1" />
+                                            <span key={topic.id} className="inline-flex items-center gap-1.5">
+                                                <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: topic.colorHex }} aria-hidden />
                                                 {topic.name}
-                                            </Badge>
+                                            </span>
                                         ))}
-                                    </div>
-                                )}
-                                {pref.locations.length > 0 && (
-                                    <div className="flex flex-wrap items-center gap-1">
-                                        <span className="text-xs text-muted-foreground">{t('locations')}</span>
                                         {pref.locations.map(loc => (
-                                            <span key={loc.id} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                                <MapPin className="h-3 w-3" />
+                                            <span key={loc.id} className="inline-flex items-center gap-1">
+                                                <MapPin className="h-3 w-3 shrink-0" aria-hidden />
                                                 {loc.text}
                                             </span>
                                         ))}
                                     </div>
                                 )}
                             </div>
-                            <div className="flex flex-col justify-between pt-1 gap-5">
-                                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-                                    <Checkbox
+                            <div className="flex items-center justify-between gap-3 sm:justify-end sm:gap-4">
+                                <label className="flex cursor-pointer items-center gap-2.5 text-[13px] text-muted-foreground">
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <Mail className="h-3.5 w-3.5" aria-hidden />
+                                        {t('notifyByEmail')}
+                                    </span>
+                                    <Switch
                                         checked={pref.notifyByEmail}
                                         onCheckedChange={(checked) =>
-                                            updateChannels(pref.id, { notifyByEmail: checked as boolean })
+                                            updateChannels(pref.id, { notifyByEmail: checked })
                                         }
                                     />
-                                    <Mail className="h-3 w-3" /> {t('notifyByEmail')}
                                 </label>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm" className="gap-1 bg-gray-100">
-                                            {t('actions')} <ChevronDown className="h-3 w-3" />
+                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:bg-foreground/[0.06]" aria-label={t('actions')}>
+                                            <MoreVertical className="h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuItem asChild>
-                                            <Link href={`/${pref.cityId}/notifications`} className="flex items-center gap-2">
-                                                <Edit className="h-3 w-3" />
-                                                {t('edit')}
+                                            <Link href={`/${pref.cityId}/notifications`} className="flex cursor-pointer items-center gap-2">
+                                                <Edit className="h-3.5 w-3.5" aria-hidden />
+                                                {t('editOptions')}
                                             </Link>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
-                                            className="text-destructive focus:text-destructive flex items-center gap-2"
-                                            disabled={deleting === pref.id}
-                                            onClick={() => deletePreference(pref.id, pref.city.name)}
+                                            className="flex cursor-pointer items-center gap-2 text-destructive focus:text-destructive"
+                                            onClick={() => setPendingDelete(pref)}
                                         >
-                                            {deleting === pref.id
-                                                ? <Loader2 className="h-3 w-3 animate-spin" />
-                                                : <Trash2 className="h-3 w-3" />
-                                            }
+                                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
                                             {t('delete')}
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>
-                        </div>
+                        </li>
                     ))}
-                </div>
-
-                {/* Desktop: table */}
-                <div className="space-y-2">
-                    <div className="hidden sm:block rounded-md border">
-                        <Table className="table-auto">
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>{t('municipality')}</TableHead>
-                                    <TableHead className="text-center w-20">
-                                        <span className="flex items-center justify-center gap-1">{t('notifyByEmail')}</span>
-                                    </TableHead>
-                                    <TableHead className="text-center w-20">
-                                        <span className="flex items-center justify-center gap-1">{t('actions')}</span>
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {preferences.map(pref => (
-                                    <TableRow key={pref.id}>
-                                        <TableCell>
-                                            <div className="space-y-1.5">
-                                                <p className="font-medium">{pref.city.name_municipality}</p>
-                                                {pref.interests.length > 0 && (
-                                                    <div className="flex flex-wrap items-center gap-1">
-                                                        <span className="text-xs text-muted-foreground">{t('topics')}</span>
-                                                        {pref.interests.map(topic => (
-                                                            <Badge
-                                                                key={topic.id}
-                                                                className="text-xs"
-                                                                style={{ backgroundColor: topic.colorHex, color: 'white' }}
-                                                            >
-                                                                <Tag className="h-3 w-3 mr-1" />
-                                                                {topic.name}
-                                                            </Badge>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {pref.locations.length > 0 && (
-                                                    <div className="flex flex-wrap items-center gap-1">
-                                                        <span className="text-xs text-muted-foreground">{t('locations')}</span>
-                                                        {pref.locations.map(loc => (
-                                                            <span key={loc.id} className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                                                                <MapPin className="h-3 w-3" />
-                                                                {loc.text}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <Checkbox
-                                                checked={pref.notifyByEmail}
-                                                onCheckedChange={(checked) =>
-                                                    updateChannels(pref.id, { notifyByEmail: checked as boolean })
-                                                }
-                                            />
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 ml-auto">
-                                                        <MoreVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem asChild>
-                                                        <Link href={`/${pref.cityId}/notifications`} className="flex items-center gap-2">
-                                                            <Edit className="h-3 w-3" />
-                                                            {t('editOptions')}
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        className="text-destructive focus:text-destructive flex items-center gap-2"
-                                                        disabled={deleting === pref.id}
-                                                        onClick={() => deletePreference(pref.id, pref.city.name)}
-                                                    >
-                                                        {deleting === pref.id
-                                                            ? <Loader2 className="h-3 w-3 animate-spin" />
-                                                            : <Trash2 className="h-3 w-3" />
-                                                        }
-                                                        {t('delete')}
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                </ul>
+                {deleteError && (
+                    <div className="border-t border-border px-4 py-3 sm:px-5">
+                        <FieldError>{t(deleteError)}</FieldError>
                     </div>
-                    {preferences.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                            {t('lastUpdated', { date: format(new Date(Math.max(...preferences.map(p => new Date(p.updatedAt).getTime()))), 'dd/MM/yyyy HH:mm', { locale: dateLocale }) })}
-                        </p>
-                    )}
+                )}
+                <div className="flex flex-col gap-3 border-t border-border bg-muted/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+                    <CitySelector label={t('addCity')} {...citySelectorProps} />
+                    <p className="text-xs text-muted-foreground">
+                        {t('lastUpdated', { date: formatNumericDateTime(lastUpdated, undefined, locale, false) })}
+                    </p>
                 </div>
+            </SettingsCard>
 
-                <CitySelector label={t('addCity')} {...citySelectorProps} />
-            </div>
-
-            {/* Notifications history table */}
-            <div className="space-y-4">
+            <SettingsCard>
                 <button
-                    className="flex items-center gap-2 w-full text-left"
+                    type="button"
+                    className="flex w-full items-center gap-2 px-4 py-4 text-left transition-colors hover:bg-foreground/[0.02] sm:px-5"
                     onClick={() => setHistoryOpen(prev => !prev)}
+                    aria-expanded={historyOpen}
                 >
-                    <h3 className="font-semibold">
+                    <span className="text-[15px] font-semibold leading-snug">
                         {t('historyTitle')}
                         {historyOpen && !loadingNotifications && (
-                            <span className="text-muted-foreground font-normal"> ({notifications.length})</span>
+                            <span className="font-normal text-muted-foreground"> ({notifications.length})</span>
                         )}
-                    </h3>
-                    <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${historyOpen ? '' : '-rotate-90'}`} />
+                    </span>
+                    <ChevronDown className={cn('ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200', !historyOpen && '-rotate-90')} aria-hidden />
                 </button>
                 {historyOpen && (loadingNotifications ? (
-                    <div className="flex justify-center py-6">
-                        <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                    <div className="flex justify-center border-t border-border py-6">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
                     </div>
                 ) : notifications.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4">
+                    <p className="border-t border-border px-4 py-4 text-sm text-muted-foreground sm:px-5">
                         {t('noNotifications')}
                     </p>
                 ) : (
-                    <>
-                        {/* Mobile: 2-column table */}
-                        <div className="sm:hidden rounded-md border">
-                            <Table className="table-auto">
-                                <TableBody>
-                                    {notifications.map(notification => {
-                                        const emailDelivery = notification.deliveries.find(d => d.medium === 'email');
-                                        const messageDelivery = notification.deliveries.find(d => d.medium === 'message');
-
-                                        return (
-                                            <TableRow key={notification.id}>
-                                                <TableCell>
-                                                    <div className="space-y-1">
-                                                        <p className="font-medium">{notification.city.name_municipality}</p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {t('dateLabel')} {format(new Date(notification.createdAt), 'dd/MM/yyyy', { locale: dateLocale })}
-                                                        </p>
-                                                        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-                                                            {emailDelivery && (
-                                                                <div className="flex items-center gap-1">
-                                                                    <Mail className="h-3 w-3" />
-                                                                    {emailDelivery.status === 'sent' && <Badge className="bg-green-100 text-green-800 text-xs hover:bg-green-200">{t('statusSent')}</Badge>}
-                                                                    {emailDelivery.status === 'failed' && <Badge className="bg-red-100 text-red-800 text-xs hover:bg-red-200">{t('statusFailed')}</Badge>}
-                                                                    {emailDelivery.status === 'pending' && <Badge className="bg-yellow-100 text-yellow-800 text-xs hover:bg-yellow-200">{t('statusPending')}</Badge>}
-                                                                </div>
-                                                            )}
-                                                            {messageDelivery && (
-                                                                <div className="flex items-center gap-1">
-                                                                    <Phone className="h-3 w-3" />
-                                                                    {messageDelivery.status === 'sent' && <Badge className="bg-green-100 text-green-800 text-xs hover:bg-green-200">{t('statusSent')}</Badge>}
-                                                                    {messageDelivery.status === 'failed' && <Badge className="bg-red-100 text-red-800 text-xs hover:bg-red-200">{t('statusFailed')}</Badge>}
-                                                                    {messageDelivery.status === 'pending' && <Badge className="bg-yellow-100 text-yellow-800 text-xs hover:bg-yellow-200">{t('statusPending')}</Badge>}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right w-10">
-                                                    <Link href={`/notifications/${notification.id}`} target="_blank">
-                                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 ml-auto">
-                                                            <ExternalLink className="h-4 w-4" />
-                                                        </Button>
-                                                    </Link>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
-
-                        {/* Desktop: 4-column table */}
-                        <div className="hidden sm:block rounded-md border">
-                            <Table className="table-auto">
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>{t('municipality')}</TableHead>
-                                        <TableHead className="w-24">{t('status')}</TableHead>
-                                        <TableHead className="w-24">{t('date')}</TableHead>
-                                        <TableHead className="w-10" />
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {notifications.map(notification => {
-                                        const emailDelivery = notification.deliveries.find(d => d.medium === 'email');
-                                        const messageDelivery = notification.deliveries.find(d => d.medium === 'message');
-
-                                        return (
-                                            <TableRow key={notification.id}>
-                                                <TableCell className="font-medium">
-                                                    {notification.city.name_municipality}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex flex-col gap-1">
-                                                        {emailDelivery && (
-                                                            <div className="flex items-center gap-1">
-                                                                <Mail className="h-3 w-3 text-muted-foreground" />
-                                                                {emailDelivery.status === 'sent' && <Badge className="bg-green-100 text-green-800 text-xs hover:bg-green-200">{t('statusSent')}</Badge>}
-                                                                {emailDelivery.status === 'failed' && <Badge className="bg-red-100 text-red-800 text-xs hover:bg-red-200">{t('statusFailed')}</Badge>}
-                                                                {emailDelivery.status === 'pending' && <Badge className="bg-yellow-100 text-yellow-800 text-xs hover:bg-yellow-200">{t('statusPending')}</Badge>}
-                                                            </div>
-                                                        )}
-                                                        {messageDelivery && (
-                                                            <div className="flex items-center gap-1">
-                                                                <Phone className="h-3 w-3 text-muted-foreground" />
-                                                                {messageDelivery.status === 'sent' && <Badge className="bg-green-100 text-green-800 text-xs hover:bg-green-200">{t('statusSent')}</Badge>}
-                                                                {messageDelivery.status === 'failed' && <Badge className="bg-red-100 text-red-800 text-xs hover:bg-red-200">{t('statusFailed')}</Badge>}
-                                                                {messageDelivery.status === 'pending' && <Badge className="bg-yellow-100 text-yellow-800 text-xs hover:bg-yellow-200">{t('statusPending')}</Badge>}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                                                    {format(new Date(notification.createdAt), 'dd/MM/yyyy', { locale: dateLocale })}
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <Link className="text-xs flex items-center gap-2" href={`/notifications/${notification.id}`} target="_blank">
-                                                        {t('viewNotification')}
-                                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 ml-auto">
-                                                            <ExternalLink className="h-4 w-4" />
-                                                        </Button>
-                                                    </Link>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </>
+                    <ul className="divide-y divide-border border-t border-border">
+                        {notifications.map(notification => {
+                            const emailDelivery = notification.deliveries.find(d => d.medium === 'email');
+                            const messageDelivery = notification.deliveries.find(d => d.medium === 'message');
+                            return (
+                                <li key={notification.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-[14px] font-medium leading-snug">{notification.city.name_municipality}</p>
+                                        <p className="mt-0.5 text-[12px] text-muted-foreground">
+                                            {formatNumericDate(new Date(notification.createdAt), undefined, locale)}
+                                        </p>
+                                    </div>
+                                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                                        {emailDelivery && <Delivery medium="email" status={emailDelivery.status} labels={deliveryLabels} />}
+                                        {messageDelivery && <Delivery medium="message" status={messageDelivery.status} labels={deliveryLabels} />}
+                                    </div>
+                                    <Link
+                                        href={`/notifications/${notification.id}`}
+                                        target="_blank"
+                                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground hover:no-underline"
+                                        aria-label={t('viewNotification')}
+                                        title={t('viewNotification')}
+                                    >
+                                        <ExternalLink className="h-4 w-4" aria-hidden />
+                                    </Link>
+                                </li>
+                            );
+                        })}
+                    </ul>
                 ))}
-            </div>
+            </SettingsCard>
+
+            <Dialog open={pendingDelete !== null} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+                <DialogContent align="start">
+                    <DialogHeader>
+                        <DialogTitle>{t('delete')}</DialogTitle>
+                        <DialogDescription>
+                            {pendingDelete && t('deleteConfirm', { cityName: pendingDelete.city.name })}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-3">
+                        <Button variant="destructive" disabled={deleting} onClick={confirmDelete}>
+                            {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
+                            {t('delete')}
+                        </Button>
+                        <DialogClose asChild>
+                            <Button variant="outline">{t('cancel')}</Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

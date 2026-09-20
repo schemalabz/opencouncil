@@ -1,19 +1,15 @@
 'use client'
 
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
-import { Settings, Eye, EyeOff } from "lucide-react"
+import { Wrench } from "lucide-react"
 import { useQuickLoginVisibility } from "@/hooks/useQuickLoginVisibility"
-import { IS_DEV } from "@/lib/utils"
+import { showsDevelopmentSection } from "@/components/profile/dev-tools"
 
 // `isPreview` comes from the server (DEPLOYMENT_ENV is server-only — see src/env.mjs).
 export function DevelopmentSection({ isPreview = false }: { isPreview?: boolean }) {
   const { isVisible, isLoaded, toggle } = useQuickLoginVisibility()
 
-  // Only show in development or on preview deployments
-  if (!(IS_DEV || isPreview)) {
+  if (!showsDevelopmentSection(isPreview)) {
     return null
   }
 
@@ -23,34 +19,23 @@ export function DevelopmentSection({ isPreview = false }: { isPreview?: boolean 
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5 text-red-600" />
-          Development Tools
-          <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
-            {isPreview ? 'PREVIEW ONLY' : 'DEV ONLY'}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <Label htmlFor="quick-login-toggle" className="flex items-center gap-2">
-              {isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-              Show Quick Login Tool
-            </Label>
-            <p className="text-sm text-muted-foreground">
-              Toggle the floating Quick Login button for testing different user permissions
-            </p>
-          </div>
-          <Switch
-            id="quick-login-toggle"
-            checked={isVisible}
-            onCheckedChange={toggle}
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <div className="rounded-2xl border border-dashed border-foreground/20 px-3.5 py-3">
+      <div className="mb-2 flex items-center gap-2">
+        <Wrench className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+        <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
+          {isPreview ? 'Preview only' : 'Dev only'}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor="quick-login-toggle" className="cursor-pointer text-[13px] leading-snug">
+          Show the Quick Login bar
+        </label>
+        <Switch
+          id="quick-login-toggle"
+          checked={isVisible}
+          onCheckedChange={toggle}
+        />
+      </div>
+    </div>
   )
-} 
+}

@@ -1,13 +1,13 @@
 import { getTranslations } from "next-intl/server";
-// The locale-aware Link: next/link would emit a bare "/profile/highlights",
-// dropping the locale prefix and landing the user on the Greek page.
-import { Link } from "@/i18n/routing";
 import { getCurrentUser } from "@/lib/auth";
 import { canAccessMyHighlights } from "@/lib/db/highlights";
 import { UserInfoForm, type ConsentPerson } from "@/components/profile/UserInfoForm";
 import { AdminSection } from "@/components/profile/AdminSection";
 import { DevelopmentSection } from "@/components/profile/DevelopmentSection";
-import { Clapperboard, ChevronRight } from "lucide-react";
+import { showsDevelopmentSection } from "@/components/profile/dev-tools";
+import { ProfileHeader } from "@/components/profile/ProfileHeader";
+import { ProfileSettings, type ProfileAccount } from "@/components/profile/ProfileSettings";
+import { StepHeading } from "@/components/signup/SignupChrome";
 import { getVoicePrintConsents } from "@/lib/db/personConsent";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
@@ -31,28 +31,58 @@ export default async function ProfilePage() {
         claimed,
         consent: consents.get(person.id) ?? null,
     }));
-    const [t, tAccount, highlightsAllowed] = await Promise.all([
+    const [t, highlightsAllowed] = await Promise.all([
         getTranslations("Profile"),
-        getTranslations("account"),
         canAccessMyHighlights(),
     ]);
+    const isPreview = env.DEPLOYMENT_ENV === 'preview';
+    const showDevTools = showsDevelopmentSection(isPreview);
+    const administersSomething = user.isSuperAdmin || user.administers.length > 0;
+    // Only what the settings edit crosses to the client; the row's relations
+    // (the cities and persons it administers) stay here.
+    const account: ProfileAccount = {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        updatedAt: user.updatedAt,
+        allowProductUpdates: user.allowProductUpdates,
+        allowPetitionUpdates: user.allowPetitionUpdates,
+        allowFeedbackCalls: user.allowFeedbackCalls,
+    };
+
+    // The first visit is one question, laid out like a signup step: the
+    // details, and the button that completes the registration. The settings
+    // wait behind it.
+    if (!user.onboarded) {
+        return (
+            <div className="mx-auto w-full max-w-md px-4 pb-16 lg:max-w-lg">
+                <StepHeading title={t("welcomeOnboard")} lead={t("onboardingDescription")} className="pt-8 lg:pt-12" />
+                <div className="mt-7">
+                    <UserInfoForm user={account} isOnboarded={false} persons={persons} />
+                </div>
+                {showDevTools && (
+                    <div className="mt-10">
+                        <DevelopmentSection isPreview={isPreview} />
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
-        <div className="container max-w-2xl py-8 space-y-8 !px-3 sm:!px-8">
-            <h1 className="text-3xl font-bold">{t("title")}</h1>
-            <DevelopmentSection isPreview={env.DEPLOYMENT_ENV === 'preview'} />
-            {user.onboarded && (user.isSuperAdmin || user.administers.length > 0) && <AdminSection user={user} t={t} />}
-            {user.onboarded && highlightsAllowed && (
-                <Link
-                    href="/profile/highlights"
-                    className="flex items-center gap-3 rounded-lg border border-border px-4 py-3 text-sm no-underline transition-colors hover:bg-muted hover:no-underline"
-                >
-                    <Clapperboard className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="font-medium text-foreground">{tAccount("myHighlights")}</span>
-                    <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
-                </Link>
-            )}
-            <UserInfoForm user={user} isOnboarded={!!user.onboarded} persons={persons} />
+        <div className="mx-auto w-full max-w-5xl px-4 pb-16 lg:px-6 lg:pb-24">
+            <ProfileHeader name={user.name} email={user.email} createdAt={user.createdAt} />
+            <ProfileSettings
+                user={account}
+                persons={persons}
+                highlightsAllowed={highlightsAllowed}
+                aside={administersSomething || showDevTools ? (
+                    <>
+                        {administersSomething && <AdminSection user={user} t={t} />}
+                        {showDevTools && <DevelopmentSection isPreview={isPreview} />}
+                    </>
+                ) : undefined}
+            />
         </div>
     );
 }
