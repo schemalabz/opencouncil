@@ -10,11 +10,12 @@ const SERIALIZATION_FAILURE = "P2034";
  * depends on it cannot interleave with a concurrent run: the loser fails
  * with P2034, and one retry then sees the winner's rows. A partial unique
  * index is the backstop of each caller; a P2002 from it, on either attempt,
- * is the same answer, and `onUniqueConflict` says what that answer is.
+ * is the same answer, and `onUniqueConflict` says what that answer is. It
+ * runs outside the failed transaction, so it can read what the winner wrote.
  */
 export async function serializableOnce<T>(
     work: (tx: Prisma.TransactionClient) => Promise<T>,
-    onUniqueConflict: () => T,
+    onUniqueConflict: () => T | Promise<T>,
 ): Promise<T> {
     const attempt = () => prisma.$transaction(work, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     const codeOf = (error: unknown) => (error as { code?: string }).code;

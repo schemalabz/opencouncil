@@ -7,12 +7,16 @@ const mockUserFindUnique = jest.fn();
 const mockUserUpdate = jest.fn();
 const mockPersonFindUnique = jest.fn();
 const mockAdministersFindMany = jest.fn();
+const mockAdministersFindFirst = jest.fn();
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
         $transaction: (...args: unknown[]) => mockTransaction(...args),
         person: { findUnique: (...args: unknown[]) => mockPersonFindUnique(...args) },
-        administers: { findMany: (...args: unknown[]) => mockAdministersFindMany(...args) },
+        administers: {
+            findMany: (...args: unknown[]) => mockAdministersFindMany(...args),
+            findFirst: (...args: unknown[]) => mockAdministersFindFirst(...args),
+        },
     },
 }));
 
@@ -32,7 +36,7 @@ const person = (administrators: { id: string; userId: string; claimedAt: Date | 
 });
 
 beforeEach(() => {
-    for (const m of [mockFindUnique, mockCreate, mockUpdate, mockTransaction, mockUserFindUnique, mockUserUpdate, mockPersonFindUnique, mockAdministersFindMany]) m.mockReset();
+    for (const m of [mockFindUnique, mockCreate, mockUpdate, mockTransaction, mockUserFindUnique, mockUserUpdate, mockPersonFindUnique, mockAdministersFindMany, mockAdministersFindFirst]) m.mockReset();
     mockUserFindUnique.mockResolvedValue({ name: null });
     // Run the callback against the fake client, as the real $transaction does.
     mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => fn(tx));
@@ -108,9 +112,18 @@ describe('claimPerson', () => {
         expect(mockTransaction.mock.calls[0][1]).toEqual({ isolationLevel: 'Serializable' });
     });
 
-    it('reads a unique-index refusal as another account winning', async () => {
-        mockTransaction.mockImplementationOnce(async () => { throw Object.assign(new Error('unique'), { code: 'P2002' }); });
+    it('reads a unique-index refusal by who holds the claim now: another account, or a second submit of this one', async () => {
+        const refused = async () => { throw Object.assign(new Error('unique'), { code: 'P2002' }); };
+        mockTransaction.mockImplementationOnce(refused);
+        mockAdministersFindFirst.mockResolvedValue({ userId: 'user-9' });
         expect(await claimPerson('user-1', 'person-1')).toEqual({ status: 'already_linked' });
+        expect(mockAdministersFindFirst).toHaveBeenCalledWith({
+            where: { personId: 'person-1', claimedAt: { not: null } },
+            select: { userId: true },
+        });
+        mockTransaction.mockImplementationOnce(refused);
+        mockAdministersFindFirst.mockResolvedValue({ userId: 'user-1' });
+        expect(await claimPerson('user-1', 'person-1')).toEqual({ status: 'already_yours' });
     });
 
     it('rethrows any other error', async () => {

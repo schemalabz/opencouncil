@@ -27,8 +27,8 @@ export type PersonClaimStatus = PersonClaimResult["status"];
  *
  * The check and the write run through `serializableOnce`, so two people who
  * scan the same QR at the same moment cannot both win. The partial unique
- * index on claimed rows is the backstop: a conflict on it means that another
- * account won.
+ * index on claimed rows is the backstop: a conflict on it means that a claim
+ * was written meanwhile, by another account or by a second submit of this one.
  */
 export async function claimPerson(userId: string, personId: string): Promise<PersonClaimResult> {
     return serializableOnce<PersonClaimResult>(
@@ -59,7 +59,13 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
             });
             return { status: "linked", cityId: person.cityId, cityName: person.city.name, personName: person.name };
         },
-        () => ({ status: "already_linked" }),
+        async () => {
+            const claimed = await prisma.administers.findFirst({
+                where: { personId, claimedAt: { not: null } },
+                select: { userId: true },
+            });
+            return { status: claimed?.userId === userId ? "already_yours" : "already_linked" };
+        },
     );
 }
 
