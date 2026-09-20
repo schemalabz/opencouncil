@@ -20,6 +20,9 @@ jest.mock('@/lib/db/prisma', () => ({
     },
 }));
 
+const mockCloseAppConsent = jest.fn();
+jest.mock('@/lib/db/personConsent', () => ({ closeAppConsent: (...args: unknown[]) => mockCloseAppConsent(...args) }));
+
 import { claimPerson, getClaimablePersonStatus, getClaimedPersonIds } from '../personClaim';
 
 const tx = {
@@ -36,17 +39,18 @@ const person = (administrators: { id: string; userId: string; claimedAt: Date | 
 });
 
 beforeEach(() => {
-    for (const m of [mockFindUnique, mockCreate, mockUpdate, mockTransaction, mockUserFindUnique, mockUserUpdate, mockPersonFindUnique, mockAdministersFindMany, mockAdministersFindFirst]) m.mockReset();
+    for (const m of [mockFindUnique, mockCreate, mockUpdate, mockTransaction, mockUserFindUnique, mockUserUpdate, mockPersonFindUnique, mockAdministersFindMany, mockAdministersFindFirst, mockCloseAppConsent]) m.mockReset();
     mockUserFindUnique.mockResolvedValue({ name: null });
     // Run the callback against the fake client, as the real $transaction does.
     mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => fn(tx));
 });
 
 describe('claimPerson', () => {
-    it('claims a person nobody has claimed', async () => {
+    it('claims a person nobody has claimed, and closes a consent an earlier account gave in the app', async () => {
         mockFindUnique.mockResolvedValue(person([]));
         const result = await claimPerson('user-1', 'person-1');
         expect(result).toEqual({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
+        expect(mockCloseAppConsent).toHaveBeenCalledWith(tx, 'person-1');
         expect(mockCreate).toHaveBeenCalledWith({ data: { userId: 'user-1', personId: 'person-1', claimedAt: expect.any(Date) } });
     });
 

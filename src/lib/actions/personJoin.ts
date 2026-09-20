@@ -1,5 +1,6 @@
 "use server";
 
+import { VoicePrintConsentSource } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { signJoinConfirmation, verifyPersonClaimToken } from "@/lib/auth/personClaim";
 import { claimPerson, type PersonClaimStatus } from "@/lib/db/personClaim";
@@ -8,7 +9,7 @@ import { sendPersonClaimedAdminAlert } from "@/lib/discord";
 import { isLikelyEmail, normalizeEmail } from "@/lib/personJoin/email";
 import { signInWithEmail } from "@/lib/serverSignIn";
 
-/** "consented": the person is this account's, and a consent is already in force, so the flow has no question left. */
+/** "consented": the person is this account's, and a consent in force answers for them, so the flow has no question left. */
 export type ClaimWithTokenStatus = PersonClaimStatus | "consented" | "invalid" | "signed_out";
 
 /** Step 1 of the join flow for a signed-in scanner: "yes, this is me". */
@@ -23,8 +24,12 @@ export async function claimWithToken(token: string): Promise<ClaimWithTokenStatu
         sendPersonClaimedAdminAlert({ cityId: result.cityId, cityName: result.cityName, personName: result.personName });
     }
     if (result.status === "linked" || result.status === "already_yours") {
-        const consents = await getVoicePrintConsents([personId]);
-        if (consents.has(personId)) return "consented";
+        const consent = (await getVoicePrintConsents([personId])).get(personId);
+        // A new claim closed the consent given in the app. One seen now was
+        // given on paper, or by a delegate this instant, and only the paper
+        // one answers for the person.
+        const settled = consent === VoicePrintConsentSource.ADMIN || (consent !== undefined && result.status === "already_yours");
+        if (settled) return "consented";
     }
     return result.status;
 }

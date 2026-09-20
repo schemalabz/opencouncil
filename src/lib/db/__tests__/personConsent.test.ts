@@ -22,6 +22,7 @@ jest.mock('@/lib/auth', () => ({ getCurrentUser: () => mockGetCurrentUser() }));
 import {
     setVoicePrintConsent,
     recordVoicePrintConsent,
+    closeAppConsent,
     getVoicePrintConsents,
     getVoicePrintConsentStatus,
 } from '../personConsent';
@@ -187,6 +188,20 @@ describe('recordVoicePrintConsent', () => {
     it('refuses a non-boolean', async () => {
         await expect(recordVoicePrintConsent('person-1', 'yes' as unknown as boolean)).rejects.toThrow(/boolean/);
         expect(mockGetCurrentUser).not.toHaveBeenCalled();
+    });
+});
+
+describe('closeAppConsent', () => {
+    it('closes the consent given in the app, and only that one', async () => {
+        txFindFirst.mockResolvedValue(open('PERSON'));
+        await closeAppConsent(tx as never, 'person-1');
+        expect(txFindFirst.mock.calls[0][0].where).toEqual({ personId: 'person-1', withdrawnAt: null, source: 'PERSON' });
+        expect(txUpdate).toHaveBeenCalledWith(closed);
+    });
+
+    it('changes nothing when no consent was given in the app', async () => {
+        await closeAppConsent(tx as never, 'person-1');
+        expect(txUpdate).not.toHaveBeenCalled();
     });
 });
 

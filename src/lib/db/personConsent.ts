@@ -99,6 +99,20 @@ export async function recordVoicePrintConsent(personId: string, consent: boolean
 }
 
 /**
+ * Close the consent that an account gave in the app, if one is open. A claim
+ * calls it: the account that is the person now answers the question itself,
+ * and the answer of an earlier account must not stand in for it. A consent
+ * recorded on paper stays.
+ */
+export async function closeAppConsent(tx: Prisma.TransactionClient, personId: string): Promise<void> {
+    const open = await tx.voicePrintConsent.findFirst({
+        where: { ...openPeriod(personId), source: VoicePrintConsentSource.PERSON },
+        select: openPeriodSelect,
+    });
+    if (open) await closePeriod(tx, open);
+}
+
+/**
  * The consent in force for each of `personIds`: PERSON for a period that an
  * account of the person opened, ADMIN for a period that a superadmin
  * recorded. A person with no open period has no entry.

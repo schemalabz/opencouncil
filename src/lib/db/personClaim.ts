@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { serializableOnce } from "@/lib/db/serializable";
+import { closeAppConsent } from "@/lib/db/personConsent";
 import { getActiveRoleCondition } from "@/lib/utils/roles";
 
 export type PersonClaimResult =
@@ -24,6 +25,10 @@ export type PersonClaimStatus = PersonClaimResult["status"];
  * the join flow, so an account without a name takes the person's, and the
  * account counts as onboarded. A councillor must not meet a second
  * registration form after the flow told them they are done.
+ *
+ * The claim closes a consent that an earlier account gave in the app. The
+ * flow asks the question next, and the person answers for themselves. A
+ * consent recorded on paper stays, and the flow skips the question.
  *
  * The check and the write run through `serializableOnce`, so two people who
  * scan the same QR at the same moment cannot both win. The partial unique
@@ -52,6 +57,7 @@ export async function claimPerson(userId: string, personId: string): Promise<Per
             } else {
                 await tx.administers.create({ data: { userId, personId, claimedAt: new Date() } });
             }
+            await closeAppConsent(tx, personId);
             const account = await tx.user.findUnique({ where: { id: userId }, select: { name: true } });
             await tx.user.update({
                 where: { id: userId },
