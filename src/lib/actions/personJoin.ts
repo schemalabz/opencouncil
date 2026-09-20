@@ -23,7 +23,7 @@ export async function claimWithToken(token: string): Promise<ClaimWithTokenStatu
         sendPersonClaimedAdminAlert({ cityId: result.cityId, cityName: result.cityName, personName: result.personName });
     }
     if (result.status === "linked" || result.status === "already_yours") {
-        const consents = await getVoicePrintConsents([personId], user.id);
+        const consents = await getVoicePrintConsents([personId]);
         if (consents.has(personId)) return "consented";
     }
     return result.status;

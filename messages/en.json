@@ -800,7 +800,7 @@
             "buttonGiven": "Voice consent: yes",
             "title": "Voiceprint consent: {name}",
             "none": "No consent is in force.",
-            "byPerson": "The person consented from their own account, on {date}.",
+            "byPerson": "Given in the app by {recorder}, on {date}.",
             "byAdmin": "Recorded by {recorder}, on {date}. The person cannot change it from their profile.",
             "unknownAccount": "a deleted account",
             "recordHint": "Record it only if the person gave their consent in writing, on a printed form with a physical signature. The person will see it on their profile, but will not be able to change it.",

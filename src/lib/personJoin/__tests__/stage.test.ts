@@ -50,7 +50,7 @@ describe('getJoinStage', () => {
         expect(await getJoinStage(token(), 'user-1', true)).toMatchObject({ kind: 'consent', consented: false });
         mockConsented.mockResolvedValue(new Map([['person-1', 'PERSON']]));
         expect(await getJoinStage(token(), 'user-1', true)).toMatchObject({ kind: 'consent', consented: true });
-        expect(mockConsented).toHaveBeenLastCalledWith(['person-1'], 'user-1');
+        expect(mockConsented).toHaveBeenLastCalledWith(['person-1']);
     });
 
     it('is spent on a fresh scan once the person has an account, for the owner too', async () => {

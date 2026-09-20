@@ -291,9 +291,10 @@ enum VoicePrintConsentSource {
 }
 
 /// A period in which a person consents to a voiceprint, as Role is a period
-/// in which a person holds a seat. The account that ticked the box is the
-/// user; it must hold the claimed Administers row for the person at the
-/// time. A withdrawal sets withdrawnAt and never deletes: Art. 7 GDPR asks
+/// in which a person holds a seat. The account that gave it is the user: for
+/// a PERSON period, an account that held an Administers row for the person
+/// at the time; for an ADMIN period, the superadmin who recorded a consent
+/// given on paper. A withdrawal sets withdrawnAt and never deletes: Art. 7 GDPR asks
 /// us to show who consented and that the consent was in force while a
 /// voiceprint was processed. A partial unique index in the migration keeps
 /// at most one open period per person. A check constraint keeps a period
@@ -972,7 +973,7 @@ model Administers {
   /// says "this account is this person", where a row without it says only
   /// "this account may edit this person" (a delegate a superadmin added).
   /// A partial unique index in the migration allows one claimed row per
-  /// person. Voiceprint consent needs the claimed row.
+  /// person. Voiceprint consent needs any row for the person, claimed or not.
   claimedAt DateTime?
 
   createdAt DateTime @default(now())

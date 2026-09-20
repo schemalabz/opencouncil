@@ -56,7 +56,7 @@ export function VoicePrintConsentControl({ personId, personName, status }: {
                     <DialogTitle>{t("title", { name: personName })}</DialogTitle>
                     <DialogDescription>
                         {!status && t("none")}
-                        {status?.source === "PERSON" && t("byPerson", { date })}
+                        {status?.source === "PERSON" && t("byPerson", { date, recorder })}
                         {status?.source === "ADMIN" && t("byAdmin", { date, recorder })}
                     </DialogDescription>
                 </DialogHeader>

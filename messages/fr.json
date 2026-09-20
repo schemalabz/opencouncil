@@ -491,7 +491,7 @@
       "buttonGiven": "Consentement vocal : oui",
       "title": "Consentement à l'empreinte vocale : {name}",
       "none": "Aucun consentement n'est en vigueur.",
-      "byPerson": "La personne a consenti depuis son propre compte, le {date}.",
+      "byPerson": "Donné dans l'application par {recorder}, le {date}.",
       "byAdmin": "Enregistré par {recorder}, le {date}. La personne ne peut pas le modifier depuis son profil.",
       "unknownAccount": "un compte supprimé",
       "recordHint": "Enregistrez-le uniquement si la personne a donné son consentement par écrit, sur un formulaire imprimé avec une signature manuscrite. La personne le verra sur son profil, mais ne pourra pas le modifier.",

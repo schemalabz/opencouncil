@@ -31,6 +31,8 @@ const PHONE_ERROR_KEYS: Record<string, string> = {
 export interface ConsentPerson {
     id: string;
     name: string;
+    /** By a QR scan: the account is this person, not an editor a superadmin added. */
+    claimed: boolean;
     /**
      * The consent in force, by who recorded it; null when none is. The person
      * revokes an ADMIN consent by email, not here.
@@ -49,6 +51,7 @@ interface UserInfoFormProps {
 export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormProps) {
     const t = useTranslations("Profile");
     const router = useRouter();
+    const claimed = persons.filter((p) => p.claimed);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState(false);
@@ -64,10 +67,10 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
 
     const [formData, setFormData] = useState({
         // A councillor who signed up through their QR has no name yet: start
-        // from the name on their council record. Only with exactly one linked
-        // person: with more, nothing says which name is the account holder's.
-        // Saved only with the form.
-        name: user.name || (persons.length === 1 ? persons[0].name : ""),
+        // from the name on their council record. Only with exactly one claimed
+        // person: with more, nothing says which name is the account holder's,
+        // and an editor's name is their own. Saved only with the form.
+        name: user.name || (claimed.length === 1 ? claimed[0].name : ""),
         phone: user.phone || "",
         allowProductUpdates: user.allowProductUpdates,
         allowPetitionUpdates: user.allowPetitionUpdates,

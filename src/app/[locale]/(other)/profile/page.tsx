@@ -21,14 +21,15 @@ export const metadata: Metadata = {
 export default async function ProfilePage() {
     const user = await getCurrentUser();
     if (!user) redirect("/sign-in");
-    // The persons this account is, by a QR claim: their voiceprint consent
-    // boxes. A person the account only edits for somebody else gets no box.
-    const linkedPersons = user.administers.flatMap((a) => (a.person && a.claimedAt ? [a.person] : []));
-    const consents = await getVoicePrintConsents(linkedPersons.map((p) => p.id), user.id);
-    const persons: ConsentPerson[] = linkedPersons.map((p) => ({
-        id: p.id,
-        name: p.name,
-        consent: consents.get(p.id) ?? null,
+    // The persons this account administers, by a QR claim or given by a
+    // superadmin: their voiceprint consent boxes.
+    const linkedPersons = user.administers.flatMap((a) => (a.person ? [{ person: a.person, claimed: a.claimedAt !== null }] : []));
+    const consents = await getVoicePrintConsents(linkedPersons.map((l) => l.person.id));
+    const persons: ConsentPerson[] = linkedPersons.map(({ person, claimed }) => ({
+        id: person.id,
+        name: person.name,
+        claimed,
+        consent: consents.get(person.id) ?? null,
     }));
     const [t, tAccount, highlightsAllowed] = await Promise.all([
         getTranslations("Profile"),

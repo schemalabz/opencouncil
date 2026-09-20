@@ -48,7 +48,7 @@ describe('claimWithToken', () => {
         mockClaimPerson.mockResolvedValue({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
         mockConsents.mockResolvedValue(new Map([['person-1', 'ADMIN']]));
         expect(await claimWithToken(generatePersonClaimToken('person-1'))).toBe('consented');
-        expect(mockConsents).toHaveBeenCalledWith(['person-1'], 'user-1');
+        expect(mockConsents).toHaveBeenCalledWith(['person-1']);
         expect(mockAlert).toHaveBeenCalledTimes(1);
 
         // A refused claim never reads the consent of somebody else's person.

@@ -57,7 +57,7 @@ export async function getJoinStage(token: string | undefined, userId: string | n
     const own = userId !== null && claimedBy === userId;
     if (!current && !(own && inFlow)) return { kind: "invalid" };
     if (own && inFlow) {
-        const consents = await getVoicePrintConsents([person.id], userId);
+        const consents = await getVoicePrintConsents([person.id]);
         return { kind: "consent", consented: consents.has(person.id), person };
     }
     if (claimedBy) return { kind: "used", signedIn: userId !== null, own, person };
