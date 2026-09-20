@@ -48,9 +48,11 @@ export async function setVoicePrintConsent(personId: string, consent: boolean): 
                 }
                 // A period open under another account is stale: that account was
                 // the person once, and this one is now. Close it, so the open
-                // period is always the current account's own.
+                // period is always the current account's own. A deleted account
+                // leaves its period with no user; to SQL, NULL is not "another
+                // user", so it is named on its own.
                 await tx.voicePrintConsent.updateMany({
-                    where: { personId, withdrawnAt: null, NOT: { userId: user.id } },
+                    where: { personId, withdrawnAt: null, OR: [{ userId: null }, { userId: { not: user.id } }] },
                     data: { withdrawnAt: new Date() },
                 });
                 const open = await tx.voicePrintConsent.findFirst({ where: { personId, withdrawnAt: null }, select: { id: true } });

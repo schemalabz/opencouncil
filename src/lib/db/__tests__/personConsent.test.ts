@@ -35,12 +35,12 @@ beforeEach(() => {
 });
 
 describe('setVoicePrintConsent', () => {
-    it('opens a period under the account that claimed the person', async () => {
+    it('opens a period under the account that claimed the person, closing one of another or a deleted account', async () => {
         mockGetCurrentUser.mockResolvedValue(claimant);
         txFindFirst.mockResolvedValue(null);
         await setVoicePrintConsent('person-1', true);
         expect(txUpdateMany).toHaveBeenCalledWith({
-            where: { personId: 'person-1', withdrawnAt: null, NOT: { userId: 'user-1' } },
+            where: { personId: 'person-1', withdrawnAt: null, OR: [{ userId: null }, { userId: { not: 'user-1' } }] },
             data: { withdrawnAt: expect.any(Date) },
         });
         expect(txCreate).toHaveBeenCalledWith({ data: { personId: 'person-1', userId: 'user-1' } });
