@@ -3,7 +3,7 @@ import { Prisma, VoicePrintConsentSource } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { serializableOnce } from "@/lib/db/serializable";
 import { getCurrentUser } from "@/lib/auth";
-import { BadRequestError, ForbiddenError, UnauthorizedError } from "@/lib/api/errors";
+import { BadRequestError, ConflictError, ForbiddenError, UnauthorizedError } from "@/lib/api/errors";
 
 const openPeriod = (personId: string) => ({ personId, withdrawnAt: null });
 const openPeriodSelect = { id: true, source: true, givenAt: true } satisfies Prisma.VoicePrintConsentSelect;
@@ -17,6 +17,17 @@ type OpenPeriod = Prisma.VoicePrintConsentGetPayload<{ select: typeof openPeriod
  * force, as asked.
  */
 const writeConsent = (work: (tx: Prisma.TransactionClient) => Promise<void>) => serializableOnce(work, () => undefined);
+
+/**
+ * A superadmin's grant must end with a recorded period, whatever it races
+ * with: a conflict means that a concurrent grant opened a period first, so
+ * one more run sees that period and replaces it. A second conflict is
+ * refused, and the dialog asks for a retry.
+ */
+const writeRecordedConsent = (work: (tx: Prisma.TransactionClient) => Promise<void>) =>
+    serializableOnce(work, () => serializableOnce(work, () => {
+        throw new ConflictError("A concurrent consent change won twice; try again");
+    }));
 
 /**
  * Close a period, never before it started. The grant and the withdrawal can
@@ -76,9 +87,10 @@ export async function setVoicePrintConsent(personId: string, consent: boolean): 
 /**
  * Record, as a superadmin, a consent that the person gave on paper, or
  * withdraw the one in force on the person's request. The person does not
- * need an account. A grant keeps a period that is in force as it is, so the
- * original time stands. A withdrawal closes the open period, whoever opened
- * it.
+ * need an account. A grant replaces a consent given in the app with the
+ * recorded one, so the box locks; a recorded one stays as it is, so the
+ * original time stands. A withdrawal closes the open period, whoever
+ * opened it.
  */
 export async function recordVoicePrintConsent(personId: string, consent: boolean): Promise<void> {
     if (typeof consent !== "boolean") throw new BadRequestError("consent must be a boolean");
@@ -86,12 +98,12 @@ export async function recordVoicePrintConsent(personId: string, consent: boolean
     if (!user) throw new UnauthorizedError("Not signed in");
     if (!user.isSuperAdmin) throw new ForbiddenError("Only a superadmin can record a voiceprint consent");
 
-    await writeConsent(async (tx) => {
+    await writeRecordedConsent(async (tx) => {
         const open = await tx.voicePrintConsent.findFirst({ where: openPeriod(personId), select: openPeriodSelect });
         if (consent) {
-            if (!open) {
-                await tx.voicePrintConsent.create({ data: { personId, userId: user.id, source: VoicePrintConsentSource.ADMIN } });
-            }
+            if (open?.source === VoicePrintConsentSource.ADMIN) return;
+            if (open) await closePeriod(tx, open);
+            await tx.voicePrintConsent.create({ data: { personId, userId: user.id, source: VoicePrintConsentSource.ADMIN } });
             return;
         }
         if (open) await closePeriod(tx, open);

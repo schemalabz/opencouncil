@@ -43,10 +43,23 @@ describe('VoicePrintConsentControl', () => {
         await waitFor(() => expect(mockedRecord).toHaveBeenCalledWith('person-1', false));
     });
 
-    it("tells a consent the person gave from one that a superadmin recorded", () => {
+    it('offers to record a paper consent over one given in the app, and to withdraw it', async () => {
+        mockedRecord.mockResolvedValue(undefined);
         control({ source: 'PERSON', userId: 'user-1', givenAt, user: { name: 'Α. Μ.', email: 'a@b.gr' } });
         fireEvent.click(screen.getByText('buttonGiven'));
-        expect(screen.getByText(/^byPerson /)).toBeTruthy();
+        expect(screen.getByText(/^byPerson .*Α\. Μ\./)).toBeTruthy();
+        expect(screen.getByText('recordHint')).toBeTruthy();
+        expect(screen.getByText('withdraw')).toBeTruthy();
+        fireEvent.click(screen.getByText('record'));
+        await waitFor(() => expect(mockedRecord).toHaveBeenCalledWith('person-1', true));
+    });
+
+    it('offers only a withdrawal for a recorded consent', () => {
+        control({ source: 'ADMIN', userId: 'admin-1', givenAt, user: null });
+        fireEvent.click(screen.getByText('buttonGiven'));
+        expect(screen.getByText(/^byAdmin .*unknownAccount/)).toBeTruthy();
+        expect(screen.getByText('withdrawHint')).toBeTruthy();
+        expect(screen.queryByText('record')).toBeNull();
     });
 
     it('stays open with an error when the save fails', async () => {

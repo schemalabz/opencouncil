@@ -160,14 +160,33 @@ describe('recordVoicePrintConsent', () => {
         expect(mockTransaction.mock.calls[0][1]).toEqual({ isolationLevel: 'Serializable' });
     });
 
-    it("keeps a period in force as it is: the person's own, or a recorded one", async () => {
+    it('keeps a recorded period as it is, so the original time stands', async () => {
         mockGetCurrentUser.mockResolvedValue(superadmin);
-        for (const source of ['PERSON', 'ADMIN'] as const) {
-            txFindFirst.mockResolvedValue(open(source));
-            await recordVoicePrintConsent('person-1', true);
-        }
+        txFindFirst.mockResolvedValue(open('ADMIN'));
+        await recordVoicePrintConsent('person-1', true);
         expect(txCreate).not.toHaveBeenCalled();
         expect(txUpdate).not.toHaveBeenCalled();
+    });
+
+    it('replaces a consent given in the app with the recorded one, so the box locks', async () => {
+        mockGetCurrentUser.mockResolvedValue(superadmin);
+        txFindFirst.mockResolvedValue(open('PERSON'));
+        await recordVoicePrintConsent('person-1', true);
+        expect(txUpdate).toHaveBeenCalledWith(closed);
+        expect(txCreate).toHaveBeenCalledWith(created('admin-1', 'ADMIN'));
+    });
+
+    it('replaces the period that a concurrent grant opened first, and refuses after a second conflict', async () => {
+        mockGetCurrentUser.mockResolvedValue(superadmin);
+        const conflict = Object.assign(new Error('unique'), { code: 'P2002' });
+        mockTransaction.mockRejectedValueOnce(conflict);
+        txFindFirst.mockResolvedValue(open('PERSON'));
+        await recordVoicePrintConsent('person-1', true);
+        expect(txUpdate).toHaveBeenCalledWith(closed);
+        expect(txCreate).toHaveBeenCalledWith(created('admin-1', 'ADMIN'));
+
+        mockTransaction.mockRejectedValueOnce(conflict).mockRejectedValueOnce(conflict);
+        await expect(recordVoicePrintConsent('person-1', true)).rejects.toThrow(/try again/);
     });
 
     it("withdraws the open period, the person's own included", async () => {
