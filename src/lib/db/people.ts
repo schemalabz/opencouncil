@@ -13,6 +13,8 @@ export type PersonWithRelations = Person & {
 // getPeopleWithVoicePrintsForCity, which checks authorization.
 export type PersonWithVoicePrints = PersonWithRelations & {
     voicePrints: VoicePrint[];
+    /** `administrators` counts the accounts that manage the person. */
+    _count: { administrators: number };
 };
 
 export async function deletePerson(id: string): Promise<void> {
@@ -174,7 +176,8 @@ export async function getPeopleWithVoicePrintsForCity(cityId: string): Promise<P
                         createdAt: 'desc'
                     },
                     take: 1 // Only get the most recent voiceprint
-                }
+                },
+                _count: { select: { administrators: true } }
             }
         });
         return people;

@@ -53,8 +53,10 @@ export default function People({ people, consents, currentCityName, administrati
             peopleWithRoles: filteredPeople.filter(person => person.roles.length > 0).length,
             peopleWithImages: filteredPeople.filter(person => person.image !== null).length,
             peopleWithVoiceprints: filteredPeople.filter(person => person.voicePrints && person.voicePrints.length > 0).length,
+            peopleWithAccounts: filteredPeople.filter(person => person._count.administrators > 0).length,
+            peopleWithVoiceprintConsent: filteredPeople.filter(person => consents[person.id]).length,
         }),
-        [filteredPeople],
+        [filteredPeople, consents],
     );
 
     // Get the cityId from the first person or use empty string as fallback
@@ -85,6 +87,8 @@ export default function People({ people, consents, currentCityName, administrati
                 peopleWithRoles={stats.peopleWithRoles}
                 peopleWithImages={stats.peopleWithImages}
                 peopleWithVoiceprints={stats.peopleWithVoiceprints}
+                peopleWithAccounts={stats.peopleWithAccounts}
+                peopleWithVoiceprintConsent={stats.peopleWithVoiceprintConsent}
             />
 
             <Card>
