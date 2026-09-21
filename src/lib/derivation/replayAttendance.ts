@@ -11,6 +11,8 @@ export interface ReplayInput {
     documents: DocumentFacts[];
     conventions: DecisionConventions | null;
     mayorPersonId: string | null;
+    /** Who holds the body's chair on the meeting's date; a per-decision list does not judge them. */
+    presidentPersonId?: string | null;
 }
 
 export interface ReplayResult {
@@ -162,6 +164,13 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
                 // §3: a per-decision member list is ΤΑ ΜΕΛΗ — it omits the mayor by
                 // construction, so their absence from it states nothing about them.
                 if (personId === mayorPersonId) continue;
+                // Nor about whoever presides: the list is of the members, and the chair is
+                // not written into it — the president in 185 of 192 documents across 13
+                // bodies, and the vice-president instead on the 48 where Zografou ΔΕ says
+                // he presided. Reading the omission as absence took them, and their vote,
+                // out of every decision they chaired. A list that does name them is still
+                // believed, and a stated departure still takes them out.
+                if ((personId === input.presidentPersonId || personId === doc.presidedById) && !statedPresent.has(personId)) continue;
                 stated.set(personId, statedPresent.has(personId) ? 'PRESENT' : 'ABSENT');
             }
             const eventHere = new Map(eventsHere.map(e => [e.personId, e]));

@@ -84,6 +84,7 @@ export async function loadDerivationInput(cityId: string, meetingId: string): Pr
     // an order of its own would put rows on subjects other than the ones printed.
     const ordered = orderedMinutesSubjects(meeting.subjects, firstUtteranceBySubject).filter(s => !s.withdrawn);
     const mayor = people.find(p => p.roles.some(r => isMayorRole(r) && isRoleActiveAt(r, meeting.dateTime)));
+    const president = people.find(p => p.roles.some(r => r.isHead && !!r.administrativeBodyId && r.administrativeBodyId === meeting.administrativeBodyId && isRoleActiveAt(r, meeting.dateTime)));
     const conventions = meeting.administrativeBody?.decisionConventions;
     const rosterPersonIds = new Set(people.map(p => p.id));
     return {
@@ -94,5 +95,6 @@ export async function loadDerivationInput(cityId: string, meetingId: string): Pr
         conventions: isDecisionConventions(conventions) ? conventions : null,
         // Excluded from the rows only where the mayor is not a member of the body (the council); on the committee they vote.
         mayorPersonId: mayor && !mayorIsMemberOf(mayor, meeting.administrativeBodyId, meeting.dateTime) ? mayor.id : null,
+        presidentPersonId: president?.id ?? null,
     };
 }

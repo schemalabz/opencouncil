@@ -53,6 +53,24 @@ describe('replayAttendance', () => {
         expect(r.issues).toEqual([]);
         expect(r.attendance.some(a => a.personId === 'mayor')).toBe(false);
     });
+    it('a per-decision list that omits whoever presides does not turn them absent', () => {
+        // ΤΑ ΜΕΛΗ lists the members; the president signs apart from it (Chalandri, Argos, Papagos ΔΣ: in the roll call, in no list).
+        const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2'), rc('pres')], conventions: conv({ statesPerDecisionAttendance: true, rollCallLayout: 'present_only' }),
+            mayorPersonId: null, presidentPersonId: 'pres', events: [], documents: [doc('s2', { presentIds: ['p1'] })] });
+        expect(present(r, 's2')).toEqual(['p1', 'pres']);                    // p2 is out by the list; the president is not judged by it
+        expect(r.issues).toEqual([expect.objectContaining({ code: 'IMPLIED_CHANGE', personId: 'p2' })]);
+    });
+    it('the member a document says presided is exempt the same way, and a president absent from the start stays absent', () => {
+        const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('vice'), rc('pres', 'ABSENT')], conventions: conv({ statesPerDecisionAttendance: true, rollCallLayout: 'present_only' }),
+            mayorPersonId: null, presidentPersonId: 'pres', events: [], documents: [doc('s2', { presentIds: ['p1'], presidedById: 'vice' })] });
+        expect(present(r, 's2')).toEqual(['p1', 'vice']);
+        expect(r.issues).toEqual([]);
+    });
+    it('a stated departure still takes the president out, list or no list', () => {
+        const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('pres')], conventions: conv({ statesPerDecisionAttendance: true, rollCallLayout: 'present_only' }),
+            mayorPersonId: null, presidentPersonId: 'pres', events: [ev({ personId: 'pres', anchorAgendaItemIndex: 2, timing: 'BEFORE' })], documents: [doc('s2', { presentIds: ['p1'] })] });
+        expect(present(r, 's2')).toEqual(['p1']);
+    });
     it('a stated list that agrees with a stated event raises nothing', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv({ statesPerDecisionAttendance: true }), mayorPersonId: null,
             events: [ev({ personId: 'p2', anchorAgendaItemIndex: 2 })], documents: [doc('s2', { presentIds: ['p1'], absentIds: ['p2'] })] });

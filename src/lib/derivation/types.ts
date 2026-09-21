@@ -70,6 +70,8 @@ export interface DerivationInput {
     documents: DocumentFacts[];
     conventions: DecisionConventions | null;
     mayorPersonId: string | null;
+    /** The head of the meeting's body on its date. */
+    presidentPersonId: string | null;
 }
 
 /**

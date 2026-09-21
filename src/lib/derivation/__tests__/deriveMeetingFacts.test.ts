@@ -2,7 +2,7 @@ import { deriveMeetingFacts } from '../deriveMeetingFacts';
 import type { DerivationInput } from '../types';
 
 const base: DerivationInput = {
-    cityId: 'c', meetingId: 'm', mayorPersonId: 'mayor',
+    cityId: 'c', meetingId: 'm', mayorPersonId: 'mayor', presidentPersonId: null,
     subjects: [{ id: 's1', name: 'one', agendaItemIndex: 1, nonAgendaReason: null, decisionNumber: '10' }, { id: 's2', name: 'two', agendaItemIndex: 2, nonAgendaReason: null, decisionNumber: '11' }],
     rollCall: [{ personId: 'p1', status: 'PRESENT', source: 'decision' }, { personId: 'p2', status: 'PRESENT', source: 'decision' }, { personId: 'mayor', status: 'ABSENT', source: 'decision' }],
     events: [],
