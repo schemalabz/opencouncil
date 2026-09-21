@@ -14,10 +14,27 @@ import { ConfirmStep, ConsentStep, EmailStep, NotMeStep, SentStep, type ConsentC
 type View = 'confirm' | 'notMe' | 'email' | 'sent' | 'consent' | 'done' | 'used' | 'invalid';
 type EmailError = 'invalid' | 'sendFailed';
 
-function initialView(stage: JoinStage): View {
+function initialView(stage: JoinStage, finished: boolean): View {
     if (stage.kind === 'confirm') return 'confirm';
-    if (stage.kind === 'consent') return stage.consented ? 'done' : 'consent';
+    if (stage.kind === 'consent') return finished || stage.consented ? 'done' : 'consent';
     return stage.kind;
+}
+
+/** Whether the done screen invites this reader to the city's notifications. */
+function offerOf(stage: JoinStage): boolean {
+    if (stage.kind === 'consent') return stage.offerNotifications;
+    if (stage.kind === 'confirm' && stage.signedIn) return stage.offerNotifications;
+    return false;
+}
+
+/**
+ * Mark the tab's place in the flow, so a reload and a Back both land where
+ * the reader left off rather than on a fresh scan of a code that is now spent.
+ */
+function markStep(step: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('step', step);
+    window.history.replaceState(window.history.state, '', url);
 }
 
 /**
@@ -27,10 +44,21 @@ function initialView(stage: JoinStage): View {
  * only walks forward from there. It keeps nothing the server could not
  * rebuild, so a reload or a second device never strands anybody.
  */
-export function PersonJoin({ token, stage, totalSteps }: { token: string; stage: JoinStage; totalSteps: 2 | 3 }) {
+export function PersonJoin({
+    token,
+    stage,
+    totalSteps,
+    finished = false,
+}: {
+    token: string;
+    stage: JoinStage;
+    totalSteps: 2 | 3;
+    /** The flow already finished in this tab, and the reader came back to it. */
+    finished?: boolean;
+}) {
     const t = useTranslations('personJoin');
     const ts = useTranslations('signup');
-    const [view, setView] = useState<View>(() => initialView(stage));
+    const [view, setView] = useState<View>(() => initialView(stage, finished));
     // A session that ended between the page and the button turns a two-step
     // flow into a three-step one.
     const [total, setTotal] = useState(totalSteps);
@@ -44,6 +72,7 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
     const [consentError, setConsentError] = useState(false);
 
     const person = stage.kind === 'invalid' ? null : stage.person;
+    const offerNotifications = offerOf(stage);
     const failureLabels = {
         issuesButton: t('failure.issuesButton'),
         issuesLine: t('failure.issuesLine'),
@@ -58,6 +87,9 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
 
     const go = (next: View) => {
         setFailures(0);
+        // The done screen sends readers on, to the notification signup among
+        // other places; a Back from there must not re-ask the consent.
+        if (next === 'done') markStep('done');
         setView(next);
         window.scrollTo({ top: 0 });
     };
@@ -66,7 +98,7 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
     if (view === 'used') {
         return <JoinProblem kind="used" signedIn={signedIn} own={stage.kind === 'used' && stage.own} person={person} />;
     }
-    if (view === 'done') return <JoinLayout><JoinComplete person={person} /></JoinLayout>;
+    if (view === 'done') return <JoinLayout><JoinComplete person={person} offerNotifications={offerNotifications} /></JoinLayout>;
 
     async function confirm() {
         setConfirmError(false);
@@ -77,9 +109,7 @@ export function PersonJoin({ token, stage, totalSteps }: { token: string; stage:
             captureEvent('person_join_claimed', { city_id: cityId, status });
             if (status === 'linked' || status === 'already_yours' || status === 'consented') {
                 // Mark the tab as inside the flow, so a reload stays on the consent.
-                const url = new URL(window.location.href);
-                url.searchParams.set('step', '2');
-                window.history.replaceState(window.history.state, '', url);
+                markStep('2');
                 // A consent already in force, the person's own or one that
                 // OpenCouncil recorded, leaves no question to ask.
                 go(status === 'consented' ? 'done' : 'consent');

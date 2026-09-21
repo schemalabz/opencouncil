@@ -56,7 +56,11 @@
     "title": "Tout est prêt",
     "lead": "Votre compte est maintenant lié à votre page sur OpenCouncil.",
     "page": "Voir votre page",
-    "profile": "Mon profil"
+    "profile": "Mon profil",
+    "notifyEyebrow": "Notifications",
+    "notifyTitle": "Souhaitez-vous recevoir des notifications ?",
+    "notifyBody": "Notis, l'assistant d'OpenCouncil, suit les séances et vous écrit sur WhatsApp ou par e-mail lorsque quelque chose vous concerne. Il n'écrit que lorsque c'est nécessaire. Vous pouvez arrêter quand vous voulez.",
+    "notifyCta": "Je veux être informé"
   },
   "problem": {
     "invalidTitle": "Ce code QR ne fonctionne pas",
