@@ -42,11 +42,23 @@ export async function getAdministrativeBodiesWithPublicMeetings(cityId: string):
     }
 }
 
-export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt'>): Promise<AdministrativeBody> {
+/**
+ * A Server Action payload is whatever the client sends, whatever the parameter
+ * type says. The conventions column has its own writers, which parse the record
+ * and stamp who confirmed it (administrativeBodiesInternal), so the body writers
+ * below drop it rather than write it.
+ */
+function withoutConventions<T extends object>(data: T): Omit<T, 'decisionConventions'> {
+    const copy = { ...data } as Record<string, unknown>;
+    delete copy.decisionConventions;
+    return copy as Omit<T, 'decisionConventions'>;
+}
+
+export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt' | 'decisionConventions'>): Promise<AdministrativeBody> {
     await withUserAuthorizedToEdit({ cityId: bodyData.cityId });
     try {
         const newBody = await prisma.administrativeBody.create({
-            data: bodyData,
+            data: withoutConventions(bodyData),
         });
         return newBody;
     } catch (error) {
@@ -57,7 +69,7 @@ export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody
 
 export async function editAdministrativeBody(
     id: string,
-    bodyData: Partial<Omit<AdministrativeBody, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>
+    bodyData: Partial<Omit<AdministrativeBody, 'id' | 'cityId' | 'createdAt' | 'updatedAt' | 'decisionConventions'>>
 ): Promise<AdministrativeBody> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
@@ -69,7 +81,7 @@ export async function editAdministrativeBody(
     try {
         const updatedBody = await prisma.administrativeBody.update({
             where: { id },
-            data: bodyData,
+            data: withoutConventions(bodyData),
         });
         return updatedBody;
     } catch (error) {
