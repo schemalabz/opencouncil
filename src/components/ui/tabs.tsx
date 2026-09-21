@@ -38,8 +38,14 @@ export function Tabs(props: {
    * Called when the user selects a different tab.
    */
   onValueChange?: (value: string) => void;
+  /**
+   * The tabs that exist (URL mode only). A search param naming any other
+   * value selects the default tab instead of none: a stale bookmark or a
+   * renamed tab must not leave the page with no content.
+   */
+  values?: readonly string[];
 }) {
-  const { children, className, searchParam = "tab", local, onValueChange, ...other } = props;
+  const { children, className, searchParam = "tab", local, onValueChange, values, ...other } = props;
 
   // Local (in-memory) state
   const [localSelected, setLocalSelected] = React.useState(props.defaultValue);
@@ -48,9 +54,12 @@ export function Tabs(props: {
   const searchParams = useSearchParams()!;
   const pathname = usePathname();
 
+  const requested = searchParams.get(searchParam);
   const selected = local
     ? localSelected
-    : searchParams.get(searchParam) || props.defaultValue;
+    : requested && (!values || values.includes(requested))
+      ? requested
+      : props.defaultValue;
 
   const buildHref = React.useCallback(
     (value: string) => {
