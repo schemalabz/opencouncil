@@ -5,7 +5,7 @@ import { MapPin, Landmark, Search } from 'lucide-react';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import { Eyebrow } from './shared';
-import { FilterPill } from './conceptShared';
+import { TopicFilterPill } from '@/components/TopicPill';
 import { TopicIcon } from '@/components/TopicIcon';
 import { type LandingListCity } from '@/lib/landing/landingData';
 import { BODY_TYPES, EMPTY_FILTERS, toggleValue, type MapFilters } from '@/lib/landing/landingCore';
@@ -216,11 +216,9 @@ export function SearchBody({
                     </button>
                 )}
             </div>
-            {/* the same pills the map's category row draws, so both surfaces mark the same
-                selection the same way */}
             <div className="mt-2.5 flex flex-wrap gap-2">
                 {topics.map((topic) => (
-                    <FilterPill
+                    <TopicFilterPill
                         key={topic.id}
                         active={cats.includes(topic.id)}
                         color={topic.colorHex}
@@ -228,7 +226,7 @@ export function SearchBody({
                         onClick={() => onToggleCat(topic.id)}
                     >
                         {topic.name}
-                    </FilterPill>
+                    </TopicFilterPill>
                 ))}
             </div>
 

@@ -5,8 +5,7 @@ import { useTranslations } from "next-intl";
 import { ChevronDown, Landmark, MapPin, User, Users, X, Sparkles } from "lucide-react";
 import { cn, getPartyFromRoles } from "@/lib/utils";
 import { getLocalizedName, getLocalizedShortName } from "@/lib/formatters/name";
-import Icon from "@/components/icon";
-import { topicStyle } from "@/lib/topicStyle";
+import { TopicFilterPill } from "@/components/TopicPill";
 import { Eyebrow } from "@/components/landing/v2/shared";
 import { Command, CommandEmpty, CommandGroup, CommandList } from "@/components/ui/command";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
@@ -301,8 +300,8 @@ export default function SearchFilterSections({
                 )}
             </div>
 
-            {/* Type — always-visible wrapped pills, same look as the landing page's category filter
-                (topicStyle soft/solid) rather than another accordion: with ~15 topics it stays compact. */}
+            {/* Type — always-visible wrapped pills, the landing page's own category pill rather
+                than another accordion: with ~15 topics it stays compact. */}
             <div className="mt-5 border-t border-border pt-4">
                 <div className="flex items-center justify-between">
                     <Eyebrow>{t("type")}</Eyebrow>
@@ -326,25 +325,22 @@ export default function SearchFilterSections({
                     ) : (
                         topics.map(topic => {
                             const active = selectedTopicIds.includes(topic.id);
-                            const s = topicStyle(topic.colorHex, active ? "solid" : "soft");
                             return (
-                                <button
+                                <TopicFilterPill
                                     key={topic.id}
-                                    type="button"
+                                    active={active}
+                                    color={topic.colorHex}
+                                    icon={topic.icon}
                                     disabled={disabled}
-                                    aria-pressed={active}
                                     onClick={() => {
                                         const next = active
                                             ? selectedTopicIds.filter(id => id !== topic.id)
                                             : [...selectedTopicIds, topic.id];
                                         setFilters({ topicIds: next.length > 0 ? next.join(",") : undefined });
                                     }}
-                                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                                    style={{ backgroundColor: s.background, borderColor: s.border, color: s.icon }}
                                 >
-                                    <Icon name={topic.icon || "hash"} color={s.icon} size={14} />
                                     {getLocalizedName(topic, locale)}
-                                </button>
+                                </TopicFilterPill>
                             );
                         })
                     )}

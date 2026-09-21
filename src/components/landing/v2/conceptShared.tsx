@@ -5,31 +5,10 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
-import Icon from '@/components/icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { captureLandingAction } from '@/lib/landing/analytics';
-import { type SubjectTopic } from '@/lib/landing/landingData';
-import { topicStyle } from '@/lib/topicStyle';
+import { TopicFilterPill } from '@/components/TopicPill';
 
-
-/* topic chip (icon + name in the topic's accent color); `iconOnly` drops the label */
-export function TopicChip({ topic, small, iconOnly }: { topic: SubjectTopic; small?: boolean; iconOnly?: boolean }) {
-    const style = topicStyle(topic.color);
-    return (
-        <span
-            className={cn(
-                'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border font-bold',
-                iconOnly
-                    ? (small ? 'p-1' : 'p-1.5')
-                    : (small ? 'px-2 py-1 text-[11px]' : 'px-2.5 py-1 text-xs'),
-            )}
-            style={{ color: style.icon, backgroundColor: style.background, borderColor: style.border }}
-        >
-            <Icon name={topic.icon || 'hash'} color={style.icon} size={small ? 12 : 14} />
-            {!iconOnly && topic.name}
-        </span>
-    );
-}
 
 /* "Πρόσφατα πολυσυζητημένα" — names the subject list's ordering and explains it on demand.
    A Popover rather than a tooltip so the ⓘ works on tap (mobile) as well as hover-less desktops.
@@ -197,11 +176,11 @@ export function FilterBar({
     const t = useTranslations('landingV2');
     return (
         <div className="flex w-max items-center gap-2">
-            <FilterPill active={selected.length === 0} onClick={onClear}>
+            <TopicFilterPill active={selected.length === 0} onClick={onClear}>
                 {t('filters.all')}
-            </FilterPill>
+            </TopicFilterPill>
             {topics.map((topic) => (
-                <FilterPill
+                <TopicFilterPill
                     key={topic.id}
                     active={selected.includes(topic.id)}
                     color={topic.colorHex}
@@ -209,66 +188,9 @@ export function FilterBar({
                     onClick={() => onToggle(topic.id)}
                 >
                     {topic.name}
-                </FilterPill>
+                </TopicFilterPill>
             ))}
         </div>
-    );
-}
-
-/**
- * One category in the landing's topic filters — the row over the map and the search panel's grid.
- *
- * An idle pill carries its topic as ink only. It used to carry the topic as a wash *and* as a
- * full-strength ring, which made all fifteen look picked; the real selection — the same hue, now
- * filled — was then the quietest difference in the row. A picked pill takes the fill and a ring in
- * the foreground colour, the near-black the "Όλα" pill already fills with, so exactly one pill in
- * the row is marked. The ring is what marks the pale topics: Τουρισμός filled clears 1.53:1
- * against the idle pill beside it, which is under the 3:1 a difference in fill alone must clear.
- */
-export function FilterPill({
-    active,
-    onClick,
-    color,
-    icon,
-    children,
-}: {
-    active: boolean;
-    onClick: () => void;
-    /** topic accent — the ink when idle, the fill when picked. Omit for the neutral "Όλα" pill. */
-    color?: string;
-    /** the topic's lucide glyph; a topic pill without one falls back to `hash` */
-    icon?: string | null;
-    children: React.ReactNode;
-}) {
-    const style = color ? topicStyle(color, active ? 'solid' : 'soft') : null;
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            aria-pressed={active}
-            style={
-                style
-                    ? active
-                        ? { backgroundColor: style.background, borderColor: style.border, color: style.icon }
-                        // The wash the idle pill keeps for its hover, as a variable: an inline
-                        // `backgroundColor` would outrank the hover class.
-                        : ({ color: style.icon, '--pill-wash': style.background } as React.CSSProperties)
-                    : undefined
-            }
-            className={cn(
-                'inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[13px] font-bold transition-colors',
-                color
-                    ? active
-                        ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background'
-                        : 'border-border bg-background hover:bg-[var(--pill-wash)]'
-                    : active
-                      ? 'border-foreground bg-foreground text-background'
-                      : 'border-border bg-background text-muted-foreground hover:border-foreground/30',
-            )}
-        >
-            {color && <Icon name={icon || 'hash'} color="currentColor" size={14} />}
-            {children}
-        </button>
     );
 }
 
