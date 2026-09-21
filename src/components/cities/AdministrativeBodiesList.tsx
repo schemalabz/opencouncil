@@ -26,7 +26,7 @@ import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 import DecisionConventionsFields from './DecisionConventionsFields'
 import { decisionConventionsSchema, isDecisionConventions, type DecisionConventions } from '@/lib/decisionConventions'
-import { profileBodyConventions } from '@/lib/tasks/profileBody'
+import { profileBodyConventions } from '@/lib/actions/administrativeBodies'
 
 const formSchema = z.object({
     name: z.string().min(2, {

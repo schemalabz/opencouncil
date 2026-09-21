@@ -415,6 +415,19 @@ export function isMayorRole(role: { isHead: boolean; cityId?: string | null; par
 }
 
 /**
+ * The mayor sits on this body and votes like a member (they preside over the
+ * Δημοτική Επιτροπή); on the council they only attend. Per-subject attendance and
+ * vote rows leave the mayor out only where this is false.
+ */
+export function mayorIsMemberOf(
+  mayor: { roles: Array<{ administrativeBodyId?: string | null; startDate: Date | null; endDate: Date | null }> },
+  administrativeBodyId: string | null | undefined,
+  date: Date,
+): boolean {
+  return !!administrativeBodyId && mayor.roles.some(r => r.administrativeBodyId === administrativeBodyId && isRoleActiveAt(r, date));
+}
+
+/**
  * The title to print under a council member's name: the city-level role
  * (Δήμαρχος, Αντιδήμαρχος …) when there is one, else the council role
  * (Πρόεδρος …). Plain members have neither. Pass active roles only.

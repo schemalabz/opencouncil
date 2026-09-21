@@ -1,9 +1,14 @@
 "use server";
 
-import { PollDecisionsRequest, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData } from "../apiTypes";
+import { PollDecisionsRequest, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData, PollDecisionsAttendanceEvent } from "../apiTypes";
+import { anchorKindOf, ANCHOR_PHASE, ANCHOR_TIMING } from "./attendanceEventAnchors";
+import { isDecisionConventions } from "../decisionConventions";
+import { renderConventionsText, conventionsGlossaryEn } from "../decisionConventionsText";
+import { storeDecisionFacts } from "../db/decisionFacts";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
-import { AttendanceStatus, DataSource, VoteType, Prisma } from "@prisma/client";
+import { AttendanceStatus, DataSource, VoteType, Prisma, AttendanceEventKind, AttendanceAnchorKind, NonAgendaReason } from "@prisma/client";
+
 import { sortSubjectsByDiscussionOrder } from "../minutes/builders";
 
 import { upsertDecision, deleteDecision, getDecisionForSubject, DECISION_ELIGIBLE_SUBJECT_WHERE } from "../db/decisions";
@@ -70,6 +75,7 @@ export async function pollDecisionsForMeeting(
                     id: true,
                     name: true,
                     diavgeiaUnitIds: true,
+                    decisionConventions: true,
                 },
             },
             subjects: {
@@ -149,6 +155,12 @@ export async function pollDecisionsForMeeting(
         select: { ada: true, meetingDate: true, readStatus: true },
     });
 
+    // The extractor is told the body's conventions as sentences; the glossary lives in messages/en/admin.json.
+    const conventionsValue = councilMeeting.administrativeBody?.decisionConventions;
+    const conventionsText = isDecisionConventions(conventionsValue)
+        ? renderConventionsText(conventionsValue, conventionsGlossaryEn)
+        : null;
+
     const body: Omit<PollDecisionsRequest, 'callbackUrl'> = {
         // City-local: documents print local dates, and the partition compares
         // against this value. The UTC date is the previous day for meetings
@@ -159,6 +171,7 @@ export async function pollDecisionsForMeeting(
             ? councilMeeting.administrativeBody.diavgeiaUnitIds
             : undefined,
         administrativeBodyName: councilMeeting.administrativeBody?.name ?? null,
+        conventionsText: conventionsText ?? undefined,
         mayorId: mayorPerson?.id,
         forceExtract: options?.forceExtract || undefined,
         people: peopleForRequest,
@@ -178,7 +191,9 @@ export async function pollDecisionsForMeeting(
                     ada: s.decision.ada,
                     decisionTitle: s.decision.title ?? '',
                     pdfUrl: s.decision.pdfUrl,
-                    needsExtraction: !s.decision.excerpt, // linked but no extraction data
+                    // Linked but not yet extracted — or a forced run, which must reprocess
+                    // every linked document, not only the ones still missing an excerpt.
+                    needsExtraction: !s.decision.excerpt || !!options?.forceExtract,
                 },
             } : {}),
         })),
@@ -741,11 +756,8 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     let processedCount = 0;
     let conflictCount = 0;
 
-    // Collect all subjectIds from matches and non-decision attendance for validation
-    const allSubjectIds = [
-        ...result.matches.map(m => m.subjectId),
-        ...(result.extractions?.nonDecisionSubjectAttendance?.map(a => a.subjectId) ?? []),
-    ];
+    // Collect all subjectIds from matches for validation
+    const allSubjectIds = result.matches.map(m => m.subjectId);
 
     const validSubjectIds = await prisma.subject.findMany({
         where: {
@@ -984,7 +996,7 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                     // match may have been wrong (ADA conflict), so this data is unreliable.
                     const existingDecision = await tx.decision.findFirst({
                         where: { subjectId: decision.subjectId },
-                        select: { subjectId: true, title: true, protocolNumber: true, publishDate: true },
+                        select: { id: true, subjectId: true, title: true, protocolNumber: true, publishDate: true },
                     });
                     if (!existingDecision) {
                         console.log(`Skipping extraction for subject ${decision.subjectId} — no linked Decision`);
@@ -1013,56 +1025,8 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                         },
                     });
 
-                    // 2. Create SubjectAttendance records (deduplicate by personId)
-                    const attendanceByPerson = new Map<string, AttendanceStatus>(
-                        [
-                            ...decision.presentMemberIds.map(id => [id, 'PRESENT' as const] as const),
-                            ...decision.absentMemberIds.map(id => [id, 'ABSENT' as const] as const),
-                        ]
-                    );
-
-                    // Include mayor attendance if extracted from decision narrative
-                    if (decision.mayorPresent != null && mayorId) {
-                        attendanceByPerson.set(mayorId, decision.mayorPresent ? 'PRESENT' : 'ABSENT');
-                    }
-
-                    if (attendanceByPerson.size > 0) {
-                        await tx.subjectAttendance.deleteMany({
-                            where: { subjectId: decision.subjectId, source: DataSource.decision },
-                        });
-                        await tx.subjectAttendance.createMany({
-                            data: [...attendanceByPerson].map(([personId, status]) => ({
-                                subjectId: decision.subjectId,
-                                personId,
-                                status,
-                                source: DataSource.decision,
-                                taskId,
-                            })),
-                        });
-                    }
-
-                    // 3. Create SubjectVote records (deduplicate by personId)
-                    // Vote inference (unanimous, majority) is handled by the backend —
-                    // voteDetails already includes inferred FOR votes.
-                    const voteByPerson = new Map<string, VoteType>();
-                    for (const d of decision.voteDetails) {
-                        voteByPerson.set(d.personId, d.vote);
-                    }
-
-                    if (voteByPerson.size > 0) {
-                        await tx.subjectVote.deleteMany({
-                            where: { subjectId: decision.subjectId, source: DataSource.decision },
-                        });
-                        await tx.subjectVote.createMany({
-                            data: [...voteByPerson].map(([personId, voteType]) => ({
-                                subjectId: decision.subjectId,
-                                personId,
-                                voteType,
-                                source: DataSource.decision,
-                                taskId,
-                            })),
-                        });
-                    }
+                    // 1b. Keep what the document states, as read, beside the derived rows.
+                    await storeDecisionFacts(tx, existingDecision.id, decision, { taskId, extractorVersion: task.version != null ? String(task.version) : null });
 
                     // TODO: Re-enable once the codebase stops using `agendaItemIndex !== null`
                     // as a proxy for "is a regular agenda item". Currently, most display
@@ -1132,55 +1096,49 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             }
         }
 
-        // --- Store SubjectAttendance for subjects without decisions ---
-        // These subjects have no PDF but their effective attendance was computed
-        // using the complete discussion order and aggregated attendance changes.
-        if (result.extractions.nonDecisionSubjectAttendance && result.extractions.nonDecisionSubjectAttendance.length > 0) {
-            let storedCount = 0;
-            for (const subjectAttendance of result.extractions.nonDecisionSubjectAttendance) {
-                if (!validSubjectIdSet.has(subjectAttendance.subjectId)) {
-                    console.warn(`Poll decisions: skipping invalid subjectId ${subjectAttendance.subjectId} in nonDecisionSubjectAttendance for task ${taskId}`);
-                    continue;
+        // --- Store the session's attendance events as the documents state them ---
+        if (result.extractions.attendanceEvents) {
+            try {
+                const cityId = task.cityId!;
+                const meetingId = task.councilMeetingId!;
+                const validPersonIds = new Set((await prisma.person.findMany({ where: { cityId }, select: { id: true } })).map(p => p.id));
+                const resolved = result.extractions.attendanceEvents
+                    .filter(e => e.personId && validPersonIds.has(e.personId))
+                    .map(e => ({ e, anchorKind: anchorKindOf(e) }));
+                // One event with an anchor kind we do not know must not cost the
+                // meeting its whole set: it is skipped, loudly, and the rest store.
+                for (const { e, anchorKind } of resolved) {
+                    if (!anchorKind) console.warn(`Skipping attendance event with unknown anchor kind «${e.anchor.kind}»: ${e.rawText}`);
                 }
-                if (subjectAttendance.presentMemberIds.length === 0 && subjectAttendance.absentMemberIds.length === 0) continue;
-
-                try {
-                    await prisma.$transaction(async (tx) => {
-                        const attendanceByPerson = new Map<string, AttendanceStatus>(
-                            [
-                                ...subjectAttendance.presentMemberIds.map(id => [id, 'PRESENT' as const] as const),
-                                ...subjectAttendance.absentMemberIds.map(id => [id, 'ABSENT' as const] as const),
-                            ]
-                        );
-
-                        // Include mayor attendance if known
-                        if (mayorId && result.extractions!.initialAttendance) {
-                            const mayorInitial = result.extractions!.initialAttendance.find(a => a.personId === mayorId);
-                            if (mayorInitial && !attendanceByPerson.has(mayorId)) {
-                                attendanceByPerson.set(mayorId, mayorInitial.status);
-                            }
-                        }
-
-                        await tx.subjectAttendance.deleteMany({
-                            where: { subjectId: subjectAttendance.subjectId, source: DataSource.decision },
-                        });
-                        await tx.subjectAttendance.createMany({
-                            data: [...attendanceByPerson].map(([personId, status]) => ({
-                                subjectId: subjectAttendance.subjectId,
-                                personId,
-                                status,
+                const events = resolved.filter((r): r is { e: PollDecisionsAttendanceEvent; anchorKind: AttendanceAnchorKind } => r.anchorKind !== null);
+                await prisma.$transaction(async (tx) => {
+                    await tx.attendanceEvent.deleteMany({ where: { cityId, councilMeetingId: meetingId, source: DataSource.decision } });
+                    if (events.length > 0) {
+                        await tx.attendanceEvent.createMany({
+                            data: events.map(({ e, anchorKind }) => ({
+                                cityId,
+                                councilMeetingId: meetingId,
+                                personId: e.personId!,
+                                kind: e.type === 'arrival' ? AttendanceEventKind.ARRIVAL : AttendanceEventKind.DEPARTURE,
+                                anchorKind,
+                                anchorAgendaItemIndex: e.anchor.agendaItemIndex,
+                                anchorNonAgendaReason: e.anchor.nonAgendaReason === 'outOfAgenda' ? NonAgendaReason.outOfAgenda : null,
+                                anchorDecisionNumber: e.anchor.decisionNumber,
+                                anchorSubjectId: e.anchor.subjectId ?? null,
+                                anchorPhase: e.anchor.phase ? ANCHOR_PHASE[e.anchor.phase] ?? null : null,
+                                timing: e.anchor.timing ? ANCHOR_TIMING[e.anchor.timing] : null,
+                                rawText: e.rawText,
+                                reportingDocuments: e.reportingPdfCount,
+                                totalDocuments: e.totalPdfCount,
                                 source: DataSource.decision,
                                 taskId,
                             })),
                         });
-                    });
-                    storedCount++;
-                } catch (error) {
-                    console.error(`Failed to store attendance for subject ${subjectAttendance.subjectId}:`, error);
-                }
-            }
-            if (storedCount > 0) {
-                console.log(`Stored effective attendance for ${storedCount} non-decision subjects`);
+                    }
+                });
+                console.log(`Stored ${events.length} attendance events (${result.extractions.attendanceEvents.length - events.length} dropped: unknown person or anchor kind)`);
+            } catch (error) {
+                console.error('Failed to store attendance events:', error);
             }
         }
 
