@@ -40,6 +40,8 @@ type ComboboxProps<T> = {
     }>;
     
     // Optional props
+    /** Forwarded to the default trigger, so a `<Label htmlFor>` can target it. */
+    id?: string;
     className?: string;
     disabled?: boolean;
     loading?: boolean;
@@ -59,6 +61,7 @@ export default function Combobox<T>({
     ItemComponent,
     groups,
     TriggerComponent,
+    id,
     className,
     disabled = false,
     loading = false,
@@ -89,14 +92,19 @@ export default function Combobox<T>({
         </div>
     );
 
+    // The default trigger's clear control is a sibling of the trigger, never a
+    // child: a <button> inside a <button> is invalid DOM nesting, which React
+    // rejects when it hydrates a trigger that already holds a value. The label
+    // reserves the room the overlaid control takes.
+    const showClear = Boolean(value && clearable);
+
     // Default trigger component
-    const DefaultTriggerComponent = ({ item, placeholder, isOpen, onClear }: {
+    const DefaultTriggerComponent = ({ item, placeholder }: {
         item: T | null;
         placeholder: string;
-        isOpen: boolean;
-        onClear?: () => void;
     }) => (
         <Button
+            id={id}
             variant={variant === 'minimal' ? 'ghost' : 'outline'}
             role="combobox"
             aria-expanded={open}
@@ -107,25 +115,10 @@ export default function Combobox<T>({
             )}
             disabled={disabled || loading}
         >
-            <span className="truncate">
+            <span className={cn("truncate", showClear && "pr-7")}>
                 {item ? getItemLabel(item) : placeholder}
             </span>
-            <div className="flex items-center gap-2">
-                {item && clearable && onClear && (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 rounded-full"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onClear();
-                        }}
-                    >
-                        <X className="h-3 w-3" />
-                    </Button>
-                )}
-                <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-            </div>
+            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
     );
 
@@ -218,7 +211,7 @@ export default function Combobox<T>({
     const trigger = (
         <div
             onClick={() => !disabled && !loading && setOpen(true)}
-            className={disabled ? "pointer-events-none" : undefined}
+            className={cn("relative", disabled && "pointer-events-none")}
         >
             {TriggerComponent ? (
                 <TriggerComponent
@@ -231,9 +224,28 @@ export default function Combobox<T>({
                 <DefaultTriggerComponent
                     item={value}
                     placeholder={placeholder}
-                    isOpen={open}
-                    onClear={clearable ? () => onChange(null) : undefined}
                 />
+            )}
+            {/* A custom trigger receives `onClear` and places its own control. */}
+            {!TriggerComponent && showClear && (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Clear selection"
+                    className={cn(
+                        "absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full",
+                        // Clear of the chevron, which sits inside the trigger's
+                        // own right padding (px-4 by default, px-2 when minimal).
+                        variant === 'minimal' ? "right-7" : "right-9"
+                    )}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onChange(null);
+                    }}
+                >
+                    <X className="h-3 w-3" />
+                </Button>
             )}
         </div>
     );

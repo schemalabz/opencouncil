@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CityCombobox } from '@/components/cities/CityCombobox';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
@@ -152,20 +152,17 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Δήμος</FormLabel>
-                                <Select onValueChange={(v) => handleCityChange(v, field.onChange)} value={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Επιλέξτε δήμο" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {cities.map(city => (
-                                            <SelectItem key={city.id} value={city.id}>
-                                                {city.name_municipality}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <FormControl>
+                                    <CityCombobox
+                                        cities={cities}
+                                        value={field.value || null}
+                                        onChange={(cityId) => handleCityChange(cityId, field.onChange)}
+                                        getLabel={city => city.name_municipality}
+                                        placeholder="Επιλέξτε δήμο"
+                                        searchPlaceholder="Αναζήτηση δήμου..."
+                                        emptyMessage="Δεν βρέθηκε δήμος."
+                                    />
+                                </FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}

@@ -1,4 +1,4 @@
-import { Users, ImageIcon, Award, Volume2 } from "lucide-react";
+import { Users, ImageIcon, Award, Volume2, UserCog, ShieldCheck } from "lucide-react";
 import { StatsCard, StatsCardItem } from "@/components/ui/stats-card";
 
 interface PeopleStatsProps {
@@ -6,6 +6,8 @@ interface PeopleStatsProps {
     peopleWithRoles: number;
     peopleWithImages: number;
     peopleWithVoiceprints: number;
+    peopleWithAccounts: number;
+    peopleWithVoiceprintConsent: number;
 }
 
 export function PeopleStats({
@@ -13,7 +15,11 @@ export function PeopleStats({
     peopleWithRoles,
     peopleWithImages,
     peopleWithVoiceprints,
+    peopleWithAccounts,
+    peopleWithVoiceprintConsent,
 }: PeopleStatsProps) {
+    const percentOfTotal = (value: number) => (totalPeople ? Math.round((value / totalPeople) * 100) : 0);
+
     const statsItems: StatsCardItem[] = [
         {
             title: "Total People",
@@ -24,25 +30,39 @@ export function PeopleStats({
         {
             title: "With Roles",
             value: peopleWithRoles,
-            percent: totalPeople ? Math.round((peopleWithRoles / totalPeople) * 100) : 0,
+            percent: percentOfTotal(peopleWithRoles),
             icon: <Award className='h-5 w-5' />,
             description: "People with assigned roles",
         },
         {
             title: "With Profile Images",
             value: peopleWithImages,
-            percent: totalPeople ? Math.round((peopleWithImages / totalPeople) * 100) : 0,
+            percent: percentOfTotal(peopleWithImages),
             icon: <ImageIcon className='h-5 w-5' />,
             description: "People with uploaded profile images",
         },
         {
             title: "With Voiceprints",
             value: peopleWithVoiceprints,
-            percent: totalPeople ? Math.round((peopleWithVoiceprints / totalPeople) * 100) : 0,
+            percent: percentOfTotal(peopleWithVoiceprints),
             icon: <Volume2 className='h-5 w-5' />,
             description: "People with generated voiceprints",
         },
+        {
+            title: "With Accounts",
+            value: peopleWithAccounts,
+            percent: percentOfTotal(peopleWithAccounts),
+            icon: <UserCog className='h-5 w-5' />,
+            description: "People an account manages",
+        },
+        {
+            title: "With Voiceprint Consent",
+            value: peopleWithVoiceprintConsent,
+            percent: percentOfTotal(peopleWithVoiceprintConsent),
+            icon: <ShieldCheck className='h-5 w-5' />,
+            description: "People whose voiceprint consent is in force",
+        },
     ];
 
-    return <StatsCard items={statsItems} columns={4} />;
+    return <StatsCard items={statsItems} columns={6} />;
 }

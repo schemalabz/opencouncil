@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CityCombobox } from '@/components/cities/CityCombobox';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Bell, Filter, Loader2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -232,22 +233,12 @@ export default function AdminNotificationsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label className="text-sm font-medium mb-2 block">City</label>
-                            <Select
-                                value={filters.cityId}
-                                onValueChange={(value) => setFilters({ ...filters, cityId: value })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="All cities" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All cities</SelectItem>
-                                    {cities.map((city) => (
-                                        <SelectItem key={city.id} value={city.id}>
-                                            {city.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <CityCombobox
+                                cities={cities}
+                                value={filters.cityId === 'all' ? null : filters.cityId}
+                                onChange={(cityId) => setFilters({ ...filters, cityId: cityId ?? 'all' })}
+                                nullOption="All cities"
+                            />
                         </div>
 
                         <div>

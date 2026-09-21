@@ -1,8 +1,8 @@
 "use client";
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { City } from "@prisma/client";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { CityCombobox } from "@/components/cities/CityCombobox";
 
 interface CitySelectorProps {
     cities: City[];
@@ -26,17 +26,11 @@ export default function CitySelector({ cities, selectedCityId }: CitySelectorPro
     };
 
     return (
-        <Select value={selectedCityId} onValueChange={handleCityChange}>
-            <SelectTrigger>
-                <SelectValue placeholder='Select a city' />
-            </SelectTrigger>
-            <SelectContent>
-                {cities.map(city => (
-                    <SelectItem key={city.id} value={city.id}>
-                        {city.name}
-                    </SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
+        <CityCombobox
+            cities={cities}
+            value={selectedCityId || null}
+            onChange={handleCityChange}
+            placeholder="Select a city"
+        />
     );
 }

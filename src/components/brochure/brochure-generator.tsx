@@ -1,18 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { CityCombobox } from "@/components/cities/CityCombobox";
 import { FileDown, Loader2 } from "lucide-react";
 import { usePdfDownload } from "@/hooks/use-pdf-download";
 import type { BrochureCity, BrochureData } from "./brochure-pdf";
-
-const GENERIC = "generic";
 
 /**
  * City picker + download button for the trifold brochure. The generic
@@ -35,8 +27,13 @@ export function BrochureGenerator({
     contactEmail: string;
     contactPhone: string;
 }) {
-    const [cityId, setCityId] = useState<string>(GENERIC);
+    // null picks the generic variant.
+    const [cityId, setCityId] = useState<string | null>(null);
     const { busy, download } = usePdfDownload();
+    const options = useMemo(
+        () => cities.map(city => ({ id: city.id, name: city.nameMunicipality })),
+        [cities],
+    );
 
     function handleDownload() {
         const city = cities.find(c => c.id === cityId);
@@ -59,19 +56,16 @@ export function BrochureGenerator({
 
     return (
         <div className="flex flex-col items-center gap-3">
-            <Select value={cityId} onValueChange={setCityId}>
-                <SelectTrigger className="w-72">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value={GENERIC}>Γενικό — παρουσίαση του OpenCouncil</SelectItem>
-                    {cities.map(city => (
-                        <SelectItem key={city.id} value={city.id}>
-                            {city.nameMunicipality}
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+            <div className="w-72">
+                <CityCombobox
+                    cities={options}
+                    value={cityId}
+                    onChange={setCityId}
+                    nullOption="Γενικό — παρουσίαση του OpenCouncil"
+                    searchPlaceholder="Αναζήτηση δήμου..."
+                    emptyMessage="Δεν βρέθηκε δήμος."
+                />
+            </div>
             <Button onClick={handleDownload} disabled={busy} size="lg">
                 {busy ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
