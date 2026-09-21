@@ -102,6 +102,22 @@ describe('replayAttendance', () => {
         expect(present(r, 's2')).toEqual(['p1', 'p2']);                       // manual wins
         expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', subjectId: 's2', personId: 'p1', source: 'manual' })]);
     });
+    it('consecutive per-vote absences keep the member out: back after N and out before N+1 are two documents, not a contradiction', () => {
+        // Orestiada ΔΣ 23/3/2026: items 3 and 4 each print «Κατά την διάρκεια της ψήφισης του θέματος απουσίαζαν…» naming the same member.
+        const pair = (subjectId: string): EventRow[] => [
+            ev({ id: `${subjectId}-out`, personId: 'p1', anchorKind: 'SUBJECT', anchorSubjectId: subjectId, timing: 'BEFORE' }),
+            ev({ id: `${subjectId}-back`, personId: 'p1', kind: 'ARRIVAL', anchorKind: 'SUBJECT', anchorSubjectId: subjectId, timing: 'AFTER' })];
+        const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv({ statesPerVoteAbsence: true }), mayorPersonId: null, documents: [],
+            events: [...pair('s1'), ...pair('s2')] });
+        expect(present(r, 's1')).toEqual(['p2']); expect(present(r, 's2')).toEqual(['p2']); expect(present(r, 's3')).toEqual(['p1', 'p2']);
+        expect(r.issues).toEqual([]);
+    });
+    it('a return after N against a departure before N+1 from a meeting-wide statement is still a disagreement', () => {
+        const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv(), mayorPersonId: null, documents: [],
+            events: [ev({ id: 'back', personId: 'p1', kind: 'ARRIVAL', anchorAgendaItemIndex: 1, timing: 'AFTER' }),
+                ev({ id: 'out', personId: 'p1', anchorKind: 'SUBJECT', anchorSubjectId: 's2', timing: 'BEFORE' })] });
+        expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', subjectId: 's2', personId: 'p1' })]);
+    });
     it('a departure at session end affects nothing', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1')], conventions: conv(), mayorPersonId: null, documents: [],
             events: [ev({ personId: 'p1', anchorKind: 'SESSION_END', timing: null })] });

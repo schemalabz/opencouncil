@@ -116,6 +116,21 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
         presentBySubject.set(subjectId, present);
     };
 
+    /**
+     * A per-vote absence is a pair on the document's own subject: out before it,
+     * back after it. «Back after N» takes effect where «out before N+1» does, so a
+     * member out for two decisions running has an arrival and a departure at one
+     * point. Those are two documents each describing their own vote, in time order,
+     * and the later one stands. Only this shape: a return stated any other way
+     * against a departure is still two sources disagreeing.
+     */
+    const outAgainForTheNextVote = (a: EventRow, b: EventRow, i: number, subjectId: string): EventRow | null => {
+        const [back, out] = a.kind === 'ARRIVAL' ? [a, b] : [b, a];
+        const ownVote = (e: EventRow, timing: EventRow['timing'], anchor: string | undefined) =>
+            e.anchorKind === 'SUBJECT' && e.timing === timing && anchor !== undefined && e.anchorSubjectId === anchor;
+        return ownVote(back, 'AFTER', subjects[i - 1]?.id) && ownVote(out, 'BEFORE', subjectId) ? out : null;
+    };
+
     /** The events at one index, one per person: an arrival and a departure at the same point contradict each other. */
     const settleEventsAt = (i: number, subjectId: string): EventRow[] => {
         const chosen = new Map<string, EventRow>();
@@ -123,6 +138,8 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
             const prev = chosen.get(e.personId);
             if (!prev) { chosen.set(e.personId, e); continue; }
             if (prev.kind === e.kind) continue;  // the same change stated twice
+            const stillOut = outAgainForTheNextVote(prev, e, i, subjectId);
+            if (stillOut) { chosen.set(e.personId, stillOut); continue; }
             const [win, lose] = sourceRank(e.source) < sourceRank(prev.source) ? [e, prev] : [prev, e];
             issues.push({ code: 'SOURCES_DISAGREE', severity: 'warning', subjectId, personId: e.personId, source: win.source, rawText: win.rawText,
                 params: { kind: 'event', winKind: win.kind, winRawText: win.rawText, winSource: win.source, loseRawText: lose.rawText, loseSource: lose.source } });
