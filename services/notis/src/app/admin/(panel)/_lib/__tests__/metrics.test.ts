@@ -183,6 +183,17 @@ describe("periodBounds", () => {
     expect(series.slice(boundary)).toContain("2026-03-29");
   });
 
+  it("keeps the window 24 real hours long on the day Athens repeats an hour", () => {
+    // 2026-10-25, 04:00 local goes back to 03:00. Both real hours carry the
+    // local key «03:00», so they share a bucket and the half draws 23
+    // columns. The period is still 24 real hours, which is what the numbers
+    // beside it count — see periodBounds.
+    const { series, boundary, current } = halves("24h", new Date("2026-10-25T10:00:00Z"), "hour");
+    expect((new Date("2026-10-25T10:00:00Z").getTime() - current.getTime()) / 3_600_000).toBe(23);
+    expect(series.slice(boundary)).toHaveLength(23);
+    expect(series.slice(boundary).filter((key) => key.endsWith("T03:00"))).toHaveLength(1);
+  });
+
   it("counts hours for a 24h window and minutes for an hour", () => {
     const hours = halves("24h", new Date("2026-08-16T10:30:00Z"), "hour");
     expect(hours.boundary).toBe(24);

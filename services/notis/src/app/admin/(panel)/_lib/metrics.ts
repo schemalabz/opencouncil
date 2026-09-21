@@ -411,6 +411,14 @@ export function athensBucketStart(date: Date, bucket: BucketUnit): Date {
  * and stops adding up to the totals beside it. The cost is the last bucket,
  * which is only as old as `now`: a period is «7 days» the way a calendar
  * means it, six whole days and the one in progress.
+ *
+ * The window is that many buckets of REAL time, which is what the headline
+ * numbers count. On the autumn day Athens repeats an hour, the two real
+ * hours share one local key — date_trunc gives them the same bucket, here
+ * and in every query — so an hour-bucketed period draws 23 columns instead
+ * of 24 that day, one of them twice as wide. Nothing is lost, the two hours
+ * are summed. Buying back the column would mean starting the window an hour
+ * earlier, which would make «the last 24 hours» count 25 of them.
  */
 export function periodBounds(range: RangeKey, now: Date): { current: Date; previous: Date } {
   const { bucket, buckets } = RANGES[range];

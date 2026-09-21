@@ -518,7 +518,12 @@ function UsagePanel({
   );
 }
 
-const TREND_COLUMNS = "grid grid-cols-[11rem_1fr] gap-x-5";
+/** The label beside its chart, and above it once the row is too narrow to
+ *  give both a readable width — the panel's sidebar never collapses, so the
+ *  squeeze lands entirely on this column. */
+const TREND_COLUMNS = "grid grid-cols-1 gap-x-5 md:grid-cols-[11rem_1fr]";
+/** The label column's share of a row, held open beside the charts only. */
+const TREND_SPACER = "hidden md:block";
 
 function TrendRow({
   label,
@@ -583,7 +588,7 @@ function TrendPanel({ stats, range }: { stats: OverviewStats; range: RangeKey })
         </span>
       </div>
       <div className={`${TREND_COLUMNS} mt-3 pb-1`}>
-        <div />
+        <div className={TREND_SPACER} />
         <div className="flex text-[11px] font-medium uppercase tracking-wider">
           <span
             className="inline-flex shrink-0 items-center gap-1.5 text-muted-foreground"
@@ -630,7 +635,7 @@ function TrendPanel({ stats, range }: { stats: OverviewStats; range: RangeKey })
         />
       </TrendRow>
       <div className={`${TREND_COLUMNS} pt-1`}>
-        <div />
+        <div className={TREND_SPACER} />
         <div className="relative h-4 text-[11px] tabular-nums text-muted-foreground">
           {first && <span className="absolute left-0">{fmtAxisLabel(first.key, bucket)}</span>}
           {boundary && (
