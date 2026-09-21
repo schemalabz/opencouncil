@@ -1,23 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
 import type { User, VoicePrintConsentSource } from "@prisma/client";
-import { CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { HelpCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { PhoneField, PhoneFieldValidity } from "@/components/ui/phone-field";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { NotificationPreferencesSection } from "@/components/profile/NotificationPreferencesSection";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatNumericDateTime } from "@/lib/formatters/time";
 import { setVoicePrintConsent } from "@/lib/actions/personConsent";
+import { cn } from "@/lib/utils";
+import { DPO_EMAIL } from "@/lib/dpo";
+import { ErrorLine } from "@/components/ui/error-line";
+import { SaveStatus } from "@/components/profile/SettingsChrome";
+import { postProfile } from "@/components/profile/profile-api";
 
 // Server phone rejections that have their own message in the Profile namespace.
 const PHONE_ERROR_KEYS: Record<string, string> = {
@@ -26,6 +25,9 @@ const PHONE_ERROR_KEYS: Record<string, string> = {
     phone_not_mobile: "phoneNotMobile",
     phone_in_use: "phoneInUse",
 };
+
+/** How long the "Saved" tick stays under the form. */
+const SAVED_FOR_MS = 3000;
 
 /** A person this account administers: the consent box is theirs, not the account's. */
 export interface ConsentPerson {
@@ -40,21 +42,27 @@ export interface ConsentPerson {
     consent: VoicePrintConsentSource | null;
 }
 
-const DPO_EMAIL = "dpo@opencouncil.gr";
-
 interface UserInfoFormProps {
-    user: User;
+    user: Pick<User, "name" | "email" | "phone" | "updatedAt">;
     isOnboarded: boolean;
     persons?: ConsentPerson[];
 }
 
+/**
+ * The personal details: name, the email that signs the account in, the
+ * mobile number Νότης writes to, and the voiceprint consent of every person
+ * the account is. Inside the settings it is the body of a card; on the
+ * first visit it is the whole onboarding page, and the one button on it
+ * completes the registration.
+ */
 export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormProps) {
     const t = useTranslations("Profile");
+    const locale = useLocale();
     const router = useRouter();
     const claimed = persons.filter((p) => p.claimed);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [deleteError, setDeleteError] = useState(false);
+    const [saveState, setSaveState] = useState<"idle" | "saved" | "error">("idle");
+    const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [phoneValidity, setPhoneValidity] = useState<PhoneFieldValidity>({
         isActive: false,
         isEmpty: true,
@@ -72,9 +80,6 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
         // and an editor's name is their own. Saved only with the form.
         name: user.name || (claimed.length === 1 ? claimed[0].name : ""),
         phone: user.phone || "",
-        allowProductUpdates: user.allowProductUpdates,
-        allowPetitionUpdates: user.allowPetitionUpdates,
-        allowFeedbackCalls: user.allowFeedbackCalls,
     });
     // Only the boxes the user touched, never the whole set: the saved values
     // come from `persons`, which router.refresh() keeps current, so a person
@@ -93,353 +98,239 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
         });
     }, [persons]);
 
+    useEffect(() => () => {
+        if (savedTimer.current) clearTimeout(savedTimer.current);
+    }, []);
+
     const phoneSubmitBlocked = phoneValidity.isActive && !phoneValidity.isEmpty && !phoneValidity.isValid;
 
-    async function saveToApi(payload: object): Promise<boolean> {
-        try {
-            const response = await fetch("/api/profile", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-            if (!response.ok) {
-                const body = (await response.json().catch(() => null)) as {
-                    error?: { code?: string; fieldErrors?: { phone?: string[] } };
-                } | null;
-                const code = body?.error?.code ?? body?.error?.fieldErrors?.phone?.[0];
-                const key = code ? PHONE_ERROR_KEYS[code] : undefined;
-                if (key) {
-                    setServerPhoneError(key);
-                    return false;
-                }
-                throw new Error("Failed to update profile");
-            }
-            setServerPhoneError(null);
-            router.refresh();
-            return true;
-        } catch (error) {
-            console.error("Failed to update profile:", error);
-            return false;
-        }
+    function showSaved() {
+        setSaveState("saved");
+        if (savedTimer.current) clearTimeout(savedTimer.current);
+        savedTimer.current = setTimeout(() => setSaveState("idle"), SAVED_FOR_MS);
     }
 
-    async function submitting(...work: Promise<unknown>[]) {
-        setIsSubmitting(true);
-        try {
-            await Promise.all(work);
-        } finally {
-            setIsSubmitting(false);
+    // "phone": the server refused the number, and the field says why; the
+    // form's own status line stays quiet so the reason is said once.
+    async function saveDetails(): Promise<"saved" | "phone" | "failed"> {
+        const result = await postProfile({
+            name: formData.name,
+            phone: phoneValidity.isEmpty ? null : formData.phone,
+            onboarded: true,
+        });
+        if (result.ok) {
+            setServerPhoneError(null);
+            router.refresh();
+            return "saved";
         }
+        const key = result.code ? PHONE_ERROR_KEYS[result.code] : undefined;
+        setServerPhoneError(key ?? null);
+        return key ? "phone" : "failed";
     }
 
     // The consent is the person's, not the account's, so it goes through its
     // own action, next to the profile save and not inside it: a phone the
     // server refuses cannot swallow a withdrawal.
     const changedConsents = persons.filter((p) => !isLocked(p) && consentOf(p) !== (p.consent !== null));
-    async function saveConsents() {
-        if (changedConsents.length === 0) return;
+    async function saveConsents(): Promise<boolean> {
+        if (changedConsents.length === 0) return true;
         try {
             await Promise.all(changedConsents.map((p) => setVoicePrintConsent(p.id, consentOf(p))));
             setConsentEdits({});
             setConsentError(false);
+            return true;
         } catch (error) {
             console.error("Failed to save voiceprint consent:", error);
             setConsentError(true);
+            return false;
         } finally {
             router.refresh();
         }
     }
 
-    async function handlePersonalSubmit(e: React.FormEvent) {
+    async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (phoneSubmitBlocked) return;
-        await submitting(
-            saveConsents(),
-            saveToApi({
-                name: formData.name,
-                phone: phoneValidity.isEmpty ? null : formData.phone,
-                onboarded: true,
-            }),
-        );
-    }
-
-    async function handleCommunicationSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        await submitting(saveToApi({
-            allowProductUpdates: formData.allowProductUpdates,
-            allowPetitionUpdates: formData.allowPetitionUpdates,
-            allowFeedbackCalls: formData.allowFeedbackCalls,
-        }));
-    }
-
-    async function handleDeleteAccount() {
-        setIsDeleting(true);
-        setDeleteError(false);
+        setIsSubmitting(true);
+        setSaveState("idle");
         try {
-            const response = await fetch("/api/profile", { method: "DELETE" });
-            if (!response.ok) throw new Error("Failed to delete account");
-            await signOut({ callbackUrl: "/" });
-        } catch (error) {
-            console.error("Failed to delete account:", error);
-            setDeleteError(true);
+            const [consentsSaved, outcome] = await Promise.all([saveConsents(), saveDetails()]);
+            // "Saved" only when everything the button covered went through: a
+            // consent that failed has its own line, and a tick beside it would
+            // say the opposite.
+            if (outcome === "saved" && consentsSaved) showSaved();
+            else if (outcome === "failed") setSaveState("error");
         } finally {
-            setIsDeleting(false);
+            setIsSubmitting(false);
         }
     }
 
-    const tabTriggerProps = {
-        className: "rounded-none rounded-tl-lg py-3 px-4 data-[state=active]:border-t-[#fc550a] data-[state=active]:border-l-[#fc550a] data-[state=active]:border-r-[#fc550a] data-[state=active]:border-b-white data-[state=active]:border-2",
-        style: { borderTopLeftRadius: "0.5rem", borderTopRightRadius: "0.5rem", borderBottom: "none" },
-    };
+    const submitDisabled = isSubmitting || !formData.name || phoneSubmitBlocked;
+    const submitLabel = isSubmitting ? t("saving") : isOnboarded ? t("savePersonalInfo") : t("completeRegistration");
 
     return (
-        <Tabs defaultValue="personal" searchParam="tab" local={!isOnboarded}>
-            <TabsList className="w-full rounded-none rounded-t-lg border-b h-auto p-0 bg-inherit">
-                <TabsTrigger {...tabTriggerProps} value="personal">{t("tabPersonal")}</TabsTrigger>
-                <TabsTrigger {...tabTriggerProps} value="communication" disabled={!isOnboarded}>{t("tabCommunication")}</TabsTrigger>
-                <TabsTrigger {...tabTriggerProps} value="notifications" disabled={!isOnboarded}>{t("tabNotifications")}</TabsTrigger>
-                <TabsTrigger {...tabTriggerProps} value="account" disabled={!isOnboarded}>{t("tabAccount")}</TabsTrigger>
-            </TabsList>
-            <div className="bg-gradient-to-r from-[#fc550a] via-[#a4c0e1] to-[#fc550a] p-0.5"
-                style={{
-                    borderBottomLeftRadius: "0.5rem",
-                    borderBottomRightRadius: "0.5rem",
-                    marginTop: "-0.20rem",
-                }}>
-                <div className="sm:p-6 p-4 bg-white"
-                    style={{
-                        borderBottomLeftRadius: "0.5rem",
-                        borderBottomRightRadius: "0.5rem",
-                    }}>
-                    <TabsContent value="personal" className="!mt-0">
-                        <div className="space-y-4">
-                            <h3 className="font-semibold">{t("tabPersonalHeading")}</h3>
-                            {!isOnboarded && (
-                                <CardDescription className="mb-6">{t("onboardingDescription")}</CardDescription>
-                            )}
-                            <form onSubmit={handlePersonalSubmit} className="space-y-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="name">{t("fullName")} *</Label>
-                                    <Input
-                                        type="text"
-                                        id="name"
-                                        required
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    />
-                                </div>
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+            <div className="flex flex-col gap-1.5">
+                <Label htmlFor="name" className="text-[13px] font-medium">
+                    {t("fullName")}
+                </Label>
+                <Input
+                    type="text"
+                    id="name"
+                    autoComplete="name"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="h-11"
+                />
+            </div>
 
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-1.5">
-                                        <Label htmlFor="email">{t("email")}</Label>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-pointer" />
-                                            </PopoverTrigger>
-                                            <PopoverContent className="text-sm">
-                                                {t("emailChangeTooltip")}
-                                            </PopoverContent>
-                                        </Popover>
-                                    </div>
-                                    <Input
-                                        type="email"
-                                        id="email"
-                                        disabled
-                                        value={user.email}
-                                    />
-                                </div>
+            <div className="grid gap-5 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="email" className="text-[13px] font-medium">
+                        {t("email")}
+                    </Label>
+                    {/* Read-only rather than disabled: the address stays legible and copyable; the line under it says how it changes. */}
+                    <Input
+                        type="email"
+                        id="email"
+                        readOnly
+                        value={user.email}
+                        aria-describedby="email-hint"
+                        className="h-11 bg-muted/60 text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+                    />
+                    <p id="email-hint" className="text-xs leading-[1.4] text-muted-foreground">{t("emailChangeTooltip")}</p>
+                </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="phone">{t("phone")}</Label>
-                                    <PhoneField
-                                        value={formData.phone}
-                                        onChange={(phone) => {
-                                            setServerPhoneError(null);
-                                            setFormData({ ...formData, phone });
-                                        }}
-                                        onValidityChange={setPhoneValidity}
-                                        placeholder={t("phonePlaceholder")}
-                                        invalidMessage={t("phoneInvalid")}
-                                        notMobileMessage={t("phoneNotMobile")}
-                                    />
-                                    {serverPhoneError && (
-                                        <p className="text-sm text-red-500">{t(serverPhoneError)}</p>
-                                    )}
-                                </div>
-
-                                {persons.length > 0 && (
-                                    <div className="space-y-3">
-                                        {persons.map((person) => (
-                                            <div key={person.id} className="flex items-start space-x-3">
-                                                <Checkbox
-                                                    id={`voicePrintConsent-${person.id}`}
-                                                    checked={consentOf(person)}
-                                                    disabled={isLocked(person)}
-                                                    onCheckedChange={(checked) =>
-                                                        setConsentEdits({ ...consentEdits, [person.id]: checked === true })
-                                                    }
-                                                />
-                                                <div className="space-y-1">
-                                                    <Label htmlFor={`voicePrintConsent-${person.id}`} className="leading-snug">
-                                                        {t("voicePrintConsentLabel")}
-                                                        {/* Only an account that is more than one person needs to know which box is whose. */}
-                                                        {persons.length > 1 && ` (${person.name})`}
-                                                    </Label>
-                                                    <p className="text-sm text-muted-foreground">{t("voicePrintConsentHint")}</p>
-                                                    {isLocked(person) && (
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {t.rich("voicePrintConsentOnPaper", {
-                                                                email: DPO_EMAIL,
-                                                                mail: (chunks) => (
-                                                                    <a href={`mailto:${DPO_EMAIL}`} className="underline text-foreground">
-                                                                        {chunks}
-                                                                    </a>
-                                                                ),
-                                                            })}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {consentError && (
-                                            <p className="text-sm text-red-500">{t("voicePrintConsentError")}</p>
-                                        )}
-                                    </div>
-                                )}
-
-                                <div className="flex flex-col justify-between gap-2">
-                                    <p className="text-xs text-muted-foreground">
-                                        {t("lastUpdated", { date: formatNumericDateTime(new Date(user.updatedAt), undefined, 'el', false) })}
-                                    </p>
-                                    <Button
-                                        type="submit"
-                                        disabled={isSubmitting || !formData.name || phoneSubmitBlocked}
-                                        className="whitespace-normal h-auto"
-                                    >
-                                        {isSubmitting ? t("saving") : t("savePersonalInfo")}
-                                    </Button>
-                                </div>
-                            </form>
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="communication" className="mt-0">
-                        <div className="space-y-4">
-                            <h3 className="font-semibold">{t("tabCommunicationHeading")}</h3>
-                            <form onSubmit={handleCommunicationSubmit} className="space-y-6">
-                                <div className="flex items-start space-x-3">
-                                    <Checkbox
-                                        id="allowProductUpdates"
-                                        checked={formData.allowProductUpdates}
-                                        onCheckedChange={(checked) =>
-                                            setFormData({ ...formData, allowProductUpdates: checked as boolean })
-                                        }
-                                    />
-                                    <div className="space-y-1 leading-none">
-                                        <Label htmlFor="allowProductUpdates">{t("allowProductUpdates")}</Label>
-                                        <p className="text-sm text-muted-foreground">
-                                            {t("allowProductUpdatesDescription")}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex items-start space-x-3">
-                                    <Checkbox
-                                        id="allowPetitionUpdates"
-                                        checked={formData.allowPetitionUpdates}
-                                        onCheckedChange={(checked) =>
-                                            setFormData({ ...formData, allowPetitionUpdates: checked as boolean })
-                                        }
-                                    />
-                                    <div className="space-y-1 leading-none">
-                                        <Label htmlFor="allowPetitionUpdates">{t("allowPetitionUpdates")}</Label>
-                                        <p className="text-sm text-muted-foreground">
-                                            {t("allowPetitionUpdatesDescription")}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex items-start space-x-3">
-                                    <Checkbox
-                                        id="allowFeedbackCalls"
-                                        checked={formData.allowFeedbackCalls}
-                                        onCheckedChange={(checked) =>
-                                            setFormData({ ...formData, allowFeedbackCalls: checked as boolean })
-                                        }
-                                    />
-                                    <div className="space-y-1 leading-none">
-                                        <Label htmlFor="allowFeedbackCalls">{t("allowFeedbackCalls")}</Label>
-                                        <p className="text-sm text-muted-foreground">
-                                            {t("allowFeedbackCallsDescription")}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <p className="text-xs text-muted-foreground">
-                                        {t("lastUpdated", { date: formatNumericDateTime(new Date(user.updatedAt), undefined, 'el', false) })}
-                                    </p>
-                                    <div className="flex items-center justify-between">
-                                        <Button type="submit" disabled={isSubmitting} className="whitespace-normal h-auto">
-                                            {isSubmitting ? t("saving") : t("saveCommunicationPreferences")}
-                                        </Button>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-
-                    </TabsContent>
-
-                    <TabsContent value="notifications" className="mt-0">
-                        <NotificationPreferencesSection />
-                    </TabsContent>
-
-                    <TabsContent value="account" className="mt-0 space-y-8">
-                        <div className="space-y-2">
-                            <h3 className="font-semibold">{t("yourData")}</h3>
-                            <p className="text-sm text-muted-foreground">
-                                {t("yourDataDescription")}{" "}
-                                <a href={`mailto:${DPO_EMAIL}`} className="underline text-foreground">
-                                    {DPO_EMAIL}
-                                </a>
-                                .
-                            </p>
-                        </div>
-
-                        <div className="space-y-2 rounded-lg bg-red-50 p-4">
-                            <h3 className="font-semibold text-destructive">{t("dangerZone")}</h3>
-                            <p className="text-sm text-muted-foreground">{t("deleteAccountDescription")}</p>
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="destructive" className="mt-2">
-                                        {t("deleteAccount")}
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent align="start">
-                                    <DialogHeader>
-                                        <DialogTitle>{t("deleteAccountConfirmTitle")}</DialogTitle>
-                                        <DialogDescription>{t("deleteAccountConfirmDescription")}</DialogDescription>
-                                    </DialogHeader>
-                                    <DialogFooter className="gap-3">
-                                        {deleteError && (
-                                            <p className="text-sm text-destructive w-full">{t("deleteAccountError")}</p>
-                                        )}
-                                        <Button
-                                            variant="destructive"
-                                            disabled={isDeleting}
-                                            onClick={handleDeleteAccount}
-                                        >
-                                            {isDeleting ? t("deletingAccount") : t("deleteAccountConfirm")}
-                                        </Button>
-                                        <DialogClose asChild>
-                                            <Button variant="outline">
-                                                {t("deleteAccountCancel")}
-                                            </Button>
-                                        </DialogClose>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
-                        </div>
-                    </TabsContent>
+                <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="phone" className="text-[13px] font-medium">
+                        {t("phone")}
+                    </Label>
+                    <PhoneField
+                        value={formData.phone}
+                        onChange={(phone) => {
+                            setServerPhoneError(null);
+                            setFormData({ ...formData, phone });
+                        }}
+                        onValidityChange={setPhoneValidity}
+                        placeholder={t("phonePlaceholder")}
+                        invalidMessage={t("phoneInvalid")}
+                        notMobileMessage={t("phoneNotMobile")}
+                    />
+                    {serverPhoneError && <ErrorLine>{t(serverPhoneError)}</ErrorLine>}
                 </div>
             </div>
-        </Tabs>
+
+            {persons.length > 0 && (
+                <div role="group" aria-labelledby="voicePrintTitle" className="flex flex-col gap-3">
+                    <span id="voicePrintTitle" className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">
+                        {t("voicePrintTitle")}
+                    </span>
+                    {persons.map((person) => (
+                        <ConsentCard
+                            key={person.id}
+                            id={`voicePrintConsent-${person.id}`}
+                            checked={consentOf(person)}
+                            locked={isLocked(person)}
+                            onCheckedChange={(checked) => setConsentEdits({ ...consentEdits, [person.id]: checked })}
+                            label={
+                                <>
+                                    {t("voicePrintConsentLabel")}
+                                    {/* Only an account that is more than one person needs to know which box is whose. */}
+                                    {persons.length > 1 && ` (${person.name})`}
+                                </>
+                            }
+                            hint={t("voicePrintConsentHint")}
+                            onPaper={isLocked(person) && t.rich("voicePrintConsentOnPaper", {
+                                email: DPO_EMAIL,
+                                mail: (chunks) => (
+                                    <a href={`mailto:${DPO_EMAIL}`} className="underline underline-offset-2 text-foreground">
+                                        {chunks}
+                                    </a>
+                                ),
+                            })}
+                        />
+                    ))}
+                    {consentError && <ErrorLine>{t("voicePrintConsentError")}</ErrorLine>}
+                </div>
+            )}
+
+            <div
+                className={cn(
+                    "flex flex-col gap-3 border-t border-border pt-4",
+                    isOnboarded ? "sm:flex-row sm:items-center sm:justify-between" : "pt-2 border-t-0",
+                )}
+            >
+                <div className="flex min-w-0 flex-col gap-1 text-xs text-muted-foreground">
+                    {isOnboarded && (
+                        <span>{t("lastUpdated", { date: formatNumericDateTime(new Date(user.updatedAt), undefined, locale, false) })}</span>
+                    )}
+                    <SaveStatus state={saveState} savedLabel={t("saved")} errorLabel={t("saveError")} />
+                </div>
+                <Button
+                    type="submit"
+                    size={isOnboarded ? "default" : "lg"}
+                    disabled={submitDisabled}
+                    className={cn("h-auto min-h-10 whitespace-normal", !isOnboarded && "w-full min-h-11")}
+                >
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+                    {submitLabel}
+                </Button>
+            </div>
+        </form>
+    );
+}
+
+/**
+ * The voiceprint consent as a card that is a checkbox: the app's tick in a
+ * box that lifts with an orange halo when it is on, the way the join flow
+ * and the signup ask their questions. The label holds the sentence alone;
+ * the hint and the paper note sit outside it, so a screen reader hears the
+ * question first and the mail link is not inside a label.
+ */
+function ConsentCard({
+    id,
+    checked,
+    locked,
+    onCheckedChange,
+    label,
+    hint,
+    onPaper,
+}: {
+    id: string;
+    checked: boolean;
+    locked: boolean;
+    onCheckedChange: (checked: boolean) => void;
+    label: React.ReactNode;
+    hint: string;
+    onPaper: React.ReactNode;
+}) {
+    return (
+        <div
+            className={cn(
+                "rounded-2xl border bg-card p-4 transition-[border-color,box-shadow] duration-300 ease-out",
+                checked
+                    ? "border-[hsl(var(--orange))]/60 shadow-[0_0_0_2px_hsl(var(--orange)/0.08),0_6px_18px_-12px_hsl(var(--orange)/0.35)]"
+                    : "border-foreground/15",
+            )}
+        >
+            <div className="flex items-start gap-3">
+                <Checkbox
+                    id={id}
+                    checked={checked}
+                    disabled={locked}
+                    onCheckedChange={(value) => onCheckedChange(value === true)}
+                    aria-describedby={`${id}-hint`}
+                    className="mt-0.5 h-[22px] w-[22px] shrink-0 rounded-[6px] border-foreground/60 [&_svg]:h-4 [&_svg]:w-4"
+                />
+                <div className="min-w-0 flex-1">
+                    <Label htmlFor={id} className={cn("block text-[15px] font-medium leading-snug", !locked && "cursor-pointer")}>
+                        {label}
+                    </Label>
+                    <p id={`${id}-hint`} className="mt-1.5 text-[13px] leading-[1.45] text-muted-foreground">{hint}</p>
+                    {onPaper && <p className="mt-2 text-[13px] leading-[1.45] text-muted-foreground">{onPaper}</p>}
+                </div>
+            </div>
+        </div>
     );
 }

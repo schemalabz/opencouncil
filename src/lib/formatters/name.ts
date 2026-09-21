@@ -112,9 +112,15 @@ export function extractFirstName(
  * Builds avatar initials from a full name: the first letter of the first and
  * last name parts (e.g. "Ιωάννης Μώραλης" → "ΙΜ"). Single-word names fall back
  * to their first two characters. Returns '' for empty input.
+ *
+ * A part that does not start with a letter, such as a bracketed nickname or
+ * a dash, is passed over ("Νίκος (Νικολάκης) Παππάς" → "ΝΠ"); only when no
+ * part starts with a letter do the raw parts count.
  */
 export function getInitials(name: string): string {
-    const parts = name.trim().split(/\s+/).filter(Boolean);
+    const words = name.trim().split(/\s+/).filter(Boolean);
+    const lettered = words.filter((word) => /^\p{L}/u.test(word));
+    const parts = lettered.length > 0 ? lettered : words;
     if (parts.length === 0) return '';
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();

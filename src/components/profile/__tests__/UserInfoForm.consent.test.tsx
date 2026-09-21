@@ -5,6 +5,7 @@ import { UserInfoForm } from '../UserInfoForm';
 import { setVoicePrintConsent } from '@/lib/actions/personConsent';
 
 jest.mock('next-intl', () => ({
+    useLocale: () => 'el',
     useTranslations: () => {
         const t = (key: string, values?: Record<string, string | number>) =>
             values ? `${key} ${Object.values(values).join(' ')}` : key;
@@ -16,20 +17,8 @@ jest.mock('next-intl', () => ({
 }));
 jest.mock('next/navigation', () => ({
     useRouter: () => ({ refresh: jest.fn() }),
-    usePathname: () => '/profile',
-    useSearchParams: () => new URLSearchParams(),
 }));
-// The Tabs component links tabs through next-intl's Link and reads the path
-// through its usePathname, both ESM-only under jest.
-jest.mock('@/i18n/routing', () => ({
-    Link: ({ href, children }: { href: string; children: React.ReactNode }) => createElement('a', { href }, children),
-    usePathname: () => '/profile',
-}));
-jest.mock('next-auth/react', () => ({ signOut: jest.fn() }));
 jest.mock('@/lib/actions/personConsent', () => ({ setVoicePrintConsent: jest.fn() }));
-jest.mock('@/components/profile/NotificationPreferencesSection', () => ({
-    NotificationPreferencesSection: () => null,
-}));
 
 const mockedSetConsent = setVoicePrintConsent as jest.MockedFunction<typeof setVoicePrintConsent>;
 
@@ -111,7 +100,8 @@ describe('UserInfoForm voiceprint consent', () => {
             persons: [{ id: 'person-1', name: 'Αδάμ Μπούτζουκας', claimed: true, consent: null }],
         }));
         fireEvent.click(screen.getByLabelText('voicePrintConsentLabel'));
-        fireEvent.click(screen.getByText('savePersonalInfo'));
+        // On the first visit the one button completes the registration.
+        fireEvent.click(screen.getByText('completeRegistration'));
 
         await waitFor(() => expect(mockedSetConsent).toHaveBeenCalledWith('person-1', true));
         expect(global.fetch).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'POST' }));

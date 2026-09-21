@@ -35,7 +35,7 @@ jest.mock('@/i18n/routing', () => {
     };
 });
 
-import { Tabs, TabsList, TabsTrigger } from '../tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../tabs';
 
 function renderTabs() {
     render(
@@ -75,5 +75,49 @@ describe('Tabs hrefs', () => {
         renderTabs();
 
         expect(hrefOf('Contributions')).toBe('/lat/nis/parties/p1?type=council&tab=contributions');
+    });
+});
+
+describe('Tabs selection', () => {
+    function renderWithContent(values?: readonly string[]) {
+        render(
+            <Tabs defaultValue="people" values={values}>
+                <TabsList>
+                    <TabsTrigger value="people">People</TabsTrigger>
+                    <TabsTrigger value="contributions">Contributions</TabsTrigger>
+                </TabsList>
+                <TabsContent value="people">people-content</TabsContent>
+                <TabsContent value="contributions">contributions-content</TabsContent>
+            </Tabs>,
+        );
+    }
+
+    test('selects the tab the URL names when it is one of the values', () => {
+        Object.assign(mockState, { pathname: '/chania/parties/p1', search: 'tab=contributions', locale: 'el' });
+
+        renderWithContent(['people', 'contributions']);
+
+        expect(screen.getByText('contributions-content')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Contributions' })).toHaveAttribute('data-state', 'active');
+    });
+
+    test('falls back to the default tab when the URL names a value that does not exist', () => {
+        // A stale bookmark, or a tab that was renamed since the link was made.
+        Object.assign(mockState, { pathname: '/chania/parties/p1', search: 'tab=archive', locale: 'el' });
+
+        renderWithContent(['people', 'contributions']);
+
+        expect(screen.getByText('people-content')).toBeInTheDocument();
+        expect(screen.queryByText('contributions-content')).toBeNull();
+        expect(screen.getByRole('link', { name: 'People' })).toHaveAttribute('data-state', 'active');
+    });
+
+    test('takes any value when no values are declared', () => {
+        Object.assign(mockState, { pathname: '/chania/parties/p1', search: 'tab=archive', locale: 'el' });
+
+        renderWithContent();
+
+        expect(screen.queryByText('people-content')).toBeNull();
+        expect(screen.getByRole('link', { name: 'People' })).toHaveAttribute('data-state', 'inactive');
     });
 });

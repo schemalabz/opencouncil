@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertCircle, Check, Mail } from 'lucide-react';
+import { Check, Mail } from 'lucide-react';
 import { ImageOrInitials } from '@/components/ImageOrInitials';
 import { StepHeading } from '@/components/signup/SignupChrome';
 import { Button } from '@/components/ui/button';
+import { ErrorLine } from '@/components/ui/error-line';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { suggestEmailFix } from '@/lib/personJoin/email';
@@ -29,15 +30,6 @@ export function PersonCard({ person, className }: { person: JoinPersonView; clas
     );
 }
 
-function ErrorLine({ children }: { children: React.ReactNode }) {
-    return (
-        <p role="alert" className="mt-3 flex items-start gap-2 text-[15px] leading-snug text-red-700">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-            {children}
-        </p>
-    );
-}
-
 /** Step 1: is this you? */
 export function ConfirmStep({ person, error }: { person: JoinPersonView; error: boolean }) {
     const t = useTranslations('personJoin');
@@ -45,7 +37,7 @@ export function ConfirmStep({ person, error }: { person: JoinPersonView; error: 
         <div>
             <StepHeading eyebrow={t('confirm.eyebrow')} title={t('confirm.title')} lead={t('confirm.lead')} />
             <PersonCard person={person} className="mt-6" />
-            {error && <ErrorLine>{t('confirm.error')}</ErrorLine>}
+            {error && <ErrorLine size="md" className="mt-3">{t('confirm.error')}</ErrorLine>}
         </div>
     );
 }
@@ -116,7 +108,7 @@ export function EmailStep({
                     </Button>
                 </div>
             )}
-            {error && <ErrorLine>{error === 'invalid' ? t('email.invalid') : t('email.sendFailed')}</ErrorLine>}
+            {error && <ErrorLine size="md" className="mt-3">{error === 'invalid' ? t('email.invalid') : t('email.sendFailed')}</ErrorLine>}
         </form>
     );
 }
@@ -198,7 +190,7 @@ export function SentStep({
             )}
             {error && (
                 <div className="-mt-4 pb-8">
-                    <ErrorLine>{t('email.sendFailed')}</ErrorLine>
+                    <ErrorLine size="md" className="mt-3">{t('email.sendFailed')}</ErrorLine>
                 </div>
             )}
         </div>
@@ -271,7 +263,7 @@ export function ConsentStep({
                 <ChoiceCard selected={choice === 'yes'} title={t('consent.yes')} hint={t('consent.yesHint')} onSelect={() => onChoice('yes')} />
                 <ChoiceCard selected={choice === 'no'} title={t('consent.no')} hint={t('consent.noHint')} onSelect={() => onChoice('no')} />
             </div>
-            {error && <ErrorLine>{t('consent.error')}</ErrorLine>}
+            {error && <ErrorLine size="md" className="mt-3">{t('consent.error')}</ErrorLine>}
         </div>
     );
 }
