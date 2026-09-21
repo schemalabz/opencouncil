@@ -4,9 +4,8 @@ import { useTranslations } from 'next-intl';
 import { MapPin, Landmark, Search } from 'lucide-react';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
-import Icon from '@/components/icon';
 import { Eyebrow } from './shared';
-import { topicStyle } from '@/lib/topicStyle';
+import { FilterPill } from './conceptShared';
 import { TopicIcon } from '@/components/TopicIcon';
 import { type LandingListCity } from '@/lib/landing/landingData';
 import { BODY_TYPES, EMPTY_FILTERS, toggleValue, type MapFilters } from '@/lib/landing/landingCore';
@@ -217,25 +216,20 @@ export function SearchBody({
                     </button>
                 )}
             </div>
+            {/* the same pills the map's category row draws, so both surfaces mark the same
+                selection the same way */}
             <div className="mt-2.5 flex flex-wrap gap-2">
-                {topics.map((t) => {
-                    const active = cats.includes(t.id);
-                    const s = topicStyle(t.colorHex, active ? 'solid' : 'soft');
-                    return (
-                        <button
-                            key={t.id}
-                            type="button"
-                            aria-pressed={active}
-                            onClick={() => onToggleCat(t.id)}
-                            // idle: the subject-card TopicChip look (tinted bg); selected: solid fill
-                            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold transition-colors"
-                            style={{ backgroundColor: s.background, borderColor: s.border, color: s.icon }}
-                        >
-                            <Icon name={t.icon || 'hash'} color={s.icon} size={14} />
-                            {t.name}
-                        </button>
-                    );
-                })}
+                {topics.map((topic) => (
+                    <FilterPill
+                        key={topic.id}
+                        active={cats.includes(topic.id)}
+                        color={topic.colorHex}
+                        icon={topic.icon}
+                        onClick={() => onToggleCat(topic.id)}
+                    >
+                        {topic.name}
+                    </FilterPill>
+                ))}
             </div>
 
             <span data-filter="municipalities" />

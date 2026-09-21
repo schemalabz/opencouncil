@@ -200,49 +200,73 @@ export function FilterBar({
             <FilterPill active={selected.length === 0} onClick={onClear}>
                 {t('filters.all')}
             </FilterPill>
-            {topics.map((t) => {
-                const active = selected.includes(t.id);
-                return (
-                    <FilterPill key={t.id} active={active} color={t.colorHex} onClick={() => onToggle(t.id)}>
-                        <Icon name={t.icon || 'hash'} color={topicStyle(t.colorHex, active ? 'solid' : 'soft').icon} size={14} />
-                        {t.name}
-                    </FilterPill>
-                );
-            })}
+            {topics.map((topic) => (
+                <FilterPill
+                    key={topic.id}
+                    active={selected.includes(topic.id)}
+                    color={topic.colorHex}
+                    icon={topic.icon}
+                    onClick={() => onToggle(topic.id)}
+                >
+                    {topic.name}
+                </FilterPill>
+            ))}
         </div>
     );
 }
 
+/**
+ * One category in the landing's topic filters — the row over the map and the search panel's grid.
+ *
+ * An idle pill carries its topic as ink only. It used to carry the topic as a wash *and* as a
+ * full-strength ring, which made all fifteen look picked; the real selection — the same hue, now
+ * filled — was then the quietest difference in the row. A picked pill takes the fill and a ring in
+ * the foreground colour, the near-black the "Όλα" pill already fills with, so exactly one pill in
+ * the row is marked. The ring is what marks the pale topics: Τουρισμός filled clears 1.53:1
+ * against the idle pill beside it, which is under the 3:1 a difference in fill alone must clear.
+ */
 export function FilterPill({
     active,
     onClick,
     color,
+    icon,
     children,
 }: {
     active: boolean;
     onClick: () => void;
-    /** topic accent — soft tint when idle, filled when active. Omit for the neutral "Όλα" pill. */
+    /** topic accent — the ink when idle, the fill when picked. Omit for the neutral "Όλα" pill. */
     color?: string;
+    /** the topic's lucide glyph; a topic pill without one falls back to `hash` */
+    icon?: string | null;
     children: React.ReactNode;
 }) {
-    // Topic pills: the shared topic recipe — soft wash when idle, solid fill when selected.
     const style = color ? topicStyle(color, active ? 'solid' : 'soft') : null;
-    const colorStyle = style
-        ? { backgroundColor: style.background, borderColor: style.border, color: style.icon }
-        : undefined;
     return (
         <button
             type="button"
             onClick={onClick}
-            style={colorStyle}
+            aria-pressed={active}
+            style={
+                style
+                    ? active
+                        ? { backgroundColor: style.background, borderColor: style.border, color: style.icon }
+                        // The wash the idle pill keeps for its hover, as a variable: an inline
+                        // `backgroundColor` would outrank the hover class.
+                        : ({ color: style.icon, '--pill-wash': style.background } as React.CSSProperties)
+                    : undefined
+            }
             className={cn(
                 'inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[13px] font-bold transition-colors',
-                !color &&
-                (active
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border bg-background text-muted-foreground hover:border-foreground/30'),
+                color
+                    ? active
+                        ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background'
+                        : 'border-border bg-background hover:bg-[var(--pill-wash)]'
+                    : active
+                      ? 'border-foreground bg-foreground text-background'
+                      : 'border-border bg-background text-muted-foreground hover:border-foreground/30',
             )}
         >
+            {color && <Icon name={icon || 'hash'} color="currentColor" size={14} />}
             {children}
         </button>
     );

@@ -180,7 +180,8 @@ export function CategoryFilterBar({
         <div className="relative">
             <div
                 ref={scrollRef}
-                className="overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [&_button]:shadow-md"
+                // py-1.5 leaves room for the selected pill's ring, which the scroller would otherwise clip
+                className="overflow-x-auto py-1.5 [&::-webkit-scrollbar]:hidden [&_button]:shadow-md"
                 style={{ scrollbarWidth: 'none', maskImage, WebkitMaskImage: maskImage }}
             >
                 <div className="flex w-max items-center gap-2">
