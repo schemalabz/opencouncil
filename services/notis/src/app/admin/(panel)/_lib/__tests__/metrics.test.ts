@@ -1,13 +1,16 @@
 import { fmtPct, fmtTimeAgo } from "../format";
 import {
+  athensBucketKey,
+  athensBucketStart,
+  boundaryIndexOf,
   deltaFor,
   fillSeries,
   listBuckets,
+  periodBounds,
   parseRange,
   pctChange,
   pointsChange,
   replierRate,
-  replyRate,
 } from "../metrics";
 
 describe("parseRange", () => {
@@ -101,41 +104,170 @@ describe("listBuckets", () => {
   });
 });
 
-describe("fillSeries", () => {
-  it("zero-fills buckets without rows so charts get every bucket", () => {
-    const series = fillSeries(
-      new Date("2026-08-14T00:00:00Z"),
-      new Date("2026-08-16T10:00:00Z"),
-      "day",
-      {
-        sent: [{ key: "2026-08-15", count: 3 }],
-        received: [],
-        activeUsers: [{ key: "2026-08-15", count: 1 }],
-        unsubscribes: [],
-        repliers: [],
-        recipients: [],
-        newsWakesSent: [{ key: "2026-08-15", count: 4 }],
-        newsWakesAnswered: [{ key: "2026-08-15", count: 1 }],
-        errors: [{ key: "2026-08-16", count: 2 }],
-      },
+describe("athensBucketStart", () => {
+  it("truncates to the start of the Athens-local day, in summer and in winter", () => {
+    // Athens runs +03:00 in summer, so its day starts at 21:00 UTC the day
+    // before; +02:00 in winter puts it at 22:00.
+    expect(athensBucketStart(new Date("2026-08-15T10:30:00Z"), "day").toISOString()).toBe(
+      "2026-08-14T21:00:00.000Z",
     );
-    expect(series.map((p) => p.sent)).toEqual([0, 3, 0]);
-    expect(series.map((p) => p.received)).toEqual([0, 0, 0]);
-    expect(series.find((p) => p.key === "2026-08-15")?.activeUsers).toBe(1);
-    expect(series.map((p) => p.newsWakesSent)).toEqual([0, 4, 0]);
-    expect(series.map((p) => p.newsWakesAnswered)).toEqual([0, 1, 0]);
-    expect(series.map((p) => p.errors)).toEqual([0, 0, 2]);
+    expect(athensBucketStart(new Date("2026-01-15T10:30:00Z"), "day").toISOString()).toBe(
+      "2026-01-14T22:00:00.000Z",
+    );
+  });
+
+  it("truncates to the start of the hour and of the minute", () => {
+    expect(athensBucketStart(new Date("2026-08-15T10:44:30Z"), "hour").toISOString()).toBe(
+      "2026-08-15T10:00:00.000Z",
+    );
+    expect(athensBucketStart(new Date("2026-08-15T10:44:30Z"), "minute").toISOString()).toBe(
+      "2026-08-15T10:44:00.000Z",
+    );
+  });
+
+  it("agrees with the bucket key it truncates to", () => {
+    for (const iso of ["2026-03-29T00:30:00Z", "2026-10-25T00:30:00Z", "2026-08-15T21:10:00Z"]) {
+      const at = new Date(iso);
+      for (const bucket of ["minute", "hour", "day"] as const) {
+        expect(athensBucketKey(athensBucketStart(at, bucket), bucket)).toBe(
+          athensBucketKey(at, bucket),
+        );
+      }
+    }
   });
 });
 
-describe("replyRate", () => {
-  it("is the share of news sends the reader answered", () => {
-    expect(replyRate(4, 1)).toBe(0.25);
-    expect(replyRate(3, 3)).toBe(1);
+describe("periodBounds", () => {
+  /** The bucket keys the whole window covers, and where the current half
+   *  starts in them — the two things the trend chart is drawn from. */
+  const halves = (
+    range: Parameters<typeof periodBounds>[0],
+    now: Date,
+    bucket: Parameters<typeof listBuckets>[2],
+  ) => {
+    const { current, previous } = periodBounds(range, now);
+    const series = listBuckets(previous, now, bucket);
+    return {
+      series,
+      current,
+      previous,
+      boundary: boundaryIndexOf(
+        series.map((key) => ({ key })),
+        athensBucketKey(current, bucket),
+      ),
+    };
+  };
+
+  it("gives each period the same whole number of buckets", () => {
+    const { series, boundary } = halves("7d", new Date("2026-08-16T10:30:00Z"), "day");
+    expect(boundary).toBe(7);
+    expect(series).toHaveLength(14);
+    // The current period is today and the six whole days before it.
+    expect(series[boundary]).toBe("2026-08-10");
+    expect(series[series.length - 1]).toBe("2026-08-16");
   });
 
-  it("is null when no news went out, so the card says so instead of showing 0%", () => {
-    expect(replyRate(0, 0)).toBeNull();
+  it("starts the current period on a bucket edge, never mid-bucket", () => {
+    // The window used to start at the wall-clock instant of the request, so
+    // the bucket holding it carried rows from both periods.
+    const { current } = halves("7d", new Date("2026-08-16T10:30:00Z"), "day");
+    expect(current.toISOString()).toBe("2026-08-09T21:00:00.000Z");
+  });
+
+  it("keeps the count across the spring-forward day, which is 23 hours long", () => {
+    // Athens loses an hour at 03:00 on 2026-03-29. A fixed 7×24h stride
+    // would land an hour short of midnight and take one day too many.
+    const { series, boundary } = halves("7d", new Date("2026-04-02T09:00:00Z"), "day");
+    expect(series[boundary]).toBe("2026-03-27");
+    expect(series.slice(boundary)).toHaveLength(7);
+    expect(series.slice(boundary)).toContain("2026-03-29");
+  });
+
+  it("keeps the window 24 real hours long on the day Athens repeats an hour", () => {
+    // 2026-10-25, 04:00 local goes back to 03:00. Both real hours carry the
+    // local key «03:00», so they share a bucket and the half draws 23
+    // columns. The period is still 24 real hours, which is what the numbers
+    // beside it count — see periodBounds.
+    const { series, boundary, current } = halves("24h", new Date("2026-10-25T10:00:00Z"), "hour");
+    expect((new Date("2026-10-25T10:00:00Z").getTime() - current.getTime()) / 3_600_000).toBe(23);
+    expect(series.slice(boundary)).toHaveLength(23);
+    expect(series.slice(boundary).filter((key) => key.endsWith("T03:00"))).toHaveLength(1);
+  });
+
+  it("counts hours for a 24h window and minutes for an hour", () => {
+    const hours = halves("24h", new Date("2026-08-16T10:30:00Z"), "hour");
+    expect(hours.boundary).toBe(24);
+    expect(hours.current.toISOString()).toBe("2026-08-15T11:00:00.000Z");
+
+    const minutes = halves("1h", new Date("2026-08-16T10:30:40Z"), "minute");
+    expect(minutes.boundary).toBe(60);
+    expect(minutes.current.toISOString()).toBe("2026-08-16T09:31:00.000Z");
+  });
+});
+
+describe("fillSeries", () => {
+  const from = new Date("2026-08-14T00:00:00Z");
+  const to = new Date("2026-08-16T10:00:00Z");
+
+  it("zero-fills buckets without rows so charts get every bucket", () => {
+    const series = fillSeries(
+      from,
+      to,
+      "day",
+      {
+        activeUsers: [{ key: "2026-08-15", count: 3 }],
+        sent: [{ key: "2026-08-15", count: 7 }],
+        received: [],
+        recipients: [{ key: "2026-08-15", count: 3 }],
+        repliers: [{ key: "2026-08-16", count: 1 }],
+        signups: [],
+        unsubscribes: [],
+        errors: [{ key: "2026-08-16", count: 2 }],
+      },
+      0,
+    );
+    expect(series.map((p) => p.key)).toEqual(["2026-08-14", "2026-08-15", "2026-08-16"]);
+    expect(series.map((p) => p.sent)).toEqual([0, 7, 0]);
+    expect(series.map((p) => p.received)).toEqual([0, 0, 0]);
+    expect(series.map((p) => p.activeUsers)).toEqual([0, 3, 0]);
+    expect(series.map((p) => p.recipients)).toEqual([0, 3, 0]);
+    expect(series.map((p) => p.repliers)).toEqual([0, 0, 1]);
+    expect(series.map((p) => p.errors)).toEqual([0, 0, 2]);
+  });
+
+  it("runs the subscriber level forward from the count at the start", () => {
+    // 100 on the list when the window opens; two join on the 15th and one
+    // leaves on the 16th. A level, not a count: an empty bucket keeps it.
+    const series = fillSeries(
+      from,
+      to,
+      "day",
+      {
+        activeUsers: [],
+        sent: [],
+        received: [],
+        recipients: [],
+        repliers: [],
+        signups: [{ key: "2026-08-15", count: 2 }],
+        unsubscribes: [{ key: "2026-08-16", count: 1 }],
+        errors: [],
+      },
+      100,
+    );
+    expect(series.map((p) => p.subscribers)).toEqual([100, 102, 101]);
+  });
+});
+
+describe("boundaryIndexOf", () => {
+  const series = ["2026-08-14", "2026-08-15", "2026-08-16"].map((key) => ({ key }));
+
+  it("finds the bucket the current period starts in", () => {
+    expect(boundaryIndexOf(series, "2026-08-15")).toBe(1);
+  });
+
+  it("keeps the whole series on one side when the boundary falls outside it", () => {
+    expect(boundaryIndexOf(series, "2026-08-01")).toBe(0);
+    expect(boundaryIndexOf(series, "2026-09-01")).toBe(3);
   });
 });
 
@@ -226,7 +358,7 @@ describe("deltaFor, on a rate that can be absent", () => {
 
 describe("deltaFor", () => {
   it("calls an absent baseline new, never a rise from zero", () => {
-    // replyRate() returns null when nothing went out. Reading that as 0%
+    // replierRate() returns null when nothing went out. Reading that as 0%
     // turns the first period after a recess into a confident green rise.
     expect(deltaFor({ current: 0.0249, previous: null, unit: "percent" })).toEqual({ kind: "new" });
     expect(deltaFor({ current: null, previous: null, unit: "percent" })).toEqual({ kind: "none" });
