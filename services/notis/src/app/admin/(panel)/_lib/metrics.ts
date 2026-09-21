@@ -4,7 +4,6 @@
 // (panel) auth-guard test.
 import type { MessageStatus } from "../../../../../generated/client";
 import { Prisma, hasNotisDb, notisDb } from "@/lib/db";
-import { WAKE_EVENT_TYPES } from "@/agent/schemas";
 
 /**
  * Overview metrics over a selectable window, always computed twice — the
@@ -83,25 +82,6 @@ export function parseRange(value: string | undefined): RangeKey {
 }
 
 /**
- * Wake event types that carry municipal news — the ones the reply rate asks
- * about. A coalesced wake records its PRIMARY event, so a wake that absorbed
- * a meeting event behind a user message is a user_message wake and does not
- * count here: the reader was already talking.
- */
-const NEWS_WAKE_EVENTS = [
-  "agenda_processed",
-  "meeting_summarized",
-] as const satisfies readonly (typeof WAKE_EVENT_TYPES)[number][];
-
-/**
- * How long a send keeps its claim on the reader's next message. Past it the
- * message answers something else, whatever the reader had in mind. Nothing
- * produces `heartbeat` wakes today, so without this cap a reader who gets no
- * other wake leaves a window open for days.
- */
-export const REPLY_WINDOW_HOURS = 24;
-
-/**
  * The share of the readers Νότης WROTE TO who wrote back; null when he wrote
  * to nobody, so the card can say so instead of showing a confident 0%.
  *
@@ -141,21 +121,6 @@ export function replierRate(repliers: number, recipients: number): number | null
   // wide: two readers answering in the minute Νότης wrote to one plots 200%,
   // which is not a rate and which drags the chart's whole scale with it.
   return Math.min(repliers / recipients, 1);
-}
-
-/**
- * The share of news sends the reader answered; null when nothing went out, so
- * the card can say so instead of showing a confident 0%.
- *
- * A wake that decided to stay silent is not in the denominator. It could never
- * draw a reply, so counting it would only drag the rate down.
- *
- * The last REPLY_WINDOW_HOURS of any window read low by construction: a send
- * from an hour ago still has most of its window left, and a reader who has not
- * answered yet counts as not answering.
- */
-export function replyRate(sends: number, answered: number): number | null {
-  return sends > 0 ? answered / sends : null;
 }
 
 /** Relative change in percent; null when the previous period is empty. */
@@ -252,13 +217,6 @@ export interface PeriodStats {
   failureReasons: Array<{ reason: string; count: number }>;
   wakesTotal: number;
   wakesByDecision: { send: number; silence: number; error: number };
-  /** News wakes in the period that sent (see NEWS_WAKE_EVENTS), and how many
-   *  of them the reader answered. A send counts as answered when an inbound
-   *  message arrives after it, within REPLY_WINDOW_HOURS, and before that
-   *  reader's next wake of ANY type — once another wake runs, what the reader
-   *  says belongs to it. */
-  newsWakesSent: number;
-  newsWakesAnswered: number;
   /** Distinct subscriptions that sent at least one message in the period.
    *  The reader-level counterpart of `messagesReceived`. */
   repliers: number;
@@ -295,8 +253,6 @@ export interface SeriesPoint {
   sent: number;
   received: number;
   unsubscribes: number;
-  newsWakesSent: number;
-  newsWakesAnswered: number;
   /** Distinct subscriptions that wrote in this bucket. */
   repliers: number;
   /** Distinct subscriptions Νότης wrote to in this bucket. */
@@ -325,8 +281,6 @@ const EMPTY_PERIOD: PeriodStats = {
   failureReasons: [],
   wakesTotal: 0,
   wakesByDecision: { send: 0, silence: 0, error: 0 },
-  newsWakesSent: 0,
-  newsWakesAnswered: 0,
   repliers: 0,
   recipients: 0,
   droppedWakes: 0,
@@ -337,51 +291,6 @@ const EMPTY_PERIOD: PeriodStats = {
 };
 
 type Db = ReturnType<typeof notisDb>;
-
-/**
- * The reply rate over one window, as ONE query both readers share — the card's
- * headline passes no bucket, the chart passes one and gets the same numbers
- * per bucket. Two hand-kept copies of this drifted apart on every edit.
- *
- * `spans` holds only the wakes that DELIVERED, which decides both halves:
- *  - the denominator, because a silent wake could never draw a reply;
- *  - `next_send`, because only a later delivery can claim a reply that the
- *    earlier one might otherwise own. A silent wake between the two delivers
- *    nothing, so it must not close the window — it cannot take the reply into
- *    its own count, and the reply would be credited to nobody.
- * The CTE keeps the outer lower bound and no upper one: LEAD only looks
- * forward, so every candidate still finds its successor and the scan stays the
- * size of the period, not of all retained history.
- */
-function replyRateQuery(from: Date, to: Date, bucket?: BucketUnit): Prisma.Sql {
-  const bucketColumn = bucket
-    ? Prisma.sql`date_trunc(${bucket}, w."createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,`
-    : Prisma.empty;
-  return Prisma.sql`
-    WITH spans AS (
-      SELECT "subscriptionId", "eventType", "createdAt",
-             LEAD("createdAt") OVER (
-               PARTITION BY "subscriptionId" ORDER BY "createdAt", id
-             ) AS next_send
-      FROM "NotisWake"
-      WHERE decision = 'send'::"WakeDecision" AND "createdAt" >= ${from}
-    )
-    SELECT ${bucketColumn}
-           COUNT(*)::int AS sends,
-           COUNT(*) FILTER (WHERE EXISTS (
-             SELECT 1 FROM "NotisMessage" r
-             WHERE r."subscriptionId" = w."subscriptionId"
-               AND r.direction = 'inbound'::"MessageDirection"
-               AND r."createdAt" > w."createdAt"
-               AND r."createdAt" < w."createdAt" + make_interval(hours => ${REPLY_WINDOW_HOURS}::int)
-               AND (w.next_send IS NULL OR r."createdAt" < w.next_send)
-           ))::int AS answered
-    FROM spans w
-    WHERE w."eventType" = ANY(${NEWS_WAKE_EVENTS}::text[])
-      AND w."createdAt" >= ${from} AND w."createdAt" < ${to}
-    ${bucket ? Prisma.sql`GROUP BY 1` : Prisma.empty}
-  `;
-}
 
 const BUCKET_STEP_MS: Record<BucketUnit, number> = {
   minute: 60 * 1000,
@@ -446,8 +355,6 @@ export function fillSeries(
     repliers: BucketCount[];
     recipients: BucketCount[];
     unsubscribes: BucketCount[];
-    newsWakesSent: BucketCount[];
-    newsWakesAnswered: BucketCount[];
     errors: BucketCount[];
   },
 ): SeriesPoint[] {
@@ -461,8 +368,6 @@ export function fillSeries(
     repliers: lookup(rows.repliers, key),
     recipients: lookup(rows.recipients, key),
     unsubscribes: lookup(rows.unsubscribes, key),
-    newsWakesSent: lookup(rows.newsWakesSent, key),
-    newsWakesAnswered: lookup(rows.newsWakesAnswered, key),
     errors: lookup(rows.errors, key),
   }));
 }
@@ -482,7 +387,7 @@ async function bucketedSeries(
     count: row.count,
   });
 
-  const [messages, actives, people, unsubscribes, newsSends, errors] = await Promise.all([
+  const [messages, actives, people, unsubscribes, errors] = await Promise.all([
     db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
       SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              direction::text AS direction, COUNT(*)::int AS count
@@ -507,9 +412,7 @@ async function bucketedSeries(
     // `status::text`, not a bare `status`: the column is the MessageStatus
     // enum, and Postgres has no `"MessageStatus" = text` operator, so the
     // bare form does not fail on odd data — it fails always, with «operator
-    // does not exist», and takes the whole overview page down. The eventType
-    // filter in replyRateQuery casts nothing because that column really is
-    // text; copying its shape onto an enum column is what broke this.
+    // does not exist», and takes the whole overview page down.
     db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
       SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              direction::text AS direction, COUNT(DISTINCT "subscriptionId")::int AS count
@@ -525,9 +428,6 @@ async function bucketedSeries(
       WHERE "unsubscribedAt" >= ${from} AND "unsubscribedAt" < ${to}
       GROUP BY 1
     `,
-    db.$queryRaw<Array<{ bucket: Date; sends: number; answered: number }>>(
-      replyRateQuery(from, to, bucket),
-    ),
     // Both failure shapes in one line: a wake that ran and erred, and a wake
     // the queue dropped before the model ever saw it.
     db.$queryRaw<Array<{ bucket: Date; count: number }>>`
@@ -556,14 +456,6 @@ async function bucketedSeries(
     repliers: people.filter((r) => r.direction === "inbound").map(rawKey),
     recipients: people.filter((r) => r.direction === "outbound").map(rawKey),
     unsubscribes: unsubscribes.map(rawKey),
-    newsWakesSent: newsSends.map((r) => ({
-      key: r.bucket.toISOString().slice(0, slice),
-      count: r.sends,
-    })),
-    newsWakesAnswered: newsSends.map((r) => ({
-      key: r.bucket.toISOString().slice(0, slice),
-      count: r.answered,
-    })),
     errors: errors.map(rawKey),
   });
 }
@@ -584,7 +476,6 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     wakesByEvent,
     editorialCost,
     suppressed,
-    newsSends,
     droppedWakes,
   ] = await Promise.all([
     db.notisMessage.groupBy({ by: ["direction"], where: createdInPeriod, _count: { _all: true } }),
@@ -631,7 +522,6 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       where: { ...createdInPeriod, direction: "outbound", status: "suppressed" },
       _count: { _all: true },
     }),
-    db.$queryRaw<Array<{ sends: number; answered: number }>>(replyRateQuery(from, to)),
     db.notisWakeQueue.count({ where: { status: "failed", updatedAt: { gte: from, lt: to } } }),
   ]);
 
@@ -680,8 +570,6 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       error: decisionCount("error"),
     },
     wakesByEvent: byEvent,
-    newsWakesSent: newsSends[0]?.sends ?? 0,
-    newsWakesAnswered: newsSends[0]?.answered ?? 0,
     droppedWakes,
     costUsd: byEvent.reduce((a, r) => a + r.costUsd, 0),
     editorialCostUsd: editorialCost._sum.briefCostUsd ?? 0,
@@ -707,8 +595,6 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
         received: [],
         repliers: [],
         recipients: [],
-        newsWakesSent: [],
-        newsWakesAnswered: [],
         errors: [],
         activeUsers: [],
         unsubscribes: [],

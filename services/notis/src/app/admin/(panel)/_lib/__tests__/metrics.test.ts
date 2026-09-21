@@ -7,7 +7,6 @@ import {
   pctChange,
   pointsChange,
   replierRate,
-  replyRate,
 } from "../metrics";
 
 describe("parseRange", () => {
@@ -114,28 +113,13 @@ describe("fillSeries", () => {
         unsubscribes: [],
         repliers: [],
         recipients: [],
-        newsWakesSent: [{ key: "2026-08-15", count: 4 }],
-        newsWakesAnswered: [{ key: "2026-08-15", count: 1 }],
         errors: [{ key: "2026-08-16", count: 2 }],
       },
     );
     expect(series.map((p) => p.sent)).toEqual([0, 3, 0]);
     expect(series.map((p) => p.received)).toEqual([0, 0, 0]);
     expect(series.find((p) => p.key === "2026-08-15")?.activeUsers).toBe(1);
-    expect(series.map((p) => p.newsWakesSent)).toEqual([0, 4, 0]);
-    expect(series.map((p) => p.newsWakesAnswered)).toEqual([0, 1, 0]);
     expect(series.map((p) => p.errors)).toEqual([0, 0, 2]);
-  });
-});
-
-describe("replyRate", () => {
-  it("is the share of news sends the reader answered", () => {
-    expect(replyRate(4, 1)).toBe(0.25);
-    expect(replyRate(3, 3)).toBe(1);
-  });
-
-  it("is null when no news went out, so the card says so instead of showing 0%", () => {
-    expect(replyRate(0, 0)).toBeNull();
   });
 });
 
@@ -226,7 +210,7 @@ describe("deltaFor, on a rate that can be absent", () => {
 
 describe("deltaFor", () => {
   it("calls an absent baseline new, never a rise from zero", () => {
-    // replyRate() returns null when nothing went out. Reading that as 0%
+    // replierRate() returns null when nothing went out. Reading that as 0%
     // turns the first period after a recess into a confident green rise.
     expect(deltaFor({ current: 0.0249, previous: null, unit: "percent" })).toEqual({ kind: "new" });
     expect(deltaFor({ current: null, previous: null, unit: "percent" })).toEqual({ kind: "none" });
