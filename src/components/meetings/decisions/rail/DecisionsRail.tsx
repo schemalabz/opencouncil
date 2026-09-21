@@ -54,6 +54,7 @@ export function DecisionsRail({
     subjectName,
     onRederive,
     isRederiving,
+    onExplainDerivation,
 }: {
     /** Null while the minutes have not loaded (or failed to): the presence,
      * attendance-changes and discussion-order cards render nothing then. */
@@ -81,6 +82,9 @@ export function DecisionsRail({
     subjectName: (subjectId: string) => string | undefined;
     onRederive: () => void;
     isRederiving: boolean;
+    /** Opens the page's derivation glossary from the issues card. Superadmin-only,
+     * so the page passes it to one and withholds it from everyone else. */
+    onExplainDerivation?: () => void;
 }) {
     const tPage = useTranslations('admin.decisionsPage');
     const tCommon = useTranslations('Common');
@@ -101,13 +105,15 @@ export function DecisionsRail({
                 <AttendanceChangesCard changes={changes} subjects={minutes.subjects} attendanceChanges={minutes.attendanceChanges} />
             )}
             {minutes && <DiscussionOrderCard data={minutes} />}
-            <IssuesCard issues={issues} subjectName={subjectName} />
             {isSuperAdmin && (
                 // One frame, not two: the block wore the AdminOnly stripes and
                 // then striped each control row inside them again, so the
                 // hazard pattern read as two nested warnings about one thing.
                 <AdminOnly label={tCommon('adminOnly')}>
                     <div className="space-y-3 px-1 pb-1">
+                        {/* The issues read against audit mode below, which only a
+                            superadmin has, so they sit in the same frame. */}
+                        <IssuesCard issues={issues} subjectName={subjectName} onExplainDerivation={onExplainDerivation} />
                         <div className="rounded-lg border bg-background p-2.5">
                             <label className="flex items-center justify-between gap-3">
                                 <span className="text-xs font-medium">{tPage('auditMode')}</span>

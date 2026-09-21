@@ -518,7 +518,6 @@
       "title": "Issues",
       "none": "No issues",
       "inferredFor": "Inferred — no document states it",
-      "count": "{n, plural, one {# issue} other {# issues}}",
       "severity": {
         "error": "Error",
         "warning": "Warning",
@@ -536,8 +535,6 @@
       "howDerived": "How the facts are derived"
     },
     "rederive": "Re-derive",
-    "changesFromEvents": "Changes from stored events",
-    "changesFromDiff": "Changes reconstructed from per-subject attendance (no stored events)",
     "audit": {
       "lineLabel": "Audit",
       "moreIssues": "+{n} more",
@@ -557,7 +554,81 @@
       "attendanceFromList": "From the document's own present list",
       "attendanceFromRollCall": "From the roll call"
     },
-    "filterIssues": "With issues"
+    "filterIssues": "With issues",
+    "derivation": {
+      "title": "How the facts are derived",
+      "subtitle": "From the Diavgeia PDF to the minutes, in five steps. Each step shows what we keep from the source, what we compute from it, and what can be left unanswered.",
+      "superadminOnly": "Superadmin only",
+      "rule": "We keep only what a source explicitly <b>states</b>, in its most detailed form. Everything cumulative is <b>computed</b> from that, from scratch every time.",
+      "ruleWhy": "That is why who was present at each subject and who voted FOR are never stored as facts: storing them would freeze one reading of the documents, and where they came from would no longer be visible. Because they are computed, they can be explained, checked and produced again without re-reading the PDFs.",
+      "stated": "Stated",
+      "derived": "Derived",
+      "alsoAtStep": "also at step {n}",
+      "footer": "The body's <b>reading rules</b> feed both ends: they tell the extractor what to expect at step 0, and at step 2 what a present list means. If no human has confirmed them, every meeting of the body says so.",
+      "stages": {
+        "read": {
+          "name": "Reading the document",
+          "what": "Each PDF is read on its own and returns only what its page prints. It does not look at the other documents and does not fill gaps — what the page does not say does not exist at this step.",
+          "stated": "The roll call · the arrivals and departures together with the point the page ties them to · the vote phrase as printed · everyone it names · its own present list, if it has one.",
+          "derived": "Nothing. Names are matched to people, and the ones not found travel as text rather than being dropped.",
+          "codesLabel": "What can be left unanswered here"
+        },
+        "place": {
+          "name": "Placing the changes",
+          "what": "The page writes «X left during the discussion of subject Y». For that to count, it has to become a position inside the order the subjects were discussed in — the same order the minutes print.",
+          "stated": "The point as the document writes it: a subject, a decision number, or a phase of the sitting.",
+          "derived": "Which position in the discussion order that point corresponds to.",
+          "codesLabel": "What can be left unanswered here"
+        },
+        "presence": {
+          "name": "Replaying the presences",
+          "what": "Starts from the roll call and moves subject by subject, applying each change at its position. Where the body prints its own present list per decision, that list prevails from that subject onwards.",
+          "stated": "Who was present at the opening, and who arrived or left during the sitting.",
+          "derived": "Who was present at each individual subject. No document writes this for a whole sitting — it comes out of the replay.",
+          "codesLabel": "What can be left unanswered here"
+        },
+        "votes": {
+          "name": "Deriving the votes",
+          "what": "Pages almost never name the majority — they name those who disagreed. A FOR that was not printed is not a read fact, so it is added only here and stays marked as derived.",
+          "stated": "The result phrase as printed («Unanimously», «By majority»), the tally if there is one, and everyone named.",
+          "derived": "FOR for every present member who is not named — only where the phrase allows it.",
+          "codesLabel": "What can be left unanswered here"
+        },
+        "write": {
+          "name": "Writing to the database",
+          "what": "The write is all-or-nothing: it deletes every attendance and vote row of the sitting that came from decisions, and writes the freshly computed ones in their place. Anything a human entered is left untouched. Because it deletes everything first, an incomplete input would not break a few rows — it would empty them all. Hence the two blocks: if either one holds, nothing is written and the stored rows stay as they are.",
+          "codesLabel": "The two blocks"
+        }
+      },
+      "why": {
+        "read": {
+          "LAYOUT_DISAGREES": "The document printed a different roll-call layout from the one the body's rules describe. One of the two is wrong.",
+          "ITEM_NUMBER_DISAGREES": "The document states a different subject from the one it was linked to — then every fact it carries lands on the wrong subject.",
+          "UNREAD_DOCUMENT": "The document was never read: its subject has no votes, and its presence comes from the meeting's other documents.",
+          "INCOMPLETE_READ": "The read did not reach the ΑΠΟΦΑΣΙΖΕΙ, so the outcome is missing.",
+          "UNMATCHED_NAME": "A name that was not tied to a person; it counts in neither presences nor votes.",
+          "PRESIDING_DISAGREES": "Documents of the same sitting state a different presiding member.",
+          "CONVENTIONS_UNCONFIRMED": "The body's rules came out of a sample of documents and no human has confirmed them."
+        },
+        "place": {
+          "UNPLACEABLE_ANCHOR": "The point the document states corresponds to nothing. The change becomes a signal rather than being applied at the wrong position."
+        },
+        "presence": {
+          "NO_ROLL_CALL": "No source gives a roll call, so there is nothing for the replay to start from.",
+          "PRESENCE_UNKNOWN": "It is not clear whether the present list is the opening roll call or already includes those who arrived later. It changes who counts as present at the first subjects.",
+          "SOURCES_DISAGREE": "Two sources say different things about the same person. One prevails on precedence and the other is reported rather than erased.",
+          "IMPLIED_CHANGE": "A decision's list shows a change that no document stated explicitly as an arrival or a departure."
+        },
+        "votes": {
+          "TALLY_MISMATCH": "The printed tally does not agree with the rows that came out. Usually it means a presence change is missing.",
+          "SOURCES_DISAGREE": "Two sources give a different vote for the same person."
+        },
+        "write": {
+          "NO_STORED_FACTS": "One document read before we started storing facts is enough. If it were written now, only its own subject would be built and every older one would be emptied. Re-reading the sitting fills in the rest.",
+          "NO_ROLL_CALL": "The presences are a replay of the roll call. With an empty roll call nobody would come out present anywhere — that would not be a correction of the rows but their deletion."
+        }
+      }
+    }
   },
   "decisionsOverview": {
     "title": "Decisions",

@@ -12,7 +12,7 @@ import { MeetingCandidate } from '@/lib/db/decisionCandidateShape';
 import { getPollingHistoryForMeeting, requestPollDecisions, resolveCandidateConflict } from '@/lib/tasks/pollDecisions';
 import { pollCadence } from '@/lib/tasks/pollDecisionsBackoff';
 import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib/utils/votes';
-import { formatCalendarDate, formatDate } from '@/lib/formatters/time';
+import { formatCalendarDate, formatDate, formatNumericDate } from '@/lib/formatters/time';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
 import { isDecisionConventions } from '@/lib/decisionConventions';
 import { isRecordSubject, recordSection } from '@/lib/utils/subjects';
@@ -42,6 +42,7 @@ import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 import { buildTimeline } from '@/components/meetings/decisions/timeline';
 import { downloadFile } from '@/lib/export/download';
 import { MinutesPreviewDialog } from '@/components/meetings/decisions/MinutesPreviewDialog';
+import { DerivationDialog } from '@/components/meetings/decisions/DerivationDialog';
 import { DecisionsRail } from '@/components/meetings/decisions/rail/DecisionsRail';
 import type { ConventionsPanel } from '@/components/meetings/decisions/rail/ConventionsSection';
 import type { DerivationOutput } from '@/lib/derivation/types';
@@ -193,6 +194,13 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const [minutes, setMinutes] = useState<MinutesData | null>(null);
     const [minutesFailed, setMinutesFailed] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
+    const [derivationOpen, setDerivationOpen] = useState(false);
+    const openDerivation = useCallback(() => setDerivationOpen(true), []);
+    // Undefined for anyone but a superadmin. The audit line and the issues card
+    // offer the link only when they are handed one, so withholding the callback
+    // is what keeps the glossary out of a city admin's reach — no second
+    // permission check down there to keep in step with this one.
+    const explainDerivation = isSuperAdmin ? openDerivation : undefined;
     const [pollingStatus, setPollingStatus] = useState<Awaited<ReturnType<typeof getPollingHistoryForMeeting>> | null>(null);
     const [isPolling, setIsPolling] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
@@ -462,17 +470,14 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const missingCount = visibleRows.filter(row => row.result === 'none').length;
     const auditCount = visibleRows.filter(row => row.audit?.needsCheck).length;
 
-    // The table hides a chip at zero, so a filter still set to the one that
-    // just emptied strands the clerk on an empty table with no control to get
-    // back — at the moment the last row is filled in, which is the success
-    // path of the whole page. Each chip only ever takes back its own filter, so
-    // a deliberate choice of another is never undone.
-    useEffect(() => {
-        if (missingCount === 0) setFilter(current => (current === 'missing' ? 'all' : current));
-    }, [missingCount]);
-    useEffect(() => {
-        if (auditCount === 0) setFilter(current => (current === 'audit' ? 'all' : current));
-    }, [auditCount]);
+    // The table hides a chip at zero, so a filter still set to the one that just
+    // emptied would strand the clerk on an empty table with no control to get
+    // back — at the moment the last row is filled in, which is the success path
+    // of the whole page. Whether a filter still holds is a function of the
+    // counts, not an event, so it is answered here; `filter` stays the choice
+    // that was made, and applies again as soon as its rows come back.
+    const chipCount: Record<DecisionsFilter, number> = { all: visibleRows.length, missing: missingCount, audit: auditCount };
+    const effectiveFilter: DecisionsFilter = chipCount[filter] === 0 ? 'all' : filter;
 
     // A poll or another admin can fill a row after its proposal was rejected.
     // The rejection is settled then, and a kept entry would show its "Αναίρεση"
@@ -1336,7 +1341,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                 <DecisionsTable
                                     rows={visibleRows}
                                     beforeAgenda={beforeAgenda}
-                                    filter={filter}
+                                    filter={effectiveFilter}
                                     missingCount={missingCount}
                                     auditCount={auditCount}
                                     onFilterChange={setFilter}
@@ -1351,6 +1356,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                     onOpenDecision={subjectId => setViewing(decisions[subjectId]?.id ?? null)}
                                     onOpenProposalDocument={setViewing}
                                     busySubjectId={busySubjectId}
+                                    onExplainDerivation={explainDerivation}
                                 />
                             </div>
                         </>
@@ -1378,7 +1384,18 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         />
                     )}
 
-                    {minutes && <MinutesPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} data={minutes} />}
+                    {minutes && (
+                        <MinutesPreviewDialog
+                            open={previewOpen}
+                            onOpenChange={setPreviewOpen}
+                            data={minutes}
+                            isSuperAdmin={isSuperAdmin}
+                        />
+                    )}
+
+                    {isSuperAdmin && (
+                        <DerivationDialog open={derivationOpen} onOpenChange={setDerivationOpen} />
+                    )}
                 </div>
                 <aside className="min-w-0">
                     <DecisionsRail
@@ -1400,6 +1417,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         }}
                         onRederive={handleRederive}
                         isRederiving={isRederiving}
+                        onExplainDerivation={explainDerivation}
                         auditMode={auditMode}
                         onAuditModeChange={setAuditMode}
                         conventions={conventionsPanel}

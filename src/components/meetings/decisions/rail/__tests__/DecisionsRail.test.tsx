@@ -104,7 +104,18 @@ describe('DecisionsRail', () => {
     it('puts the minutes card first, above the facts it is built from', () => {
         const { container } = renderRail();
         const titles = [...container.querySelectorAll('.text-\\[11px\\].font-extrabold')].map(el => el.textContent);
-        expect(titles).toEqual(['rail.minutesTitle', 'attendance', 'factsArrivalsDepartures', 'factsDiscussionOrder', 'issues.title']);
+        expect(titles).toEqual(['rail.minutesTitle', 'attendance', 'factsArrivalsDepartures', 'factsDiscussionOrder']);
+    });
+
+    // The issues read against audit mode, which only a superadmin has; a city
+    // admin seeing the codes without the mode that explains them was confusing.
+    it('shows the issues card to a superadmin only, inside the admin frame', () => {
+        renderRail({ isSuperAdmin: false });
+        expect(screen.queryByText('issues.title')).not.toBeInTheDocument();
+
+        renderRail({ isSuperAdmin: true });
+        const frame = screen.getByText('Μόνο για διαχειριστές').parentElement!;
+        expect(frame).toContainElement(screen.getByText('issues.title'));
     });
 
     it('renders no reset strip for a non-superadmin', () => {

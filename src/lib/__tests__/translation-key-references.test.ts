@@ -347,6 +347,17 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         members: { file: 'src/lib/derivation/issueCatalogue.ts', constArray: 'DERIVATION_STAGES' },
     },
     {
+        group: 'admin.decisionsPage.derivation.stages.',
+        members: { file: 'src/lib/derivation/issueCatalogue.ts', constArray: 'DERIVATION_STAGES' },
+    },
+    {
+        // The leaf below the stage is the code, and which codes a stage lists
+        // is ISSUE_STAGES' business — `DerivationDialog.test.tsx` renders the
+        // dialog against the catalogue and fails on a code with no entry.
+        group: 'admin.decisionsPage.derivation.why.',
+        members: { file: 'src/lib/derivation/issueCatalogue.ts', constArray: 'DERIVATION_STAGES' },
+    },
+    {
         group: 'admin.decisionsOverview.conflict.',
         why: 'ConflictResolutionOutcome supplies the toast leaves, but the group also holds literal panel copy',
     },

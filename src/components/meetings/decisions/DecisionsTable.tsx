@@ -131,6 +131,9 @@ export interface DecisionsTableProps {
     onOpenDecision: (subjectId: string) => void;
     onOpenProposalDocument: (candidateId: string) => void;
     busySubjectId: string | null;
+    /** Opens the page's derivation glossary from an audit line. Superadmin-only,
+     * so the page passes it to one and withholds it from everyone else. */
+    onExplainDerivation?: () => void;
 }
 
 type T = ReturnType<typeof useTranslations>;
@@ -505,6 +508,7 @@ export function DecisionsTable({
     onOpenDecision,
     onOpenProposalDocument,
     busySubjectId,
+    onExplainDerivation,
 }: DecisionsTableProps) {
     const t = useTranslations('admin.decisionsPage');
     const tSubject = useTranslations('Subject');
@@ -633,7 +637,7 @@ export function DecisionsTable({
                                     {proposal && (
                                         <ProposalLine proposal={proposal} onOpenProposalDocument={onOpenProposalDocument} t={t} />
                                     )}
-                                    {row.audit && <AuditLine signal={row.audit} />}
+                                    {row.audit && <AuditLine signal={row.audit} onExplainDerivation={onExplainDerivation} />}
                                 </div>
                                 <StackBreak />
                                 <div role="cell" className="order-4 text-right md:order-none md:text-left">
