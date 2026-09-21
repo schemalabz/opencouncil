@@ -9,7 +9,9 @@ import { Countdown } from "./_components/Countdown";
 import { DeltaChip } from "./_components/DeltaChip";
 import { MetricCard, MetricPoint } from "./_components/MetricCard";
 import { PageHeader } from "./_components/PageHeader";
+import { TrendColumns, TrendLine, TrendPoint } from "./_components/TrendChart";
 import { UserAvatar } from "./_components/UserAvatar";
+import { CURRENT_PERIOD, PREVIOUS_PERIOD } from "./_lib/chart-colors";
 import { fmtInt, fmtPct, fmtTimeAgo } from "./_lib/format";
 import {
   BucketUnit,
@@ -19,6 +21,7 @@ import {
   RangeKey,
   SeriesPoint,
   getOverviewStats,
+  periodBounds,
   liveData,
   parseRange,
   deltaFor,
@@ -75,7 +78,7 @@ function fmtBucketLabel(key: string, bucket: BucketUnit): string {
 
 function seriesFor(
   series: SeriesPoint[],
-  key: "activeUsers" | "sent" | "received" | "unsubscribes" | "errors",
+  key: "activeUsers" | "sent" | "received" | "errors",
   bucket: BucketUnit,
 ): MetricPoint[] {
   return series.map((point) => ({
@@ -85,24 +88,36 @@ function seriesFor(
   }));
 }
 
-/**
- * The share of the readers written to in each bucket who wrote back. Per
- * bucket, not cumulative, so the line carries what the period totals cannot:
- * when something changed. A bucket Νότης wrote nothing in has no rate at all
- * — nobody failed to answer a message that was never sent — and the line
- * breaks there rather than dipping to a zero nobody earned.
- */
-function replierRateSeries(series: SeriesPoint[], bucket: BucketUnit): MetricPoint[] {
-  return series.map((point) => {
-    const rate = replierRate(point.repliers, point.recipients);
-    return {
-      key: point.key,
-      label: fmtBucketLabel(point.key, bucket),
-      value: rate === null ? null : rate * 100,
-      hint: point.recipients === 0 ? undefined : `${fmtInt(point.repliers)}/${fmtInt(point.recipients)}`,
-    };
-  });
+/** «Κυρ» for a sub-day bucket key, whose date part is already Athens-local. */
+function athensWeekday(key: string): string {
+  return new Intl.DateTimeFormat("el-GR", { weekday: "short", timeZone: "UTC" }).format(
+    new Date(`${key}:00Z`),
+  );
 }
+
+/**
+ * Tooltip label on the two-period trend chart. Like fmtBucketLabel, except
+ * that an hour bucket also names its day: the chart holds every wall-clock
+ * hour twice, and «13:00–14:00» alone cannot say which day the bar is.
+ */
+function fmtTrendLabel(key: string, bucket: BucketUnit): string {
+  const label = fmtBucketLabel(key, bucket);
+  return bucket === "hour" ? `${athensWeekday(key)} ${label}` : label;
+}
+
+/** Axis tick: the day for day buckets, the day and the hour for hour
+ *  buckets, the minute alone for minute buckets. */
+function fmtAxisLabel(key: string, bucket: BucketUnit): string {
+  if (bucket === "day") return fmtBucketLabel(key, bucket);
+  if (bucket === "minute") return key.slice(11);
+  return `${athensWeekday(key)} ${key.slice(11)}`;
+}
+
+const BUCKET_NOUN: Record<BucketUnit, { per: string; end: string }> = {
+  minute: { per: "λεπτό", end: "λεπτού" },
+  hour: { per: "ώρα", end: "ώρας" },
+  day: { per: "ημέρα", end: "ημέρας" },
+};
 
 function StackedBar({
   segments,
@@ -312,7 +327,7 @@ function DeliveryPanel({ current, previous }: { current: PeriodStats; previous: 
 function CostPanel({ current, previous }: { current: PeriodStats; previous: PeriodStats }) {
   const totalCost = current.costUsd + current.editorialCostUsd;
   const previousTotal = previous.costUsd + previous.editorialCostUsd;
-  const perUser = current.activeUsers > 0 ? totalCost / current.activeUsers : null;
+  const perUser = current.subscribers > 0 ? totalCost / current.subscribers : null;
   return (
     <section className="rounded-lg border bg-background p-4">
       <div className="flex items-baseline justify-between">
@@ -323,9 +338,7 @@ function CostPanel({ current, previous }: { current: PeriodStats; previous: Peri
         </div>
       </div>
       <p className="mt-0.5 text-xs text-muted-foreground">
-        {perUser === null
-          ? "ανά ενεργό χρήστη —"
-          : `${fmtUsd(perUser)} ανά ενεργό χρήστη`}
+        {perUser === null ? "ανά συνδρομητή —" : `${fmtUsd(perUser)} ανά συνδρομητή`}
       </p>
       {current.wakesByEvent.length > 0 && (
         <div className="mt-4 border-t pt-3">
@@ -347,6 +360,287 @@ function CostPanel({ current, previous }: { current: PeriodStats; previous: Peri
           />
         </div>
       )}
+    </section>
+  );
+}
+
+function fmtPerReader(messages: number, readers: number): string {
+  return (messages / readers).toLocaleString("el-GR", { maximumFractionDigits: 1 });
+}
+
+function UsageTile({
+  label,
+  value,
+  current,
+  previous,
+  invert = false,
+  share,
+  barClass,
+  lines,
+}: {
+  label: string;
+  value: string;
+  current: number;
+  previous: number;
+  invert?: boolean;
+  /** The bar under the number: this count as a share of the subscribers. */
+  share: number;
+  barClass: string;
+  lines: React.ReactNode[];
+}) {
+  return (
+    <div className="px-5 py-4">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      <div className="mt-1.5 flex items-baseline gap-2">
+        <span className="text-3xl font-semibold">{value}</span>
+        <DeltaChip current={current} previous={previous} invert={invert} />
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className={`h-full rounded-full ${barClass}`} style={{ width: `${share * 100}%` }} />
+      </div>
+      <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+        {lines.map((line, index) => (
+          <p key={index} className="truncate">
+            {line}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Four counts of people, each a share of the subscribers: on the list, wrote
+ * to, wrote back, left. Messages are the second line of each, never the
+ * headline — 900 messages to 375 readers and 900 to 90 are different weeks,
+ * and only the reader count tells them apart.
+ */
+function UsagePanel({
+  current,
+  previous,
+  totals,
+}: {
+  current: PeriodStats;
+  previous: PeriodStats;
+  totals: OverviewStats["totals"];
+}) {
+  // Everyone who was on the list at some point in the period: the level at
+  // its start plus the signups. The level at its END would leave out a
+  // reader who got a message and then said ΣΤΟΠ, and a blast followed by
+  // many stops would read as «more readers reached than subscribers».
+  const base = previous.subscribers + current.newSubscriptions;
+  const share = (n: number) => (base > 0 ? Math.min(n / base, 1) : 0);
+  // Readers who had something to reply to: the ones Νότης actually wrote to
+  // in the period, not everyone on the list. He is quiet by design, so most
+  // of the list hears nothing in any given week, and dividing by all of them
+  // measures how often he writes rather than how well.
+  const currentReplierRate = replierRate(current.repliers, current.recipients);
+  const previousReplierRate = replierRate(previous.repliers, previous.recipients);
+  return (
+    <section className="rounded-lg border bg-background">
+      <div className="flex items-baseline gap-2 px-5 pt-4">
+        <h2 className="text-sm font-medium">Χρήση</h2>
+        <span className="text-xs text-muted-foreground">
+          αναγνώστες στην περίοδο, ο καθένας μία φορά
+        </span>
+      </div>
+      <div className="grid divide-y sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4 xl:divide-x">
+        <UsageTile
+          label="Συνδρομητές"
+          value={fmtInt(current.subscribers)}
+          current={current.subscribers}
+          previous={previous.subscribers}
+          share={share(current.subscribers)}
+          barClass="bg-[#fb923c]"
+          lines={[
+            "ενεργοί στο τέλος της περιόδου",
+            `+${fmtInt(current.newSubscriptions)} νέοι · ${fmtInt(current.unsubscribes)} ΣΤΟΠ`,
+          ]}
+        />
+        <UsageTile
+          label="Έλαβαν μήνυμα"
+          value={fmtInt(current.recipients)}
+          current={current.recipients}
+          previous={previous.recipients}
+          share={share(current.recipients)}
+          barClass="bg-[#ea580c]"
+          lines={
+            current.recipients === 0
+              ? ["ο Νότης δεν έγραψε σε κανέναν στην περίοδο"]
+              : [
+                  `${fmtPct(share(current.recipients))} των συνδρομητών`,
+                  `${fmtInt(current.messagesDelivered)} μηνύματα · ${fmtPerReader(current.messagesDelivered, current.recipients)} ανά αναγνώστη`,
+                ]
+          }
+        />
+        <UsageTile
+          label="Έγραψαν στον Νότη"
+          value={fmtInt(current.repliers)}
+          current={current.repliers}
+          previous={previous.repliers}
+          share={share(current.repliers)}
+          barClass="bg-[#c2410c]"
+          lines={[
+            currentReplierRate === null ? (
+              "—"
+            ) : (
+              <>
+                {fmtPct(currentReplierRate, true)} όσων έλαβαν μήνυμα{" "}
+                <DeltaChip
+                  current={currentReplierRate}
+                  previous={previousReplierRate}
+                  unit="percent"
+                />
+              </>
+            ),
+            current.repliers === 0
+              ? "κανένα εισερχόμενο στην περίοδο"
+              : `${fmtInt(current.messagesReceived)} μηνύματα · ${fmtPerReader(current.messagesReceived, current.repliers)} ανά αναγνώστη`,
+          ]}
+        />
+        <UsageTile
+          label="Απεγγραφές"
+          value={fmtInt(current.unsubscribes)}
+          current={current.unsubscribes}
+          previous={previous.unsubscribes}
+          invert
+          share={share(current.unsubscribes)}
+          barClass="bg-stone-500"
+          lines={[
+            base === 0 ? "—" : `${fmtPct(share(current.unsubscribes))} των συνδρομητών`,
+            `${fmtInt(totals.unsubscribed)} συνολικά σε ΣΤΟΠ`,
+          ]}
+        />
+      </div>
+    </section>
+  );
+}
+
+const TREND_COLUMNS = "grid grid-cols-[11rem_1fr] gap-x-5";
+
+function TrendRow({
+  label,
+  sub,
+  boundaryPct,
+  children,
+}: {
+  label: string;
+  sub: string;
+  /** Where the current period starts, as a share of the chart's width. */
+  boundaryPct: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`${TREND_COLUMNS} border-t py-3`}>
+      <div className="pt-1">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">{sub}</p>
+      </div>
+      {/* The svg may overflow: an end label sits half a band from the edge. */}
+      <div className="relative h-20 [&_svg]:overflow-visible">
+        <div
+          className="pointer-events-none absolute inset-y-0 z-10 w-px bg-stone-300"
+          style={{ left: `${boundaryPct}%` }}
+        />
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The same three counts over time, previous period beside current, so «is
+ * it growing» is seen and not only read off a chip: the audience as a
+ * level, then the readers written to and the readers who wrote back, per
+ * bucket. Spikes are the product — Νότης writes when a council met.
+ */
+function TrendPanel({ stats, range }: { stats: OverviewStats; range: RangeKey }) {
+  const { bucket, legend } = RANGES[range];
+  const { series, boundaryIndex, current, previous } = stats;
+  const boundaryPct = (boundaryIndex / series.length) * 100;
+  const points = (key: "subscribers" | "recipients" | "repliers"): TrendPoint[] =>
+    series.map((point) => ({
+      key: point.key,
+      label: fmtTrendLabel(point.key, bucket),
+      value: point[key],
+    }));
+  const readers = (now: number, then: number) =>
+    `${fmtInt(now)} αναγνώστες · πριν ${fmtInt(then)}`;
+  // One scale for both reader rows: the writers are a subset of the readers
+  // written to, and the chart should look like it.
+  const readersMax = Math.max(...series.map((point) => Math.max(point.recipients, point.repliers)));
+  const first = series[0];
+  const boundary = series[boundaryIndex];
+  const last = series[series.length - 1];
+  return (
+    <section className="rounded-lg border bg-background px-4 pb-3 pt-4">
+      <div className="flex items-baseline gap-2">
+        <h2 className="text-sm font-medium">Πορεία</h2>
+        <span className="text-xs text-muted-foreground">
+          ανά {BUCKET_NOUN[bucket].per}, οι δύο περίοδοι δίπλα-δίπλα
+        </span>
+      </div>
+      <div className={`${TREND_COLUMNS} mt-3 pb-1`}>
+        <div />
+        <div className="flex text-[11px] font-medium uppercase tracking-wider">
+          <span
+            className="inline-flex shrink-0 items-center gap-1.5 text-muted-foreground"
+            style={{ width: `${boundaryPct}%` }}
+          >
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: PREVIOUS_PERIOD }} />
+            {legend.previous}
+          </span>
+          <span className="inline-flex items-center gap-1.5 pl-3">
+            <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: CURRENT_PERIOD }} />
+            {legend.current}
+          </span>
+        </div>
+      </div>
+      <TrendRow
+        label="Συνδρομητές"
+        sub={`ενεργοί στο τέλος κάθε ${BUCKET_NOUN[bucket].end}`}
+        boundaryPct={boundaryPct}
+      >
+        <TrendLine points={points("subscribers")} boundaryIndex={boundaryIndex} unit="συνδρομητές" />
+      </TrendRow>
+      <TrendRow
+        label="Έλαβαν μήνυμα"
+        sub={readers(current.recipients, previous.recipients)}
+        boundaryPct={boundaryPct}
+      >
+        <TrendColumns
+          points={points("recipients")}
+          boundaryIndex={boundaryIndex}
+          unit="αναγνώστες"
+          max={readersMax}
+        />
+      </TrendRow>
+      <TrendRow
+        label="Έγραψαν στον Νότη"
+        sub={readers(current.repliers, previous.repliers)}
+        boundaryPct={boundaryPct}
+      >
+        <TrendColumns
+          points={points("repliers")}
+          boundaryIndex={boundaryIndex}
+          unit="αναγνώστες"
+          max={readersMax}
+        />
+      </TrendRow>
+      <div className={`${TREND_COLUMNS} pt-1`}>
+        <div />
+        <div className="relative h-4 text-[11px] tabular-nums text-muted-foreground">
+          {first && <span className="absolute left-0">{fmtAxisLabel(first.key, bucket)}</span>}
+          {boundary && (
+            <span className="absolute -translate-x-1/2" style={{ left: `${boundaryPct}%` }}>
+              {fmtAxisLabel(boundary.key, bucket)}
+            </span>
+          )}
+          {last && <span className="absolute right-0">{fmtAxisLabel(last.key, bucket)}</span>}
+        </div>
+      </div>
     </section>
   );
 }
@@ -403,7 +697,7 @@ async function RailsStrip({
   suppressions: Array<{ reason: string; count: number }>;
   range: RangeKey;
 }) {
-  const rails = await getRailsNow(new Date(Date.now() - RANGES[range].ms));
+  const rails = await getRailsNow(periodBounds(range, new Date()).current);
   if (!rails) return null;
   const suppressedTotal = suppressions.reduce((a, r) => a + r.count, 0);
   const cell = "flex items-center gap-2.5 px-4";
@@ -526,12 +820,10 @@ export default async function DashboardPage(props: {
   const range = parseRange((await props.searchParams).range);
   const stats = await getOverviewStats(range);
   const { current, previous, totals } = stats;
-  // Readers who had something to reply to: the ones Νότης actually wrote to
-  // in the period, not everyone on the list. He is quiet by design, so most
-  // of the list hears nothing in any given week, and dividing by all of them
-  // measures how often he writes rather than how well.
-  const currentReplierRate = replierRate(current.repliers, current.recipients);
-  const previousReplierRate = replierRate(previous.repliers, previous.recipients);
+  const { bucket } = RANGES[range];
+  // The sparklines keep to the current period, as the cards always have; the
+  // trend block above them is where the previous period is drawn.
+  const currentSeries = stats.series.slice(stats.boundaryIndex);
   // Both shapes in one number: the wake that erred and the wake that never
   // ran. A model outage produces only the second, so a chart of the first
   // alone stays flat through it.
@@ -554,21 +846,16 @@ export default async function DashboardPage(props: {
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
         <RailsStrip suppressions={current.suppressions} range={range} />
+        <UsagePanel current={current} previous={previous} totals={totals} />
+        <TrendPanel stats={stats} range={range} />
+
         <div className="grid divide-y rounded-lg border bg-background sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4 xl:divide-x">
-          <MetricCard
-            label="Ενεργοί χρήστες"
-            value={fmtInt(current.activeUsers)}
-            current={current.activeUsers}
-            previous={previous.activeUsers}
-            points={seriesFor(stats.series, "activeUsers", RANGES[range].bucket)}
-            detail={`+${fmtInt(current.newSubscriptions)} νέες εγγραφές · ${fmtInt(totals.subscriptions)} συνολικά`}
-          />
           <MetricCard
             label="Απεστάλησαν"
             value={fmtInt(current.messagesSent)}
             current={current.messagesSent}
             previous={previous.messagesSent}
-            points={seriesFor(stats.series, "sent", RANGES[range].bucket)}
+            points={seriesFor(currentSeries, "sent", bucket)}
             detail="μηνύματα του Νότη προς χρήστες"
           />
           <MetricCard
@@ -576,43 +863,23 @@ export default async function DashboardPage(props: {
             value={fmtInt(current.messagesReceived)}
             current={current.messagesReceived}
             previous={previous.messagesReceived}
-            points={seriesFor(stats.series, "received", RANGES[range].bucket)}
+            points={seriesFor(currentSeries, "received", bucket)}
             detail="μηνύματα χρηστών προς τον Νότη"
           />
           <MetricCard
-            label="Απεγγραφές"
-            value={fmtInt(current.unsubscribes)}
-            current={current.unsubscribes}
-            previous={previous.unsubscribes}
-            points={seriesFor(stats.series, "unsubscribes", RANGES[range].bucket)}
-            invert
-            tone="red"
-            detail={`${fmtInt(totals.unsubscribed)} συνολικά σε ΣΤΟΠ`}
-          />
-        </div>
-
-        <div className="grid divide-y rounded-lg border bg-background sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-          <MetricCard
-            label="Αναγνώστες που απαντούν"
-            value={currentReplierRate === null ? "—" : fmtPct(currentReplierRate, true)}
-            // Passed through as null: a period he wrote nothing in has no
-            // rate, and reading that as 0% would turn silence into a fall.
-            current={currentReplierRate}
-            previous={previousReplierRate}
-            points={replierRateSeries(stats.series, RANGES[range].bucket)}
-            unit="percent"
-            detail={
-              current.recipients === 0
-                ? "ο Νότης δεν έγραψε σε κανέναν στην περίοδο"
-                : `${fmtInt(current.repliers)} από ${fmtInt(current.recipients)} αναγνώστες που έλαβαν μήνυμα απάντησαν — ο καθένας μετράει μία φορά`
-            }
+            label="Ενεργοί χρήστες"
+            value={fmtInt(current.activeUsers)}
+            current={current.activeUsers}
+            previous={previous.activeUsers}
+            points={seriesFor(currentSeries, "activeUsers", bucket)}
+            detail="έλαβαν ή έστειλαν μήνυμα στην περίοδο"
           />
           <MetricCard
             label="Σφάλματα"
             value={fmtInt(currentErrors)}
             current={currentErrors}
             previous={previousErrors}
-            points={seriesFor(stats.series, "errors", RANGES[range].bucket)}
+            points={seriesFor(currentSeries, "errors", bucket)}
             invert
             tone="red"
             detail={`${fmtInt(current.wakesByDecision.error)} σε wake · ${fmtInt(current.droppedWakes)} χάθηκαν πριν φτάσουν στο μοντέλο`}

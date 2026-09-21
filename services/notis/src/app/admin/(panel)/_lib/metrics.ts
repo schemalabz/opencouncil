@@ -26,49 +26,79 @@ export type BucketUnit = "minute" | "hour" | "day";
  * `label` is the whole phrase, not a noun to prefix: Greek gender and number
  * have to agree, and «τελευταίες» + «3 μήνες» (masculine) or «1 ώρα»
  * (singular) does not. `since` is the same phrase in the accusative, for
- * "compared with the previous …".
+ * "compared with the previous …". `legend` names the two halves of the
+ * trend chart, in the nominative and without the article.
+ *
+ * `buckets` is the length of the period, counted in whole Athens-local
+ * buckets — 7 days, 24 hours, 60 minutes. The window is built from it (see
+ * periodBounds), so a period is never a rolling duration that starts in the
+ * middle of a bucket.
  */
 export const RANGES = {
   "1h": {
-    ms: HOUR_MS,
     label: "την τελευταία ώρα",
     since: "την προηγούμενη ώρα",
     short: "1ω",
+    buckets: 60,
+    legend: {
+      current: "τελευταία ώρα",
+      previous: "προηγούμενη ώρα",
+    },
     bucket: "minute" as BucketUnit,
   },
   "24h": {
-    ms: DAY_MS,
     label: "τις τελευταίες 24 ώρες",
     since: "τις προηγούμενες 24 ώρες",
     short: "24ω",
+    buckets: 24,
+    legend: {
+      current: "τελευταίες 24 ώρες",
+      previous: "προηγούμενες 24 ώρες",
+    },
     bucket: "hour" as BucketUnit,
   },
   "7d": {
-    ms: 7 * DAY_MS,
     label: "τις τελευταίες 7 ημέρες",
     since: "τις προηγούμενες 7 ημέρες",
     short: "7ημ",
+    buckets: 7,
+    legend: {
+      current: "τελευταίες 7 ημέρες",
+      previous: "προηγούμενες 7 ημέρες",
+    },
     bucket: "day" as BucketUnit,
   },
   "14d": {
-    ms: 14 * DAY_MS,
     label: "τις τελευταίες 14 ημέρες",
     since: "τις προηγούμενες 14 ημέρες",
     short: "14ημ",
+    buckets: 14,
+    legend: {
+      current: "τελευταίες 14 ημέρες",
+      previous: "προηγούμενες 14 ημέρες",
+    },
     bucket: "day" as BucketUnit,
   },
   "30d": {
-    ms: 30 * DAY_MS,
     label: "τις τελευταίες 30 ημέρες",
     since: "τις προηγούμενες 30 ημέρες",
     short: "30ημ",
+    buckets: 30,
+    legend: {
+      current: "τελευταίες 30 ημέρες",
+      previous: "προηγούμενες 30 ημέρες",
+    },
     bucket: "day" as BucketUnit,
   },
   "90d": {
-    ms: 90 * DAY_MS,
     label: "τους τελευταίους 3 μήνες",
     since: "τους προηγούμενους 3 μήνες",
     short: "3μ",
+    buckets: 90,
+    legend: {
+      current: "τελευταίοι 3 μήνες",
+      previous: "προηγούμενοι 3 μήνες",
+    },
     bucket: "day" as BucketUnit,
   },
 } as const;
@@ -80,6 +110,15 @@ export function parseRange(value: string | undefined): RangeKey {
   // ?range=constructor would pass and crash the overview.
   return value && Object.hasOwn(RANGES, value) ? (value as RangeKey) : "7d";
 }
+
+/**
+ * Delivery states that mean an outbound row reached the reader. `failed` and
+ * `suppressed` never arrived, and `pending` has not arrived yet: a reader
+ * whose only message in the period is still held by a rail has had nothing
+ * to reply to. Narrower than REACHED_STATUSES in queue.ts on purpose — the
+ * cap there asks whether a push will land, the counts here whether it did.
+ */
+const DELIVERED = ["sent", "delivered", "read"] as const satisfies readonly MessageStatus[];
 
 /**
  * The share of the readers Νότης WROTE TO who wrote back; null when he wrote
@@ -106,20 +145,10 @@ export function parseRange(value: string | undefined): RangeKey {
  * two sets would drop genuinely engaged readers for the accident of when
  * they were last written to.
  */
-/**
- * Delivery states that mean an outbound row reached the reader, or still
- * will. `failed` and `suppressed` never arrived, so a reader whose only
- * message in the period was held by a rail never had anything to reply to.
- * The same list, and the same reasoning, as REACHED_STATUSES in queue.ts.
- */
-const REACHED = ["pending", "sent", "delivered", "read"] as const satisfies readonly MessageStatus[];
-
 export function replierRate(repliers: number, recipients: number): number | null {
   if (recipients <= 0) return null;
-  // Clamped, because of the leak above. Over a period the numerator cannot
-  // outrun a denominator in the hundreds, but a chart bucket is one minute
-  // wide: two readers answering in the minute Νότης wrote to one plots 200%,
-  // which is not a rate and which drags the chart's whole scale with it.
+  // Clamped, because of the leak above: in a quiet period four readers can
+  // answer while three were written to, and 133% is not a rate.
   return Math.min(repliers / recipients, 1);
 }
 
@@ -139,8 +168,8 @@ export function pointsChange(current: number, previous: number): number {
 }
 
 /**
- * Below this the movement is finer than the data can express. At ~200 news
- * sends one reply is worth half a point, so a tenth of a point is not a move,
+ * Below this the movement is finer than the data can express. At ~200
+ * recipients one reply is worth half a point, so a tenth of a point is not a move,
  * it is the chip reacting to a single reader. The fail rate uses the same
  * number, so two rates on one screen agree about what counts as a change.
  */
@@ -205,10 +234,20 @@ export interface WakeEventStats {
 }
 
 export interface PeriodStats {
-  /** Distinct subscriptions with a message or a wake in the period. */
+  /** Subscriptions on at the end of the period — the audience, as a level.
+   *  Not «readers with a message or a wake»: a wake is Νότης deciding
+   *  whether to write, and most end in silence, so that count named nearly
+   *  the whole list as active in any given week. */
+  subscribers: number;
+  /** Distinct subscriptions with a real exchange in the period: a message
+   *  that reached them (see DELIVERED) or one they wrote. Not a wake — a
+   *  wake is Νότης considering a reader, which the reader never sees. */
   activeUsers: number;
   newSubscriptions: number;
+  /** Outbound rows in the period, whatever became of them. */
   messagesSent: number;
+  /** The outbound rows that reached a reader (see DELIVERED). */
+  messagesDelivered: number;
   messagesReceived: number;
   unsubscribes: number;
   outboundByStatus: Record<string, number>;
@@ -221,7 +260,7 @@ export interface PeriodStats {
    *  The reader-level counterpart of `messagesReceived`. */
   repliers: number;
   /** Distinct subscriptions that received at least one message in the period
-   *  — the readers who had something to reply to. */
+   *  (see DELIVERED) — the readers who had something to reply to. */
   recipients: number;
   /** Wakes the queue gave up on in the period. Distinct from a wake whose
    *  decision was `error`: this one never reached the model, so it leaves no
@@ -245,14 +284,19 @@ export interface RecentInbound {
   at: string;
 }
 
-/** One Athens-local bucket (minute / hour / day) inside the current window. */
+/** One Athens-local bucket (minute / hour / day). The series runs over the
+ *  previous period and the current one, so the chart shows the change
+ *  instead of only naming it. */
 export interface SeriesPoint {
   /** Athens-local key: YYYY-MM-DD for days, YYYY-MM-DDTHH:MM below that. */
   key: string;
+  /** Subscriptions on at the end of this bucket — a level, not a count. */
+  subscribers: number;
+  /** Distinct subscriptions with a real exchange in this bucket — see
+   *  PeriodStats. */
   activeUsers: number;
   sent: number;
   received: number;
-  unsubscribes: number;
   /** Distinct subscriptions that wrote in this bucket. */
   repliers: number;
   /** Distinct subscriptions Νότης wrote to in this bucket. */
@@ -265,15 +309,22 @@ export interface OverviewStats {
   range: RangeKey;
   current: PeriodStats;
   previous: PeriodStats;
+  /** Both periods, oldest bucket first. */
   series: SeriesPoint[];
+  /** Index of the first bucket of the current period in `series`. The
+   *  window is bucket-aligned, so every bucket before it belongs to the
+   *  previous period and every bucket from it on to the current one. */
+  boundaryIndex: number;
   recentInbound: RecentInbound[];
-  totals: { subscriptions: number; unsubscribed: number };
+  totals: { unsubscribed: number };
 }
 
 const EMPTY_PERIOD: PeriodStats = {
+  subscribers: 0,
   activeUsers: 0,
   newSubscriptions: 0,
   messagesSent: 0,
+  messagesDelivered: 0,
   messagesReceived: 0,
   unsubscribes: 0,
   outboundByStatus: {},
@@ -301,23 +352,82 @@ const BUCKET_STEP_MS: Record<BucketUnit, number> = {
 /** Key length: YYYY-MM-DD for days, YYYY-MM-DDTHH:MM below that. */
 const keySlice = (bucket: BucketUnit) => (bucket === "day" ? 10 : 16);
 
+/** Built once: every bucket of every chart reads the clock through it. */
+const ATHENS_PARTS = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Athens",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Athens wall-clock time of an instant, as `YYYY-MM-DDTHH:MM:SS`. */
+function athensWallClock(date: Date): string {
+  const parts = ATHENS_PARTS.formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 /** The Athens-local bucket key of an instant, truncated TO the bucket —
  *  an hour key is always :00, matching what date_trunc emits. */
 export function athensBucketKey(date: Date, bucket: BucketUnit): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Athens",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
-  const minute = bucket === "minute" ? get("minute") : "00";
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${minute}`.slice(
-    0,
-    keySlice(bucket),
+  const wall = athensWallClock(date);
+  const minutes = bucket === "minute" ? wall.slice(14, 16) : "00";
+  return `${wall.slice(0, 14)}${minutes}`.slice(0, keySlice(bucket));
+}
+
+/** How far Athens runs ahead of UTC at an instant: +2h, or +3h in summer. */
+function athensOffsetMs(date: Date): number {
+  return Date.parse(`${athensWallClock(date)}Z`) - date.getTime();
+}
+
+/**
+ * The instant an Athens-local bucket begins — the start of the day, hour or
+ * minute that contains `date`. Read as UTC, the local wall clock is off by
+ * the offset in force, so the offset is applied and then taken again at the
+ * result: within an hour of a DST change the first guess can land on the
+ * wrong side of it. A local time a spring-forward skips has no instant at
+ * all, and the second pass lands on the hour beside it, which is where
+ * date_trunc puts that bucket's rows too.
+ */
+export function athensBucketStart(date: Date, bucket: BucketUnit): Date {
+  const key = athensBucketKey(date, bucket);
+  const wallMs = Date.parse(bucket === "day" ? `${key}T00:00:00Z` : `${key}:00Z`);
+  const guess = new Date(wallMs - athensOffsetMs(date));
+  return new Date(wallMs - athensOffsetMs(guess));
+}
+
+/**
+ * The two windows a range covers, aligned to Athens-local bucket edges: the
+ * current period is the bucket `now` falls in plus the whole buckets before
+ * it, and the previous period is the same number of buckets before that.
+ *
+ * Aligning is what lets a bucket belong to one period. A rolling window
+ * starts mid-bucket, so the bucket holding its start carries rows from both
+ * periods — and a chart drawn from it colours yesterday's traffic as today's
+ * and stops adding up to the totals beside it. The cost is the last bucket,
+ * which is only as old as `now`: a period is «7 days» the way a calendar
+ * means it, six whole days and the one in progress.
+ */
+export function periodBounds(range: RangeKey, now: Date): { current: Date; previous: Date } {
+  const { bucket, buckets } = RANGES[range];
+  const current = athensBucketsBefore(athensBucketStart(now, bucket), bucket, buckets - 1);
+  return { current, previous: athensBucketsBefore(current, bucket, buckets) };
+}
+
+/** The start of the bucket `count` buckets before `start`, itself a bucket
+ *  start. An hour and a minute are fixed lengths, so the subtraction lands
+ *  in the target bucket by itself; a day is 23 or 25 hours across a DST
+ *  change, which leaves it an hour to either side of midnight, so the aim
+ *  is the middle of the day and the truncation finds its start. */
+function athensBucketsBefore(start: Date, bucket: BucketUnit, count: number): Date {
+  const aim = bucket === "day" ? 12 * HOUR_MS : 0;
+  return athensBucketStart(
+    new Date(start.getTime() - count * BUCKET_STEP_MS[bucket] + aim),
+    bucket,
   );
 }
 
@@ -343,7 +453,12 @@ interface BucketCount {
   count: number;
 }
 
-/** Zero-fill sparse per-bucket counts — charts need every bucket. */
+/**
+ * Zero-fill sparse per-bucket counts — charts need every bucket. The
+ * subscriber level is run forward from the count at `from`: each bucket adds
+ * its signups and takes away its stops, so the last bucket ends at the count
+ * at `to`.
+ */
 export function fillSeries(
   from: Date,
   to: Date,
@@ -354,22 +469,52 @@ export function fillSeries(
     activeUsers: BucketCount[];
     repliers: BucketCount[];
     recipients: BucketCount[];
+    signups: BucketCount[];
     unsubscribes: BucketCount[];
     errors: BucketCount[];
   },
+  subscribersAtStart: number,
 ): SeriesPoint[] {
   const lookup = (list: BucketCount[], key: string) =>
     list.find((r) => r.key === key)?.count ?? 0;
-  return listBuckets(from, to, bucket).map((key) => ({
-    key,
-    sent: lookup(rows.sent, key),
-    received: lookup(rows.received, key),
-    activeUsers: lookup(rows.activeUsers, key),
-    repliers: lookup(rows.repliers, key),
-    recipients: lookup(rows.recipients, key),
-    unsubscribes: lookup(rows.unsubscribes, key),
-    errors: lookup(rows.errors, key),
-  }));
+  let subscribers = subscribersAtStart;
+  return listBuckets(from, to, bucket).map((key) => {
+    subscribers += lookup(rows.signups, key) - lookup(rows.unsubscribes, key);
+    return {
+      key,
+      subscribers,
+      sent: lookup(rows.sent, key),
+      received: lookup(rows.received, key),
+      activeUsers: lookup(rows.activeUsers, key),
+      repliers: lookup(rows.repliers, key),
+      recipients: lookup(rows.recipients, key),
+      errors: lookup(rows.errors, key),
+    };
+  });
+}
+
+/**
+ * Index of the first bucket of the current period in a two-period series.
+ * Keys are ISO-ordered text, so the comparison needs no parsing.
+ */
+export function boundaryIndexOf(series: Array<{ key: string }>, boundaryKey: string): number {
+  const index = series.findIndex((point) => point.key >= boundaryKey);
+  return index < 0 ? series.length : index;
+}
+
+/**
+ * Subscriptions on at an instant: created before it and not stopped before
+ * it. A reactivated subscription loses its `unsubscribedAt` and reads as on
+ * throughout (see subscription-roster.ts); a stopped one without a date has
+ * no instant it was on, so it never counts.
+ */
+function activeSubscribersAt(db: Db, at: Date): Promise<number> {
+  return db.notisSubscription.count({
+    where: {
+      createdAt: { lt: at },
+      OR: [{ status: "active" }, { unsubscribedAt: { gte: at } }],
+    },
+  });
 }
 
 async function bucketedSeries(
@@ -387,7 +532,7 @@ async function bucketedSeries(
     count: row.count,
   });
 
-  const [messages, actives, people, unsubscribes, errors] = await Promise.all([
+  const [messages, readers, signups, unsubscribes, errors, startLevel] = await Promise.all([
     db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
       SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
              direction::text AS direction, COUNT(*)::int AS count
@@ -395,31 +540,35 @@ async function bucketedSeries(
       WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
       GROUP BY 1, 2
     `,
-    db.$queryRaw<Array<{ bucket: Date; count: number }>>`
-      SELECT bucket, COUNT(DISTINCT sid)::int AS count FROM (
-        SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
-               "subscriptionId" AS sid
-        FROM "NotisMessage" WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
-        UNION ALL
-        SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens'),
-               "subscriptionId"
-        FROM "NotisWake" WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
-      ) t GROUP BY 1
-    `,
-    // Both directions in one pass. The rate they feed divides one by the
-    // other, so the two halves must agree on what counts — see REACHED.
+    // Distinct readers per bucket, per direction and — the grouping set
+    // without it, where direction reads NULL — both directions folded into
+    // one: a reader written to and writing back in the same bucket is one
+    // active reader. One scan; the rate the two halves feed divides one by
+    // the other, so they must agree on what counts — see DELIVERED.
     //
     // `status::text`, not a bare `status`: the column is the MessageStatus
     // enum, and Postgres has no `"MessageStatus" = text` operator, so the
     // bare form does not fail on odd data — it fails always, with «operator
     // does not exist», and takes the whole overview page down.
-    db.$queryRaw<Array<{ bucket: Date; direction: string; count: number }>>`
+    db.$queryRaw<Array<{ bucket: Date; direction: string | null; count: number }>>`
+      SELECT bucket, direction, COUNT(DISTINCT sid)::int AS count FROM (
+        SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
+               direction::text AS direction, "subscriptionId" AS sid
+        FROM "NotisMessage"
+        WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
+          AND (direction = 'inbound'::"MessageDirection" OR status::text = ANY(${[...DELIVERED]}::text[]))
+      ) t GROUP BY GROUPING SETS ((bucket, direction), (bucket))
+    `,
+    // A stopped subscription without a date has no stop to take away later,
+    // so it never joins the running level either — the rule
+    // activeSubscribersAt applies at an instant, applied per bucket.
+    db.$queryRaw<Array<{ bucket: Date; count: number }>>`
       SELECT date_trunc(${bucket}, "createdAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
-             direction::text AS direction, COUNT(DISTINCT "subscriptionId")::int AS count
-      FROM "NotisMessage"
+             COUNT(*)::int AS count
+      FROM "NotisSubscription"
       WHERE "createdAt" >= ${from} AND "createdAt" < ${to}
-        AND (direction = 'inbound'::"MessageDirection" OR status::text = ANY(${[...REACHED]}::text[]))
-      GROUP BY 1, 2
+        AND (status = 'active'::"SubscriptionStatus" OR "unsubscribedAt" IS NOT NULL)
+      GROUP BY 1
     `,
     db.$queryRaw<Array<{ bucket: Date; count: number }>>`
       SELECT date_trunc(${bucket}, "unsubscribedAt" AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Athens') AS bucket,
@@ -447,17 +596,25 @@ async function bucketedSeries(
         GROUP BY 1
       ) t GROUP BY 1
     `,
+    activeSubscribersAt(db, from),
   ]);
 
-  return fillSeries(from, to, bucket, {
-    sent: messages.filter((r) => r.direction === "outbound").map(rawKey),
-    received: messages.filter((r) => r.direction === "inbound").map(rawKey),
-    activeUsers: actives.map(rawKey),
-    repliers: people.filter((r) => r.direction === "inbound").map(rawKey),
-    recipients: people.filter((r) => r.direction === "outbound").map(rawKey),
-    unsubscribes: unsubscribes.map(rawKey),
-    errors: errors.map(rawKey),
-  });
+  return fillSeries(
+    from,
+    to,
+    bucket,
+    {
+      sent: messages.filter((r) => r.direction === "outbound").map(rawKey),
+      received: messages.filter((r) => r.direction === "inbound").map(rawKey),
+      activeUsers: readers.filter((r) => r.direction === null).map(rawKey),
+      repliers: readers.filter((r) => r.direction === "inbound").map(rawKey),
+      recipients: readers.filter((r) => r.direction === "outbound").map(rawKey),
+      signups: signups.map(rawKey),
+      unsubscribes: unsubscribes.map(rawKey),
+      errors: errors.map(rawKey),
+    },
+    startLevel,
+  );
 }
 
 async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
@@ -468,8 +625,6 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     recipientsByMessage,
     outboundStatus,
     failures,
-    activeByMessage,
-    activeByWake,
     newSubscriptions,
     unsubscribes,
     wakesByDecision,
@@ -477,6 +632,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     editorialCost,
     suppressed,
     droppedWakes,
+    subscribers,
   ] = await Promise.all([
     db.notisMessage.groupBy({ by: ["direction"], where: createdInPeriod, _count: { _all: true } }),
     db.notisMessage.groupBy({
@@ -485,10 +641,10 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     }),
     db.notisMessage.groupBy({
       by: ["subscriptionId"],
-      // A suppressed or failed send reached nobody, so its reader never had
-      // anything to reply to and does not belong in the denominator. The
-      // fail rate below subtracts the same rows for the same reason.
-      where: { ...createdInPeriod, direction: "outbound", status: { in: [...REACHED] } },
+      // A suppressed, failed or still-pending send has reached nobody, so
+      // its reader has had nothing to reply to and does not belong in the
+      // denominator — see DELIVERED.
+      where: { ...createdInPeriod, direction: "outbound", status: { in: [...DELIVERED] } },
     }),
     db.notisMessage.groupBy({
       by: ["status"],
@@ -502,8 +658,6 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       orderBy: { _count: { failureReason: "desc" } },
       take: 5,
     }),
-    db.notisMessage.groupBy({ by: ["subscriptionId"], where: createdInPeriod }),
-    db.notisWake.groupBy({ by: ["subscriptionId"], where: createdInPeriod }),
     db.notisSubscription.count({ where: createdInPeriod }),
     db.notisSubscription.count({ where: { unsubscribedAt: { gte: from, lt: to } } }),
     db.notisWake.groupBy({ by: ["decision"], where: createdInPeriod, _count: { _all: true } }),
@@ -523,6 +677,7 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
       _count: { _all: true },
     }),
     db.notisWakeQueue.count({ where: { status: "failed", updatedAt: { gte: from, lt: to } } }),
+    activeSubscribersAt(db, to),
   ]);
 
   const directionCount = (d: string) =>
@@ -547,12 +702,14 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
     .sort((a, b) => b.count - a.count);
 
   return {
+    subscribers,
     activeUsers: new Set([
-      ...activeByMessage.map((r) => r.subscriptionId),
-      ...activeByWake.map((r) => r.subscriptionId),
+      ...recipientsByMessage.map((r) => r.subscriptionId),
+      ...repliersByMessage.map((r) => r.subscriptionId),
     ]).size,
     newSubscriptions,
     messagesSent: directionCount("outbound"),
+    messagesDelivered: DELIVERED.reduce((a, status) => a + (outboundByStatus[status] ?? 0), 0),
     messagesReceived: directionCount("inbound"),
     repliers: repliersByMessage.length,
     recipients: recipientsByMessage.length,
@@ -581,35 +738,47 @@ async function periodStats(db: Db, from: Date, to: Date): Promise<PeriodStats> {
 
 export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> {
   const now = new Date();
-  const { ms: periodMs, bucket } = RANGES[range];
-  const currentFrom = new Date(now.getTime() - periodMs);
-  const previousFrom = new Date(now.getTime() - 2 * periodMs);
+  const { bucket } = RANGES[range];
+  const { current: currentFrom, previous: previousFrom } = periodBounds(range, now);
 
   if (!hasNotisDb()) {
     return {
       range,
       current: EMPTY_PERIOD,
       previous: EMPTY_PERIOD,
-      series: fillSeries(currentFrom, now, bucket, {
-        sent: [],
-        received: [],
-        repliers: [],
-        recipients: [],
-        errors: [],
-        activeUsers: [],
-        unsubscribes: [],
-      }),
+      series: fillSeries(
+        previousFrom,
+        now,
+        bucket,
+        {
+          sent: [],
+          received: [],
+          activeUsers: [],
+          repliers: [],
+          recipients: [],
+          signups: [],
+          unsubscribes: [],
+          errors: [],
+        },
+        0,
+      ),
+      // Resolved the same way as the live path: without it the chart draws
+      // the whole two-period window as current, divider hard left.
+      boundaryIndex: boundaryIndexOf(
+        listBuckets(previousFrom, now, bucket).map((key) => ({ key })),
+        athensBucketKey(currentFrom, bucket),
+      ),
       recentInbound: [],
-      totals: { subscriptions: 0, unsubscribed: 0 },
+      totals: { unsubscribed: 0 },
     };
   }
 
   const db = notisDb();
 
-  const [current, previous, series, recent, subscriptions, unsubscribed] = await Promise.all([
+  const [current, previous, series, recent, unsubscribed] = await Promise.all([
     periodStats(db, currentFrom, now),
     periodStats(db, previousFrom, currentFrom),
-    bucketedSeries(db, currentFrom, now, bucket),
+    bucketedSeries(db, previousFrom, now, bucket),
     // Ranged like everything else on the page, and DISTINCT ON the
     // subscription: one active reader must not fill all five rows with
     // their own back-and-forth — the list answers «ποιοι μιλάνε», not
@@ -637,7 +806,6 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
       ORDER BY m."createdAt" DESC
       LIMIT 5
     `,
-    db.notisSubscription.count(),
     db.notisSubscription.count({ where: { status: "unsubscribed" } }),
   ]);
 
@@ -646,6 +814,7 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
     current,
     previous,
     series,
+    boundaryIndex: boundaryIndexOf(series, athensBucketKey(currentFrom, bucket)),
     recentInbound: recent.map((m) => ({
       id: m.id,
       subscriptionId: m.subscriptionId,
@@ -654,6 +823,6 @@ export async function getOverviewStats(range: RangeKey): Promise<OverviewStats> 
       body: m.body,
       at: m.createdAt.toISOString(),
     })),
-    totals: { subscriptions, unsubscribed },
+    totals: { unsubscribed },
   };
 }
