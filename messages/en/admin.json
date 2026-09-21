@@ -495,7 +495,8 @@
         "SOURCES_DISAGREE": "Sources disagree",
         "NO_STORED_FACTS": "No stored facts",
         "LAYOUT_DISAGREES": "Roll call layout disagrees",
-        "ITEM_NUMBER_DISAGREES": "Item number disagrees"
+        "ITEM_NUMBER_DISAGREES": "Item number disagrees",
+        "UNREAD_DOCUMENT": "Unread document"
       },
       "messages": {
         "NO_ROLL_CALL": "No document yielded a roll call, so presence cannot be replayed. The stored rows were left as they are.",
@@ -510,7 +511,8 @@
         "SOURCES_DISAGREE": "{kind, select, rollCall {The roll call from {winSource, select, decision {the document} transcript {the transcript} manual {manual entry} other {{winSource}}} says the member is {winStatus, select, PRESENT {present} other {absent}} and the one from {loseSource, select, decision {the document} transcript {the transcript} manual {manual entry} other {{loseSource}}} says {loseStatus, select, PRESENT {present} other {absent}}; the first wins.} event {An arrival and a departure are stated at the same point («{winRawText}» from {winSource, select, decision {the document} transcript {the transcript} manual {manual entry} other {{winSource}}}, «{loseRawText}» from {loseSource, select, decision {the document} transcript {the transcript} manual {manual entry} other {{loseSource}}}); the {winKind, select, ARRIVAL {arrival} other {departure}} wins.} statedList {The document's own list says this member is {status, select, PRESENT {present} other {absent}} here, contradicting the stated {eventKind, select, ARRIVAL {arrival} other {departure}} («{rawText}»); the list wins.} doubleVote {The document names this member twice with different votes ({firstVote, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{firstVote}}} and {secondVote, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{secondVote}}}); the first is kept.} other {Two sources state different things; the source of higher precedence wins.}}",
         "NO_STORED_FACTS": "{missing} of {total} documents were read before facts were stored; re-poll the meeting to derive attendance and votes. The stored rows were left as they are.",
         "LAYOUT_DISAGREES": "The body's conventions say the roll call is printed as «{expected, select, composition_and_absent {Composition and absent} present_and_absent {Present and absent} present_only {Present only} mixed {Mixed} other {{expected}}}», but this document printed it as «{found, select, composition_and_absent {Composition and absent} present_and_absent {Present and absent} present_only {Present only} mixed {Mixed} other {{found}}}».",
-        "ITEM_NUMBER_DISAGREES": "The document states it decided agenda item {declared} but is linked to item {linked}; if the link is wrong, every fact the document carries sits on the wrong subject."
+        "ITEM_NUMBER_DISAGREES": "The document states it decided agenda item {declared} but is linked to item {linked}; if the link is wrong, every fact the document carries sits on the wrong subject.",
+        "UNREAD_DOCUMENT": "This decision's document was not read; the subject's attendance comes from the meeting's other documents and its votes are missing. Re-poll the meeting."
       },
       "tallyDiff": "{type, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{type}}}: printed {printed}, derived {derived}",
       "title": "Issues",

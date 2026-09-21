@@ -6,6 +6,7 @@ jest.mock('@/lib/db/derivationFacts', () => ({
 }));
 
 import { derivationSkipIssue, hasNothingToDeriveFrom, deriveAndPersist } from '../persist';
+import { deriveMeetingFacts } from '../deriveMeetingFacts';
 import type { DerivationInput, DocumentFacts } from '../types';
 
 const doc = (subjectId: string, hasExtraction: boolean): DocumentFacts => ({
@@ -23,6 +24,7 @@ const input = (overrides: Partial<DerivationInput> = {}): DerivationInput => ({
     rollCall: [{ personId: 'p1', status: 'PRESENT', source: 'decision' }],
     events: [],
     documents: [doc('s1', true), doc('s2', true)],
+    subjectIdsWithStoredRows: [],
     conventions: null,
     ...overrides,
 });
@@ -36,11 +38,18 @@ describe('derivationSkipIssue', () => {
     it('refuses the write when one document of a mixed meeting lacks stored facts', () => {
         // The incremental poll: one newly published document is extracted while
         // the rest were read before facts were stored.
-        const skip = derivationSkipIssue(input({ documents: [doc('s1', false), doc('s2', true)] }));
+        const skip = derivationSkipIssue(input({ documents: [doc('s1', false), doc('s2', true)], subjectIdsWithStoredRows: ['s1'] }));
         expect(skip).toMatchObject({ code: 'NO_STORED_FACTS', severity: 'error' });
         expect(skip!.params).toEqual({ missing: 1, total: 2 });
     });
 
+    it('derives when the unread document has no rows to lose, and says which one is unread', () => {
+        // Chania ΔΕ 16/6/2025: 15 of 16 read, the sixteenth never produced a row. Refusing kept fifteen readings off the page.
+        const i = input({ documents: [doc('s1', false), doc('s2', true)] });
+        expect(derivationSkipIssue(i)).toBeNull();
+        expect(deriveMeetingFacts(i).issues).toEqual(expect.arrayContaining([
+            expect.objectContaining({ code: 'UNREAD_DOCUMENT', severity: 'warning', subjectId: 's1', decisionId: 'd-s1' })]));
+    });
     it('refuses the write when no document carries stored facts', () => {
         expect(derivationSkipIssue(input({ documents: [doc('s1', false), doc('s2', false)] })))
             .toMatchObject({ code: 'NO_STORED_FACTS' });
@@ -76,6 +85,7 @@ describe('deriveAndPersist', () => {
             rollCall: i.rollCall,
             events: i.events,
             people: [{ id: 'p1', roles: [] }],
+            subjectIdsWithStoredRows: i.subjectIdsWithStoredRows,
         });
     };
 
@@ -84,8 +94,15 @@ describe('deriveAndPersist', () => {
         mockReplaceDerivedRows.mockReset();
     });
 
-    it('writes nothing when a document of the meeting lacks stored facts', async () => {
+    it('writes when the unread document has no rows to lose', async () => {
         rows({ documents: [doc('s1', false), doc('s2', true)] });
+        const out = await deriveAndPersist('c', 'm');
+        expect(mockReplaceDerivedRows).toHaveBeenCalledTimes(1);
+        expect(out.issues.map(i => i.code)).toContain('UNREAD_DOCUMENT');
+    });
+
+    it('writes nothing when a document without stored facts holds rows the write would replace', async () => {
+        rows({ documents: [doc('s1', false), doc('s2', true)], subjectIdsWithStoredRows: ['s1'] });
         const out = await deriveAndPersist('c', 'm');
         expect(mockReplaceDerivedRows).not.toHaveBeenCalled();
         expect(out.attendance).toEqual([]);

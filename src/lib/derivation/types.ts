@@ -68,6 +68,8 @@ export interface DerivationInput {
     rollCall: RollCallRow[];
     events: EventRow[];
     documents: DocumentFacts[];
+    /** Subjects holding decision-sourced attendance or vote rows now: what a write would replace. */
+    subjectIdsWithStoredRows: string[];
     conventions: DecisionConventions | null;
     mayorPersonId: string | null;
     /** The head of the meeting's body on its date. */
@@ -86,7 +88,7 @@ export interface DerivationInput {
 export const ISSUE_CODES = [
     'NO_ROLL_CALL', 'PRESENCE_UNKNOWN', 'CONVENTIONS_UNCONFIRMED', 'UNMATCHED_NAME', 'UNPLACEABLE_ANCHOR',
     'IMPLIED_CHANGE', 'TALLY_MISMATCH', 'INCOMPLETE_READ', 'PRESIDING_DISAGREES', 'SOURCES_DISAGREE', 'NO_STORED_FACTS',
-    'LAYOUT_DISAGREES', 'ITEM_NUMBER_DISAGREES',
+    'LAYOUT_DISAGREES', 'ITEM_NUMBER_DISAGREES', 'UNREAD_DOCUMENT',
 ] as const;
 export type IssueCode = typeof ISSUE_CODES[number];
 
@@ -124,6 +126,7 @@ export interface IssueParams {
     NO_STORED_FACTS: { missing: number; total: number };
     LAYOUT_DISAGREES: { expected: RollCallLayout; found: RollCallLayout };
     ITEM_NUMBER_DISAGREES: { declared: number; linked: number };
+    UNREAD_DOCUMENT: Record<string, never>;
 }
 
 interface IssueFields {

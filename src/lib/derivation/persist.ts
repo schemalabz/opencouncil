@@ -20,21 +20,26 @@ export async function applyDerivation(input: DerivationInput, output: Derivation
  * run over an incomplete input does not degrade the rows, it empties them. Two
  * inputs cannot produce the meeting's rows:
  *
- * - **A document without stored facts.** One is enough: a meeting whose
- *   documents were read before facts were stored gains a newly published,
+ * - **A document without stored facts whose subject holds rows.** A meeting
+ *   whose documents were read before facts were stored gains a newly published,
  *   extracted document on an ordinary incremental poll, and deriving then would
- *   rebuild that one subject and blank every older one. A re-poll fills the
- *   rest; until it does, the stored rows stand.
+ *   rebuild that one subject and blank the older ones: their votes came from a
+ *   reading that was never kept, so nothing can write them again. A re-poll
+ *   fills the rest; until it does, the stored rows stand. A document that was
+ *   never read and left no rows has nothing to lose: the meeting derives from
+ *   the others and the unread one is an issue on its own subject
+ *   (`UNREAD_DOCUMENT`). A meeting with no facts at all is never written.
  * - **No roll call.** Presence is a replay of the roll call, so an empty one
  *   derives nobody present anywhere — again not a correction of the stored rows
  *   but their deletion.
  */
 export function derivationSkipIssue(input: DerivationInput): Issue | null {
-    const missing = input.documents.filter(d => !d.hasExtraction).length;
-    if (missing > 0) {
+    const unread = input.documents.filter(d => !d.hasExtraction);
+    const holdsRows = new Set(input.subjectIdsWithStoredRows);
+    if (unread.length > 0 && (unread.length === input.documents.length || unread.some(d => holdsRows.has(d.subjectId)))) {
         return {
             code: 'NO_STORED_FACTS', severity: 'error', source: null,
-            params: { missing, total: input.documents.length },
+            params: { missing: unread.length, total: input.documents.length },
         };
     }
     if (input.rollCall.length === 0) {

@@ -78,7 +78,7 @@ export function documentFactsFromDecision(d: {
 
 /** Everything the derivation reads, in the shape it reads it. The only Prisma reads of the module. */
 export async function loadDerivationInput(cityId: string, meetingId: string): Promise<DerivationInput> {
-    const { meeting, firstUtteranceBySubject, rollCall, events, people } = await readDerivationRows(cityId, meetingId);
+    const { meeting, firstUtteranceBySubject, rollCall, events, people, subjectIdsWithStoredRows } = await readDerivationRows(cityId, meetingId);
     // The same walk the minutes make: record subjects, discussion order, withdrawn
     // dropped. An event anchored «after item 3» is placed by position, so a set or
     // an order of its own would put rows on subjects other than the ones printed.
@@ -92,7 +92,7 @@ export async function loadDerivationInput(cityId: string, meetingId: string): Pr
     return {
         cityId, meetingId,
         subjects: ordered.map(s => ({ id: s.id, name: s.name, agendaItemIndex: s.agendaItemIndex, nonAgendaReason: s.nonAgendaReason, decisionNumber: s.decision?.decisionNumber ?? null })),
-        rollCall, events,
+        rollCall, events, subjectIdsWithStoredRows,
         documents: ordered.filter(s => s.decision).map(s => documentFactsFromDecision(s.decision!, rosterPersonIds)),
         conventions: isDecisionConventions(conventions) ? conventions : null,
         // Excluded from the rows only where the mayor is not a member of the body (the council); on the committee they vote.

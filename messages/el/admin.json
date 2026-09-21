@@ -495,7 +495,8 @@
         "SOURCES_DISAGREE": "Διαφωνία πηγών",
         "NO_STORED_FACTS": "Χωρίς αποθηκευμένα στοιχεία",
         "LAYOUT_DISAGREES": "Διαφωνία διάταξης παρουσιολογίου",
-        "ITEM_NUMBER_DISAGREES": "Διαφωνία αριθμού θέματος"
+        "ITEM_NUMBER_DISAGREES": "Διαφωνία αριθμού θέματος",
+        "UNREAD_DOCUMENT": "Έγγραφο που δεν διαβάστηκε"
       },
       "messages": {
         "NO_ROLL_CALL": "Κανένα έγγραφο δεν έδωσε αρχική εκφώνηση παρόντων, οπότε οι παρουσίες δεν μπορούν να αναπαραχθούν. Οι αποθηκευμένες εγγραφές παρέμειναν ως έχουν.",
@@ -510,7 +511,8 @@
         "SOURCES_DISAGREE": "{kind, select, rollCall {Η αρχική εκφώνηση από {winSource, select, decision {το έγγραφο} transcript {την απομαγνητοφώνηση} manual {τη χειροκίνητη καταχώριση} other {{winSource}}} δηλώνει το μέλος {winStatus, select, PRESENT {παρόν} other {απόν}}, ενώ από {loseSource, select, decision {το έγγραφο} transcript {την απομαγνητοφώνηση} manual {τη χειροκίνητη καταχώριση} other {{loseSource}}} {loseStatus, select, PRESENT {παρόν} other {απόν}}· υπερισχύει η πρώτη.} event {Στο ίδιο σημείο αναφέρονται και προσέλευση και αποχώρηση («{winRawText}» από {winSource, select, decision {το έγγραφο} transcript {την απομαγνητοφώνηση} manual {τη χειροκίνητη καταχώριση} other {{winSource}}}, «{loseRawText}» από {loseSource, select, decision {το έγγραφο} transcript {την απομαγνητοφώνηση} manual {τη χειροκίνητη καταχώριση} other {{loseSource}}})· υπερισχύει η {winKind, select, ARRIVAL {προσέλευση} other {αποχώρηση}}.} statedList {Ο κατάλογος του ίδιου του εγγράφου δηλώνει εδώ το μέλος {status, select, PRESENT {παρόν} other {απόν}}, σε αντίθεση με την αναφερόμενη {eventKind, select, ARRIVAL {προσέλευση} other {αποχώρηση}} («{rawText}»)· υπερισχύει ο κατάλογος.} doubleVote {Το έγγραφο αναφέρει το μέλος δύο φορές με διαφορετική ψήφο ({firstVote, select, FOR {ΥΠΕΡ} AGAINST {ΚΑΤΑ} ABSTAIN {ΛΕΥΚΟ} PRESENT {ΠΑΡΩΝ} DID_NOT_VOTE {ΑΠΟΧΗ} other {{firstVote}}} και {secondVote, select, FOR {ΥΠΕΡ} AGAINST {ΚΑΤΑ} ABSTAIN {ΛΕΥΚΟ} PRESENT {ΠΑΡΩΝ} DID_NOT_VOTE {ΑΠΟΧΗ} other {{secondVote}}})· κρατείται η πρώτη.} other {Δύο πηγές δηλώνουν διαφορετικά στοιχεία· υπερισχύει η πηγή με τη μεγαλύτερη προτεραιότητα.}}",
         "NO_STORED_FACTS": "{missing} από {total} έγγραφα διαβάστηκαν πριν αποθηκευτούν τα στοιχεία τους· ζητήστε εκ νέου ανάκτηση για να προκύψουν παρουσίες και ψήφοι. Οι αποθηκευμένες εγγραφές παρέμειναν ως έχουν.",
         "LAYOUT_DISAGREES": "Οι κανόνες ανάγνωσης του οργάνου αναφέρουν διάταξη παρουσιολογίου «{expected, select, composition_and_absent {Σύνθεση και απόντες} present_and_absent {Παρόντες και απόντες} present_only {Μόνο παρόντες} mixed {Μικτό} other {{expected}}}», ενώ αυτό το έγγραφο τύπωσε «{found, select, composition_and_absent {Σύνθεση και απόντες} present_and_absent {Παρόντες και απόντες} present_only {Μόνο παρόντες} mixed {Μικτό} other {{found}}}».",
-        "ITEM_NUMBER_DISAGREES": "Το έγγραφο δηλώνει ότι αφορά το {declared}ο θέμα της ημερήσιας διάταξης, ενώ είναι συνδεδεμένο με το {linked}ο· αν η σύνδεση είναι λάθος, κάθε στοιχείο του εγγράφου κάθεται σε λάθος θέμα."
+        "ITEM_NUMBER_DISAGREES": "Το έγγραφο δηλώνει ότι αφορά το {declared}ο θέμα της ημερήσιας διάταξης, ενώ είναι συνδεδεμένο με το {linked}ο· αν η σύνδεση είναι λάθος, κάθε στοιχείο του εγγράφου κάθεται σε λάθος θέμα.",
+        "UNREAD_DOCUMENT": "Το έγγραφο αυτής της απόφασης δεν διαβάστηκε· οι παρουσίες του θέματος προκύπτουν από τα υπόλοιπα έγγραφα της συνεδρίασης και οι ψήφοι του λείπουν. Ζητήστε εκ νέου ανάκτηση."
       },
       "tallyDiff": "{type, select, FOR {ΥΠΕΡ} AGAINST {ΚΑΤΑ} ABSTAIN {ΛΕΥΚΟ} PRESENT {ΠΑΡΩΝ} DID_NOT_VOTE {ΑΠΟΧΗ} other {{type}}}: τυπωμένες {printed}, συναγόμενες {derived}",
       "title": "Ζητήματα",
