@@ -339,6 +339,14 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         members: { file: 'src/lib/derivation/types.ts', constArray: 'ISSUE_CODES' },
     },
     {
+        group: 'admin.decisionsPage.issues.severity.',
+        members: { file: 'src/lib/derivation/issueCatalogue.ts', type: 'IssueSeverity' },
+    },
+    {
+        group: 'admin.decisionsPage.issues.raisedIn.',
+        members: { file: 'src/lib/derivation/issueCatalogue.ts', constArray: 'DERIVATION_STAGES' },
+    },
+    {
         group: 'admin.decisionsOverview.conflict.',
         why: 'ConflictResolutionOutcome supplies the toast leaves, but the group also holds literal panel copy',
     },

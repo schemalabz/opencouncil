@@ -19,6 +19,13 @@ export interface AuditSignal {
     kind: AuditKind;
     /** The code the phrase names. Null for every kind but `issues`. */
     code: IssueCode | null;
+    /**
+     * The issue behind the phrase, so the line can state it in full when a
+     * reader asks. Its message is parameterised per row — the name that went
+     * unmatched, the tally that disagreed — so the code alone cannot
+     * reconstruct it. Null for every kind but `issues`.
+     */
+    issue: Issue | null;
     /** Issues this subject has beyond the one the phrase names. */
     extraIssues: number;
     /** Votes the derivation inferred, out of every vote it derived. */
@@ -50,6 +57,7 @@ export function auditSignalFor(input: {
     const inferred = votes.filter(v => v.origin === 'inferred').length;
     const base = {
         code: null,
+        issue: null,
         extraIssues: 0,
         inferred,
         derivedVotes: votes.length,
@@ -58,7 +66,10 @@ export function auditSignalFor(input: {
 
     if (issues.length > 0) {
         const worst = [...issues].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])[0];
-        return { ...base, severity: worst.severity, kind: 'issues', code: worst.code, extraIssues: issues.length - 1 };
+        return {
+            ...base, severity: worst.severity, kind: 'issues', code: worst.code, issue: worst,
+            extraIssues: issues.length - 1,
+        };
     }
     if (phraseOnly) return { ...base, severity: 'info', kind: 'phraseOnly' };
     if (votes.length === 0) return null;

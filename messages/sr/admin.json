@@ -486,6 +486,21 @@
             "none": "No issues",
             "inferredFor": "Inferred — no document states it",
             "count": "{n, plural, one {# issue} other {# issues}}",
+            "severity": {
+                "error": "Error",
+                "warning": "Warning",
+                "info": "Information"
+            },
+            "raisedAt": "Raised {steps}",
+            "raisedJoin": "and",
+            "raisedIn": {
+                "read": "in the reading of the document",
+                "place": "in the placing of the changes",
+                "presence": "in working out who was present",
+                "votes": "in the count of the votes",
+                "write": "in the write"
+            },
+            "howDerived": "How the facts are derived",
             "codes": {
                 "NO_ROLL_CALL": "No roll call",
                 "PRESENCE_UNKNOWN": "Presence unknown",

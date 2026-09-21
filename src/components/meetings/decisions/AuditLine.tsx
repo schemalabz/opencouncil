@@ -1,19 +1,12 @@
 "use client";
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { ISSUE_SEVERITY } from '@/lib/derivation/issueCatalogue';
+import { renderIssue, renderIssueStages } from '@/lib/derivation/issueText';
 import { cn } from '@/lib/utils';
+import { ExplainDerivationLink, SeverityChip, SeverityDot } from './auditGlossary';
 import type { AuditSignal } from './auditSignal';
-
-/**
- * The severity dots, in the vocabulary the rail's issues card already teaches.
- * Kept by hand rather than imported: `rail/IssuesCard.tsx` does not export its
- * map, and the two have to read the same or a reader learns the colour twice.
- */
-const SEVERITY_DOT: Record<AuditSignal['severity'], string> = {
-    error: 'bg-red-600',
-    warning: 'bg-amber-500',
-    info: 'bg-muted-foreground/40',
-};
 
 type T = ReturnType<typeof useTranslations>;
 
@@ -46,7 +39,8 @@ function describe(t: T, signal: AuditSignal): { phrase: string; detail: string |
 
 /**
  * What a subject looks like under audit mode: one line under its title, in the
- * slot `ProposalLine` uses, saying how its outcome came to be.
+ * slot `ProposalLine` uses, saying how its outcome came to be — and, for a
+ * line that names an issue, what that issue actually says.
  *
  * A full border and no stripes. The house hazard pattern marks back-of-house
  * surfaces everywhere else, but this line is Greek prose someone has to read
@@ -64,20 +58,70 @@ function describe(t: T, signal: AuditSignal): { phrase: string; detail: string |
  * still identify it. The phrase here IS the signal, drawn from a short fixed
  * vocabulary of issue labels, and «Διαφωνία διάταξης παρουσιολο…» tells a
  * reader nothing they could act on.
+ *
+ * The explanation opens in place, inside the line's own border, rather than in
+ * a tooltip or a glossary of all thirteen codes: the question is asked at the
+ * code someone is looking at, and it is answered there. Closed by default,
+ * because a table of forty rows each shouting a paragraph is not an audit.
  */
-export function AuditLine({ signal }: { signal: AuditSignal }) {
+export function AuditLine({ signal, onExplainDerivation }: {
+    signal: AuditSignal;
+    /** Opens the page's account of the whole derivation. The link is offered only when there is one. */
+    onExplainDerivation?: () => void;
+}) {
     const t = useTranslations('admin.decisionsPage');
+    const [open, setOpen] = useState(false);
     const { phrase, detail } = describe(t, signal);
+    const { issue } = signal;
+
+    // The catalogue states a code's severity once, and this line says it out
+    // loud — so it reads the statement rather than the copy the row happens to
+    // carry. For every kind but `issues` there is no code and no claim to make.
+    const severity = signal.code ? ISSUE_SEVERITY[signal.code] : signal.severity;
+
     return (
         <div
             aria-label={t('audit.lineLabel')}
-            className="mt-1 inline-flex max-w-full items-start gap-1.5 rounded-[7px] border border-[hsl(var(--orange))]/20 px-2 py-0.5 text-[12px] leading-snug"
+            className={cn(
+                'mt-1 max-w-full flex-col rounded-[7px] border border-[hsl(var(--orange))]/20 px-2 text-[12px] leading-snug',
+                // Closed, the box hugs its phrase so it reads as a marker on the
+                // row. Open, it is a panel and takes the cell, so a short message
+                // does not leave a stub of a box under a wide title. Measured on
+                // the real page the Θέμα cell is only 218-290px, so both states
+                // wrap either way — this is about the short-message case.
+                open ? 'flex w-full py-1.5' : 'inline-flex py-0.5',
+            )}
         >
-            <span className={cn('mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full', SEVERITY_DOT[signal.severity])} aria-hidden />
-            <span className="min-w-0">
-                {phrase}
-                {detail && <span className="ml-1.5 text-muted-foreground">{detail}</span>}
-            </span>
+            <div className="flex items-start gap-1.5">
+                <SeverityDot severity={severity} className="mt-[5px]" />
+                <span className="min-w-0">
+                    {/* A line with nothing further to say stays plain text, so
+                        every dotted underline in the table is a real offer. */}
+                    {issue ? (
+                        <button
+                            type="button"
+                            aria-expanded={open}
+                            onClick={() => setOpen(value => !value)}
+                            className="text-left underline decoration-dotted decoration-muted-foreground/70 underline-offset-2 hover:decoration-foreground"
+                        >
+                            {phrase}
+                        </button>
+                    ) : phrase}
+                    {detail && <span className="ml-1.5 text-muted-foreground">{detail}</span>}
+                </span>
+                {open && issue && <SeverityChip severity={severity} className="ml-auto mt-0.5" />}
+            </div>
+            {open && issue && (
+                <>
+                    <p className="ml-[13px] mt-1.5 border-l-2 border-foreground/10 pl-2 leading-relaxed text-muted-foreground">
+                        {renderIssue(t, issue)}
+                    </p>
+                    <div className="ml-[13px] mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-[11px] text-muted-foreground/80">{renderIssueStages(t, issue.code)}</span>
+                        {onExplainDerivation && <ExplainDerivationLink onClick={onExplainDerivation} />}
+                    </div>
+                </>
+            )}
         </div>
     );
 }

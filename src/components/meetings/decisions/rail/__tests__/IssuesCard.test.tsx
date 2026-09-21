@@ -35,10 +35,33 @@ describe('IssuesCard', () => {
         expect(screen.getByText('Item one')).toBeInTheDocument();
     });
 
-    it('shows a meeting-wide row by its rendered message, and the raw text on hover', () => {
-        render(<IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', severity: 'error', params: {}, rawText: 'απόντες ουδείς' })]} />);
+    it('shows a row\'s message and the document\'s own words as text, not as a tooltip', () => {
+        const { container } = render(
+            <IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', severity: 'error', params: {}, rawText: 'απόντες ουδείς' })]} />,
+        );
         fireEvent.click(screen.getByText('issues.codes.NO_ROLL_CALL'));
-        expect(screen.getByText('issues.messages.NO_ROLL_CALL{}')).toHaveAttribute('title', 'απόντες ουδείς');
+        expect(screen.getByText('issues.messages.NO_ROLL_CALL{}')).toBeInTheDocument();
+        expect(screen.getByText('«απόντες ουδείς»')).toBeInTheDocument();
+        expect(container.querySelector('[title]')).toBeNull();
+    });
+
+    it('states a code\'s severity and every step that raises it, from the catalogue', () => {
+        // The rows say `info`; NO_ROLL_CALL is an error raised at two steps,
+        // and the catalogue is where both facts are stated once.
+        render(<IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', severity: 'info', params: {} })]} />);
+        fireEvent.click(screen.getByText('issues.codes.NO_ROLL_CALL'));
+        expect(screen.getByText('issues.severity.error')).toBeInTheDocument();
+        expect(screen.getByText(/issues\.raisedIn\.presence .* issues\.raisedIn\.write/)).toBeInTheDocument();
+    });
+
+    it('offers the derivation only when the page passed a way to open it', () => {
+        const { rerender } = render(<IssuesCard issues={[]} />);
+        expect(screen.queryByText(/issues\.howDerived/)).not.toBeInTheDocument();
+
+        const onExplainDerivation = jest.fn();
+        rerender(<IssuesCard issues={[]} onExplainDerivation={onExplainDerivation} />);
+        fireEvent.click(screen.getByText(/issues\.howDerived/));
+        expect(onExplainDerivation).toHaveBeenCalled();
     });
 });
 

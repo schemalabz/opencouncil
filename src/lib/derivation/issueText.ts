@@ -1,4 +1,5 @@
-import type { Issue } from './types';
+import { ISSUE_STAGES } from './issueCatalogue';
+import type { Issue, IssueCode } from './types';
 
 /** What `renderIssue` needs of a translator; next-intl's `t` and the direct resolver both satisfy it. */
 export type IssueTranslator = (key: string, values?: Record<string, string | number>) => string;
@@ -17,4 +18,20 @@ export function renderIssue(t: IssueTranslator, issue: Issue): string {
         return t('issues.messages.TALLY_MISMATCH', { diffs });
     }
     return t(`issues.messages.${issue.code}`, { ...issue.params });
+}
+
+/**
+ * Where a code comes from, as a sentence: every step `ISSUE_STAGES` names for
+ * it, joined.
+ *
+ * The plural is the point — two codes are raised at two different steps, and a
+ * reader told only one of them would be told something untrue. The steps are
+ * read from the catalogue rather than written out here, so the sentence cannot
+ * outlive a change to where a code is raised.
+ *
+ * @translationNamespace admin.decisionsPage
+ */
+export function renderIssueStages(t: IssueTranslator, code: IssueCode): string {
+    const steps = ISSUE_STAGES[code].map(stage => t(`issues.raisedIn.${stage}`));
+    return t('issues.raisedAt', { steps: steps.join(` ${t('issues.raisedJoin')} `) });
 }
