@@ -22,6 +22,7 @@ function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
         absentMembers: null,
         preambleEntries: [],
         attendanceChanges: [],
+        attendanceChangesSource: 'diff',
         discussionOrderLabel: null,
         proceduralVotes: [],
         subjects: [],
@@ -73,7 +74,7 @@ describe('renderMinutesDocx', () => {
     it('should handle subjects with full data', async () => {
         const data = makeMinutesData({
             councilComposition: {
-                mayor: { name: 'Δημήτρης Αντωνίου', personId: 'mayor-1' },
+                mayor: { name: 'Δημήτρης Αντωνίου', personId: 'mayor-1', note: null },
                 president: { name: 'Γιώργος Παπαδόπουλος', personId: 'p1' },
                 members: [
                     { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', isPartyHead: false, role: 'Πρόεδρος' },
@@ -93,6 +94,7 @@ describe('renderMinutesDocx', () => {
                         protocolNumber: '123/2024',
                         excerpt: 'Εγκρίνει **ομόφωνα** τον προϋπολογισμό.',
                         references: '- Ν. 3852/2010\n- Ν. 4555/2018',
+                        voteResultPhrase: null,
                     },
                     voteResult: {
                         forMembers: [
@@ -108,6 +110,7 @@ describe('renderMinutesDocx', () => {
                         ],
                         passed: true,
                         isUnanimous: true,
+                        fromPhraseOnly: false,
                     },
                     transcriptEntries: [
                         {
@@ -192,7 +195,7 @@ describe('MinutesDocx decision number', () => {
     it('renders decisionNumber, not protocolNumber', async () => {
         const text = await docxText(makeMinutesData({
             subjects: [makeSubject({
-                decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: null, references: null },
+                decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: null, references: null, voteResultPhrase: null },
             })],
         }));
         expect(text).toContain('425/2026');
@@ -202,7 +205,7 @@ describe('MinutesDocx decision number', () => {
     it('renders nothing when decisionNumber is unknown, even if protocolNumber is set', async () => {
         const text = await docxText(makeMinutesData({
             subjects: [makeSubject({
-                decision: { decisionNumber: null, protocolNumber: '29967', excerpt: null, references: null },
+                decision: { decisionNumber: null, protocolNumber: '29967', excerpt: null, references: null, voteResultPhrase: null },
             })],
         }));
         expect(text).not.toContain('29967');
@@ -236,7 +239,7 @@ describe('MinutesDocx output', () => {
 
     const populated = (overrides: Partial<MinutesData> = {}): MinutesData => makeMinutesData({
         councilComposition: {
-            mayor: { name: 'Δήμαρχος', personId: 'mayor' },
+            mayor: { name: 'Δήμαρχος', personId: 'mayor', note: null },
             president: { name: 'Πρόεδρος', personId: 'p1' },
             members: [member('p1', 'Άλφα'), member('p2', 'Βήτα')],
             substituteMembers: [],
@@ -247,7 +250,7 @@ describe('MinutesDocx output', () => {
             atSubject: { id: 'subject-1', name: 'Έγκριση προϋπολογισμού', agendaItemIndex: 1, nonAgendaReason: null, outOfAgendaIndex: null },
         }],
         subjects: [makeSubject({
-            decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: 'Εγκρίνει ομόφωνα.', references: null },
+            decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: 'Εγκρίνει ομόφωνα.', references: null, voteResultPhrase: null },
             transcriptEntries: [{
                 type: 'speaker', speakerName: 'Άλφα', party: null, isPartyHead: false, role: null,
                 text: 'Τοποθέτηση επί του θέματος.', timestamp: 120,
@@ -268,7 +271,7 @@ describe('MinutesDocx output', () => {
         const before = await docxRuns(populated());
         const after = await docxRuns(populated({
             subjects: [makeSubject({
-                decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: 'Εγκρίνει ομόφωνα.', references: null },
+                decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: 'Εγκρίνει ομόφωνα.', references: null, voteResultPhrase: null },
                 transcriptEntries: [{
                     type: 'speaker', speakerName: 'Άλφα', party: null, isPartyHead: false, role: null,
                     text: 'Τοποθέτηση επί του θέματος.', timestamp: 120,

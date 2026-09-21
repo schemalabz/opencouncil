@@ -12,7 +12,7 @@ import { formatTimestamp } from '@/lib/utils';
 
 import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
-import { interleaveSubstitutes, formatSubjectLabel, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
+import { interleaveSubstitutes, formatChangePosition, formatPhraseOnlyOutcome, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
 import {
     MinutesData,
     MinutesSubject,
@@ -360,12 +360,18 @@ function createCouncilCompositionSection(
     // For committees: president IS the mayor, shown as ΠΡΟΕΔΡΟΣ only
     if (!isCommittee && composition.mayor) {
         const isAbsent = absentPersonIds.has(composition.mayor.personId);
+        // The note says everything the documents state about the mayor — absence
+        // included — so `getMinutesData` always sets it when the mayor is absent.
+        // The roll-call fallback is for `MinutesData` built by hand (tests, or a
+        // caller that assembles it itself), which has no note to read.
+        const note = composition.mayor.note
+            ?? (isAbsent ? getAbsentLabel(extractFirstName(composition.mayor.name, 'surnameFirst')) : null);
         paragraphs.push(new Paragraph({
             spacing: { before: 200, after: 80 },
             children: [
                 new TextRun({ text: 'ΔΗΜΑΡΧΟΣ: ', bold: true, size: FONT_SIZE.BODY }),
                 new TextRun({ text: composition.mayor.name, size: FONT_SIZE.BODY }),
-                ...(isAbsent ? [new TextRun({ text: ` (${getAbsentLabel(extractFirstName(composition.mayor.name, 'surnameFirst'))})`, size: FONT_SIZE.BODY, color: '666666' })] : []),
+                ...(note ? [new TextRun({ text: ` (${note})`, size: FONT_SIZE.BODY, color: '666666' })] : []),
             ],
         }));
     }
@@ -491,7 +497,7 @@ function createAttendanceChangesSection(
                 spacing: { before: 40, after: 40 },
                 children: [
                     new TextRun({ text: change.name, size: FONT_SIZE.BODY }),
-                    new TextRun({ text: ` — από το ${formatSubjectLabel(change.atSubject)}`, size: FONT_SIZE.BODY, color: '666666' }),
+                    new TextRun({ text: ` — ${formatChangePosition(change)}`, size: FONT_SIZE.BODY, color: '666666' }),
                 ],
             }));
         }
@@ -508,7 +514,7 @@ function createAttendanceChangesSection(
                 spacing: { before: 40, after: 40 },
                 children: [
                     new TextRun({ text: change.name, size: FONT_SIZE.BODY }),
-                    new TextRun({ text: ` — από το ${formatSubjectLabel(change.atSubject)}`, size: FONT_SIZE.BODY, color: '666666' }),
+                    new TextRun({ text: ` — ${formatChangePosition(change)}`, size: FONT_SIZE.BODY, color: '666666' }),
                 ],
             }));
         }
@@ -736,15 +742,21 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
 
     // --- Subject footer: attendance, dissenting votes, decision number ---
 
-    // Full vote breakdown
-    if (subject.voteResult) {
+    // Full vote breakdown — or the document's own outcome alone, when it named no voter
+    const voteResult = subject.voteResult;
+    if (voteResult?.fromPhraseOnly) {
+        paragraphs.push(new Paragraph({
+            spacing: { before: 60, after: 40 },
+            children: [new TextRun({ text: formatPhraseOnlyOutcome(voteResult), bold: true, size: FONT_SIZE.SMALL })],
+        }));
+    } else if (voteResult) {
         const voteCategories: { label: string; members: MinutesMember[] }[] = [
-            { label: 'ΥΠΕΡ', members: subject.voteResult.forMembers },
-            { label: 'ΚΑΤΑ', members: subject.voteResult.againstMembers },
-            { label: 'ΛΕΥΚΑ', members: subject.voteResult.abstainMembers },
-            { label: 'ΠΑΡΟΝΤΕΣ', members: subject.voteResult.presentMembers },
-            { label: 'ΑΠΟΧΗ', members: subject.voteResult.didNotVoteMembers },
-            { label: 'ΑΠΟΝΤΕΣ', members: subject.voteResult.absentMembers },
+            { label: 'ΥΠΕΡ', members: voteResult.forMembers },
+            { label: 'ΚΑΤΑ', members: voteResult.againstMembers },
+            { label: 'ΛΕΥΚΑ', members: voteResult.abstainMembers },
+            { label: 'ΠΑΡΟΝΤΕΣ', members: voteResult.presentMembers },
+            { label: 'ΑΠΟΧΗ', members: voteResult.didNotVoteMembers },
+            { label: 'ΑΠΟΝΤΕΣ', members: voteResult.absentMembers },
         ];
         for (const { label, members } of voteCategories) {
             if (members.length === 0) continue;

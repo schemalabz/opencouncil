@@ -3,6 +3,9 @@ import {
     buildAttendance,
     buildVoteResult,
     buildCouncilComposition,
+    buildMayorNote,
+    formatChangePosition,
+    formatPhraseOnlyOutcome,
     sortSubjectsByDiscussionOrder,
     sortByElectedOrder,
     buildDiscussionSummary,
@@ -169,8 +172,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.passed).toBe(true);
-        expect(result!.isUnanimous).toBe(false);
+        expect(result).toMatchObject({ passed: true, isUnanimous: false });
     });
 
     it('detects failed vote (AGAINST > FOR)', () => {
@@ -182,7 +184,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.passed).toBe(false);
+        expect(result).toMatchObject({ passed: false });
     });
 
     it('tie does not pass (FOR === AGAINST)', () => {
@@ -193,7 +195,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.passed).toBe(false);
+        expect(result).toMatchObject({ passed: false });
     });
 
     it('detects unanimous vote (all FOR)', () => {
@@ -205,8 +207,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.isUnanimous).toBe(true);
-        expect(result!.passed).toBe(true);
+        expect(result).toMatchObject({ isUnanimous: true, passed: true });
     });
 
     it('is not unanimous when abstains are present', () => {
@@ -218,8 +219,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.isUnanimous).toBe(false);
-        expect(result!.passed).toBe(true);
+        expect(result).toMatchObject({ isUnanimous: false, passed: true });
     });
 
     it('single FOR vote is unanimous and passed', () => {
@@ -227,8 +227,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.isUnanimous).toBe(true);
-        expect(result!.passed).toBe(true);
+        expect(result).toMatchObject({ isUnanimous: true, passed: true });
     });
 
     it('derives absent members from attendance minus voters minus mayor', () => {
@@ -291,6 +290,106 @@ describe('buildVoteResult', () => {
 
         expect(result!.forMembers.map(m => m.personId)).toEqual(['p2', 'p1', 'p3']);
     });
+
+    it('reads the outcome off the phrase when the document named no voter', () => {
+        const result = buildVoteResult([], [], null, simpleResolver, noElectedOrder, 'Ομόφωνα');
+
+        expect(result).toMatchObject({ fromPhraseOnly: true, outcome: 'unanimous', phrase: 'Ομόφωνα' });
+        expect(result!.forMembers).toEqual([]);
+    });
+
+    it('a phrase that names a majority is a majority', () => {
+        const result = buildVoteResult([], [], null, simpleResolver, noElectedOrder, 'Κατά πλειοψηφία');
+
+        expect(result).toMatchObject({ fromPhraseOnly: true, outcome: 'majority' });
+    });
+
+    it('rows that hold the named dissent but no FOR print the phrase, not a rejection', () => {
+        // Athens ΔΕ 22/06/2026: «ΥΠΕΡ: 7, ΚΑΤΑ 1, ΛΕΥΚΟ 1», the two dissenters named,
+        // and no FOR inferred because more unnamed members were present than seven.
+        // Counting the rows would print a carried decision as 0–1 and rejected.
+        const phrase = 'Κατά πλειοψηφία με ΥΠΕΡ: 7 ψήφους, ΚΑΤΑ 1, ΛΕΥΚΟ 1';
+        const votes = [makeVote('p2', 'Bob', 'AGAINST'), makeVote('p3', 'Charlie', 'ABSTAIN')];
+        expect(buildVoteResult(votes, [], null, simpleResolver, noElectedOrder, phrase))
+            .toMatchObject({ fromPhraseOnly: true, outcome: 'majority', phrase });
+    });
+
+    it('a phrase that counts and names no outcome names none', () => {
+        // Vrilissia's wording where nobody voted against and somebody declared
+        // ΠΑΡΩΝ: neither «ομόφωνα» nor «κατά πλειοψηφία» is what the page
+        // said, so the minutes print the page's own sentence instead of a word.
+        const phrase = 'Με πέντε (5) θετικές ψήφους';
+        expect(buildVoteResult([], [], null, simpleResolver, noElectedOrder, phrase))
+            .toMatchObject({ fromPhraseOnly: true, outcome: null, phrase });
+    });
+
+    it('reads the formal «ομοφώνως» as unanimity too', () => {
+        // The tonos on the ω is what a `φων` pattern misses.
+        const result = buildVoteResult([], [], null, simpleResolver, noElectedOrder, 'Εγκρίνεται ομοφώνως');
+
+        expect(result).toMatchObject({ fromPhraseOnly: true, outcome: 'unanimous' });
+    });
+
+    it('a phrase that states no outcome is no result at all', () => {
+        // `voteResultPhrase` is the extractor's verbatim field: it carries whatever
+        // the document decided, and «ΑΝΑΒΑΛΛΕΙ» must not print as «Κατά πλειοψηφία».
+        expect(buildVoteResult([], [], null, simpleResolver, noElectedOrder, 'ΑΝΑΒΑΛΛΕΙ')).toBeNull();
+        expect(buildVoteResult([], [], null, simpleResolver, noElectedOrder,
+            'ΓΝΩΜΟΔΟΤΕΙ θετικά επί του υπ. αριθμ. 12 αιτήματος')).toBeNull();
+    });
+
+    it('counted votes are never from the phrase', () => {
+        const result = buildVoteResult([makeVote('p1', 'Alice', 'FOR')], [], null, simpleResolver, noElectedOrder, 'Ομόφωνα');
+
+        expect(result).toMatchObject({ fromPhraseOnly: false, forMembers: [expect.objectContaining({ personId: 'p1' })] });
+    });
+});
+
+// --- formatPhraseOnlyOutcome ---
+
+describe('formatPhraseOnlyOutcome', () => {
+    it('prints the outcome word the document named', () => {
+        expect(formatPhraseOnlyOutcome({ outcome: 'unanimous', phrase: 'ΑΠΟΦΑΣΙΖΕΙ ΟΜΟΦΩΝΑ' })).toBe('Ομόφωνα');
+        expect(formatPhraseOnlyOutcome({ outcome: 'majority', phrase: 'Κατά πλειοψηφία με ΥΠΕΡ: 7' })).toBe('Κατά πλειοψηφία');
+    });
+
+    it("prints the document's own sentence when it named no outcome", () => {
+        // «Κατά πλειοψηφία» here would be Athens' word on Vrilissia's page, where
+        // nobody voted against and the outcome word was left out on purpose.
+        expect(formatPhraseOnlyOutcome({ outcome: null, phrase: 'Με δεκαεννιά (19) θετικές ψήφους' }))
+            .toBe('Με δεκαεννιά (19) θετικές ψήφους');
+    });
+});
+
+// --- buildMayorNote ---
+
+describe('buildMayorNote', () => {
+    const mayorChange = {
+        anchorLabel: null,
+        atSubject: { id: 's4', name: 'Θέμα 4', agendaItemIndex: 4, nonAgendaReason: null, outOfAgendaIndex: null },
+    };
+
+    it('says who presided when the mayor was absent', () => {
+        expect(buildMayorNote('ABSENT', [], 'ο Αντιπρόεδρος Θ. Μετικαρίδης', true))
+            .toBe('ΑΠΟΥΣΑ, προήδρευσε ο Αντιπρόεδρος Θ. Μετικαρίδης');
+    });
+
+    it("states a present mayor's own departure", () => {
+        // The label is what `buildAttendanceChangesFromEvents` emits — the position
+        // phrase the Προσελεύσεις/Αποχωρήσεις lists print, preposition included.
+        expect(buildMayorNote('PRESENT', [{ type: 'departure', label: formatChangePosition(mayorChange) }], null, true))
+            .toBe('αποχώρησε από το 4ο θέμα');
+    });
+
+    it('prints an anchor the document gave instead of a subject', () => {
+        expect(buildMayorNote('PRESENT', [{ type: 'arrival', label: formatChangePosition({ ...mayorChange, anchorLabel: 'στην 286 ΑΚΣ' }) }], null, false))
+            .toBe('προσήλθε στην 286 ΑΚΣ');
+    });
+
+    it('says nothing when the mayor was there throughout', () => {
+        expect(buildMayorNote('PRESENT', [], null, false)).toBeNull();
+        expect(buildMayorNote(null, [], 'ο Αντιπρόεδρος', false)).toBeNull();
+    });
 });
 
 // --- buildCouncilComposition ---
@@ -312,7 +411,7 @@ describe('buildCouncilComposition', () => {
             members, [], mayor, null, 'mayor-1', noElectedOrder,
         );
 
-        expect(result.mayor).toEqual({ name: 'Antoniou Dimitris', personId: 'mayor-1' });
+        expect(result.mayor).toEqual({ name: 'Antoniou Dimitris', personId: 'mayor-1', note: null });
     });
 
     it('includes president with personId', () => {

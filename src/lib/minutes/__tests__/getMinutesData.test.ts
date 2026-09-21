@@ -7,12 +7,12 @@
  * cross-subject markers inside the transcript.
  */
 
-const mockGetCouncilMeeting = jest.fn();
+const mockGetCouncilMeetingDirect = jest.fn();
 const mockGetSubjectsForMeeting = jest.fn();
 const mockGetCity = jest.fn();
 const mockUtteranceFindMany = jest.fn();
 
-jest.mock('@/lib/db/meetings', () => ({ getCouncilMeeting: (...a: unknown[]) => mockGetCouncilMeeting(...a) }));
+jest.mock('@/lib/db/meetings', () => ({ getCouncilMeetingDirect: (...a: unknown[]) => mockGetCouncilMeetingDirect(...a) }));
 jest.mock('@/lib/db/subject', () => ({ getSubjectsForMeeting: (...a: unknown[]) => mockGetSubjectsForMeeting(...a) }));
 jest.mock('@/lib/db/cities', () => ({ getCity: (...a: unknown[]) => mockGetCity(...a) }));
 jest.mock('@/lib/db/decisions', () => ({
@@ -23,7 +23,12 @@ jest.mock('@/lib/db/people', () => ({ getPeopleForCity: jest.fn().mockResolvedVa
 jest.mock('@/lib/sorting/people', () => ({ getElectedOrderForBody: () => null }));
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
-    default: { utterance: { findMany: (...a: unknown[]) => mockUtteranceFindMany(...a) } },
+    // getMinutesData reads the stored attendance events to print the changes
+    // block; this suite is about names and summaries, so it states none.
+    default: {
+        utterance: { findMany: (...a: unknown[]) => mockUtteranceFindMany(...a) },
+        attendanceEvent: { findMany: async () => [] },
+    },
 }));
 
 import { getMinutesData } from '@/lib/minutes/getMinutesData';
@@ -73,7 +78,7 @@ describe('getMinutesData — subject names carry the agenda title', () => {
         mockGetCity.mockResolvedValue({
             name: 'Χανιά', name_municipality: 'Δήμος Χανίων', timezone: 'Europe/Athens', logoImage: null,
         });
-        mockGetCouncilMeeting.mockResolvedValue({
+        mockGetCouncilMeetingDirect.mockResolvedValue({
             id: MEETING_ID, cityId: CITY_ID, name: 'Συνεδρίαση', dateTime: new Date('2026-03-04T18:00:00Z'),
             administrativeBody: null,
         });
@@ -136,7 +141,7 @@ describe('getMinutesData — subject names carry the agenda title', () => {
 describe('getMinutesData — discussion summary and procedural votes', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        mockGetCouncilMeeting.mockResolvedValue({
+        mockGetCouncilMeetingDirect.mockResolvedValue({
             id: MEETING_ID, cityId: CITY_ID, name: 'Συνεδρίαση', dateTime: new Date('2026-06-15T18:00:00Z'), administrativeBody: null,
         });
         mockGetCity.mockResolvedValue({ name: 'Δήμος', name_municipality: 'Δήμος', timezone: 'Europe/Athens', logoImage: null, realm: 'greece' });

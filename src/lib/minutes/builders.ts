@@ -3,6 +3,9 @@ import { compareRanks } from '@/lib/sorting/people';
 import { formatSurnameFirst } from '@/lib/formatters/name';
 import { calculateVoteResult, getAbsentNonVoterIds } from '@/lib/utils/votes';
 import { splitAttendance } from '@/lib/utils/attendance';
+import { isRecordSubject } from '@/lib/utils/subjects';
+import { phrasePermitsInference, phraseOutcome, type PhraseOutcome } from '@/lib/derivation/deriveVotes';
+import { decisionOrdinal, placeEvents, type PlaceableEvent } from '@/lib/derivation/placeEvents';
 import {
     MinutesMember,
     MinutesAttendance,
@@ -106,7 +109,16 @@ export function buildAttendance(
 /**
  * Builds vote result from extracted vote + attendance data.
  * Derives absent members as: those in attendance who are absent AND didn't vote (excluding mayor).
- * Returns null if there are no votes.
+ *
+ * With no votes there is still a result when the document states one in words
+ * («Ομόφωνα») — nobody was named, so there are no lists at all and the result
+ * carries the phrase with whatever outcome it names. Returns null when there is
+ * neither.
+ *
+ * Only a phrase that states an outcome counts: `voteResultPhrase` is the
+ * extractor's verbatim field and often holds something else entirely
+ * («ΑΝΑΒΑΛΛΕΙ»), which must print no vote line rather than a fabricated one.
+ * `phrasePermitsInference` is the same predicate the derivation asks.
  */
 export function buildVoteResult(
     votes: Array<{ personId: string; personName: string; voteType: VoteType }>,
@@ -114,7 +126,19 @@ export function buildVoteResult(
     mayorPersonId: string | null,
     resolveMember: MemberResolver,
     getElectedOrder: ElectedOrderGetter,
+    phrase: string | null = null,
 ): MinutesVoteResult | null {
+    // No FOR row under a phrase that says a vote carried is the derivation
+    // declining to infer: the page counts in favour without naming, and the
+    // members present do not fit that count. The rows then hold only the named
+    // dissent, and counting them would print a carried decision as rejected.
+    const permits = !!phrase && phrasePermitsInference(phrase);
+    if (!votes.some(v => v.voteType === 'FOR') && permits) {
+        return {
+            forMembers: [], againstMembers: [], abstainMembers: [], presentMembers: [], didNotVoteMembers: [], absentMembers: [],
+            fromPhraseOnly: true, outcome: phraseOutcome(phrase), phrase,
+        };
+    }
     if (votes.length === 0) return null;
 
     const sortedVotes = [...votes].sort((a, b) =>
@@ -154,7 +178,7 @@ export function buildVoteResult(
 
     const { passed, isUnanimous } = calculateVoteResult(votes);
 
-    return { forMembers, againstMembers, abstainMembers, presentMembers, didNotVoteMembers, absentMembers, passed, isUnanimous };
+    return { forMembers, againstMembers, abstainMembers, presentMembers, didNotVoteMembers, absentMembers, passed, isUnanimous, fromPhraseOnly: false };
 }
 
 /**
@@ -180,8 +204,9 @@ export function buildCouncilComposition(
     mayorPersonId: string | null,
     getElectedOrder: ElectedOrderGetter,
 ): MinutesCouncilComposition {
+    // note is filled in by the caller, which knows the roll call and the mayor's own movement.
     const mayorResult: MinutesCouncilComposition['mayor'] = mayor
-        ? { name: formatSurnameFirst(mayor.name), personId: mayor.personId }
+        ? { name: formatSurnameFirst(mayor.name), personId: mayor.personId, note: null }
         : null;
 
     const presidentResult: MinutesCouncilComposition['president'] = president
@@ -200,7 +225,100 @@ export function buildCouncilComposition(
     return { mayor: mayorResult, president: presidentResult, members: sortedMembers, substituteMembers: sortedSubstitutes };
 }
 
+/**
+ * The parenthesis after the mayor's name on the ΔΗΜΑΡΧΟΣ line: absent/present at the
+ * roll call, their own arrivals or departures, and who presided in their absence.
+ */
+export function buildMayorNote(
+    rollCallStatus: 'PRESENT' | 'ABSENT' | null,
+    mayorChanges: Array<{ type: 'arrival' | 'departure'; label: string }>,
+    presidedByName: string | null,
+    feminine: boolean,
+): string | null {
+    const parts: string[] = [];
+    if (rollCallStatus === 'ABSENT') parts.push(feminine ? 'ΑΠΟΥΣΑ' : 'ΑΠΩΝ');
+    for (const c of mayorChanges) parts.push(`${c.type === 'arrival' ? 'προσήλθε' : 'αποχώρησε'} ${c.label}`);
+    if (rollCallStatus === 'ABSENT' && presidedByName) parts.push(`προήδρευσε ${presidedByName}`);
+    return parts.length ? parts.join(', ') : null;
+}
 
+
+
+/**
+ * Arrivals and departures from the events the documents state, printed at the
+ * subject the anchor resolves to. Which subject that is, is `placeEvents` — the
+ * same placement the derivation writes the rows with, so a sentence cannot name
+ * one item while another item's attendance table shows the change. An event with
+ * no effect on any item (an «after» past the last subject) prints nothing.
+ *
+ * What is this function's own: the Greek label a decision-number or phase anchor
+ * prints instead of the item, and the fallback for an anchor `placeEvents` could
+ * not place — the first subject whose attendance already shows the member on the
+ * other side. Session-start arrivals and session-end departures are not changes
+ * and are skipped.
+ *
+ * The mayor's own changes are returned apart from the rest: they belong on the
+ * ΔΗΜΑΡΧΟΣ line, not in the list of members who came and went.
+ */
+export function buildAttendanceChangesFromEvents(
+    events: PlaceableEvent[],
+    subjects: Array<{
+        subjectId: string;
+        name: string;
+        agendaItemIndex: number | null;
+        nonAgendaReason: 'beforeAgenda' | 'outOfAgenda' | null;
+        attendance: MinutesAttendance | null;
+        decisionNumber: string | null;
+    }>,
+    resolveMember: (personId: string) => MinutesMember | null,
+    mayorPersonId: string | null,
+): { changes: MinutesAttendanceChange[]; mayorChanges: Array<{ type: 'arrival' | 'departure'; label: string }> } {
+    const oaIndexMap = new Map<string, number>();
+    let oaCounter = 0;
+    for (const s of subjects) if (s.nonAgendaReason === 'outOfAgenda') oaIndexMap.set(s.subjectId, ++oaCounter);
+    const atSubject = (s: typeof subjects[number]): MinutesAttendanceChange['atSubject'] => ({
+        id: s.subjectId, name: s.name, agendaItemIndex: s.agendaItemIndex, nonAgendaReason: s.nonAgendaReason,
+        outOfAgendaIndex: oaIndexMap.get(s.subjectId) ?? null,
+    });
+
+    const effectAt = new Map<PlaceableEvent, number>();
+    for (const p of placeEvents(subjects.map(s => ({
+        id: s.subjectId, name: s.name, agendaItemIndex: s.agendaItemIndex, nonAgendaReason: s.nonAgendaReason, decisionNumber: s.decisionNumber,
+    })), events).placed) effectAt.set(p.event, p.effectAt);
+
+    const changes: MinutesAttendanceChange[] = [];
+    const mayorChanges: Array<{ type: 'arrival' | 'departure'; label: string }> = [];
+    for (const e of events) {
+        if (e.anchorKind === 'SESSION_START' || e.anchorKind === 'SESSION_END') continue;
+        const member = resolveMember(e.personId);
+        if (!member) continue;
+        const type = e.kind === 'ARRIVAL' ? 'arrival' : 'departure';
+        let anchorLabel: string | null = null;
+        if (e.anchorKind === 'DECISION_NUMBER' && decisionOrdinal(e.anchorDecisionNumber) != null) {
+            anchorLabel = `στην ${e.anchorDecisionNumber} ΑΚΣ`;
+        } else if (e.anchorKind === 'PHASE') {
+            anchorLabel = e.anchorPhase === 'OUT_OF_AGENDA' ? 'κατά τα θέματα εκτός ημερήσιας διάταξης' : 'πριν την ημερήσια διάταξη';
+        }
+        let index = effectAt.get(e) ?? -1;
+        // Past the last subject: the change touches no item's attendance, so
+        // printing it against one would contradict the table beside it.
+        if (index >= subjects.length) continue;
+        if (index < 0) {
+            // Unplaceable anchor: the first subject whose attendance already shows the member on the other side.
+            index = subjects.findIndex(s => s.attendance && (type === 'departure'
+                ? s.attendance.absent.some(m => m.personId === e.personId)
+                : s.attendance.present.some(m => m.personId === e.personId)));
+        }
+        if (index < 0) continue;
+        const at = atSubject(subjects[index]);
+        if (e.personId === mayorPersonId) {
+            mayorChanges.push({ type, label: formatChangePosition({ anchorLabel, atSubject: at }) });
+            continue;
+        }
+        changes.push({ personId: e.personId, name: member.name, type, atSubject: at, anchorLabel, rawText: e.rawText });
+    }
+    return { changes, mayorChanges };
+}
 
 /**
  * Computes mid-meeting attendance changes by diffing per-subject attendance
@@ -386,6 +504,25 @@ export function sortSubjectsByDiscussionOrder<T extends SortableSubject>(
 }
 
 /**
+ * The meeting's subjects as the record walks them: the record subjects
+ * (`isRecordSubject` — agenda plus out-of-agenda, never `beforeAgenda`) in
+ * discussion order.
+ *
+ * One helper because the sequence is an index: an «after item 3» anchor is
+ * placed by position, so a caller walking a different set, or the same set in a
+ * different order, puts the change on a different subject than the page prints
+ * it against. The minutes and the derivation both come through here. Withdrawn
+ * subjects are kept — the minutes list them in the table of contents; callers
+ * that place events drop them.
+ */
+export function orderedMinutesSubjects<T extends SortableSubject>(
+    subjects: T[],
+    firstUtteranceBySubject: Map<string, number>,
+): T[] {
+    return sortSubjectsByDiscussionOrder(subjects.filter(isRecordSubject), firstUtteranceBySubject);
+}
+
+/**
  * Withdrawn/rejected label for the minutes table of contents.
  *
  * The minutes are Greek by construction — Greek headings, Greek date locale,
@@ -414,6 +551,38 @@ export function formatSubjectLabel(atSubject: MinutesAttendanceChange['atSubject
         return `${atSubject.agendaItemIndex}ο θέμα`;
     }
     return atSubject.name;
+}
+
+/**
+ * Where a change happened, as a phrase that can follow a name or a verb:
+ * «στην 286 ΑΚΣ» when the document pinned it to something other than an agenda
+ * item, «από το 5ο θέμα» otherwise — `atSubject` is the subject the member is
+ * first seen on the other side of, so the preposition has to be «από», not a
+ * bare label. One helper so the Προσελεύσεις/Αποχωρήσεις lists and the
+ * ΔΗΜΑΡΧΟΣ parenthesis cannot word the same fact differently.
+ */
+export function formatChangePosition(
+    change: { anchorLabel?: string | null; atSubject: MinutesAttendanceChange['atSubject'] },
+): string {
+    return change.anchorLabel ?? `από το ${formatSubjectLabel(change.atSubject)}`;
+}
+
+/**
+ * The whole vote line for a result that is only a phrase: the document named
+ * nobody, so there are no member lists to print and the outcome stands alone.
+ *
+ * A phrase that names no outcome prints as the page wrote it. Vrilissia states
+ * «Με πέντε (5) θετικές ψήφους» for a vote nobody opposed and somebody sat
+ * out as ΠΑΡΩΝ — neither «ομόφωνα» nor «κατά πλειοψηφία», which is why it
+ * uses no outcome word. Athens calls the same vote state «Κατά πλειοψηφία», so
+ * printing that word here would assert one municipality's convention on
+ * another's page. Greek-only for the same reason as `getWithdrawnLabelGreek`
+ * above.
+ */
+export function formatPhraseOnlyOutcome(voteResult: { outcome: PhraseOutcome | null; phrase: string }): string {
+    if (voteResult.outcome === 'unanimous') return 'Ομόφωνα';
+    if (voteResult.outcome === 'majority') return 'Κατά πλειοψηφία';
+    return voteResult.phrase;
 }
 
 export interface SummaryUtterance {

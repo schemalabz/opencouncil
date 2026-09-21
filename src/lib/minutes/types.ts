@@ -1,4 +1,5 @@
 import type { NonAgendaReason, Realm } from '@prisma/client';
+import type { PhraseOutcome } from '@/lib/derivation/deriveVotes';
 export interface MinutesMember {
     personId: string;
     name: string;
@@ -13,14 +14,21 @@ export interface MinutesAttendance {
 }
 
 export interface MinutesCouncilComposition {
-    mayor: { name: string; personId: string } | null;
+    /**
+     * `note` is the parenthesis printed after the name on the ΔΗΜΑΡΧΟΣ line:
+     * absence at the roll call, the mayor's own arrivals and departures, and
+     * who presided in their place. Null when there is nothing to say — the
+     * renderers then fall back to the ΑΠΩΝ/ΑΠΟΥΣΑ label they derive themselves.
+     */
+    mayor: { name: string; personId: string; note: string | null } | null;
     president: { name: string; personId: string } | null;
     members: MinutesMember[];
     /** Substitute members (αναπληρωματικά μέλη) — only for committees */
     substituteMembers: MinutesMember[];
 }
 
-export interface MinutesVoteResult {
+/** The lists a vote result prints, one per vote value. All empty when the document named no voter. */
+export interface MinutesVoteMembers {
     forMembers: MinutesMember[];
     againstMembers: MinutesMember[];
     abstainMembers: MinutesMember[];
@@ -29,9 +37,26 @@ export interface MinutesVoteResult {
     /** Members who declined to participate (ΑΠΟΧΗ) */
     didNotVoteMembers: MinutesMember[];
     absentMembers: MinutesMember[];
-    passed: boolean;
-    isUnanimous: boolean;
 }
+
+/**
+ * A counted result, or — when the document named no voter — what its own phrase
+ * says. The two carry different outcome fields, because a phrase-only result has
+ * no counts to read `passed` or a unanimity off: «Κατά πλειοψηφία απορρίπτει»
+ * did not pass, and a phrase that counts votes without naming an outcome is
+ * neither unanimous nor a majority. Its member lists are empty because nobody
+ * was counted, not because nobody voted.
+ */
+export type MinutesVoteResult = MinutesVoteMembers & (
+    | { fromPhraseOnly: false; passed: boolean; isUnanimous: boolean }
+    | {
+        fromPhraseOnly: true;
+        /** The outcome the phrase names, null when it names none. */
+        outcome: PhraseOutcome | null;
+        /** The phrase as the document wrote it, printed whole when it names no outcome. */
+        phrase: string;
+    }
+);
 
 /**
  * What the transcript holds for a subject, in the terms of DiscussionStatus.
@@ -111,6 +136,8 @@ export interface MinutesSubject {
         protocolNumber: string | null;
         excerpt: string | null;
         references: string | null;
+        /** What the document itself says about the vote («Ομόφωνα»), verbatim. */
+        voteResultPhrase: string | null;
     } | null;
 
     attendance: MinutesAttendance | null;
@@ -125,6 +152,14 @@ export interface MinutesAttendanceChange {
     personId: string;
     name: string;
     type: 'arrival' | 'departure';
+    /**
+     * What the document pinned the change to when it is not an agenda item
+     * («στην 286 ΑΚΣ», «στις 19:45»); printed instead of the subject label.
+     * Null when the change is reconstructed from attendance diffs.
+     */
+    anchorLabel?: string | null;
+    /** The sentence the document states the change in. Absent for changes reconstructed from attendance diffs. */
+    rawText?: string;
     /** The agenda item where this change is first observed (subject immediately after the change) */
     atSubject: {
         id: string;
@@ -171,8 +206,14 @@ export interface MinutesData {
     absentMembers: MinutesMember[] | null;
     /** Orphaned utterances before the first subject (opening remarks, procedural content) */
     preambleEntries: MinutesTranscriptEntry[];
-    /** Mid-meeting arrivals and departures derived from per-subject attendance diffs */
+    /** Mid-meeting arrivals and departures */
     attendanceChanges: MinutesAttendanceChange[];
+    /**
+     * Where `attendanceChanges` came from: 'events' = the arrivals and
+     * departures the documents state, 'diff' = reconstructed by diffing
+     * per-subject attendance (meetings polled before events were stored).
+     */
+    attendanceChangesSource: 'events' | 'diff';
     /** Discussion order summary, only set when subjects were discussed out of natural order */
     discussionOrderLabel: string | null;
     /** Procedural votes in time order. Empty when the transcript has none. */
