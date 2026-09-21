@@ -14,7 +14,8 @@ import { formatNumericDateTime } from "@/lib/formatters/time";
 import { setVoicePrintConsent } from "@/lib/actions/personConsent";
 import { cn } from "@/lib/utils";
 import { DPO_EMAIL } from "@/lib/dpo";
-import { FieldError, SaveStatus } from "@/components/profile/SettingsChrome";
+import { ErrorLine } from "@/components/ui/error-line";
+import { SaveStatus } from "@/components/profile/SettingsChrome";
 import { postProfile } from "@/components/profile/profile-api";
 
 // Server phone rejections that have their own message in the Profile namespace.
@@ -216,7 +217,7 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
                         invalidMessage={t("phoneInvalid")}
                         notMobileMessage={t("phoneNotMobile")}
                     />
-                    {serverPhoneError && <FieldError>{t(serverPhoneError)}</FieldError>}
+                    {serverPhoneError && <ErrorLine>{t(serverPhoneError)}</ErrorLine>}
                 </div>
             </div>
 
@@ -250,7 +251,7 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
                             })}
                         />
                     ))}
-                    {consentError && <FieldError>{t("voicePrintConsentError")}</FieldError>}
+                    {consentError && <ErrorLine>{t("voicePrintConsentError")}</ErrorLine>}
                 </div>
             )}
 

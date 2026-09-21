@@ -6,6 +6,7 @@ import { AlertCircle, ArrowRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Eyebrow } from '@/components/landing/v2/shared';
 import { Button } from '@/components/ui/button';
+import { ErrorLine } from '@/components/ui/error-line';
 import { cn } from '@/lib/utils';
 import type { SignupFailure } from './signup-shared';
 
@@ -169,13 +170,9 @@ export function SignupFooter({
         >
             <div className={cn('mx-auto lg:mx-0 lg:max-w-none', pinned ? 'max-w-lg' : 'max-w-md')}>
                 {line && (
-                    <p
-                        id={lineId}
-                        className="mb-2.5 flex items-center gap-1.5 text-[13px] leading-snug text-red-700 animate-in fade-in duration-300"
-                    >
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <ErrorLine id={lineId} className="mb-2.5 animate-in fade-in duration-300">
                         {failure === 'issues' ? t('failure.issuesLine') : t('failure.refusedLine')}
-                    </p>
+                    </ErrorLine>
                 )}
                 <div className="flex items-center justify-between gap-3">
                     {onBack && backLabel ? (

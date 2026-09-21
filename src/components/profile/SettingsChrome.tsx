@@ -1,5 +1,6 @@
-import { AlertCircle, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ErrorLine } from "@/components/ui/error-line";
 import { surfaceCardClass } from "@/components/ui/surface-card";
 
 /**
@@ -128,20 +129,5 @@ export function SaveStatus({ state, savedLabel, errorLabel }: {
             </span>
         );
     }
-    return (
-        <span role="alert" className="inline-flex items-start gap-1.5 text-[13px] text-red-700">
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            {errorLabel}
-        </span>
-    );
-}
-
-/** A field's error under it, in the form's own red. */
-export function FieldError({ children }: { children: React.ReactNode }) {
-    return (
-        <p role="alert" className="flex items-start gap-1.5 text-[13px] leading-snug text-red-700">
-            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            {children}
-        </p>
-    );
+    return <ErrorLine>{errorLabel}</ErrorLine>;
 }

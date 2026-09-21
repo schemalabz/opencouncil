@@ -15,7 +15,8 @@ import { Link } from '@/i18n/routing';
 import { formatNumericDate, formatNumericDateTime } from '@/lib/formatters/time';
 import { cn } from '@/lib/utils';
 import { NotisSwitch } from '@/components/profile/NotisSwitch';
-import { FieldError, SettingsBody, SettingsCard } from '@/components/profile/SettingsChrome';
+import { ErrorLine } from '@/components/ui/error-line';
+import { SettingsBody, SettingsCard } from '@/components/profile/SettingsChrome';
 
 interface CitySelectorProps {
     label: string;
@@ -440,7 +441,7 @@ export function NotificationPreferencesSection() {
                 </ul>
                 {deleteError && (
                     <div className="border-t border-border px-4 py-3 sm:px-5">
-                        <FieldError>{t(deleteError)}</FieldError>
+                        <ErrorLine>{t(deleteError)}</ErrorLine>
                     </div>
                 )}
                 <div className="flex flex-col gap-3 border-t border-border bg-muted/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">

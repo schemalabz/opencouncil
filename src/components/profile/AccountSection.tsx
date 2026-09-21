@@ -7,7 +7,8 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DPO_EMAIL } from "@/lib/dpo";
-import { FieldError, SettingsBody, SettingsCard } from "@/components/profile/SettingsChrome";
+import { ErrorLine } from "@/components/ui/error-line";
+import { SettingsBody, SettingsCard } from "@/components/profile/SettingsChrome";
 
 /**
  * The account itself: the right to a copy of the data, the way out of this
@@ -82,7 +83,7 @@ export function AccountSection() {
                             <DialogFooter className="gap-3">
                                 {deleteError && (
                                     <div className="w-full">
-                                        <FieldError>{t("deleteAccountError")}</FieldError>
+                                        <ErrorLine>{t("deleteAccountError")}</ErrorLine>
                                     </div>
                                 )}
                                 <Button variant="destructive" disabled={isDeleting} onClick={handleDeleteAccount}>
