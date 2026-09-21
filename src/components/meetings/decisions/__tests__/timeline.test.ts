@@ -61,7 +61,7 @@ describe('buildTimeline', () => {
     it('excludes an absent mayor from both the count and the absent names, since the composition pool never held them', () => {
         const mayor = member('mayor');
         const councilComposition: MinutesCouncilComposition = {
-            mayor,
+            mayor: { ...mayor, note: null },
             president: null,
             members: members(3),
             substituteMembers: [],
@@ -318,7 +318,7 @@ describe('isPendingDecision', () => {
 
 describe('minutesReadiness', () => {
     const linked: MinutesSubject['decision'] =
-        { decisionNumber: '643/2026', protocolNumber: null, excerpt: null, references: null };
+        { decisionNumber: '643/2026', protocolNumber: null, excerpt: null, references: null, voteResultPhrase: null };
 
     it('counts the subjects the minutes snapshot still carries without a decision', () => {
         // The count used to come off the decisions payload, a separate request.

@@ -6,6 +6,7 @@ import { CalendarX2, Inbox, Info, Swords } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { CityDecisionHealth } from '@/lib/db/decisionHealth';
+import type { DecisionReadIssueCount } from '@/lib/db/decisions';
 import { cityState } from '@/lib/db/decisionHealthState';
 import { convergenceTotals, sortCities } from './convergence';
 import { CityRow, type OpenRequest } from './CityRow';
@@ -19,7 +20,12 @@ import { CoverageStrip } from './CoverageStrip';
  */
 export type OverviewRange = '30' | '90' | 'all';
 
-export function DecisionsOverview({ cities, range }: { cities: CityDecisionHealth[]; range: OverviewRange }) {
+export function DecisionsOverview({ cities, range, readIssues = [] }: {
+    cities: CityDecisionHealth[];
+    range: OverviewRange;
+    /** Per meeting, the documents read with an incomplete read or an unmatched name. */
+    readIssues?: DecisionReadIssueCount[];
+}) {
     const t = useTranslations('admin.decisionsOverview');
     const locale = useLocale();
     const totals = convergenceTotals(cities);
@@ -32,6 +38,11 @@ export function DecisionsOverview({ cities, range }: { cities: CityDecisionHealt
     const notStarted = inScope.filter(c => cityState(c) === 'notStarted');
     const outOfScope = cities.filter(c => !c.inScope);
     const cityLabel = (c: CityDecisionHealth) => (locale === 'el' ? c.cityName : c.cityNameEn);
+    const readIssuesByCity = new Map<string, DecisionReadIssueCount[]>();
+    for (const row of readIssues) {
+        const rows = readIssuesByCity.get(row.cityId);
+        if (rows) rows.push(row); else readIssuesByCity.set(row.cityId, [row]);
+    }
 
     return (
         <div className="mx-auto max-w-5xl px-4 py-8">
@@ -119,6 +130,7 @@ export function DecisionsOverview({ cities, range }: { cities: CityDecisionHealt
                 <div>
                     {active.map(c => (
                         <CityRow key={c.cityId} city={c} state={cityState(c)} label={cityLabel(c)}
+                            readIssues={readIssuesByCity.get(c.cityId) ?? []}
                             openRequest={openRequest?.cityId === c.cityId ? openRequest : null} />
                     ))}
                 </div>

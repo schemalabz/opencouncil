@@ -14,7 +14,7 @@ import {
     MinutesTranscriptEntry,
     MinutesAttendanceChange,
 } from '@/lib/minutes/types';
-import { interleaveSubstitutes, formatSubjectLabel, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
+import { interleaveSubstitutes, formatChangePosition, formatPhraseOnlyOutcome, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
 
 
 type DebugCategory = 'SUBJECT_DISCUSSION' | 'VOTE' | 'PROCEDURAL_VOTE' | 'ATTENDANCE' | 'OTHER' | 'CROSS_SUBJECT';
@@ -203,6 +203,16 @@ function CouncilCompositionSection({ composition, absentMembers, adminBody }: {
 }) {
     const absentPersonIds = new Set(absentMembers?.map(m => m.personId) ?? []);
     const isCommittee = adminBody?.type === 'committee';
+    // The note says everything the documents state about the mayor — absence
+    // included — so `getMinutesData` always sets it when the mayor is absent.
+    // The roll-call fallback is for `MinutesData` built by hand (tests, or a
+    // caller that assembles it itself), which has no note to read.
+    const mayorNote = composition.mayor
+        ? composition.mayor.note
+        ?? (absentPersonIds.has(composition.mayor.personId)
+            ? getAbsentLabel(extractFirstName(composition.mayor.name, 'surnameFirst'))
+            : null)
+        : null;
 
     return (
         <div className="mb-8">
@@ -210,8 +220,8 @@ function CouncilCompositionSection({ composition, absentMembers, adminBody }: {
                 <p className="text-sm mb-1">
                     <span className="font-bold">ΔΗΜΑΡΧΟΣ: </span>
                     {composition.mayor.name}
-                    {absentPersonIds.has(composition.mayor.personId) && (
-                        <span className="text-gray-500"> ({getAbsentLabel(extractFirstName(composition.mayor.name, 'surnameFirst'))})</span>
+                    {mayorNote && (
+                        <span className="text-gray-500"> ({mayorNote})</span>
                     )}
                 </p>
             )}
@@ -282,7 +292,7 @@ function AttendanceChangesSection({ changes }: { changes: MinutesAttendanceChang
                             <li key={i}>
                                 {change.name}
                                 <span className="text-muted-foreground">
-                                    {` — από το ${formatSubjectLabel(change.atSubject)}`}
+                                    {` — ${formatChangePosition(change)}`}
                                 </span>
                             </li>
                         ))}
@@ -297,7 +307,7 @@ function AttendanceChangesSection({ changes }: { changes: MinutesAttendanceChang
                             <li key={i}>
                                 {change.name}
                                 <span className="text-muted-foreground">
-                                    {` — από το ${formatSubjectLabel(change.atSubject)}`}
+                                    {` — ${formatChangePosition(change)}`}
                                 </span>
                             </li>
                         ))}
@@ -494,48 +504,54 @@ function formatMemberList(members: MinutesMember[]) {
 }
 
 function SubjectFooter({ subject }: { subject: MinutesSubject }) {
-    const hasFooter = subject.voteResult || subject.decision?.decisionNumber;
+    const voteResult = subject.voteResult;
+    const hasFooter = voteResult || subject.decision?.decisionNumber;
     if (!hasFooter) return null;
 
     return (
         <div className="mt-4 text-xs">
+            {/* The document's own outcome alone, when it named no voter */}
+            {voteResult?.fromPhraseOnly && (
+                <p className="my-0.5 font-bold">{formatPhraseOnlyOutcome(voteResult)}</p>
+            )}
+
             {/* Full vote breakdown */}
-            {subject.voteResult && (
+            {voteResult && !voteResult.fromPhraseOnly && (
                 <>
-                    {subject.voteResult.forMembers.length > 0 && (
+                    {voteResult.forMembers.length > 0 && (
                         <p className="my-0.5">
-                            <span className="font-bold">ΥΠΕΡ ({subject.voteResult.forMembers.length}): </span>
-                            {formatMemberList(subject.voteResult.forMembers)}
+                            <span className="font-bold">ΥΠΕΡ ({voteResult.forMembers.length}): </span>
+                            {formatMemberList(voteResult.forMembers)}
                         </p>
                     )}
-                    {subject.voteResult.againstMembers.length > 0 && (
+                    {voteResult.againstMembers.length > 0 && (
                         <p className="my-0.5">
-                            <span className="font-bold">ΚΑΤΑ ({subject.voteResult.againstMembers.length}): </span>
-                            {formatMemberList(subject.voteResult.againstMembers)}
+                            <span className="font-bold">ΚΑΤΑ ({voteResult.againstMembers.length}): </span>
+                            {formatMemberList(voteResult.againstMembers)}
                         </p>
                     )}
-                    {subject.voteResult.abstainMembers.length > 0 && (
+                    {voteResult.abstainMembers.length > 0 && (
                         <p className="my-0.5">
-                            <span className="font-bold">ΛΕΥΚΑ ({subject.voteResult.abstainMembers.length}): </span>
-                            {formatMemberList(subject.voteResult.abstainMembers)}
+                            <span className="font-bold">ΛΕΥΚΑ ({voteResult.abstainMembers.length}): </span>
+                            {formatMemberList(voteResult.abstainMembers)}
                         </p>
                     )}
-                    {subject.voteResult.presentMembers.length > 0 && (
+                    {voteResult.presentMembers.length > 0 && (
                         <p className="my-0.5">
-                            <span className="font-bold">ΠΑΡΟΝΤΕΣ ({subject.voteResult.presentMembers.length}): </span>
-                            {formatMemberList(subject.voteResult.presentMembers)}
+                            <span className="font-bold">ΠΑΡΟΝΤΕΣ ({voteResult.presentMembers.length}): </span>
+                            {formatMemberList(voteResult.presentMembers)}
                         </p>
                     )}
-                    {subject.voteResult.didNotVoteMembers.length > 0 && (
+                    {voteResult.didNotVoteMembers.length > 0 && (
                         <p className="my-0.5">
-                            <span className="font-bold">ΑΠΟΧΗ ({subject.voteResult.didNotVoteMembers.length}): </span>
-                            {formatMemberList(subject.voteResult.didNotVoteMembers)}
+                            <span className="font-bold">ΑΠΟΧΗ ({voteResult.didNotVoteMembers.length}): </span>
+                            {formatMemberList(voteResult.didNotVoteMembers)}
                         </p>
                     )}
-                    {subject.voteResult.absentMembers.length > 0 && (
+                    {voteResult.absentMembers.length > 0 && (
                         <p className="my-0.5">
-                            <span className="font-bold">ΑΠΟΝΤΕΣ ({subject.voteResult.absentMembers.length}): </span>
-                            {formatMemberList(subject.voteResult.absentMembers)}
+                            <span className="font-bold">ΑΠΟΝΤΕΣ ({voteResult.absentMembers.length}): </span>
+                            {formatMemberList(voteResult.absentMembers)}
                         </p>
                     )}
                 </>

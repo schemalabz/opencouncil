@@ -13,6 +13,8 @@ function renderCard(overrides: Partial<React.ComponentProps<typeof MinutesCard>>
             onExport={jest.fn()}
             previewDisabled={false}
             readiness={{ subjects: 12, undecided: 3 }}
+            onRederive={jest.fn()}
+            isRederiving={false}
             {...overrides}
         />
     );

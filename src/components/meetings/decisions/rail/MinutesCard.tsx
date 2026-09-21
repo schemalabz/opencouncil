@@ -1,21 +1,22 @@
 "use client";
 
 import { useTranslations } from 'next-intl';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RailCard } from '@/components/ui/rail-card';
 import { cn } from '@/lib/utils';
 
-/** The rail's minutes card: what the document will say, then the two ways to
- * get it — a preview, and the DOCX a municipality files as its own record.
- * No fetching — the page owns the minutes data, the counts and the export.
+/** The rail's minutes card: what the document will say, then the ways to get
+ * it — a preview, the DOCX a municipality files as its own record, and a
+ * re-run of the derivation over the facts already stored.
+ * No fetching — the page owns the minutes data, the counts and every request.
  *
  * The readiness line is a statement, never a warning: a subject with no
  * decision is normal, and the clerk is being told what the printed minutes
  * will carry, not that the meeting is wrong. It therefore counts the minutes
  * snapshot, which is what the preview and the DOCX render — never the
  * decisions payload, which answers a different request. */
-export function MinutesCard({ onPreview, onExport, previewDisabled, readiness }: {
+export function MinutesCard({ onPreview, onExport, previewDisabled, readiness, onRederive, isRederiving }: {
     onPreview: () => void;
     onExport: () => void;
     previewDisabled: boolean;
@@ -24,6 +25,8 @@ export function MinutesCard({ onPreview, onExport, previewDisabled, readiness }:
      * and says nothing about the document, rather than describing it from the
      * decisions payload, which is a different request and can be older. */
     readiness: { subjects: number; undecided: number } | null;
+    onRederive: () => void;
+    isRederiving: boolean;
 }) {
     const tPage = useTranslations('admin.decisionsPage');
     const t = useTranslations('admin.adminActions');
@@ -64,6 +67,12 @@ export function MinutesCard({ onPreview, onExport, previewDisabled, readiness }:
                 <Button size="sm" className="justify-start" onClick={onExport}>
                     <Download className="h-3.5 w-3.5 mr-1.5" />
                     {tPage('exportDocx')}
+                </Button>
+                <Button variant="outline" size="sm" className="justify-start" disabled={isRederiving} onClick={onRederive}>
+                    {isRederiving
+                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                    {tPage('rederive')}
                 </Button>
             </div>
 

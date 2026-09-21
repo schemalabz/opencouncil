@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AttendanceChangesCard } from '../AttendanceChangesCard';
 import type { TimelineItem } from '../../timeline';
-import type { MinutesSubject } from '@/lib/minutes/types';
+import type { MinutesAttendanceChange, MinutesSubject } from '@/lib/minutes/types';
 
 jest.mock('next-intl', () => ({
     useTranslations: () => (key: string, params?: Record<string, unknown>) =>
@@ -80,6 +80,22 @@ describe('AttendanceChangesCard', () => {
         expect(screen.getByText(/Γ/)).toBeInTheDocument();
         expect(screen.queryByText(/Δ/)).not.toBeInTheDocument();
         expect(screen.getByText('factsMore{"n":1}')).toBeInTheDocument();
+    });
+
+    it('shows the sentence a document states a change in, on hover', () => {
+        const changes = [presence({ atSubjectId: 's1', departures: ['Α'] })];
+        const attendanceChanges: MinutesAttendanceChange[] = [{
+            personId: 'p1', name: 'Α', type: 'departure', rawText: 'αποχώρησε στην 286 ΑΚΣ',
+            atSubject: { id: 's1', name: 's1', agendaItemIndex: 1, nonAgendaReason: null, outOfAgendaIndex: null },
+        }];
+        render(<AttendanceChangesCard changes={changes} subjects={subjects} attendanceChanges={attendanceChanges} />);
+        expect(screen.getByText(/Α/).closest('div')).toHaveAttribute('title', 'αποχώρησε στην 286 ΑΚΣ');
+    });
+
+    it('leaves a line reconstructed from attendance diffs without a hover', () => {
+        const changes = [presence({ atSubjectId: 's1', departures: ['Α'] })];
+        render(<AttendanceChangesCard changes={changes} subjects={subjects} />);
+        expect(screen.getByText(/Α/).closest('div')).not.toHaveAttribute('title');
     });
 
     it('reveals the rest of the lines when the expander is clicked', () => {
