@@ -39,4 +39,14 @@ describe('getInitials', () => {
     it('returns an empty string for empty input', () => {
         expect(getInitials('   ')).toBe('');
     });
+
+    it('passes over parts that do not start with a letter', () => {
+        expect(getInitials('Νίκος (Νικολάκης) Παππάς')).toBe('ΝΠ');
+        expect(getInitials('Χανιά Admin (Χανιά)')).toBe('ΧA');
+        expect(getInitials('Μαρία - Παππά')).toBe('ΜΠ');
+    });
+
+    it('keeps the raw parts when none starts with a letter', () => {
+        expect(getInitials('(x) [y]')).toBe('([');
+    });
 });
