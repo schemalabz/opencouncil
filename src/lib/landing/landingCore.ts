@@ -149,7 +149,7 @@ export type SubjectPin = {
 };
 
 /**
- * Styles a map pin like the TopicChip badge, minus the label. Styling goes on the inner button
+ * Styles a map pin like the TopicPill badge, minus the label. Styling goes on the inner button
  * (Mapbox owns the root's transform); only z-index touches the root.
  *
  * `dot` is the dense-viewport shape: the same circle, minus the icon and at a fraction of the size.

@@ -201,11 +201,11 @@ function BadgeButtons<T extends string>({
                         )}
                         onClick={() => onToggle(option.value)}
                         aria-pressed={isSelected}
+                        // An idle option draws no border — `ghost` sets no border width — so it
+                        // carries its colour as the glyph alone.
                         style={
-                            option.color
-                                ? isSelected
-                                    ? { backgroundColor: option.color, borderColor: option.color, color: topicStyle(option.color, 'solid').icon }
-                                    : { borderColor: `${option.color}40` }
+                            option.color && isSelected
+                                ? { backgroundColor: option.color, borderColor: option.color, color: topicStyle(option.color, 'solid').icon }
                                 : undefined
                         }
                     >

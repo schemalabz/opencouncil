@@ -5,31 +5,10 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import type { Topic } from '@prisma/client';
 import { cn } from '@/lib/utils';
-import Icon from '@/components/icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { captureLandingAction } from '@/lib/landing/analytics';
-import { type SubjectTopic } from '@/lib/landing/landingData';
-import { topicStyle } from '@/lib/topicStyle';
+import { TopicFilterPill } from '@/components/TopicPill';
 
-
-/* topic chip (icon + name in the topic's accent color); `iconOnly` drops the label */
-export function TopicChip({ topic, small, iconOnly }: { topic: SubjectTopic; small?: boolean; iconOnly?: boolean }) {
-    const style = topicStyle(topic.color);
-    return (
-        <span
-            className={cn(
-                'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border font-bold',
-                iconOnly
-                    ? (small ? 'p-1' : 'p-1.5')
-                    : (small ? 'px-2 py-1 text-[11px]' : 'px-2.5 py-1 text-xs'),
-            )}
-            style={{ color: style.icon, backgroundColor: style.background, borderColor: style.border }}
-        >
-            <Icon name={topic.icon || 'hash'} color={style.icon} size={small ? 12 : 14} />
-            {!iconOnly && topic.name}
-        </span>
-    );
-}
 
 /* "Πρόσφατα πολυσυζητημένα" — names the subject list's ordering and explains it on demand.
    A Popover rather than a tooltip so the ⓘ works on tap (mobile) as well as hover-less desktops.
@@ -197,54 +176,21 @@ export function FilterBar({
     const t = useTranslations('landingV2');
     return (
         <div className="flex w-max items-center gap-2">
-            <FilterPill active={selected.length === 0} onClick={onClear}>
+            <TopicFilterPill active={selected.length === 0} onClick={onClear}>
                 {t('filters.all')}
-            </FilterPill>
-            {topics.map((t) => {
-                const active = selected.includes(t.id);
-                return (
-                    <FilterPill key={t.id} active={active} color={t.colorHex} onClick={() => onToggle(t.id)}>
-                        <Icon name={t.icon || 'hash'} color={topicStyle(t.colorHex, active ? 'solid' : 'soft').icon} size={14} />
-                        {t.name}
-                    </FilterPill>
-                );
-            })}
+            </TopicFilterPill>
+            {topics.map((topic) => (
+                <TopicFilterPill
+                    key={topic.id}
+                    active={selected.includes(topic.id)}
+                    color={topic.colorHex}
+                    icon={topic.icon}
+                    onClick={() => onToggle(topic.id)}
+                >
+                    {topic.name}
+                </TopicFilterPill>
+            ))}
         </div>
-    );
-}
-
-export function FilterPill({
-    active,
-    onClick,
-    color,
-    children,
-}: {
-    active: boolean;
-    onClick: () => void;
-    /** topic accent — soft tint when idle, filled when active. Omit for the neutral "Όλα" pill. */
-    color?: string;
-    children: React.ReactNode;
-}) {
-    // Topic pills: the shared topic recipe — soft wash when idle, solid fill when selected.
-    const style = color ? topicStyle(color, active ? 'solid' : 'soft') : null;
-    const colorStyle = style
-        ? { backgroundColor: style.background, borderColor: style.border, color: style.icon }
-        : undefined;
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            style={colorStyle}
-            className={cn(
-                'inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-[13px] font-bold transition-colors',
-                !color &&
-                (active
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border bg-background text-muted-foreground hover:border-foreground/30'),
-            )}
-        >
-            {children}
-        </button>
     );
 }
 
