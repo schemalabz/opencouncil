@@ -1,7 +1,11 @@
 /**
  * Check the MinutesData a meeting renders from against fixtures/minutes-golden.json.
  *
- *   npx tsx scripts/check-minutes.ts [cityId/meetingId ...]
+ *   npx tsx scripts/check-minutes.ts [--derive] [cityId/meetingId ...]
+ *
+ * The check reads the rows a meeting last derived to. After a rule or a convention
+ * changes those rows are stale, and the numbers describe the old rule: --derive
+ * derives each meeting first.
  *
  * Per meeting it prints one line per claim the fixture makes — roll call,
  * arrivals and departures, per-subject presence and votes — as agree,
@@ -10,7 +14,7 @@
  */
 import { getMinutesData } from '@/lib/minutes/getMinutesData';
 import type { MinutesMember } from '@/lib/minutes/types';
-import { explainMeeting } from '@/lib/derivation';
+import { deriveAndPersist, explainMeeting } from '@/lib/derivation';
 import { issueMessageEn } from '@/lib/derivation/issueTextEn';
 import { loadGolden, subjectsByClaimKey, type GoldenMeeting } from './lib/minutes-golden';
 
@@ -149,9 +153,13 @@ async function checkMeeting(m: GoldenMeeting) {
 
 async function main() {
     const fixture = loadGolden();
-    const only = process.argv.slice(2);
+    const derive = process.argv.includes('--derive');
+    const only = process.argv.slice(2).filter(a => a !== '--derive');
     const meetings = fixture.meetings.filter(m => only.length === 0 || only.includes(`${m.cityId}/${m.meetingId}`));
-    for (const m of meetings) await checkMeeting(m);
+    for (const m of meetings) {
+        if (derive) await deriveAndPersist(m.cityId, m.meetingId);
+        await checkMeeting(m);
+    }
     let current = '';
     for (const l of lines) {
         if (l.meeting !== current) { current = l.meeting; console.log(`\n${current}`); }

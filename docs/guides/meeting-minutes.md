@@ -81,6 +81,27 @@ The write replaces every `decision`-sourced `SubjectAttendance` and `SubjectVote
 
 The record is produced by the `profileBody` task (opencouncil-tasks reads a sample of the body's documents) with `provenance.source = 'profile'`, and confirmed by a person in the administrative body form, which sets `manual`. The derivation reads it to decide what the present list means and whether a per-decision list is expected, and raises an issue on every meeting of a body nobody has confirmed.
 
+#### Where a body's rules live
+
+Three places, each with one job:
+
+| what | where | who changes it |
+| --- | --- | --- |
+| **Evidence** — the document survey and its review notes | opencouncil-tasks, `fixtures/body-conventions.json` (survey statistics) and the body notes in `fixtures/extraction-golden.json` | a new survey or a `profileBody` run |
+| **The record a body starts from** — one settled record per body, in the stored shape | opencouncil, `fixtures/body-conventions.json` | a page read that corrects it; edit the file |
+| **The record in force** | the database, `AdministrativeBody.decisionConventions` | a person confirming it in the administrative body form |
+
+The middle one is in this repository because everything that gives it meaning is: the schema that validates it, the derivation that reads it, the seed that needs it. A test parses every record against `decisionConventionsSchema`, so the file and the shape cannot drift apart unnoticed.
+
+`scripts/import-body-conventions.ts` writes the file to the database in `DATABASE_URL`. It is idempotent, reports bodies the database does not hold, and **never overwrites a body a person has confirmed** — the file is a starting state, not an authority over admin. How it reaches each environment:
+
+- **Local and preview databases**: `prisma/seed.ts` runs the same import after it creates the bodies, so a fresh database has conventions with no extra step. The seed imports the JSON rather than reading it from disk, because the preview runs an esbuild bundle of the seed with no `fixtures/` beside it.
+- **Staging and production**: run `npx tsx scripts/import-body-conventions.ts` once after the migration that adds the column, and again whenever the file changes. A seed dump taken afterwards carries the conventions too.
+
+A database with no conventions is not an error, it is silence: every subject derives as «presence unknown» and nothing is printed. A meeting also shows nothing until it has been polled under task v4, since attendance and votes derive from stored readings.
+
+The meeting checker reads whatever rows a meeting last derived to. After changing a record or a derivation rule, run it as `npx tsx scripts/check-minutes.ts --derive`, or its numbers describe the rule you just replaced.
+
 ### Quality path
 
 - **Document scorer** (opencouncil-tasks): `evaluate-decision-extraction` scores the extractor per field against `fixtures/extraction-golden.json`, a hand-labelled fixture chosen for mechanism coverage across every supported body. `adjudicate-extraction` settles a disagreement by reading the page and quoting it, so a label change carries its justification. Both are described in `docs/decision-extraction-eval.md` there.
