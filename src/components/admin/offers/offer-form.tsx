@@ -24,7 +24,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { Slider } from '@/components/ui/slider'
 import { createOffer, updateOffer } from '@/lib/db/offers'
 import { getCities } from '@/lib/db/cities'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CityCombobox } from "@/components/cities/CityCombobox"
 import { formatCurrency } from '@/lib/utils'
 import {
     calculateOfferTotals,
@@ -377,20 +377,14 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>{t('city')}</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={t('selectCity')} />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {cities.map((city) => (
-                                        <SelectItem key={city.id} value={city.id}>
-                                            {city.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <FormControl>
+                                <CityCombobox
+                                    cities={cities}
+                                    value={field.value ?? null}
+                                    onChange={field.onChange}
+                                    placeholder={t('selectCity')}
+                                />
+                            </FormControl>
                             <FormDescription>
                                 {t('cityDescription')}
                             </FormDescription>

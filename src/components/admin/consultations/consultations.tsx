@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { CityCombobox } from '@/components/cities/CityCombobox';
 import { Upload, ExternalLink, Pencil, Check, X } from 'lucide-react';
 import { ConsultationForAdmin } from '@/lib/db/consultations';
 import { formatDateTime } from '@/lib/formatters/time';
@@ -42,6 +43,7 @@ export default function Consultations({ initialConsultations, initialCities }: C
     const [isUploading, setIsUploading] = useState(false);
     const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
     const [editingUrlValue, setEditingUrlValue] = useState('');
+    const [cityId, setCityId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const jsonUrlInputRef = useRef<HTMLInputElement>(null);
 
@@ -131,6 +133,7 @@ export default function Consultations({ initialConsultations, initialCities }: C
             }
 
             form.reset();
+            setCityId(null);
             fetchConsultations();
         } finally {
             setIsSubmitting(false);
@@ -223,20 +226,15 @@ export default function Consultations({ initialConsultations, initialCities }: C
                             </div>
                             <div className="flex flex-col gap-2 w-48">
                                 <Label htmlFor="cityId">City</Label>
-                                <select
+                                <input type="hidden" name="cityId" value={cityId ?? ''} />
+                                <CityCombobox
                                     id="cityId"
-                                    name="cityId"
-                                    required
+                                    cities={cities}
+                                    value={cityId}
+                                    onChange={setCityId}
+                                    placeholder="Select city..."
                                     disabled={isSubmitting}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                >
-                                    <option value="">Select city...</option>
-                                    {cities.map((city) => (
-                                        <option key={city.id} value={city.id}>
-                                            {city.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                />
                             </div>
                         </div>
                         <div className="flex gap-4 items-end flex-wrap">

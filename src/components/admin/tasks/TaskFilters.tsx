@@ -1,6 +1,7 @@
 "use client";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CityCombobox } from "@/components/cities/CityCombobox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
@@ -31,10 +32,6 @@ export function TaskFilters({
   availableCities,
 }: TaskFiltersProps) {
   const { updateParam, isPending } = useUrlParams();
-
-  const handleCityChange = (value: string) => {
-    updateParam("cityId", value === "all-cities" ? null : value);
-  };
 
   const handleTaskTypesChange = (value: string) => {
     updateParam("taskTypes", value === "default" ? null : value);
@@ -102,19 +99,15 @@ export function TaskFilters({
         <Label htmlFor="city-filter" className="text-sm font-medium mb-2 block">
           City
         </Label>
-        <Select value={cityId || "all-cities"} onValueChange={handleCityChange} disabled={isPending}>
-          <SelectTrigger id="city-filter" disabled={isPending}>
-            <SelectValue placeholder="All cities" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all-cities">All cities</SelectItem>
-            {availableCities.map(city => (
-              <SelectItem key={city.id} value={city.id}>
-                {city.name_en}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CityCombobox
+          id="city-filter"
+          cities={availableCities}
+          value={cityId ?? null}
+          onChange={(value) => updateParam("cityId", value)}
+          getLabel={city => city.name_en}
+          nullOption="All cities"
+          disabled={isPending}
+        />
       </div>
 
       <div className="w-full md:w-72">

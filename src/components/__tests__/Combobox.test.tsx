@@ -149,3 +149,56 @@ describe('Combobox groups', () => {
         expect(screen.getByText('NOT AVAILABLE YET')).toBeInTheDocument();
     });
 });
+
+describe('Combobox clear control', () => {
+    beforeEach(() => setViewportWidth(DESKTOP_WIDTH));
+
+    function renderClearable(onChange = jest.fn()) {
+        render(
+            <Combobox<City>
+                items={cities}
+                value={cities[0]}
+                onChange={onChange}
+                clearable
+                placeholder="Επιλέξτε δήμο"
+                searchPlaceholder="Αναζήτηση δήμου"
+                getItemLabel={(c) => c.name}
+                getItemValue={(c) => `${c.name} ${c.muni}`}
+            />,
+        );
+        return onChange;
+    }
+
+    // The clear used to render inside the trigger button. A <button> inside a
+    // <button> is invalid DOM nesting, which React rejects when it hydrates a
+    // trigger that already holds a value.
+    it('renders the clear outside the trigger button', () => {
+        renderClearable();
+        const trigger = screen.getByRole('combobox');
+        expect(trigger.querySelector('button')).toBeNull();
+        expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+    });
+
+    it('clears the value without opening the list', () => {
+        const onChange = renderClearable();
+        fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+        expect(onChange).toHaveBeenCalledWith(null);
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+
+    it('shows no clear while nothing is selected', () => {
+        render(
+            <Combobox<City>
+                items={cities}
+                value={null}
+                onChange={() => {}}
+                clearable
+                placeholder="Επιλέξτε δήμο"
+                searchPlaceholder="Αναζήτηση δήμου"
+                getItemLabel={(c) => c.name}
+                getItemValue={(c) => `${c.name} ${c.muni}`}
+            />,
+        );
+        expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+    });
+});
