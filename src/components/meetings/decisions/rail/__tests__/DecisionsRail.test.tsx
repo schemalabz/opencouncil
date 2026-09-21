@@ -173,7 +173,7 @@ describe('DecisionsRail', () => {
         expect(screen.queryByText('statesPerDecisionAttendance.label')).not.toBeInTheDocument();
     });
 
-    it('opens to all eight fields, with the flags as ✓/✗ and a link to the form', () => {
+    it('opens to all nine fields, with the flags as ✓/✗ and a link to the form', () => {
         const { container } = renderRail({ isSuperAdmin: true, conventions });
         fireEvent.click(screen.getByText('conventionsTitle'));
 
@@ -184,7 +184,7 @@ describe('DecisionsRail', () => {
             expect(screen.getByText(`${flag}.label`)).toBeInTheDocument();
         }
         expect(screen.getAllByText('✓')).toHaveLength(2);
-        expect(screen.getAllByText('✗')).toHaveLength(2);
+        expect(screen.getAllByText('✗')).toHaveLength(3);
         expect(container.querySelector('.rotate-180')).toBeInTheDocument();
         expect(screen.getByText('conventionsEdit →').closest('a')).toHaveAttribute('href', '/chalandri');
     });

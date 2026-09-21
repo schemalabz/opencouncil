@@ -15,7 +15,7 @@ const doc = (subjectId: string, hasExtraction: boolean): DocumentFacts => ({
 });
 
 const input = (overrides: Partial<DerivationInput> = {}): DerivationInput => ({
-    cityId: 'c', meetingId: 'm', mayorPersonId: null, presidentPersonId: null,
+    cityId: 'c', meetingId: 'm', mayorPersonId: null, presidentPersonId: null, secretaryPersonId: null,
     subjects: [
         { id: 's1', name: 'one', agendaItemIndex: 1, nonAgendaReason: null, decisionNumber: '10' },
         { id: 's2', name: 'two', agendaItemIndex: 2, nonAgendaReason: null, decisionNumber: '11' },

@@ -730,6 +730,11 @@
       "description": "Η παρουσία του Δημάρχου δηλώνεται σε δική της πρόταση, ποτέ στις λίστες μελών.",
       "hint": "The mayor is stated in a separate sentence, never in the member lists."
     },
+    "listOmitsSecretary": {
+      "label": "Ο Γραμματέας δεν αναγράφεται στα «Τα Μέλη»",
+      "description": "Ο κατάλογος των μελών στο τέλος του εγγράφου παραλείπει τον Γραμματέα του σώματος, όπως παραλείπει και όποιον προεδρεύει.",
+      "hint": "The member list at the end of the document (ΤΑ ΜΕΛΗ) leaves out the body's secretary as well as whoever presides; both sign beside it. Return the list exactly as printed and do not add them to it."
+    },
     "namedVoters": {
       "fieldLabel": "Ονομαστική αναφορά ψηφοφόρων",
       "none": {

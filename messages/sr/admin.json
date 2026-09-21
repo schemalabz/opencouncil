@@ -730,6 +730,11 @@
             "description": "The mayor's presence is stated in its own sentence, never in the member lists.",
             "hint": "The mayor is stated in a separate sentence, never in the member lists."
         },
+        "listOmitsSecretary": {
+            "label": "Sekretar nije upisan u «Τα Μέλη»",
+            "description": "Spisak članova na kraju dokumenta izostavlja sekretara tela, kao i onoga ko predsedava.",
+            "hint": "The member list at the end of the document (ΤΑ ΜΕΛΗ) leaves out the body's secretary as well as whoever presides; both sign beside it. Return the list exactly as printed and do not add them to it."
+        },
         "namedVoters": {
             "none": {
                 "label": "Nobody named",

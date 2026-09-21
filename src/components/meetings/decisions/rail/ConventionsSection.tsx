@@ -56,7 +56,7 @@ function Disclosure({ label, description }: { label: string; description: ReactN
 
 /**
  * How this body's decision documents read, as the derivation was told to read
- * them — collapsed to the four shaped values, expanded to all eight fields.
+ * them — collapsed to the four shaped values, expanded to all nine fields.
  *
  * Every label and description here is the admin form's own copy: one glossary
  * for the person who sets the rules and the person who audits a meeting against
@@ -65,7 +65,7 @@ function Disclosure({ label, description }: { label: string; description: ReactN
  * The body is named under the heading because the rules belong to the body
  * while this page is one meeting of it; without the line they read as this
  * meeting's. There is no confirm control: confirming means someone checked all
- * eight fields, which a summary cannot stand in for.
+ * nine fields, which a summary cannot stand in for.
  */
 export function ConventionsSection({ panel }: { panel: ConventionsPanel }) {
     const t = useTranslations('admin.conventions');

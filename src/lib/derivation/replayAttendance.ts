@@ -13,6 +13,8 @@ export interface ReplayInput {
     mayorPersonId: string | null;
     /** Who holds the body's chair on the meeting's date; a per-decision list does not judge them. */
     presidentPersonId?: string | null;
+    /** The body's secretary, only where its conventions say the list leaves them out as well. */
+    secretaryPersonId?: string | null;
 }
 
 export interface ReplayResult {
@@ -168,9 +170,12 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
                 // not written into it — the president in 185 of 192 documents across 13
                 // bodies, and the vice-president instead on the 48 where Zografou ΔΕ says
                 // he presided. Reading the omission as absence took them, and their vote,
-                // out of every decision they chaired. A list that does name them is still
-                // believed, and a stated departure still takes them out.
-                if ((personId === input.presidentPersonId || personId === doc.presidedById) && !statedPresent.has(personId)) continue;
+                // out of every decision they chaired. Some bodies leave the secretary out
+                // the same way (Chalandri and Papagos ΔΣ; Argos ΔΣ lists theirs), which is
+                // a convention of the body. A list that does name them is still believed,
+                // and a stated departure still takes them out.
+                const notWrittenIn = personId === input.presidentPersonId || personId === doc.presidedById || personId === input.secretaryPersonId;
+                if (notWrittenIn && !statedPresent.has(personId)) continue;
                 stated.set(personId, statedPresent.has(personId) ? 'PRESENT' : 'ABSENT');
             }
             const eventHere = new Map(eventsHere.map(e => [e.personId, e]));

@@ -92,7 +92,36 @@
      ]
     },
     "2": {
-     "outcome": "unanimous"
+     "outcome": "unanimous",
+     "present": [
+      "Κωνσταντίνα – Ολυμπία Καραγιάννη",
+      "Ελένη Χριστούλη",
+      "Ιωάννης Λαδόπουλος",
+      "Ιωάννα Αθανασάτου",
+      "Χάρης Μαυρουδής",
+      "Δήμητρα (Μίμη) Γκασούκα",
+      "Αλέξιος Μαυραγάνης",
+      "Ευτέρπη Λέρτα",
+      "Ελευθέριος Παντελιδάκης",
+      "Δημήτριος Χριστουλάκης",
+      "Σπυρίδων Φωτεινός",
+      "Γεράσιμος Λυμπεράτος",
+      "Χριστίνα Μαχαίρα",
+      "Χρυσαυγή Αλούπη",
+      "Ευθύμιος (Θύμιος) Κουράσης",
+      "Δημήτριος Βασιλόπουλος",
+      "Χρύσα (Κρίστη) Αγαπητού",
+      "Αθανάσιος Τσιαμπάς",
+      "Παρασκευή Ζορμπά",
+      "Κωνσταντίνος Ευθυμίου",
+      "Ιωάννα Καμπούρη",
+      "Άννα Σούσου",
+      "Θεοδώρα (Ρούλα) Αλεξανδρή",
+      "Ελπινίκη Παπαγιαννάκη",
+      "Ειρήνη Κάλλη",
+      "Κονδυλία (Λούλα) Καρατζά",
+      "Ιωάννης Παπαγεωργίου"
+     ]
     },
     "3": {
      "outcome": "majority",
@@ -161,7 +190,7 @@
      ]
     }
    },
-   "notes": "Absent lists per subject name only the members the minutes say left; the eight opening absentees are implied by rollCall. Item 4's vote block in the πρακτικό spans pages 63-84 and ends ΟΜΟΦΩΝΑ ΕΓΚΡΙΝΕΤΑΙ."
+   "notes": "Item 2's present list is the roll call: the πρακτικό states one change all session, before item 5, so nobody had moved; it holds the president, whom the documents' ΤΑ ΜΕΛΗ never lists. Absent lists per subject name only the members the minutes say left; the eight opening absentees are implied by rollCall. Item 4's vote block in the πρακτικό spans pages 63-84 and ends ΟΜΟΦΩΝΑ ΕΓΚΡΙΝΕΤΑΙ."
   },
   {
    "cityId": "athens",

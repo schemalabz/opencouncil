@@ -86,6 +86,8 @@ export async function loadDerivationInput(cityId: string, meetingId: string): Pr
     const mayor = people.find(p => p.roles.some(r => isMayorRole(r) && isRoleActiveAt(r, meeting.dateTime)));
     const president = people.find(p => p.roles.some(r => r.isHead && !!r.administrativeBodyId && r.administrativeBodyId === meeting.administrativeBodyId && isRoleActiveAt(r, meeting.dateTime)));
     const conventions = meeting.administrativeBody?.decisionConventions;
+    // The office has no flag of its own in the roster; it is the role's title on the body.
+    const secretary = people.find(p => p.roles.some(r => r.name === 'Γραμματέας' && !!r.administrativeBodyId && r.administrativeBodyId === meeting.administrativeBodyId && isRoleActiveAt(r, meeting.dateTime)));
     const rosterPersonIds = new Set(people.map(p => p.id));
     return {
         cityId, meetingId,
@@ -96,5 +98,6 @@ export async function loadDerivationInput(cityId: string, meetingId: string): Pr
         // Excluded from the rows only where the mayor is not a member of the body (the council); on the committee they vote.
         mayorPersonId: mayor && !mayorIsMemberOf(mayor, meeting.administrativeBodyId, meeting.dateTime) ? mayor.id : null,
         presidentPersonId: president?.id ?? null,
+        secretaryPersonId: isDecisionConventions(conventions) && conventions.listOmitsSecretary ? secretary?.id ?? null : null,
     };
 }

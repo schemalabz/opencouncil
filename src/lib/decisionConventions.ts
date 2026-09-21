@@ -25,6 +25,8 @@ export interface DecisionConventions {
     usesSubstitutes: boolean;
     namedVoters: NamedVoters;
     mayorStatedSeparately: boolean;
+    /** ΤΑ ΜΕΛΗ leaves the body's secretary out, as every body's leaves out whoever presides. Absent on records written before 2026-09-22. */
+    listOmitsSecretary?: boolean;
     notes?: string;
     provenance: {
         source: 'profile' | 'manual';
@@ -65,7 +67,7 @@ export const CONVENTION_FIELDS = {
     attendanceChangeAnchors: ['agenda_item', 'decision_number', 'phase', 'subject'],
     namedVoters: ['none', 'dissenters_only', 'all'],
 } as const;
-export const CONVENTION_FLAGS = ['statesPerDecisionAttendance', 'statesPerVoteAbsence', 'usesSubstitutes', 'mayorStatedSeparately'] as const;
+export const CONVENTION_FLAGS = ['statesPerDecisionAttendance', 'statesPerVoteAbsence', 'usesSubstitutes', 'mayorStatedSeparately', 'listOmitsSecretary'] as const;
 
 /** Anchor names written before the vocabulary settled (rows imported on 2026-09-14). */
 const LEGACY_ANCHOR: Record<string, AttendanceChangeAnchor | null> = { session_phase: 'phase', this_document: 'subject', clock_time: null };
@@ -100,6 +102,7 @@ export const decisionConventionsSchema = z.object({
     usesSubstitutes: z.boolean(),
     namedVoters: z.enum(CONVENTION_FIELDS.namedVoters),
     mayorStatedSeparately: z.boolean(),
+    listOmitsSecretary: z.boolean().optional(),
     notes: z.string().optional(),
     provenance: z.object({
         source: z.enum(['profile', 'manual']),

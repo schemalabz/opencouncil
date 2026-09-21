@@ -66,6 +66,14 @@ describe('replayAttendance', () => {
         expect(present(r, 's2')).toEqual(['p1', 'vice']);
         expect(r.issues).toEqual([]);
     });
+    it('where the list leaves the secretary out too, the secretary is not judged by it; elsewhere they are', () => {
+        // Papagos ΔΣ 23/6/2026 item 8: roll call 25, ΤΑ ΜΕΛΗ 23, nobody stated absent — the two missing are the president and the secretary.
+        const run = (secretaryPersonId: string | null) => replayAttendance({ subjects, rollCall: [rc('p1'), rc('sec'), rc('pres')],
+            conventions: conv({ statesPerDecisionAttendance: true, rollCallLayout: 'present_only' }), mayorPersonId: null, presidentPersonId: 'pres', secretaryPersonId,
+            events: [], documents: [doc('s2', { presentIds: ['p1'] })] });
+        expect(present(run('sec'), 's2')).toEqual(['p1', 'pres', 'sec']);
+        expect(present(run(null), 's2')).toEqual(['p1', 'pres']);             // Argos ΔΣ lists its secretary: omitted there means gone
+    });
     it('a stated departure still takes the president out, list or no list', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('pres')], conventions: conv({ statesPerDecisionAttendance: true, rollCallLayout: 'present_only' }),
             mayorPersonId: null, presidentPersonId: 'pres', events: [ev({ personId: 'pres', anchorAgendaItemIndex: 2, timing: 'BEFORE' })], documents: [doc('s2', { presentIds: ['p1'] })] });

@@ -72,6 +72,8 @@ export interface DerivationInput {
     mayorPersonId: string | null;
     /** The head of the meeting's body on its date. */
     presidentPersonId: string | null;
+    /** The body's secretary on its date, when `listOmitsSecretary` is set; null otherwise. */
+    secretaryPersonId: string | null;
 }
 
 /**
