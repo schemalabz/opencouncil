@@ -5,6 +5,7 @@ import { anchorKindOf, ANCHOR_PHASE, ANCHOR_TIMING } from "./attendanceEventAnch
 import { isDecisionConventions } from "../decisionConventions";
 import { renderConventionsText, conventionsGlossaryEn } from "../decisionConventionsText";
 import { storeDecisionFacts } from "../db/decisionFacts";
+import { deriveAndPersist } from "../derivation/persist";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
 import { AttendanceStatus, DataSource, VoteType, Prisma, AttendanceEventKind, AttendanceAnchorKind, NonAgendaReason } from "@prisma/client";
@@ -988,6 +989,8 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     // partial failures roll back individual subjects without blocking others.
     // Uses deleteMany + createMany instead of N individual upserts.
     let extractedCount = 0;
+    /** Any stored-fact write that failed, which makes the meeting's facts a mix of two polls. */
+    let factWriteFailed = false;
     if (result.extractions) {
         for (const decision of result.extractions.decisions) {
             try {
@@ -1052,6 +1055,7 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
 
                 extractedCount++;
             } catch (error) {
+                factWriteFailed = true;
                 console.error(`Failed to write extraction data for subject ${decision.subjectId}:`, error);
             }
 
@@ -1092,6 +1096,7 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                 });
                 console.log(`Stored ${result.extractions.initialAttendance.length} meeting-level attendance records`);
             } catch (error) {
+                factWriteFailed = true;
                 console.error('Failed to store meeting-level attendance:', error);
             }
         }
@@ -1138,8 +1143,27 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                 });
                 console.log(`Stored ${events.length} attendance events (${result.extractions.attendanceEvents.length - events.length} dropped: unknown person or anchor kind)`);
             } catch (error) {
+                factWriteFailed = true;
                 console.error('Failed to store attendance events:', error);
             }
+        }
+
+        // One derivation over what was just stored: per-subject attendance and votes
+        // come from the roll call, the events and each document's facts, never from
+        // snapshots tasks may still send.
+        //
+        // Each write above reports its own failure and lets the rest proceed, which
+        // is right for storing but not for deriving: a failed write leaves the
+        // previous poll's facts in place, and deriving would then mix them with
+        // this poll's. The rows already stored stay as they are and the saved task
+        // result can be replayed.
+        if (factWriteFailed) {
+            console.error('Skipping derivation: a fact write failed, so the stored facts are of mixed generations. Replay this task once the cause is fixed.');
+        } else try {
+            const derived = await deriveAndPersist(task.cityId!, task.councilMeetingId!, taskId);
+            console.log(`Derived ${derived.attendance.length} attendance rows, ${derived.votes.length} vote rows, ${derived.issues.length} issues`);
+        } catch (error) {
+            console.error('Derivation after poll failed:', error);
         }
 
         if (result.extractions.warnings.length > 0) {
