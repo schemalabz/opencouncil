@@ -131,6 +131,11 @@ model AdministrativeBody {
   youtubeChannelUrl String?
   contactEmails String[] @default([]) // Emails for receiving transcripts
   diavgeiaUnitIds String[] @default([]) // Diavgeia scopes to poll, each `unit[:signer]` (e.g., ["81689"], ["84655:100010590"]). The signer separates bodies that share one unit.
+  /// What this body's decision documents state and how: roll-call layout, what the present
+  /// list means, what attendance changes are pinned to, whether per-vote absence is printed.
+  /// Shape: DecisionConventions in src/lib/decisionConventions.ts. Written by the profiling
+  /// step, confirmed by a person; read by extraction and by the minutes.
+  decisionConventions Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -196,6 +201,7 @@ model Person {
   subjectAttendance SubjectAttendance[]
   subjectVotes SubjectVote[]
   meetingAttendance MeetingAttendance[]
+  attendanceEvents AttendanceEvent[]
 
   @@index([cityId])
 }
@@ -229,6 +235,7 @@ model CouncilMeeting {
   highlights Highlight[]
   subjects Subject[]
   meetingAttendance MeetingAttendance[]
+  attendanceEvents AttendanceEvent[]
 
   notifications Notification[]
   meetingOperator MeetingOperator?
@@ -278,6 +285,7 @@ model TaskStatus {
   subjectAttendance SubjectAttendance[]
   subjectVotes SubjectVote[]
   meetingAttendance MeetingAttendance[]
+  attendanceEvents AttendanceEvent[]
 
   @@index([councilMeetingId, cityId])
 }
@@ -552,6 +560,7 @@ model Subject {
   decision Decision?
   attendance SubjectAttendance[]
   votes SubjectVote[]
+  anchoredEvents AttendanceEvent[]
 
   // Temporary field for ADA conflict resolution.
   // Set when a poll detects that an ADA already belongs to another subject's decision.
@@ -561,6 +570,10 @@ model Subject {
   @@index([discussedInId])
 }
 
+/// One decision document linked to a subject: where it lives on Diavgeia, the
+/// text as read, and what it states, verbatim, as the extractor read it — the
+/// facts behind the derived attendance and vote rows, kept so any later
+/// derivation change can rerun without reading the document again.
 model Decision {
   id             String    @id @default(cuid())
   subjectId      String    @unique
@@ -577,6 +590,18 @@ model Decision {
   // Fields extracted from the actual decision PDF content
   excerpt    String?   @db.Text  // Decision body text (markdown) — "ΑΠΟΦΑΣΙΖΕΙ…"
   references String?   @db.Text  // Legal bases from "αφού έλαβε υπόψη" section (markdown)
+
+  /// What this document states about its vote and the audit of one reading. The
+  /// phrase is the document's statement; the outcome is never stored, it is a count
+  /// over SubjectVote rows. `extraction` is the wire entry as received (task v4).
+  voteResultPhrase    String?
+  mayorPresent        Boolean?
+  declaredItemNumber  Int?
+  declaredOutOfAgenda Boolean?
+  incomplete          Boolean  @default(false)
+  unmatchedNames      String[] @default([])
+  extractorVersion    String?
+  extraction          Json?
 
   subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
@@ -636,6 +661,9 @@ enum NonAgendaReason {
   outOfAgenda
 }
 
+/// Derived: who was present for each subject, rebuilt by src/lib/derivation from
+/// MeetingAttendance and AttendanceEvent along the transcript order (or taken from
+/// the document's own list where the body prints one). Never a source.
 model SubjectAttendance {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -666,6 +694,75 @@ enum AttendanceStatus {
   ABSENT
 }
 
+/// One arrival or departure as a source states it, pinned to what the source pins
+/// it to, with the sentence. The fine-grained record: per-subject attendance
+/// (SubjectAttendance) is the replay of MeetingAttendance plus these rows along the
+/// transcript order. Stored rather than diffed because the anchor, the sentence and
+/// the agreement count cannot be recovered from snapshots, and because a fix to
+/// matching or ordering re-derives for free.
+model AttendanceEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  councilMeeting   CouncilMeeting @relation(fields: [cityId, councilMeetingId], references: [cityId, id], onDelete: Cascade)
+  councilMeetingId String
+  cityId           String
+
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId String
+
+  kind       AttendanceEventKind
+  anchorKind AttendanceAnchorKind
+  anchorAgendaItemIndex Int?
+  anchorNonAgendaReason NonAgendaReason?
+  anchorDecisionNumber  String?
+  /// The document's own subject: per-vote absence and «during this item» changes.
+  anchorSubject   Subject? @relation(fields: [anchorSubjectId], references: [id], onDelete: SetNull)
+  anchorSubjectId String?
+  anchorPhase     AttendancePhase?
+  timing     AttendanceTiming?
+  rawText    String
+  // How many of the session's documents stated it, out of how many were read.
+  reportingDocuments Int @default(1)
+  totalDocuments     Int @default(1)
+  source DataSource
+
+  task      TaskStatus? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskId    String?
+
+  @@index([councilMeetingId, cityId])
+  @@index([personId])
+  @@index([anchorSubjectId])
+}
+
+enum AttendanceEventKind {
+  ARRIVAL
+  DEPARTURE
+}
+
+/// What a source pins a change to. A phase resolves to the start of its block;
+/// SUBJECT is the document's own subject; SESSION_START/END carry no position.
+enum AttendanceAnchorKind {
+  AGENDA_ITEM
+  DECISION_NUMBER
+  SUBJECT
+  PHASE
+  SESSION_START
+  SESSION_END
+}
+
+enum AttendancePhase {
+  PRE_AGENDA
+  OUT_OF_AGENDA
+}
+
+enum AttendanceTiming {
+  BEFORE
+  DURING
+  AFTER
+}
+
+/// The opening roll call, one row per person (the mayor included), per source.
 model MeetingAttendance {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -692,6 +789,9 @@ model MeetingAttendance {
   @@index([personId])
 }
 
+/// One row per person per subject: the full record of the vote. Named by the
+/// source, or FOR inferred from presence when the phrase permits. The outcome
+/// (ομόφωνα, κατά πλειοψηφία) is a count over these rows.
 model SubjectVote {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())

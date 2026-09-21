@@ -65,7 +65,7 @@ export interface UpsertDecisionData {
  */
 export function clearDecisionDerivedFacts(tx: Prisma.TransactionClient, subjectId: string) {
     return [
-        tx.decision.updateMany({ where: { subjectId }, data: { excerpt: null, references: null } }),
+        tx.decision.updateMany({ where: { subjectId }, data: CLEARED_EXTRACTION }),
         tx.subjectAttendance.deleteMany({ where: { subjectId, source: DataSource.decision } }),
         tx.subjectVote.deleteMany({ where: { subjectId, source: DataSource.decision } }),
     ];
@@ -124,6 +124,19 @@ export async function deleteDecision(subjectId: string): Promise<void> {
     });
 }
 
+/**
+ * What a reading left on a Decision, cleared: the text, the facts it stated and
+ * the audit of the read. Every column the extraction writes belongs here, or
+ * "reset" leaves the subject counting as read (`incomplete`,
+ * `unmatchedNames`) and the derivation rebuilding rows from the surviving
+ * `extraction`.
+ */
+const CLEARED_EXTRACTION = {
+    excerpt: null, references: null,
+    voteResultPhrase: null, mayorPresent: null, declaredItemNumber: null, declaredOutOfAgenda: null,
+    incomplete: false, unmatchedNames: [], extractorVersion: null, extraction: Prisma.DbNull,
+} satisfies Prisma.DecisionUpdateManyMutationInput;
+
 export async function resetExtractionForSubject(subjectId: string): Promise<void> {
     await prisma.$transaction(async tx => {
         await Promise.all(clearDecisionDerivedFacts(tx, subjectId));
@@ -133,9 +146,12 @@ export async function resetExtractionForSubject(subjectId: string): Promise<void
 /**
  * Clear extracted data for all decisions in a meeting, keeping the decision
  * links (pdfUrl, ada, protocolNumber) intact. Removes:
- * - Decision.excerpt and Decision.references (set to null)
- * - Decision-sourced SubjectAttendance records
- * - Decision-sourced SubjectVote records
+ * - everything a reading wrote on the Decision rows (CLEARED_EXTRACTION)
+ * - decision-sourced SubjectAttendance and SubjectVote records
+ * - the meeting's roll call and its decision-sourced AttendanceEvent rows —
+ *   the events are what the arrivals/departures block prints from, and leaving
+ *   them behind keeps a cleared meeting stating changes it no longer holds
+ *   documents for.
  */
 export async function clearExtractedDataForMeeting(cityId: string, meetingId: string): Promise<{ clearedCount: number }> {
     // Get all subject IDs for this meeting
@@ -151,7 +167,7 @@ export async function clearExtractedDataForMeeting(cityId: string, meetingId: st
     const [updated] = await prisma.$transaction([
         prisma.decision.updateMany({
             where: { subjectId: { in: subjectIds } },
-            data: { excerpt: null, references: null },
+            data: CLEARED_EXTRACTION,
         }),
         prisma.subjectAttendance.deleteMany({
             where: { subjectId: { in: subjectIds }, source: DataSource.decision },
@@ -160,6 +176,9 @@ export async function clearExtractedDataForMeeting(cityId: string, meetingId: st
             where: { subjectId: { in: subjectIds }, source: DataSource.decision },
         }),
         prisma.meetingAttendance.deleteMany({
+            where: { cityId, councilMeetingId: meetingId, source: DataSource.decision },
+        }),
+        prisma.attendanceEvent.deleteMany({
             where: { cityId, councilMeetingId: meetingId, source: DataSource.decision },
         }),
     ]);
@@ -303,4 +322,35 @@ export async function getDecisionForSubject(subjectId: string): Promise<{
             : null,
         updatedAt: decision.updatedAt?.toISOString() ?? null,
     };
+}
+
+/** One meeting's count of documents we read but could not read cleanly. */
+export interface DecisionReadIssueCount {
+    cityId: string;
+    councilMeetingId: string;
+    /** City-local calendar date of the session, so the row reads as a date. */
+    sessionDate: string;
+    count: number;
+}
+
+/**
+ * Per meeting, how many of its decisions the extraction could not read in full:
+ * the read was flagged incomplete, or it left a name it could not match to a
+ * person. These are the issues a human can fix at the document — the
+ * derivation's other issues follow from the facts and change with them.
+ */
+export async function countDecisionReadIssuesByMeeting(cityId?: string): Promise<DecisionReadIssueCount[]> {
+    return prisma.$queryRaw<DecisionReadIssueCount[]>`
+        SELECT s."cityId" AS "cityId",
+               s."councilMeetingId" AS "councilMeetingId",
+               to_char(cm."dateTime" AT TIME ZONE c.timezone, 'YYYY-MM-DD') AS "sessionDate",
+               COUNT(*)::int AS count
+        FROM "Decision" d
+        JOIN "Subject" s ON s.id = d."subjectId"
+        JOIN "CouncilMeeting" cm ON cm.id = s."councilMeetingId" AND cm."cityId" = s."cityId"
+        JOIN "City" c ON c.id = s."cityId"
+        WHERE (d.incomplete OR cardinality(d."unmatchedNames") > 0)
+          ${cityId ? Prisma.sql`AND s."cityId" = ${cityId}` : Prisma.empty}
+        GROUP BY 1, 2, 3
+    `;
 }
