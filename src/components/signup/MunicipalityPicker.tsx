@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { ArrowRight, CheckCircle2, ChevronRight, Search } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Search } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { useQueryParamState } from '@/hooks/useQueryParamState';
@@ -11,6 +11,7 @@ import type { CityMinimalWithCounts } from '@/lib/db/cities';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
 import { surfaceCardClass } from '@/components/ui/surface-card';
+import { CtaButton } from '@/components/ui/cta-button';
 import { cn, normalizeText } from '@/lib/utils';
 import { CitySeal } from './CityCard';
 import { Eyebrow } from './SignupChrome';
@@ -126,13 +127,13 @@ export function MunicipalityPicker({
                 <div className="flex flex-col gap-1 px-3.5 py-4">
                     <span className="text-sm text-muted-foreground">{t('picker.noResults', { query: query.trim() })}</span>
                     {mode === 'notifications' && (
-                        <Link
+                        <CtaButton
                             href={`/petition?${QUERY_PARAM}=${encodeURIComponent(query.trim())}`}
-                            className="group/cta inline-flex min-h-10 items-center gap-1.5 self-start text-sm text-[hsl(var(--orange-deep))] hover:no-underline"
+                            variant="text"
+                            className="min-h-10"
                         >
                             {t('picker.noResultsPetition')}
-                            <ArrowRight className="h-[15px] w-[15px] transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
-                        </Link>
+                        </CtaButton>
                     )}
                 </div>
             )}

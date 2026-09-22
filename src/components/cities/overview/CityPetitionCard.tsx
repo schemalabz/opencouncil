@@ -1,7 +1,6 @@
 import Image from 'next/image';
-import { ArrowRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { TrackedLink } from '@/components/analytics/TrackedLink';
+import { CtaButton } from '@/components/ui/cta-button';
 import type { CityWithCounts } from '@/lib/db/cities';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 import { isPetitionable } from '@/lib/cityStatus';
@@ -55,15 +54,14 @@ export function CityPetitionCard({ city, bucket, locale }: CityPetitionCardProps
 
             <div className="flex flex-col gap-3 px-4 pb-4 pt-3">
                 <p className="text-sm leading-snug text-muted-foreground">{t(authorityKey('petitionBody', city))}</p>
-                <TrackedLink
+                <CtaButton
                     href={`/${city.id}/petition`}
                     event="petition_opened"
                     eventProps={{ surface: 'city_rail', city_id: city.id }}
-                    className="group/cta flex h-10 max-w-sm items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--orange-deep))] text-sm font-medium text-white transition-opacity hover:opacity-90 hover:no-underline"
+                    className="flex max-w-sm"
                 >
                     {t('petitionCta')}
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
-                </TrackedLink>
+                </CtaButton>
                 <p className="max-w-sm text-center text-[11px] text-muted-foreground">{t(authorityKey('petitionNote', city))}</p>
             </div>
         </RailDisclosure>

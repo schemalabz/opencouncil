@@ -1,7 +1,6 @@
 import { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { Link } from "@/i18n/routing";
+import { CtaButton } from "@/components/ui/cta-button";
 import { MunicipalityPicker } from "@/components/signup/MunicipalityPicker";
 import { NotisChatCard } from "@/components/signup/NotisChatCard";
 import { Eyebrow, SignupLayout, StepHeading } from "@/components/signup/SignupChrome";
@@ -74,13 +73,9 @@ export default async function NotificationsPickerPage(props: {
 
             <div className="mt-4 flex flex-col gap-0.5">
                 <span className="text-sm text-muted-foreground">{t("noCityTitle")}</span>
-                <Link
-                    href="/petition"
-                    className="group/cta inline-flex min-h-11 items-center gap-1.5 self-start text-sm text-[hsl(var(--orange-deep))] hover:no-underline"
-                >
+                <CtaButton href="/petition" variant="text">
                     {t("noCityCta")}
-                    <ArrowRight className="h-[15px] w-[15px] transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
-                </Link>
+                </CtaButton>
             </div>
 
             <p className="mt-4 text-[11px] leading-[1.4] text-muted-foreground">{t("pickerFootnote")}</p>
