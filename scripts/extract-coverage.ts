@@ -18,6 +18,7 @@
  *   npx tsx scripts/extract-coverage.ts --city sparta
  *   npx tsx scripts/extract-coverage.ts --body 'Δημοτική Επιτροπή'
  *   npx tsx scripts/extract-coverage.ts --max-meetings 3 --budget 30
+ *   npx tsx scripts/extract-coverage.ts --max-docs 40             # skip a meeting that costs more than one mechanism is worth
  *   npx tsx scripts/extract-coverage.ts --anchors             # count each attendance anchor separately
  *   npx tsx scripts/extract-coverage.ts --poll                # actually extract
  *
@@ -42,7 +43,7 @@ const prisma = new PrismaClient();
 
 /** From a Langfuse trace of an 8-document poll costing $1.25. */
 const COST_PER_DOCUMENT = 0.157;
-const EXTRACTOR_VERSION = '4';
+const EXTRACTOR_VERSION = '4';  // task version on the wire; the reader's own schema version is opencouncil-tasks' concern
 const DEFAULT_OBSERVATIONS = '.extraction-survey/observations-v5.json';
 
 type Observation = Record<string, unknown>;
@@ -118,6 +119,7 @@ function parseArgs() {
         city: get('--city'),
         body: get('--body'),
         maxMeetings: num('--max-meetings', 2),
+        maxDocs: num('--max-docs', Infinity),
         budget: num('--budget', Infinity),
         observations: get('--observations') ?? DEFAULT_OBSERVATIONS,
         anchors: argv.includes('--anchors'),
@@ -197,6 +199,7 @@ function selectForBody(
     byAda: Map<string, string[]>,
     maxMeetings: number,
     budgetLeft: number,
+    maxDocs = Infinity,
 ) {
     const exercised = new Map<string, number>();
     const covered = new Set<string>();
@@ -214,7 +217,7 @@ function selectForBody(
     }
 
     const remaining = new Set([...exercised.keys()].filter(m => !covered.has(m)));
-    const pool = meetings.filter(m => m.unextracted > 0 && m.mechanisms.size > 0);
+    const pool = meetings.filter(m => m.unextracted > 0 && m.mechanisms.size > 0 && m.docs <= maxDocs);
     const selected: Selection[] = [];
     let spent = 0;
 
@@ -339,7 +342,7 @@ async function main() {
 
     for (const key of [...bodies.keys()].sort()) {
         const meetings = [...bodies.get(key)!.values()].sort((a, b) => a.date.getTime() - b.date.getTime());
-        const r = selectForBody(meetings, byAda, args.maxMeetings, args.budget - totalCost);
+        const r = selectForBody(meetings, byAda, args.maxMeetings, args.budget - totalCost, args.maxDocs);
 
         console.log(`\n${key}  (${meetings.length} meetings, ${meetings.reduce((n, m) => n + m.docs, 0)} documents, ${meetings.reduce((n, m) => n + m.observed, 0)} observed)`);
         if (!r.exercised.size) {
