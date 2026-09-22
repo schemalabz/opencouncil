@@ -29,6 +29,16 @@ describe('documentFactsFromDecision', () => {
         expect(facts.hasExtraction).toBe(true);
     });
 
+    it('does not believe the list for someone the same page says was out for the vote', () => {
+        // Argos 6Ι9ΑΩΨΔ-0Υ8: the reader returned the ΑΠΟΧΩΡΗΣΑΝΤΕΣ column as the members list — one name, the departed one.
+        const facts = documentFactsFromDecision(decision({
+            decisionAttendance: { presentIds: ['p1', 'p2'] },
+            attendanceChanges: [{ type: 'departure', personId: 'p2', anchor: { kind: 'subject' } }],
+        }), roster);
+        expect(facts.presentIds).toEqual(['p1']);
+        // Only that one: the same list with the departure anchored elsewhere is believed whole.
+        expect(documentFactsFromDecision(decision({ decisionAttendance: { presentIds: ['p1', 'p2'] }, attendanceChanges: [{ type: 'departure', personId: 'p2', anchor: { kind: 'agenda_item' } }] }), roster).presentIds).toEqual(['p1', 'p2']);
+    });
     it('drops an id the roster no longer holds and counts it as unmatched', () => {
         const facts = documentFactsFromDecision(decision({
             voteDetails: [{ personId: 'p1', vote: 'FOR' }, { personId: 'deleted', vote: 'AGAINST' }],

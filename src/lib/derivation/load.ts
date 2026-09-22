@@ -61,12 +61,22 @@ export function documentFactsFromDecision(d: {
     const statedPresent = (Array.isArray(storedDecisionAttendance?.presentIds) ? storedDecisionAttendance.presentIds : [])
         .filter((id): id is string => typeof id === 'string')
         .filter(inRoster);
+    // A page that names someone under ΑΠΟΧΩΡΗΣΑΝΤΕΣ for this vote and also in
+    // its members list has contradicted itself, and the reader has been seen to
+    // return that column as the list (Argos 6Ι9ΑΩΨΔ-0Υ8: one name, the departed
+    // one, against a roll call of 26). The departure is the more specific
+    // statement; the list is not believed for that person.
+    const outForThisVote = new Set((Array.isArray(raw.attendanceChanges) ? raw.attendanceChanges : []).flatMap(entry => {
+        const c = asObject(entry); const anchor = asObject(c?.anchor);
+        return c?.type === 'departure' && anchor?.kind === 'subject' && typeof c.personId === 'string' ? [c.personId] : [];
+    }));
+    const believedPresent = statedPresent.filter(id => !outForThisVote.has(id));
     const storedPresidedBy = asObject(raw.presidedBy);
     const storedActingSecretary = asObject(raw.actingSecretary);
     return {
         subjectId: d.subjectId, decisionId: d.id, voteResultPhrase: d.voteResultPhrase, namedVotes, tally,
         // Empty means the document states no list, not that it states an empty one.
-        presentIds: statedPresent.length > 0 ? statedPresent : null,
+        presentIds: believedPresent.length > 0 ? believedPresent : null,
         absentIds: null,
         unmatchedNames, incomplete: d.incomplete,
         rollCallLayout: readRollCallLayout(raw), declaredItemNumber: d.declaredItemNumber, declaredOutOfAgenda: d.declaredOutOfAgenda,

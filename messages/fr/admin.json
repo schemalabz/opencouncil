@@ -800,8 +800,8 @@
     },
     "statesPerDecisionAttendance": {
       "label": "Lists who was present for this decision",
-      "description": "At the end of the document the page names every member present for this decision (ΤΑ ΜΕΛΗ, ΑΠΟΧΩΡΗΣΑΝΤΕΣ).",
-      "hint": "At the end of the document, after the decision text, they list every member present for this decision (ΤΑ ΜΕΛΗ / ΑΠΟΧΩΡΗΣΑΝΤΕΣ); return that list as decisionAttendance and leave the opening roll call in presentMembers."
+      "description": "At the end of the document the page names every member present for this decision (ΤΑ ΜΕΛΗ).",
+      "hint": "At the end of the document, after the decision text, they list every member present for this decision under ΤΑ ΜΕΛΗ / ΠΑΡΟΝΤΑ ΜΕΛΗ; return that list as decisionAttendance and leave the opening roll call in presentMembers. An ΑΠΟΧΩΡΗΣΑΝΤΕΣ column beside it names who had LEFT — report those as departures, never as decisionAttendance."
     },
     "statesPerVoteAbsence": {
       "label": "States per-vote absence",

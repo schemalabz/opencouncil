@@ -380,7 +380,8 @@
           "source": "profile",
           "profiledAt": "2026-09-13",
           "documentsSampled": 40
-        }
+        },
+        "listOmitsSecretary": true
       }
     },
     {
