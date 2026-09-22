@@ -20,10 +20,23 @@
  *   npx tsx scripts/extract-coverage.ts --max-meetings 3 --budget 30
  *   npx tsx scripts/extract-coverage.ts --anchors             # count each attendance anchor separately
  *   npx tsx scripts/extract-coverage.ts --poll                # actually extract
+ *
+ * `--claims` asks a different question of the same vocabulary: not which
+ * mechanisms have been extracted, but which the meeting checker would notice
+ * breaking. The document scorer measures the reader and never runs the
+ * derivation; `check-minutes.ts` runs the derivation, over the meetings in
+ * `fixtures/minutes-golden.json` only, and tests only what a claim names. A
+ * mechanism no claim sits on can break in the derivation with both instruments
+ * green.
+ *
+ *   npx tsx scripts/extract-coverage.ts --claims              # every body with a stored reading
+ *   npx tsx scripts/extract-coverage.ts --claims --city athens
  */
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import { pollDecisionsForMeeting } from '@/lib/tasks/pollDecisions';
+import { getMinutesData } from '@/lib/minutes/getMinutesData';
+import { loadGolden, subjectsByClaimKey, type Claim, type GoldenMeeting } from './lib/minutes-golden';
 
 const prisma = new PrismaClient();
 
@@ -35,26 +48,47 @@ const DEFAULT_OBSERVATIONS = '.extraction-survey/observations-v5.json';
 type Observation = Record<string, unknown>;
 type SurveyFile = { bodies: Array<{ observations?: Array<{ ada: string; pages: number; observation: Observation }> }> };
 
+type Reading = Record<string, unknown>;
+/** The kind of claim whose check would fail if the derivation mishandled the mechanism. */
+type ClaimKind = 'vote' | 'presence' | 'changes' | 'rollCall' | 'withdrawn' | 'subject';
+
+const list = (v: unknown): Record<string, unknown>[] => Array.isArray(v) ? v.filter(x => x && typeof x === 'object') : [];
+const votesOf = (r: Reading) => list(r.voteDetails).map(v => String(v.vote));
+const DISSENT = ['AGAINST', 'ABSTAIN', 'PRESENT', 'DID_NOT_VOTE'];
+const counted = (r: Reading, type: string) => Number((r.voteTally as Record<string, unknown> | null)?.[type] ?? 0);
+/** One per person, as the derivation counts them: a dissenter named twice attributes one vote. */
+const namedOf = (r: Reading, type: string) => new Set(list(r.voteDetails).filter(v => v.vote === type).map(v => String(v.personId ?? v.name))).size;
+const ownSubject = (c: Record<string, unknown>) => ['subject', 'this_document'].includes(String((c.anchor as Record<string, unknown> | null)?.kind));
+const timing = (c: Record<string, unknown>) => (c.anchor as Record<string, unknown> | null)?.timing;
+
 /**
  * A mechanism is one thing a document can state that extraction has to handle.
- * Names are the vocabulary of the report; each maps to one survey field.
+ * Names are the vocabulary of the report. `of` reads it from a survey
+ * observation; `inReading` from a stored v4 reading, which is all the
+ * derivation ever sees and exists for documents the survey never sampled. The
+ * last three have no survey field: they are branches of the derivation itself.
  */
-const MECHANISMS: Array<{ name: string; of: (o: Observation) => boolean }> = [
-    { name: 'arrivalOrDeparture', of: o => o.attendanceChangesStated === true },
-    { name: 'perVoteAbsence', of: o => o.perVoteAbsenceStated === true },
-    { name: 'namesAllVoters', of: o => o.namedVoters === 'all' },
-    { name: 'namesDissenters', of: o => o.namedVoters === 'dissenters_only' },
-    { name: 'voteCountsInPhrase', of: o => o.votePhraseCarriesCounts === true },
-    { name: 'declarations', of: o => o.declarationsRecorded === true },
-    { name: 'partialOrPerLineVote', of: o => o.partialOrPerLineVote === true },
-    { name: 'substitutes', of: o => o.substitutesPresent === true },
-    { name: 'replacedMemberListed', of: o => o.replacedMemberAlsoListed === true },
-    { name: 'outOfAgenda', of: o => o.isOutOfAgenda === true },
-    { name: 'discussionOrder', of: o => o.discussionOrderStated === true },
-    { name: 'withdrawnItems', of: o => o.withdrawnItemsStated === true },
-    { name: 'correctedRepost', of: o => o.correctedRepost === true },
-    { name: 'embeddedOtherBodyDecision', of: o => o.embeddedOtherBodyDecision === true },
+const MECHANISMS: Array<{ name: string; testedBy: ClaimKind; of?: (o: Observation) => boolean; inReading?: (r: Reading) => boolean }> = [
+    { name: 'arrivalOrDeparture', testedBy: 'changes', of: o => o.attendanceChangesStated === true, inReading: r => list(r.attendanceChanges).length > 0 },
+    { name: 'perVoteAbsence', testedBy: 'presence', of: o => o.perVoteAbsenceStated === true,
+        inReading: r => list(r.attendanceChanges).some(c => ownSubject(c) && c.type === 'departure' && timing(c) === 'before') },
+    { name: 'namesAllVoters', testedBy: 'vote', of: o => o.namedVoters === 'all', inReading: r => votesOf(r).includes('FOR') },
+    { name: 'namesDissenters', testedBy: 'vote', of: o => o.namedVoters === 'dissenters_only', inReading: r => votesOf(r).length > 0 && !votesOf(r).includes('FOR') },
+    { name: 'voteCountsInPhrase', testedBy: 'vote', of: o => o.votePhraseCarriesCounts === true, inReading: r => ['FOR', ...DISSENT].some(t => counted(r, t) > 0) },
+    { name: 'declarations', testedBy: 'vote', of: o => o.declarationsRecorded === true, inReading: r => votesOf(r).some(v => v === 'PRESENT' || v === 'DID_NOT_VOTE') },
+    { name: 'partialOrPerLineVote', testedBy: 'vote', of: o => o.partialOrPerLineVote === true },
+    { name: 'substitutes', testedBy: 'rollCall', of: o => o.substitutesPresent === true },
+    { name: 'replacedMemberListed', testedBy: 'rollCall', of: o => o.replacedMemberAlsoListed === true },
+    { name: 'outOfAgenda', testedBy: 'subject', of: o => o.isOutOfAgenda === true, inReading: r => (r.subjectInfo as Record<string, unknown> | null)?.isOutOfAgenda === true },
+    { name: 'discussionOrder', testedBy: 'changes', of: o => o.discussionOrderStated === true },
+    { name: 'withdrawnItems', testedBy: 'withdrawn', of: o => o.withdrawnItemsStated === true },
+    { name: 'correctedRepost', testedBy: 'subject', of: o => o.correctedRepost === true },
+    { name: 'embeddedOtherBodyDecision', testedBy: 'subject', of: o => o.embeddedOtherBodyDecision === true },
+    { name: 'countedDissent', testedBy: 'vote', inReading: r => DISSENT.some(t => counted(r, t) > 0) },
+    { name: 'unattributedDissent', testedBy: 'vote', inReading: r => DISSENT.some(t => counted(r, t) > namedOf(r, t)) },
+    { name: 'statedPerDecisionList', testedBy: 'presence', inReading: r => list([r.decisionAttendance]).some(d => Array.isArray(d.presentIds) && d.presentIds.length > 0) },
 ];
+const TESTED_BY = new Map(MECHANISMS.map(m => [m.name, m.testedBy]));
 
 /**
  * An attendance change anchored to a decision number is a different code path
@@ -63,7 +97,7 @@ const MECHANISMS: Array<{ name: string; of: (o: Observation) => boolean }> = [
  * into up to five, and a body rarely has meetings enough to cover them all.
  */
 function mechanismsOf(o: Observation, anchors: boolean): string[] {
-    const found = MECHANISMS.filter(m => m.of(o)).map(m => m.name);
+    const found = MECHANISMS.filter(m => m.of?.(o)).map(m => m.name);
     if (anchors && o.attendanceChangesStated === true && typeof o.attendanceChangePinnedTo === 'string') {
         found.push(`arrivalPinnedTo:${o.attendanceChangePinnedTo}`);
     }
@@ -88,6 +122,7 @@ function parseArgs() {
         observations: get('--observations') ?? DEFAULT_OBSERVATIONS,
         anchors: argv.includes('--anchors'),
         poll: argv.includes('--poll'),
+        claims: argv.includes('--claims'),
     };
 }
 
@@ -218,8 +253,83 @@ async function waitForTask(taskId: string): Promise<'succeeded' | 'failed'> {
     }
 }
 
+/** Which kinds of claim a golden meeting makes about one subject key; meeting-wide kinds apply to every subject. */
+function claimKindsAt(m: GoldenMeeting, key: string | undefined): Set<ClaimKind> {
+    const kinds = new Set<ClaimKind>();
+    if (m.rollCall) kinds.add('rollCall');
+    if (m.changes?.length) kinds.add('changes');
+    if (m.withdrawn?.length) kinds.add('withdrawn');
+    const c: Claim | undefined = key === undefined ? undefined : m.subjects[key];
+    if (!c) return kinds;
+    kinds.add('subject');
+    if (c.outcome || c.for || c.against || c.blank || c.declaredPresent || c.declaredAbstain) kinds.add('vote');
+    if (c.present || c.absent) kinds.add('presence');
+    return kinds;
+}
+
+type Tier = { documents: number; inGolden: number; claimed: number; unclaimed: string[] };
+
+async function reportClaims(args: ReturnType<typeof parseArgs>) {
+    // The survey is optional here: a stored reading alone says what the derivation was given.
+    const byAda = fs.existsSync(args.observations) ? loadObservations(args.observations, args.anchors) : new Map<string, string[]>();
+    const golden = new Map(loadGolden().meetings.map(m => [`${m.cityId}/${m.meetingId}`, m]));
+    const keysByMeeting = new Map<string, Map<string, string>>();
+    for (const [key, m] of golden) keysByMeeting.set(key, subjectsByClaimKey(await getMinutesData(m.cityId, m.meetingId)).keyBySubjectId);
+
+    const decisions = await prisma.decision.findMany({
+        where: {
+            subject: { councilMeeting: { ...(args.city ? { cityId: args.city } : {}), ...(args.body ? { administrativeBody: { name: args.body } } : {}) } },
+        },
+        select: {
+            ada: true, extraction: true, extractorVersion: true, subjectId: true,
+            subject: { select: { cityId: true, councilMeetingId: true, councilMeeting: { select: { administrativeBody: { select: { name: true } } } } } },
+        },
+    });
+
+    const bodies = new Map<string, Map<string, Tier>>();
+    const overall = new Map<string, Tier>();
+    for (const d of decisions) {
+        const reading = d.extractorVersion === EXTRACTOR_VERSION && d.extraction && typeof d.extraction === 'object' ? d.extraction as Reading : null;
+        const mechs = new Set([
+            ...(d.ada ? byAda.get(d.ada) ?? [] : []),
+            ...(reading ? MECHANISMS.filter(m => m.inReading?.(reading)).map(m => m.name) : []),
+        ]);
+        if (!mechs.size) continue;
+        const meetingKey = `${d.subject.cityId}/${d.subject.councilMeetingId}`;
+        const meeting = golden.get(meetingKey);
+        const kinds = meeting ? claimKindsAt(meeting, keysByMeeting.get(meetingKey)!.get(d.subjectId)) : null;
+        const bodyKey = `${d.subject.cityId}/${d.subject.councilMeeting.administrativeBody?.name ?? '(no body)'}`;
+        if (!bodies.has(bodyKey)) bodies.set(bodyKey, new Map());
+        for (const mech of mechs) {
+            // An anchor mechanism (`arrivalPinnedTo:…`) is a refinement of arrivalOrDeparture and is tested as one.
+            const claimed = kinds?.has(TESTED_BY.get(mech) ?? 'changes') ?? false;
+            for (const table of [bodies.get(bodyKey)!, overall]) {
+                if (!table.has(mech)) table.set(mech, { documents: 0, inGolden: 0, claimed: 0, unclaimed: [] });
+                const t = table.get(mech)!;
+                t.documents++;
+                if (meeting) t.inGolden++;
+                if (claimed) t.claimed++; else t.unclaimed.push(`${d.ada} (${meetingKey})`);
+            }
+        }
+    }
+
+    const print = (title: string, table: Map<string, Tier>, examples: number) => {
+        console.log(`\n${title}`);
+        console.log(`  ${'mechanism'.padEnd(28)} ${'documents'.padStart(9)} ${'in a golden meeting'.padStart(20)} ${'under a claim that tests it'.padStart(28)}`);
+        for (const [mech, t] of [...table].sort((a, b) => a[1].claimed - b[1].claimed || b[1].documents - a[1].documents)) {
+            console.log(`  ${mech.padEnd(28)} ${String(t.documents).padStart(9)} ${String(t.inGolden).padStart(20)} ${String(t.claimed).padStart(28)}${t.claimed ? '' : `   UNCLAIMED (needs a ${TESTED_BY.get(mech) ?? 'changes'} claim)`}`);
+            if (!t.claimed) for (const e of t.unclaimed.slice(0, examples)) console.log(`      ${e}`);
+        }
+    };
+    for (const key of [...bodies.keys()].sort()) print(key, bodies.get(key)!, 2);
+    print('== every body ==', overall, 5);
+    const bare = [...overall].filter(([, t]) => !t.claimed).map(([m]) => m);
+    console.log(`\n${bare.length} of ${overall.size} mechanisms are under no claim anywhere${bare.length ? `: ${bare.sort().join(', ')}` : ''}`);
+}
+
 async function main() {
     const args = parseArgs();
+    if (args.claims) return reportClaims(args);
     const byAda = loadObservations(args.observations, args.anchors);
     const bodies = await collectBodies(args);
 
