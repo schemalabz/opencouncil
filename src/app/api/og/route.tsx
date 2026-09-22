@@ -708,7 +708,7 @@ const NotificationsOGImage = async (locale: string, t: Translator, realm: Realm,
                     chip,
                     // The line the step itself closes on: how often he writes and
                     // how to stop, or which channels the picker's reader will get.
-                    note: city ? tn('introNote') : tn('pickerFootnote'),
+                    note: city ? tn('introNote') : tn('pickerChannels'),
                 })}
                 right={notisThread(locale, tc, tc(authorityKey('notisIntro', city ?? { authorityType: 'municipality' })))}
             />

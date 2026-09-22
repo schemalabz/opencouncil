@@ -71,14 +71,17 @@ export default async function NotificationsPickerPage(props: {
                 className="mt-2.5"
             />
 
-            <div className="mt-4 flex flex-col gap-0.5">
+            {/* What the reader gets for picking one, next to the picking. Under
+                the petition link below it, the line read as a condition of the
+                petition. */}
+            <p className="mt-3 text-xs leading-[1.4] text-muted-foreground">{t("pickerChannels")}</p>
+
+            <div className="mt-6 flex flex-col gap-0.5">
                 <span className="text-sm text-muted-foreground">{t("noCityTitle")}</span>
                 <CtaButton href="/petition" variant="text">
                     {t("noCityCta")}
                 </CtaButton>
             </div>
-
-            <p className="mt-4 text-[11px] leading-[1.4] text-muted-foreground">{t("pickerFootnote")}</p>
         </SignupLayout>
     );
 }
