@@ -24,6 +24,7 @@ const apiSubjectSelect = {
     cityId: true,
     councilMeetingId: true,
     agendaItemIndex: true,
+    agendaSectionIndex: true,
     agendaItemTitle: true,
     nonAgendaReason: true,
     withdrawn: true,
@@ -192,6 +193,7 @@ export async function getApiSubjects(
         select: apiSubjectSelect,
         orderBy: [
             { councilMeeting: { dateTime: 'desc' } },
+            { agendaSectionIndex: { sort: 'asc', nulls: 'first' } },
             { agendaItemIndex: 'asc' },
             { name: 'asc' },
         ],

@@ -4,6 +4,7 @@ import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData 
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
+import { compareAgendaPosition } from '@/lib/utils';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
 import { agendaItemTitleOrName, isRecordSubject } from '@/lib/utils/subjects';
 import { collapseOrderRuns, type OrderPosition } from '@/lib/utils/discussionOrder';
@@ -252,6 +253,7 @@ export async function getMinutesData(
         return {
             subjectId: s.id,
             agendaItemIndex: s.agendaItemIndex,
+            agendaSectionIndex: s.agendaSectionIndex,
             nonAgendaReason: s.nonAgendaReason,
             withdrawn: s.withdrawn,
             name: agendaItemTitleOrName(s),
@@ -376,7 +378,7 @@ export async function getMinutesData(
     );
 
     // Build discussion order label if subjects were discussed out of natural order.
-    // Natural order: OA subjects first (sorted), then regular subjects (sorted by agendaItemIndex).
+    // Natural order: OA subjects first (sorted), then regular subjects (sorted by agenda position).
     const nonWithdrawn = minutesSubjects.filter(s => !s.withdrawn);
     const naturalOrder = [
         ...nonWithdrawn.filter(s => s.nonAgendaReason === 'outOfAgenda'),
@@ -385,7 +387,7 @@ export async function getMinutesData(
         const aIsOA = a.nonAgendaReason === 'outOfAgenda';
         const bIsOA = b.nonAgendaReason === 'outOfAgenda';
         if (aIsOA !== bIsOA) return aIsOA ? -1 : 1;
-        return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
+        return compareAgendaPosition(a, b);
     });
     const isNaturalOrder = nonWithdrawn.every((s, i) => s.subjectId === naturalOrder[i]?.subjectId);
 

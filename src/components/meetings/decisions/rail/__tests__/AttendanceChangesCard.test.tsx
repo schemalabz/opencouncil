@@ -16,7 +16,7 @@ const presence = (o: Partial<Presence>): Presence => ({
 
 function subject(id: string, agendaItemIndex: number): MinutesSubject {
     return {
-        subjectId: id, agendaItemIndex, nonAgendaReason: null, withdrawn: false, name: id,
+        subjectId: id, agendaItemIndex, agendaSectionIndex: null, nonAgendaReason: null, withdrawn: false, name: id,
         discussedWith: null, discussedElsewhere: null, decision: null, attendance: null, voteResult: null,
         preDiscussionEntries: [], transcriptEntries: [], discussion: { kind: 'discussed', seconds: 0, start: 1 },
     };

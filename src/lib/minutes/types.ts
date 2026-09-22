@@ -86,6 +86,7 @@ export type MinutesTranscriptEntry = MinutesSpeakerEntry | MinutesCrossSubjectEn
 export interface MinutesSubject {
     subjectId: string;
     agendaItemIndex: number | null;
+    agendaSectionIndex: number | null;
     nonAgendaReason: NonAgendaReason | null;
     withdrawn: boolean;
     name: string;

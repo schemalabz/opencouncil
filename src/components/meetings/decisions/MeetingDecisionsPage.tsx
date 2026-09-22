@@ -18,7 +18,7 @@ import { splitAttendance } from '@/lib/utils/attendance';
 import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
 import { hasRecordedVote, resultKey } from '@/lib/utils/decisionResult';
 import { causeFromPayload, decisionWriteCause, DecisionWriteError } from '@/lib/utils/decisionWriteCause';
-import { normalizeText } from '@/lib/utils';
+import { compareAgendaPosition, normalizeText } from '@/lib/utils';
 import { TWO_COLUMN_GRID } from '@/components/ui/surface-card';
 import { CollapsibleMarkdown, NameList, sortNamesByElectedOrder } from '@/components/meetings/decisions/shared';
 import { scrollElementToContainerTop } from '@/lib/utils/scrollAnchor';
@@ -314,11 +314,12 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
 
     const recordSubjects = useMemo(() => subjects.filter(isRecordSubject), [subjects]);
     /** Agenda order, the order a posted Πίνακας is written in: the items taken
-     * up out of the agenda first, then the agenda itself by index. */
+     * up out of the agenda first, then the agenda itself by section and number
+     * — the same order the minutes preview and the DOCX print (issue 366). */
     const orderedSubjects = useMemo(() => [
         ...recordSubjects.filter(s => recordSection(s) === 'outOfAgenda'),
         ...recordSubjects.filter(s => recordSection(s) === 'agenda')
-            .sort((a, b) => (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0)),
+            .sort(compareAgendaPosition),
     ], [recordSubjects]);
 
     const hasDecision = useCallback((id: string) => Boolean(decisions[id]), [decisions]);

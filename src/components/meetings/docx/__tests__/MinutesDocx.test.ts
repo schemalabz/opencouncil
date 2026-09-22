@@ -34,6 +34,7 @@ function makeSubject(overrides: Partial<MinutesSubject> = {}): MinutesSubject {
     return {
         subjectId: 'subject-1',
         agendaItemIndex: 1,
+        agendaSectionIndex: null,
         nonAgendaReason: null,
         withdrawn: false,
         name: 'Έγκριση προϋπολογισμού',
@@ -187,6 +188,36 @@ async function docxText(data: MinutesData): Promise<string> {
     const zip = await JSZip.loadAsync(Buffer.from(await blob.arrayBuffer()));
     return zip.file('word/document.xml')!.async('string');
 }
+
+describe('MinutesDocx TOC order', () => {
+    it('orders numbered subjects by section, then by number', async () => {
+        const text = await docxText(makeMinutesData({
+            subjects: [
+                makeSubject({
+                    subjectId: 'section2-item1',
+                    agendaItemIndex: 1,
+                    agendaSectionIndex: 2,
+                    name: 'Θέμα ενότητας 2',
+                }),
+                makeSubject({
+                    subjectId: 'section1-item1',
+                    agendaItemIndex: 1,
+                    // No explicit section: this is how a single first section (or a
+                    // one-list agenda with no sections at all) is represented.
+                    agendaSectionIndex: null,
+                    name: 'Θέμα ενότητας 1',
+                }),
+            ],
+        }));
+
+        const section1Index = text.indexOf('Θέμα ενότητας 1');
+        const section2Index = text.indexOf('Θέμα ενότητας 2');
+
+        expect(section1Index).toBeGreaterThan(-1);
+        expect(section2Index).toBeGreaterThan(-1);
+        expect(section1Index).toBeLessThan(section2Index);
+    });
+});
 
 describe('MinutesDocx decision number', () => {
     it('renders decisionNumber, not protocolNumber', async () => {

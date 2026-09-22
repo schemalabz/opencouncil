@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from 'react';
-import { formatTimestamp } from '@/lib/utils';
+import { compareAgendaPosition, formatTimestamp } from '@/lib/utils';
 
 import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { el } from 'date-fns/locale';
@@ -54,7 +54,7 @@ export function MinutesPreviewContent({ data, debugMode = false }: MinutesPrevie
 
     const agendaSubjects = data.subjects
         .filter(s => s.nonAgendaReason !== 'outOfAgenda')
-        .sort((a, b) => (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0));
+        .sort(compareAgendaPosition);
     const outOfAgendaSubjects = data.subjects.filter(s => s.nonAgendaReason === 'outOfAgenda');
 
     // Count speaker entries per debug category across all transcript sections

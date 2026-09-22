@@ -9,6 +9,7 @@ const members = (n: number): MinutesMember[] => Array.from({ length: n }, (_, i)
 function subject(o: Partial<MinutesSubject> & { subjectId: string }): MinutesSubject {
     return {
         agendaItemIndex: 1,
+        agendaSectionIndex: null,
         nonAgendaReason: null,
         withdrawn: false,
         name: o.subjectId,
