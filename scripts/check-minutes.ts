@@ -8,22 +8,11 @@
  * disagree or missing, with the names that differ. Names match through
  * normalisation: accents, case, order, parenthetical nicknames, initials.
  */
-import fs from 'fs';
 import { getMinutesData } from '@/lib/minutes/getMinutesData';
-import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
+import type { MinutesMember } from '@/lib/minutes/types';
 import { explainMeeting } from '@/lib/derivation';
 import { issueMessageEn } from '@/lib/derivation/issueTextEn';
-
-type Claim = { outcome?: 'unanimous' | 'majority'; for?: string[]; against?: string[]; blank?: string[]; declaredPresent?: string[]; declaredAbstain?: string[]; present?: string[]; absent?: string[]; decisionNumber?: string };
-type Fixture = {
-    meetings: Array<{
-        cityId: string; meetingId: string; source: string;
-        rollCall?: { president?: string; mayorPresent?: boolean; present: string[]; absent: string[]; remote?: string[] };
-        changes?: Array<{ name: string; kind: 'arrival' | 'departure'; anchor: { kind: string; agendaItemIndex?: number; timing?: string; decisionNumber?: string } }>;
-        withdrawn?: number[];
-        subjects: Record<string, Claim>;
-    }>;
-};
+import { loadGolden, subjectsByClaimKey, type GoldenMeeting } from './lib/minutes-golden';
 
 const norm = (n: string) => n
     .replace(/\s*\([^)]*\)\s*/g, ' ').replace(/[‐-―−]/g, ' ')
@@ -74,7 +63,7 @@ const report = (meeting: string, claim: string, want: string[], got: string[] | 
     lines.push({ meeting, claim, outcome: detail ? 'disagree' : 'agree', detail });
 };
 
-async function checkMeeting(m: Fixture['meetings'][number]) {
+async function checkMeeting(m: GoldenMeeting) {
     const key = `${m.cityId}/${m.meetingId}`;
     const data = await getMinutesData(m.cityId, m.meetingId);
     if (m.rollCall) {
@@ -119,14 +108,7 @@ async function checkMeeting(m: Fixture['meetings'][number]) {
             detail: got.length === 0 ? `wanted at ${want}` : gotAt.includes(want) ? '' : `wanted at ${want}, got at ${gotAt.join(', ')}`,
         });
     }
-    // The subject's OA index for keys: count outOfAgenda subjects in data order.
-    let oa = 0;
-    const byKey = new Map<string, MinutesData['subjects'][number]>();
-    const keyBySubjectId = new Map<string, string>();
-    for (const s of data.subjects) {
-        const k = s.nonAgendaReason === 'outOfAgenda' ? `OA${++oa}` : String(s.agendaItemIndex);
-        byKey.set(k, s); keyBySubjectId.set(s.subjectId, k);
-    }
+    const { byKey, keyBySubjectId } = subjectsByClaimKey(data);
     for (const w of m.withdrawn ?? []) {
         const s = byKey.get(String(w));
         lines.push({ meeting: key, claim: `withdrawn #${w}`, outcome: s?.withdrawn ? 'agree' : s ? 'disagree' : 'missing', detail: s ? '' : 'no such subject' });
@@ -166,7 +148,7 @@ async function checkMeeting(m: Fixture['meetings'][number]) {
 }
 
 async function main() {
-    const fixture = JSON.parse(fs.readFileSync('fixtures/minutes-golden.json', 'utf-8')) as Fixture;
+    const fixture = loadGolden();
     const only = process.argv.slice(2);
     const meetings = fixture.meetings.filter(m => only.length === 0 || only.includes(`${m.cityId}/${m.meetingId}`));
     for (const m of meetings) await checkMeeting(m);
