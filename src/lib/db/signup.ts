@@ -42,6 +42,35 @@ export async function getSignupPreference(userId: string, cityId: string) {
     };
 }
 
+/** The channels a reader asked for in one municipality. */
+export interface CityChannelRequest {
+    notifyByEmail: boolean;
+    /** The account's request, one per person. Notis owns what it means — see `readerSubscribedToCity`. */
+    notifyByPhone: boolean;
+}
+
+/**
+ * What the reader asked for in one municipality, or null when they never
+ * asked. The row is not the answer on its own: an unsubscribe keeps it and
+ * turns its channels off (`disableNotificationPreferenceByCityId`), so a
+ * reader who left would count as a member for ever.
+ *
+ * Neither `getSignupPreference` nor `getNotificationPreferenceForCity`
+ * answers this: the first reads the places and topics with their
+ * coordinates, the second guards on the session and returns the whole row.
+ */
+export async function getCityChannelRequest(userId: string, cityId: string): Promise<CityChannelRequest | null> {
+    const [preference, user] = await Promise.all([
+        prisma.notificationPreference.findUnique({
+            where: { userId_cityId: { userId, cityId } },
+            select: { notifyByEmail: true },
+        }),
+        prisma.user.findUnique({ where: { id: userId }, select: { notifyByPhone: true } }),
+    ]);
+    if (!preference) return null;
+    return { notifyByEmail: preference.notifyByEmail, notifyByPhone: user?.notifyByPhone ?? false };
+}
+
 /** The reader's petition for one municipality, if they signed it. */
 export async function getUserPetition(userId: string, cityId: string) {
     return prisma.petition.findUnique({

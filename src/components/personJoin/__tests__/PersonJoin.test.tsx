@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { PersonJoin } from '../PersonJoin';
 import { claimWithToken, sendJoinEmail } from '@/lib/actions/personJoin';
 import { setVoicePrintConsent } from '@/lib/actions/personConsent';
+import { captureEvent } from '@/lib/analytics/capture';
 import type { JoinStage } from '@/lib/personJoin/stage';
 
 jest.mock('next-intl', () => ({
@@ -11,7 +12,9 @@ jest.mock('next-intl', () => ({
 }));
 jest.mock('framer-motion', () => ({ useAnimate: () => [{ current: null }, jest.fn()], useReducedMotion: () => true }));
 jest.mock('@/i18n/routing', () => ({
-    Link: ({ href, children }: { href: string; children: React.ReactNode }) => createElement('a', { href }, children),
+    // `onClick` and the rest pass through: TrackedLink captures its event there.
+    Link: ({ href, children, ...props }: { href: string; children: React.ReactNode }) =>
+        createElement('a', { href, ...props }, children),
 }));
 jest.mock('@/components/signup/useCelebration', () => ({ useCelebration: jest.fn() }));
 jest.mock('@/components/ImageOrInitials', () => ({ ImageOrInitials: () => null }));
@@ -22,10 +25,14 @@ jest.mock('@/lib/actions/personConsent', () => ({ setVoicePrintConsent: jest.fn(
 const mockedClaim = claimWithToken as jest.MockedFunction<typeof claimWithToken>;
 const mockedSend = sendJoinEmail as jest.MockedFunction<typeof sendJoinEmail>;
 const mockedConsent = setVoicePrintConsent as jest.MockedFunction<typeof setVoicePrintConsent>;
+const mockedCapture = captureEvent as jest.MockedFunction<typeof captureEvent>;
 
 const person = { id: 'person-1', name: 'Αδάμ Μπούτζουκας', image: null, title: 'Αντιδήμαρχος', cityId: 'chania', cityName: 'Χανιά' };
-const confirmStage = (signedIn: boolean): JoinStage => ({ kind: 'confirm', signedIn, person });
-const flow = (stage: JoinStage, totalSteps: 2 | 3 = 3) => render(createElement(PersonJoin, { token: 'tok.en', stage, totalSteps }));
+const confirmStage = (signedIn: boolean): JoinStage =>
+    signedIn ? { kind: 'confirm', signedIn: true, person, offerNotifications: true } : { kind: 'confirm', signedIn: false, person };
+const linkHref = (text: string) => (screen.getByText(text).closest('a') as HTMLAnchorElement).getAttribute('href');
+const flow = (stage: JoinStage, totalSteps: 2 | 3 = 3, finished = false) =>
+    render(createElement(PersonJoin, { token: 'tok.en', stage, totalSteps, finished }));
 const typeEmail = (value: string) => fireEvent.change(screen.getByLabelText('email.label'), { target: { value } });
 
 beforeEach(() => {
@@ -172,7 +179,7 @@ describe('PersonJoin, signed in', () => {
 });
 
 describe('PersonJoin, the consent step', () => {
-    const consentStage: JoinStage = { kind: 'consent', consented: false, person };
+    const consentStage: JoinStage = { kind: 'consent', consented: false, person, offerNotifications: true };
 
     it('cannot finish before an answer, records a yes, and ends on the done screen', async () => {
         mockedConsent.mockResolvedValue(undefined);
@@ -205,8 +212,57 @@ describe('PersonJoin, the consent step', () => {
     });
 
     it('opens on the done screen for somebody who already answered yes', () => {
-        flow({ kind: 'consent', consented: true, person });
+        flow({ kind: 'consent', consented: true, person, offerNotifications: true });
         expect(screen.getByText('done.title')).toBeTruthy();
+    });
+});
+
+describe('PersonJoin, the done screen', () => {
+    it('invites the reader to their city\'s notifications, ahead of their page', async () => {
+        flow({ kind: 'consent', consented: false, person, offerNotifications: true });
+        fireEvent.click(screen.getByText('consent.no'));
+        fireEvent.click(screen.getByText('consent.cta'));
+        await waitFor(() => expect(screen.getByText('done.title')).toBeTruthy());
+        expect(screen.getByText('done.notifyTitle')).toBeTruthy();
+        // Step 2, not the explainer: the card has already made the case.
+        expect(linkHref('done.notifyCta')).toBe('/chania/notifications?step=2');
+        expect(linkHref('done.page')).toBe('/chania/people/person-1');
+        expect(linkHref('done.profile')).toBe('/profile');
+    });
+
+    it('counts a press of the invitation', async () => {
+        flow({ kind: 'consent', consented: true, person, offerNotifications: true });
+        fireEvent.click(screen.getByText('done.notifyCta'));
+        expect(mockedCapture).toHaveBeenCalledWith('person_join_notifications_clicked', { city_id: 'chania' });
+    });
+
+    it('marks the tab as finished, so a Back does not re-ask the consent', async () => {
+        flow({ kind: 'consent', consented: false, person, offerNotifications: true });
+        fireEvent.click(screen.getByText('consent.no'));
+        fireEvent.click(screen.getByText('consent.cta'));
+        await waitFor(() => expect(screen.getByText('done.title')).toBeTruthy());
+        expect(new URL(window.location.href).searchParams.get('step')).toBe('done');
+    });
+
+    it('opens on the done screen for a reader who came back to a finished flow', () => {
+        flow({ kind: 'consent', consented: false, person, offerNotifications: true }, 3, true);
+        expect(screen.getByText('done.title')).toBeTruthy();
+        expect(screen.queryByText('consent.title')).toBeNull();
+    });
+
+    it('carries the invitation through a claim made in this tab', async () => {
+        mockedClaim.mockResolvedValue('consented');
+        flow(confirmStage(true), 2);
+        fireEvent.click(screen.getByText('confirm.yes'));
+        await waitFor(() => expect(screen.getByText('done.title')).toBeTruthy());
+        expect(linkHref('done.notifyCta')).toBe('/chania/notifications?step=2');
+    });
+
+    it('keeps their page as the way out when there are no notifications to offer', () => {
+        flow({ kind: 'consent', consented: true, person, offerNotifications: false });
+        expect(screen.getByText('done.title')).toBeTruthy();
+        expect(screen.queryByText('done.notifyCta')).toBeNull();
+        expect(linkHref('done.page')).toBe('/chania/people/person-1');
     });
 });
 
