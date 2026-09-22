@@ -7,6 +7,7 @@ jest.mock('@/lib/db/derivationFacts', () => ({
 
 import { derivationSkipIssue, hasNothingToDeriveFrom, deriveAndPersist } from '../persist';
 import { deriveMeetingFacts } from '../deriveMeetingFacts';
+import { FACTS_EXTRACTOR_VERSION } from '../load';
 import type { DerivationInput, DocumentFacts } from '../types';
 
 const doc = (subjectId: string, hasExtraction: boolean): DocumentFacts => ({
@@ -24,7 +25,7 @@ const input = (overrides: Partial<DerivationInput> = {}): DerivationInput => ({
     rollCall: [{ personId: 'p1', status: 'PRESENT', source: 'decision' }],
     events: [],
     documents: [doc('s1', true), doc('s2', true)],
-    subjectIdsWithStoredRows: [],
+    subjectIdsWithStoredVotes: [],
     conventions: null,
     ...overrides,
 });
@@ -38,7 +39,7 @@ describe('derivationSkipIssue', () => {
     it('refuses the write when one document of a mixed meeting lacks stored facts', () => {
         // The incremental poll: one newly published document is extracted while
         // the rest were read before facts were stored.
-        const skip = derivationSkipIssue(input({ documents: [doc('s1', false), doc('s2', true)], subjectIdsWithStoredRows: ['s1'] }));
+        const skip = derivationSkipIssue(input({ documents: [doc('s1', false), doc('s2', true)], subjectIdsWithStoredVotes: ['s1'] }));
         expect(skip).toMatchObject({ code: 'NO_STORED_FACTS', severity: 'error' });
         expect(skip!.params).toEqual({ missing: 1, total: 2 });
     });
@@ -50,6 +51,14 @@ describe('derivationSkipIssue', () => {
         expect(deriveMeetingFacts(i).issues).toEqual(expect.arrayContaining([
             expect.objectContaining({ code: 'UNREAD_DOCUMENT', severity: 'warning', subjectId: 's1', decisionId: 'd-s1' })]));
     });
+    it('derives attendance for an unread document and no votes, so the rows it writes never refuse the next run', () => {
+        // Its phrase alone, with no named dissenter, would make a contested decision unanimous; its attendance is the meeting's replay.
+        const out = deriveMeetingFacts(input({ documents: [doc('s1', false), doc('s2', true)] }));
+        expect(out.attendance.some(a => a.subjectId === 's1')).toBe(true);
+        expect(out.votes.some(v => v.subjectId === 's1')).toBe(false);
+        expect(out.votes.some(v => v.subjectId === 's2')).toBe(true);
+    });
+
     it('refuses the write when no document carries stored facts', () => {
         expect(derivationSkipIssue(input({ documents: [doc('s1', false), doc('s2', false)] })))
             .toMatchObject({ code: 'NO_STORED_FACTS' });
@@ -71,21 +80,26 @@ describe('deriveAndPersist', () => {
             meeting: {
                 dateTime: new Date('2026-01-01'),
                 administrativeBody: { decisionConventions: null },
-                subjects: i.subjects.map(s => ({
-                    id: s.id, name: s.name, agendaItemIndex: s.agendaItemIndex, nonAgendaReason: s.nonAgendaReason,
-                    withdrawn: false, discussedIn: null,
-                    decision: {
-                        id: `d-${s.id}`, subjectId: s.id, decisionNumber: s.decisionNumber, voteResultPhrase: 'Ομόφωνα',
-                        unmatchedNames: [], incomplete: false, mayorPresent: null,
-                        extraction: i.documents.find(d => d.subjectId === s.id)?.hasExtraction ? {} : null,
-                    },
-                })),
+                subjects: i.subjects.map(s => {
+                    // A document that carries stored facts is one a v4 read stored: an
+                    // older reading states none, whatever JSON it left behind.
+                    const stored = i.documents.some(d => d.subjectId === s.id && d.hasExtraction);
+                    return {
+                        id: s.id, name: s.name, agendaItemIndex: s.agendaItemIndex, nonAgendaReason: s.nonAgendaReason,
+                        withdrawn: false, discussedIn: null,
+                        decision: {
+                            id: `d-${s.id}`, subjectId: s.id, decisionNumber: s.decisionNumber, voteResultPhrase: 'Ομόφωνα',
+                            unmatchedNames: [], incomplete: false, mayorPresent: null,
+                            extraction: stored ? {} : null, extractorVersion: stored ? FACTS_EXTRACTOR_VERSION : null,
+                        },
+                    };
+                }),
             },
             firstUtteranceBySubject: new Map<string, number>(),
             rollCall: i.rollCall,
             events: i.events,
             people: [{ id: 'p1', roles: [] }],
-            subjectIdsWithStoredRows: i.subjectIdsWithStoredRows,
+            subjectIdsWithStoredVotes: i.subjectIdsWithStoredVotes,
         });
     };
 
@@ -102,7 +116,7 @@ describe('deriveAndPersist', () => {
     });
 
     it('writes nothing when a document without stored facts holds rows the write would replace', async () => {
-        rows({ documents: [doc('s1', false), doc('s2', true)], subjectIdsWithStoredRows: ['s1'] });
+        rows({ documents: [doc('s1', false), doc('s2', true)], subjectIdsWithStoredVotes: ['s1'] });
         const out = await deriveAndPersist('c', 'm');
         expect(mockReplaceDerivedRows).not.toHaveBeenCalled();
         expect(out.attendance).toEqual([]);

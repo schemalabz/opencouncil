@@ -10,9 +10,9 @@ jest.mock('@/lib/db/derivationFacts', () => ({ readDerivationRows: jest.fn(), re
 
 import { documentFactsFromDecision } from '../load';
 
-const decision = (extraction: unknown) => ({
+const decision = (extraction: unknown, extractorVersion: string | null = '4') => ({
     id: 'd1', subjectId: 's1', voteResultPhrase: 'Κατά πλειοψηφία', unmatchedNames: ['Άγνωστος Α.'],
-    incomplete: false, mayorPresent: null, declaredItemNumber: null, declaredOutOfAgenda: null, extraction,
+    incomplete: false, mayorPresent: null, declaredItemNumber: null, declaredOutOfAgenda: null, extraction, extractorVersion,
 });
 
 const roster = new Set(['p1', 'p2']);
@@ -64,6 +64,22 @@ describe('documentFactsFromDecision', () => {
         expect(documentFactsFromDecision(decision({ rollCall: { layout: 'composition_and_absent' } }), roster).rollCallLayout).toBe('composition_and_absent');
         expect(documentFactsFromDecision(decision({ rollCall: { layout: 'whatever' } }), roster).rollCallLayout).toBeNull();
         expect(documentFactsFromDecision(decision({}), roster).rollCallLayout).toBeNull();
+    });
+
+    it('a reading older than v4 states nothing, whatever it stored', () => {
+        // v3 stored the answer the old pipeline had inferred: its `voteDetails`
+        // already held the FOR votes it invented. Believing one returns those as
+        // stated votes. Seen on zografou/apr1_2026: 11 v3 decisions, 61 stated FOR.
+        const facts = documentFactsFromDecision(decision({
+            voteDetails: [{ personId: 'p1', vote: 'FOR' }],
+            decisionAttendance: { presentIds: ['p1', 'p2'] },
+            rollCall: { layout: 'present_and_absent', presentIds: ['p1'] },
+        }, '3'), roster);
+        expect(facts.hasExtraction).toBe(false);
+        expect(facts.namedVotes).toEqual([]);
+        expect(facts.presentIds).toBeNull();
+        expect(facts.rollCallPresentIds).toBeNull();
+        expect(facts.rollCallLayout).toBeNull();
     });
 
     it('a decision read before facts were stored has no extraction', () => {

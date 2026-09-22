@@ -23,7 +23,13 @@ function readRollCallLayout(raw: Record<string, unknown>): RollCallLayout | null
 }
 
 /**
- * Read a stored raw extraction (task v3 or v4) into DocumentFacts.
+ * The task version whose stored reading states what a document says. A v3
+ * reading stored the answer that pipeline had already inferred instead.
+ */
+export const FACTS_EXTRACTOR_VERSION = '4';
+
+/**
+ * Read a stored raw extraction into DocumentFacts.
  *
  * `rosterPersonIds` is the city's people. Every id from the extraction is
  * checked against it, the way the event path already checks its own: a person
@@ -34,9 +40,17 @@ function readRollCallLayout(raw: Record<string, unknown>): RollCallLayout | null
  */
 export function documentFactsFromDecision(d: {
     id: string; subjectId: string; voteResultPhrase: string | null; unmatchedNames: string[]; incomplete: boolean; mayorPresent: boolean | null; extraction: unknown;
-    declaredItemNumber: number | null; declaredOutOfAgenda: boolean | null;
+    declaredItemNumber: number | null; declaredOutOfAgenda: boolean | null; extractorVersion: string | null;
 }, rosterPersonIds?: ReadonlySet<string>): DocumentFacts {
-    const raw = asObject(d.extraction) ?? {};
+    // Only a v4 reading states facts. A v3 `voteDetails` already held the FOR
+    // votes the old pipeline inferred, so believing one returns invented votes as
+    // `origin: 'stated'`. Emptying the extraction at read covers the rows already
+    // in the database: the document counts as unread, and the meeting raises
+    // NO_STORED_FACTS and keeps the rows it has. Measured on zografou/apr1_2026,
+    // 11 v3 decisions: 61 stated FOR votes, no inferred vote and no issue, beside
+    // a v4 meeting of the same city whose every FOR is inferred.
+    const statesFacts = d.extractorVersion === FACTS_EXTRACTOR_VERSION && d.extraction != null;
+    const raw = statesFacts ? asObject(d.extraction) ?? {} : {};
     const unmatchedNames = [...d.unmatchedNames];
     const inRoster = (personId: string) => {
         if (!rosterPersonIds || rosterPersonIds.has(personId)) return true;
@@ -89,13 +103,13 @@ export function documentFactsFromDecision(d: {
         presidedById: typeof storedPresidedBy?.personId === 'string' ? storedPresidedBy.personId : null,
         presidedByName: typeof storedPresidedBy?.name === 'string' ? storedPresidedBy.name : null,
         actingSecretaryId: typeof storedActingSecretary?.personId === 'string' && inRoster(storedActingSecretary.personId) ? storedActingSecretary.personId : null,
-        hasExtraction: d.extraction != null,
+        hasExtraction: statesFacts,
     };
 }
 
 /** Everything the derivation reads, in the shape it reads it. The only Prisma reads of the module. */
 export async function loadDerivationInput(cityId: string, meetingId: string): Promise<DerivationInput> {
-    const { meeting, firstUtteranceBySubject, rollCall, events, people, subjectIdsWithStoredRows } = await readDerivationRows(cityId, meetingId);
+    const { meeting, firstUtteranceBySubject, rollCall, events, people, subjectIdsWithStoredVotes } = await readDerivationRows(cityId, meetingId);
     // The same walk the minutes make: record subjects, discussion order, withdrawn
     // dropped. An event anchored «after item 3» is placed by position, so a set or
     // an order of its own would put rows on subjects other than the ones printed.
@@ -109,7 +123,7 @@ export async function loadDerivationInput(cityId: string, meetingId: string): Pr
     return {
         cityId, meetingId,
         subjects: ordered.map(s => ({ id: s.id, name: s.name, agendaItemIndex: s.agendaItemIndex, nonAgendaReason: s.nonAgendaReason, decisionNumber: s.decision?.decisionNumber ?? null })),
-        rollCall, events, subjectIdsWithStoredRows,
+        rollCall, events, subjectIdsWithStoredVotes,
         documents: ordered.filter(s => s.decision).map(s => documentFactsFromDecision(s.decision!, rosterPersonIds)),
         conventions: isDecisionConventions(conventions) ? conventions : null,
         // Excluded from the rows only where the mayor is not a member of the body (the council); on the committee they vote.

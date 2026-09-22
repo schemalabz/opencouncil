@@ -1000,6 +1000,8 @@ describe('resolveCandidateConflict', () => {
 })
 
 describe('pollDecisions extraction processing', () => {
+    // A reading counts only when a v4 task stored it (FACTS_EXTRACTOR_VERSION), and a real
+    // callback writes the version before the handler runs; these tasks carry it too.
     let cityId: string
     let meetingId: string
     let personA: { id: string }
@@ -1030,7 +1032,7 @@ describe('pollDecisions extraction processing', () => {
         await prisma.decision.create({
             data: { subjectId: subject.id, pdfUrl: 'https://example.com/1.pdf', ada: 'ADA-1' },
         })
-        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
 
         await handlePollDecisionsResult(task.id, makePollDecisionsResult({
             extractions: {
@@ -1090,7 +1092,7 @@ describe('pollDecisions extraction processing', () => {
         await prisma.decision.create({
             data: { subjectId: subject.id, pdfUrl: 'https://example.com/2.pdf', ada: 'ADA-2' },
         })
-        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
 
         // Vote inference is handled by the backend — voteDetails arrives pre-populated
         await handlePollDecisionsResult(task.id, makePollDecisionsResult({
@@ -1144,7 +1146,7 @@ describe('pollDecisions extraction processing', () => {
         })
 
         // First extraction via pollDecisions
-        const task1 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        const task1 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
         await handlePollDecisionsResult(task1.id, makePollDecisionsResult({
             extractions: {
                 decisions: [
@@ -1170,7 +1172,7 @@ describe('pollDecisions extraction processing', () => {
         expect(votes).toHaveLength(2) // A (decision), C (manual)
 
         // Second extraction — replaces decision-sourced, preserves manual
-        const task2 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        const task2 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
         await handlePollDecisionsResult(task2.id, makePollDecisionsResult({
             extractions: {
                 decisions: [
@@ -1226,7 +1228,7 @@ describe('pollDecisions extraction processing', () => {
         const meeting2 = await createMeeting(cityId, { id: 'm2', administrativeBodyId: (await prisma.administrativeBody.findFirst())!.id })
         const subjectB = await createSubject(meeting2.id, cityId, { name: 'Subject B', agendaItemIndex: 1 })
         const subjectC = await createSubject(meeting2.id, cityId, { name: 'Subject C', agendaItemIndex: 2 })
-        const task = await createTaskStatus(meeting2.id, cityId, { type: 'pollDecisions' })
+        const task = await createTaskStatus(meeting2.id, cityId, { type: 'pollDecisions', version: 4 })
 
         // Backend returns both matches and extractions in one response
         await handlePollDecisionsResult(task.id, makePollDecisionsResult({
@@ -1287,7 +1289,7 @@ describe('pollDecisions extraction processing', () => {
         await prisma.decision.create({
             data: { subjectId: subject.id, pdfUrl: 'https://example.com/4.pdf', ada: 'ADA-4' },
         })
-        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
 
         await handlePollDecisionsResult(task.id, makePollDecisionsResult({
             extractions: {

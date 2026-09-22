@@ -48,13 +48,18 @@ export function deriveMeetingFacts(input: DerivationInput): DerivationOutput {
     const presiding = new Map<string, string | null>();
     const subjectById = new Map(input.subjects.map(s => [s.id, s]));
     for (const doc of input.documents) {
+        // Nothing of an unread document is derived: its phrase alone, with no named
+        // dissenter to go with it, would make every contested decision unanimous.
+        if (!doc.hasExtraction) {
+            issues.push({ code: 'UNREAD_DOCUMENT', severity: 'warning', subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision', params: {} });
+            continue;
+        }
         const present = replay.presentBySubject.get(doc.subjectId) ?? null;
         issues.push(...documentDisagreements(doc, subjectById.get(doc.subjectId), input.conventions));
         const r = deriveVotes(doc, present, input.mayorPersonId);
         votes.push(...r.votes); issues.push(...r.issues);
         for (const name of doc.unmatchedNames) issues.push({ code: 'UNMATCHED_NAME', severity: 'warning', subjectId: doc.subjectId, decisionId: doc.decisionId,
             source: 'decision', rawText: name, params: { name } });
-        if (!doc.hasExtraction) issues.push({ code: 'UNREAD_DOCUMENT', severity: 'warning', subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision', params: {} });
         if (doc.incomplete) issues.push({ code: 'INCOMPLETE_READ', severity: 'error', subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision',
             params: {} });
         if (doc.presidedById || doc.presidedByName) presiding.set(doc.decisionId, doc.presidedById ?? doc.presidedByName);

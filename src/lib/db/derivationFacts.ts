@@ -49,12 +49,9 @@ export async function readDerivationRows(cityId: string, meetingId: string) {
         getAttendanceEventsForMeeting(cityId, meetingId),
         prisma.person.findMany({ where: { cityId }, select: { id: true, roles: true } }),
     ]);
-    const [attended, voted] = await Promise.all([
-        prisma.subjectAttendance.findMany({ where: { subjectId: { in: subjectIds }, source: 'decision' }, select: { subjectId: true }, distinct: ['subjectId'] }),
-        prisma.subjectVote.findMany({ where: { subjectId: { in: subjectIds }, source: 'decision' }, select: { subjectId: true }, distinct: ['subjectId'] }),
-    ]);
-    const subjectIdsWithStoredRows = [...new Set([...attended, ...voted].map(r => r.subjectId))].sort();
-    return { meeting, firstUtteranceBySubject, rollCall, events, people, subjectIdsWithStoredRows };
+    const voted = await prisma.subjectVote.findMany({ where: { subjectId: { in: subjectIds }, source: 'decision' }, select: { subjectId: true }, distinct: ['subjectId'] });
+    const subjectIdsWithStoredVotes = voted.map(r => r.subjectId).sort();
+    return { meeting, firstUtteranceBySubject, rollCall, events, people, subjectIdsWithStoredVotes };
 }
 
 /**

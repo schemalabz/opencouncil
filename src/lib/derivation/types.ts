@@ -73,8 +73,8 @@ export interface DerivationInput {
     rollCall: RollCallRow[];
     events: EventRow[];
     documents: DocumentFacts[];
-    /** Subjects holding decision-sourced attendance or vote rows now: what a write would replace. */
-    subjectIdsWithStoredRows: string[];
+    /** Subjects holding decision-sourced vote rows now: what a write replaces and, for an unread document, cannot rebuild. */
+    subjectIdsWithStoredVotes: string[];
     conventions: DecisionConventions | null;
     mayorPersonId: string | null;
     /** The head of the meeting's body on its date. */
