@@ -228,8 +228,13 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
                     // prefix catches the group being renamed or dropped wholesale,
                     // which is the failure a static scan can still see. Members are
                     // covered by the union checks below.
+                    // `t(`${field}.label`)` on a translator bound to one specific
+                    // namespace is the same shape with the group in the binding:
+                    // the namespace is the group. Only a translator bound at the
+                    // root, or to nothing, leaves no group to check.
                     const prefix = key.slice(0, interpolated);
-                    if (prefix) for (const ns of binding.namespaces) groups.push({ location, key: `${ns}.${prefix}` });
+                    const attributable = prefix ? binding.namespaces : binding.namespaces.filter((ns) => ns.includes('.'));
+                    if (attributable.length) for (const ns of attributable) groups.push({ location, key: `${ns}.${prefix}` });
                     else skipped++;
                     continue;
                 }
@@ -317,6 +322,14 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
     { group: 'about.team.members.', why: 'const array in the component' },
     { group: 'about.team.roadmap.items.', why: 'const array in the component' },
     { group: 'admin.adminActions.forms.forceDescription.', why: 'const array in the component' },
+    {
+        group: 'admin.conventions.',
+        why: 'keyed by CONVENTION_FIELDS and CONVENTION_FLAGS, two const declarations; the form and rail tests render every member',
+    },
+    {
+        group: 'admin.decisionsPage.sheet.',
+        why: "keyed by the sheet's inline 'view' | 'reassign' prop, joined to a suffix (`${action}Title`): the group also holds the buttons",
+    },
     {
         group: 'admin.decisionsPage.issues.codes.',
         members: { file: 'src/lib/derivation/types.ts', constArray: 'ISSUE_CODES' },
