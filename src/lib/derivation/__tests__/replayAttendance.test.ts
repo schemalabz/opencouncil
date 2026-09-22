@@ -43,6 +43,22 @@ describe('replayAttendance', () => {
         expect(present(r, 's1')).toEqual(['p1']); expect(present(r, 's2')).toEqual(['p1', 'p2']); expect(present(r, 's3')).toEqual(['p1', 'p2']);
         expect(r.issues).toEqual([]);
     });
+    it('a departure the page states for its own item outranks its per-decision roll call for that person', () => {
+        // Argos ΔΣ 3/12/2025: ΠΑΡΟΝΤΕΣ lists four members that «κατά την λήψη της παρούσας απόφασης είχαν αποχωρήσει».
+        const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv({ presentListMeaning: 'per_decision' }), mayorPersonId: null,
+            events: [ev({ personId: 'p2', kind: 'DEPARTURE', anchorKind: 'SUBJECT', anchorSubjectId: 's2', timing: 'BEFORE', rawText: 'είχαν αποχωρήσει' })],
+            documents: [doc('s1', { rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [] }), doc('s2', { rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [] })] });
+        expect(present(r, 's2')).toEqual(['p1']);
+        expect(r.issues).toEqual([]);
+    });
+    it('any other change a per-decision roll call contradicts is overridden and reported', () => {
+        const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv({ presentListMeaning: 'per_decision' }), mayorPersonId: null,
+            events: [ev({ personId: 'p2', kind: 'DEPARTURE', anchorKind: 'AGENDA_ITEM', anchorAgendaItemIndex: 2, timing: 'DURING', rawText: 'αποχώρησε κατά το 2ο θέμα' })],
+            documents: [doc('s1', { rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [] }), doc('s2', { rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [] })] });
+        expect(present(r, 's2')).toEqual(['p1', 'p2']);
+        expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', severity: 'warning', subjectId: 's2', personId: 'p2',
+            params: expect.objectContaining({ kind: 'statedList', status: 'PRESENT', eventKind: 'DEPARTURE' }) })]);
+    });
     it('a subject without a document keeps the state of the last one read, under a per-decision roll call', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv({ presentListMeaning: 'per_decision' }), mayorPersonId: null, events: [],
             documents: [doc('s1', { rollCallPresentIds: ['p1'], rollCallAbsentIds: ['p2'] })] });

@@ -164,9 +164,22 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
         // statement made twice, and a member they disagree on is reported.
         const perDecisionRollCall = meaning === 'per_decision' && doc?.rollCallPresentIds ? new Set(doc.rollCallPresentIds) : null;
         if (perDecisionRollCall && doc) {
+            const eventHere = new Map(eventsHere.map(e => [e.personId, e]));
             for (const personId of [...doc.rollCallPresentIds ?? [], ...doc.rollCallAbsentIds ?? []]) {
                 if (personId === mayorPersonId) continue;
-                state.set(personId, perDecisionRollCall.has(personId) ? 'PRESENT' : 'ABSENT');
+                const status: AttendanceStatus = perDecisionRollCall.has(personId) ? 'PRESENT' : 'ABSENT';
+                const contradicted = eventHere.get(personId);
+                if (contradicted && (contradicted.kind === 'ARRIVAL') !== (status === 'PRESENT')) {
+                    // A departure the page states for this very item («κατά την λήψη της
+                    // παρούσας απόφασης είχαν αποχωρήσει») is its more specific word on that
+                    // person and outranks its roll call, as it outranks the members list. Any
+                    // other change it contradicts is the page against itself: the roll call
+                    // is the state and wins, and the change is reported, not overwritten.
+                    if (contradicted.kind === 'DEPARTURE' && contradicted.anchorKind === 'SUBJECT' && contradicted.anchorSubjectId === s.id) continue;
+                    issues.push({ code: 'SOURCES_DISAGREE', severity: 'warning', subjectId: s.id, personId, decisionId: doc.decisionId, source: 'decision',
+                        rawText: contradicted.rawText, params: { kind: 'statedList', status, eventKind: contradicted.kind, rawText: contradicted.rawText } });
+                }
+                state.set(personId, status);
             }
         }
         if (statesPerDecision && doc?.presentIds?.length) {
