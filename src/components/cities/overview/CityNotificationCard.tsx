@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import Image from 'next/image';
-import { ArrowRight, Mail, MapPin } from 'lucide-react';
+import { Mail, MapPin } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import type { CityWithCounts } from '@/lib/db/cities';
@@ -12,7 +12,7 @@ import { NotisChatCard } from '@/components/signup/NotisChatCard';
 import { TopicPill } from '@/components/TopicPill';
 import { FactDot } from '@/components/ui/fact-dot';
 import { RailDisclosure } from './RailDisclosure';
-import { TrackedLink } from '@/components/analytics/TrackedLink';
+import { CtaButton } from '@/components/ui/cta-button';
 
 /** Topic chips before the row stops being scannable; the rest become "+N". */
 const TOPICS_SHOWN = 2;
@@ -53,15 +53,14 @@ function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) 
     return (
         <NotisChatCard summary={t('notisTeaser')} intro={t(authorityKey('notisIntro', city))}>
             <div className="flex flex-col gap-3 px-4 pb-4 pt-3">
-                <TrackedLink
+                <CtaButton
                     href={`/${city.id}/notifications`}
                     event="notis_invite_cta_clicked"
                     eventProps={{ city_id: city.id }}
-                    className="group/cta flex h-10 max-w-sm items-center justify-center gap-2 rounded-[10px] bg-[hsl(var(--orange-deep))] text-sm font-medium text-white transition-opacity hover:opacity-90 hover:no-underline"
+                    className="flex max-w-sm"
                 >
                     {t('notisCta')}
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
-                </TrackedLink>
+                </CtaButton>
                 <p className="max-w-sm text-center text-[11px] text-muted-foreground">{t('notisChannels')}</p>
             </div>
         </NotisChatCard>

@@ -2,10 +2,11 @@
 
 import { useEffect, useId, useState } from 'react';
 import { useAnimate, useReducedMotion } from 'framer-motion';
-import { AlertCircle, ArrowRight } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Eyebrow } from '@/components/landing/v2/shared';
 import { Button } from '@/components/ui/button';
+import { CtaButton } from '@/components/ui/cta-button';
 import { ErrorLine } from '@/components/ui/error-line';
 import { cn } from '@/lib/utils';
 import type { SignupFailure } from './signup-shared';
@@ -182,17 +183,13 @@ export function SignupFooter({
                     ) : null}
                     {/* The shake moves this wrapper, so the button keeps its focus. */}
                     <div ref={scope} className={onBack ? 'min-w-[160px]' : 'w-full lg:w-auto lg:min-w-[240px]'}>
-                        <Button
-                            type="button"
+                        <CtaButton
                             onClick={onAction}
                             disabled={disabled}
                             aria-describedby={line ? lineId : undefined}
-                            className={cn(
-                                'group/cta h-12 w-full gap-2 rounded-[10px] px-5 text-[15px] font-medium text-white transition-colors duration-300',
-                                flash
-                                    ? 'bg-red-600 hover:bg-red-600'
-                                    : 'bg-[hsl(var(--orange-deep))] hover:bg-[hsl(var(--orange-deep))]/90',
-                            )}
+                            size="md"
+                            arrow={arrow && !flash}
+                            className={cn('w-full duration-300', flash && 'bg-red-600 hover:bg-red-600')}
                         >
                             {flash ? (
                                 <>
@@ -200,14 +197,9 @@ export function SignupFooter({
                                     {failure === 'issues' ? t('failure.issuesButton') : t('failure.refusedButton')}
                                 </>
                             ) : (
-                                <>
-                                    {actionLabel}
-                                    {arrow && (
-                                        <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
-                                    )}
-                                </>
+                                actionLabel
                             )}
-                        </Button>
+                        </CtaButton>
                     </div>
                 </div>
             </div>

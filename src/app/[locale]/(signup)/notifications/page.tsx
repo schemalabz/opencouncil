@@ -1,7 +1,6 @@
 import { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { Link } from "@/i18n/routing";
+import { CtaButton } from "@/components/ui/cta-button";
 import { MunicipalityPicker } from "@/components/signup/MunicipalityPicker";
 import { NotisChatCard } from "@/components/signup/NotisChatCard";
 import { Eyebrow, SignupLayout, StepHeading } from "@/components/signup/SignupChrome";
@@ -72,18 +71,17 @@ export default async function NotificationsPickerPage(props: {
                 className="mt-2.5"
             />
 
-            <div className="mt-4 flex flex-col gap-0.5">
-                <span className="text-sm text-muted-foreground">{t("noCityTitle")}</span>
-                <Link
-                    href="/petition"
-                    className="group/cta inline-flex min-h-11 items-center gap-1.5 self-start text-sm text-[hsl(var(--orange-deep))] hover:no-underline"
-                >
-                    {t("noCityCta")}
-                    <ArrowRight className="h-[15px] w-[15px] transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
-                </Link>
-            </div>
+            {/* What the reader gets for picking one, next to the picking. Under
+                the petition link below it, the line read as a condition of the
+                petition. */}
+            <p className="mt-3 text-xs leading-[1.4] text-muted-foreground">{t("pickerChannels")}</p>
 
-            <p className="mt-4 text-[11px] leading-[1.4] text-muted-foreground">{t("pickerFootnote")}</p>
+            <div className="mt-6 flex flex-col gap-0.5">
+                <span className="text-sm text-muted-foreground">{t("noCityTitle")}</span>
+                <CtaButton href="/petition" variant="text">
+                    {t("noCityCta")}
+                </CtaButton>
+            </div>
         </SignupLayout>
     );
 }

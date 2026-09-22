@@ -2,13 +2,13 @@
 
 import { useId } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowRight, XCircle } from 'lucide-react';
+import { XCircle } from 'lucide-react';
 import { Link } from '@/i18n/routing';
-import { TrackedLink } from '@/components/analytics/TrackedLink';
 import { DoneCheck } from '@/components/notifications/signup/CompleteScreen';
 import { Eyebrow, StepHeading } from '@/components/signup/SignupChrome';
 import { useCelebration } from '@/components/signup/useCelebration';
 import { Button } from '@/components/ui/button';
+import { CtaButton } from '@/components/ui/cta-button';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import type { JoinPersonView } from '@/lib/personJoin/stage';
 import { cn } from '@/lib/utils';
@@ -27,9 +27,8 @@ export function JoinLayout({ children }: { children: React.ReactNode }) {
     );
 }
 
-// `hover:no-underline` because these render as anchors, and globals.css
+// `hover:no-underline` because this renders as an anchor, and globals.css
 // underlines every anchor on hover.
-const PRIMARY_BUTTON = 'h-12 rounded-[10px] bg-[hsl(var(--orange-deep))] px-5 text-[15px] text-white hover:bg-[hsl(var(--orange-deep))]/90 hover:no-underline';
 const QUIET_BUTTON = 'h-12 text-[15px] text-muted-foreground hover:no-underline';
 
 /**
@@ -46,9 +45,15 @@ export function JoinComplete({ person, offerNotifications }: { person: JoinPerso
             <PersonCard person={person} className="mt-6" />
             {offerNotifications && <NotificationsInvite cityId={person.cityId} />}
             <div className={cn('flex flex-col gap-2 sm:flex-row', offerNotifications ? 'mt-4' : 'mt-8')}>
-                <Button asChild variant={offerNotifications ? 'ghost' : 'default'} className={offerNotifications ? QUIET_BUTTON : PRIMARY_BUTTON}>
-                    <Link href={`/${person.cityId}/people/${person.id}`}>{t('done.page')}</Link>
-                </Button>
+                {offerNotifications ? (
+                    <Button asChild variant="ghost" className={QUIET_BUTTON}>
+                        <Link href={`/${person.cityId}/people/${person.id}`}>{t('done.page')}</Link>
+                    </Button>
+                ) : (
+                    <CtaButton href={`/${person.cityId}/people/${person.id}`} size="md" arrow={false}>
+                        {t('done.page')}
+                    </CtaButton>
+                )}
                 <Button asChild variant="ghost" className={QUIET_BUTTON}>
                     <Link href="/profile">{t('done.profile')}</Link>
                 </Button>
@@ -75,12 +80,15 @@ function NotificationsInvite({ cityId }: { cityId: string }) {
             {/* globals.css centres every h2 outside `.prose` and forces 24px, so both are overridden here. */}
             <h2 id={titleId} className="mt-2 !text-left !text-[22px] font-normal leading-tight tracking-[-0.01em]">{t('done.notifyTitle')}</h2>
             <p className="mt-2 text-[15px] leading-[1.45] text-muted-foreground">{t('done.notifyBody')}</p>
-            <Button asChild className={cn(PRIMARY_BUTTON, 'group/cta mt-4 w-full gap-2')}>
-                <TrackedLink href={`/${cityId}/notifications?step=2`} event="person_join_notifications_clicked" eventProps={{ city_id: cityId }}>
-                    {t('done.notifyCta')}
-                    <ArrowRight className="h-4 w-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden />
-                </TrackedLink>
-            </Button>
+            <CtaButton
+                href={`/${cityId}/notifications?step=2`}
+                event="person_join_notifications_clicked"
+                eventProps={{ city_id: cityId }}
+                size="md"
+                className="mt-4 w-full"
+            >
+                {t('done.notifyCta')}
+            </CtaButton>
         </section>
     );
 }
