@@ -174,7 +174,8 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
                 // the same way (Chalandri and Papagos ΔΣ; Argos ΔΣ lists theirs), which is
                 // a convention of the body. A list that does name them is still believed,
                 // and a stated departure still takes them out.
-                const notWrittenIn = personId === input.presidentPersonId || personId === doc.presidedById || personId === input.secretaryPersonId;
+                const actingSecretary = input.secretaryPersonId !== null && input.secretaryPersonId !== undefined ? doc.actingSecretaryId : null;
+                const notWrittenIn = personId === input.presidentPersonId || personId === doc.presidedById || personId === input.secretaryPersonId || personId === actingSecretary;
                 if (notWrittenIn && !statedPresent.has(personId)) continue;
                 stated.set(personId, statedPresent.has(personId) ? 'PRESENT' : 'ABSENT');
             }

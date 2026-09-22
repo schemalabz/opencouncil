@@ -62,6 +62,7 @@ export function documentFactsFromDecision(d: {
         .filter((id): id is string => typeof id === 'string')
         .filter(inRoster);
     const storedPresidedBy = asObject(raw.presidedBy);
+    const storedActingSecretary = asObject(raw.actingSecretary);
     return {
         subjectId: d.subjectId, decisionId: d.id, voteResultPhrase: d.voteResultPhrase, namedVotes, tally,
         // Empty means the document states no list, not that it states an empty one.
@@ -72,6 +73,7 @@ export function documentFactsFromDecision(d: {
         mayorPresent: d.mayorPresent,
         presidedById: typeof storedPresidedBy?.personId === 'string' ? storedPresidedBy.personId : null,
         presidedByName: typeof storedPresidedBy?.name === 'string' ? storedPresidedBy.name : null,
+        actingSecretaryId: typeof storedActingSecretary?.personId === 'string' && inRoster(storedActingSecretary.personId) ? storedActingSecretary.personId : null,
         hasExtraction: d.extraction != null,
     };
 }

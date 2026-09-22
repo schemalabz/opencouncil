@@ -437,6 +437,10 @@ export interface ExtractedDecisionData {
     rollCall?: DocumentRollCall | null;
     mayorPresent?: boolean | { present: boolean; rawText: string } | null;
     presidedBy?: { name: string; personId: string | null; rawText: string } | null;
+    /** Who kept the minutes in the secretary's place, when the page says so (task v4 from 2026-09-22). */
+    actingSecretary?: { name: string; personId: string | null; rawText: string } | null;
+    /** The item heading as printed; "" when the page prints none. Absent on readings stored before 2026-09-22. */
+    subjectHeading?: string;
     /** The page's own list of who was present for THIS decision (ΤΑ ΜΕΛΗ after the decision text), never the opening roll call (v4). */
     decisionAttendance?: { present: string[]; presentIds: string[]; rawText: string } | null;
     voteResult: string | null;

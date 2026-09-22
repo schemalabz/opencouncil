@@ -57,6 +57,8 @@ export interface DocumentFacts {
     mayorPresent: boolean | null;
     presidedById: string | null;
     presidedByName: string | null;
+    /** The person the document says kept the minutes in the secretary's place; the list leaves them out where it leaves the secretary out. */
+    actingSecretaryId: string | null;
     /** The document was read by a task version that stored its facts (v3 with DecisionExtraction, or v4). */
     hasExtraction: boolean;
 }

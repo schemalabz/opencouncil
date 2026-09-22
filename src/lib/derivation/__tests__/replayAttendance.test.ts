@@ -13,7 +13,7 @@ const ev = (o: Partial<EventRow>): EventRow => ({ id: 'e', personId: 'p1', kind:
     anchorNonAgendaReason: null, anchorDecisionNumber: null, anchorSubjectId: null, anchorPhase: null, timing: 'DURING', rawText: 'left',
     reportingDocuments: 1, totalDocuments: 1, source: 'decision', ...o });
 const doc = (subjectId: string, o: Partial<DocumentFacts> = {}): DocumentFacts => ({ subjectId, decisionId: 'd-' + subjectId, voteResultPhrase: null, namedVotes: [],
-    tally: null, presentIds: null, absentIds: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null, presidedById: null, presidedByName: null, hasExtraction: true, ...o });
+    tally: null, presentIds: null, absentIds: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, ...o });
 const subjects = [subj('s1', 1), subj('s2', 2), subj('s3', 3)];
 const present = (r: ReturnType<typeof replayAttendance>, s: string) => [...r.presentBySubject.get(s) ?? []].sort();
 
@@ -73,6 +73,14 @@ describe('replayAttendance', () => {
             events: [], documents: [doc('s2', { presentIds: ['p1'] })] });
         expect(present(run('sec'), 's2')).toEqual(['p1', 'pres', 'sec']);
         expect(present(run(null), 's2')).toEqual(['p1', 'pres']);             // Argos ΔΣ lists its secretary: omitted there means gone
+    });
+    it('the member a document says kept the minutes is left out of the list the way the secretary is', () => {
+        // Papagos ΔΣ 30/7/2026: «Η εκτελούσα χρέη Γραμματέα Αικατερίνη Γκούμα», the elected secretary away.
+        const run = (secretaryPersonId: string | null) => replayAttendance({ subjects, rollCall: [rc('p1'), rc('acting'), rc('pres')],
+            conventions: conv({ statesPerDecisionAttendance: true, rollCallLayout: 'present_only' }), mayorPersonId: null, presidentPersonId: 'pres', secretaryPersonId,
+            events: [], documents: [doc('s2', { presentIds: ['p1'], actingSecretaryId: 'acting' })] });
+        expect(present(run('sec'), 's2')).toEqual(['acting', 'p1', 'pres']);
+        expect(present(run(null), 's2')).toEqual(['p1', 'pres']);              // a body that writes its secretary in writes the acting one in too
     });
     it('a stated departure still takes the president out, list or no list', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('pres')], conventions: conv({ statesPerDecisionAttendance: true, rollCallLayout: 'present_only' }),
