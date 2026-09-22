@@ -121,6 +121,52 @@ describe('storeProfiledDecisionConventions', () => {
         expect(mockUpdate).toHaveBeenCalledTimes(1);
     });
 
+    /**
+     * The profiler cannot see either of these: its presentListMeaning domain holds
+     * no `per_decision` and it emits no `listOmitsSecretary`. A plain replace turned
+     * argos/Δημοτικό Συμβούλιο's `per_decision` into `cumulative` on every press of
+     * Profile, and the branch it gates stopped firing.
+     */
+    it('keeps what only a person could have set, and takes the rest from the profile', async () => {
+        mockFindUniqueOrThrow.mockResolvedValue({
+            decisionConventions: {
+                ...PROFILED,
+                presentListMeaning: 'per_decision',
+                listOmitsSecretary: true,
+                rollCallLayout: 'present_only',
+            },
+        });
+
+        await expect(storeProfiledDecisionConventions('body-1', PROFILED)).resolves.toBe(true);
+        const written = mockUpdate.mock.calls[0][0].data.decisionConventions as DecisionConventions;
+        expect(written.presentListMeaning).toBe('per_decision');
+        expect(written.listOmitsSecretary).toBe(true);
+        // Everything the profile can observe is the profile's.
+        expect(written.rollCallLayout).toBe('present_and_absent');
+        expect(written.provenance).toEqual(PROFILED.provenance);
+    });
+
+    it('keeps a stored note, and fills an empty one from the profile', async () => {
+        // argithea/Δημοτική Επιτροπή: 24 of the 31 imported rows carry a note a person wrote.
+        const note = 'Present and absent lists at the top; departures only in prose. Must be hunted on Diavgeia.';
+        const store = async (stored: object, profiled: DecisionConventions) => {
+            mockUpdate.mockClear();
+            mockFindUniqueOrThrow.mockResolvedValue({ decisionConventions: stored });
+            await storeProfiledDecisionConventions('body-1', profiled);
+            return (mockUpdate.mock.calls[0][0].data.decisionConventions as DecisionConventions).notes;
+        };
+        expect(await store({ ...PROFILED, notes: note }, PROFILED)).toBe(note);
+        expect(await store({ ...PROFILED, notes: note }, { ...PROFILED, notes: 'roll-call-meaning-contested' })).toBe(note);
+        expect(await store(PROFILED, { ...PROFILED, notes: 'roll-call-meaning-contested' })).toBe('roll-call-meaning-contested');
+    });
+
+    it('takes the profile whole where the stored row states nothing human-only', async () => {
+        mockFindUniqueOrThrow.mockResolvedValue({ decisionConventions: { ...PROFILED, presentListMeaning: 'cumulative' } });
+
+        await storeProfiledDecisionConventions('body-1', PROFILED);
+        expect(mockUpdate.mock.calls[0][0].data.decisionConventions).toEqual(PROFILED);
+    });
+
     it('leaves a confirmed row alone', async () => {
         mockFindUniqueOrThrow.mockResolvedValue({
             decisionConventions: { ...PROFILED, provenance: { source: 'manual', confirmedBy: 'user-1' } },

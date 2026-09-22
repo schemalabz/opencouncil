@@ -45,6 +45,9 @@ export interface DocumentFacts {
     tally: VoteTally | null;
     /** The document's own present list as ids (task v4), null for older reads and for a document that states none. */
     presentIds: string[] | null;
+    /** This document's own top roll call, for bodies whose ΠΑΡΟΝΤΕΣ is the state as of each decision (`per_decision`); null when the page printed none. */
+    rollCallPresentIds: string[] | null;
+    rollCallAbsentIds: string[] | null;
     /** Always null today: no source states a per-decision absent list. The clerk's sheet will (§6). */
     absentIds: string[] | null;
     unmatchedNames: string[];
@@ -102,6 +105,7 @@ export type SourcesDisagreeParams =
     | { kind: 'rollCall'; winSource: DataSource; winStatus: AttendanceStatus; loseSource: DataSource; loseStatus: AttendanceStatus }
     | { kind: 'event'; winKind: AttendanceEventKind; winRawText: string; winSource: DataSource; loseRawText: string; loseSource: DataSource }
     | { kind: 'statedList'; status: AttendanceStatus; eventKind: AttendanceEventKind; rawText: string }
+    | { kind: 'rollCallVsList'; rollCallStatus: AttendanceStatus; listStatus: AttendanceStatus }
     | { kind: 'doubleVote'; firstVote: VoteType; secondVote: VoteType };
 
 /**

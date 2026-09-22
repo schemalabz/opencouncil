@@ -765,6 +765,11 @@
         "description": "Η λίστα παρόντων περιλαμβάνει όλους όσοι παρευρέθηκαν σε οποιοδήποτε σημείο.",
         "hint": "The present list includes everyone who attended at any point; do not read it as the opening roll call."
       },
+      "per_decision": {
+        "label": "Ανά απόφαση",
+        "description": "Η λίστα παρόντων κάθε εγγράφου είναι η παρουσία τη στιγμή της συγκεκριμένης απόφασης· αλλάζει από έγγραφο σε έγγραφο της ίδιας συνεδρίασης.",
+        "hint": "Each document's ΠΑΡΟΝΤΕΣ/ΑΠΟΝΤΕΣ is the attendance as of ITS OWN decision, not the opening roll call: a member who arrived at item 3 is under ΑΠΟΝΤΕΣ on items 1–2 and under ΠΑΡΟΝΤΕΣ from item 3. Report the lists exactly as this page prints them, and still report the arrival or departure sentence when the page states one."
+      },
       "unknown": {
         "label": "Άγνωστο",
         "description": "Δεν έχει διευκρινιστεί· η παρουσία παράγεται ως αρχική παρουσιολόγηση και σημαίνεται μέχρι να επιβεβαιωθεί.",

@@ -764,6 +764,11 @@
                 "description": "The present list includes everyone who attended at any point of the session.",
                 "hint": "The present list includes everyone who attended at any point; do not read it as the opening roll call."
             },
+            "per_decision": {
+                "label": "Po odluci",
+                "description": "Spisak prisutnih u svakom dokumentu je prisustvo u trenutku te odluke; menja se od dokumenta do dokumenta iste sednice.",
+                "hint": "Each document's ΠΑΡΟΝΤΕΣ/ΑΠΟΝΤΕΣ is the attendance as of ITS OWN decision, not the opening roll call: a member who arrived at item 3 is under ΑΠΟΝΤΕΣ on items 1–2 and under ΠΑΡΟΝΤΕΣ from item 3. Report the lists exactly as this page prints them, and still report the arrival or departure sentence when the page states one."
+            },
             "unknown": {
                 "label": "Unknown",
                 "description": "Not settled yet; attendance is derived as an opening roll call and flagged until a person confirms.",

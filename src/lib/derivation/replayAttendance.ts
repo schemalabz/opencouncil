@@ -156,6 +156,19 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
         const eventsHere = settleEventsAt(i, s.id);
         for (const e of eventsHere) state.set(e.personId, e.kind === 'ARRIVAL' ? 'PRESENT' : 'ABSENT');
         const doc = docBySubject.get(s.id);
+        // A per-decision roll call is this document's own statement of who was in
+        // the room for its item — Argos ΔΣ prints Μπουλούκος under ΑΠΟΝΤΕΣ on items
+        // 1–2 and under ΠΑΡΟΝΤΕΣ from item 3, where he «προσήλθε». The page states
+        // the state; nothing is implied, and a subject with no document keeps the
+        // last one read. Where the page also prints ΤΑ ΜΕΛΗ the two are one
+        // statement made twice, and a member they disagree on is reported.
+        const perDecisionRollCall = meaning === 'per_decision' && doc?.rollCallPresentIds ? new Set(doc.rollCallPresentIds) : null;
+        if (perDecisionRollCall && doc) {
+            for (const personId of [...doc.rollCallPresentIds ?? [], ...doc.rollCallAbsentIds ?? []]) {
+                if (personId === mayorPersonId) continue;
+                state.set(personId, perDecisionRollCall.has(personId) ? 'PRESENT' : 'ABSENT');
+            }
+        }
         if (statesPerDecision && doc?.presentIds?.length) {
             // Spec §6.1: the document's own list *is* the attendance from here on.
             // A present-only list therefore makes everyone it omits absent, which is
@@ -184,7 +197,15 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
                 const before = state.get(personId);
                 const contradicted = eventHere.get(personId);
                 if (before !== undefined && before !== status) {
-                    if (contradicted) issues.push({ code: 'SOURCES_DISAGREE', severity: 'warning', subjectId: s.id, personId, decisionId: doc.decisionId,
+                    // The list is the clerk's last word on who decided and outlives every
+                    // phrasing of a departure (Argos: «αποβλήθηκε… από την συνέχεια της
+                    // συνεδρίασης», which no roll call moved for). A member the roll call has
+                    // and the list drops is the list knowing more, and only worth a note; a
+                    // member the list adds that no roll call has is how a misread column
+                    // (ΑΠΟΧΩΡΗΣΑΝΤΕΣ as the list) shows up, and stays a warning.
+                    if (perDecisionRollCall) issues.push({ code: 'SOURCES_DISAGREE', severity: status === 'ABSENT' ? 'info' : 'warning', subjectId: s.id, personId, decisionId: doc.decisionId, source: 'decision',
+                        params: { kind: 'rollCallVsList', rollCallStatus: before, listStatus: status } });
+                    else if (contradicted) issues.push({ code: 'SOURCES_DISAGREE', severity: 'warning', subjectId: s.id, personId, decisionId: doc.decisionId,
                         source: 'decision', rawText: contradicted.rawText,
                         params: { kind: 'statedList', status, eventKind: contradicted.kind, rawText: contradicted.rawText } });
                     else issues.push({ code: 'IMPLIED_CHANGE', severity: 'info', subjectId: s.id, personId, decisionId: doc.decisionId, source: 'decision',

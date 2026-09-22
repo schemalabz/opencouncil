@@ -71,6 +71,9 @@ export function documentFactsFromDecision(d: {
         return c?.type === 'departure' && anchor?.kind === 'subject' && typeof c.personId === 'string' ? [c.personId] : [];
     }));
     const believedPresent = statedPresent.filter(id => !outForThisVote.has(id));
+    const storedRollCall = asObject(raw.rollCall);
+    const ids = (v: unknown) => (Array.isArray(v) ? v : []).filter((id): id is string => typeof id === 'string').filter(inRoster);
+    const rollCallPresentIds = ids(storedRollCall?.presentIds), rollCallAbsentIds = ids(storedRollCall?.absentIds);
     const storedPresidedBy = asObject(raw.presidedBy);
     const storedActingSecretary = asObject(raw.actingSecretary);
     return {
@@ -78,6 +81,8 @@ export function documentFactsFromDecision(d: {
         // Empty means the document states no list, not that it states an empty one.
         presentIds: believedPresent.length > 0 ? believedPresent : null,
         absentIds: null,
+        rollCallPresentIds: rollCallPresentIds.length + rollCallAbsentIds.length > 0 ? rollCallPresentIds : null,
+        rollCallAbsentIds: rollCallPresentIds.length + rollCallAbsentIds.length > 0 ? rollCallAbsentIds : null,
         unmatchedNames, incomplete: d.incomplete,
         rollCallLayout: readRollCallLayout(raw), declaredItemNumber: d.declaredItemNumber, declaredOutOfAgenda: d.declaredOutOfAgenda,
         mayorPresent: d.mayorPresent,

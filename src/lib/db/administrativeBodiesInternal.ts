@@ -11,7 +11,7 @@ import "server-only";
 import { AdministrativeBody, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { getCurrentUser, withUserAuthorizedToEdit } from "../auth";
-import { decisionConventionsSchema, isConfirmedByPerson, type DecisionConventions } from "../decisionConventions";
+import { decisionConventionsSchema, isConfirmedByPerson, mergeProfiledConventions, type DecisionConventions } from "../decisionConventions";
 
 /**
  * Where a body-scoped task hangs its TaskStatus row: a TaskStatus belongs to a
@@ -28,8 +28,10 @@ export async function getMostRecentMeetingIdForBody(administrativeBodyId: string
 
 /**
  * The profiling task's answer, stored. A person's confirmation outranks it:
- * a row already confirmed (`provenance.source === 'manual'`) is left alone and
- * the write reports that it did nothing.
+ * a confirmed row is left alone and the write reports that it did nothing. On a
+ * row nobody confirmed, the profile is merged over what is stored rather than
+ * replacing it, so a field only a person can set survives a re-profile
+ * (mergeProfiledConventions).
  *
  * The argument is validated against the full conventions schema — the callback
  * is token-authenticated, but this value is read back by the derivation and
@@ -49,10 +51,11 @@ export async function storeProfiledDecisionConventions(id: string, conventions: 
     if (isConfirmedByPerson(current)) return false;
 
     // The parsed value, not the argument: what the task sent minus anything the
-    // schema does not name.
+    // schema does not name, and minus nothing a person had stated.
+    const value = mergeProfiledConventions(parsed.data, current);
     await prisma.administrativeBody.update({
         where: { id },
-        data: { decisionConventions: parsed.data as unknown as Prisma.InputJsonValue },
+        data: { decisionConventions: value as unknown as Prisma.InputJsonValue },
     });
     return true;
 }

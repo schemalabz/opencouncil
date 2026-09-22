@@ -13,7 +13,7 @@ const ev = (o: Partial<EventRow>): EventRow => ({ id: 'e', personId: 'p1', kind:
     anchorNonAgendaReason: null, anchorDecisionNumber: null, anchorSubjectId: null, anchorPhase: null, timing: 'DURING', rawText: 'left',
     reportingDocuments: 1, totalDocuments: 1, source: 'decision', ...o });
 const doc = (subjectId: string, o: Partial<DocumentFacts> = {}): DocumentFacts => ({ subjectId, decisionId: 'd-' + subjectId, voteResultPhrase: null, namedVotes: [],
-    tally: null, presentIds: null, absentIds: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, ...o });
+    tally: null, presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, ...o });
 const subjects = [subj('s1', 1), subj('s2', 2), subj('s3', 3)];
 const present = (r: ReturnType<typeof replayAttendance>, s: string) => [...r.presentBySubject.get(s) ?? []].sort();
 
@@ -35,6 +35,24 @@ describe('replayAttendance', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('mayor')], conventions: conv(), mayorPersonId: 'mayor', documents: [], events: [ev({ personId: 'mayor', anchorAgendaItemIndex: 3 })] });
         expect(r.attendance.some(a => a.personId === 'mayor')).toBe(false);
         expect(present(r, 's3')).toEqual(['p1']);
+    });
+    it('under a per-decision roll call each document\'s own ΠΑΡΟΝΤΕΣ is its item\'s state, and no change is implied', () => {
+        // Argos ΔΣ 3/12/2025: items 1–2 print Μπουλούκος under ΑΠΟΝΤΕΣ, items 3–5 under ΠΑΡΟΝΤΕΣ («στην αρχή του παρόντος θέματος προσήλθε»).
+        const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv({ presentListMeaning: 'per_decision' }), mayorPersonId: null, events: [],
+            documents: [doc('s1', { rollCallPresentIds: ['p1'], rollCallAbsentIds: ['p2'] }), doc('s2', { rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [] }), doc('s3', { rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [] })] });
+        expect(present(r, 's1')).toEqual(['p1']); expect(present(r, 's2')).toEqual(['p1', 'p2']); expect(present(r, 's3')).toEqual(['p1', 'p2']);
+        expect(r.issues).toEqual([]);
+    });
+    it('a subject without a document keeps the state of the last one read, under a per-decision roll call', () => {
+        const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv({ presentListMeaning: 'per_decision' }), mayorPersonId: null, events: [],
+            documents: [doc('s1', { rollCallPresentIds: ['p1'], rollCallAbsentIds: ['p2'] })] });
+        expect(present(r, 's2')).toEqual(['p1']);
+    });
+    it('a per-decision roll call and a stated list on the same page are cross-checked', () => {
+        const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv({ presentListMeaning: 'per_decision', statesPerDecisionAttendance: true, rollCallLayout: 'present_only' }), mayorPersonId: null, events: [],
+            documents: [doc('s1', { rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [], presentIds: ['p1'] })] });
+        expect(present(r, 's1')).toEqual(['p1']);                              // the list still wins for its subject
+        expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', severity: 'info', personId: 'p2', params: expect.objectContaining({ kind: 'rollCallVsList', listStatus: 'ABSENT' }) })]);
     });
     it('a stated per-decision list wins, resets the state, and records the implied change', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2'), rc('p3')], conventions: conv({ statesPerDecisionAttendance: true }), mayorPersonId: null, events: [],

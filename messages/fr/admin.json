@@ -765,6 +765,11 @@
         "description": "The present list includes everyone who attended at any point of the session.",
         "hint": "The present list includes everyone who attended at any point; do not read it as the opening roll call."
       },
+      "per_decision": {
+        "label": "Par décision",
+        "description": "La liste des présents de chaque document est la présence au moment de cette décision ; elle change d'un document à l'autre de la même séance.",
+        "hint": "Each document's ΠΑΡΟΝΤΕΣ/ΑΠΟΝΤΕΣ is the attendance as of ITS OWN decision, not the opening roll call: a member who arrived at item 3 is under ΑΠΟΝΤΕΣ on items 1–2 and under ΠΑΡΟΝΤΕΣ from item 3. Report the lists exactly as this page prints them, and still report the arrival or departure sentence when the page states one."
+      },
       "unknown": {
         "label": "Unknown",
         "description": "Not settled yet; attendance is derived as an opening roll call and flagged until a person confirms.",

@@ -75,7 +75,7 @@
       "conventions": {
         "version": 1,
         "rollCallLayout": "present_and_absent",
-        "presentListMeaning": "opening",
+        "presentListMeaning": "per_decision",
         "attendanceChangeAnchors": [
           "subject"
         ],
@@ -84,7 +84,7 @@
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
-        "notes": "The roll call carries a third list, ΑΠΟΧΩΡΗΣΑΝΤΕΣ, beside ΠΑΡΟΝΤΕΣ and ΑΠΟΝΤΕΣ. It names those who had already left by the time of the decision this document records, and appears only in the documents of decisions the person missed. Per-decision attendance, stated directly. ΨΠ4ΗΩΨΔ-ΘΘΘ has one; Ψ7ΦΖΩΨΔ-ΥΦΘ does not.",
+        "notes": "The roll call carries a third list, ΑΠΟΧΩΡΗΣΑΝΤΕΣ, beside ΠΑΡΟΝΤΕΣ and ΑΠΟΝΤΕΣ. It names those who had already left by the time of the decision this document records, and appears only in the documents of decisions the person missed. Per-decision attendance, stated directly. ΨΠ4ΗΩΨΔ-ΘΘΘ has one; Ψ7ΦΖΩΨΔ-ΥΦΘ does not. Each document's ΠΑΡΟΝΤΕΣ/ΑΠΟΝΤΕΣ is the state as of its own decision: 3/12/2025 prints Μπουλούκος absent on items 1–2 and present from item 3, where «στην αρχή του παρόντος θέματος προσήλθε» (verified on the page 2026-09-23).",
         "provenance": {
           "source": "profile",
           "profiledAt": "2026-09-13",

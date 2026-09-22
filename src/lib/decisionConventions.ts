@@ -7,7 +7,7 @@ import { z } from 'zod';
  * opencouncil-tasks (`body-facts`) and confirmed by a person in admin.
  */
 export type RollCallLayout = 'composition_and_absent' | 'present_and_absent' | 'present_only' | 'mixed';
-export type PresentListMeaning = 'opening' | 'cumulative' | 'unknown';
+export type PresentListMeaning = 'opening' | 'cumulative' | 'per_decision' | 'unknown';
 export type AttendanceChangeAnchor = 'agenda_item' | 'decision_number' | 'phase' | 'subject';
 export type NamedVoters = 'none' | 'dissenters_only' | 'all';
 
@@ -63,11 +63,53 @@ export function isConfirmedByPerson(v: unknown): boolean {
 /** The convention fields and their values; each value has `label`, `description` and `hint` under messages/<locale>/admin.json → conventions. */
 export const CONVENTION_FIELDS = {
     rollCallLayout: ['composition_and_absent', 'present_and_absent', 'present_only', 'mixed'],
-    presentListMeaning: ['opening', 'cumulative', 'unknown'],
+    presentListMeaning: ['opening', 'cumulative', 'per_decision', 'unknown'],
     attendanceChangeAnchors: ['agenda_item', 'decision_number', 'phase', 'subject'],
     namedVoters: ['none', 'dissenters_only', 'all'],
 } as const;
 export const CONVENTION_FLAGS = ['statesPerDecisionAttendance', 'statesPerVoteAbsence', 'usesSubstitutes', 'mayorStatedSeparately', 'listOmitsSecretary'] as const;
+
+/**
+ * What a profile of a body's documents can observe, and therefore what a new
+ * profile may overwrite.
+ *
+ * The profiling task reads pages, so it sees how a present list is printed. It
+ * cannot see a body's own rule about who is written into such a list: that ΤΑ
+ * ΜΕΛΗ leaves the secretary out, or that each page's ΠΑΡΟΝΤΕΣ is that page's own
+ * state rather than the opening roll call. Both are a person's reading, and the
+ * task emits neither — its `presentListMeaning` domain is the three values below
+ * and it has no `listOmitsSecretary` at all.
+ */
+export const PROFILED_PRESENT_LIST_MEANINGS = ['opening', 'cumulative', 'unknown'] as const satisfies readonly PresentListMeaning[];
+export const HUMAN_ONLY_CONVENTION_FIELDS = ['listOmitsSecretary'] as const satisfies readonly (keyof DecisionConventions)[];
+
+/**
+ * A profile over the stored record: the profile updates what a profile can
+ * observe and never erases what only a person could have set.
+ *
+ * A plain replace loses that knowledge on every re-profile, and it is knowledge
+ * that changes what is derived — `per_decision` selects the per-document roll
+ * call as the attendance of its own item, `listOmitsSecretary` stops the
+ * secretary's absence from ΤΑ ΜΕΛΗ being read as absence. Six of the 31 bodies in
+ * fixtures/body-conventions.json carry one of the two.
+ */
+export function mergeProfiledConventions(profiled: DecisionConventions, stored: unknown): DecisionConventions {
+    if (!isDecisionConventions(stored)) return profiled;
+    const merged: DecisionConventions = { ...profiled };
+    for (const field of HUMAN_ONLY_CONVENTION_FIELDS) {
+        if (stored[field] !== undefined) merged[field] = stored[field];
+    }
+    // A stored value the profile's own domain does not hold was put there by a person.
+    if (!(PROFILED_PRESENT_LIST_MEANINGS as readonly PresentListMeaning[]).includes(stored.presentListMeaning)) {
+        merged.presentListMeaning = stored.presentListMeaning;
+    }
+    // Both write `notes`: a person the reading of the body, the profile its review
+    // reasons. A stored note stays, since a profile cannot tell which of the two
+    // wrote it and 24 of the 31 imported rows carry a person's; the profile's
+    // reasons fill the field only when it is empty.
+    if (stored.notes) merged.notes = stored.notes;
+    return merged;
+}
 
 /** Anchor names written before the vocabulary settled (rows imported on 2026-09-14). */
 const LEGACY_ANCHOR: Record<string, AttendanceChangeAnchor | null> = { session_phase: 'phase', this_document: 'subject', clock_time: null };

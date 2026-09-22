@@ -1,7 +1,7 @@
 import { deriveVotes, phraseOutcome, phrasePermitsInference } from '../deriveVotes';
 import type { DocumentFacts } from '../types';
 const doc = (o: Partial<DocumentFacts> = {}): DocumentFacts => ({ subjectId: 's', decisionId: 'd', voteResultPhrase: 'Ομόφωνα', namedVotes: [], tally: null,
-    presentIds: null, absentIds: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, ...o });
+    presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, ...o });
 
 describe('phrasePermitsInference', () => {
     it.each([['Ομόφωνα', true], ['ΑΠΟΦΑΣΙΖΕΙ ΟΜΟΦΩΝΑ', true], ['Κατά πλειοψηφία', true], ['Με δεκαέξι (16) θετικές ψήφους', true], ['ΑΝΑΒΑΛΛΕΙ', false], [null, false],
