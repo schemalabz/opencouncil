@@ -8,7 +8,7 @@ import {
     InternalHyperlink, ImageRun, Header, PageNumber, Tab, TabStopType,
     TabStopPosition,
 } from 'docx';
-import { formatTimestamp } from '@/lib/utils';
+import { compareAgendaPosition, formatTimestamp } from '@/lib/utils';
 
 import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
@@ -574,7 +574,7 @@ function createTOCSections(subjects: MinutesSubject[]): (Paragraph | Table)[] {
 
     const agenda = subjects
         .filter(s => s.nonAgendaReason !== 'outOfAgenda')
-        .sort((a, b) => (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0));
+        .sort(compareAgendaPosition);
     const outOfAgenda = subjects.filter(s => s.nonAgendaReason === 'outOfAgenda');
 
     if (agenda.length > 0) {

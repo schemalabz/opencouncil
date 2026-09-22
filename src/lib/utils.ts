@@ -131,6 +131,30 @@ export function monthsBetween(startDate: Date, endDate: Date): number {
 
 // Removed time formatting functions as they are now re-exported from src/lib/formatters/time.ts
 
+export interface AgendaPositioned {
+  agendaItemIndex?: number | null;
+  agendaSectionIndex?: number | null;
+}
+
+/**
+ * Agenda order as the document prints it: the numbered rows first, by section
+ * and then by number. A subject without a number sorts after every numbered
+ * one. A subject without a section sorts as section 0, which keeps a one-list
+ * agenda in plain number order. (issue 366)
+ */
+export function compareAgendaPosition(a: AgendaPositioned, b: AgendaPositioned): number {
+  const aNumbered = a.agendaItemIndex != null ? 0 : 1;
+  const bNumbered = b.agendaItemIndex != null ? 0 : 1;
+  if (aNumbered !== bNumbered) return aNumbered - bNumbered;
+  const aSection = a.agendaSectionIndex ?? 0;
+  const bSection = b.agendaSectionIndex ?? 0;
+  if (aSection !== bSection) return aSection - bSection;
+  const aIndex = a.agendaItemIndex ?? Infinity;
+  const bIndex = b.agendaItemIndex ?? Infinity;
+  if (aIndex === bIndex) return 0;
+  return aIndex - bIndex;
+}
+
 /**
  * Minimal interface for subjects that can be sorted by importance.
  * Only declares the fields actually used by the sorting logic.
@@ -142,6 +166,7 @@ interface SortableSubject {
   statistics?: Statistics;
   speakerSegments?: unknown[];
   agendaItemIndex?: number | null;
+  agendaSectionIndex?: number | null;
   nonAgendaReason?: string | null;
   // Notification importance assigned during agenda processing ('high' | 'normal' |
   // 'doNotNotify'). Available before summarization, so it is a meaningful tie-breaker
@@ -199,10 +224,9 @@ export function sortSubjectsByImportance<T extends SortableSubject>(
         }
       }
 
-      // Fallback to agenda item index
-      const aIndex = a.agendaItemIndex ?? Infinity;
-      const bIndex = b.agendaItemIndex ?? Infinity;
-      if (aIndex !== bIndex) return aIndex - bIndex;
+      // Fallback to agenda position
+      const byPosition = compareAgendaPosition(a, b);
+      if (byPosition !== 0) return byPosition;
 
       return a.name.localeCompare(b.name);
     });
@@ -222,10 +246,9 @@ export function sortSubjectsByImportance<T extends SortableSubject>(
     const bScore = scores.get(b) ?? 0;
     if (aScore !== bScore) return bScore - aScore;
 
-    // 3. Agenda item index (ascending), non-agenda items sort after agenda items
-    const aIndex = a.agendaItemIndex ?? Infinity;
-    const bIndex = b.agendaItemIndex ?? Infinity;
-    if (aIndex !== bIndex) return aIndex - bIndex;
+    // 3. Agenda position (section, then number); non-agenda items sort after agenda items
+    const byPosition = compareAgendaPosition(a, b);
+    if (byPosition !== 0) return byPosition;
 
     // Final tie-breaker: alphabetical by name
     return a.name.localeCompare(b.name);
@@ -257,21 +280,15 @@ export function sortSubjectsBySpeakerContributionCount<T extends SortableSubject
     const bRank = topicImportanceRank(b.topicImportance);
     if (aRank !== bRank) return aRank - bRank;
 
-    const aIndex = a.agendaItemIndex ?? Infinity;
-    const bIndex = b.agendaItemIndex ?? Infinity;
-    if (aIndex !== bIndex) return aIndex - bIndex;
+    const byPosition = compareAgendaPosition(a, b);
+    if (byPosition !== 0) return byPosition;
 
     return a.name.localeCompare(b.name);
   });
 }
 
 export function sortSubjectsByAgendaIndex<T extends SortableSubject>(subjects: T[]): T[] {
-  return [...subjects].sort((a, b) => {
-    const aIndex = a.agendaItemIndex ?? Infinity;
-    const bIndex = b.agendaItemIndex ?? Infinity;
-    if (aIndex !== bIndex) return aIndex - bIndex;
-    return a.name.localeCompare(b.name);
-  });
+  return [...subjects].sort((a, b) => compareAgendaPosition(a, b) || a.name.localeCompare(b.name));
 }
 
 // Re-export calculateOfferTotals from the pricing module for backward compatibility

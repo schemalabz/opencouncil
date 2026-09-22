@@ -78,6 +78,7 @@ export async function pollDecisionsForMeeting(
                     name: true,
                     agendaItemTitle: true,
                     agendaItemIndex: true,
+                    agendaSectionIndex: true,
                     nonAgendaReason: true,
                     discussedIn: { select: { id: true } },
                     decision: { select: { ada: true, title: true, pdfUrl: true, excerpt: true } },
