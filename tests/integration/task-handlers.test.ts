@@ -35,6 +35,7 @@ import {
     createUtterance,
 } from '../helpers/factories'
 import { makeSubject, makeProcessAgendaResult, makeSummarizeResult, makePollDecisionsMatch, makePollDecisionsResult, makeExtractedDecision } from '../helpers/builders'
+import { loadAgendaFixture } from '../helpers/agendaFixtures'
 
 describe('handleProcessAgendaResult', () => {
     let cityId: string
@@ -1560,5 +1561,76 @@ describe('handlePollDecisionsResult — ADA correction', () => {
         const released = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-OLD' } } })
         expect(released!.decisionId).toBeNull()
         expect(released!.dismissedAt).toBeNull()
+    })
+})
+
+describe('agenda sections on real extraction output (issue 366)', () => {
+    let cityId: string
+    let meetingId: string
+
+    beforeEach(async () => {
+        await resetDatabase(prisma)
+        const city = await createCity({ id: 'c1' })
+        cityId = city.id
+        const body = await createAdministrativeBody(cityId, { notificationBehavior: 'NOTIFICATIONS_DISABLED' })
+        const meeting = await createMeeting(cityId, { id: 'm1', administrativeBodyId: body.id })
+        meetingId = meeting.id
+    })
+
+    test('athens: two sections, numbers repeat across them, every (section, number) pair is unique', async () => {
+        const task = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        const subjects = loadAgendaFixture('athens_feb9_2026')
+
+        await handleProcessAgendaResult(task.id, makeProcessAgendaResult(subjects))
+
+        const rows = await prisma.subject.findMany({ where: { councilMeetingId: meetingId, cityId } })
+        expect(rows).toHaveLength(subjects.length)
+        const sections = new Set(rows.map(r => r.agendaSectionIndex))
+        expect(sections).toEqual(new Set([1, 2]))
+        const numbers = rows.map(r => r.agendaItemIndex)
+        expect(new Set(numbers).size).toBeLessThan(numbers.length)
+        const pairs = rows.map(r => `${r.agendaSectionIndex}:${r.agendaItemIndex}`)
+        expect(new Set(pairs).size).toBe(pairs.length)
+    })
+
+    test('vrilissia: a second agenda run and a reworded summarize run keep every id', async () => {
+        const subjects = loadAgendaFixture('vrilissia_oct22_2025')
+
+        const task1 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task1.id, makeProcessAgendaResult(subjects))
+        const first = await prisma.subject.findMany({ where: { councilMeetingId: meetingId, cityId }, orderBy: { id: 'asc' } })
+        expect(first).toHaveLength(subjects.length)
+        expect(first.every(r => r.agendaSectionIndex !== null)).toBe(true)
+
+        const task2 = await createTaskStatus(meetingId, cityId, { type: 'processAgenda' })
+        await handleProcessAgendaResult(task2.id, makeProcessAgendaResult(subjects))
+        const second = await prisma.subject.findMany({ where: { councilMeetingId: meetingId, cityId }, orderBy: { id: 'asc' } })
+        expect(second.map(r => r.id)).toEqual(first.map(r => r.id))
+
+        // summarize sends no section and rewords every name, so only the id can
+        // put each summary back on its own row. Send the rows back-to-front so a
+        // fallback that walks the rows in order cannot reproduce the mapping.
+        const task3 = await createTaskStatus(meetingId, cityId, { type: 'summarize' })
+        await handleSummarizeResult(task3.id, makeSummarizeResult({
+            subjects: [...first].reverse().map(r => makeSubject({
+                id: r.id,
+                name: `${r.name} (συζήτηση)`,
+                description: `${r.description} Συζητήθηκε.`,
+                agendaItemIndex: r.agendaItemIndex!,
+                speakerContributions: [{ speakerId: null, speakerName: 'Ομιλητής', text: `Τοποθέτηση για ${r.name}` }],
+            })),
+        }))
+        const third = await prisma.subject.findMany({
+            where: { councilMeetingId: meetingId, cityId },
+            include: { contributions: true },
+            orderBy: { id: 'asc' },
+        })
+        expect(third.map(r => r.id)).toEqual(first.map(r => r.id))
+        // Per row: the summary landed on the row it names, not just somewhere.
+        expect(third.map(r => r.name)).toEqual(first.map(r => `${r.name} (συζήτηση)`))
+        expect(third.map(r => r.contributions.map(c => c.text)))
+            .toEqual(first.map(r => [`Τοποθέτηση για ${r.name}`]))
+        expect(third.map(r => r.agendaSectionIndex)).toEqual(first.map(r => r.agendaSectionIndex))
+        expect(third.map(r => r.agendaItemIndex)).toEqual(first.map(r => r.agendaItemIndex))
     })
 })

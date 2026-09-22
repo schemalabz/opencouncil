@@ -440,22 +440,38 @@ describe('saveSubjectsForMeeting - integration', () => {
         const rows = await prisma.subject.findMany({ where: { councilMeetingId: meetingId, cityId }, orderBy: { name: 'asc' } })
         expect(rows).toHaveLength(3)
 
-        const summarizeRun: Subject[] = rows.map(r => makeSubject({
+        // Send the rows in an order that is neither the name order nor the id
+        // order, so only the id can put each summary back on its own row: the
+        // three rows share one (null, 1) slot, and every name is reworded, so
+        // neither of the later passes can reproduce this mapping (issue 366).
+        const scrambled = [...rows].sort((a, b) => b.name.localeCompare(a.name, 'el'))
+        const summarizeRun: Subject[] = scrambled.map(r => makeSubject({
             id: r.id,
             name: `${r.name} (συζήτηση)`,
             agendaItemIndex: 1,
             speakerContributions: [{ speakerId: null, speakerName: 'Ομιλητής', text: `Τοποθέτηση για ${r.name}` }],
         }))
+        const byName = rows.map(r => r.id)
+        const byId = [...rows].map(r => r.id).sort()
+        expect(summarizeRun.map(s => s.id)).not.toEqual(byName)
+        expect(summarizeRun.map(s => s.id)).not.toEqual(byId)
+
         await saveSubjectsForMeeting(summarizeRun, cityId, meetingId)
 
         const after = await prisma.subject.findMany({
             where: { councilMeetingId: meetingId, cityId },
-            include: { _count: { select: { contributions: true } } },
-            orderBy: { name: 'asc' },
+            include: { contributions: true },
+            orderBy: { id: 'asc' },
         })
         expect(after).toHaveLength(3)
-        expect(after.map(s => s.id).sort()).toEqual(rows.map(r => r.id).sort())
-        expect(after.every(s => s.name.endsWith('(συζήτηση)'))).toBe(true)
-        expect(after.every(s => s._count.contributions === 1)).toBe(true)
+        expect(after.map(s => s.id)).toEqual(byId)
+
+        // Per row: the summary landed on the row it names, not just somewhere.
+        const afterById = new Map(after.map(s => [s.id, s]))
+        for (const row of rows) {
+            const updated = afterById.get(row.id)!
+            expect(updated.name).toBe(`${row.name} (συζήτηση)`)
+            expect(updated.contributions.map(c => c.text)).toEqual([`Τοποθέτηση για ${row.name}`])
+        }
     })
 })
