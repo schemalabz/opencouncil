@@ -127,6 +127,8 @@ export async function getSummarizeRequestBody(councilMeetingId: string, cityId: 
             // (BEFORE_AGENDA/OUT_OF_AGENDA) will be rediscovered fresh by the backend
             .filter(s => force ? s.agendaItemIndex : (s.agendaItemIndex || s.nonAgendaReason))
             .map(s => ({
+            // The row's own id, so the result names the row it updates (issue 366).
+            id: s.id,
             name: s.name,
             description: s.description,
             introducedByPersonId: s.introducedBy?.id || null,
@@ -393,7 +395,7 @@ export async function saveSubjectsForMeeting(
         where: { councilMeetingId, cityId },
         // `name` feeds the matcher's first pass: it is what identifies a
         // subject across a renumbered agenda.
-        select: { id: true, agendaItemIndex: true, nonAgendaReason: true, name: true }
+        select: { id: true, agendaItemIndex: true, agendaSectionIndex: true, nonAgendaReason: true, name: true }
     });
 
     const { toUpdate, toCreate, unmatched } = categorizeSubjectsForUpsert(
@@ -476,6 +478,12 @@ export async function saveSubjectsForMeeting(
                     description: incoming.description,
                     // undefined leaves the stored title alone; null clears it.
                     agendaItemTitle: incoming.agendaItemTitle,
+                    // undefined leaves the stored section alone (summarize); null
+                    // clears it (a re-run on an agenda that is now one list).
+                    ...(incoming.agendaSection !== undefined ? {
+                        agendaSectionIndex: incoming.agendaSection?.index ?? null,
+                        agendaSectionTitle: incoming.agendaSection?.title ?? null,
+                    } : {}),
                     topicId,
                     locationId: locationId ?? null,
                     personId: validIntroducedBy ?? null,
@@ -542,6 +550,8 @@ export async function saveSubjectsForMeeting(
                     name: subject.name,
                     description: subject.description,
                     agendaItemTitle: subject.agendaItemTitle,
+                    agendaSectionIndex: subject.agendaSection?.index,
+                    agendaSectionTitle: subject.agendaSection?.title,
                     councilMeeting: {
                         connect: { cityId_id: { cityId, id: councilMeetingId } }
                     },
