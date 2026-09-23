@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState, useMemo } from "react";
-import { Search } from "lucide-react";
+import { Check, Search, UserCheck } from "lucide-react";
 import { PeopleStats } from "@/components/admin/people/people-stats";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { VoiceprintActions } from "./voiceprint-actions";
 import { BulkVoiceprintDialog } from "./bulk-voiceprint-dialog";
 import ElectedOrderSheet from "./ElectedOrderSheet";
 import { AdministrativeBody } from "@prisma/client";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -124,26 +125,56 @@ export default function People({ people, consents, currentCityName, administrati
                     {filteredPeople.length === 0 ? (
                         <div className='text-center py-8 text-muted-foreground'>{t("noItems")}</div>
                     ) : (
-                        <div className='space-y-2'>
-                            {filteredPeople.map(person => (
-                                <div key={person.id} className='flex items-center justify-between border-b pb-2'>
-                                    <div className='flex-1'>
-                                        <PersonBadge person={person} size='sm' />
+                        <div>
+                            {/* The tick is a value, so it gets a column of its own; the two
+                                dialogs stay in the actions group. Same split as ReviewsTable. */}
+                            <div className='flex items-center border-b pb-2'>
+                                <span className='flex-1 min-w-0' />
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className='w-14 flex justify-center text-muted-foreground cursor-help'>
+                                                <UserCheck className='h-4 w-4' aria-label='Connected account' />
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            An account administers this person&apos;s page.
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <span className='w-[248px]' />
+                            </div>
+                            <div className='space-y-2 pt-2'>
+                                {filteredPeople.map(person => (
+                                    <div key={person.id} className='flex items-center border-b pb-2'>
+                                        {/* min-w-0 so a long role subtitle shrinks instead of
+                                            pushing the columns out of the card. */}
+                                        <div className='flex-1 min-w-0'>
+                                            <PersonBadge person={person} size='sm' />
+                                        </div>
+                                        <span className='w-14 flex justify-center'>
+                                            {person._count.administrators > 0 && (
+                                                <Check
+                                                    className='h-4 w-4 text-green-600'
+                                                    aria-label='Has a connected account'
+                                                />
+                                            )}
+                                        </span>
+                                        <div className='w-[248px] flex justify-end gap-2 items-center'>
+                                            <VoicePrintConsentControl
+                                                personId={person.id}
+                                                personName={person.name}
+                                                status={consents[person.id] ?? null}
+                                            />
+                                            <VoiceprintActions
+                                                personId={person.id}
+                                                personName={person.name}
+                                                voicePrint={(person.voicePrints && person.voicePrints[0]) || null}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className='flex gap-2 items-center'>
-                                        <VoicePrintConsentControl
-                                            personId={person.id}
-                                            personName={person.name}
-                                            status={consents[person.id] ?? null}
-                                        />
-                                        <VoiceprintActions
-                                            personId={person.id}
-                                            personName={person.name}
-                                            voicePrint={(person.voicePrints && person.voicePrints[0]) || null}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     )}
                 </CardContent>
