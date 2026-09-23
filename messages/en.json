@@ -973,7 +973,6 @@
         "cityNotFound": "City not found"
     },
     "ElectedOrderSheet": {
-        "triggerButton": "Elected Order",
         "title": "Elected Order",
         "description": "Drag and drop members to set the council election order. This order is used in official meeting minutes.",
         "currentOrder": "Current order: {order}",

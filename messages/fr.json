@@ -968,7 +968,6 @@
     "cityNotFound": "Ville introuvable"
   },
   "ElectedOrderSheet": {
-    "triggerButton": "Ordre d'élection",
     "title": "Ordre d'élection",
     "description": "Glissez-déposez les membres pour définir l'ordre d'élection au conseil municipal. Cet ordre est utilisé dans les comptes rendus officiels.",
     "currentOrder": "Ordre actuel : {order}",

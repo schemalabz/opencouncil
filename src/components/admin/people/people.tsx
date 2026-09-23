@@ -1,11 +1,11 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState, useMemo } from "react";
 import { Check, Search, UserCheck } from "lucide-react";
 import { PeopleStats } from "@/components/admin/people/people-stats";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { PersonWithVoicePrints } from "@/lib/db/people";
 import type { VoicePrintConsentStatus } from "@/lib/db/personConsent";
 import { VoicePrintConsentControl } from "@/components/persons/VoicePrintConsentControl";
@@ -13,30 +13,18 @@ import { useTranslations } from "next-intl";
 import { PersonBadge } from "@/components/persons/PersonBadge";
 import { VoiceprintActions } from "./voiceprint-actions";
 import { BulkVoiceprintDialog } from "./bulk-voiceprint-dialog";
-import ElectedOrderSheet from "./ElectedOrderSheet";
-import { AdministrativeBody } from "@prisma/client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface PeopleProps {
     people: PersonWithVoicePrints[];
     /** The voiceprint consent in force, by person id; a person with none has no entry. */
     consents: Record<string, VoicePrintConsentStatus>;
     currentCityName: string;
-    administrativeBodies: AdministrativeBody[];
 }
 
-export default function People({ people, consents, currentCityName, administrativeBodies }: PeopleProps) {
+export default function People({ people, consents, currentCityName }: PeopleProps) {
     const [searchQuery, setSearchQuery] = useState("");
-    const [electedOrderOpen, setElectedOrderOpen] = useState(false);
-    const [selectedBodyId, setSelectedBodyId] = useState<string | null>(null);
     const t = useTranslations("Person");
-    const tElectedOrder = useTranslations("ElectedOrderSheet");
 
     const filteredPeople = useMemo(() => {
         if (!searchQuery) return people;
@@ -63,14 +51,6 @@ export default function People({ people, consents, currentCityName, administrati
     // Get the cityId from the first person or use empty string as fallback
     const cityId = people.length > 0 ? people[0].cityId : "";
 
-    const handleBodySelect = (bodyId: string) => {
-        setSelectedBodyId(bodyId);
-        // Delay opening the Sheet to let the DropdownMenu (also a Radix Dialog)
-        // fully close first — otherwise two dialogs transitioning simultaneously
-        // can leave pointer-events: none stuck on the body.
-        requestAnimationFrame(() => setElectedOrderOpen(true));
-    };
-
     return (
         <>
             <div className='relative flex-1 mb-6'>
@@ -94,28 +74,9 @@ export default function People({ people, consents, currentCityName, administrati
 
             <Card>
                 <CardHeader>
-                    <CardTitle className='flex justify-between'>
+                    <CardTitle className='flex justify-between items-center'>
                         <span>People</span>
                         <div className='flex items-center gap-2'>
-                            {cityId && administrativeBodies.length > 0 && (
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm">
-                                            {tElectedOrder('triggerButton')}
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        {administrativeBodies.map(body => (
-                                            <DropdownMenuItem
-                                                key={body.id}
-                                                onClick={() => handleBodySelect(body.id)}
-                                            >
-                                                {body.name}
-                                            </DropdownMenuItem>
-                                        ))}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            )}
                             {cityId && <BulkVoiceprintDialog cityId={cityId} currentCityName={currentCityName} />}
                             <span className='text-muted-foreground text-sm ml-2'>{currentCityName}</span>
                         </div>
@@ -125,70 +86,65 @@ export default function People({ people, consents, currentCityName, administrati
                     {filteredPeople.length === 0 ? (
                         <div className='text-center py-8 text-muted-foreground'>{t("noItems")}</div>
                     ) : (
-                        <div>
-                            {/* The tick is a value, so it gets a column of its own; the two
-                                dialogs stay in the actions group. Same split as ReviewsTable. */}
-                            <div className='flex items-center border-b pb-2'>
-                                <span className='flex-1 min-w-0' />
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <span className='w-14 flex justify-center text-muted-foreground cursor-help'>
-                                                <UserCheck className='h-4 w-4' aria-label='Connected account' />
-                                            </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            An account administers this person&apos;s page.
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                                <span className='w-[248px]' />
-                            </div>
-                            <div className='space-y-2 pt-2'>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    {/* The tick is a value, so it gets a column, and the
+                                        header says what it means. The two dialogs stay in
+                                        Actions. Same split as ReviewsTable. */}
+                                    <TableHead className='w-16 text-center'>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className='inline-flex cursor-help'>
+                                                        <UserCheck className='h-4 w-4' aria-label='Connected account' />
+                                                    </span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    An account administers this person&apos;s page.
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </TableHead>
+                                    <TableHead className='text-right'>Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {filteredPeople.map(person => (
-                                    <div key={person.id} className='flex items-center border-b pb-2'>
-                                        {/* min-w-0 so a long role subtitle shrinks instead of
-                                            pushing the columns out of the card. */}
-                                        <div className='flex-1 min-w-0'>
+                                    <TableRow key={person.id}>
+                                        <TableCell>
                                             <PersonBadge person={person} size='sm' />
-                                        </div>
-                                        <span className='w-14 flex justify-center'>
+                                        </TableCell>
+                                        <TableCell className='w-16 text-center'>
                                             {person._count.administrators > 0 && (
                                                 <Check
-                                                    className='h-4 w-4 text-green-600'
+                                                    className='h-4 w-4 text-green-600 inline-block'
                                                     aria-label='Has a connected account'
                                                 />
                                             )}
-                                        </span>
-                                        <div className='w-[248px] flex justify-end gap-2 items-center'>
-                                            <VoicePrintConsentControl
-                                                personId={person.id}
-                                                personName={person.name}
-                                                status={consents[person.id] ?? null}
-                                            />
-                                            <VoiceprintActions
-                                                personId={person.id}
-                                                personName={person.name}
-                                                voicePrint={(person.voicePrints && person.voicePrints[0]) || null}
-                                            />
-                                        </div>
-                                    </div>
+                                        </TableCell>
+                                        <TableCell className='text-right'>
+                                            <div className='flex justify-end gap-2 items-center'>
+                                                <VoicePrintConsentControl
+                                                    personId={person.id}
+                                                    personName={person.name}
+                                                    status={consents[person.id] ?? null}
+                                                />
+                                                <VoiceprintActions
+                                                    personId={person.id}
+                                                    personName={person.name}
+                                                    voicePrint={(person.voicePrints && person.voicePrints[0]) || null}
+                                                />
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
-                            </div>
-                        </div>
+                            </TableBody>
+                        </Table>
                     )}
                 </CardContent>
             </Card>
-
-            {cityId && (
-                <ElectedOrderSheet
-                    open={electedOrderOpen && selectedBodyId !== null}
-                    onOpenChange={setElectedOrderOpen}
-                    people={people}
-                    cityId={cityId}
-                    administrativeBodyId={selectedBodyId ?? ""}
-                />
-            )}
         </>
     );
 }

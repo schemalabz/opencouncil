@@ -1,12 +1,10 @@
 import { getCities } from "@/lib/db/cities";
 import { getPeopleWithVoicePrintsForCity, PersonWithVoicePrints } from "@/lib/db/people";
 import { getVoicePrintConsentStatuses, VoicePrintConsentStatus } from "@/lib/db/personConsent";
-import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { sortPersonsByLastName } from "@/lib/sorting/people";
 import CitySelector from "@/components/admin/people/city-selector";
 import { CouncilQrStripsButton } from "@/components/admin/cities/CouncilQrStripsButton";
 import People from "@/components/admin/people/people";
-import { AdministrativeBody } from "@prisma/client";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 
 interface PageProps {
@@ -23,15 +21,9 @@ export default async function PeoplePage(props: PageProps) {
     const selectedCityId = searchParams.cityId || (cities.length > 0 ? cities[0].id : "");
 
     let people: PersonWithVoicePrints[] = [];
-    let administrativeBodies: AdministrativeBody[] = [];
     let consents: Record<string, VoicePrintConsentStatus> = {};
     if (selectedCityId) {
-        const [peopleData, bodies] = await Promise.all([
-            getPeopleWithVoicePrintsForCity(selectedCityId),
-            getAdministrativeBodiesForCity(selectedCityId),
-        ]);
-        people = sortPersonsByLastName(peopleData);
-        administrativeBodies = bodies;
+        people = sortPersonsByLastName(await getPeopleWithVoicePrintsForCity(selectedCityId));
         consents = Object.fromEntries(await getVoicePrintConsentStatuses(people.map((p) => p.id)));
     }
 
@@ -54,7 +46,6 @@ export default async function PeoplePage(props: PageProps) {
                 people={people}
                 consents={consents}
                 currentCityName={currentCityName}
-                administrativeBodies={administrativeBodies}
             />
         </div>
     );
