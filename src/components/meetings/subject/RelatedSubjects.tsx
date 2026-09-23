@@ -13,26 +13,22 @@ import { captureEvent } from "@/lib/analytics/capture";
 import { formatDate } from "@/lib/formatters/time";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { subjectCardStats } from "@/lib/subjectCardStats";
-import { subjectDisplayedSpeakers } from "@/lib/subjectSpeakers";
+import { subjectSpeakersFromStatistics } from "@/lib/subjectSpeakers";
 import { subjectTitle } from "@/lib/subjectText";
 import { cn } from "@/lib/utils";
-import type { PersonWithRelations } from "@/lib/db/people";
 import type { RelatedScope, SearchResultLight } from "@/lib/search/types";
 import type { Statistics } from "@/lib/statistics";
 
 export type RelatedSubject = SearchResultLight & { statistics?: Statistics };
 
-/** One level of related subjects, with everything a row draws. */
+/**
+ * One level of related subjects. The statistics on each subject carry its
+ * speakers with their roles, which is what the avatar row draws.
+ */
 export interface RelatedLevel {
-    scope: RelatedScope;
     /** `city`: in meeting order, oldest first. `other`: as the index ranked them, closest first. */
     subjects: RelatedSubject[];
-    /** The people the rows show on their avatar rows — introducers and top speakers. */
-    persons: PersonWithRelations[];
 }
-
-/** The levels with subjects, in scope order. Never empty: the server half renders nothing instead. */
-export type RelatedLevels = [RelatedLevel, ...RelatedLevel[]];
 
 /** The subject on screen, as the timeline places it among its neighbours. */
 export interface RelatedCurrent {
@@ -47,16 +43,10 @@ interface RelatedSubjectsProps {
     subjectName: string;
     cityId: string;
     current: RelatedCurrent;
-    levels: RelatedLevels;
+    /** Either level is absent when it has no subjects; the server renders nothing when both are. */
+    city?: RelatedLevel;
+    other?: RelatedLevel;
 }
-
-/**
- * The DOM id the header strip scrolls to. subject.tsx puts it on the wrapper
- * around the section's slot, outside the section's error boundary, so the
- * strip's link has a target even when the section fails after the strip
- * has rendered.
- */
-export const RELATED_SUBJECTS_ID = 'related-subjects';
 
 const subjectHref = (subject: RelatedSubject) => `/${subject.cityId}/${subject.councilMeetingId}/subjects/${subject.id}`;
 
@@ -191,7 +181,7 @@ function RelatedTimeline({ level, current, currentName, onOpen }: {
                                         <RowStats statistics={subject.statistics} fallbackSpeakerCount={subject.contributions?.length} />
                                     </div>
                                     <PersonAvatarList
-                                        users={subjectDisplayedSpeakers(subject, level.persons)}
+                                        users={subjectSpeakersFromStatistics(subject.statistics, subject.introducedBy)}
                                         introducerId={subject.introducedBy?.id}
                                         size="sm"
                                         maxDisplayed={4}
@@ -273,14 +263,12 @@ function RelatedElsewhere({ level, onOpen }: { level: RelatedLevel; onOpen: Open
  * the end opens the search with the subject's own title as the query.
  *
  * The data arrives from the server (RelatedSubjectsSection), which also
- * decides whether the section exists at all and passes only the levels with
- * subjects.
+ * decides whether the section exists at all and passes a level only when it
+ * has subjects.
  */
-export function RelatedSubjects({ subjectId, subjectName, cityId, current, levels }: RelatedSubjectsProps) {
+export function RelatedSubjects({ subjectId, subjectName, cityId, current, city, other }: RelatedSubjectsProps) {
     const t = useTranslations("Subject");
     const localize = useLocalizeText();
-    const city = levels.find(level => level.scope === 'city');
-    const other = levels.find(level => level.scope === 'other');
 
     // The impression that the click events are read against. The section sits
     // below the fold, so it counts when the reader scrolls to it, not when the

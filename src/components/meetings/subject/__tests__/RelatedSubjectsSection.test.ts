@@ -10,7 +10,7 @@ import { searchRelatedSubjectsInRealm } from '@/lib/search/core';
 import { getBatchStatisticsForSubjects } from '@/lib/statistics';
 import type { SearchResultLight } from '@/lib/search/types';
 import { RelatedSubjectsSection } from '../RelatedSubjectsSection';
-import type { RelatedLevels } from '../RelatedSubjects';
+import type { RelatedCurrent, RelatedLevel } from '../RelatedSubjects';
 
 const searchMock = searchRelatedSubjectsInRealm as jest.MockedFunction<typeof searchRelatedSubjectsInRealm>;
 const statisticsMock = getBatchStatisticsForSubjects as jest.MockedFunction<typeof getBatchStatisticsForSubjects>;
@@ -18,23 +18,21 @@ const statisticsMock = getBatchStatisticsForSubjects as jest.MockedFunction<type
 const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1' };
 const CURRENT = { dateTime: '2026-02-15T00:00:00.000Z', administrativeBodyName: 'Δημοτικό Συμβούλιο', timezone: 'Europe/Athens' };
 
-const person = (id: string) => ({ id, roles: [] }) as never;
-
-function subject(id: string, cityId: string, dateTime: string, introducedBy: string | null = null): SearchResultLight {
+function subject(id: string, cityId: string, dateTime: string): SearchResultLight {
     return {
         id,
         cityId,
         councilMeetingId: `meeting-${dateTime}`,
-        introducedBy: introducedBy ? person(introducedBy) : null,
+        introducedBy: null,
         councilMeeting: { id: `meeting-${dateTime}`, cityId, dateTime: new Date(dateTime), city: { id: cityId }, administrativeBody: null },
     } as unknown as SearchResultLight;
 }
 
 let lastElement: unknown;
 
-/** The levels the section handed to its client half: the props of the element it returned. */
-function renderedLevels(): RelatedLevels {
-    return (lastElement as { props: { levels: RelatedLevels } }).props.levels;
+/** What the section handed to its client half: the props of the element it returned. */
+function rendered(): { subjectId: string; current: RelatedCurrent; city?: RelatedLevel; other?: RelatedLevel } {
+    return (lastElement as { props: ReturnType<typeof rendered> }).props;
 }
 
 async function render(city: SearchResultLight[] | Error, other: SearchResultLight[] | Error) {
@@ -65,23 +63,17 @@ describe('RelatedSubjectsSection', () => {
     it('counts a failed level as empty and shows the other', async () => {
         await render(new Error('index down'), [subject('b', 'chania', '2026-03-01')]);
 
-        expect(renderedLevels().map(level => level.scope)).toEqual(['other']);
+        expect(rendered().city).toBeUndefined();
+        expect(rendered().other?.subjects.map(s => s.id)).toEqual(['b']);
     });
 
     // Promise.all resolves the city level first, so the other-only case is
     // the one that would slip past a guard that reads the city level alone.
-    it('passes only the levels with subjects, other alone included', async () => {
+    it('passes a level only when it has subjects, other alone included', async () => {
         await render([], [subject('b', 'chania', '2026-03-01')]);
 
-        const levels = renderedLevels();
-        expect(levels.map(level => level.scope)).toEqual(['other']);
-        expect(levels[0].subjects.map(s => s.id)).toEqual(['b']);
-    });
-
-    it('passes both levels, city first, when both have subjects', async () => {
-        await render([subject('a', 'athens', '2026-02-01')], [subject('b', 'chania', '2026-03-01')]);
-
-        expect(renderedLevels().map(level => level.scope)).toEqual(['city', 'other']);
+        expect(rendered().city).toBeUndefined();
+        expect(rendered().other?.subjects.map(s => s.id)).toEqual(['b']);
     });
 
     // The city level is drawn as a timeline, so it has to arrive in meeting
@@ -93,16 +85,15 @@ describe('RelatedSubjectsSection', () => {
             [subject('closest', 'chania', '2026-03-01'), subject('older', 'argos', '2020-01-01')],
         );
 
-        const [city, other] = renderedLevels();
-        expect(city.subjects.map(s => s.id)).toEqual(['oldest', 'middle', 'newest']);
-        expect(other.subjects.map(s => s.id)).toEqual(['closest', 'older']);
+        expect(rendered().city?.subjects.map(s => s.id)).toEqual(['oldest', 'middle', 'newest']);
+        expect(rendered().other?.subjects.map(s => s.id)).toEqual(['closest', 'older']);
     });
 
     it('hands the client the subject on screen, so the timeline can place it', async () => {
-        const element = await render([subject('a', 'athens', '2026-02-01')], []) as { props: { current: unknown; subjectId: string } };
+        await render([subject('a', 'athens', '2026-02-01')], []);
 
-        expect(element.props.current).toEqual(CURRENT);
-        expect(element.props.subjectId).toBe('seed');
+        expect(rendered().current).toEqual(CURRENT);
+        expect(rendered().subjectId).toBe('seed');
     });
 
     // A speaker's party is read off the roles active on the meeting's date,
@@ -130,21 +121,8 @@ describe('RelatedSubjectsSection', () => {
 
         await render([subject('a', 'athens', '2026-02-01')], [subject('b', 'chania', '2026-03-01')]);
 
-        const [city, other] = renderedLevels();
-        expect(city.subjects[0].statistics).toBeDefined();
-        expect(other.subjects.map(s => s.id)).toEqual(['b']);
-        expect(other.subjects[0].statistics).toBeUndefined();
-    });
-
-    it('builds each level its avatar people from the statistics and the introducer, without a roster', async () => {
-        statisticsMock.mockImplementation(async ids => new Map(ids.map(id => [id, {
-            speakingSeconds: 10,
-            people: [{ item: person(`speaker-of-${id}`), speakingSeconds: 10, count: 1 }],
-        }])));
-
-        await render([subject('a', 'athens', '2026-02-01', 'introducer')], []);
-
-        const [level] = renderedLevels();
-        expect(level.persons.map(p => p.id)).toEqual(['introducer', 'speaker-of-a']);
+        expect(rendered().city?.subjects[0].statistics).toBeDefined();
+        expect(rendered().other?.subjects.map(s => s.id)).toEqual(['b']);
+        expect(rendered().other?.subjects[0].statistics).toBeUndefined();
     });
 });

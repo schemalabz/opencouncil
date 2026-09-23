@@ -46,24 +46,20 @@ function subject({ id, cityId, cityName, dateTime, name, body }: {
 const CURRENT = { dateTime: '2025-06-18T00:00:00.000Z', administrativeBodyName: 'Δημοτικό Συμβούλιο', timezone: 'Europe/Athens' };
 
 const cityLevel: RelatedLevel = {
-    scope: 'city',
     subjects: [
         subject({ id: 'old', cityId: 'vrilissia', cityName: 'Βριλήσσια', dateTime: '2023-03-14T00:00:00.000Z', name: 'Προσωρινές ρυθμίσεις', body: 'Επιτροπή Ποιότητας Ζωής' }),
         subject({ id: 'new', cityId: 'vrilissia', cityName: 'Βριλήσσια', dateTime: '2026-02-11T00:00:00.000Z', name: 'Επανεξέταση ρυθμίσεων', body: 'Δημοτικό Συμβούλιο' }),
     ],
-    persons: [],
 };
 
 const otherLevel: RelatedLevel = {
-    scope: 'other',
     subjects: [
         subject({ id: 'ch', cityId: 'chalandri', cityName: 'Χαλάνδρι', dateTime: '2026-09-03T00:00:00.000Z', name: 'Ρυθμίσεις Πεντέλης', body: 'Δημοτική Επιτροπή' }),
     ],
-    persons: [],
 };
 
-const renderRelated = (levels: [RelatedLevel, ...RelatedLevel[]]) =>
-    render(<RelatedSubjects subjectId="seed" subjectName="Κυκλοφοριακές ρυθμίσεις" cityId="vrilissia" current={CURRENT} levels={levels} />);
+const renderRelated = (levels: { city?: RelatedLevel; other?: RelatedLevel }) =>
+    render(<RelatedSubjects subjectId="seed" subjectName="Κυκλοφοριακές ρυθμίσεις" cityId="vrilissia" current={CURRENT} city={levels.city} other={levels.other} />);
 
 // jsdom has no IntersectionObserver. The stub keeps the callbacks, so a case
 // decides when the section comes into view.
@@ -88,7 +84,7 @@ beforeEach(() => {
 
 describe('RelatedSubjects', () => {
     it('places the subject on screen among its municipality\'s neighbours by meeting date', () => {
-        const { container } = renderRelated([cityLevel, otherLevel]);
+        const { container } = renderRelated({ city: cityLevel, other: otherLevel });
 
         const entries = Array.from(container.querySelectorAll('ol > li'));
         expect(entries.map(li => li.textContent)).toEqual([
@@ -101,7 +97,7 @@ describe('RelatedSubjects', () => {
     });
 
     it('names the meeting\'s date and administrative body above each timeline entry', () => {
-        const { container } = renderRelated([cityLevel]);
+        const { container } = renderRelated({ city: cityLevel });
 
         const [old, current] = Array.from(container.querySelectorAll('ol > li'));
         expect(old.textContent).toContain('2023-03-14·Επιτροπή Ποιότητας Ζωής');
@@ -109,7 +105,7 @@ describe('RelatedSubjects', () => {
     });
 
     it('leads each other-municipality row with the municipality\'s logo, name, date and body', () => {
-        const { container } = renderRelated([otherLevel]);
+        const { container } = renderRelated({ other: otherLevel });
 
         const row = container.querySelector('ul > li') as HTMLElement;
         // The logo is decorative (`alt=""`), so it has no img role.
@@ -119,14 +115,14 @@ describe('RelatedSubjects', () => {
     });
 
     it('draws only the levels it is given', () => {
-        const { queryByText } = renderRelated([otherLevel]);
+        const { queryByText } = renderRelated({ other: otherLevel });
 
         expect(queryByText('relatedSameCity')).toBeNull();
         expect(queryByText('relatedOtherCities')).not.toBeNull();
     });
 
     it('reports an opened neighbour with its level and rank', () => {
-        const { getByText } = renderRelated([cityLevel, otherLevel]);
+        const { getByText } = renderRelated({ city: cityLevel, other: otherLevel });
 
         fireEvent.click(getByText('Επανεξέταση ρυθμίσεων'));
         fireEvent.click(getByText('Ρυθμίσεις Πεντέλης'));
@@ -142,7 +138,7 @@ describe('RelatedSubjects', () => {
     // reaches it, not the page mount, and it counts once however often the
     // observer fires afterwards.
     it('reports the section as shown once it comes into view, with both counts, once', () => {
-        renderRelated([cityLevel, otherLevel]);
+        renderRelated({ city: cityLevel, other: otherLevel });
         expect(captureMock).not.toHaveBeenCalledWith('related_subjects_shown', expect.anything());
 
         intersect();
@@ -154,7 +150,7 @@ describe('RelatedSubjects', () => {
     });
 
     it('reports a click on the search button', () => {
-        const { getByText } = renderRelated([cityLevel]);
+        const { getByText } = renderRelated({ city: cityLevel });
 
         fireEvent.click(getByText('relatedSeeMore'));
 

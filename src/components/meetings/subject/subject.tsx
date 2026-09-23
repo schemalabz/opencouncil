@@ -48,7 +48,7 @@ import { voteResultSentence } from '@/lib/utils/votes';
 import { surfaceCardClass, TWO_COLUMN_GRID } from '@/components/ui/surface-card';
 import { RailCard } from '@/components/ui/rail-card';
 import { MountOnVisible } from '@/components/MountOnVisible';
-import { RELATED_SUBJECTS_ID } from '@/components/meetings/subject/RelatedSubjects';
+import { RELATED_SUBJECTS_ID } from '@/components/meetings/subject/relatedSubjectsAnchor';
 import { SubjectImage } from '@/components/subject/SubjectImage';
 import { SubjectImageAdminControls } from '@/components/subject/SubjectImageAdminControls';
 import { adminToolClass } from '@/components/admin/AdminStrip';
@@ -437,7 +437,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                             )}
                         </section>
 
-                        {related && <div id={RELATED_SUBJECTS_ID}>{related}</div>}
+                        <div id={RELATED_SUBJECTS_ID}>{related}</div>
                     </div>
 
                     <aside className="flex min-w-0 flex-col gap-3.5">

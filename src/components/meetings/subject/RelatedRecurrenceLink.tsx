@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { ChevronDown, History } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { captureEvent } from "@/lib/analytics/capture";
-import { RELATED_SUBJECTS_ID } from "./RelatedSubjects";
+import { RELATED_SUBJECTS_ID } from "./relatedSubjectsAnchor";
 
 /**
  * The recurrence strip's link: one sentence, as a pill on the title
