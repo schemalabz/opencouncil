@@ -300,14 +300,17 @@ export function RelatedSubjects({ subjectId, subjectName, cityId, current, city,
         return () => observer.disconnect();
     }, [subjectId, cityId, cityCount, otherCount]);
 
-    const onOpen: OpenHandler = (subject, scope, rank) => () => captureEvent("subject_opened", {
+    // `rank` means a place in a relevance order everywhere else it is sent.
+    // The timeline is in meeting order, so its position is named for what it
+    // is, and a breakdown by rank does not mix the two.
+    const onOpen: OpenHandler = (subject, scope, position) => () => captureEvent("subject_opened", {
         surface: 'related_subjects',
         subject_id: subject.id,
         city_id: subject.cityId,
         meeting_id: subject.councilMeetingId,
         from_subject_id: subjectId,
         scope,
-        rank,
+        ...(scope === 'city' ? { timeline_index: position } : { rank: position }),
     });
 
     // The search box shows the query, so it carries the title in the reader's

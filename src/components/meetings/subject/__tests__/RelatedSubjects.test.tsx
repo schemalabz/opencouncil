@@ -121,15 +121,16 @@ describe('RelatedSubjects', () => {
         expect(queryByText('relatedOtherCities')).not.toBeNull();
     });
 
-    it('reports an opened neighbour with its level and rank', () => {
+    // The timeline is in meeting order, so its position is not a rank.
+    it('reports an opened neighbour with its level, as a timeline index or a rank', () => {
         const { getByText } = renderRelated({ city: cityLevel, other: otherLevel });
 
         fireEvent.click(getByText('Επανεξέταση ρυθμίσεων'));
         fireEvent.click(getByText('Ρυθμίσεις Πεντέλης'));
 
-        expect(captureMock.mock.calls.map(([event, props]) => [event, props?.scope, props?.rank, props?.subject_id])).toEqual([
-            ['subject_opened', 'city', 1, 'new'],
-            ['subject_opened', 'other', 0, 'ch'],
+        expect(captureMock.mock.calls.map(([event, props]) => [event, props?.scope, props?.timeline_index, props?.rank, props?.subject_id])).toEqual([
+            ['subject_opened', 'city', 1, undefined, 'new'],
+            ['subject_opened', 'other', undefined, 0, 'ch'],
         ]);
         expect(captureMock.mock.calls[0][1]).toMatchObject({ surface: 'related_subjects', from_subject_id: 'seed' });
     });
