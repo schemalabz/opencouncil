@@ -13,6 +13,10 @@ jest.mock('@/i18n/routing', () => ({
     ),
 }));
 jest.mock('@/components/persons/PersonAvatarList', () => ({ PersonAvatarList: () => null }));
+jest.mock('@/components/signup/CityCard', () => ({
+    // eslint-disable-next-line @next/next/no-img-element
+    CitySeal: ({ logoImage }: { logoImage: string | null }) => (logoImage ? <img src={logoImage} alt="" /> : <span>seal</span>),
+}));
 jest.mock('@/hooks/useLocalizeText', () => ({ useLocalizeText: () => (text: string) => text }));
 jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
 // The date's wording is Intl's business; the order and the placing are this component's.

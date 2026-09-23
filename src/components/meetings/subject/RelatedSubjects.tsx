@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import Image from "next/image";
-import { Clock, MessageSquare, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { PersonAvatarList } from "@/components/persons/PersonAvatarList";
+import { CitySeal } from "@/components/signup/CityCard";
+import { SubjectStatsRow } from "@/components/subject/SubjectStatsRow";
 import { buildSearchHref } from "@/components/search/searchFilterTypes";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { Link } from "@/i18n/routing";
@@ -63,24 +64,7 @@ function Subhead({ children, count }: { children: React.ReactNode; count: number
 function RowStats({ statistics, fallbackSpeakerCount }: { statistics?: Statistics; fallbackSpeakerCount?: number }) {
     const t = useTranslations("Subject");
     const stats = subjectCardStats(statistics, fallbackSpeakerCount);
-    if (stats.minutes === 0 && stats.speakerCount === 0 && stats.partyDots.length === 0) return null;
-    return (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            {stats.minutes > 0 && (
-                <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5 shrink-0" aria-hidden />{t("minutesCount", { count: stats.minutes })}</span>
-            )}
-            {stats.speakerCount > 0 && (
-                <span className="flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5 shrink-0" aria-hidden />{stats.speakerCount}</span>
-            )}
-            {stats.partyDots.length > 0 && (
-                <span className="flex shrink-0 items-center gap-1">
-                    {stats.partyDots.map(p => (
-                        <span key={p.id} className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: p.colorHex }} title={p.name} />
-                    ))}
-                </span>
-            )}
-        </div>
-    );
+    return <SubjectStatsRow stats={stats} minutesText={t("minutesCount", { count: stats.minutes })} />;
 }
 
 /** The line above a timeline entry: when, and before which body. */
@@ -223,13 +207,9 @@ function RelatedElsewhere({ level, onOpen }: { level: RelatedLevel; onOpen: Open
                                 onClick={onOpen(subject, 'other', rank)}
                                 className="group/row flex gap-2.5 py-3 hover:no-underline"
                             >
-                                <Image
-                                    src={city.logoImage || '/default-city-logo.jpg'}
-                                    alt=""
-                                    width={28}
-                                    height={28}
-                                    className="mt-0.5 h-7 w-7 shrink-0 rounded-full border border-border bg-background object-contain p-px"
-                                />
+                                <span className="mt-0.5 shrink-0">
+                                    <CitySeal name={getLocalizedName(city, locale)} logoImage={city.logoImage} size={28} />
+                                </span>
                                 <div className="flex min-w-0 flex-col gap-1">
                                     <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
                                         <span className="font-semibold text-foreground">{getLocalizedName(city, locale)}</span>
