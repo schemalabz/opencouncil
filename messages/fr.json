@@ -491,8 +491,9 @@
   },
   "Person": {
     "voicePrintConsent": {
-      "buttonNone": "Consentement vocal : non",
-      "buttonGiven": "Consentement vocal : oui",
+      "button": "Consentement",
+      "tooltipByPerson": "Un consentement est en vigueur. La personne l'a donné depuis son compte.",
+      "tooltipByAdmin": "Un consentement est en vigueur. OpenCouncil l'a enregistré à partir d'un document.",
       "title": "Consentement à l'empreinte vocale : {name}",
       "none": "Aucun consentement n'est en vigueur.",
       "byPerson": "Donné dans l'application par {recorder}, le {date}.",

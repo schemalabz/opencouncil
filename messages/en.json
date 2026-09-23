@@ -819,8 +819,9 @@
     },
     "Person": {
         "voicePrintConsent": {
-            "buttonNone": "Voice consent: no",
-            "buttonGiven": "Voice consent: yes",
+            "button": "Consent",
+            "tooltipByPerson": "A consent is in force. The person gave it from their account.",
+            "tooltipByAdmin": "A consent is in force. OpenCouncil recorded it from a document.",
             "title": "Voiceprint consent: {name}",
             "none": "No consent is in force.",
             "byPerson": "Given in the app by {recorder}, on {date}.",

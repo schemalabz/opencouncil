@@ -5,7 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AdminToolButton } from "@/components/admin/AdminStrip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FileCheck } from "lucide-react";
 import { recordVoicePrintConsent } from "@/lib/actions/personConsent";
 import { formatDate } from "@/lib/formatters/time";
 import type { VoicePrintConsentStatus } from "@/lib/db/personConsent";
@@ -18,6 +19,10 @@ type Action = "record" | "withdraw";
  * consent in force on the person's request. The person does not need an
  * account. A paper consent replaces one given in the app, so both buttons
  * show for that one.
+ *
+ * The trigger reports the state the way the voiceprint trigger beside it
+ * does: the blue border means a consent is in force. The label stays a
+ * plain noun, and the tooltip says which of the two ways gave it.
  */
 export function VoicePrintConsentControl({ personId, personName, status }: {
     personId: string;
@@ -55,9 +60,19 @@ export function VoicePrintConsentControl({ personId, personName, status }: {
 
     return (
         <Dialog open={open} onOpenChange={(next) => { setOpen(next); setFailed(false); }}>
-            <DialogTrigger asChild>
-                <AdminToolButton>{given ? t("buttonGiven") : t("buttonNone")}</AdminToolButton>
-            </DialogTrigger>
+            <TooltipProvider>
+                <Tooltip>
+                    <DialogTrigger asChild>
+                        <TooltipTrigger asChild>
+                            <Button variant="outline" size="sm" className={given ? "border-blue-300 text-blue-700" : ""}>
+                                <FileCheck className="mr-2 h-4 w-4" />
+                                {t("button")}
+                            </Button>
+                        </TooltipTrigger>
+                    </DialogTrigger>
+                    <TooltipContent>{t(given ? (onPaper ? "tooltipByAdmin" : "tooltipByPerson") : "none")}</TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
             <DialogContent align="start">
                 <DialogHeader>
                     <DialogTitle>{t("title", { name: personName })}</DialogTitle>
