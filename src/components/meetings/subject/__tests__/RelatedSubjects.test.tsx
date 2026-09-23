@@ -63,9 +63,28 @@ const otherLevel: RelatedLevel = {
 };
 
 const renderRelated = (levels: [RelatedLevel, ...RelatedLevel[]]) =>
-    render(<RelatedSubjects subjectId="seed" subjectName="Κυκλοφοριακές ρυθμίσεις" current={CURRENT} levels={levels} />);
+    render(<RelatedSubjects subjectId="seed" subjectName="Κυκλοφοριακές ρυθμίσεις" cityId="vrilissia" current={CURRENT} levels={levels} />);
 
-beforeEach(() => captureMock.mockClear());
+// jsdom has no IntersectionObserver. The stub keeps the callbacks, so a case
+// decides when the section comes into view.
+type Observe = (entries: { isIntersecting: boolean }[]) => void;
+const observers: Observe[] = [];
+beforeAll(() => {
+    class Observer {
+        constructor(callback: IntersectionObserverCallback) {
+            observers.push(entries => callback(entries as IntersectionObserverEntry[], this as unknown as IntersectionObserver));
+        }
+        observe() {}
+        disconnect() {}
+    }
+    Object.defineProperty(globalThis, 'IntersectionObserver', { value: Observer, configurable: true });
+});
+const intersect = () => observers.forEach(observe => observe([{ isIntersecting: true }]));
+
+beforeEach(() => {
+    captureMock.mockClear();
+    observers.length = 0;
+});
 
 describe('RelatedSubjects', () => {
     it('places the subject on screen among its municipality\'s neighbours by meeting date', () => {
@@ -117,5 +136,28 @@ describe('RelatedSubjects', () => {
             ['subject_opened', 'other', 0, 'ch'],
         ]);
         expect(captureMock.mock.calls[0][1]).toMatchObject({ surface: 'related_subjects', from_subject_id: 'seed' });
+    });
+
+    // The section sits below the fold, so its impression is the scroll that
+    // reaches it, not the page mount, and it counts once however often the
+    // observer fires afterwards.
+    it('reports the section as shown once it comes into view, with both counts, once', () => {
+        renderRelated([cityLevel, otherLevel]);
+        expect(captureMock).not.toHaveBeenCalledWith('related_subjects_shown', expect.anything());
+
+        intersect();
+        intersect();
+
+        expect(captureMock.mock.calls.filter(([event]) => event === 'related_subjects_shown')).toEqual([
+            ['related_subjects_shown', { subject_id: 'seed', city_id: 'vrilissia', city_count: 2, other_count: 1 }],
+        ]);
+    });
+
+    it('reports a click on the search button', () => {
+        const { getByText } = renderRelated([cityLevel]);
+
+        fireEvent.click(getByText('relatedSeeMore'));
+
+        expect(captureMock).toHaveBeenCalledWith('subject_action', { action: 'search_related', subject_id: 'seed', city_id: 'vrilissia' });
     });
 });

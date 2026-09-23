@@ -72,6 +72,7 @@ export async function RelatedSubjectsSection({ seed, current }: { seed: RelatedS
         <RelatedSubjects
             subjectId={seed.id}
             subjectName={seed.name}
+            cityId={seed.cityId}
             current={current}
             levels={levels as RelatedLevels}
         />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import { Clock, MessageSquare, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -44,6 +45,7 @@ export interface RelatedCurrent {
 interface RelatedSubjectsProps {
     subjectId: string;
     subjectName: string;
+    cityId: string;
     current: RelatedCurrent;
     levels: RelatedLevels;
 }
@@ -274,11 +276,41 @@ function RelatedElsewhere({ level, onOpen }: { level: RelatedLevel; onOpen: Open
  * decides whether the section exists at all and passes only the levels with
  * subjects.
  */
-export function RelatedSubjects({ subjectId, subjectName, current, levels }: RelatedSubjectsProps) {
+export function RelatedSubjects({ subjectId, subjectName, cityId, current, levels }: RelatedSubjectsProps) {
     const t = useTranslations("Subject");
     const localize = useLocalizeText();
     const city = levels.find(level => level.scope === 'city');
     const other = levels.find(level => level.scope === 'other');
+
+    // The impression that the click events are read against. The section sits
+    // below the fold, so it counts when the reader scrolls to it, not when the
+    // page mounts: a mount event would make every page view a denominator.
+    // Once per mount, whatever the observer does afterwards.
+    const sectionRef = useRef<HTMLElement>(null);
+    const seen = useRef(false);
+    const cityCount = city?.subjects.length ?? 0;
+    const otherCount = other?.subjects.length ?? 0;
+    useEffect(() => {
+        const el = sectionRef.current;
+        if (!el || seen.current) return;
+        const report = () => {
+            if (seen.current) return;
+            seen.current = true;
+            captureEvent("related_subjects_shown", { subject_id: subjectId, city_id: cityId, city_count: cityCount, other_count: otherCount });
+        };
+        if (typeof IntersectionObserver === 'undefined') {
+            report();
+            return;
+        }
+        const observer = new IntersectionObserver(entries => {
+            if (entries.some(entry => entry.isIntersecting)) {
+                report();
+                observer.disconnect();
+            }
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [subjectId, cityId, cityCount, otherCount]);
 
     const onOpen: OpenHandler = (subject, scope, rank) => () => captureEvent("subject_opened", {
         surface: 'related_subjects',
@@ -295,13 +327,16 @@ export function RelatedSubjects({ subjectId, subjectName, current, levels }: Rel
     const searchHref = buildSearchHref({ query: localize(subjectName) });
 
     return (
-        <section>
+        <section ref={sectionRef}>
             <h2 className="!m-0 !text-left tracking-[.01em]">{t("relatedSubjects")}</h2>
             {city && <RelatedTimeline level={city} current={current} currentName={localize(subjectName)} onOpen={onOpen} />}
             {other && <RelatedElsewhere level={other} onOpen={onOpen} />}
             <div className="mt-4 flex justify-end">
                 <Button asChild variant="outline" size="sm">
-                    <Link href={searchHref}>
+                    <Link
+                        href={searchHref}
+                        onClick={() => captureEvent("subject_action", { action: 'search_related', subject_id: subjectId, city_id: cityId })}
+                    >
                         <Search className="h-4 w-4 mr-2" aria-hidden="true" />
                         {t("relatedSeeMore")}
                     </Link>

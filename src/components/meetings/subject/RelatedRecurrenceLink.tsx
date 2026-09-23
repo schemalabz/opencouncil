@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { ChevronDown, History } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { captureEvent } from "@/lib/analytics/capture";
@@ -15,6 +16,9 @@ import { RELATED_SUBJECTS_ID } from "./RelatedSubjects";
  * The sentence carries no number. The count comes from the section's five
  * best matches, so it is capped at five and can include a weak neighbour;
  * it is kept for analytics, where it is read as what it is.
+ *
+ * The strip is above the fold, so its impression is its mount: the event
+ * says how often the gate opens, which the click event alone cannot.
  */
 export function RelatedRecurrenceLink({ subjectId, cityId, meetingId, count }: {
     subjectId: string;
@@ -23,6 +27,13 @@ export function RelatedRecurrenceLink({ subjectId, cityId, meetingId, count }: {
     count: number;
 }) {
     const t = useTranslations("Subject");
+    const shown = useRef(false);
+    useEffect(() => {
+        if (shown.current) return;
+        shown.current = true;
+        captureEvent('related_recurrence_shown', { subject_id: subjectId, city_id: cityId, meeting_id: meetingId, count });
+    }, [subjectId, cityId, meetingId, count]);
+
     return (
         <a
             href={`#${RELATED_SUBJECTS_ID}`}
