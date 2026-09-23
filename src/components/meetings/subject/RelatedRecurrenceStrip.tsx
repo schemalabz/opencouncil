@@ -3,7 +3,11 @@ import type { RelatedSubjectSeed } from '@/lib/search/related';
 import { loadRelatedNeighbours } from './relatedSubjectsData';
 import { RelatedRecurrenceLink } from './RelatedRecurrenceLink';
 
-/** Half a year either side of the meeting: close enough to read as one running matter. */
+/**
+ * Half a year either side of the meeting: close enough to read as one running
+ * matter. `relatedRecurring` in the four message catalogs says "six months"
+ * for this window; change the two together.
+ */
 export const RECURRENCE_WINDOW_DAYS = 183;
 /** One other discussion is a coincidence; two is a topic that keeps coming back. */
 export const RECURRENCE_MIN_COUNT = 2;
@@ -20,13 +24,14 @@ export function recurringNeighbours<T extends { councilMeeting: { dateTime: Date
 }
 
 /**
- * One line under the page title, when the subject is a matter the
- * municipality keeps returning to: at least RECURRENCE_MIN_COUNT other
- * discussions of it within RECURRENCE_WINDOW_DAYS of this meeting. The
- * insight is that the topic recurs, so it is said where the reader starts,
- * and the line scrolls to the related section, which holds the detail. The
- * count is a floor, not a total: the lookup answers with the five best
- * matches, so the line says that the subject recurs, not how often.
+ * One line under the page title, when the municipality has at least
+ * RECURRENCE_MIN_COUNT similar subjects within RECURRENCE_WINDOW_DAYS of this
+ * meeting, before or after it. The line is a pointer to the related section,
+ * which holds the dates, and it says only what the lookup can support: the
+ * lookup finds similar subjects, not the same subject returning — a council
+ * appoints a representative to many companies, and each is its own matter —
+ * so the line does not say "again". The count is a floor, not a total: the
+ * lookup answers with the five best matches.
  *
  * Only the same municipality counts. A neighbour elsewhere says nothing
  * about this council's agenda. Renders nothing below the floor, and nothing
