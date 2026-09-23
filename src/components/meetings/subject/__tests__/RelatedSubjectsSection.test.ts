@@ -119,6 +119,23 @@ describe('RelatedSubjectsSection', () => {
         ]);
     });
 
+    // The rows and their links are the crawler and no-JS payoff; a row without
+    // statistics is a state the row already draws, so a failed group must not
+    // take the section down.
+    it('keeps the rows when one statistics group fails, without their statistics', async () => {
+        statisticsMock.mockImplementation(async (ids, date) => {
+            if (date?.toISOString().startsWith('2026-03')) throw new Error('pool timeout');
+            return new Map(ids.map(id => [id, { speakingSeconds: 0, people: [] }]));
+        });
+
+        await render([subject('a', 'athens', '2026-02-01')], [subject('b', 'chania', '2026-03-01')]);
+
+        const [city, other] = renderedLevels();
+        expect(city.subjects[0].statistics).toBeDefined();
+        expect(other.subjects.map(s => s.id)).toEqual(['b']);
+        expect(other.subjects[0].statistics).toBeUndefined();
+    });
+
     it('builds each level its avatar people from the statistics and the introducer, without a roster', async () => {
         statisticsMock.mockImplementation(async ids => new Map(ids.map(id => [id, {
             speakingSeconds: 10,

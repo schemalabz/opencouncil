@@ -11,7 +11,9 @@ import { RelatedSubjects, type RelatedCurrent, type RelatedLevel, type RelatedLe
  * Statistics for subjects that span meetings. The batch takes one meeting
  * date, and the date decides which of a speaker's roles were active — the
  * party dot a row draws — so the subjects are grouped by their meeting's
- * date and each group is asked for on its own.
+ * date and each group is asked for on its own. A group that fails counts
+ * as empty: a row without statistics is a state the row already renders,
+ * and the rows and their links are what the section exists for.
  */
 async function statisticsAcrossMeetings(subjects: SearchResultLight[]): Promise<Map<string, Statistics>> {
     const byDate = new Map<number, string[]>();
@@ -20,7 +22,8 @@ async function statisticsAcrossMeetings(subjects: SearchResultLight[]): Promise<
         byDate.set(date, [...(byDate.get(date) ?? []), subject.id]);
     }
     const groups = await Promise.all(
-        [...byDate].map(([date, ids]) => getBatchStatisticsForSubjects(ids, new Date(date))),
+        [...byDate].map(([date, ids]) =>
+            getBatchStatisticsForSubjects(ids, new Date(date)).catch(() => new Map<string, Statistics>())),
     );
     return new Map(groups.flatMap(group => [...group]));
 }
@@ -33,9 +36,9 @@ const byMeetingDate = (a: SearchResultLight, b: SearchResultLight) =>
  * links are in the page's HTML for crawlers and for readers without
  * JavaScript. Both levels come from loadRelatedNeighbours, shared with the
  * header's recurrence strip, which treats a level that failed to load as
- * empty. Renders nothing at all when neither level has a subject. The
- * statistics query has no such guard here; the page wraps the section in an
- * error boundary that hides it instead.
+ * empty. Renders nothing at all when neither level has a subject. A
+ * statistics group that fails leaves its rows without statistics: the rows
+ * and their links are the point, and they stay.
  *
  * A row also needs the subject's speaking statistics and the people on its
  * avatar row. The search page's list container fetches those on the client,
