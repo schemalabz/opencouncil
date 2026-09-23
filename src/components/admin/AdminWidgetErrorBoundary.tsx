@@ -1,18 +1,15 @@
 "use client"
 
-import React, { useTransition } from 'react'
+import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 interface Props {
     /** Names the widget in the fallback message. */
     label: string
     children: React.ReactNode
-}
-
-interface State {
-    hasError: boolean
 }
 
 function WidgetErrorFallback({ label, onRetry }: { label: string; onRetry: () => void }) {
@@ -48,35 +45,12 @@ function WidgetErrorFallback({ label, onRetry }: { label: string; onRetry: () =>
 /**
  * Catches errors from a single dashboard widget so a failing widget
  * degrades to one inert card instead of failing the whole admin route —
- * the blast radius that issue #560's crash demonstrated. Server-component
- * errors streamed inside a Suspense boundary re-throw at this position
- * on the client, so this boundary contains those too; purely client-side
- * errors are contained as well but reach no server-side telemetry.
+ * the blast radius that issue #560's crash demonstrated.
  */
-export default class AdminWidgetErrorBoundary extends React.Component<Props, State> {
-    constructor(props: Props) {
-        super(props)
-        this.state = { hasError: false }
-    }
-
-    static getDerivedStateFromError(): State {
-        return { hasError: true }
-    }
-
-    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        console.error(`[AdminWidgetErrorBoundary] ${this.props.label} failed:`, error, errorInfo)
-    }
-
-    render() {
-        if (this.state.hasError) {
-            return (
-                <WidgetErrorFallback
-                    label={this.props.label}
-                    onRetry={() => this.setState({ hasError: false })}
-                />
-            )
-        }
-
-        return this.props.children
-    }
+export default function AdminWidgetErrorBoundary({ label, children }: Props) {
+    return (
+        <ErrorBoundary label={label} fallback={reset => <WidgetErrorFallback label={label} onRetry={reset} />}>
+            {children}
+        </ErrorBoundary>
+    )
 }
