@@ -139,11 +139,16 @@ describe('requestPollDecisionForSubject', () => {
         );
     });
 
-    it('does not start a second task while one is already running', async () => {
+    it('does not start a second task while one is already running, however long it has run', async () => {
         mockSubjectFindUnique.mockResolvedValue(OUT_OF_AGENDA_SUBJECT);
         mockTaskStatusFindFirst.mockResolvedValue({ id: 'task-running' });
 
         const result = await requestPollDecisionForSubject('subject-1');
+
+        // A Diavgeia scan plus extraction outlives any short window, so the
+        // in-flight check must not be time-bounded.
+        const where = mockTaskStatusFindFirst.mock.calls[0][0].where;
+        expect(where).not.toHaveProperty('createdAt');
 
         expect(result).toEqual({
             status: 'already_running',

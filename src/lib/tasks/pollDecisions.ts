@@ -346,18 +346,16 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
         );
     }
 
-    // Simple rate limit: check for existing pending/running pollDecisions task
-    // for the same meeting within the last 5 minutes
-    const fiveMinutesAgo = new Date();
-    fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
-
+    // One poll per meeting at a time. Bounded by the task's own lifecycle rather
+    // than by a clock: a Diavgeia scan plus PDF extraction routinely outlives a
+    // five-minute window, and a second run for the same meeting duplicates every
+    // fetch and every extraction.
     const recentTask = await prisma.taskStatus.findFirst({
         where: {
             councilMeetingId: subject.councilMeetingId,
             cityId: subject.cityId,
             type: 'pollDecisions',
             status: { notIn: ['failed', 'succeeded'] },
-            createdAt: { gte: fiveMinutesAgo },
         },
     });
 
