@@ -45,7 +45,7 @@ export function BulkPollDecisionsAction({
     const partition = useMemo(() => {
         const selected = meetings
             .filter(m => selectedMeetingIds.has(m.id))
-            .map(m => ({ id: m.id, name: m.name }));
+            .map(m => ({ id: m.id, name: m.name, kind: m.kind }));
         return partitionMeetingsForPolling(selected, decisionCounts);
     }, [meetings, selectedMeetingIds, decisionCounts]);
 

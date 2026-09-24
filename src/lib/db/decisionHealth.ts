@@ -73,7 +73,7 @@ type CityFacts = Prisma.CityGetPayload<{ select: typeof cityFactsSelect }>;
 type BodyFacts = CityFacts['administrativeBodies'][number];
 
 const meetingFactsSelect = {
-    id: true, cityId: true, administrativeBodyId: true, name: true, dateTime: true,
+    id: true, cityId: true, administrativeBodyId: true, name: true, kind: true, dateTime: true,
     subjects: {
         where: DECISION_ELIGIBLE_SUBJECT_WHERE,
         select: { id: true, name: true, decision: { select: { id: true } } },
@@ -163,7 +163,7 @@ export async function fetchDecisionFacts(cityId?: string): Promise<DecisionFacts
         .filter(m => tzByCity.has(m.cityId))
         .map(m => ({
             id: m.id, cityId: m.cityId, administrativeBodyId: m.administrativeBodyId,
-            name: m.name, dateTime: m.dateTime,
+            name: m.name, kind: m.kind, dateTime: m.dateTime,
             localDate: localCalendarDate(m.dateTime, tzByCity.get(m.cityId)!),
             subjects: m.subjects.map(s => ({ id: s.id, name: s.name, linked: s.decision !== null })),
         }));
@@ -334,7 +334,7 @@ export async function getDecisionHealth(cityId?: string, sinceDays?: number): Pr
     // Coverage, link quality and the taxonomy — the windowed measurements,
     // measured once per meeting and folded into the city and its body.
     for (const m of facts.meetings) {
-        if (isLogodosiaMeeting(m.name)) continue;
+        if (isLogodosiaMeeting(m)) continue;
         if (!isInMeasurementWindow(m.dateTime, sinceDays ?? null, now)) continue;
         if (m.subjects.length === 0) continue;
         const measured = measureMeeting(facts, stats, m);
