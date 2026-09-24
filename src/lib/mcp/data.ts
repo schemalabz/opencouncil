@@ -1,7 +1,7 @@
 import prisma from '@/lib/db/prisma';
 import { Prisma, DiscussionStatus, type AdministrativeBodyType } from '@prisma/client';
 import { searchInRealm } from '@/lib/search/core';
-import { getCities, getCity, getListedCityAtPoint, filterCityIdsByRealm } from '@/lib/db/cities';
+import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
 import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
 import { getCouncilMeetingsWithSubjectPreview } from '@/lib/db/meetingsList';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
@@ -13,10 +13,13 @@ import {
 import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } from '@/lib/db/subject';
 import { currentBaseUrl, currentRealm } from './realm-context';
 import { getTranscript } from '@/lib/db/transcript';
-import { upsertHighlightCore, canUserEditCity, canActorManageHighlight } from '@/lib/db/highlights-core';
+import { getTasksForMeetingDirect } from '@/lib/db/tasksInternal';
+import { mcpTaskSummary } from './taskSummary';
+import { upsertHighlightCore, canUserEditCity, canActorManageHighlight, getUserCityRights, type UserCityRights } from '@/lib/db/highlights-core';
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
 import { canSeeUnreleased, requireVisibleMeeting } from './gate';
+import { assertCitiesInRealm, requireCityBodies, requireRealmCity } from './realmGuards';
 import { getRoleLabelAt, RoleTextTranslator } from '@/lib/utils/roles';
 import { roleWithRelationsInclude } from '@/lib/db/types';
 import { getTranslations } from 'next-intl/server';
@@ -146,44 +149,6 @@ export async function mcpListCities() {
             url: urls.city(city.id),
         })),
     };
-}
-
-/**
- * Reject municipalities outside this connector's realm, so no tool — including
- * ones that take caller-supplied city ids — can reach across realms.
- */
-async function assertCitiesInRealm(cityIds: string[]): Promise<void> {
-    if (cityIds.length === 0) return;
-
-    const allowed = new Set(await filterCityIdsByRealm(cityIds, currentRealm()));
-    const unknown = cityIds.filter(id => !allowed.has(id));
-    if (unknown.length > 0) {
-        throw new NotFoundError(`Unknown municipality: ${unknown.join(', ')}. See list_cities.`);
-    }
-}
-
-async function requireRealmCity(cityId: string): Promise<void> {
-    return assertCitiesInRealm([cityId]);
-}
-
-/**
- * Body ids are opaque to the caller, so a hallucinated id, a stale one, or one
- * belonging to another city has to fail loudly. Filtering on it silently would
- * return an empty list — indistinguishable from a body that never met, which
- * is the reading these tools exist to prevent.
- */
-async function requireCityBodies(cityId: string, bodyIds: string[]): Promise<void> {
-    const known = await prisma.administrativeBody.findMany({
-        where: { cityId, id: { in: bodyIds } },
-        select: { id: true },
-    });
-    const found = new Set(known.map(body => body.id));
-    const unknown = [...new Set(bodyIds)].filter(id => !found.has(id));
-    if (unknown.length > 0) {
-        throw new NotFoundError(
-            `Unknown administrative body for ${cityId}: ${unknown.join(', ')}. See get_city.`
-        );
-    }
 }
 
 export async function mcpGetCity(cityId: string, identity: McpIdentity) {
@@ -351,7 +316,7 @@ export async function mcpListMeetings(
 }
 
 export async function mcpGetMeeting(cityId: string, meetingId: string, identity: McpIdentity) {
-    await requireVisibleMeeting(cityId, meetingId, identity);
+    const visible = await requireVisibleMeeting(cityId, meetingId, identity);
 
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },
@@ -367,9 +332,13 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
 
     // How long each subject was actually debated — the best available proxy for
     // how significant it was, since agenda order says nothing about weight.
-    const [discussionSeconds, transcribed] = await Promise.all([
+    // The task list is administration: it names failures and the answers of
+    // the task server. The same people who see the drafts of a city see it.
+    const [discussionSeconds, transcribed, tasks] = await Promise.all([
         getDiscussionSecondsForSubjects(meeting.subjects.map(s => s.id)),
         hasTranscript(cityId, meetingId),
+        Promise.resolve(visible.editor ?? canSeeUnreleased(identity, cityId))
+            .then(editor => editor ? getTasksForMeetingDirect(cityId, meetingId) : null),
     ]);
 
     // Location coordinates for mapped subjects. Centroids, not ST_X/ST_Y of
@@ -393,6 +362,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         youtubeUrl: meeting.youtubeUrl,
         agendaUrl: meeting.agendaUrl,
         hasTranscript: transcribed,
+        ...(tasks && { tasks: tasks.map(mcpTaskSummary) }),
         // An empty agenda is the one shape an agent reads wrongly: it looks
         // like an empty meeting, when in fact the transcript is usually there
         // and only the summarization step has not run. Say so in the payload.
@@ -857,26 +827,13 @@ export async function mcpSearch(
 /**
  * The municipalities whose non-public content this identity may reach —
  * everything for service keys and superadmins, the administered ones for a
- * personal token, none for anonymous callers. One query, shared by the search
- * release filter and the highlight listing.
+ * personal token, none for anonymous callers. The highlight listing reads it.
+ * `search` does not: it returns released subjects only, for every identity.
  */
-type EditableCities = { all: boolean; cityIds: Set<string> };
-
-async function editableCities(identity: McpIdentity): Promise<EditableCities> {
+async function editableCities(identity: McpIdentity): Promise<UserCityRights> {
     if (isSuperIdentity(identity)) return { all: true, cityIds: new Set() };
     if (identity?.type !== 'user') return { all: false, cityIds: new Set() };
-
-    const user = await prisma.user.findUnique({
-        where: { id: identity.userId },
-        select: { isSuperAdmin: true, administers: { select: { cityId: true } } },
-    });
-    if (!user) return { all: false, cityIds: new Set() };
-    if (user.isSuperAdmin) return { all: true, cityIds: new Set() };
-
-    return {
-        all: false,
-        cityIds: new Set(user.administers.map(a => a.cityId).filter((id): id is string => !!id)),
-    };
+    return getUserCityRights(identity.userId);
 }
 
 // --- Fetch (OpenAI deep-research compatible) ------------------------------
