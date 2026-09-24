@@ -2,7 +2,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CouncilMeetingWithAdminBody } from "@/lib/db/meetings";
 import { CityWithGeometry } from "@/lib/db/cities";
 import { formatDateTime } from "@/lib/formatters/time";
-import { getLocalizedName } from "@/lib/formatters/name";
+import { meetingDisplayName } from '@/lib/meetingName';
 
 interface MeetingInfoSlideProps {
     meeting: CouncilMeetingWithAdminBody;
@@ -17,7 +17,7 @@ export default function MeetingInfoSlide({ meeting, city, agendaCount }: Meeting
     return (
         <div className="flex flex-col items-center justify-center h-full w-full px-[6vw] text-center gap-[4vh]">
             <div className="text-[6vw] font-bold leading-[1] max-w-[90%]">
-                {getLocalizedName(meeting, locale)}
+                {meetingDisplayName(meeting, locale, city.timezone)}
             </div>
             <div className="text-[4vh] text-muted-foreground">
                 {formatDateTime(new Date(meeting.dateTime), city.timezone, 'long', locale)}

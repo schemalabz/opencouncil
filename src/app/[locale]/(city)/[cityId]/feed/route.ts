@@ -10,6 +10,7 @@ import { localizeText } from '@/lib/serbian';
 import { REALMS } from '@/lib/realm';
 import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server';
 import { urlPrefixForLocale } from '@/i18n/config';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 export async function GET(
     request: NextRequest,
@@ -79,7 +80,7 @@ export async function GET(
         const cityName = getLocalizedName(city, locale);
         const dateStr = formatInTimeZone(meetingDate, city.timezone, 'yyyy-MM-dd');
         const meetingTitle = t('meetingTitle', {
-            meetingName: getLocalizedName(meeting, locale),
+            meetingName: meetingDisplayName(meeting, locale, city.timezone),
             cityName,
             date: dateStr,
         });

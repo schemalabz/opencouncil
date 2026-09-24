@@ -15,6 +15,7 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { toLandingSubjects, type MapSubject } from '@/lib/landing/landingData';
 import { getRealmDefaultMapView } from '@/lib/realm';
 import { useRouter } from '@/i18n/routing';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 /**
  * The meeting's subjects on the map — the same pin layer the landing and the
@@ -52,7 +53,7 @@ export function MeetingMap() {
                 logoImage: city.logoImage,
                 councilMeetingId: meeting.id,
                 meetingDate: new Date(meeting.dateTime).toISOString(),
-                meetingName: meeting.name,
+                meetingName: meetingDisplayName(meeting, 'el', city.timezone),
                 bodyName: meeting.administrativeBody?.name ?? null,
                 adminBodyType: meeting.administrativeBody?.type ?? null,
                 locationText: subject.location?.text ?? undefined,

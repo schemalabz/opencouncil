@@ -11,6 +11,7 @@ jest.mock('next/navigation', () => ({ usePathname: () => mockPathname, useParams
 jest.mock('../VideoProvider', () => ({ useVideo: () => ({ currentTime: mockCurrentTime }) }));
 jest.mock('../CouncilMeetingDataContext', () => ({ useCouncilMeetingData: () => ({
     meeting: { id: 'meeting', cityId: 'city', released: true, name: 'Council meeting', name_en: 'Council meeting' },
+    city: { timezone: 'Europe/Athens' },
     subjects: [{ id: 'subject', name: 'A safer square' }],
 }) }));
 jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));

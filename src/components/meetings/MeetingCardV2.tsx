@@ -6,7 +6,6 @@ import { MeetingStageChip } from '@/components/meetings/stage/MeetingStageChip';
 import { stageChipDetail } from '@/components/meetings/stage/stageDetail';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { SUBJECT_PREVIEW_COUNT } from '@/lib/utils/subjects';
-import { getLocalizedName } from '@/lib/formatters/name';
 import { formatDateStamp, formatDateTime } from '@/lib/formatters/time';
 import { publicMeetingStage, stageSignalsFromPreview } from '@/lib/meetingStage';
 import { TopicIcon } from '@/components/TopicIcon';
@@ -15,6 +14,7 @@ import { sortSubjectsByImportance } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { AdminOnly } from '@/components/admin/AdminStrip';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 interface MeetingCardV2Props {
     /**
@@ -114,7 +114,7 @@ export default function MeetingCardV2({ item: meeting, cityTimezone, now }: Meet
 
             <div className="flex flex-1 flex-col p-4">
                 <h3 className="!text-left text-lg leading-snug transition-colors group-hover:text-[hsl(var(--orange))]">
-                    {getLocalizedName(meeting, locale)}
+                    {meetingDisplayName(meeting, locale, cityTimezone)}
                 </h3>
                 {/* Gaps, not dots, between the facts — the ring is its own separator, as an icon would be. */}
                 <p className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">

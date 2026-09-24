@@ -11,6 +11,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { getMeetingForCalendarSync, setMeetingCalendarEventId, MeetingForCalendarSync } from '@/lib/db/meetingsCalendarSync';
 import { sendTaskAdminAlert } from '@/lib/discord';
 import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
+import { meetingNameInCity } from '@/lib/meetingName';
 
 // Bounds each Google API call so a hung request cannot stall the admin
 // routes that await the sync (googleapis sets no timeout by default).
@@ -196,7 +197,7 @@ export async function syncMeetingToCalendar(
             status: 'failed',
             taskType: 'calendarSync',
             cityName: meeting?.city.name ?? cityId,
-            meetingName: meeting?.name ?? meetingId,
+            meetingName: meeting ? meetingNameInCity(meeting, 'el') : meetingId,
             // This alert has no task record. The field carries the calendar
             // event instead, because that is what an admin needs to inspect
             // or delete when a sync fails.

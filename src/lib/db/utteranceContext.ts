@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from './prisma';
 import { isUserAuthorizedToEdit, validateBearerAuth } from '../auth';
+import { meetingNameInCity } from '@/lib/meetingName';
+import { meetingNameSelect } from '@/lib/db/types';
 
 const neighborSelect = {
     id: true,
@@ -51,7 +53,7 @@ export async function getUtteranceContext(
                     meetingId: true,
                     cityId: true,
                     meeting: {
-                        select: { name: true, dateTime: true, released: true },
+                        select: { ...meetingNameSelect, released: true, city: { select: { timezone: true } } },
                     },
                 },
             },
@@ -114,7 +116,7 @@ export async function getUtteranceContext(
         meeting: {
             id: meetingId,
             cityId,
-            name: meeting.name,
+            name: meetingNameInCity(meeting, 'el'),
             dateTime: meeting.dateTime.toISOString(),
         },
         before: beforeRows.slice().reverse().map(toNeighbor),

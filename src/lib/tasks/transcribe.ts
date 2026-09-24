@@ -8,6 +8,7 @@ import { buildUnknownSpeakerLabel } from "../utils";
 import { requestTranscribeInternal, deleteExistingSpeakerData } from "./transcribeInternal";
 import { requestFixTranscriptInternal } from "./fixTranscriptInternal";
 import { autoTriggerTask } from "./autoTrigger";
+import { meetingNameInCity } from '@/lib/meetingName';
 
 // Full-precision doubles are near-incompressible and inflate the meeting page
 // payload; 4 significant figures is far finer than the ASR signal warrants.
@@ -39,9 +40,11 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
                 include: {
                     city: {
                         select: {
-                            name_en: true
+                            name_en: true,
+                            timezone: true,
                         }
                     },
+                    administrativeBody: { select: { name: true, name_en: true } },
                     speakerSegments: {
                         select: {
                             id: true
@@ -238,7 +241,7 @@ export async function handleTranscribeResult(taskId: string, response: Transcrib
             cityId: task.cityId,
             meetingId: task.councilMeetingId,
             cityName: task.councilMeeting.city.name_en,
-            meetingName: task.councilMeeting.name_en,
+            meetingName: meetingNameInCity(task.councilMeeting, 'en'),
             source: { taskType: 'transcribe', taskId },
         },
         () => requestFixTranscriptInternal(task.councilMeetingId, task.cityId, { force: true })

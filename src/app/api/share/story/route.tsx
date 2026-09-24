@@ -19,6 +19,7 @@ import { topicGlyph } from '@/lib/og/topicIcon';
 import { topicStyleHex } from '@/lib/topicStyle';
 import { ContentStoryImage, type ContentStoryImageProps } from '@/components/og/ContentStoryImage';
 import { groupExcerptSpeakers } from '@/components/sharing/ExcerptQuote';
+import { meetingNameInCity } from '@/lib/meetingName';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -31,7 +32,7 @@ type BandSubject = { id: string; name: string; topic?: { name: string; name_en: 
 
 /** The illustration band: the subject's picture with its topic and its title, or the meeting's name on a neutral wash. */
 async function band(subject: BandSubject, meeting: PublicMeeting, locale: string): Promise<ContentStoryImageProps['band']> {
-    if (!subject) return { src: null, wash: '#e7e5e4', title: getLocalizedName(meeting, locale) };
+    if (!subject) return { src: null, wash: '#e7e5e4', title: meetingNameInCity(meeting, locale) };
     const colors = topicStyleHex(subject.topic?.colorHex);
     return {
         src: await getSubjectIllustrationData(subject.id, ILLUSTRATION_BOX.band),

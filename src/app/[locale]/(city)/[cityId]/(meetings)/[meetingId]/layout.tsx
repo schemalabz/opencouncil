@@ -30,6 +30,7 @@ import { getLocalizedName } from '@/lib/formatters/name';
 import { buildOgImageUrl } from '@/lib/og/locale';
 import { getRealm } from '@/lib/realm.server';
 import { hasExplainPage } from '@/lib/explain/availability';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 export async function generateImageMetadata(
     props: {
@@ -44,7 +45,7 @@ export async function generateImageMetadata(
         return [];
     }
 
-    const meetingName = getLocalizedName(data.meeting, locale);
+    const meetingName = meetingDisplayName(data.meeting, locale, data.city.timezone);
 
     return [
         {
@@ -86,7 +87,7 @@ export async function generateMetadata(
     }
 
     // Create an optimized title between 30-60 characters
-    const optimizedTitle = `${getLocalizedName(data.city, locale)} - ${getLocalizedName(data.meeting, locale)} | OpenCouncil`;
+    const optimizedTitle = `${getLocalizedName(data.city, locale)} - ${meetingDisplayName(data.meeting, locale, data.city.timezone)} | OpenCouncil`;
 
     // Use the hero text for description, which is already optimized for Greek audience
     const description = "To OpenCouncil χρησιμοποιεί τεχνητή νοημοσύνη για να παρακολουθεί τα δημοτικά συμβούλια και να τα κάνει απλά και κατανοητά";
@@ -104,7 +105,7 @@ export async function generateMetadata(
                 url: imageUrl,
                 width: 1200,
                 height: 630,
-                alt: `${getLocalizedName(data.meeting, locale)} - ${getLocalizedName(data.city, locale)}`
+                alt: `${meetingDisplayName(data.meeting, locale, data.city.timezone)} - ${getLocalizedName(data.city, locale)}`
             }]
         },
         twitter: {
@@ -213,14 +214,14 @@ export default async function CouncilMeetingPage(
                                         },
                                         ...(adminBodyPath ? [adminBodyPath] : []),
                                         {
-                                            name: getLocalizedName(data.meeting, locale),
+                                            name: meetingDisplayName(data.meeting, locale, data.city.timezone),
                                             link: `/${cityId}/${meetingId}`,
                                             addon: <MeetingHeaderStage />
                                         }
                                     ]}
                                     neighbours={{
-                                        previous: adjacent.previous && { href: `/${cityId}/${adjacent.previous.id}`, label: `${tMeeting('previousMeeting')}: ${getLocalizedName(adjacent.previous, locale)}` },
-                                        next: adjacent.next && { href: `/${cityId}/${adjacent.next.id}`, label: `${tMeeting('nextMeeting')}: ${getLocalizedName(adjacent.next, locale)}` },
+                                        previous: adjacent.previous && { href: `/${cityId}/${adjacent.previous.id}`, label: `${tMeeting('previousMeeting')}: ${meetingDisplayName(adjacent.previous, locale, data.city.timezone)}` },
+                                        next: adjacent.next && { href: `/${cityId}/${adjacent.next.id}`, label: `${tMeeting('nextMeeting')}: ${meetingDisplayName(adjacent.next, locale, data.city.timezone)}` },
                                     }}
                                     showSidebarTrigger={true}
                                     inset={true}

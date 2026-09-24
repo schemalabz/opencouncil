@@ -4,6 +4,8 @@ import { getCityCached, getAdministrativeBodiesWithPublicMeetingsCached, getCoun
 import { AdministrativeBodyType } from '@prisma/client';
 import { EmbedConfigurator, type EmbedBodyGroup, type EmbedRecentMeeting } from '@/components/embed/EmbedConfigurator';
 import { Metadata } from 'next';
+import { meetingDisplayName } from '@/lib/meetingName';
+import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 
 // Embed configurator for city admins — nothing to index.
 export const metadata: Metadata = {
@@ -45,8 +47,8 @@ export default async function WidgetPage(
 
     const recentMeetings: EmbedRecentMeeting[] = pastMeetings.map(meeting => ({
         id: meeting.id,
-        name: meeting.name,
-        name_en: meeting.name_en,
+        name: meetingDisplayName(meeting, 'el', city?.timezone ?? DEFAULT_TIMEZONE),
+        name_en: meetingDisplayName(meeting, 'en', city?.timezone ?? DEFAULT_TIMEZONE),
         dateTime: new Date(meeting.dateTime).toISOString(),
     }));
 

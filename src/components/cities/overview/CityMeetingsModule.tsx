@@ -7,11 +7,11 @@ import { Link } from '@/i18n/routing';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { MeetingStageChip } from '@/components/meetings/stage/MeetingStageChip';
 import type { PublicMeetingStage } from '@/lib/meetingStage';
-import { getLocalizedName } from '@/lib/formatters/name';
 import { formatClockTime, formatDateStamp } from '@/lib/formatters/time';
 import { cn } from '@/lib/utils';
 import { AdminBodyLabel } from './AdminBodyLabel';
 import { surfaceCardClass } from '@/components/ui/surface-card';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 type Meeting = CouncilMeetingWithSubjectPreview;
 
@@ -177,7 +177,7 @@ function MeetingRow({
                 a size to fit on one line more often than not. */}
             <span className="min-w-0 flex-1">
                 <span className="block text-base leading-snug transition-colors group-hover/row:text-[hsl(var(--orange))]">
-                    {getLocalizedName(meeting, locale)}
+                    {meetingDisplayName(meeting, locale, timezone)}
                 </span>
                 <span className="mt-1 flex min-w-0 items-center gap-x-2 text-xs text-muted-foreground">
                     <AdminBodyLabel body={meeting.administrativeBody} locale={locale} className="min-w-0" />

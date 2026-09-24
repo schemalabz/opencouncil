@@ -21,6 +21,7 @@ import { TranscriptReviewNotice } from './TranscriptReviewNotice';
 import { storyImagePath } from '@/lib/sharing/story';
 import { majoritySubject, nearestSubject } from '@/lib/sharing/passageSubject';
 import { captureSharingEvent } from '@/lib/analytics/sharing';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 export const EXCERPT_SHARE_EVENT = 'oc:share-excerpt';
 export type ExcerptShareEventDetail = { range: Range | null; utteranceId: string } | { utteranceIds: string[] };
@@ -161,9 +162,9 @@ export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootR
         {(error || selection.status === 'too-long') && !open && <div role="status" className="fixed bottom-5 left-1/2 z-40 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 border bg-background p-4 text-sm shadow-lg">{error || t('selectionTooLong')}</div>}
         <ContentShareDialog open={open} onOpenChange={setOpen} title={t(wholeSegment ? 'shareSegment' : 'shareExcerpt')} description={t('excerptDescription')} url={url} storyImageUrl={storyImageUrl}
             analytics={{ content_type: wholeSegment ? 'segment' : 'excerpt', surface: shareSurface, city_id: city.id, meeting_id: meeting.id, subject_id: selectedSubject?.id, locale, editable, reviewed: taskStatus.humanReview, utterance_count: active?.runs.length, character_count: active?.runs.reduce((total, run) => total + run.text.length, 0) }}
-            sourceText={active ? [reviewNotice, `${excerptQuoteText(active.runs, t('unknownSpeaker'))}\n${context}\n${getLocalizedName(meeting, locale)}`].filter(Boolean).join('\n\n') : ''} copyTextLabel={t('copyQuote')}>
+            sourceText={active ? [reviewNotice, `${excerptQuoteText(active.runs, t('unknownSpeaker'))}\n${context}\n${meetingDisplayName(meeting, locale, city.timezone)}`].filter(Boolean).join('\n\n') : ''} copyTextLabel={t('copyQuote')}>
             {active && <div className="space-y-5">
-                <p className="text-xs font-medium leading-5 text-muted-foreground">{selectedSubject?.name ?? getLocalizedName(meeting, locale)}<br />{context}</p>
+                <p className="text-xs font-medium leading-5 text-muted-foreground">{selectedSubject?.name ?? meetingDisplayName(meeting, locale, city.timezone)}<br />{context}</p>
                 {reviewNotice && <TranscriptReviewNotice text={reviewNotice} />}
                 <div className="max-h-[35dvh] overflow-y-auto pr-1"><ExcerptQuote runs={active.runs} unknownSpeaker={t('unknownSpeaker')} compact /></div>
                 <p className="text-xs leading-5 text-muted-foreground">{t('wholePassages')}{editable && <span className="mt-1 block">{t('savedTextOnly')}</span>}</p>

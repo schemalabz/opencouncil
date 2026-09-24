@@ -6,6 +6,7 @@ import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataC
 import { useTranslations } from 'next-intl';
 import { MinutesData } from '@/lib/minutes/types';
 import { MinutesPreviewContent } from '@/components/meetings/admin/MinutesPreviewContent';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 /** The rendered minutes, as the DOCX will print them. The page owns the data; this only shows it. */
 export function MinutesPreviewDialog({ open, onOpenChange, data }: {
@@ -13,7 +14,7 @@ export function MinutesPreviewDialog({ open, onOpenChange, data }: {
     onOpenChange: (open: boolean) => void;
     data: MinutesData;
 }) {
-    const { meeting } = useCouncilMeetingData();
+    const { meeting, city } = useCouncilMeetingData();
     const t = useTranslations('admin.adminActions');
     const [debugMode, setDebugMode] = React.useState(false);
 
@@ -23,7 +24,7 @@ export function MinutesPreviewDialog({ open, onOpenChange, data }: {
                 <DialogHeader>
                     <DialogTitle>{t('minutes.title')}</DialogTitle>
                     <div className="flex items-center justify-between">
-                        <DialogDescription>{meeting.name}</DialogDescription>
+                        <DialogDescription>{meetingDisplayName(meeting, 'el', city.timezone)}</DialogDescription>
                         <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer shrink-0 ml-4">
                             <input type="checkbox" checked={debugMode} onChange={e => setDebugMode(e.target.checked)} />
                             Debug: Show classification

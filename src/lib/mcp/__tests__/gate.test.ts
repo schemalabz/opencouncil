@@ -21,39 +21,61 @@ import { NotFoundError } from '../../api/errors';
 const USER = { type: 'user', userId: 'u1' } as const;
 const SERVICE = { type: 'service', keyName: 'bot' } as const;
 
+/** The row that the gate selects, and the payload that it returns for it. */
+function row(released: boolean) {
+    return {
+        released,
+        dateTime: new Date('2026-05-12T18:00:00Z'),
+        name: null,
+        name_en: null,
+        kind: 'regular',
+        videoUrl: null,
+        administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' },
+        city: { timezone: 'Europe/Athens' },
+    };
+}
+function payload(released: boolean) {
+    return {
+        released,
+        dateTime: new Date('2026-05-12T18:00:00Z'),
+        name: 'Δημοτικό Συμβούλιο 12/05/2026',
+        videoUrl: null,
+        administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' },
+    };
+}
+
 describe('requireVisibleMeeting', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [] });
     });
 
-    it('passes released meetings for everyone', async () => {
-        const meeting = { released: true, dateTime: new Date('2026-05-12T18:00:00Z') };
-        mockMeetingFindFirst.mockResolvedValue(meeting);
-        await expect(requireVisibleMeeting('athens', 'm1', null)).resolves.toEqual(meeting);
-        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual(meeting);
-        await expect(requireVisibleMeeting('athens', 'm1', SERVICE)).resolves.toEqual(meeting);
+    it('passes released meetings for everyone, with the derived name', async () => {
+        mockMeetingFindFirst.mockResolvedValue(row(true));
+        await expect(requireVisibleMeeting('athens', 'm1', null)).resolves.toEqual(payload(true));
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual(payload(true));
+        await expect(requireVisibleMeeting('athens', 'm1', SERVICE)).resolves.toEqual(payload(true));
     });
 
     it('hides unreleased meetings from anonymous and unrelated users', async () => {
-        mockMeetingFindFirst.mockResolvedValue({ released: false, dateTime: new Date('2026-05-12T18:00:00Z') });
+        mockMeetingFindFirst.mockResolvedValue(row(false));
         await expect(requireVisibleMeeting('athens', 'm1', null)).rejects.toThrow(NotFoundError);
         await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
     });
 
     it('shows unreleased meetings to service identities and city editors', async () => {
-        mockMeetingFindFirst.mockResolvedValue({ released: false, dateTime: new Date('2026-05-12T18:00:00Z') });
-        await expect(requireVisibleMeeting('athens', 'm1', SERVICE)).resolves.toEqual({ released: false, dateTime: new Date('2026-05-12T18:00:00Z') });
+        mockMeetingFindFirst.mockResolvedValue(row(false));
+        await expect(requireVisibleMeeting('athens', 'm1', SERVICE)).resolves.toEqual(payload(false));
 
         mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [{ cityId: 'athens' }] });
-        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual({ released: false, dateTime: new Date('2026-05-12T18:00:00Z') });
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual(payload(false));
 
         mockUserFindUnique.mockResolvedValue({ isSuperAdmin: true, administers: [] });
-        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual({ released: false, dateTime: new Date('2026-05-12T18:00:00Z') });
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual(payload(false));
     });
 
     it('hides unreleased meetings from editors of other cities', async () => {
-        mockMeetingFindFirst.mockResolvedValue({ released: false, dateTime: new Date('2026-05-12T18:00:00Z') });
+        mockMeetingFindFirst.mockResolvedValue(row(false));
         mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [{ cityId: 'argos' }] });
         await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
     });
@@ -72,7 +94,7 @@ describe('realm scoping', () => {
     });
 
     it('scopes the meeting lookup to the request realm', async () => {
-        mockMeetingFindFirst.mockResolvedValue({ released: true });
+        mockMeetingFindFirst.mockResolvedValue(row(true));
         await requireVisibleMeeting('athens', 'm1', null);
 
         // Default realm outside a request scope is greece; the point is that a
