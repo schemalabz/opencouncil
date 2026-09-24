@@ -1073,6 +1073,7 @@
         "previousSubject": "Претходна тачка",
         "nextSubject": "Следећа тачка",
         "noDecisionBeforeAgenda": "Тачке покренуте пре дневног реда никада немају одлуку.",
+        "searchDecisionFailed": "Претрага на платформи Diavgeia није успела",
         "learnWhy": "Сазнајте зашто",
         "regenerateImage": "Генериши нову слику",
         "replaceImage": "Замени слику…",

@@ -1073,6 +1073,7 @@
         "previousSubject": "Previous subject",
         "nextSubject": "Next subject",
         "noDecisionBeforeAgenda": "Items raised before the agenda never have a decision.",
+        "searchDecisionFailed": "Could not search Diavgeia",
         "learnWhy": "Learn why",
         "regenerateImage": "Regenerate image",
         "replaceImage": "Replace image…",

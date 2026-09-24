@@ -1074,6 +1074,7 @@
     "previousSubject": "Point précédent",
     "nextSubject": "Point suivant",
     "noDecisionBeforeAgenda": "Les points soulevés avant l'ordre du jour n'ont jamais de décision.",
+    "searchDecisionFailed": "La recherche sur Diavgeia a échoué",
     "learnWhy": "Pourquoi ?",
     "regenerateImage": "Régénérer l'image",
     "replaceImage": "Remplacer l'image…",
