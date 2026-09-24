@@ -22,6 +22,8 @@ const bodySchema = z.object({
     contactEmails: z.array(z.string().email()).optional().default([]),
     notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']).optional(),
     showUnreviewedTranscript: z.boolean().optional(),
+    // The hall where the body meets as a rule. An empty string clears it.
+    place: z.string().trim().max(200).optional().transform(val => (val === '' ? null : val)),
     diavgeiaUnitIds: z.string().optional().transform(val => {
         if (!val || val.trim() === '') return [];
         return val.split(',').map(s => s.trim()).filter(Boolean);
@@ -59,7 +61,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         const cityId = params.cityId;
         const body = await request.json();
         const parsed = bodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
 
         const newBody = await createAdministrativeBody({
             name,
@@ -71,6 +73,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             notificationBehavior: notificationBehavior || 'NOTIFICATIONS_APPROVAL',
             showUnreviewedTranscript: showUnreviewedTranscript ?? true,
             diavgeiaUnitIds: diavgeiaUnitIds || [],
+            place,
         });
 
         revalidateTag(`city:${cityId}:administrativeBodies`, 'max');
