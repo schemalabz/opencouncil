@@ -24,15 +24,15 @@ export function RailCard({ title, children, className, id }: {
 }
 
 /**
- * One measured row inside a rail card: a label, a count, and a thin bar scaled
- * against the card's largest value by {@link meterBarWidth}, which floors the
- * smallest value into a visible presence and caps the bar at its own track.
+ * One measured row inside a rail card: a label, a count, and a thin bar drawn
+ * by {@link meterBarWidth}, which floors the smallest value into a visible
+ * presence and caps the bar at its own track.
  */
 export function RailMeterRow({ icon, label, value, ratio, color }: {
     icon?: React.ReactNode;
     label: React.ReactNode;
     value: React.ReactNode;
-    /** This row's share of the card's largest value, 0..1. */
+    /** How full the bar is, 0..1: this row against the card's largest value, or against a whole it is part of. */
     ratio: number;
     color: string;
 }) {

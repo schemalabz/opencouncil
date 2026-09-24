@@ -1,4 +1,4 @@
-import type { AdministrativeBodyType } from '@prisma/client';
+import type { AdministrativeBody, AdministrativeBodyType, Role } from '@prisma/client';
 import type { PartyWithPersons, PersonWithRoles } from '@/lib/db/parties';
 import { isActivePartyMember, isMayorRole, isRoleActive } from '@/lib/utils/roles';
 import { sortPartyMembers } from '@/lib/sorting/people';
@@ -26,23 +26,39 @@ export interface PartyComposition {
     hasMayor: boolean;
 }
 
+/** What the seat test reads off a role. */
+type SeatRole = Pick<Role, 'startDate' | 'endDate'> & {
+    administrativeBody: Pick<AdministrativeBody, 'type'> | null;
+};
+
+/**
+ * Whether a role is a seat: a role on an administrative body that has not
+ * ended. The party's seat counts, the city's totals and the card columns share
+ * this test. Counting ended roles inflated the seat numeral.
+ */
+function isActiveSeat(role: SeatRole): boolean {
+    return role.administrativeBody !== null && isRoleActive(role);
+}
+
+/** The types of body a person holds an active seat on. */
+function activeSeatTypes(person: { roles: SeatRole[] }): Set<AdministrativeBodyType> {
+    return new Set(person.roles.filter(isActiveSeat).map(role => role.administrativeBody!.type));
+}
+
 export function partyComposition(party: PartyWithPersons): PartyComposition {
     const members = sortPartyMembers(
         party.people.filter(person => isActivePartyMember(person, party.id)),
         party.id,
     );
 
-    // The same "only active roles count" rule as isActivePartyMember, applied to the
-    // administrative-body seats: counting ended ones inflated the seat numeral and
-    // left the governing-party chip on a previous mayor's party.
+    // The same "only active roles count" rule as isActivePartyMember: counting
+    // ended ones left the governing-party chip on a previous mayor's party.
     const activeRoles = (person: PersonWithRoles) => person.roles.filter(isRoleActive);
 
     const counts = { committee: 0, community: 0 };
     const councilMembers: PersonWithRoles[] = [];
     for (const person of members) {
-        const bodyTypes = new Set(
-            activeRoles(person).filter(role => role.administrativeBody).map(role => role.administrativeBody!.type)
-        );
+        const bodyTypes = activeSeatTypes(person);
         if (bodyTypes.has('council')) councilMembers.push(person);
         if (bodyTypes.has('committee')) counts.committee++;
         if (bodyTypes.has('community')) counts.community++;
@@ -64,6 +80,34 @@ export function partyComposition(party: PartyWithPersons): PartyComposition {
         ...counts,
         unassigned,
         hasMayor,
+    };
+}
+
+/** Active seats on each type of body, counted per person. */
+export type BodySeatTotals = Record<AdministrativeBodyType, number>;
+
+/**
+ * How many people hold an active seat on each type of body, whatever their
+ * party — the whole that a party's own counts in {@link partyComposition} are
+ * a part of. Takes every role on the city's bodies, one row per role.
+ *
+ * The same seat test, per person: someone who sits on two κοινότητες fills one
+ * community seat here, as they count once for their party. Fed every body role
+ * in a city, a party's count of a type can never exceed the total of that type.
+ */
+export function bodySeatTotals(roles: (SeatRole & { personId: string })[]): BodySeatTotals {
+    const holders: Record<AdministrativeBodyType, Set<string>> = {
+        council: new Set(),
+        committee: new Set(),
+        community: new Set(),
+    };
+    for (const role of roles) {
+        if (isActiveSeat(role)) holders[role.administrativeBody!.type].add(role.personId);
+    }
+    return {
+        council: holders.council.size,
+        committee: holders.committee.size,
+        community: holders.community.size,
     };
 }
 
@@ -91,9 +135,7 @@ export function partyBodyColumns(parties: PartyWithPersons[]): PartyBodyColumns 
     for (const party of parties) {
         for (const person of party.people) {
             if (!isActivePartyMember(person, party.id)) continue;
-            for (const role of person.roles) {
-                if (isRoleActive(role) && role.administrativeBody) present.add(role.administrativeBody.type);
-            }
+            for (const type of activeSeatTypes(person)) present.add(type);
         }
     }
     return { committee: present.has('committee'), community: present.has('community') };
