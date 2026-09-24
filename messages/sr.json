@@ -344,7 +344,7 @@
         "noVideosFound": "Нису пронађени видео-снимци",
         "details": "Детаљи",
         "meetingId": "ID седнице",
-        "meetingIdDescription": "ID ће се користити у URL адреси седнице.",
+        "meetingIdDescription": "ID се користи у URL адреси седнице. Оставите га празним: платформа га прави од датума и додаје _2 када тај дан већ има седницу.",
         "meetingNameEnPlaceholder": "Унесите назив седнице на енглеском",
         "meetingNameEnDescription": "Наведите назив седнице на енглеском језику.",
         "administrativeBody": "Управно тело",

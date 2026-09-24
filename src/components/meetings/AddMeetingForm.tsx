@@ -29,6 +29,7 @@ import { LinkOrDrop } from "../ui/link-or-drop"
 import { YouTubePreview } from "./YouTubePreview"
 import { CouncilMeeting } from '@prisma/client'
 import { formatDateAsMeetingId } from '@/lib/utils/meetingId'
+import { meetingIdForRequest } from './meetingFormRequest'
 import { useToast } from "@/hooks/use-toast"
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
@@ -51,9 +52,9 @@ const formSchema = z.object({
     agendaUrl: z.string().url({
         message: "Invalid Agenda URL.",
     }).optional().or(z.literal("")),
-    meetingId: z.string().min(1, {
-        message: "Meeting ID is required.",
-    }),
+    // Empty on create: the API makes the id from the date and adds _2, _3 when
+    // the day already has a meeting. A typed id is sent as it is.
+    meetingId: z.string().optional(),
     administrativeBodyId: z.string().optional(),
     processAgenda: z.boolean().default(true),
 })
@@ -82,7 +83,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
             time: meeting ? format(new Date(meeting.dateTime), "HH:mm") : "12:00",
             youtubeUrl: meeting?.youtubeUrl || "",
             agendaUrl: meeting?.agendaUrl || "",
-            meetingId: meeting?.id || formatDateAsMeetingId(meeting ? new Date(meeting.dateTime) : new Date()),
+            meetingId: meeting?.id ?? "",
             administrativeBodyId: meeting?.administrativeBodyId || "none",
             processAgenda: true,
         },
@@ -95,15 +96,6 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
             .then(data => setAdministrativeBodies(data))
             .catch(err => console.error('Failed to fetch administrative bodies:', err));
     }, [cityId])
-
-    useEffect(() => {
-        const subscription = form.watch((value, { name }) => {
-            if (name === 'date' && value.date) {
-                form.setValue('meetingId', formatDateAsMeetingId(value.date));
-            }
-        });
-        return () => subscription.unsubscribe();
-    }, [form])
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
@@ -130,6 +122,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                 },
                 body: JSON.stringify({
                     ...values,
+                    meetingId: meetingIdForRequest(values.meetingId, Boolean(meeting)),
                     // "none" is a UI sentinel (Radix Select can't have an empty-string
                     // item) — it must not reach the API, where any truthy value is
                     // stored as a foreign key and "none" violates the FK constraint.
@@ -285,7 +278,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                         control={form.control}
                         name="youtubeUrl"
                         render={({ field }) => {
-                            const meetingId = form.watch('meetingId')
+                            const meetingId = form.watch('meetingId') || formatDateAsMeetingId(form.watch('date') ?? new Date())
                             
                             return (
                                 <FormItem>
@@ -315,7 +308,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                         control={form.control}
                         name="agendaUrl"
                         render={({ field }) => {
-                            const meetingId = form.watch('meetingId')
+                            const meetingId = form.watch('meetingId') || formatDateAsMeetingId(form.watch('date') ?? new Date())
                             
                             return (
                                 <FormItem>
@@ -384,7 +377,11 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                                     <FormItem>
                                         <FormLabel>{t('meetingId')}</FormLabel>
                                         <FormControl>
-                                            <Input {...field} />
+                                            <Input
+                                                {...field}
+                                                disabled={Boolean(meeting)}
+                                                placeholder={formatDateAsMeetingId(form.watch('date') ?? new Date())}
+                                            />
                                         </FormControl>
                                         <FormDescription>
                                             {t('meetingIdDescription')}
