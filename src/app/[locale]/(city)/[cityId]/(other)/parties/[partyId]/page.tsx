@@ -26,7 +26,7 @@ export async function generateMetadata(
         getCityCached(params.cityId),
     ]);
 
-    if (!party || !city) {
+    if (!party || !city || party.cityId !== city.id) {
         return {
             title: "Παράταξη δεν βρέθηκε | OpenCouncil",
             description: "Η παράταξη που αναζητάτε δεν είναι διαθέσιμη.",
@@ -95,7 +95,9 @@ export default async function PartyPage(
         getBodySeatTotals(params.cityId)
     ]);
 
-    if (!party || !city) {
+    // getParty does not filter by city. A party of another city would show its
+    // seats against the totals of this one.
+    if (!party || !city || party.cityId !== city.id) {
         notFound();
     }
 
