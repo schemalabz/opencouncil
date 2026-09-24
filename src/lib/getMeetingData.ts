@@ -12,6 +12,8 @@ import { createCache } from '@/lib/cache';
 import { getRealm } from '@/lib/realm.server';
 import { Realm, SpeakerTag } from '@prisma/client';
 import { Party } from '@prisma/client';
+import { originalScheduledDate } from '@/lib/db/meetingLifecycle';
+import { hidePostponedFrom } from '@/lib/meetingPublic';
 
 const EMPTY_STATISTICS: Statistics = {
     speakingSeconds: 0,
@@ -20,8 +22,15 @@ const EMPTY_STATISTICS: Statistics = {
     topics: []
 };
 
+/**
+ * The meeting as the page receives it. The link to the meeting that it
+ * replaced is cleared, because that meeting is not public; the page shows the
+ * date for which the meeting was first scheduled instead.
+ */
+export type MeetingForPage = CouncilMeetingWithAdminBody & { postponedFromDate: Date | null };
+
 export type MeetingDataCore = {
-    meeting: CouncilMeetingWithAdminBody;
+    meeting: MeetingForPage;
     transcript: Transcript;
     city: CityWithGeometry;
     people: PersonWithRelations[];
@@ -149,8 +158,12 @@ async function fetchMeetingDataCore(cityId: string, meetingId: string, realm: Re
     const transcriptHiddenForReview = !taskStatus.humanReview
         && meeting.administrativeBody?.showUnreviewedTranscript === false;
 
+    const postponedFromDate = meeting.postponedFromId
+        ? await originalScheduledDate(cityId, meetingId)
+        : null;
+
     return {
-        meeting,
+        meeting: { ...hidePostponedFrom(meeting), postponedFromDate },
         transcript,
         city,
         people,
