@@ -17,7 +17,7 @@ export const OPENCOUNCIL_SUBSECTIONS: NavSection[] = [
     { id: "oc-stages", title: "Η πορεία μιας συνεδρίασης" },
     { id: "oc-subjects", title: "Θέματα & Περιλήψεις" },
     { id: "oc-search", title: "Αναζήτηση" },
-    { id: "oc-notifications", title: "Ειδοποιήσεις" },
+    { id: "oc-notifications", title: "Ενημερώσεις" },
     { id: "oc-map", title: "Χάρτης θεμάτων" },
     { id: "oc-coverage", title: "Κάλυψη" },
     { id: "oc-pricing", title: "Ποιος πληρώνει για το OpenCouncil;" },

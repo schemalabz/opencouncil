@@ -31,7 +31,7 @@ export const WelcomeEmail = ({ userName, cityName }: WelcomeEmailProps) => {
                     </Text>
 
                     <Text style={text}>
-                        Εγγραφήκατε επιτυχώς για ειδοποιήσεις από το OpenCouncil για <strong>{cityName}</strong>.
+                        Εγγραφήκατε επιτυχώς στις ενημερώσεις του OpenCouncil για <strong>{cityName}</strong>.
                     </Text>
 
                     <Text style={text}>

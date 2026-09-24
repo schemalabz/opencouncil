@@ -30,7 +30,7 @@ const fmt = (n: number) => n.toLocaleString("el-GR");
  * Product showcase reused from the /about page, rendered inside the
  * "Πως δουλεύει το OpenCouncil;" section of /explain (so it matches that
  * section's width): the "how it works" diagram followed by each openness
- * feature (Θέματα & Περιλήψεις, Αναζήτηση, Ειδοποιήσεις, Χάρτης θεμάτων) with
+ * feature (Θέματα & Περιλήψεις, Αναζήτηση, Ενημερώσεις, Χάρτης θεμάτων) with
  * its interactive demo stacked below the text (rather than inline as on /about),
  * then the per-city coverage table, pricing and the closing call to action.
  */

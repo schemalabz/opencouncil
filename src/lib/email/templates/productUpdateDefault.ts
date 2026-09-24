@@ -33,7 +33,7 @@ export const DEFAULT_PRODUCT_UPDATE_TEMPLATE_MARKDOWN = `Γεια σου {{userN
 
 Επίσης, θέλουμε να σας ευχαριστήσουμε για την ανατροφοδότησή σας — είστε ευπρόσδεκτοι να μας στείλετε τα σχόλια και τις παρατηρήσεις σας ανά πάσα στιγμή.
 
-<div style="background-color:#f3f4f6;border-left:4px solid #fc550a;padding:16px 20px;border-radius:6px;margin:16px 0;color:#374151;">Γνωρίζατε ότι μπορείτε να διαχειριστείτε τις προτιμήσεις των ειδοποιήσεών σας από το προφίλ σας; Επιλέξτε τα θέματα και τις τοποθεσίες που σας ενδιαφέρουν.</div>
+<div style="background-color:#f3f4f6;border-left:4px solid #fc550a;padding:16px 20px;border-radius:6px;margin:16px 0;color:#374151;">Γνωρίζατε ότι μπορείτε να διαχειριστείτε τις προτιμήσεις των ενημερώσεών σας από το προφίλ σας; Επιλέξτε τα θέματα και τις τοποθεσίες που σας ενδιαφέρουν.</div>
 
 <a href="https://opencouncil.gr" style="display:inline-block;background-color:#fc550a;color:#ffffff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;line-height:1.4;">Επισκεφθείτε το OpenCouncil</a>
 

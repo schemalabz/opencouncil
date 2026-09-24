@@ -78,8 +78,8 @@
       "requestNewTasksSubtitle": "Εκκίνηση εργασιών επεξεργασίας στο backend της πλατφόρμας.",
       "meetingRelease": "Δημοσίευση Συνεδρίασης",
       "meetingReleaseSubtitle": "Έλεγχος της δημόσιας ορατότητας αυτής της συνεδρίασης.",
-      "notifications": "Ειδοποιήσεις",
-      "notificationsSubtitle": "Δημιουργία ειδοποιήσεων για χρήστες που ενδιαφέρονται για τα θέματα αυτής της συνεδρίασης.",
+      "notifications": "Ενημερώσεις",
+      "notificationsSubtitle": "Δημιουργία ενημερώσεων για χρήστες που ενδιαφέρονται για τα θέματα αυτής της συνεδρίασης.",
       "cacheManagement": "Διαχείριση Cache",
       "cacheManagementSubtitle": "Εξαναγκασμός ανανέωσης των δεδομένων cache για άμεση προβολή αλλαγών.",
       "export": "Εξαγωγή",
@@ -165,13 +165,13 @@
         "title": "Σφάλμα επεξεργασίας ατζέντας"
       },
       "notificationsCreated": {
-        "title": "Οι ειδοποιήσεις δημιουργήθηκαν",
-        "description": "Δημιουργήθηκαν {count} ειδοποιήσεις για {total} θέματα. {immediate}"
+        "title": "Οι ενημερώσεις δημιουργήθηκαν",
+        "description": "Δημιουργήθηκαν {count} ενημερώσεις για {total} θέματα. {immediate}"
       },
       "sentImmediately": "Στάλθηκαν αμέσως.",
       "pendingApproval": "Εκκρεμεί έγκριση διαχειριστή.",
       "errorCreatingNotifications": {
-        "title": "Σφάλμα δημιουργίας ειδοποιήσεων"
+        "title": "Σφάλμα δημιουργίας ενημερώσεων"
       },
       "errorFetchingTaskStatuses": {
         "title": "Σφάλμα ανάκτησης καταστάσεων εργασιών"

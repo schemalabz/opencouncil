@@ -30,7 +30,7 @@ const STATIC_GROUPS: FooterGroup[] = [
         titleKey: 'footer.groups.links',
         links: [
             { label: 'Για δήμους', labelKey: 'footer.links.forMunicipalities', href: '/about', featured: true },
-            { label: 'Ειδοποιήσεις', labelKey: 'footer.links.notifications', notify: true },
+            { label: 'Ενημερώσεις', labelKey: 'footer.links.notifications', notify: true },
             { label: 'Αναζήτηση', labelKey: 'footer.links.search', href: '/search' },
             { label: 'OpenCouncil MCP', labelKey: 'footer.links.ai', href: '/mcp' },
             { label: 'API', labelKey: 'footer.links.api', href: '/docs' },
