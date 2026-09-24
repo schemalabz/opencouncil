@@ -21,6 +21,8 @@ jest.mock('../../db/prisma', () => ({
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', NEXTAUTH_SECRET: 'test-secret', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
 jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+// The exclusion rule has its own test; here every step is free to start.
+jest.mock('../pipelineRules', () => ({ findConflictingTask: jest.fn().mockResolvedValue(null) }));
 jest.mock('../../discord', () => ({
   sendTaskAdminAlert: jest.fn(),
 }));
@@ -498,4 +500,15 @@ describe('handleTaskUpdate — terminal hooks', () => {
 
     expect(mockTerminalHook).toHaveBeenCalledTimes(1);
   });
+});
+
+describe('startTask — pipeline exclusion', () => {
+    it('refuses a step beside a running step it excludes, before it creates anything, force or not', async () => {
+        const { findConflictingTask } = jest.requireMock('../pipelineRules') as { findConflictingTask: jest.Mock };
+        findConflictingTask.mockResolvedValueOnce({ id: 't9', type: 'transcribe' });
+        const { startTask } = await import('../tasks');
+        const { PipelineBusyError } = await import('../types');
+        await expect(startTask('summarize', {}, 'm1', 'athens', { force: true })).rejects.toThrow(PipelineBusyError);
+        expect(findConflictingTask).toHaveBeenCalledWith('summarize', 'athens', 'm1');
+    });
 });
