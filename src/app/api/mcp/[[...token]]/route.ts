@@ -3,6 +3,7 @@ import { Realm } from '@prisma/client';
 import type { AuthInfo } from '@modelcontextprotocol/server';
 import { registerOpenCouncilServer } from '@/lib/mcp/server';
 import { verifyMcpToken, identityFromAuthInfo } from '@/lib/mcp/auth';
+import { resolveAdminAccess } from '@/lib/mcp/adminAccess';
 import { instrumentMcpAnalytics } from '@/lib/mcp/analytics';
 import { MCP_INSTRUCTIONS } from '@/lib/mcp/instructions';
 import { mcpRealmStore, requestContext } from '@/lib/mcp/realm-context';
@@ -91,7 +92,10 @@ async function handler(
     );
 
     const identity = identityFromAuthInfo(authInfo);
-    const context = requestContext(realm, req.headers.get('host'), identity);
+    // Resolved here for the same reason as the identity: it decides which
+    // admin tools the synchronous registration advertises.
+    const adminAccess = await resolveAdminAccess(identity);
+    const context = requestContext(realm, req.headers.get('host'), identity, { adminAccess });
     return mcpRealmStore.run(context, () => authedHandler(request));
 }
 
