@@ -97,6 +97,10 @@ function buildMeetingEventPayload(meeting: MeetingForCalendarSync) {
         // sends them the invite, so keep their address off the guest list that
         // readers of the event can see.
         guestsCanSeeOtherGuests: false,
+        // A postponed or cancelled meeting cancels its event, and Google tells
+        // the attendees. The event is kept, so a return to scheduled is one
+        // more patch. The new meeting after a postponement gets its own event.
+        status: meeting.scheduleStatus === 'scheduled' ? 'confirmed' : 'cancelled',
     };
 }
 
@@ -105,7 +109,7 @@ function buildMeetingEventPayload(meeting: MeetingForCalendarSync) {
  *
  * - Patches the stored event when the meeting has a calendarEventId.
  * - Creates the event (and stores its ID) only when allowCreate is set —
- *   the meeting-creation path — and only for future meetings. Meetings
+ *   the meeting-creation path — and only for future, scheduled meetings. Meetings
  *   from before event IDs were stored, and retroactively added past
  *   meetings, are deliberately left alone.
  * - A stored event still gets patched when the meeting is in the past
@@ -123,8 +127,9 @@ function buildMeetingEventPayload(meeting: MeetingForCalendarSync) {
  *   event.
  *
  * sendUpdates 'all' makes Google email the attendees about the change:
- * invites to added attendees, cancellations to removed ones, and update
- * notices on time changes.
+ * invites to added attendees, cancellations to removed ones, update
+ * notices on time changes, and a cancellation when the meeting is
+ * postponed or cancelled.
  */
 export async function syncMeetingToCalendar(
     cityId: string,
@@ -157,7 +162,7 @@ export async function syncMeetingToCalendar(
                 requestBody,
                 sendUpdates: isPast ? 'none' : 'all',
             }, { timeout: CALENDAR_REQUEST_TIMEOUT_MS });
-        } else if (options.allowCreate && !isPast) {
+        } else if (options.allowCreate && !isPast && meeting.scheduleStatus === 'scheduled') {
             const response = await calendar.events.insert({
                 calendarId: env.GOOGLE_CALENDAR_ID,
                 requestBody,

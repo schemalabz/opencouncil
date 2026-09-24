@@ -5,7 +5,7 @@
 import "server-only";
 import { Prisma } from '@prisma/client';
 import { getCityNameEnAndTimezone } from '@/lib/db/citiesAdmin';
-import { generateUniqueMeetingId, type CouncilMeetingWithAdminBody } from '@/lib/db/meetings';
+import { generateUniqueMeetingId, getCouncilMeetingDirect, type CouncilMeetingWithAdminBody } from '@/lib/db/meetings';
 import { createMeetingRecord, updateMeetingRecord, type MeetingRecordFields } from '@/lib/db/meetingLifecycle';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { syncMeetingToCalendar } from '@/lib/google-calendar';
@@ -132,6 +132,7 @@ export async function updateMeetingWithEffects(
     meetingId: string,
     data: MeetingDetailsEdit
 ): Promise<CouncilMeetingWithAdminBody> {
+    const before = await getCouncilMeetingDirect(cityId, meetingId);
     const meeting = await updateMeetingRecord(cityId, meetingId, data);
 
     revalidateAfterResponse({
@@ -139,9 +140,12 @@ export async function updateMeetingWithEffects(
         paths: [{ path: `/${cityId}`, type: 'layout' }],
     });
 
-    // Propagate date, administrative body, and agenda changes to the
-    // Google Calendar event. The meeting name is not on the event.
-    await syncMeetingToCalendar(cityId, meetingId);
+    // Propagate date, administrative body, agenda and schedule status changes
+    // to the Google Calendar event. The meeting name is not on the event.
+    // A meeting that was created postponed or cancelled has no event yet;
+    // when it becomes scheduled, it gets one (a future meeting only).
+    const rescheduled = before?.scheduleStatus !== 'scheduled' && meeting.scheduleStatus === 'scheduled';
+    await syncMeetingToCalendar(cityId, meetingId, { allowCreate: rescheduled });
 
     return meeting;
 }
