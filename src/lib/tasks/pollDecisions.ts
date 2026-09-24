@@ -201,6 +201,8 @@ export async function findDecisionPollCandidates() {
                 diavgeiaUid: { not: null },
             },
             AND: [NOT_LOGODOSIA_MEETING_WHERE],
+            // A postponed or cancelled meeting took no decisions on its date.
+            scheduleStatus: 'scheduled',
             subjects: {
                 some: {
                     ...DECISION_ELIGIBLE_SUBJECT_WHERE,
@@ -888,7 +890,8 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             // calendar date — the timezone conversion is load-bearing: without
             // it, midnight-stored meetings would shift a day.
             const cityMeetings = polledMeeting ? (await tx.councilMeeting.findMany({
-                where: { cityId: task.cityId },
+                // A decision never belongs to a meeting that did not take place.
+                where: { cityId: task.cityId, scheduleStatus: 'scheduled' },
                 select: { id: true, kind: true, dateTime: true, administrativeBodyId: true },
                 orderBy: { dateTime: 'asc' },
             })).map(m => ({

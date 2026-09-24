@@ -246,7 +246,7 @@ export async function getLatestReleasedMeetingIdForCity(cityId: string): Promise
     const now = new Date();
 
     const upcoming = await prisma.councilMeeting.findFirst({
-        where: { cityId, released: true, dateTime: { gt: now } },
+        where: { cityId, released: true, dateTime: { gt: now }, scheduleStatus: 'scheduled' },
         orderBy: { dateTime: 'asc' },
         select: { id: true },
     });
@@ -304,6 +304,8 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
             where: {
                 AND: [
                     { city: CUSTOMER_CITY_WHERE },
+                    // A postponed or cancelled meeting has nothing to upload.
+                    { scheduleStatus: 'scheduled' },
                     {
                         NOT: {
                             taskStatuses: {
@@ -324,7 +326,8 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
         prisma.councilMeeting.findMany({
             where: {
                 dateTime: { gt: now },
-                city: CUSTOMER_CITY_WHERE
+                city: CUSTOMER_CITY_WHERE,
+                scheduleStatus: 'scheduled',
             },
             select: meetingListItemSelect,
             orderBy: { dateTime: 'asc' }

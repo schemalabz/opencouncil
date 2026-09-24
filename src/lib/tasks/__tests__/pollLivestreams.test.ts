@@ -140,6 +140,17 @@ describe('pollLivestreamsForRecentMeetings', () => {
         expect(mockMeetingFindMany).not.toHaveBeenCalled();
     });
 
+    it('never takes a postponed, cancelled or unrecorded meeting as a candidate', async () => {
+        mockMeetingFindMany.mockResolvedValue([]);
+        await pollLivestreamsForRecentMeetings();
+        // A postponed meeting in the window would take the stream of its new meeting.
+        expect(mockMeetingFindMany.mock.calls[0][0].where).toMatchObject({
+            scheduleStatus: 'scheduled',
+            closedToPublic: false,
+            format: { not: 'byCirculation' },
+        });
+    });
+
     it('triggers transcription and alerts on a confident match', async () => {
         mockMeetingFindMany.mockResolvedValue([meeting()]);
         mockTaskFindMany.mockResolvedValue(processAgendaDone());
