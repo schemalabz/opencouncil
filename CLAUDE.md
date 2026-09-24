@@ -256,7 +256,7 @@ Two rules take priority over every rule above:
 
 ### General Rules
 - Never cast to `any` or use `any` as a type
-- Path imports: Use `@/` alias for src directory (e.g., `@/lib/db/cities`)
+- Path imports: Import a module outside the current directory through the `@/` alias (e.g., `@/lib/db/cities`). Use `./` only for a file in the same directory. `npm run lint` rejects a `../` import inside `src/`, except a path that leaves `src/`.
 - Never use dynamic imports unless explicitly requested
 - Avoid unnecessary try/catch blocks
 - Never create markdown files after completing tasks (unless directly asked)
