@@ -126,12 +126,15 @@ export type HighlightActor =
     | { type: 'user'; userId: string }
     | { type: 'service'; keyName: string };
 
+/** The cities a user may edit. `all` is true for a superadmin. */
+export type UserCityRights = { all: boolean; cityIds: Set<City["id"]> };
+
 /**
- * Session-free check of whether a user may edit a city: superadmins may edit
- * everything, otherwise the user must directly administer the city. Same
- * semantics as the cityId branch of checkUserAuthorization in src/lib/auth.ts.
+ * Session-free read of the cities a user may edit: a superadmin may edit every
+ * city, any other user the cities they directly administer. Same semantics as
+ * the cityId branch of checkUserAuthorization in src/lib/auth.ts.
  */
-export async function canUserEditCity(userId: string, cityId: City["id"]): Promise<boolean> {
+export async function getUserCityRights(userId: string): Promise<UserCityRights> {
     const user = await prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -140,9 +143,23 @@ export async function canUserEditCity(userId: string, cityId: City["id"]): Promi
         }
     });
 
-    if (!user) return false;
-    if (user.isSuperAdmin) return true;
-    return user.administers.some(a => a.cityId === cityId);
+    if (!user) return { all: false, cityIds: new Set() };
+    return cityRightsOf(user);
+}
+
+/** The rule itself, for a caller that already holds the user row. */
+export function cityRightsOf(user: { isSuperAdmin: boolean; administers: { cityId: City["id"] | null }[] }): UserCityRights {
+    if (user.isSuperAdmin) return { all: true, cityIds: new Set() };
+    return {
+        all: false,
+        cityIds: new Set(user.administers.map(a => a.cityId).filter((id): id is string => !!id)),
+    };
+}
+
+/** Session-free check of whether a user may edit one city. */
+export async function canUserEditCity(userId: string, cityId: City["id"]): Promise<boolean> {
+    const rights = await getUserCityRights(userId);
+    return rights.all || rights.cityIds.has(cityId);
 }
 
 /**
