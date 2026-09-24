@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {
     PUBLIC_MEETING_STAGES,
     publicMeetingStage,
@@ -108,5 +110,14 @@ describe('presentation helpers', () => {
         expect(presentationExplainHref('greece', { type: 'cancelled', reason: null })).toBe('/explain#oc-stage-cancelled');
         expect(presentationExplainHref('greece', { type: 'stage', stage: 'live' })).toBe('/explain#oc-stage-live');
         expect(presentationExplainHref('serbia', { type: 'cancelled', reason: null })).toBeNull();
+    });
+});
+
+describe('the labels of the presentation', () => {
+    it.each(['el', 'en', 'fr', 'sr'])('exist in %s for every key', (locale) => {
+        const file = path.join(process.cwd(), 'messages', locale, 'meetingStage.json');
+        const messages = JSON.parse(fs.readFileSync(file, 'utf8')) as { label: Record<string, string> };
+        const keys = [...PUBLIC_MEETING_STAGES, 'postponed', 'cancelled', 'noRecording'];
+        expect(Object.keys(messages.label).sort()).toEqual(keys.sort());
     });
 });

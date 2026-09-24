@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import type { PublicMeetingStage } from '@/lib/meetingStage';
+import type { PresentationKey } from '@/lib/meetingPresentation';
 
 /** Circumference of the r=5 ring in the 14-unit box. */
 const RING = 2 * Math.PI * 5;
@@ -9,7 +9,7 @@ const RING = 2 * Math.PI * 5;
  * The base ring is the chip's text colour at low opacity; the arc is the one
  * accent the stage owns.
  */
-const FILL: Record<PublicMeetingStage, { fraction: number; arc: string; dashed?: boolean; spin?: boolean }> = {
+const FILL: Record<PresentationKey, { fraction: number; arc: string; dashed?: boolean; spin?: boolean }> = {
     upcoming: { fraction: 0, arc: '', dashed: true },
     live: { fraction: 0, arc: '' },
     waiting: { fraction: 0.25, arc: 'stroke-current' },
@@ -17,6 +17,12 @@ const FILL: Record<PublicMeetingStage, { fraction: number; arc: string; dashed?:
     review: { fraction: 0.75, arc: 'stroke-yellow-600' },
     complete: { fraction: 1, arc: 'stroke-green-600' },
     archive: { fraction: 0, arc: '' },
+    // The facts that replace a stage. A postponed meeting is still ahead, so
+    // its ring is dashed like an upcoming one; a cancelled one is crossed out;
+    // a meeting held with no recording is a closed ring with no tick.
+    postponed: { fraction: 0, arc: '', dashed: true },
+    cancelled: { fraction: 0, arc: '' },
+    noRecording: { fraction: 1, arc: 'stroke-current' },
 };
 
 /**
@@ -25,7 +31,7 @@ const FILL: Record<PublicMeetingStage, { fraction: number; arc: string; dashed?:
  * quarter (waiting for video), a half (transcribing, turning), three quarters
  * (under review) and a ticked full ring (complete). Archive is an empty ring.
  */
-export function StageRing({ stage, size = 14, className }: { stage: PublicMeetingStage; size?: number; className?: string }) {
+export function StageRing({ stage, size = 14, className }: { stage: PresentationKey; size?: number; className?: string }) {
     if (stage === 'live') {
         return (
             <span
@@ -55,6 +61,9 @@ export function StageRing({ stage, size = 14, className }: { stage: PublicMeetin
                         transform="rotate(-90 7 7)"
                     />
                 </g>
+            )}
+            {stage === 'cancelled' && (
+                <path d="M4.9 4.9l4.2 4.2M9.1 4.9l-4.2 4.2" fill="none" strokeWidth="1.8" strokeLinecap="round" className="stroke-current" />
             )}
             {stage === 'complete' && (
                 <path

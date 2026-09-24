@@ -6,7 +6,10 @@
         "transcribing": "Transcription",
         "review": "En relecture",
         "complete": "Terminée",
-        "archive": "Archive"
+        "archive": "Archive",
+        "postponed": "Reportée",
+        "cancelled": "Annulée",
+        "noRecording": "Sans enregistrement"
     },
     "detail": {
         "live": "depuis {time}",
@@ -24,7 +27,12 @@
         "reviewHidden": "La transcription a été produite automatiquement et une personne la relit. Elle est publiée, avec les résumés et les interventions par orateur, après la relecture :",
         "reviewBy": "avant le {deadline}",
         "reviewSoon": "bientôt",
-        "archive": "Il n'y a pas de transcription pour cette séance. L'ordre du jour et les décisions sont disponibles."
+        "archive": "Il n'y a pas de transcription pour cette séance. L'ordre du jour et les décisions sont disponibles.",
+        "postponed": "La séance du {date} a été reportée. Quand la commune fixera la nouvelle séance, vous la trouverez dans la liste des séances.",
+        "cancelled": "La séance du {date} a été annulée et n’a pas eu lieu. L’ordre du jour reste ici pour référence.",
+        "reason": "Motif : {reason}",
+        "closedToPublic": "La séance s’est tenue à huis clos, sans diffusion publique. L’ordre du jour et les décisions sont disponibles.",
+        "byCirculation": "La séance s’est tenue par consultation écrite. Il n’y a ni vidéo ni transcription ; l’ordre du jour et les décisions sont disponibles."
     },
     "actions": {
         "channel": "Chaîne YouTube",
@@ -51,5 +59,14 @@
             "before": "Les interventions par orateur sont tirées de la transcription, après la séance.",
             "review": "Les interventions par orateur sont ajoutées après la relecture de la transcription."
         }
+    },
+    "facts": {
+        "postponedFrom": "Reportée · prévue d’abord le {date}",
+        "sessionNumber": "Séance {kind, select, regular {ordinaire} urgent {extraordinaire} other {spéciale}} n° {number}",
+        "format": {
+            "teleconference": "Visioconférence",
+            "mixed": "Mixte : en présentiel et en visioconférence"
+        },
+        "closedToPublic": "À huis clos"
     }
 }

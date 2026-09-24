@@ -7,7 +7,8 @@ import { stageChipDetail } from '@/components/meetings/stage/stageDetail';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { SUBJECT_PREVIEW_COUNT } from '@/lib/utils/subjects';
 import { formatDateStamp, formatDateTime } from '@/lib/formatters/time';
-import { publicMeetingStage, stageSignalsFromPreview } from '@/lib/meetingStage';
+import { stageSignalsFromPreview } from '@/lib/meetingStage';
+import { presentationKey, publicMeetingPresentation } from '@/lib/meetingPresentation';
 import { TopicIcon } from '@/components/TopicIcon';
 import { localizeText } from '@/lib/serbian';
 import { sortSubjectsByImportance } from '@/lib/utils';
@@ -61,7 +62,7 @@ export default function MeetingCardV2({ item: meeting, cityTimezone, now }: Meet
 
     const date = meeting.dateTime instanceof Date ? meeting.dateTime : new Date(meeting.dateTime);
     const { day, monthYear } = formatDateStamp(date, cityTimezone, locale);
-    const stage = publicMeetingStage(stageSignalsFromPreview(meeting), now);
+    const stage = presentationKey(publicMeetingPresentation(meeting, stageSignalsFromPreview(meeting), now));
     const upcoming = stage === 'upcoming';
     const subjects = sortSubjectsByImportance(meeting.subjects, 'importance');
     const subjectCount = meeting.subjects.length;
