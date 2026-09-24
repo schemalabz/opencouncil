@@ -4,6 +4,7 @@
 jest.mock('@/lib/getMeetingData', () => ({ getMeetingDataCore: jest.fn() }));
 jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
 jest.mock('@/lib/db/meetingLifecycle', () => ({ updateMeetingRecord: jest.fn() }));
+jest.mock('@/lib/db/meetings', () => ({ getCouncilMeetingDirect: jest.fn() }));
 jest.mock('@/lib/google-calendar', () => ({ syncMeetingToCalendar: jest.fn() }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn(), revalidatePath: jest.fn() }));
 

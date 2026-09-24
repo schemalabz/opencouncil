@@ -16,6 +16,7 @@ import { PUT } from '@/app/api/cities/[cityId]/meetings/[meetingId]/route'
 import { getCouncilMeetingsForCityPublicCached } from '@/lib/cache/queries'
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList'
 import { setMeetingReleased } from '@/lib/db/meetingLifecycle'
+import { syncMeetingToCalendar } from '@/lib/google-calendar'
 import { resetDatabase } from '../helpers/test-db'
 import { createAdministrativeBody, createCity, createMeeting, signInAsSuperAdmin } from '../helpers/factories'
 
@@ -88,6 +89,17 @@ describe('meeting API routes', () => {
             date: '2026-03-12T16:00:00.000Z', youtubeUrl: '', administrativeBodyId: null,
         }), meetingParams('m'))
         expect(await cleared.json()).toMatchObject({ youtubeUrl: null, administrativeBodyId: null, agendaUrl: 'https://example.com/agenda.pdf' })
+    })
+
+    test('PUT lets the calendar create the event when a meeting becomes scheduled, and only then', async () => {
+        const sync = syncMeetingToCalendar as jest.MockedFunction<typeof syncMeetingToCalendar>
+        sync.mockClear()
+        await createMeeting(CITY, { id: 'm', dateTime: new Date(Date.now() + 86_400_000), administrativeBodyId: councilId, kind: 'regular', scheduleStatus: 'cancelled' })
+        const date = new Date(Date.now() + 86_400_000).toISOString()
+        await PUT(request(`/api/cities/${CITY}/meetings/m`, { date, scheduleStatus: 'scheduled' }), meetingParams('m'))
+        expect(sync).toHaveBeenLastCalledWith(CITY, 'm', { allowCreate: true })
+        await PUT(request(`/api/cities/${CITY}/meetings/m`, { date, scheduleStatus: 'scheduled' }), meetingParams('m'))
+        expect(sync).toHaveBeenLastCalledWith(CITY, 'm', { allowCreate: false })
     })
 
     describe('the public list', () => {

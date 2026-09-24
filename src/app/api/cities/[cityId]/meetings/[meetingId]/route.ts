@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { getMeetingDataCore } from '@/lib/getMeetingData';
 import { updateMeetingRecord } from '@/lib/db/meetingLifecycle';
+import { getCouncilMeetingDirect } from '@/lib/db/meetings';
 import { LifecycleRuleError } from '@/lib/meetingLifecycleRules';
 import { toPublicApiMeeting } from '@/lib/meetingPublic';
 import { z } from 'zod';
@@ -61,6 +62,8 @@ export async function PUT(
             kind, scheduleStatus, scheduleStatusReason, sessionNumber, format, closedToPublic, place, postponedFromId, continuationOfId,
         } = meetingSchema.parse(body);
 
+        const before = await getCouncilMeetingDirect(params.cityId, params.meetingId);
+
         // A field that the request leaves out keeps its value.
         const meeting = await updateMeetingRecord(params.cityId, params.meetingId, {
             name,
@@ -86,7 +89,10 @@ export async function PUT(
         // Propagate date, administrative body, agenda and schedule status
         // changes to the Google Calendar event. The meeting name is not on the
         // event.
-        await syncMeetingToCalendar(params.cityId, params.meetingId);
+        // A meeting that was created postponed or cancelled has no event yet;
+        // when it becomes scheduled, it gets one (a future meeting only).
+        const rescheduled = before?.scheduleStatus !== 'scheduled' && meeting.scheduleStatus === 'scheduled';
+        await syncMeetingToCalendar(params.cityId, params.meetingId, { allowCreate: rescheduled });
 
         return NextResponse.json(meeting);
     } catch (error) {
