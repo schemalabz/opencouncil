@@ -5,6 +5,7 @@ import { getCityCached } from "@/lib/cache";
 import { getParty } from "@/lib/db/parties";
 import { notFound } from "next/navigation";
 import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
+import { getBodySeatTotals } from "@/lib/db/bodySeats";
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName, getLocalizedShortName } from "@/lib/formatters/name";
@@ -87,15 +88,16 @@ export default async function PartyPage(
 ) {
     const params = await props.params;
 
-    const [party, city, administrativeBodies] = await Promise.all([
+    const [party, city, administrativeBodies, seatTotals] = await Promise.all([
         getPartyCached(params.partyId),
         getCityCached(params.cityId),
-        getAdministrativeBodiesForCity(params.cityId)
+        getAdministrativeBodiesForCity(params.cityId),
+        getBodySeatTotals(params.cityId)
     ]);
 
     if (!party || !city) {
         notFound();
     }
 
-    return <PartyC party={party} city={city} administrativeBodies={administrativeBodies} />
+    return <PartyC party={party} city={city} administrativeBodies={administrativeBodies} seatTotals={seatTotals} />
 }

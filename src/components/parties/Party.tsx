@@ -31,7 +31,7 @@ import { RailCard, RailMeterRow } from '@/components/ui/rail-card';
 import { EntityHeader, FactDot } from '@/components/EntityHeader';
 import { ContributionsHead } from '@/components/ContributionsHead';
 import { GoverningPartyChip } from '@/components/parties/GoverningPartyChip';
-import { partyComposition } from '@/lib/party/composition';
+import { partyComposition, type BodySeatTotals } from '@/lib/party/composition';
 
 type RoleWithPerson = Role & {
     person: Person;
@@ -351,10 +351,12 @@ function SegmentsTab({
     );
 }
 
-export default function PartyC({ city, party, administrativeBodies }: {
+export default function PartyC({ city, party, administrativeBodies, seatTotals }: {
     city: City,
     party: PartyWithPersons,
     administrativeBodies: AdministrativeBody[],
+    /** Every active seat in the city, per type of body — the whole each composition bar measures against. */
+    seatTotals: BodySeatTotals,
 }) {
     const t = useTranslations('Party');
     const tCommon = useTranslations('Common');
@@ -399,12 +401,14 @@ export default function PartyC({ city, party, administrativeBodies }: {
     // Seats per body and the governing-party standing — the same derivation the
     // city overview's cards run, so the two surfaces can never disagree.
     const composition = useMemo(() => partyComposition(party), [party]);
+    // Each bar is the party's share of the seats on that type of body. Scaled
+    // against the card's largest row instead, one bar was always full, whatever
+    // the party held.
     const compositionRows = useMemo(() => [
-        { key: 'council', label: tCommon('adminBodyType_council'), count: composition.council },
-        { key: 'committee', label: tCommon('adminBodyType_committee'), count: composition.committee },
-        { key: 'community', label: tCommon('adminBodyType_community'), count: composition.community },
-    ].filter(row => row.count > 0), [composition, tCommon]);
-    const compositionMax = Math.max(1, ...compositionRows.map(row => row.count));
+        { key: 'council', label: tCommon('adminBodyType_council'), count: composition.council, total: seatTotals.council },
+        { key: 'committee', label: tCommon('adminBodyType_committee'), count: composition.committee, total: seatTotals.committee },
+        { key: 'community', label: tCommon('adminBodyType_community'), count: composition.community, total: seatTotals.community },
+    ].filter(row => row.count > 0), [composition, seatTotals, tCommon]);
 
     useEffect(() => {
         const checkEditPermissions = async () => {
@@ -660,8 +664,8 @@ export default function PartyC({ city, party, administrativeBodies }: {
                                         <RailMeterRow
                                             key={row.key}
                                             label={row.label}
-                                            value={row.count}
-                                            ratio={row.count / compositionMax}
+                                            value={`${row.count}/${row.total}`}
+                                            ratio={row.count / row.total}
                                             color={party.colorHex}
                                         />
                                     ))}
