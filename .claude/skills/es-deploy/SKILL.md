@@ -13,11 +13,24 @@ Every procedure it references lives in `elasticsearch/README.md`, sections "Vers
 ## Hard rules
 
 1. **Interactive only.** Refuse to run without a terminal that can confirm. Never run this skill headless, from cron, or inside a workflow.
-2. **Deploy only released state.** `elasticsearch/` must be identical between `upstream/main` and `upstream/production` (the release sits in the middle of the sequence — if they differ, the plan states which steps wait for the release). The local checkout matches that state, with no uncommitted changes under `elasticsearch/`, and CI (the schema-invariants test) is green on it.
+2. **Deploy only released state.** `elasticsearch/` must be identical between `$REMOTE/main` and `$REMOTE/production` (the release sits in the middle of the sequence — if they differ, the plan states which steps wait for the release). The local checkout matches that state, with no uncommitted changes under `elasticsearch/`, and CI (the schema-invariants test) is green on it.
 3. **Print the target triple before any write**: `ELASTICSEARCH_URL`, the resolved real index name, and the `DATABASE_URL` host+database. Nothing ties the index to the database; a mismatch looks like an ordinary run and corrupts the production index.
 4. **The canonical order is fixed.** Observation decides *which* steps apply; it never reorders them: lint → pipeline → views → schema+daemon → bootstrap → verify → swap → cleanup. The phases of this file are in that order — execute top to bottom, never ahead.
 5. **Never round-trip `schema.json` through a JSON parser.** The file is hand-formatted; edit it with targeted text substitutions only. The versioned index name lives in the repository `schema.json` and a rebuild bumps it by commit — there is no out-of-band stamping.
 6. **Start with an env inventory.** State which file provides what before using any of it: the opencouncil `.env` provides the cluster URL, the ES API key (verify its *shape*: combined base64 vs id+secret pair — both formats have existed), and read-only DB URLs; the tasks host `.env` provides the daemon's `PG_URL` and `SCHEMA_URL`. Locate variables by name, never by line number — the file gets reshuffled.
+
+## Setup
+
+Resolve the remote first. Every later ref in this file reads `$REMOTE`.
+
+```bash
+# Use 'upstream' if it exists, otherwise 'origin'. The name varies by contributor setup.
+git remote | grep -q upstream && REMOTE=upstream || REMOTE=origin
+echo "Using remote: $REMOTE ($(git remote get-url $REMOTE))"
+git fetch $REMOTE main production
+```
+
+Prefer `$REMOTE/main` and `$REMOTE/production` over the local branch names. In a repo that works in worktrees, the local `main` and `production` are often stale.
 
 ## Phase 1 — Observe (read-only)
 
@@ -28,7 +41,7 @@ Collect the actual state. All credentials come from `.env` (cluster) and the tas
 | Alias → real index | logical name `subjects` | `GET /_alias/subjects`. If `subjects` is still a real index, the one-time alias transition (README) has not happened yet — every rebuild plan must include it |
 | Ingest pipeline | `elasticsearch/pipeline.json` | `GET /_ingest/pipeline/strip-refs`, compare normalized JSON |
 | Mapping | the `mapping` block in `schema.json` | `GET /<real-index>/_mapping`: field set and declared types, ignore `_meta` |
-| Deployed schema | `schema.json` at the released ref | `curl $SCHEMA_URL` (serves the **production branch**), diff against `git show upstream/production:elasticsearch/schema.json` — and against `main` to see what a release would deploy |
+| Deployed schema | `schema.json` at the released ref | `curl $SCHEMA_URL` (serves the **production branch**), diff against `git show $REMOTE/production:elasticsearch/schema.json` — and against `main` to see what a release would deploy |
 | Views | `views.sql` | transactional dry-run on the production DB: `psql -c 'BEGIN' -f elasticsearch/views.sql -c 'ROLLBACK'` — a clean run means the file applies; an undefined-column error means a **pending migration dependency**; also compare the view list in `pg_views` |
 | Daemon | running, pgsync ≥ 7.x | `ssh … docker ps`, `pip show pgsync` in the container; env is baked at container creation — `docker inspect` it, and use `--force-recreate` after any `.env` change |
 | View ownership | every view owned by the migration user (`readandwrite`) | `SELECT viewname, viewowner FROM pg_views` — a view owned by anyone else blocks `views.sql` and future migrations |
