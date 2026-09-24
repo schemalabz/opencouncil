@@ -8,11 +8,10 @@ import type { CityNotificationPreference } from '@/lib/db/notifications';
 import { getLocalizedName, getMunicipalityQualifier } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import { authorityKey } from './authorityKey';
-import { NotisChatCard } from '@/components/signup/NotisChatCard';
+import { NotisInviteCard } from '@/components/signup/NotisInviteCard';
 import { TopicPill } from '@/components/TopicPill';
 import { FactDot } from '@/components/ui/fact-dot';
 import { RailDisclosure } from './RailDisclosure';
-import { CtaButton } from '@/components/ui/cta-button';
 
 /** Topic chips before the row stops being scannable; the rest become "+N". */
 const TOPICS_SHOWN = 2;
@@ -44,27 +43,7 @@ interface CityNotificationCardProps {
 export function CityNotificationCard({ city, preference, phoneChannel, locale }: CityNotificationCardProps) {
     if (!city.supportsNotifications) return null;
     if (preference) return <SubscribedCard city={city} preference={preference} phoneChannel={phoneChannel} locale={locale} />;
-    return <InviteCard city={city} locale={locale} />;
-}
-
-function InviteCard({ city, locale }: { city: CityWithCounts; locale: string }) {
-    const t = useTranslations('cityOverview');
-
-    return (
-        <NotisChatCard summary={t('notisTeaser')} intro={t(authorityKey('notisIntro', city))}>
-            <div className="flex flex-col gap-3 px-4 pb-4 pt-3">
-                <CtaButton
-                    href={`/${city.id}/notifications`}
-                    event="notis_invite_cta_clicked"
-                    eventProps={{ city_id: city.id }}
-                    className="flex max-w-sm"
-                >
-                    {t('notisCta')}
-                </CtaButton>
-                <p className="max-w-sm text-center text-[11px] text-muted-foreground">{t('notisChannels')}</p>
-            </div>
-        </NotisChatCard>
-    );
+    return <NotisInviteCard city={city} surface="city" />;
 }
 
 function SubscribedCard({
