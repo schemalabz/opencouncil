@@ -118,7 +118,9 @@ export function ChannelsStep({
                             notMobileMessage={ts('errors.phoneNotMobile')}
                         />
                     </div>
-                    <p className="mt-1.5 text-xs leading-[1.4] text-muted-foreground">{t('phoneHint')}</p>
+                    <p className="mt-1.5 text-xs leading-[1.4] text-muted-foreground">
+                        {t.rich('phoneHint', { free: (chunks) => <span className="text-foreground">{chunks}</span> })}
+                    </p>
                 </CheckboxCard>
 
                 <CheckboxCard
