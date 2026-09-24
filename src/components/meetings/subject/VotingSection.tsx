@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
+import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { UtteranceMiniTranscript } from './UtteranceMiniTranscript';
 import { calculateVoteResult, getAbsentNonVoterIds } from '@/lib/utils/votes';
 import { compareRanks } from '@/lib/sorting/people';

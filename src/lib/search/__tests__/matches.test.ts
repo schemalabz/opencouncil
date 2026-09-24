@@ -1,5 +1,5 @@
-import { splitMatches } from '../matches';
-import { MATCH_START, MATCH_END } from '../constants';
+import { splitMatches } from '@/lib/search/matches';
+import { MATCH_START, MATCH_END } from '@/lib/search/constants';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { toScript } from '@/lib/serbian';
 

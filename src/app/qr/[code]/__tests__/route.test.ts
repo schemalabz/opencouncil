@@ -8,7 +8,7 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 
 import { NextRequest } from 'next/server';
-import { GET } from '../route';
+import { GET } from '@/app/qr/[code]/route';
 
 /** A scan that arrived on `origin` — the realm domain printed on the poster. */
 const scan = (origin: string, path = '/qr/abc') => new NextRequest(new URL(path, origin));

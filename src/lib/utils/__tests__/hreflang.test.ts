@@ -1,4 +1,4 @@
-import { buildCanonicalAlternates } from '../hreflang';
+import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 
 let currentHost: string;
 

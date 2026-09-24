@@ -1,5 +1,5 @@
 import { render, act, screen } from '@testing-library/react';
-import { TikTokEmbed } from '../TikTokEmbed';
+import { TikTokEmbed } from '@/components/embeds/TikTokEmbed';
 
 // jsdom has no IntersectionObserver. This stub keeps the observed callback, so
 // a test decides when the reader scrolls near the video.

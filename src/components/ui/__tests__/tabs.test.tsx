@@ -35,7 +35,7 @@ jest.mock('@/i18n/routing', () => {
     };
 });
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 function renderTabs() {
     render(

@@ -5,7 +5,7 @@
  * the .test.ts → node split in jest.config.js.
  */
 import posthog from 'posthog-js';
-import { applyStoredAnalyticsConsent, posthogReady, ANALYTICS_CHOICE_KEY } from '../utils/analyticsConsent';
+import { applyStoredAnalyticsConsent, posthogReady, ANALYTICS_CHOICE_KEY } from '@/lib/utils/analyticsConsent';
 
 jest.mock('posthog-js', () => ({
   __esModule: true,

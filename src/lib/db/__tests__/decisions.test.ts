@@ -2,7 +2,7 @@
 
 const mockFindUnique = jest.fn();
 
-jest.mock('../prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
         decision: {
@@ -11,7 +11,7 @@ jest.mock('../prisma', () => ({
     },
 }));
 
-import { getDecisionForSubject } from '../decisions';
+import { getDecisionForSubject } from '@/lib/db/decisions';
 
 const decisionRow = (publishDate: Date | null, timezone = 'Europe/Athens') => ({
     ada: 'ΨΞΚ1',

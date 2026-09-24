@@ -1,4 +1,4 @@
-jest.mock('../api/errors', () => {
+jest.mock('@/lib/api/errors', () => {
   class ApiError extends Error {
     constructor(public readonly statusCode: number, message: string) {
       super(message);
@@ -23,11 +23,11 @@ jest.mock('../api/errors', () => {
   return { ApiError, BadRequestError, ConflictError, NotFoundError };
 });
 
-jest.mock('../auth', () => ({
+jest.mock('@/lib/auth', () => ({
   withUserAuthorizedToEdit: jest.fn(),
 }));
 
-jest.mock('../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
     user: {
@@ -44,9 +44,9 @@ jest.mock('../db/prisma', () => ({
   },
 }));
 
-import prisma from '../db/prisma';
-import { withUserAuthorizedToEdit } from '../auth';
-import { createUser, updateUser, deleteUser } from '../db/users';
+import prisma from '@/lib/db/prisma';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { createUser, updateUser, deleteUser } from '@/lib/db/users';
 
 const mockWithUserAuthorizedToEdit = withUserAuthorizedToEdit as jest.MockedFunction<typeof withUserAuthorizedToEdit>;
 const mockCreate = prisma.user.create as jest.MockedFunction<typeof prisma.user.create>;

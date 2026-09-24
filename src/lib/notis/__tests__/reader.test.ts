@@ -4,7 +4,7 @@ jest.mock('@/lib/db/signup', () => ({ getCityChannelRequest: (...args: unknown[]
 const mockSubscription = jest.fn();
 jest.mock('@/lib/notis/client', () => ({ getNotisSubscription: (...args: unknown[]) => mockSubscription(...args) }));
 
-import { readerSubscribedToCity } from '../reader';
+import { readerSubscribedToCity } from '@/lib/notis/reader';
 
 const notis = (status: 'active' | 'unsubscribed') => ({
     ok: true as const,

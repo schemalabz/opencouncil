@@ -1,5 +1,5 @@
-import { captureExcerptSelection, captureExcerptSegment } from '../selection';
-import { MAX_EXCERPT_LENGTH, MAX_EXCERPT_UTTERANCES, excerptSourceIsVisible, type ExcerptSource } from '../excerptSelector';
+import { captureExcerptSelection, captureExcerptSegment } from '@/lib/sharing/selection';
+import { MAX_EXCERPT_LENGTH, MAX_EXCERPT_UTTERANCES, excerptSourceIsVisible, type ExcerptSource } from '@/lib/sharing/excerptSelector';
 
 const sources: ExcerptSource[] = [
     { id: 'u1', text: 'Η πλατεία 🌳', speakerTagId: 'a', personId: 'anna', speakerName: 'Άννα', startTimestamp: 0 },

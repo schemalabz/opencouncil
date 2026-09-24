@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Button } from "../../components/ui/button"
+import { Button } from "@/components/ui/button"
 import {
     Form,
     FormControl,
@@ -14,14 +14,14 @@ import {
     FormItem,
     FormLabel,
     FormMessage,
-} from "../../components/ui/form"
-import { Input } from "../../components/ui/input"
-import { SheetClose } from "../../components/ui/sheet"
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { SheetClose } from "@/components/ui/sheet"
 import { ImageCropDialog } from "@/components/ui/ImageCropDialog"
 import { Party } from '@prisma/client'
 import { Loader2, Trash2 } from "lucide-react"
 import { useTranslations } from 'next-intl'
-import InputWithDerivatives from '../../components/InputWithDerivatives'
+import InputWithDerivatives from '@/components/InputWithDerivatives'
 import React from "react";
 // @ts-ignore
 import { HexColorPicker, HexColorInput } from "react-colorful";

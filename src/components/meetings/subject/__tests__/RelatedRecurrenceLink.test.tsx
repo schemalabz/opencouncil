@@ -5,7 +5,7 @@ jest.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
 jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
 
 import { captureEvent } from '@/lib/analytics/capture';
-import { RelatedRecurrenceLink } from '../RelatedRecurrenceLink';
+import { RelatedRecurrenceLink } from '@/components/meetings/subject/RelatedRecurrenceLink';
 
 const captureMock = captureEvent as jest.MockedFunction<typeof captureEvent>;
 const PROPS = { subjectId: 'seed', cityId: 'athens', meetingId: 'meeting-1', count: 3 };

@@ -1,4 +1,4 @@
-import { calculateGeometryBounds, createCircleBuffer, encodeGeohash, decodeGeohashToCenter, isValidGeohash, haversineDistance } from '../geo';
+import { calculateGeometryBounds, createCircleBuffer, encodeGeohash, decodeGeohashToCenter, isValidGeohash, haversineDistance } from '@/lib/geo';
 
 describe('calculateGeometryBounds', () => {
   it('returns default Athens center for null geometry', () => {

@@ -12,7 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
-import { transliterateCatalog } from '../serbian/catalog';
+import { transliterateCatalog } from '@/lib/serbian/catalog';
 
 const messagesDir = path.join(__dirname, '../../../messages');
 

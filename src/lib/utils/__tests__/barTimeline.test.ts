@@ -1,4 +1,4 @@
-import { bandAt, chapterJumpTarget, chapterStarts, coalesceSpans, cycleSpeed, formatSpeed, intersectsAny, lensLeft, lensWindowStart, mergeIntervals, resolveOverlaps, rulerLabelStep, slideFine, timeAt, utteranceRuns, SPEED_CYCLE, SPEED_MENU, type BarBand, type Chapter, type ChapterKey } from '../barTimeline';
+import { bandAt, chapterJumpTarget, chapterStarts, coalesceSpans, cycleSpeed, formatSpeed, intersectsAny, lensLeft, lensWindowStart, mergeIntervals, resolveOverlaps, rulerLabelStep, slideFine, timeAt, utteranceRuns, SPEED_CYCLE, SPEED_MENU, type BarBand, type Chapter, type ChapterKey } from '@/lib/utils/barTimeline';
 
 const u = (start: number, end: number, subjectId: string | null, status = 'SUBJECT_DISCUSSION') => ({
     startTimestamp: start,

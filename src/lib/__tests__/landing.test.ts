@@ -1,10 +1,10 @@
-import { getCities, filterCityIdsByRealm } from '../db/cities';
-import prisma from '../db/prisma';
-import * as auth from '../auth';
+import { getCities, filterCityIdsByRealm } from '@/lib/db/cities';
+import prisma from '@/lib/db/prisma';
+import * as auth from '@/lib/auth';
 
 // Mock '../api/errors' to avoid loading 'next/server' (which references the Fetch API
 // `Request` global) in the jest environment. Mirrors the workaround in users.test.ts.
-jest.mock('../api/errors', () => {
+jest.mock('@/lib/api/errors', () => {
     class ApiError extends Error {
         constructor(public readonly statusCode: number, message: string) {
             super(message);
@@ -20,14 +20,14 @@ jest.mock('../api/errors', () => {
 });
 
 // Mock the prisma client
-jest.mock('../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
     city: {
         findMany: jest.fn()
     }
 }));
 
 // Mock the auth module
-jest.mock('../auth', () => ({
+jest.mock('@/lib/auth', () => ({
     getCurrentUser: jest.fn()
 }));
 

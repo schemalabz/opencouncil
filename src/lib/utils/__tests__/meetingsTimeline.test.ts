@@ -1,5 +1,5 @@
-import { packTimeline, timelineCardHeight, timelineSide, TL } from '../meetingsTimeline';
-import { SUBJECT_PREVIEW_COUNT } from '../subjects';
+import { packTimeline, timelineCardHeight, timelineSide, TL } from '@/lib/utils/meetingsTimeline';
+import { SUBJECT_PREVIEW_COUNT } from '@/lib/utils/subjects';
 
 describe('TL.PREVIEW_ROWS', () => {
     it('previews as many subjects as a meeting card does', () => {

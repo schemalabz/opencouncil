@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { cn, getPartyFromRoles, formatTimestamp } from "@/lib/utils";
-import { PersonBadge } from "../persons/PersonBadge";
+import { PersonBadge } from "@/components/persons/PersonBadge";
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";

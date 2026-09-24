@@ -1,5 +1,5 @@
 import { VoteType } from '@prisma/client';
-import { calculateVoteResult, voteCountsPhrase, voteResultSentence, type VoteOutcomeCounts } from '../votes';
+import { calculateVoteResult, voteCountsPhrase, voteResultSentence, type VoteOutcomeCounts } from '@/lib/utils/votes';
 
 function makeVotes(...types: VoteType[]) {
     return types.map(voteType => ({ voteType }));

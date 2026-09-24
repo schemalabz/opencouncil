@@ -5,12 +5,12 @@ import {
 } from '@prisma/client';
 
 // Import types first
-import type { PersonWithRelations } from '../people';
-import type { PartyWithPersons } from '../parties';
-import type { CityWithGeometry } from '../cities';
-import type { HighlightWithUtterances } from '../highlights';
-import type { SegmentWithRelations } from '../speakerSegments';
-import { CouncilMeetingWithAdminBodyAndSubjects } from '../meetings';
+import type { PersonWithRelations } from '@/lib/db/people';
+import type { PartyWithPersons } from '@/lib/db/parties';
+import type { CityWithGeometry } from '@/lib/db/cities';
+import type { HighlightWithUtterances } from '@/lib/db/highlights';
+import type { SegmentWithRelations } from '@/lib/db/speakerSegments';
+import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 
 // Re-export db types
 export * from './roles';

@@ -1,4 +1,4 @@
-import { signInUrlForRequest } from '../signInUrl';
+import { signInUrlForRequest } from '@/lib/auth/signInUrl';
 
 const reqWith = (headers: Record<string, string>) =>
     new Request('https://internal.local/api/auth/signin', { headers });

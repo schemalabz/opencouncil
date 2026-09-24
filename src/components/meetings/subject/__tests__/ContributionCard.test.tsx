@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { ContributionCard } from '../ContributionCard';
+import { ContributionCard } from '@/components/meetings/subject/ContributionCard';
 
 jest.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }));
 let mockUtteranceInfo: { startTimestamp: number; endTimestamp: number } | undefined;

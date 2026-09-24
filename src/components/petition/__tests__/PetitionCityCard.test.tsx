@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { CityStatus } from '@prisma/client';
 import { SignupCityCard } from '@/components/notifications/signup/SignupCityCard';
-import { PetitionCityCard } from '../PetitionCityCard';
+import { PetitionCityCard } from '@/components/petition/PetitionCityCard';
 
 jest.mock('next-intl', () => ({
     useTranslations: () => (key: string, values?: Record<string, string | number>) =>

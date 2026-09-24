@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { MAX_EXCERPT_LENGTH, canonicalExcerpt, digestExcerpt, excerptPath, parseExcerptSelector, selectExcerptRuns, serializeExcerptSelector, transcriptExcerptPath, type ExcerptRun, type ExcerptSelector } from '../excerptSelector';
+import { MAX_EXCERPT_LENGTH, canonicalExcerpt, digestExcerpt, excerptPath, parseExcerptSelector, selectExcerptRuns, serializeExcerptSelector, transcriptExcerptPath, type ExcerptRun, type ExcerptSelector } from '@/lib/sharing/excerptSelector';
 import { localizeText } from '@/lib/serbian';
 
 const run: ExcerptRun = { id: 'u1', text: 'Λέμε ναι 🌳 στην πλατεία.', speakerTagId: 'tag', personId: 'person', speakerName: 'Άννα' };

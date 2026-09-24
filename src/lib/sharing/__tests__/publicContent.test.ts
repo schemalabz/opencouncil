@@ -1,7 +1,7 @@
 import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
 jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: { councilMeeting: { findFirst: jest.fn() }, subject: { findFirst: jest.fn() } } }));
 import prisma from '@/lib/db/prisma';
-import { getPublicMeeting, getPublicSubject, transcriptIsPublic, publicSubjectSelect, type PublicMeeting } from '../publicContent';
+import { getPublicMeeting, getPublicSubject, transcriptIsPublic, publicSubjectSelect, type PublicMeeting } from '@/lib/sharing/publicContent';
 
 describe('public sharing boundary', () => {
     it('scopes meeting access by city, release and request realm without editor overrides', async () => {

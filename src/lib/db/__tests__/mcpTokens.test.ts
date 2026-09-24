@@ -5,7 +5,7 @@ const mockFindUnique = jest.fn();
 const mockUpdate = jest.fn();
 const mockCount = jest.fn();
 
-jest.mock('../prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
         userMcpToken: {
@@ -18,7 +18,7 @@ jest.mock('../prisma', () => ({
 }));
 
 import { createHash } from 'crypto';
-import { createUserMcpToken, validateUserMcpToken } from '../mcpTokens';
+import { createUserMcpToken, validateUserMcpToken } from '@/lib/db/mcpTokens';
 import { GENERATED_MCP_TOKEN_NAME } from '@/lib/mcp/tokenNames';
 
 beforeEach(() => {

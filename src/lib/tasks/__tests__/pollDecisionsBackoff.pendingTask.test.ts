@@ -1,4 +1,4 @@
-import { pendingPollTaskId } from '../pollDecisionsBackoff';
+import { pendingPollTaskId } from '@/lib/tasks/pollDecisionsBackoff';
 
 describe('pendingPollTaskId', () => {
     it('names a poll task that is still running', () => {

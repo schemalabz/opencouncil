@@ -1,4 +1,4 @@
-import { rankSubjectIdsForImages } from '../subjectImageBackfill';
+import { rankSubjectIdsForImages } from '@/lib/subjectImageBackfill';
 import type { SubjectImageBackfillRow } from '@/lib/db/subject';
 
 const row = (overrides: Partial<SubjectImageBackfillRow> & { id: string }): SubjectImageBackfillRow => ({

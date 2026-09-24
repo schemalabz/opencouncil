@@ -22,8 +22,8 @@ import {
     sendMeetingCreatedAdminAlert,
     sendTaskAdminAlert,
     sendPollDecisionsBatchCompletedAlert,
-} from '../discord';
-import { sendErrorAdminAlert } from '../discord-core';
+} from '@/lib/discord';
+import { sendErrorAdminAlert } from '@/lib/discord-core';
 
 /** The embed of the single Discord message the call under test posted. */
 function postedEmbed() {

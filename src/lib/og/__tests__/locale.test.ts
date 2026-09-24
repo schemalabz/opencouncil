@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { buildOgImageUrl, resolveOgLocale } from '../locale';
+import { buildOgImageUrl, resolveOgLocale } from '@/lib/og/locale';
 
 describe('resolveOgLocale', () => {
     it('honours the locale the page passed', () => {

@@ -1,4 +1,4 @@
-import { CLOSED, lensReducer, lensWidthFor, type LensContext, type LensEvent, type LensState } from '../lensGesture';
+import { CLOSED, lensReducer, lensWidthFor, type LensContext, type LensEvent, type LensState } from '@/components/meetings/bar/lens/lensGesture';
 
 // a 4-hour meeting on a 1000px strip that starts 300px into a 1440px viewport, a 600px lens
 const ctx: LensContext = { duration: 14400, lensEnabled: true, lensWidth: 600, stripLeft: 300, stripWidth: 1000, viewportWidth: 1440 };

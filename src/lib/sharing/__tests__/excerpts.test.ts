@@ -2,8 +2,8 @@ jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: { utterance: { 
 jest.mock('@/lib/db/sharing/publicContent', () => ({ getPublicMeeting: jest.fn(), transcriptIsPublic: jest.fn() }));
 import prisma from '@/lib/db/prisma';
 import { getPublicMeeting, transcriptIsPublic } from '@/lib/db/sharing/publicContent';
-import { getPublicExcerpt } from '../excerpts';
-import { digestExcerpt, type ExcerptSelector } from '../excerptSelector';
+import { getPublicExcerpt } from '@/lib/sharing/excerpts';
+import { digestExcerpt, type ExcerptSelector } from '@/lib/sharing/excerptSelector';
 
 const query = prisma.utterance.findMany as jest.Mock;
 const source = { id: 'u1', text: 'Η πλατεία.', startTimestamp: 0, speakerSegmentId: 'seg', discussionStatus: 'SUBJECT_DISCUSSION', discussionSubject: { id: 's', name: 'Πλατεία' }, speakerSegment: { id: 'seg', startTimestamp: 0, speakerTag: { id: 'tag', personId: 'p', person: { name: 'Άννα', name_en: 'Anna' } } } };

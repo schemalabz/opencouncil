@@ -3,7 +3,7 @@
 import { NextRequest } from 'next/server';
 import { UnreadableImageError } from '@opencouncil/subject-images';
 import { MAX_IMAGE_BYTES } from '@/lib/utils/imageUpload';
-import { GET, POST } from '../route';
+import { GET, POST } from '@/app/api/subject/[subjectId]/image/route';
 import { getCurrentUser } from '@/lib/auth';
 import {
     generateImageForSubject,

@@ -31,7 +31,7 @@ import { generateMetadata as excerptMetadata } from '@/app/[locale]/(sharing)/sh
 import ContributionPage, { generateMetadata as contributionMetadata } from '@/app/[locale]/(sharing)/share/contribution/[contributionId]/page';
 import { GET as excerptImage } from '@/app/api/og/excerpt/route';
 import { GET as contributionImage } from '@/app/api/og/contribution/route';
-import { serializeExcerptSelector, type ExcerptSelector } from '../excerptSelector';
+import { serializeExcerptSelector, type ExcerptSelector } from '@/lib/sharing/excerptSelector';
 
 const selector: ExcerptSelector = { cityId: 'city', meetingId: 'meeting', firstUtteranceId: 'u1', lastUtteranceId: 'u2', textLocale: 'el', digest: 'a'.repeat(64) };
 const meeting = { id: 'meeting', cityId: 'city', name: 'Συνεδρίαση', name_en: 'Meeting', dateTime: new Date('2026-09-10'), administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' }, city: { name: 'Αθήνα', name_en: 'Athens', timezone: 'Europe/Athens' } };

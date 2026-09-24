@@ -1,7 +1,7 @@
 "use server";
 import { SpeakerTag, Person } from '@prisma/client';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from '../auth';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 export async function getSpeakerTag(id: string): Promise<(SpeakerTag & { person: Person | null }) | null> {
     const speakerTag = await prisma.speakerTag.findUnique({

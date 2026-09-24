@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { renderMinutesDocx } from '../MinutesDocx';
+import { renderMinutesDocx } from '@/components/meetings/docx/MinutesDocx';
 import { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 
 function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {

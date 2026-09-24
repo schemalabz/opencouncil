@@ -6,7 +6,7 @@ jest.mock('@/lib/admin/councilQrStrips', () => ({
     getCouncilQrStrips: (...args: unknown[]) => mockGetCouncilQrStrips(...args),
 }));
 
-import { GET } from '../route';
+import { GET } from '@/app/api/admin/cities/[cityId]/qr-strips/route';
 
 const call = (cityId = 'chania') => GET(new Request(`https://opencouncil.gr/api/admin/cities/${cityId}/qr-strips`), {
     params: Promise.resolve({ cityId }),

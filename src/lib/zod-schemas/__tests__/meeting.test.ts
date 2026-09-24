@@ -1,4 +1,4 @@
-import { meetingSchema } from '../meeting';
+import { meetingSchema } from '@/lib/zod-schemas/meeting';
 
 const validBase = {
   name: 'Δημοτικό Συμβούλιο',

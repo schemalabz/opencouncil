@@ -1,8 +1,8 @@
 "use server";
 import { City, CouncilMeeting, Highlight, HighlightCreationPermission, Subject, Utterance, Prisma } from '@prisma/client';
 import prisma from "./prisma";
-import { getCurrentUser, isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
-import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from "../api/errors";
+import { getCurrentUser, isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "@/lib/auth";
+import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from "@/lib/api/errors";
 import {
     highlightWithUtterancesInclude,
     highlightWithMeetingInclude,

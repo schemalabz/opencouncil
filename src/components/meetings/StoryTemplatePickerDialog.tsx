@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Loader2, Download } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
-import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { sortSubjectsBySpeakerContributionCount } from "@/lib/utils";

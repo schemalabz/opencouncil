@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { VoicePrintConsentControl } from '../VoicePrintConsentControl';
+import { VoicePrintConsentControl } from '@/components/persons/VoicePrintConsentControl';
 import { recordVoicePrintConsent } from '@/lib/actions/personConsent';
 
 const mockRefresh = jest.fn();

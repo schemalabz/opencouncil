@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Section } from '@react-email/components';
-import { BaseTemplate } from '../components/BaseTemplate';
+import { BaseTemplate } from '@/lib/email/components/BaseTemplate';
 
 export interface ProductUpdateEmailProps {
     /**

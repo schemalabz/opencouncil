@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Users, Ban, Star, AlertCircle, Download } from 'lucide-react';
-import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
+import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { TripleToggle } from '@/components/ui/triple-toggle';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { SubjectWithRelations } from '@/lib/db/subject';

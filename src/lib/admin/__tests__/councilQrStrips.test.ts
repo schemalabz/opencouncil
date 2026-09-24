@@ -14,7 +14,7 @@ jest.mock('@/lib/db/personClaim', () => ({ getClaimedPersonIds: (...args: unknow
 const mockGetTranslations = jest.fn();
 jest.mock('next-intl/server', () => ({ getTranslations: (...args: unknown[]) => mockGetTranslations(...args) }));
 
-import { getCouncilQrStrips } from '../councilQrStrips';
+import { getCouncilQrStrips } from '@/lib/admin/councilQrStrips';
 import { verifyPersonClaimToken } from '@/lib/auth/personClaim';
 
 const councilBody = { id: 'body-council', name: 'Δημοτικό Συμβούλιο', type: 'council' };

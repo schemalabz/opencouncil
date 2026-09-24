@@ -1,8 +1,8 @@
 'use server'
-import { withUserAuthorizedToEdit } from "../auth";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 import prisma from "./prisma";
 import { TaskStatus } from '@prisma/client';
-import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG } from "../tasks/types";
+import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG } from "@/lib/tasks/types";
 import { getHighlightPermissions } from "./highlights";
 
 // Derived type for meeting task completion status

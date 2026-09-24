@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AdministrativeBodyType } from '@prisma/client';
-import { registry, sessionAuth, ValidationErrorSchema, ErrorResponseSchema, cityIdParam } from '../registry';
+import { registry, sessionAuth, ValidationErrorSchema, ErrorResponseSchema, cityIdParam } from '@/lib/openapi/registry';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
 
 // --- Response Schemas ---

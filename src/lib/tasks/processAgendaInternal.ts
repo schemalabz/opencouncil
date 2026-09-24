@@ -1,9 +1,9 @@
-import { ProcessAgendaRequest } from "../apiTypes";
+import { ProcessAgendaRequest } from "@/lib/apiTypes";
 import { startTask } from "./tasks";
-import prisma from "../db/prisma";
-import { getTopics } from "../db/topics";
-import { getPartyFromRoles, getRoleNameForPerson } from "../utils";
-import { getPeopleForMeeting } from "../db/people";
+import prisma from "@/lib/db/prisma";
+import { getTopics } from "@/lib/db/topics";
+import { getPartyFromRoles, getRoleNameForPerson } from "@/lib/utils";
+import { getPeopleForMeeting } from "@/lib/db/people";
 import { getRealmCountry } from "@/lib/realm";
 
 /**

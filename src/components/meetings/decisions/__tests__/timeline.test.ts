@@ -1,7 +1,7 @@
-import { buildTimeline, hasDiscussionOrder, isPendingDecision, minutesReadiness } from '../timeline';
+import { buildTimeline, hasDiscussionOrder, isPendingDecision, minutesReadiness } from '@/components/meetings/decisions/timeline';
 import type { MinutesSubject, MinutesProceduralVote, MinutesAttendanceChange, MinutesCouncilComposition } from '@/lib/minutes/types';
 import type { MinutesMember } from '@/lib/minutes/types';
-import type { TimelineItem } from '../timeline';
+import type { TimelineItem } from '@/components/meetings/decisions/timeline';
 
 const member = (name: string): MinutesMember => ({ personId: name, name, party: null, isPartyHead: false, role: null });
 const members = (n: number): MinutesMember[] => Array.from({ length: n }, (_, i) => member(`m${i}`));

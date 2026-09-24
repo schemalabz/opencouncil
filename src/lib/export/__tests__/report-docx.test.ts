@@ -1,6 +1,6 @@
 import { Offer } from '@prisma/client';
 import JSZip from 'jszip';
-import { renderReportDocx, ReportMeeting } from '../report-docx';
+import { renderReportDocx, ReportMeeting } from '@/lib/export/report-docx';
 
 const offer = {
     id: 'offer1',

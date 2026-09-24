@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-import { SubjectPicker, type SubjectPickerProps } from '../SubjectPicker';
+import { SubjectPicker, type SubjectPickerProps } from '@/components/meetings/decisions/SubjectPicker';
 import admin from '../../../../../messages/el/admin.json';
 
 const props: SubjectPickerProps = {

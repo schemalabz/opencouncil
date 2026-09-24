@@ -8,7 +8,7 @@ import { parseEmbedConfig } from '@/lib/utils/embedParams';
 import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import { EmbedSingleSubject } from '@/components/embed/EmbedSingleSubject';
 import { EmbedFooter } from '@/components/embed/EmbedFooter';
-import '../meetings/embed.css';
+import '@/app/[locale]/(embed)/embed/meetings/embed.css';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { DiavgeiaSourceLink } from '../DiavgeiaSource';
+import { DiavgeiaSourceLink } from '@/components/meetings/decisions/DiavgeiaSource';
 
 jest.mock('next-intl', () => ({
     useTranslations: () => (key: string, params?: Record<string, unknown>) =>

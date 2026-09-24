@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { OpenCouncilWatermark } from "../shared-components";
+import { OpenCouncilWatermark } from "@/components/og/shared-components";
 import type { PreviewSubject, PreviewData } from "./types";
 import { SectionLabel, RemainderLine, PRIMARY_PILL_FALLBACK, STORY_FONT_FAMILY, StoryTopicIcon, uppercaseGreek } from "./shared";
 

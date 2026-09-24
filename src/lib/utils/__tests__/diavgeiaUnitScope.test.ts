@@ -1,4 +1,4 @@
-import { parseDiavgeiaUnitScope, parseDiavgeiaUnitScopes, entriesForResolvedUnit, readDiavgeiaUnitEntries } from '../diavgeiaUnitScope';
+import { parseDiavgeiaUnitScope, parseDiavgeiaUnitScopes, entriesForResolvedUnit, readDiavgeiaUnitEntries } from '@/lib/utils/diavgeiaUnitScope';
 
 describe('parseDiavgeiaUnitScopes', () => {
     it('reads a bare unit as unit-only', () => {

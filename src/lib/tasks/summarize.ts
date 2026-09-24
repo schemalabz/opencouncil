@@ -1,17 +1,17 @@
 "use server";
 import { CouncilMeeting, Prisma, SpeakerSegment } from "@prisma/client";
-import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "../apiTypes";
-import { getTranscript } from "../db/transcript";
-import { getPartiesForCity } from "../db/parties";
+import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "@/lib/apiTypes";
+import { getTranscript } from "@/lib/db/transcript";
+import { getPartiesForCity } from "@/lib/db/parties";
 import { startTask } from "./tasks";
-import { getCity } from "../db/cities";
-import { getCouncilMeeting } from "../db/meetings";
-import prisma from "../db/prisma";
-import { revalidateMeeting } from "../cache";
-import { getAvailableSpeakerSegmentIds, getSummarizeRequestBody, saveSubjectsForMeeting } from "../db/utils";
-import { withUserAuthorizedToEdit } from "../auth";
+import { getCity } from "@/lib/db/cities";
+import { getCouncilMeeting } from "@/lib/db/meetings";
+import prisma from "@/lib/db/prisma";
+import { revalidateMeeting } from "@/lib/cache";
+import { getAvailableSpeakerSegmentIds, getSummarizeRequestBody, saveSubjectsForMeeting } from "@/lib/db/utils";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { after } from "next/server";
-import { generateImagesForMeeting } from "../subjectImages";
+import { generateImagesForMeeting } from "@/lib/subjectImages";
 
 export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = [], additionalInstructions?: string, {
     force = false
@@ -173,9 +173,9 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     // Create notifications if administrative body allows it
     const adminBody = councilMeeting.administrativeBody;
     if (adminBody && adminBody.notificationBehavior !== 'NOTIFICATIONS_DISABLED') {
-        const { createNotificationsForMeeting } = await import('../db/notifications');
-        const { releaseNotifications } = await import('../notifications/deliver');
-        const { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } = await import('../discord');
+        const { createNotificationsForMeeting } = await import('@/lib/db/notifications');
+        const { releaseNotifications } = await import('@/lib/notifications/deliver');
+        const { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } = await import('@/lib/discord');
 
         try {
             const stats = await createNotificationsForMeeting(

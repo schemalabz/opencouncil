@@ -8,7 +8,7 @@ const mockSubscribed = jest.fn();
 jest.mock('@/lib/notis/reader', () => ({ readerSubscribedToCity: (...args: unknown[]) => mockSubscribed(...args) }));
 
 import { generatePersonClaimToken } from '@/lib/auth/personClaim';
-import { getJoinStage } from '../stage';
+import { getJoinStage } from '@/lib/personJoin/stage';
 
 const row = (administrators: { userId: string }[], supportsNotifications = true) => ({
     id: 'person-1',

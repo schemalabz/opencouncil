@@ -1,4 +1,4 @@
-import { saveNotificationPreferencesSchema, savePetitionSchema } from '../onboarding';
+import { saveNotificationPreferencesSchema, savePetitionSchema } from '@/lib/zod-schemas/onboarding';
 
 const base = {
     cityId: 'athens',

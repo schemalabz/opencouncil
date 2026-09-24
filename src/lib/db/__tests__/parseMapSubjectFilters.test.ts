@@ -1,8 +1,8 @@
 // parseMapSubjectFilters is pure param parsing; mock the prisma singleton so importing subject.ts
 // doesn't pull in the real client (→ env.mjs, which the jest transform doesn't handle).
-jest.mock('../prisma', () => ({ __esModule: true, default: {} }));
+jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: {} }));
 
-import { parseMapSubjectFilters } from '../subject';
+import { parseMapSubjectFilters } from '@/lib/db/subject';
 
 const parse = (qs: string) => parseMapSubjectFilters(new URLSearchParams(qs));
 

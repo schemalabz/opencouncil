@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { SubjectEmbedDialog } from '../SubjectEmbedDialog';
+import { SubjectEmbedDialog } from '@/components/embed/SubjectEmbedDialog';
 jest.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }));
 const writeText = jest.fn();
 const target = { cityId: 'city', meetingId: 'meeting', subjectId: 'subject' };

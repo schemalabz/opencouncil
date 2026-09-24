@@ -1,4 +1,4 @@
-import { splitAttendance } from '../attendance';
+import { splitAttendance } from '@/lib/utils/attendance';
 
 describe('splitAttendance', () => {
     const rows = [

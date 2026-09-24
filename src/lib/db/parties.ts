@@ -1,8 +1,8 @@
 "use server";
 import { Party, Prisma } from '@prisma/client';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
-import { getActiveRoleCondition } from "../utils";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { getActiveRoleCondition } from "@/lib/utils";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
 const partyWithRolesInclude = {

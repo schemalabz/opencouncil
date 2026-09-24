@@ -1,4 +1,4 @@
-import { contrastText, topicStyle, topicStyleHex } from '../topicStyle';
+import { contrastText, topicStyle, topicStyleHex } from '@/lib/topicStyle';
 
 describe('topicStyleHex', () => {
     it('resolves the soft recipe to plain hex for renderers without color-mix', () => {

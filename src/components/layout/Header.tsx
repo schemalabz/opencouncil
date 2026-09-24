@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import UserDropdown from "./user-dropdown"
 import { motion, AnimatePresence } from 'framer-motion'
-import { SidebarTrigger } from '../ui/sidebar'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import { City } from '@prisma/client'
 import { Input } from "@/components/ui/input"
 import { Search, Plug, Building2, ChevronLeft, ChevronRight, HelpCircle, type LucideIcon } from "lucide-react"

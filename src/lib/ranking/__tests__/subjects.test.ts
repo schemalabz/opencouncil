@@ -4,7 +4,7 @@ import {
     sortByRanking,
     DEFAULT_SUBJECT_RANKING_WEIGHTS,
     type RankableSubject,
-} from '../subjects';
+} from '@/lib/ranking/subjects';
 import type { AdministrativeBodyType } from '@prisma/client';
 
 // Test items carry an `id` and satisfy RankableSubject, so `adapt` is identity.

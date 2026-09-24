@@ -2,7 +2,7 @@
 import { Prisma } from '@prisma/client';
 import prisma from './prisma';
 import { buildDateFilter } from './reviews/dateFilters';
-import { CUSTOMER_CITY_WHERE } from '../cityStatus';
+import { CUSTOMER_CITY_WHERE } from '@/lib/cityStatus';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 
 // ============================================================================

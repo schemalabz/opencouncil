@@ -1,10 +1,10 @@
 "use server";
 
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { subDays } from "date-fns";
-import { CUSTOMER_CITY_WHERE } from "../cityStatus";
-import type { SignupRow } from "../admin/signup-series";
+import { CUSTOMER_CITY_WHERE } from "@/lib/cityStatus";
+import type { SignupRow } from "@/lib/admin/signup-series";
 
 export interface AdminDashboardStats {
     users: {

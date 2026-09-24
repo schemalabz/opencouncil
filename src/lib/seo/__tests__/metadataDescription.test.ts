@@ -1,4 +1,4 @@
-import { compactMetadataDescription } from "../metadataDescription";
+import { compactMetadataDescription } from "@/lib/seo/metadataDescription";
 
 describe("compactMetadataDescription", () => {
     it("keeps link labels and drops link targets, including REF markers", () => {

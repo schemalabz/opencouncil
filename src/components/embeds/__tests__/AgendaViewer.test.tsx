@@ -1,8 +1,8 @@
 import { render } from '@testing-library/react';
-import { AgendaViewer } from '../AgendaViewer';
+import { AgendaViewer } from '@/components/embeds/AgendaViewer';
 
 // The lightbox and the localized Link are not under test here.
-jest.mock('../ZoomLightbox', () => ({ ZoomLightbox: () => null }));
+jest.mock('@/components/embeds/ZoomLightbox', () => ({ ZoomLightbox: () => null }));
 jest.mock('@/i18n/routing', () => ({
     Link: ({ children }: { children: React.ReactNode }) => <a href="/">{children}</a>,
 }));

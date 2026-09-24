@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Section, Heading, Text, Button, Container } from '@react-email/components';
-import { BaseTemplate } from '../components/BaseTemplate';
+import { BaseTemplate } from '@/lib/email/components/BaseTemplate';
 import { formatDate } from '@/lib/formatters/time';
 
 interface NotificationSubject {

@@ -16,7 +16,7 @@ jest.mock('@/lib/google-maps', () => ({
 import { aiChat } from '@/lib/ai';
 import { getCity, filterCityIdsByRealm } from '@/lib/db/cities';
 import { getPlaceSuggestions, getPlaceDetails } from '@/lib/google-maps';
-import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '../filters';
+import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '@/lib/search/filters';
 
 const aiChatMock = aiChat as jest.MockedFunction<typeof aiChat>;
 

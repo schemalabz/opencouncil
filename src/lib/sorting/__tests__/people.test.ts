@@ -7,7 +7,7 @@ import {
     sortPersonsByLastName,
     type OrderedPerson,
     type OrderedRole,
-} from '../people';
+} from '@/lib/sorting/people';
 
 const OPEN = { startDate: null, endDate: null };
 const ENDED = { startDate: null, endDate: new Date('2020-01-01') };

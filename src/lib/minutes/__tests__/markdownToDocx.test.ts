@@ -1,4 +1,4 @@
-import { markdownToDocxParagraphs } from '../markdownToDocx';
+import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
 import { Document, Packer, Paragraph, Table, TextRun } from 'docx';
 import JSZip from 'jszip';
 

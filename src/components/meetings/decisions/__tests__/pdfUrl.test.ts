@@ -1,4 +1,4 @@
-import { diavgeiaSearchUrl, inlinePdfUrl } from '../pdfUrl';
+import { diavgeiaSearchUrl, inlinePdfUrl } from '@/components/meetings/decisions/pdfUrl';
 
 describe('inlinePdfUrl', () => {
     it('appends inline=true to diavgeia document URLs', () => {

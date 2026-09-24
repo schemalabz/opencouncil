@@ -3,7 +3,7 @@ import {
     computeTemporalWindows,
     assignUtterances,
     WindowUtterance,
-} from '../temporalWindows';
+} from '@/lib/minutes/temporalWindows';
 
 function makeUtterance(overrides: {
     id?: string;

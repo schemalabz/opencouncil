@@ -3,7 +3,7 @@
 const mockMeetingFindFirst = jest.fn();
 const mockUserFindUnique = jest.fn();
 
-jest.mock('../../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
         councilMeeting: {
@@ -15,8 +15,8 @@ jest.mock('../../db/prisma', () => ({
     },
 }));
 
-import { requireVisibleMeeting } from '../gate';
-import { NotFoundError } from '../../api/errors';
+import { requireVisibleMeeting } from '@/lib/mcp/gate';
+import { NotFoundError } from '@/lib/api/errors';
 
 const USER = { type: 'user', userId: 'u1' } as const;
 const SERVICE = { type: 'service', keyName: 'bot' } as const;

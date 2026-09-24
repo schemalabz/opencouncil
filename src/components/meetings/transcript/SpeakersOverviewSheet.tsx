@@ -2,8 +2,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
-import { useVideo } from '../VideoProvider';
+import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
+import { useVideo } from '@/components/meetings/VideoProvider';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";

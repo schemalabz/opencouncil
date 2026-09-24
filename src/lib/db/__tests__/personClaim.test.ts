@@ -23,7 +23,7 @@ jest.mock('@/lib/db/prisma', () => ({
 const mockCloseAppConsent = jest.fn();
 jest.mock('@/lib/db/personConsent', () => ({ closeAppConsent: (...args: unknown[]) => mockCloseAppConsent(...args) }));
 
-import { claimPerson, getClaimablePersonStatus, getClaimedPersonIds } from '../personClaim';
+import { claimPerson, getClaimablePersonStatus, getClaimedPersonIds } from '@/lib/db/personClaim';
 
 const tx = {
     person: { findUnique: mockFindUnique },

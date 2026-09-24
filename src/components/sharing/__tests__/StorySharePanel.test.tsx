@@ -1,7 +1,7 @@
 import { captureEvent } from '@/lib/analytics/capture';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { StorySharePanel } from '../StorySharePanel';
-import { ContentShareDialog } from '../ContentShareDialog';
+import { StorySharePanel } from '@/components/sharing/StorySharePanel';
+import { ContentShareDialog } from '@/components/sharing/ContentShareDialog';
 
 jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
 

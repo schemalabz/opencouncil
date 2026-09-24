@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import type { ReactElement } from 'react';
-import { boundaryPath } from '../boundary';
+import { boundaryPath } from '@/lib/og/boundary';
 
 /** The one path the renderer draws, and the box it was fitted to. */
 function drawn(node: ReturnType<typeof boundaryPath>) {

@@ -1,4 +1,4 @@
-import { dayStart, summarizeSignups, weekStart, type SignupRow } from '../signup-series';
+import { dayStart, summarizeSignups, weekStart, type SignupRow } from '@/lib/admin/signup-series';
 
 const NOW = new Date('2026-09-09T12:00:00Z'); // a Wednesday; the week starts 2026-09-07
 const at = (iso: string) => new Date(iso);

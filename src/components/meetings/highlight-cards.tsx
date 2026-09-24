@@ -2,7 +2,7 @@
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
-import { SubjectCard } from "../subject-card";
+import { SubjectCard } from "@/components/subject-card";
 import { HighlightWithUtterances } from "@/lib/db/highlights";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";

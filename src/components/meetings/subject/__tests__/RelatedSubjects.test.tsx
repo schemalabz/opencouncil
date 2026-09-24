@@ -23,7 +23,7 @@ jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
 jest.mock('@/lib/formatters/time', () => ({ formatDate: (date: Date) => date.toISOString().slice(0, 10) }));
 
 import { captureEvent } from '@/lib/analytics/capture';
-import { RelatedSubjects, type RelatedLevel, type RelatedSubject } from '../RelatedSubjects';
+import { RelatedSubjects, type RelatedLevel, type RelatedSubject } from '@/components/meetings/subject/RelatedSubjects';
 
 const captureMock = captureEvent as jest.MockedFunction<typeof captureEvent>;
 

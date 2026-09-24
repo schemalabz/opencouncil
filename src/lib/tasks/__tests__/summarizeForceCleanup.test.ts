@@ -1,7 +1,7 @@
 /** @jest-environment node */
 
-import { requestSummarize, handleSummarizeResult } from '../summarize';
-import { SummarizeResult } from '../../apiTypes';
+import { requestSummarize, handleSummarizeResult } from '@/lib/tasks/summarize';
+import { SummarizeResult } from '@/lib/apiTypes';
 
 /**
  * Tests for the summarize cleanup and force semantics.
@@ -37,7 +37,7 @@ const mockTopicFindMany = jest.fn().mockResolvedValue([]);
 const mockUtteranceFindMany = jest.fn().mockResolvedValue([]);
 const mockUtteranceUpdate = jest.fn().mockResolvedValue({});
 
-jest.mock('../../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
     taskStatus: {
@@ -61,7 +61,7 @@ jest.mock('../../db/prisma', () => ({
 const mockGetAvailableSpeakerSegmentIds = jest.fn().mockResolvedValue([]);
 const mockSaveSubjectsForMeeting = jest.fn().mockResolvedValue(new Map());
 const mockGetSummarizeRequestBody = jest.fn().mockResolvedValue({ transcript: [] });
-jest.mock('../../db/utils', () => ({
+jest.mock('@/lib/db/utils', () => ({
   getAvailableSpeakerSegmentIds: (...args: unknown[]) => mockGetAvailableSpeakerSegmentIds(...args),
   saveSubjectsForMeeting: (...args: unknown[]) => mockSaveSubjectsForMeeting(...args),
   getSummarizeRequestBody: (...args: unknown[]) => mockGetSummarizeRequestBody(...args),
@@ -69,7 +69,7 @@ jest.mock('../../db/utils', () => ({
 
 const mockStartTask = jest.fn().mockResolvedValue({ id: TASK_ID });
 const mockGenerateImagesForMeeting = jest.fn().mockResolvedValue(undefined);
-jest.mock('../../subjectImages', () => ({
+jest.mock('@/lib/subjectImages', () => ({
   generateImagesForMeeting: (...args: unknown[]) => mockGenerateImagesForMeeting(...args),
 }));
 
@@ -79,11 +79,11 @@ jest.mock('next/server', () => ({
   after: (fn: () => unknown) => mockAfter(fn),
 }));
 
-jest.mock('../tasks', () => ({
+jest.mock('@/lib/tasks/tasks', () => ({
   startTask: (...args: unknown[]) => mockStartTask(...args),
 }));
 
-jest.mock('../../auth', () => ({
+jest.mock('@/lib/auth', () => ({
   withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
 }));
 

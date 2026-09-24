@@ -1,9 +1,9 @@
 "use server";
 import { Offer } from '@prisma/client';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
-import { validateAdam } from "../zod-schemas/offer";
-import { isSigned, getSupersedingOffer } from "../offers/state";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { validateAdam } from "@/lib/zod-schemas/offer";
+import { isSigned, getSupersedingOffer } from "@/lib/offers/state";
 
 export async function createOffer(offerData: Omit<Offer, 'id' | 'createdAt' | 'updatedAt'>): Promise<Offer> {
     await withUserAuthorizedToEdit({});

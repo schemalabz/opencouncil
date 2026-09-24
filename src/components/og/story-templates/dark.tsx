@@ -1,6 +1,6 @@
 import { formatInTimeZone } from "date-fns-tz";
 import { el } from "date-fns/locale";
-import { OpenCouncilWatermark } from "../shared-components";
+import { OpenCouncilWatermark } from "@/components/og/shared-components";
 import { DEFAULT_TIMEZONE, formatWeekday } from "@/lib/formatters/time";
 import type { PreviewData } from "./types";
 import { SectionLabel, SubjectRow, RemainderLine, STORY_FONT_FAMILY, uppercaseGreek } from "./shared";

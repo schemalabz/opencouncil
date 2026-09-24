@@ -1,9 +1,9 @@
 "use server";
 import prisma from './prisma';
-import { withUserAuthorizedToEdit } from '../auth';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { CouncilMeeting, City, Prisma, AdministrativeBodyType, DiscussionStatus } from '@prisma/client';
 import { PersonWithRelations } from './people';
-import { isRoleActiveAt } from '../utils';
+import { isRoleActiveAt } from '@/lib/utils';
 import { roleWithRelationsInclude } from './types';
 
 export type SegmentWithRelations = {

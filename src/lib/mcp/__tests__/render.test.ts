@@ -5,7 +5,7 @@ import {
     resolveRenderOptions,
     sameRenderOptions,
     toGenerateOptions,
-} from '../render';
+} from '@/lib/mcp/render';
 
 describe('resolveRenderOptions', () => {
     it('defaults to landscape with subtitles and speaker overlays, matching the web UI', () => {

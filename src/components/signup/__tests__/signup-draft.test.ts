@@ -1,5 +1,5 @@
 /** @jest-environment jsdom */
-import { clearDraft, draftKey, readDraft, writeDraft } from '../signup-draft';
+import { clearDraft, draftKey, readDraft, writeDraft } from '@/components/signup/signup-draft';
 
 const KEY = draftKey('notifications', 'athens');
 

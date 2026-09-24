@@ -14,7 +14,7 @@ import {
     PRICING_CONSTANTS,
     CURRENT_OFFER_VERSION
 } from './config';
-import { monthsBetween } from '../utils';
+import { monthsBetween } from '@/lib/utils';
 
 /**
  * The Offer fields pricing actually reads — callers with form values (not a

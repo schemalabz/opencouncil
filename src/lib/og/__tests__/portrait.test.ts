@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { getPortraitData } from '../portrait';
+import { getPortraitData } from '@/lib/og/portrait';
 
 const fetchMock = jest.fn();
 const originalFetch = global.fetch;

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { DiscussionOrderCard, discussionGroups, isContiguous } from '../DiscussionOrderCard';
+import { DiscussionOrderCard, discussionGroups, isContiguous } from '@/components/meetings/decisions/rail/DiscussionOrderCard';
 import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 
 jest.mock('next-intl', () => ({

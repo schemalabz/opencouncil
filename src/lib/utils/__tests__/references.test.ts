@@ -1,4 +1,4 @@
-import { parseReferences } from '../references';
+import { parseReferences } from '@/lib/utils/references';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 
 // The landing flattens subject descriptions with stripMarkdown (which also handles the

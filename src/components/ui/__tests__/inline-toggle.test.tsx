@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { InlineToggle } from '../inline-toggle';
+import { InlineToggle } from '@/components/ui/inline-toggle';
 
 describe('InlineToggle', () => {
     it('underlines the active option', () => {

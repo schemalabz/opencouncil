@@ -2,7 +2,7 @@
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { captureEvent } from '@/lib/analytics/capture';
 import { Statistics } from "@/lib/statistics";
-import { SubjectRow } from "../subject/SubjectRow";
+import { SubjectRow } from "@/components/subject/SubjectRow";
 import type { PendingKind } from "@/lib/meetingStage";
 import { useCouncilMeetingData } from "./CouncilMeetingDataContext";
 import { useState } from "react";

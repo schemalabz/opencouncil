@@ -1,5 +1,5 @@
 // Mock all dependencies before importing the module under test
-jest.mock('../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
         person: { findMany: jest.fn() },
@@ -7,28 +7,28 @@ jest.mock('../db/prisma', () => ({
         $transaction: jest.fn(),
     }
 }));
-jest.mock('../db/transcript', () => ({ getTranscript: jest.fn() }));
-jest.mock('../db/people', () => ({ getPeopleForMeeting: jest.fn() }));
-jest.mock('../db/parties', () => ({ getPartiesForCity: jest.fn() }));
-jest.mock('../db/topics', () => ({
+jest.mock('@/lib/db/transcript', () => ({ getTranscript: jest.fn() }));
+jest.mock('@/lib/db/people', () => ({ getPeopleForMeeting: jest.fn() }));
+jest.mock('@/lib/db/parties', () => ({ getPartiesForCity: jest.fn() }));
+jest.mock('@/lib/db/topics', () => ({
     getTopics: jest.fn(),
 }));
-jest.mock('../db/cities', () => ({ getCity: jest.fn() }));
-jest.mock('../db/meetings', () => ({
+jest.mock('@/lib/db/cities', () => ({ getCity: jest.fn() }));
+jest.mock('@/lib/db/meetings', () => ({
     getCouncilMeetingDirect: jest.fn(),
     // Mocked so a test can assert it is never reached: it consults the session,
     // which does not exist on the task-server callback path.
     getCouncilMeeting: jest.fn(),
 }));
 
-import prisma from '../db/prisma';
-import { getTranscript } from '../db/transcript';
-import { getPeopleForMeeting } from '../db/people';
-import { getPartiesForCity } from '../db/parties';
-import { getTopics } from '../db/topics';
-import { getCity } from '../db/cities';
-import { getCouncilMeeting, getCouncilMeetingDirect } from '../db/meetings';
-import { getRequestOnTranscriptRequestBody } from '../db/utils';
+import prisma from '@/lib/db/prisma';
+import { getTranscript } from '@/lib/db/transcript';
+import { getPeopleForMeeting } from '@/lib/db/people';
+import { getPartiesForCity } from '@/lib/db/parties';
+import { getTopics } from '@/lib/db/topics';
+import { getCity } from '@/lib/db/cities';
+import { getCouncilMeeting, getCouncilMeetingDirect } from '@/lib/db/meetings';
+import { getRequestOnTranscriptRequestBody } from '@/lib/db/utils';
 import { makeTranscriptSegment, makePersonWithRoles } from '../../../tests/helpers/builders';
 
 const mockGetTranscript = getTranscript as jest.MockedFunction<typeof getTranscript>;

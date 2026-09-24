@@ -9,7 +9,7 @@ const mockSpeakerTagCreate = jest.fn();
 const mockSpeakerSegmentCreate = jest.fn();
 
 // Mock all transitive dependencies of transcribe.ts before import
-jest.mock('../../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
     taskStatus: {
@@ -26,24 +26,24 @@ jest.mock('../../db/prisma', () => ({
       }),
   },
 }));
-jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
-jest.mock('../transcribeInternal', () => ({
+jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/tasks/transcribeInternal', () => ({
   requestTranscribeInternal: jest.fn(),
   deleteExistingSpeakerData: jest.fn(),
 }));
-jest.mock('../fixTranscriptInternal', () => ({
+jest.mock('@/lib/tasks/fixTranscriptInternal', () => ({
   requestFixTranscriptInternal: (...args: unknown[]) => mockRequestFixTranscriptInternal(...args),
 }));
 // Mocked so a test can assert it is never reached: it gates on the user
 // session, which a task-server callback does not have.
-jest.mock('../fixTranscript', () => ({
+jest.mock('@/lib/tasks/fixTranscript', () => ({
   requestFixTranscript: (...args: unknown[]) => mockRequestFixTranscript(...args),
 }));
-jest.mock('../../discord', () => ({
+jest.mock('@/lib/discord', () => ({
   sendTaskAdminAlert: (...args: unknown[]) => mockSendAutoFixAlert(...args),
 }));
 
-import { handleTranscribeResult } from '../transcribe';
+import { handleTranscribeResult } from '@/lib/tasks/transcribe';
 
 const CITY_ID = 'city-1';
 const MEETING_ID = 'meeting-1';

@@ -1,6 +1,6 @@
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { SubjectCard } from '../SubjectCard';
+import { SubjectCard } from '@/components/landing/v2/SubjectCard';
 import type { LandingSubject } from '@/lib/landing/landingData';
 
 jest.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => 'el' }));

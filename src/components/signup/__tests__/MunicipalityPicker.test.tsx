@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { CityMinimalWithCounts } from '@/lib/db/cities';
-import { MunicipalityPicker } from '../MunicipalityPicker';
+import { MunicipalityPicker } from '@/components/signup/MunicipalityPicker';
 
 jest.mock('next-intl', () => ({
     useTranslations: () => (key: string, values?: Record<string, string | number>) =>

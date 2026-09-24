@@ -1,5 +1,5 @@
 import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
-import { PersonWithRelations } from '../../db/people';
+import { PersonWithRelations } from '@/lib/db/people';
 import {
     getAdministrativeBodyTypesForMeetings,
     getAdministrativeBodyTypesForPeople,
@@ -7,7 +7,7 @@ import {
     getBodiesOfTypeFromPeople,
     filterMeetingByAdminBodyTypes,
     filterPersonByAdminBodyTypes,
-} from '../administrativeBodies';
+} from '@/lib/utils/administrativeBodies';
 
 function makeAdminBody(overrides: Partial<AdministrativeBody> = {}): AdministrativeBody {
     return {

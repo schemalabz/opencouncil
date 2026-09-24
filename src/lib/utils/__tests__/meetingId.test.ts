@@ -1,4 +1,4 @@
-import { formatDateAsMeetingId } from '../meetingId';
+import { formatDateAsMeetingId } from '@/lib/utils/meetingId';
 
 describe('formatDateAsMeetingId', () => {
   it('formats a standard date', () => {

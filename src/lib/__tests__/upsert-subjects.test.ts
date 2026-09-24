@@ -1,4 +1,4 @@
-import { categorizeSubjectsForUpsert, type ExistingSubjectRow } from '../db/subject-helpers';
+import { categorizeSubjectsForUpsert, type ExistingSubjectRow } from '@/lib/db/subject-helpers';
 import { makeSubject } from '../../../tests/helpers/builders';
 
 describe('categorizeSubjectsForUpsert', () => {

@@ -3,7 +3,7 @@
 import { Prisma, User } from "@prisma/client";
 import prisma from "./prisma";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors";
-import { withUserAuthorizedToEdit, getCurrentUser } from "../auth";
+import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
 import { devToolsAllowed } from "@/lib/deployment";
 
 const userWithAdministersInclude = {

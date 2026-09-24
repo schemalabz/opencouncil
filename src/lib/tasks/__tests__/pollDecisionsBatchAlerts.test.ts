@@ -5,7 +5,7 @@ const mockTaskStatusFindMany = jest.fn();
 const mockSendBatchStarted = jest.fn().mockResolvedValue(undefined);
 const mockSendBatchCompleted = jest.fn().mockResolvedValue(undefined);
 
-jest.mock('../../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
     taskStatus: {
@@ -39,15 +39,15 @@ jest.mock('../../db/prisma', () => ({
 }));
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
-jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
-jest.mock('../../discord', () => ({
+jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/discord', () => ({
   sendTaskAdminAlert: jest.fn(),
   sendPollDecisionsBatchStartedAlert: (...args: unknown[]) => mockSendBatchStarted(...args),
   sendPollDecisionsBatchCompletedAlert: (...args: unknown[]) => mockSendBatchCompleted(...args),
 }));
-jest.mock('../registry', () => ({ taskHandlers: {}, taskTerminalHooks: {} }));
+jest.mock('@/lib/tasks/registry', () => ({ taskHandlers: {}, taskTerminalHooks: {} }));
 
-import { checkBatchCompletionAndAlert } from '../pollDecisions';
+import { checkBatchCompletionAndAlert } from '@/lib/tasks/pollDecisions';
 
 const CITY_ID = 'city-1';
 const MEETING_ID = 'meeting-1';

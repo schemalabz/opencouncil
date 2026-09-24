@@ -1,4 +1,4 @@
-import { buildSearchOptions } from '../hooks/useSearchOptions';
+import { buildSearchOptions } from '@/components/landing/v2/hooks/useSearchOptions';
 import {
     looksLikeAddress,
     detectMunicipalityQuery,

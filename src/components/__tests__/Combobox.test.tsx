@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { defaultFilter } from 'cmdk';
-import Combobox from '../Combobox';
+import Combobox from '@/components/Combobox';
 
 // Regression guard for #402: the shared Combobox must match Greek queries
 // accent-insensitively. Before this fix, cmdk's default (accent-sensitive)

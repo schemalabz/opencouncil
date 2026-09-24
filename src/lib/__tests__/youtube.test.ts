@@ -10,7 +10,7 @@ jest.mock('@/lib/cache/valkey', () => ({
     cacheSetJSON: (...args: unknown[]) => mockCacheSetJSON(...args),
 }));
 
-import { listRecentChannelVideos } from '../youtube';
+import { listRecentChannelVideos } from '@/lib/youtube';
 
 const CHANNEL_ID = 'UCX5CxaBSCrAJxQawnE1sKHw';
 

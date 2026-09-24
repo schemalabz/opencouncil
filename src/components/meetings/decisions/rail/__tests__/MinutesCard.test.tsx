@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MinutesCard } from '../MinutesCard';
+import { MinutesCard } from '@/components/meetings/decisions/rail/MinutesCard';
 
 jest.mock('next-intl', () => ({
     useTranslations: () => (key: string, params?: Record<string, unknown>) =>

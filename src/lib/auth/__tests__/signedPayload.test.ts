@@ -2,7 +2,7 @@
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_SECRET: 'test-secret-do-not-use-in-prod' } }));
 
 import { createHmac } from 'crypto';
-import { signPayload, verifyPayload } from '../signedPayload';
+import { signPayload, verifyPayload } from '@/lib/auth/signedPayload';
 
 const exp = () => Date.now() + 60_000;
 const sign = (data: object) => {

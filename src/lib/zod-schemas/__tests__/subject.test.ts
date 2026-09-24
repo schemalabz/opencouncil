@@ -3,7 +3,7 @@ import {
     meetingSubjectListQuerySchema,
     DEFAULT_SUBJECT_LIMIT,
     MAX_SUBJECT_LIMIT,
-} from '../subject';
+} from '@/lib/zod-schemas/subject';
 
 describe('subjectListQuerySchema', () => {
     it('applies the default limit when the caller names none', () => {

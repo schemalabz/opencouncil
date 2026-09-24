@@ -1,4 +1,4 @@
-import { categorizeSubjects, getNonAgendaLabel, getWithdrawnLabel, getSubjectCategories, pickSummarySubjects, agendaItemTitleOrName, isRecordSubject, recordSection, sectionHeadingAt } from '../subjects';
+import { categorizeSubjects, getNonAgendaLabel, getWithdrawnLabel, getSubjectCategories, pickSummarySubjects, agendaItemTitleOrName, isRecordSubject, recordSection, sectionHeadingAt } from '@/lib/utils/subjects';
 
 // Identity translator: returns the key so tests assert the resolved key path
 // without depending on message-file contents.

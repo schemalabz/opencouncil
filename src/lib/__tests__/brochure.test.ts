@@ -1,5 +1,5 @@
-import { bodyTypesPhrase, coveredBodyTypesByCity } from "../brochure";
-import type { CoverageRow } from "../db/coverage";
+import { bodyTypesPhrase, coveredBodyTypesByCity } from "@/lib/brochure";
+import type { CoverageRow } from "@/lib/db/coverage";
 
 describe("bodyTypesPhrase", () => {
     it("names a single covered body", () => {

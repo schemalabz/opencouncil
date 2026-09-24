@@ -1,7 +1,7 @@
 import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
 jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: { speakerContribution: { findFirst: jest.fn() }, utterance: { findMany: jest.fn(), findFirst: jest.fn() } } }));
 import prisma from '@/lib/db/prisma';
-import { getPublicContribution } from '../contributions';
+import { getPublicContribution } from '@/lib/sharing/contributions';
 
 const findContribution = prisma.speakerContribution.findFirst as jest.Mock;
 const findReferences = prisma.utterance.findMany as jest.Mock;

@@ -23,7 +23,7 @@ const mockSendTaskAdminAlert = jest.fn();
 const mockSendTranscriptToMunicipality = jest.fn();
 const mockWithUserAuthorizedToEdit = jest.fn();
 
-jest.mock('../../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
     taskStatus: {
@@ -35,28 +35,28 @@ jest.mock('../../db/prisma', () => ({
   },
 }));
 
-jest.mock('../tasks', () => ({
+jest.mock('@/lib/tasks/tasks', () => ({
   checkTaskIdempotency: (...args: unknown[]) => mockCheckTaskIdempotency(...args),
 }));
 
-jest.mock('../summarize', () => ({
+jest.mock('@/lib/tasks/summarize', () => ({
   requestSummarize: (...args: unknown[]) => mockRequestSummarize(...args),
 }));
 
-jest.mock('../sendTranscript', () => ({
+jest.mock('@/lib/tasks/sendTranscript', () => ({
   sendTranscriptToMunicipality: (...args: unknown[]) => mockSendTranscriptToMunicipality(...args),
 }));
 
-jest.mock('../../discord', () => ({
+jest.mock('@/lib/discord', () => ({
   sendTaskAdminAlert: (...args: unknown[]) => mockSendTaskAdminAlert(...args),
   sendHumanReviewCompletedAdminAlert: jest.fn(),
 }));
 
-jest.mock('../../auth', () => ({
+jest.mock('@/lib/auth', () => ({
   withUserAuthorizedToEdit: (...args: unknown[]) => mockWithUserAuthorizedToEdit(...args),
 }));
 
-jest.mock('../../db/reviews', () => ({
+jest.mock('@/lib/db/reviews', () => ({
   getMeetingReviewStats: jest.fn().mockResolvedValue({ hasReviewers: false }),
 }));
 
@@ -64,8 +64,8 @@ jest.mock('next/cache', () => ({
   revalidateTag: jest.fn(),
 }));
 
-import { getReviewCompletionState, markHumanReviewComplete } from '../humanReview';
-import { TaskAlreadyExistsError } from '../types';
+import { getReviewCompletionState, markHumanReviewComplete } from '@/lib/tasks/humanReview';
+import { TaskAlreadyExistsError } from '@/lib/tasks/types';
 
 /** checkTaskIdempotency answers for the humanReview task, then for summarize. */
 const allowBoth = () => {

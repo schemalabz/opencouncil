@@ -16,7 +16,7 @@ import {
     getRealmStage,
     telHref,
     ALL_REALMS,
-} from '../realm';
+} from '@/lib/realm';
 
 describe('createRealmResolver', () => {
     // Parent declared first so a naive first-match would wrongly return it for

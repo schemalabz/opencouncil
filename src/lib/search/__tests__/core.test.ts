@@ -25,17 +25,17 @@ jest.mock('@/lib/db/cities', () => ({
     getListedCitiesCached: jest.fn(),
     filterCityIdsByRealm: jest.fn(),
 }));
-jest.mock('../filters', () => ({
-    ...jest.requireActual('../filters'),
+jest.mock('@/lib/search/filters', () => ({
+    ...jest.requireActual('@/lib/search/filters'),
     extractFilters: jest.fn(),
     processFilters: jest.fn(),
 }));
-jest.mock('../retry', () => ({
+jest.mock('@/lib/search/retry', () => ({
     executeElasticsearchWithRetry: jest.fn((run: () => unknown) => run()),
 }));
-jest.mock('../query', () => ({ buildSearchQuery: jest.fn(() => ({ query: { match_all: {} } })) }));
-jest.mock('../related', () => ({
-    ...jest.requireActual<typeof import('../related')>('../related'),
+jest.mock('@/lib/search/query', () => ({ buildSearchQuery: jest.fn(() => ({ query: { match_all: {} } })) }));
+jest.mock('@/lib/search/related', () => ({
+    ...jest.requireActual<typeof import('@/lib/search/related')>('../related'),
     buildRelatedSubjectsQuery: jest.fn(() => ({ query: { match_all: {} } })),
 }));
 
@@ -43,12 +43,12 @@ import { Client } from '@elastic/elasticsearch';
 import prisma from '@/lib/db/prisma';
 import { getCities, getListedCitiesCached, filterCityIdsByRealm } from '@/lib/db/cities';
 import { sendErrorAdminAlert } from '@/lib/discord-core';
-import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '../filters';
-import { buildSearchQuery } from '../query';
-import { buildRelatedSubjectsQuery } from '../related';
+import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '@/lib/search/filters';
+import { buildSearchQuery } from '@/lib/search/query';
+import { buildRelatedSubjectsQuery } from '@/lib/search/related';
 import { createCache } from '@/lib/cache/index';
-import { searchInRealm, searchSubjectsInRealm, searchRelatedSubjectsInRealm } from '../core';
-import type { SearchRequest } from '../types';
+import { searchInRealm, searchSubjectsInRealm, searchRelatedSubjectsInRealm } from '@/lib/search/core';
+import type { SearchRequest } from '@/lib/search/types';
 
 const extractFiltersMock = extractFilters as jest.MockedFunction<typeof extractFilters>;
 const processFiltersMock = processFilters as jest.MockedFunction<typeof processFilters>;

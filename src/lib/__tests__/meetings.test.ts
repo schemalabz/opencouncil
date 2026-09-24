@@ -1,11 +1,11 @@
 // Mock auth before importing anything else
-jest.mock('../auth', () => ({
+jest.mock('@/lib/auth', () => ({
   isUserAuthorizedToEdit: jest.fn(),
   withUserAuthorizedToEdit: jest.fn()
 }));
 
 // Mock Prisma
-jest.mock('../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
     councilMeeting: {
@@ -14,9 +14,9 @@ jest.mock('../db/prisma', () => ({
   }
 }));
 
-import { generateUniqueMeetingId } from '../db/meetings';
-import { getCouncilMeetingsForCity } from '../db/meetingsList';
-import prisma from '../db/prisma';
+import { generateUniqueMeetingId } from '@/lib/db/meetings';
+import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
+import prisma from '@/lib/db/prisma';
 
 const mockFindMany = prisma.councilMeeting.findMany as jest.MockedFunction<typeof prisma.councilMeeting.findMany>;
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { registry, ErrorResponseSchema } from '../registry';
+import { registry, ErrorResponseSchema } from '@/lib/openapi/registry';
 
 // --- Response Schemas ---
 // Mirrors the UtteranceContext / UtteranceContextNeighbor types returned by

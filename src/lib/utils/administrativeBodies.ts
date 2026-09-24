@@ -1,4 +1,4 @@
-import { PersonWithRelations } from '../db/people';
+import { PersonWithRelations } from '@/lib/db/people';
 import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
 import { hasCityLevelRole, isRoleActive } from './roles';
 

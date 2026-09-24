@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { AttendanceChangesCard } from '../AttendanceChangesCard';
-import type { TimelineItem } from '../../timeline';
+import { AttendanceChangesCard } from '@/components/meetings/decisions/rail/AttendanceChangesCard';
+import type { TimelineItem } from '@/components/meetings/decisions/timeline';
 import type { MinutesSubject } from '@/lib/minutes/types';
 
 jest.mock('next-intl', () => ({

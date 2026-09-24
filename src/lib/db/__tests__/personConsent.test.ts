@@ -25,7 +25,7 @@ import {
     closeAppConsent,
     getVoicePrintConsents,
     getVoicePrintConsentStatuses,
-} from '../personConsent';
+} from '@/lib/db/personConsent';
 
 const tx = {
     voicePrintConsent: { findFirst: txFindFirst, create: txCreate, update: txUpdate },

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
-import { QuestionsCard, type QuestionsCardProps } from '../QuestionsCard';
+import { QuestionsCard, type QuestionsCardProps } from '@/components/meetings/decisions/QuestionsCard';
 import admin from '../../../../../messages/el/admin.json';
 
 // Annotated (not left to inference) so the empty arrays type as

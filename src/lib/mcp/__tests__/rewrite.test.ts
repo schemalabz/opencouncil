@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { mcpRewriteTarget } from '../rewrite';
+import { mcpRewriteTarget } from '@/lib/mcp/rewrite';
 
 const JSON_CT = 'application/json';
 

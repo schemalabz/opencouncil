@@ -5,7 +5,7 @@ jest.mock('@/lib/db/prisma', () => ({
     default: { $transaction: (...args: unknown[]) => mockTransaction(...args) },
 }));
 
-import { serializableOnce } from '../serializable';
+import { serializableOnce } from '@/lib/db/serializable';
 
 const failure = (code: string) => Object.assign(new Error(code), { code });
 const work = async () => 'done';

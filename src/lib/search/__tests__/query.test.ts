@@ -1,15 +1,15 @@
 import type { estypes } from '@elastic/elasticsearch';
-import type { SearchRequest } from '../types';
+import type { SearchRequest } from '@/lib/search/types';
 
 // Avoid pulling the full env validation (createEnv) at import time; buildFilters
 // itself does not read env, only the module-level import does.
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 
-import { buildFilters, buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO } from '../query';
-import { MATCH_START, MATCH_END, MATCH_FIELDS } from '../constants';
+import { buildFilters, buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO } from '@/lib/search/query';
+import { MATCH_START, MATCH_END, MATCH_FIELDS } from '@/lib/search/constants';
 import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
 import schema from '../../../../elasticsearch/schema.json';
-import type { ExtractedFilters } from '../types';
+import type { ExtractedFilters } from '@/lib/search/types';
 
 const NO_EXTRACTED_FILTERS: ExtractedFilters = {
     cityIds: null,

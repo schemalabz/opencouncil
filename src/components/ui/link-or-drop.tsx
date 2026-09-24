@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from "react"
-import { cn } from "../../lib/utils"
+import { cn } from "@/lib/utils"
 import { Input } from "./input"
 import { Check, Loader2, Upload, AlertCircle } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"

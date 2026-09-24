@@ -2,7 +2,7 @@ jest.mock('@/env.mjs', () => ({
     env: { NEXTAUTH_URL: 'https://opencouncil.gr' },
 }));
 
-import { isExternalUrl, appendUtmParams } from '../qr';
+import { isExternalUrl, appendUtmParams } from '@/lib/utils/qr';
 
 describe('isExternalUrl', () => {
     it('returns true for https URLs', () => {

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { PresenceCard } from '../PresenceCard';
-import type { RollCall } from '../../timeline';
+import { PresenceCard } from '@/components/meetings/decisions/rail/PresenceCard';
+import type { RollCall } from '@/components/meetings/decisions/timeline';
 
 jest.mock('next-intl', () => ({
     useTranslations: () => (key: string, params?: Record<string, unknown>) =>

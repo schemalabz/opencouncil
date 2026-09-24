@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { SubjectListContainer } from '../SubjectListContainer';
+import { SubjectListContainer } from '@/components/subject/SubjectListContainer';
 import type { SearchResultLight } from '@/lib/search/types';
 import { MATCH_START, MATCH_END } from '@/lib/search/constants';
 

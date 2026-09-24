@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { User } from '@prisma/client';
-import { UserInfoForm } from '../UserInfoForm';
+import { UserInfoForm } from '@/components/profile/UserInfoForm';
 import { setVoicePrintConsent } from '@/lib/actions/personConsent';
 
 jest.mock('next-intl', () => ({

@@ -15,8 +15,8 @@ import { GET } from '@/app/api/share/story/route';
 import { getPublicExcerpt } from '@/lib/sharing/excerpts';
 import { getPublicContribution } from '@/lib/sharing/contributions';
 import { getPublicSubject } from '@/lib/sharing/publicContent';
-import { storyImagePath, storyPreview } from '../story';
-import type { ExcerptSelector } from '../excerptSelector';
+import { storyImagePath, storyPreview } from '@/lib/sharing/story';
+import type { ExcerptSelector } from '@/lib/sharing/excerptSelector';
 
 const selector: ExcerptSelector = { cityId: 'city', meetingId: 'meeting', firstUtteranceId: 'u1', lastUtteranceId: 'u2', textLocale: 'el', digest: 'a'.repeat(64) };
 const meeting = { id: 'meeting', cityId: 'city', name: 'Συνεδρίαση', name_en: 'Meeting', dateTime: new Date('2026-09-10'), administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' }, city: { name: 'Αθήνα', name_en: 'Athens', timezone: 'Europe/Athens' } };

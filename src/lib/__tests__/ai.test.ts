@@ -1,4 +1,4 @@
-import { aiChat, ResultWithUsage } from '../ai';
+import { aiChat, ResultWithUsage } from '@/lib/ai';
 import Anthropic from '@anthropic-ai/sdk';
 
 // Mock the Anthropic SDK

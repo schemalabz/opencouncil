@@ -3,7 +3,7 @@ import {
     NotificationOverallStatus,
     classifyDeliveries,
     deliveriesWhereForStatus,
-} from '../deliveryStatus';
+} from '@/lib/notifications/deliveryStatus';
 
 /**
  * The rule lives twice — once as a JS classifier (the stats), once as a

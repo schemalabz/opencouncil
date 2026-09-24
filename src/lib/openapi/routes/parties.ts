@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { registry, sessionAuth, ErrorResponseSchema, MessageSchema, cityIdParam } from '../registry';
+import { registry, sessionAuth, ErrorResponseSchema, MessageSchema, cityIdParam } from '@/lib/openapi/registry';
 import { PersonWithRolesSchema } from './people';
 
 // --- Schemas ---

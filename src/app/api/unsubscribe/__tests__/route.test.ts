@@ -13,7 +13,7 @@ jest.mock('@/lib/db/notifications', () => ({
     setUserEmailSubscriptionFlags: jest.fn(),
 }));
 
-import { POST } from '../route';
+import { POST } from '@/app/api/unsubscribe/route';
 import { verifyUnsubscribeToken } from '@/lib/notifications/tokens';
 import {
     disableNotificationPreferenceByCityId,

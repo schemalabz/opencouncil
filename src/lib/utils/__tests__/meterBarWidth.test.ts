@@ -1,4 +1,4 @@
-import { meterBarWidth } from '../subjects';
+import { meterBarWidth } from '@/lib/utils/subjects';
 
 describe('meterBarWidth', () => {
     it('draws a ratio as its percentage', () => {

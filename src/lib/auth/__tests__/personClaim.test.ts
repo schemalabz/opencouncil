@@ -6,7 +6,7 @@ jest.mock('@/env.mjs', () => ({
     },
 }));
 
-import { claimExpiry, claimLastValidDay, generatePersonClaimToken, verifyPersonClaimToken, personJoinUrl } from '../personClaim';
+import { claimExpiry, claimLastValidDay, generatePersonClaimToken, verifyPersonClaimToken, personJoinUrl } from '@/lib/auth/personClaim';
 import { generateUnsubscribeToken, verifyUnsubscribeToken } from '@/lib/notifications/tokens';
 
 const PERSON = 'cm3glsk9t04ihckl367xtm18c';

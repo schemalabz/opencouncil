@@ -27,7 +27,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getCity } from "@/lib/db/cities";
 import { getPerson } from "@/lib/db/people";
 import { getParty } from "@/lib/db/parties";
-import { Skeleton } from "../ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { SubjectListContainer } from "@/components/subject/SubjectListContainer";
 import { getPartyFromRoles } from "@/lib/utils";

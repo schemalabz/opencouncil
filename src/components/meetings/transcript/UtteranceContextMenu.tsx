@@ -15,10 +15,10 @@ import { useShare } from '@/contexts/ShareContext';
 import { useToast } from '@/hooks/use-toast';
 import { EXCERPT_SHARE_EVENT } from '@/components/sharing/ExcerptSelectionToolbar';
 
-import { useCouncilMeetingActions } from '../CouncilMeetingDataContext';
-import { useEditing } from '../EditingContext';
-import { useHighlight } from '../HighlightContext';
-import { useTranscriptOptions } from '../options/OptionsContext';
+import { useCouncilMeetingActions } from '@/components/meetings/CouncilMeetingDataContext';
+import { useEditing } from '@/components/meetings/EditingContext';
+import { useHighlight } from '@/components/meetings/HighlightContext';
+import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
 
 interface ContextTarget {
     id: string;

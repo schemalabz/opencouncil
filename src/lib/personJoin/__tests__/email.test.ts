@@ -1,4 +1,4 @@
-import { isLikelyEmail, normalizeEmail, suggestEmailFix } from '../email';
+import { isLikelyEmail, normalizeEmail, suggestEmailFix } from '@/lib/personJoin/email';
 
 describe('join email helpers', () => {
     it('normalises what a phone keyboard adds', () => {

@@ -18,7 +18,7 @@ jest.mock('@/lib/discord', () => ({ sendPersonClaimedAdminAlert: (...args: unkno
 
 import { NextRequest } from 'next/server';
 import { generatePersonClaimToken, signJoinConfirmation } from '@/lib/auth/personClaim';
-import { GET } from '../route';
+import { GET } from '@/app/api/join/[token]/route';
 
 const scan = (token: string, query = '') => new NextRequest(new URL(`/api/join/${token}${query}`, 'https://opencouncil.cy'));
 const params = (token: string) => ({ params: Promise.resolve({ token }) });

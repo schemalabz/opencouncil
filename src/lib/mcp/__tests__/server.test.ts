@@ -4,7 +4,7 @@
 // calls them at registration time — so a blanket stub keeps ../data's Prisma,
 // Elasticsearch and next-intl imports out of the test, without a name list that
 // goes stale every time a tool is added.
-jest.mock('../data', () =>
+jest.mock('@/lib/mcp/data', () =>
     new Proxy({ __esModule: true } as Record<string, unknown>, {
         // Memoized, not a fresh mock per access: the forwarding tests below
         // assert on the same function object the tool callback closed over.
@@ -14,14 +14,14 @@ jest.mock('../data', () =>
 
 // auth.ts reaches Prisma (and through it env.mjs, which jest won't transform).
 // Same stub gate.test.ts uses; registration never touches the client.
-jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
+jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: {} }));
 
 import { Realm } from '@prisma/client';
 import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
-import { registerOpenCouncilServer } from '../server';
-import { mcpRealmStore, requestContext } from '../realm-context';
-import type { McpIdentity } from '../auth';
-import * as data from '../data';
+import { registerOpenCouncilServer } from '@/lib/mcp/server';
+import { mcpRealmStore, requestContext } from '@/lib/mcp/realm-context';
+import type { McpIdentity } from '@/lib/mcp/auth';
+import * as data from '@/lib/mcp/data';
 
 const HIGHLIGHT_TOOLS = [
     'create_highlight', 'generate_highlight_video', 'list_highlights',

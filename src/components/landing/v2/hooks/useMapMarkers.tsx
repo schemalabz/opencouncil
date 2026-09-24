@@ -32,7 +32,7 @@ import {
     DONUT_INK_WIDTH,
     MUNICIPALITY_VIEW_MARKER_DIAMETER,
     MUNICIPALITY_VIEW_MARKER_RING_SPREAD,
-} from '../mapMarkers';
+} from '@/components/landing/v2/mapMarkers';
 import { captureMapAction, type MapSurface } from '@/lib/analytics/capture';
 import {
     packMunicipalityMarkers,

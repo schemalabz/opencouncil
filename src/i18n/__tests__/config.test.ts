@@ -1,4 +1,4 @@
-import { stripLocalePrefix, localePathPrefix } from '../config';
+import { stripLocalePrefix, localePathPrefix } from '@/i18n/config';
 
 describe('stripLocalePrefix', () => {
     test('removes the custom prefix of sr-Latn', () => {

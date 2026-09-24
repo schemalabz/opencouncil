@@ -4,13 +4,13 @@
 jest.mock('@/lib/realm.server', () => ({ getRealm: jest.fn().mockResolvedValue('greece') }));
 jest.mock('@/lib/search/core', () => ({ searchRelatedSubjectsInRealm: jest.fn() }));
 jest.mock('@/lib/statistics', () => ({ getBatchStatisticsForSubjects: jest.fn() }));
-jest.mock('../RelatedSubjects', () => ({ RelatedSubjects: jest.fn() }));
+jest.mock('@/components/meetings/subject/RelatedSubjects', () => ({ RelatedSubjects: jest.fn() }));
 
 import { searchRelatedSubjectsInRealm } from '@/lib/search/core';
 import { getBatchStatisticsForSubjects } from '@/lib/statistics';
 import type { SearchResultLight } from '@/lib/search/types';
-import { RelatedSubjectsSection } from '../RelatedSubjectsSection';
-import type { RelatedCurrent, RelatedLevel } from '../RelatedSubjects';
+import { RelatedSubjectsSection } from '@/components/meetings/subject/RelatedSubjectsSection';
+import type { RelatedCurrent, RelatedLevel } from '@/components/meetings/subject/RelatedSubjects';
 
 const searchMock = searchRelatedSubjectsInRealm as jest.MockedFunction<typeof searchRelatedSubjectsInRealm>;
 const statisticsMock = getBatchStatisticsForSubjects as jest.MockedFunction<typeof getBatchStatisticsForSubjects>;

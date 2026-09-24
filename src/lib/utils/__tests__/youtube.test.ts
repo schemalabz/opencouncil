@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { parseChannelRef, isValidYouTubeUrl } from '../youtube';
+import { parseChannelRef, isValidYouTubeUrl } from '@/lib/utils/youtube';
 
 describe('parseChannelRef', () => {
     it('extracts a canonical channel id from /channel/UC… URLs', () => {

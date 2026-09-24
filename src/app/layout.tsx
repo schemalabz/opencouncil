@@ -1,5 +1,5 @@
 import "./globals.css"
-import { cn } from "../lib/utils"
+import { cn } from "@/lib/utils"
 import React, { Suspense } from "react"
 import PlausibleAnalytics from "@/components/analytics/PlausibleAnalytics"
 import PostHogPageView from "@/components/analytics/PostHogPageView"

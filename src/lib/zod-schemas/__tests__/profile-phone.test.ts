@@ -1,4 +1,4 @@
-import { updateProfileSchema } from '../user';
+import { updateProfileSchema } from '@/lib/zod-schemas/user';
 
 function phoneIssue(input: unknown): string | undefined {
     const result = updateProfileSchema.safeParse({ phone: input });

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
-import { LinkPanel } from '../LinkPanel';
+import { LinkPanel } from '@/components/meetings/decisions/LinkPanel';
 import messages from '../../../../../messages/el/admin.json';
 
 const candidate = { id: 'c1', decisionNumber: '670/2026', title: 'Έγκριση απόφασης Δημάρχου', ada: 'ΨΞΚ1', publishDate: '2026-07-24' };

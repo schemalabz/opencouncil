@@ -5,7 +5,7 @@ const mockUserFindUnique = jest.fn();
 const mockHighlightFindUnique = jest.fn();
 const mockHighlightUpsert = jest.fn();
 
-jest.mock('../prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
         city: { findUnique: (...args: unknown[]) => mockCityFindUnique(...args) },
@@ -17,8 +17,8 @@ jest.mock('../prisma', () => ({
     },
 }));
 
-import { upsertHighlightCore, canUserEditCity, canActorManageHighlight } from '../highlights-core';
-import { ForbiddenError, NotFoundError, BadRequestError } from '../../api/errors';
+import { upsertHighlightCore, canUserEditCity, canActorManageHighlight } from '@/lib/db/highlights-core';
+import { ForbiddenError, NotFoundError, BadRequestError } from '@/lib/api/errors';
 
 const DATA = {
     name: 'Test highlight',

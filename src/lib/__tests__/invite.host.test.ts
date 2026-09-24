@@ -12,7 +12,7 @@ jest.mock('@/lib/email/resend', () => ({ sendEmail: jest.fn().mockResolvedValue(
 jest.mock('@react-email/render', () => ({ render: jest.fn().mockResolvedValue('<html/>') }));
 jest.mock('@/lib/email/templates/user-invite', () => ({ UserInviteEmail: jest.fn(() => null) }));
 
-import { generateSignInLink } from '../auth/invite';
+import { generateSignInLink } from '@/lib/auth/invite';
 
 const reqFrom = (host: string) =>
     new Request('https://opencouncil.gr/api/admin/users', { headers: { 'x-forwarded-host': host } });

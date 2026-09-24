@@ -1,6 +1,6 @@
 import { captureEvent } from '@/lib/analytics/capture';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import ShareDropdown from '../ShareDropdown';
+import ShareDropdown from '@/components/meetings/ShareDropdown';
 import { ShareProvider, useShare } from '@/contexts/ShareContext';
 
 jest.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }));
@@ -8,13 +8,13 @@ let mockPathname = '/en/city/meeting/subjects/subject';
 let mockSubjectId: string | undefined = 'subject';
 let mockCurrentTime = 0;
 jest.mock('next/navigation', () => ({ usePathname: () => mockPathname, useParams: () => ({ subjectId: mockSubjectId }) }));
-jest.mock('../VideoProvider', () => ({ useVideo: () => ({ currentTime: mockCurrentTime }) }));
-jest.mock('../CouncilMeetingDataContext', () => ({ useCouncilMeetingData: () => ({
+jest.mock('@/components/meetings/VideoProvider', () => ({ useVideo: () => ({ currentTime: mockCurrentTime }) }));
+jest.mock('@/components/meetings/CouncilMeetingDataContext', () => ({ useCouncilMeetingData: () => ({
     meeting: { id: 'meeting', cityId: 'city', released: true, name: 'Council meeting', name_en: 'Council meeting' },
     subjects: [{ id: 'subject', name: 'A safer square' }],
 }) }));
 jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
-jest.mock('../StoryTemplatePickerDialog', () => ({ __esModule: true, default: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="meetingStory" /> : null }));
+jest.mock('@/components/meetings/StoryTemplatePickerDialog', () => ({ __esModule: true, default: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="meetingStory" /> : null }));
 jest.mock('@/components/sharing/SubjectShareDialog', () => ({ SubjectShareDialog: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="subjectStory" /> : null }));
 jest.mock('@/components/embed/SubjectEmbedDialog', () => ({ SubjectEmbedDialog: ({ open }: { open: boolean }) => open ? <div role="dialog" aria-label="embed" /> : null }));
 

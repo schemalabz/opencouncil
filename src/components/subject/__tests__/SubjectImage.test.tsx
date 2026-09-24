@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { SubjectImage } from '../SubjectImage';
+import { SubjectImage } from '@/components/subject/SubjectImage';
 
 jest.mock('@/components/icon', () => ({
     __esModule: true,

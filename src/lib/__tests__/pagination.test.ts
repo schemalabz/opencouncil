@@ -1,4 +1,4 @@
-import { calculatePageNumbers } from '../pagination';
+import { calculatePageNumbers } from '@/lib/pagination';
 
 describe('calculatePageNumbers', () => {
     describe('when totalPages <= 7', () => {

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SpeakerTag } from '@prisma/client';
-import { PersonBadge } from '../PersonBadge';
+import { PersonBadge } from '@/components/persons/PersonBadge';
 import { PersonWithRelations } from '@/lib/db/people';
 
 jest.mock('next/navigation', () => ({

@@ -1,7 +1,7 @@
 import type React from "react";
 import { format } from "date-fns";
 import { el } from "date-fns/locale";
-import { OpenCouncilWatermark } from "../shared-components";
+import { OpenCouncilWatermark } from "@/components/og/shared-components";
 import type { PreviewSubject, PreviewData } from "./types";
 import { PRIMARY_PILL_FALLBACK, STORY_FONT_FAMILY, StoryTopicIcon, uppercaseGreek } from "./shared";
 

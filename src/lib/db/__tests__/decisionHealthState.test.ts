@@ -1,4 +1,4 @@
-import { cityState } from '../decisionHealthState';
+import { cityState } from '@/lib/db/decisionHealthState';
 
 const base = {
     inScope: true, failedMeetings: 0, unplacedCandidates: 0, unplacedUnread: 0, conflicts: 0,

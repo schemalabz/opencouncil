@@ -1,4 +1,4 @@
-import { buildPetitionSubmission, initialPetitionState, petitionIssues, type PetitionState } from '../petition-state';
+import { buildPetitionSubmission, initialPetitionState, petitionIssues, type PetitionState } from '@/components/petition/petition-state';
 
 const account = { name: 'Μαρία', email: 'maria@example.com', phone: '+306900000001', notifyByPhone: true };
 

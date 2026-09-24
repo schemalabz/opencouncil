@@ -1,7 +1,7 @@
 import { createRef } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { webcrypto } from 'crypto';
-import { ExcerptRangeHighlight, useExcerptHighlighted } from '../ExcerptRangeHighlight';
+import { ExcerptRangeHighlight, useExcerptHighlighted } from '@/components/sharing/ExcerptRangeHighlight';
 import { digestExcerpt, serializeExcerptSelector, type ExcerptSource } from '@/lib/sharing/excerptSelector';
 
 let query = new URLSearchParams();

@@ -1,6 +1,6 @@
 import prisma from './prisma';
 import type { Realm, AdministrativeBodyType } from '@prisma/client';
-import { CUSTOMER_CITY_WHERE } from '../cityStatus';
+import { CUSTOMER_CITY_WHERE } from '@/lib/cityStatus';
 
 /**
  * One coverage row per (cooperating municipality × administrative body type) for

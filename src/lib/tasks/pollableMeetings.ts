@@ -1,5 +1,5 @@
 import { isLogodosiaMeeting } from "./pollDecisionsBackoff";
-import { MeetingDecisionCounts } from "../db/decisions";
+import { MeetingDecisionCounts } from "@/lib/db/decisions";
 
 export type PollSkipReason = "logodosia" | "noEligibleSubjects";
 

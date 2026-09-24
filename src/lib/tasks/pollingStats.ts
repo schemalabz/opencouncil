@@ -1,6 +1,6 @@
 import "server-only";
-import prisma from '../db/prisma';
-import { getConflictingCandidates } from '../db/decisionCandidates';
+import prisma from '@/lib/db/prisma';
+import { getConflictingCandidates } from '@/lib/db/decisionCandidates';
 import { getPollableMeetingDateRange, getBackoffState, BACKOFF_SCHEDULE, MAX_POLLING_DAYS } from './pollDecisionsBackoff';
 import { DECISION_ELIGIBLE_SUBJECT_WHERE } from '@/lib/db/decisionEligibility';
 

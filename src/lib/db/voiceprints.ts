@@ -1,6 +1,6 @@
 "use server";
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 // Creating a voiceprint lives in voiceprintsCreate.ts (server-only): its sole

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { captureEvent } from '@/lib/analytics/capture';
-import { SharingViewTracker, SharingSourceLink } from '../SharingTracker';
+import { SharingViewTracker, SharingSourceLink } from '@/components/analytics/SharingTracker';
 
 jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
 const analytics = { content_type: 'excerpt' as const, surface: 'shared_excerpt', city_id: 'city', meeting_id: 'meeting' };

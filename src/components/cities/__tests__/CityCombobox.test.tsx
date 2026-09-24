@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { CityCombobox } from '../CityCombobox';
+import { CityCombobox } from '@/components/cities/CityCombobox';
 
 // jsdom lacks the pointer-capture APIs Radix Popover reaches for. The rest
 // of what it needs (ResizeObserver, scrollIntoView) comes from jest.setup.js.

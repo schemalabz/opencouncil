@@ -1,4 +1,4 @@
-import { partitionMeetingsForPolling, interleaveByCity } from "../pollableMeetings";
+import { partitionMeetingsForPolling, interleaveByCity } from "@/lib/tasks/pollableMeetings";
 
 describe("partitionMeetingsForPolling", () => {
     it("marks a meeting with unlinked eligible subjects as pollable, not complete", () => {

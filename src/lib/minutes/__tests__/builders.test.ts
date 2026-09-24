@@ -9,8 +9,8 @@ import {
     buildProceduralVotes,
     MemberResolver,
     ElectedOrderGetter,
-} from '../builders';
-import { MinutesMember } from '../types';
+} from '@/lib/minutes/builders';
+import { MinutesMember } from '@/lib/minutes/types';
 
 // --- Test helpers ---
 

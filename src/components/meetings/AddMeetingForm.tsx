@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Button } from "../ui/button"
+import { Button } from "@/components/ui/button"
 import {
     Form,
     FormControl,
@@ -13,19 +13,19 @@ import {
     FormItem,
     FormLabel,
     FormMessage,
-} from "../ui/form"
-import { Input } from "../ui/input"
-import { SheetClose } from "../ui/sheet"
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { SheetClose } from "@/components/ui/sheet"
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react"
-import { Checkbox } from "../ui/checkbox"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTranslations } from 'next-intl'
-import { Calendar } from "../ui/calendar"
+import { Calendar } from "@/components/ui/calendar"
 import React from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { format, parse, setHours, setMinutes } from "date-fns"
-import InputWithDerivatives from "../InputWithDerivatives"
-import { LinkOrDrop } from "../ui/link-or-drop"
+import InputWithDerivatives from "@/components/InputWithDerivatives"
+import { LinkOrDrop } from "@/components/ui/link-or-drop"
 import { YouTubePreview } from "./YouTubePreview"
 import { CouncilMeeting } from '@prisma/client'
 import { formatDateAsMeetingId } from '@/lib/utils/meetingId'

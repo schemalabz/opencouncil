@@ -1,7 +1,7 @@
 const mockEnv: { NOTIS_API_URL?: string; NOTIS_SERVICE_TOKEN?: string } = {};
 jest.mock('@/env.mjs', () => ({ env: mockEnv }));
 
-import { getNotisRoster, getNotisSubscription, isNotisConfigured, setNotisSubscription } from '../client';
+import { getNotisRoster, getNotisSubscription, isNotisConfigured, setNotisSubscription } from '@/lib/notis/client';
 
 const ORIGINAL_FETCH = global.fetch;
 

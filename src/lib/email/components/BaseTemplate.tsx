@@ -11,7 +11,7 @@ import {
     Hr,
 } from '@react-email/components';
 import { DEFAULT_LOCALE, type AppLocale } from '@/i18n/config';
-import { emailCopy } from '../copy';
+import { emailCopy } from '@/lib/email/copy';
 
 /**
  * The one-line strapline under the footer rule. Localized separately from the

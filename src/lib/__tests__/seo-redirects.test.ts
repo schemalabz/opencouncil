@@ -1,5 +1,5 @@
-import { foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from '../seo-redirects';
-import { computeForeignLocales, foreignLocalesForRealm } from '../realm';
+import { foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from '@/lib/seo-redirects';
+import { computeForeignLocales, foreignLocalesForRealm } from '@/lib/realm';
 
 describe('wwwRedirectTarget', () => {
     it('redirects www.opencouncil.gr to the apex, preserving path and query', () => {

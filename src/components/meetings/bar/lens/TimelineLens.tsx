@@ -6,11 +6,11 @@ import { useVideo, useVideoActions } from '@/components/meetings/VideoProvider';
 import { CHAPTER_LABEL_KEY, LENS_SPAN_SECONDS, rulerLabelStep, type BarBand, type Chapter } from '@/lib/utils/barTimeline';
 import { contrastText } from '@/lib/topicStyle';
 import { cn, formatTimestamp } from '@/lib/utils';
-import { DOCK_ROW, DOCK_ROW_COMPACT, LENS_GAP, LENS_HEIGHT, LENS_HEIGHT_COMPACT } from '../geometry';
-import { Playhead } from '../Playhead';
-import { HoverBandDetails } from '../HoverBandDetails';
-import type { LensFrame, LensHandle } from '../useTimelinePointer';
-import type { BarMode } from '../ModePicker';
+import { DOCK_ROW, DOCK_ROW_COMPACT, LENS_GAP, LENS_HEIGHT, LENS_HEIGHT_COMPACT } from '@/components/meetings/bar/geometry';
+import { Playhead } from '@/components/meetings/bar/Playhead';
+import { HoverBandDetails } from '@/components/meetings/bar/HoverBandDetails';
+import type { LensFrame, LensHandle } from '@/components/meetings/bar/useTimelinePointer';
+import type { BarMode } from '@/components/meetings/bar/ModePicker';
 
 /** A band narrower than this carries no name. */
 const LABEL_MIN_PX = 28;

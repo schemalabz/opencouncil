@@ -7,7 +7,7 @@ import {
     parseDerivedKeys,
     parseFilterDate,
     serializeDerivedKeys,
-} from '../searchFilterTypes';
+} from '@/components/search/searchFilterTypes';
 
 describe('hasActiveSearchFilters', () => {
     it('is false for an empty filter set', () => {

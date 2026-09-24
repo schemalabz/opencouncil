@@ -1,4 +1,4 @@
-import { announcePreview, announceSwitch } from '../modeAnnounce';
+import { announcePreview, announceSwitch } from '@/components/meetings/bar/modeAnnounce';
 
 describe('the mode name over the bands', () => {
     it('plays after a plain switch', () => {

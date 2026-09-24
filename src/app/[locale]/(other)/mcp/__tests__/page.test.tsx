@@ -13,7 +13,7 @@ jest.mock('@/components/mcp/McpTokenManager', () => ({ McpTokenManager: () => nu
 
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import McpPage from '../page';
+import McpPage from '@/app/[locale]/(other)/mcp/page';
 
 async function renderFor(realm: string) {
     mockGetRealm.mockResolvedValue(realm);

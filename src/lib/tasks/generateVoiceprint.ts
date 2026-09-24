@@ -2,9 +2,9 @@
 
 import prisma from "@/lib/db/prisma";
 import { getCouncilMeeting } from "@/lib/db/meetings";
-import { withUserAuthorizedToEdit } from "../auth";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { startTask } from "./tasks";
-import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "../apiTypes";
+import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "@/lib/apiTypes";
 import { SpeakerSegment } from "@prisma/client";
 import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
 

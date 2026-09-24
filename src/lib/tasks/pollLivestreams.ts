@@ -1,12 +1,12 @@
-import prisma from "../db/prisma";
+import prisma from "@/lib/db/prisma";
 import { env } from "@/env.mjs";
-import { aiChat } from "../ai";
-import { resolveChannelId, listRecentChannelVideos, watchUrl, type YouTubeVideo } from "../youtube";
+import { aiChat } from "@/lib/ai";
+import { resolveChannelId, listRecentChannelVideos, watchUrl, type YouTubeVideo } from "@/lib/youtube";
 import { parseVideoId } from "@/lib/utils/youtube";
 import { getRecentTranscribeFailureErrors } from "@/lib/db/tasksInternal";
-import { cacheHas, cacheSetJSON } from "../cache/valkey";
+import { cacheHas, cacheSetJSON } from "@/lib/cache/valkey";
 import { requestTranscribeInternal } from "./transcribeInternal";
-import { sendLivestreamMatchedAlert, sendLivestreamMultipleMeetingsAlert, sendLivestreamRetriesExhaustedAlert } from "../discord";
+import { sendLivestreamMatchedAlert, sendLivestreamMultipleMeetingsAlert, sendLivestreamRetriesExhaustedAlert } from "@/lib/discord";
 
 /** ±12h around a meeting's scheduled time — the window in which its livestream appears. */
 const WINDOW_MS = 12 * 60 * 60 * 1000;

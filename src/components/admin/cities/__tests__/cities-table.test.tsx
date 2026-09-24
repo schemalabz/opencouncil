@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { City, CityStatus, Realm } from "@prisma/client";
-import { CitiesAdminTable } from "../cities-table";
+import { CitiesAdminTable } from "@/components/admin/cities/cities-table";
 
 // Translations render as their keys; realm labels come from Intl.DisplayNames
 // via useLocale, so pin the locale to make them assertable.

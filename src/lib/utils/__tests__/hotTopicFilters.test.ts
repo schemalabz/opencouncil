@@ -1,4 +1,4 @@
-import { HOT_PERIODS, HOT_SCOPES, monthsAgo, readPeriod, readScope } from '../hotTopicFilters';
+import { HOT_PERIODS, HOT_SCOPES, monthsAgo, readPeriod, readScope } from '@/lib/utils/hotTopicFilters';
 
 describe('readScope / readPeriod', () => {
     it('keeps a value the picker writes', () => {

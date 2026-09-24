@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
-import { MeetingDecisionsPage } from '../MeetingDecisionsPage';
+import { MeetingDecisionsPage } from '@/components/meetings/decisions/MeetingDecisionsPage';
 import admin from '../../../../../messages/el/admin.json';
 import el from '../../../../../messages/el.json';
 

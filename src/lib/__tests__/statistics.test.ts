@@ -4,11 +4,11 @@ import {
   getBatchStatisticsForSubjects,
   Statistics,
   Stat
-} from '../statistics';
-import prisma from '../db/prisma';
+} from '@/lib/statistics';
+import prisma from '@/lib/db/prisma';
 
 // Mock prisma
-jest.mock('../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
     utterance: {

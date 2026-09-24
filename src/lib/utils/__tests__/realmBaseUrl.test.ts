@@ -2,7 +2,7 @@ const mockEnv = { NEXTAUTH_URL: 'https://opencouncil.gr' };
 
 jest.mock('@/env.mjs', () => ({ env: mockEnv }));
 
-import { realmBaseUrl } from '../realmBaseUrl';
+import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 
 describe('realmBaseUrl', () => {
     beforeEach(() => {

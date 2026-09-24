@@ -1,4 +1,4 @@
-import { formatWeekdayDateTime, formatCalendarDate, localCalendarDate } from '../time';
+import { formatWeekdayDateTime, formatCalendarDate, localCalendarDate } from '@/lib/formatters/time';
 
 describe('formatWeekdayDateTime', () => {
     const tz = 'Europe/Athens';

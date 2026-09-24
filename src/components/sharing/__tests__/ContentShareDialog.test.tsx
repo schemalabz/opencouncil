@@ -1,6 +1,6 @@
 import { captureEvent } from '@/lib/analytics/capture';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { ContentShareDialog } from '../ContentShareDialog';
+import { ContentShareDialog } from '@/components/sharing/ContentShareDialog';
 
 jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
 

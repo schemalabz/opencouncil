@@ -1,4 +1,4 @@
-import { routeCandidates, LIKELY_MATCH_THRESHOLD, isLikelyMatch, splitWaitingSubjects, attentionCount, estimateWork } from '../candidates';
+import { routeCandidates, LIKELY_MATCH_THRESHOLD, isLikelyMatch, splitWaitingSubjects, attentionCount, estimateWork } from '@/components/meetings/decisions/candidates';
 
 const candidate = (id: string, o: Partial<{ subjectId: string | null; conflict: { subjectId: string } | null }> = {}) =>
     ({ id, subjectId: null, conflict: null, ...o });

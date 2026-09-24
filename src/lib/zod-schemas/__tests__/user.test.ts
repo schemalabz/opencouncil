@@ -1,7 +1,7 @@
 import {
     createAdminUserSchema,
     updateAdminUserSchema,
-} from '../user';
+} from '@/lib/zod-schemas/user';
 
 describe('createAdminUserSchema', () => {
     const validBase = {

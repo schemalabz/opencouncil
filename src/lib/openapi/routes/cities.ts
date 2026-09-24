@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { registry, sessionAuth, ValidationErrorSchema, ErrorResponseSchema, MessageSchema, cityIdParam } from '../registry';
+import { registry, sessionAuth, ValidationErrorSchema, ErrorResponseSchema, MessageSchema, cityIdParam } from '@/lib/openapi/registry';
 import { baseCityFields, createCityFormDataSchema, updateCityFormDataSchema, authorityTypeSchema, cityStatusSchema } from '@/lib/zod-schemas/city';
 
 // --- Response Schemas ---

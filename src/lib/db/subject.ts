@@ -19,8 +19,8 @@ import { getContributionCount } from '@/lib/utils';
 import { roleWithRelationsInclude } from './types/roles';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
-import { createCache } from '../cache/index';
-import { PUBLIC_CITY_WHERE } from '../cityStatus';
+import { createCache } from '@/lib/cache/index';
+import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
 
 // The landing subject finders are realm + filter keyed in the data cache. Releasing/unreleasing
 // a meeting busts the tag (see toggleMeetingRelease); the TTL is a safety net for other changes

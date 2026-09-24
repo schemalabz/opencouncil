@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
-import { DecisionsTable, type TableRow, type DecisionsTableProps } from '../DecisionsTable';
+import { DecisionsTable, type TableRow, type DecisionsTableProps } from '@/components/meetings/decisions/DecisionsTable';
 import admin from '../../../../../messages/el/admin.json';
 import el from '../../../../../messages/el.json';
 

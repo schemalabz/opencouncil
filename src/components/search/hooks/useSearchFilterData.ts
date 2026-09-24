@@ -18,7 +18,7 @@ import {
     parseFilterDate,
     type FilterPatch,
     type SearchFilterParams,
-} from "../searchFilterTypes";
+} from "@/components/search/searchFilterTypes";
 
 /** Administrative bodies of one type, under that type's display label. */
 export type AdminBodyGroup = {

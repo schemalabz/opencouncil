@@ -1,4 +1,4 @@
-import { parseFormData } from '../form-data-parser';
+import { parseFormData } from '@/lib/api/form-data-parser';
 import { z } from 'zod';
 
 describe('parseFormData', () => {

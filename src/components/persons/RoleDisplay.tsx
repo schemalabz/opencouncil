@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
-import { Badge } from '../ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { cn, sortRolesByPriority, getPrimaryRole, getRoleText } from '@/lib/utils';
 import { Star, Building, Users } from 'lucide-react';
 import { RoleWithRelations } from '@/lib/db/types';

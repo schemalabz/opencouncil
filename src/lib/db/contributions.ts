@@ -1,7 +1,7 @@
 "use server";
 import prisma from './prisma';
 import { AdministrativeBodyType, Prisma, Topic } from '@prisma/client';
-import { isUserAuthorizedToEdit } from '../auth';
+import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { ContributionForPerson, roleWithRelationsInclude } from './types';
 
 async function shouldIncludeUnreleasedForPerson(personId: string): Promise<boolean> {

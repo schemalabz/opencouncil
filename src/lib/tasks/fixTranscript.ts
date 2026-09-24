@@ -1,8 +1,8 @@
 "use server";
 
 import prisma from '@/lib/db/prisma';
-import { FixTranscriptResult } from '../apiTypes';
-import { withUserAuthorizedToEdit } from '../auth';
+import { FixTranscriptResult } from '@/lib/apiTypes';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { requestFixTranscriptInternal } from './fixTranscriptInternal';
 
 /**

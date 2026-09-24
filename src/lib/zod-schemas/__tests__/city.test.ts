@@ -5,7 +5,7 @@ import {
   createCityFormDataSchema,
   updateCityFormDataSchema,
   CITY_DEFAULTS,
-} from '../city';
+} from '@/lib/zod-schemas/city';
 
 // Shared base data used across tests.
 // All required fields are always provided — schemas do validation only,

@@ -9,26 +9,26 @@ const mockTaskFindUnique = jest.fn();
 const mockStartTask = jest.fn();
 const mockHandler = jest.fn();
 
-jest.mock('../../auth', () => ({
+jest.mock('@/lib/auth', () => ({
   withUserAuthorizedToEdit: (...args: unknown[]) => mockWithUserAuthorizedToEdit(...args),
 }));
-jest.mock('../../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: { taskStatus: { findUnique: (...args: unknown[]) => mockTaskFindUnique(...args) } },
 }));
-jest.mock('../fixTranscriptInternal', () => ({
+jest.mock('@/lib/tasks/fixTranscriptInternal', () => ({
   requestFixTranscriptInternal: (...args: unknown[]) => mockStartTask(...args),
 }));
-jest.mock('../registry', () => ({
+jest.mock('@/lib/tasks/registry', () => ({
   taskHandlers: { transcribe: (...args: unknown[]) => mockHandler(...args) },
   taskTerminalHooks: {},
 }));
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
-jest.mock('../../discord', () => ({ sendTaskAdminAlert: jest.fn() }));
+jest.mock('@/lib/discord', () => ({ sendTaskAdminAlert: jest.fn() }));
 
-import { requestFixTranscript } from '../fixTranscript';
-import { processTaskResponse } from '../tasks';
+import { requestFixTranscript } from '@/lib/tasks/fixTranscript';
+import { processTaskResponse } from '@/lib/tasks/tasks';
 
 beforeEach(() => {
   jest.clearAllMocks();

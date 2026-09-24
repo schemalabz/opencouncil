@@ -1,7 +1,7 @@
 /** @jest-environment node */
 
-import { handleProcessAgendaResult } from '../processAgenda';
-import { ProcessAgendaResult } from '../../apiTypes';
+import { handleProcessAgendaResult } from '@/lib/tasks/processAgenda';
+import { ProcessAgendaResult } from '@/lib/apiTypes';
 
 /**
  * Tests for handleProcessAgendaResult subject-handling on empty / malformed
@@ -32,7 +32,7 @@ const mockTaskStatusFindUnique = jest.fn().mockResolvedValue({
   },
 });
 
-jest.mock('../../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
     taskStatus: {
@@ -48,16 +48,16 @@ jest.mock('../../db/prisma', () => ({
 }));
 
 const mockSaveSubjectsForMeeting = jest.fn().mockResolvedValue(new Map());
-jest.mock('../../db/utils', () => ({
+jest.mock('@/lib/db/utils', () => ({
   saveSubjectsForMeeting: (...args: unknown[]) => mockSaveSubjectsForMeeting(...args),
 }));
 
-jest.mock('../../auth', () => ({
+jest.mock('@/lib/auth', () => ({
   withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockGenerateImagesForMeeting = jest.fn().mockResolvedValue(undefined);
-jest.mock('../../subjectImages', () => ({
+jest.mock('@/lib/subjectImages', () => ({
   generateImagesForMeeting: (...args: unknown[]) => mockGenerateImagesForMeeting(...args),
 }));
 
@@ -67,7 +67,7 @@ jest.mock('next/server', () => ({
   after: (fn: () => unknown) => mockAfter(fn),
 }));
 
-jest.mock('../processAgendaInternal', () => ({
+jest.mock('@/lib/tasks/processAgendaInternal', () => ({
   requestProcessAgendaInternal: jest.fn(),
 }));
 

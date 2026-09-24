@@ -1,7 +1,7 @@
 "use server";
 import { CityMessage } from '@prisma/client';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 
 export async function getCityMessage(cityId: string): Promise<CityMessage | null> {
     try {

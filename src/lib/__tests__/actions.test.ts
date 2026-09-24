@@ -12,14 +12,14 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 // env it needs. The discord mock factory re-runs per isolated registry, which
 // gives a clean spy too. Mirrors src/lib/search/__tests__/hits.test.ts.
 const load = (deploymentEnv: string) => {
-    let actions!: typeof import('../actions');
+    let actions!: typeof import('@/lib/actions');
     let discord!: { sendErrorAdminAlert: jest.Mock };
     jest.isolateModules(() => {
         jest.doMock('@/env.mjs', () => ({
             env: { GOOGLE_API_KEY: 'test-google-key', DEPLOYMENT_ENV: deploymentEnv },
         }));
         discord = require('@/lib/discord-core');
-        actions = require('../actions');
+        actions = require('@/lib/actions');
     });
     return { ...actions, alert: discord.sendErrorAdminAlert };
 };

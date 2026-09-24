@@ -2,7 +2,7 @@
 
 const mockMeetingFindMany = jest.fn();
 const mockTaskFindMany = jest.fn();
-jest.mock('../../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
         councilMeeting: { findMany: (...args: unknown[]) => mockMeetingFindMany(...args) },
@@ -11,11 +11,11 @@ jest.mock('../../db/prisma', () => ({
 }));
 
 const mockAiChat = jest.fn();
-jest.mock('../../ai', () => ({ aiChat: (...args: unknown[]) => mockAiChat(...args) }));
+jest.mock('@/lib/ai', () => ({ aiChat: (...args: unknown[]) => mockAiChat(...args) }));
 
 const mockResolveChannelId = jest.fn();
 const mockListRecentChannelVideos = jest.fn();
-jest.mock('../../youtube', () => ({
+jest.mock('@/lib/youtube', () => ({
     resolveChannelId: (...args: unknown[]) => mockResolveChannelId(...args),
     listRecentChannelVideos: (...args: unknown[]) => mockListRecentChannelVideos(...args),
     watchUrl: (id: string) => `https://www.youtube.com/watch?v=${id}`,
@@ -23,21 +23,21 @@ jest.mock('../../youtube', () => ({
 
 const mockCacheHas = jest.fn();
 const mockCacheSetJSON = jest.fn();
-jest.mock('../../cache/valkey', () => ({
+jest.mock('@/lib/cache/valkey', () => ({
     cacheHas: (...args: unknown[]) => mockCacheHas(...args),
     cacheSetJSON: (...args: unknown[]) => mockCacheSetJSON(...args),
     cacheGetJSON: jest.fn(),
 }));
 
 const mockRequestTranscribeInternal = jest.fn();
-jest.mock('../transcribeInternal', () => ({
+jest.mock('@/lib/tasks/transcribeInternal', () => ({
     requestTranscribeInternal: (...args: unknown[]) => mockRequestTranscribeInternal(...args),
 }));
 
 const mockMatchedAlert = jest.fn().mockResolvedValue(undefined);
 const mockMultiAlert = jest.fn().mockResolvedValue(undefined);
 const mockExhaustedAlert = jest.fn().mockResolvedValue(undefined);
-jest.mock('../../discord', () => ({
+jest.mock('@/lib/discord', () => ({
     sendLivestreamMatchedAlert: (...args: unknown[]) => mockMatchedAlert(...args),
     sendLivestreamMultipleMeetingsAlert: (...args: unknown[]) => mockMultiAlert(...args),
     sendLivestreamRetriesExhaustedAlert: (...args: unknown[]) => mockExhaustedAlert(...args),
@@ -50,7 +50,7 @@ const mockEnv: { YOUTUBE_API_KEY?: string; NEXTAUTH_URL: string } = {
 };
 jest.mock('@/env.mjs', () => ({ env: mockEnv }));
 
-import { pollLivestreamsForRecentMeetings, matchMeetingToVideo } from '../pollLivestreams';
+import { pollLivestreamsForRecentMeetings, matchMeetingToVideo } from '@/lib/tasks/pollLivestreams';
 
 const CHANNEL = 'https://www.youtube.com/@cityofathens.youtube';
 

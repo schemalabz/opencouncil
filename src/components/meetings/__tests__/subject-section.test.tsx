@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { SubjectSection } from '../subject-section';
+import { SubjectSection } from '@/components/meetings/subject-section';
 import { captureEvent } from '@/lib/analytics/capture';
 
 /**
@@ -18,14 +18,14 @@ jest.mock('next-intl', () => ({
 
 jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
 
-jest.mock('../CouncilMeetingDataContext', () => ({
+jest.mock('@/components/meetings/CouncilMeetingDataContext', () => ({
     useCouncilMeetingData: () => ({
         city: { id: 'zografou' },
         meeting: { id: 'jul23_2026' },
     }),
 }));
 
-jest.mock('../../subject/SubjectRow', () => ({
+jest.mock('@/components/subject/SubjectRow', () => ({
     SubjectRow: ({ subject }: { subject: { id: string } }) => <div>row-{subject.id}</div>,
 }));
 

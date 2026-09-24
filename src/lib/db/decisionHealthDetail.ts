@@ -6,7 +6,7 @@ import {
 import {
     collectMeetingCandidateStats, compareDecisionNumbers, type UnmatchedCause,
 } from './decisionHealthDerive';
-import { isLogodosiaMeeting } from '../tasks/pollDecisionsBackoff';
+import { isLogodosiaMeeting } from '@/lib/tasks/pollDecisionsBackoff';
 
 /**
  * On-demand detail for one city's row on the decisions overview. Fetched only

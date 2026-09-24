@@ -3,7 +3,7 @@ import {
   filterSpecByAccessLevel,
   ACCESS_LEVEL_ORDER,
   type OpenApiSpec,
-} from '../openapi';
+} from '@/lib/utils/openapi';
 
 describe('getUserAccessLevel', () => {
   it('returns "public" for an anonymous (null) user', () => {

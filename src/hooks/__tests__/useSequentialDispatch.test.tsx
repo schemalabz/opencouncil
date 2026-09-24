@@ -1,5 +1,5 @@
 import { renderHook, act } from "@testing-library/react";
-import { useSequentialDispatch } from "../useSequentialDispatch";
+import { useSequentialDispatch } from "@/hooks/useSequentialDispatch";
 
 describe("useSequentialDispatch", () => {
     it("accumulates a success/failure outcome per item and ends in 'done'", async () => {

@@ -4,10 +4,10 @@
 // token. Only processTaskResponse is browser-called, through lib/actions/tasks.ts.
 import "server-only";
 
-import { TaskUpdate } from '../apiTypes';
+import { TaskUpdate } from '@/lib/apiTypes';
 import prisma from '@/lib/db/prisma';
 import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode } from '@/lib/tasks/types';
-import { withUserAuthorizedToEdit } from '../auth';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { env } from '@/env.mjs';
 import { sendTaskAdminAlert } from '@/lib/discord';
 import { Prisma, TaskStatus } from '@prisma/client';

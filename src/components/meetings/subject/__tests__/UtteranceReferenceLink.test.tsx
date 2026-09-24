@@ -1,7 +1,7 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 
-jest.mock('../UtteranceExpansionContext', () => ({
+jest.mock('@/components/meetings/subject/UtteranceExpansionContext', () => ({
     useUtteranceExpansion: () => ({ toggleExpansion: jest.fn(), isExpanded: () => true }),
 }));
 jest.mock('@/components/meetings/CouncilMeetingDataContext', () => ({
@@ -14,11 +14,11 @@ jest.mock('@/hooks/useUtteranceData', () => ({
         segment: { id: 'segment-1', speakerTag: { id: 'tag-1' }, utterances: [{ id: 'utt-1' }] },
     }),
 }));
-jest.mock('../UtteranceMiniTranscript', () => ({
+jest.mock('@/components/meetings/subject/UtteranceMiniTranscript', () => ({
     UtteranceMiniTranscript: () => <div data-testid="mini-transcript" />,
 }));
 
-import { UtteranceReferenceLink } from '../UtteranceReferenceLink';
+import { UtteranceReferenceLink } from '@/components/meetings/subject/UtteranceReferenceLink';
 
 describe('UtteranceReferenceLink', () => {
     // The expansion is block content. The reference sits in a text flow, so the

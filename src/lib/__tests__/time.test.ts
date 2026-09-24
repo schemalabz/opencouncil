@@ -4,7 +4,7 @@ import {
   formatDuration,
   formatDurationMs,
   formatDateRange,
-} from '../formatters/time';
+} from '@/lib/formatters/time';
 
 describe('formatTime', () => {
   it.each([

@@ -2,14 +2,14 @@
 import { useState, useEffect } from 'react';
 import { City, CouncilMeeting } from '@prisma/client';
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PlusCircle, Edit, Trash } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import CityForm from './CityForm';
 import { CityCard } from './CityCard';
 import { useTranslations } from 'next-intl';
-import FormSheet from '../FormSheet';
+import FormSheet from '@/components/FormSheet';
 import { useSession } from 'next-auth/react';
 
 interface CitiesListProps {

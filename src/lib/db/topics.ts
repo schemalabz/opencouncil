@@ -1,8 +1,8 @@
 "use server";
 import { Prisma, Realm, Topic } from '@prisma/client';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
-import { ConflictError } from "../api/errors";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { ConflictError } from "@/lib/api/errors";
 
 const topicWithSubjectCountInclude = {
     _count: {

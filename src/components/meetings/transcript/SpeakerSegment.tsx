@@ -1,11 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useSpeakerBarHover } from '@/components/meetings/bar/BarHighlightContext';
-import { useCouncilMeetingActions, useCouncilMeetingMeta } from "../CouncilMeetingDataContext";
+import { useCouncilMeetingActions, useCouncilMeetingMeta } from "@/components/meetings/CouncilMeetingDataContext";
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
 import TopicBadge from './Topic';
 import { PersonBadge } from '@/components/persons/PersonBadge';
 import UtteranceC from "./Utterance";
-import { useTranscriptOptions } from "../options/OptionsContext";
+import { useTranscriptOptions } from "@/components/meetings/options/OptionsContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy } from "lucide-react";

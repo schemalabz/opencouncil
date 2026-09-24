@@ -1,5 +1,5 @@
-import { findOsektutuNeighbourhood } from '../osektutu';
-import { Location } from '../types/onboarding';
+import { findOsektutuNeighbourhood } from '@/lib/osektutu';
+import { Location } from '@/lib/types/onboarding';
 
 const loc = (coordinates: [number, number]): Location => ({ text: 'test', coordinates });
 

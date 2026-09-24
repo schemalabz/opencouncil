@@ -8,7 +8,7 @@ import { EXPLAIN_LNGLAT, flyToMunicipality } from '@/lib/landing/landingCore';
 import type { ClickedMunicipality, LandingMapCity, LandingSubject } from '@/lib/landing/landingData';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 import { isPointInGeometry } from '@/lib/geo';
-import { DesktopSubjectTooltip, ExplainTooltip, MunicipalityTooltip } from '../mapMarkers';
+import { DesktopSubjectTooltip, ExplainTooltip, MunicipalityTooltip } from '@/components/landing/v2/mapMarkers';
 import type { CityAtPoint } from "@/lib/db/cities";
 import { isPublic } from "@/lib/cityStatus";
 

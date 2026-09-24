@@ -1,6 +1,6 @@
 /** @jest-environment node */
 
-import { getHotSubjectCards, getHotSubjectCardsCached } from '../hotSubjectCards';
+import { getHotSubjectCards, getHotSubjectCardsCached } from '@/lib/hotSubjectCards';
 import type { HotSubject } from '@/lib/hotSubjects';
 
 const mockGetRecentHotSubjects = jest.fn();

@@ -1,4 +1,4 @@
-import { notisStatusFromChannelState, notisStatusOf, phoneChannelFor } from '../phone-channel';
+import { notisStatusFromChannelState, notisStatusOf, phoneChannelFor } from '@/lib/notis/phone-channel';
 
 const active = {
     status: 'active' as const,

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DecisionsRail } from '../DecisionsRail';
-import { buildTimeline } from '../../timeline';
+import { DecisionsRail } from '@/components/meetings/decisions/rail/DecisionsRail';
+import { buildTimeline } from '@/components/meetings/decisions/timeline';
 import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
 
 jest.mock('next-intl', () => ({

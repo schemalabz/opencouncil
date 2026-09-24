@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { EmbedMeetingSummary, type EmbedSummaryTranslations } from '../EmbedMeetingSummary';
+import { EmbedMeetingSummary, type EmbedSummaryTranslations } from '@/components/embed/EmbedMeetingSummary';
 import type { MeetingSummary, MeetingSummarySubject } from '@/lib/db/types';
 
 const t: EmbedSummaryTranslations = {

@@ -1,4 +1,4 @@
-import { sortParties } from '../parties';
+import { sortParties } from '@/lib/sorting/parties';
 import type { PartyWithPersons } from '@/lib/db/parties';
 
 type Role = {

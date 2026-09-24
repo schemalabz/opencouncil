@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
-import { KeyboardShortcutsProvider, useKeyboardShortcut, ACTIONS, getActionKeyLabel } from '../KeyboardShortcutsContext';
+import { KeyboardShortcutsProvider, useKeyboardShortcut, ACTIONS, getActionKeyLabel } from '@/contexts/KeyboardShortcutsContext';
 
 type Handlers = {
     seekNext: jest.Mock;

@@ -1,4 +1,4 @@
-import { firstSearchParam } from '../searchParams';
+import { firstSearchParam } from '@/lib/utils/searchParams';
 
 describe('firstSearchParam', () => {
     it('passes a single value through', () => {

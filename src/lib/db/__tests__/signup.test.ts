@@ -10,7 +10,7 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 jest.mock('@/lib/db/notifications', () => ({ getLocationCoordinates: jest.fn(), withCoordinates: jest.fn() }));
 
-import { getCityChannelRequest } from '../signup';
+import { getCityChannelRequest } from '@/lib/db/signup';
 
 beforeEach(() => {
     mockPreferenceFindUnique.mockReset();

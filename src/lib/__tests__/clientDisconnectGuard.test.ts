@@ -1,4 +1,4 @@
-import { isClientDisconnectError } from '../clientDisconnectGuard';
+import { isClientDisconnectError } from '@/lib/clientDisconnectGuard';
 
 describe('isClientDisconnectError', () => {
     it('flags the cancel error React throws when the destination closes early', () => {

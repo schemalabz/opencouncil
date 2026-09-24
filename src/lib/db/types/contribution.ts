@@ -1,5 +1,5 @@
 import { AdministrativeBody, CouncilMeeting, SpeakerContribution, Topic } from '@prisma/client';
-import type { PersonWithRelations } from '../people';
+import type { PersonWithRelations } from '@/lib/db/people';
 
 export type ContributionForPerson = SpeakerContribution & {
     speaker: PersonWithRelations | null;

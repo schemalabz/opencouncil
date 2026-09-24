@@ -7,7 +7,7 @@ import {
     phoneChannelDefault,
     phoneChannelLocked,
     type SignupState,
-} from '../signup-state';
+} from '@/components/notifications/signup/signup-state';
 
 const topic = (id: string): Topic =>
     ({ id, name: id, name_en: id, colorHex: '#000', icon: null, description: '', deprecated: false, realm: 'greece' }) as Topic;

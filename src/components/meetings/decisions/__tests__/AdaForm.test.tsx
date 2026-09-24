@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
-import { AdaForm } from '../AdaForm';
+import { AdaForm } from '@/components/meetings/decisions/AdaForm';
 import messages from '../../../../../messages/el/admin.json';
 
 const renderForm = (onSubmit = jest.fn()) => {

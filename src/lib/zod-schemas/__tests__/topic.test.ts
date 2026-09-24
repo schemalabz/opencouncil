@@ -1,4 +1,4 @@
-import { createTopicSchema, updateTopicSchema } from '../topic';
+import { createTopicSchema, updateTopicSchema } from '@/lib/zod-schemas/topic';
 
 const validTopic = {
     name: 'Περιβάλλον',

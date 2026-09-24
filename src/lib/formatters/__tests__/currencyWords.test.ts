@@ -1,4 +1,4 @@
-import { euroAmountInWords } from '../currencyWords';
+import { euroAmountInWords } from '@/lib/formatters/currencyWords';
 
 describe('euroAmountInWords', () => {
     it('matches the wording used in real offer documents', () => {

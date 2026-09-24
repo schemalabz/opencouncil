@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { registry, ErrorResponseSchema } from '../registry';
+import { registry, ErrorResponseSchema } from '@/lib/openapi/registry';
 import { searchRequestSchema } from '@/lib/zod-schemas/search';
 
 // --- Schemas ---

@@ -1,13 +1,13 @@
 "use client";
 import SpeakerSegment from "./SpeakerSegment";
 import { useEffect, useRef, useMemo, useState } from 'react';
-import { useVideo } from "../VideoProvider";
+import { useVideo } from "@/components/meetings/VideoProvider";
 import { debounce, joinTranscriptSegments } from '@/lib/utils';
-import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
+import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { Clock, ScrollText } from "lucide-react";
-import { useTranscriptOptions } from "../options/OptionsContext";
+import { useTranscriptOptions } from "@/components/meetings/options/OptionsContext";
 import { useSearchParams } from "next/navigation";
-import { useHighlight } from "../HighlightContext";
+import { useHighlight } from "@/components/meetings/HighlightContext";
 import { useTranslations } from 'next-intl';
 import { UnverifiedTranscriptBanner, BANNER_HEIGHT_FULL } from "./UnverifiedTranscriptBanner";
 import { UtteranceContextMenu } from "./UtteranceContextMenu";

@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { tryAcquireOgSlot, getOgConcurrencyStats } from '../concurrency';
+import { tryAcquireOgSlot, getOgConcurrencyStats } from '@/lib/og/concurrency';
 
 describe('og concurrency semaphore', () => {
     it('caps slots at max, reopens after release, and is idempotent on double-release', () => {

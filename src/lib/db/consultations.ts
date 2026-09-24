@@ -2,7 +2,7 @@ import { Consultation, User, ConsultationComment, ConsultationCommentEntityType 
 import { Session } from 'next-auth';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
-import { sendConsultationCommentEmail } from "../email/consultation";
+import { sendConsultationCommentEmail } from "@/lib/email/consultation";
 import { RegulationData } from "@/components/consultations/types";
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 

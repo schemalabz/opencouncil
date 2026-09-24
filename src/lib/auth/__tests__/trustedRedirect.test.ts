@@ -1,4 +1,4 @@
-import { isTrustedExternalRedirect } from '../trustedRedirect';
+import { isTrustedExternalRedirect } from '@/lib/auth/trustedRedirect';
 
 /**
  * The post-auth redirect allowlist. This is a security boundary: anything it

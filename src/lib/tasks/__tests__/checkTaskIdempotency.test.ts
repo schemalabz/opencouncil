@@ -6,7 +6,7 @@ const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
 
 // Mock all transitive dependencies of tasks.ts before import
-jest.mock('../../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
     taskStatus: {
@@ -20,19 +20,19 @@ jest.mock('../../db/prisma', () => ({
 }));
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', NEXTAUTH_SECRET: 'test-secret', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
-jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
-jest.mock('../../discord', () => ({
+jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+jest.mock('@/lib/discord', () => ({
   sendTaskAdminAlert: jest.fn(),
 }));
 const mockTerminalHook = jest.fn().mockResolvedValue(undefined);
-jest.mock('../registry', () => ({
+jest.mock('@/lib/tasks/registry', () => ({
   taskHandlers: {},
   taskTerminalHooks: { pollDecisions: (...args: unknown[]) => mockTerminalHook(...args) },
 }));
 
-import { checkTaskIdempotency, startTask, handleTaskUpdate } from '../tasks';
-import { TaskAlreadyExistsError } from '../types';
-import { sendTaskAdminAlert } from '../../discord';
+import { checkTaskIdempotency, startTask, handleTaskUpdate } from '@/lib/tasks/tasks';
+import { TaskAlreadyExistsError } from '@/lib/tasks/types';
+import { sendTaskAdminAlert } from '@/lib/discord';
 
 const CITY_ID = 'city-1';
 const MEETING_ID = 'meeting-1';

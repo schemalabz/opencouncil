@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { Section, Heading, Text, Button } from '@react-email/components';
-import { BaseTemplate } from '../components/BaseTemplate';
+import { BaseTemplate } from '@/lib/email/components/BaseTemplate';
 import { DEFAULT_LOCALE, type AppLocale } from '@/i18n/config';
-import { emailCopy } from '../copy';
+import { emailCopy } from '@/lib/email/copy';
 
 /**
  * Copy for the magic-link email, per locale.

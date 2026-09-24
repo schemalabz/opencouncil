@@ -1,4 +1,4 @@
-import { rowCandidates, matchesQuery } from '../rowCandidates';
+import { rowCandidates, matchesQuery } from '@/components/meetings/decisions/rowCandidates';
 
 const subjects = [
     { id: 's1', name: 'Θέμα ένα', agendaItemIndex: 1 },

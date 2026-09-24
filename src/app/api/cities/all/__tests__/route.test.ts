@@ -3,7 +3,7 @@ jest.mock('@/lib/db/cities', () => ({
     getAllCitiesMinimal: jest.fn(),
 }));
 
-import { GET } from '../route';
+import { GET } from '@/app/api/cities/all/route';
 import { getAllCitiesMinimal } from '@/lib/db/cities';
 
 const mockGetAllCitiesMinimal = getAllCitiesMinimal as jest.MockedFunction<typeof getAllCitiesMinimal>;

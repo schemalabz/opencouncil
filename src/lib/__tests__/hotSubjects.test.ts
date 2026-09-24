@@ -1,9 +1,9 @@
 /** @jest-environment node */
 
-import type { getCouncilMeetingsForCityPublicCached } from '../cache';
-import type { getCouncilMeetingsForCity } from '../db/meetingsList';
-import type { getDiscussionSecondsForSubjects } from '../db/subject';
-import type { filterLocationIdsWithinRadius, getLocationDistancesFromPoint } from '../db/location';
+import type { getCouncilMeetingsForCityPublicCached } from '@/lib/cache';
+import type { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
+import type { getDiscussionSecondsForSubjects } from '@/lib/db/subject';
+import type { filterLocationIdsWithinRadius, getLocationDistancesFromPoint } from '@/lib/db/location';
 
 /**
  * Typed to the functions they stand in for, not to `unknown[]`.
@@ -32,7 +32,7 @@ const mockGetDiscussionSecondsForSubjects = jest.fn() as ArgsChecked<typeof getD
 /** The key parts each cached call was built with, in call order. */
 const mockCacheKeys: string[][] = [];
 
-jest.mock('../cache', () => ({
+jest.mock('@/lib/cache', () => ({
     __esModule: true,
     createCache: (fn: () => unknown, keyParts: string[]) => {
         mockCacheKeys.push(keyParts);
@@ -45,17 +45,17 @@ jest.mock('../cache', () => ({
         mockGetCouncilMeetingsForCityPublicCached(...args),
 }));
 
-jest.mock('../db/meetingsList', () => ({
+jest.mock('@/lib/db/meetingsList', () => ({
     __esModule: true,
     getCouncilMeetingsForCity: (...args: Parameters<typeof getCouncilMeetingsForCity>) => mockGetCouncilMeetingsForCity(...args),
 }));
 
-jest.mock('../db/subject', () => ({
+jest.mock('@/lib/db/subject', () => ({
     __esModule: true,
     getDiscussionSecondsForSubjects: (...args: Parameters<typeof getDiscussionSecondsForSubjects>) => mockGetDiscussionSecondsForSubjects(...args),
 }));
 
-jest.mock('../db/location', () => ({
+jest.mock('@/lib/db/location', () => ({
     __esModule: true,
     filterLocationIdsWithinRadius: (...args: Parameters<typeof filterLocationIdsWithinRadius>) => mockFilterLocationIdsWithinRadius(...args),
     getLocationDistancesFromPoint: (...args: Parameters<typeof getLocationDistancesFromPoint>) => mockGetLocationDistancesFromPoint(...args),
@@ -68,7 +68,7 @@ import {
     getHotSubjectsNearPoint,
     withDistances,
     type HotSubject,
-} from '../hotSubjects';
+} from '@/lib/hotSubjects';
 
 const CENTER: [number, number] = [23.72, 37.98];
 /** A cell over central Athens. */

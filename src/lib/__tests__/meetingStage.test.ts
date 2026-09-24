@@ -10,7 +10,7 @@ import {
     stageSignalsFromMeetingData,
     stageSignalsFromPreview,
     type MeetingStageSignals,
-} from '../meetingStage';
+} from '@/lib/meetingStage';
 
 const NOW = new Date('2026-02-11T15:00:00Z');
 const HOUR = 60 * 60 * 1000;

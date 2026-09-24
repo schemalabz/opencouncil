@@ -1,8 +1,8 @@
 import { useRef } from 'react';
 import { webcrypto } from 'crypto';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { ExcerptSelectionToolbar, EXCERPT_SHARE_EVENT } from '../ExcerptSelectionToolbar';
-import { SegmentShareButton } from '../SegmentShareButton';
+import { ExcerptSelectionToolbar, EXCERPT_SHARE_EVENT } from '@/components/sharing/ExcerptSelectionToolbar';
+import { SegmentShareButton } from '@/components/sharing/SegmentShareButton';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { digestExcerpt } from '@/lib/sharing/excerptSelector';
 

@@ -3,11 +3,11 @@ import { Utterance } from "@prisma/client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useTranslations } from 'next-intl';
-import { useVideoActions } from "../VideoProvider";
-import { useTranscriptOptions } from "../options/OptionsContext";
-import { useHighlight } from "../HighlightContext";
+import { useVideoActions } from "@/components/meetings/VideoProvider";
+import { useTranscriptOptions } from "@/components/meetings/options/OptionsContext";
+import { useHighlight } from "@/components/meetings/HighlightContext";
 import { editUtterance, updateUtteranceTimestamps } from "@/lib/db/utterance";
-import { useCouncilMeetingActions } from "../CouncilMeetingDataContext";
+import { useCouncilMeetingActions } from "@/components/meetings/CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
 import { Check, X, Trash2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +17,7 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useEditing } from "../EditingContext";
+import { useEditing } from "@/components/meetings/EditingContext";
 import { formatTimestamp } from "@/lib/formatters/time";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { captureScrollAnchor, restoreScrollAnchor } from "@/lib/utils/scrollAnchor";

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { MeetingsTimeline } from '../cities/overview/MeetingsTimeline';
+import { MeetingsTimeline } from '@/components/cities/overview/MeetingsTimeline';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 
 jest.mock('next-intl', () => ({

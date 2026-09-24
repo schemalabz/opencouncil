@@ -2,10 +2,10 @@ import { Packer } from 'docx';
 import type { Document } from 'docx';
 import JSZip from 'jszip';
 import type { Offer } from '@prisma/client';
-import { buildTechnicalDescriptionDoc } from '../TechnicalDescriptionDocx';
-import { buildFinancialOfferDoc } from '../FinancialOfferDocx';
-import { buildTechnicalOfferDoc } from '../TechnicalOfferDocx';
-import { CONTENT_WIDTH, FONT, PAGE_MARGIN, PAGE_WIDTH } from '../shared';
+import { buildTechnicalDescriptionDoc } from '@/components/offer-letter/docx/TechnicalDescriptionDocx';
+import { buildFinancialOfferDoc } from '@/components/offer-letter/docx/FinancialOfferDocx';
+import { buildTechnicalOfferDoc } from '@/components/offer-letter/docx/TechnicalOfferDocx';
+import { CONTENT_WIDTH, FONT, PAGE_MARGIN, PAGE_WIDTH } from '@/components/offer-letter/docx/shared';
 
 const offer = {
     id: 'offer1',

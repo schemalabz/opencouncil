@@ -1,7 +1,7 @@
 "use server";
 import { AdministrativeBody } from '@prisma/client';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 
 export async function getAdministrativeBodiesForCity(cityId: string): Promise<AdministrativeBody[]> {
     try {

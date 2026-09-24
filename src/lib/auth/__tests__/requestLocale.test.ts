@@ -1,4 +1,4 @@
-import { localeForRequest } from '../requestLocale';
+import { localeForRequest } from '@/lib/auth/requestLocale';
 
 const reqWith = (headers: Record<string, string>) =>
     new Request('https://internal.local/api/auth/signin', { headers });

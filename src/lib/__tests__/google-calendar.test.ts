@@ -1,4 +1,4 @@
-import { syncMeetingToCalendar } from '../google-calendar';
+import { syncMeetingToCalendar } from '@/lib/google-calendar';
 import { getMeetingForCalendarSync, setMeetingCalendarEventId, MeetingForCalendarSync } from '@/lib/db/meetingsCalendarSync';
 import { sendTaskAdminAlert } from '@/lib/discord';
 

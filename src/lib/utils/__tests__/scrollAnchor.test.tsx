@@ -4,7 +4,7 @@ import {
     nextScrollTopForTargetAtTop,
     restoreScrollAnchor,
     scrollElementToContainerTop,
-} from '../scrollAnchor';
+} from '@/lib/utils/scrollAnchor';
 
 // Regression guard for #367: saving an utterance mid-segment used to strand the
 // editor near the end of the segment. Named .test.tsx so jest runs it under

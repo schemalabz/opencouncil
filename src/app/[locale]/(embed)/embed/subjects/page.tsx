@@ -8,7 +8,7 @@ import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import { getHotSubjectCards } from '@/lib/hotSubjectCards';
 import { isValidGeohash } from '@/lib/geo';
 import { cn } from '@/lib/utils';
-import '../meetings/embed.css';
+import '@/app/[locale]/(embed)/embed/meetings/embed.css';
 
 // Cache the page for 5 minutes at the CDN, serve stale for up to 1 hour while revalidating
 export const revalidate = 300;

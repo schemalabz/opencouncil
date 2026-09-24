@@ -5,7 +5,7 @@
  * cases set the process env rather than mocking env.mjs.
  */
 
-import { devToolsAllowed } from '../deployment';
+import { devToolsAllowed } from '@/lib/deployment';
 
 describe('devToolsAllowed', () => {
     const prev = process.env.DEPLOYMENT_ENV;

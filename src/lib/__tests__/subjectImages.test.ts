@@ -1,6 +1,6 @@
 /** @jest-environment node */
 
-import { generateImageForSubject, generateImagesForMeeting, isSubjectImageGenerationEnabled, listSubjectsWithImages, reportLookupFailure, resolveSubjectImage, storeSubjectImage } from '../subjectImages';
+import { generateImageForSubject, generateImagesForMeeting, isSubjectImageGenerationEnabled, listSubjectsWithImages, reportLookupFailure, resolveSubjectImage, storeSubjectImage } from '@/lib/subjectImages';
 
 const mockEnv: { GEMINI_API_KEY?: string; DO_SPACES_BUCKET: string; SUBJECT_IMAGES_PREFIX: string; CDN_URL: string } = {
     GEMINI_API_KEY: 'gemini-key',

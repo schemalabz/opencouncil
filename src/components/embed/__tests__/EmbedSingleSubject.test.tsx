@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { EmbedSingleSubject } from '../EmbedSingleSubject';
+import { EmbedSingleSubject } from '@/components/embed/EmbedSingleSubject';
 import type { PublicSubject } from '@/lib/sharing/publicContent';
 jest.mock('@/components/icon', () => ({ __esModule: true, default: () => null }));
 

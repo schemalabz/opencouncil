@@ -8,13 +8,13 @@ const mockPrisma = {
   },
 };
 
-jest.mock('../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: mockPrisma,
 }));
 
 // Mock auth module
-jest.mock('../auth', () => ({
+jest.mock('@/lib/auth', () => ({
   withUserAuthorizedToEdit: jest.fn(),
   isUserAuthorizedToEdit: jest.fn(),
 }));
@@ -32,7 +32,7 @@ const mockPeopleModule = {
   deletePerson: jest.fn(),
 };
 
-jest.mock('../db/people', () => mockPeopleModule);
+jest.mock('@/lib/db/people', () => mockPeopleModule);
 
 const { getPeopleForMeeting, getPeopleForCity } = mockPeopleModule;
 

@@ -6,7 +6,7 @@
  */
 import posthog from 'posthog-js';
 import type { Session } from 'next-auth';
-import { identifyPostHogUser } from '../identifyUser';
+import { identifyPostHogUser } from '@/components/analytics/identifyUser';
 import { INTERNAL_PERSON_KEY, INTERNAL_USER_KEY } from '@/lib/utils/analyticsConsent';
 
 jest.mock('posthog-js', () => ({

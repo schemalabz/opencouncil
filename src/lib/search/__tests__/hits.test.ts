@@ -1,4 +1,4 @@
-import type { EsHit } from '../hits';
+import type { EsHit } from '@/lib/search/hits';
 
 jest.mock('@/env.mjs', () => ({ env: { DEPLOYMENT_ENV: 'production' } }));
 jest.mock('@/lib/discord-core', () => ({
@@ -9,12 +9,12 @@ jest.mock('@/lib/discord-core', () => ({
 // import time, so each case loads a fresh copy with the env it needs. The
 // discord mock factory re-runs per isolated registry, giving a clean spy too.
 const load = (deploymentEnv: string) => {
-    let hits!: typeof import('../hits');
+    let hits!: typeof import('@/lib/search/hits');
     let discord!: { sendErrorAdminAlert: jest.Mock };
     jest.isolateModules(() => {
         jest.doMock('@/env.mjs', () => ({ env: { DEPLOYMENT_ENV: deploymentEnv } }));
         discord = require('@/lib/discord-core');
-        hits = require('../hits');
+        hits = require('@/lib/search/hits');
     });
     return { ...hits, alert: discord.sendErrorAdminAlert };
 };

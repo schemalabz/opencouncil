@@ -1,4 +1,4 @@
-jest.mock('../db/prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
   __esModule: true,
   default: {
     verificationToken: {
@@ -8,7 +8,7 @@ jest.mock('../db/prisma', () => ({
   },
 }));
 
-jest.mock('../email/resend', () => ({
+jest.mock('@/lib/email/resend', () => ({
   sendEmail: jest.fn(),
 }));
 
@@ -16,20 +16,20 @@ jest.mock('@react-email/render', () => ({
   render: jest.fn(),
 }));
 
-jest.mock('../email/templates/user-invite', () => ({
+jest.mock('@/lib/email/templates/user-invite', () => ({
   UserInviteEmail: jest.fn(() => null),
 }));
 
-jest.mock('../../env.mjs', () => ({
+jest.mock('@/env.mjs', () => ({
   env: {
     NEXTAUTH_URL: 'https://app.test',
   },
 }));
 
-import prisma from '../db/prisma';
-import { sendEmail } from '../email/resend';
+import prisma from '@/lib/db/prisma';
+import { sendEmail } from '@/lib/email/resend';
 import { render } from '@react-email/render';
-import { generateSignInLink, sendInviteEmail } from '../auth/invite';
+import { generateSignInLink, sendInviteEmail } from '@/lib/auth/invite';
 
 const mockCreate = prisma.verificationToken.create as jest.MockedFunction<typeof prisma.verificationToken.create>;
 const mockDeleteMany = prisma.verificationToken.deleteMany as jest.MockedFunction<typeof prisma.verificationToken.deleteMany>;
@@ -91,7 +91,7 @@ describe('sendInviteEmail', () => {
   });
 
   it('falls back to email as name when name is empty', async () => {
-    const { UserInviteEmail } = require('../email/templates/user-invite');
+    const { UserInviteEmail } = require('@/lib/email/templates/user-invite');
     await sendInviteEmail('user@example.com', '');
     expect(UserInviteEmail).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'user@example.com' })

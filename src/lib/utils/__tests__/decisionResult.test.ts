@@ -1,4 +1,4 @@
-import { resultKey } from '../decisionResult';
+import { resultKey } from '@/lib/utils/decisionResult';
 import type { VoteType } from '@prisma/client';
 
 const votes = (...types: VoteType[]) => types.map(voteType => ({ voteType }));

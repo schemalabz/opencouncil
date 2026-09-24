@@ -1,12 +1,12 @@
 "use server";
 
-import { ProcessAgendaResult } from "../apiTypes";
-import prisma from "../db/prisma";
-import { revalidateMeeting } from "../cache";
-import { saveSubjectsForMeeting } from "../db/utils";
-import { withUserAuthorizedToEdit } from "../auth";
+import { ProcessAgendaResult } from "@/lib/apiTypes";
+import prisma from "@/lib/db/prisma";
+import { revalidateMeeting } from "@/lib/cache";
+import { saveSubjectsForMeeting } from "@/lib/db/utils";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { after } from "next/server";
-import { generateImagesForMeeting } from "../subjectImages";
+import { generateImagesForMeeting } from "@/lib/subjectImages";
 import { requestProcessAgendaInternal } from "./processAgendaInternal";
 
 /**
@@ -99,9 +99,9 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
     // Create notifications if administrative body allows it
     const adminBody = task.councilMeeting.administrativeBody;
     if (adminBody && adminBody.notificationBehavior !== 'NOTIFICATIONS_DISABLED') {
-        const { createNotificationsForMeeting } = await import('../db/notifications');
-        const { releaseNotifications } = await import('../notifications/deliver');
-        const { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } = await import('../discord');
+        const { createNotificationsForMeeting } = await import('@/lib/db/notifications');
+        const { releaseNotifications } = await import('@/lib/notifications/deliver');
+        const { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } = await import('@/lib/discord');
 
         try {
             const stats = await createNotificationsForMeeting(

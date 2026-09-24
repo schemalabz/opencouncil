@@ -5,8 +5,8 @@
 import "server-only";
 import { City, CouncilMeeting, Highlight, Subject, Utterance, Prisma, HighlightCreationPermission } from '@prisma/client';
 import prisma from "./prisma";
-import { ForbiddenError, NotFoundError, BadRequestError } from "../api/errors";
-import { HIGHLIGHT_NAME_MAX_LENGTH, MY_HIGHLIGHTS_LIMIT } from "../highlights/constants";
+import { ForbiddenError, NotFoundError, BadRequestError } from "@/lib/api/errors";
+import { HIGHLIGHT_NAME_MAX_LENGTH, MY_HIGHLIGHTS_LIMIT } from "@/lib/highlights/constants";
 
 export { HIGHLIGHT_NAME_MAX_LENGTH, MY_HIGHLIGHTS_LIMIT };
 

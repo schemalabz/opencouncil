@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TopicFilter } from '../TopicFilter';
+import { TopicFilter } from '@/components/filters/TopicFilter';
 import { Topic } from '@prisma/client';
 
 // next-intl ships ESM that Jest doesn't transform, so mock the hook with the

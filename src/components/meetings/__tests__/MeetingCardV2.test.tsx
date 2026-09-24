@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import MeetingCardV2 from '../MeetingCardV2';
+import MeetingCardV2 from '@/components/meetings/MeetingCardV2';
 import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 
 // Regression guard for #514, carried over from the retired MeetingCard: a *past*

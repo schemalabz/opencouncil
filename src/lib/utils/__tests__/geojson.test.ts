@@ -1,4 +1,4 @@
-import { parseBoundaryInput } from '../geojson';
+import { parseBoundaryInput } from '@/lib/utils/geojson';
 
 const square = [[[20, 40], [21, 40], [21, 41], [20, 41], [20, 40]]];
 const triangleOpen = [[[0, 0], [1, 0], [1, 1]]]; // valid but unclosed — should auto-close

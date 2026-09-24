@@ -1,10 +1,10 @@
-import { TranscribeRequest, Voiceprint } from "../apiTypes";
+import { TranscribeRequest, Voiceprint } from "@/lib/apiTypes";
 import { startTask } from "./tasks";
 import { Prisma } from "@prisma/client";
-import prisma from "../db/prisma";
+import prisma from "@/lib/db/prisma";
 import { getPeopleForMeeting } from "@/lib/db/people";
-import { getRoleTypePriority } from "../utils";
-import { getStatisticsFor } from "../statistics";
+import { getRoleTypePriority } from "@/lib/utils";
+import { getStatisticsFor } from "@/lib/statistics";
 
 /**
  * Core transcribe logic without auth checks.

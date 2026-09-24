@@ -1,4 +1,4 @@
-import { parseSubjectEmbedTarget, subjectEmbedSnippet, subjectEmbedUrl, SUBJECT_EMBED_HEIGHT } from '../subjectEmbed';
+import { parseSubjectEmbedTarget, subjectEmbedSnippet, subjectEmbedUrl, SUBJECT_EMBED_HEIGHT } from '@/lib/sharing/subjectEmbed';
 
 describe('public subject embed URLs', () => {
     const target = { cityId: 'city', meetingId: 'old_2020', subjectId: 'subject' };

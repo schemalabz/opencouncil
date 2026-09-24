@@ -1,4 +1,4 @@
-import { buildSubjectStructuredData, serializeStructuredData } from "../subjectStructuredData";
+import { buildSubjectStructuredData, serializeStructuredData } from "@/lib/seo/subjectStructuredData";
 
 const BASE = {
     canonicalUrl: "https://opencouncil.gr/athens/feb26_2026/subjects/subj1",

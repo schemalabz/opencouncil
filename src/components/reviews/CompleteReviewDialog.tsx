@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ReviewSessionsBreakdown } from '../admin/reviews/ReviewSessionsBreakdown';
+import { ReviewSessionsBreakdown } from '@/components/admin/reviews/ReviewSessionsBreakdown';
 import { getMeetingReviewStats } from '@/lib/db/reviews';
 import { markHumanReviewComplete } from '@/lib/tasks/humanReview';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';

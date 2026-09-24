@@ -1,4 +1,4 @@
-import { groupOrphanRows } from '../decisionHealthState';
+import { groupOrphanRows } from '@/lib/db/decisionHealthState';
 
 const row = (date: string, days: number | null, ada: string, num: string | null = null) =>
     ({ date, days, ada, decisionNumber: num, title: null, pdfUrl: `https://diavgeia.gov.gr/doc/${ada}` });

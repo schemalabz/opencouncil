@@ -1,10 +1,10 @@
 "use server";
-import { TranscribeResult } from "../apiTypes";
+import { TranscribeResult } from "@/lib/apiTypes";
 import { CouncilMeeting, SpeakerSegment } from "@prisma/client";
-import { Utterance as ApiUtterance } from "../apiTypes";
-import prisma from "../db/prisma";
-import { withUserAuthorizedToEdit } from "../auth";
-import { buildUnknownSpeakerLabel } from "../utils";
+import { Utterance as ApiUtterance } from "@/lib/apiTypes";
+import prisma from "@/lib/db/prisma";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { buildUnknownSpeakerLabel } from "@/lib/utils";
 import { requestTranscribeInternal, deleteExistingSpeakerData } from "./transcribeInternal";
 import { requestFixTranscriptInternal } from "./fixTranscriptInternal";
 import { autoTriggerTask } from "./autoTrigger";

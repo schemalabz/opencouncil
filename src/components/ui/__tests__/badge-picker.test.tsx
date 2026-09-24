@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { BadgePicker } from '../badge-picker';
+import { BadgePicker } from '@/components/ui/badge-picker';
 
 jest.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
 // The option glyphs reach lucide's ESM icon map through @/components/icon,

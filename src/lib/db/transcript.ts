@@ -1,6 +1,6 @@
 import { SpeakerSegment, Utterance, Word, SpeakerTag, Summary, TopicLabel, Topic } from "@prisma/client";
 import prisma from "./prisma";
-import { joinTranscriptSegments } from "../utils";
+import { joinTranscriptSegments } from "@/lib/utils";
 
 export type Transcript = (SpeakerSegment & {
   utterances: Utterance[];

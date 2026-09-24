@@ -1,4 +1,4 @@
-import { isHeaderlessMultipartPost } from '../multipartPostGuard';
+import { isHeaderlessMultipartPost } from '@/lib/multipartPostGuard';
 
 const MULTIPART = 'multipart/form-data; boundary=----WebKitFormBoundaryx8jO2oVc6SWP3Sad';
 const ACTION_ID = '7f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d';

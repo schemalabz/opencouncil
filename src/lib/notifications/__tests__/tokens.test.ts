@@ -10,7 +10,7 @@ import {
     generateUnsubscribeToken,
     verifyUnsubscribeToken,
     buildUnsubscribeUrl,
-} from '../tokens';
+} from '@/lib/notifications/tokens';
 
 describe('generateUnsubscribeToken / verifyUnsubscribeToken', () => {
     it('round-trips a valid token back to the original userId and cityId', async () => {

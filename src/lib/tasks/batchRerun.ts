@@ -1,10 +1,10 @@
 "use server";
 
-import { withUserAuthorizedToEdit } from "../auth";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { requestProcessAgendaInternal } from "./processAgendaInternal";
-import { getSummarizeRequestBody } from "../db/utils";
+import { getSummarizeRequestBody } from "@/lib/db/utils";
 import { startTask } from "./tasks";
-import prisma from "../db/prisma";
+import prisma from "@/lib/db/prisma";
 
 export interface BatchRerunResult {
     meetingId: string;

@@ -1,4 +1,4 @@
-import { accountIssues, failureKind, maskPhone, saveErrorKey } from '../signup-shared';
+import { accountIssues, failureKind, maskPhone, saveErrorKey } from '@/components/signup/signup-shared';
 
 describe('accountIssues', () => {
     it('needs a name and something that looks like an email', () => {

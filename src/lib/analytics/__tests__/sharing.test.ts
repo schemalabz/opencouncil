@@ -1,5 +1,5 @@
 import posthog from 'posthog-js';
-import { captureSharingEvent, type SharingContext } from '../sharing';
+import { captureSharingEvent, type SharingContext } from '@/lib/analytics/sharing';
 
 jest.mock('posthog-js', () => ({ __loaded: true, capture: jest.fn() }));
 const context: SharingContext = { content_type: 'excerpt', surface: 'transcript_selection', city_id: 'city', meeting_id: 'meeting', reviewed: false, editable: true, utterance_count: 2 };

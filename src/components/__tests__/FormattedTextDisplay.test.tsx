@@ -1,11 +1,11 @@
 import { render, screen } from '@testing-library/react';
-import { FormattedTextDisplay } from '../FormattedTextDisplay';
+import { FormattedTextDisplay } from '@/components/FormattedTextDisplay';
 
 let mockHref = '';
 let mockLocale = 'en';
 jest.mock('next-intl', () => ({ useLocale: () => mockLocale }));
 jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
-jest.mock('../meetings/subject/UtteranceReferenceLink', () => ({ UtteranceReferenceLink: ({ children }: { children: React.ReactNode }) => <button>{children}</button> }));
+jest.mock('@/components/meetings/subject/UtteranceReferenceLink', () => ({ UtteranceReferenceLink: ({ children }: { children: React.ReactNode }) => <button>{children}</button> }));
 // The markdown library owns parsing; these tests exercise OC's URL policy and
 // source-reference renderer using the same component contract it invokes.
 jest.mock('react-markdown', () => ({

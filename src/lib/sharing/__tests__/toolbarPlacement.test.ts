@@ -1,4 +1,4 @@
-import { toolbarPlacement } from '../toolbarPlacement';
+import { toolbarPlacement } from '@/lib/sharing/toolbarPlacement';
 
 const viewport = { width: 1200, height: 800 };
 const rect = { top: 300, bottom: 340, left: 400, right: 600 };

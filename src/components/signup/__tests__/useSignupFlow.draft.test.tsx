@@ -1,7 +1,7 @@
 /** @jest-environment jsdom */
 import { act, render, screen } from '@testing-library/react';
-import { useSignupFlow } from '../useSignupFlow';
-import { draftKey, readDraft, writeDraft } from '../signup-draft';
+import { useSignupFlow } from '@/components/signup/useSignupFlow';
+import { draftKey, readDraft, writeDraft } from '@/components/signup/signup-draft';
 
 jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
 

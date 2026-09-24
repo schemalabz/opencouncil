@@ -1,7 +1,7 @@
 'use client'
 import { City, CouncilMeeting } from '@prisma/client';
 import Image from 'next/image';
-import { Card, CardContent } from "../ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/routing';
 import { useState } from 'react';

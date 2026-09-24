@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { PersonJoin } from '../PersonJoin';
+import { PersonJoin } from '@/components/personJoin/PersonJoin';
 import { claimWithToken, sendJoinEmail } from '@/lib/actions/personJoin';
 import { setVoicePrintConsent } from '@/lib/actions/personConsent';
 import { captureEvent } from '@/lib/analytics/capture';

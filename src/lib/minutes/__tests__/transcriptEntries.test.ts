@@ -3,8 +3,8 @@ import {
     TranscriptUtterance,
     SpeakerResolver,
     CrossSubjectInfo,
-} from '../transcriptEntries';
-import { MinutesSpeakerEntry, MinutesCrossSubjectEntry } from '../types';
+} from '@/lib/minutes/transcriptEntries';
+import { MinutesSpeakerEntry, MinutesCrossSubjectEntry } from '@/lib/minutes/types';
 
 function makeUtterance(overrides: {
     id?: string;

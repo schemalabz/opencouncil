@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { NotisSwitch } from '../NotisSwitch';
+import { NotisSwitch } from '@/components/profile/NotisSwitch';
 import { getNotisChannelState, setNotisEnabled, type NotisChannelState } from '@/lib/actions/notis';
 import { captureEvent } from '@/lib/analytics/capture';
 

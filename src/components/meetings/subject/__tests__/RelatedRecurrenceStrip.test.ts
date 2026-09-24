@@ -3,11 +3,11 @@
 // cases await the server component directly and read what it returns.
 jest.mock('@/lib/realm.server', () => ({ getRealm: jest.fn().mockResolvedValue('greece') }));
 jest.mock('@/lib/search/core', () => ({ searchRelatedSubjectsInRealm: jest.fn() }));
-jest.mock('../RelatedRecurrenceLink', () => ({ RelatedRecurrenceLink: jest.fn() }));
+jest.mock('@/components/meetings/subject/RelatedRecurrenceLink', () => ({ RelatedRecurrenceLink: jest.fn() }));
 
 import { searchRelatedSubjectsInRealm } from '@/lib/search/core';
 import type { SearchResultLight } from '@/lib/search/types';
-import { RECURRENCE_WINDOW_DAYS, RelatedRecurrenceStrip, recurringNeighbours } from '../RelatedRecurrenceStrip';
+import { RECURRENCE_WINDOW_DAYS, RelatedRecurrenceStrip, recurringNeighbours } from '@/components/meetings/subject/RelatedRecurrenceStrip';
 
 const searchMock = searchRelatedSubjectsInRealm as jest.MockedFunction<typeof searchRelatedSubjectsInRealm>;
 

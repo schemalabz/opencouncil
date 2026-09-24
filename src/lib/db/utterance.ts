@@ -1,6 +1,6 @@
 'use server';
 import prisma from './prisma';
-import { getCurrentUser, withUserAuthorizedToEdit } from '../auth';
+import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
 import { Utterance } from '@prisma/client';
 
 export async function editUtterance(utteranceId: string, newText: string): Promise<Utterance> {

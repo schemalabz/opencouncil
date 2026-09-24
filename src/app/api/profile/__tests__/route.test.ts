@@ -12,7 +12,7 @@ jest.mock('@/lib/discord', () => ({
     sendUserOnboardedAdminAlert: jest.fn(),
 }));
 
-import { DELETE } from '../route';
+import { DELETE } from '@/app/api/profile/route';
 import { getCurrentUser } from '@/lib/auth';
 import { deleteCurrentUser } from '@/lib/db/users';
 

@@ -1,4 +1,4 @@
-import { majoritySubject, nearestSubject, NEAREST_SUBJECT_WINDOW_S } from '../passageSubject';
+import { majoritySubject, nearestSubject, NEAREST_SUBJECT_WINDOW_S } from '@/lib/sharing/passageSubject';
 
 const a = { id: 'a' }, b = { id: 'b' };
 

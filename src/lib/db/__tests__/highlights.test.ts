@@ -5,7 +5,7 @@ const mockFindFirst = jest.fn();
 const mockCityFindFirst = jest.fn();
 const mockQueryRaw = jest.fn();
 
-jest.mock('../prisma', () => ({
+jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
         highlight: {
@@ -21,14 +21,14 @@ jest.mock('../prisma', () => ({
 
 const mockGetCurrentUser = jest.fn();
 
-jest.mock('../../auth', () => ({
+jest.mock('@/lib/auth', () => ({
     getCurrentUser: (...args: unknown[]) => mockGetCurrentUser(...args),
     isUserAuthorizedToEdit: jest.fn(),
     withUserAuthorizedToEdit: jest.fn(),
 }));
 
-import { canAccessMyHighlights, getMyHighlights } from '../highlights';
-import { MY_HIGHLIGHTS_LIMIT } from '../highlights-core';
+import { canAccessMyHighlights, getMyHighlights } from '@/lib/db/highlights';
+import { MY_HIGHLIGHTS_LIMIT } from '@/lib/db/highlights-core';
 
 const highlight = (id: string) => ({
     id,

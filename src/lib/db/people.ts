@@ -1,8 +1,8 @@
 "use server";
 import { Person, Role, VoicePrint } from '@prisma/client';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
-import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
+import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "@/lib/utils";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
 export type PersonWithRelations = Person & {

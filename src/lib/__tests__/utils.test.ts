@@ -16,8 +16,8 @@ import {
   filterInactiveRoles,
   normalizeText,
   relevanceScore
-} from '../utils';
-import { calculateOfferTotals } from '../pricing';
+} from '@/lib/utils';
+import { calculateOfferTotals } from '@/lib/pricing';
 
 // Mock for Greek klitiki library. Do not pass `{ virtual: true }` here: the
 // package is a real dependency, and a virtual mock registers under the bare

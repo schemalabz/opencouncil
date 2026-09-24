@@ -1,7 +1,7 @@
 // buildApiSubjectWhere is a pure filter builder; mock the prisma singleton so
 // importing subjectsApi.ts doesn't pull in the real client (→ env.mjs, which
 // the jest transform doesn't handle).
-jest.mock('../prisma', () => ({ __esModule: true, default: {} }));
+jest.mock('@/lib/db/prisma', () => ({ __esModule: true, default: {} }));
 
 import { Realm } from '@prisma/client';
 import { buildApiSubjectWhere } from '@/lib/db/subjectsApi';

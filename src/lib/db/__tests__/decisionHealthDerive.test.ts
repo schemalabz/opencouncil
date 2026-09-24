@@ -2,7 +2,7 @@ import {
     accumulateMeeting, bodyKey, classifyUnmatchedSubject, collectMeetingCandidateStats,
     compareBodyRows, compareDecisionNumbers, declaredCalendarDate, emptyCoverage,
     isInMeasurementWindow, meetingKey, nearestMeetingGapDays, subjectNameKey,
-} from '../decisionHealthDerive';
+} from '@/lib/db/decisionHealthDerive';
 
 describe('classifyUnmatchedSubject', () => {
     const subject = { cityId: 'city1', councilMeetingId: 'm1', name: 'Θέμα Α' };

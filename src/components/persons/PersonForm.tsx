@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { Button } from "../../components/ui/button"
+import { Button } from "@/components/ui/button"
 import {
     Form,
     FormControl,
@@ -14,15 +14,15 @@ import {
     FormItem,
     FormLabel,
     FormMessage,
-} from "../../components/ui/form"
-import { Input } from "../../components/ui/input"
-import { SheetClose } from "../../components/ui/sheet"
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { SheetClose } from "@/components/ui/sheet"
 import { Party, Person, Role, AdministrativeBody } from '@prisma/client'
 import { RoleWithRelations } from '@/lib/db/types'
 import { Loader2, Check, Trash2 } from "lucide-react"
 import { useTranslations } from 'next-intl'
 import React, { useRef } from "react"
-import InputWithDerivatives from "../../components/InputWithDerivatives"
+import InputWithDerivatives from "@/components/InputWithDerivatives"
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import { useToast } from "@/hooks/use-toast"

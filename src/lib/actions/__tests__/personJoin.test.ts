@@ -12,7 +12,7 @@ const mockSignIn = jest.fn();
 jest.mock('@/lib/serverSignIn', () => ({ signInWithEmail: (...args: unknown[]) => mockSignIn(...args) }));
 
 import { generatePersonClaimToken, verifyJoinConfirmation } from '@/lib/auth/personClaim';
-import { claimWithToken, sendJoinEmail } from '../personJoin';
+import { claimWithToken, sendJoinEmail } from '@/lib/actions/personJoin';
 
 beforeEach(() => {
     for (const m of [mockGetCurrentUser, mockClaimPerson, mockAlert, mockSignIn, mockConsents]) m.mockReset();

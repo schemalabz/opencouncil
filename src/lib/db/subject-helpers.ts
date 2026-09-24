@@ -1,4 +1,4 @@
-import { Subject } from "../apiTypes";
+import { Subject } from "@/lib/apiTypes";
 
 /**
  * Categorize incoming subjects against existing ones for upsert operations.

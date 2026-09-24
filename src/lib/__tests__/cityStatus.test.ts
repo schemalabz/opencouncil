@@ -7,7 +7,7 @@ import {
     PUBLIC_CITY_WHERE,
     CUSTOMER_CITY_WHERE,
     OUT_OF_NETWORK_CITY_WHERE,
-} from '../cityStatus';
+} from '@/lib/cityStatus';
 
 const ALL_STATUSES = Object.values(CityStatus);
 

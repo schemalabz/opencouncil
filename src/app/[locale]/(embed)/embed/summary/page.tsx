@@ -6,7 +6,7 @@ import { EmbedFooter } from '@/components/embed/EmbedFooter';
 import { parseEmbedConfig, parseBoundedInt, EMBED_SUMMARY_LIMITS, type EmbedSearchParams } from '@/lib/utils/embedParams';
 import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import { getMeetingSummaries } from '@/lib/meetingSummaries';
-import '../meetings/embed.css';
+import '@/app/[locale]/(embed)/embed/meetings/embed.css';
 
 // Cache the page for 5 minutes at the CDN, serve stale for up to 1 hour while revalidating
 export const revalidate = 300;

@@ -1,4 +1,4 @@
-import { parseEmbedConfig, parseBoundedInt, embedLocalePrefix, EMBED_SUMMARY_LIMITS } from '../embedParams';
+import { parseEmbedConfig, parseBoundedInt, embedLocalePrefix, EMBED_SUMMARY_LIMITS } from '@/lib/utils/embedParams';
 
 describe('parseBoundedInt', () => {
     const spec = { default: 6, min: 1, max: 20 };

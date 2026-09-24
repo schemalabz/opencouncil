@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from './prisma';
-import { isUserAuthorizedToEdit, validateBearerAuth } from '../auth';
+import { isUserAuthorizedToEdit, validateBearerAuth } from '@/lib/auth';
 
 const neighborSelect = {
     id: true,

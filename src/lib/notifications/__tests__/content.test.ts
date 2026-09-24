@@ -12,7 +12,7 @@ jest.mock('@/lib/email/templates/NotificationEmail', () => ({
     NotificationEmail: (props: unknown) => notificationEmail(props),
 }));
 
-import { generateEmailContent } from '../content';
+import { generateEmailContent } from '@/lib/notifications/content';
 
 const notification = {
     id: 'n-1',

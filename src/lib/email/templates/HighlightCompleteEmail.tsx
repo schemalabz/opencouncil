@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { Section, Heading, Text, Button, Hr } from '@react-email/components';
-import { BaseTemplate } from '../components/BaseTemplate';
-import { emailLocaleForRealm, type EmailLocale } from '../emailLocale';
-import { emailCopy } from '../copy';
+import { BaseTemplate } from '@/lib/email/components/BaseTemplate';
+import { emailLocaleForRealm, type EmailLocale } from '@/lib/email/emailLocale';
+import { emailCopy } from '@/lib/email/copy';
 
 interface HighlightCompleteCopy {
     subjectSuccess: string;

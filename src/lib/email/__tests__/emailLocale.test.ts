@@ -1,4 +1,4 @@
-import { emailLocaleForRealm } from '../emailLocale';
+import { emailLocaleForRealm } from '@/lib/email/emailLocale';
 
 describe('emailLocaleForRealm', () => {
     it('writes each realm’s email in that realm’s language', () => {
