@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { SidebarTrigger } from '../ui/sidebar'
 import { City } from '@prisma/client'
 import { Input } from "@/components/ui/input"
-import { Search, Plug, Building2, ChevronLeft, ChevronRight, HelpCircle, type LucideIcon } from "lucide-react"
+import { Search, Plug, Bell, Building2, ChevronLeft, ChevronRight, HelpCircle, type LucideIcon } from "lucide-react"
 import { useRouter, useSelectedLayoutSegment } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
 import { createPortal } from "react-dom"
@@ -17,6 +17,8 @@ import { AutoScrollText } from "@/components/ui/auto-scroll-text"
 import { getMeetingPageSegments } from "@/lib/utils/meetingPages"
 import { TopicIcon } from '@/components/TopicIcon';
 import { headerControlClass } from './headerControl';
+import { TrackedLink } from '@/components/analytics/TrackedLink';
+import { notificationsSignupHref } from '@/lib/utils/notificationsSignupHref';
 
 export interface PathElement {
     name: string
@@ -387,8 +389,21 @@ const Header = ({ path, neighbours, showSidebarTrigger = false, currentEntity, c
             </button>
             {/* From `lg` the bar has room to name these, so they come back out of
                 the account menu — which hides them at the same width. Below it
-                they would be two more unlabelled glyphs, which is what the
+                they would be more unlabelled glyphs, which is what the
                 redesign moved them out of. */}
+            {/* Only the bell until `xl`: at 1024px its name took the room a
+                meeting's title needs, and the title began to scroll. */}
+            <TrackedLink
+                href={notificationsSignupHref(cityElement?.city)}
+                event="notifications_nav_clicked"
+                eventProps={{ surface: 'header' }}
+                className={cn(headerControlClass, 'hidden w-9 lg:flex xl:w-auto xl:px-3')}
+                aria-label={t('notifications')}
+                title={t('notifications')}
+            >
+                <Bell className="h-4 w-4 shrink-0" />
+                <span className="hidden text-sm xl:inline">{t('notifications')}</span>
+            </TrackedLink>
             <Link
                 href="/mcp"
                 className={cn(headerControlClass, 'hidden px-3 lg:flex')}

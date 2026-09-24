@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import { Menu, Home, ChevronDown, User, LogOut, LogIn, Search, Plug, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
+import { Menu, Home, ChevronDown, User, LogOut, LogIn, Search, Plug, Bell, Phone, Mail, ArrowRight, HelpCircle } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link } from '@/i18n/routing';
 import { openAfterMenuCloses } from '@/lib/utils/menus';
@@ -93,15 +93,22 @@ export function MobileHeader({
                         <DrawerAction onClick={() => onToggleInfo('menu')} icon={<HelpCircle className="h-[18px] w-[18px]" />}>
                             {t('info.title')}
                         </DrawerAction>
-                        {/* /search and /mcp repeat in the Σύνδεσμοι accordion (it mirrors the site
-                            footer), but an accordion is closed by default — these two are product
-                            surfaces, so they get top-level rows. */}
+                        {/* /search, the notifications signup and /mcp repeat in the Σύνδεσμοι
+                            accordion (it mirrors the site footer), but an accordion is closed by
+                            default — these are product surfaces, so they get top-level rows. */}
                         <DrawerLink
                             href="/search"
                             icon={<Search className="h-[18px] w-[18px]" />}
                             onNavigate={() => captureLandingAction('nav_link', { target: 'search', surface: 'drawer' })}
                         >
                             {t('nav.searchPage')}
+                        </DrawerLink>
+                        <DrawerLink
+                            href="/notifications"
+                            icon={<Bell className="h-[18px] w-[18px]" />}
+                            onNavigate={() => captureLandingAction('nav_link', { target: 'notifications', surface: 'drawer' })}
+                        >
+                            {t('footer.links.notifications')}
                         </DrawerLink>
                         <DrawerLink
                             href="/mcp"
