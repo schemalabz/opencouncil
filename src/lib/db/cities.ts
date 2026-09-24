@@ -6,6 +6,7 @@ import { createCache } from "../cache";
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
 import { UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
+import { createCityDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
 import {
     PETITION_DISPLAY_THRESHOLD,
@@ -67,15 +68,10 @@ export async function deleteCity(id: string): Promise<void> {
     }
 }
 
-// `peopleOrdering` stays a column with its default but nothing reads or writes
-// it any more: one order applies to every city.
 export async function createCity(cityData: Omit<City, 'createdAt' | 'updatedAt' | 'peopleOrdering'>): Promise<City> {
     await withUserAuthorizedToEdit({});
     try {
-        const newCity = await prisma.city.create({
-            data: cityData,
-        });
-        return newCity;
+        return await createCityDirect(cityData);
     } catch (error) {
         console.error('Error creating city:', error);
         throw new Error('Failed to create city');

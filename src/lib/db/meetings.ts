@@ -96,8 +96,18 @@ export async function generateUniqueMeetingId(cityId: string, date: Date): Promi
     throw new Error(`Could not generate unique meeting ID for ${cityId} on ${baseId} — too many meetings on this date`);
 }
 
-export async function editCouncilMeeting(cityId: string, id: string, meetingData: Partial<Omit<CouncilMeeting, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>): Promise<CouncilMeetingWithAdminBody> {
+type CouncilMeetingEdit = Partial<Omit<CouncilMeeting, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>;
+
+export async function editCouncilMeeting(cityId: string, id: string, meetingData: CouncilMeetingEdit): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
+    return editCouncilMeetingDirect(cityId, id, meetingData);
+}
+
+/**
+ * Edit a council meeting with no auth check, for a caller that has already
+ * authorized the write (see createCouncilMeetingDirect).
+ */
+export async function editCouncilMeetingDirect(cityId: string, id: string, meetingData: CouncilMeetingEdit): Promise<CouncilMeetingWithAdminBody> {
     try {
         const updatedMeeting = await prisma.councilMeeting.update({
             where: { cityId_id: { cityId, id } },

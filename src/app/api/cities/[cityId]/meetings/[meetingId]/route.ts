@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import { revalidatePath, revalidateTag } from 'next/cache';
 import { getMeetingDataCore } from '@/lib/getMeetingData';
-import { editCouncilMeeting } from '@/lib/db/meetings';
 import { z } from 'zod';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
-import { syncMeetingToCalendar } from '@/lib/google-calendar';
+import { updateMeetingWithEffects } from '@/lib/meetingWrites';
 
 export async function GET(
     request: Request,
@@ -43,9 +41,9 @@ export async function PUT(
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
-        const { name, name_en, date, youtubeUrl, agendaUrl, meetingId, administrativeBodyId } = meetingSchema.parse(body);
+        const { name, name_en, date, youtubeUrl, agendaUrl, administrativeBodyId } = meetingSchema.parse(body);
 
-        const meeting = await editCouncilMeeting(params.cityId, params.meetingId, {
+        const meeting = await updateMeetingWithEffects(params.cityId, params.meetingId, {
             name,
             name_en,
             dateTime: date,
@@ -53,13 +51,6 @@ export async function PUT(
             agendaUrl: agendaUrl || null,
             administrativeBodyId: administrativeBodyId || null,
         });
-
-        revalidateTag(`city:${params.cityId}:meetings`, 'max');
-        revalidatePath(`/${params.cityId}`, "layout");
-
-        // Propagate date, administrative body, and agenda changes to the
-        // Google Calendar event. The meeting name is not on the event.
-        await syncMeetingToCalendar(params.cityId, params.meetingId);
 
         return NextResponse.json(meeting);
     } catch (error) {
