@@ -12,7 +12,7 @@ export interface MeetingNameFields {
     name_en: string | null;
     kind: MeetingKind | null;
     dateTime: Date | string;
-    administrativeBody: { name: string; name_en: string } | null;
+    administrativeBody?: { name: string; name_en: string } | null;
 }
 
 /**
@@ -60,4 +60,9 @@ export function meetingDisplayName(meeting: MeetingNameFields, locale: string, t
         ? ` — ${MEETING_KIND_LABELS[labels][meeting.kind]}`
         : '';
     return `${body}${kind} ${formatNumericDate(new Date(meeting.dateTime), timezone, locale)}`;
+}
+
+/** `meetingDisplayName` for a row that carries the timezone of its city. */
+export function meetingNameInCity(meeting: MeetingNameFields & { city: { timezone: string } }, locale: string): string {
+    return meetingDisplayName(meeting, locale, meeting.city.timezone);
 }

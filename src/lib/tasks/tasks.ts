@@ -16,6 +16,8 @@ import { Prisma, TaskStatus } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { taskHandlers, taskTerminalHooks } from './registry';
 import { mintCallbackToken } from './callbackToken';
+import { meetingNameSelect } from '@/lib/db/types';
+import { meetingNameInCity } from '@/lib/meetingName';
 
 export interface TaskIdempotencyResult {
     proceed: boolean;
@@ -86,10 +88,11 @@ export interface TaskVersionsFilter {
 const taskStatusWithMeetingInclude = {
     councilMeeting: {
         select: {
-            name_en: true,
+            ...meetingNameSelect,
             city: {
                 select: {
-                    name_en: true
+                    name_en: true,
+                    timezone: true,
                 }
             }
         }
@@ -210,7 +213,7 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
             status: 'started',
             taskType: taskType,
             cityName: newTask.councilMeeting.city.name_en,
-            meetingName: newTask.councilMeeting.name_en,
+            meetingName: meetingNameInCity(newTask.councilMeeting, 'en'),
             taskId: newTask.id,
             cityId: cityId,
             meetingId: councilMeetingId,
@@ -259,7 +262,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                         status: 'completed',
                         taskType: task.type,
                         cityName: task.councilMeeting.city.name_en,
-                        meetingName: task.councilMeeting.name_en,
+                        meetingName: meetingNameInCity(task.councilMeeting, 'en'),
                         taskId: task.id,
                         cityId: task.cityId,
                         meetingId: task.councilMeetingId,
@@ -289,7 +292,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                         status: 'failed',
                         taskType: task.type,
                         cityName: task.councilMeeting.city.name_en,
-                        meetingName: task.councilMeeting.name_en,
+                        meetingName: meetingNameInCity(task.councilMeeting, 'en'),
                         taskId: task.id,
                         cityId: task.cityId,
                         meetingId: task.councilMeetingId,
@@ -306,7 +309,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                     status: 'completed',
                     taskType: task.type,
                     cityName: task.councilMeeting.city.name_en,
-                    meetingName: task.councilMeeting.name_en,
+                    meetingName: meetingNameInCity(task.councilMeeting, 'en'),
                     taskId: task.id,
                     cityId: task.cityId,
                     meetingId: task.councilMeetingId,
@@ -329,7 +332,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 status: 'failed',
                 taskType: task.type,
                 cityName: task.councilMeeting.city.name_en,
-                meetingName: task.councilMeeting.name_en,
+                meetingName: meetingNameInCity(task.councilMeeting, 'en'),
                 taskId: task.id,
                 cityId: task.cityId,
                 meetingId: task.councilMeetingId,

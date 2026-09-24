@@ -4,7 +4,7 @@ import prisma from '@/lib/db/prisma';
 import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
 
 export const publicMeetingSelect = {
-    id: true, cityId: true, name: true, name_en: true, dateTime: true,
+    id: true, cityId: true, name: true, name_en: true, kind: true, dateTime: true,
     city: { select: { id: true, name: true, name_en: true, timezone: true, realm: true, logoImage: true } },
     administrativeBody: { select: { name: true, name_en: true, showUnreviewedTranscript: true } },
     taskStatuses: { where: { type: 'humanReview', status: 'succeeded' }, take: 1, select: { id: true } },

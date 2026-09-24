@@ -1,6 +1,5 @@
-import { formatDate } from '@/lib/formatters/time';
+import { DEFAULT_TIMEZONE, formatDate } from '@/lib/formatters/time';
 import { stripMarkdown } from '@/lib/formatters/markdown';
-import { getLocalizedName } from '@/lib/formatters/name';
 import { getAgendaLabel } from '@/lib/utils/subjects';
 import type { HotCardMeeting, HotCardSubject } from '@/lib/hotSubjectCards';
 import { SubjectCardContent } from '@/components/subject/SubjectCardContent';
@@ -10,6 +9,7 @@ import type { PersonWithRelations } from '@/lib/db/people';
 import { embedLocalePrefix } from '@/lib/utils/embedParams';
 import { localizeText } from '@/lib/serbian';
 import { useTranslations } from 'next-intl';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 interface EmbedSubjectCardProps {
     subject: HotCardSubject;
@@ -40,7 +40,7 @@ export function EmbedSubjectCard({ subject, meeting, locationText, speakers, sta
             <SubjectCardContent
                 title={localizeText(subject.name, locale)}
                 topic={subject.topic}
-                context={{ meta: formatDate(meeting.dateTime, cityTimezone, locale), meetingName: getLocalizedName(meeting, locale) }}
+                context={{ meta: formatDate(meeting.dateTime, cityTimezone, locale), meetingName: meetingDisplayName(meeting, locale, cityTimezone ?? DEFAULT_TIMEZONE) }}
                 locationText={locationText ? localizeText(locationText, locale) : t('noLocation')}
                 agendaLabel={getAgendaLabel(t, subject)}
                 description={subject.description ? localizeText(stripMarkdown(subject.description), locale) : null}
