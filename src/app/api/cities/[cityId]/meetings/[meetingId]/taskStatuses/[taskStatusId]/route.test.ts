@@ -73,7 +73,25 @@ describe('anonymous task-server callback (POST)', () => {
         const res = await POST(postRequest({ status: 'success', result: {}, version: 1 }, mintCallbackToken('task1')), props);
 
         expect(res.status).toBe(200);
-        expect(mockHandleTaskUpdate).toHaveBeenCalledWith('task1', expect.anything(), expect.anything());
+        expect(mockHandleTaskUpdate).toHaveBeenCalledWith('task1', expect.anything(), expect.anything(), { force: false });
+    });
+
+    it('hands the result handler the force flag that the request was started with', async () => {
+        mockFindUnique.mockResolvedValue({ ...TASK, requestBody: JSON.stringify({ youtubeUrl: 'https://youtu.be/x', force: true }) } as never);
+        mockHandleTaskUpdate.mockResolvedValue(undefined as never);
+
+        await POST(postRequest({ status: 'success', result: {}, version: 1 }, mintCallbackToken('task1')), props);
+
+        expect(mockHandleTaskUpdate).toHaveBeenCalledWith('task1', expect.anything(), expect.anything(), { force: true });
+    });
+
+    it('treats an unreadable request body as not forced', async () => {
+        mockFindUnique.mockResolvedValue({ ...TASK, requestBody: 'not json' } as never);
+        mockHandleTaskUpdate.mockResolvedValue(undefined as never);
+
+        await POST(postRequest({ status: 'success', result: {}, version: 1 }, mintCallbackToken('task1')), props);
+
+        expect(mockHandleTaskUpdate).toHaveBeenCalledWith('task1', expect.anything(), expect.anything(), { force: false });
     });
 
     it('returns 404 for an unknown task id', async () => {
