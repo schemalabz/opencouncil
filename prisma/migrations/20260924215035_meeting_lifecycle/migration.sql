@@ -70,4 +70,65 @@ WHERE cm."kind" IS NULL
     )
   );
 
+-- The stored name becomes an override. Null means that the name is derived
+-- from the body, the kind and the date (src/lib/meetingName.ts).
+ALTER TABLE "CouncilMeeting"
+  ALTER COLUMN "name" DROP NOT NULL,
+  ALTER COLUMN "name_en" DROP NOT NULL;
+
+-- The derived name for the readers that are SQL, not TypeScript. It gives the
+-- same string as meetingDisplayName(meeting, 'el', timezone) for a Greek city,
+-- and it also reads an empty override as no override;
+-- an integration test compares the two. Other languages get the body and the
+-- date. "dateTime" is a timestamp without zone that holds UTC, so it is read
+-- as UTC before the conversion to the city's zone. STABLE, not IMMUTABLE: the
+-- conversion depends on the timezone database.
+CREATE OR REPLACE FUNCTION council_meeting_display_name(
+  override text,
+  kind "MeetingKind",
+  body_name text,
+  held_at timestamp,
+  tz text,
+  lang text
+) RETURNS text
+LANGUAGE sql STABLE AS $$
+  SELECT COALESCE(
+    NULLIF(override, ''),
+    COALESCE(body_name, CASE WHEN lang = 'el' THEN 'Συνεδρίαση' ELSE 'Meeting' END)
+    || CASE
+         WHEN lang IS DISTINCT FROM 'el' OR kind IS NULL OR kind = 'regular' THEN ''
+         WHEN kind = 'urgent'             THEN ' — Έκτακτη Συνεδρίαση'
+         WHEN kind = 'accountability'     THEN ' — Ειδική Συνεδρίαση Λογοδοσίας'
+         WHEN kind = 'annualReport'       THEN ' — Ειδική Συνεδρίαση Απολογισμού'
+         WHEN kind = 'budget'             THEN ' — Ειδική Συνεδρίαση Προϋπολογισμού'
+         WHEN kind = 'presidencyElection' THEN ' — Ειδική Συνεδρίαση Εκλογής Προεδρείου'
+         ELSE ''
+       END
+    || ' ' || to_char((held_at AT TIME ZONE 'UTC') AT TIME ZONE tz, 'DD/MM/YYYY')
+  )
+$$;
+
+-- Notis reads the meeting name from this view, and its consumer model
+-- declares the column non-null. The columns and their types do not change.
+CREATE OR REPLACE VIEW "notis_meeting_events" AS
+SELECT
+  ts.id              AS "taskId",
+  ts.type,
+  ts."updatedAt"     AS "completedAt",
+  ts."cityId",
+  ts."councilMeetingId" AS "meetingId",
+  council_meeting_display_name(cm.name, cm.kind, ab.name, cm."dateTime", c.timezone, c.language::text) AS "meetingName",
+  cm."dateTime"      AS "meetingDate",
+  cm.released,
+  ab.name            AS "adminBodyName",
+  c.realm::text      AS realm,
+  c.language::text   AS language,
+  c.timezone
+FROM "TaskStatus" ts
+JOIN "CouncilMeeting" cm ON cm."cityId" = ts."cityId" AND cm.id = ts."councilMeetingId"
+JOIN "City" c ON c.id = ts."cityId"
+LEFT JOIN "AdministrativeBody" ab ON ab.id = cm."administrativeBodyId"
+WHERE ts.type IN ('processAgenda', 'summarize')
+  AND ts.status = 'succeeded';
+
 COMMIT;

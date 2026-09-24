@@ -26,6 +26,11 @@ const MIGRATION_PATHS = [
     '20260913120200_unique_user_phone',
 ].map((name) => path.join(__dirname, `../../prisma/migrations/${name}/migration.sql`))
 
+const LIFECYCLE_MIGRATION_PATH = path.join(
+    __dirname,
+    '../../prisma/migrations/20260924215035_meeting_lifecycle/migration.sql',
+)
+
 /** The consumer's half of the contract: the Prisma models Notis reads the
  *  views through. Kept in a separate file from the SQL that defines them,
  *  which is exactly why the drift below is worth a test. */
@@ -69,6 +74,14 @@ async function applyNotisMigration() {
     for (const migrationPath of MIGRATION_PATHS) {
         const sql = fs.readFileSync(migrationPath, 'utf8')
         for (const statement of splitSqlStatements(sql)) {
+            await prisma.$executeRawUnsafe(statement)
+        }
+    }
+    // The meeting lifecycle migration redefines notis_meeting_events. The rest
+    // of that migration adds columns that `db push` already created, so only
+    // the derived-name function and the view are replayed.
+    for (const statement of splitSqlStatements(fs.readFileSync(LIFECYCLE_MIGRATION_PATH, 'utf8'))) {
+        if (/CREATE OR REPLACE (FUNCTION council_meeting_display_name|VIEW "notis_meeting_events")/.test(statement)) {
             await prisma.$executeRawUnsafe(statement)
         }
     }
@@ -209,6 +222,36 @@ describe('notis views migration', () => {
         expect(row.released).toBe(true)
         expect(row.adminBodyName).toEqual(expect.any(String))
         expect(row.realm).toBe('greece')
+    })
+
+    test('notis_meeting_events carries the derived name of a meeting with no stored name', async () => {
+        const city = await createCity({ id: 'nv_city' })
+        const body = await createAdministrativeBody(city.id, { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' })
+        const derived = await createMeeting(city.id, {
+            id: 'nv_derived',
+            name: null,
+            name_en: null,
+            kind: 'accountability',
+            // 22:30 UTC on 25 June is 01:30 on 26 June in Athens.
+            dateTime: new Date('2026-06-25T22:30:00Z'),
+            administrativeBodyId: body.id,
+            released: true,
+        })
+        const overridden = await createMeeting(city.id, {
+            id: 'nv_override',
+            name: 'Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26',
+            administrativeBodyId: body.id,
+            released: true,
+        })
+        const derivedTask = await createTaskStatus(derived.id, city.id, { type: 'summarize', status: 'succeeded' })
+        const overrideTask = await createTaskStatus(overridden.id, city.id, { type: 'summarize', status: 'succeeded' })
+
+        const rows = await prisma.$queryRawUnsafe<Array<{ taskId: string; meetingName: string }>>(
+            'SELECT "taskId", "meetingName" FROM notis_meeting_events',
+        )
+        const nameOf = new Map(rows.map((r) => [r.taskId, r.meetingName]))
+        expect(nameOf.get(derivedTask.id)).toBe('Δημοτικό Συμβούλιο — Ειδική Συνεδρίαση Λογοδοσίας 26/06/2026')
+        expect(nameOf.get(overrideTask.id)).toBe('Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26')
     })
 
     test('notis_admin_sessions exposes hashed superadmin sessions only', async () => {

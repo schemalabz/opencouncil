@@ -2,7 +2,7 @@
 // authorizes first — the meetings API routes and the MCP admin tools do.
 import "server-only";
 import { CouncilMeeting, Prisma } from '@prisma/client';
-import { getCityNameEn } from '@/lib/db/citiesAdmin';
+import { getCityNameEnAndTimezone } from '@/lib/db/citiesAdmin';
 import {
     createCouncilMeetingDirect,
     editCouncilMeetingDirect,
@@ -13,10 +13,12 @@ import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { syncMeetingToCalendar } from '@/lib/google-calendar';
 import { requestProcessAgendaInternal } from '@/lib/tasks/processAgendaInternal';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 export type NewMeetingInput = {
-    name: string;
-    name_en: string;
+    /** A name override. Omit or null to derive the name (see meetingDisplayName). */
+    name?: string | null;
+    name_en?: string | null;
     date: Date;
     youtubeUrl?: string | null;
     agendaUrl?: string | null;
@@ -43,8 +45,8 @@ export async function createMeetingWithEffects(
     let meetingId = input.meetingId || (await generateUniqueMeetingId(cityId, date));
 
     const buildMeetingData = (id: string) => ({
-        name,
-        name_en,
+        name: name ?? null,
+        name_en: name_en ?? null,
         id,
         dateTime: date,
         cityId,
@@ -74,15 +76,15 @@ export async function createMeetingWithEffects(
     });
 
     // Fetch city data (should exist since meeting was created successfully)
-    const cityNameEn = await getCityNameEn(cityId);
+    const city = await getCityNameEnAndTimezone(cityId);
 
-    if (cityNameEn === null) {
+    if (city === null) {
         console.error(`City ${cityId} not found after meeting creation - this should not happen`);
         // Continue without city data - meeting was already created
     } else {
         sendMeetingCreatedAdminAlert({
-            cityName: cityNameEn,
-            meetingName: name_en,
+            cityName: city.name_en,
+            meetingName: meetingDisplayName(meeting, 'en', city.timezone),
             meetingDate: date,
             meetingId: meetingId,
             cityId: cityId,

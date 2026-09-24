@@ -39,4 +39,19 @@ describe('findDecisionPollCandidates', () => {
         const ids = (await findDecisionPollCandidates()).map((m) => m.id).sort()
         expect(ids).toEqual(['combined', 'regular', 'unknown'])
     })
+
+    test('keeps a meeting whose name is null', async () => {
+        await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1' })
+        const council = await createAdministrativeBody('c1', { type: 'council' })
+        const administrativeBodyId = council.id
+
+        // The SQL null trap: `NOT (name LIKE …)` is not true for a null name,
+        // so a filter on the name would drop both derived-name meetings.
+        await pollableMeeting('derived-unknown', { name: null, name_en: null, kind: null, administrativeBodyId })
+        await pollableMeeting('derived-regular', { name: null, name_en: null, kind: 'regular', administrativeBodyId })
+        await pollableMeeting('derived-logodosia', { name: null, name_en: null, kind: 'accountability', administrativeBodyId })
+
+        const ids = (await findDecisionPollCandidates()).map((m) => m.id).sort()
+        expect(ids).toEqual(['derived-regular', 'derived-unknown'])
+    })
 })
