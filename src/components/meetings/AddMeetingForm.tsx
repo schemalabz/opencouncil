@@ -27,19 +27,22 @@ import { format, parse, setHours, setMinutes } from "date-fns"
 import InputWithDerivatives from "../InputWithDerivatives"
 import { LinkOrDrop } from "../ui/link-or-drop"
 import { YouTubePreview } from "./YouTubePreview"
-import { CouncilMeeting } from '@prisma/client'
+import { CouncilMeeting, MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client'
+import { SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules'
+import { meetingDisplayName } from '@/lib/meetingName'
+import { DEFAULT_TIMEZONE } from '@/lib/formatters/time'
+import { Textarea } from '../ui/textarea'
 import { formatDateAsMeetingId } from '@/lib/utils/meetingId'
-import { meetingIdForRequest } from './meetingFormRequest'
+import { meetingIdForRequest, meetingRequestFields, postponementCandidatesUrl } from './meetingFormRequest'
 import { useToast } from "@/hooks/use-toast"
 // @ts-ignore
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
+/** An optional name override: empty, or at least two characters. */
+const nameOverride = (message: string) => z.string().refine(val => val.trim() === '' || val.trim().length >= 2, { message })
+
 const formSchema = z.object({
-    name: z.string().min(2, {
-        message: "Meeting name must be at least 2 characters.",
-    }),
-    name_en: z.string().min(2, {
-        message: "Meeting name (English) must be at least 2 characters.",
-    }),
+    name: nameOverride("Meeting name must be at least 2 characters."),
+    name_en: nameOverride("Meeting name (English) must be at least 2 characters."),
     date: z.date({
         required_error: "Meeting date is required.",
     }),
@@ -57,7 +60,43 @@ const formSchema = z.object({
     meetingId: z.string().optional(),
     administrativeBodyId: z.string().optional(),
     processAgenda: z.boolean().default(true),
+    // A new meeting needs a kind. Only archive meetings have none, and an edit
+    // keeps that until the admin chooses one.
+    kind: z.nativeEnum(MeetingKind).nullable(),
+    scheduleStatus: z.nativeEnum(MeetingScheduleStatus),
+    scheduleStatusReason: z.string().max(SCHEDULE_STATUS_REASON_MAX_LENGTH).optional(),
+    sessionNumber: z.string().regex(/^\s*(\d*)\s*$/, { message: "The session number is a whole number." })
+        .refine(val => val.trim() === '' || Number(val) >= 1, { message: "The session number is 1 or more." })
+        .optional(),
+    format: z.nativeEnum(MeetingFormat),
+    closedToPublic: z.boolean(),
+    place: z.string().max(200).optional(),
+    postponedFromId: z.string().optional(),
 })
+
+const KINDS = Object.values(MeetingKind)
+/** The Select's sentinel for the null kind of an archive meeting. */
+const UNKNOWN_KIND = 'unknown'
+// Meetings by circulation are not added to the platform yet (#150 follow-up):
+// the value exists for completeness, and the form offers it only to keep the
+// format of a meeting that already has it.
+const OFFERED_FORMATS = Object.values(MeetingFormat).filter(format => format !== MeetingFormat.byCirculation)
+const STATUSES = Object.values(MeetingScheduleStatus)
+/** Kinds and formats that the law gives to the council only. */
+const COUNCIL_ONLY: ReadonlySet<string> = new Set<string>([MeetingKind.accountability, MeetingKind.annualReport, MeetingFormat.byCirculation])
+
+/** A row of the editor list that the "postponed from" picker needs. */
+interface PostponementCandidate {
+    id: string;
+    name: string | null;
+    name_en: string | null;
+    kind: MeetingKind | null;
+    dateTime: string;
+    scheduleStatus: MeetingScheduleStatus;
+    administrativeBodyId: string | null;
+    administrativeBody: { name: string; name_en: string } | null;
+    postponedFromId: string | null;
+}
 
 interface AddMeetingFormProps {
     cityId: string;
@@ -71,7 +110,8 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-    const [administrativeBodies, setAdministrativeBodies] = useState<Array<{ id: string, name: string, type: string }>>([])
+    const [administrativeBodies, setAdministrativeBodies] = useState<Array<{ id: string, name: string, type: string, place: string | null }>>([])
+    const [cityMeetings, setCityMeetings] = useState<PostponementCandidate[]>([])
     const t = useTranslations('AddMeetingForm')
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -86,8 +126,43 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
             meetingId: meeting?.id ?? "",
             administrativeBodyId: meeting?.administrativeBodyId || "none",
             processAgenda: true,
+            kind: meeting ? meeting.kind : MeetingKind.regular,
+            scheduleStatus: meeting?.scheduleStatus ?? MeetingScheduleStatus.scheduled,
+            scheduleStatusReason: meeting?.scheduleStatusReason ?? "",
+            sessionNumber: meeting?.sessionNumber?.toString() ?? "",
+            format: meeting?.format ?? MeetingFormat.inPerson,
+            closedToPublic: meeting?.closedToPublic ?? false,
+            place: meeting?.place ?? "",
+            postponedFromId: meeting?.postponedFromId ?? "none",
         },
     })
+
+    const selectedBody = administrativeBodies.find(body => body.id === form.watch('administrativeBodyId'))
+    // A meeting with no body reads as the council's.
+    const isCouncil = !selectedBody || selectedBody.type === 'council'
+    const scheduleStatus = form.watch('scheduleStatus')
+    // The page payload of a meeting hides its link to the postponed meeting,
+    // so an edit reads the current link from the editor list.
+    // The first list holds the edited meeting (the window is around its date).
+    // Keep the link that it shows, so a later date change in the form, which
+    // moves the window, does not lose it.
+    const [knownLink, setKnownLink] = useState<string | null>(null)
+    const listedLink = cityMeetings.find(m => m.id === meeting?.id)?.postponedFromId ?? null
+    if (listedLink && listedLink !== knownLink) setKnownLink(listedLink)
+    const currentLink = listedLink ?? knownLink ?? meeting?.postponedFromId ?? null
+    // The postponed meetings of the same body that have no new meeting yet,
+    // plus the one that this meeting already follows.
+    const takenPostponements = new Set(cityMeetings.map(m => m.postponedFromId).filter(id => id && id !== currentLink))
+    const postponementCandidates = cityMeetings.filter(m =>
+        m.scheduleStatus === 'postponed'
+        && m.id !== meeting?.id
+        && (m.administrativeBodyId ?? 'none') === (form.watch('administrativeBodyId') ?? 'none')
+        && !takenPostponements.has(m.id))
+
+    // The picker of the postponed meeting reads a window around the date that
+    // the form holds, so a new meeting on another date finds its candidates.
+    const selectedDate = form.watch('date')
+    const meetingDay = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null
 
     useEffect(() => {
         // Fetch administrative bodies for the city
@@ -96,6 +171,19 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
             .then(data => setAdministrativeBodies(data))
             .catch(err => console.error('Failed to fetch administrative bodies:', err));
     }, [cityId])
+
+    useEffect(() => {
+        fetch(postponementCandidatesUrl(cityId, meetingDay ? new Date(meetingDay) : new Date()))
+            .then(res => res.json())
+            .then((data: PostponementCandidate[]) => setCityMeetings(Array.isArray(data) ? data : []))
+            .catch(err => console.error('Failed to fetch meetings:', err));
+    }, [cityId, meetingDay])
+
+    useEffect(() => {
+        if (currentLink && !form.formState.dirtyFields.postponedFromId) {
+            form.resetField('postponedFromId', { defaultValue: currentLink })
+        }
+    }, [currentLink, form])
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsSubmitting(true)
@@ -128,6 +216,10 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                     // stored as a foreign key and "none" violates the FK constraint.
                     // null clears the body; an omitted field would keep it.
                     administrativeBodyId: values.administrativeBodyId === 'none' ? null : values.administrativeBodyId,
+                    ...meetingRequestFields(values, { linkChanged: Boolean(form.formState.dirtyFields.postponedFromId) }),
+                    // A later part of a meeting has no kind and no number of its
+                    // own; the form edits neither (the continuation form is a follow-up).
+                    ...(meeting?.continuationOfId ? { kind: undefined, sessionNumber: undefined } : {}),
                     date: dateTime.toISOString(),
                 }),
             })
@@ -143,7 +235,8 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                 router.refresh()
             } else {
                 const errorData = await response.json()
-                throw new Error(errorData.message || t(meeting ? 'failedToUpdateMeeting' : 'failedToAddMeeting'))
+                // A lifecycle rule answers 422 with a message that names the rule.
+                throw new Error(errorData.message || (typeof errorData.error === 'string' ? errorData.error : null) || t(meeting ? 'failedToUpdateMeeting' : 'failedToAddMeeting'))
             }
         } catch (error) {
             console.error(meeting ? t('failedToUpdateMeeting') : t('failedToAddMeeting'), error)
@@ -182,20 +275,6 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                     </div>
                 )}
                 <div className="space-y-8">
-                    <InputWithDerivatives
-                        baseName="name"
-                        basePlaceholder={t('meetingNamePlaceholder')}
-                        baseDescription={t('meetingNameDescription')}
-                        derivatives={[
-                            {
-                                name: 'name_en',
-                                calculate: (baseValue) => toGreeklish(baseValue),
-                                placeholder: t('meetingNameEnPlaceholder'),
-                                description: t('meetingNameEnDescription'),
-                            },
-                        ]}
-                        form={form}
-                    />
                     <FormField
                         control={form.control}
                         name="administrativeBodyId"
@@ -222,6 +301,102 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                                 <FormDescription>
                                     {t('administrativeBodyDescription')}
                                 </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="kind"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('kind')}</FormLabel>
+                                <Select onValueChange={value => field.onChange(value === UNKNOWN_KIND ? null : value)} value={field.value ?? UNKNOWN_KIND}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {meeting && meeting.kind === null && (
+                                            <SelectItem value={UNKNOWN_KIND}>{t('kindUnknown')}</SelectItem>
+                                        )}
+                                        {KINDS.map(kind => (
+                                            <SelectItem key={kind} value={kind} disabled={COUNCIL_ONLY.has(kind) && !isCouncil}>
+                                                {t(`kindOptions.${kind}`)}{COUNCIL_ONLY.has(kind) ? ` (${t('councilOnly')})` : ''}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>{t('kindDescription')}</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="scheduleStatus"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('scheduleStatus')}</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {STATUSES.map(status => (
+                                            <SelectItem key={status} value={status}>{t(`scheduleStatusOptions.${status}`)}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>{t('scheduleStatusDescription')}</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    {scheduleStatus !== MeetingScheduleStatus.scheduled && (
+                        <FormField
+                            control={form.control}
+                            name="scheduleStatusReason"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>{t('scheduleStatusReason')}</FormLabel>
+                                    <FormControl>
+                                        <Textarea {...field} placeholder={t('scheduleStatusReasonPlaceholder')} maxLength={SCHEDULE_STATUS_REASON_MAX_LENGTH} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
+                    <FormField
+                        control={form.control}
+                        name="postponedFromId"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('postponedFrom')}</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value || "none"}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="none">{t('postponedFromNone')}</SelectItem>
+                                        {postponementCandidates.map(candidate => (
+                                            <SelectItem key={candidate.id} value={candidate.id}>
+                                                {meetingDisplayName(candidate, 'el', DEFAULT_TIMEZONE)}
+                                            </SelectItem>
+                                        ))}
+                                        {/* The current link stays selectable when its meeting is outside the window. */}
+                                        {currentLink && !postponementCandidates.some(candidate => candidate.id === currentLink) && (
+                                            <SelectItem value={currentLink}>{currentLink}</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>{t('postponedFromDescription')}</FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )}
@@ -362,6 +537,73 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                             }}
                         />
                     )}
+                    <FormField
+                        control={form.control}
+                        name="sessionNumber"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('sessionNumber')}</FormLabel>
+                                <FormControl>
+                                    <Input {...field} inputMode="numeric" className="max-w-[8rem]" />
+                                </FormControl>
+                                <FormDescription>{t('sessionNumberDescription')}</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="format"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('format')}</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {(meeting?.format === MeetingFormat.byCirculation ? [...OFFERED_FORMATS, MeetingFormat.byCirculation] : OFFERED_FORMATS).map(format => (
+                                            <SelectItem key={format} value={format} disabled={COUNCIL_ONLY.has(format) && !isCouncil}>
+                                                {t(`formatOptions.${format}`)}{COUNCIL_ONLY.has(format) ? ` (${t('councilOnly')})` : ''}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="place"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t('place')}</FormLabel>
+                                <FormControl>
+                                    <Input {...field} placeholder={selectedBody?.place ?? ''} />
+                                </FormControl>
+                                <FormDescription>{t('placeDescription')}</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="closedToPublic"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                <FormControl>
+                                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel>{t('closedToPublic')}</FormLabel>
+                                    <FormDescription>{t('closedToPublicDescription')}</FormDescription>
+                                </div>
+                            </FormItem>
+                        )}
+                    />
                     <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                         <CollapsibleTrigger asChild>
                             <Button variant="ghost" className="flex w-full justify-between p-0">
@@ -369,7 +611,23 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                                 {isDetailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                             </Button>
                         </CollapsibleTrigger>
-                        <CollapsibleContent>
+                        <CollapsibleContent className="space-y-8">
+                            <div className="space-y-2">
+                                <InputWithDerivatives
+                                    baseName="name"
+                                    basePlaceholder={t('meetingNamePlaceholder')}
+                                    baseDescription={t('nameOverrideDescription')}
+                                    derivatives={[
+                                        {
+                                            name: 'name_en',
+                                            calculate: (baseValue) => toGreeklish(baseValue),
+                                            placeholder: t('meetingNameEnPlaceholder'),
+                                            description: t('meetingNameEnDescription'),
+                                        },
+                                    ]}
+                                    form={form}
+                                />
+                            </div>
                             <FormField
                                 control={form.control}
                                 name="meetingId"

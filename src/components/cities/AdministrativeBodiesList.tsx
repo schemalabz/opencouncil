@@ -34,6 +34,7 @@ interface AdministrativeBody {
     name_en: string;
     type: AdministrativeBodyType;
     youtubeChannelUrl?: string | null;
+    place?: string | null;
     contactEmails?: string[];
     notificationBehavior?: NotificationBehavior | null;
     showUnreviewedTranscript?: boolean;
@@ -58,6 +59,7 @@ function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFo
         name_en: body?.name_en || "",
         type: body?.type || "council",
         youtubeChannelUrl: body?.youtubeChannelUrl || "",
+        place: body?.place || "",
         contactEmailPrimary: body?.contactEmails?.[0] || "",
         contactEmailsCC: body?.contactEmails?.slice(1).join(', ') || "",
         notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
@@ -247,6 +249,22 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                         </FormControl>
                                         <FormDescription>
                                             {t('youtubeChannelUrlDescription')}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="place"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{t('place')}</FormLabel>
+                                        <FormControl>
+                                            <Input {...field} placeholder={t('placePlaceholder')} />
+                                        </FormControl>
+                                        <FormDescription>
+                                            {t('placeDescription')}
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

@@ -15,6 +15,12 @@ describe('administrativeBodySchema', () => {
     it('rejects an invalid contact email', () => {
         expect(administrativeBodySchema.safeParse({ ...validBody, contactEmails: ['not-an-email'] }).success).toBe(false);
     });
+
+    it('trims the place and clears it when empty', () => {
+        expect(administrativeBodySchema.parse({ ...validBody, place: '  Αίθουσα Δημοτικού Συμβουλίου ' }).place).toBe('Αίθουσα Δημοτικού Συμβουλίου');
+        expect(administrativeBodySchema.parse({ ...validBody, place: '' }).place).toBeNull();
+        expect(administrativeBodySchema.parse(validBody).place).toBeUndefined();
+    });
 });
 
 describe('administrativeBodyFormSchema', () => {
