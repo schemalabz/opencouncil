@@ -363,7 +363,7 @@
     "noVideosFound": "Aucune vidéo trouvée",
     "details": "Détails",
     "meetingId": "Identifiant de la séance",
-    "meetingIdDescription": "L'identifiant sera utilisé dans l'URL de la séance.",
+    "meetingIdDescription": "L'identifiant est utilisé dans l'URL de la séance. Laissez-le vide : la plateforme le crée à partir de la date et ajoute _2 si le jour a déjà une séance.",
     "meetingNameEnPlaceholder": "Saisissez le nom de la séance en anglais",
     "meetingNameEnDescription": "Donnez le nom de la séance en anglais.",
     "administrativeBody": "Organe administratif",
