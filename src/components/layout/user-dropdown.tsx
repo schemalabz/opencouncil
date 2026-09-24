@@ -10,7 +10,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { HelpCircle, LogIn, LogOut, Pencil, Plug } from "lucide-react"
+import { Bell, HelpCircle, LogIn, LogOut, Pencil, Plug } from "lucide-react"
 import { useAccountLinks } from "./account-links"
 // The locale-aware router: next/navigation's would push a bare "/sign-in",
 // dropping the locale prefix and landing the user on the Greek sign-in page.
@@ -24,6 +24,8 @@ import { getInitials, getMunicipalityQualifier } from "@/lib/formatters/name"
 import { cn } from "@/lib/utils"
 import { headerControlClass } from "./headerControl"
 import ScriptSwitcher from "./ScriptSwitcher"
+import { TrackedLink } from "@/components/analytics/TrackedLink"
+import { notificationsSignupHref } from "@/lib/utils/notificationsSignupHref"
 import type { City } from "@prisma/client"
 
 interface UserDropdownProps {
@@ -42,9 +44,9 @@ interface UserDropdownProps {
  * control renders: below `md` the greeting was hidden and a reader with no
  * edit rights got a button with nothing in it at all.
  *
- * Rarely-used app-wide entries (MCP, the guide, the script switch) live in this
- * menu rather than in the bar. Both are things a reader looks for once; a menu
- * can name them, and a 16px icon in a phone header cannot.
+ * App-wide entries (the notifications signup, MCP, the guide, the script switch)
+ * live in this menu rather than in the bar on a phone. A menu can name them, and
+ * a 16px icon in a phone header cannot.
  */
 export default function UserDropdown({ currentEntity, city, showExplain = false }: UserDropdownProps) {
     const { data: session, status } = useSession()
@@ -84,13 +86,24 @@ export default function UserDropdown({ currentEntity, city, showExplain = false 
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30',
     );
 
-    // MCP, the guide and the script switch: app-wide and rarely wanted, so a
-    // phone-width bar names them here instead of showing two more glyphs. From
-    // `lg` the bar has room for the first two itself, and drops them here to
+    // The notifications signup, MCP, the guide and the script switch: app-wide,
+    // so a phone-width bar names them here instead of showing more glyphs. From
+    // `lg` the bar has room for the first three itself, and drops them here to
     // avoid offering the same link twice on one screen.
     const appLinks = (
         <>
             <DropdownMenuSeparator className="lg:hidden" />
+            <DropdownMenuItem asChild className="lg:hidden">
+                <TrackedLink
+                    href={notificationsSignupHref(city)}
+                    event="notifications_nav_clicked"
+                    eventProps={{ surface: 'account_menu' }}
+                    className="cursor-pointer"
+                >
+                    <Bell className="mr-2 h-4 w-4" />
+                    {t("notifications")}
+                </TrackedLink>
+            </DropdownMenuItem>
             <DropdownMenuItem asChild className="lg:hidden">
                 <Link href="/mcp" className="cursor-pointer">
                     <Plug className="mr-2 h-4 w-4" />
@@ -120,8 +133,9 @@ export default function UserDropdown({ currentEntity, city, showExplain = false 
     }
 
     // Signed out the control still opens a menu rather than jumping straight to
-    // sign-in: MCP, the guide and the script switch moved in here out of the bar,
-    // and a visitor must not lose them for want of an account.
+    // sign-in: the notifications signup, MCP, the guide and the script switch
+    // moved in here out of the bar, and a visitor must not lose them for want of
+    // an account.
     if (!session?.user) {
         return (
             <DropdownMenu>

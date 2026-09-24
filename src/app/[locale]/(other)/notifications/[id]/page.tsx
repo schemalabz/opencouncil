@@ -16,7 +16,7 @@ import NotificationOpenTracker from '@/components/analytics/NotificationOpenTrac
 
 // Personalized notification view — keep it out of search indexes.
 export const metadata: Metadata = {
-    title: 'Ειδοποίηση | OpenCouncil',
+    title: 'Ενημέρωση | OpenCouncil',
     robots: { index: false, follow: false },
 };
 
@@ -31,7 +31,7 @@ export default async function NotificationPage(props: { params: Promise<{ id: st
     const meeting = notification.meeting;
     const city = notification.city;
     const meetingDate = new Date(meeting.dateTime);
-    const typeLabel = notification.type === 'beforeMeeting' ? 'Ειδοποίηση επερχόμενης συνεδρίασης' : 'Ειδοποίηση πρόσφατης συνεδρίασης';
+    const typeLabel = notification.type === 'beforeMeeting' ? 'Ενημέρωση για επερχόμενη συνεδρίαση' : 'Ενημέρωση για πρόσφατη συνεδρίαση';
 
     return (
         <div className="min-h-screen py-6 sm:py-8 px-4 sm:px-6 lg:px-8">

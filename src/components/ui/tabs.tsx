@@ -103,6 +103,15 @@ const useContext = () => {
   return context;
 };
 
+/**
+ * The selected tab, for content inside `Tabs` that depends on it but is not a
+ * tab's panel. It resolves an unknown or missing value to the default tab, as
+ * the panels do.
+ */
+export function useSelectedTab(): string {
+  return useContext().selected;
+}
+
 export function TabsList(props: {
   children: React.ReactNode;
   className?: string;

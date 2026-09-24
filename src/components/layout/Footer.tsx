@@ -40,6 +40,7 @@ export default function Footer({ className, realm }: FooterProps) {
         ...(hasExplainPage(realm) ? [{ href: "/explain", label: t("linkLearnMore") }] : []),
         { href: "/about", label: t("linkForMunicipalities") },
         { href: "/search", label: t("linkSearch") },
+        { href: "/notifications", label: t("linkNotifications") },
         { href: "/mcp", label: "OpenCouncil MCP" },
         { href: "/docs", label: "API" },
         { href: "https://schemalabs.gr/jobs", label: t("linkJobs"), external: true },

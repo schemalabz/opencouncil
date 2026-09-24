@@ -10,11 +10,11 @@ import { CityPreference } from "./types";
  */
 export function seedProfileFromPreferences(cities: CityPreference[]): string {
   if (cities.length === 0) {
-    return "Δεν έχει δηλώσει προτιμήσεις ειδοποιήσεων.";
+    return "Δεν έχει δηλώσει προτιμήσεις ενημερώσεων.";
   }
   return cities
     .map((city) => {
-      const parts = [`Έχει ενεργοποιήσει ειδοποιήσεις για ${city.cityName}.`];
+      const parts = [`Έχει ενεργοποιήσει ενημερώσεις για ${city.cityName}.`];
       if (city.topics.length > 0) {
         parts.push(`Θέματα που έχει επιλέξει: ${city.topics.join(", ")}.`);
       }

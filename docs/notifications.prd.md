@@ -4,6 +4,8 @@
 
 OpenCouncil's notification system sends automated updates to users about council meeting subjects relevant to their location and topic preferences. Notifications are sent before meetings (agenda preview) and after meetings (meeting summary).
 
+In Greek text that users read, the name of the feature is «ενημερώσεις», not «ειδοποιήσεις». The test `src/lib/__tests__/el-glossary.test.ts` enforces this name in the Greek catalogs and in the Greek text in the code. The privacy and terms pages keep the old word until their legal text is revised.
+
 ## System Architecture
 
 ### Data Models

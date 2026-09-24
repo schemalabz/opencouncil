@@ -4,28 +4,9 @@
  * drift back into calques or inconsistent style. The native reviewer extends
  * BANNED/REQUIRED as their review settles more terms.
  */
-import fs from 'fs';
-import path from 'path';
+import { loadLocaleStrings } from './catalogStrings';
 
-const messagesDir = path.join(__dirname, '../../../messages');
-
-const serbianFiles = [
-    'sr.json',
-    ...fs.readdirSync(path.join(messagesDir, 'sr')).map((f) => path.join('sr', f)),
-];
-
-const collectStrings = (value: unknown, prefix: string, out: Array<[string, string]>): Array<[string, string]> => {
-    if (typeof value === 'string') out.push([prefix, value]);
-    else if (value && typeof value === 'object' && !Array.isArray(value)) {
-        for (const [k, v] of Object.entries(value)) collectStrings(v, prefix ? `${prefix}.${k}` : k, out);
-    }
-    return out;
-};
-
-const allMessages: Array<[string, string]> = serbianFiles.flatMap((f) => {
-    const data = JSON.parse(fs.readFileSync(path.join(messagesDir, f), 'utf8'));
-    return collectStrings(data, f, []);
-});
+const allMessages = loadLocaleStrings('sr');
 
 // Terms that must never appear, with the approved replacement.
 const BANNED: Array<{ pattern: RegExp; use: string }> = [

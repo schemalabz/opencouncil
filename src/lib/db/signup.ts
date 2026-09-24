@@ -23,6 +23,18 @@ export async function getUserSignupCityIds(userId: string): Promise<{
 }
 
 /**
+ * Whether the reader is on any municipality's list, with its channels on or
+ * off. An unsubscribe keeps the row and turns its channels off, so a reader
+ * who unsubscribed still counts, and the profile does not invite them again.
+ * Deleting a municipality in the profile removes its row: a reader who deleted
+ * their last one is on no list, so the invitation returns.
+ */
+export async function hasNotificationPreference(userId: string): Promise<boolean> {
+    const preference = await prisma.notificationPreference.findFirst({ where: { userId }, select: { id: true } });
+    return preference !== null;
+}
+
+/**
  * What the signup needs of a reader's preference for one municipality: the
  * places with their points, the topics, the email flag. One row and one
  * coordinate query, instead of every preference with its city boundary. The

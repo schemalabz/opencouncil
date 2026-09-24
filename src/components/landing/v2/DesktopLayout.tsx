@@ -125,7 +125,7 @@ export function DesktopLayout({
             <aside
                 className="absolute bottom-4 left-4 top-4 z-[7] flex overflow-hidden rounded-2xl border border-black/40 bg-muted shadow-2xl ring-1 ring-black/5"
             >
-                <LandingAside view={view} onSelect={selectView} infoOpen={infoOpen} onToggleInfo={onToggleInfo} infoHint={infoHint} cities={cities} realm={realm} />
+                <LandingAside view={view} onSelect={selectView} infoOpen={infoOpen} onToggleInfo={onToggleInfo} infoHint={infoHint} realm={realm} />
 
                 {/* collapsible list column — the info drawer reuses it (over the current map) */}
                 {(panelOpen || infoOpen) && (

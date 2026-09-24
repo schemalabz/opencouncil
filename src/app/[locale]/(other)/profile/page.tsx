@@ -7,8 +7,10 @@ import { DevelopmentSection } from "@/components/profile/DevelopmentSection";
 import { showsDevelopmentSection } from "@/components/profile/dev-tools";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfileSettings, type ProfileAccount } from "@/components/profile/ProfileSettings";
+import { NotisInviteCard } from "@/components/signup/NotisInviteCard";
 import { StepHeading } from "@/components/signup/SignupChrome";
 import { getVoicePrintConsents } from "@/lib/db/personConsent";
+import { hasNotificationPreference } from "@/lib/db/signup";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
 import { env } from "@/env.mjs";
@@ -31,9 +33,11 @@ export default async function ProfilePage() {
         claimed,
         consent: consents.get(person.id) ?? null,
     }));
-    const [t, highlightsAllowed] = await Promise.all([
+    const [t, highlightsAllowed, signedUp] = await Promise.all([
         getTranslations("Profile"),
         canAccessMyHighlights(),
+        // Only the settings view invites; the onboarding form does not ask.
+        user.onboarded ? hasNotificationPreference(user.id) : true,
     ]);
     const isPreview = env.DEPLOYMENT_ENV === 'preview';
     const showDevTools = showsDevelopmentSection(isPreview);
@@ -76,6 +80,10 @@ export default async function ProfilePage() {
                 user={account}
                 persons={persons}
                 highlightsAllowed={highlightsAllowed}
+                // Offered to a reader on no municipality's list, which includes one
+                // who deleted their last municipality. An unsubscribe keeps the
+                // row, so it does not bring the offer back.
+                promo={signedUp ? undefined : <NotisInviteCard surface="profile" />}
                 aside={administersSomething || showDevTools ? (
                     <>
                         {administersSomething && <AdminSection user={user} t={t} />}

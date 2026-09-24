@@ -33,8 +33,8 @@ export const NotificationEmail = ({
     unsubscribeUrl,
 }: NotificationEmailProps): React.ReactElement => {
     const typeLabel = type === 'beforeMeeting'
-        ? 'Ειδοποίηση επερχόμενης συνεδρίασης'
-        : 'Ειδοποίηση πρόσφατης συνεδρίασης';
+        ? 'Ενημέρωση για επερχόμενη συνεδρίαση'
+        : 'Ενημέρωση για πρόσφατη συνεδρίαση';
 
     const meetingDateFormatted = formatDate(meetingDate);
 
@@ -160,7 +160,7 @@ export const NotificationEmail = ({
                         margin: '24px 0',
                     }}
                 >
-                    Δεν θέλετε να λαμβάνετε ειδοποιήσεις;{' '}
+                    Δεν θέλετε να λαμβάνετε ενημερώσεις;{' '}
                     <a
                         href={unsubscribeUrl}
                         style={{ color: '#2563eb', textDecoration: 'underline' }}

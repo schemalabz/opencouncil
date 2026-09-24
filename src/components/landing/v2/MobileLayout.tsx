@@ -143,7 +143,6 @@ export function MobileLayout({
             <MobileHeader
                         onOpenSearch={() => setSearchMode('search')}
                         onToggleInfo={onToggleInfo}
-                        cities={cities}
                         searchActive={query.trim().length > 0}
                         query={query}
                         realm={realm}
