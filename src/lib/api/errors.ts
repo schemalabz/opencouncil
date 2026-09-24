@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { LifecycleRuleError } from "@/lib/meetingLifecycleRules";
 
 /**
  * Base class for API errors with explicit status codes.
@@ -68,6 +69,12 @@ export function handleApiError(error: unknown, fallbackMessage: string = "An err
     
     if (error instanceof ApiError) {
         return NextResponse.json({ error: error.message }, { status: error.statusCode });
+    }
+
+    // A meeting write that breaks a lifecycle rule: the request is well-formed,
+    // but the record cannot take it. The code lets a client name the rule.
+    if (error instanceof LifecycleRuleError) {
+        return NextResponse.json({ error: error.message, code: error.code }, { status: 422 });
     }
 
     if (error instanceof ZodError) {

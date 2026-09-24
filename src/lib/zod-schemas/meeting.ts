@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
+import { SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
 
 /**
  * A name override. The name of a meeting is derived (src/lib/meetingName.ts),
@@ -8,6 +10,14 @@ import { z } from 'zod';
 const nameOverride = (message: string) => z.string()
     .trim()
     .refine(val => val === '' || val.length >= 2, { message })
+    .nullable()
+    .optional()
+    .transform(val => (val === '' ? null : val));
+
+/** Free text that an empty string clears. */
+const optionalText = (max: number) => z.string()
+    .trim()
+    .max(max)
     .nullable()
     .optional()
     .transform(val => (val === '' ? null : val));
@@ -32,8 +42,21 @@ export const meetingSchema = z.object({
     meetingId: z.string().min(1, {
         message: "Meeting ID must not be empty.",
     }).optional(),
-    administrativeBodyId: z.string().optional(),
+    administrativeBodyId: z.string().nullable().optional(),
     processAgenda: z.boolean().optional().default(false),
+
+    // The lifecycle of the meeting. An omitted field keeps its value on
+    // update; on create the database defaults apply, and the kind defaults to
+    // regular (see the POST route).
+    kind: z.nativeEnum(MeetingKind).nullable().optional(),
+    scheduleStatus: z.nativeEnum(MeetingScheduleStatus).optional(),
+    scheduleStatusReason: optionalText(SCHEDULE_STATUS_REASON_MAX_LENGTH),
+    sessionNumber: z.number().int().positive().nullable().optional(),
+    format: z.nativeEnum(MeetingFormat).optional(),
+    closedToPublic: z.boolean().optional(),
+    place: optionalText(200),
+    postponedFromId: z.string().min(1).nullable().optional(),
+    continuationOfId: z.string().min(1).nullable().optional(),
 });
 
 export type MeetingFormData = z.infer<typeof meetingSchema>;

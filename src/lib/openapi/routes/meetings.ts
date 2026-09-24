@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AdministrativeBodyType } from '@prisma/client';
+import { AdministrativeBodyType, MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 import { registry, sessionAuth, ValidationErrorSchema, ErrorResponseSchema, cityIdParam } from '../registry';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
 
@@ -14,10 +14,12 @@ const AdministrativeBodySchema = z.object({
 }).openapi('AdministrativeBody');
 
 // Matches CouncilMeetingWithAdminBody — the shape returned by create/edit/get handlers.
+// The admin responses carry the stored name, an override that is null when the
+// name is derived. The public list carries the display name in `name`/`name_en`.
 const MeetingSchema = z.object({
     id: z.string(),
-    name: z.string(),
-    name_en: z.string(),
+    name: z.string().nullable().openapi({ description: 'The display name in public responses; the stored override (null when derived) in admin responses.' }),
+    name_en: z.string().nullable(),
     dateTime: z.string().datetime(),
     cityId: z.string(),
     youtubeUrl: z.string().nullable(),
@@ -28,6 +30,16 @@ const MeetingSchema = z.object({
     muxPlaybackId: z.string().nullable(),
     administrativeBodyId: z.string().nullable(),
     administrativeBody: AdministrativeBodySchema.nullable(),
+    scheduleStatus: z.nativeEnum(MeetingScheduleStatus),
+    scheduleStatusReason: z.string().nullable(),
+    kind: z.nativeEnum(MeetingKind).nullable().openapi({ description: 'Null means unknown (archive meetings only).' }),
+    sessionNumber: z.number().int().nullable().openapi({ description: 'The official number, as the municipality prints it. Not unique.' }),
+    format: z.nativeEnum(MeetingFormat),
+    closedToPublic: z.boolean(),
+    place: z.string().nullable().openapi({ description: 'In public responses, the place of the meeting or else of its body.' }),
+    continuationOfId: z.string().nullable(),
+    postponedFromId: z.string().nullable().optional().openapi({ description: 'Admin responses only. Public responses carry postponedFromDate instead.' }),
+    postponedFromDate: z.string().datetime().nullable().optional().openapi({ description: 'Public responses only: the date for which the meeting was first scheduled, when it replaces a postponed meeting.' }),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
 }).openapi('Meeting');

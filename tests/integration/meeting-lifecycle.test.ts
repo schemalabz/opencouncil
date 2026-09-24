@@ -98,9 +98,9 @@ describe('meeting lifecycle module', () => {
             await postponement()
             await updateMeetingRecord(CITY, 'b', { scheduleStatus: 'postponed' })
             await createMeetingRecord({ cityId: CITY, id: 'c', dateTime: MARCH(26), administrativeBodyId: councilId, kind: 'regular', postponedFromId: 'b' })
-            expect(await originalScheduledDate(prisma, CITY, 'c')).toEqual(MARCH(12))
-            expect(await originalScheduledDate(prisma, CITY, 'b')).toEqual(MARCH(12))
-            expect(await originalScheduledDate(prisma, CITY, 'a')).toBeNull()
+            expect(await originalScheduledDate(CITY, 'c')).toEqual(MARCH(12))
+            expect(await originalScheduledDate(CITY, 'b')).toEqual(MARCH(12))
+            expect(await originalScheduledDate(CITY, 'a')).toBeNull()
         })
     })
 

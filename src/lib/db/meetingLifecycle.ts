@@ -246,9 +246,24 @@ export async function deleteMeetingRecord(cityId: string, id: string): Promise<v
  * meeting of a postponement. The walk passes through unreleased meetings, so
  * only the date may leave the server, never their ids.
  */
-export async function originalScheduledDate(client: Client, cityId: string, id: string): Promise<Date | null> {
+export async function originalScheduledDate(cityId: string, id: string, client: Client = prisma): Promise<Date | null> {
     const chain = await walkBack(client, cityId, id);
     return chain.length > 1 ? chain[chain.length - 1].dateTime : null;
+}
+
+/** `originalScheduledDate` for each row of a list that has a postponement link. */
+export async function originalScheduledDates(
+    cityId: string,
+    rows: Array<{ id: string; postponedFromId: string | null }>,
+    client: Client = prisma,
+): Promise<Map<string, Date>> {
+    const dates = new Map<string, Date>();
+    for (const row of rows) {
+        if (!row.postponedFromId) continue;
+        const date = await originalScheduledDate(cityId, row.id, client);
+        if (date) dates.set(row.id, date);
+    }
+    return dates;
 }
 
 function definedOnly<T extends object>(patch: T): Partial<T> {
