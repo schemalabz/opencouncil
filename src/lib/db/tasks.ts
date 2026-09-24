@@ -61,7 +61,14 @@ export async function getTasksForMeeting(cityId: string, meetingId: string): Pro
 // possession of the unguessable id, so the read cannot carry a user gate and
 // must stay off the Server Action surface instead.
 
-export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
+/**
+ * Delete a task status by id, optionally scoped to a (cityId, councilMeetingId) tenant.
+ * Returns the number of rows deleted so callers can treat 0 as a tenant mismatch / 404.
+ */
+export async function deleteTaskStatus(
+    taskStatusId: string,
+    scope?: { cityId: string; councilMeetingId: string }
+): Promise<number> {
     // Called directly from client components (admin tasks + voiceprint actions),
     // so it must gate itself. Scope to the task's own city; a missing task
     // requires superadmin so a bare delete cannot be fired against any id.
@@ -71,9 +78,13 @@ export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
     });
     await withUserAuthorizedToEdit(task ? { cityId: task.cityId } : {});
     try {
-        await prisma.taskStatus.delete({
-            where: { id: taskStatusId },
+        const result = await prisma.taskStatus.deleteMany({
+            where: {
+                id: taskStatusId,
+                ...(scope ? { cityId: scope.cityId, councilMeetingId: scope.councilMeetingId } : {}),
+            },
         });
+        return result.count;
     } catch (error) {
         console.error('Error deleting task status:', error);
         throw new Error('Failed to delete task status');
