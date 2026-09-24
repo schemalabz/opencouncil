@@ -42,7 +42,7 @@ export async function getAdministrativeBodiesWithPublicMeetings(cityId: string):
     }
 }
 
-export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt'>): Promise<AdministrativeBody> {
+export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt' | 'place'> & { place?: string | null }): Promise<AdministrativeBody> {
     await withUserAuthorizedToEdit({ cityId: bodyData.cityId });
     try {
         const newBody = await prisma.administrativeBody.create({

@@ -115,6 +115,32 @@ enum AdministrativeBodyType {
   community    // Κοινότητα (π.χ. 5η Δημοτική Κοινότητα)
 }
 
+/// Whether the announced meeting is still expected. Whether it was held stays
+/// derived from what the record holds (lib/meetingStage.ts).
+enum MeetingScheduleStatus {
+  scheduled
+  postponed
+  cancelled
+}
+
+/// The kind of meeting that the invitation names. null on a meeting means
+/// "unknown", which only archive rows carry; the admin form requires a kind.
+enum MeetingKind {
+  regular            // Τακτική
+  urgent             // Έκτακτη (the law says κατεπείγουσα)
+  accountability     // Ειδική Συνεδρίαση Λογοδοσίας, council only
+  annualReport       // Ειδική Συνεδρίαση Απολογισμού, council only
+  budget             // Ειδική Συνεδρίαση Προϋπολογισμού
+  presidencyElection // Ειδική Συνεδρίαση Εκλογής Προεδρείου
+}
+
+enum MeetingFormat {
+  inPerson
+  teleconference
+  mixed
+  byCirculation // council only
+}
+
 enum NotificationBehavior {
   NOTIFICATIONS_DISABLED
   NOTIFICATIONS_AUTO
@@ -131,6 +157,7 @@ model AdministrativeBody {
   youtubeChannelUrl String?
   contactEmails String[] @default([]) // Emails for receiving transcripts
   diavgeiaUnitIds String[] @default([]) // Diavgeia scopes to poll, each `unit[:signer]` (e.g., ["81689"], ["84655:100010590"]). The signer separates bodies that share one unit.
+  place     String?  // the hall the body sits in as a rule; a meeting's own place overrides it
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -218,6 +245,28 @@ model CouncilMeeting {
   updatedAt DateTime @updatedAt
   released  Boolean  @default(false)
 
+  scheduleStatus       MeetingScheduleStatus @default(scheduled)
+  scheduleStatusReason String?
+  kind                 MeetingKind?
+  // The official number, as the municipality prints it. Not unique: a
+  // cancelled meeting keeps its number, and the new meeting after a
+  // postponement reuses it.
+  sessionNumber        Int?
+  format               MeetingFormat @default(inPerson)
+  closedToPublic       Boolean @default(false)
+  place                String? // overrides administrativeBody.place
+
+  // "A was postponed to B", "B was postponed from A". One new meeting for each
+  // postponed meeting. The composite key keeps both ends in one city.
+  postponedFromId String?
+  postponedFrom   CouncilMeeting? @relation("Postponement", fields: [cityId, postponedFromId], references: [cityId, id], onDelete: NoAction, onUpdate: NoAction)
+  postponedTo     CouncilMeeting? @relation("Postponement")
+
+  // A later day of the same meeting points to its first part.
+  continuationOfId String?
+  continuationOf   CouncilMeeting?  @relation("Continuation", fields: [cityId, continuationOfId], references: [cityId, id], onDelete: NoAction, onUpdate: NoAction)
+  continuations    CouncilMeeting[] @relation("Continuation")
+
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
 
@@ -236,6 +285,8 @@ model CouncilMeeting {
   @@id([cityId, id])
   @@unique([cityId, id])
 
+  @@unique([cityId, postponedFromId])
+  @@index([cityId, continuationOfId])
   @@index([dateTime])
   @@index([released])
   @@index([administrativeBodyId])

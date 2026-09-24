@@ -32,6 +32,13 @@ export type CouncilMeetingWithAdminBody = Prisma.CouncilMeetingGetPayload<{
 
 
 
+/** The lifecycle columns have database defaults, so a new meeting may leave them out. */
+type LifecycleColumn = 'scheduleStatus' | 'scheduleStatusReason' | 'kind' | 'sessionNumber' | 'format' | 'closedToPublic' | 'place' | 'postponedFromId' | 'continuationOfId';
+
+type NewCouncilMeeting = Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId' | LifecycleColumn>
+    & Partial<Pick<CouncilMeeting, LifecycleColumn>>
+    & { audioUrl?: string; videoUrl?: string };
+
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
     try {
@@ -44,7 +51,7 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
     }
 }
 
-export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
+export async function createCouncilMeeting(meetingData: NewCouncilMeeting): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ cityId: meetingData.cityId });
     return createCouncilMeetingDirect(meetingData);
 }
@@ -56,7 +63,7 @@ export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'cr
  * service keys.
  */
 export async function createCouncilMeetingDirect(
-    meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string; videoUrl?: string },
+    meetingData: NewCouncilMeeting,
 ): Promise<CouncilMeetingWithAdminBody> {
     return prisma.councilMeeting.create({
         data: meetingData,

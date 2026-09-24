@@ -570,6 +570,7 @@ function makeAdminBody(name: string) {
     youtubeChannelUrl: null,
     contactEmails: [],
     diavgeiaUnitIds: [],
+    place: null,
     createdAt: new Date('2020-01-01'),
     updatedAt: new Date('2020-01-01'),
   };
