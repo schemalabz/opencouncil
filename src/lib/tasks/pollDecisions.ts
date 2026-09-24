@@ -235,9 +235,11 @@ export async function pollDecisionsForMeeting(
 
 // A meeting still waiting on decisions: a decision-eligible subject without
 // one, and not a Λογοδοσία session (see isLogodosiaMeeting). What the cron and
-// follow-up polls both require before polling a meeting.
+// follow-up polls both require before polling a meeting. A postponed or
+// cancelled meeting took no decisions on its date.
 const AWAITING_DECISIONS_MEETING_WHERE = {
     AND: [NOT_LOGODOSIA_MEETING_WHERE],
+    scheduleStatus: 'scheduled',
     subjects: { some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null } },
 } satisfies Prisma.CouncilMeetingWhereInput;
 
@@ -956,7 +958,8 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             // calendar date — the timezone conversion is load-bearing: without
             // it, midnight-stored meetings would shift a day.
             const cityMeetings = polledMeeting ? (await tx.councilMeeting.findMany({
-                where: { cityId: task.cityId },
+                // A decision never belongs to a meeting that did not take place.
+                where: { cityId: task.cityId, scheduleStatus: 'scheduled' },
                 select: { id: true, kind: true, dateTime: true, administrativeBodyId: true },
                 orderBy: { dateTime: 'asc' },
             })).map(m => ({

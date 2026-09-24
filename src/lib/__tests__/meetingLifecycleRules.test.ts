@@ -1,4 +1,5 @@
 import {
+    transcriptionRefusal,
     validateMeetingRecord,
     type LifecycleContext,
     type MeetingRecordState,
@@ -134,5 +135,23 @@ describe('validateMeetingRecord', () => {
         expect(codes(state({ sessionNumber: 0 }), context())).toEqual(['sessionNumberPositive']);
         expect(codes(state({ sessionNumber: 1 }), context())).toEqual([]);
         expect(codes(state({ scheduleStatus: 'cancelled', scheduleStatusReason: 'x'.repeat(501) }), context())).toEqual(['reasonTooLong']);
+    });
+});
+
+describe('transcriptionRefusal', () => {
+    const held = { scheduleStatus: 'scheduled' as const, closedToPublic: false, format: 'inPerson' as const };
+
+    it('accepts a scheduled meeting with a public recording', () => {
+        expect(transcriptionRefusal(held)).toBeNull();
+        expect(transcriptionRefusal({ ...held, format: 'mixed' })).toBeNull();
+    });
+
+    it.each([
+        [{ ...held, scheduleStatus: 'postponed' as const }, 'Meeting is postponed'],
+        [{ ...held, scheduleStatus: 'cancelled' as const }, 'Meeting is cancelled'],
+        [{ ...held, closedToPublic: true }, 'closed to the public'],
+        [{ ...held, format: 'byCirculation' as const }, 'by circulation'],
+    ])('refuses %o', (meeting, reason) => {
+        expect(transcriptionRefusal(meeting)).toContain(reason);
     });
 });

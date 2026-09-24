@@ -1,4 +1,4 @@
-import type { AdministrativeBodyType, MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
+import type { AdministrativeBodyType, CouncilMeeting, MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 
 /** The columns of a meeting that the lifecycle rules read, as they will be after the write. */
 export interface MeetingRecordState {
@@ -144,4 +144,16 @@ export function validateMeetingRecord(next: MeetingRecordState, ctx: LifecycleCo
     }
 
     return errors;
+}
+
+/**
+ * Why a meeting takes no transcription, or null when it does. A postponed or
+ * cancelled meeting did not take place on its date, and a meeting that is
+ * closed to the public or held by circulation has no public recording.
+ */
+export function transcriptionRefusal(meeting: Pick<CouncilMeeting, 'scheduleStatus' | 'closedToPublic' | 'format'>): string | null {
+    if (meeting.scheduleStatus !== 'scheduled') return `Meeting is ${meeting.scheduleStatus}`;
+    if (meeting.closedToPublic) return 'Meeting is closed to the public: it has no recording to transcribe';
+    if (meeting.format === 'byCirculation') return 'Meeting is held by circulation: it has no recording to transcribe';
+    return null;
 }
