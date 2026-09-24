@@ -103,8 +103,9 @@ export async function POST(request: Request) {
 
         // Bust the all-cities caches so the new city is immediately visible —
         // notably getAllCityIdsCached, which the [cityId] layout uses to validate
-        // slugs (a freshly created city 404s until this tag is revalidated).
-        revalidateTag('cities:all', 'max');
+        // slugs. Not the 'max' profile: that serves the old list one more time,
+        // and the old list is a 404 for the city this response links to.
+        revalidateTag('cities:all', { expire: 0 });
 
         return NextResponse.json(city);
     } catch (error) {
