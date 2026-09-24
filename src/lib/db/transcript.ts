@@ -1,10 +1,11 @@
-import { SpeakerSegment, Utterance, Word, SpeakerTag, Summary, TopicLabel, Topic } from "@prisma/client";
+import { SpeakerSegment, Utterance, Word, Summary, TopicLabel, Topic } from "@prisma/client";
+import { publicSpeakerTagSelect, PublicSpeakerTag } from "./types/speakerTag";
 import prisma from "./prisma";
 import { joinTranscriptSegments } from "../utils";
 
 export type Transcript = (SpeakerSegment & {
   utterances: Utterance[];
-  speakerTag: SpeakerTag;
+  speakerTag: PublicSpeakerTag;
   topicLabels: (TopicLabel & {
     topic: Topic;
   })[];
@@ -14,7 +15,7 @@ export type Transcript = (SpeakerSegment & {
 // When we put the text at the speaker segment level, we get a transcript that's much smaller in size.
 export type LightTranscript = (SpeakerSegment & {
   text: string;
-  speakerTag: SpeakerTag;
+  speakerTag: PublicSpeakerTag;
   topicLabels: (TopicLabel & {
     topic: Topic;
   })[];
@@ -34,8 +35,11 @@ export async function getLightTranscript(meetingId: string, cityId: string): Pro
 
 export async function getTranscript(meetingId: string, cityId: string, {
   joinAdjacentSameSpeakerSegments = false,
+  joinSameSpeakerTagOnly = false,
 }: {
   joinAdjacentSameSpeakerSegments?: boolean;
+  /** Narrows the join to segments that also share a speaker tag (see joinTranscriptSegments). */
+  joinSameSpeakerTagOnly?: boolean;
 } = {}): Promise<Transcript> {
 
   const speakerSegments = await prisma.speakerSegment.findMany({
@@ -44,7 +48,7 @@ export async function getTranscript(meetingId: string, cityId: string, {
       cityId
     },
     include: {
-      speakerTag: true,
+      speakerTag: { select: publicSpeakerTagSelect },
       utterances: {
         orderBy: [{ startTimestamp: 'asc' }, { id: 'asc' }]
       },
@@ -59,7 +63,7 @@ export async function getTranscript(meetingId: string, cityId: string, {
   });
 
   if (joinAdjacentSameSpeakerSegments) {
-    return joinTranscriptSegments(speakerSegments);
+    return joinTranscriptSegments(speakerSegments, { sameSpeakerTagOnly: joinSameSpeakerTagOnly });
   }
 
   return speakerSegments;
