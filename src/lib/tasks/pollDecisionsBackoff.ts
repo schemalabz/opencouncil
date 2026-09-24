@@ -3,21 +3,29 @@
 // (Prisma, `server-only`, ...) — one would break the client build from
 // here, with the error pointing at that page instead of this file.
 
+import type { MeetingKind, Prisma } from "@prisma/client";
+
 // ─── Λογοδοσία meeting detection ─────────────────────────────────────
-// Stem used to identify Λογοδοσία (accountability) meetings by name.
-// Covers both "Λογοδοσία" and "Λογοδοσίας" (genitive).
-// TODO: Replace with proper meeting tags once available.
-export const LOGODOSIA_NAME_PATTERN = "Λογοδοσί";
 
 /**
- * Returns true if the meeting name indicates a Λογοδοσία session.
- * Used to skip automated decision polling — these meetings don't produce
- * decisions on Diavgeia. Combined meetings (e.g. "Λογοδοσία και Δημοτικό
- * Συμβούλιο") are also matched; they can still be polled manually.
+ * Returns true for a Λογοδοσία (accountability) meeting. Used to skip
+ * automated decision polling — these meetings don't produce decisions on
+ * Diavgeia. A record that also holds a regular meeting (e.g. "Λογοδοσία και
+ * Δημοτικό Συμβούλιο") has no kind of its own and is polled: its regular
+ * part produces decisions.
  */
-export function isLogodosiaMeeting(name: string): boolean {
-    return name.includes(LOGODOSIA_NAME_PATTERN);
+export function isLogodosiaMeeting(meeting: { kind: MeetingKind | null }): boolean {
+    return meeting.kind === "accountability";
 }
+
+/**
+ * The database form of `!isLogodosiaMeeting`. `kind` is nullable, and in SQL
+ * `NOT (kind = 'accountability')` is not true for a null kind, so a bare
+ * `NOT` would drop every meeting of unknown kind. The null case is explicit.
+ */
+export const NOT_LOGODOSIA_MEETING_WHERE = {
+    OR: [{ kind: null }, { kind: { not: "accountability" } }],
+} satisfies Prisma.CouncilMeetingWhereInput;
 
 // ─── Backoff configuration ───────────────────────────────────────────
 // Controls how often the cron polls for each meeting's decisions.

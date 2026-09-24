@@ -200,29 +200,14 @@ describe('getBackoffState', () => {
 });
 
 describe('isLogodosiaMeeting', () => {
-    it.each([
-        ['Ειδική Συνεδρίαση Λογοδοσίας 26/02/2026', 'pure logodosia with date'],
-        ['Ειδική Συνεδρίαση Λογοδοσίας', 'pure logodosia without date'],
-        ['4η Ειδική Συνεδρίαση Λογοδοσίας', 'numbered logodosia'],
-        ['11η Ειδική Συνεδρίαση Λογοδοσίας', 'double-digit numbered logodosia'],
-        ['Ειδική Συνεδρίαση Λογοδοσίας και Τακτική Συνεδρίαση 29/08/25', 'combined with και'],
-        ['Ειδική Συνεδρίαση Λογοδοσίας & Τακτική Συνεδρίαση 22/12/25', 'combined with &'],
-        ['Δημοτικό Συμβούλιο και Λογοδοσία 08/09/25', 'logodosia after και'],
-        ['Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26', 'logodosia first'],
-        ['1η Ειδική Λογοδοσίας & 6η Τακτική Συνεδρίαση', 'numbered combined'],
-    ])('returns true for "%s" — %s', (name) => {
-        expect(isLogodosiaMeeting(name)).toBe(true);
+    it('reads the kind, not the name', () => {
+        expect(isLogodosiaMeeting({ kind: 'accountability' })).toBe(true);
+        expect(isLogodosiaMeeting({ kind: 'regular' })).toBe(false);
+        expect(isLogodosiaMeeting({ kind: 'annualReport' })).toBe(false);
     });
 
-    it.each([
-        ['Δημοτικό Συμβούλιο 11/02/26', 'regular council meeting'],
-        ['Δημοτική Επιτροπή 24/02/2026', 'municipal committee'],
-        ['Συνεδρίαση 16/02/26', 'generic session'],
-        ['Ειδική Συνεδρίαση Δημοτικού Συμβουλίου 26/01/26', 'special council session'],
-        ['Έκτακτη Συνεδρίαση Δημοτικής Επιτροπής 16/10/25', 'emergency committee'],
-        ['23η Τακτική Συνεδρίαση', 'numbered regular session'],
-    ])('returns false for "%s" — %s', (name) => {
-        expect(isLogodosiaMeeting(name)).toBe(false);
+    it('polls a meeting of unknown kind: a combined record has no kind of its own', () => {
+        expect(isLogodosiaMeeting({ kind: null })).toBe(false);
     });
 });
 
