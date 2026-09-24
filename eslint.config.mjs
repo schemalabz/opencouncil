@@ -1,6 +1,15 @@
 import { defineConfig } from "eslint/config";
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 
+// Import a module from outside the current directory through the @/ alias,
+// not "../". Paths that leave src/ have no alias, so the lookahead exempts
+// exactly those targets. Flat config replaces, not merges, the options of a
+// rule, so every later no-restricted-imports block for src/ repeats this.
+const parentImportPattern = {
+    regex: "^(\\.\\./)*\\.\\.(/(?!\\.\\./|(packages/ui/src|messages|tests/helpers|json-schemas|public)/|elasticsearch/[^/]+\\.json$|cache-handler\\.mjs$)|$)",
+    message: "Import from outside this directory through the @/ alias (e.g. @/lib/db/cities), not a \"../\" path. Use \"./\" only for a file in the same directory.",
+};
+
 export default defineConfig([{
     // services/* are separate workspace apps with their own lint setup;
     // the root app's Next config must not walk into them.
@@ -52,6 +61,11 @@ export default defineConfig([{
         "@next/next/no-html-link-for-pages": "off",
     },
 }, {
+    files: ["src/**/*.{ts,tsx,js,jsx,mjs}"],
+    rules: {
+        "no-restricted-imports": ["error", { patterns: [parentImportPattern] }],
+    },
+}, {
     // Client-side zones must never touch the database directly. Prisma access
     // belongs in src/lib/db (see the full boundary in
     // src/lib/__tests__/prisma-boundary.test.ts, which also covers server code).
@@ -68,7 +82,7 @@ export default defineConfig([{
             patterns: [{
                 group: ["**/db/prisma", "@/lib/db/prisma"],
                 message: "Do not import the Prisma client in client-side code. Call a data-access function from src/lib/db instead.",
-            }],
+            }, parentImportPattern],
         }],
     },
 }, {
@@ -93,7 +107,7 @@ export default defineConfig([{
             patterns: [{
                 group: ["**/db/**", "@/lib/db/**"],
                 message: "The Edge-reachable alerting path must not touch the database. Resolve what you need in src/lib/discord.ts and pass it in.",
-            }],
+            }, parentImportPattern],
         }],
     },
 }, {
