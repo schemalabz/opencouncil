@@ -1078,7 +1078,13 @@
         "replaceImage": "Замени слику…",
         "imageDialogTitle": "Слика теме",
         "imageUpdated": "Слика је ажурирана",
-        "imageUpdateFailed": "Ажурирање слике није успело"
+        "imageUpdateFailed": "Ажурирање слике није успело",
+        "relatedSubjects": "Повезане теме",
+        "relatedOtherCities": "Друге општине",
+        "relatedSeeMore": "Погледајте више у претрази",
+        "relatedSameCity": "У истој општини, кроз време",
+        "relatedCurrent": "Ова тема",
+        "relatedRecurring": "Сличне теме у року од шест месеци"
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {Нема седница} one {# седница} few {# седнице} other {# седница}}",

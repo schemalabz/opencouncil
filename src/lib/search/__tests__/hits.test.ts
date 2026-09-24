@@ -84,7 +84,7 @@ describe('partitionHits', () => {
 describe('reportOrphanedHits', () => {
     it('sends a Discord alert on production with the orphaned ids', async () => {
         const { reportOrphanedHits, alert } = load('production');
-        await reportOrphanedHits({ orphanedIds: ['x', 'y'], query: 'ποδηλατόδρομοι', index: 'subjects' });
+        await reportOrphanedHits({ orphanedIds: ['x', 'y'], query: 'ποδηλατόδρομοι', index: 'subjects', source: 'Search' });
         expect(alert).toHaveBeenCalledTimes(1);
         expect(alert.mock.calls[0][0].source).toBe('Search');
         expect(alert.mock.calls[0][0].context?.orphanedSubjectIds).toBe('x, y');
@@ -92,19 +92,30 @@ describe('reportOrphanedHits', () => {
 
     it('reports each id at most once per module instance', async () => {
         const { reportOrphanedHits, alert } = load('production');
-        await reportOrphanedHits({ orphanedIds: ['x'], query: 'q1', index: 'subjects' });
-        await reportOrphanedHits({ orphanedIds: ['x'], query: 'q2', index: 'subjects' });
+        await reportOrphanedHits({ orphanedIds: ['x'], query: 'q1', index: 'subjects', source: 'Search' });
+        await reportOrphanedHits({ orphanedIds: ['x'], query: 'q2', index: 'subjects', source: 'Search' });
         expect(alert).toHaveBeenCalledTimes(1);
 
         // A new id alongside an already-reported one alerts for the new id only
-        await reportOrphanedHits({ orphanedIds: ['x', 'z'], query: 'q3', index: 'subjects' });
+        await reportOrphanedHits({ orphanedIds: ['x', 'z'], query: 'q3', index: 'subjects', source: 'Search' });
         expect(alert).toHaveBeenCalledTimes(2);
         expect(alert.mock.calls[1][0].context?.orphanedSubjectIds).toBe('z');
     });
 
+    // The related-subjects path re-checks its ids on every subject page
+    // view; a page view must not spend the alert a typed search would raise.
+    it('keeps one alert budget per source, so a related-subjects drop does not silence the search alert', async () => {
+        const { reportOrphanedHits, alert } = load('production');
+        await reportOrphanedHits({ orphanedIds: ['x'], query: 'a title', index: 'subjects', source: 'Related subjects' });
+        await reportOrphanedHits({ orphanedIds: ['x'], query: 'typed', index: 'subjects', source: 'Search' });
+        expect(alert).toHaveBeenCalledTimes(2);
+        expect(alert.mock.calls.map(call => call[0].source)).toEqual(['Related subjects', 'Search']);
+        expect(alert.mock.calls[0][0].error).toContain('from the related subjects results');
+    });
+
     it('dedupes duplicate ids within a single call', async () => {
         const { reportOrphanedHits, alert } = load('production');
-        await reportOrphanedHits({ orphanedIds: ['x', 'x'], query: 'q', index: 'subjects' });
+        await reportOrphanedHits({ orphanedIds: ['x', 'x'], query: 'q', index: 'subjects', source: 'Search' });
         expect(alert).toHaveBeenCalledTimes(1);
         expect(alert.mock.calls[0][0].context?.orphanedSubjectIds).toBe('x');
         expect(alert.mock.calls[0][0].error).toContain('1 orphaned hit(s)');
@@ -112,35 +123,35 @@ describe('reportOrphanedHits', () => {
 
     it('alerts on production for source-less hits, once per module instance', async () => {
         const { reportOrphanedHits, alert } = load('production');
-        await reportOrphanedHits({ orphanedIds: [], droppedWithoutSource: 2, query: 'q', index: 'subjects' });
+        await reportOrphanedHits({ orphanedIds: [], droppedWithoutSource: 2, query: 'q', index: 'subjects', source: 'Search' });
         expect(alert).toHaveBeenCalledTimes(1);
         expect(alert.mock.calls[0][0].context?.droppedWithoutSource).toBe('2');
         expect(alert.mock.calls[0][0].context?.orphanedSubjectIds).toBeUndefined();
 
-        await reportOrphanedHits({ orphanedIds: [], droppedWithoutSource: 5, query: 'q2', index: 'subjects' });
+        await reportOrphanedHits({ orphanedIds: [], droppedWithoutSource: 5, query: 'q2', index: 'subjects', source: 'Search' });
         expect(alert).toHaveBeenCalledTimes(1);
     });
 
     it('alerts for stale unreleased hits, deduped separately from orphans', async () => {
         const { reportOrphanedHits, alert } = load('production');
-        await reportOrphanedHits({ orphanedIds: [], unreleasedIds: ['u1'], query: 'q', index: 'subjects' });
+        await reportOrphanedHits({ orphanedIds: [], unreleasedIds: ['u1'], query: 'q', index: 'subjects', source: 'Search' });
         expect(alert).toHaveBeenCalledTimes(1);
         expect(alert.mock.calls[0][0].error).toContain('stale unreleased');
         expect(alert.mock.calls[0][0].context?.unreleasedSubjectIds).toBe('u1');
 
         // The same id repeated does not re-alert…
-        await reportOrphanedHits({ orphanedIds: [], unreleasedIds: ['u1'], query: 'q2', index: 'subjects' });
+        await reportOrphanedHits({ orphanedIds: [], unreleasedIds: ['u1'], query: 'q2', index: 'subjects', source: 'Search' });
         expect(alert).toHaveBeenCalledTimes(1);
 
         // …but the same id later showing up as an orphan (subject deleted) does.
-        await reportOrphanedHits({ orphanedIds: ['u1'], query: 'q3', index: 'subjects' });
+        await reportOrphanedHits({ orphanedIds: ['u1'], query: 'q3', index: 'subjects', source: 'Search' });
         expect(alert).toHaveBeenCalledTimes(2);
     });
 
     it('only warns (no Discord) outside production', async () => {
         const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
         const { reportOrphanedHits, alert } = load('staging');
-        await reportOrphanedHits({ orphanedIds: ['x'], query: 'q', index: 'subjects' });
+        await reportOrphanedHits({ orphanedIds: ['x'], query: 'q', index: 'subjects', source: 'Search' });
         expect(alert).not.toHaveBeenCalled();
         expect(warn).toHaveBeenCalledWith(expect.stringContaining('orphaned'), expect.objectContaining({ orphanedIds: ['x'] }));
         warn.mockRestore();
@@ -149,7 +160,7 @@ describe('reportOrphanedHits', () => {
     it('no-ops when there is nothing to report', async () => {
         const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
         const { reportOrphanedHits, alert } = load('production');
-        await reportOrphanedHits({ orphanedIds: [], query: 'q', index: 'subjects' });
+        await reportOrphanedHits({ orphanedIds: [], query: 'q', index: 'subjects', source: 'Search' });
         expect(alert).not.toHaveBeenCalled();
         expect(warn).not.toHaveBeenCalled();
         warn.mockRestore();

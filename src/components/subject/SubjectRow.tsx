@@ -6,6 +6,7 @@ import { surfaceCardClass } from "@/components/ui/surface-card";
 import { TopicIcon } from "@/components/TopicIcon";
 import { SubjectImage } from "@/components/subject/SubjectImage";
 import { subjectCardStats } from "@/lib/subjectCardStats";
+import { SubjectStatsRow } from "@/components/subject/SubjectStatsRow";
 import { getAgendaLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
 import { Link, useRouter } from "@/i18n/routing";
 import { subjectTitle, subjectDescription, subjectLocation } from "@/lib/subjectText";
@@ -16,7 +17,7 @@ import { useLocalizeText } from "@/hooks/useLocalizeText";
 import { cn } from "@/lib/utils";
 import type { PendingKind } from "@/lib/meetingStage";
 import { topicStyle } from "@/lib/topicStyle";
-import { Clock, Loader2, MapPin, MessageSquare, ScrollText } from "lucide-react";
+import { Clock, Loader2, MapPin, ScrollText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -71,7 +72,9 @@ export function SubjectRow({ subject, city, meeting, showContext = true, pending
     const barHover = useSubjectBarHover(subject.id);
     const handleClick = (e: React.MouseEvent) => {
         onOpen?.();
-        if (openInNewTab) return; // let the Link handle it
+        // Let the Link handle it: a new-tab row, or a click whose modifier
+        // asks the browser for a new tab or window.
+        if (openInNewTab || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
         e.preventDefault();
         setIsLoading(true);
         router.push(href);
@@ -201,30 +204,7 @@ export function SubjectRow({ subject, city, meeting, showContext = true, pending
                                 {tStage(`rows.${rowNote}`)}
                             </span>
                         ) : (
-                            <>
-                                {(stats.minutes > 0 || stats.speakerCount > 0 || stats.partyDots.length > 0) && (
-                                    <div className="flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
-                                        {stats.minutes > 0 && (
-                                            <MetaItem icon={Clock}>{t("minutesCount", { count: stats.minutes })}</MetaItem>
-                                        )}
-                                        {stats.speakerCount > 0 && (
-                                            <MetaItem icon={MessageSquare}>{stats.speakerCount}</MetaItem>
-                                        )}
-                                        {stats.partyDots.length > 0 && (
-                                            <span className="flex shrink-0 items-center gap-1">
-                                                {stats.partyDots.map(p => (
-                                                    <span
-                                                        key={p.id}
-                                                        className="h-2.5 w-2.5 rounded-full"
-                                                        style={{ backgroundColor: p.colorHex }}
-                                                        title={p.name}
-                                                    />
-                                                ))}
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-                            </>
+                            <SubjectStatsRow stats={stats} minutesText={t("minutesCount", { count: stats.minutes })} />
                         )}
                     </div>
                 </div>
