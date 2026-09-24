@@ -65,6 +65,44 @@ it carries `requiredForPipeline: false`.
 
 The stage derivation logic automatically determines the current stage by checking completed tasks in reverse order, ensuring accurate status representation.
 
+## Schedule Status, Kind and Derived Name
+
+The stages above describe the processing pipeline. The meeting record also holds the facts that the municipality announces. These facts are separate from the stages.
+
+* **Schedule status** (`scheduleStatus`): `scheduled`, `postponed` or `cancelled`, with an optional reason. An admin sets it. The platform does not store "held": a meeting is held when material exists.
+* **Kind** (`kind`): `regular`, `urgent`, `accountability`, `annualReport`, `budget` or `presidencyElection`. Null means "unknown" and occurs on archive meetings only. A new meeting is `regular` by default. λογοδοσία, απολογισμός and a meeting by circulation belong to a council.
+* **Session number** (`sessionNumber`): the number that the municipality prints. It is not unique. A cancelled meeting keeps its number, and the new meeting after a postponement takes the same number. The platform never computes it.
+* **Format and place** (`format`, `closedToPublic`, `place`): `format` defaults to `inPerson`. A meeting without its own `place` shows the `place` of its administrative body.
+* **Links**: the new meeting after a postponement points to the postponed meeting (`postponedFromId`). A later part of a meeting points to its first part (`continuationOfId`). The continuation has its column and its checks only; the form and the page for it are a follow-up.
+
+### The name
+
+`name` and `name_en` hold an override only. Null means that the name is derived. `meetingDisplayName` in `src/lib/meetingName.ts` builds it from the administrative body, the kind and the date. The date is in the timezone of the city. An example is «Δημοτικό Συμβούλιο — Ειδική Συνεδρίαση Λογοδοσίας 25/06/2026». Every reader of the name calls this function. The SQL function `council_meeting_display_name` builds the same Greek name for the Notis view `notis_meeting_events`. The Elasticsearch field `meeting_name` still reads the column, and no query reads that field.
+
+### The write path and the visibility rules
+
+The meeting API routes are the one write path. They call `src/lib/db/meetingLifecycle.ts`, which runs the rules of `src/lib/meetingLifecycleRules.ts` and the write in one transaction. The release toggle and the delete function call the same module.
+
+* A link goes to a postponed meeting of the same body, with no cycle. The status of a postponed meeting cannot change while its new meeting exists.
+* The link alone changes no visibility. When the admin releases the new meeting, every meeting before it in the chain becomes unreleased. When the admin unreleases or deletes the new meeting, and it was released, the postponed meeting before it is released again.
+* A change of status never changes the visibility. A postponed meeting stays public until its new meeting is released. A cancelled meeting stays public.
+* No public payload carries `postponedFromId`. The new meeting shows the date for which it was first scheduled (`postponedFromDate`).
+* The write takes no lock. Two admins who edit the same postponement chain at the same moment can, in theory, break the rules above.
+
+### What the other parts of the platform do
+
+* **Public presentation**: `publicMeetingPresentation` in `src/lib/meetingPresentation.ts` shows a postponed or cancelled meeting as such at every age, in place of its stage. A meeting that is closed to the public or held by circulation reads as held without a recording.
+* **Pipelines**: the livestream cron, the decision poller, the upload lists and the landing page skip a meeting that is not scheduled. `requestTranscribeInternal` refuses it, and also a meeting with no public recording. A pending notice before a postponed or cancelled meeting is not sent.
+* **Calendar**: `syncMeetingToCalendar` patches the event of a postponed or cancelled meeting to `status: 'cancelled'`. A past meeting emails nobody.
+* **Decision polling** skips λογοδοσία by `kind`, not by the name. The migration set the kind of the existing λογοδοσία meetings.
+
+### Backfill of the archive
+
+1. Run `npx tsx scripts/meeting-lifecycle-report.ts --out reports/meeting-lifecycle.csv` (add `--agendas` to read the agenda PDFs). The script writes nothing to the database.
+2. Review the CSV. Write `yes` in the `apply` column of each row to apply.
+3. Run `npx tsx --require ./scripts/lib/allow-server-only.cjs scripts/meeting-lifecycle-apply.ts --csv reports/meeting-lifecycle.csv` for a dry run.
+4. Run the same command with `--apply`. The script skips a row that changed since the report, and it writes an audit file.
+
 ## Sequence Diagram
 
 ```mermaid
@@ -159,7 +197,8 @@ sequenceDiagram
     *   `src/app/api/cities/[cityId]/meetings/[meetingId]/taskStatuses/[taskStatusId]/route.ts` (POST: task callbacks)
     *   `src/app/api/cities/[cityId]/administrative-bodies/route.ts` (GET: list administrative bodies)
 *   **Database Functions**:
-    *   `src/lib/db/meetings.ts` (createCouncilMeeting, editCouncilMeeting, getCouncilMeetingsForCity, toggleMeetingRelease)
+    *   `src/lib/db/meetings.ts` (getCouncilMeetingsForCity, toggleMeetingRelease)
+    *   `src/lib/db/meetingLifecycle.ts` (createMeetingRecord, updateMeetingRecord, setMeetingReleased, deleteMeetingRecord, originalScheduledDate)
     *   `src/lib/db/tasks.ts` (getMeetingTaskStatus, MeetingTaskStatus type, task completion tracking)
 *   **Frontend Components**:
     *   `src/components/meetings/AddMeetingForm.tsx` (dual-purpose create/edit with Zod validation)
@@ -191,11 +230,12 @@ sequenceDiagram
 4. Unreleased meetings are only visible to authorized users
 
 ### Data Validation Rules
-1. Meeting names must be at least 2 characters in both Greek and English
-2. Meeting ID is auto-generated from date but can be manually overridden
-3. YouTube and agenda URLs must be valid URLs or empty strings
-4. Administrative body selection is optional but validated if provided
-5. Date/time combination must be valid and not in the distant past
+1. A name override is empty or at least 2 characters. An empty name is derived from the body, the kind and the date
+2. Meeting ID is auto-generated from the date when the form sends none, with `_2`, `_3` for a second meeting on one day. An admin can type an ID
+3. A new meeting needs a kind (default `regular`). The lifecycle rules in `src/lib/meetingLifecycleRules.ts` apply to every write
+4. YouTube and agenda URLs must be valid URLs or empty strings
+5. Administrative body selection is optional but validated if provided
+6. Date/time combination must be valid and not in the distant past
 
 ### Status Tracking Rules
 1. Meeting stage is dynamically derived from completed tasks
