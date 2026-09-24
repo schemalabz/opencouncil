@@ -17,7 +17,7 @@ import { isRoleActiveAt, isMayorRole } from "../utils/roles";
 import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, isLogodosiaMeeting, LOGODOSIA_NAME_PATTERN, pendingPollTaskId, type BackoffTier } from "./pollDecisionsBackoff";
 import { interleaveByCity } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
-import { agendaItemTitleOrName } from "@/lib/utils/subjects";
+import { agendaItemTitleOrName, isRecordSubject } from "@/lib/utils/subjects";
 
 export async function requestPollDecisions(
     cityId: string,
@@ -328,13 +328,22 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
             id: true,
             name: true,
             agendaItemIndex: true,
+            nonAgendaReason: true,
+            withdrawn: true,
             cityId: true,
             councilMeetingId: true,
         },
     });
 
-    if (!subject || subject.agendaItemIndex == null) {
-        throw new Error("Subject not found or not eligible for decisions");
+    // isRecordSubject is the in-memory twin of DECISION_ELIGIBLE_SUBJECT_WHERE,
+    // which the meeting poll this dispatches to runs. Asking the same question
+    // here is what keeps the button from offering a poll that then refuses the
+    // subject: an out-of-agenda item carries no agendaItemIndex.
+    if (!subject || !isRecordSubject(subject) || subject.withdrawn) {
+        throw new Error(
+            `Subject not eligible for decisions (agendaItemIndex=${subject?.agendaItemIndex ?? 'null'}, ` +
+            `nonAgendaReason=${subject?.nonAgendaReason ?? 'null'}, withdrawn=${subject?.withdrawn ?? 'n/a'})`,
+        );
     }
 
     // Simple rate limit: check for existing pending/running pollDecisions task
