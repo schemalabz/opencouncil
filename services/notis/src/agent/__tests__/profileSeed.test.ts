@@ -2,7 +2,7 @@ import { seedProfileFromPreferences } from "../profileSeed";
 
 describe("seedProfileFromPreferences", () => {
   test("no preferences", () => {
-    expect(seedProfileFromPreferences([])).toBe("Δεν έχει δηλώσει προτιμήσεις ειδοποιήσεων.");
+    expect(seedProfileFromPreferences([])).toBe("Δεν έχει δηλώσει προτιμήσεις ενημερώσεων.");
   });
 
   test("city with topics and locations", () => {
@@ -15,7 +15,7 @@ describe("seedProfileFromPreferences", () => {
       },
     ]);
     expect(profile).toBe(
-      "Έχει ενεργοποιήσει ειδοποιήσεις για Αθήνα. " +
+      "Έχει ενεργοποιήσει ενημερώσεις για Αθήνα. " +
         "Θέματα που έχει επιλέξει: Πολεοδομία, Συγκοινωνίες. " +
         "Περιοχές που τον αφορούν: Πετράλωνα.",
     );
