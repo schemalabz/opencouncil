@@ -108,7 +108,6 @@
     "known": "If you like, enable notifications to keep up with the subjects being discussed.",
     "unknown": "Unfortunately it isn't in our network yet. You can request that it joins and we'll notify you once it does.",
     "enable": "Enable notifications",
-    "pickMunicipality": "Pick the municipality you care about, to get updates on what is being discussed",
     "notNow": "Not now"
   },
   "explain": {

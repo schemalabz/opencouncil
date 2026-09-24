@@ -1,6 +1,7 @@
 import type { Realm } from '@prisma/client';
 import { REOPEN_CONSENT_EVENT } from '@/lib/utils/analyticsConsent';
 import { getRealmContactPhone, telHref } from '@/lib/realm';
+import { captureLandingAction } from '@/lib/landing/analytics';
 
 /* Footer-style link groups surfaced in the desktop "Περισσότερα" popover and the mobile
    drawer accordions. Mirrors the site footer (src/components/layout/Footer.tsx). */
@@ -14,12 +15,12 @@ export type FooterLink = {
     external?: boolean;
     /** re-opens the analytics consent prompt instead of navigating */
     cookie?: boolean;
-    /** opens the "pick your δήμος" notifications dialog instead of navigating */
-    notify?: boolean;
     /** contact rows render a leading icon and are not hoverable */
     icon?: 'phone' | 'mail';
     /** highlighted as a CTA (accent colour + arrow) in the desktop "Περισσότερα" popover */
     featured?: boolean;
+    /** the `nav_link` target a menu click on this link records, as the rail and drawer rows do */
+    navTarget?: 'notifications';
 };
 
 export type FooterGroup = { title: string; titleKey?: string; links: FooterLink[] };
@@ -30,7 +31,7 @@ const STATIC_GROUPS: FooterGroup[] = [
         titleKey: 'footer.groups.links',
         links: [
             { label: 'Για δήμους', labelKey: 'footer.links.forMunicipalities', href: '/about', featured: true },
-            { label: 'Ενημερώσεις', labelKey: 'footer.links.notifications', notify: true },
+            { label: 'Ενημερώσεις', labelKey: 'footer.links.notifications', href: '/notifications', navTarget: 'notifications' },
             { label: 'Αναζήτηση', labelKey: 'footer.links.search', href: '/search' },
             { label: 'OpenCouncil MCP', labelKey: 'footer.links.ai', href: '/mcp' },
             { label: 'API', labelKey: 'footer.links.api', href: '/docs' },
@@ -79,6 +80,11 @@ export function footerGroups(realm: Realm): FooterGroup[] {
 /** True for an internal app route (uses the i18n <Link>); false for tel:/mailto:/http. */
 export function isInternalHref(href: string): boolean {
     return href.startsWith('/');
+}
+
+/** Records a menu click on a link that the landing's navigation analytics follow. */
+export function captureMenuLink(link: FooterLink) {
+    if (link.navTarget) captureLandingAction('nav_link', { target: link.navTarget, surface: 'menu' });
 }
 
 export function reopenCookiePreferences() {

@@ -5,7 +5,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Shapes, Landmark, HelpCircle, MoreHorizontal, LogIn, LogOut, User, Phone, Mail, ArrowRight, Search, Plug, Bell } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { Link, getPathname } from '@/i18n/routing';
-import { openAfterMenuCloses } from '@/lib/utils/menus';
 import { useAccountLinks } from '@/components/layout/account-links';
 import { cn } from '@/lib/utils';
 import {
@@ -18,11 +17,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import Image from 'next/image';
 import type { InfoSurface, LandingView } from '@/lib/landing/landingCore';
-import { footerGroups, isInternalHref, reopenCookiePreferences } from './navLinks';
-import { NotifyMunicipalityDialog } from './NotifyMunicipalityDialog';
+import { captureMenuLink, footerGroups, isInternalHref, reopenCookiePreferences } from './navLinks';
 import ScriptSwitcher from '@/components/layout/ScriptSwitcher';
 import { captureLandingAction } from '@/lib/landing/analytics';
-import type { LandingListCity } from '@/lib/landing/landingData';
 import type { Realm } from '@prisma/client';
 
 /* The desktop landing's left nav rail: brand at the top, the three view items centered,
@@ -34,7 +31,6 @@ export function LandingAside({
     infoOpen,
     onToggleInfo,
     infoHint,
-    cities,
     realm,
 }: {
     view: LandingView;
@@ -44,8 +40,6 @@ export function LandingAside({
     onToggleInfo: (surface?: InfoSurface) => void;
     /** show the one-time "Τι είναι αυτό;" hint: solid-fill the "?" and label it (see LandingV2) */
     infoHint: boolean;
-    /** cooperating δήμοι, for the "which δήμος?" notifications dialog opened from "Περισσότερα" */
-    cities: LandingListCity[];
     /** the request's realm, from the server — picks the contact number in the menu */
     realm: Realm;
 }) {
@@ -53,7 +47,6 @@ export function LandingAside({
     const tAccount = useTranslations('account');
     const accountLinks = useAccountLinks();
     const locale = useLocale();
-    const [notifyOpen, setNotifyOpen] = useState(false);
     const { data: session, status } = useSession();
     // Auth UI depends on the client session, which differs server vs. first client render
     // (unseeded SessionProvider) → React #418. Gate on a mounted flag so both render null first.
@@ -62,10 +55,8 @@ export function LandingAside({
 
     return (
         // Inner nav-rail column of the unified aside card (DesktopLayout owns the card chrome).
-        <>
-        <NotifyMunicipalityDialog open={notifyOpen} onOpenChange={setNotifyOpen} cities={cities} />
-        {/* Scrolls on a short window rather than clip its account controls: the
-            aside's card hides overflow, and no part of the rail can shrink. */}
+        // It scrolls on a short window rather than clip its account controls: the
+        // aside's card hides overflow, and no part of the rail can shrink.
         <div className="scrollbar-hide flex w-[80px] shrink-0 flex-col items-center overflow-y-auto bg-card pb-3 pt-1">
             {/* brand */}
             <Link href="/" className="shrink-0 hover:opacity-90" aria-label="OpenCouncil">
@@ -187,17 +178,6 @@ export function LandingAside({
                                         >
                                             {t(link.labelKey!)}
                                         </DropdownMenuItem>
-                                    ) : link.notify ? (
-                                        <DropdownMenuItem
-                                            key={link.label}
-                                            onSelect={() => {
-                                                captureLandingAction('notify_dialog_opened', { surface: 'menu' });
-                                                openAfterMenuCloses(() => setNotifyOpen(true));
-                                            }}
-                                            className="rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
-                                        >
-                                            {t(link.labelKey!)}
-                                        </DropdownMenuItem>
                                     ) : link.featured ? (
                                         // CTA: accent fill + arrow, stands out from the rest
                                         <DropdownMenuItem
@@ -216,7 +196,9 @@ export function LandingAside({
                                             asChild
                                             className="rounded-lg text-muted-foreground focus:bg-muted focus:text-foreground"
                                         >
-                                            <Link href={link.href!}>{t(link.labelKey!)}</Link>
+                                            <Link href={link.href!} onClick={() => captureMenuLink(link)}>
+                                                {t(link.labelKey!)}
+                                            </Link>
                                         </DropdownMenuItem>
                                     ) : (
                                         <DropdownMenuItem
@@ -306,7 +288,6 @@ export function LandingAside({
                 )}
             </div>
         </div>
-        </>
     );
 }
 
