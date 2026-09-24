@@ -4,7 +4,7 @@ import { Bell, ChevronRight, Clapperboard, MessageCircle, Settings2, UserRound, 
 import { useTranslations } from "next-intl";
 import type { User } from "@prisma/client";
 import { Link } from "@/i18n/routing";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger, useSelectedTab } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { AccountSection } from "@/components/profile/AccountSection";
 import { CommunicationPreferences } from "@/components/profile/CommunicationPreferences";
@@ -45,11 +45,17 @@ export function ProfileSettings({
     user,
     persons,
     highlightsAllowed,
+    promo,
     aside,
 }: {
     user: ProfileAccount;
     persons: ConsentPerson[];
     highlightsAllowed: boolean;
+    /**
+     * The invitation to the notifications, rendered by the server; absent
+     * for a reader who already signed up. See `PromoSlot`.
+     */
+    promo?: React.ReactNode;
     /** What this account administers, rendered by the server; absent when it administers nothing. */
     aside?: React.ReactNode;
 }) {
@@ -62,7 +68,7 @@ export function ProfileSettings({
             defaultValue="personal"
             searchParam="tab"
             values={TAB_VALUES}
-            className="mt-7 lg:mt-9 lg:grid lg:grid-cols-[248px_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-10"
+            className="mt-7 lg:mt-9 lg:grid lg:grid-cols-[248px_minmax(0,1fr)] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-x-10"
         >
             <TabsList
                 className="-mx-4 h-auto items-stretch gap-1 rounded-none bg-transparent px-4 py-0 pb-1 text-muted-foreground scrollbar-hide lg:mx-0 lg:flex-col lg:px-0 lg:pb-0"
@@ -82,7 +88,9 @@ export function ProfileSettings({
                 ))}
             </TabsList>
 
-            <div className="mt-5 min-w-0 lg:col-start-2 lg:row-span-2 lg:mt-0">
+            {promo !== undefined && <PromoSlot>{promo}</PromoSlot>}
+
+            <div className="mt-5 min-w-0 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:mt-0">
                 {TABS.map(({ value, label, lead }) => (
                     <TabsContent key={value} value={value} className="mt-0">
                         <SectionHeading title={t(label)} lead={t(lead)} />
@@ -101,7 +109,7 @@ export function ProfileSettings({
             </div>
 
             {hasLinks && (
-                <div className="mt-8 flex flex-col gap-3 lg:col-start-1 lg:mt-3 lg:border-t lg:border-border lg:pt-3">
+                <div className="mt-8 flex flex-col gap-3 lg:col-start-1 lg:row-start-3 lg:mt-3 lg:border-t lg:border-border lg:pt-3">
                     {highlightsAllowed && (
                         <Link href="/profile/highlights" className={cn(railRowClass, "group text-foreground")}>
                             <Clapperboard className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -114,4 +122,17 @@ export function ProfileSettings({
             )}
         </Tabs>
     );
+}
+
+/**
+ * The invitation to the notifications: between the tab strip and the tab's
+ * content on a phone, under the tabs from `lg`. One element for both, so no
+ * hidden copy keeps its conversation playing. The notifications tab has its
+ * own call to action, so the invitation leaves while that tab is open; under
+ * the strip, its leaving does not move the tabs.
+ */
+function PromoSlot({ children }: { children: React.ReactNode }) {
+    const selected = useSelectedTab();
+    if (selected === "notifications") return null;
+    return <div className="mt-5 lg:col-start-1 lg:row-start-2 lg:mt-3">{children}</div>;
 }
