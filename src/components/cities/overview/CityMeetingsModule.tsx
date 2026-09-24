@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { MeetingStageChip } from '@/components/meetings/stage/MeetingStageChip';
-import type { PublicMeetingStage } from '@/lib/meetingStage';
+import type { PresentationKey } from '@/lib/meetingPresentation';
 import { formatClockTime, formatDateStamp } from '@/lib/formatters/time';
 import { cn } from '@/lib/utils';
 import { AdminBodyLabel } from './AdminBodyLabel';
@@ -24,7 +24,7 @@ type Meeting = CouncilMeetingWithSubjectPreview;
  */
 export interface DatedMeeting {
     meeting: Meeting;
-    stage: PublicMeetingStage;
+    stage: PresentationKey;
     /** The chip's soft second half, or null where the stage word says everything. */
     detail: string | null;
 }

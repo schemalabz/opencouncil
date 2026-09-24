@@ -242,7 +242,8 @@
       "markedNotAttended": "Marked as not assigned",
       "errorTitle": "Error",
       "updateFailed": "Failed to update the operator"
-    }
+    },
+    "transcribeRefused": "This meeting takes no transcription: it was postponed or cancelled, or it was held behind closed doors or by circulation."
   },
   "decisionsPage": {
     "sheet": {

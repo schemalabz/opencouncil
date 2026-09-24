@@ -242,7 +242,8 @@
       "markedNotAttended": "Marquée comme non assignée",
       "errorTitle": "Erreur",
       "updateFailed": "Impossible de mettre à jour l'opérateur"
-    }
+    },
+    "transcribeRefused": "Cette séance ne prend pas de transcription : elle a été reportée ou annulée, ou tenue à huis clos ou par consultation écrite."
   },
   "decisionsPage": {
     "sheet": {
