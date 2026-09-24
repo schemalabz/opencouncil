@@ -1,6 +1,6 @@
 import { __setSessionEmail } from '../mocks/auth'
 import prisma from '@/lib/db/prisma'
-import { Prisma } from '@prisma/client'
+import { NonAgendaReason, Prisma } from '@prisma/client'
 
 export async function createCity(data?: Partial<Prisma.CityCreateInput>) {
     const id = data?.id ?? 'testcity'
@@ -98,7 +98,7 @@ export async function createLocation({ id, text, lng, lat }: { id: string; text?
     return { id: res[0]?.id ?? id }
 }
 
-export async function createSubject(meetingId: string, cityId: string, data?: { id?: string; name?: string; description?: string; topicId?: string | null; locationId?: string | null; agendaItemIndex?: number | null }) {
+export async function createSubject(meetingId: string, cityId: string, data?: { id?: string; name?: string; description?: string; topicId?: string | null; locationId?: string | null; agendaItemIndex?: number | null; nonAgendaReason?: NonAgendaReason | null; withdrawn?: boolean }) {
     return prisma.subject.create({
         data: {
             id: data?.id,
@@ -107,6 +107,8 @@ export async function createSubject(meetingId: string, cityId: string, data?: { 
             topicId: data?.topicId ?? null,
             locationId: data?.locationId ?? null,
             agendaItemIndex: data?.agendaItemIndex ?? null,
+            nonAgendaReason: data?.nonAgendaReason ?? null,
+            withdrawn: data?.withdrawn ?? false,
             councilMeetingId: meetingId,
             cityId,
         },

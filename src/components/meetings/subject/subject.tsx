@@ -39,7 +39,7 @@ import type { Statistics } from "@/lib/statistics";
 import { TopicPill } from "@/components/TopicPill";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
-import { getAgendaFullLabel, getWithdrawnLabel } from "@/lib/utils/subjects";
+import { getAgendaFullLabel, getWithdrawnLabel, isRecordSubject } from "@/lib/utils/subjects";
 import { SubjectAdminControls } from "./SubjectAdminControls";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useLocalizeText } from "@/hooks/useLocalizeText";
@@ -90,6 +90,7 @@ export default function Subject({ subjectId, highlightedContributionId, related,
         updatedAt: string | null;
     } | null>(null);
     const [lastSearchedAt, setLastSearchedAt] = useState<string | null>(null);
+    const [searchFailed, setSearchFailed] = useState(false);
     // Bumped after an admin regenerates or replaces the illustration, so the
     // <img> refetches past the copy the browser cached.
     const [imageVersion, setImageVersion] = useState<number | undefined>(undefined);
@@ -107,7 +108,6 @@ export default function Subject({ subjectId, highlightedContributionId, related,
         location,
         description,
         name,
-        agendaItemIndex,
         introducedBy,
         contributions,
         topicImportance,
@@ -231,15 +231,22 @@ export default function Subject({ subjectId, highlightedContributionId, related,
         return () => setSubjectHeader(null);
     }, [name, topic?.icon, topic?.colorHex, neighbours, setSubjectHeader, localize]);
 
+    // Whether a poll for this subject can actually run. isRecordSubject is the
+    // in-memory twin of the rule the poll itself applies, and the poll refuses a
+    // city with no Diavgeia organisation before it dispatches — so both belong
+    // here, or the card offers a button whose only outcome is a thrown error.
+    const canPoll = isRecordSubject(subject) && !subject.withdrawn && !!city.diavgeiaUid;
+
     // Fetch last poll time on mount when there's no decision
     useEffect(() => {
-        if (agendaItemIndex != null && !subject.decision && !subject.withdrawn) {
+        if (canPoll && !subject.decision) {
             getLastPollTimeForMeeting(meeting.id, meeting.cityId).then(setLastSearchedAt);
         }
-    }, [agendaItemIndex, subject.decision, subject.withdrawn, meeting.id, meeting.cityId]);
+    }, [canPoll, subject.decision, meeting.id, meeting.cityId]);
 
     const handleFetchDecision = useCallback(async () => {
         captureSubjectAction('fetch_decision');
+        setSearchFailed(false);
         setIsFetchingDecision(true);
         try {
             const result = await requestPollDecisionForSubject(subject.id);
@@ -268,8 +275,9 @@ export default function Subject({ subjectId, highlightedContributionId, related,
             }
             setLastSearchedAt(new Date().toISOString());
         } catch {
-            // Still update the timestamp on error
-            setLastSearchedAt(new Date().toISOString());
+            // Only a completed search may write the timestamp. Reporting one that
+            // did not happen is what kept this path's failures invisible.
+            setSearchFailed(true);
         } finally {
             setIsFetchingDecision(false);
         }
@@ -491,9 +499,9 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                                 ) : subject.withdrawn ? (
                                     <p className="pt-1 text-sm text-muted-foreground">{getWithdrawnLabel(t, subject, 'long')}</p>
                                 ) : (
-                                    <div className="space-y-3 pt-1 text-center">
+                                    <div className={`space-y-3 pt-1 ${canPoll ? 'text-center' : ''}`}>
                                         <p className="text-sm text-muted-foreground">{t("noDecisionDescription")}</p>
-                                        {isFetchingDecision ? (
+                                        {canPoll && (isFetchingDecision ? (
                                             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                                                 <Loader2 className="w-4 h-4 animate-spin" />
                                                 {t("searchingDecision")}
@@ -503,8 +511,11 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                                                 <Landmark className="w-4 h-4 mr-2" />
                                                 {t("fetchDecision")}
                                             </Button>
+                                        ))}
+                                        {canPoll && searchFailed && !isFetchingDecision && (
+                                            <p className="text-xs text-destructive">{t("searchDecisionFailed")}</p>
                                         )}
-                                        {lastSearchedAt && !isFetchingDecision && (
+                                        {canPoll && lastSearchedAt && !isFetchingDecision && (
                                             <p className="text-xs text-muted-foreground">
                                                 {t("lastSearched", { time: formatRelativeTime(new Date(lastSearchedAt), locale) })}
                                             </p>
