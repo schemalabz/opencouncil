@@ -12,6 +12,7 @@ import { handleApiError } from '@/lib/api/errors';
 import prisma from '@/lib/db/prisma';
 import { Prisma } from '@prisma/client';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 const getMeetingsQuerySchema = z.object({
     limit: z.string()
@@ -45,8 +46,8 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         let meetingId = providedMeetingId || (await generateUniqueMeetingId(cityId, date));
 
         const buildMeetingData = (id: string) => ({
-            name,
-            name_en,
+            name: name ?? null,
+            name_en: name_en ?? null,
             id,
             dateTime: date,
             cityId,
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         // Fetch city data (should exist since meeting was created successfully)
         const city = await prisma.city.findUnique({
             where: { id: cityId },
-            select: { name_en: true }
+            select: { name_en: true, timezone: true }
         });
 
         if (!city) {
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             // Send Discord admin alert
             sendMeetingCreatedAdminAlert({
                 cityName: city.name_en,
-                meetingName: name_en,
+                meetingName: meetingDisplayName(meeting, 'en', city.timezone),
                 meetingDate: date,
                 meetingId: meetingId,
                 cityId: cityId,

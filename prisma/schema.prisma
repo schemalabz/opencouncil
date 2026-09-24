@@ -229,8 +229,8 @@ model Person {
 
 model CouncilMeeting {
   id        String   @default(cuid())
-  name      String
-  name_en   String
+  name      String?  // the override only; null means the name is derived (lib/meetingName.ts)
+  name_en   String?
   dateTime  DateTime
   youtubeUrl String?
   agendaUrl String?
