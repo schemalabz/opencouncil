@@ -1,7 +1,7 @@
 /** @jest-environment node */
 import { Realm } from '@prisma/client'
 import prisma from '@/lib/db/prisma'
-import { mcpGetCity, mcpListMeetings } from '@/lib/mcp/data'
+import { mcpGetCity, mcpGetMeeting, mcpListMeetings } from '@/lib/mcp/data'
 import { mcpRealmStore, requestContext } from '@/lib/mcp/realm-context'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import { createAdministrativeBody, createCity, createMeeting } from '../helpers/factories'
@@ -210,5 +210,52 @@ describe('MCP meeting listing by administrative body - integration', () => {
             ...page, administrativeBodyIds: [draftOnly.id],
         }, SERVICE))
         expect(meetings.map(m => m.id)).toEqual(['draft'])
+    })
+})
+
+describe('MCP meeting tools report the record of a meeting - integration', () => {
+    beforeEach(async () => {
+        await resetDatabase(prisma)
+        await createCity({ id: 'athens', realm: Realm.greece })
+        const council = await createAdministrativeBody('athens', {
+            name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', type: 'council', place: 'Δημαρχείο',
+        })
+        await createMeeting('athens', {
+            id: 'mar12_2026', dateTime: new Date('2026-03-12T16:00:00Z'), administrativeBodyId: council.id,
+            name: null, name_en: null, kind: 'regular', scheduleStatus: 'postponed', released: false,
+        })
+        await createMeeting('athens', {
+            id: 'mar19_2026', dateTime: new Date('2026-03-19T16:00:00Z'), administrativeBodyId: council.id,
+            name: null, name_en: null, kind: 'regular', sessionNumber: 15, postponedFromId: 'mar12_2026', released: true,
+        })
+        await createMeeting('athens', {
+            id: 'mar26_2026', dateTime: new Date('2026-03-26T16:00:00Z'), administrativeBodyId: council.id,
+            name: null, name_en: null, kind: 'urgent', scheduleStatus: 'cancelled', scheduleStatusReason: 'Λόγω απεργίας', released: true,
+        })
+    })
+
+    test('list_meetings marks a cancelled meeting and never names the postponed one', async () => {
+        const { meetings } = await asRequest(() => mcpListMeetings('athens', page, ANON))
+        expect(meetings.map((m) => m.id)).toEqual(['mar26_2026', 'mar19_2026'])
+        expect(meetings[0]).toMatchObject({
+            name: 'Δημοτικό Συμβούλιο — Έκτακτη Συνεδρίαση 26/03/2026',
+            scheduleStatus: 'cancelled', scheduleStatusReason: 'Λόγω απεργίας', kind: 'urgent', format: 'inPerson',
+        })
+        expect(meetings[1]).toMatchObject({
+            scheduleStatus: 'scheduled', sessionNumber: 15, place: 'Δημαρχείο', postponedFromDate: '2026-03-12T16:00:00.000Z',
+        })
+        expect(JSON.stringify(meetings)).not.toContain('mar12_2026')
+    })
+
+    test('get_meeting says that a cancelled meeting did not take place', async () => {
+        const meeting = await asRequest(() => mcpGetMeeting('athens', 'mar26_2026', ANON))
+        expect(meeting).toMatchObject({ scheduleStatus: 'cancelled', kind: 'urgent' })
+        expect(meeting.note).toMatch(/cancelled/)
+    })
+
+    test('get_meeting of the new meeting carries the original date, not the id', async () => {
+        const meeting = await asRequest(() => mcpGetMeeting('athens', 'mar19_2026', SERVICE))
+        expect(meeting.postponedFromDate).toBe('2026-03-12T16:00:00.000Z')
+        expect(JSON.stringify(meeting)).not.toContain('mar12_2026')
     })
 })

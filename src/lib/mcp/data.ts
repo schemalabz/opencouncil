@@ -1,5 +1,5 @@
 import prisma from '@/lib/db/prisma';
-import { Prisma, DiscussionStatus, type AdministrativeBodyType } from '@prisma/client';
+import { Prisma, DiscussionStatus, type AdministrativeBodyType, type CouncilMeeting } from '@prisma/client';
 import { searchInRealm } from '@/lib/search/core';
 import { getCities, getCity, getListedCityAtPoint, filterCityIdsByRealm } from '@/lib/db/cities';
 import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
@@ -31,6 +31,8 @@ import { isSuperIdentity, type McpIdentity } from './auth';
 import { isCustomer } from "@/lib/cityStatus";
 import { meetingDisplayName, meetingNameInCity } from '@/lib/meetingName';
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
+import { originalScheduledDate, originalScheduledDates } from '@/lib/db/meetingLifecycle';
+import { effectivePlace } from '@/lib/meetingPublic';
 
 /** Built per request: the hint must point at the host the caller is using. */
 function authHint(): string {
@@ -166,6 +168,29 @@ async function assertCitiesInRealm(cityIds: string[]): Promise<void> {
 
 async function requireRealmCity(cityId: string): Promise<void> {
     return assertCitiesInRealm([cityId]);
+}
+
+/**
+ * The record fields of a meeting that an assistant needs to read it right:
+ * whether it took place, what kind of meeting it was, its number and its
+ * format. Never the id of the meeting that it replaced, which is not public.
+ */
+function meetingRecordFields(
+    meeting: Pick<CouncilMeeting, 'scheduleStatus' | 'scheduleStatusReason' | 'kind' | 'sessionNumber' | 'format' | 'closedToPublic' | 'place' | 'continuationOfId'>
+        & { administrativeBody: { place: string | null } | null },
+    postponedFromDate: Date | null,
+) {
+    return {
+        scheduleStatus: meeting.scheduleStatus,
+        scheduleStatusReason: meeting.scheduleStatusReason,
+        kind: meeting.kind,
+        sessionNumber: meeting.sessionNumber,
+        format: meeting.format,
+        closedToPublic: meeting.closedToPublic,
+        place: effectivePlace(meeting),
+        postponedFromDate: postponedFromDate?.toISOString() ?? null,
+        continuationOfId: meeting.continuationOfId,
+    };
 }
 
 /** The timezone that a derived meeting name prints its date in. */
@@ -344,12 +369,14 @@ export async function mcpListMeetings(
     });
 
     const timezone = await cityTimezone(cityId);
+    const postponedFromDates = await originalScheduledDates(cityId, meetings);
     return {
         meetings: meetings.map(meeting => ({
             id: meeting.id,
             name: meetingDisplayName(meeting, 'el', timezone),
             dateTime: meeting.dateTime.toISOString(),
             administrativeBody: meeting.administrativeBody?.name ?? null,
+            ...meetingRecordFields(meeting, postponedFromDates.get(meeting.id) ?? null),
             released: meeting.released,
             subjectCount: meeting.subjects.length,
             hasTranscript: meeting._count.speakerSegments > 0,
@@ -400,13 +427,19 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         name: meetingNameInCity(meeting, 'el'),
         dateTime: meeting.dateTime.toISOString(),
         administrativeBody: meeting.administrativeBody?.name ?? null,
+        ...meetingRecordFields(meeting, await originalScheduledDate(cityId, meetingId)),
         youtubeUrl: meeting.youtubeUrl,
         agendaUrl: meeting.agendaUrl,
         hasTranscript: transcribed,
         // An empty agenda is the one shape an agent reads wrongly: it looks
         // like an empty meeting, when in fact the transcript is usually there
         // and only the summarization step has not run. Say so in the payload.
-        ...(meeting.subjects.length === 0 && {
+        ...(meeting.scheduleStatus !== 'scheduled' ? {
+            note: meeting.scheduleStatus === 'cancelled'
+                ? 'This meeting was cancelled: it did not take place. Its agenda is the whole record.'
+                : 'This meeting was postponed: it did not take place on this date. The new meeting, once published, '
+                + 'carries postponedFromDate.',
+        } : meeting.subjects.length === 0 && {
             note: transcribed
                 ? 'This meeting has no subjects because it has not been summarized yet — not because nothing was said. '
                 + 'The full verbatim transcript is available: read it with get_transcript (add includeUtteranceIds to '

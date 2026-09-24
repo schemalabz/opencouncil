@@ -263,7 +263,10 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'with timeFilter "past" for the last held session, "upcoming" for the next one. ' +
                 'Each row carries subjectCount and hasTranscript: `subjectCount: 0` with ' +
                 '`hasTranscript: true` is a meeting that is transcribed but not yet summarized, ' +
-                'and get_transcript still holds everything that was said in it.',
+                'and get_transcript still holds everything that was said in it. '
+                + 'Read scheduleStatus before you call a row the last meeting of a body: a '
+                + '"postponed" or "cancelled" meeting did not take place on its date. '
+                + 'postponedFromDate is set on the new meeting of a postponement.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 from: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
@@ -310,7 +313,8 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'summarization step that runs after transcription, so a meeting can hold the full ' +
                 'verbatim record and no agenda yet. Read `hasTranscript` — when it is true, work ' +
                 'from get_transcript instead (summarize it yourself, quote it, or clip a highlight ' +
-                'from it) rather than reporting that there is nothing to show.',
+                'from it) rather than reporting that there is nothing to show. '
+                + 'scheduleStatus "postponed" or "cancelled" means that the meeting did not take place on its date.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 meetingId: z.string().min(1),
