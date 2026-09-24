@@ -61,8 +61,6 @@ const ALLOWED_FILES = new Set([
     'src/app/api/cities/[cityId]/meetings/[meetingId]/notifications/route.ts',
     'src/app/api/cities/[cityId]/meetings/[meetingId]/operator/route.ts',
     'src/app/api/cities/[cityId]/meetings/[meetingId]/subjects/[subjectId]/route.ts',
-    'src/app/api/cities/[cityId]/meetings/route.ts',
-    'src/app/api/cities/[cityId]/populate/route.ts',
     'src/app/api/cities/[cityId]/reset/route.ts',
     'src/app/api/dev/quick-login/route.ts',
     'src/app/api/dev/seed-test-users/route.ts',

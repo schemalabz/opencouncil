@@ -1,3 +1,4 @@
+import { ConflictError, NotFoundError } from "@/lib/api/errors";
 import { ProcessAgendaRequest } from "../apiTypes";
 import { startTask } from "./tasks";
 import prisma from "../db/prisma";
@@ -45,12 +46,13 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
     });
 
     if (!councilMeeting) {
-        throw new Error("Council meeting not found");
+        throw new NotFoundError("Council meeting not found");
     }
 
+    // A typed refusal, for the same reason as in requestTranscribeInternal.
     if (!force && councilMeeting.subjects.length > 0) {
         console.log(`Meeting already has subjects`);
-        throw new Error('Meeting already has subjects');
+        throw new ConflictError('The meeting already has subjects. A re-run must set force.');
     }
 
     // Get relevant people for the meeting (filtered by administrative body)

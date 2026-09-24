@@ -72,6 +72,22 @@ export class TaskAlreadyExistsError extends Error {
 }
 
 /**
+ * startTask throws this when another step of the pipeline is still running on
+ * the meeting and the two must not overlap (see pipelineRules.ts). Unlike
+ * TaskAlreadyExistsError it is not a skip: the caller wanted a step that is
+ * not there yet, and has to wait for the blocking one.
+ */
+export class PipelineBusyError extends Error {
+  constructor(
+    readonly taskType: MeetingTaskType,
+    readonly blockedBy: MeetingTaskType
+  ) {
+    super(`A ${blockedBy} task is still running for this council meeting; ${taskType} has to wait for it`);
+    this.name = 'PipelineBusyError';
+  }
+}
+
+/**
  * Returns the DiscordAlertMode for a task type.
  * Unknown task types (e.g. from DB records with stale type values) default to 'all'
  * so that generic alerts are never accidentally suppressed.

@@ -7,6 +7,8 @@ import "server-only";
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
 import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode } from '@/lib/tasks/types';
+import { PipelineBusyError } from '@/lib/tasks/types';
+import { findConflictingTask } from './pipelineRules';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
 import { sendTaskAdminAlert } from '@/lib/discord';
@@ -86,6 +88,15 @@ const taskStatusWithMeetingInclude = {
 } satisfies Prisma.TaskStatusInclude;
 
 export const startTask = async (taskType: MeetingTaskType, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean; silent?: boolean } = {}) => {
+    // A step that would work on rows another running step is about to
+    // replace is refused, force or not. The automatic fixTranscript after a
+    // transcribe is not affected: handleTaskUpdate marks the transcribe
+    // succeeded before it runs the result handler that triggers it.
+    const conflicting = await findConflictingTask(taskType, cityId, councilMeetingId);
+    if (conflicting) {
+        throw new PipelineBusyError(taskType, conflicting.type as MeetingTaskType);
+    }
+
     // Only enforce idempotency for core pipeline tasks — non-pipeline tasks
     // (generateHighlight, generateVoiceprint, etc.) can legitimately run multiple times
     if (TASK_CONFIG[taskType].requiredForPipeline) {

@@ -61,6 +61,19 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ ta
     return NextResponse.json({ message: 'Task status deleted successfully' });
 }
 
+/**
+ * Whether the task was started with force. requestTranscribeInternal stores
+ * the flag in the request body, and the result handler deletes the old
+ * transcript only when it reads it back here, once the new one has arrived.
+ */
+function wasForced(requestBody: string): boolean {
+    try {
+        return JSON.parse(requestBody)?.force === true;
+    } catch {
+        return false;
+    }
+}
+
 async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
     // The task server is the only caller of this path, and startTask always
     // hands it a tokenized URL. Accepting an untokenized callback would leave
@@ -85,7 +98,7 @@ async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
             throw new Error(`Unsupported task type: ${taskStatus.type}`);
         }
 
-        await handleTaskUpdate(taskStatusId, update, handler);
+        await handleTaskUpdate(taskStatusId, update, handler, { force: wasForced(taskStatus.requestBody) });
 
         return NextResponse.json({ message: 'Task status updated successfully' });
     } catch (error) {

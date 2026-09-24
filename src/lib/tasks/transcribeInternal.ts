@@ -1,4 +1,5 @@
 import { TranscribeRequest, Voiceprint } from "../apiTypes";
+import { ConflictError, NotFoundError } from "@/lib/api/errors";
 import { startTask } from "./tasks";
 import { Prisma } from "@prisma/client";
 import prisma from "../db/prisma";
@@ -76,16 +77,17 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
     });
 
     if (!councilMeeting) {
-        throw new Error("Council meeting not found");
+        throw new NotFoundError("Council meeting not found");
     }
 
-    if (councilMeeting.speakerSegments.length > 0) {
-        if (force) {
-            await deleteExistingSpeakerData(councilMeetingId, cityId);
-        } else {
-            console.log(`Meeting already has speaker segments`);
-            throw new Error('Meeting already has speaker segments');
-        }
+    // A typed refusal, so every caller — the admin page, the cron, a tool —
+    // can show it as it is instead of as an internal error. With force the
+    // old transcript stays until the new one lands: handleTranscribeResult
+    // deletes it inside the import transaction, so a job the task server
+    // refuses leaves the meeting as it was.
+    if (councilMeeting.speakerSegments.length > 0 && !force) {
+        console.log(`Meeting already has speaker segments`);
+        throw new ConflictError('The meeting already has a transcript. A re-run must set force, which replaces it, with its highlights.');
     }
 
     const city = councilMeeting.city;
@@ -137,10 +139,13 @@ export async function requestTranscribeInternal(youtubeUrl: string, councilMeeti
 
     console.log(`Sending ${voiceprints.length} voiceprints for meeting (${peopleWithVoiceprints.length} total with voiceprints)`);
 
-    const body: Omit<TranscribeRequest, 'callbackUrl'> = {
+    // `force` rides in the stored request so the callback can hand it to the
+    // result handler; the task server ignores it.
+    const body: Omit<TranscribeRequest, 'callbackUrl'> & { force?: boolean } = {
         youtubeUrl,
         voiceprints: voiceprints.length > 0 ? voiceprints : undefined,
         cityLanguage: city.language,
+        ...(force && { force }),
     }
 
     await prisma.councilMeeting.update({
