@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCurrentUser } from '@/lib/auth';
 import { canUseCityCreator, getCity } from '@/lib/db/cities';
-import prisma from '@/lib/db/prisma';
-import { AdministrativeBodyType } from '@prisma/client';
+import { populateCity, requireEmptyCity } from '@/lib/db/cityPopulate';
+import { ApiError } from '@/lib/api/errors';
 import { revalidateTag } from 'next/cache';
 import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 
@@ -60,129 +60,13 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if city can use city creator
-        const canUseCreator = await canUseCityCreator(params.cityId);
-        if (!canUseCreator) {
-            // Check if city exists to provide appropriate error message
-            const city = await getCity(params.cityId);
-            if (!city) {
-                return NextResponse.json({ error: 'City not found' }, { status: 404 });
-            }
-            return NextResponse.json({ error: 'City already has data' }, { status: 400 });
-        }
+        // Before the body is read, so a city with data answers 400 whatever was sent.
+        await requireEmptyCity(params.cityId);
 
         const body = await request.json();
         const validatedData = cityPopulationSchema.parse(body);
 
-        // Save all data in a single transaction
-        const result = await prisma.$transaction(async (tx) => {
-            // Create administrative bodies
-            const adminBodies = await Promise.all(
-                validatedData.administrativeBodies.map(adminBody =>
-                    tx.administrativeBody.create({
-                        data: {
-                            name: adminBody.name,
-                            name_en: adminBody.name_en,
-                            type: adminBody.type as AdministrativeBodyType,
-                            cityId: params.cityId,
-                        },
-                    })
-                )
-            );
-
-            // Create parties
-            const parties = await Promise.all(
-                validatedData.parties.map(party =>
-                    tx.party.create({
-                        data: {
-                            name: party.name,
-                            name_en: party.name_en,
-                            name_short: party.name_short,
-                            name_short_en: party.name_short_en,
-                            colorHex: party.colorHex,
-                            logo: party.logo,
-                            cityId: params.cityId,
-                        },
-                    })
-                )
-            );
-
-            // Create people
-            const people = await Promise.all(
-                validatedData.people.map(person =>
-                    tx.person.create({
-                        data: {
-                            name: person.name,
-                            name_en: person.name_en,
-                            name_short: person.name_short,
-                            name_short_en: person.name_short_en,
-                            image: person.image,
-                            activeFrom: person.activeFrom ? new Date(person.activeFrom) : null,
-                            activeTo: person.activeTo ? new Date(person.activeTo) : null,
-                            profileUrl: person.profileUrl,
-                            cityId: params.cityId
-                        },
-                    })
-                )
-            );
-
-            // Create roles from people data
-            await Promise.all(
-                validatedData.people.flatMap((personData, personIndex) => {
-                    const person = people[personIndex];
-                    if (!personData.roles) return [];
-
-                    return personData.roles.map(role => {
-                        const party = role.partyName
-                            ? parties.find(p => p.name === role.partyName)
-                            : null;
-
-                        const adminBody = role.administrativeBodyName
-                            ? adminBodies.find(ab => ab.name === role.administrativeBodyName)
-                            : null;
-
-                        return tx.role.create({
-                            data: {
-                                personId: person.id,
-                                name: role.name,
-                                name_en: role.name_en,
-                                isHead: role.isHead || false,
-                                startDate: role.startDate,
-                                endDate: role.endDate,
-                                electedOrder: role.electedOrder ?? null,
-                                cityId: role.type === 'city' ? params.cityId : null,
-                                partyId: role.type === 'party' ? party?.id : null,
-                                administrativeBodyId: role.type === 'adminBody' ? adminBody?.id : null,
-                            },
-                        });
-                    });
-                })
-            );
-
-            // Importing data does not publish the city — a superadmin promotes it to
-            // demo or supported once the import has been checked. Written explicitly
-            // rather than left alone because the City Creator also runs on cities that
-            // already have a status.
-            await tx.city.update({
-                where: { id: params.cityId },
-                data: { status: 'pending' },
-            });
-
-            const totalRoles = validatedData.people.reduce((count, person) => count + (person.roles?.length || 0), 0);
-
-            return {
-                partiesCount: parties.length,
-                peopleCount: people.length,
-                rolesCount: totalRoles,
-                adminBodiesCount: adminBodies.length,
-            };
-        }, {
-            // A full council (a large city can have 60+ members, each with several
-            // roles) is hundreds of sequential inserts; against a remote DB that
-            // overruns Prisma's default 5s interactive-transaction timeout.
-            maxWait: 10_000,
-            timeout: 60_000,
-        });
+        const result = await populateCity(params.cityId, validatedData);
 
         try {
             revalidateTag(`city:${params.cityId}`, 'max');
@@ -202,6 +86,10 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             return NextResponse.json({ error: error.errors }, { status: 400 });
         }
 
+        if (error instanceof ApiError) {
+            return NextResponse.json({ error: error.message }, { status: error.statusCode });
+        }
+
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
-} 
+}
