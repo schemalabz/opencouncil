@@ -130,40 +130,14 @@ export function makePollDecisionsResult(params: {
     extractions?: PollDecisionsResult['extractions']
     usage?: PollDecisionsResult['usage']
 }): PollDecisionsResult {
-    // The meeting's roll call is a field of its own: the task resolves one across
-    // the documents and sends it as `initialAttendance`, and that alone is what
-    // per-subject rows are replayed from. A one-document fixture has nothing to
-    // resolve, so its document's roll call is the meeting's and standing it up
-    // here keeps those fixtures short. With several, only the caller knows which
-    // one wins — promoting the first would let a fixture pass on attendance no
-    // real callback would have sent.
-    const given = params.extractions ?? null
-    let extractions = given
-    if (given && !given.initialAttendance) {
-        const stated = given.decisions.map(d => d.rollCall).filter(r => r?.presentIds.length || r?.absentIds.length)
-        if (stated.length > 1) {
-            throw new Error('makePollDecisionsResult: several documents state a roll call. Pass extractions.initialAttendance — only you know which one the task would have resolved.')
-        }
-        const rollCall = stated[0]
-        if (rollCall) {
-            // A new object: a caller's `extractions` reused for a second result would
-            // otherwise arrive at it already carrying the first one's roll call.
-            extractions = {
-                ...given,
-                initialAttendance: [
-                    ...rollCall.presentIds.map(personId => ({ personId, status: 'PRESENT' as const })),
-                    ...rollCall.absentIds.map(personId => ({ personId, status: 'ABSENT' as const })),
-                ],
-            }
-        }
-    }
+    // One entry per page read; the meeting's roll call and changes are the derivation's (spec §4.1).
     return {
         ...(params.decisions ? { decisions: params.decisions } : {}),
         matches: params.matches ?? [],
         reassignments: params.reassignments ?? [],
         unmatchedSubjects: params.unmatchedSubjects ?? [],
         ambiguousSubjects: params.ambiguousSubjects ?? [],
-        extractions,
+        extractions: params.extractions ?? null,
         usage: params.usage ?? { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
     }
 }
@@ -171,8 +145,8 @@ export function makePollDecisionsResult(params: {
 /**
  * A document as task v4 sends it. Callers say who the page's roll call states
  * present and absent the short way, with `rollCallPresent` / `rollCallAbsent`,
- * and this states it as that document's roll call — which is what every
- * per-subject row is derived from. A caller passing its own `rollCall` keeps it;
+ * and this states it as that document's roll call — the derivation resolves
+ * the meeting's roll call from every page's. A caller passing its own `rollCall` keeps it;
  * one passing neither states none, which is a meeting the derivation declines to
  * write rows for.
  *

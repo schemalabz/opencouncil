@@ -6,7 +6,7 @@ jest.mock('next/server', () => ({ ...jest.requireActual('next/server'), after: (
 import prisma from '@/lib/db/prisma'
 import { handlePollDecisionsResult } from '@/lib/tasks/pollDecisions'
 import { deriveAndPersist, explainMeeting } from '@/lib/derivation'
-import type { ExtractedDecisionData, PollDecisionsAttendanceEvent, PollDecisionsResult } from '@/lib/apiTypes'
+import type { ExtractedDecisionData, PollDecisionsAttendanceEvent } from '@/lib/apiTypes'
 import { resetDatabase } from '../helpers/test-db'
 import { createAdministrativeBody, createCity, createMeeting, createPerson, createSubject, createTaskStatus } from '../helpers/factories'
 import { makeExtractedDecision, makePollDecisionsResult } from '../helpers/builders'
@@ -48,43 +48,31 @@ describe('two polls of one meeting', () => {
     })
     const page = (i: number, o: Partial<ExtractedDecisionData> & { rollCallPresent?: string[]; rollCallAbsent?: string[] } = {}) =>
         makeExtractedDecision({ subjectId: s[i - 1].id, rollCallPresent: [a.id, b.id, c.id], ...o })
-    const allPresent = () => [a, b, c].map(p => ({ personId: p.id, status: 'PRESENT' as const }))
-
-    type MeetingLevel = Omit<NonNullable<PollDecisionsResult['extractions']>, 'decisions' | 'warnings'>
-    async function poll(pages: ExtractedDecisionData[], meetingLevel: MeetingLevel) {
+    async function poll(pages: ExtractedDecisionData[]) {
         const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
-        await handlePollDecisionsResult(task.id, makePollDecisionsResult({ extractions: { decisions: pages, warnings: [], ...meetingLevel } }))
+        await handlePollDecisionsResult(task.id, makePollDecisionsResult({ extractions: { decisions: pages, warnings: [] } }))
     }
     const statusOf = async (personId: string, item: number) =>
         (await prisma.subjectAttendance.findFirst({ where: { subjectId: s[item - 1].id, personId, source: 'decision' } }))?.status
 
-    // The poll handler still writes the meeting-level rows the task sends, but the
-    // derivation runs after it in the same callback and replaces them with the
-    // roll call and the events it resolves over every stored page.
+    // The poll handler stores each page only; the derivation runs after it in the
+    // same callback and resolves the roll call and the events over every stored page.
     test("a departure the first poll's pages state survives a poll that reads one new page", async () => {
         // Poll 1 reads items 1 and 2; both state the departure.
-        await poll([page(1, { attendanceChanges: [departureOfB()] }), page(2, { attendanceChanges: [departureOfB()] })],
-            // MEETING-LEVEL: what task v4 resolved over this poll's pages. Task 9 deletes it.
-            { initialAttendance: allPresent(), attendanceEvents: [{ ...departureOfB(), reportingPdfCount: 2, totalPdfCount: 2 }] })
+        await poll([page(1, { attendanceChanges: [departureOfB()] }), page(2, { attendanceChanges: [departureOfB()] })])
         expect(await statusOf(b.id, 2)).toBe('ABSENT')
 
         // Poll 2 reads item 3, whose page does not restate the session.
-        await poll([page(3)],
-            // MEETING-LEVEL: task v4 over one page, which states no change. Task 9 deletes it.
-            { initialAttendance: allPresent(), attendanceEvents: [] })
+        await poll([page(3)])
 
         expect(await statusOf(b.id, 2)).toBe('ABSENT')
         expect(await statusOf(b.id, 3)).toBe('ABSENT')
     })
 
     test('a misread roll call on the one new page does not replace the roll call two pages agree on', async () => {
-        await poll([page(1), page(2)],
-            // MEETING-LEVEL. Task 9 deletes it.
-            { initialAttendance: allPresent(), attendanceEvents: [] })
+        await poll([page(1), page(2)])
         // Item 3's ΑΠΟΧΩΡΗΣΑΝΤΕΣ column came back as its roll call (Argos, 6Ι9ΑΩΨΔ-0Υ8).
-        await poll([page(3, { rollCallPresent: [a.id], rollCallAbsent: [b.id, c.id] })],
-            // MEETING-LEVEL: task v4 over that one page. Task 9 deletes it.
-            { initialAttendance: [{ personId: a.id, status: 'PRESENT' }, { personId: b.id, status: 'ABSENT' }, { personId: c.id, status: 'ABSENT' }], attendanceEvents: [] })
+        await poll([page(3, { rollCallPresent: [a.id], rollCallAbsent: [b.id, c.id] })])
 
         const rollCall = await prisma.meetingAttendance.findMany({ where: { cityId, councilMeetingId: meetingId, source: 'decision' } })
         expect(rollCall.map(r => r.status).sort()).toEqual(['PRESENT', 'PRESENT', 'PRESENT'])
@@ -92,8 +80,7 @@ describe('two polls of one meeting', () => {
     })
 
     test('rows the derivation wrote do not feed the next derivation', async () => {
-        await poll([page(1, { attendanceChanges: [departureOfB()] }), page(2, { attendanceChanges: [departureOfB()] })],
-            { initialAttendance: allPresent(), attendanceEvents: [{ ...departureOfB(), reportingPdfCount: 2, totalPdfCount: 2 }] })
+        await poll([page(1, { attendanceChanges: [departureOfB()] }), page(2, { attendanceChanges: [departureOfB()] })])
         const before = await explainMeeting(cityId, meetingId)
         // Tamper with the derived output: the roll call says B absent, and the events are gone.
         await prisma.meetingAttendance.updateMany({ where: { cityId, councilMeetingId: meetingId, personId: b.id, source: 'decision' }, data: { status: 'ABSENT' } })
@@ -102,7 +89,7 @@ describe('two polls of one meeting', () => {
     })
 
     test('a manual roll-call row still outranks the pages', async () => {
-        await poll([page(1), page(2)], { initialAttendance: allPresent(), attendanceEvents: [] })
+        await poll([page(1), page(2)])
         await prisma.meetingAttendance.create({ data: { cityId, councilMeetingId: meetingId, personId: a.id, status: 'ABSENT', source: 'manual' } })
         const out = await deriveAndPersist(cityId, meetingId)
         expect(await statusOf(a.id, 1)).toBe('ABSENT')

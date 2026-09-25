@@ -1,7 +1,6 @@
 "use server";
 
-import { PollDecisionsRequest, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData, PollDecisionsAttendanceEvent } from "@/lib/apiTypes";
-import { anchorKindOf, ANCHOR_PHASE, ANCHOR_TIMING } from "@/lib/derivation/anchors";
+import { PollDecisionsRequest, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData } from "@/lib/apiTypes";
 import { isDecisionConventions } from "@/lib/decisionConventions";
 import { renderConventionsText, conventionsGlossaryEn } from "@/lib/decisionConventionsText";
 import { storeDecisionFacts } from "@/lib/db/decisionFacts";
@@ -9,7 +8,7 @@ import { deriveAndPersist } from "@/lib/derivation/persist";
 import { readingStatesFacts } from "@/lib/derivation";
 import { startTask } from "./tasks";
 import prisma from "@/lib/db/prisma";
-import { AttendanceStatus, DataSource, VoteType, Prisma, AttendanceEventKind, AttendanceAnchorKind, NonAgendaReason } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { sortSubjectsByDiscussionOrder } from "@/lib/minutes/builders";
 
@@ -990,8 +989,6 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     // partial failures roll back individual subjects without blocking others.
     // Uses deleteMany + createMany instead of N individual upserts.
     let extractedCount = 0;
-    /** Any stored-fact write that failed, which makes the meeting's facts a mix of two polls. */
-    let factWriteFailed = false;
     if (result.extractions) {
         for (const decision of result.extractions.decisions) {
             try {
@@ -1056,7 +1053,6 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
 
                 extractedCount++;
             } catch (error) {
-                factWriteFailed = true;
                 console.error(`Failed to write extraction data for subject ${decision.subjectId}:`, error);
             }
 
@@ -1075,94 +1071,13 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             }
         }
 
-        // --- Store meeting-level initial attendance (roll call) ---
-        if (result.extractions.initialAttendance && result.extractions.initialAttendance.length > 0) {
-            try {
-                const cityId = task.cityId!;
-                const meetingId = task.councilMeetingId!;
-                await prisma.$transaction(async (tx) => {
-                    await tx.meetingAttendance.deleteMany({
-                        where: { cityId, councilMeetingId: meetingId, source: DataSource.decision },
-                    });
-                    await tx.meetingAttendance.createMany({
-                        data: result.extractions!.initialAttendance!.map(a => ({
-                            cityId,
-                            councilMeetingId: meetingId,
-                            personId: a.personId,
-                            status: a.status,
-                            source: DataSource.decision,
-                            taskId,
-                        })),
-                    });
-                });
-                console.log(`Stored ${result.extractions.initialAttendance.length} meeting-level attendance records`);
-            } catch (error) {
-                factWriteFailed = true;
-                console.error('Failed to store meeting-level attendance:', error);
-            }
-        }
-
-        // --- Store the session's attendance events as the documents state them ---
-        if (result.extractions.attendanceEvents) {
-            try {
-                const cityId = task.cityId!;
-                const meetingId = task.councilMeetingId!;
-                const validPersonIds = new Set((await prisma.person.findMany({ where: { cityId }, select: { id: true } })).map(p => p.id));
-                const resolved = result.extractions.attendanceEvents
-                    .filter(e => e.personId && validPersonIds.has(e.personId))
-                    .map(e => ({ e, anchorKind: anchorKindOf(e) }));
-                // One event with an anchor kind we do not know must not cost the
-                // meeting its whole set: it is skipped, loudly, and the rest store.
-                for (const { e, anchorKind } of resolved) {
-                    if (!anchorKind) console.warn(`Skipping attendance event with unknown anchor kind «${e.anchor.kind}»: ${e.rawText}`);
-                }
-                const events = resolved.filter((r): r is { e: PollDecisionsAttendanceEvent; anchorKind: AttendanceAnchorKind } => r.anchorKind !== null);
-                await prisma.$transaction(async (tx) => {
-                    await tx.attendanceEvent.deleteMany({ where: { cityId, councilMeetingId: meetingId, source: DataSource.decision } });
-                    if (events.length > 0) {
-                        await tx.attendanceEvent.createMany({
-                            data: events.map(({ e, anchorKind }) => ({
-                                cityId,
-                                councilMeetingId: meetingId,
-                                personId: e.personId!,
-                                kind: e.type === 'arrival' ? AttendanceEventKind.ARRIVAL : AttendanceEventKind.DEPARTURE,
-                                anchorKind,
-                                anchorAgendaItemIndex: e.anchor.agendaItemIndex,
-                                anchorNonAgendaReason: e.anchor.nonAgendaReason === 'outOfAgenda' ? NonAgendaReason.outOfAgenda : null,
-                                anchorDecisionNumber: e.anchor.decisionNumber,
-                                anchorSubjectId: e.anchor.subjectId ?? null,
-                                anchorPhase: e.anchor.phase ? ANCHOR_PHASE[e.anchor.phase] ?? null : null,
-                                timing: e.anchor.timing ? ANCHOR_TIMING[e.anchor.timing] : null,
-                                rawText: e.rawText,
-                                reportingDocuments: e.reportingPdfCount,
-                                totalDocuments: e.totalPdfCount,
-                                source: DataSource.decision,
-                                taskId,
-                            })),
-                        });
-                    }
-                });
-                console.log(`Stored ${events.length} attendance events (${result.extractions.attendanceEvents.length - events.length} dropped: unknown person or anchor kind)`);
-            } catch (error) {
-                factWriteFailed = true;
-                console.error('Failed to store attendance events:', error);
-            }
-        }
-
-        // One derivation over what was just stored: per-subject attendance and votes
-        // come from the roll call, the events and each document's facts, never from
-        // snapshots tasks may still send.
-        //
-        // Each write above reports its own failure and lets the rest proceed, which
-        // is right for storing but not for deriving: a failed write leaves the
-        // previous poll's facts in place, and deriving would then mix them with
-        // this poll's. The rows already stored stay as they are and the saved task
-        // result can be replayed.
-        if (factWriteFailed) {
-            console.error('Skipping derivation: a fact write failed, so the stored facts are of mixed generations. Replay this task once the cause is fixed.');
-        } else try {
+        // One derivation over every stored page of the meeting (spec §4.3): the roll
+        // call and the changes are resolved from all of them, so a poll that read one
+        // new page only adds that page. A page whose write failed keeps its previous
+        // reading, which is whole.
+        try {
             const derived = await deriveAndPersist(task.cityId!, task.councilMeetingId!, taskId);
-            console.log(`Derived ${derived.attendance.length} attendance rows, ${derived.votes.length} vote rows, ${derived.issues.length} issues`);
+            console.log(`Derived ${derived.attendance.length} attendance rows, ${derived.votes.length} vote rows, ${derived.rollCall.length} roll-call rows, ${derived.events.length} events, ${derived.issues.length} issues`);
         } catch (error) {
             console.error('Derivation after poll failed:', error);
         }

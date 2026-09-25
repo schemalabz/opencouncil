@@ -594,12 +594,6 @@ export interface PollDecisionsResult {
     extractions: {
         decisions: ExtractedDecisionData[];
         warnings: string[];
-        /** Initial roll call — who was present/absent at session start (meeting-level, not per-subject) */
-        initialAttendance?: { personId: string; status: 'PRESENT' | 'ABSENT' }[];
-        /** Names from the initial roll call that couldn't be matched to any person in the database */
-        unmatchedInitialAttendance?: string[];
-        /** The session's arrivals and departures as the documents state them, with their anchors. Absent from older tasks versions. */
-        attendanceEvents?: PollDecisionsAttendanceEvent[];
     } | null;
     usage: TaskTokenUsage;
     metadata?: {

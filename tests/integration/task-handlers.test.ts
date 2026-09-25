@@ -1313,6 +1313,36 @@ describe('pollDecisions extraction processing', () => {
         const attendance = await prisma.subjectAttendance.findMany({ where: { subjectId: subject.id } })
         expect(attendance).toHaveLength(2)
     })
+
+    test('a callback still carrying the retired meeting-level fields is accepted and ignored', async () => {
+        // A tasks server from before Task 16 (opencouncil-tasks) still sends
+        // initialAttendance / unmatchedInitialAttendance / attendanceEvents on
+        // extractions. The app must not reject the callback for the unknown
+        // keys — version skew is safe in both directions (spec §4.3).
+        const subject = await createSubject(meetingId, cityId, { name: 'Legacy wire', agendaItemIndex: 1 })
+        await prisma.decision.create({
+            data: { subjectId: subject.id, pdfUrl: 'https://example.com/legacy.pdf', ada: 'ADA-LEGACY' },
+        })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
+
+        const legacyResult = makePollDecisionsResult({
+            extractions: {
+                decisions: [makeExtractedDecision({ subjectId: subject.id, rollCallPresent: [personA.id] })],
+                warnings: [],
+            },
+        })
+        const legacyExtractions = legacyResult.extractions as Record<string, unknown>
+        legacyExtractions.initialAttendance = [{ personId: personA.id, status: 'PRESENT' }]
+        legacyExtractions.unmatchedInitialAttendance = ['Unknown Person']
+        legacyExtractions.attendanceEvents = []
+
+        await expect(handlePollDecisionsResult(task.id, legacyResult)).resolves.not.toThrow()
+
+        // The derivation over the stored page produced this, not the ignored wire fields.
+        const attendance = await prisma.subjectAttendance.findMany({ where: { subjectId: subject.id } })
+        expect(attendance).toHaveLength(1)
+        expect(attendance[0].personId).toBe(personA.id)
+    })
 })
 
 describe('handlePollDecisionsResult — conflict evidence rule', () => {
