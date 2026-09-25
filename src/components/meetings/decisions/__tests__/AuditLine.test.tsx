@@ -19,7 +19,7 @@ const el = admin.decisionsPage;
 const literalHead = (icu: string) => icu.split('{')[0].trim();
 
 const issue = (over: Partial<Issue> = {}): Issue => ({
-    code: 'LAYOUT_DISAGREES', severity: 'warning', subjectId: 's1', source: 'decision',
+    code: 'LAYOUT_DISAGREES', subjectId: 's1', source: 'decision',
     params: { expected: 'composition_and_absent', found: 'present_and_absent' },
     ...over,
 } as Issue);
@@ -53,17 +53,16 @@ describe('AuditLine', () => {
         expect(line).toHaveTextContent(literalHead(el.issues.messages.LAYOUT_DISAGREES));
     });
 
-    it('takes the severity from the catalogue, not from the row that carries the issue', async () => {
-        // The row says `info`; the derivation raises INCOMPLETE_READ as an
-        // error and the catalogue is where that is stated once.
-        renderLine({ severity: 'info', code: 'INCOMPLETE_READ', issue: issue({ code: 'INCOMPLETE_READ', severity: 'info', params: {} }) });
+    it('states the severity the signal carries, in words as well as in colour', async () => {
+        // `auditSignalFor` reads it from the catalogue; this line prints it.
+        renderLine({ severity: 'error', code: 'INCOMPLETE_READ', issue: issue({ code: 'INCOMPLETE_READ', params: {} }) });
         await userEvent.click(screen.getByRole('button', { name: 'Ατελής ανάγνωση' }));
         expect(screen.getByText('Σφάλμα')).toBeInTheDocument();
         expect(screen.getByLabelText('Έλεγχος').querySelector('.bg-red-600')).not.toBeNull();
     });
 
     it('names every step that raises a code, not just the first', async () => {
-        renderLine({ severity: 'error', code: 'NO_ROLL_CALL', issue: issue({ code: 'NO_ROLL_CALL', severity: 'error', params: {} }) });
+        renderLine({ severity: 'error', code: 'NO_ROLL_CALL', issue: issue({ code: 'NO_ROLL_CALL', params: {} }) });
         await userEvent.click(screen.getByRole('button', { name: 'Χωρίς αρχική εκφώνηση' }));
         expect(screen.getByText('Προκύπτει στον υπολογισμό των παρόντων και στην εγγραφή των στοιχείων')).toBeInTheDocument();
     });

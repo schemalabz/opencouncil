@@ -496,7 +496,9 @@
         "NO_STORED_FACTS": "No stored facts",
         "LAYOUT_DISAGREES": "Roll call layout disagrees",
         "ITEM_NUMBER_DISAGREES": "Item number disagrees",
-        "UNREAD_DOCUMENT": "Unread document"
+        "UNREAD_DOCUMENT": "Unread document",
+        "LIST_DROPS_PRESENT": "List drops a present member",
+        "LIST_ADDS_ABSENT": "List adds an absent member"
       },
       "messages": {
         "NO_ROLL_CALL": "No document yielded a roll call, so presence cannot be replayed. The stored rows were left as they are.",
@@ -512,7 +514,9 @@
         "NO_STORED_FACTS": "{missing} of {total} documents were read before facts were stored; re-poll the meeting to derive attendance and votes. The stored rows were left as they are.",
         "LAYOUT_DISAGREES": "The body's conventions say the roll call is printed as «{expected, select, composition_and_absent {Composition and absent} present_and_absent {Present and absent} present_only {Present only} mixed {Mixed} other {{expected}}}», but this document printed it as «{found, select, composition_and_absent {Composition and absent} present_and_absent {Present and absent} present_only {Present only} mixed {Mixed} other {{found}}}».",
         "ITEM_NUMBER_DISAGREES": "The document states it decided agenda item {declared} but is linked to item {linked}; if the link is wrong, every fact the document carries sits on the wrong subject.",
-        "UNREAD_DOCUMENT": "This decision's document was not read; the subject's attendance comes from the meeting's other documents and its votes are missing. Re-poll the meeting."
+        "UNREAD_DOCUMENT": "This decision's document was not read; the subject's attendance comes from the meeting's other documents and its votes are missing. Re-poll the meeting.",
+        "LIST_DROPS_PRESENT": "The document's roll call says this member is present and the same document's member list leaves them out; the list wins and the member is absent for this item.",
+        "LIST_ADDS_ABSENT": "The document's roll call says this member is absent and the same document's member list names them; the list wins and the member is present. Check that the list is not a misread column of members who had left."
       },
       "tallyDiff": "{type, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{type}}}: printed {printed}, derived {derived}",
       "title": "Issues",
@@ -617,7 +621,9 @@
           "NO_ROLL_CALL": "No source gives a roll call, so there is nothing for the replay to start from.",
           "PRESENCE_UNKNOWN": "It is not clear whether the present list is the opening roll call or already includes those who arrived later. It changes who counts as present at the first subjects.",
           "SOURCES_DISAGREE": "Two sources say different things about the same person. One prevails on precedence and the other is reported rather than erased.",
-          "IMPLIED_CHANGE": "A decision's list shows a change that no document stated explicitly as an arrival or a departure."
+          "IMPLIED_CHANGE": "A decision's list shows a change that no document stated explicitly as an arrival or a departure.",
+          "LIST_DROPS_PRESENT": "One document prints both a roll call and a member list, and the list drops a member the roll call has present. The list knows more, so a note is enough.",
+          "LIST_ADDS_ABSENT": "One document prints both a roll call and a member list, and the list adds a member the roll call has absent. This is how a misread column of members who had left shows up."
         },
         "votes": {
           "TALLY_MISMATCH": "The printed tally does not agree with the rows that came out. Usually it means a presence change is missing.",

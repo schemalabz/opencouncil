@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ISSUE_SEVERITY } from '@/lib/derivation/issueCatalogue';
 import { renderIssue, renderIssueStages } from '@/lib/derivation/issueText';
 import { cn } from '@/lib/utils';
 import { ExplainDerivationLink, SeverityChip, SeverityDot } from './auditGlossary';
@@ -60,7 +59,7 @@ function describe(t: T, signal: AuditSignal): { phrase: string; detail: string |
  * reader nothing they could act on.
  *
  * The explanation opens in place, inside the line's own border, rather than in
- * a tooltip or a glossary of all thirteen codes: the question is asked at the
+ * a tooltip or a glossary of every code there is: the question is asked at the
  * code someone is looking at, and it is answered there. Closed by default,
  * because a table of forty rows each shouting a paragraph is not an audit.
  */
@@ -72,12 +71,7 @@ export function AuditLine({ signal, onExplainDerivation }: {
     const t = useTranslations('admin.decisionsPage');
     const [open, setOpen] = useState(false);
     const { phrase, detail } = describe(t, signal);
-    const { issue } = signal;
-
-    // The catalogue states a code's severity once, and this line says it out
-    // loud — so it reads the statement rather than the copy the row happens to
-    // carry. For every kind but `issues` there is no code and no claim to make.
-    const severity = signal.code ? ISSUE_SEVERITY[signal.code] : signal.severity;
+    const { issue, severity } = signal;
 
     return (
         <div

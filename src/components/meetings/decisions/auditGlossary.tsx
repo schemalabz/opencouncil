@@ -5,13 +5,13 @@ import { cn } from '@/lib/utils';
 import type { IssueSeverity } from '@/lib/derivation/issueCatalogue';
 
 /**
- * The vocabulary both audit surfaces speak — the table's line under a subject
- * and the rail's issues card.
+ * The vocabulary every audit surface speaks — the table's line under a subject,
+ * the rail's issues card, and the derivation dialog's list of codes.
  *
- * It lives in one module because a reader meets the same code in both places
- * and has to be taught it once: the same dot colour, the same word for the
- * severity, the same offer to see the whole derivation. Each surface kept its
- * own copy of the colours until now, which is two chances to drift.
+ * It lives in one module because a reader meets the same code in all three
+ * places and has to be taught it once: the same dot colour, the same word for
+ * the severity, the same offer to see the whole derivation. Each surface kept
+ * its own copy of the colours until now, which was three chances to drift.
  */
 
 const DOT: Record<IssueSeverity, string> = {

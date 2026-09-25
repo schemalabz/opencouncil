@@ -42,7 +42,7 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
     const unknownSubjectIds: string[] = [];
 
     if (rollCall.length === 0) {
-        issues.push({ code: 'NO_ROLL_CALL', severity: 'error', source: null, params: {} });
+        issues.push({ code: 'NO_ROLL_CALL', source: null, params: {} });
         return { attendance, presentBySubject, issues, unknownSubjectIds };
     }
     const meaning = conventions?.presentListMeaning ?? 'unknown';
@@ -55,7 +55,7 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
     if (meaning === 'unknown' && !statesPerDecision && !assumeOpening) {
         for (const s of subjects) {
             unknownSubjectIds.push(s.id);
-            issues.push({ code: 'PRESENCE_UNKNOWN', severity: 'warning', subjectId: s.id, source: null, params: { reason: 'unsettled' } });
+            issues.push({ code: 'PRESENCE_UNKNOWN', subjectId: s.id, source: null, params: { reason: 'unsettled' } });
         }
         return { attendance, presentBySubject, issues, unknownSubjectIds };
     }
@@ -87,7 +87,7 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
         if (!prev) { rollCallSource.set(r.personId, r); state.set(r.personId, r.status); continue; }
         if (prev.status === r.status) continue;
         const [win, lose] = sourceRank(r.source) < sourceRank(prev.source) ? [r, prev] : [prev, r];
-        issues.push({ code: 'SOURCES_DISAGREE', severity: 'warning', personId: r.personId, source: win.source,
+        issues.push({ code: 'SOURCES_DISAGREE', personId: r.personId, source: win.source,
             params: { kind: 'rollCall', winSource: win.source, winStatus: win.status, loseSource: lose.source, loseStatus: lose.status } });
         rollCallSource.set(r.personId, win);
         state.set(r.personId, win.status);
@@ -145,7 +145,7 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
             const stillOut = outAgainForTheNextVote(prev, e, i, subjectId);
             if (stillOut) { chosen.set(e.personId, stillOut); continue; }
             const [win, lose] = sourceRank(e.source) < sourceRank(prev.source) ? [e, prev] : [prev, e];
-            issues.push({ code: 'SOURCES_DISAGREE', severity: 'warning', subjectId, personId: e.personId, source: win.source, rawText: win.rawText,
+            issues.push({ code: 'SOURCES_DISAGREE', subjectId, personId: e.personId, source: win.source, rawText: win.rawText,
                 params: { kind: 'event', winKind: win.kind, winRawText: win.rawText, winSource: win.source, loseRawText: lose.rawText, loseSource: lose.source } });
             chosen.set(e.personId, win);
         }
@@ -163,6 +163,7 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
         // last one read. Where the page also prints ΤΑ ΜΕΛΗ the two are one
         // statement made twice, and a member they disagree on is reported.
         const perDecisionRollCall = meaning === 'per_decision' && doc?.rollCallPresentIds ? new Set(doc.rollCallPresentIds) : null;
+        const namedByPageRollCall = perDecisionRollCall ? new Set([...perDecisionRollCall, ...doc?.rollCallAbsentIds ?? []]) : null;
         if (perDecisionRollCall && doc) {
             const eventHere = new Map(eventsHere.map(e => [e.personId, e]));
             for (const personId of [...doc.rollCallPresentIds ?? [], ...doc.rollCallAbsentIds ?? []]) {
@@ -176,7 +177,7 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
                     // other change it contradicts is the page against itself: the roll call
                     // is the state and wins, and the change is reported, not overwritten.
                     if (contradicted.kind === 'DEPARTURE' && contradicted.anchorKind === 'SUBJECT' && contradicted.anchorSubjectId === s.id) continue;
-                    issues.push({ code: 'SOURCES_DISAGREE', severity: 'warning', subjectId: s.id, personId, decisionId: doc.decisionId, source: 'decision',
+                    issues.push({ code: 'SOURCES_DISAGREE', subjectId: s.id, personId, decisionId: doc.decisionId, source: 'decision',
                         rawText: contradicted.rawText, params: { kind: 'statedList', status, eventKind: contradicted.kind, rawText: contradicted.rawText } });
                 }
                 state.set(personId, status);
@@ -215,13 +216,20 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
                     // συνεδρίασης», which no roll call moved for). A member the roll call has
                     // and the list drops is the list knowing more, and only worth a note; a
                     // member the list adds that no roll call has is how a misread column
-                    // (ΑΠΟΧΩΡΗΣΑΝΤΕΣ as the list) shows up, and stays a warning.
-                    if (perDecisionRollCall) issues.push({ code: 'SOURCES_DISAGREE', severity: status === 'ABSENT' ? 'info' : 'warning', subjectId: s.id, personId, decisionId: doc.decisionId, source: 'decision',
-                        params: { kind: 'rollCallVsList', rollCallStatus: before, listStatus: status } });
-                    else if (contradicted) issues.push({ code: 'SOURCES_DISAGREE', severity: 'warning', subjectId: s.id, personId, decisionId: doc.decisionId,
+                    // (ΑΠΟΧΩΡΗΣΑΝΤΕΣ as the list) shows up, and stays a warning. Two codes
+                    // rather than one, because the two carry different severities and
+                    // severity follows the code; there are two statuses and the sides
+                    // disagree, so the code alone says which way round the pair is.
+                    // Only for a member the page's roll call names: for anyone else
+                    // `before` is the state carried from earlier pages, and quoting it
+                    // as this page's roll call would state what the page never said.
+                    if (namedByPageRollCall?.has(personId)) issues.push(status === 'ABSENT'
+                        ? { code: 'LIST_DROPS_PRESENT', subjectId: s.id, personId, decisionId: doc.decisionId, source: 'decision', params: {} }
+                        : { code: 'LIST_ADDS_ABSENT', subjectId: s.id, personId, decisionId: doc.decisionId, source: 'decision', params: {} });
+                    else if (contradicted) issues.push({ code: 'SOURCES_DISAGREE', subjectId: s.id, personId, decisionId: doc.decisionId,
                         source: 'decision', rawText: contradicted.rawText,
                         params: { kind: 'statedList', status, eventKind: contradicted.kind, rawText: contradicted.rawText } });
-                    else issues.push({ code: 'IMPLIED_CHANGE', severity: 'info', subjectId: s.id, personId, decisionId: doc.decisionId, source: 'decision',
+                    else issues.push({ code: 'IMPLIED_CHANGE', subjectId: s.id, personId, decisionId: doc.decisionId, source: 'decision',
                         params: { status } });
                 }
                 state.set(personId, status);
@@ -230,11 +238,11 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
         } else if (meaning !== 'unknown' || assumeOpening) {
             emit(s.id, 'derived');
             if (assumeOpening && statesAnArrival) {
-                issues.push({ code: 'PRESENCE_UNKNOWN', severity: 'warning', subjectId: s.id, source: null, params: { reason: 'assumedOpening' } });
+                issues.push({ code: 'PRESENCE_UNKNOWN', subjectId: s.id, source: null, params: { reason: 'assumedOpening' } });
             }
         } else {
             unknownSubjectIds.push(s.id);
-            issues.push({ code: 'PRESENCE_UNKNOWN', severity: 'warning', subjectId: s.id, source: null, params: { reason: 'noPerDecisionList' } });
+            issues.push({ code: 'PRESENCE_UNKNOWN', subjectId: s.id, source: null, params: { reason: 'noPerDecisionList' } });
         }
     });
     return { attendance, presentBySubject, issues, unknownSubjectIds };

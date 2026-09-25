@@ -1,4 +1,4 @@
-import { ISSUE_CODES, type IssueCode } from './types';
+import { ISSUE_CODES, type Issue, type IssueCode } from './types';
 
 export type IssueSeverity = 'info' | 'warning' | 'error';
 
@@ -11,18 +11,18 @@ export const DERIVATION_STAGES = ['read', 'place', 'presence', 'votes', 'write']
 export type DerivationStage = typeof DERIVATION_STAGES[number];
 
 /**
- * Every code's severity, in one place.
+ * Every code's severity, in one place — and the only place.
  *
- * The severity a reader is shown has to be the severity the derivation
- * actually raises, and until this existed there was nowhere to read it from:
- * each raise site carried its own literal, so a glossary would have been a
- * second, unenforced copy. This is a mirror of those literals rather than
- * their source — the raise sites still spell theirs out, so that this module
- * adds nothing to the derivation's own path — and `issueCatalogue.test.ts`
- * reads the raise sites and fails if the two ever disagree.
+ * The severity a reader is shown has to be the severity the derivation actually
+ * raises. Each raise site used to spell out its own literal, which made this map
+ * a second copy free to drift, and one site computed its literal from the row
+ * («info» for a member the list drops) while both audit surfaces printed the
+ * map's «warning» over it. An `Issue` therefore carries no severity at all:
+ * severity is a function of the code, this map is the function, and a raise site
+ * has nowhere to state a different one.
  *
- * Pointing the raise sites at this map is the obvious follow-up; it was left
- * out deliberately, because it would rewrite files another branch is editing.
+ * A code needing two severities is two codes — see `LIST_DROPS_PRESENT` and
+ * `LIST_ADDS_ABSENT`, which were one code until this map became the source.
  */
 export const ISSUE_SEVERITY: Record<IssueCode, IssueSeverity> = {
     NO_ROLL_CALL: 'error',
@@ -39,7 +39,29 @@ export const ISSUE_SEVERITY: Record<IssueCode, IssueSeverity> = {
     LAYOUT_DISAGREES: 'warning',
     ITEM_NUMBER_DISAGREES: 'error',
     UNREAD_DOCUMENT: 'warning',
+    LIST_DROPS_PRESENT: 'info',
+    LIST_ADDS_ABSENT: 'warning',
 };
+
+/** Worse first. Private: what callers need is "which of these is worse", below. */
+const SEVERITY_ORDER: Record<IssueSeverity, number> = { error: 0, warning: 1, info: 2 };
+
+/**
+ * Which of two codes is worse, as a sort comparator: worse first.
+ *
+ * The shared concern is the order, not the numbers. Both audit surfaces kept
+ * their own copy of the same three-value map to answer it — and a third copy
+ * decided the colours — so the module that owns the vocabulary answers it
+ * instead, from each code's one stated severity.
+ */
+export function compareCodeSeverity(a: IssueCode, b: IssueCode): number {
+    return SEVERITY_ORDER[ISSUE_SEVERITY[a]] - SEVERITY_ORDER[ISSUE_SEVERITY[b]];
+}
+
+/** The worst issue of a set, or undefined for an empty one; ties keep the first. */
+export function worstIssue(issues: readonly Issue[]): Issue | undefined {
+    return [...issues].sort((a, b) => compareCodeSeverity(a.code, b.code))[0];
+}
 
 /**
  * Which step raises each code.
@@ -63,6 +85,8 @@ export const ISSUE_STAGES: Record<IssueCode, readonly DerivationStage[]> = {
     PRESENCE_UNKNOWN: ['presence'],
     NO_ROLL_CALL: ['presence', 'write'],
     SOURCES_DISAGREE: ['presence', 'votes'],
+    LIST_DROPS_PRESENT: ['presence'],
+    LIST_ADDS_ABSENT: ['presence'],
     TALLY_MISMATCH: ['votes'],
     NO_STORED_FACTS: ['write'],
 };

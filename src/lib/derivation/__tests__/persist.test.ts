@@ -40,7 +40,7 @@ describe('derivationSkipIssue', () => {
         // The incremental poll: one newly published document is extracted while
         // the rest were read before facts were stored.
         const skip = derivationSkipIssue(input({ documents: [doc('s1', false), doc('s2', true)], subjectIdsWithStoredVotes: ['s1'] }));
-        expect(skip).toMatchObject({ code: 'NO_STORED_FACTS', severity: 'error' });
+        expect(skip).toMatchObject({ code: 'NO_STORED_FACTS' });
         expect(skip!.params).toEqual({ missing: 1, total: 2 });
     });
 
@@ -49,7 +49,7 @@ describe('derivationSkipIssue', () => {
         const i = input({ documents: [doc('s1', false), doc('s2', true)] });
         expect(derivationSkipIssue(i)).toBeNull();
         expect(deriveMeetingFacts(i).issues).toEqual(expect.arrayContaining([
-            expect.objectContaining({ code: 'UNREAD_DOCUMENT', severity: 'warning', subjectId: 's1', decisionId: 'd-s1' })]));
+            expect.objectContaining({ code: 'UNREAD_DOCUMENT', subjectId: 's1', decisionId: 'd-s1' })]));
     });
     it('derives attendance for an unread document and no votes, so the rows it writes never refuse the next run', () => {
         // Its phrase alone, with no named dissenter, would make a contested decision unanimous; its attendance is the meeting's replay.
@@ -65,7 +65,7 @@ describe('derivationSkipIssue', () => {
     });
 
     it('refuses the write when the roll call is empty', () => {
-        expect(derivationSkipIssue(input({ rollCall: [] }))).toMatchObject({ code: 'NO_ROLL_CALL', severity: 'error' });
+        expect(derivationSkipIssue(input({ rollCall: [] }))).toMatchObject({ code: 'NO_ROLL_CALL' });
     });
 
     it('refuses a meeting with no documents and no roll call', () => {

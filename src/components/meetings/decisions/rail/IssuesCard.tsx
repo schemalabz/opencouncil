@@ -4,16 +4,13 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ExplainDerivationLink, SeverityChip, SeverityDot } from '@/components/meetings/decisions/auditGlossary';
 import { RailCard } from '@/components/ui/rail-card';
-import { ISSUE_SEVERITY } from '@/lib/derivation/issueCatalogue';
+import { ISSUE_SEVERITY, compareCodeSeverity } from '@/lib/derivation/issueCatalogue';
 import { renderIssue, renderIssueStages } from '@/lib/derivation/issueText';
 import type { Issue, IssueCode } from '@/lib/derivation/types';
 
-const SEVERITY_ORDER: Record<Issue['severity'], number> = { error: 0, warning: 1, info: 2 };
-
-/** One code's rows, with the worst severity any of them carries. */
+/** One code's rows. The severity is the code's, so the group needs no copy of it. */
 interface CodeGroup {
     code: IssueCode;
-    severity: Issue['severity'];
     issues: Issue[];
 }
 
@@ -22,14 +19,11 @@ export function groupIssuesByCode(issues: Issue[]): CodeGroup[] {
     const byCode = new Map<string, CodeGroup>();
     for (const issue of issues) {
         const group = byCode.get(issue.code);
-        if (!group) byCode.set(issue.code, { code: issue.code, severity: issue.severity, issues: [issue] });
-        else {
-            group.issues.push(issue);
-            if (SEVERITY_ORDER[issue.severity] < SEVERITY_ORDER[group.severity]) group.severity = issue.severity;
-        }
+        if (!group) byCode.set(issue.code, { code: issue.code, issues: [issue] });
+        else group.issues.push(issue);
     }
     return [...byCode.values()].sort((a, b) =>
-        SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]
+        compareCodeSeverity(a.code, b.code)
         || b.issues.length - a.issues.length
         || a.code.localeCompare(b.code));
 }
@@ -61,9 +55,6 @@ export function IssuesCard({ issues, subjectName, onExplainDerivation }: {
             <div className="space-y-1.5 text-xs">
                 {groups.length === 0 && <div className="text-muted-foreground">{tPage('issues.none')}</div>}
                 {groups.map(group => {
-                    // What the derivation says about the code, not what this
-                    // meeting's rows happen to carry — the catalogue states it
-                    // once and the card reads that statement.
                     const severity = ISSUE_SEVERITY[group.code];
                     const open = openCode === group.code;
                     return (

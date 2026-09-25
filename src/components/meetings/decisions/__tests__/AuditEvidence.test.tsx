@@ -56,7 +56,7 @@ describe('AuditEvidence', () => {
 
     it('states the issue as text rather than hiding it in a tooltip', () => {
         const issue = {
-            code: 'UNMATCHED_NAME', severity: 'warning', subjectId: 's1', source: null,
+            code: 'UNMATCHED_NAME', subjectId: 's1', source: null,
             params: { name: 'Κ. Δήμου' },
         } as Issue;
         renderEvidence({ issues: [issue], unmatchedNames: ['Κ. Δήμου'] });
@@ -69,7 +69,7 @@ describe('AuditEvidence', () => {
     it('says only once that the printed and derived counts disagree', () => {
         // The comparison above is the same two numbers the message reads out.
         const issue = {
-            code: 'TALLY_MISMATCH', severity: 'warning', subjectId: 's1', source: null,
+            code: 'TALLY_MISMATCH', subjectId: 's1', source: null,
             params: { diffs: [{ type: 'FOR', printed: 8, derived: 7 }] },
         } as Issue;
         renderEvidence({ issues: [issue], tallyDiffs: [{ type: 'FOR', printed: 8, derived: 7 }] });

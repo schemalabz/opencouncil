@@ -69,7 +69,7 @@ export function deriveVotes(doc: DocumentFacts, present: Set<string> | null, may
         if (first !== undefined) {
             // The same row twice is harmless; two different votes for one member is
             // the document contradicting itself, and the first reading is kept.
-            if (first !== v.vote) issues.push({ code: 'SOURCES_DISAGREE', severity: 'warning', subjectId: doc.subjectId, personId: v.personId,
+            if (first !== v.vote) issues.push({ code: 'SOURCES_DISAGREE', subjectId: doc.subjectId, personId: v.personId,
                 decisionId: doc.decisionId, source: 'decision', rawText: doc.voteResultPhrase ?? undefined,
                 params: { kind: 'doubleVote', firstVote: first, secondVote: v.vote } });
             continue;
@@ -128,7 +128,7 @@ export function deriveVotes(doc: DocumentFacts, present: Set<string> | null, may
             const derived = votes.filter(v => v.voteType === type).length;
             if (derived !== printed) diffs.push({ type, printed, derived });
         }
-        if (diffs.length) issues.push({ code: 'TALLY_MISMATCH', severity: 'warning', subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision',
+        if (diffs.length) issues.push({ code: 'TALLY_MISMATCH', subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision',
             params: { diffs }, rawText: doc.voteResultPhrase ?? undefined });
     }
     return { votes, issues };

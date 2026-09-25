@@ -42,13 +42,13 @@ export function derivationSkipIssue(input: DerivationInput): Issue | null {
     const holdsVotes = new Set(input.subjectIdsWithStoredVotes);
     if (unread.length > 0 && (unread.length === input.documents.length || unread.some(d => holdsVotes.has(d.subjectId)))) {
         return {
-            code: 'NO_STORED_FACTS', severity: 'error', source: null,
+            code: 'NO_STORED_FACTS', source: null,
             params: { missing: unread.length, total: input.documents.length },
         };
     }
     if (input.rollCall.length === 0) {
         return {
-            code: 'NO_ROLL_CALL', severity: 'error', source: null, params: {},
+            code: 'NO_ROLL_CALL', source: null, params: {},
         };
     }
     return null;

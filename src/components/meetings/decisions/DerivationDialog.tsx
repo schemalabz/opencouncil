@@ -2,23 +2,11 @@
 
 import { useTranslations } from 'next-intl';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import { SeverityDot } from '@/components/meetings/decisions/auditGlossary';
 import {
     DERIVATION_STAGES, ISSUE_SEVERITY, ISSUE_STAGES, codesForStage,
-    type DerivationStage, type IssueSeverity,
+    type DerivationStage,
 } from '@/lib/derivation/issueCatalogue';
-
-/**
- * The severity dots, in the vocabulary the rail's issues card and the audit
- * line already teach. Kept by hand for the same reason they are: neither of
- * those exports its map, and all three have to read the same or a reader
- * learns the colour three times.
- */
-const SEVERITY_DOT: Record<IssueSeverity, string> = {
-    error: 'bg-red-600',
-    warning: 'bg-amber-500',
-    info: 'bg-muted-foreground/40',
-};
 
 /**
  * How a fact gets from the Diavgeia PDF to the πρακτικά, in the five steps
@@ -110,10 +98,7 @@ export function DerivationDialog({ open, onOpenChange }: {
                                     </div>
                                     {codesForStage(stage).map(code => (
                                         <div key={code} className="flex items-start gap-2">
-                                            <span
-                                                className={cn('mt-[5px] h-1.5 w-1.5 shrink-0 rounded-full', SEVERITY_DOT[ISSUE_SEVERITY[code]])}
-                                                aria-hidden
-                                            />
+                                            <SeverityDot severity={ISSUE_SEVERITY[code]} className="mt-[5px]" />
                                             <div className="min-w-0">
                                                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                                                     <span className="text-xs">{t(`issues.codes.${code}`)}</span>

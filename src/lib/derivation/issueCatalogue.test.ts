@@ -2,16 +2,19 @@ import fs from 'fs';
 import path from 'path';
 import { ISSUE_CODES, type IssueCode } from './types';
 import {
-    DERIVATION_STAGES, ISSUE_SEVERITY, ISSUE_STAGES, codesForStage,
-    type DerivationStage, type IssueSeverity,
+    DERIVATION_STAGES, ISSUE_STAGES, codesForStage,
+    type DerivationStage,
 } from './issueCatalogue';
 
 /**
- * The catalogue mirrors literals that live at the raise sites, so on its own it
- * is a second copy free to drift — and a glossary that drifts teaches the
- * wrong thing with a straight face. These tests read the derivation's own
- * source and fail when the two disagree, which is what lets the app state a
- * code's severity and origin as fact.
+ * `ISSUE_STAGES` states where each code comes from, and the app prints that
+ * statement as fact — in the audit line, the rail's issues card and the
+ * derivation dialog. Nothing but these tests keeps it true: they read the
+ * derivation's own source and fail when the steps it says a code is raised at
+ * are not the steps that raise it.
+ *
+ * Severity needs no such test any more. An `Issue` carries none, so
+ * `ISSUE_SEVERITY` is the only statement of it and has nothing to disagree with.
  */
 const DIR = path.join(__dirname);
 
@@ -24,16 +27,16 @@ const STAGE_OF_FILE: Record<string, DerivationStage> = {
     'persist.ts': 'write',
 };
 
-const RAISE = /code:\s*'([A-Z_]+)'\s*,\s*severity:\s*'(info|warning|error)'/g;
+const RAISE = /code:\s*'([A-Z_]+)'/g;
 
-interface RaiseSite { code: string; severity: string; file: string }
+interface RaiseSite { code: string; file: string }
 
 function raiseSites(): RaiseSite[] {
     const files = fs.readdirSync(DIR).filter(f => f.endsWith('.ts') && !f.endsWith('.test.ts'));
     const found: RaiseSite[] = [];
     for (const file of files) {
         const src = fs.readFileSync(path.join(DIR, file), 'utf-8');
-        for (const m of src.matchAll(RAISE)) found.push({ code: m[1], severity: m[2], file });
+        for (const m of src.matchAll(RAISE)) found.push({ code: m[1], file });
     }
     return found;
 }
@@ -51,19 +54,6 @@ describe('issue catalogue', () => {
     it('raises issues only from files this catalogue knows the step of', () => {
         const unknown = [...new Set(sites.filter(s => !STAGE_OF_FILE[s.file]).map(s => s.file))];
         expect(unknown).toEqual([]);
-    });
-
-    it('agrees with every raise site about severity', () => {
-        const actual: Record<string, Set<string>> = {};
-        for (const s of sites) (actual[s.code] ??= new Set()).add(s.severity);
-
-        // One code raised at two severities would make a single stated severity
-        // a lie; the catalogue's shape forbids it, so assert it here too.
-        const ambiguous = Object.entries(actual).filter(([, v]) => v.size > 1).map(([c]) => c);
-        expect(ambiguous).toEqual([]);
-
-        const flat = Object.fromEntries(Object.entries(actual).map(([c, v]) => [c, [...v][0]]));
-        expect(flat).toEqual(ISSUE_SEVERITY as Record<string, IssueSeverity>);
     });
 
     it('agrees with every raise site about which steps raise a code', () => {

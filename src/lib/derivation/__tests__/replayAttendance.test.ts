@@ -56,7 +56,7 @@ describe('replayAttendance', () => {
             events: [ev({ personId: 'p2', kind: 'DEPARTURE', anchorKind: 'AGENDA_ITEM', anchorAgendaItemIndex: 2, timing: 'DURING', rawText: 'αποχώρησε κατά το 2ο θέμα' })],
             documents: [doc('s1', { rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [] }), doc('s2', { rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [] })] });
         expect(present(r, 's2')).toEqual(['p1', 'p2']);
-        expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', severity: 'warning', subjectId: 's2', personId: 'p2',
+        expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', subjectId: 's2', personId: 'p2',
             params: expect.objectContaining({ kind: 'statedList', status: 'PRESENT', eventKind: 'DEPARTURE' }) })]);
     });
     it('a subject without a document keeps the state of the last one read, under a per-decision roll call', () => {
@@ -64,11 +64,37 @@ describe('replayAttendance', () => {
             documents: [doc('s1', { rollCallPresentIds: ['p1'], rollCallAbsentIds: ['p2'] })] });
         expect(present(r, 's2')).toEqual(['p1']);
     });
-    it('a per-decision roll call and a stated list on the same page are cross-checked', () => {
-        const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv({ presentListMeaning: 'per_decision', statesPerDecisionAttendance: true, rollCallLayout: 'present_only' }), mayorPersonId: null, events: [],
+    it('a per-decision roll call and a stated list on the same page are cross-checked, each direction its own code', () => {
+        const conventions = conv({ presentListMeaning: 'per_decision', statesPerDecisionAttendance: true, rollCallLayout: 'present_only' });
+        const dropped = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions, mayorPersonId: null, events: [],
             documents: [doc('s1', { rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [], presentIds: ['p1'] })] });
-        expect(present(r, 's1')).toEqual(['p1']);                              // the list still wins for its subject
-        expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', severity: 'info', personId: 'p2', params: expect.objectContaining({ kind: 'rollCallVsList', listStatus: 'ABSENT' }) })]);
+        expect(present(dropped, 's1')).toEqual(['p1']);                        // the list still wins for its subject
+        expect(dropped.issues).toEqual([expect.objectContaining({ code: 'LIST_DROPS_PRESENT', subjectId: 's1', personId: 'p2' })]);
+
+        // The list dropping a member the roll call has is the list knowing more,
+        // and an `info`. The list adding one the roll call has absent is how a
+        // misread ΑΠΟΧΩΡΗΣΑΝΤΕΣ column shows up, and a `warning`. Two severities
+        // are two codes, because severity follows the code.
+        const added = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions, mayorPersonId: null, events: [],
+            documents: [doc('s1', { rollCallPresentIds: ['p1'], rollCallAbsentIds: ['p2'], presentIds: ['p1', 'p2'] })] });
+        expect(present(added, 's1')).toEqual(['p1', 'p2']);
+        expect(added.issues).toEqual([expect.objectContaining({ code: 'LIST_ADDS_ABSENT', subjectId: 's1', personId: 'p2' })]);
+    });
+    it('the two list codes speak for the page\'s roll call only about members it names', () => {
+        // The page's ΠΑΡΟΝΤΕΣ names p1 alone; p2 is present from the opening roll
+        // call. Saying «the document's roll call has this member present» of p2
+        // would quote a statement the page never made.
+        const conventions = conv({ presentListMeaning: 'per_decision', statesPerDecisionAttendance: true, rollCallLayout: 'present_only' });
+        const implied = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions, mayorPersonId: null, events: [],
+            documents: [doc('s1', { rollCallPresentIds: ['p1'], rollCallAbsentIds: [], presentIds: ['p1'] })] });
+        expect(present(implied, 's1')).toEqual(['p1']);
+        expect(implied.issues).toEqual([expect.objectContaining({ code: 'IMPLIED_CHANGE', subjectId: 's1', personId: 'p2' })]);
+
+        const stated = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2', 'ABSENT')], conventions, mayorPersonId: null,
+            events: [ev({ personId: 'p2', kind: 'ARRIVAL', anchorAgendaItemIndex: 1, timing: 'BEFORE', rawText: 'προσήλθε' })],
+            documents: [doc('s1', { rollCallPresentIds: ['p1'], rollCallAbsentIds: [], presentIds: ['p1'] })] });
+        expect(stated.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', subjectId: 's1', personId: 'p2',
+            params: expect.objectContaining({ kind: 'statedList', eventKind: 'ARRIVAL', rawText: 'προσήλθε' }) })]);
     });
     it('a stated per-decision list wins, resets the state, and records the implied change', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2'), rc('p3')], conventions: conv({ statesPerDecisionAttendance: true }), mayorPersonId: null, events: [],

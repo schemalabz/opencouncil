@@ -8,7 +8,7 @@ jest.mock('next-intl', () => ({
 }));
 
 const issue = (o: Partial<Issue>): Issue => ({
-    code: 'UNMATCHED_NAME', severity: 'warning', params: { name: 'm' }, source: 'decision', ...o,
+    code: 'UNMATCHED_NAME', params: { name: 'm' }, source: 'decision', ...o,
 } as Issue);
 
 describe('IssuesCard', () => {
@@ -37,7 +37,7 @@ describe('IssuesCard', () => {
 
     it('shows a row\'s message and the document\'s own words as text, not as a tooltip', () => {
         const { container } = render(
-            <IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', severity: 'error', params: {}, rawText: 'απόντες ουδείς' })]} />,
+            <IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', params: {}, rawText: 'απόντες ουδείς' })]} />,
         );
         fireEvent.click(screen.getByText('issues.codes.NO_ROLL_CALL'));
         expect(screen.getByText('issues.messages.NO_ROLL_CALL{}')).toBeInTheDocument();
@@ -46,9 +46,9 @@ describe('IssuesCard', () => {
     });
 
     it('states a code\'s severity and every step that raises it, from the catalogue', () => {
-        // The rows say `info`; NO_ROLL_CALL is an error raised at two steps,
-        // and the catalogue is where both facts are stated once.
-        render(<IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', severity: 'info', params: {} })]} />);
+        // NO_ROLL_CALL is an error raised at two steps, and the catalogue is
+        // where both facts are stated once.
+        render(<IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', params: {} })]} />);
         fireEvent.click(screen.getByText('issues.codes.NO_ROLL_CALL'));
         expect(screen.getByText('issues.severity.error')).toBeInTheDocument();
         expect(screen.getByText(/issues\.raisedIn\.presence .* issues\.raisedIn\.write/)).toBeInTheDocument();
@@ -68,20 +68,12 @@ describe('IssuesCard', () => {
 describe('groupIssuesByCode', () => {
     it('puts the worst severity first, then the biggest group', () => {
         const groups = groupIssuesByCode([
-            issue({ code: 'IMPLIED_CHANGE', severity: 'info' }),
-            issue({ code: 'IMPLIED_CHANGE', severity: 'info' }),
-            issue({ code: 'UNMATCHED_NAME', severity: 'warning' }),
-            issue({ code: 'INCOMPLETE_READ', severity: 'error' }),
+            issue({ code: 'IMPLIED_CHANGE' }),
+            issue({ code: 'IMPLIED_CHANGE' }),
+            issue({ code: 'UNMATCHED_NAME' }),
+            issue({ code: 'INCOMPLETE_READ' }),
         ]);
         expect(groups.map(g => g.code)).toEqual(['INCOMPLETE_READ', 'UNMATCHED_NAME', 'IMPLIED_CHANGE']);
         expect(groups.map(g => g.issues.length)).toEqual([1, 1, 2]);
-    });
-
-    it('takes the worst severity a code carries as the group\'s own', () => {
-        const groups = groupIssuesByCode([
-            issue({ code: 'SOURCES_DISAGREE', severity: 'info' }),
-            issue({ code: 'SOURCES_DISAGREE', severity: 'warning' }),
-        ]);
-        expect(groups[0].severity).toBe('warning');
     });
 });

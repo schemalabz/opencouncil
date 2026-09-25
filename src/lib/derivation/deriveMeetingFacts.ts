@@ -18,7 +18,7 @@ function documentDisagreements(doc: DocumentFacts, subject: OrderedSubject | und
     const where = { subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision' } as const;
     const expected = conventions?.rollCallLayout;
     if (expected && expected !== 'mixed' && doc.rollCallLayout && doc.rollCallLayout !== expected) {
-        issues.push({ code: 'LAYOUT_DISAGREES', severity: 'warning', ...where, params: { expected, found: doc.rollCallLayout } });
+        issues.push({ code: 'LAYOUT_DISAGREES', ...where, params: { expected, found: doc.rollCallLayout } });
     }
     // Only where both sides name an agenda item. An out-of-agenda subject carries
     // no agendaItemIndex and the number such a document declares counts its
@@ -27,7 +27,7 @@ function documentDisagreements(doc: DocumentFacts, subject: OrderedSubject | und
     if (subject?.agendaItemIndex != null && doc.declaredItemNumber != null
         && doc.declaredOutOfAgenda === false && subject.nonAgendaReason !== 'outOfAgenda'
         && doc.declaredItemNumber !== subject.agendaItemIndex) {
-        issues.push({ code: 'ITEM_NUMBER_DISAGREES', severity: 'error', ...where, params: { declared: doc.declaredItemNumber, linked: subject.agendaItemIndex } });
+        issues.push({ code: 'ITEM_NUMBER_DISAGREES', ...where, params: { declared: doc.declaredItemNumber, linked: subject.agendaItemIndex } });
     }
     return issues;
 }
@@ -39,7 +39,7 @@ function documentDisagreements(doc: DocumentFacts, subject: OrderedSubject | und
 export function deriveMeetingFacts(input: DerivationInput): DerivationOutput {
     const issues: Issue[] = [];
     if (input.conventions && !isConfirmedByPerson(input.conventions)) {
-        issues.push({ code: 'CONVENTIONS_UNCONFIRMED', severity: 'info', source: null, params: {} });
+        issues.push({ code: 'CONVENTIONS_UNCONFIRMED', source: null, params: {} });
     }
     const replay = replayAttendance(input);
     issues.push(...replay.issues);
@@ -51,21 +51,21 @@ export function deriveMeetingFacts(input: DerivationInput): DerivationOutput {
         // Nothing of an unread document is derived: its phrase alone, with no named
         // dissenter to go with it, would make every contested decision unanimous.
         if (!doc.hasExtraction) {
-            issues.push({ code: 'UNREAD_DOCUMENT', severity: 'warning', subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision', params: {} });
+            issues.push({ code: 'UNREAD_DOCUMENT', subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision', params: {} });
             continue;
         }
         const present = replay.presentBySubject.get(doc.subjectId) ?? null;
         issues.push(...documentDisagreements(doc, subjectById.get(doc.subjectId), input.conventions));
         const r = deriveVotes(doc, present, input.mayorPersonId);
         votes.push(...r.votes); issues.push(...r.issues);
-        for (const name of doc.unmatchedNames) issues.push({ code: 'UNMATCHED_NAME', severity: 'warning', subjectId: doc.subjectId, decisionId: doc.decisionId,
+        for (const name of doc.unmatchedNames) issues.push({ code: 'UNMATCHED_NAME', subjectId: doc.subjectId, decisionId: doc.decisionId,
             source: 'decision', rawText: name, params: { name } });
-        if (doc.incomplete) issues.push({ code: 'INCOMPLETE_READ', severity: 'error', subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision',
+        if (doc.incomplete) issues.push({ code: 'INCOMPLETE_READ', subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision',
             params: {} });
         if (doc.presidedById || doc.presidedByName) presiding.set(doc.decisionId, doc.presidedById ?? doc.presidedByName);
     }
     const presidingValues = new Set(presiding.values());
-    if (presidingValues.size > 1) issues.push({ code: 'PRESIDING_DISAGREES', severity: 'warning', source: 'decision',
+    if (presidingValues.size > 1) issues.push({ code: 'PRESIDING_DISAGREES', source: 'decision',
         params: { names: [...presidingValues].join(', ') } });
 
     return { attendance: replay.attendance, votes, issues, phraseOnlySubjectIds: replay.unknownSubjectIds };

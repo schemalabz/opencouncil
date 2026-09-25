@@ -43,7 +43,7 @@ describe('deriveMeetingFacts', () => {
     it('reports the layout a document printed against the one the body was profiled with', () => {
         const out = deriveMeetingFacts({ ...base, documents: [{ ...base.documents[0], rollCallLayout: 'composition_and_absent' }, base.documents[1]] });
         expect(out.issues.filter(i => i.code === 'LAYOUT_DISAGREES')).toEqual([
-            expect.objectContaining({ subjectId: 's1', decisionId: 'd1', severity: 'warning', params: { expected: 'present_and_absent', found: 'composition_and_absent' } }),
+            expect.objectContaining({ subjectId: 's1', decisionId: 'd1', params: { expected: 'present_and_absent', found: 'composition_and_absent' } }),
         ]);
     });
     it('a body whose layout varies is contradicted by no single document', () => {
@@ -56,7 +56,7 @@ describe('deriveMeetingFacts', () => {
     it('reports a document whose declared item number is not the one it is linked to', () => {
         const out = deriveMeetingFacts({ ...base, documents: [{ ...base.documents[0], declaredItemNumber: 7 }, base.documents[1]] });
         expect(out.issues.filter(i => i.code === 'ITEM_NUMBER_DISAGREES')).toEqual([
-            expect.objectContaining({ subjectId: 's1', decisionId: 'd1', severity: 'error', params: { declared: 7, linked: 1 } }),
+            expect.objectContaining({ subjectId: 's1', decisionId: 'd1', params: { declared: 7, linked: 1 } }),
         ]);
     });
     it('an out-of-agenda document counts its own items, so its number is never compared', () => {

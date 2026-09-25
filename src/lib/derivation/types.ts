@@ -93,7 +93,7 @@ export interface DerivationInput {
 export const ISSUE_CODES = [
     'NO_ROLL_CALL', 'PRESENCE_UNKNOWN', 'CONVENTIONS_UNCONFIRMED', 'UNMATCHED_NAME', 'UNPLACEABLE_ANCHOR',
     'IMPLIED_CHANGE', 'TALLY_MISMATCH', 'INCOMPLETE_READ', 'PRESIDING_DISAGREES', 'SOURCES_DISAGREE', 'NO_STORED_FACTS',
-    'LAYOUT_DISAGREES', 'ITEM_NUMBER_DISAGREES', 'UNREAD_DOCUMENT',
+    'LAYOUT_DISAGREES', 'ITEM_NUMBER_DISAGREES', 'UNREAD_DOCUMENT', 'LIST_DROPS_PRESENT', 'LIST_ADDS_ABSENT',
 ] as const;
 export type IssueCode = typeof ISSUE_CODES[number];
 
@@ -105,7 +105,6 @@ export type SourcesDisagreeParams =
     | { kind: 'rollCall'; winSource: DataSource; winStatus: AttendanceStatus; loseSource: DataSource; loseStatus: AttendanceStatus }
     | { kind: 'event'; winKind: AttendanceEventKind; winRawText: string; winSource: DataSource; loseRawText: string; loseSource: DataSource }
     | { kind: 'statedList'; status: AttendanceStatus; eventKind: AttendanceEventKind; rawText: string }
-    | { kind: 'rollCallVsList'; rollCallStatus: AttendanceStatus; listStatus: AttendanceStatus }
     | { kind: 'doubleVote'; firstVote: VoteType; secondVote: VoteType };
 
 /**
@@ -133,10 +132,16 @@ export interface IssueParams {
     LAYOUT_DISAGREES: { expected: RollCallLayout; found: RollCallLayout };
     ITEM_NUMBER_DISAGREES: { declared: number; linked: number };
     UNREAD_DOCUMENT: Record<string, never>;
+    /**
+     * Both are the document's own roll call against the document's own member
+     * list, about one person, and the status of each side follows from the code:
+     * there are two statuses, and the two sides disagree.
+     */
+    LIST_DROPS_PRESENT: Record<string, never>;
+    LIST_ADDS_ABSENT: Record<string, never>;
 }
 
 interface IssueFields {
-    severity: 'info' | 'warning' | 'error';
     subjectId?: string;
     personId?: string;
     decisionId?: string;
@@ -144,7 +149,16 @@ interface IssueFields {
     rawText?: string;
 }
 
-/** A code bound to its own parameters: the sentence is rendered at the edges, from the catalog. */
+/**
+ * A code bound to its own parameters: the sentence is rendered at the edges,
+ * from the catalog.
+ *
+ * It carries no severity. How bad a code is belongs to the code, not to the row
+ * that raises it, so it is stated once in `ISSUE_SEVERITY` (./issueCatalogue.ts)
+ * and every reader looks it up from `code`. A raise site therefore cannot state
+ * a severity that disagrees with what the app shows, because there is no field
+ * to state one in.
+ */
 export type Issue = { [C in IssueCode]: IssueFields & { code: C; params: IssueParams[C] } }[IssueCode];
 
 export type AttendanceOrigin = 'stated' | 'derived';

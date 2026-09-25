@@ -1,6 +1,5 @@
+import { ISSUE_SEVERITY, worstIssue, type IssueSeverity } from '@/lib/derivation/issueCatalogue';
 import type { DerivedVoteRow, Issue, IssueCode } from '@/lib/derivation/types';
-
-const SEVERITY_ORDER: Record<Issue['severity'], number> = { error: 0, warning: 1, info: 2 };
 
 /**
  * What the audit line says about a subject, in the order the line prefers:
@@ -15,7 +14,8 @@ const SEVERITY_ORDER: Record<Issue['severity'], number> = { error: 0, warning: 1
 export type AuditKind = 'issues' | 'phraseOnly' | 'inferredVotes' | 'stated';
 
 export interface AuditSignal {
-    severity: Issue['severity'];
+    /** The catalogue's severity for `code`, or `info` when the line names no code. */
+    severity: IssueSeverity;
     kind: AuditKind;
     /** The code the phrase names. Null for every kind but `issues`. */
     code: IssueCode | null;
@@ -64,10 +64,10 @@ export function auditSignalFor(input: {
         needsCheck: issues.length > 0,
     };
 
-    if (issues.length > 0) {
-        const worst = [...issues].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])[0];
+    const worst = worstIssue(issues);
+    if (worst) {
         return {
-            ...base, severity: worst.severity, kind: 'issues', code: worst.code, issue: worst,
+            ...base, severity: ISSUE_SEVERITY[worst.code], kind: 'issues', code: worst.code, issue: worst,
             extraIssues: issues.length - 1,
         };
     }

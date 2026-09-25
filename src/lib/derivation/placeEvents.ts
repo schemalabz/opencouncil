@@ -51,7 +51,7 @@ export function placeEvents<E extends PlaceableEvent>(subjects: OrderedSubject[]
     const placed: PlacedEvent<E>[] = [];
     const issues: Issue[] = [];
     const unplaceable = (e: E, reason: IssueParams['UNPLACEABLE_ANCHOR']['reason'], detail = '') => issues.push({
-        code: 'UNPLACEABLE_ANCHOR', severity: 'warning', personId: e.personId, source: e.source ?? null, rawText: e.rawText,
+        code: 'UNPLACEABLE_ANCHOR', personId: e.personId, source: e.source ?? null, rawText: e.rawText,
         params: { kind: e.kind, reason, detail },
     });
 

@@ -2,7 +2,7 @@ import { auditSignalFor } from '../auditSignal';
 import type { DerivedVoteRow, Issue } from '@/lib/derivation/types';
 
 const issue = (over: Partial<Issue> = {}): Issue => ({
-    code: 'INCOMPLETE_READ', severity: 'warning', subjectId: 's1', source: null, params: {},
+    code: 'INCOMPLETE_READ', subjectId: 's1', source: null, params: {},
     ...over,
 } as Issue);
 
@@ -11,11 +11,14 @@ const vote = (origin: DerivedVoteRow['origin'], personId = 'p1'): DerivedVoteRow
 
 describe('auditSignalFor', () => {
     it('names the worst issue and counts the rest', () => {
+        // Worst by the catalogue's severity for each code: the rows carry none.
+        // A warning, an error and a note, in that order, so the answer is not
+        // the first row.
         const signal = auditSignalFor({
             issues: [
-                issue({ code: 'INCOMPLETE_READ', severity: 'warning' }),
-                issue({ code: 'NO_STORED_FACTS', severity: 'error' }),
-                issue({ code: 'CONVENTIONS_UNCONFIRMED', severity: 'info' }),
+                issue({ code: 'UNMATCHED_NAME', params: { name: 'Κ. Δήμου' } }),
+                issue({ code: 'NO_STORED_FACTS' }),
+                issue({ code: 'CONVENTIONS_UNCONFIRMED' }),
             ],
             phraseOnly: false,
             votes: [],
@@ -47,7 +50,7 @@ describe('auditSignalFor', () => {
 
     it('lets an issue speak over the phrase-only state', () => {
         const signal = auditSignalFor({
-            issues: [issue({ code: 'TALLY_MISMATCH', severity: 'warning' })],
+            issues: [issue({ code: 'TALLY_MISMATCH' })],
             phraseOnly: true,
             votes: [],
         });
