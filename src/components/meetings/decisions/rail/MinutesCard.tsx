@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { FileText, Download, Loader2, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { CtaButton } from '@/components/ui/cta-button';
 import { RailCard } from '@/components/ui/rail-card';
 import { cn } from '@/lib/utils';
 
@@ -59,21 +59,23 @@ export function MinutesCard({ onPreview, onExport, previewDisabled, readiness, o
                 <p className="text-xs leading-snug text-muted-foreground">{t('minutes.noSubjects')}</p>
             )}
 
+            {/* The city pages' call to action: the export solid, the two quieter
+                actions as CtaButton's own text variant beside it. */}
             <div className="mt-3 flex flex-col gap-2">
-                <Button variant="outline" size="sm" className="justify-start" disabled={previewDisabled || !hasSubjects} onClick={onPreview}>
-                    <FileText className="h-3.5 w-3.5 mr-1.5" />
+                <CtaButton variant="text" arrow={false} disabled={previewDisabled || !hasSubjects} onClick={onPreview}>
+                    <FileText className="h-4 w-4" />
                     {tPage('previewMinutes')}
-                </Button>
-                <Button size="sm" className="justify-start" onClick={onExport}>
-                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                </CtaButton>
+                <CtaButton arrow={false} className="w-full" onClick={onExport}>
+                    <Download className="h-4 w-4" />
                     {tPage('exportDocx')}
-                </Button>
-                <Button variant="outline" size="sm" className="justify-start" disabled={isRederiving} onClick={onRederive}>
+                </CtaButton>
+                <CtaButton variant="text" arrow={false} disabled={isRederiving} onClick={onRederive}>
                     {isRederiving
-                        ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                        : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <RefreshCw className="h-4 w-4" />}
                     {tPage('rederive')}
-                </Button>
+                </CtaButton>
             </div>
 
             <p className="mt-2.5 text-[11px] leading-snug text-muted-foreground">{tPage('rail.minutesProvenance')}</p>
