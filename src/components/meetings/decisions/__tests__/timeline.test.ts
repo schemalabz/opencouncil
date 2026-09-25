@@ -44,7 +44,7 @@ describe('buildTimeline', () => {
             councilComposition,
             absentMembers: [member('Α'), member('Β')],
         });
-        expect(rollCall).toEqual({ count: { present: 2, absent: 2 }, absentNames: ['Α', 'Β'], presentNames: ['Γ', 'Δ'] });
+        expect(rollCall).toEqual({ count: { present: 2, absent: 2 }, absentNames: ['Α', 'Β'], presentNames: ['Γ', 'Δ'], mayor: null, president: null });
     });
 
     it('gives the roll call a null count when there is no council composition', () => {
@@ -55,7 +55,7 @@ describe('buildTimeline', () => {
             councilComposition: null,
             absentMembers: [member('Α')],
         });
-        expect(rollCall).toEqual({ count: null, absentNames: [], presentNames: [] });
+        expect(rollCall).toEqual({ count: null, absentNames: [], presentNames: [], mayor: null, president: null });
     });
 
     it('excludes an absent mayor from both the count and the absent names, since the composition pool never held them', () => {
@@ -73,7 +73,13 @@ describe('buildTimeline', () => {
             councilComposition,
             absentMembers: [mayor, member('m1')],
         });
-        expect(rollCall).toEqual({ count: { present: 2, absent: 1 }, absentNames: ['m1'], presentNames: ['m0', 'm2'] });
+        expect(rollCall).toEqual({
+            count: { present: 2, absent: 1 },
+            absentNames: ['m1'],
+            presentNames: ['m0', 'm2'],
+            mayor: { name: 'mayor', note: null, absent: false },
+            president: null,
+        });
     });
 
     it('puts a normal absence in both the count and the absent names', () => {
@@ -90,7 +96,7 @@ describe('buildTimeline', () => {
             councilComposition,
             absentMembers: [member('m1')],
         });
-        expect(rollCall).toEqual({ count: { present: 2, absent: 1 }, absentNames: ['m1'], presentNames: ['m0', 'm2'] });
+        expect(rollCall).toEqual({ count: { present: 2, absent: 1 }, absentNames: ['m1'], presentNames: ['m0', 'm2'], mayor: null, president: null });
     });
 
     it('lists the council composition\'s members and substitutes not among the absentees as presentNames', () => {
@@ -280,6 +286,28 @@ describe('buildTimeline', () => {
         expect(items.map(i => i.type)).toEqual(['presence', 'subject']);
         expect(items[0]).toMatchObject({ type: 'presence', atSubjectId: 'c', arrivals: ['Person1'] });
         expect(items[1]).toMatchObject({ type: 'subject', subjectId: 'c' });
+    });
+});
+
+describe('buildTimeline roll call', () => {
+    it('counts the members without the mayor and the president, and names both apart', () => {
+        const presidentMember: MinutesMember = { personId: 'pres', name: 'Πρόεδρος Π.', party: null, isPartyHead: false, role: null };
+        const councilComposition: MinutesCouncilComposition = {
+            mayor: { name: 'Δήμαρχος Δ.', personId: 'mayor', note: 'ΑΠΩΝ' },
+            president: { name: 'Πρόεδρος Π.', personId: 'pres' },
+            members: [presidentMember, member('a'), member('b')],
+            substituteMembers: [],
+        };
+        const { rollCall } = buildTimeline({
+            subjects: [],
+            attendanceChanges: [],
+            proceduralVotes: [],
+            absentMembers: [presidentMember],
+            councilComposition,
+        });
+        expect(rollCall.count).toEqual({ present: 2, absent: 0 });
+        expect(rollCall.mayor).toEqual({ name: 'Δήμαρχος Δ.', note: 'ΑΠΩΝ', absent: true });
+        expect(rollCall.president).toEqual({ name: 'Πρόεδρος Π.', absent: true, isMayor: false });
     });
 });
 

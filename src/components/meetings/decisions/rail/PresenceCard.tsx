@@ -18,9 +18,21 @@ export function PresenceCard({ rollCall }: { rollCall: RollCall }) {
     const { count, absentNames, presentNames } = rollCall;
     const total = count.present + count.absent;
 
+    // The mayor's note already says ΑΠΩΝ/ΑΠΟΥΣΑ when they were absent; the president has no note.
+    const line = (name: string, note: string | null, absent: boolean) =>
+        note ? `${name} (${note})` : absent ? `${name} — ${tPage('presenceAbsentMark')}` : name;
+
     return (
         <RailCard title={tPage('attendance')}>
             <div className="space-y-1.5 text-xs">
+                {rollCall.president?.isMayor && rollCall.mayor ? (
+                    <div><span className="text-muted-foreground">{tPage('presenceMayorPresident')}</span> {line(rollCall.mayor.name, rollCall.mayor.note, rollCall.mayor.absent)}</div>
+                ) : (
+                    <>
+                        {rollCall.mayor && <div><span className="text-muted-foreground">{tPage('presenceMayor')}</span> {line(rollCall.mayor.name, rollCall.mayor.note, rollCall.mayor.absent)}</div>}
+                        {rollCall.president && <div><span className="text-muted-foreground">{tPage('presencePresident')}</span> {line(rollCall.president.name, null, rollCall.president.absent)}</div>}
+                    </>
+                )}
                 <div className="font-medium">{tPage('presenceHeadline', { present: count.present, total })}</div>
                 {/* A full house has an attendance record with no ABSENT rows, so the
                     line would read "0 absent:" with nothing after it. */}

@@ -480,6 +480,10 @@
     "presenceHeadline": "{present} παρόντες από {total}",
     "presenceAbsentInline": "{n} απόντες:",
     "presencePresentList": "Παρόντες ({n})",
+    "presenceMayor": "Δήμαρχος:",
+    "presencePresident": "Πρόεδρος:",
+    "presenceMayorPresident": "Δήμαρχος και Πρόεδρος:",
+    "presenceAbsentMark": "απών/απούσα",
     "minutesLoadFailed": "Τα δεδομένα των πρακτικών δεν φορτώθηκαν. Οι γραμμές δείχνουν μόνο τις αποφάσεις.",
     "minutesRefreshFailed": "Τα πρακτικά δεν ανανεώθηκαν — τα στοιχεία πρακτικών παρακάτω μπορεί να μην είναι ενημερωμένα.",
     "issues": {

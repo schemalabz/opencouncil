@@ -11,6 +11,10 @@ export interface RollCall {
     count: PresenceCount | null;
     absentNames: string[];
     presentNames: string[];
+    /** The ΔΗΜΑΡΧΟΣ line, as the Πρακτικά print it; the mayor is never in the counts. */
+    mayor: { name: string; note: string | null; absent: boolean } | null;
+    /** The ΠΡΟΕΔΡΟΣ line; the president is left out of the counts. `isMayor`: one line for both. */
+    president: { name: string; absent: boolean; isMayor: boolean } | null;
 }
 
 /** A subject in the timeline, with the withdrawal time it carries — parent and child alike. */
@@ -59,13 +63,16 @@ export function hasDiscussionOrder(data: Pick<MinutesData, 'subjects'>): boolean
  * the names come from that observation.
  *
  * The roll call derives its count and both name lists from one pool — the
- * composition's members plus substitutes, which never includes the mayor
- * (shown separately). So an absentee outside the pool cannot make the count
- * and the lists disagree.
+ * composition's members plus substitutes, with the president filtered out —
+ * which never includes the mayor either (both shown separately, as
+ * `RollCall.mayor` and `RollCall.president`). So an absentee outside the pool
+ * cannot make the count and the lists disagree.
  */
 export function buildTimeline(data: Pick<MinutesData, 'subjects' | 'attendanceChanges' | 'proceduralVotes' | 'absentMembers' | 'councilComposition'>): Timeline {
-    const pool = data.councilComposition
-        ? [...data.councilComposition.members, ...data.councilComposition.substituteMembers]
+    const composition = data.councilComposition;
+    const presidentId = composition?.president?.personId ?? null;
+    const pool = composition
+        ? [...composition.members, ...composition.substituteMembers].filter(m => m.personId !== presidentId)
         : [];
     const absentIds = new Set((data.absentMembers ?? []).map(m => m.personId));
     const presentNames = pool.filter(m => !absentIds.has(m.personId)).map(m => m.name);
@@ -74,7 +81,17 @@ export function buildTimeline(data: Pick<MinutesData, 'subjects' | 'attendanceCh
         ? { present: presentNames.length, absent: absentNames.length }
         : null;
 
-    const rollCall: RollCall = { count: rollCallCount, absentNames, presentNames };
+    // buildMayorNote puts ΑΠΩΝ/ΑΠΟΥΣΑ as the note's own first part, whole,
+    // followed by nothing else or a ", " before the next part — so it is
+    // absent at the roll call exactly when the note opens with one of the two.
+    const mayor = composition?.mayor
+        ? { name: composition.mayor.name, note: composition.mayor.note, absent: /^(ΑΠΩΝ|ΑΠΟΥΣΑ)(,|$)/.test(composition.mayor.note ?? '') }
+        : null;
+    const president = composition?.president
+        ? { name: composition.president.name, absent: absentIds.has(composition.president.personId), isMayor: composition.president.personId === composition.mayor?.personId }
+        : null;
+
+    const rollCall: RollCall = { count: rollCallCount, absentNames, presentNames, mayor, president };
     const items: TimelineItem[] = [];
 
     const topLevelIds = new Set(data.subjects.filter(s => s.discussedWith === null).map(s => s.subjectId));

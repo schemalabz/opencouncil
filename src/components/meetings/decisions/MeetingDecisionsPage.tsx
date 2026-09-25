@@ -183,6 +183,9 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const mayorPersonId = people.find(p =>
         p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
     )?.id ?? null;
+    const presidentPersonId = people.find(p =>
+        p.roles.some(r => isRoleActiveAt(r, meetingDate) && r.isHead && r.administrativeBodyId === administrativeBodyId)
+    )?.id ?? null;
 
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
     const [candidates, setCandidates] = useState<CandidateView[]>([]);
@@ -1154,12 +1157,18 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
 
                 {extracted && extracted.attendance.length > 0 && (() => {
                     const filteredAttendance = splitAttendance(extracted.attendance, mayorPersonId);
-                    const present = sortNamesByElectedOrder(filteredAttendance.present, getPerson, administrativeBodyId);
-                    const absent = sortNamesByElectedOrder(filteredAttendance.absent, getPerson, administrativeBodyId);
+                    const presidentRow = extracted.attendance.find(a => a.personId === presidentPersonId);
+                    const mayorRow = extracted.attendance.find(a => a.personId === mayorPersonId && a.personId !== presidentPersonId);
+                    // splitAttendance already dropped the mayor's row; only the president stays to exclude.
+                    const counted = (rows: typeof filteredAttendance.present) => rows.filter(a => a.personId !== presidentPersonId);
+                    const present = sortNamesByElectedOrder(counted(filteredAttendance.present), getPerson, administrativeBodyId);
+                    const absent = sortNamesByElectedOrder(counted(filteredAttendance.absent), getPerson, administrativeBodyId);
                     return (
                         <div>
                             <div className="text-xs font-medium text-muted-foreground mb-1">{tPage('attendance')}</div>
                             <div className="text-xs text-foreground space-y-1">
+                                {presidentRow && <div>{tPage('presencePresident')} {presidentRow.personName}{presidentRow.status === 'ABSENT' ? ` — ${tPage('presenceAbsentMark')}` : ''}</div>}
+                                {mayorRow && <div>{tPage('presenceMayor')} {mayorRow.personName}{mayorRow.status === 'ABSENT' ? ` — ${tPage('presenceAbsentMark')}` : ''}</div>}
                                 <span>{present.length} {tPage('present')}, {absent.length} {tPage('absent')}</span>
                                 <div className="flex flex-col gap-1">
                                     {present.length > 0 && (

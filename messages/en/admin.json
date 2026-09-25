@@ -480,6 +480,10 @@
     "presenceHeadline": "{present} present of {total}",
     "presenceAbsentInline": "{n} absent:",
     "presencePresentList": "Present ({n})",
+    "presenceMayor": "Mayor:",
+    "presencePresident": "President:",
+    "presenceMayorPresident": "Mayor and president:",
+    "presenceAbsentMark": "absent",
     "minutesLoadFailed": "The minutes data did not load. Rows show the decisions only.",
     "minutesRefreshFailed": "The minutes could not be refreshed — the minutes facts below may be out of date.",
     "issues": {

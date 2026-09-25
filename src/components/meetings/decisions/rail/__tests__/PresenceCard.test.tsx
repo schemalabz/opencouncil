@@ -11,6 +11,8 @@ const rollCall = (o: Partial<RollCall> = {}): RollCall => ({
     count: { present: 27, absent: 3 },
     absentNames: ['Α', 'Β', 'Γ'],
     presentNames: ['Δ', 'Ε'],
+    mayor: null,
+    president: null,
     ...o,
 });
 
@@ -44,5 +46,19 @@ describe('PresenceCard', () => {
         fireEvent.click(screen.getByText('showMore'));
         fireEvent.click(screen.getByText('showLess'));
         expect(screen.queryByText('presencePresentList{"n":27}')).not.toBeInTheDocument();
+    });
+
+    it('prints the mayor with the minutes note, and the president with an absent mark', () => {
+        render(<PresenceCard rollCall={rollCall({ mayor: { name: 'Σίμος Ρούσσος', note: 'αποχώρησε μετά το 4ο θέμα', absent: false }, president: { name: 'Κ. Καραγιάννη', absent: true, isMayor: false } })} />);
+        expect(screen.getByText('presenceMayor')).toBeInTheDocument();
+        expect(screen.getByText('Σίμος Ρούσσος (αποχώρησε μετά το 4ο θέμα)')).toBeInTheDocument();
+        expect(screen.getByText('presencePresident')).toBeInTheDocument();
+        expect(screen.getByText('Κ. Καραγιάννη — presenceAbsentMark')).toBeInTheDocument();
+    });
+
+    it('prints one line when the president is the mayor', () => {
+        render(<PresenceCard rollCall={rollCall({ mayor: { name: 'Η. Αποστολόπουλος', note: null, absent: false }, president: { name: 'Η. Αποστολόπουλος', absent: false, isMayor: true } })} />);
+        expect(screen.getByText('presenceMayorPresident')).toBeInTheDocument();
+        expect(screen.queryByText('presencePresident')).not.toBeInTheDocument();
     });
 });

@@ -480,6 +480,10 @@
     "presenceHeadline": "{present} présents sur {total}",
     "presenceAbsentInline": "{n} absents :",
     "presencePresentList": "Présents ({n})",
+    "presenceMayor": "Maire :",
+    "presencePresident": "Président :",
+    "presenceMayorPresident": "Maire et président :",
+    "presenceAbsentMark": "absent",
     "minutesLoadFailed": "Les données du procès-verbal n'ont pas été chargées. Les lignes n'affichent que les décisions.",
     "minutesRefreshFailed": "Le procès-verbal n'a pas pu être actualisé — les données ci-dessous peuvent être obsolètes.",
     "issues": {
