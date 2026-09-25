@@ -6,6 +6,7 @@
 import "server-only";
 import prisma from './prisma';
 import { localCalendarDate } from '@/lib/formatters/time';
+import { rederiveMeetingQuietly, rederiveMeetingsOfSubjects } from '@/lib/derivation/rederive';
 import { AttendanceStatus, DataSource, Decision, Prisma, TaskStatus, User, VoteType } from '@prisma/client';
 
 /** Subjects eligible for decisions: agenda + out-of-agenda, excluding withdrawn.
@@ -89,7 +90,7 @@ export async function upsertDecision(data: UpsertDecisionData): Promise<Decision
     const replacesDocument = existing !== null
         && ((data.ada ?? null) !== existing.ada || data.pdfUrl !== existing.pdfUrl);
 
-    return prisma.$transaction(async tx => {
+    const decision = await prisma.$transaction(async tx => {
         if (replacesDocument) await Promise.all(clearDecisionDerivedFacts(tx, data.subjectId));
         return tx.decision.upsert({
             where: { subjectId: data.subjectId },
@@ -115,6 +116,8 @@ export async function upsertDecision(data: UpsertDecisionData): Promise<Decision
             },
         });
     });
+    if (replacesDocument) await rederiveMeetingsOfSubjects([data.subjectId]);
+    return decision;
 }
 
 export async function deleteDecision(subjectId: string): Promise<void> {
@@ -122,6 +125,7 @@ export async function deleteDecision(subjectId: string): Promise<void> {
         await Promise.all(clearDecisionDerivedFacts(tx, subjectId));
         await tx.decision.deleteMany({ where: { subjectId } });
     });
+    await rederiveMeetingsOfSubjects([subjectId]);
 }
 
 /**
@@ -141,6 +145,7 @@ export async function resetExtractionForSubject(subjectId: string): Promise<void
     await prisma.$transaction(async tx => {
         await Promise.all(clearDecisionDerivedFacts(tx, subjectId));
     });
+    await rederiveMeetingsOfSubjects([subjectId]);
 }
 
 /**
@@ -152,6 +157,9 @@ export async function resetExtractionForSubject(subjectId: string): Promise<void
  *   the events are what the arrivals/departures block prints from, and leaving
  *   them behind keeps a cleared meeting stating changes it no longer holds
  *   documents for.
+ *
+ * Re-derives the meeting afterward. The derivation then refuses (no reading
+ * left), so the cleared tables stay empty.
  */
 export async function clearExtractedDataForMeeting(cityId: string, meetingId: string): Promise<{ clearedCount: number }> {
     // Get all subject IDs for this meeting
@@ -182,6 +190,8 @@ export async function clearExtractedDataForMeeting(cityId: string, meetingId: st
             where: { cityId, councilMeetingId: meetingId, source: DataSource.decision },
         }),
     ]);
+
+    await rederiveMeetingQuietly(cityId, meetingId);
 
     return { clearedCount: updated.count };
 }

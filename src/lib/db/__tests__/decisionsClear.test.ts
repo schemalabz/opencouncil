@@ -26,6 +26,14 @@ jest.mock('@/lib/db/prisma', () => ({
     },
 }));
 
+// The re-derive after an edit (spec §5.2) is its own concern, covered by
+// tests/integration/rederive-after-edit.test.ts against a real database. This
+// file mocks it out so it stays a unit test of what these two functions clear.
+jest.mock('@/lib/derivation/rederive', () => ({
+    rederiveMeetingsOfSubjects: jest.fn(),
+    rederiveMeetingQuietly: jest.fn(),
+}));
+
 import { clearExtractedDataForMeeting, resetExtractionForSubject } from '@/lib/db/decisions';
 import { Prisma } from '@prisma/client';
 
