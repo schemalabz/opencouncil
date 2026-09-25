@@ -14,6 +14,18 @@ export interface ResolvedSession {
     issues: Issue[];
     /** Why there is no roll call, when there is none. */
     missing: 'noRollCall' | 'noMajority' | null;
+    /**
+     * How many usable pages printed a roll call, and how many of those agree
+     * with the one the rule picked — the winning group under `majority`, the
+     * one page's own under `first-page`. Only the resolver walks every page's
+     * roll call to compare them, so a caller that wants this asks it rather
+     * than re-grouping the pages itself.
+     *
+     * `strategy` says which of the two rules the body's conventions select —
+     * `first-page` for `per_decision`, `majority` otherwise — so a caller does
+     * not copy the resolver's own condition to relabel the same choice.
+     */
+    rollCallBasis: { pagesAgreeing: number; pagesWithRollCall: number; strategy: 'majority' | 'first-page' };
 }
 
 /** `hasExtraction` is `readingStatesFacts` (./load.ts): a v3 reading yields no roll call and no change. */
@@ -40,8 +52,9 @@ const rollCallKey = (d: DocumentFacts) =>
  * call print; a tie or a scatter is none. Where each page prints its own state
  * (`per_decision`), the first page's in the derivation's subject order.
  */
-export function resolveRollCall(input: Pick<DerivationInput, 'documents' | 'conventions' | 'cityMayorPersonId'>): Pick<ResolvedSession, 'rollCall' | 'issues' | 'missing'> {
+export function resolveRollCall(input: Pick<DerivationInput, 'documents' | 'conventions' | 'cityMayorPersonId'>): Pick<ResolvedSession, 'rollCall' | 'issues' | 'missing' | 'rollCallBasis'> {
     const issues: Issue[] = [];
+    const strategy: ResolvedSession['rollCallBasis']['strategy'] = input.conventions?.presentListMeaning === 'per_decision' ? 'first-page' : 'majority';
     const withRollCall = usablePages(input.documents).filter(hasRollCall);
     for (const d of withRollCall) {
         const absent = new Set(d.rollCallAbsentIds ?? []);
@@ -49,10 +62,10 @@ export function resolveRollCall(input: Pick<DerivationInput, 'documents' | 'conv
             if (absent.has(personId)) issues.push({ code: 'PERSON_IN_BOTH_LISTS', subjectId: d.subjectId, decisionId: d.decisionId, personId, source: 'decision', params: {} });
         }
     }
-    if (withRollCall.length === 0) return { rollCall: [], issues, missing: 'noRollCall' };
+    if (withRollCall.length === 0) return { rollCall: [], issues, missing: 'noRollCall', rollCallBasis: { pagesAgreeing: 0, pagesWithRollCall: 0, strategy } };
 
     let winners: DocumentFacts[];
-    if (input.conventions?.presentListMeaning === 'per_decision') {
+    if (strategy === 'first-page') {
         winners = [withRollCall[0]];
     } else {
         const groups = new Map<string, DocumentFacts[]>();
@@ -61,7 +74,9 @@ export function resolveRollCall(input: Pick<DerivationInput, 'documents' | 'conv
             groups.set(key, [...(groups.get(key) ?? []), d]);
         }
         const best = [...groups.values()].reduce((x, y) => (y.length > x.length ? y : x));
-        if (best.length * 2 <= withRollCall.length) return { rollCall: [], issues, missing: 'noMajority' };
+        if (best.length * 2 <= withRollCall.length) {
+            return { rollCall: [], issues, missing: 'noMajority', rollCallBasis: { pagesAgreeing: best.length, pagesWithRollCall: withRollCall.length, strategy } };
+        }
         winners = best;
     }
 
@@ -81,7 +96,7 @@ export function resolveRollCall(input: Pick<DerivationInput, 'documents' | 'conv
     }
     const rollCall = [...status].map(([personId, s]): RollCallRow => ({ personId, status: s, source: 'decision' }))
         .sort((x, y) => x.personId.localeCompare(y.personId));
-    return { rollCall, issues, missing: null };
+    return { rollCall, issues, missing: null, rollCallBasis: { pagesAgreeing: winners.length, pagesWithRollCall: withRollCall.length, strategy } };
 }
 
 /** The point a change is pinned to. Timing is not part of it: pages that disagree on timing state one change. */
@@ -166,5 +181,5 @@ export function resolveEvents(input: Pick<DerivationInput, 'cityId' | 'meetingId
 export function resolveSession(input: DerivationInput): ResolvedSession {
     const roll = resolveRollCall(input);
     const ev = resolveEvents(input);
-    return { rollCall: roll.rollCall, events: ev.events, missing: roll.missing, issues: [...roll.issues, ...ev.issues] };
+    return { rollCall: roll.rollCall, events: ev.events, missing: roll.missing, rollCallBasis: roll.rollCallBasis, issues: [...roll.issues, ...ev.issues] };
 }

@@ -71,6 +71,37 @@ describe('resolveRollCall', () => {
     });
 });
 
+describe('resolveRollCall rollCallBasis', () => {
+    const base = { conventions: conv(), cityMayorPersonId: null };
+
+    it('is zero when no usable page prints a roll call', () => {
+        expect(resolveRollCall({ ...base, documents: [page([]), page(['a'], [], { hasExtraction: false })] }).rollCallBasis)
+            .toEqual({ pagesAgreeing: 0, pagesWithRollCall: 0, strategy: 'majority' });
+    });
+
+    it('counts the winning group against every page that printed one, majority rule', () => {
+        const r = resolveRollCall({ ...base, documents: [page(['a', 'b', 'c'], ['d']), page(['c', 'a', 'b'], ['d']), page(['a', 'b', 'c'], ['d']), page(['a'], ['b', 'c', 'd'])] });
+        expect(r.rollCallBasis).toEqual({ pagesAgreeing: 3, pagesWithRollCall: 4, strategy: 'majority' });
+    });
+
+    it('counts the largest group even where it falls short of a majority', () => {
+        const r = resolveRollCall({ ...base, documents: [page(['a', 'b'], ['c']), page(['a', 'c'], ['b']), page(['b', 'c'], ['a'])] });
+        expect(r).toMatchObject({ missing: 'noMajority' });
+        expect(r.rollCallBasis).toEqual({ pagesAgreeing: 1, pagesWithRollCall: 3, strategy: 'majority' });
+    });
+
+    it('counts one page against every page that printed one, per-decision rule', () => {
+        const r = resolveRollCall({ ...base, conventions: conv({ presentListMeaning: 'per_decision' }),
+            documents: [page([]), page(['a'], ['b']), page(['a', 'b'])] });
+        expect(r.rollCallBasis).toEqual({ pagesAgreeing: 1, pagesWithRollCall: 2, strategy: 'first-page' });
+    });
+
+    it("exposes the strategy the body's conventions select even where no majority is reached", () => {
+        expect(resolveRollCall({ ...base, documents: [page([])] }).rollCallBasis.strategy).toBe('majority');
+        expect(resolveRollCall({ ...base, conventions: conv({ presentListMeaning: 'per_decision' }), documents: [page([])] }).rollCallBasis.strategy).toBe('first-page');
+    });
+});
+
 describe('resolveEvents', () => {
     const base = { cityId: 'c', meetingId: 'm', conventions: conv() };
 
@@ -170,6 +201,7 @@ describe('resolveSession', () => {
         const r = resolveSession(input);
         expect(r.missing).toBeNull();
         expect(statusMap(r.rollCall)).toEqual({ a: 'PRESENT', b: 'ABSENT' });
+        expect(r.rollCallBasis).toEqual({ pagesAgreeing: 2, pagesWithRollCall: 2, strategy: 'majority' });
         expect(r.events).toEqual([]);
         expect(r.issues.map(i => [i.code, i.personId])).toEqual([['PERSON_IN_BOTH_LISTS', 'b'], ['PERSON_IN_BOTH_LISTS', 'b'], ['CHANGE_NOT_CORROBORATED', 'c']]);
     });
