@@ -1,0 +1,66 @@
+name: macOS dev setup
+
+# Nothing else runs the Nix dev setup on macOS: the CI checks job evaluates
+# and builds for Linux only. This job does what a developer on an Apple
+# Silicon Mac does, so a flake or lockfile change that breaks macOS fails here.
+on:
+  pull_request:
+    paths:
+      - flake.nix
+      - flake.lock
+      - package.json
+      - package-lock.json
+      - .github/workflows/macos.yml
+  schedule:
+    # The lock pins nixpkgs, but the runner image and Xcode tools change
+    # without a PR.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+jobs:
+  dev-setup:
+    name: Nix dev setup (aarch64-darwin)
+    runs-on: macos-latest
+    # The first PostGIS 3.3.5 source build is the slow part. Cachix keeps it
+    # for later runs.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - uses: cachix/cachix-action@v17
+        with:
+          name: opencouncil
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          pushFilter: "(\\.tgz$|opencouncil-.*-sources$)"
+
+      - name: Dev shell
+        run: nix develop --command bash -c 'node --version && prisma --version && psql --version'
+
+      - name: Build the production-matching database (PostGIS 3.3.5)
+        run: nix build .#oc-dev-db-nix-locked --print-build-logs
+
+      - run: nix develop --command npm ci
+
+      - name: Start the dev runner and wait for the app
+        run: |
+          cp .env.example .env
+          nix run .#dev -- --no-studio > dev.log 2>&1 &
+          for _ in $(seq 1 120); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://127.0.0.1:3000/ || true)
+            if [ "$code" = "200" ]; then echo "app answered HTTP 200"; exit 0; fi
+            sleep 5
+          done
+          echo "app did not answer within 10 minutes" >&2
+          exit 1
+
+      - name: Check PostGIS in the local database
+        run: nix develop --command psql -h 127.0.0.1 -U opencouncil -d opencouncil -tAc 'SELECT postgis_lib_version()' | grep -x '3.3.5'
+
+      - name: Show dev runner logs
+        if: always()
+        run: tail -n 100 dev.log .data/process-compose/*.log || true
