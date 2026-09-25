@@ -40,7 +40,7 @@ module.exports = {
       ...shared,
       displayName: 'node',
       testEnvironment: 'node',
-      testMatch: ['<rootDir>/src/**/*.test.ts', '<rootDir>/packages/*/src/**/*.test.ts'],
+      testMatch: ['<rootDir>/src/**/*.test.ts', '<rootDir>/packages/*/src/**/*.test.ts', '<rootDir>/scripts/**/*.test.ts'],
     },
     {
       ...shared,
