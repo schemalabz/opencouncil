@@ -5,6 +5,8 @@
  *   npm run decisions -- measure [--city c] [--out f.json] [--report f.md]
  *   npm run decisions -- diff <before.json> <after.json> [--report f.md]
  *   npm run decisions -- derive <city> <meeting> [--write]
+ *   npm run decisions -- trace <city> <meeting> [--out f.json]
+ *   npm run decisions -- trace --all [--city c] --out-dir d
  *   npm run decisions -- equivalence [--report f.md]   (historical: pre-C1 rows only)
  *
  * Output goes to the files named: the nix shell prints its banner to stdout.
@@ -20,7 +22,9 @@ import { resolveSession } from '@/lib/derivation/resolveSession';
 import { derivationSkipIssue } from '@/lib/derivation/persist';
 import { measureMeeting, type MeetingMeasure } from '@/lib/derivation/measure';
 import { issueMessageEn } from '@/lib/derivation/issueTextEn';
+import type { DerivationInput, DerivationOutput } from '@/lib/derivation/types';
 import { assertLocalDatabase } from './lib/local-database';
+import { buildMeetingTrace, type MeetingTraceMeta } from './lib/trace';
 
 interface MeasureFile { generatedAt: string; commit: string; meetings: MeetingMeasure[] }
 
@@ -140,6 +144,59 @@ async function derive(city: string, meeting: string, doWrite: boolean) {
     for (const i of out.issues) process.stderr.write(`  ${i.code.padEnd(28)} ${i.subjectId ?? '-'} ${i.personId ?? ''} ${issueMessageEn(i)}\n`);
 }
 
+/** Display data buildMeetingTrace needs but the derivation never reads: names, ada, urls, the commit. */
+async function traceMeta(cityId: string, meetingId: string, input: DerivationInput, commit: string): Promise<MeetingTraceMeta> {
+    const meeting = await prisma.councilMeeting.findUniqueOrThrow({
+        where: { cityId_id: { cityId, id: meetingId } },
+        select: { name: true, dateTime: true, administrativeBody: { select: { name: true, type: true } } },
+    });
+    const decisions = await prisma.decision.findMany({
+        where: { subjectId: { in: input.documents.map(d => d.subjectId) } },
+        select: { subjectId: true, ada: true, pdfUrl: true, extractorVersion: true },
+    });
+    const people = await prisma.person.findMany({ where: { cityId }, select: { id: true, name: true } });
+    return {
+        commit,
+        meeting: {
+            name: meeting.name, date: meeting.dateTime.toISOString(),
+            body: meeting.administrativeBody ? { name: meeting.administrativeBody.name, type: meeting.administrativeBody.type } : null,
+        },
+        decisions: Object.fromEntries(decisions.map(d => [d.subjectId, { ada: d.ada, url: d.pdfUrl, version: d.extractorVersion }])),
+        personNames: Object.fromEntries(people.map(p => [p.id, p.name])),
+    };
+}
+
+/** loadDerivationInput + derivationSkipIssue + deriveMeetingFacts, in explainMeeting's order — but keeping `input`, which buildMeetingTrace also needs. */
+async function traceInputAndOutput(cityId: string, meetingId: string): Promise<{ input: DerivationInput; output: DerivationOutput }> {
+    const input = await loadDerivationInput(cityId, meetingId);
+    const skip = derivationSkipIssue(input);
+    const output: DerivationOutput = skip
+        ? { attendance: [], votes: [], phraseOnlySubjectIds: [], rollCall: [], events: [], issues: [skip] }
+        : deriveMeetingFacts(input);
+    return { input, output };
+}
+
+async function trace(city: string, meeting: string, out?: string) {
+    const commit = execSync('git rev-parse --short HEAD').toString().trim();
+    const { input, output } = await traceInputAndOutput(city, meeting);
+    const meta = await traceMeta(city, meeting, input, commit);
+    const text = JSON.stringify(buildMeetingTrace(input, output, meta), null, 1);
+    if (out) write(out, text); else process.stderr.write(text + '\n');
+}
+
+async function traceAll(args: { city?: string; outDir: string }) {
+    const commit = execSync('git rev-parse --short HEAD').toString().trim();
+    const meetings = await meetingsWithReadings(args.city);
+    let count = 0;
+    for (const m of meetings) {
+        const { input, output } = await traceInputAndOutput(m.cityId, m.id);
+        const meta = await traceMeta(m.cityId, m.id, input, commit);
+        write(`${args.outDir}/${m.cityId}__${m.id}.json`, JSON.stringify(buildMeetingTrace(input, output, meta), null, 1));
+        count += 1;
+    }
+    process.stderr.write(`wrote ${count} trace files to ${args.outDir}\n`);
+}
+
 yargs(hideBin(process.argv))
     .command('measure', 'measure every meeting with readings', y => y
         .option('city', { type: 'string' }).option('out', { type: 'string' }).option('report', { type: 'string' }),
@@ -152,6 +209,17 @@ yargs(hideBin(process.argv))
         .positional('city', { type: 'string', demandOption: true }).positional('meeting', { type: 'string', demandOption: true })
         .option('write', { type: 'boolean', default: false }),
         a => derive(a.city, a.meeting, a.write).then(() => prisma.$disconnect()))
+    .command('trace [city] [meeting]', 'trace one meeting from pages to rows, or every meeting with readings under --all', y => y
+        .positional('city', { type: 'string' }).positional('meeting', { type: 'string' })
+        .option('all', { type: 'boolean', default: false })
+        .option('out', { type: 'string' })
+        .option('outDir', { type: 'string' })
+        .check(a => {
+            if (a.all) { if (!a.outDir) throw new Error('trace --all needs --out-dir'); return true; }
+            if (!a.city || !a.meeting) throw new Error('trace needs <city> <meeting>, or --all --out-dir <dir>');
+            return true;
+        }),
+        a => (a.all ? traceAll({ city: a.city, outDir: a.outDir! }) : trace(a.city!, a.meeting!, a.out)).then(() => prisma.$disconnect()))
     .command('equivalence', 'historical: the resolver against the rows the pre-C1 poll handler stored', y => y.option('report', { type: 'string' }),
         a => equivalence(a.report).then(() => prisma.$disconnect()))
     .demandCommand(1)
