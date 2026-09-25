@@ -538,6 +538,18 @@ export interface PollDecisionsMatch {
     reasoning?: string | null; // resolver's stated reasoning for this match
 }
 
+/**
+ * Token usage a task reports with its result. Mirrors opencouncil-tasks
+ * `TaskTokenUsage` in `src/types.ts`: one shape for every task, so the two
+ * results that carry it cannot drift apart one field at a time.
+ */
+export interface TaskTokenUsage {
+    input_tokens: number;
+    output_tokens: number;
+    cache_creation_input_tokens: number;
+    cache_read_input_tokens: number;
+}
+
 export interface PollDecisionsAttendanceEvent {
     personId: string | null;
     name: string;
@@ -589,12 +601,7 @@ export interface PollDecisionsResult {
         /** The session's arrivals and departures as the documents state them, with their anchors. Absent from older tasks versions. */
         attendanceEvents?: PollDecisionsAttendanceEvent[];
     } | null;
-    costs: {
-        input_tokens: number;
-        output_tokens: number;
-        cache_creation_input_tokens: number;
-        cache_read_input_tokens: number;
-    };
+    usage: TaskTokenUsage;
     metadata?: {
         diavgeiaUid: string;
         query: object;
@@ -648,10 +655,5 @@ export interface ProfileBodyResult {
     facts: ProfileBodyFacts;
     /** The documents read, so the profile can be traced back to its evidence. */
     adas: string[];
-    usage: {
-        input_tokens: number;
-        output_tokens: number;
-        cache_creation_input_tokens: number;
-        cache_read_input_tokens: number;
-    };
+    usage: TaskTokenUsage;
 }

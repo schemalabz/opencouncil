@@ -128,7 +128,7 @@ export function makePollDecisionsResult(params: {
     unmatchedSubjects?: PollDecisionsResult['unmatchedSubjects']
     ambiguousSubjects?: PollDecisionsResult['ambiguousSubjects']
     extractions?: PollDecisionsResult['extractions']
-    costs?: PollDecisionsResult['costs']
+    usage?: PollDecisionsResult['usage']
 }): PollDecisionsResult {
     // The meeting's roll call is a field of its own: the task resolves one across
     // the documents and sends it as `initialAttendance`, and that alone is what
@@ -164,7 +164,7 @@ export function makePollDecisionsResult(params: {
         unmatchedSubjects: params.unmatchedSubjects ?? [],
         ambiguousSubjects: params.ambiguousSubjects ?? [],
         extractions,
-        costs: params.costs ?? { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+        usage: params.usage ?? { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
     }
 }
 
