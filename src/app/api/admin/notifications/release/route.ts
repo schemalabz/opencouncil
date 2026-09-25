@@ -3,6 +3,7 @@ import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
 import { releaseNotifications } from '@/lib/notifications/deliver';
 import { sendNotificationsSentAdminAlert } from '@/lib/discord';
 import prisma from '@/lib/db/prisma';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 export async function POST(request: NextRequest) {
     await withUserAuthorizedToEdit({});
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     // Look up meeting/city context from the notifications being released
     const notification = await prisma.notification.findFirst({
         where: { id: { in: notificationIds } },
-        include: { city: true, meeting: true }
+        include: { city: true, meeting: { include: { administrativeBody: true } } }
     });
 
     const result = await releaseNotifications(notificationIds);
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
             cityId: notification.cityId,
             meetingId: notification.meetingId,
             cityName: notification.city.name_en,
-            meetingName: notification.meeting.name,
+            meetingName: meetingDisplayName(notification.meeting, 'el', notification.city.timezone),
             notificationCount: notificationIds.length,
             emailsSent: result.emailsSent,
             failed: result.failed

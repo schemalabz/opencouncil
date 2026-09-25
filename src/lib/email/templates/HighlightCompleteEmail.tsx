@@ -22,9 +22,8 @@ interface HighlightCompleteCopy {
     noteSuccess: string;
     noteFailure: string;
     thanks: string;
-    /** Fallbacks for a highlight/meeting with no stored name. */
+    /** Fallback for a highlight with no stored name. */
     untitled: string;
-    meetingOn: (date: string) => string;
 }
 
 /**
@@ -57,7 +56,6 @@ const COPY: Record<EmailLocale, HighlightCompleteCopy> = {
         noteFailure: 'Παρακαλούμε δοκιμάστε ξανά να δημιουργήσετε το στιγμιότυπο. Αν το πρόβλημα συνεχιστεί, επικοινωνήστε μαζί μας στο hello@opencouncil.gr',
         thanks: 'Ευχαριστούμε που χρησιμοποιείτε το OpenCouncil!',
         untitled: 'Χωρίς τίτλο',
-        meetingOn: (date) => `Συνεδρίαση ${date}`,
     },
     fr: {
         subjectSuccess: 'Votre extrait est prêt !',
@@ -78,7 +76,6 @@ const COPY: Record<EmailLocale, HighlightCompleteCopy> = {
         noteFailure: "Veuillez réessayer de créer l'extrait. Si le problème persiste, contactez-nous à hello@opencouncil.gr",
         thanks: "Merci d'utiliser OpenCouncil !",
         untitled: 'Sans titre',
-        meetingOn: (date) => `Séance du ${date}`,
     },
     sr: {
         subjectSuccess: 'Ваш истакнути исечак је спреман!',
@@ -99,7 +96,6 @@ const COPY: Record<EmailLocale, HighlightCompleteCopy> = {
         noteFailure: 'Молимо покушајте поново да направите исечак. Ако се проблем настави, контактирајте нас на hello@opencouncil.gr',
         thanks: 'Хвала што користите OpenCouncil!',
         untitled: 'Без наслова',
-        meetingOn: (date) => `Седница ${date}`,
     },
 };
 

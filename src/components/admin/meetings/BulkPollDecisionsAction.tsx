@@ -23,6 +23,8 @@ import { partitionMeetingsForPolling, MeetingPollEligibility } from '@/lib/tasks
 import { requestPollDecisions } from '@/lib/tasks/pollDecisions';
 import { useSequentialDispatch } from '@/hooks/useSequentialDispatch';
 import { BatchProgressView } from '@/components/admin/BatchProgressView';
+import { meetingDisplayName } from '@/lib/meetingName';
+import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 
 interface BulkPollDecisionsActionProps {
     selectedMeetingIds: Set<string>;
@@ -45,7 +47,7 @@ export function BulkPollDecisionsAction({
     const partition = useMemo(() => {
         const selected = meetings
             .filter(m => selectedMeetingIds.has(m.id))
-            .map(m => ({ id: m.id, name: m.name }));
+            .map(m => ({ id: m.id, name: meetingDisplayName(m, 'el', DEFAULT_TIMEZONE), kind: m.kind }));
         return partitionMeetingsForPolling(selected, decisionCounts);
     }, [meetings, selectedMeetingIds, decisionCounts]);
 

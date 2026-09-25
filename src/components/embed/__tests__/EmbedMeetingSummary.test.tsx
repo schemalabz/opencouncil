@@ -31,6 +31,7 @@ function summary(overrides: Partial<MeetingSummary> = {}): MeetingSummary {
             cityId: 'vouli',
             name: '25η συνεδρίαση',
             name_en: '25th session',
+            kind: null,
             dateTime: new Date('2026-04-06T10:00:00Z'),
             administrativeBody: { name: 'Ολομέλεια της Βουλής', name_en: 'Plenary' },
             subjects: [

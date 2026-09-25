@@ -21,7 +21,6 @@ import { useVideo } from './VideoProvider';
 import { usePathname, useParams } from 'next/navigation';
 import { useShare } from '@/contexts/ShareContext';
 import { formatTimestamp } from '@/lib/formatters/time';
-import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import StoryTemplatePickerDialog from './StoryTemplatePickerDialog';
 import { captureEvent } from '@/lib/analytics/capture';
@@ -30,6 +29,7 @@ import { SubjectEmbedDialog } from '@/components/embed/SubjectEmbedDialog';
 import { validSourceId } from '@/lib/sharing/excerptSelector';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { SubjectShareDialog } from '@/components/sharing/SubjectShareDialog';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 
 interface ShareDropdownProps {
@@ -73,7 +73,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const locale = useLocale();
     const fallbackId = useId();
     const params = useParams();
-    const { meeting, subjects } = useCouncilMeetingData();
+    const { city, meeting, subjects } = useCouncilMeetingData();
     const subjectId = meeting.released && validSourceId(params.subjectId) ? params.subjectId : null;
     const subject = subjects.find(item => item.id === subjectId);
     const [url, setUrl] = useState('');
@@ -95,7 +95,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
     const effectiveTime = targetTimestamp ?? (currentTime > 0 ? currentTime : null);
     const sharedTime = includeTimestamp && effectiveTime !== null ? effectiveTime : null;
     const shareableUrl = buildShareUrl(url, sharedTime, subjectPage);
-    const shareTitle = subject ? localizeText(subject.name, locale) : getLocalizedName(meeting, locale);
+    const shareTitle = subject ? localizeText(subject.name, locale) : meetingDisplayName(meeting, locale, city.timezone);
     const actionDisabled = !shareableUrl || pending !== null;
     const operationRef = useRef(0);
     const track = useSharingTracker({ content_type: subject ? 'subject' : 'meeting', surface: subjectPage ? 'subject_menu' : pathname.includes('/transcript') ? 'transcript_menu' : 'meeting_menu', city_id: cityId, meeting_id: meetingId, subject_id: subject?.id, locale });

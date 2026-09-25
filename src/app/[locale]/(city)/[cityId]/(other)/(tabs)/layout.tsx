@@ -12,7 +12,8 @@ import { isPetitionable } from "@/lib/cityStatus";
 import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
-import { publicMeetingStage, stageSignalsFromPreview } from "@/lib/meetingStage";
+import { stageSignalsFromPreview } from "@/lib/meetingStage";
+import { presentationKey, publicMeetingPresentation } from "@/lib/meetingPresentation";
 import { readerPhoneChannel } from "@/lib/notis/reader";
 
 export default async function TabsLayout(
@@ -81,7 +82,7 @@ export default async function TabsLayout(
     const now = new Date();
     const dated = (meeting: CouncilMeetingWithSubjectPreview | undefined): DatedMeeting | null => {
         if (!meeting) return null;
-        const stage = publicMeetingStage(stageSignalsFromPreview(meeting), now);
+        const stage = presentationKey(publicMeetingPresentation(meeting, stageSignalsFromPreview(meeting), now));
         return { meeting, stage, detail: stageChipDetail(tStage, stage, meeting.dateTime, city.timezone, locale, now) };
     };
 

@@ -3,11 +3,11 @@
 // wrapped in lib/actions/meetings.ts.
 //
 // Keep a gated wrapper and its ungated core next to each other in this file
-// (createCouncilMeeting/createCouncilMeetingDirect,
-// getCouncilMeeting/getCouncilMeetingDirect). Choosing between them is choosing
-// whether the viewer's session applies.
+// (getCouncilMeeting/getCouncilMeetingDirect). Choosing between them is
+// choosing whether the viewer's session applies. A meeting is created through
+// the lifecycle module (meetingLifecycle.ts), which the meetings API route calls.
 import "server-only";
-import { CouncilMeeting, AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
+import { AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
@@ -18,6 +18,9 @@ import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
+import { deleteMeetingRecord, setMeetingReleased } from "./meetingLifecycle";
+import { LifecycleRuleError } from "../meetingLifecycleRules";
+import { hidePostponedFrom } from "../meetingPublic";
 // List reads and their payload types live in meetingsList.ts. Re-exported here
 // as types only, so callers of this module keep one import.
 export type { CouncilMeetingWithAdminBodyAndSubjects, CouncilMeetingWithSubjectPreview, MeetingListOptions } from './meetingsList';
@@ -34,34 +37,7 @@ export type CouncilMeetingWithAdminBody = Prisma.CouncilMeetingGetPayload<{
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
-    try {
-        await prisma.councilMeeting.delete({
-            where: { cityId_id: { cityId, id } },
-        });
-    } catch (error) {
-        console.error('Error deleting council meeting:', error);
-        throw new Error('Failed to delete council meeting');
-    }
-}
-
-export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
-    await withUserAuthorizedToEdit({ cityId: meetingData.cityId });
-    return createCouncilMeetingDirect(meetingData);
-}
-
-/**
- * Create a council meeting with no auth check, for a caller that has already
- * authorized the write: the meetings API route, which admits service keys as
- * well as user sessions. A session gate inside this function would reject the
- * service keys.
- */
-export async function createCouncilMeetingDirect(
-    meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string; videoUrl?: string },
-): Promise<CouncilMeetingWithAdminBody> {
-    return prisma.councilMeeting.create({
-        data: meetingData,
-        include: meetingWithAdminBodyInclude,
-    });
+    await deleteMeetingRecord(cityId, id);
 }
 
 /**
@@ -94,21 +70,6 @@ export async function generateUniqueMeetingId(cityId: string, date: Date): Promi
     }
 
     throw new Error(`Could not generate unique meeting ID for ${cityId} on ${baseId} — too many meetings on this date`);
-}
-
-export async function editCouncilMeeting(cityId: string, id: string, meetingData: Partial<Omit<CouncilMeeting, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>): Promise<CouncilMeetingWithAdminBody> {
-    await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
-    try {
-        const updatedMeeting = await prisma.councilMeeting.update({
-            where: { cityId_id: { cityId, id } },
-            data: meetingData,
-            include: meetingWithAdminBodyInclude,
-        });
-        return updatedMeeting;
-    } catch (error) {
-        console.error('Error editing council meeting:', error);
-        throw new Error('Failed to edit council meeting');
-    }
 }
 
 /**
@@ -163,17 +124,20 @@ export type UpcomingMeetingWithCity = Prisma.CouncilMeetingGetPayload<{
 
 export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?: number } = {}): Promise<UpcomingMeetingWithCity[]> {
     try {
-        return await prisma.councilMeeting.findMany({
+        const meetings = await prisma.councilMeeting.findMany({
             where: {
                 // public visibility guard: never expose unreleased (draft) meetings
                 released: true,
                 dateTime: { gt: new Date() },
+                // A postponed or cancelled meeting is not coming up.
+                scheduleStatus: 'scheduled',
                 city: { ...PUBLIC_CITY_WHERE, realm },
             },
             orderBy: [{ dateTime: 'asc' }, { createdAt: 'asc' }],
             take: limit,
             include: upcomingMeetingInclude,
         });
+        return meetings.map(hidePostponedFrom);
     } catch (error) {
         console.error('Error fetching upcoming meetings:', error);
         throw new Error('Failed to fetch upcoming meetings');
@@ -200,11 +164,8 @@ export async function getUpcomingMeetingsCached(realm: Realm, { limit = 10 }: { 
 export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
     try {
-        const updatedMeeting = await prisma.councilMeeting.update({
-            where: { cityId_id: { cityId, id } },
-            data: { released },
-            include: meetingWithAdminBodyInclude,
-        });
+        // The module also releases or hides the other meetings of a postponement.
+        const updatedMeeting = await setMeetingReleased(cityId, id, released);
         // TODO: utilize api/cities/[cityId]/meetings/[meetingId] to edit the meeting
         revalidateTag(`city:${cityId}:meetings`, 'max');
         revalidatePath(`/${cityId}`, "layout");
@@ -217,6 +178,8 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
         return updatedMeeting;
     } catch (error) {
         console.error('Error toggling council meeting release:', error);
+        // A lifecycle rule explains itself to the admin.
+        if (error instanceof LifecycleRuleError) throw error;
         throw new Error('Failed to toggle council meeting release');
     }
 }
@@ -233,6 +196,7 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
             select: {
                 name: true,
                 name_en: true,
+                kind: true,
                 dateTime: true,
                 subjects: {
                     select: {
@@ -282,7 +246,7 @@ export async function getLatestReleasedMeetingIdForCity(cityId: string): Promise
     const now = new Date();
 
     const upcoming = await prisma.councilMeeting.findFirst({
-        where: { cityId, released: true, dateTime: { gt: now } },
+        where: { cityId, released: true, dateTime: { gt: now }, scheduleStatus: 'scheduled' },
         orderBy: { dateTime: 'asc' },
         select: { id: true },
     });
@@ -340,6 +304,8 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
             where: {
                 AND: [
                     { city: CUSTOMER_CITY_WHERE },
+                    // A postponed or cancelled meeting has nothing to upload.
+                    { scheduleStatus: 'scheduled' },
                     {
                         NOT: {
                             taskStatuses: {
@@ -360,7 +326,8 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
         prisma.councilMeeting.findMany({
             where: {
                 dateTime: { gt: now },
-                city: CUSTOMER_CITY_WHERE
+                city: CUSTOMER_CITY_WHERE,
+                scheduleStatus: 'scheduled',
             },
             select: meetingListItemSelect,
             orderBy: { dateTime: 'asc' }

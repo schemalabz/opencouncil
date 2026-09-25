@@ -56,6 +56,7 @@ export const highlightWithMeetingInclude = {
             cityId: true,
             name: true,
             name_en: true,
+            kind: true,
             dateTime: true,
             released: true,
             administrativeBody: { select: { name: true, name_en: true } },

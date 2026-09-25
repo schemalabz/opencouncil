@@ -45,6 +45,7 @@ import {
     OG, OgAvatar, OgBody, OgChip, OgChips, OgContextChip, OgEyebrow, OgFacts, OgFrame, OgHeader, OgHeadline,
     OgRow, OgStack, OgTile, OgTileGrid, OgTitle, ogUppercase,
 } from '@/components/og/frame';
+import { meetingNameInCity } from '@/lib/meetingName';
 
 /**
  * A `getTranslations` result. The `og` catalog holds every string these images
@@ -143,7 +144,7 @@ const MeetingOGImage = async (cityId: string, meetingId: string, reqId: string, 
                             <OgEyebrow text={stamp.monthYear} locale={locale} size={18} color={OG.MUTED} />
                         </OgRow>
                         <div style={{ display: 'flex', marginTop: 22 }}>
-                            <OgTitle size={40} maxWidth={440}>{getLocalizedName(data, locale)}</OgTitle>
+                            <OgTitle size={40} maxWidth={440}>{meetingNameInCity(data, locale)}</OgTitle>
                         </div>
                         <div style={{ display: 'flex', marginTop: 14 }}>
                             <OgFacts items={[when, t('meeting.subjects', { count: data.subjects.length })]} />

@@ -1,7 +1,7 @@
 import 'server-only';
 import { Prisma } from '@prisma/client';
 import prisma from './prisma';
-import type { AdjacentMeetings } from './types';
+import { meetingNameSelect, type AdjacentMeetings } from './types';
 
 /**
  * The meetings on either side of one, in time. Within the same administrative
@@ -26,7 +26,7 @@ export async function getAdjacentMeetings(cityId: string, meetingId: string, { i
         administrativeBodyId: current.administrativeBodyId,
         ...(includeUnreleased ? {} : { released: true }),
     };
-    const select = { id: true, name: true, name_en: true } as const;
+    const select = { id: true, ...meetingNameSelect } satisfies Prisma.CouncilMeetingSelect;
     const [previous, next] = await Promise.all([
         prisma.councilMeeting.findFirst({
             where: { ...scope, OR: [{ dateTime: { lt: current.dateTime } }, { dateTime: current.dateTime, id: { lt: meetingId } }] },

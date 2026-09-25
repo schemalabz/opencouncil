@@ -29,6 +29,13 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
         // Process each delivery
         for (const delivery of pendingDeliveries) {
             try {
+                // A notice about an upcoming meeting that will not take place
+                // on its date is not sent (#153 covers telling the readers).
+                if (delivery.notification.type === 'beforeMeeting' && delivery.notification.meeting.scheduleStatus !== 'scheduled') {
+                    await updateDeliveryStatus(delivery.id, 'skipped');
+                    skipped++;
+                    continue;
+                }
                 if (delivery.medium === 'email') {
                     const result = await sendEmailDelivery(delivery);
                     if (result) {

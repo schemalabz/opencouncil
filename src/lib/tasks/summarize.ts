@@ -12,6 +12,7 @@ import { getAvailableSpeakerSegmentIds, getSummarizeRequestBody, saveSubjectsFor
 import { withUserAuthorizedToEdit } from "../auth";
 import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
+import { meetingNameInCity } from '@/lib/meetingName';
 
 export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = [], additionalInstructions?: string, {
     force = false
@@ -192,7 +193,7 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
             if (stats.notificationsCreated > 0) {
                 sendNotificationsCreatedAdminAlert({
                     cityName: councilMeeting.city.name_en,
-                    meetingName: councilMeeting.name,
+                    meetingName: meetingNameInCity(councilMeeting, 'el'),
                     notificationType: 'afterMeeting',
                     notificationsCreated: stats.notificationsCreated,
                     subjectsTotal: stats.subjectsTotal,
@@ -213,7 +214,7 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                     cityId: councilMeeting.cityId,
                     meetingId: councilMeeting.id,
                     cityName: councilMeeting.city.name_en,
-                    meetingName: councilMeeting.name,
+                    meetingName: meetingNameInCity(councilMeeting, 'el'),
                     notificationCount: stats.notificationsCreated,
                     emailsSent: releaseResult.emailsSent,
                     failed: releaseResult.failed

@@ -6,9 +6,10 @@ import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import { useCouncilMeetingData } from "@/components/meetings/CouncilMeetingDataContext";
 import { SubjectSection } from "@/components/meetings/subject-section";
 import { TopicFilter } from "@/components/TopicFilter";
-import { CalendarIcon, ExternalLink, FileIcon, FileText } from "lucide-react";
+import { CalendarIcon, ExternalLink, FileIcon, FileText, Hash, History, Lock, MapPin, Video } from "lucide-react";
 import { formatDate } from "@/lib/formatters/time";
-import { pendingKind, type PublicMeetingStage } from "@/lib/meetingStage";
+import { presentationPendingKind, type PresentationKey } from "@/lib/meetingPresentation";
+import { effectivePlace } from "@/lib/meetingPublic";
 import { MeetingStageChip } from "@/components/meetings/stage/MeetingStageChip";
 import { MeetingStageStrip } from "@/components/meetings/stage/MeetingStageStrip";
 import { PendingSubjectsNote } from "@/components/meetings/stage/PendingSubjectsNote";
@@ -22,6 +23,7 @@ import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, useMemo } from "react";
 import type { Topic } from "@prisma/client";
+import { meetingDisplayName } from '@/lib/meetingName';
 
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
@@ -29,9 +31,9 @@ export default function MeetingPage() {
     const subjectCategories = getSubjectCategories(t);
     const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
     const [agendaSortMode, setAgendaSortMode] = useState<'speakingTime' | 'agendaIndex'>('speakingTime');
-    const { stage, deadline, now } = useMeetingStage();
+    const { presentation, stage, deadline, now } = useMeetingStage();
     // What a row says in place of the stats it does not have yet.
-    const pending = pendingKind(stage);
+    const pending = presentationPendingKind(presentation);
 
     // The subjects as the shared map language's dense mode: plain topic-coloured
     // dots — what the landing draws when pins crowd. The band is decorative (a
@@ -102,7 +104,7 @@ export default function MeetingPage() {
             </div>
 
             <div className="p-4 sm:p-6">
-                <MeetingStageStrip stage={stage} deadline={deadline} />
+                <MeetingStageStrip presentation={presentation} stage={stage} deadline={deadline} />
                 <HighlightCards subjects={subjects} />
 
                 {availableTopics.length > 0 && (
@@ -156,7 +158,7 @@ export default function MeetingPage() {
     )
 }
 
-function MeetingInfo({ stage, now }: { stage: PublicMeetingStage; now: Date }) {
+function MeetingInfo({ stage, now }: { stage: PresentationKey; now: Date }) {
     const tMeeting = useTranslations("CouncilMeeting");
     const tStage = useTranslations("meetingStage");
     const { meeting, subjects, city } = useCouncilMeetingData();
@@ -164,7 +166,7 @@ function MeetingInfo({ stage, now }: { stage: PublicMeetingStage; now: Date }) {
     return (
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
             <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
-                <h1 className="text-xl sm:text-2xl font-bold">{meeting.name}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold">{meetingDisplayName(meeting, locale, city.timezone)}</h1>
                 {/* The stage opens the facts row; on a phone the row wraps and the chip takes
                     the first slot. A complete meeting has no chip: the full ring is its absence. */}
                 <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs sm:text-sm text-gray-600">
@@ -178,6 +180,44 @@ function MeetingInfo({ stage, now }: { stage: PublicMeetingStage; now: Date }) {
                         <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
                         {formatDate(new Date(meeting.dateTime), city.timezone, locale)}
                     </div>
+
+                    {/* The new meeting after a postponement: the date for which it was
+                        first scheduled, with no link to the postponed meeting. */}
+                    {meeting.postponedFromDate && (
+                        <div className="flex items-center">
+                            <History className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
+                            {tStage('facts.postponedFrom', { date: formatDate(new Date(meeting.postponedFromDate), city.timezone, locale) })}
+                        </div>
+                    )}
+
+                    {meeting.sessionNumber !== null && (
+                        <div className="flex items-center">
+                            <Hash className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
+                            {tStage('facts.sessionNumber', { number: meeting.sessionNumber, kind: meeting.kind ?? 'regular' })}
+                        </div>
+                    )}
+
+                    {(meeting.format === 'teleconference' || meeting.format === 'mixed') && (
+                        <div className="flex items-center">
+                            <Video className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
+                            {tStage(`facts.format.${meeting.format}`)}
+                        </div>
+                    )}
+
+                    {/* The place of an in-person meeting: its own, else the hall of its body. */}
+                    {(meeting.format === 'inPerson' || meeting.format === 'mixed') && effectivePlace(meeting) && (
+                        <div className="flex items-center">
+                            <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
+                            {effectivePlace(meeting)}
+                        </div>
+                    )}
+
+                    {meeting.closedToPublic && (
+                        <div className="flex items-center">
+                            <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 sm:mr-2.5" />
+                            {tStage('facts.closedToPublic')}
+                        </div>
+                    )}
 
                     {meeting.agendaUrl && (
                         <div className="flex items-center">

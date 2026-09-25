@@ -1,5 +1,6 @@
 import { formatClockTime, formatRelativeTime, formatShortDeadline } from '@/lib/formatters/time';
-import { reviewDeadline, type PublicMeetingStage } from '@/lib/meetingStage';
+import { reviewDeadline } from '@/lib/meetingStage';
+import type { PresentationKey } from '@/lib/meetingPresentation';
 
 type StageTranslate = (key: string, values?: Record<string, string | number>) => string;
 
@@ -9,7 +10,7 @@ type StageTranslate = (key: string, values?: Record<string, string | number>) =>
  */
 export function stageChipDetail(
     t: StageTranslate,
-    stage: PublicMeetingStage,
+    stage: PresentationKey,
     dateTime: Date | string,
     timezone: string,
     locale: string,

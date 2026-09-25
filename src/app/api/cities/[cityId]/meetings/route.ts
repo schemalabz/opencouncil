@@ -3,7 +3,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { generateUniqueMeetingId } from '@/lib/db/meetings';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
-import { createCouncilMeetingDirect } from '@/lib/db/meetings';
+import { createMeetingRecord, originalScheduledDates } from '@/lib/db/meetingLifecycle';
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { syncMeetingToCalendar } from '@/lib/google-calendar';
@@ -12,6 +12,9 @@ import { handleApiError } from '@/lib/api/errors';
 import prisma from '@/lib/db/prisma';
 import { Prisma } from '@prisma/client';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
+import { meetingDisplayName } from '@/lib/meetingName';
+import { toPublicApiMeeting } from '@/lib/meetingPublic';
+import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 
 const getMeetingsQuerySchema = z.object({
     limit: z.string()
@@ -38,15 +41,18 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
     try {
         const authResult = await withServiceOrUserAuth(request, { cityId: params.cityId });
         const body = await request.json();
-        const { name, name_en, date, youtubeUrl, agendaUrl, meetingId: providedMeetingId, administrativeBodyId, processAgenda } = meetingSchema.parse(body);
+        const {
+            name, name_en, date, youtubeUrl, agendaUrl, meetingId: providedMeetingId, administrativeBodyId, processAgenda,
+            kind, scheduleStatus, scheduleStatusReason, sessionNumber, format, closedToPublic, place, postponedFromId, continuationOfId,
+        } = meetingSchema.parse(body);
         const cityId = params.cityId;
 
         // Auto-generate meetingId if not provided
         let meetingId = providedMeetingId || (await generateUniqueMeetingId(cityId, date));
 
         const buildMeetingData = (id: string) => ({
-            name,
-            name_en,
+            name: name ?? null,
+            name_en: name_en ?? null,
             id,
             dateTime: date,
             cityId,
@@ -55,19 +61,30 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             released: false as const,
             muxPlaybackId: null,
             administrativeBodyId: administrativeBodyId || null,
+            // An unknown kind is for the archive only. A later part of a
+            // meeting has no kind of its own: its first part holds it.
+            kind: kind !== undefined ? kind : (continuationOfId ? null : 'regular' as const),
+            scheduleStatus,
+            scheduleStatusReason,
+            sessionNumber,
+            format,
+            closedToPublic,
+            place,
+            postponedFromId,
+            continuationOfId,
         });
 
-        // Auth was already verified by withServiceOrUserAuth above,
-        // so use createCouncilMeetingDirect which skips the internal session check.
+        // Auth was already verified by withServiceOrUserAuth above. The
+        // lifecycle module runs the rules of the record and does no auth.
         let meeting;
         try {
-            meeting = await createCouncilMeetingDirect(buildMeetingData(meetingId));
+            meeting = await createMeetingRecord(buildMeetingData(meetingId));
         } catch (error) {
             // Retry with a fresh ID on unique constraint violation (TOCTOU race).
             if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
             if (providedMeetingId) throw error;
             meetingId = await generateUniqueMeetingId(cityId, date);
-            meeting = await createCouncilMeetingDirect(buildMeetingData(meetingId));
+            meeting = await createMeetingRecord(buildMeetingData(meetingId));
         }
 
         revalidateTag(`city:${cityId}:meetings`, 'max');
@@ -79,7 +96,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         // Fetch city data (should exist since meeting was created successfully)
         const city = await prisma.city.findUnique({
             where: { id: cityId },
-            select: { name_en: true }
+            select: { name_en: true, timezone: true }
         });
 
         if (!city) {
@@ -89,7 +106,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             // Send Discord admin alert
             sendMeetingCreatedAdminAlert({
                 cityName: city.name_en,
-                meetingName: name_en,
+                meetingName: meetingDisplayName(meeting, 'en', city.timezone),
                 meetingDate: date,
                 meetingId: meetingId,
                 cityId: cityId,
@@ -144,7 +161,17 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
             to,
         });
 
-        return NextResponse.json(meetings);
+        // An editor gets the rows as they are, links included, for the admin
+        // form. The public list never names the meeting that a new meeting
+        // replaced: it gets the date instead.
+        if (includeUnreleased) {
+            return NextResponse.json(meetings);
+        }
+        const city = await prisma.city.findUnique({ where: { id: params.cityId }, select: { timezone: true } });
+        const timezone = city?.timezone ?? DEFAULT_TIMEZONE;
+        const dates = await originalScheduledDates(params.cityId, meetings);
+        return NextResponse.json(meetings.map(meeting =>
+            toPublicApiMeeting(meeting, { timezone, postponedFromDate: dates.get(meeting.id) ?? null })));
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: error.errors }, { status: 400 });

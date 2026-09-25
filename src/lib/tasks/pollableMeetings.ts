@@ -1,3 +1,4 @@
+import type { MeetingKind } from "@prisma/client";
 import { isLogodosiaMeeting } from "./pollDecisionsBackoff";
 import { MeetingDecisionCounts } from "../db/decisions";
 
@@ -31,7 +32,7 @@ export interface PollPartition {
  *   re-poll, but surfaced so the admin knows).
  */
 export function partitionMeetingsForPolling(
-    meetings: { id: string; name: string }[],
+    meetings: { id: string; name: string; kind: MeetingKind | null }[],
     decisionCounts: MeetingDecisionCounts,
 ): PollPartition {
     const pollable: MeetingPollEligibility[] = [];
@@ -47,7 +48,7 @@ export function partitionMeetingsForPolling(
         };
 
         let skipReason: PollSkipReason | null = null;
-        if (isLogodosiaMeeting(meeting.name)) {
+        if (isLogodosiaMeeting(meeting)) {
             skipReason = "logodosia";
         } else if (counts.eligible === 0) {
             skipReason = "noEligibleSubjects";

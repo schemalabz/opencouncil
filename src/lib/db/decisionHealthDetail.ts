@@ -123,7 +123,7 @@ function deriveUnmatchedLists(facts: DecisionFacts): CityDecisionDetail['unmatch
     // detail is the drill-down, and the drill-down must show everything.
     const classified: Array<CityUnmatchedSubject & { cause: UnmatchedCause }> = [];
     for (const m of facts.meetings) {
-        if (isLogodosiaMeeting(m.name)) continue;
+        if (isLogodosiaMeeting(m)) continue;
         for (const s of m.subjects) {
             if (s.linked) continue;
             classified.push({

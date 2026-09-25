@@ -59,6 +59,15 @@ function makeMeeting(overrides: Partial<MeetingForCalendarSync> = {}): MeetingFo
         createdAt: new Date(0),
         updatedAt: new Date(0),
         released: false,
+        scheduleStatus: 'scheduled',
+        scheduleStatusReason: null,
+        kind: 'regular',
+        sessionNumber: null,
+        format: 'inPerson',
+        closedToPublic: false,
+        place: null,
+        postponedFromId: null,
+        continuationOfId: null,
         administrativeBodyId: null,
         city: { name: 'Αθήνα', timezone: 'Europe/Athens', realm: 'greece' },
         administrativeBody: null,
@@ -90,6 +99,39 @@ describe('syncMeetingToCalendar', () => {
 
     it('does nothing when no calendar ID is configured', async () => {
         env.GOOGLE_CALENDAR_ID = undefined;
+        await syncMeetingToCalendar('athens', 'jun5_2026', { allowCreate: true });
+        expect(mockInsert).not.toHaveBeenCalled();
+    });
+
+    it.each(['postponed', 'cancelled'] as const)('patches the event of a %s meeting to cancelled and tells the attendees', async (scheduleStatus) => {
+        mockGetMeeting.mockResolvedValue(makeMeeting({ calendarEventId: 'evt-1', scheduleStatus }));
+        await syncMeetingToCalendar('athens', 'jun5_2026');
+        expect(mockPatch).toHaveBeenCalledWith(
+            expect.objectContaining({ eventId: 'evt-1', sendUpdates: 'all', requestBody: expect.objectContaining({ status: 'cancelled' }) }),
+            expect.anything(),
+        );
+    });
+
+    it('cancels the event of an old meeting without emailing anyone, as a backfill does', async () => {
+        mockGetMeeting.mockResolvedValue(makeMeeting({ dateTime: PAST, calendarEventId: 'evt-1', scheduleStatus: 'cancelled' }));
+        await syncMeetingToCalendar('athens', 'jun5_2026');
+        expect(mockPatch).toHaveBeenCalledWith(
+            expect.objectContaining({ sendUpdates: 'none', requestBody: expect.objectContaining({ status: 'cancelled' }) }),
+            expect.anything(),
+        );
+    });
+
+    it('restores the event with one more patch when the meeting is scheduled again', async () => {
+        mockGetMeeting.mockResolvedValue(makeMeeting({ calendarEventId: 'evt-1', scheduleStatus: 'scheduled' }));
+        await syncMeetingToCalendar('athens', 'jun5_2026');
+        expect(mockPatch).toHaveBeenCalledWith(
+            expect.objectContaining({ requestBody: expect.objectContaining({ status: 'confirmed' }) }),
+            expect.anything(),
+        );
+    });
+
+    it('creates no event for a new meeting that is not scheduled', async () => {
+        mockGetMeeting.mockResolvedValue(makeMeeting({ scheduleStatus: 'cancelled' }));
         await syncMeetingToCalendar('athens', 'jun5_2026', { allowCreate: true });
         expect(mockInsert).not.toHaveBeenCalled();
     });

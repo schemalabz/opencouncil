@@ -31,6 +31,7 @@ import {
 
 import { buildTranscriptEntriesFromUtterances, CrossSubjectInfo } from './transcriptEntries';
 import { computeTemporalWindows, assignUtterances } from './temporalWindows';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 export async function getMinutesData(
     cityId: string,
@@ -418,7 +419,7 @@ export async function getMinutesData(
         meeting: {
             id: meeting.id,
             cityId: meeting.cityId,
-            name: meeting.name,
+            name: meetingDisplayName(meeting, 'el', city.timezone),
             dateTime: meeting.dateTime.toISOString(),
         },
         administrativeBody: meeting.administrativeBody

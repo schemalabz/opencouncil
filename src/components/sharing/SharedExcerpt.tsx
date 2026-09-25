@@ -9,6 +9,7 @@ import { SharePageShell } from './SharePageShell';
 import { TranscriptReviewNotice } from './TranscriptReviewNotice';
 import { SharingViewTracker, SharingSourceLink } from '@/components/analytics/SharingTracker';
 import type { SharingContext } from '@/lib/analytics/sharing';
+import { meetingNameInCity } from '@/lib/meetingName';
 
 export async function SharedExcerpt({ excerpt, locale }: { excerpt: PublicExcerpt; locale: string }) {
     const t = await getTranslations({ locale, namespace: 'sharing' });
@@ -18,7 +19,7 @@ export async function SharedExcerpt({ excerpt, locale }: { excerpt: PublicExcerp
     return <SharePageShell locale={locale}>
         <SharingViewTracker analytics={analytics} />
         <p className="text-xs font-semibold tracking-wide text-[hsl(var(--orange-deep))] dark:text-[hsl(var(--orange))]">{t('excerpt')}</p>
-        <h1 className="mt-3 text-balance text-2xl font-normal leading-tight tracking-tight sm:text-3xl">{excerpt.subject?.name ?? getLocalizedName(meeting, locale)}</h1>
+        <h1 className="mt-3 text-balance text-2xl font-normal leading-tight tracking-tight sm:text-3xl">{excerpt.subject?.name ?? meetingNameInCity(meeting, locale)}</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">{getLocalizedName(meeting.city, locale)}<span className="mx-2">·</span>{formatDate(meeting.dateTime, meeting.city.timezone, locale)}</p>
         {!excerpt.isReviewed && <div className="mt-6"><TranscriptReviewNotice text={t('unreviewedNotice')} /></div>}
         <div className="my-8 border-y py-8 sm:my-10 sm:py-10">

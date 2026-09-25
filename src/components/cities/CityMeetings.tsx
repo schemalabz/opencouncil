@@ -11,7 +11,7 @@ import { getAdministrativeBodyTypes, filterMeetingByAdminBodyTypes, getBodiesOfT
 import { PaginationParams } from '@/lib/db/types';
 import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
-import { getLocalizedName } from '@/lib/formatters/name';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 type CityMeetingsProps = {
     councilMeetings: CouncilMeetingWithSubjectPreview[],
@@ -49,13 +49,13 @@ export default function CityMeetings({
     // The subject titles are already on the card's preview, and they are what a
     // reader remembers a meeting by far more often than its number.
     const searchKeys = useCallback((meeting: CouncilMeetingWithSubjectPreview) => [
-        meeting.name,
-        meeting.name_en,
-        getLocalizedName(meeting, locale),
+        meetingDisplayName(meeting, 'el', timezone),
+        meetingDisplayName(meeting, 'en', timezone),
+        meetingDisplayName(meeting, locale, timezone),
         meeting.administrativeBody?.name,
         meeting.administrativeBody?.name_en,
         ...meeting.subjects.map(subject => subject.name),
-    ], [locale]);
+    ], [locale, timezone]);
 
     const typeOptions = useMemo(() =>
         getAdministrativeBodyTypes(administrativeBodies, tCommon),
