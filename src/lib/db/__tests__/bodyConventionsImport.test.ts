@@ -9,8 +9,11 @@ describe('fixtures/body-conventions.json', () => {
         expect(new Set(bodies.map(b => `${b.cityId}/${b.body}`)).size).toBe(bodies.length);
         for (const b of bodies) expect({ body: `${b.cityId}/${b.body}`, ok: decisionConventionsSchema.safeParse(b.conventions).success }).toEqual({ body: `${b.cityId}/${b.body}`, ok: true });
     });
-    it('confirms nothing on a person\'s behalf', () => {
-        expect(bodies.filter(b => b.conventions.provenance.source !== 'profile')).toEqual([]);
+    it('confirms a body only with who confirmed it and when', () => {
+        for (const b of bodies.filter(x => x.conventions.provenance.source === 'manual')) {
+            const p = b.conventions.provenance;
+            expect({ body: `${b.cityId}/${b.body}`, by: Boolean(p.confirmedBy), at: Boolean(p.confirmedAt) }).toEqual({ body: `${b.cityId}/${b.body}`, by: true, at: true });
+        }
     });
 });
 
@@ -46,5 +49,12 @@ describe('importBodyConventions', () => {
         const c = client(null);
         expect(await importBodyConventions([record], c as never)).toMatchObject({ missing: [`${record.cityId}/${record.body}`] });
         expect(c.update).not.toHaveBeenCalled();
+    });
+    it('writes over a confirmed body only when its key is named', async () => {
+        const confirmed = { ...record.conventions, provenance: { source: 'manual', confirmedBy: 'user-1' } };
+        const key = `${record.cityId}/${record.body}`;
+        const c = client({ id: 'b1', decisionConventions: confirmed });
+        expect(await importBodyConventions([record], c as never, { replace: new Set([key]) })).toMatchObject({ written: [key], confirmedSkipped: [] });
+        expect(c.update).toHaveBeenCalledTimes(1);
     });
 });

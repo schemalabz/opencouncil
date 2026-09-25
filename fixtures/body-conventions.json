@@ -17,6 +17,7 @@
         "usesSubstitutes": true,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "notes": "Present and absent lists, body of 5. No substitute appears anywhere in 33 documents even where members are absent — the case exists in principle but not in our corpus. Must be hunted on Diavgeia.",
         "provenance": {
           "source": "profile",
@@ -40,7 +41,8 @@
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
-        "notes": "Departures exist: 9ΗΧΧΩΨ3-3ΝΟ and Ρ09ΤΩΨ3-ΘΤΝ, two minority members walking out after the 8th item with a recorded statement of reasons. No arrival anywhere, so the present-list question is untestable from this corpus.",
+        "listOmitsSecretary": false,
+        "notes": "No late arrival in any page yet. 9ΗΧΧΩΨ3-3ΝΟ and Ρ09ΤΩΨ3-ΘΤΝ, once cited here, are committee decisions (90/2026, 98/2026) linked to council items by mistake.",
         "provenance": {
           "source": "profile",
           "profiledAt": "2026-09-13",
@@ -61,6 +63,7 @@
         "usesSubstitutes": true,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "notes": "No attendance change of any kind in 40 documents. The two Argos bodies behave completely differently; the council's ΑΠΟΧΩΡΗΣΑΝΤΕΣ convention does not appear here.",
         "provenance": {
           "source": "profile",
@@ -84,11 +87,14 @@
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
         "notes": "The roll call carries a third list, ΑΠΟΧΩΡΗΣΑΝΤΕΣ, beside ΠΑΡΟΝΤΕΣ and ΑΠΟΝΤΕΣ. It names those who had already left by the time of the decision this document records, and appears only in the documents of decisions the person missed. Per-decision attendance, stated directly. ΨΠ4ΗΩΨΔ-ΘΘΘ has one; Ψ7ΦΖΩΨΔ-ΥΦΘ does not. Each document's ΠΑΡΟΝΤΕΣ/ΑΠΟΝΤΕΣ is the state as of its own decision: 3/12/2025 prints Μπουλούκος absent on items 1–2 and present from item 3, where «στην αρχή του παρόντος θέματος προσήλθε» (verified on the page 2026-09-23).",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -107,10 +113,13 @@
         "usesSubstitutes": false,
         "namedVoters": "all",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -129,10 +138,13 @@
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         },
         "notes": "Each document's ΠΑΡΟΝΤΕΣ/ΑΠΟΝΤΕΣ is the state as of its own decision: 18/5/2026 has Σιδέρης under ΑΠΟΝΤΕΣ on Πράξεις 94–96 and under ΠΑΡΟΝΤΕΣ from 97, whose own page says «προσήλθε στην Πράξη 97/2026» (verified 2026-09-23)."
       }
@@ -152,10 +164,13 @@
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 39
+          "documentsSampled": 39,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -174,10 +189,13 @@
         "usesSubstitutes": false,
         "namedVoters": "all",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 35
+          "documentsSampled": 35,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -196,10 +214,13 @@
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -216,10 +237,13 @@
         "usesSubstitutes": false,
         "namedVoters": "all",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         },
         "notes": "Each document's ΠΑΡΟΝΤΕΣ/ΑΠΟΝΤΕΣ is the state as of its own decision, with no arrival sentence: 16/2/2026 has Γεωργάτος-Ιατρίδης and Τσιμπλάκη under ΑΠΟΝΤΕΣ on Πράξεις 23–25 and under ΠΑΡΟΝΤΕΣ from 26 (verified on the page 2026-09-23)."
       }
@@ -230,7 +254,7 @@
       "conventions": {
         "version": 1,
         "rollCallLayout": "composition_and_absent",
-        "presentListMeaning": "unknown",
+        "presentListMeaning": "opening",
         "attendanceChangeAnchors": [
           "agenda_item"
         ],
@@ -239,10 +263,13 @@
         "usesSubstitutes": false,
         "namedVoters": "all",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -261,11 +288,14 @@
         "usesSubstitutes": true,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "notes": "The σύνθεση is an invitation roster naming everyone summoned, regular and substitute. There is no attendance list at all, so composition minus absent includes people who arrived later. That is why it reads cumulative, and it is the mechanism that manufactures wrong vote lists.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -284,11 +314,14 @@
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "notes": "Present and absent at the roll call, then a separate line per arrival and departure, each pinned to a decision number. Additionally «Εκτός αιθούσης στις με αρ. 31 – 40 ΑΔΣ ο κ. …»: temporarily out of the room for a RANGE of decisions, which is not a departure — after a departure the person is gone for everything following. Changes during out-of-agenda items name only the section, not the item.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -307,11 +340,14 @@
         "usesSubstitutes": true,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
         "notes": "ΣΥΜΜΕΤΕΧΟΝΤΕΣ is an attendance list and does NOT contain late arrivals. In ΨΥ8ΨΩΗΔ-Υ7Κ, Ευθυμίου arrives during item 7 as a substitute for Λυμπεράτος and appears nowhere in it, while Λυμπεράτος sits in ΜΗ ΣΥΜΜΕΤΕΧΟΝΤΕΣ. Confirmed by reading the page.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 35
+          "documentsSampled": 35,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -333,9 +369,11 @@
         "listOmitsSecretary": true,
         "notes": "Present, absent, and distinct sections for arrivals and departures. The mayor-president is on his own line among the present. At the end of the document it names every member present for that specific decision — so Chalandri, like Argos, states per-decision attendance directly.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -354,11 +392,14 @@
         "usesSubstitutes": true,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "notes": "ΠΑΡΟΝΤΕΣ is the opening attendance and already includes substitutes WITHOUT marking them; the substitution is explained in prose below. The ΑΠΟΝΤΕΣ list is incomplete: an absent regular member replaced by a substitute can appear in neither list, and this does not show up as an arithmetic mismatch against the stated body size. OPEN QUESTION for the municipality.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -379,9 +420,11 @@
         "mayorStatedSeparately": true,
         "notes": "ΣΥΝΘΕΣΗ with all members, and «Απουσίαζαν καθ' όλη τη διάρκεια της συνεδρίασης οι …» in the same paragraph with no section boundary. Arrivals and departures pinned to decision numbers. Out-of-agenda items announced up front: «Οι υπ' αριθμ. 1/2025 έως και 3/2025 αποφάσεις συζητήθηκαν ομόφωνα εκτός ημερήσιας διάταξης». The 4 documents reporting substitutes all embed another body's decision — reader leakage, discard.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         },
         "listOmitsSecretary": true
       }
@@ -401,10 +444,14 @@
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
+        "notes": "Per-vote absences confirmed on 6ΝΕ1ΩΞΒ-Υ0Σ and Ρ07ΩΩΞΒ-Ο1Σ (2026-09-25); the list is not per decision; no late arrival seen yet.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -418,16 +465,19 @@
         "attendanceChangeAnchors": [
           "agenda_item"
         ],
-        "statesPerDecisionAttendance": true,
+        "statesPerDecisionAttendance": false,
         "statesPerVoteAbsence": true,
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
         "notes": "Arrivals annotated inline inside the absent list, «(Προσήλθε στο 2ο Θέμα)». No departure found anywhere. The decision body includes transcript excerpts of the voting itself — ΨΧ6ΛΩΞΒ-Ν1Ο is a good example. Applies ministerial circular 108/2019, under which votes against a sole proposal count as άκυρες ψήφοι rather than opposition.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 38
+          "documentsSampled": 38,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -444,11 +494,14 @@
         "usesSubstitutes": true,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
         "notes": "Present and absent, but no absent example in our corpus. Expected to follow the substitution pattern of other committees; unverified.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -470,9 +523,11 @@
         "listOmitsSecretary": true,
         "notes": "Present and absent in the roll call, then separate lines for arrivals and departures.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -489,6 +544,7 @@
         "usesSubstitutes": false,
         "namedVoters": "none",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "notes": "Present and absent, no substitute example. Only 10 documents from 2 meetings.",
         "provenance": {
           "source": "profile",
@@ -510,6 +566,7 @@
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
         "notes": "Present and absent. No arrival or departure example anywhere.",
         "provenance": {
           "source": "profile",
@@ -524,7 +581,7 @@
       "conventions": {
         "version": 1,
         "rollCallLayout": "present_and_absent",
-        "presentListMeaning": "unknown",
+        "presentListMeaning": "cumulative",
         "attendanceChangeAnchors": [
           "agenda_item"
         ],
@@ -533,10 +590,13 @@
         "usesSubstitutes": true,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -555,11 +615,14 @@
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
         "notes": "Present and absent, distinguishing physical from remote attendance (not something we need). Separate «προσελεύσεις-αποχωρήσεις» section. ΨΙΛΝΩ1Ν-ΞΒ8 is the hard case: the mayor is absent and RETURNS during item 3, and the same document records a change in discussion order.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 37
+          "documentsSampled": 37,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -573,16 +636,19 @@
         "attendanceChangeAnchors": [
           "agenda_item"
         ],
-        "statesPerDecisionAttendance": false,
+        "statesPerDecisionAttendance": true,
         "statesPerVoteAbsence": false,
         "usesSubstitutes": true,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
         "notes": "Verbose form of the same pattern as Athens and Argos committees: «Συμμετέχοντες» and «Μη συμμετέχοντες-Απόντες», plus «Προσελεύσεις» and «Αποχωρήσεις». Substitutes appear under Συμμετέχοντες and the members they replace under Μη συμμετέχοντες.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -596,16 +662,19 @@
         "attendanceChangeAnchors": [
           "phase"
         ],
-        "statesPerDecisionAttendance": false,
+        "statesPerDecisionAttendance": true,
         "statesPerVoteAbsence": false,
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
         "notes": "Present and absent roll call at the start, then arrivals and departures per subject.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -622,6 +691,7 @@
         "usesSubstitutes": true,
         "namedVoters": "none",
         "mayorStatedSeparately": false,
+        "listOmitsSecretary": false,
         "notes": "Clear ΠΑΡΟΝΤΕΣ and ΑΠΟΝΤΕΣ listing, inline. No notion of arrivals or departures at all: none in 40 documents across 24 meetings.",
         "provenance": {
           "source": "profile",
@@ -636,20 +706,23 @@
       "conventions": {
         "version": 1,
         "rollCallLayout": "present_and_absent",
-        "presentListMeaning": "unknown",
+        "presentListMeaning": "opening",
         "attendanceChangeAnchors": [
           "agenda_item"
         ],
-        "statesPerDecisionAttendance": true,
+        "statesPerDecisionAttendance": false,
         "statesPerVoteAbsence": false,
         "usesSubstitutes": false,
         "namedVoters": "none",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
         "notes": "Present and absent at the start, arrivals and departures pinned to the agenda item.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 39
+          "documentsSampled": 39,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -663,16 +736,19 @@
         "attendanceChangeAnchors": [
           "agenda_item"
         ],
-        "statesPerDecisionAttendance": false,
+        "statesPerDecisionAttendance": true,
         "statesPerVoteAbsence": false,
         "usesSubstitutes": true,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
         "notes": "Lists all members first, regular and substitute, then present and absent. More verbose than others about whether the mayor was present.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 40
+          "documentsSampled": 40,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     },
@@ -691,11 +767,14 @@
         "usesSubstitutes": false,
         "namedVoters": "dissenters_only",
         "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
         "notes": "Same shape as the committee. States reordering of subjects when it happens — worth holding in the fixture even though our ordering comes from the transcript.",
         "provenance": {
-          "source": "profile",
+          "source": "manual",
           "profiledAt": "2026-09-13",
-          "documentsSampled": 39
+          "documentsSampled": 39,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-25"
         }
       }
     }
