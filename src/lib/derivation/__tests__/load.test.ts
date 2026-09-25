@@ -39,6 +39,16 @@ describe('documentFactsFromDecision', () => {
         // Only that one: the same list with the departure anchored elsewhere is believed whole.
         expect(documentFactsFromDecision(decision({ decisionAttendance: { presentIds: ['p1', 'p2'] }, attendanceChanges: [{ type: 'departure', personId: 'p2', anchor: { kind: 'agenda_item' } }] }), roster).presentIds).toEqual(['p1', 'p2']);
     });
+
+    it('reads a departure anchored `this_document` (task v3 vocabulary) as out for this page\'s vote', () => {
+        // The legacy anchor maps to SUBJECT, so the list is not believed for that person either.
+        const facts = documentFactsFromDecision(decision({
+            decisionAttendance: { presentIds: ['p1', 'p2'] },
+            attendanceChanges: [{ type: 'departure', personId: 'p2', anchor: { kind: 'this_document' } }],
+        }), roster);
+        expect(facts.statedChanges).toEqual([expect.objectContaining({ personId: 'p2', kind: 'DEPARTURE', anchorKind: 'SUBJECT' })]);
+        expect(facts.presentIds).toEqual(['p1']);
+    });
     it('drops an id the roster no longer holds and counts it as unmatched', () => {
         const facts = documentFactsFromDecision(decision({
             voteDetails: [{ personId: 'p1', vote: 'FOR' }, { personId: 'deleted', vote: 'AGAINST' }],
