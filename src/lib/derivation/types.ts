@@ -2,7 +2,7 @@ import type {
     AdministrativeBodyType, AttendanceAnchorKind, AttendanceEventKind, AttendancePhase, AttendanceStatus,
     AttendanceTiming, DataSource, NonAgendaReason, VoteType,
 } from '@prisma/client';
-import type { DecisionConventions, RollCallLayout } from '@/lib/decisionConventions';
+import type { DecisionConventions, NamedVoters, RollCallLayout } from '@/lib/decisionConventions';
 
 /** A subject in the transcript-derived order, withdrawn ones excluded. */
 export interface OrderedSubject {
@@ -112,7 +112,7 @@ export const ISSUE_CODES = [
     'NO_ROLL_CALL', 'PRESENCE_UNKNOWN', 'CONVENTIONS_UNCONFIRMED', 'UNMATCHED_NAME', 'UNPLACEABLE_ANCHOR',
     'IMPLIED_CHANGE', 'TALLY_MISMATCH', 'INCOMPLETE_READ', 'PRESIDING_DISAGREES', 'SOURCES_DISAGREE', 'NO_STORED_FACTS',
     'LAYOUT_DISAGREES', 'ITEM_NUMBER_DISAGREES', 'UNREAD_DOCUMENT', 'LIST_DROPS_PRESENT', 'LIST_ADDS_ABSENT',
-    'PERSON_IN_BOTH_LISTS', 'CHANGE_NOT_CORROBORATED',
+    'PERSON_IN_BOTH_LISTS', 'CHANGE_NOT_CORROBORATED', 'LATE_ARRIVAL_IN_OPENING_LIST', 'NAMED_VOTERS_UNEXPECTED',
 ] as const;
 export type IssueCode = typeof ISSUE_CODES[number];
 
@@ -162,6 +162,10 @@ export interface IssueParams {
     PERSON_IN_BOTH_LISTS: Record<string, never>;
     /** A session change fewer than half of the meeting's pages state, in a body whose pages repeat the session. */
     CHANGE_NOT_CORROBORATED: { stated: number; total: number };
+    /** A page of an `opening` body lists under ΠΑΡΟΝΤΕΣ a member it says arrived later (Athens 7η jan22_2026). */
+    LATE_ARRIVAL_IN_OPENING_LIST: Record<string, never>;
+    /** A page names voters unlike its body: FOR where only dissenters are named, anyone where nobody is, nobody FOR where everyone is. */
+    NAMED_VOTERS_UNEXPECTED: { expected: NamedVoters };
 }
 
 interface IssueFields {

@@ -76,6 +76,23 @@ describe('deriveMeetingFacts', () => {
         });
         expect(out.issues.filter(i => i.code === 'ITEM_NUMBER_DISAGREES')).toEqual([]);
     });
+    it('warns when a page names voters unlike its body, and changes no vote row', () => {
+        const namesFor = { ...base.documents[0], namedVotes: [{ personId: 'p1', vote: 'FOR' as const }] };
+        const out = deriveMeetingFacts({ ...base, documents: [namesFor, base.documents[1]] });
+        expect(out.issues.filter(i => i.code === 'NAMED_VOTERS_UNEXPECTED')).toEqual([
+            expect.objectContaining({ subjectId: 's1', params: { expected: 'dissenters_only' } }),
+        ]);
+        const all = deriveMeetingFacts({ ...base, conventions: { ...base.conventions!, namedVoters: 'all' } });
+        expect(all.issues.filter(i => i.code === 'NAMED_VOTERS_UNEXPECTED').map(i => i.subjectId)).toEqual(['s1', 's2']);
+    });
+
+    it("does not count the mayor's own FOR as naming voters", () => {
+        const mayorFor = { ...base.documents[0], namedVotes: [{ personId: 'mayor', vote: 'FOR' as const }] };
+        // cityMayorPersonId, not mayorPersonId: a mayor written apart from the
+        // members is excluded from this check on every body, committees included.
+        expect(deriveMeetingFacts({ ...base, cityMayorPersonId: 'mayor', documents: [mayorFor, base.documents[1]] }).issues.filter(i => i.code === 'NAMED_VOTERS_UNEXPECTED')).toEqual([]);
+    });
+
     it('still derives when the present-list meaning is unknown', () => {
         const out = deriveMeetingFacts({ ...base, conventions: { ...base.conventions!, presentListMeaning: 'unknown' } });
         expect(out.phraseOnlySubjectIds).toEqual([]);

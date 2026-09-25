@@ -1,4 +1,4 @@
-import { pagesCarryOwnList, resolveEvents, resolveRollCall, resolveSession } from '../resolveSession';
+import { lateArrivalsInOpeningList, pagesCarryOwnList, resolveEvents, resolveRollCall, resolveSession } from '../resolveSession';
 import type { DecisionConventions } from '@/lib/decisionConventions';
 import type { DerivationInput, DocumentFacts, StatedChange } from '../types';
 
@@ -188,6 +188,24 @@ describe('pagesCarryOwnList', () => {
         expect(pagesCarryOwnList(conv({ statesPerDecisionAttendance: true }), unlisted)).toBe(false);
         expect(pagesCarryOwnList(conv(), listed)).toBe(false);
         expect(pagesCarryOwnList(null, listed)).toBe(false);
+    });
+});
+
+describe('lateArrivalsInOpeningList', () => {
+    const arrival = (personId: string, anchorKind: StatedChange['anchorKind'] = 'AGENDA_ITEM'): StatedChange => ({
+        ...departure(personId, 3), kind: 'ARRIVAL', anchorKind, timing: 'DURING', rawText: `ο ${personId} προσήλθε κατά τη συζήτηση του 3ου θέματος`,
+    });
+
+    it('reports a page of an opening body that lists a late arrival as present', () => {
+        const pages = [page(['a'], ['g'], { statedChanges: [arrival('g')] }), page(['a', 'g'], [], { statedChanges: [arrival('g')] })];
+        const issues = lateArrivalsInOpeningList({ conventions: conv({ presentListMeaning: 'opening' }), documents: pages });
+        expect(issues).toEqual([expect.objectContaining({ code: 'LATE_ARRIVAL_IN_OPENING_LIST', personId: 'g', decisionId: pages[1].decisionId })]);
+    });
+
+    it('says nothing for a cumulative body, a session-start arrival or a return after a per-vote absence', () => {
+        const pages = [page(['a', 'g'], [], { statedChanges: [arrival('g'), arrival('a', 'SESSION_START'), arrival('a', 'SUBJECT')] })];
+        expect(lateArrivalsInOpeningList({ conventions: conv({ presentListMeaning: 'cumulative' }), documents: pages })).toEqual([]);
+        expect(lateArrivalsInOpeningList({ conventions: conv(), documents: [page(['a'], [], { statedChanges: [arrival('a', 'SESSION_START'), arrival('a', 'SUBJECT')] })] })).toEqual([]);
     });
 });
 

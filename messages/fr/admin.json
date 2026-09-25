@@ -505,7 +505,9 @@
         "LIST_DROPS_PRESENT": "List drops a present member",
         "LIST_ADDS_ABSENT": "List adds an absent member",
         "PERSON_IN_BOTH_LISTS": "Listed present and absent",
-        "CHANGE_NOT_CORROBORATED": "Change on too few pages"
+        "CHANGE_NOT_CORROBORATED": "Change on too few pages",
+        "LATE_ARRIVAL_IN_OPENING_LIST": "Late arrival in the opening list",
+        "NAMED_VOTERS_UNEXPECTED": "Voters named unlike the body"
       },
       "messages": {
         "NO_ROLL_CALL": "{reason, select, noMajority {The pages print different roll calls and no one of them is on more than half of the pages, so presence cannot be replayed. The stored rows were left as they are.} other {No document yielded a roll call, so presence cannot be replayed. The stored rows were left as they are.}}",
@@ -525,7 +527,9 @@
         "LIST_DROPS_PRESENT": "The document's roll call says this member is present and the same document's member list leaves them out; the list wins and the member is absent for this item.",
         "LIST_ADDS_ABSENT": "The document's roll call says this member is absent and the same document's member list names them; the list wins and the member is present. Check that the list is not a misread column of members who had left.",
         "PERSON_IN_BOTH_LISTS": "This page lists the member both under ΠΑΡΟΝΤΕΣ and under ΑΠΟΝΤΕΣ. Where this page's roll call sets presence (as the meeting's roll call, or for its own item in a body that prints a roll call per decision), the member counts as absent.",
-        "CHANGE_NOT_CORROBORATED": "Only {stated} of the meeting's {total} pages state this change, and this body's pages repeat the session. It is not applied; check the page."
+        "CHANGE_NOT_CORROBORATED": "Only {stated} of the meeting's {total} pages state this change, and this body's pages repeat the session. It is not applied; check the page.",
+        "LATE_ARRIVAL_IN_OPENING_LIST": "The page says this member arrived later, yet lists them under ΠΑΡΟΝΤΕΣ, and this body's present list is the opening roll call. The reader probably moved the arrival into the list; the roll call most pages print decides.",
+        "NAMED_VOTERS_UNEXPECTED": "{expected, select, dissenters_only {This body names only those against, blank or declaring, but this page names members in favour.} none {This body names no voters, but this page names some.} other {This body names every voter, but this page names nobody in favour under a phrase that carried.}} Check whether the page was read correctly; the vote rows are unchanged."
       },
       "tallyDiff": "{type, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{type}}}: printed {printed}, derived {derived}",
       "title": "Issues",
@@ -629,11 +633,13 @@
           "INCOMPLETE_READ": "The read did not reach the ΑΠΟΦΑΣΙΖΕΙ, so the outcome is missing.",
           "UNMATCHED_NAME": "A name that was not tied to a person; it counts in neither presences nor votes.",
           "PRESIDING_DISAGREES": "Documents of the same sitting state a different presiding member.",
-          "CONVENTIONS_UNCONFIRMED": "The body's rules came out of a sample of documents and no human has confirmed them."
+          "CONVENTIONS_UNCONFIRMED": "The body's rules came out of a sample of documents and no human has confirmed them.",
+          "NAMED_VOTERS_UNEXPECTED": "A page that names voters unlike the rest of its body is either a misread or a sign that the body's rule is wrong."
         },
         "resolve": {
           "PERSON_IN_BOTH_LISTS": "A page contradicts itself about one member. Where its roll call sets presence, the member counts as absent.",
-          "CHANGE_NOT_CORROBORATED": "This body prints the session's changes on every page, so a change that most pages leave out is probably a misread."
+          "CHANGE_NOT_CORROBORATED": "This body prints the session's changes on every page, so a change that most pages leave out is probably a misread.",
+          "LATE_ARRIVAL_IN_OPENING_LIST": "In a body whose present list is the opening roll call, a member who arrived later cannot be in it."
         },
         "place": {
           "UNPLACEABLE_ANCHOR": "The point the document states corresponds to nothing. The change becomes a signal rather than being applied at the wrong position."

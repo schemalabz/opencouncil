@@ -5,7 +5,7 @@ import type { DerivationInput, DerivationOutput, IssueCode } from './types';
 /** Stated changes the resolution drops, or a page's own list contradicts (spec §7.1 check 4). A task that adds such a code adds it here. */
 export const DROPPED_CHANGE_CODES: readonly IssueCode[] = ['IMPLIED_CHANGE', 'CHANGE_NOT_CORROBORATED'];
 /** A page against its body's conventions (spec §7.1 check 6). A task that adds such a code adds it here. */
-export const CONVENTION_CONTRADICTION_CODES: readonly IssueCode[] = ['LAYOUT_DISAGREES'];
+export const CONVENTION_CONTRADICTION_CODES: readonly IssueCode[] = ['LAYOUT_DISAGREES', 'LATE_ARRIVAL_IN_OPENING_LIST', 'NAMED_VOTERS_UNEXPECTED'];
 
 export interface MeetingMeasure {
     meeting: string;

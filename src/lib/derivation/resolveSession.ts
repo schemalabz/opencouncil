@@ -177,9 +177,29 @@ export function resolveEvents(input: Pick<DerivationInput, 'cityId' | 'meetingId
     return { events, issues };
 }
 
+/**
+ * A page of an `opening` body that lists under ΠΑΡΟΝΤΕΣ a member it says arrived
+ * later: the reader moved the arrival into the list (Athens 7η jan22_2026, 4 of
+ * 22 pages). The roll-call majority already settles which list stands; this names
+ * the page so a person can label it. A session-start arrival and the return after
+ * a per-vote absence are not late arrivals.
+ */
+export function lateArrivalsInOpeningList(input: Pick<DerivationInput, 'documents' | 'conventions'>): Issue[] {
+    if (input.conventions?.presentListMeaning !== 'opening') return [];
+    const issues: Issue[] = [];
+    for (const d of usablePages(input.documents)) {
+        const present = new Set(d.rollCallPresentIds ?? []);
+        for (const c of d.statedChanges) {
+            if (c.kind !== 'ARRIVAL' || c.anchorKind === 'SESSION_START' || c.anchorKind === 'SUBJECT' || !present.has(c.personId)) continue;
+            issues.push({ code: 'LATE_ARRIVAL_IN_OPENING_LIST', subjectId: d.subjectId, decisionId: d.decisionId, personId: c.personId, source: 'decision', rawText: c.rawText, params: {} });
+        }
+    }
+    return issues;
+}
+
 /** The roll call, the events and their issues for one meeting. */
 export function resolveSession(input: DerivationInput): ResolvedSession {
     const roll = resolveRollCall(input);
     const ev = resolveEvents(input);
-    return { rollCall: roll.rollCall, events: ev.events, missing: roll.missing, rollCallBasis: roll.rollCallBasis, issues: [...roll.issues, ...ev.issues] };
+    return { rollCall: roll.rollCall, events: ev.events, missing: roll.missing, rollCallBasis: roll.rollCallBasis, issues: [...roll.issues, ...ev.issues, ...lateArrivalsInOpeningList(input)] };
 }

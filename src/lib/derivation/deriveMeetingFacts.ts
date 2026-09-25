@@ -1,5 +1,5 @@
 import { replayAttendance } from './replayAttendance';
-import { deriveVotes } from './deriveVotes';
+import { deriveVotes, phrasePermitsInference } from './deriveVotes';
 import { resolveSession } from './resolveSession';
 import { isConfirmedByPerson, type DecisionConventions } from '@/lib/decisionConventions';
 import type { DocumentFacts, DerivationInput, DerivationOutput, Issue, OrderedSubject } from './types';
@@ -14,7 +14,7 @@ import type { DocumentFacts, DerivationInput, DerivationOutput, Issue, OrderedSu
  * on. A body profiled as `mixed` states that its documents vary, so no single
  * layout contradicts it.
  */
-function documentDisagreements(doc: DocumentFacts, subject: OrderedSubject | undefined, conventions: DecisionConventions | null): Issue[] {
+function documentDisagreements(doc: DocumentFacts, subject: OrderedSubject | undefined, conventions: DecisionConventions | null, cityMayorPersonId: string | null): Issue[] {
     const issues: Issue[] = [];
     const where = { subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision' } as const;
     const expected = conventions?.rollCallLayout;
@@ -30,6 +30,20 @@ function documentDisagreements(doc: DocumentFacts, subject: OrderedSubject | und
         && doc.declaredItemNumber !== subject.agendaItemIndex) {
         issues.push({ code: 'ITEM_NUMBER_DISAGREES', ...where, params: { declared: doc.declaredItemNumber, linked: subject.agendaItemIndex } });
     }
+    // How the body names its voters, against how this page did. A mismatch is a
+    // misread or a wrong convention; the vote rows stay as deriveVotes makes them.
+    // The mayor's own FOR is excluded by the city's mayor, not `mayorPersonId`
+    // (null wherever the mayor sits as a member): a mayor written apart from the
+    // members (§6.5) is not "the page named a member FOR" on any body, committee
+    // included — replayAttendance's `mayorWrittenApart` reads the same field.
+    const expectedVoters = conventions?.namedVoters;
+    const named = doc.namedVotes.filter(v => v.personId !== cityMayorPersonId);
+    const namesFor = named.some(v => v.vote === 'FOR');
+    const unlikeBody = expectedVoters === 'dissenters_only' ? namesFor
+        : expectedVoters === 'none' ? named.length > 0
+        : expectedVoters === 'all' ? !namesFor && phrasePermitsInference(doc.voteResultPhrase)
+        : false;
+    if (expectedVoters && unlikeBody) issues.push({ code: 'NAMED_VOTERS_UNEXPECTED', ...where, params: { expected: expectedVoters } });
     return issues;
 }
 
@@ -61,7 +75,7 @@ export function deriveMeetingFacts(input: DerivationInput): DerivationOutput {
             continue;
         }
         const present = replay.presentBySubject.get(doc.subjectId) ?? null;
-        issues.push(...documentDisagreements(doc, subjectById.get(doc.subjectId), input.conventions));
+        issues.push(...documentDisagreements(doc, subjectById.get(doc.subjectId), input.conventions, input.cityMayorPersonId));
         const r = deriveVotes(doc, present, input.mayorPersonId);
         votes.push(...r.votes); issues.push(...r.issues);
         for (const name of doc.unmatchedNames) issues.push({ code: 'UNMATCHED_NAME', subjectId: doc.subjectId, decisionId: doc.decisionId,

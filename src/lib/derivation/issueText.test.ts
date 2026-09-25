@@ -27,6 +27,8 @@ const CASES: { [C in IssueCode]: { params: IssueParams[C]; contains?: string[] }
     LIST_ADDS_ABSENT: { params: {} },
     PERSON_IN_BOTH_LISTS: { params: {} },
     CHANGE_NOT_CORROBORATED: { params: { stated: 1, total: 9 }, contains: ['1', '9'] },
+    LATE_ARRIVAL_IN_OPENING_LIST: { params: {} },
+    NAMED_VOTERS_UNEXPECTED: { params: { expected: 'dissenters_only' } },
 };
 
 describe('issueMessageEn', () => {
