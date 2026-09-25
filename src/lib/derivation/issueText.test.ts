@@ -25,6 +25,8 @@ const CASES: { [C in IssueCode]: { params: IssueParams[C]; contains?: string[] }
     UNREAD_DOCUMENT: { params: {} },
     LIST_DROPS_PRESENT: { params: {} },
     LIST_ADDS_ABSENT: { params: {} },
+    PERSON_IN_BOTH_LISTS: { params: {} },
+    CHANGE_NOT_CORROBORATED: { params: { stated: 1, total: 9 }, contains: ['1', '9'] },
 };
 
 describe('issueMessageEn', () => {

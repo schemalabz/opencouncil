@@ -9,7 +9,7 @@ import {
 } from '@/lib/derivation/issueCatalogue';
 
 /**
- * How a fact gets from the Diavgeia PDF to the πρακτικά, in the five steps
+ * How a fact gets from the Diavgeia PDF to the πρακτικά, in the six steps
  * `DERIVATION_STAGES` names: what each step keeps from the source, what it
  * computes from that, and what it can leave unanswered.
  *

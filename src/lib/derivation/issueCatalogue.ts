@@ -3,11 +3,11 @@ import { ISSUE_CODES, type Issue, type IssueCode } from './types';
 export type IssueSeverity = 'info' | 'warning' | 'error';
 
 /**
- * The five steps a fact passes through, in order: what each document states,
- * where its stated changes land, who that leaves present, how the votes follow
- * from that, and the write.
+ * The six steps a fact passes through, in order: what each document states,
+ * what the pages state together, where the stated changes land, who that
+ * leaves present, how the votes follow from that, and the write.
  */
-export const DERIVATION_STAGES = ['read', 'place', 'presence', 'votes', 'write'] as const;
+export const DERIVATION_STAGES = ['read', 'resolve', 'place', 'presence', 'votes', 'write'] as const;
 export type DerivationStage = typeof DERIVATION_STAGES[number];
 
 /**
@@ -41,6 +41,8 @@ export const ISSUE_SEVERITY: Record<IssueCode, IssueSeverity> = {
     UNREAD_DOCUMENT: 'warning',
     LIST_DROPS_PRESENT: 'info',
     LIST_ADDS_ABSENT: 'warning',
+    PERSON_IN_BOTH_LISTS: 'info',
+    CHANGE_NOT_CORROBORATED: 'info',
 };
 
 /** Worse first. Private: what callers need is "which of these is worse", below. */
@@ -80,6 +82,8 @@ export const ISSUE_STAGES: Record<IssueCode, readonly DerivationStage[]> = {
     PRESIDING_DISAGREES: ['read'],
     UNMATCHED_NAME: ['read'],
     UNREAD_DOCUMENT: ['read'],
+    PERSON_IN_BOTH_LISTS: ['resolve'],
+    CHANGE_NOT_CORROBORATED: ['resolve'],
     UNPLACEABLE_ANCHOR: ['place'],
     IMPLIED_CHANGE: ['presence'],
     PRESENCE_UNKNOWN: ['presence'],

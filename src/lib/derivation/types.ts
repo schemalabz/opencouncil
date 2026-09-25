@@ -74,7 +74,7 @@ export interface DocumentFacts {
     presidedByName: string | null;
     /** The person the document says kept the minutes in the secretary's place; the list leaves them out where it leaves the secretary out. */
     actingSecretaryId: string | null;
-    /** The document was read by a task version that stored its facts (v3 with DecisionExtraction, or v4). */
+    /** The page's reading states facts: `readingStatesFacts` accepts its version (v4 or later). */
     hasExtraction: boolean;
 }
 
@@ -110,6 +110,7 @@ export const ISSUE_CODES = [
     'NO_ROLL_CALL', 'PRESENCE_UNKNOWN', 'CONVENTIONS_UNCONFIRMED', 'UNMATCHED_NAME', 'UNPLACEABLE_ANCHOR',
     'IMPLIED_CHANGE', 'TALLY_MISMATCH', 'INCOMPLETE_READ', 'PRESIDING_DISAGREES', 'SOURCES_DISAGREE', 'NO_STORED_FACTS',
     'LAYOUT_DISAGREES', 'ITEM_NUMBER_DISAGREES', 'UNREAD_DOCUMENT', 'LIST_DROPS_PRESENT', 'LIST_ADDS_ABSENT',
+    'PERSON_IN_BOTH_LISTS', 'CHANGE_NOT_CORROBORATED',
 ] as const;
 export type IssueCode = typeof ISSUE_CODES[number];
 
@@ -155,6 +156,10 @@ export interface IssueParams {
      */
     LIST_DROPS_PRESENT: Record<string, never>;
     LIST_ADDS_ABSENT: Record<string, never>;
+    /** One page lists the person under ΠΑΡΟΝΤΕΣ and under ΑΠΟΝΤΕΣ; the roll call keeps them absent, as the task did. */
+    PERSON_IN_BOTH_LISTS: Record<string, never>;
+    /** A session change fewer than half of the meeting's pages state, in a body whose pages repeat the session. */
+    CHANGE_NOT_CORROBORATED: { stated: number; total: number };
 }
 
 interface IssueFields {

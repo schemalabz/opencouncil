@@ -39,11 +39,11 @@ describe('DerivationDialog', () => {
         show();
         expect(ISSUE_STAGES.NO_ROLL_CALL).toEqual(['presence', 'write']);
         const label = el.issues.codes.NO_ROLL_CALL;
-        // Step 2 sends the reader to step 4 and step 4 back to step 2.
+        // Step 3 sends the reader to step 5 and step 5 back to step 3.
         expect(stageCard('presence').getByText(label)).toBeInTheDocument();
-        expect(stageCard('presence').getByText('και στο βήμα 4')).toBeInTheDocument();
+        expect(stageCard('presence').getByText('και στο βήμα 5')).toBeInTheDocument();
         expect(stageCard('write').getByText(label)).toBeInTheDocument();
-        expect(stageCard('write').getByText('και στο βήμα 2')).toBeInTheDocument();
+        expect(stageCard('write').getByText('και στο βήμα 3')).toBeInTheDocument();
     });
 
     it('gives the write step no stated/derived strip — it persists, it does not read', () => {

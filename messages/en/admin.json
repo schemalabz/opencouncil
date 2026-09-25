@@ -499,7 +499,9 @@
         "ITEM_NUMBER_DISAGREES": "Item number disagrees",
         "UNREAD_DOCUMENT": "Unread document",
         "LIST_DROPS_PRESENT": "List drops a present member",
-        "LIST_ADDS_ABSENT": "List adds an absent member"
+        "LIST_ADDS_ABSENT": "List adds an absent member",
+        "PERSON_IN_BOTH_LISTS": "Listed present and absent",
+        "CHANGE_NOT_CORROBORATED": "Change on too few pages"
       },
       "messages": {
         "NO_ROLL_CALL": "No document yielded a roll call, so presence cannot be replayed. The stored rows were left as they are.",
@@ -517,7 +519,9 @@
         "ITEM_NUMBER_DISAGREES": "The document states it decided agenda item {declared} but is linked to item {linked}; if the link is wrong, every fact the document carries sits on the wrong subject.",
         "UNREAD_DOCUMENT": "This decision's document was not read; the subject's attendance comes from the meeting's other documents and its votes are missing. Re-poll the meeting.",
         "LIST_DROPS_PRESENT": "The document's roll call says this member is present and the same document's member list leaves them out; the list wins and the member is absent for this item.",
-        "LIST_ADDS_ABSENT": "The document's roll call says this member is absent and the same document's member list names them; the list wins and the member is present. Check that the list is not a misread column of members who had left."
+        "LIST_ADDS_ABSENT": "The document's roll call says this member is absent and the same document's member list names them; the list wins and the member is present. Check that the list is not a misread column of members who had left.",
+        "PERSON_IN_BOTH_LISTS": "This page lists the member both under ΠΑΡΟΝΤΕΣ and under ΑΠΟΝΤΕΣ. Where this page's roll call sets presence (as the meeting's roll call, or for its own item in a body that prints a roll call per decision), the member counts as absent.",
+        "CHANGE_NOT_CORROBORATED": "Only {stated} of the meeting's {total} pages state this change, and this body's pages repeat the session. It is not applied; check the page."
       },
       "tallyDiff": "{type, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{type}}}: printed {printed}, derived {derived}",
       "title": "Issues",
@@ -532,6 +536,7 @@
       "raisedJoin": "and",
       "raisedIn": {
         "read": "in the reading of the document",
+        "resolve": "in the combining of the pages",
         "place": "in the placing of the changes",
         "presence": "in working out who was present",
         "votes": "in the count of the votes",
@@ -562,20 +567,27 @@
     "filterIssues": "With issues",
     "derivation": {
       "title": "How the facts are derived",
-      "subtitle": "From the Diavgeia PDF to the minutes, in five steps. Each step shows what we keep from the source, what we compute from it, and what can be left unanswered.",
+      "subtitle": "From the Diavgeia PDF to the minutes, in six steps. Each step shows what we keep from the source, what we compute from it, and what can be left unanswered.",
       "superadminOnly": "Superadmin only",
       "rule": "We keep only what a source explicitly <b>states</b>, in its most detailed form. Everything cumulative is <b>computed</b> from that, from scratch every time.",
       "ruleWhy": "That is why who was present at each subject and who voted FOR are never stored as facts: storing them would freeze one reading of the documents, and where they came from would no longer be visible. Because they are computed, they can be explained, checked and produced again without re-reading the PDFs.",
       "stated": "Stated",
       "derived": "Derived",
       "alsoAtStep": "also at step {n}",
-      "footer": "The body's <b>reading rules</b> feed both ends: they tell the extractor what to expect at step 0, and at step 2 what a present list means. If no human has confirmed them, every meeting of the body says so.",
+      "footer": "The body's <b>reading rules</b> feed both ends: they tell the extractor what to expect at step 0, and at steps 1 and 3 what a present list means. If no human has confirmed them, every meeting of the body says so.",
       "stages": {
         "read": {
           "name": "Reading the document",
           "what": "Each PDF is read on its own and returns only what its page prints. It does not look at the other documents and does not fill gaps — what the page does not say does not exist at this step.",
           "stated": "The roll call · the arrivals and departures together with the point the page ties them to · the vote phrase as printed · everyone it names · its own present list, if it has one.",
           "derived": "Nothing. Names are matched to people, and the ones not found travel as text rather than being dropped.",
+          "codesLabel": "What can be left unanswered here"
+        },
+        "resolve": {
+          "name": "Combining the pages",
+          "what": "Every stored page of the meeting is read together: the opening roll call most pages print, and each arrival or departure the pages state. A later poll only adds pages, so nothing an earlier page stated is lost.",
+          "stated": "Each page's roll call and each change it states.",
+          "derived": "One opening roll call and one list of changes for the whole meeting.",
           "codesLabel": "What can be left unanswered here"
         },
         "place": {
@@ -614,6 +626,10 @@
           "UNMATCHED_NAME": "A name that was not tied to a person; it counts in neither presences nor votes.",
           "PRESIDING_DISAGREES": "Documents of the same sitting state a different presiding member.",
           "CONVENTIONS_UNCONFIRMED": "The body's rules came out of a sample of documents and no human has confirmed them."
+        },
+        "resolve": {
+          "PERSON_IN_BOTH_LISTS": "A page contradicts itself about one member. Where its roll call sets presence, the member counts as absent.",
+          "CHANGE_NOT_CORROBORATED": "This body prints the session's changes on every page, so a change that most pages leave out is probably a misread."
         },
         "place": {
           "UNPLACEABLE_ANCHOR": "The point the document states corresponds to nothing. The change becomes a signal rather than being applied at the wrong position."

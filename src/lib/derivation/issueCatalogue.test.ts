@@ -21,6 +21,7 @@ const DIR = path.join(__dirname);
 /** Which step each file's raise sites belong to. A file missing here is caught below. */
 const STAGE_OF_FILE: Record<string, DerivationStage> = {
     'deriveMeetingFacts.ts': 'read',
+    'resolveSession.ts': 'resolve',
     'placeEvents.ts': 'place',
     'replayAttendance.ts': 'presence',
     'deriveVotes.ts': 'votes',
