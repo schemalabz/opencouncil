@@ -59,6 +59,14 @@ describe('replayAttendance', () => {
         expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', subjectId: 's2', personId: 'p2',
             params: expect.objectContaining({ kind: 'statedList', status: 'PRESENT', eventKind: 'DEPARTURE' }) })]);
     });
+    it('a person a per-decision page names under both headings is absent for that page\'s subject', () => {
+        // Spec §4.1.12, as resolveRollCall seeds the opening roll call.
+        const r = replayAttendance({ subjects, rollCall: [rc('a'), rc('b')], conventions: conv({ presentListMeaning: 'per_decision' }), mayorPersonId: null, events: [],
+            documents: [doc('s1', { rollCallPresentIds: ['a', 'b'], rollCallAbsentIds: [] }), doc('s2', { rollCallPresentIds: ['a', 'b'], rollCallAbsentIds: ['b'] })] });
+        expect(present(r, 's1')).toEqual(['a', 'b']);
+        expect(present(r, 's2')).toEqual(['a']);
+        expect(r.attendance.filter(x => x.subjectId === 's2' && x.personId === 'b')).toEqual([{ subjectId: 's2', personId: 'b', status: 'ABSENT', origin: 'derived' }]);
+    });
     it('a subject without a document keeps the state of the last one read, under a per-decision roll call', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv({ presentListMeaning: 'per_decision' }), mayorPersonId: null, events: [],
             documents: [doc('s1', { rollCallPresentIds: ['p1'], rollCallAbsentIds: ['p2'] })] });

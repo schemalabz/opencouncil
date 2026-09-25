@@ -170,12 +170,15 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
         // 1–2 and under ΠΑΡΟΝΤΕΣ from item 3, where he «προσήλθε». The page states
         // the state; nothing is implied, and a subject with no document keeps the
         // last one read. Where the page also prints ΤΑ ΜΕΛΗ the two are one
-        // statement made twice, and a member they disagree on is reported.
-        const perDecisionRollCall = meaning === 'per_decision' && doc?.rollCallPresentIds ? new Set(doc.rollCallPresentIds) : null;
-        const namedByPageRollCall = perDecisionRollCall ? new Set([...perDecisionRollCall, ...doc?.rollCallAbsentIds ?? []]) : null;
+        // statement made twice, and a member they disagree on is reported. A
+        // member the page names under both headings is absent (spec §4.1.12).
+        const pageAbsent = new Set(doc?.rollCallAbsentIds ?? []);
+        const perDecisionRollCall = meaning === 'per_decision' && doc?.rollCallPresentIds
+            ? new Set(doc.rollCallPresentIds.filter(personId => !pageAbsent.has(personId))) : null;
+        const namedByPageRollCall = perDecisionRollCall ? new Set([...perDecisionRollCall, ...pageAbsent]) : null;
         if (perDecisionRollCall && doc) {
             const eventHere = new Map(eventsHere.map(e => [e.personId, e]));
-            for (const personId of [...doc.rollCallPresentIds ?? [], ...doc.rollCallAbsentIds ?? []]) {
+            for (const personId of new Set([...doc.rollCallPresentIds ?? [], ...doc.rollCallAbsentIds ?? []])) {
                 if (personId === mayorPersonId) continue;
                 const status: AttendanceStatus = perDecisionRollCall.has(personId) ? 'PRESENT' : 'ABSENT';
                 const contradicted = eventHere.get(personId);
