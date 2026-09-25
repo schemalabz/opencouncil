@@ -1000,7 +1000,7 @@ describe('resolveCandidateConflict', () => {
 })
 
 describe('pollDecisions extraction processing', () => {
-    // A reading counts only when a v4 task stored it (FACTS_EXTRACTOR_VERSION), and a real
+    // A reading counts only when a v4 task stored it (readingStatesFacts), and a real
     // callback writes the version before the handler runs; these tasks carry it too.
     let cityId: string
     let meetingId: string

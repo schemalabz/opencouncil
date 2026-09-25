@@ -7,7 +7,6 @@ jest.mock('@/lib/db/derivationFacts', () => ({
 
 import { derivationSkipIssue, hasNothingToDeriveFrom, deriveAndPersist } from '../persist';
 import { deriveMeetingFacts } from '../deriveMeetingFacts';
-import { FACTS_EXTRACTOR_VERSION } from '../load';
 import type { DerivationInput, DocumentFacts } from '../types';
 
 const doc = (subjectId: string, hasExtraction: boolean): DocumentFacts => ({
@@ -90,7 +89,7 @@ describe('deriveAndPersist', () => {
                         decision: {
                             id: `d-${s.id}`, subjectId: s.id, decisionNumber: s.decisionNumber, voteResultPhrase: 'Ομόφωνα',
                             unmatchedNames: [], incomplete: false, mayorPresent: null,
-                            extraction: stored ? {} : null, extractorVersion: stored ? FACTS_EXTRACTOR_VERSION : null,
+                            extraction: stored ? {} : null, extractorVersion: stored ? '4' : null,
                         },
                     };
                 }),

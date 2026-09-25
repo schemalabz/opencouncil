@@ -22,7 +22,7 @@ import path from 'path';
 // The production reader, not a second one: this sheet's whole job is telling a
 // person whether production reads a body correctly, so every fact it prints
 // about a document comes from the same function the derivation reads it with.
-import { deriveMeetingFacts, documentFactsFromDecision, loadDerivationInput } from '@/lib/derivation';
+import { deriveMeetingFacts, documentFactsFromDecision, loadDerivationInput, readingStatesFacts } from '@/lib/derivation';
 import { issueMessageEn } from '@/lib/derivation/issueTextEn';
 import { isConfirmedByPerson, isDecisionConventions } from '@/lib/decisionConventions';
 import { loadGolden } from './lib/minutes-golden';
@@ -70,7 +70,7 @@ async function main() {
 
     for (const b of bodies) {
         const meetings = await prisma.councilMeeting.findMany({
-            where: { administrativeBodyId: b.id, subjects: { some: { decision: { extractorVersion: '4' } } } },
+            where: { administrativeBodyId: b.id, subjects: { some: { decision: { extractorVersion: { not: null } } } } },
             select: { id: true, cityId: true, dateTime: true },
             orderBy: { dateTime: 'asc' },
         });
@@ -90,14 +90,14 @@ async function main() {
             const out = deriveMeetingFacts(input);
             for (const i of out.issues) issuesByCode.set(i.code, (issuesByCode.get(i.code) ?? 0) + 1);
             const decisions = await prisma.decision.findMany({
-                where: { subject: { cityId: m.cityId, councilMeetingId: m.id }, extractorVersion: '4' },
+                where: { subject: { cityId: m.cityId, councilMeetingId: m.id }, extractorVersion: { not: null } },
                 // Everything documentFactsFromDecision reads, plus the ada each check links to.
                 select: {
                     id: true, ada: true, subjectId: true, extraction: true, voteResultPhrase: true, unmatchedNames: true,
                     incomplete: true, mayorPresent: true, declaredItemNumber: true, declaredOutOfAgenda: true, extractorVersion: true,
                     subject: { select: { agendaItemIndex: true } },
                 },
-            });
+            }).then(rows => rows.filter(readingStatesFacts));
             const presentBySubject = new Map<string, Set<string>>();
             for (const a of out.attendance) if (a.status === 'PRESENT') { if (!presentBySubject.has(a.subjectId)) presentBySubject.set(a.subjectId, new Set()); presentBySubject.get(a.subjectId)!.add(a.personId); }
             lines.push(`## ${m.id} (${m.dateTime.toISOString().slice(0, 10)})${golden.has(key) ? ' — golden' : ''}`, '', `${decisions.length} documents read; derived ${out.attendance.length} attendance rows, ${out.votes.length} votes, ${out.issues.length} issues.`, '');

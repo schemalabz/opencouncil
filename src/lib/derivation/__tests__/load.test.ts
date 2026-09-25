@@ -8,7 +8,7 @@
 // The module reaches Prisma through readDerivationRows; the pure half under test does not.
 jest.mock('@/lib/db/derivationFacts', () => ({ readDerivationRows: jest.fn(), replaceDerivedRows: jest.fn() }));
 
-import { documentFactsFromDecision } from '../load';
+import { documentFactsFromDecision, readingStatesFacts } from '../load';
 
 const decision = (extraction: unknown, extractorVersion: string | null = '4') => ({
     id: 'd1', subjectId: 's1', voteResultPhrase: 'Κατά πλειοψηφία', unmatchedNames: ['Άγνωστος Α.'],
@@ -87,5 +87,20 @@ describe('documentFactsFromDecision', () => {
         expect(facts.hasExtraction).toBe(false);
         expect(facts.namedVotes).toEqual([]);
         expect(facts.presentIds).toBeNull();
+    });
+});
+
+describe('readingStatesFacts', () => {
+    it.each([
+        [{ extraction: {}, extractorVersion: '4' }, true],
+        // A later task version must not start a re-read loop.
+        [{ extraction: {}, extractorVersion: '5' }, true],
+        [{ extraction: {}, extractorVersion: '3' }, false],
+        // Number(null) is 0; a null or unparseable version is unread.
+        [{ extraction: {}, extractorVersion: null }, false],
+        [{ extraction: {}, extractorVersion: 'v4' }, false],
+        [{ extraction: null, extractorVersion: '4' }, false],
+    ])('%j → %s', (d, want) => {
+        expect(readingStatesFacts(d)).toBe(want);
     });
 });

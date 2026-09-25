@@ -4,6 +4,7 @@ import { getCouncilMeetingDirect } from '@/lib/db/meetings';
 import { getSubjectsForMeeting } from '@/lib/db/subject';
 import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData } from '@/lib/db/decisions';
 import { getAttendanceEventsForMeeting } from '@/lib/db/derivationFacts';
+import { readingStatesFacts } from '@/lib/derivation/load';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
@@ -426,7 +427,7 @@ export async function getMinutesData(
     if (councilCompositionResult?.mayor) {
         const mayorRollCall = meetingAttendance.find(a => a.personId === mayorPersonId)?.status ?? null;
         const presidedByName = sortedSubjects
-            .map(s => presidedByNameOf(s.decision?.extraction))
+            .map(s => s.decision && readingStatesFacts(s.decision) ? presidedByNameOf(s.decision.extraction) : null)
             .find((name): name is string => name !== null) ?? null;
         councilCompositionResult.mayor.note = buildMayorNote(
             mayorRollCall,

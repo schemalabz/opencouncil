@@ -6,6 +6,7 @@ import { isDecisionConventions } from "@/lib/decisionConventions";
 import { renderConventionsText, conventionsGlossaryEn } from "@/lib/decisionConventionsText";
 import { storeDecisionFacts } from "@/lib/db/decisionFacts";
 import { deriveAndPersist } from "@/lib/derivation/persist";
+import { readingStatesFacts } from "@/lib/derivation";
 import { startTask } from "./tasks";
 import prisma from "@/lib/db/prisma";
 import { AttendanceStatus, DataSource, VoteType, Prisma, AttendanceEventKind, AttendanceAnchorKind, NonAgendaReason } from "@prisma/client";
@@ -87,7 +88,7 @@ export async function pollDecisionsForMeeting(
                     agendaItemIndex: true,
                     nonAgendaReason: true,
                     discussedIn: { select: { id: true } },
-                    decision: { select: { ada: true, title: true, pdfUrl: true, excerpt: true } },
+                    decision: { select: { ada: true, title: true, pdfUrl: true, extraction: true, extractorVersion: true } },
                 },
                 where: DECISION_ELIGIBLE_SUBJECT_WHERE,
             },
@@ -192,9 +193,9 @@ export async function pollDecisionsForMeeting(
                     ada: s.decision.ada,
                     decisionTitle: s.decision.title ?? '',
                     pdfUrl: s.decision.pdfUrl,
-                    // Linked but not yet extracted — or a forced run, which must reprocess
-                    // every linked document, not only the ones still missing an excerpt.
-                    needsExtraction: !s.decision.excerpt || !!options?.forceExtract,
+                    // Linked but without a usable reading — never read, read before v4,
+                    // or reset — or a forced run, which reprocesses every linked document.
+                    needsExtraction: !readingStatesFacts(s.decision) || !!options?.forceExtract,
                 },
             } : {}),
         })),

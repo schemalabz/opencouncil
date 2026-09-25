@@ -37,13 +37,13 @@ import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import { pollDecisionsForMeeting } from '@/lib/tasks/pollDecisions';
 import { getMinutesData } from '@/lib/minutes/getMinutesData';
+import { readingStatesFacts } from '@/lib/derivation';
 import { loadGolden, subjectsByClaimKey, type Claim, type GoldenMeeting } from './lib/minutes-golden';
 
 const prisma = new PrismaClient();
 
 /** From a Langfuse trace of an 8-document poll costing $1.25. */
 const COST_PER_DOCUMENT = 0.157;
-const EXTRACTOR_VERSION = '4';  // task version on the wire; the reader's own schema version is opencouncil-tasks' concern
 const DEFAULT_OBSERVATIONS = '.extraction-survey/observations-v5.json';
 
 type Observation = Record<string, unknown>;
@@ -159,6 +159,7 @@ async function collectBodies(filter: { city?: string; body?: string }) {
         },
         select: {
             ada: true,
+            extraction: true,
             extractorVersion: true,
             subject: {
                 select: {
@@ -186,8 +187,8 @@ async function collectBodies(filter: { city?: string; body?: string }) {
             body.set(d.subject.councilMeetingId, row);
         }
         row.docs++;
-        if (d.extractorVersion !== EXTRACTOR_VERSION) row.unextracted++;
-        row.adas.push({ ada: d.ada, extracted: d.extractorVersion === EXTRACTOR_VERSION });
+        if (!readingStatesFacts(d)) row.unextracted++;
+        row.adas.push({ ada: d.ada, extracted: readingStatesFacts(d) });
     }
     return bodies;
 }
@@ -292,7 +293,7 @@ async function reportClaims(args: ReturnType<typeof parseArgs>) {
     const bodies = new Map<string, Map<string, Tier>>();
     const overall = new Map<string, Tier>();
     for (const d of decisions) {
-        const reading = d.extractorVersion === EXTRACTOR_VERSION && d.extraction && typeof d.extraction === 'object' ? d.extraction as Reading : null;
+        const reading = readingStatesFacts(d) && typeof d.extraction === 'object' ? d.extraction as Reading : null;
         const mechs = new Set([
             ...(d.ada ? byAda.get(d.ada) ?? [] : []),
             ...(reading ? MECHANISMS.filter(m => m.inReading?.(reading)).map(m => m.name) : []),

@@ -23,10 +23,14 @@ function readRollCallLayout(raw: Record<string, unknown>): RollCallLayout | null
 }
 
 /**
- * The task version whose stored reading states what a document says. A v3
- * reading stored the answer that pipeline had already inferred instead.
+ * Whether a stored reading states what its page says: task v4 or later stored it.
+ * A v3 reading stored the answer that pipeline had already inferred instead, and a
+ * null or unparseable version is unread. The one definition for the derivation,
+ * the poll's re-read decision, the minutes and the scripts (spec §5.1).
  */
-export const FACTS_EXTRACTOR_VERSION = '4';
+export function readingStatesFacts(d: { extraction: unknown; extractorVersion: string | null }): boolean {
+    return d.extraction != null && Number(d.extractorVersion) >= 4;
+}
 
 /**
  * Read a stored raw extraction into DocumentFacts.
@@ -49,7 +53,7 @@ export function documentFactsFromDecision(d: {
     // NO_STORED_FACTS and keeps the rows it has. Measured on zografou/apr1_2026,
     // 11 v3 decisions: 61 stated FOR votes, no inferred vote and no issue, beside
     // a v4 meeting of the same city whose every FOR is inferred.
-    const statesFacts = d.extractorVersion === FACTS_EXTRACTOR_VERSION && d.extraction != null;
+    const statesFacts = readingStatesFacts(d);
     const raw = statesFacts ? asObject(d.extraction) ?? {} : {};
     const unmatchedNames = [...d.unmatchedNames];
     const inRoster = (personId: string) => {

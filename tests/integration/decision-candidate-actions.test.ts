@@ -74,7 +74,7 @@ describe('decision candidate actions — assign, dismiss, conflict resolution', 
         expect(decision).not.toBeNull()
         expect(decision!.ada).toBe('ADA-1')
         expect(decision!.decisionNumber).toBe('12/2025')
-        // No excerpt: the next poll must pick it up as needsExtraction
+        // No usable reading: the next poll must pick it up as needsExtraction (readingStatesFacts)
         expect(decision!.excerpt).toBeNull()
 
         const after = await prisma.decisionCandidate.findUnique({ where: { id: candidate.id } })
