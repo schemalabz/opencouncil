@@ -1,8 +1,9 @@
+import type { TextResolver } from '@/i18n/catalogText';
 import { ISSUE_STAGES } from './issueCatalogue';
 import type { Issue, IssueCode } from './types';
 
-/** What `renderIssue` needs of a translator; next-intl's `t` and the direct resolver both satisfy it. */
-export type IssueTranslator = (key: string, values?: Record<string, string | number>) => string;
+/** What `renderIssue` needs of a translator; next-intl's `t` and `catalogText` both satisfy it. */
+export type IssueTranslator = TextResolver;
 
 /**
  * An issue as a sentence, from the one authored message its code keys.

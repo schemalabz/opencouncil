@@ -1,19 +1,24 @@
 /**
  * The conventions as sentences for the extraction prompt.
  *
- * Its own module because it reads the `en` catalog (~27 KB), and
+ * Its own module because it reads the `en` catalog, and
  * `decisionConventions.ts` is imported by client components — the catalog would
  * ride into the browser bundle for two functions only the poll request calls.
  */
 import "server-only";
 import { CONVENTION_FLAGS, normalizeAnchors, type DecisionConventions } from './decisionConventions';
+import { catalogText } from '@/i18n/catalogText';
 import enAdmin from '../../messages/en/admin.json';
 
-/** The English glossary, resolved by dotted key; the extractor reads English. */
-export function conventionsGlossaryEn(key: string): string {
-    const v = key.split('.').reduce<unknown>((o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), (enAdmin as { conventions: unknown }).conventions);
-    return typeof v === 'string' ? v : '';
-}
+/**
+ * The English glossary, resolved by dotted key; the extractor reads English.
+ *
+ * A key with no entry renders as nothing, so `renderConventionsText` drops the
+ * line: a dotted path in the prompt would be worse than a sentence less.
+ */
+export const conventionsGlossaryEn = catalogText({
+    messages: enAdmin, namespace: 'conventions', onMissing: () => '',
+});
 
 /**
  * The sentences the extractor is told about a body, rendered from the glossary.
