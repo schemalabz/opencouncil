@@ -16,13 +16,19 @@ export interface ResolvedSession {
     missing: 'noRollCall' | 'noMajority' | null;
 }
 
-/** Whether each page prints its own list of who was present for its decision: a per-decision roll call, or ΤΑ ΜΕΛΗ. */
-export function pagesCarryOwnList(conventions: DecisionConventions | null): boolean {
-    return conventions?.presentListMeaning === 'per_decision' || conventions?.statesPerDecisionAttendance === true;
-}
-
 /** `hasExtraction` is `readingStatesFacts` (./load.ts): a v3 reading yields no roll call and no change. */
 const usablePages = (documents: DocumentFacts[]) => documents.filter(d => d.hasExtraction);
+
+/**
+ * Whether the pages print their own list of who was present for each decision:
+ * a per-decision roll call, or ΤΑ ΜΕΛΗ. A body that states ΤΑ ΜΕΛΗ by convention
+ * counts only when at least one usable page of this meeting prints the list.
+ * Without a list, nothing checks a misread change.
+ */
+export function pagesCarryOwnList(conventions: DecisionConventions | null, pages: DocumentFacts[]): boolean {
+    if (conventions?.presentListMeaning === 'per_decision') return true;
+    return conventions?.statesPerDecisionAttendance === true && pages.some(d => d.presentIds !== null);
+}
 const hasRollCall = (d: DocumentFacts) => (d.rollCallPresentIds?.length ?? 0) + (d.rollCallAbsentIds?.length ?? 0) > 0;
 /** A roll call as a set of ids: the reader's order of the names varies from page to page. */
 const rollCallKey = (d: DocumentFacts) =>
@@ -122,7 +128,7 @@ function mostStatedTiming(votes: Map<AttendanceTiming | null, number>): Attendan
 export function resolveEvents(input: Pick<DerivationInput, 'cityId' | 'meetingId' | 'documents' | 'conventions'>): Pick<ResolvedSession, 'events' | 'issues'> {
     const pages = usablePages(input.documents);
     const total = pages.length;
-    const everyStatedChangeCounts = pagesCarryOwnList(input.conventions);
+    const everyStatedChangeCounts = pagesCarryOwnList(input.conventions, pages);
     const groups = new Map<string, { change: StatedChange; pages: DocumentFacts[]; timings: Map<AttendanceTiming | null, number> }>();
     const own: StatedChange[] = [];
     for (const d of pages) {

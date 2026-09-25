@@ -94,11 +94,22 @@ describe('resolveEvents', () => {
     });
 
     it('keeps every stated change where the pages carry their own list', () => {
+        const withList = (o: Partial<DocumentFacts> = {}) => page(['a'], [], { presentIds: ['a'], ...o });
         for (const conventions of [conv({ statesPerDecisionAttendance: true }), conv({ presentListMeaning: 'per_decision' })]) {
-            const r = resolveEvents({ ...base, conventions, documents: [page(['a'], [], { statedChanges: [departure('b', 1)] }), page(['a']), page(['a'])] });
+            const r = resolveEvents({ ...base, conventions, documents: [withList({ statedChanges: [departure('b', 1)] }), withList(), withList()] });
             expect(r.events.map(e => e.personId)).toEqual(['b']);
             expect(r.issues).toEqual([]);
         }
+    });
+
+    it('takes session changes by majority in a ΤΑ ΜΕΛΗ body whose pages print no list', () => {
+        const r = resolveEvents({ ...base, conventions: conv({ statesPerDecisionAttendance: true }), documents: [
+            page(['a'], [], { statedChanges: [departure('b', 1), departure('c', 2)] }),
+            page(['a'], [], { statedChanges: [departure('b', 1)] }),
+            page(['a']),
+        ] });
+        expect(r.events.map(e => e.personId)).toEqual(['b']);
+        expect(r.issues).toEqual([expect.objectContaining({ code: 'CHANGE_NOT_CORROBORATED', personId: 'c', params: { stated: 1, total: 3 } })]);
     });
 
     it('takes the timing most pages give, preferring during on a tie and any timing over none', () => {
@@ -138,11 +149,14 @@ describe('resolveEvents', () => {
 });
 
 describe('pagesCarryOwnList', () => {
-    it('is true for a per-decision roll call or a per-decision member list', () => {
-        expect(pagesCarryOwnList(conv({ presentListMeaning: 'per_decision' }))).toBe(true);
-        expect(pagesCarryOwnList(conv({ statesPerDecisionAttendance: true }))).toBe(true);
-        expect(pagesCarryOwnList(conv())).toBe(false);
-        expect(pagesCarryOwnList(null)).toBe(false);
+    it('is true for a per-decision roll call, or a per-decision member list that a page prints', () => {
+        const listed = [page(['a']), page(['a'], [], { presentIds: ['a'] })];
+        const unlisted = [page(['a']), page(['a'])];
+        expect(pagesCarryOwnList(conv({ presentListMeaning: 'per_decision' }), unlisted)).toBe(true);
+        expect(pagesCarryOwnList(conv({ statesPerDecisionAttendance: true }), listed)).toBe(true);
+        expect(pagesCarryOwnList(conv({ statesPerDecisionAttendance: true }), unlisted)).toBe(false);
+        expect(pagesCarryOwnList(conv(), listed)).toBe(false);
+        expect(pagesCarryOwnList(null, listed)).toBe(false);
     });
 });
 
