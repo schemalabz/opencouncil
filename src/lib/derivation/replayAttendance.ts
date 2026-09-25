@@ -11,6 +11,8 @@ export interface ReplayInput {
     documents: DocumentFacts[];
     conventions: DecisionConventions | null;
     mayorPersonId: string | null;
+    /** The city's mayor on the meeting date, whatever the body; on a body the mayor sits on (mayorPersonId null) a page that states the mayor apart (`mayorStatedSeparately`) does not judge them by its member list either. */
+    cityMayorPersonId?: string | null;
     /** Who holds the body's chair on the meeting's date; a per-decision list does not judge them. */
     presidentPersonId?: string | null;
     /** The body's secretary, only where its conventions say the list leaves them out as well. */
@@ -214,9 +216,14 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
                 // out of every decision they chaired. Some bodies leave the secretary out
                 // the same way (Chalandri and Papagos ΔΣ; Argos ΔΣ lists theirs), which is
                 // a convention of the body. A list that does name them is still believed,
-                // and a stated departure still takes them out.
+                // and a stated departure still takes them out — and, where the body states
+                // the mayor in a sentence of its own (`mayorStatedSeparately`), the mayor:
+                // the mayor's state then comes from the roll call and the mayor's own
+                // stated changes.
                 const actingSecretary = input.secretaryPersonId !== null && input.secretaryPersonId !== undefined ? doc.actingSecretaryId : null;
-                const notWrittenIn = personId === input.presidentPersonId || personId === doc.presidedById || personId === input.secretaryPersonId || personId === actingSecretary;
+                const mayorWrittenApart = input.conventions?.mayorStatedSeparately === true && personId === input.cityMayorPersonId;
+                const notWrittenIn = personId === input.presidentPersonId || personId === doc.presidedById || personId === input.secretaryPersonId
+                    || personId === actingSecretary || mayorWrittenApart;
                 if (notWrittenIn && !statedPresent.has(personId)) continue;
                 stated.set(personId, statedPresent.has(personId) ? 'PRESENT' : 'ABSENT');
             }

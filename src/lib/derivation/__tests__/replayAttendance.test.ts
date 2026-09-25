@@ -247,4 +247,14 @@ describe('replayAttendance', () => {
         const r = replayAttendance({ subjects, rollCall: [], conventions: conv(), mayorPersonId: null, events: [], documents: [] });
         expect(r.attendance).toEqual([]); expect(r.issues).toEqual([expect.objectContaining({ code: 'NO_ROLL_CALL' })]);
     });
+    it("does not judge the mayor by a committee's member list where the mayor is stated separately", () => {
+        const out = replayAttendance({
+            subjects: [subj('s1', 1)], rollCall: [rc('p1'), rc('mayor')], events: [],
+            documents: [doc('s1', { presentIds: ['p1'] })],
+            conventions: conv({ statesPerDecisionAttendance: true, mayorStatedSeparately: true }),
+            mayorPersonId: null, cityMayorPersonId: 'mayor', presidentPersonId: null, secretaryPersonId: null,
+        });
+        expect(out.attendance.find(a => a.personId === 'mayor')).toMatchObject({ status: 'PRESENT' });
+        expect(out.issues.filter(i => i.personId === 'mayor')).toEqual([]);
+    });
 });

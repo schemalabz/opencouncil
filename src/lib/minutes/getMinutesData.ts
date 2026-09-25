@@ -131,7 +131,7 @@ export async function getMinutesData(
     ) ?? null;
     const mayorPersonId = mayorPersonRow?.id ?? null;
     // On a body the mayor sits on (the Δημοτική Επιτροπή) they vote like a member and stay in the rows.
-    const mayorExcludedFromRows = mayorPersonRow && !mayorIsMemberOf(mayorPersonRow, meeting.administrativeBody?.id ?? null, meetingDate) ? mayorPersonId : null;
+    const mayorExcludedFromRows = mayorPersonRow && !mayorIsMemberOf(mayorPersonRow, meeting.administrativeBody ? { id: meeting.administrativeBody.id, type: meeting.administrativeBody.type } : null, meetingDate) ? mayorPersonId : null;
 
     // Shared member resolver: looks up person in peopleMap, resolves display info
     const resolveMember: MemberResolver = (personId, fallbackName) => {

@@ -151,7 +151,7 @@ export async function loadDerivationInput(cityId: string, meetingId: string): Pr
         bodyType: meeting.administrativeBody?.type ?? null,
         cityMayorPersonId: mayor?.id ?? null,
         // Excluded from the rows only where the mayor is not a member of the body (the council); on the committee they vote.
-        mayorPersonId: mayor && !mayorIsMemberOf(mayor, meeting.administrativeBodyId, meeting.dateTime) ? mayor.id : null,
+        mayorPersonId: mayor && !mayorIsMemberOf(mayor, meeting.administrativeBody ? { id: meeting.administrativeBodyId!, type: meeting.administrativeBody.type } : null, meeting.dateTime) ? mayor.id : null,
         presidentPersonId: president?.id ?? null,
         secretaryPersonId: isDecisionConventions(conventions) && conventions.listOmitsSecretary ? secretary?.id ?? null : null,
     };
