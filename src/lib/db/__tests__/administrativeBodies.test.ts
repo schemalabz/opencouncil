@@ -223,4 +223,11 @@ describe('the body writers never write the conventions column', () => {
         await createAdministrativeBody({ name: 'Δημοτικό Συμβούλιο', cityId: 'zografou', decisionConventions: smuggled } as unknown as Parameters<typeof createAdministrativeBody>[0]);
         expect(mockUpdate.mock.calls[0][0].data).not.toHaveProperty('decisionConventions');
     });
+
+    it('writes only the fields it names, whatever the caller sends', async () => {
+        const sent = { name: 'Νέο όνομα', cityId: 'other-city', decisionConventions: { x: 1 } } as unknown as Parameters<typeof editAdministrativeBody>[1];
+        await editAdministrativeBody('b1', sent);
+        const data = (mockUpdate as jest.Mock).mock.calls.at(-1)[0].data;
+        expect(data).toEqual({ name: 'Νέο όνομα' });
+    });
 });
