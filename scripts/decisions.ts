@@ -18,19 +18,13 @@ import { applyDerivation, deriveMeetingFacts, loadDerivationInput } from '@/lib/
 import { derivationSkipIssue } from '@/lib/derivation/persist';
 import { measureMeeting, type MeetingMeasure } from '@/lib/derivation/measure';
 import { issueMessageEn } from '@/lib/derivation/issueTextEn';
+import { assertLocalDatabase } from './lib/local-database';
 
 interface MeasureFile { generatedAt: string; commit: string; meetings: MeetingMeasure[] }
 
 function write(file: string, text: string) {
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, text);
-}
-
-/** A write is allowed only on a database this machine runs. */
-function assertLocalDatabase() {
-    const url = process.env.DATABASE_URL ?? '';
-    const host = url.replace(/^.*@/, '').replace(/[:/].*$/, '');
-    if (!['localhost', '127.0.0.1'].includes(host)) throw new Error(`refusing to write: DATABASE_URL host is «${host}», not local`);
 }
 
 async function meetingsWithReadings(city?: string) {
@@ -92,7 +86,7 @@ async function derive(city: string, meeting: string, doWrite: boolean) {
     const skip = derivationSkipIssue(input);
     if (skip) { process.stderr.write(`${city}/${meeting}: refused, ${skip.code}: ${issueMessageEn(skip)}\n`); return; }
     const out = deriveMeetingFacts(input);
-    if (doWrite) { assertLocalDatabase(); await applyDerivation(input, out); }
+    if (doWrite) { await assertLocalDatabase(prisma, ['opencouncil', 'c1sample']); await applyDerivation(input, out); }
     const m = measureMeeting(`${city}/${meeting}`, input, out, null);
     process.stderr.write(`${city}/${meeting}: ${out.attendance.length} attendance rows, ${out.votes.length} vote rows, ${out.issues.length} issues, hash ${m.hash}${doWrite ? '' : ' (dry)'}\n`);
     for (const i of out.issues) process.stderr.write(`  ${i.code.padEnd(28)} ${i.subjectId ?? '-'} ${i.personId ?? ''} ${issueMessageEn(i)}\n`);
