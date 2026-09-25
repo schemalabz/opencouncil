@@ -73,4 +73,13 @@ describe('measureMeeting', () => {
         expect(a.hash).not.toBe(b.hash);
         expect(measureMeeting('c/m', input(), null, 'NO_ROLL_CALL')).toMatchObject({ refused: 'NO_ROLL_CALL', hash: '' });
     });
+
+    it('counts one name with two ids (check 8) from the issues, once the pages carry name matches', () => {
+        const withMatches = input({ documents: [doc('s1', { nameMatches: [{ name: 'Χ', personId: 'p1', method: 'llm' }] })] });
+        expect(measureMeeting('c/m', withMatches, output({ issues: [{ code: 'NAME_MATCHED_TWICE', source: 'decision', params: { name: 'Χ' } }] }), null).checks.nameMatchedTwice).toBe(1);
+    });
+
+    it('does not make check 8 before the pages carry name matches', () => {
+        expect(measureMeeting('c/m', input(), output(), null).checks.nameMatchedTwice).toBeNull();
+    });
 });

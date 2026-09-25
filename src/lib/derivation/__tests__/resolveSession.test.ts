@@ -1,4 +1,4 @@
-import { lateArrivalsInOpeningList, pagesCarryOwnList, resolveEvents, resolveRollCall, resolveSession } from '../resolveSession';
+import { lateArrivalsInOpeningList, nameMatchIssues, pagesCarryOwnList, resolveEvents, resolveRollCall, resolveSession } from '../resolveSession';
 import type { DecisionConventions } from '@/lib/decisionConventions';
 import type { DerivationInput, DocumentFacts, StatedChange } from '../types';
 
@@ -222,5 +222,31 @@ describe('resolveSession', () => {
         expect(r.rollCallBasis).toEqual({ pagesAgreeing: 2, pagesWithRollCall: 2, strategy: 'majority' });
         expect(r.events).toEqual([]);
         expect(r.issues.map(i => [i.code, i.personId])).toEqual([['PERSON_IN_BOTH_LISTS', 'b'], ['PERSON_IN_BOTH_LISTS', 'b'], ['CHANGE_NOT_CORROBORATED', 'c']]);
+    });
+});
+
+describe('nameMatchIssues', () => {
+    it('reports two entries of one list that received one id, and not one member written two ways in two lists', () => {
+        const athens = page(['p1'], [], {
+            lists: { rollCallPresent: ['Καββαθάς Τρύφων', 'Κωνσταντίνου Πέτρος'], rollCallAbsent: [], decisionPresent: [] },
+            nameMatches: [{ name: 'Καββαθάς Τρύφων', personId: 'p1', method: 'llm' }, { name: 'Κωνσταντίνου Πέτρος', personId: 'p1', method: 'token' }],
+        });
+        const argos = page(['p2'], [], {
+            lists: { rollCallPresent: ['Αναγνωστόπουλος Κων/νος'], rollCallAbsent: [], decisionPresent: ['Αναγνωστόπουλος Κώστας'] },
+            nameMatches: [{ name: 'Αναγνωστόπουλος Κων/νος', personId: 'p2', method: 'llm' }, { name: 'Αναγνωστόπουλος Κώστας', personId: 'p2', method: 'llm' }],
+        });
+        expect(nameMatchIssues({ documents: [athens, argos] })).toEqual([
+            expect.objectContaining({ code: 'NAMES_SHARE_ID', decisionId: athens.decisionId, personId: 'p1', params: { names: 'Καββαθάς Τρύφων, Κωνσταντίνου Πέτρος' } }),
+        ]);
+    });
+
+    it('reports one printed name that received two ids across pages', () => {
+        const one = page(['p1'], [], { nameMatches: [{ name: 'Κων/νος Αναγνωστόπουλος', personId: 'p1', method: 'llm' }] });
+        const two = page(['p9'], [], { nameMatches: [{ name: 'Κων/νος Αναγνωστόπουλος', personId: 'p9', method: 'llm' }] });
+        expect(nameMatchIssues({ documents: [one, two] })).toEqual([expect.objectContaining({ code: 'NAME_MATCHED_TWICE', params: { name: 'Κων/νος Αναγνωστόπουλος' } })]);
+    });
+
+    it('says nothing for readings that predate the field', () => {
+        expect(nameMatchIssues({ documents: [page(['p1']), page(['p1'])] })).toEqual([]);
     });
 });

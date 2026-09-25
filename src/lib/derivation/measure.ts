@@ -107,7 +107,10 @@ export function measureMeeting(key: string, input: DerivationInput, output: Deri
             changesDropped: count(DROPPED_CHANGE_CODES),
             votesWhileAbsent,
             conventionContradictions: count(CONVENTION_CONTRADICTION_CODES),
-            namesCollapsed, nameMatchedTwice: null, inBothLists,
+            namesCollapsed,
+            // null until a page carries `nameMatches`: before that the check cannot be made.
+            nameMatchedTwice: input.documents.some(d => d.nameMatches) ? (issues['NAME_MATCHED_TWICE'] ?? 0) : null,
+            inBothLists,
         },
     };
 }

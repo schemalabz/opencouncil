@@ -1,6 +1,6 @@
 import type { AttendanceTiming } from '@prisma/client';
 import type { DecisionConventions } from '@/lib/decisionConventions';
-import type { DerivationInput, DocumentFacts, EventRow, Issue, RollCallRow, StatedChange } from './types';
+import type { DerivationInput, DocumentFacts, EventRow, Issue, NameMatch, RollCallRow, StatedChange } from './types';
 
 /**
  * What the pages of one meeting state together (spec §4.1.1). Pure: it reads
@@ -197,9 +197,42 @@ export function lateArrivalsInOpeningList(input: Pick<DerivationInput, 'document
     return issues;
 }
 
+/**
+ * Where the match step went wrong in a way the pages show (spec §4.1.13). Two
+ * entries of one list with one id: a list names each member once, so one match
+ * is wrong (Athens ΔΣ may29_2026, «Καββαθάς Τρύφων»). One member written two ways
+ * in two places is not that — the roll call's «Κων/νος» and ΤΑ ΜΕΛΗ's «Κώστας»
+ * are one person. One printed name with two ids across pages: pages of two polls
+ * are matched separately. Readings without `nameMatches` say nothing. No id changes.
+ */
+export function nameMatchIssues(input: Pick<DerivationInput, 'documents'>): Issue[] {
+    const issues: Issue[] = [];
+    const idsOfName = new Map<string, Set<string>>();
+    for (const d of usablePages(input.documents)) {
+        if (!d.nameMatches) continue;
+        const idOf = new Map(d.nameMatches.filter((m): m is NameMatch & { personId: string } => m.personId !== null).map(m => [m.name, m.personId]));
+        for (const list of [d.lists.rollCallPresent, d.lists.rollCallAbsent, d.lists.decisionPresent]) {
+            const nameOfId = new Map<string, string>();
+            for (const name of list) {
+                const personId = idOf.get(name);
+                if (!personId) continue;
+                const other = nameOfId.get(personId);
+                if (other === undefined) nameOfId.set(personId, name);
+                else if (other !== name) issues.push({ code: 'NAMES_SHARE_ID', subjectId: d.subjectId, decisionId: d.decisionId, personId, source: 'decision', params: { names: `${other}, ${name}` } });
+            }
+        }
+        for (const m of d.nameMatches) if (m.personId) idsOfName.set(m.name, (idsOfName.get(m.name) ?? new Set()).add(m.personId));
+    }
+    for (const [name, ids] of idsOfName) if (ids.size > 1) issues.push({ code: 'NAME_MATCHED_TWICE', source: 'decision', params: { name } });
+    return issues;
+}
+
 /** The roll call, the events and their issues for one meeting. */
 export function resolveSession(input: DerivationInput): ResolvedSession {
     const roll = resolveRollCall(input);
     const ev = resolveEvents(input);
-    return { rollCall: roll.rollCall, events: ev.events, missing: roll.missing, rollCallBasis: roll.rollCallBasis, issues: [...roll.issues, ...ev.issues, ...lateArrivalsInOpeningList(input)] };
+    return {
+        rollCall: roll.rollCall, events: ev.events, missing: roll.missing, rollCallBasis: roll.rollCallBasis,
+        issues: [...roll.issues, ...ev.issues, ...lateArrivalsInOpeningList(input), ...nameMatchIssues(input)],
+    };
 }

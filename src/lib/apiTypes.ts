@@ -449,6 +449,8 @@ export interface ExtractedDecisionData {
     /** The changes this document states (v4); a per-vote absence is already a departure/arrival pair. */
     attendanceChanges?: PollDecisionsAttendanceEvent[];
     unmatchedMembers: string[];
+    /** How each name was matched (task v4 from C1); absent on older readings. */
+    nameMatches?: { name: string; personId: string | null; method: 'token' | 'llm' | null }[];
     fromCache?: boolean;
     warnings?: DecisionWarning[];
     /** @deprecated task v3: replayed snapshot; ignored. */

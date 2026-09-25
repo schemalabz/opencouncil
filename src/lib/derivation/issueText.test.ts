@@ -29,6 +29,8 @@ const CASES: { [C in IssueCode]: { params: IssueParams[C]; contains?: string[] }
     CHANGE_NOT_CORROBORATED: { params: { stated: 1, total: 9 }, contains: ['1', '9'] },
     LATE_ARRIVAL_IN_OPENING_LIST: { params: {} },
     NAMED_VOTERS_UNEXPECTED: { params: { expected: 'dissenters_only' } },
+    NAMES_SHARE_ID: { params: { names: 'Καββαθάς Τρύφων, Κωνσταντίνου Πέτρος' }, contains: ['Καββαθάς Τρύφων'] },
+    NAME_MATCHED_TWICE: { params: { name: 'Κων/νος Αναγνωστόπουλος' }, contains: ['Κων/νος Αναγνωστόπουλος'] },
 };
 
 describe('issueMessageEn', () => {

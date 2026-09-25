@@ -526,7 +526,9 @@
                 "PERSON_IN_BOTH_LISTS": "Listed present and absent",
                 "CHANGE_NOT_CORROBORATED": "Change on too few pages",
                 "LATE_ARRIVAL_IN_OPENING_LIST": "Late arrival in the opening list",
-                "NAMED_VOTERS_UNEXPECTED": "Voters named unlike the body"
+                "NAMED_VOTERS_UNEXPECTED": "Voters named unlike the body",
+                "NAMES_SHARE_ID": "Two names, one person",
+                "NAME_MATCHED_TWICE": "One name, two people"
             },
             "messages": {
                 "NO_ROLL_CALL": "{reason, select, noMajority {The pages print different roll calls and no one of them is on more than half of the pages, so presence cannot be replayed. The stored rows were left as they are.} other {No document yielded a roll call, so presence cannot be replayed. The stored rows were left as they are.}}",
@@ -548,7 +550,9 @@
                 "PERSON_IN_BOTH_LISTS": "This page lists the member both under ΠΑΡΟΝΤΕΣ and under ΑΠΟΝΤΕΣ. Where this page's roll call sets presence (as the meeting's roll call, or for its own item in a body that prints a roll call per decision), the member counts as absent.",
                 "CHANGE_NOT_CORROBORATED": "Only {stated} of the meeting's {total} pages state this change, and this body's pages repeat the session. It is not applied; check the page.",
                 "LATE_ARRIVAL_IN_OPENING_LIST": "The page says this member arrived later, yet lists them under ΠΑΡΟΝΤΕΣ, and this body's present list is the opening roll call. The reader probably moved the arrival into the list; the roll call most pages print decides.",
-                "NAMED_VOTERS_UNEXPECTED": "{expected, select, dissenters_only {This body names only those against, blank or declaring, but this page names members in favour.} none {This body names no voters, but this page names some.} other {This body names every voter, but this page names nobody in favour under a phrase that carried.}} Check whether the page was read correctly; the vote rows are unchanged."
+                "NAMED_VOTERS_UNEXPECTED": "{expected, select, dissenters_only {This body names only those against, blank or declaring, but this page names members in favour.} none {This body names no voters, but this page names some.} other {This body names every voter, but this page names nobody in favour under a phrase that carried.}} Check whether the page was read correctly; the vote rows are unchanged.",
+                "NAMES_SHARE_ID": "Two entries of one list on this page were matched to the same person: {names}. A list names each member once, so one match is wrong. Check the page and the roster.",
+                "NAME_MATCHED_TWICE": "«{name}» was matched to different people on different pages of this meeting. Check which one it is and correct the roster."
             },
             "tallyDiff": "{type, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{type}}}: printed {printed}, derived {derived}"
         },
@@ -639,7 +643,9 @@
                 "resolve": {
                     "PERSON_IN_BOTH_LISTS": "A page contradicts itself about one member. Where its roll call sets presence, the member counts as absent.",
                     "CHANGE_NOT_CORROBORATED": "This body prints the session's changes on every page, so a change that most pages leave out is probably a misread.",
-                    "LATE_ARRIVAL_IN_OPENING_LIST": "In a body whose present list is the opening roll call, a member who arrived later cannot be in it."
+                    "LATE_ARRIVAL_IN_OPENING_LIST": "In a body whose present list is the opening roll call, a member who arrived later cannot be in it.",
+                    "NAMES_SHARE_ID": "The roll call and the changes are combined by person; a wrong match merges two members.",
+                    "NAME_MATCHED_TWICE": "Pages read in different polls are matched separately, so one spelling can end on two people."
                 },
                 "place": {
                     "UNPLACEABLE_ANCHOR": "The point the document states corresponds to nothing. The change becomes a signal rather than being applied at the wrong position."
