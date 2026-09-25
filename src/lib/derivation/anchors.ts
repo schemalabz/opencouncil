@@ -1,7 +1,8 @@
 /**
- * The wire vocabulary of an attendance event's anchor, mapped to the stored
- * enums. Its own module (and not part of the "use server" poll handler) so the
- * mapping can be read and tested without the callback around it.
+ * The wire vocabulary of a stated change's anchor, mapped to the stored enums,
+ * and one page's stated change read from its stored reading. Its own module
+ * (and not part of the "use server" poll handler) so the mapping can be read
+ * and tested without the callback around it.
  */
 import { AttendanceAnchorKind, AttendancePhase, AttendanceTiming } from "@prisma/client";
 import type { PollDecisionsAttendanceEvent } from "@/lib/apiTypes";

@@ -4,7 +4,7 @@
  * rolled the delete back with it, and left the meeting on its previous events
  * with nothing raised. So what an unknown kind does is the contract here.
  */
-import { anchorKindOf } from '@/lib/tasks/attendanceEventAnchors';
+import { anchorKindOf } from '@/lib/derivation/anchors';
 import type { PollDecisionsAttendanceEvent } from '@/lib/apiTypes';
 
 const event = (kind: string, type: 'arrival' | 'departure' = 'departure'): PollDecisionsAttendanceEvent => ({

@@ -1,7 +1,7 @@
 "use server";
 
 import { PollDecisionsRequest, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData, PollDecisionsAttendanceEvent } from "@/lib/apiTypes";
-import { anchorKindOf, ANCHOR_PHASE, ANCHOR_TIMING } from "./attendanceEventAnchors";
+import { anchorKindOf, ANCHOR_PHASE, ANCHOR_TIMING } from "@/lib/derivation/anchors";
 import { isDecisionConventions } from "@/lib/decisionConventions";
 import { renderConventionsText, conventionsGlossaryEn } from "@/lib/decisionConventionsText";
 import { storeDecisionFacts } from "@/lib/db/decisionFacts";
