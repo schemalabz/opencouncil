@@ -82,7 +82,9 @@ export interface DerivationInput {
     cityId: string;
     meetingId: string;
     subjects: OrderedSubject[];
+    /** Stated roll-call rows from sources other than the pages (manual, later transcript). The pages' own roll call is resolved (resolveSession). */
     rollCall: RollCallRow[];
+    /** Stated events from sources other than the pages; the pages' own are resolved. */
     events: EventRow[];
     documents: DocumentFacts[];
     /** Subjects holding decision-sourced vote rows now: what a write replaces and, for an unread document, cannot rebuild. */
@@ -130,7 +132,7 @@ export type SourcesDisagreeParams =
  * so the situations stay distinct without the code losing its single entry.
  */
 export interface IssueParams {
-    NO_ROLL_CALL: Record<string, never>;
+    NO_ROLL_CALL: { reason: 'noRollCall' | 'noMajority' };
     PRESENCE_UNKNOWN: { reason: 'unsettled' | 'assumedOpening' | 'noPerDecisionList' };
     CONVENTIONS_UNCONFIRMED: Record<string, never>;
     UNMATCHED_NAME: { name: string };
@@ -194,6 +196,10 @@ export interface DerivationOutput {
     issues: Issue[];
     /** Subjects whose vote is printed from the phrase alone (no attendance known). */
     phraseOnlySubjectIds: string[];
+    /** The opening roll call the pages state together (source decision), written as output and never read back. */
+    rollCall: RollCallRow[];
+    /** The session's changes the pages state together (source decision), written as output and never read back. */
+    events: EventRow[];
 }
 
 /**

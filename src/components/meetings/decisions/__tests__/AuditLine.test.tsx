@@ -62,7 +62,7 @@ describe('AuditLine', () => {
     });
 
     it('names every step that raises a code, not just the first', async () => {
-        renderLine({ severity: 'error', code: 'NO_ROLL_CALL', issue: issue({ code: 'NO_ROLL_CALL', params: {} }) });
+        renderLine({ severity: 'error', code: 'NO_ROLL_CALL', issue: issue({ code: 'NO_ROLL_CALL', params: { reason: 'noRollCall' } }) });
         await userEvent.click(screen.getByRole('button', { name: 'Χωρίς αρχική εκφώνηση' }));
         expect(screen.getByText('Προκύπτει στον υπολογισμό των παρόντων και στην εγγραφή των στοιχείων')).toBeInTheDocument();
     });

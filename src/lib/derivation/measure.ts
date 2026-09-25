@@ -59,10 +59,12 @@ export function measureMeeting(key: string, input: DerivationInput, output: Deri
         ? attendance.filter(a => a.personId === mayor).length + votes.filter(v => v.personId === mayor).length
         : 0;
 
-    // The replay ranks the roll call by source, so a manual ABSENT outranks a page's PRESENT here too.
-    const rollCall = rankRollCall(input.rollCall).rows;
+    // The pages' own roll call and events are the derivation's output; other sources' rows are its input.
+    // The replay ranks the roll call by source, so a manual ABSENT outranks the pages' PRESENT here too.
+    const rollCall = rankRollCall([...(output?.rollCall ?? []), ...input.rollCall]).rows;
+    const events = [...(output?.events ?? []), ...input.events];
     const presentAtRollCall = new Set([...rollCall.values()].filter(r => r.status === 'PRESENT').map(r => r.personId));
-    const departed = new Set(input.events.filter(e => e.kind === 'DEPARTURE').map(e => e.personId));
+    const departed = new Set(events.filter(e => e.kind === 'DEPARTURE').map(e => e.personId));
     const absentOn = new Map<string, number>();
     for (const a of attendance) {
         if (a.status === 'ABSENT' && presentAtRollCall.has(a.personId) && !departed.has(a.personId)) {

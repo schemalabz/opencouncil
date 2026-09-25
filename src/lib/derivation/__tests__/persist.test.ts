@@ -9,9 +9,10 @@ import { derivationSkipIssue, hasNothingToDeriveFrom, deriveAndPersist } from '.
 import { deriveMeetingFacts } from '../deriveMeetingFacts';
 import type { DerivationInput, DocumentFacts } from '../types';
 
-const doc = (subjectId: string, hasExtraction: boolean): DocumentFacts => ({
+/** A read page prints the roll call «p1 present» unless told otherwise; an unread one states nothing. */
+const doc = (subjectId: string, hasExtraction: boolean, rollCallPresentIds: string[] | null = hasExtraction ? ['p1'] : null): DocumentFacts => ({
     subjectId, decisionId: `d-${subjectId}`, voteResultPhrase: 'Ομόφωνα', namedVotes: [], tally: null,
-    presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], nameMatches: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null,
+    presentIds: null, absentIds: null, rollCallPresentIds, rollCallAbsentIds: rollCallPresentIds ? [] : null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], nameMatches: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null,
     presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction,
 });
 
@@ -21,7 +22,8 @@ const input = (overrides: Partial<DerivationInput> = {}): DerivationInput => ({
         { id: 's1', name: 'one', agendaItemIndex: 1, nonAgendaReason: null, decisionNumber: '10' },
         { id: 's2', name: 'two', agendaItemIndex: 2, nonAgendaReason: null, decisionNumber: '11' },
     ],
-    rollCall: [{ personId: 'p1', status: 'PRESENT', source: 'decision' }],
+    // What other sources state; the pages' own roll call is resolved from `documents`.
+    rollCall: [],
     events: [],
     documents: [doc('s1', true), doc('s2', true)],
     subjectIdsWithStoredVotes: [],
@@ -63,12 +65,23 @@ describe('derivationSkipIssue', () => {
             .toMatchObject({ code: 'NO_STORED_FACTS' });
     });
 
-    it('refuses the write when the roll call is empty', () => {
-        expect(derivationSkipIssue(input({ rollCall: [] }))).toMatchObject({ code: 'NO_ROLL_CALL' });
+    it('refuses the write when no page prints a roll call and no other source states one', () => {
+        expect(derivationSkipIssue(input({ documents: [doc('s1', true, null), doc('s2', true, null)] })))
+            .toMatchObject({ code: 'NO_ROLL_CALL', params: { reason: 'noRollCall' } });
+    });
+
+    it('refuses the write when the pages print different roll calls and none has a majority', () => {
+        expect(derivationSkipIssue(input({ documents: [doc('s1', true, ['p1']), doc('s2', true, ['p2'])] })))
+            .toMatchObject({ code: 'NO_ROLL_CALL', params: { reason: 'noMajority' } });
+    });
+
+    it('derives from a roll call another source states when the pages print none', () => {
+        const manual = [{ personId: 'p1', status: 'PRESENT' as const, source: 'manual' as const }];
+        expect(derivationSkipIssue(input({ rollCall: manual, documents: [doc('s1', true, null), doc('s2', true, null)] }))).toBeNull();
     });
 
     it('refuses a meeting with no documents and no roll call', () => {
-        expect(derivationSkipIssue(input({ documents: [], rollCall: [] }))).toMatchObject({ code: 'NO_ROLL_CALL' });
+        expect(derivationSkipIssue(input({ documents: [] }))).toMatchObject({ code: 'NO_ROLL_CALL' });
     });
 });
 
@@ -82,14 +95,15 @@ describe('deriveAndPersist', () => {
                 subjects: i.subjects.map(s => {
                     // A document that carries stored facts is one a v4 read stored: an
                     // older reading states none, whatever JSON it left behind.
-                    const stored = i.documents.some(d => d.subjectId === s.id && d.hasExtraction);
+                    const stored = i.documents.find(d => d.subjectId === s.id && d.hasExtraction);
                     return {
                         id: s.id, name: s.name, agendaItemIndex: s.agendaItemIndex, nonAgendaReason: s.nonAgendaReason,
                         withdrawn: false, discussedIn: null,
                         decision: {
                             id: `d-${s.id}`, subjectId: s.id, decisionNumber: s.decisionNumber, voteResultPhrase: 'Ομόφωνα',
                             unmatchedNames: [], incomplete: false, mayorPresent: null,
-                            extraction: stored ? {} : null, extractorVersion: stored ? '4' : null,
+                            extraction: stored ? { rollCall: { presentIds: stored.rollCallPresentIds ?? [], absentIds: stored.rollCallAbsentIds ?? [] } } : null,
+                            extractorVersion: stored ? '4' : null,
                         },
                     };
                 }),
@@ -123,20 +137,23 @@ describe('deriveAndPersist', () => {
     });
 
     it('writes nothing when the roll call is empty', async () => {
-        rows({ rollCall: [] });
+        rows({ documents: [doc('s1', true, null), doc('s2', true, null)] });
         const out = await deriveAndPersist('c', 'm');
         expect(mockReplaceDerivedRows).not.toHaveBeenCalled();
         expect(out.issues.map(i => i.code)).toEqual(['NO_ROLL_CALL']);
     });
 
-    it('writes the derived rows when the input is complete', async () => {
+    it('writes the derived rows, and the roll call the pages resolve, when the input is complete', async () => {
         rows();
         await deriveAndPersist('c', 'm', 'task-1');
         expect(mockReplaceDerivedRows).toHaveBeenCalledTimes(1);
-        const [subjectIds, attendance, votes, taskId] = mockReplaceDerivedRows.mock.calls[0];
+        const [meeting, subjectIds, attendance, votes, rollCall, events, taskId] = mockReplaceDerivedRows.mock.calls[0];
+        expect(meeting).toEqual({ cityId: 'c', meetingId: 'm' });
         expect(subjectIds).toEqual(['s1', 's2']);
         expect(attendance.length).toBeGreaterThan(0);
         expect(votes.length).toBeGreaterThan(0);
+        expect(rollCall).toEqual([{ personId: 'p1', status: 'PRESENT' }]);
+        expect(events).toEqual([]);
         expect(taskId).toBe('task-1');
     });
 });

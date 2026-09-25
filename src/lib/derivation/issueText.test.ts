@@ -9,7 +9,7 @@ import { ISSUE_CODES, type Issue, type IssueCode, type IssueParams, type Sources
  * a failure. One case per code, because the codes are what the report prints.
  */
 const CASES: { [C in IssueCode]: { params: IssueParams[C]; contains?: string[] } } = {
-    NO_ROLL_CALL: { params: {} },
+    NO_ROLL_CALL: { params: { reason: 'noMajority' } },
     PRESENCE_UNKNOWN: { params: { reason: 'assumedOpening' } },
     CONVENTIONS_UNCONFIRMED: { params: {} },
     UNMATCHED_NAME: { params: { name: 'Κ. Δήμου' }, contains: ['Κ. Δήμου'] },

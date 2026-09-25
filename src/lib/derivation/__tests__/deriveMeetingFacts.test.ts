@@ -28,6 +28,12 @@ describe('deriveMeetingFacts', () => {
         expect(codes).toEqual(['CONVENTIONS_UNCONFIRMED', 'INCOMPLETE_READ', 'PRESIDING_DISAGREES', 'UNMATCHED_NAME']);
         expect(out.issues.find(i => i.code === 'UNMATCHED_NAME')).toMatchObject({ subjectId: 's1', decisionId: 'd1', rawText: 'Άγνωστος Α.' });
     });
+    it('says why there is no roll call when a caller derives without the guard', () => {
+        const page = (present: string[], absent: string[]) => ({ ...base.documents[0], rollCallPresentIds: present, rollCallAbsentIds: absent });
+        const reason = (documents: DerivationInput['documents']) => deriveMeetingFacts({ ...base, rollCall: [], documents }).issues.find(i => i.code === 'NO_ROLL_CALL')?.params;
+        expect(reason([page(['p1'], ['p2']), page(['p2'], ['p1'])])).toEqual({ reason: 'noMajority' });
+        expect(reason([base.documents[0]])).toEqual({ reason: 'noRollCall' });
+    });
     it('is deterministic', () => {
         expect(deriveMeetingFacts(base)).toEqual(deriveMeetingFacts(base));
     });
@@ -76,5 +82,25 @@ describe('deriveMeetingFacts', () => {
         expect(out.votes.filter(v => v.origin === 'inferred').length).toBeGreaterThan(0);
         // No arrival is stated here, so the meaning could not have changed a row.
         expect(out.issues.filter(i => i.code === 'PRESENCE_UNKNOWN')).toEqual([]);
+    });
+    describe('the roll call and the changes the pages state', () => {
+        const departure = { personId: 'p2', kind: 'DEPARTURE' as const, anchorKind: 'AGENDA_ITEM' as const, anchorAgendaItemIndex: 1, anchorNonAgendaReason: null,
+            anchorDecisionNumber: null, anchorSubjectId: null, anchorPhase: null, timing: 'AFTER' as const, rawText: 'αποχώρησε μετά το 1ο θέμα' };
+        const pages = base.documents.map(d => ({ ...d, rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [], statedChanges: [departure] }));
+
+        it('are resolved over every page and returned as output, and the replay reads them', () => {
+            const out = deriveMeetingFacts({ ...base, rollCall: [], documents: pages });
+            expect(out.rollCall).toEqual([{ personId: 'p1', status: 'PRESENT', source: 'decision' }, { personId: 'p2', status: 'PRESENT', source: 'decision' }]);
+            expect(out.events).toEqual([expect.objectContaining({ personId: 'p2', kind: 'DEPARTURE', reportingDocuments: 2, totalDocuments: 2, source: 'decision' })]);
+            expect(out.attendance.find(a => a.subjectId === 's2' && a.personId === 'p2')).toMatchObject({ status: 'ABSENT' });
+        });
+
+        it('rank below a row another source states', () => {
+            const out = deriveMeetingFacts({ ...base, rollCall: [{ personId: 'p1', status: 'ABSENT', source: 'manual' }], documents: pages });
+            expect(out.attendance.find(a => a.subjectId === 's1' && a.personId === 'p1')).toMatchObject({ status: 'ABSENT' });
+            expect(out.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'SOURCES_DISAGREE', personId: 'p1' })]));
+            // The output is the pages' own statement, not the ranked result.
+            expect(out.rollCall.find(r => r.personId === 'p1')).toMatchObject({ status: 'PRESENT', source: 'decision' });
+        });
     });
 });

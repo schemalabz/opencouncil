@@ -12,10 +12,9 @@ const input = (o: Partial<DerivationInput> = {}): DerivationInput => ({
     cityId: 'c', meetingId: 'm', subjectIdsWithStoredVotes: [], conventions: null, presidentPersonId: null, secretaryPersonId: null,
     mayorPersonId: null, bodyType: 'council', cityMayorPersonId: 'mayor',
     subjects: [1, 2, 3].map(i => ({ id: `s${i}`, name: `s${i}`, agendaItemIndex: i, nonAgendaReason: null, decisionNumber: null })),
-    rollCall: [{ personId: 'p1', status: 'PRESENT', source: 'decision' }, { personId: 'mayor', status: 'PRESENT', source: 'decision' }],
-    events: [], documents: [doc('s1'), doc('s2'), doc('s3')], ...o,
+    rollCall: [], events: [], documents: [doc('s1'), doc('s2'), doc('s3')], ...o,
 });
-const output = (o: Partial<DerivationOutput> = {}): DerivationOutput => ({ attendance: [], votes: [], issues: [], phraseOnlySubjectIds: [], ...o });
+const output = (o: Partial<DerivationOutput> = {}): DerivationOutput => ({ attendance: [], votes: [], issues: [], phraseOnlySubjectIds: [], rollCall: [], events: [], ...o });
 
 describe('measureMeeting', () => {
     it('flags the mayor in the rows of a council (check 1) and an absence nothing stated (check 2)', () => {
@@ -23,7 +22,9 @@ describe('measureMeeting', () => {
             { subjectId, personId: 'p1', status: 'PRESENT' as const, origin: 'derived' as const },
             { subjectId, personId: 'mayor', status: 'ABSENT' as const, origin: 'stated' as const },
         ]);
-        const m = measureMeeting('c/m', input(), output({ attendance }), null);
+        // The roll call is the derivation's output: the pages' own, resolved.
+        const rollCall = [{ personId: 'p1', status: 'PRESENT' as const, source: 'decision' as const }, { personId: 'mayor', status: 'PRESENT' as const, source: 'decision' as const }];
+        const m = measureMeeting('c/m', input(), output({ attendance, rollCall }), null);
         expect(m.checks.mayorRowsOffBody).toBe(3);
         expect(m.checks.unstatedAbsences).toEqual([{ personId: 'mayor', absentOn: 3, of: 3 }]);
     });
@@ -32,7 +33,7 @@ describe('measureMeeting', () => {
         const attendance = ['s1', 's2', 's3'].map(subjectId => ({ subjectId, personId: 'p1', status: 'ABSENT' as const, origin: 'derived' as const }));
         const rollCall = [{ personId: 'p1', status: 'PRESENT' as const, source: 'decision' as const }, { personId: 'mayor', status: 'PRESENT' as const, source: 'decision' as const }];
         const manual = [{ personId: 'p1', status: 'ABSENT' as const, source: 'manual' as const }, { personId: 'mayor', status: 'ABSENT' as const, source: 'manual' as const }];
-        const m = measureMeeting('c/m', input({ rollCall: [...rollCall, ...manual], documents: [doc('s1', { presentIds: ['p1'] })] }), output({ attendance }), null);
+        const m = measureMeeting('c/m', input({ rollCall: manual, documents: [doc('s1', { presentIds: ['p1'] })] }), output({ attendance, rollCall }), null);
         expect(m.checks.unstatedAbsences).toEqual([]);
         expect(m.checks.listOmitsMayor).toBe(0);
     });

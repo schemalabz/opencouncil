@@ -5,6 +5,7 @@ jest.mock('next/server', () => ({ ...jest.requireActual('next/server'), after: (
 
 import prisma from '@/lib/db/prisma'
 import { handlePollDecisionsResult } from '@/lib/tasks/pollDecisions'
+import { deriveAndPersist, explainMeeting } from '@/lib/derivation'
 import type { ExtractedDecisionData, PollDecisionsAttendanceEvent, PollDecisionsResult } from '@/lib/apiTypes'
 import { resetDatabase } from '../helpers/test-db'
 import { createAdministrativeBody, createCity, createMeeting, createPerson, createSubject, createTaskStatus } from '../helpers/factories'
@@ -57,9 +58,10 @@ describe('two polls of one meeting', () => {
     const statusOf = async (personId: string, item: number) =>
         (await prisma.subjectAttendance.findFirst({ where: { subjectId: s[item - 1].id, personId, source: 'decision' } }))?.status
 
-    // `test.failing` until Task 9 moves the resolution: every commit stays green, and
-    // Jest reports the test as failing-as-expected, which is the defect shown.
-    test.failing("a departure the first poll's pages state survives a poll that reads one new page", async () => {
+    // The poll handler still writes the meeting-level rows the task sends, but the
+    // derivation runs after it in the same callback and replaces them with the
+    // roll call and the events it resolves over every stored page.
+    test("a departure the first poll's pages state survives a poll that reads one new page", async () => {
         // Poll 1 reads items 1 and 2; both state the departure.
         await poll([page(1, { attendanceChanges: [departureOfB()] }), page(2, { attendanceChanges: [departureOfB()] })],
             // MEETING-LEVEL: what task v4 resolved over this poll's pages. Task 9 deletes it.
@@ -75,7 +77,7 @@ describe('two polls of one meeting', () => {
         expect(await statusOf(b.id, 3)).toBe('ABSENT')
     })
 
-    test.failing('a misread roll call on the one new page does not replace the roll call two pages agree on', async () => {
+    test('a misread roll call on the one new page does not replace the roll call two pages agree on', async () => {
         await poll([page(1), page(2)],
             // MEETING-LEVEL. Task 9 deletes it.
             { initialAttendance: allPresent(), attendanceEvents: [] })
@@ -87,5 +89,23 @@ describe('two polls of one meeting', () => {
         const rollCall = await prisma.meetingAttendance.findMany({ where: { cityId, councilMeetingId: meetingId, source: 'decision' } })
         expect(rollCall.map(r => r.status).sort()).toEqual(['PRESENT', 'PRESENT', 'PRESENT'])
         expect(await statusOf(c.id, 1)).toBe('PRESENT')
+    })
+
+    test('rows the derivation wrote do not feed the next derivation', async () => {
+        await poll([page(1, { attendanceChanges: [departureOfB()] }), page(2, { attendanceChanges: [departureOfB()] })],
+            { initialAttendance: allPresent(), attendanceEvents: [{ ...departureOfB(), reportingPdfCount: 2, totalPdfCount: 2 }] })
+        const before = await explainMeeting(cityId, meetingId)
+        // Tamper with the derived output: the roll call says B absent, and the events are gone.
+        await prisma.meetingAttendance.updateMany({ where: { cityId, councilMeetingId: meetingId, personId: b.id, source: 'decision' }, data: { status: 'ABSENT' } })
+        await prisma.attendanceEvent.deleteMany({ where: { cityId, councilMeetingId: meetingId, source: 'decision' } })
+        expect(await explainMeeting(cityId, meetingId)).toEqual(before)
+    })
+
+    test('a manual roll-call row still outranks the pages', async () => {
+        await poll([page(1), page(2)], { initialAttendance: allPresent(), attendanceEvents: [] })
+        await prisma.meetingAttendance.create({ data: { cityId, councilMeetingId: meetingId, personId: a.id, status: 'ABSENT', source: 'manual' } })
+        const out = await deriveAndPersist(cityId, meetingId)
+        expect(await statusOf(a.id, 1)).toBe('ABSENT')
+        expect(out.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'SOURCES_DISAGREE', personId: a.id })]))
     })
 })

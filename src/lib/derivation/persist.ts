@@ -1,14 +1,18 @@
 import { replaceDerivedRows } from '@/lib/db/derivationFacts';
 import { deriveMeetingFacts } from './deriveMeetingFacts';
 import { loadDerivationInput } from './load';
+import { resolveRollCall } from './resolveSession';
 import type { DerivationInput, DerivationOutput, Issue } from './types';
 
-/** Replace the meeting's derived rows (source = decision) with the output. */
+/** Replace the meeting's derived rows (source = decision), per subject and per meeting, with the output. */
 export async function applyDerivation(input: DerivationInput, output: DerivationOutput, taskId: string | null = null): Promise<void> {
     await replaceDerivedRows(
+        { cityId: input.cityId, meetingId: input.meetingId },
         input.subjects.map(s => s.id),
         output.attendance.map(a => ({ subjectId: a.subjectId, personId: a.personId, status: a.status })),
         output.votes.map(v => ({ subjectId: v.subjectId, personId: v.personId, voteType: v.voteType })),
+        output.rollCall.map(r => ({ personId: r.personId, status: r.status })),
+        output.events,
         taskId,
     );
 }
@@ -33,9 +37,10 @@ export async function applyDerivation(input: DerivationInput, output: Derivation
  *   subject (`UNREAD_DOCUMENT`) — which is why the guard reads votes and not
  *   attendance, or the rows one run writes for that subject would refuse the
  *   next. A meeting with no facts at all is never written.
- * - **No roll call.** Presence is a replay of the roll call, so an empty one
- *   derives nobody present anywhere — again not a correction of the stored rows
- *   but their deletion.
+ * - **No roll call.** Neither the pages resolve one — none prints one, or no
+ *   roll call has a strict majority — nor another source states one. Presence
+ *   is a replay of the roll call, so an empty one derives nobody present
+ *   anywhere — again not a correction of the stored rows but their deletion.
  */
 export function derivationSkipIssue(input: DerivationInput): Issue | null {
     const unread = input.documents.filter(d => !d.hasExtraction);
@@ -46,10 +51,9 @@ export function derivationSkipIssue(input: DerivationInput): Issue | null {
             params: { missing: unread.length, total: input.documents.length },
         };
     }
-    if (input.rollCall.length === 0) {
-        return {
-            code: 'NO_ROLL_CALL', source: null, params: {},
-        };
+    const resolved = resolveRollCall(input);
+    if (resolved.rollCall.length === 0 && input.rollCall.length === 0) {
+        return { code: 'NO_ROLL_CALL', source: null, params: { reason: resolved.missing ?? 'noRollCall' } };
     }
     return null;
 }
@@ -62,7 +66,7 @@ export function hasNothingToDeriveFrom(input: DerivationInput): boolean {
 export async function deriveAndPersist(cityId: string, meetingId: string, taskId: string | null = null): Promise<DerivationOutput> {
     const input = await loadDerivationInput(cityId, meetingId);
     const skip = derivationSkipIssue(input);
-    if (skip) return { attendance: [], votes: [], phraseOnlySubjectIds: [], issues: [skip] };
+    if (skip) return { attendance: [], votes: [], phraseOnlySubjectIds: [], rollCall: [], events: [], issues: [skip] };
     const output = deriveMeetingFacts(input);
     await applyDerivation(input, output, taskId);
     return output;
@@ -74,6 +78,6 @@ export async function explainMeeting(cityId: string, meetingId: string): Promise
     // The page describes the rows a write would leave, so a refusal is reported
     // as itself rather than as rows nothing stored.
     const skip = derivationSkipIssue(input);
-    if (skip) return { attendance: [], votes: [], phraseOnlySubjectIds: [], issues: [skip] };
+    if (skip) return { attendance: [], votes: [], phraseOnlySubjectIds: [], rollCall: [], events: [], issues: [skip] };
     return deriveMeetingFacts(input);
 }

@@ -694,12 +694,11 @@ enum AttendanceStatus {
   ABSENT
 }
 
-/// One arrival or departure as a source states it, pinned to what the source pins
-/// it to, with the sentence. The fine-grained record: per-subject attendance
-/// (SubjectAttendance) is the replay of MeetingAttendance plus these rows along the
-/// transcript order. Stored rather than diffed because the anchor, the sentence and
-/// the agreement count cannot be recovered from snapshots, and because a fix to
-/// matching or ordering re-derives for free.
+/// One arrival or departure, pinned to what its source pins it to, with the sentence.
+/// Rows of source `decision` are derivation output: resolved over every stored page
+/// of the meeting (src/lib/derivation/resolveSession.ts) and written with the
+/// per-subject rows; the derivation never reads them back. Rows of any other source
+/// are stated facts and outrank the pages (SOURCE_PRECEDENCE).
 model AttendanceEvent {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -763,6 +762,8 @@ enum AttendanceTiming {
 }
 
 /// The opening roll call, one row per person (the mayor included), per source.
+/// Rows of source `decision` are derivation output (see AttendanceEvent); rows of
+/// any other source are stated facts.
 model MeetingAttendance {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())

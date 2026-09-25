@@ -1,5 +1,6 @@
 import { replayAttendance } from './replayAttendance';
 import { deriveVotes } from './deriveVotes';
+import { resolveSession } from './resolveSession';
 import { isConfirmedByPerson, type DecisionConventions } from '@/lib/decisionConventions';
 import type { DocumentFacts, DerivationInput, DerivationOutput, Issue, OrderedSubject } from './types';
 
@@ -33,15 +34,20 @@ function documentDisagreements(doc: DocumentFacts, subject: OrderedSubject | und
 }
 
 /**
- * One derivation over stored rows: attendance replayed (or stated) per subject,
- * vote rows per document, and every gap as an issue. Pure and deterministic.
+ * One derivation over stored rows: the roll call and the events resolved over
+ * every page, attendance replayed (or stated) per subject, vote rows per
+ * document, and every gap as an issue. Pure and deterministic.
  */
 export function deriveMeetingFacts(input: DerivationInput): DerivationOutput {
     const issues: Issue[] = [];
     if (input.conventions && !isConfirmedByPerson(input.conventions)) {
         issues.push({ code: 'CONVENTIONS_UNCONFIRMED', source: null, params: {} });
     }
-    const replay = replayAttendance(input);
+    const session = resolveSession(input);
+    issues.push(...session.issues);
+    // The pages' own roll call and events join what other sources state; the replay
+    // ranks the two with SOURCE_PRECEDENCE, so a manual row still wins.
+    const replay = replayAttendance({ ...input, rollCall: [...session.rollCall, ...input.rollCall], events: [...session.events, ...input.events], rollCallMissing: session.missing });
     issues.push(...replay.issues);
 
     const votes: DerivationOutput['votes'] = [];
@@ -68,5 +74,5 @@ export function deriveMeetingFacts(input: DerivationInput): DerivationOutput {
     if (presidingValues.size > 1) issues.push({ code: 'PRESIDING_DISAGREES', source: 'decision',
         params: { names: [...presidingValues].join(', ') } });
 
-    return { attendance: replay.attendance, votes, issues, phraseOnlySubjectIds: replay.unknownSubjectIds };
+    return { attendance: replay.attendance, votes, issues, phraseOnlySubjectIds: replay.unknownSubjectIds, rollCall: session.rollCall, events: session.events };
 }

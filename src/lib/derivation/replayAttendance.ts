@@ -2,7 +2,7 @@ import type { AttendanceStatus } from '@prisma/client';
 import type { DecisionConventions } from '@/lib/decisionConventions';
 import { placeEvents, type PlacedEvent } from './placeEvents';
 import { sourceRank } from './types';
-import type { DerivedAttendanceRow, DocumentFacts, EventRow, Issue, OrderedSubject, RollCallRow } from './types';
+import type { DerivedAttendanceRow, DocumentFacts, EventRow, Issue, IssueParams, OrderedSubject, RollCallRow } from './types';
 
 export interface ReplayInput {
     subjects: OrderedSubject[];
@@ -15,6 +15,8 @@ export interface ReplayInput {
     presidentPersonId?: string | null;
     /** The body's secretary, only where its conventions say the list leaves them out as well. */
     secretaryPersonId?: string | null;
+    /** Why the pages resolved no roll call (resolveSession); `NO_ROLL_CALL` carries it. */
+    rollCallMissing?: IssueParams['NO_ROLL_CALL']['reason'] | null;
 }
 
 export interface ReplayResult {
@@ -62,7 +64,7 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
     const unknownSubjectIds: string[] = [];
 
     if (rollCall.length === 0) {
-        issues.push({ code: 'NO_ROLL_CALL', source: null, params: {} });
+        issues.push({ code: 'NO_ROLL_CALL', source: null, params: { reason: input.rollCallMissing ?? 'noRollCall' } });
         return { attendance, presentBySubject, issues, unknownSubjectIds };
     }
     const meaning = conventions?.presentListMeaning ?? 'unknown';

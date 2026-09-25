@@ -37,10 +37,10 @@ describe('IssuesCard', () => {
 
     it('shows a row\'s message and the document\'s own words as text, not as a tooltip', () => {
         const { container } = render(
-            <IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', params: {}, rawText: 'απόντες ουδείς' })]} />,
+            <IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', params: { reason: 'noRollCall' }, rawText: 'απόντες ουδείς' })]} />,
         );
         fireEvent.click(screen.getByText('issues.codes.NO_ROLL_CALL'));
-        expect(screen.getByText('issues.messages.NO_ROLL_CALL{}')).toBeInTheDocument();
+        expect(screen.getByText('issues.messages.NO_ROLL_CALL{"reason":"noRollCall"}')).toBeInTheDocument();
         expect(screen.getByText('«απόντες ουδείς»')).toBeInTheDocument();
         expect(container.querySelector('[title]')).toBeNull();
     });
@@ -48,7 +48,7 @@ describe('IssuesCard', () => {
     it('states a code\'s severity and every step that raises it, from the catalogue', () => {
         // NO_ROLL_CALL is an error raised at two steps, and the catalogue is
         // where both facts are stated once.
-        render(<IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', params: {} })]} />);
+        render(<IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', params: { reason: 'noRollCall' } })]} />);
         fireEvent.click(screen.getByText('issues.codes.NO_ROLL_CALL'));
         expect(screen.getByText('issues.severity.error')).toBeInTheDocument();
         expect(screen.getByText(/issues\.raisedIn\.presence .* issues\.raisedIn\.write/)).toBeInTheDocument();

@@ -523,7 +523,7 @@
                 "CHANGE_NOT_CORROBORATED": "Change on too few pages"
             },
             "messages": {
-                "NO_ROLL_CALL": "No document yielded a roll call, so presence cannot be replayed. The stored rows were left as they are.",
+                "NO_ROLL_CALL": "{reason, select, noMajority {The pages print different roll calls and no one of them is on more than half of the pages, so presence cannot be replayed. The stored rows were left as they are.} other {No document yielded a roll call, so presence cannot be replayed. The stored rows were left as they are.}}",
                 "PRESENCE_UNKNOWN": "{reason, select, unsettled {The body's present list has no settled meaning (opening or cumulative), so attendance is not derived for this subject.} assumedOpening {The body's present list has no settled meaning; attendance is derived as if it were the opening roll call. Confirm the body's conventions.} noPerDecisionList {This document states no list of its own and the body's present list has no settled meaning, so attendance is not derived for this subject.} other {Presence could not be settled for this subject.}}",
                 "CONVENTIONS_UNCONFIRMED": "The body's decision conventions were profiled, not confirmed by a person.",
                 "UNMATCHED_NAME": "«{name}» matched nobody in the roster.",
