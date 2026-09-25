@@ -89,7 +89,8 @@
      "outcome": "majority",
      "against": [
       "Ιωάννης Παπαγεωργίου"
-     ]
+     ],
+     "expect": "disagree"
     },
     "2": {
      "outcome": "unanimous",
@@ -131,7 +132,8 @@
      ]
     },
     "4": {
-     "outcome": "unanimous"
+     "outcome": "unanimous",
+     "expect": "missing"
     },
     "5": {
      "outcome": "unanimous",
@@ -328,7 +330,10 @@
      "blank": [
       "Αναστασία Χαμηλοθώρη – Κουγιουμτζοπούλου",
       "Αλέξανδρος Νομικός"
-     ]
+     ],
+     "expect": {
+      "outcome": "disagree"
+     }
     }
    }
   },
@@ -445,7 +450,10 @@
      ],
      "declaredPresent": [
       "ΠΑΠΑΧΡΙΣΤΟΔΟΥΛΟΥ ΜΑΡΙΝΑ"
-     ]
+     ],
+     "expect": {
+      "outcome": "disagree"
+     }
     }
    }
   },
@@ -570,7 +578,8 @@
    },
    "subjects": {
     "OA2": {
-     "outcome": "unanimous"
+     "outcome": "unanimous",
+     "expect": "missing"
     }
    }
   },
@@ -611,7 +620,10 @@
      "ΚΟΥΤΣΙΩΡΗΣ ΒΑΣΙΛΕΙΟΣ",
      "ΣΠΗΛΙΩΤΗΣ ΑΘΑΝΑΣΙΟΣ",
      "ΒΗΤΤΟΣ ΒΑΣΙΛΕΙΟΣ"
-    ]
+    ],
+    "expect": {
+     "present": "disagree"
+    }
    },
    "subjects": {
     "3": {
