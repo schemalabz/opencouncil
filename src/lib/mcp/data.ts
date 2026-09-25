@@ -358,7 +358,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         include: {
             administrativeBody: true,
             subjects: {
-                orderBy: [{ agendaItemIndex: 'asc' }, { name: 'asc' }],
+                orderBy: [{ agendaSectionIndex: { sort: 'asc', nulls: 'first' } }, { agendaItemIndex: 'asc' }, { name: 'asc' }],
                 include: { topic: true, location: true },
             },
         },

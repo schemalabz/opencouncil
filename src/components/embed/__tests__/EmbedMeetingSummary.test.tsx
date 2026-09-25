@@ -18,6 +18,7 @@ function subject(id: string, name: string, contributions: number, description = 
         name,
         description,
         agendaItemIndex: null,
+        agendaSectionIndex: null,
         nonAgendaReason: null,
         topic: { name: 'Δικαιοσύνη', name_en: 'Justice', colorHex: '#112233', icon: 'scale' },
         _count: { contributions },

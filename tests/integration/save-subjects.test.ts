@@ -372,4 +372,106 @@ describe('saveSubjectsForMeeting - integration', () => {
         expect(rows).toHaveLength(1)
         expect(rows[0].agendaItemTitle).toBeNull()
     })
+
+    test('agendaSection: stored on create, kept when a later run omits it, matched by pair, cleared by null', async () => {
+        // processAgenda run on a two-section agenda where both sections start at 1.
+        const agendaRun: Subject[] = [
+            makeSubject({ name: 'Γλυπτό «Έφηβος»', agendaItemIndex: 1, agendaSection: { index: 1, title: 'ΓΕΝΙΚΑ ΘΕΜΑΤΑ' } }),
+            makeSubject({ name: 'Στρατηγική Στέγης', agendaItemIndex: 2, agendaSection: { index: 1, title: 'ΓΕΝΙΚΑ ΘΕΜΑΤΑ' } }),
+            makeSubject({ name: 'Άδεια μουσικής «Παρέα»', agendaItemIndex: 1, agendaSection: { index: 2, title: 'ΠΑΡΑΤΑΣΕΙΣ ΩΡΑΡΙΟΥ ΜΟΥΣΙΚΗΣ' } }),
+        ]
+        await saveSubjectsForMeeting(agendaRun, cityId, meetingId, undefined, { pruneUnmatched: true })
+
+        const afterAgenda = await prisma.subject.findMany({
+            where: { councilMeetingId: meetingId, cityId },
+            orderBy: [{ agendaSectionIndex: 'asc' }, { agendaItemIndex: 'asc' }],
+        })
+        expect(afterAgenda).toHaveLength(3)
+        expect(afterAgenda.map(s => [s.agendaSectionIndex, s.agendaItemIndex, s.agendaSectionTitle])).toEqual([
+            [1, 1, 'ΓΕΝΙΚΑ ΘΕΜΑΤΑ'],
+            [1, 2, 'ΓΕΝΙΚΑ ΘΕΜΑΤΑ'],
+            [2, 1, 'ΠΑΡΑΤΑΣΕΙΣ ΩΡΑΡΙΟΥ ΜΟΥΣΙΚΗΣ'],
+        ])
+        const musicId = afterAgenda[2].id
+
+        // A run that rewords the name and sends no id: the pair (2, 1) finds the row,
+        // and a sent section replaces the stored title.
+        const summarizeRun: Subject[] = [
+            makeSubject({ name: 'Ανάκληση άδειας μουσικής «Παρέα»', agendaItemIndex: 1, agendaSection: { index: 2, title: 'ΠΑΡΑΤΑΣΕΙΣ (re-sent)' } }),
+        ]
+        await saveSubjectsForMeeting(summarizeRun, cityId, meetingId)
+
+        const music = await prisma.subject.findUnique({ where: { id: musicId } })
+        expect(music!.name).toBe('Ανάκληση άδειας μουσικής «Παρέα»')
+        expect(music!.agendaSectionIndex).toBe(2)
+        expect(music!.agendaSectionTitle).toBe('ΠΑΡΑΤΑΣΕΙΣ (re-sent)')
+
+        // A summarize run without the field leaves the section alone.
+        const plainSummarizeRun: Subject[] = [
+            makeSubject({ id: musicId, name: 'Άδεια μουσικής «Παρέα» — συζήτηση', agendaItemIndex: 1 }),
+        ]
+        await saveSubjectsForMeeting(plainSummarizeRun, cityId, meetingId)
+
+        const musicAgain = await prisma.subject.findUnique({ where: { id: musicId } })
+        expect(musicAgain!.name).toBe('Άδεια μουσικής «Παρέα» — συζήτηση')
+        expect(musicAgain!.agendaSectionIndex).toBe(2)
+        expect(musicAgain!.agendaSectionTitle).toBe('ΠΑΡΑΤΑΣΕΙΣ (re-sent)')
+
+        // An agenda run that now has one list clears the section with null.
+        const oneListRun: Subject[] = [
+            makeSubject({ name: 'Γλυπτό «Έφηβος»', agendaItemIndex: 1, agendaSection: null }),
+        ]
+        await saveSubjectsForMeeting(oneListRun, cityId, meetingId, undefined, { pruneUnmatched: true })
+
+        const rows = await prisma.subject.findMany({ where: { councilMeetingId: meetingId, cityId } })
+        expect(rows).toHaveLength(1)
+        expect(rows[0].id).toBe(afterAgenda[0].id)
+        expect(rows[0].agendaSectionIndex).toBeNull()
+        expect(rows[0].agendaSectionTitle).toBeNull()
+    })
+
+    test('summarize by id: three subjects at the same number, all reworded, every row keeps its id and gains contributions', async () => {
+        const agendaRun: Subject[] = [
+            makeSubject({ name: 'Τροποποίηση τεχνικού προγράμματος 2026', agendaItemIndex: 1 }),
+            makeSubject({ name: 'Στρατηγικός σχεδιασμός καθαριότητας', agendaItemIndex: 1 }),
+            makeSubject({ name: 'Ψήφισμα για ΙΔΟΧ προσωπικό', agendaItemIndex: 1 }),
+        ]
+        await saveSubjectsForMeeting(agendaRun, cityId, meetingId, undefined, { pruneUnmatched: true })
+        const rows = await prisma.subject.findMany({ where: { councilMeetingId: meetingId, cityId }, orderBy: { name: 'asc' } })
+        expect(rows).toHaveLength(3)
+
+        // Send the rows in an order that is neither the name order nor the id
+        // order, so only the id can put each summary back on its own row: the
+        // three rows share one (null, 1) slot, and every name is reworded, so
+        // neither of the later passes can reproduce this mapping (issue 366).
+        const scrambled = [...rows].sort((a, b) => b.name.localeCompare(a.name, 'el'))
+        const summarizeRun: Subject[] = scrambled.map(r => makeSubject({
+            id: r.id,
+            name: `${r.name} (συζήτηση)`,
+            agendaItemIndex: 1,
+            speakerContributions: [{ speakerId: null, speakerName: 'Ομιλητής', text: `Τοποθέτηση για ${r.name}` }],
+        }))
+        const byName = rows.map(r => r.id)
+        const byId = [...rows].map(r => r.id).sort()
+        expect(summarizeRun.map(s => s.id)).not.toEqual(byName)
+        expect(summarizeRun.map(s => s.id)).not.toEqual(byId)
+
+        await saveSubjectsForMeeting(summarizeRun, cityId, meetingId)
+
+        const after = await prisma.subject.findMany({
+            where: { councilMeetingId: meetingId, cityId },
+            include: { contributions: true },
+            orderBy: { id: 'asc' },
+        })
+        expect(after).toHaveLength(3)
+        expect(after.map(s => s.id)).toEqual(byId)
+
+        // Per row: the summary landed on the row it names, not just somewhere.
+        const afterById = new Map(after.map(s => [s.id, s]))
+        for (const row of rows) {
+            const updated = afterById.get(row.id)!
+            expect(updated.name).toBe(`${row.name} (συζήτηση)`)
+            expect(updated.contributions.map(c => c.text)).toEqual([`Τοποθέτηση για ${row.name}`])
+        }
+    })
 })

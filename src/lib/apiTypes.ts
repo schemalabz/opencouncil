@@ -172,7 +172,14 @@ export interface Location {
 }
 
 export interface Subject {
-    id?: string;  // Optional ID assigned by backend (used for mapping utteranceDiscussionStatuses)
+    /**
+     * The id of the subject row. For a subject that already exists, the app sends
+     * the database id in `existingSubjects` and the task server hands it back, so
+     * `categorizeSubjectsForUpsert` keeps that row (issue 366). A new subject
+     * carries an id that the task server generates. `utteranceDiscussionStatuses`
+     * and `discussedIn` reference these ids.
+     */
+    id?: string;
     name: string;
     description: string;  // Markdown with special reference links: [text](REF:UTTERANCE:id), [text](REF:PERSON:id), [text](REF:PARTY:id)
     /**
@@ -180,6 +187,12 @@ export interface Subject {
      * every subject. summarize never sets it. When the field is absent, the stored value stays as it is.
      */
     agendaItemTitle?: string | null;
+    /**
+     * The agenda section the item sits under (issue 366). processAgenda sets it for
+     * every subject; null means the agenda has one numbered list. summarize never
+     * sends it, and an absent field leaves the stored value alone.
+     */
+    agendaSection?: { index: number; title: string } | null;
     agendaItemIndex: number | "BEFORE_AGENDA" | "OUT_OF_AGENDA";
     introducedByPersonId: string | null;
 

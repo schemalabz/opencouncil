@@ -239,6 +239,7 @@ export async function getMeetingDataForOG(cityId: string, meetingId: string) {
                         id: true,
                         name: true,
                         agendaItemIndex: true,
+                        agendaSectionIndex: true,
                         nonAgendaReason: true,
                         _count: { select: { contributions: true } },
                         topic: {

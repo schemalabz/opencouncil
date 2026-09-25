@@ -374,10 +374,12 @@ describe('sortSubjectsByDiscussionOrder', () => {
     function makeSubject(id: string, agendaItemIndex: number | null, opts?: {
         nonAgendaReason?: string | null;
         discussedIn?: { id: string } | null;
+        agendaSectionIndex?: number | null;
     }) {
         return {
             id,
             agendaItemIndex,
+            agendaSectionIndex: opts?.agendaSectionIndex ?? null,
             nonAgendaReason: opts?.nonAgendaReason ?? null,
             discussedIn: opts?.discussedIn ?? null,
         };
@@ -562,6 +564,32 @@ describe('sortSubjectsByDiscussionOrder', () => {
         const sorted = sortSubjectsByDiscussionOrder(subjects, timestamps);
 
         expect(sorted.map(s => s.id)).toEqual(['s1', 'oa1']);
+    });
+
+    it('keeps each agenda section together when both sections number from 1', () => {
+        const subjects = [
+            makeSubject('b1', 1, { agendaSectionIndex: 2 }),
+            makeSubject('a1', 1, { agendaSectionIndex: 1 }),
+            makeSubject('b2', 2, { agendaSectionIndex: 2 }),
+            makeSubject('a2', 2, { agendaSectionIndex: 1 }),
+        ];
+        const timestamps = new Map();
+
+        const sorted = sortSubjectsByDiscussionOrder(subjects, timestamps);
+
+        expect(sorted.map(s => s.id)).toEqual(['a1', 'a2', 'b1', 'b2']);
+    });
+
+    it('inserts a no-timestamp subject of a later section after an earlier section', () => {
+        const subjects = [
+            makeSubject('a3', 3, { agendaSectionIndex: 1 }),  // has timestamp
+            makeSubject('b1', 1, { agendaSectionIndex: 2 }),  // no timestamp
+        ];
+        const timestamps = new Map([['a3', 100]]);
+
+        const sorted = sortSubjectsByDiscussionOrder(subjects, timestamps);
+
+        expect(sorted.map(s => s.id)).toEqual(['a3', 'b1']);
     });
 });
 
