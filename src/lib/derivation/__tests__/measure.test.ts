@@ -4,6 +4,7 @@ import type { DerivationInput, DerivationOutput, DocumentFacts } from '../types'
 const doc = (subjectId: string, o: Partial<DocumentFacts> = {}): DocumentFacts => ({
     subjectId, decisionId: 'd-' + subjectId, voteResultPhrase: null, namedVotes: [], tally: null, presentIds: null, absentIds: null,
     rollCallPresentIds: null, rollCallAbsentIds: null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] },
+    statedChanges: [], nameMatches: null,
     unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null,
     mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, ...o,
 });

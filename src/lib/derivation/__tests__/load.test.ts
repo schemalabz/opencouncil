@@ -104,3 +104,28 @@ describe('readingStatesFacts', () => {
         expect(readingStatesFacts(d)).toBe(want);
     });
 });
+
+describe('documentFactsFromDecision: stated changes and name matches', () => {
+    const decision = (extraction: unknown) => ({
+        id: 'd1', subjectId: 's1', voteResultPhrase: null, unmatchedNames: [], incomplete: false, mayorPresent: null,
+        declaredItemNumber: null, declaredOutOfAgenda: null, extractorVersion: '4', extraction,
+    });
+    const change = (personId: string | null) => ({ personId, name: 'Χ', type: 'departure', rawText: 'αποχώρησε',
+        anchor: { kind: 'agenda_item', agendaItemIndex: 2, nonAgendaReason: null, decisionNumber: null, subjectId: null, phase: null, timing: 'after' } });
+
+    it('reads each stated change of a person on the roster, and drops the rest', () => {
+        const facts = documentFactsFromDecision(decision({ attendanceChanges: [change('p1'), change('gone'), change(null)] }), new Set(['p1']));
+        expect(facts.statedChanges.map(c => c.personId)).toEqual(['p1']);
+    });
+
+    it('reads the name matches when the reading has them, and null when it predates them', () => {
+        const nameMatches = [{ name: 'Κων/νος Αναγνωστόπουλος', personId: 'p1', method: 'llm' }, { name: 'Κώστας Αναγνωστόπουλος', personId: null, method: null }];
+        expect(documentFactsFromDecision(decision({ nameMatches }), new Set(['p1'])).nameMatches).toEqual(nameMatches);
+        expect(documentFactsFromDecision(decision({}), new Set(['p1'])).nameMatches).toBeNull();
+    });
+
+    it('states nothing for a v3 reading', () => {
+        const facts = documentFactsFromDecision({ ...decision({ attendanceChanges: [change('p1')] }), extractorVersion: '3' }, new Set(['p1']));
+        expect(facts.statedChanges).toEqual([]);
+    });
+});

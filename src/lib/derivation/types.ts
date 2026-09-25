@@ -34,6 +34,12 @@ export interface EventRow {
     source: DataSource;
 }
 
+/** A change one page states, before the session resolves it (spec §4.1.2). */
+export type StatedChange = Omit<EventRow, 'id' | 'reportingDocuments' | 'totalDocuments' | 'source'>;
+
+/** How one name on a page was matched to the roster (task v4 from C1); `method` is null when nothing matched. */
+export interface NameMatch { name: string; personId: string | null; method: 'token' | 'llm' | null }
+
 export type VoteTally = Partial<Record<VoteType, number | null>>;
 
 /** What one document states, read off the Decision row and its raw extraction. */
@@ -52,6 +58,10 @@ export interface DocumentFacts {
     absentIds: string[] | null;
     /** The names each list prints on this page, as printed: the roll call's two lists and ΤΑ ΜΕΛΗ after the decision. */
     lists: { rollCallPresent: string[]; rollCallAbsent: string[]; decisionPresent: string[] };
+    /** The changes this page states about a person on the roster; empty for a reading that states no facts. */
+    statedChanges: StatedChange[];
+    /** How each name on this page was matched, or null for a reading that predates the field. */
+    nameMatches: NameMatch[] | null;
     unmatchedNames: string[];
     incomplete: boolean;
     /** The layout this one page printed its roll call in; null when it printed none or was read before v4. */

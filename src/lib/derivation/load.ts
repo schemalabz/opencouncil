@@ -1,9 +1,10 @@
 import { readDerivationRows } from '@/lib/db/derivationFacts';
+import { statedChangeOf } from './anchors';
 import { CONVENTION_FIELDS, isDecisionConventions, type RollCallLayout } from '@/lib/decisionConventions';
 import { orderedMinutesSubjects } from '@/lib/minutes/builders';
 import { isMayorRole, isRoleActiveAt, mayorIsMemberOf } from '@/lib/utils/roles';
 import type { VoteType } from '@prisma/client';
-import type { DerivationInput, DocumentFacts, VoteTally } from './types';
+import type { DerivationInput, DocumentFacts, NameMatch, StatedChange, VoteTally } from './types';
 
 const VOTE_TYPES: VoteType[] = ['FOR', 'AGAINST', 'ABSTAIN', 'PRESENT', 'DID_NOT_VOTE'];
 
@@ -55,6 +56,19 @@ export function documentFactsFromDecision(d: {
     // a v4 meeting of the same city whose every FOR is inferred.
     const statesFacts = readingStatesFacts(d);
     const raw = statesFacts ? asObject(d.extraction) ?? {} : {};
+    const onRoster = (personId: string) => !rosterPersonIds || rosterPersonIds.has(personId);
+    const statedChanges = (Array.isArray(raw.attendanceChanges) ? raw.attendanceChanges : [])
+        .map(statedChangeOf)
+        .filter((c): c is StatedChange => c !== null && onRoster(c.personId));
+    const nameMatches: NameMatch[] | null = Array.isArray(raw.nameMatches)
+        ? raw.nameMatches.flatMap(entry => {
+            const m = asObject(entry);
+            if (typeof m?.name !== 'string') return [];
+            const personId = typeof m.personId === 'string' && onRoster(m.personId) ? m.personId : null;
+            const method = m.method === 'token' || m.method === 'llm' ? m.method : null;
+            return [{ name: m.name, personId, method }];
+        })
+        : null;
     const unmatchedNames = [...d.unmatchedNames];
     const inRoster = (personId: string) => {
         if (!rosterPersonIds || rosterPersonIds.has(personId)) return true;
@@ -84,10 +98,7 @@ export function documentFactsFromDecision(d: {
     // return that column as the list (Argos 6Ι9ΑΩΨΔ-0Υ8: one name, the departed
     // one, against a roll call of 26). The departure is the more specific
     // statement; the list is not believed for that person.
-    const outForThisVote = new Set((Array.isArray(raw.attendanceChanges) ? raw.attendanceChanges : []).flatMap(entry => {
-        const c = asObject(entry); const anchor = asObject(c?.anchor);
-        return c?.type === 'departure' && anchor?.kind === 'subject' && typeof c.personId === 'string' ? [c.personId] : [];
-    }));
+    const outForThisVote = new Set(statedChanges.filter(c => c.kind === 'DEPARTURE' && c.anchorKind === 'SUBJECT').map(c => c.personId));
     const believedPresent = statedPresent.filter(id => !outForThisVote.has(id));
     const storedRollCall = asObject(raw.rollCall);
     const printed = (v: unknown) => (Array.isArray(v) ? v : []).filter((n): n is string => typeof n === 'string');
@@ -107,6 +118,7 @@ export function documentFactsFromDecision(d: {
             rollCallAbsent: printed(storedRollCall?.absent),
             decisionPresent: printed(storedDecisionAttendance?.present),
         },
+        statedChanges, nameMatches,
         unmatchedNames, incomplete: d.incomplete,
         rollCallLayout: readRollCallLayout(raw), declaredItemNumber: d.declaredItemNumber, declaredOutOfAgenda: d.declaredOutOfAgenda,
         mayorPresent: d.mayorPresent,

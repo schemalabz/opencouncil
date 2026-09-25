@@ -4,7 +4,7 @@
  * rolled the delete back with it, and left the meeting on its previous events
  * with nothing raised. So what an unknown kind does is the contract here.
  */
-import { anchorKindOf } from '@/lib/derivation/anchors';
+import { anchorKindOf, statedChangeOf } from '@/lib/derivation/anchors';
 import type { PollDecisionsAttendanceEvent } from '@/lib/apiTypes';
 
 const event = (kind: string, type: 'arrival' | 'departure' = 'departure'): PollDecisionsAttendanceEvent => ({
@@ -30,5 +30,31 @@ describe('anchorKindOf', () => {
 
     it('is null for a kind it does not know, so the caller can skip that one event', () => {
         expect(anchorKindOf(event('roll_call'))).toBeNull();
+    });
+});
+
+describe('statedChangeOf', () => {
+    const wire = (o: Record<string, unknown> = {}, anchor: Record<string, unknown> = {}) => ({
+        personId: 'p1', name: 'Α. Β.', type: 'departure', rawText: 'αποχώρησε μετά το 3ο θέμα', reportingPdfCount: 1, totalPdfCount: 1,
+        anchor: { kind: 'agenda_item', agendaItemIndex: 3, nonAgendaReason: null, decisionNumber: null, subjectId: null, phase: null, timing: 'after', ...anchor },
+        ...o,
+    });
+
+    it('reads a stored wire change into the stored enums', () => {
+        expect(statedChangeOf(wire())).toEqual({
+            personId: 'p1', kind: 'DEPARTURE', anchorKind: 'AGENDA_ITEM', anchorAgendaItemIndex: 3, anchorNonAgendaReason: null,
+            anchorDecisionNumber: null, anchorSubjectId: null, anchorPhase: null, timing: 'AFTER', rawText: 'αποχώρησε μετά το 3ο θέμα',
+        });
+    });
+
+    it('keeps the page own subject and the out-of-agenda phase', () => {
+        expect(statedChangeOf(wire({ type: 'arrival' }, { kind: 'subject', subjectId: 's9', timing: 'after' }))).toMatchObject({ kind: 'ARRIVAL', anchorKind: 'SUBJECT', anchorSubjectId: 's9' });
+        expect(statedChangeOf(wire({}, { kind: 'phase', agendaItemIndex: null, phase: 'out_of_agenda', timing: null }))).toMatchObject({ anchorKind: 'PHASE', anchorPhase: 'OUT_OF_AGENDA', timing: null });
+    });
+
+    it('is null for a change with no person, an unknown kind, or no shape at all', () => {
+        expect(statedChangeOf(wire({ personId: null }))).toBeNull();
+        expect(statedChangeOf(wire({}, { kind: 'roll_call' }))).toBeNull();
+        expect(statedChangeOf('αποχώρησε')).toBeNull();
     });
 });
