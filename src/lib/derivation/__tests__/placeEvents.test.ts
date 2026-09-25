@@ -16,9 +16,10 @@ describe('decisionOrdinal', () => {
 });
 
 describe('placeEvents', () => {
-    it('agenda item during → that subject; after → the next', () => {
+    it('agenda item during → that subject, for a departure as for an arrival; after → the next', () => {
+        // Vrilissia ΔΣ 22/12/2025 item 3: «Ράπτη… κατά τη συζήτηση του 3ου θέματος αποχώρησε», and the item's ΤΑ ΜΕΛΗ leaves her out.
         const { placed } = placeEvents(order, [
-            ev({ id: 'a', anchorAgendaItemIndex: 2, timing: 'DURING' }),
+            ev({ id: 'a', anchorAgendaItemIndex: 2, timing: 'DURING', kind: 'DEPARTURE' }),
             ev({ id: 'b', anchorAgendaItemIndex: 2, timing: 'AFTER' }),
             ev({ id: 'c', anchorAgendaItemIndex: 2, timing: 'BEFORE' }),
         ]);

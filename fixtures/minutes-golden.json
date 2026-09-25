@@ -432,6 +432,12 @@
     ]
    },
    "subjects": {
+    "3": {
+     "absent": [
+      "Σοφία Ράπτη",
+      "Παρασκευή Αρσένη-Λάμπρου"
+     ]
+    },
     "5": {
      "outcome": "unanimous",
      "against": [
@@ -533,6 +539,11 @@
     ]
    },
    "subjects": {
+    "1": {
+     "absent": [
+      "Κωνσταντίνος Φαράκλας"
+     ]
+    },
     "8": {
      "outcome": "unanimous"
     }
@@ -652,6 +663,11 @@
     "absent": []
    },
    "subjects": {
+    "3": {
+     "absent": [
+      "Κωνσταντίνος Λιακόπουλος"
+     ]
+    },
     "9": {
      "outcome": "unanimous"
     }
@@ -1040,6 +1056,11 @@
     ]
    },
    "subjects": {
+    "11": {
+     "absent": [
+      "Ανδρέας Καραβίδας"
+     ]
+    },
     "30": {
      "outcome": "unanimous"
     }
@@ -1322,6 +1343,28 @@
     }
    },
    "notes": "Added 2026-09-21: per-vote absence («Κατά την διάρκεια της ψήφισης του θέματος απουσίαζαν από την αίθουσα…») read from the page by a person; this body prints no per-decision member list, so nothing but the replay can carry it. «Δημήτρης Τσελεμπής» and «Μιχάλης Στράντζελης» are written with the roster's first names, not the page's («Δημήτριος», «Μιχαήλ»): the checker matches whole words."
+  },
+  {
+   "cityId": "argos",
+   "meetingId": "dec3_2025",
+   "source": "documents",
+   "sourceRef": "Δημοτικό Συμβούλιο; Ψ12ΤΩΨΔ-ΚΩΠ, ΨΒΨΑΩΨΔ-1ΔΛ",
+   "subjects": {
+    "3": {
+     "absent": [
+      "Χρήστος Πετσέλης"
+     ]
+    },
+    "5": {
+     "absent": [
+      "Παναγιώτης Σκούφης",
+      "Νικόλας Δελής",
+      "Ιωάννης Αθανασόπουλος",
+      "Παναγιώτης Μπουλούκος"
+     ]
+    }
+   },
+   "notes": "Added 2026-09-25: a member expelled during item 3 («κατά την συζήτηση του παρόντος θέματος αποβλήθηκε») is absent for it, and the item's ΤΑ ΜΕΛΗ omits him; item 5 names three who had left and one out for the vote. Read on the page by a person 2026-09-23."
   }
  ]
 }

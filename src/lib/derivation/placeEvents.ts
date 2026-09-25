@@ -32,6 +32,12 @@ function outOfAgendaOrdinals(subjects: OrderedSubject[]): Map<string, number> {
     return ordinals;
 }
 
+/**
+ * «During X» takes effect at X for both kinds. A member who left during item N
+ * was not there for its decision: where a body prints ΤΑ ΜΕΛΗ, the list leaves
+ * them out of that item (six of eight bodies; the other two are one misread and
+ * one dropped video call). Only «after X» takes effect at X+1.
+ */
 function afterOrAt(index: number, timing: PlaceableEvent['timing']): number {
     return timing === 'AFTER' ? index + 1 : index;
 }
