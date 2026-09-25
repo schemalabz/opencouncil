@@ -21,7 +21,7 @@ const subjectExpected = z.union([outcome, z.object({
     outcome: expected, for: expected, against: expected, blank: expected, declaredPresent: expected,
     declaredAbstain: expected, present: expected, absent: expected, decisionNumber: expected,
 }).strict()]).optional();
-const rollCallExpected = z.union([outcome, z.object({ present: expected, absent: expected }).strict()]).optional();
+const rollCallExpected = z.union([outcome, z.object({ present: expected, absent: expected, mayorPresent: expected, president: expected }).strict()]).optional();
 
 /** What the fixture expects of one of the claims an object makes; `agree` unless it says otherwise. */
 export function expectedOf<K extends string>(expect: Outcome | Partial<Record<K, Outcome>> | undefined, key: K): Outcome {

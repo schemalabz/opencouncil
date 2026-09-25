@@ -25,7 +25,7 @@
  * `--claims` asks a different question of the same vocabulary: not which
  * mechanisms have been extracted, but which the meeting checker would notice
  * breaking. The document scorer measures the reader and never runs the
- * derivation; `check-minutes.ts` runs the derivation, over the meetings in
+ * derivation; `npm run decisions -- check` runs the derivation, over the meetings in
  * `fixtures/minutes-golden.json` only, and tests only what a claim names. A
  * mechanism no claim sits on can break in the derivation with both instruments
  * green.

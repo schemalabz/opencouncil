@@ -8,6 +8,7 @@
  *   npm run decisions -- trace <city> <meeting> [--out f.json]
  *   npm run decisions -- trace --all [--city c] --out-dir d
  *   npm run decisions -- equivalence [--report f.md]   (historical: pre-C1 rows only)
+ *   npm run decisions -- check [--derive] [--report f.txt] [meetings...]
  *
  * Output goes to the files named: the nix shell prints its banner to stdout.
  */
@@ -17,14 +18,17 @@ import { dirname } from 'path';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import prisma from '@/lib/db/prisma';
-import { applyDerivation, deriveMeetingFacts, loadDerivationInput } from '@/lib/derivation';
+import { applyDerivation, deriveAndPersist, deriveMeetingFacts, explainMeeting, loadDerivationInput } from '@/lib/derivation';
 import { resolveSession } from '@/lib/derivation/resolveSession';
 import { derivationSkipIssue } from '@/lib/derivation/persist';
 import { measureMeeting, type MeetingMeasure } from '@/lib/derivation/measure';
 import { issueMessageEn } from '@/lib/derivation/issueTextEn';
 import type { DerivationInput, DerivationOutput } from '@/lib/derivation/types';
+import { getMinutesData } from '@/lib/minutes/getMinutesData';
 import { assertLocalDatabase } from './lib/local-database';
 import { buildMeetingTrace, type MeetingTraceMeta } from './lib/trace';
+import { loadGolden, subjectsByClaimKey } from './lib/minutes-golden';
+import { checkMeeting, type CheckLine } from './lib/minutes-check';
 
 interface MeasureFile { generatedAt: string; commit: string; meetings: MeetingMeasure[] }
 
@@ -133,6 +137,37 @@ async function equivalence(report?: string) {
     if (report) write(report, text); else process.stderr.write(text);
 }
 
+/**
+ * The minutes checker: fixtures/minutes-golden.json against what each meeting
+ * renders from. `--derive` re-derives each meeting first, since the check reads
+ * the rows a meeting last derived to — after a rule or a convention changes,
+ * those rows are stale and the numbers describe the old rule.
+ */
+async function check(meetings: string[], derive: boolean, report?: string) {
+    const golden = loadGolden().meetings.filter(m => !meetings.length || meetings.includes(`${m.cityId}/${m.meetingId}`));
+    const all: CheckLine[] = [];
+    for (const m of golden) {
+        if (derive) { await assertLocalDatabase(prisma, ['opencouncil', 'c1sample']); await deriveAndPersist(m.cityId, m.meetingId); }
+        const data = await getMinutesData(m.cityId, m.meetingId);
+        all.push(...checkMeeting(m, data));
+        // What the derivation flagged for this meeting, printed beside the claims (not counted).
+        const key = `${m.cityId}/${m.meetingId}`;
+        const { keyBySubjectId } = subjectsByClaimKey(data);
+        const explained = await explainMeeting(m.cityId, m.meetingId);
+        for (const i of explained.issues) {
+            const where = i.subjectId ? (keyBySubjectId.get(i.subjectId) ?? i.subjectId) : '-';
+            all.push({ kind: 'issue', meeting: key, claim: `issue ${i.code}`, detail: `${where} ${i.personId ?? ''} ${issueMessageEn(i)}`.replace(/\s+/g, ' ').trim() });
+        }
+    }
+    const claims = all.filter(l => l.kind === 'claim');
+    const count = (o: string) => claims.filter(l => l.outcome === o).length;
+    const unexpected = claims.filter(l => l.outcome !== l.expect);
+    const text = [...all.map(l => `${l.meeting} ${l.kind === 'claim' ? l.outcome : 'issue'} ${l.claim} ${l.detail}`),
+        `${golden.length} meetings, ${claims.length} claims: ${count('agree')} agree, ${count('disagree')} disagree, ${count('missing')} missing; ${unexpected.length} unexpected`].join('\n') + '\n';
+    if (report) write(report, text); else process.stderr.write(text);
+    if (unexpected.length) process.exitCode = 1;
+}
+
 async function derive(city: string, meeting: string, doWrite: boolean) {
     const input = await loadDerivationInput(city, meeting);
     const skip = derivationSkipIssue(input);
@@ -222,6 +257,11 @@ yargs(hideBin(process.argv))
         a => (a.all ? traceAll({ city: a.city, outDir: a.outDir! }) : trace(a.city!, a.meeting!, a.out)).then(() => prisma.$disconnect()))
     .command('equivalence', 'historical: the resolver against the rows the pre-C1 poll handler stored', y => y.option('report', { type: 'string' }),
         a => equivalence(a.report).then(() => prisma.$disconnect()))
+    .command('check [meetings..]', 'the minutes against fixtures/minutes-golden.json', y => y
+        .positional('meetings', { type: 'string', array: true, default: [] })
+        .option('derive', { type: 'boolean', default: false })
+        .option('report', { type: 'string' }),
+        a => check(a.meetings as string[], a.derive, a.report).then(() => prisma.$disconnect()))
     .demandCommand(1)
     .strict()
     .parse();

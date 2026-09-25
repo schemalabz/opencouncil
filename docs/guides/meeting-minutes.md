@@ -100,12 +100,12 @@ The middle one is in this repository because everything that gives it meaning is
 
 A database with no conventions is not an error, it is silence: every subject derives as «presence unknown» and nothing is printed. A meeting also shows nothing until it has been polled under task v4, since attendance and votes derive from stored readings.
 
-The meeting checker reads whatever rows a meeting last derived to. After changing a record or a derivation rule, run it as `npx tsx scripts/check-minutes.ts --derive`, or its numbers describe the rule you just replaced.
+The meeting checker reads whatever rows a meeting last derived to. After changing a record or a derivation rule, run it as `npm run decisions -- check --derive`, or its numbers describe the rule you just replaced.
 
 ### Quality path
 
 - **Document scorer** (opencouncil-tasks): `evaluate-decision-extraction` scores the extractor per field against `fixtures/extraction-golden.json`, a hand-labelled fixture chosen for mechanism coverage across every supported body. `adjudicate-extraction` settles a disagreement by reading the page and quoting it, so a label change carries its justification. Both are described in `docs/decision-extraction-eval.md` there.
-- **Meeting checker** (opencouncil): `scripts/check-minutes.ts` compares what a meeting renders from — roll call, changes, per-subject presence and votes — against claims in `fixtures/minutes-golden.json`, and prints the meeting's issues under its claims. Official minutes are an evaluation instrument only: the document is the truth of the pipeline, and a document/minutes disagreement is an explained miss, not a bug.
+- **Meeting checker** (opencouncil): `npm run decisions -- check` compares what a meeting renders from — roll call including the mayor and the president, changes, per-subject presence and votes — against claims in `fixtures/minutes-golden.json`. Official minutes are an evaluation instrument only: the document is the truth of the pipeline, and a document/minutes disagreement is an explained miss, not a bug.
 - **Claims coverage** (opencouncil): `scripts/extract-coverage.ts --claims` closes the gap between the two. The scorer never runs the derivation and the checker runs it only where a claim sits, so a document can be fully scored while nothing exercises its derivation. Per body and per mechanism it counts the documents that show it, those in a golden meeting, and those on a subject whose claim would fail if the mechanism broke; `UNCLAIMED` names what to label next.
 
 ## Key design decisions

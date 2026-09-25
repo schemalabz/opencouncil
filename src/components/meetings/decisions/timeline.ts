@@ -1,4 +1,5 @@
 import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
+import { mayorAbsentFromNote } from '@/lib/minutes/builders';
 
 /** A live present/absent count, at the roll call or at a later point in the meeting. */
 export interface PresenceCount {
@@ -81,11 +82,8 @@ export function buildTimeline(data: Pick<MinutesData, 'subjects' | 'attendanceCh
         ? { present: presentNames.length, absent: absentNames.length }
         : null;
 
-    // buildMayorNote puts ΑΠΩΝ/ΑΠΟΥΣΑ as the note's own first part, whole,
-    // followed by nothing else or a ", " before the next part — so it is
-    // absent at the roll call exactly when the note opens with one of the two.
     const mayor = composition?.mayor
-        ? { name: composition.mayor.name, note: composition.mayor.note, absent: /^(ΑΠΩΝ|ΑΠΟΥΣΑ)(,|$)/.test(composition.mayor.note ?? '') }
+        ? { name: composition.mayor.name, note: composition.mayor.note, absent: mayorAbsentFromNote(composition.mayor.note) }
         : null;
     const president = composition?.president
         ? { name: composition.president.name, absent: absentIds.has(composition.president.personId), isMayor: composition.president.personId === composition.mayor?.personId }
