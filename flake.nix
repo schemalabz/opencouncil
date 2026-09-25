@@ -384,6 +384,20 @@
 
             mkdir -p "$data_dir"
 
+            # initdb and postgres refuse to run as root. Root-only environments
+            # (containers, cloud VMs) hand the data dir to an unprivileged user
+            # and re-run this script as that user.
+            if [ "$(id -u)" = 0 ]; then
+              run_as="''${OC_DB_RUN_AS:-postgres}"
+              if ! id "$run_as" >/dev/null 2>&1; then
+                echo "Postgres cannot run as root, and user '$run_as' does not exist." >&2
+                echo "Create that user, or set OC_DB_RUN_AS to an existing unprivileged user." >&2
+                exit 2
+              fi
+              chown "$run_as" "$data_dir"
+              exec setpriv --reuid="$run_as" --regid="$(id -g "$run_as")" --init-groups "$0" "$@"
+            fi
+
             if [ ! -f "$data_dir/PG_VERSION" ]; then
               # If initdb was interrupted previously, avoid cryptic initdb errors.
               if [ -n "$(find "$data_dir" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
@@ -438,7 +452,7 @@ EOF
             runtimeInputs = with pkgs; [
               coreutils
               postgres
-            ];
+            ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.util-linux ];
             text = dbNixScript;
           };
 
@@ -448,7 +462,7 @@ EOF
             runtimeInputs = with pkgs; [
               coreutils
               postgresCompat
-            ];
+            ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.util-linux ];
             text = dbNixScript;
           };
 
