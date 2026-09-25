@@ -453,6 +453,7 @@
             "unknown": "Покушајте поново за тренутак."
         },
         "previewMinutes": "Преглед",
+        "debugClassification": "Отклањање грешака: прикажи класификацију",
         "exportDocx": "Извези DOCX",
         "factsArrivalsDepartures": "Доласци / одласци",
         "factsChangeAt": "код {label}",

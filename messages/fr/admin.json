@@ -455,6 +455,7 @@
       "unknown": "Réessayez dans un instant."
     },
     "previewMinutes": "Aperçu",
+    "debugClassification": "Débogage : afficher la classification",
     "exportDocx": "Exporter en DOCX",
     "factsArrivalsDepartures": "Arrivées / départs",
     "factsChangeAt": "au {label}",

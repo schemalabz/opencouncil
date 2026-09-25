@@ -455,6 +455,7 @@
       "unknown": "Try again in a moment."
     },
     "previewMinutes": "Preview",
+    "debugClassification": "Debug: show classification",
     "exportDocx": "Export DOCX",
     "factsArrivalsDepartures": "Arrivals / departures",
     "factsChangeAt": "at {label}",

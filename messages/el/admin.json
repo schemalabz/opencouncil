@@ -455,6 +455,7 @@
       "unknown": "Δοκιμάστε ξανά σε λίγο."
     },
     "previewMinutes": "Προεπισκόπηση",
+    "debugClassification": "Debug: εμφάνιση ταξινόμησης",
     "exportDocx": "Εξαγωγή DOCX",
     "factsArrivalsDepartures": "Προσελεύσεις / αποχωρήσεις",
     "factsChangeAt": "στο {label}",
