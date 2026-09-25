@@ -12,12 +12,12 @@ import type { DerivationInput, DocumentFacts } from '../types';
 
 const doc = (subjectId: string, hasExtraction: boolean): DocumentFacts => ({
     subjectId, decisionId: `d-${subjectId}`, voteResultPhrase: 'Ομόφωνα', namedVotes: [], tally: null,
-    presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null,
+    presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null,
     presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction,
 });
 
 const input = (overrides: Partial<DerivationInput> = {}): DerivationInput => ({
-    cityId: 'c', meetingId: 'm', mayorPersonId: null, presidentPersonId: null, secretaryPersonId: null,
+    cityId: 'c', meetingId: 'm', mayorPersonId: null, presidentPersonId: null, secretaryPersonId: null, bodyType: null, cityMayorPersonId: null,
     subjects: [
         { id: 's1', name: 'one', agendaItemIndex: 1, nonAgendaReason: null, decisionNumber: '10' },
         { id: 's2', name: 'two', agendaItemIndex: 2, nonAgendaReason: null, decisionNumber: '11' },

@@ -3,12 +3,13 @@ import type { DerivationInput } from '../types';
 
 const base: DerivationInput = {
     cityId: 'c', meetingId: 'm', mayorPersonId: 'mayor', presidentPersonId: null, secretaryPersonId: null, subjectIdsWithStoredVotes: [],
+    bodyType: null, cityMayorPersonId: null,
     subjects: [{ id: 's1', name: 'one', agendaItemIndex: 1, nonAgendaReason: null, decisionNumber: '10' }, { id: 's2', name: 'two', agendaItemIndex: 2, nonAgendaReason: null, decisionNumber: '11' }],
     rollCall: [{ personId: 'p1', status: 'PRESENT', source: 'decision' }, { personId: 'p2', status: 'PRESENT', source: 'decision' }, { personId: 'mayor', status: 'ABSENT', source: 'decision' }],
     events: [],
     documents: [
-        { subjectId: 's1', decisionId: 'd1', voteResultPhrase: 'Ομόφωνα', namedVotes: [], tally: null, presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, unmatchedNames: ['Άγνωστος Α.'], incomplete: false, rollCallLayout: 'present_and_absent', declaredItemNumber: 1, declaredOutOfAgenda: false, mayorPresent: false, presidedById: 'p9', presidedByName: 'Αντιπρόεδρος', actingSecretaryId: null , hasExtraction: true},
-        { subjectId: 's2', decisionId: 'd2', voteResultPhrase: 'Κατά πλειοψηφία', namedVotes: [{ personId: 'p2', vote: 'AGAINST' }], tally: null, presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, unmatchedNames: [], incomplete: true, rollCallLayout: 'present_and_absent', declaredItemNumber: 2, declaredOutOfAgenda: false, mayorPresent: false, presidedById: 'p8', presidedByName: 'Άλλος', actingSecretaryId: null , hasExtraction: true},
+        { subjectId: 's1', decisionId: 'd1', voteResultPhrase: 'Ομόφωνα', namedVotes: [], tally: null, presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, unmatchedNames: ['Άγνωστος Α.'], incomplete: false, rollCallLayout: 'present_and_absent', declaredItemNumber: 1, declaredOutOfAgenda: false, mayorPresent: false, presidedById: 'p9', presidedByName: 'Αντιπρόεδρος', actingSecretaryId: null , hasExtraction: true},
+        { subjectId: 's2', decisionId: 'd2', voteResultPhrase: 'Κατά πλειοψηφία', namedVotes: [{ personId: 'p2', vote: 'AGAINST' }], tally: null, presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, unmatchedNames: [], incomplete: true, rollCallLayout: 'present_and_absent', declaredItemNumber: 2, declaredOutOfAgenda: false, mayorPresent: false, presidedById: 'p8', presidedByName: 'Άλλος', actingSecretaryId: null , hasExtraction: true},
     ],
     conventions: { version: 1, rollCallLayout: 'present_and_absent', presentListMeaning: 'opening', attendanceChangeAnchors: ['agenda_item'], statesPerDecisionAttendance: false,
         statesPerVoteAbsence: false, usesSubstitutes: false, namedVoters: 'dissenters_only', mayorStatedSeparately: true, provenance: { source: 'profile' } },

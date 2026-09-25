@@ -86,7 +86,8 @@ export function documentFactsFromDecision(d: {
     }));
     const believedPresent = statedPresent.filter(id => !outForThisVote.has(id));
     const storedRollCall = asObject(raw.rollCall);
-    const ids = (v: unknown) => (Array.isArray(v) ? v : []).filter((id): id is string => typeof id === 'string').filter(inRoster);
+    const printed = (v: unknown) => (Array.isArray(v) ? v : []).filter((n): n is string => typeof n === 'string');
+    const ids = (v: unknown) => printed(v).filter(inRoster);
     const rollCallPresentIds = ids(storedRollCall?.presentIds), rollCallAbsentIds = ids(storedRollCall?.absentIds);
     const storedPresidedBy = asObject(raw.presidedBy);
     const storedActingSecretary = asObject(raw.actingSecretary);
@@ -97,6 +98,11 @@ export function documentFactsFromDecision(d: {
         absentIds: null,
         rollCallPresentIds: rollCallPresentIds.length + rollCallAbsentIds.length > 0 ? rollCallPresentIds : null,
         rollCallAbsentIds: rollCallPresentIds.length + rollCallAbsentIds.length > 0 ? rollCallAbsentIds : null,
+        lists: {
+            rollCallPresent: printed(storedRollCall?.present),
+            rollCallAbsent: printed(storedRollCall?.absent),
+            decisionPresent: printed(storedDecisionAttendance?.present),
+        },
         unmatchedNames, incomplete: d.incomplete,
         rollCallLayout: readRollCallLayout(raw), declaredItemNumber: d.declaredItemNumber, declaredOutOfAgenda: d.declaredOutOfAgenda,
         mayorPresent: d.mayorPresent,
@@ -126,6 +132,8 @@ export async function loadDerivationInput(cityId: string, meetingId: string): Pr
         rollCall, events, subjectIdsWithStoredVotes,
         documents: ordered.filter(s => s.decision).map(s => documentFactsFromDecision(s.decision!, rosterPersonIds)),
         conventions: isDecisionConventions(conventions) ? conventions : null,
+        bodyType: meeting.administrativeBody?.type ?? null,
+        cityMayorPersonId: mayor?.id ?? null,
         // Excluded from the rows only where the mayor is not a member of the body (the council); on the committee they vote.
         mayorPersonId: mayor && !mayorIsMemberOf(mayor, meeting.administrativeBodyId, meeting.dateTime) ? mayor.id : null,
         presidentPersonId: president?.id ?? null,

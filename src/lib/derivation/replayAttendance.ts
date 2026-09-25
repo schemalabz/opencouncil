@@ -26,6 +26,26 @@ export interface ReplayResult {
 }
 
 /**
+ * One roll-call row per person. MeetingAttendance carries one row per person per
+ * source, so two sources can disagree about one person; SOURCE_PRECEDENCE decides
+ * and the loser is reported. A person keeps the position of their first row.
+ */
+export function rankRollCall(rollCall: RollCallRow[]): { rows: Map<string, RollCallRow>; issues: Issue[] } {
+    const rows = new Map<string, RollCallRow>();
+    const issues: Issue[] = [];
+    for (const r of rollCall) {
+        const prev = rows.get(r.personId);
+        if (!prev) { rows.set(r.personId, r); continue; }
+        if (prev.status === r.status) continue;
+        const [win, lose] = sourceRank(r.source) < sourceRank(prev.source) ? [r, prev] : [prev, r];
+        issues.push({ code: 'SOURCES_DISAGREE', personId: r.personId, source: win.source,
+            params: { kind: 'rollCall', winSource: win.source, winStatus: win.status, loseSource: lose.source, loseStatus: lose.status } });
+        rows.set(r.personId, win);
+    }
+    return { rows, issues };
+}
+
+/**
  * Roll call + placed events → who was present for each subject, along the
  * transcript order. A document's own present list (bodies that print one) wins for
  * its subject and resets the state from there; what it changed without a stated
@@ -78,20 +98,9 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
     for (const p of placed) byIndex.set(p.effectAt, [...(byIndex.get(p.effectAt) ?? []), p.event]);
     const docBySubject = new Map(input.documents.map(d => [d.subjectId, d]));
 
-    // MeetingAttendance carries one row per person per source, so two sources can
-    // disagree about one person; SOURCE_PRECEDENCE decides and the loser is reported.
-    const state = new Map<string, AttendanceStatus>();
-    const rollCallSource = new Map<string, RollCallRow>();
-    for (const r of rollCall) {
-        const prev = rollCallSource.get(r.personId);
-        if (!prev) { rollCallSource.set(r.personId, r); state.set(r.personId, r.status); continue; }
-        if (prev.status === r.status) continue;
-        const [win, lose] = sourceRank(r.source) < sourceRank(prev.source) ? [r, prev] : [prev, r];
-        issues.push({ code: 'SOURCES_DISAGREE', personId: r.personId, source: win.source,
-            params: { kind: 'rollCall', winSource: win.source, winStatus: win.status, loseSource: lose.source, loseStatus: lose.status } });
-        rollCallSource.set(r.personId, win);
-        state.set(r.personId, win.status);
-    }
+    const ranked = rankRollCall(rollCall);
+    issues.push(...ranked.issues);
+    const state = new Map<string, AttendanceStatus>([...ranked.rows].map(([personId, r]) => [personId, r.status]));
 
     // Someone the roll call never named still needs a row for every subject: their
     // first placed event says which side of it they were on before it fired.

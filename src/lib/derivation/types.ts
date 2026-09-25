@@ -1,5 +1,5 @@
 import type {
-    AttendanceAnchorKind, AttendanceEventKind, AttendancePhase, AttendanceStatus,
+    AdministrativeBodyType, AttendanceAnchorKind, AttendanceEventKind, AttendancePhase, AttendanceStatus,
     AttendanceTiming, DataSource, NonAgendaReason, VoteType,
 } from '@prisma/client';
 import type { DecisionConventions, RollCallLayout } from '@/lib/decisionConventions';
@@ -50,6 +50,8 @@ export interface DocumentFacts {
     rollCallAbsentIds: string[] | null;
     /** Always null today: no source states a per-decision absent list. The clerk's sheet will (§6). */
     absentIds: string[] | null;
+    /** The names each list prints on this page, as printed: the roll call's two lists and ΤΑ ΜΕΛΗ after the decision. */
+    lists: { rollCallPresent: string[]; rollCallAbsent: string[]; decisionPresent: string[] };
     unmatchedNames: string[];
     incomplete: boolean;
     /** The layout this one page printed its roll call in; null when it printed none or was read before v4. */
@@ -81,6 +83,10 @@ export interface DerivationInput {
     presidentPersonId: string | null;
     /** The body's secretary on its date, when `listOmitsSecretary` is set; null otherwise. */
     secretaryPersonId: string | null;
+    /** The body's type: the mayor sits only on a committee (spec §6.1). */
+    bodyType: AdministrativeBodyType | null;
+    /** The city's mayor on the meeting date, whatever the body. `mayorPersonId` is the mayor only where left out of the rows. */
+    cityMayorPersonId: string | null;
 }
 
 /**

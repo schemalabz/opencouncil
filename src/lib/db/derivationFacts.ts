@@ -11,7 +11,7 @@ export async function readDerivationRows(cityId: string, meetingId: string) {
     const meeting = await prisma.councilMeeting.findUniqueOrThrow({
         where: { cityId_id: { cityId, id: meetingId } },
         include: {
-            administrativeBody: { select: { decisionConventions: true } },
+            administrativeBody: { select: { decisionConventions: true, type: true } },
             subjects: { include: { decision: true, discussedIn: { select: { id: true } } } },
         },
     });
