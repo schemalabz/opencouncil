@@ -84,6 +84,7 @@ function renderRail(overrides: Partial<React.ComponentProps<typeof DecisionsRail
             onResetExtractions={jest.fn()}
             issues={[]}
             subjectName={() => undefined}
+            personName={() => undefined}
             onRederive={jest.fn()}
             isRederiving={false}
             {...basePollingProps}

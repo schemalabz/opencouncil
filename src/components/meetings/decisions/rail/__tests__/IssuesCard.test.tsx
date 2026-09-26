@@ -35,6 +35,30 @@ describe('IssuesCard', () => {
         expect(screen.getByText('Item one')).toBeInTheDocument();
     });
 
+    it('names the member a person-level row is about, from the page\'s people', () => {
+        render(
+            <IssuesCard
+                issues={[
+                    issue({ code: 'VOTE_BY_ABSENT_MEMBER', subjectId: 's1', personId: 'p1', params: { vote: 'FOR' } }),
+                    issue({ code: 'LIST_DROPS_PRESENT', subjectId: 's1', personId: 'p9', params: {} }),
+                ]}
+                personName={id => (id === 'p1' ? 'Παπαδόπουλος Γιώργος' : undefined)}
+            />,
+        );
+        fireEvent.click(screen.getByText('issues.codes.VOTE_BY_ABSENT_MEMBER'));
+        expect(screen.getByText('issues.person.member{"name":"Παπαδόπουλος Γιώργος"}')).toBeInTheDocument();
+        // A person the page does not hold is named by nobody, not by an id.
+        fireEvent.click(screen.getByText('issues.codes.LIST_DROPS_PRESENT'));
+        expect(screen.queryByText(/p9/)).not.toBeInTheDocument();
+    });
+
+    it('prints the name of an unmatched name once, in its message', () => {
+        render(<IssuesCard issues={[issue({ subjectId: 's1', params: { name: 'Κ. Δήμου' } })]} />);
+        fireEvent.click(screen.getByText('issues.codes.UNMATCHED_NAME'));
+        expect(screen.getByText('issues.messages.UNMATCHED_NAME{"name":"Κ. Δήμου"}')).toBeInTheDocument();
+        expect(screen.queryByText(/^issues\.person\./)).not.toBeInTheDocument();
+    });
+
     it('shows a row\'s message and the document\'s own words as text, not as a tooltip', () => {
         const { container } = render(
             <IssuesCard issues={[issue({ code: 'NO_ROLL_CALL', params: { reason: 'noRollCall' }, rawText: 'απόντες ουδείς' })]} />,

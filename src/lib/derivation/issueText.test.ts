@@ -2,7 +2,7 @@ import { CONVENTION_FIELDS } from '@/lib/decisionConventions';
 import elAdmin from '../../../messages/el/admin.json';
 import enAdmin from '../../../messages/en/admin.json';
 import { catalogText } from '@/i18n/catalogText';
-import { renderIssue } from './issueText';
+import { issuePerson, renderIssue, renderIssuePerson } from './issueText';
 import { issueMessageEn } from './issueTextEn';
 import { ISSUE_CODES, type Issue, type IssueCode, type IssueParams, type SourcesDisagreeParams } from './types';
 
@@ -98,5 +98,48 @@ describe('UNPLACEABLE_ANCHOR for a range', () => {
     it('still names the one change for every other reason', () => {
         expect(issueMessageEn({ ...issue, params: { kind: 'DEPARTURE', reason: 'noDecisionNumbers', detail: '31–40' } }))
             .toBe('The departure could not be placed: no subject of this meeting carries a decision number.');
+    });
+});
+
+describe('issuePerson', () => {
+    const names: Record<string, string> = { p1: 'Παπαδόπουλος Γιώργος' };
+    const nameOf = (id: string) => names[id];
+
+    it('names the member of every issue that carries a personId, whatever its code', () => {
+        // The codes the derivation raises with a personId today. The helper
+        // reads the field, not the code, so the list documents rather than gates.
+        const personCodes: IssueCode[] = [
+            'VOTE_BY_ABSENT_MEMBER', 'LIST_DROPS_PRESENT', 'LIST_ADDS_ABSENT', 'IMPLIED_CHANGE', 'PERSON_IN_BOTH_LISTS',
+            'LATE_ARRIVAL_IN_OPENING_LIST', 'CHANGE_NOT_CORROBORATED', 'NAMES_SHARE_ID', 'SOURCES_DISAGREE',
+            'UNPLACEABLE_ANCHOR', 'OUT_OF_AGENDA_PLACED_FIRST',
+        ];
+        for (const code of personCodes) {
+            const issue = { code, personId: 'p1', source: 'decision', params: CASES[code].params } as Issue;
+            expect(issuePerson(issue, nameOf)).toEqual({ kind: 'member', name: 'Παπαδόπουλος Γιώργος' });
+        }
+    });
+
+    it('names nobody for a name no single person stands behind: the message already prints the name', () => {
+        expect(issuePerson({ code: 'UNMATCHED_NAME', source: 'decision', params: { name: 'Κ. Δήμου' } }, nameOf)).toBeNull();
+        expect(issuePerson({ code: 'NAME_MATCHED_TWICE', source: 'decision', params: { name: 'Κων/νος Αναγνωστόπουλος' } }, nameOf)).toBeNull();
+    });
+
+    it('names nobody for an id the caller does not know, rather than printing the id', () => {
+        expect(issuePerson({ code: 'IMPLIED_CHANGE', personId: 'p9', source: 'decision', params: { status: 'ABSENT' } }, nameOf)).toBeNull();
+    });
+
+    it('names nobody for an issue about the meeting or a page', () => {
+        expect(issuePerson({ code: 'NO_ROLL_CALL', source: null, params: { reason: 'noRollCall' } }, nameOf)).toBeNull();
+        expect(issuePerson({ code: 'TALLY_MISMATCH', subjectId: 's1', source: 'decision', params: { diffs: [] } }, nameOf)).toBeNull();
+    });
+});
+
+describe('renderIssuePerson', () => {
+    it.each([
+        ['el', elAdmin, 'Μέλος: Παπαδόπουλος Γιώργος'],
+        ['en', enAdmin, 'Member: Παπαδόπουλος Γιώργος'],
+    ])('labels a member in %s', (_locale, messages, member) => {
+        const t = catalogText({ messages, namespace: 'decisionsPage' });
+        expect(renderIssuePerson(t, { kind: 'member', name: 'Παπαδόπουλος Γιώργος' })).toBe(member);
     });
 });

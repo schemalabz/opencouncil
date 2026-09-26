@@ -11,6 +11,7 @@ const props: AuditEvidenceProps = {
     tallyDiffs: [],
     changes: [],
     issues: [],
+    personName: () => undefined,
     unmatchedNames: [],
     phraseOnly: false,
 };
@@ -64,6 +65,12 @@ describe('AuditEvidence', () => {
         expect(message).toBeInTheDocument();
         expect(message).not.toHaveAttribute('title');
         expect(screen.getByText('Ονόματα χωρίς αντιστοίχιση:').parentElement).toHaveTextContent('Κ. Δήμου');
+    });
+
+    it('names the member an issue is about', () => {
+        const issue: Issue = { code: 'VOTE_BY_ABSENT_MEMBER', subjectId: 's1', personId: 'p1', source: 'decision', params: { vote: 'FOR' } };
+        renderEvidence({ issues: [issue], personName: id => (id === 'p1' ? 'Παπαδόπουλος Γιώργος' : undefined) });
+        expect(screen.getByText('Μέλος: Παπαδόπουλος Γιώργος')).toBeInTheDocument();
     });
 
     it('says only once that the printed and derived counts disagree', () => {

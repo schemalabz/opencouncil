@@ -16,7 +16,7 @@ const row = (over: Partial<TableRow> = {}): TableRow => ({
 
 /** What the page hands a row while audit mode is on. */
 const signal = (over: Partial<AuditSignal> = {}): AuditSignal => ({
-    severity: 'info', kind: 'stated', code: null, issue: null, extraIssues: 0, inferred: 0, derivedVotes: 4,
+    severity: 'info', kind: 'stated', code: null, issue: null, person: null, extraIssues: 0, inferred: 0, derivedVotes: 4,
     needsCheck: false, ...over,
 });
 

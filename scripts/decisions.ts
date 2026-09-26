@@ -23,6 +23,7 @@ import { applyDerivation, deriveAndPersist, deriveMeetingFacts, explainMeeting, 
 import { resolveSession } from '@/lib/derivation/resolveSession';
 import { derivationSkipIssue } from '@/lib/derivation/persist';
 import { measureMeeting, type MeetingMeasure } from '@/lib/derivation/measure';
+import { issuePerson } from '@/lib/derivation/issueText';
 import { issueMessageEn } from '@/lib/derivation/issueTextEn';
 import type { DerivationInput, DerivationOutput } from '@/lib/derivation/types';
 import { getMinutesData } from '@/lib/minutes/getMinutesData';
@@ -158,9 +159,10 @@ async function check(meetings: string[], derive: boolean, report?: string) {
         const key = `${m.cityId}/${m.meetingId}`;
         const { keyBySubjectId } = subjectsByClaimKey(data);
         const explained = await explainMeeting(m.cityId, m.meetingId);
+        const nameOf = await personNameLookup(m.cityId);
         for (const i of explained.issues) {
             const where = i.subjectId ? (keyBySubjectId.get(i.subjectId) ?? i.subjectId) : '-';
-            all.push({ kind: 'issue', meeting: key, claim: `issue ${i.code}`, detail: `${where} ${i.personId ?? ''} ${issueMessageEn(i)}`.replace(/\s+/g, ' ').trim() });
+            all.push({ kind: 'issue', meeting: key, claim: `issue ${i.code}`, detail: `${where} ${issuePerson(i, nameOf)?.name ?? ''} ${issueMessageEn(i)}`.replace(/\s+/g, ' ').trim() });
         }
     }
     const claims = all.filter(l => l.kind === 'claim');
@@ -236,7 +238,19 @@ async function derive(city: string, meeting: string, doWrite: boolean) {
     if (doWrite) { await assertLocalDatabase(prisma, ['opencouncil', 'c1sample']); await applyDerivation(input, out); }
     const m = measureMeeting(`${city}/${meeting}`, input, out, null);
     process.stderr.write(`${city}/${meeting}: ${out.attendance.length} attendance rows, ${out.votes.length} vote rows, ${out.issues.length} issues, hash ${m.hash}${doWrite ? '' : ' (dry)'}\n`);
-    for (const i of out.issues) process.stderr.write(`  ${i.code.padEnd(28)} ${i.subjectId ?? '-'} ${i.personId ?? ''} ${issueMessageEn(i)}\n`);
+    const nameOf = await personNameLookup(city);
+    for (const i of out.issues) process.stderr.write(`  ${i.code.padEnd(28)} ${i.subjectId ?? '-'} ${issuePerson(i, nameOf)?.name ?? ''} ${issueMessageEn(i)}\n`);
+}
+
+/** Every person of the city by id, in one query, for the issues that name one. An id the city lacks prints as itself. */
+async function personNames(cityId: string): Promise<Record<string, string>> {
+    const people = await prisma.person.findMany({ where: { cityId }, select: { id: true, name: true } });
+    return Object.fromEntries(people.map(p => [p.id, p.name]));
+}
+
+async function personNameLookup(cityId: string): Promise<(personId: string) => string> {
+    const names = await personNames(cityId);
+    return id => names[id] ?? id;
 }
 
 /** Display data buildMeetingTrace needs but the derivation never reads: names, ada, urls, the commit. */
@@ -249,7 +263,6 @@ async function traceMeta(cityId: string, meetingId: string, input: DerivationInp
         where: { subjectId: { in: input.documents.map(d => d.subjectId) } },
         select: { subjectId: true, ada: true, pdfUrl: true, extractorVersion: true },
     });
-    const people = await prisma.person.findMany({ where: { cityId }, select: { id: true, name: true } });
     return {
         commit,
         meeting: {
@@ -257,7 +270,7 @@ async function traceMeta(cityId: string, meetingId: string, input: DerivationInp
             body: meeting.administrativeBody ? { name: meeting.administrativeBody.name, type: meeting.administrativeBody.type } : null,
         },
         decisions: Object.fromEntries(decisions.map(d => [d.subjectId, { ada: d.ada, url: d.pdfUrl, version: d.extractorVersion }])),
-        personNames: Object.fromEntries(people.map(p => [p.id, p.name])),
+        personNames: await personNames(cityId),
     };
 }
 

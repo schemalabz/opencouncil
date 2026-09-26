@@ -22,6 +22,40 @@ export function renderIssue(t: IssueTranslator, issue: Issue): string {
 }
 
 /**
+ * The person an issue is about, as a reader can find them.
+ *
+ * `member` is a roster match: the issue's `personId`, named. A name that no
+ * single person stands behind (`UNMATCHED_NAME`, `NAME_MATCHED_TWICE`) has no
+ * person line: the issue's own message prints the name.
+ */
+export type IssuePersonKind = 'member';
+export type IssuePerson = { kind: IssuePersonKind; name: string };
+
+/**
+ * Who an issue is about, or null when it concerns no one or nobody knows the
+ * name. Decided from the issue's fields, not per code, so a code that starts
+ * to carry a `personId` is named without a change here.
+ *
+ * `nameOf` answers from names the caller already holds: the page's people, a
+ * script's roster. It returns undefined for an id it does not know, and the
+ * issue then names nobody rather than an id.
+ */
+export function issuePerson(issue: Issue, nameOf: (personId: string) => string | undefined): IssuePerson | null {
+    if (!issue.personId) return null;
+    const name = nameOf(issue.personId);
+    return name ? { kind: 'member', name } : null;
+}
+
+/**
+ * `issuePerson` as a label: «Μέλος: …».
+ *
+ * @translationNamespace admin.decisionsPage
+ */
+export function renderIssuePerson(t: IssueTranslator, person: IssuePerson): string {
+    return t(`issues.person.${person.kind}`, { name: person.name });
+}
+
+/**
  * Where a code comes from, as a sentence: every step `ISSUE_STAGES` names for
  * it, joined.
  *

@@ -397,6 +397,8 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     // than scanned per row.
 
     const issuesBySubject = useMemo(() => bySubject(derivation?.issues ?? []), [derivation]);
+    /** A person's name from the city's people the page already holds, for the issues that concern one. */
+    const personName = useCallback((personId: string) => getPerson(personId)?.name, [getPerson]);
     const derivedVotesBySubject = useMemo(() => bySubject(derivation?.votes ?? []), [derivation]);
     const derivedAttendanceBySubject = useMemo(() => bySubject(derivation?.attendance ?? []), [derivation]);
     /** How many of the meeting's documents stated each change (`changeKey`): the
@@ -451,6 +453,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                     issues: issuesBySubject.get(subject.id) ?? [],
                     phraseOnly: phraseOnlySubjects.has(subject.id),
                     votes: derivedVotesBySubject.get(subject.id) ?? [],
+                    personName,
                 })
                 : null,
         };
@@ -1103,7 +1106,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         });
         const unmatchedNames = decision?.unmatchedNames ?? [];
         const phraseOnly = phraseOnlySubjects.has(subjectId);
-        const nameOf = (personId: string): string => getPerson(personId)?.name ?? personId;
+        const nameOf = (personId: string): string => personName(personId) ?? personId;
 
         const empty = !decision?.voteResultPhrase && votes.length === 0 && attendance.length === 0
             && diffs.length === 0 && changes.length === 0 && issues.length === 0
@@ -1118,6 +1121,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 tallyDiffs={diffs}
                 changes={changes}
                 issues={issues}
+                personName={personName}
                 unmatchedNames={unmatchedNames}
                 phraseOnly={phraseOnly}
             />
@@ -1402,6 +1406,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                             const subject = subjects.find(s => s.id === subjectId);
                             return subject ? displayName(subject) : undefined;
                         }}
+                        personName={personName}
                         onRederive={handleRederive}
                         isRederiving={isRederiving}
                         onExplainDerivation={explainDerivation}

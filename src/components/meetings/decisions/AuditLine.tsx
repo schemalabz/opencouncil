@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { renderIssue, renderIssueStages } from '@/lib/derivation/issueText';
+import { renderIssue, renderIssuePerson, renderIssueStages } from '@/lib/derivation/issueText';
 import { cn } from '@/lib/utils';
 import { ExplainDerivationLink, SeverityChip, SeverityDot } from './auditGlossary';
 import type { AuditSignal } from './auditSignal';
@@ -71,7 +71,7 @@ export function AuditLine({ signal, onExplainDerivation }: {
     const t = useTranslations('admin.decisionsPage');
     const [open, setOpen] = useState(false);
     const { phrase, detail } = describe(t, signal);
-    const { issue, severity } = signal;
+    const { issue, person, severity } = signal;
 
     return (
         <div
@@ -108,6 +108,7 @@ export function AuditLine({ signal, onExplainDerivation }: {
             {open && issue && (
                 <>
                     <p className="ml-[13px] mt-1.5 border-l-2 border-foreground/10 pl-2 leading-relaxed text-muted-foreground">
+                        {person && <span className="block font-medium text-foreground/80">{renderIssuePerson(t, person)}</span>}
                         {renderIssue(t, issue)}
                     </p>
                     <div className="ml-[13px] mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">

@@ -14,6 +14,7 @@
 import { pagesCarryOwnList, resolveSession } from '@/lib/derivation/resolveSession';
 import { rankRollCall } from '@/lib/derivation/replayAttendance';
 import { derivationSkipIssue } from '@/lib/derivation/persist';
+import { issuePerson } from '@/lib/derivation/issueText';
 import { issueMessageEn } from '@/lib/derivation/issueTextEn';
 import { ISSUE_SEVERITY, ISSUE_STAGES } from '@/lib/derivation/issueCatalogue';
 import type { DerivationInput, DerivationOutput, DerivedVoteRow, EventRow } from '@/lib/derivation/types';
@@ -149,7 +150,7 @@ export function buildMeetingTrace(input: DerivationInput, output: DerivationOutp
         stage: ISSUE_STAGES[issue.code].join('/'),
         severity: ISSUE_SEVERITY[issue.code],
         subjectId: issue.subjectId ?? null,
-        person: issue.personId ? personOf(issue.personId) : null,
+        person: issuePerson(issue, personOf)?.name ?? null,
         message: issueMessageEn(issue),
     }));
 

@@ -513,6 +513,9 @@
                 "write": "in the write"
             },
             "howDerived": "How the facts are derived",
+            "person": {
+                "member": "Member: {name}"
+            },
             "codes": {
                 "NO_ROLL_CALL": "No roll call",
                 "PRESENCE_UNKNOWN": "Presence unknown",

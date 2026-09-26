@@ -52,6 +52,7 @@ export function DecisionsRail({
     showResetExtractions,
     issues,
     subjectName,
+    personName,
     onRederive,
     isRederiving,
     onExplainDerivation,
@@ -80,6 +81,8 @@ export function DecisionsRail({
     /** What the derivation could not settle. Empty until it loads. */
     issues: Issue[];
     subjectName: (subjectId: string) => string | undefined;
+    /** Names the person an issue is about; undefined for an id the page does not hold. */
+    personName: (personId: string) => string | undefined;
     onRederive: () => void;
     isRederiving: boolean;
     /** Opens the page's derivation glossary from the issues card. Superadmin-only,
@@ -113,7 +116,7 @@ export function DecisionsRail({
                     <div className="space-y-3 px-1 pb-1">
                         {/* The issues read against audit mode below, which only a
                             superadmin has, so they sit in the same frame. */}
-                        <IssuesCard issues={issues} subjectName={subjectName} onExplainDerivation={onExplainDerivation} />
+                        <IssuesCard issues={issues} subjectName={subjectName} personName={personName} onExplainDerivation={onExplainDerivation} />
                         <div className="rounded-lg border bg-background p-2.5">
                             <label className="flex items-center justify-between gap-3">
                                 <span className="text-xs font-medium">{tPage('auditMode')}</span>

@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import type { AttendanceStatus } from '@prisma/client';
-import { renderIssue } from '@/lib/derivation/issueText';
+import { issuePerson, renderIssue, renderIssuePerson } from '@/lib/derivation/issueText';
 import type { AttendanceOrigin, Issue, TallyDiff, VoteOrigin } from '@/lib/derivation/types';
 
 type T = ReturnType<typeof useTranslations>;
@@ -24,6 +24,8 @@ export interface AuditEvidenceProps {
     changes: AuditChangeRow[];
     /** This subject's issues, meeting-wide ones excluded. */
     issues: Issue[];
+    /** Names the person an issue is about; undefined for an id the page does not hold. */
+    personName: (personId: string) => string | undefined;
     /** Names a document printed that matched no person. */
     unmatchedNames: string[];
     /** The outcome is the document's phrase and nothing else. */
@@ -88,7 +90,7 @@ function AttendanceNames({ t, rows }: { t: T; rows: AuditAttendanceRow[] }) {
  */
 export function AuditEvidence(props: AuditEvidenceProps) {
     const t = useTranslations('admin.decisionsPage');
-    const { voteResultPhrase, votes, attendance, tallyDiffs, changes, issues, unmatchedNames, phraseOnly } = props;
+    const { voteResultPhrase, votes, attendance, tallyDiffs, changes, issues, personName, unmatchedNames, phraseOnly } = props;
 
     const statedVotes = votes.filter(v => v.origin === 'stated');
     const inferredVotes = votes.filter(v => v.origin === 'inferred');
@@ -187,12 +189,16 @@ export function AuditEvidence(props: AuditEvidenceProps) {
                     {/* The message as text. The rail's card keeps it in a
                         `title=` tooltip, which a touch screen never shows and
                         nobody can copy out of. */}
-                    {listedIssues.map((issue, i) => (
-                        <div key={`${issue.code}-${issue.personId ?? ''}-${i}`} className="text-xs text-foreground">
-                            {renderIssue(t, issue)}
-                            {issue.rawText && <span className="block text-muted-foreground">{issue.rawText}</span>}
-                        </div>
-                    ))}
+                    {listedIssues.map((issue, i) => {
+                        const person = issuePerson(issue, personName);
+                        return (
+                            <div key={`${issue.code}-${issue.personId ?? ''}-${i}`} className="text-xs text-foreground">
+                                {person && <span className="block font-medium">{renderIssuePerson(t, person)}</span>}
+                                {renderIssue(t, issue)}
+                                {issue.rawText && <span className="block text-muted-foreground">{issue.rawText}</span>}
+                            </div>
+                        );
+                    })}
                     {unmatchedNames.length > 0 && (
                         <div className="text-xs text-foreground">
                             <span className="text-muted-foreground">{t('audit.unmatchedNames')}</span>{' '}

@@ -567,7 +567,10 @@
         "votes": "in the count of the votes",
         "write": "in the write"
       },
-      "howDerived": "How the facts are derived"
+      "howDerived": "How the facts are derived",
+      "person": {
+        "member": "Member: {name}"
+      }
     },
     "rederive": "Re-derive",
     "audit": {

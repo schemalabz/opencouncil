@@ -25,7 +25,7 @@ const issue = (over: Partial<Issue> = {}): Issue => ({
 } as Issue);
 
 const signal = (over: Partial<AuditSignal> = {}): AuditSignal => ({
-    severity: 'warning', kind: 'issues', code: 'LAYOUT_DISAGREES', issue: issue(),
+    severity: 'warning', kind: 'issues', code: 'LAYOUT_DISAGREES', issue: issue(), person: null,
     extraIssues: 0, inferred: 0, derivedVotes: 0, needsCheck: true, ...over,
 });
 
@@ -65,6 +65,17 @@ describe('AuditLine', () => {
         renderLine({ severity: 'error', code: 'NO_ROLL_CALL', issue: issue({ code: 'NO_ROLL_CALL', params: { reason: 'noRollCall' } }) });
         await userEvent.click(screen.getByRole('button', { name: 'Χωρίς αρχική εκφώνηση' }));
         expect(screen.getByText('Προκύπτει στον υπολογισμό των παρόντων και στην εγγραφή των στοιχείων')).toBeInTheDocument();
+    });
+
+    it('names the member the issue is about once the line is open', async () => {
+        renderLine({
+            code: 'VOTE_BY_ABSENT_MEMBER',
+            issue: issue({ code: 'VOTE_BY_ABSENT_MEMBER', personId: 'p1', params: { vote: 'FOR' } }),
+            person: { kind: 'member', name: 'Παπαδόπουλος Γιώργος' },
+        });
+        expect(screen.queryByText('Μέλος: Παπαδόπουλος Γιώργος')).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: el.issues.codes.VOTE_BY_ABSENT_MEMBER }));
+        expect(screen.getByText('Μέλος: Παπαδόπουλος Γιώργος')).toBeInTheDocument();
     });
 
     it('offers the derivation only when the page passed a way to open it', async () => {

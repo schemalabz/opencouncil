@@ -343,6 +343,10 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         members: { file: 'src/lib/derivation/issueCatalogue.ts', type: 'IssueSeverity' },
     },
     {
+        group: 'admin.decisionsPage.issues.person.',
+        members: { file: 'src/lib/derivation/issueText.ts', type: 'IssuePersonKind' },
+    },
+    {
         group: 'admin.decisionsPage.issues.raisedIn.',
         members: { file: 'src/lib/derivation/issueCatalogue.ts', constArray: 'DERIVATION_STAGES' },
     },

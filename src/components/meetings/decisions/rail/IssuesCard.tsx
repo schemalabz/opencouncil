@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { ExplainDerivationLink, SeverityChip, SeverityDot } from '@/components/meetings/decisions/auditGlossary';
 import { RailCard } from '@/components/ui/rail-card';
 import { ISSUE_SEVERITY, compareCodeSeverity } from '@/lib/derivation/issueCatalogue';
-import { renderIssue, renderIssueStages } from '@/lib/derivation/issueText';
+import { issuePerson, renderIssue, renderIssuePerson, renderIssueStages } from '@/lib/derivation/issueText';
 import type { Issue, IssueCode } from '@/lib/derivation/types';
 
 /** One code's rows. The severity is the code's, so the group needs no copy of it. */
@@ -39,10 +39,12 @@ export function groupIssuesByCode(issues: Issue[]): CodeGroup[] {
  * belong to the code, not to any one row; the messages sit in it because they
  * are parameterised per row.
  */
-export function IssuesCard({ issues, subjectName, onExplainDerivation }: {
+export function IssuesCard({ issues, subjectName, personName = () => undefined, onExplainDerivation }: {
     issues: Issue[];
     /** Names the subject an issue belongs to; the meeting-wide ones have none. */
     subjectName?: (subjectId: string) => string | undefined;
+    /** Names the person an issue is about, from the people the page already holds. */
+    personName?: (personId: string) => string | undefined;
     /** Opens the page's account of the whole derivation. The link is offered only when there is one. */
     onExplainDerivation?: () => void;
 }) {
@@ -82,21 +84,28 @@ export function IssuesCard({ issues, subjectName, onExplainDerivation }: {
                                         </span>
                                     </div>
                                     <ul className="mt-1.5 space-y-1.5 border-l-2 border-foreground/10 pl-2 text-muted-foreground">
-                                        {group.issues.map((issue, i) => (
-                                            <li key={`${issue.subjectId ?? ''}-${issue.personId ?? ''}-${i}`}>
-                                                {issue.subjectId && (
-                                                    <span className="block text-foreground/80">
-                                                        {subjectName?.(issue.subjectId) ?? issue.subjectId}
-                                                    </span>
-                                                )}
-                                                <span className="block leading-relaxed">{renderIssue(tPage, issue)}</span>
-                                                {/* The document's own words, which used to
-                                                    be reachable only by hovering the row. */}
-                                                {issue.rawText && (
-                                                    <span className="block text-muted-foreground/70">{`«${issue.rawText}»`}</span>
-                                                )}
-                                            </li>
-                                        ))}
+                                        {group.issues.map((issue, i) => {
+                                            const person = issuePerson(issue, personName);
+                                            return (
+                                                <li key={`${issue.subjectId ?? ''}-${issue.personId ?? ''}-${i}`}>
+                                                    {issue.subjectId && (
+                                                        <span className="block text-foreground/80">
+                                                            {subjectName?.(issue.subjectId) ?? issue.subjectId}
+                                                        </span>
+                                                    )}
+                                                    {/* The message says «the member»; this says which one. */}
+                                                    {person && (
+                                                        <span className="block font-medium text-foreground/80">{renderIssuePerson(tPage, person)}</span>
+                                                    )}
+                                                    <span className="block leading-relaxed">{renderIssue(tPage, issue)}</span>
+                                                    {/* The document's own words, which used to
+                                                        be reachable only by hovering the row. */}
+                                                    {issue.rawText && (
+                                                        <span className="block text-muted-foreground/70">{`«${issue.rawText}»`}</span>
+                                                    )}
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 </div>
                             )}
