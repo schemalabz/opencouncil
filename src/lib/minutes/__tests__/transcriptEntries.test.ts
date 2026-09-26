@@ -178,4 +178,16 @@ describe('buildTranscriptEntriesFromUtterances', () => {
         expect(result).toHaveLength(1);
         expect(result[0].type).toBe('speaker');
     });
+
+    it('starts a new block where a discussion resumes, even for the same speaker', () => {
+        const utterances = [
+            makeUtterance({ id: 'u1', text: 'Το θέμα πάει τελευταίο.', startTimestamp: 363, endTimestamp: 365, personId: 'p1', label: 'President' }),
+            makeUtterance({ id: 'u2', text: 'Έχετε το λόγο.', startTimestamp: 715, endTimestamp: 718, personId: 'p1', label: 'President' }),
+        ];
+
+        const result = buildTranscriptEntriesFromUtterances(utterances, simpleSpeakerResolver, undefined, new Set(['u2']));
+
+        expect(result.map(e => (e as MinutesSpeakerEntry).timestamp)).toEqual([363, 715]);
+    });
 });
+

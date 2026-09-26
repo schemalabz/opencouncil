@@ -25,7 +25,7 @@ export async function readDerivationRows(cityId: string, meetingId: string) {
     const linkedUtterances = subjectIds.length > 0
         ? await prisma.utterance.findMany({
             where: { discussionSubjectId: { in: subjectIds } },
-            select: { discussionSubjectId: true, discussionStatus: true, startTimestamp: true },
+            select: { discussionSubjectId: true, discussionStatus: true, startTimestamp: true, endTimestamp: true },
         })
         : [];
     const [rollCall, events, people] = await Promise.all([

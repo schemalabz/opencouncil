@@ -184,7 +184,7 @@ export async function getMinutesData(
                 isPartyHead,
                 role: simplifyRoleName(role?.name ?? null),
             };
-        }, crossSubjectInfo);
+        }, crossSubjectInfo, assignment.resumedAt);
     }
 
     function buildOrphanTranscriptEntries(utterances: typeof allUtterances): MinutesTranscriptEntry[] {

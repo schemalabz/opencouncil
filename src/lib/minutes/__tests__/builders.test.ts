@@ -22,7 +22,7 @@ import {
 } from '../builders';
 import { MinutesMember } from '../types';
 import { committeeWithSubstitute, councilWithAbsentPresident } from './rollCallFixtures';
-import spartaMay6 from './fixtures/sparta-may6-2026-order.json';
+import spartaMay6 from './fixtures/sparta-may6-2026-utterances.json';
 
 // --- Test helpers ---
 
@@ -872,16 +872,16 @@ describe('sortSubjectsByDiscussionOrder', () => {
 // --- discussionOrderKeys ---
 
 describe('discussionOrderKeys', () => {
-    const u = (subjectId: string, status: DiscussionStatus | null, startTimestamp: number) =>
-        ({ discussionSubjectId: subjectId, discussionStatus: status, startTimestamp });
+    const u = (subjectId: string | null, status: DiscussionStatus | null, startTimestamp: number) =>
+        ({ discussionSubjectId: subjectId, discussionStatus: status, startTimestamp, endTimestamp: startTimestamp + 1 });
     const agendaItem = (n: number) => ({ id: `s${n}`, agendaItemIndex: n, nonAgendaReason: null, discussedIn: null });
 
     it('puts an item stopped part-way and resumed at the end of the meeting last (Sparta may6_2026)', () => {
         // «το θέμα το 5ο πάει τελευταίο προς συζήτηση»: item 5 is opened after
         // item 4, stopped, and resumed and voted after item 14. The page for
         // Τριτάκης reads «προσήλθε στο 10ο θέμα (παρών στα θέματα 10-14 και 5)».
-        const rows = (spartaMay6 as { item: number; status: DiscussionStatus; start: number }[])
-            .map(r => u(`s${r.item}`, r.status, r.start));
+        const rows = (spartaMay6 as { item: number | null; status: DiscussionStatus | null; start: number }[])
+            .map(r => u(r.item === null ? null : `s${r.item}`, r.status, r.start));
         const subjects = Array.from({ length: 14 }, (_, i) => agendaItem(i + 1));
 
         const keys = discussionOrderKeys(rows);
@@ -913,6 +913,15 @@ describe('discussionOrderKeys', () => {
             u('s5', 'SUBJECT_DISCUSSION', 918), u('s6', 'SUBJECT_DISCUSSION', 992), u('s5', 'VOTE', 1088),
         ]);
         expect(keys).toEqual(new Map([['s5', 918], ['s6', 992]]));
+    });
+
+    it('keeps a subject voted in its first stretch at its first utterance, whatever is tagged to it later', () => {
+        // Sparta aug26_2026: after item 2 is voted, a member says at item 4 that
+        // he votes yes «στην προηγούμενη ψηφοφορία», tagged to item 2.
+        const keys = discussionOrderKeys([
+            u('s2', 'SUBJECT_DISCUSSION', 526), u('s2', 'VOTE', 3083), u('s3', 'VOTE', 3300), u('s2', 'SUBJECT_DISCUSSION', 3584),
+        ]);
+        expect(keys.get('s2')).toBe(526);
     });
 
     it('orders a procedural vote only when the subject has nothing else, and an untagged utterance as discussion', () => {
