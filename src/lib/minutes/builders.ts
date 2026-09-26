@@ -367,12 +367,7 @@ export function buildAttendanceChangesFromEvents(
         const member = resolveMember(e.personId);
         if (!member) continue;
         const type = e.kind === 'ARRIVAL' ? 'arrival' : 'departure';
-        let anchorLabel: string | null = null;
-        if (e.anchorKind === 'DECISION_NUMBER' && decisionOrdinal(e.anchorDecisionNumber) != null) {
-            anchorLabel = `στην ${e.anchorDecisionNumber} ΑΚΣ`;
-        } else if (e.anchorKind === 'PHASE') {
-            anchorLabel = e.anchorPhase === 'OUT_OF_AGENDA' ? 'κατά τα θέματα εκτός ημερήσιας διάταξης' : 'πριν την ημερήσια διάταξη';
-        }
+        const anchorLabel = formatAnchorLabel(e);
         let index = effectAt.get(e) ?? -1;
         // Past the last subject: the change touches no item's attendance, so
         // printing it against one would contradict the table beside it.
@@ -648,9 +643,26 @@ export function formatSubjectLabel(atSubject: MinutesAttendanceChange['atSubject
 }
 
 /**
+ * The label an anchor that is not an agenda item prints, or null for one that
+ * prints the subject. A decision number reads «στην 286 ΑΚΣ»: the change takes
+ * effect at that decision, as «από το 5ο θέμα» names the first subject on the
+ * other side. With timing AFTER it takes effect at the next decision, so it
+ * reads «μετά την 286 ΑΚΣ».
+ */
+export function formatAnchorLabel(e: Pick<PlaceableEvent, 'anchorKind' | 'anchorDecisionNumber' | 'anchorPhase' | 'timing'>): string | null {
+    if (e.anchorKind === 'DECISION_NUMBER' && decisionOrdinal(e.anchorDecisionNumber) != null) {
+        return `${e.timing === 'AFTER' ? 'μετά την' : 'στην'} ${e.anchorDecisionNumber} ΑΚΣ`;
+    }
+    if (e.anchorKind === 'PHASE') {
+        return e.anchorPhase === 'OUT_OF_AGENDA' ? 'κατά τα θέματα εκτός ημερήσιας διάταξης' : 'πριν την ημερήσια διάταξη';
+    }
+    return null;
+}
+
+/**
  * Where a change happened, as a phrase that can follow a name or a verb:
- * «στην 286 ΑΚΣ» when the document pinned it to something other than an agenda
- * item, «από το 5ο θέμα» otherwise — `atSubject` is the subject the member is
+ * «στην 286 ΑΚΣ» (`formatAnchorLabel`) when the document pinned it to something
+ * other than an agenda item, «από το 5ο θέμα» otherwise — `atSubject` is the subject the member is
  * first seen on the other side of, so the preposition has to be «από», not a
  * bare label. One helper so the Προσελεύσεις/Αποχωρήσεις lists and the
  * ΔΗΜΑΡΧΟΣ parenthesis cannot word the same fact differently.

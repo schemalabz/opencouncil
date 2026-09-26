@@ -28,6 +28,15 @@ describe('buildAttendanceChangesFromEvents', () => {
         expect(c.atSubject.id).toBe('d');
     });
 
+    it('labels a decision number by where the change takes effect: «μετά την» only when timed after', () => {
+        const label = (timing: PlaceableEvent['timing'], kind: PlaceableEvent['kind'] = 'DEPARTURE') => buildAttendanceChangesFromEvents(
+            [event({ kind, anchorKind: 'DECISION_NUMBER', anchorDecisionNumber: '286', timing })], subjects, resolve, null).changes[0].anchorLabel;
+        expect(label('AFTER', 'ARRIVAL')).toBe('μετά την 286 ΑΚΣ');
+        expect(label('AFTER')).toBe('μετά την 286 ΑΚΣ');
+        expect(label('BEFORE')).toBe('στην 286 ΑΚΣ');
+        expect(label(null)).toBe('στην 286 ΑΚΣ');
+    });
+
     it('an agenda-item anchor lands on that item, or the next one when timed after', () => {
         const { changes: during } = buildAttendanceChangesFromEvents([event({ anchorAgendaItemIndex: 22, timing: 'BEFORE' })], subjects, resolve, null);
         const { changes: after } = buildAttendanceChangesFromEvents([event({ anchorAgendaItemIndex: 22, timing: 'AFTER' })], subjects, resolve, null);
