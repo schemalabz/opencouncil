@@ -4,7 +4,7 @@ import type { EventRow } from '@/lib/derivation/types';
 
 /**
  * The rows the derivation reads for one meeting, unshaped: the meeting with its
- * subjects and their decisions, the first transcript timestamp per subject, the
+ * subjects and their decisions, the utterances linked to those subjects, the
  * roll-call rows and the events that sources other than the pages state, and the
  * city's people with roles. Shaping into
  * the derivation's input happens in src/lib/derivation/load.ts.
@@ -17,35 +17,17 @@ export async function readDerivationRows(cityId: string, meetingId: string) {
             subjects: { include: { decision: true, discussedIn: { select: { id: true } } } },
         },
     });
-    // The minutes' rule (getMinutesData): a subject is ordered by its first
-    // utterance that is not a procedural vote, and only a subject with nothing
-    // else is ordered by its procedural vote. A subject voted on at the top of
-    // the session and discussed an hour later belongs where it was discussed —
-    // and has to land at the same index here as on the page, because that index
-    // is what an «after item 3» anchor resolves against.
+    // The utterances the discussion order is read from (discussionOrderKeys). The
+    // derivation orders subjects by the minutes' rule, because a subject has to
+    // land at the same index here as on the page: that index is what an «after
+    // item 3» anchor resolves against.
     const subjectIds = meeting.subjects.map(s => s.id);
-    const firstUtteranceBySubject = new Map<string, number>();
-    if (subjectIds.length > 0) {
-        const [discussion, anyStatus] = await Promise.all([
-            prisma.utterance.groupBy({
-                by: ['discussionSubjectId'],
-                // Spelled as an OR because the column is nullable and an untagged
-                // utterance counts as discussion, the way the page reads it.
-                where: { discussionSubjectId: { in: subjectIds }, OR: [{ discussionStatus: null }, { discussionStatus: { not: 'PROCEDURAL_VOTE' } }] },
-                _min: { startTimestamp: true },
-            }),
-            prisma.utterance.groupBy({
-                by: ['discussionSubjectId'],
-                where: { discussionSubjectId: { in: subjectIds } },
-                _min: { startTimestamp: true },
-            }),
-        ]);
-        for (const u of [...discussion, ...anyStatus]) {
-            if (u.discussionSubjectId && u._min.startTimestamp != null && !firstUtteranceBySubject.has(u.discussionSubjectId)) {
-                firstUtteranceBySubject.set(u.discussionSubjectId, u._min.startTimestamp);
-            }
-        }
-    }
+    const linkedUtterances = subjectIds.length > 0
+        ? await prisma.utterance.findMany({
+            where: { discussionSubjectId: { in: subjectIds } },
+            select: { discussionSubjectId: true, discussionStatus: true, startTimestamp: true },
+        })
+        : [];
     const [rollCall, events, people] = await Promise.all([
         // Only what another source states. The pages' own roll call and events are
         // resolved by the derivation from every stored page, and the rows of source
@@ -56,7 +38,7 @@ export async function readDerivationRows(cityId: string, meetingId: string) {
     ]);
     const voted = await prisma.subjectVote.findMany({ where: { subjectId: { in: subjectIds }, source: 'decision' }, select: { subjectId: true }, distinct: ['subjectId'] });
     const subjectIdsWithStoredVotes = voted.map(r => r.subjectId).sort();
-    return { meeting, firstUtteranceBySubject, rollCall, events, people, subjectIdsWithStoredVotes };
+    return { meeting, linkedUtterances, rollCall, events, people, subjectIdsWithStoredVotes };
 }
 
 /**

@@ -108,7 +108,7 @@ describe('deriveAndPersist', () => {
                     };
                 }),
             },
-            firstUtteranceBySubject: new Map<string, number>(),
+            linkedUtterances: [],
             rollCall: i.rollCall,
             events: i.events,
             people: [{ id: 'p1', roles: [] }],

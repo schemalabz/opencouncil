@@ -12,6 +12,8 @@ import {
     formatChangePosition,
     formatPhraseOnlyOutcome,
     sortSubjectsByDiscussionOrder,
+    orderedMinutesSubjects,
+    discussionOrderKeys,
     sortByElectedOrder,
     buildDiscussionSummary,
     buildProceduralVotes,
@@ -20,6 +22,7 @@ import {
 } from '../builders';
 import { MinutesMember } from '../types';
 import { committeeWithSubstitute, councilWithAbsentPresident } from './rollCallFixtures';
+import spartaMay6 from './fixtures/sparta-may6-2026-order.json';
 
 // --- Test helpers ---
 
@@ -863,6 +866,67 @@ describe('sortSubjectsByDiscussionOrder', () => {
         const sorted = sortSubjectsByDiscussionOrder(subjects, timestamps);
 
         expect(sorted.map(s => s.id)).toEqual(['s1', 'oa1']);
+    });
+});
+
+// --- discussionOrderKeys ---
+
+describe('discussionOrderKeys', () => {
+    const u = (subjectId: string, status: DiscussionStatus | null, startTimestamp: number) =>
+        ({ discussionSubjectId: subjectId, discussionStatus: status, startTimestamp });
+    const agendaItem = (n: number) => ({ id: `s${n}`, agendaItemIndex: n, nonAgendaReason: null, discussedIn: null });
+
+    it('puts an item stopped part-way and resumed at the end of the meeting last (Sparta may6_2026)', () => {
+        // «το θέμα το 5ο πάει τελευταίο προς συζήτηση»: item 5 is opened after
+        // item 4, stopped, and resumed and voted after item 14. The page for
+        // Τριτάκης reads «προσήλθε στο 10ο θέμα (παρών στα θέματα 10-14 και 5)».
+        const rows = (spartaMay6 as { item: number; status: DiscussionStatus; start: number }[])
+            .map(r => u(`s${r.item}`, r.status, r.start));
+        const subjects = Array.from({ length: 14 }, (_, i) => agendaItem(i + 1));
+
+        const keys = discussionOrderKeys(rows);
+        const ordered = orderedMinutesSubjects(subjects, keys);
+
+        expect(ordered.map(s => s.agendaItemIndex)).toEqual([1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 5]);
+        // Where the discussion resumes («Κύριε Κακούρο, έχετε ενημέρωση για το
+        // θέμα…» at 715.3), not at the vote at 727.9.
+        expect(keys.get('s5')).toBeCloseTo(715.29, 2);
+    });
+
+    it('places a resumed subject where its discussion resumes, before a subject read inside that discussion', () => {
+        // s1 is opened, left pending while s2 is voted, and resumed at 300. s3 is
+        // read at 310, inside s1's resumed discussion, and voted after s1.
+        const keys = discussionOrderKeys([
+            u('s1', 'SUBJECT_DISCUSSION', 100), u('s2', 'SUBJECT_DISCUSSION', 150), u('s2', 'VOTE', 200),
+            u('s1', 'SUBJECT_DISCUSSION', 300), u('s3', 'SUBJECT_DISCUSSION', 310), u('s1', 'VOTE', 320), u('s3', 'VOTE', 400),
+        ]);
+        const ordered = orderedMinutesSubjects([agendaItem(1), agendaItem(2), agendaItem(3)], keys);
+
+        expect(keys.get('s1')).toBe(300);
+        expect(ordered.map(s => s.id)).toEqual(['s2', 's1', 's3']);
+    });
+
+    it('keeps a subject at its first utterance when no other subject is voted before its own vote', () => {
+        // Samothraki jul28_2026: items 5 and 6 are read together and voted in one
+        // sentence, tagged to item 5 only. Item 5 still comes first.
+        const keys = discussionOrderKeys([
+            u('s5', 'SUBJECT_DISCUSSION', 918), u('s6', 'SUBJECT_DISCUSSION', 992), u('s5', 'VOTE', 1088),
+        ]);
+        expect(keys).toEqual(new Map([['s5', 918], ['s6', 992]]));
+    });
+
+    it('orders a procedural vote only when the subject has nothing else, and an untagged utterance as discussion', () => {
+        const keys = discussionOrderKeys([
+            u('oa1', 'PROCEDURAL_VOTE', 10), u('s1', null, 50), u('oa1', 'SUBJECT_DISCUSSION', 300), u('w', 'PROCEDURAL_VOTE', 400),
+        ]);
+        expect(keys).toEqual(new Map([['oa1', 300], ['s1', 50], ['w', 400]]));
+    });
+
+    it('does not count a procedural vote of another subject as that subject being decided', () => {
+        const keys = discussionOrderKeys([
+            u('s1', 'SUBJECT_DISCUSSION', 100), u('oa1', 'PROCEDURAL_VOTE', 150), u('s1', 'VOTE', 200),
+        ]);
+        expect(keys.get('s1')).toBe(100);
     });
 });
 

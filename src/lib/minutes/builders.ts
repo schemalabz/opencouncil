@@ -600,6 +600,64 @@ export function buildAttendanceChanges(
     return splitMayorChanges(changes, mayorPersonId);
 }
 
+/** The utterance fields the discussion order reads. */
+export interface OrderUtterance {
+    discussionSubjectId: string | null;
+    discussionStatus: DiscussionStatus | null;
+    startTimestamp: number;
+}
+
+/**
+ * The time at which each subject takes its place in the discussion order, for
+ * `sortSubjectsByDiscussionOrder`.
+ *
+ * A subject is placed at its first utterance that is not a procedural vote; a
+ * subject with nothing else is placed at its procedural vote. An untagged
+ * utterance counts as discussion. A subject that was opened, left pending
+ * while another subject was voted, and voted later is placed where its
+ * discussion resumed: at its first utterance after the last vote of another
+ * subject before its own vote. The council took it up again there (Sparta
+ * may6_2026: item 5 is opened after item 4, resumed after item 14 and voted).
+ * A joint vote tagged to one of the subjects moves nothing, because no other
+ * subject's vote falls between the first utterance and the vote.
+ */
+export function discussionOrderKeys(utterances: OrderUtterance[]): Map<string, number> {
+    const first = new Map<string, number>();
+    const firstVote = new Map<string, number>();
+    const discussion = new Map<string, number[]>();
+    const votes: { subjectId: string; at: number }[] = [];
+    const keepMin = (map: Map<string, number>, id: string, t: number) => {
+        const current = map.get(id);
+        if (current === undefined || t < current) map.set(id, t);
+    };
+    for (const u of utterances) {
+        const id = u.discussionSubjectId;
+        if (!id) continue;
+        keepMin(first, id, u.startTimestamp);
+        if (u.discussionStatus !== 'PROCEDURAL_VOTE') {
+            const list = discussion.get(id);
+            if (list) list.push(u.startTimestamp); else discussion.set(id, [u.startTimestamp]);
+        }
+        if (u.discussionStatus === 'VOTE') {
+            keepMin(firstVote, id, u.startTimestamp);
+            votes.push({ subjectId: id, at: u.startTimestamp });
+        }
+    }
+
+    const keys = new Map<string, number>();
+    for (const [id, firstAny] of first) {
+        const own = (discussion.get(id) ?? []).sort((a, b) => a - b);
+        const start = own[0] ?? firstAny;
+        const vote = firstVote.get(id);
+        const lastOtherVote = vote === undefined ? undefined : votes
+            .filter(v => v.subjectId !== id && v.at > start && v.at < vote)
+            .reduce<number | undefined>((latest, v) => latest === undefined || v.at > latest ? v.at : latest, undefined);
+        const resumed = lastOtherVote === undefined ? undefined : own.find(t => t > lastOtherVote);
+        keys.set(id, resumed ?? start);
+    }
+    return keys;
+}
+
 interface SortableSubject {
     id: string;
     agendaItemIndex: number | null;

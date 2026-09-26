@@ -29,6 +29,7 @@ import {
     buildAttendanceChangesFromEvents,
     buildMayorNote,
     presidentStandIn,
+    discussionOrderKeys,
     orderedMinutesSubjects,
     sortByElectedOrder,
     buildDiscussionSummary,
@@ -158,23 +159,7 @@ export async function getMinutesData(
         return getElectedOrderForBody(person, adminBodyId);
     };
 
-    // Compute preliminary first-utterance timestamps for discussion order sorting.
-    // First pass: exclude PROCEDURAL_VOTE; second pass: fallback for procedural-only subjects.
-    const preliminaryFirstUtterance = new Map<string, number>();
-    for (const u of allUtterances) {
-        if (u.discussionSubjectId && !preliminaryFirstUtterance.has(u.discussionSubjectId)) {
-            if (u.discussionStatus !== 'PROCEDURAL_VOTE') {
-                preliminaryFirstUtterance.set(u.discussionSubjectId, u.startTimestamp);
-            }
-        }
-    }
-    for (const u of allUtterances) {
-        if (u.discussionSubjectId && !preliminaryFirstUtterance.has(u.discussionSubjectId)) {
-            preliminaryFirstUtterance.set(u.discussionSubjectId, u.startTimestamp);
-        }
-    }
-
-    const sortedSubjects = orderedMinutesSubjects(sectionSubjects, preliminaryFirstUtterance);
+    const sortedSubjects = orderedMinutesSubjects(sectionSubjects, discussionOrderKeys(allUtterances));
     const sortedActiveIds = sortedSubjects.filter(s => !s.withdrawn).map(s => s.id);
 
     // Assign all utterances to temporal windows

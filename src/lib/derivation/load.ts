@@ -1,7 +1,7 @@
 import { readDerivationRows } from '@/lib/db/derivationFacts';
 import { outForOwnVote, pageStatementsOf } from './anchors';
 import { CONVENTION_FIELDS, isDecisionConventions, type RollCallLayout } from '@/lib/decisionConventions';
-import { orderedMinutesSubjects } from '@/lib/minutes/builders';
+import { discussionOrderKeys, orderedMinutesSubjects } from '@/lib/minutes/builders';
 import { isMayorRole, isRoleActiveAt, mayorIsMemberOf } from '@/lib/utils/roles';
 import type { VoteType } from '@prisma/client';
 import type { DerivationInput, DocumentFacts, NameMatch, VoteTally } from './types';
@@ -136,11 +136,11 @@ export function documentFactsFromDecision(d: {
 
 /** Everything the derivation reads, in the shape it reads it. The only Prisma reads of the module. */
 export async function loadDerivationInput(cityId: string, meetingId: string): Promise<DerivationInput> {
-    const { meeting, firstUtteranceBySubject, rollCall, events, people, subjectIdsWithStoredVotes } = await readDerivationRows(cityId, meetingId);
+    const { meeting, linkedUtterances, rollCall, events, people, subjectIdsWithStoredVotes } = await readDerivationRows(cityId, meetingId);
     // The same walk the minutes make: record subjects, discussion order, withdrawn
     // dropped. An event anchored «after item 3» is placed by position, so a set or
     // an order of its own would put rows on subjects other than the ones printed.
-    const ordered = orderedMinutesSubjects(meeting.subjects, firstUtteranceBySubject).filter(s => !s.withdrawn);
+    const ordered = orderedMinutesSubjects(meeting.subjects, discussionOrderKeys(linkedUtterances)).filter(s => !s.withdrawn);
     const mayor = people.find(p => p.roles.some(r => isMayorRole(r) && isRoleActiveAt(r, meeting.dateTime)));
     const president = people.find(p => p.roles.some(r => r.isHead && !!r.administrativeBodyId && r.administrativeBodyId === meeting.administrativeBodyId && isRoleActiveAt(r, meeting.dateTime)));
     const conventions = meeting.administrativeBody?.decisionConventions;
