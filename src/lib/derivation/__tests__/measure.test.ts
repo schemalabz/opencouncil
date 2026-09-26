@@ -6,7 +6,7 @@ const doc = (subjectId: string, o: Partial<DocumentFacts> = {}): DocumentFacts =
     rollCallPresentIds: null, rollCallAbsentIds: null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] },
     statedChanges: [], perVoteAbsences: [], nameMatches: null,
     unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null,
-    mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, ...o,
+    mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, statesBodyDecision: false, ...o,
 });
 const input = (o: Partial<DerivationInput> = {}): DerivationInput => ({
     cityId: 'c', meetingId: 'm', subjectIdsWithStoredVotes: [], conventions: null, presidentPersonId: null, secretaryPersonId: null,

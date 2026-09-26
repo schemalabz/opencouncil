@@ -13,7 +13,7 @@ import type { DerivationInput, DocumentFacts } from '../types';
 const doc = (subjectId: string, hasExtraction: boolean, rollCallPresentIds: string[] | null = hasExtraction ? ['p1'] : null): DocumentFacts => ({
     subjectId, decisionId: `d-${subjectId}`, voteResultPhrase: 'Ομόφωνα', namedVotes: [], tally: null,
     presentIds: null, absentIds: null, rollCallPresentIds, rollCallAbsentIds: rollCallPresentIds ? [] : null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], perVoteAbsences: [], nameMatches: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null,
-    presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction,
+    presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction, statesBodyDecision: false,
 });
 
 const input = (overrides: Partial<DerivationInput> = {}): DerivationInput => ({

@@ -8,8 +8,8 @@ const base: DerivationInput = {
     rollCall: [{ personId: 'p1', status: 'PRESENT', source: 'decision' }, { personId: 'p2', status: 'PRESENT', source: 'decision' }, { personId: 'mayor', status: 'ABSENT', source: 'decision' }],
     events: [],
     documents: [
-        { subjectId: 's1', decisionId: 'd1', voteResultPhrase: 'Ομόφωνα', namedVotes: [], tally: null, presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], perVoteAbsences: [], nameMatches: null, unmatchedNames: ['Άγνωστος Α.'], incomplete: false, rollCallLayout: 'present_and_absent', declaredItemNumber: 1, declaredOutOfAgenda: false, mayorPresent: false, presidedById: 'p9', presidedByName: 'Αντιπρόεδρος', actingSecretaryId: null , hasExtraction: true},
-        { subjectId: 's2', decisionId: 'd2', voteResultPhrase: 'Κατά πλειοψηφία', namedVotes: [{ personId: 'p2', vote: 'AGAINST' }], tally: null, presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], perVoteAbsences: [], nameMatches: null, unmatchedNames: [], incomplete: true, rollCallLayout: 'present_and_absent', declaredItemNumber: 2, declaredOutOfAgenda: false, mayorPresent: false, presidedById: 'p8', presidedByName: 'Άλλος', actingSecretaryId: null , hasExtraction: true},
+        { subjectId: 's1', decisionId: 'd1', voteResultPhrase: 'Ομόφωνα', namedVotes: [], tally: null, presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], perVoteAbsences: [], nameMatches: null, unmatchedNames: ['Άγνωστος Α.'], incomplete: false, rollCallLayout: 'present_and_absent', declaredItemNumber: 1, declaredOutOfAgenda: false, mayorPresent: false, presidedById: 'p9', presidedByName: 'Αντιπρόεδρος', actingSecretaryId: null, hasExtraction: true, statesBodyDecision: false },
+        { subjectId: 's2', decisionId: 'd2', voteResultPhrase: 'Κατά πλειοψηφία', namedVotes: [{ personId: 'p2', vote: 'AGAINST' }], tally: null, presentIds: null, absentIds: null, rollCallPresentIds: null, rollCallAbsentIds: null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], perVoteAbsences: [], nameMatches: null, unmatchedNames: [], incomplete: true, rollCallLayout: 'present_and_absent', declaredItemNumber: 2, declaredOutOfAgenda: false, mayorPresent: false, presidedById: 'p8', presidedByName: 'Άλλος', actingSecretaryId: null, hasExtraction: true, statesBodyDecision: false },
     ],
     conventions: { version: 1, rollCallLayout: 'present_and_absent', presentListMeaning: 'opening', attendanceChangeAnchors: ['agenda_item'], statesPerDecisionAttendance: false,
         statesPerVoteAbsence: false, usesSubstitutes: false, namedVoters: 'dissenters_only', mayorStatedSeparately: true, provenance: { source: 'profile' } },
@@ -133,6 +133,21 @@ describe('deriveMeetingFacts', () => {
         ]);
         expect(out.votes).toContainEqual({ subjectId: 's2', personId: 'p2', voteType: 'AGAINST', origin: 'stated' });
         expect(deriveMeetingFacts(base).issues.filter(i => i.code === 'VOTE_BY_ABSENT_MEMBER')).toEqual([]);
+    });
+
+    it('reports a page that says ΑΠΟΦΑΣΙΖΕΙ and holds no vote result', () => {
+        // sparta Ψ2Φ7Ω1Ν-Ι00: the read reached ΑΠΟΦΑΣΙΖΕΙ and lost the vote after it.
+        const lost = { ...base.documents[0], statesBodyDecision: true, voteResultPhrase: null, tally: { FOR: null, AGAINST: null } };
+        const noVote = (doc: DerivationInput['documents'][number]) =>
+            deriveMeetingFacts({ ...base, documents: [doc] }).issues.filter(i => i.code === 'NO_VOTE_RESULT');
+        expect(noVote(lost)).toEqual([{ code: 'NO_VOTE_RESULT', subjectId: 's1', decisionId: 'd1', source: 'decision', params: {} }]);
+        expect(noVote({ ...lost, voteResultPhrase: '  ' })).toHaveLength(1);
+        // Any trace of the vote, a page that does not decide, or a read already reported incomplete raises nothing.
+        expect(noVote({ ...lost, voteResultPhrase: 'Ομόφωνα' })).toEqual([]);
+        expect(noVote({ ...lost, namedVotes: [{ personId: 'p2', vote: 'AGAINST' }] })).toEqual([]);
+        expect(noVote({ ...lost, tally: { FOR: 12 } })).toEqual([]);
+        expect(noVote({ ...lost, statesBodyDecision: false })).toEqual([]);
+        expect(noVote({ ...lost, incomplete: true })).toEqual([]);
     });
 
     it("does not count the mayor's own FOR as naming voters", () => {

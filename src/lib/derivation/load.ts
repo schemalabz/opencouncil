@@ -7,6 +7,8 @@ import type { VoteType } from '@prisma/client';
 import type { DerivationInput, DocumentFacts, NameMatch, VoteTally } from './types';
 
 const VOTE_TYPES: VoteType[] = ['FOR', 'AGAINST', 'ABSTAIN', 'PRESENT', 'DID_NOT_VOTE'];
+/** «ΑΠΟΦΑΣΙΖΕΙ»: a body deciding, also printed with spaced letters («Α π ο φ α σ ί ζ ε ι»). A mayor's own decision says «ΑΠΟΦΑΣΙΖΟΥΜΕ», which does not match. */
+const BODY_DECIDES = /α\s*π\s*ο\s*φ\s*α\s*σ\s*[ιί]\s*ζ\s*ε\s*ι/iu;
 
 /**
  * The layout the stored extraction says this page printed, against the same value
@@ -128,6 +130,7 @@ export function documentFactsFromDecision(d: {
         presidedByName: typeof storedPresidedBy?.name === 'string' ? storedPresidedBy.name : null,
         actingSecretaryId: typeof storedActingSecretary?.personId === 'string' && inRoster(storedActingSecretary.personId) ? storedActingSecretary.personId : null,
         hasExtraction: statesFacts,
+        statesBodyDecision: typeof raw.excerpt === 'string' && BODY_DECIDES.test(raw.excerpt),
     };
 }
 

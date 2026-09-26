@@ -92,6 +92,8 @@ export interface DocumentFacts {
     actingSecretaryId: string | null;
     /** The page's reading states facts: `readingStatesFacts` accepts its version (v4 or later). */
     hasExtraction: boolean;
+    /** The page's decision text says ΑΠΟΦΑΣΙΖΕΙ: the body decided by a vote. A mayor's decision says ΑΠΟΦΑΣΙΖΟΥΜΕ. */
+    statesBodyDecision: boolean;
 }
 
 export interface DerivationInput {
@@ -130,7 +132,7 @@ export const ISSUE_CODES = [
     'LAYOUT_DISAGREES', 'ITEM_NUMBER_DISAGREES', 'UNREAD_DOCUMENT', 'LIST_DROPS_PRESENT', 'LIST_ADDS_ABSENT',
     'PERSON_IN_BOTH_LISTS', 'CHANGE_NOT_CORROBORATED', 'LATE_ARRIVAL_IN_OPENING_LIST', 'NAMED_VOTERS_UNEXPECTED',
     'NAMES_SHARE_ID', 'NAME_MATCHED_TWICE', 'OUT_OF_AGENDA_PLACED_FIRST',
-    'VOTE_BY_ABSENT_MEMBER',
+    'VOTE_BY_ABSENT_MEMBER', 'NO_VOTE_RESULT',
 ] as const;
 export type IssueCode = typeof ISSUE_CODES[number];
 
@@ -193,6 +195,8 @@ export interface IssueParams {
     OUT_OF_AGENDA_PLACED_FIRST: { kind: AttendanceEventKind };
     /** A page names a vote for a member the derivation has absent on that subject (`personId` names them). */
     VOTE_BY_ABSENT_MEMBER: { vote: VoteType };
+    /** A page that states ΑΠΟΦΑΣΙΖΕΙ, read whole, with no vote phrase, no named voter and no count. */
+    NO_VOTE_RESULT: Record<string, never>;
 }
 
 interface IssueFields {

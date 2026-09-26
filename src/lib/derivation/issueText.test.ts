@@ -38,6 +38,7 @@ const CASES: { [C in IssueCode]: { params: IssueParams[C]; contains?: string[] }
     NAME_MATCHED_TWICE: { params: { name: 'Κων/νος Αναγνωστόπουλος' }, contains: ['Κων/νος Αναγνωστόπουλος'] },
     OUT_OF_AGENDA_PLACED_FIRST: { params: { kind: 'ARRIVAL' } },
     VOTE_BY_ABSENT_MEMBER: { params: { vote: 'DID_NOT_VOTE' }, contains: ['DID NOT VOTE'] },
+    NO_VOTE_RESULT: { params: {} },
 };
 
 describe('issueMessageEn', () => {

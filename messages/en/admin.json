@@ -516,7 +516,8 @@
         "NAMES_SHARE_ID": "Two names, one person",
         "NAME_MATCHED_TWICE": "One name, two people",
         "OUT_OF_AGENDA_PLACED_FIRST": "Out-of-agenda change placed first",
-        "VOTE_BY_ABSENT_MEMBER": "Vote by an absent member"
+        "VOTE_BY_ABSENT_MEMBER": "Vote by an absent member",
+        "NO_VOTE_RESULT": "No vote result"
       },
       "messages": {
         "NO_ROLL_CALL": "{reason, select, noMajority {The pages print different roll calls and no one of them is on more than half of the pages, so presence cannot be replayed. The stored rows were left as they are.} other {No document yielded a roll call, so presence cannot be replayed. The stored rows were left as they are.}}",
@@ -542,7 +543,8 @@
         "NAMES_SHARE_ID": "Two entries of one list on this page were matched to the same person: {names}. A list names each member once, so one match is wrong. Check the page and the roster.",
         "NAME_MATCHED_TWICE": "«{name}» was matched to different people on different pages of this meeting. Check which one it is and correct the roster.",
         "OUT_OF_AGENDA_PLACED_FIRST": "{kind, select, ARRIVAL {The arrival} other {The departure}} is stated during the out-of-agenda items, but this meeting has no out-of-agenda subject. The out-of-agenda items come before the agenda, so the change takes effect before the first subject. Check the page if the member's first items look wrong.",
-        "VOTE_BY_ABSENT_MEMBER": "The page names this member's vote ({vote, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{vote}}}), but the member counts as absent on this subject. The vote row stays. Either the vote or the absence is wrong: check the page and the stated arrivals and departures."
+        "VOTE_BY_ABSENT_MEMBER": "The page names this member's vote ({vote, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{vote}}}), but the member counts as absent on this subject. The vote row stays. Either the vote or the absence is wrong: check the page and the stated arrivals and departures.",
+        "NO_VOTE_RESULT": "The page states ΑΠΟΦΑΣΙΖΕΙ, but the read holds no vote result: no phrase, no named voter and no count. The subject has no votes. Check the page against its PDF."
       },
       "tallyDiff": "{type, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{type}}}: printed {printed}, derived {derived}",
       "title": "Issues",
@@ -648,7 +650,8 @@
           "UNMATCHED_NAME": "A name that was not tied to a person; it counts in neither presences nor votes.",
           "PRESIDING_DISAGREES": "Documents of the same sitting state a different presiding member.",
           "CONVENTIONS_UNCONFIRMED": "The body's rules came out of a sample of documents and no human has confirmed them.",
-          "NAMED_VOTERS_UNEXPECTED": "A page that names voters unlike the rest of its body is either a misread or a sign that the body's rule is wrong."
+          "NAMED_VOTERS_UNEXPECTED": "A page that names voters unlike the rest of its body is either a misread or a sign that the body's rule is wrong.",
+          "NO_VOTE_RESULT": "A page that states ΑΠΟΦΑΣΙΖΕΙ records a vote. A read with no vote result lost it, so the subject has no votes."
         },
         "resolve": {
           "PERSON_IN_BOTH_LISTS": "A page contradicts itself about one member. Where its roll call sets presence, the member counts as absent.",

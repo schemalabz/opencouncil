@@ -16,7 +16,7 @@ const page = (present: string[], absent: string[] = [], o: Partial<DocumentFacts
         rollCallPresentIds: present.length + absent.length ? present : null, rollCallAbsentIds: present.length + absent.length ? absent : null,
         lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], perVoteAbsences: [], nameMatches: null,
         unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null,
-        mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, ...o,
+        mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, statesBodyDecision: false, ...o,
     };
 };
 const departure = (personId: string, item: number, timing: StatedChange['timing'] = 'AFTER'): StatedChange => ({

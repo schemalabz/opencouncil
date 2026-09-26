@@ -14,7 +14,7 @@ const doc = (subjectId: string, decisionId: string, o: Partial<DocumentFacts> = 
     rollCallPresentIds: null, rollCallAbsentIds: null,
     lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], perVoteAbsences: [], nameMatches: null,
     unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null,
-    mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, ...o,
+    mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, statesBodyDecision: false, ...o,
 });
 
 const departure = (personId: string, item: number): StatedChange => ({

@@ -49,6 +49,7 @@ export const ISSUE_SEVERITY: Record<IssueCode, IssueSeverity> = {
     NAME_MATCHED_TWICE: 'warning',
     OUT_OF_AGENDA_PLACED_FIRST: 'info',
     VOTE_BY_ABSENT_MEMBER: 'warning',
+    NO_VOTE_RESULT: 'error',
 };
 
 /** Worse first. Private: what callers need is "which of these is worse", below. */
@@ -83,6 +84,7 @@ export function worstIssue(issues: readonly Issue[]): Issue | undefined {
 export const ISSUE_STAGES: Record<IssueCode, readonly DerivationStage[]> = {
     CONVENTIONS_UNCONFIRMED: ['read'],
     INCOMPLETE_READ: ['read'],
+    NO_VOTE_RESULT: ['read'],
     ITEM_NUMBER_DISAGREES: ['read'],
     LAYOUT_DISAGREES: ['read'],
     PRESIDING_DISAGREES: ['read'],

@@ -100,6 +100,13 @@ export function deriveMeetingFacts(input: DerivationInput): DerivationOutput {
             source: 'decision', rawText: name, params: { name } });
         if (doc.incomplete) issues.push({ code: 'INCOMPLETE_READ', subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision',
             params: {} });
+        // A read that reached ΑΠΟΦΑΣΙΖΕΙ and lost the vote after it (sparta Ψ2Φ7Ω1Ν-Ι00). A page
+        // that does not say ΑΠΟΦΑΣΙΖΕΙ may have no vote at all: a mayor's decision linked to
+        // the subject, an announcement. On c1sample the condition finds 3 of 592 pages, all misreads.
+        else if (doc.statesBodyDecision && !doc.voteResultPhrase?.trim() && doc.namedVotes.length === 0
+            && !Object.values(doc.tally ?? {}).some(n => n != null)) {
+            issues.push({ code: 'NO_VOTE_RESULT', subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision', params: {} });
+        }
         if (doc.presidedById || doc.presidedByName) presiding.set(doc.decisionId, doc.presidedById ?? doc.presidedByName);
     }
     const presidingValues = new Set(presiding.values());

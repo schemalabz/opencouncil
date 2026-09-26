@@ -29,6 +29,20 @@ describe('documentFactsFromDecision', () => {
         expect(facts.hasExtraction).toBe(true);
     });
 
+    it('reads whether the page says ΑΠΟΦΑΣΙΖΕΙ, which a body writes and a mayor does not', () => {
+        const says = (excerpt: unknown, version = '4') => documentFactsFromDecision(decision({ excerpt }, version), roster).statesBodyDecision;
+        expect(says('**ΟΜΟΦΩΝΑ ΑΠΟΦΑΣΙΖΕΙ** Την έγκριση')).toBe(true);
+        expect(says('Το Συμβούλιο αποφασίζει ομόφωνα')).toBe(true);
+        // Printed with spaced letters (26 pages of Sparta on c1sample).
+        expect(says('Το Συμβούλιο **Α π ο φ α σ ί ζ ε ι** ομόφωνα')).toBe(true);
+        expect(says('Α Π Ο Φ Α Σ Ι Ζ Ε Ι')).toBe(true);
+        // A mayor's own decision (argithea 68ΛΠΩΨ3-Γ1Ρ).
+        expect(says('**ΑΠΟΦΑΣΙΖΟΥΜΕ** Εγκρίνουμε τη δέσμευση πίστωσης')).toBe(false);
+        expect(says('Α π ο φ α σ ί ζ ο υ μ ε')).toBe(false);
+        expect(says(undefined)).toBe(false);
+        expect(says('ΑΠΟΦΑΣΙΖΕΙ', '3')).toBe(false);
+    });
+
     it('does not believe the list for someone the same page says was out for the vote', () => {
         // Argos 6Ι9ΑΩΨΔ-0Υ8: the reader returned the ΑΠΟΧΩΡΗΣΑΝΤΕΣ column as the members list — one name, the departed one.
         const facts = documentFactsFromDecision(decision({
