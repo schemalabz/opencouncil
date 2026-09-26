@@ -51,9 +51,14 @@ function documentDisagreements(
     const namesEveryonePresent = present !== null && [...present].every(personId => personId === cityMayorPersonId || namedIds.has(personId));
     const unanimousOneVote = named.length > 0 && namesEveryonePresent && phraseOutcome(doc.voteResultPhrase) === 'unanimous'
         && new Set(named.map(v => v.vote)).size === 1;
+    const namesNobodyFor = !namesFor && phrasePermitsInference(doc.voteResultPhrase) && !unanimousOneVote;
+    // A body that names voters only on a split vote names nobody under «Ομόφωνα»,
+    // and everyone under «κατά πλειοψηφία». A phrase that names neither outcome
+    // does not say which of the two the page should have done.
     const unlikeBody = expectedVoters === 'dissenters_only' ? namesFor
         : expectedVoters === 'none' ? named.length > 0
-        : expectedVoters === 'all' ? !namesFor && phrasePermitsInference(doc.voteResultPhrase) && !unanimousOneVote
+        : expectedVoters === 'all' ? namesNobodyFor
+        : expectedVoters === 'all_when_split' ? (named.length === 0 ? phraseOutcome(doc.voteResultPhrase) === 'majority' : namesNobodyFor)
         : false;
     if (expectedVoters && unlikeBody) issues.push({ code: 'NAMED_VOTERS_UNEXPECTED', ...where, params: { expected: expectedVoters } });
     return issues;

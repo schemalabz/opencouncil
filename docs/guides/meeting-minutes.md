@@ -152,7 +152,7 @@ Two questions about a body's documents, each answered by its own field of `Decis
 Four page checks catch what these rules cannot settle from one page alone:
 
 - `LATE_ARRIVAL_IN_OPENING_LIST` — an `opening` body's page lists a member under ΠΑΡΟΝΤΕΣ that the same page also says arrived later.
-- `NAMED_VOTERS_UNEXPECTED` — a page names voters unlike its body's convention: FOR on a body that names only dissenters, anyone on a body that names nobody, or nobody FOR on a body that names everyone under a phrase that carried. A unanimous page whose named voters all cast one vote is a unanimous rejection and raises nothing.
+- `NAMED_VOTERS_UNEXPECTED` — a page names voters unlike its body's convention: FOR on a body that names only dissenters, anyone on a body that names nobody, or nobody FOR on a body that names everyone under a phrase that carried. A body that names everyone only on a split vote (`all_when_split`) also expects nobody under «Ομόφωνα» and everyone under «κατά πλειοψηφία». A unanimous page whose named voters all cast one vote is a unanimous rejection and raises nothing.
 - `NAMES_SHARE_ID` — two entries of one list on one page matched to the same person; one match is wrong.
 - `NAME_MATCHED_TWICE` — one printed name matched to two different people on two pages of the same meeting.
 

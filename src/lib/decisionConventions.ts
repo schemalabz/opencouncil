@@ -9,7 +9,12 @@ import { z } from 'zod';
 export type RollCallLayout = 'composition_and_absent' | 'present_and_absent' | 'present_only' | 'mixed';
 export type PresentListMeaning = 'opening' | 'cumulative' | 'per_decision' | 'unknown';
 export type AttendanceChangeAnchor = 'agenda_item' | 'decision_number' | 'phase' | 'subject';
-export type NamedVoters = 'none' | 'dissenters_only' | 'all';
+/**
+ * Whom a page names with their vote. `all_when_split` names every voter, those
+ * in favour included, on a split vote only, and nobody under «Ομόφωνα» (Athens
+ * 2η and 7η, Vrilissia ΔΣ, Xylokastro).
+ */
+export type NamedVoters = 'none' | 'dissenters_only' | 'all' | 'all_when_split';
 
 export interface DecisionConventions {
     version: 1;
@@ -65,7 +70,7 @@ export const CONVENTION_FIELDS = {
     rollCallLayout: ['composition_and_absent', 'present_and_absent', 'present_only', 'mixed'],
     presentListMeaning: ['opening', 'cumulative', 'per_decision', 'unknown'],
     attendanceChangeAnchors: ['agenda_item', 'decision_number', 'phase', 'subject'],
-    namedVoters: ['none', 'dissenters_only', 'all'],
+    namedVoters: ['none', 'dissenters_only', 'all', 'all_when_split'],
 } as const;
 export const CONVENTION_FLAGS = ['statesPerDecisionAttendance', 'statesPerVoteAbsence', 'usesSubstitutes', 'mayorStatedSeparately', 'listOmitsSecretary'] as const;
 

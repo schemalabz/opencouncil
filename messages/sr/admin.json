@@ -555,7 +555,7 @@
                 "PERSON_IN_BOTH_LISTS": "This page lists the member both under ΠΑΡΟΝΤΕΣ and under ΑΠΟΝΤΕΣ. Where this page's roll call sets presence (as the meeting's roll call, or for its own item in a body that prints a roll call per decision), the member counts as absent.",
                 "CHANGE_NOT_CORROBORATED": "Only {stated} of the meeting's {total} pages state this change, and this body's pages repeat the session. It is not applied; check the page.",
                 "LATE_ARRIVAL_IN_OPENING_LIST": "The page says this member arrived later, yet lists them under ΠΑΡΟΝΤΕΣ, and this body's present list is the opening roll call. The reader probably moved the arrival into the list; the roll call most pages print decides.",
-                "NAMED_VOTERS_UNEXPECTED": "{expected, select, dissenters_only {This body names only those against, blank or declaring, but this page names members in favour.} none {This body names no voters, but this page names some.} other {This body names every voter, but this page names nobody in favour under a phrase that carried.}} Check whether the page was read correctly; the vote rows are unchanged.",
+                "NAMED_VOTERS_UNEXPECTED": "{expected, select, dissenters_only {This body names only those against, blank or declaring, but this page names members in favour.} none {This body names no voters, but this page names some.} all_when_split {This body names every voter, including those in favour, when a vote is split, but this page names nobody in favour under a phrase that carried.} other {This body names every voter, but this page names nobody in favour under a phrase that carried.}} Check whether the page was read correctly; the vote rows are unchanged.",
                 "NAMES_SHARE_ID": "Two entries of one list on this page were matched to the same person: {names}. A list names each member once, so one match is wrong. Check the page and the roster.",
                 "NAME_MATCHED_TWICE": "«{name}» was matched to different people on different pages of this meeting. Check which one it is and correct the roster."
             },
@@ -888,6 +888,11 @@
                 "label": "Every voter",
                 "description": "Every voter is named, including those in favour.",
                 "hint": "They name every voter, including those in favour."
+            },
+            "all_when_split": {
+                "label": "Every voter on a split vote",
+                "description": "On a split vote every voter is named, including those in favour; on a unanimous vote nobody is.",
+                "hint": "On a split vote they name every voter, including those in favour; on a unanimous vote («Ομόφωνα») they name nobody."
             },
             "fieldLabel": "Named voters"
         },

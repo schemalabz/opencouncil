@@ -182,7 +182,7 @@ export interface IssueParams {
     CHANGE_NOT_CORROBORATED: { stated: number; total: number };
     /** A page of an `opening` body lists under ΠΑΡΟΝΤΕΣ a member it says arrived later (Athens 7η jan22_2026). */
     LATE_ARRIVAL_IN_OPENING_LIST: Record<string, never>;
-    /** A page names voters unlike its body: FOR where only dissenters are named, anyone where nobody is, nobody FOR where everyone is. */
+    /** A page names voters unlike its body: FOR where only dissenters are named, anyone where nobody is, nobody FOR where everyone is, nobody at all on a split vote where everyone is on a split vote. */
     NAMED_VOTERS_UNEXPECTED: { expected: NamedVoters };
     /** Two entries of one list on this page matched to the same person; one match is wrong. */
     NAMES_SHARE_ID: { names: string };

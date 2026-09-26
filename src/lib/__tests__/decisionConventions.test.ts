@@ -29,6 +29,10 @@ describe('decisionConventionsSchema', () => {
         expect(isDecisionConventions(VALID)).toBe(true);
     });
 
+    it('accepts a body that names every voter only on a split vote', () => {
+        expect(isDecisionConventions({ ...VALID, namedVoters: 'all_when_split' })).toBe(true);
+    });
+
     it('refuses a value outside an enum', () => {
         const parsed = decisionConventionsSchema.safeParse({ ...VALID, namedVoters: 'everyone' });
         expect(parsed.success).toBe(false);

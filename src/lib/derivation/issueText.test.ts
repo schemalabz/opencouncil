@@ -1,3 +1,4 @@
+import { CONVENTION_FIELDS } from '@/lib/decisionConventions';
 import elAdmin from '../../../messages/el/admin.json';
 import enAdmin from '../../../messages/en/admin.json';
 import { catalogText } from '@/i18n/catalogText';
@@ -46,6 +47,13 @@ describe('issueMessageEn', () => {
         // matched nothing, leaves the syntax in the sentence.
         expect(text).not.toMatch(/[{}]/);
         for (const value of contains) expect(text).toContain(value);
+    });
+
+    it('gives every value of namedVoters its own NAMED_VOTERS_UNEXPECTED sentence', () => {
+        // The message selects on `expected` and ends in a catch-all, so a value
+        // with no branch of its own renders the sentence of another value.
+        const sentences = new Set(CONVENTION_FIELDS.namedVoters.map(expected => issueMessageEn({ code: 'NAMED_VOTERS_UNEXPECTED', source: null, params: { expected } })));
+        expect(sentences.size).toBe(CONVENTION_FIELDS.namedVoters.length);
     });
 
     it('gives every situation one code reports its own sentence', () => {

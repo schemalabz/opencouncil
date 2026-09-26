@@ -104,6 +104,25 @@ describe('deriveMeetingFacts', () => {
         expect(noPresence.issues.filter(i => i.code === 'NAMED_VOTERS_UNEXPECTED').map(i => i.subjectId)).toEqual(['s1']);
     });
 
+    it('expects every voter named on a split vote and nobody on a unanimous one, for an all_when_split body', () => {
+        const conventions = { ...base.conventions!, namedVoters: 'all_when_split' as const };
+        const page = (voteResultPhrase: string, namedVotes: DerivationInput['documents'][number]['namedVotes']) =>
+            ({ ...base.documents[0], voteResultPhrase, namedVotes });
+        const unexpected = (doc: DerivationInput['documents'][number]) =>
+            deriveMeetingFacts({ ...base, conventions, documents: [doc] }).issues.filter(i => i.code === 'NAMED_VOTERS_UNEXPECTED').map(i => i.params);
+        // As the body writes it: nobody under «Ομόφωνα», everyone under «κατά πλειοψηφία».
+        expect(unexpected(page('Ομόφωνα', []))).toEqual([]);
+        expect(unexpected(page('Κατά πλειοψηφία', [{ personId: 'p1', vote: 'FOR' }, { personId: 'p2', vote: 'AGAINST' }]))).toEqual([]);
+        // A unanimous rejection names every voter with one vote.
+        expect(unexpected(page('ΑΠΟΦΑΣΙΖΕΙ ΟΜΟΦΩΝΑ', [{ personId: 'p1', vote: 'AGAINST' }, { personId: 'p2', vote: 'AGAINST' }]))).toEqual([]);
+        expect(unexpected(page('ΑΠΟΦΑΣΙΖΕΙ ΟΜΟΦΩΝΑ', [{ personId: 'p2', vote: 'AGAINST' }]))).toEqual([{ expected: 'all_when_split' }]);
+        // A split vote that names nobody, or only the dissenters, is unlike the body.
+        expect(unexpected(page('Κατά πλειοψηφία', []))).toEqual([{ expected: 'all_when_split' }]);
+        expect(unexpected(page('Κατά πλειοψηφία', [{ personId: 'p2', vote: 'AGAINST' }]))).toEqual([{ expected: 'all_when_split' }]);
+        // A counted phrase that names no outcome does not say whether the vote was split.
+        expect(unexpected(page('Με πέντε (5) θετικές ψήφους', []))).toEqual([]);
+    });
+
     it("does not count the mayor's own FOR as naming voters", () => {
         const mayorFor = { ...base.documents[0], namedVotes: [{ personId: 'mayor', vote: 'FOR' as const }] };
         // cityMayorPersonId, not mayorPersonId: a mayor written apart from the
