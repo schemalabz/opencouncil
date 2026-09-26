@@ -155,7 +155,8 @@ export interface IssueParams {
     UNMATCHED_NAME: { name: string };
     UNPLACEABLE_ANCHOR: {
         kind: AttendanceEventKind;
-        reason: 'noAgendaItem' | 'noSuchAgendaItem' | 'noSuchSubject' | 'decisionNumberNoDigits' | 'noDecisionNumbers' | 'decisionNumberBeyond' | 'noOutOfAgenda';
+        reason: 'noAgendaItem' | 'noSuchAgendaItem' | 'noSuchSubject' | 'decisionNumberNoDigits' | 'noDecisionNumbers' | 'decisionNumberBeyond'
+            | 'rangeNotInMeeting' | 'rangeNoDecisionNumbers' | 'rangeNumberNoDigits' | 'noOutOfAgenda';
         /** The anchor the reason names — «#3», «OA1», a subject id, a decision number — empty when it names none. */
         detail: string;
     };

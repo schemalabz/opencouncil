@@ -206,9 +206,31 @@ describe('resolveEvents: per-vote absences (C5)', () => {
         expect(shape(resolve(pages({ 5: [absence()], 6: [absence()] })))).toEqual([['x', 'DEPARTURE', 'SUBJECT', 'item5', 'BEFORE', 2]]);
     });
 
-    it('breaks a run at a subject with no page, which states nothing', () => {
-        const documents = pages({ 2: [absence()], 4: [absence()] }).filter(d => d.subjectId !== 'item3');
-        expect(shape(resolve(documents)).map(e => [e[1], e[3]])).toEqual([['DEPARTURE', 'item2'], ['ARRIVAL', 'item3'], ['DEPARTURE', 'item4'], ['ARRIVAL', 'item5']]);
+    it('keeps a run across a subject with no page or no usable reading, which states nothing', () => {
+        const noPage = pages({ 2: [absence()], 4: [absence()] }).filter(d => d.subjectId !== 'item3');
+        expect(shape(resolve(noPage))).toEqual([['x', 'DEPARTURE', 'SUBJECT', 'item2', 'BEFORE', 2], ['x', 'ARRIVAL', 'SUBJECT', 'item5', 'BEFORE', 2]]);
+        // A v3 or unread page: its reading states nothing either.
+        const unread = pages({ 2: [absence()], 4: [absence()] }).map(d => (d.subjectId === 'item3' ? { ...d, hasExtraction: false } : d));
+        expect(resolve(unread)).toEqual(resolve(noPage));
+    });
+
+    it('ends a run only at a later subject whose usable page leaves the absence out', () => {
+        // Item 4 has no page: the return is before item 5, the next page that does not state the absence.
+        const documents = pages({ 2: [absence()], 3: [absence()] }).filter(d => d.subjectId !== 'item4');
+        expect(shape(resolve(documents)).map(e => [e[1], e[3]])).toEqual([['DEPARTURE', 'item2'], ['ARRIVAL', 'item5']]);
+        // No page after the run: nothing states a return.
+        const toTheEnd = pages({ 4: [absence()] }).filter(d => d.subjectId !== 'item5' && d.subjectId !== 'item6');
+        expect(shape(resolve(toTheEnd)).map(e => [e[1], e[3]])).toEqual([['DEPARTURE', 'item4']]);
+    });
+
+    it('ends a run at the end of a range even when the next subject has no page', () => {
+        // Items 2–3 are decisions 31–32. Item 4 has no page; item 5 states the absence as its own decision.
+        const range = absence({ decisionNumberFrom: '31', decisionNumberTo: '32' });
+        const documents = pages({ 2: [range], 5: [absence()] }).filter(d => d.subjectId !== 'item4');
+        expect(shape(resolve(documents)).map(e => [e[1], e[2], e[3]])).toEqual([
+            ['DEPARTURE', 'DECISION_NUMBER', '31'], ['ARRIVAL', 'DECISION_NUMBER', '32'],
+            ['DEPARTURE', 'SUBJECT', 'item5'], ['ARRIVAL', 'SUBJECT', 'item6'],
+        ]);
     });
 
     it('makes a range stated on several pages one departure before its first decision and one arrival after its last', () => {
@@ -249,13 +271,103 @@ describe('resolveEvents: per-vote absences (C5)', () => {
         expect(shape(r)).toEqual([['x', 'DEPARTURE', 'DECISION_NUMBER', '31', 'BEFORE', 1], ['x', 'ARRIVAL', 'SUBJECT', 'item4', 'BEFORE', 1]]);
     });
 
-    it('keeps one departure and one arrival for an absence that no subject holds, so the replay can report the anchor', () => {
+    it('keeps one departure and one arrival for an own-page absence off the order, so the replay can report the anchor', () => {
+        const r = resolve([...pages({}), page(['a'], [], { subjectId: 'off-order', perVoteAbsences: [absence()] })]);
+        expect(shape(r)).toEqual([['x', 'DEPARTURE', 'SUBJECT', 'off-order', 'BEFORE', 1], ['x', 'ARRIVAL', 'SUBJECT', 'off-order', 'AFTER', 1]]);
+    });
+
+    /** The one UNPLACEABLE_ANCHOR a range that covers no numbered subject raises, and its page. */
+    const rangeNotPlaced = (detail: string, decisionId: string) => ({
+        code: 'UNPLACEABLE_ANCHOR', personId: 'x', decisionId, source: 'decision',
+        params: { kind: 'DEPARTURE', reason: 'rangeNotInMeeting', detail },
+    });
+
+    it('places no event for a range above every decision of the meeting, and reports the range once', () => {
         const beyond = absence({ decisionNumberFrom: '90', decisionNumberTo: '95' });
-        const r = resolve([...pages({ 1: [beyond], 2: [beyond] }), page(['a'], [], { subjectId: 'off-order', perVoteAbsences: [absence()] })]);
-        expect(shape(r)).toEqual([
-            ['x', 'DEPARTURE', 'DECISION_NUMBER', '90', 'BEFORE', 2], ['x', 'ARRIVAL', 'DECISION_NUMBER', '95', 'AFTER', 2],
-            ['x', 'DEPARTURE', 'SUBJECT', 'off-order', 'BEFORE', 1], ['x', 'ARRIVAL', 'SUBJECT', 'off-order', 'AFTER', 1],
-        ]);
+        const documents = pages({ 1: [beyond], 2: [beyond] });
+        const r = resolve(documents);
+        expect(r.events).toEqual([]);
+        expect(r.issues).toEqual([expect.objectContaining(rangeNotPlaced('90–95', documents[0].decisionId))]);
+    });
+
+    /** Subjects with these decision numbers in this order; null is a subject whose decision is not linked yet. */
+    const numberedSubjects = (numbers: Array<string | null>): OrderedSubject[] => numbers.map((decisionNumber, i) => ({
+        id: `n${i}`, name: `n${i}`, agendaItemIndex: i + 1, nonAgendaReason: null, decisionNumber,
+    }));
+    /** One usable page per numbered subject, with the absences given by decision number. */
+    const pagesOf = (order: OrderedSubject[], absent: Record<string, PerVoteAbsence[]>) => order.filter(s => s.decisionNumber !== null)
+        .map(s => page(['a', 'x'], [], { subjectId: s.id, perVoteAbsences: absent[s.decisionNumber!] ?? [] }));
+
+    it('places no event for a range whose decisions are not linked yet, and reports it (partial poll)', () => {
+        // Athens jan14 pattern: pages 5 and 6 state «Εκτός αιθούσης στις με αρ. 31 – 40». Decisions
+        // 31–40 are not linked yet, so their subjects carry no number; decision 41 is linked.
+        const order = numberedSubjects(['5', '6', ...Array<null>(10).fill(null), '41']);
+        const range = absence({ decisionNumberFrom: '31', decisionNumberTo: '40' });
+        const documents = pagesOf(order, { 5: [range], 6: [range] });
+        const r = resolveEvents({ cityId: 'c', meetingId: 'm', conventions: conv(), subjects: order, documents });
+        expect(r.events).toEqual([]);
+        expect(r.issues).toEqual([expect.objectContaining(rangeNotPlaced('31–40', documents[0].decisionId))]);
+    });
+
+    it('places no event for a range below every decision of the meeting, and reports it', () => {
+        // Agenda item numbers read as decision numbers, in a meeting numbered from 286.
+        const order = numberedSubjects(['286', '287', '288']);
+        const documents = pagesOf(order, { 287: [absence({ decisionNumberFrom: '3', decisionNumberTo: '5' })] });
+        const r = resolveEvents({ cityId: 'c', meetingId: 'm', conventions: conv(), subjects: order, documents });
+        expect(r.events).toEqual([]);
+        expect(r.issues).toEqual([expect.objectContaining(rangeNotPlaced('3–5', documents[1].decisionId))]);
+    });
+
+    it('reports a range as a whole when no subject of the meeting carries a decision number', () => {
+        const order = numberedSubjects([null, null, null]);
+        const range = absence({ decisionNumberFrom: '31', decisionNumberTo: '40' });
+        const documents = [page(['a', 'x'], [], { subjectId: 'n1', perVoteAbsences: [range] })];
+        const r = resolveEvents({ cityId: 'c', meetingId: 'm', conventions: conv(), subjects: order, documents });
+        expect(r.events).toEqual([]);
+        expect(r.issues).toEqual([expect.objectContaining({ ...rangeNotPlaced('31–40', documents[0].decisionId), params: { kind: 'DEPARTURE', reason: 'rangeNoDecisionNumbers', detail: '31–40' } })]);
+    });
+
+    it('reports a range as a whole when one of its decision numbers has no digits', () => {
+        const order = numberedSubjects(['30', '31']);
+        const documents = pagesOf(order, { 30: [absence({ decisionNumberFrom: '31', decisionNumberTo: 'σαράντα' })] });
+        const r = resolveEvents({ cityId: 'c', meetingId: 'm', conventions: conv(), subjects: order, documents });
+        expect(r.events).toEqual([]);
+        expect(r.issues).toEqual([expect.objectContaining({ ...rangeNotPlaced('31–σαράντα', documents[0].decisionId), params: { kind: 'DEPARTURE', reason: 'rangeNumberNoDigits', detail: '31–σαράντα' } })]);
+    });
+
+    it('continues a partly linked range across the subjects not linked yet, to the next subject outside it', () => {
+        // Decisions 31–35 are linked, 36–40 are not, 41 is. The range 31–40 covers the five subjects with no
+        // number after 35, so the member returns before decision 41, not before the first unlinked subject.
+        const order = numberedSubjects(['30', '31', '32', '33', '34', '35', null, null, null, null, null, '41']);
+        const range = absence({ decisionNumberFrom: '31', decisionNumberTo: '40' });
+        const r = resolveEvents({ cityId: 'c', meetingId: 'm', conventions: conv(), subjects: order, documents: pagesOf(order, { 31: [range] }) });
+        expect(shape(r)).toEqual([['x', 'DEPARTURE', 'DECISION_NUMBER', '31', 'BEFORE', 1], ['x', 'ARRIVAL', 'SUBJECT', 'n11', 'BEFORE', 1]]);
+        expect(r.issues).toEqual([]);
+    });
+
+    it('starts a range whose first decisions are not linked yet after the last subject numbered below it', () => {
+        // Decisions 31–33 are not linked, 34–40 are. The subjects with no number after decision 30 can hold
+        // 31–33, so the member leaves before the first of them, not before decision 34.
+        const order = numberedSubjects(['30', null, null, null, '34', '35', '36', '37', '38', '39', '40', '41']);
+        const range = absence({ decisionNumberFrom: '31', decisionNumberTo: '40' });
+        const r = resolveEvents({ cityId: 'c', meetingId: 'm', conventions: conv(), subjects: order, documents: pagesOf(order, { 34: [range] }) });
+        expect(shape(r)).toEqual([['x', 'DEPARTURE', 'SUBJECT', 'n1', 'BEFORE', 1], ['x', 'ARRIVAL', 'DECISION_NUMBER', '40', 'AFTER', 1]]);
+        expect(r.issues).toEqual([]);
+        // With no numbered subject before the range, the run starts at the first subject.
+        const fromTheStart = numberedSubjects([null, null, '33', '34', '35']);
+        const early = resolveEvents({ cityId: 'c', meetingId: 'm', conventions: conv(), subjects: fromTheStart,
+            documents: pagesOf(fromTheStart, { 33: [absence({ decisionNumberFrom: '31', decisionNumberTo: '34' })] }) });
+        expect(shape(early)).toEqual([['x', 'DEPARTURE', 'SUBJECT', 'n0', 'BEFORE', 1], ['x', 'ARRIVAL', 'DECISION_NUMBER', '34', 'AFTER', 1]]);
+    });
+
+    it('continues a range linked only in the middle across the subjects not linked yet at both ends', () => {
+        // The range 31–36: decisions 31–32 and 35–36 are not linked, 33–34 are. The run starts after
+        // decision 30 and ends before decision 37.
+        const order = numberedSubjects(['30', null, null, '33', '34', null, null, '37']);
+        const range = absence({ decisionNumberFrom: '31', decisionNumberTo: '36' });
+        const r = resolveEvents({ cityId: 'c', meetingId: 'm', conventions: conv(), subjects: order, documents: pagesOf(order, { 33: [range], 34: [range] }) });
+        expect(shape(r)).toEqual([['x', 'DEPARTURE', 'SUBJECT', 'n1', 'BEFORE', 2], ['x', 'ARRIVAL', 'SUBJECT', 'n7', 'BEFORE', 2]]);
+        expect(r.issues).toEqual([]);
     });
 
     it('gives the same events for the stored pair shape and the new entry', () => {

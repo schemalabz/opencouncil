@@ -92,7 +92,7 @@ export const ISSUE_STAGES: Record<IssueCode, readonly DerivationStage[]> = {
     NAMED_VOTERS_UNEXPECTED: ['read'],
     NAMES_SHARE_ID: ['resolve'],
     NAME_MATCHED_TWICE: ['resolve'],
-    UNPLACEABLE_ANCHOR: ['place'],
+    UNPLACEABLE_ANCHOR: ['resolve', 'place'],
     IMPLIED_CHANGE: ['presence'],
     PRESENCE_UNKNOWN: ['presence'],
     NO_ROLL_CALL: ['presence', 'write'],

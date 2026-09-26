@@ -1,8 +1,8 @@
 import type { AttendanceTiming } from '@prisma/client';
 import type { DecisionConventions } from '@/lib/decisionConventions';
 import { rangeCoversDecision } from './anchors';
-import { placeEvents } from './placeEvents';
-import type { DerivationInput, DocumentFacts, EventRow, Issue, NameMatch, OrderedSubject, PerVoteAbsence, RollCallRow, StatedChange } from './types';
+import { decisionOrdinal, placeEvents } from './placeEvents';
+import type { DerivationInput, DocumentFacts, EventRow, Issue, IssueParams, NameMatch, OrderedSubject, PerVoteAbsence, RollCallRow, StatedChange } from './types';
 
 /**
  * What the pages of one meeting state together (spec §4.1.1). Pure: it reads
@@ -141,12 +141,24 @@ const absenceChange = (
     anchorSubjectId: null, anchorPhase: null, rawText: a.rawText, ...anchor,
 });
 
-/** A per-vote absence as one page's departure before and arrival after the decisions it names: for an absence no subject of the order can hold. */
+/** An absence from a page's own decision, on a page whose subject is off the order: a departure before and an arrival after that subject, which the replay reports it cannot place. */
 function perPageExpansion(a: PerVoteAbsence, subjectId: string): StatedChange[] {
-    const at = (kind: StatedChange['kind'], decisionNumber: string | null, timing: StatedChange['timing']) => absenceChange(a, kind, decisionNumber === null
-        ? { anchorKind: 'SUBJECT', anchorSubjectId: subjectId, timing }
-        : { anchorKind: 'DECISION_NUMBER', anchorDecisionNumber: decisionNumber, timing });
-    return [at('DEPARTURE', a.decisionNumberFrom, 'BEFORE'), at('ARRIVAL', a.decisionNumberTo, 'AFTER')];
+    const at = (kind: StatedChange['kind'], timing: StatedChange['timing']) => absenceChange(a, kind, { anchorKind: 'SUBJECT', anchorSubjectId: subjectId, timing });
+    return [at('DEPARTURE', 'BEFORE'), at('ARRIVAL', 'AFTER')];
+}
+
+/**
+ * Why a range covers no subject of the order. The meeting holds no subject with
+ * a number in the range: the range's decisions are not linked yet (a partial
+ * poll), or the page misread the numbers. A range (it has a last decision) gets
+ * a `range…` reason, whose message names the whole range: neither its departure
+ * nor its arrival is placed.
+ */
+function rangeNotPlacedReason(subjects: OrderedSubject[], a: PerVoteAbsence): IssueParams['UNPLACEABLE_ANCHOR']['reason'] {
+    const isRange = a.decisionNumberTo !== null;
+    if (decisionOrdinal(a.decisionNumberFrom) === null || decisionOrdinal(a.decisionNumberTo) === null) return isRange ? 'rangeNumberNoDigits' : 'decisionNumberNoDigits';
+    if (!subjects.some(s => decisionOrdinal(s.decisionNumber) !== null)) return isRange ? 'rangeNoDecisionNumbers' : 'noDecisionNumbers';
+    return 'rangeNotInMeeting';
 }
 
 /**
@@ -172,39 +184,86 @@ type OwnChange = { seq: number; changes: StatedChange[]; pages: DocumentFacts[] 
  * A member out for consecutive subjects in the derivation's order left once,
  * before the first, and came back once, before the first later subject whose
  * page does not state the absence; a run that reaches the last subject has no
- * return. A range of decisions covers every subject whose decision it includes,
+ * return. A subject with no usable page states nothing, so it does not end a
+ * run: the run ends only at a subject whose usable page leaves the absence out.
+ * A range of decisions covers every subject whose decision it includes,
  * so a range is one departure before its first decision and one arrival after
  * its last, and a page that states the absence of one of those decisions again
- * joins the same run. A subject with no decision number between two decisions
- * of a range is part of the range. Each run counts the pages that state it.
+ * joins the same run. A range states its own end, so a run that reaches the
+ * end of a range ends there. A subject with no decision number between two
+ * decisions of a range is part of the range. Each run counts the pages that state it.
+ *
+ * A range whose last decision is not in the order (its decisions are linked only
+ * in part) does not state where the run ends. The run then continues across the
+ * subjects with no decision number and no usable page after the range's last
+ * numbered subject, and ends at the first subject with a number or a usable page.
+ * A range whose first decision is not in the order does not state where the run
+ * starts, for the same reason. The run then starts after the last subject before
+ * the range's first numbered subject that has a number or a usable page: the
+ * subjects between can hold the range's first decisions.
  *
  * A boundary that a range states is anchored at its decision number, when that
  * number places the event where the run starts or ends. Every other boundary is
- * anchored at the subject. An absence that no subject of the order holds (a
- * range with no decision in the meeting, a page off the order) keeps one
- * departure and one arrival, so the replay reports the anchor it cannot place.
+ * anchored at the subject. A range that covers no numbered subject of the order
+ * gives no event: the subjects its decisions belong to are not known, and a
+ * decision-number anchor would put the absence on the next numbered subject
+ * instead. It raises UNPLACEABLE_ANCHOR once per person and range, and the
+ * derivation after its decisions are linked places it. An absence from a page's
+ * own decision on a page off the order keeps one departure and one arrival at
+ * that subject, so the replay reports the anchor it cannot place.
  */
-function perVoteAbsenceChanges(subjects: OrderedSubject[], statements: AbsenceStatement[]): OwnChange[] {
+function perVoteAbsenceChanges(subjects: OrderedSubject[], statements: AbsenceStatement[], withUsablePage: Set<string>): { own: OwnChange[]; issues: Issue[] } {
     const indexOf = new Map(subjects.map((s, i) => [s.id, i]));
     const covering = new Map<string, Map<number, AbsenceStatement[]>>();
+    /** Per person, the subjects where a stated range ends. */
+    const rangeEnds = new Map<string, Set<number>>();
+    /** Per person, the last numbered subject of a range whose last decision is not in the order. */
+    const openRangeEnds = new Map<string, Set<number>>();
+    /** Per person, the subjects where a stated range starts. */
+    const rangeStarts = new Map<string, Set<number>>();
+    /** Per person, the first numbered subject of a range whose first decision is not in the order. */
+    const openRangeStarts = new Map<string, Set<number>>();
     const out: OwnChange[] = [];
+    const issues: Issue[] = [];
     const unplaced = new Map<string, OwnChange>();
+    const rangesNotPlaced = new Set<string>();
+    const numbered = new Set(subjects.flatMap(s => decisionOrdinal(s.decisionNumber) ?? []));
     for (const st of statements) {
         const { absence: a, page } = st;
-        const own = indexOf.get(page.subjectId);
-        const covered = a.decisionNumberFrom === null
-            ? (own === undefined ? [] : [own])
-            : rangeSpan(subjects, a);
+        if (a.decisionNumberFrom === null) {
+            const own = indexOf.get(page.subjectId);
+            if (own === undefined) {
+                const key = `${a.personId}|${page.subjectId}`;
+                const g = unplaced.get(key);
+                if (!g) unplaced.set(key, { seq: st.seq, changes: perPageExpansion(a, page.subjectId), pages: [page] });
+                else if (!g.pages.includes(page)) g.pages.push(page);
+                continue;
+            }
+            const byIndex = covering.get(a.personId) ?? new Map<number, AbsenceStatement[]>();
+            covering.set(a.personId, byIndex);
+            byIndex.set(own, [...(byIndex.get(own) ?? []), st]);
+            continue;
+        }
+        const covered = rangeSpan(subjects, a);
         if (covered.length === 0) {
-            const key = `${a.personId}|${a.decisionNumberFrom ?? `own:${page.subjectId}`}|${a.decisionNumberTo ?? ''}`;
-            const g = unplaced.get(key);
-            if (!g) unplaced.set(key, { seq: st.seq, changes: perPageExpansion(a, page.subjectId), pages: [page] });
-            else if (!g.pages.includes(page)) g.pages.push(page);
+            const range = a.decisionNumberTo === null || a.decisionNumberTo === a.decisionNumberFrom ? a.decisionNumberFrom : `${a.decisionNumberFrom}–${a.decisionNumberTo}`;
+            const key = `${a.personId}|${range}`;
+            if (rangesNotPlaced.has(key)) continue;
+            rangesNotPlaced.add(key);
+            issues.push({
+                code: 'UNPLACEABLE_ANCHOR', personId: a.personId, subjectId: page.subjectId, decisionId: page.decisionId, source: 'decision', rawText: a.rawText,
+                params: { kind: 'DEPARTURE', reason: rangeNotPlacedReason(subjects, a), detail: range },
+            });
             continue;
         }
         const byIndex = covering.get(a.personId) ?? new Map<number, AbsenceStatement[]>();
         covering.set(a.personId, byIndex);
         for (const i of covered) byIndex.set(i, [...(byIndex.get(i) ?? []), st]);
+        const from = decisionOrdinal(a.decisionNumberFrom)!, to = decisionOrdinal(a.decisionNumberTo)!;
+        const ends = numbered.has(Math.max(from, to)) ? rangeEnds : openRangeEnds;
+        ends.set(a.personId, (ends.get(a.personId) ?? new Set()).add(covered[covered.length - 1]));
+        const starts = numbered.has(Math.min(from, to)) ? rangeStarts : openRangeStarts;
+        starts.set(a.personId, (starts.get(a.personId) ?? new Set()).add(covered[0]));
     }
     out.push(...unplaced.values());
 
@@ -224,21 +283,43 @@ function perVoteAbsenceChanges(subjects: OrderedSubject[], statements: AbsenceSt
         }
         return absenceChange(ordered[0].absence, kind, { anchorKind: 'SUBJECT', anchorSubjectId: subjects[effectAt].id, timing: 'BEFORE' });
     };
-    for (const byIndex of covering.values()) {
+    /** The first subject after `from` with a usable page (or, with `numberEnds`, a decision number), or `subjects.length` when there is none. */
+    const nextWithPage = (from: number, numberEnds = false) => {
+        let j = from + 1;
+        while (j < subjects.length && !withUsablePage.has(subjects[j].id) && !(numberEnds && decisionOrdinal(subjects[j].decisionNumber) !== null)) j++;
+        return j;
+    };
+    /** The subject after the last subject before `from` with a usable page or a decision number, or 0 when there is none. */
+    const afterPreviousWithPageOrNumber = (from: number) => {
+        let j = from - 1;
+        while (j >= 0 && !withUsablePage.has(subjects[j].id) && decisionOrdinal(subjects[j].decisionNumber) === null) j--;
+        return j + 1;
+    };
+    for (const [personId, byIndex] of covering) {
         const indices = [...byIndex.keys()].sort((x, y) => x - y);
+        const ends = rangeEnds.get(personId) ?? new Set<number>();
+        const openEnds = openRangeEnds.get(personId) ?? new Set<number>();
+        const starts = rangeStarts.get(personId) ?? new Set<number>();
+        const openStarts = openRangeStarts.get(personId) ?? new Set<number>();
+        /** Where the run that ends its covered subjects at `last` stops: the subject its arrival takes effect at. */
+        const stop = (last: number) => (ends.has(last) ? last + 1 : nextWithPage(last, openEnds.has(last)));
+        /** Where the run that starts its covered subjects at `first` begins: the subject its departure takes effect at. */
+        const begin = (first: number) => (!starts.has(first) && openStarts.has(first) ? afterPreviousWithPageOrNumber(first) : first);
         let start = 0;
         for (let k = 0; k < indices.length; k++) {
-            if (k + 1 < indices.length && indices[k + 1] === indices[k] + 1) continue;
+            // The next covered subject joins the run when the run has not stopped before that subject's run begins.
+            if (k + 1 < indices.length && stop(indices[k]) >= begin(indices[k + 1])) continue;
             const first = indices[start], last = indices[k];
             start = k + 1;
             const run = indices.filter(i => i >= first && i <= last).flatMap(i => byIndex.get(i)!);
             const pages = [...new Set([...run].sort((x, y) => x.seq - y.seq).map(st => st.page))];
-            const changes = [boundary('DEPARTURE', byIndex.get(first)!, first)];
-            if (last + 1 < subjects.length) changes.push(boundary('ARRIVAL', byIndex.get(last)!, last + 1));
+            const changes = [boundary('DEPARTURE', byIndex.get(first)!, begin(first))];
+            const back = stop(last);
+            if (back < subjects.length) changes.push(boundary('ARRIVAL', byIndex.get(last)!, back));
             out.push({ seq: firstStated(run).seq, changes, pages });
         }
     }
-    return out;
+    return { own: out, issues };
 }
 
 /**
@@ -297,7 +378,9 @@ export function resolveEvents(input: Pick<DerivationInput, 'cityId' | 'meetingId
         for (const c of d.statedChanges) if (c.anchorKind === 'SUBJECT') own.push({ seq: seq++, changes: [c], pages: [d] });
         for (const a of d.perVoteAbsences) absences.push({ seq: seq++, page: d, absence: a });
     }
-    own.push(...perVoteAbsenceChanges(input.subjects, absences));
+    const perVote = perVoteAbsenceChanges(input.subjects, absences, new Set(pages.map(d => d.subjectId)));
+    own.push(...perVote.own);
+    issues.push(...perVote.issues);
     for (const o of own.sort((x, y) => x.seq - y.seq)) {
         for (const c of o.changes) events.push({ ...c, id: id(), reportingDocuments: o.pages.length, totalDocuments: total, source: 'decision' });
     }
