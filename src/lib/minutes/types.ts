@@ -27,6 +27,39 @@ export interface MinutesCouncilComposition {
     substituteMembers: MinutesMember[];
 }
 
+/** A member on a roll-call list, and whether they sit as a substitute (αναπληρωματικό μέλος). */
+export interface MinutesRollCallMember {
+    member: MinutesMember;
+    isSubstitute: boolean;
+}
+
+/**
+ * The roll call as the minutes print it, before a renderer draws it: the DOCX,
+ * the on-screen minutes and the decisions page all read these lines from
+ * `buildRollCall`.
+ *
+ * `note` is the parenthesis the documents give (the mayor's note); `printedNote`
+ * is what the minutes print in its place, which falls back to ΑΠΩΝ/ΑΠΟΥΣΑ.
+ * A renderer in another language prints `note` and its own word for absent.
+ */
+export interface MinutesRollCall {
+    isCommittee: boolean;
+    /** The ΔΗΜΑΡΧΟΣ line. Councils only: a committee names the mayor on the president's line. */
+    mayor: { name: string; personId: string; absent: boolean; note: string | null; printedNote: string | null } | null;
+    /** The ΠΡΟΕΔΡΟΣ line. `isMayor`: the line prints «(ΔΗΜΑΡΧΟΣ)» after the name. */
+    president: { name: string; personId: string; absent: boolean; isMayor: boolean; note: string | null; printedNote: string | null } | null;
+    /**
+     * Committee: the ΠΑΡΟΝΤΑ ΜΕΛΗ list, substitutes after their party. Council:
+     * the members of the ΣΥΝΘΕΣΗ who are not absent.
+     */
+    present: MinutesRollCallMember[];
+    /**
+     * Committee: the ΑΠΟΝΤΑ ΜΕΛΗ list. Council: the «απουσίαζαν οι» sentence,
+     * which leaves out the president — their own line says they were absent.
+     */
+    absent: MinutesRollCallMember[];
+}
+
 /** The lists a vote result prints, one per vote value. All empty when the document named no voter. */
 export interface MinutesVoteMembers {
     forMembers: MinutesMember[];

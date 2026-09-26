@@ -3,7 +3,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { formatTimestamp } from '@/lib/utils';
 
-import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { el } from 'date-fns/locale';
 import { formatInTimeZone } from 'date-fns-tz';
 import {
@@ -13,8 +12,10 @@ import {
     MinutesCouncilComposition,
     MinutesTranscriptEntry,
     MinutesAttendanceChange,
+    MinutesRollCall,
+    MinutesRollCallMember,
 } from '@/lib/minutes/types';
-import { interleaveSubstitutes, formatChangePosition, formatPhraseOnlyOutcome, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
+import { buildRollCall, formatRollCallMemberLabel, formatChangePosition, formatPhraseOnlyOutcome, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
 
 
 type DebugCategory = 'SUBJECT_DISCUSSION' | 'VOTE' | 'PROCEDURAL_VOTE' | 'ATTENDANCE' | 'OTHER' | 'CROSS_SUBJECT';
@@ -201,80 +202,68 @@ function CouncilCompositionSection({ composition, absentMembers, adminBody }: {
     absentMembers: MinutesMember[] | null;
     adminBody: { name: string; type: string } | null;
 }) {
-    const absentPersonIds = new Set(absentMembers?.map(m => m.personId) ?? []);
-    const isCommittee = adminBody?.type === 'committee';
-    // The note says everything the documents state about the mayor — absence
-    // included — so `getMinutesData` always sets it when the mayor is absent.
-    // The roll-call fallback is for `MinutesData` built by hand (tests, or a
-    // caller that assembles it itself), which has no note to read.
-    const mayorNote = composition.mayor
-        ? composition.mayor.note
-        ?? (absentPersonIds.has(composition.mayor.personId)
-            ? getAbsentLabel(extractFirstName(composition.mayor.name, 'surnameFirst'))
-            : null)
-        : null;
+    const rollCall = buildRollCall(composition, new Set(absentMembers?.map(m => m.personId) ?? []), adminBody?.type ?? null);
 
     return (
         <div className="mb-8">
-            {!isCommittee && composition.mayor && (
+            {rollCall.mayor && (
                 <p className="text-sm mb-1">
                     <span className="font-bold">ΔΗΜΑΡΧΟΣ: </span>
-                    {composition.mayor.name}
-                    {mayorNote && (
-                        <span className="text-gray-500"> ({mayorNote})</span>
+                    {rollCall.mayor.name}
+                    {rollCall.mayor.printedNote && (
+                        <span className="text-gray-500"> ({rollCall.mayor.printedNote})</span>
                     )}
                 </p>
             )}
 
-            {composition.president && (
+            {rollCall.president && (
                 <p className="text-sm mb-4">
                     <span className="font-bold">ΠΡΟΕΔΡΟΣ: </span>
-                    {composition.president.name}
-                    {isCommittee && ' (ΔΗΜΑΡΧΟΣ)'}
-                    {absentPersonIds.has(composition.president.personId) && (
-                        <span className="text-gray-500"> ({getAbsentLabel(extractFirstName(composition.president.name, 'surnameFirst'))})</span>
+                    {rollCall.president.name}
+                    {rollCall.president.isMayor && ' (ΔΗΜΑΡΧΟΣ)'}
+                    {rollCall.president.printedNote && (
+                        <span className="text-gray-500"> ({rollCall.president.printedNote})</span>
                     )}
                 </p>
             )}
 
-            {!isCommittee && (
+            {!rollCall.isCommittee && (
                 <h2 className="text-base font-bold mb-3">
                     ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ ({composition.members.length})
                 </h2>
             )}
 
-            {isCommittee ? (
-                <CommitteeAttendanceSection composition={composition} absentMembers={absentMembers} />
+            {rollCall.isCommittee ? (
+                <CommitteeAttendanceSection rollCall={rollCall} />
             ) : (
                 <>
                     <ul className="list-disc pl-6 space-y-1">
                         {composition.members.map((member) => (
-                            <li key={member.personId}>
-                                <span>{member.name}</span>
-                                {member.party && (
-                                    <span className="text-gray-500"> ({member.party}{member.isPartyHead ? ', Επικεφαλής' : ''})</span>
-                                )}
-                            </li>
+                            <RollCallMemberItem key={member.personId} entry={{ member, isSubstitute: false }} />
                         ))}
                     </ul>
 
-                    {absentMembers && absentMembers.length > 0 && (() => {
-                        const absentListMembers = absentMembers.filter(m =>
-                            (!composition.mayor || m.personId !== composition.mayor.personId) &&
-                            (!composition.president || m.personId !== composition.president.personId)
-                        );
-                        return absentListMembers.length > 0 ? (
-                            <p className="text-sm mt-4">
-                                Κατά την έναρξη της συνεδρίασης απουσίαζαν οι {absentListMembers.map(m => m.name).join(', ')}
-                                <span className="text-gray-500"> ({absentListMembers.length})</span>
-                            </p>
-                        ) : null;
-                    })()}
+                    {rollCall.absent.length > 0 && (
+                        <p className="text-sm mt-4">
+                            Κατά την έναρξη της συνεδρίασης απουσίαζαν οι {rollCall.absent.map(m => m.member.name).join(', ')}
+                            <span className="text-gray-500"> ({rollCall.absent.length})</span>
+                        </p>
+                    )}
                 </>
             )}
 
             <hr className="my-8 border-gray-300" />
         </div>
+    );
+}
+
+function RollCallMemberItem({ entry }: { entry: MinutesRollCallMember }) {
+    const label = formatRollCallMemberLabel(entry);
+    return (
+        <li>
+            <span>{entry.member.name}</span>
+            {label && <span className="text-gray-500"> ({label})</span>}
+        </li>
     );
 }
 
@@ -327,47 +316,23 @@ function stripDiacritics(text: string): string {
  * Committee-specific attendance: ΠΑΡΟΝΤΑ ΜΕΛΗ and ΑΠΟΝΤΑ ΜΕΛΗ as bullet lists,
  * with (αναπλ. μέλος) notation for substitute members.
  */
-function CommitteeAttendanceSection({ composition, absentMembers }: {
-    composition: MinutesCouncilComposition;
-    absentMembers: MinutesMember[] | null;
-}) {
-    const substituteIds = new Set(composition.substituteMembers.map(m => m.personId));
-    const absentPersonIds = new Set(absentMembers?.map(m => m.personId) ?? []);
-
-    const allMembers = interleaveSubstitutes(composition.members, composition.substituteMembers);
-    const presentMembers = allMembers.filter(m => !absentPersonIds.has(m.personId));
-    const absentMembersList = allMembers.filter(m => absentPersonIds.has(m.personId));
-
-    const renderMember = (m: MinutesMember) => {
-        const labels: string[] = [];
-        if (substituteIds.has(m.personId)) labels.push('αναπλ. μέλος');
-        if (m.party) labels.push(m.isPartyHead ? `${m.party}, Επικεφαλής` : m.party);
-        return (
-            <li key={m.personId}>
-                <span>{m.name}</span>
-                {labels.length > 0 && (
-                    <span className="text-gray-500"> ({labels.join(', ')})</span>
-                )}
-            </li>
-        );
-    };
-
+function CommitteeAttendanceSection({ rollCall }: { rollCall: MinutesRollCall }) {
     return (
         <>
-            {presentMembers.length > 0 && (
+            {rollCall.present.length > 0 && (
                 <>
-                    <p className="text-sm font-bold mt-2 mb-1">ΠΑΡΟΝΤΑ ΜΕΛΗ ({presentMembers.length})</p>
+                    <p className="text-sm font-bold mt-2 mb-1">ΠΑΡΟΝΤΑ ΜΕΛΗ ({rollCall.present.length})</p>
                     <ul className="list-disc pl-6 space-y-1">
-                        {presentMembers.map(renderMember)}
+                        {rollCall.present.map(entry => <RollCallMemberItem key={entry.member.personId} entry={entry} />)}
                     </ul>
                 </>
             )}
 
-            {absentMembersList.length > 0 && (
+            {rollCall.absent.length > 0 && (
                 <>
-                    <p className="text-sm font-bold mt-4 mb-1">ΑΠΟΝΤΑ ΜΕΛΗ ({absentMembersList.length})</p>
+                    <p className="text-sm font-bold mt-4 mb-1">ΑΠΟΝΤΑ ΜΕΛΗ ({rollCall.absent.length})</p>
                     <ul className="list-disc pl-6 space-y-1">
-                        {absentMembersList.map(renderMember)}
+                        {rollCall.absent.map(entry => <RollCallMemberItem key={entry.member.personId} entry={entry} />)}
                     </ul>
                 </>
             )}

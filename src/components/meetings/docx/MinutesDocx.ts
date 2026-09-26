@@ -10,9 +10,8 @@ import {
 } from 'docx';
 import { formatTimestamp } from '@/lib/utils';
 
-import { getAbsentLabel, extractFirstName } from '@/lib/formatters/name';
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
-import { interleaveSubstitutes, formatChangePosition, formatPhraseOnlyOutcome, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
+import { buildRollCall, formatRollCallMemberLabel, formatChangePosition, formatPhraseOnlyOutcome, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
 import {
     MinutesData,
     MinutesSubject,
@@ -20,6 +19,7 @@ import {
     MinutesCouncilComposition,
     MinutesTranscriptEntry,
     MinutesAttendanceChange,
+    MinutesRollCallMember,
 } from '@/lib/minutes/types';
 import { getRealmDomain } from '@/lib/realm';
 
@@ -353,43 +353,46 @@ function createCouncilCompositionSection(
     adminBody: { name: string; type: string } | null,
 ): Paragraph[] {
     const paragraphs: Paragraph[] = [];
-    const absentPersonIds = new Set(absentMembers?.map(m => m.personId) ?? []);
-    const isCommittee = adminBody?.type === 'committee';
+    const rollCall = buildRollCall(composition, new Set(absentMembers?.map(m => m.personId) ?? []), adminBody?.type ?? null);
+    const { isCommittee } = rollCall;
+    const noteRun = (note: string | null) => note ? [new TextRun({ text: ` (${note})`, size: FONT_SIZE.BODY, color: '666666' })] : [];
 
-    // For councils: show mayor separately, then president
-    // For committees: president IS the mayor, shown as ΠΡΟΕΔΡΟΣ only
-    if (!isCommittee && composition.mayor) {
-        const isAbsent = absentPersonIds.has(composition.mayor.personId);
-        // The note says everything the documents state about the mayor — absence
-        // included — so `getMinutesData` always sets it when the mayor is absent.
-        // The roll-call fallback is for `MinutesData` built by hand (tests, or a
-        // caller that assembles it itself), which has no note to read.
-        const note = composition.mayor.note
-            ?? (isAbsent ? getAbsentLabel(extractFirstName(composition.mayor.name, 'surnameFirst')) : null);
+    if (rollCall.mayor) {
         paragraphs.push(new Paragraph({
             spacing: { before: 200, after: 80 },
             children: [
                 new TextRun({ text: 'ΔΗΜΑΡΧΟΣ: ', bold: true, size: FONT_SIZE.BODY }),
-                new TextRun({ text: composition.mayor.name, size: FONT_SIZE.BODY }),
-                ...(note ? [new TextRun({ text: ` (${note})`, size: FONT_SIZE.BODY, color: '666666' })] : []),
+                new TextRun({ text: rollCall.mayor.name, size: FONT_SIZE.BODY }),
+                ...noteRun(rollCall.mayor.printedNote),
             ],
         }));
     }
 
-    if (composition.president) {
-        const isAbsent = absentPersonIds.has(composition.president.personId);
-        const presidentSuffix = isCommittee ? ' (ΔΗΜΑΡΧΟΣ)' : '';
+    if (rollCall.president) {
         paragraphs.push(new Paragraph({
             spacing: { before: isCommittee ? 200 : 80, after: 200 },
             children: [
                 new TextRun({ text: 'ΠΡΟΕΔΡΟΣ: ', bold: true, size: FONT_SIZE.BODY }),
-                new TextRun({ text: composition.president.name + presidentSuffix, size: FONT_SIZE.BODY }),
-                ...(isAbsent ? [new TextRun({ text: ` (${getAbsentLabel(extractFirstName(composition.president.name, 'surnameFirst'))})`, size: FONT_SIZE.BODY, color: '666666' })] : []),
+                new TextRun({ text: rollCall.president.name + (rollCall.president.isMayor ? ' (ΔΗΜΑΡΧΟΣ)' : ''), size: FONT_SIZE.BODY }),
+                ...noteRun(rollCall.president.printedNote),
             ],
         }));
     }
 
-    // Council: composition heading. Committees skip — go straight to ΠΑΡΟΝΤΑ/ΑΠΟΝΤΑ ΜΕΛΗ.
+    const memberBullet = (entry: MinutesRollCallMember) => {
+        const label = formatRollCallMemberLabel(entry);
+        return new Paragraph({
+            bullet: { level: 0 },
+            spacing: { before: 40, after: 40 },
+            children: [
+                new TextRun({ text: entry.member.name, size: FONT_SIZE.BODY }),
+                ...(label ? [new TextRun({ text: ` (${label})`, size: FONT_SIZE.BODY, color: '666666' })] : []),
+            ],
+        });
+    };
+
+    // Council: composition heading and flat member list. Committees skip both —
+    // their members are shown in ΠΑΡΟΝΤΑ/ΑΠΟΝΤΑ ΜΕΛΗ below.
     if (!isCommittee) {
         paragraphs.push(new Paragraph({
             heading: HeadingLevel.HEADING_2,
@@ -400,73 +403,36 @@ function createCouncilCompositionSection(
                 bold: true,
             })],
         }));
-    }
-
-    // Council: flat member list. Committees skip this — members shown in ΠΑΡΟΝΤΕΣ/ΑΠΟΝΤΕΣ below.
-    if (!isCommittee) {
-        for (const member of composition.members) {
-            const children: TextRun[] = [
-                new TextRun({ text: member.name, size: FONT_SIZE.BODY }),
-            ];
-            if (member.party) {
-                const partyLabel = member.isPartyHead ? `${member.party}, Επικεφαλής` : member.party;
-                children.push(new TextRun({ text: ` (${partyLabel})`, size: FONT_SIZE.BODY, color: '666666' }));
-            }
-            paragraphs.push(new Paragraph({ bullet: { level: 0 }, spacing: { before: 40, after: 40 }, children }));
-        }
+        for (const member of composition.members) paragraphs.push(memberBullet({ member, isSubstitute: false }));
     }
 
     // Attendance section — format depends on body type
     if (isCommittee && absentMembers) {
-        // Committee: ΠΑΡΟΝΤΑ ΜΕΛΗ and ΑΠΟΝΤΑ ΜΕΛΗ as bullet lists
-        const substituteIds = new Set(composition.substituteMembers.map(m => m.personId));
-        const absentPersonIds = new Set(absentMembers.map(m => m.personId));
-        const allMembers = interleaveSubstitutes(composition.members, composition.substituteMembers);
-
-        const presentList = allMembers.filter(m => !absentPersonIds.has(m.personId));
-        const absentList = allMembers.filter(m => absentPersonIds.has(m.personId));
-
-        const memberBullet = (m: MinutesMember) => {
-            const children: TextRun[] = [new TextRun({ text: m.name, size: FONT_SIZE.BODY })];
-            const labels: string[] = [];
-            if (substituteIds.has(m.personId)) labels.push('αναπλ. μέλος');
-            if (m.party) labels.push(m.isPartyHead ? `${m.party}, Επικεφαλής` : m.party);
-            if (labels.length > 0) {
-                children.push(new TextRun({ text: ` (${labels.join(', ')})`, size: FONT_SIZE.BODY, color: '666666' }));
-            }
-            return new Paragraph({ bullet: { level: 0 }, spacing: { before: 40, after: 40 }, children });
-        };
-
-        if (presentList.length > 0) {
+        if (rollCall.present.length > 0) {
             paragraphs.push(new Paragraph({
                 spacing: { before: 200, after: 80 },
-                children: [new TextRun({ text: `ΠΑΡΟΝΤΑ ΜΕΛΗ (${presentList.length})`, bold: true, size: FONT_SIZE.BODY })],
+                children: [new TextRun({ text: `ΠΑΡΟΝΤΑ ΜΕΛΗ (${rollCall.present.length})`, bold: true, size: FONT_SIZE.BODY })],
             }));
-            for (const m of presentList) paragraphs.push(memberBullet(m));
+            for (const m of rollCall.present) paragraphs.push(memberBullet(m));
         }
-        if (absentList.length > 0) {
+        if (rollCall.absent.length > 0) {
             paragraphs.push(new Paragraph({
                 spacing: { before: 200, after: 80 },
-                children: [new TextRun({ text: `ΑΠΟΝΤΑ ΜΕΛΗ (${absentList.length})`, bold: true, size: FONT_SIZE.BODY })],
+                children: [new TextRun({ text: `ΑΠΟΝΤΑ ΜΕΛΗ (${rollCall.absent.length})`, bold: true, size: FONT_SIZE.BODY })],
             }));
-            for (const m of absentList) paragraphs.push(memberBullet(m));
+            for (const m of rollCall.absent) paragraphs.push(memberBullet(m));
         }
-    } else {
+    } else if (!isCommittee && rollCall.absent.length > 0) {
         // Council: absent inline sentence
-        const absentListMembers = absentMembers?.filter(m =>
-            (!composition.mayor || m.personId !== composition.mayor.personId) &&
-            (!composition.president || m.personId !== composition.president.personId)
-        );
-        if (absentListMembers && absentListMembers.length > 0) {
-            paragraphs.push(new Paragraph({
-                spacing: { before: 200, after: 80 },
-                children: [
-                    new TextRun({ text: 'Κατά την έναρξη της συνεδρίασης απουσίαζαν οι ', size: FONT_SIZE.BODY }),
-                    new TextRun({ text: absentListMembers.map(m => m.name).join(', '), size: FONT_SIZE.BODY }),
-                    new TextRun({ text: ` (${absentListMembers.length})`, size: FONT_SIZE.BODY, color: '666666' }),
-                ],
-            }));
-        }
+        const names = rollCall.absent.map(m => m.member.name);
+        paragraphs.push(new Paragraph({
+            spacing: { before: 200, after: 80 },
+            children: [
+                new TextRun({ text: 'Κατά την έναρξη της συνεδρίασης απουσίαζαν οι ', size: FONT_SIZE.BODY }),
+                new TextRun({ text: names.join(', '), size: FONT_SIZE.BODY }),
+                new TextRun({ text: ` (${names.length})`, size: FONT_SIZE.BODY, color: '666666' }),
+            ],
+        }));
     }
 
     paragraphs.push(new Paragraph({ pageBreakBefore: true }));

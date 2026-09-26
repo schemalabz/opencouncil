@@ -1,6 +1,6 @@
 import { AttendanceStatus, DiscussionStatus, VoteType } from '@prisma/client';
 import { compareRanks } from '@/lib/sorting/people';
-import { formatSurnameFirst } from '@/lib/formatters/name';
+import { extractFirstName, formatSurnameFirst, getAbsentLabel } from '@/lib/formatters/name';
 import { calculateVoteResult, getAbsentNonVoterIds } from '@/lib/utils/votes';
 import { splitAttendance } from '@/lib/utils/attendance';
 import { isRecordSubject } from '@/lib/utils/subjects';
@@ -14,6 +14,8 @@ import {
     MinutesAttendanceChange,
     MinutesDiscussionSummary,
     MinutesProceduralVote,
+    MinutesRollCall,
+    MinutesRollCallMember,
 } from './types';
 
 // --- Dependency types for testability ---
@@ -223,6 +225,63 @@ export function buildCouncilComposition(
         .sort((a, b) => sortByElectedOrder(a, b, getElectedOrder));
 
     return { mayor: mayorResult, president: presidentResult, members: sortedMembers, substituteMembers: sortedSubstitutes };
+}
+
+/**
+ * The roll call the minutes print, from the composition and who was absent.
+ *
+ * A council gets the ΔΗΜΑΡΧΟΣ line, then the ΠΡΟΕΔΡΟΣ line; its lists are the
+ * ΣΥΝΘΕΣΗ members, and the absence sentence leaves the president out. A
+ * committee gets no ΔΗΜΑΡΧΟΣ line; its lists are the members and the
+ * substitutes, the substitutes after their party (`interleaveSubstitutes`).
+ * Neither list holds the mayor: `buildCouncilComposition` leaves them out.
+ *
+ * `absentIds` is who was absent at the point the lines describe: the roll call
+ * for the minutes, or one subject for the decisions page.
+ */
+export function buildRollCall(
+    composition: MinutesCouncilComposition,
+    absentIds: ReadonlySet<string>,
+    bodyType: string | null,
+): MinutesRollCall {
+    const isCommittee = bodyType === 'committee';
+    const absentLabel = (name: string) => getAbsentLabel(extractFirstName(name, 'surnameFirst'));
+
+    const mayor: MinutesRollCall['mayor'] = !isCommittee && composition.mayor
+        ? (() => {
+            const { name, personId, note } = composition.mayor;
+            const absent = absentIds.has(personId);
+            return { name, personId, absent, note, printedNote: note ?? (absent ? absentLabel(name) : null) };
+        })()
+        : null;
+
+    const president: MinutesRollCall['president'] = composition.president
+        ? (() => {
+            const { name, personId } = composition.president;
+            const absent = absentIds.has(personId);
+            return { name, personId, absent, isMayor: isCommittee, note: null, printedNote: absent ? absentLabel(name) : null };
+        })()
+        : null;
+
+    const substituteIds = new Set(composition.substituteMembers.map(m => m.personId));
+    const pool: MinutesRollCallMember[] = interleaveSubstitutes(composition.members, composition.substituteMembers)
+        .map(member => ({ member, isSubstitute: substituteIds.has(member.personId) }));
+    const present = pool.filter(m => !absentIds.has(m.member.personId));
+    const absent = pool.filter(m => absentIds.has(m.member.personId)
+        && (isCommittee || m.member.personId !== composition.president?.personId));
+
+    return { isCommittee, mayor, president, present, absent };
+}
+
+/**
+ * The parenthesis after a member's name in the minutes' lists: «αναπλ. μέλος»
+ * for a substitute, then the party, with «Επικεφαλής» for its head.
+ */
+export function formatRollCallMemberLabel({ member, isSubstitute }: MinutesRollCallMember): string | null {
+    const labels: string[] = [];
+    if (isSubstitute) labels.push('αναπλ. μέλος');
+    if (member.party) labels.push(member.isPartyHead ? `${member.party}, Επικεφαλής` : member.party);
+    return labels.length > 0 ? labels.join(', ') : null;
 }
 
 /**
