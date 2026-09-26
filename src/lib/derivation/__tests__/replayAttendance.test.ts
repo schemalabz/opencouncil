@@ -1,4 +1,4 @@
-import { replayAttendance } from '../replayAttendance';
+import { notWrittenInList, replayAttendance } from '../replayAttendance';
 import type { DocumentFacts, EventRow, OrderedSubject, RollCallRow } from '../types';
 import type { DecisionConventions } from '@/lib/decisionConventions';
 
@@ -120,6 +120,17 @@ describe('replayAttendance', () => {
             mayorPersonId: 'mayor', events: [], documents: [doc('s2', { presentIds: ['p1'] })] });
         expect(r.issues).toEqual([]);
         expect(r.attendance.some(a => a.personId === 'mayor')).toBe(false);
+    });
+    it("a council's per-decision list is not read either way about its own mayor, even where it names them", () => {
+        // Vrilissia ΔΣ: the mayor sits on the council, and ΤΑ ΜΕΛΗ never speaks for
+        // them either way — not their absence from it, and not their being named.
+        const withoutMayor = replayAttendance({ subjects, rollCall: [rc('p1'), rc('mayor')], conventions: conv({ statesPerDecisionAttendance: true, rollCallLayout: 'present_only' }),
+            mayorPersonId: 'mayor', events: [], documents: [doc('s2', { presentIds: ['p1'] })] });
+        expect(withoutMayor.issues).toEqual([]);
+        const withMayor = replayAttendance({ subjects, rollCall: [rc('p1'), rc('mayor', 'ABSENT')], conventions: conv({ statesPerDecisionAttendance: true, rollCallLayout: 'present_only' }),
+            mayorPersonId: 'mayor', events: [], documents: [doc('s2', { presentIds: ['p1', 'mayor'] })] });
+        expect(withMayor.issues).toEqual([]);
+        expect(withMayor.attendance.some(a => a.personId === 'mayor')).toBe(false);
     });
     it('a per-decision list that omits whoever presides does not turn them absent', () => {
         // ΤΑ ΜΕΛΗ lists the members; the president signs apart from it (Chalandri, Argos, Papagos ΔΣ: in the roll call, in no list).
@@ -256,5 +267,37 @@ describe('replayAttendance', () => {
         });
         expect(out.attendance.find(a => a.personId === 'mayor')).toMatchObject({ status: 'PRESENT' });
         expect(out.issues.filter(i => i.personId === 'mayor')).toEqual([]);
+    });
+});
+
+describe('notWrittenInList', () => {
+    // The verification sheet calls this directly (scripts/verification-sheets.ts):
+    // it is the one place the exemption is written, so a doubt it raises about a
+    // person the list leaves out must agree with what the replay itself derives.
+    const ctx = (o: Partial<{ mayorPersonId: string | null; presidentPersonId: string | null; secretaryPersonId: string | null; conventions: ReturnType<typeof conv> | null; cityMayorPersonId: string | null }> = {}) =>
+        ({ mayorPersonId: null, presidentPersonId: null, secretaryPersonId: null, conventions: conv(), cityMayorPersonId: null, ...o });
+    const facts = (o: Partial<{ presidedById: string | null; actingSecretaryId: string | null }> = {}) => ({ presidedById: null, actingSecretaryId: null, ...o });
+
+    it("the body's own mayor is exempt even where the list names them present", () => {
+        expect(notWrittenInList('mayor', false, ctx({ mayorPersonId: 'mayor' }), facts())).toBe(true);
+        expect(notWrittenInList('mayor', true, ctx({ mayorPersonId: 'mayor' }), facts())).toBe(true);
+    });
+    it('the president, whoever presided, and the secretary are exempt only where the list omits them', () => {
+        expect(notWrittenInList('pres', false, ctx({ presidentPersonId: 'pres' }), facts())).toBe(true);
+        expect(notWrittenInList('pres', true, ctx({ presidentPersonId: 'pres' }), facts())).toBe(false);
+        expect(notWrittenInList('vice', false, ctx(), facts({ presidedById: 'vice' }))).toBe(true);
+        expect(notWrittenInList('sec', false, ctx({ secretaryPersonId: 'sec' }), facts())).toBe(true);
+        // The elected secretary stays exempt even on the page where someone else acted for them.
+        expect(notWrittenInList('sec', false, ctx({ secretaryPersonId: 'sec' }), facts({ actingSecretaryId: 'acting' }))).toBe(true);
+        expect(notWrittenInList('acting', false, ctx({ secretaryPersonId: 'sec' }), facts({ actingSecretaryId: 'acting' }))).toBe(true);
+        // With no `listOmitsSecretary` rule (secretaryPersonId null), nobody stands in for one either.
+        expect(notWrittenInList('acting', false, ctx({ secretaryPersonId: null }), facts({ actingSecretaryId: 'acting' }))).toBe(false);
+    });
+    it("the city's mayor is exempt only where the body states them apart, and only where the list omits them", () => {
+        expect(notWrittenInList('mayor', false, ctx({ cityMayorPersonId: 'mayor', conventions: conv({ mayorStatedSeparately: true }) }), facts())).toBe(true);
+        expect(notWrittenInList('mayor', false, ctx({ cityMayorPersonId: 'mayor', conventions: conv({ mayorStatedSeparately: false }) }), facts())).toBe(false);
+    });
+    it('anyone else is judged by the list', () => {
+        expect(notWrittenInList('p1', false, ctx(), facts())).toBe(false);
     });
 });

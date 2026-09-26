@@ -50,6 +50,31 @@ export function rankRollCall(rollCall: RollCallRow[]): { rows: Map<string, RollC
 }
 
 /**
+ * Whether a per-decision member list's (ΤΑ ΜΕΛΗ) silence about `personId` states
+ * nothing about them, so their absence from it must not be read as absence: the
+ * body's own mayor, always (§3, the list omits them by construction, and their
+ * being named is not judged either); otherwise whoever presides or chairs this
+ * decision, the secretary or their stand-in where the body's rule leaves the list
+ * without them, and the city's mayor where the body states them in a sentence of
+ * their own — but only where the list does not itself name them, since a body
+ * that does name one of these people is still believed. The replay and the
+ * verification sheet both call this: the one place the exemption is written.
+ */
+export function notWrittenInList(
+    personId: string,
+    presentInList: boolean,
+    input: Pick<ReplayInput, 'mayorPersonId' | 'presidentPersonId' | 'secretaryPersonId' | 'conventions' | 'cityMayorPersonId'>,
+    doc: Pick<DocumentFacts, 'presidedById' | 'actingSecretaryId'>,
+): boolean {
+    if (personId === input.mayorPersonId) return true;
+    const actingSecretary = input.secretaryPersonId !== null && input.secretaryPersonId !== undefined ? doc.actingSecretaryId : null;
+    const mayorWrittenApart = input.conventions?.mayorStatedSeparately === true && personId === input.cityMayorPersonId;
+    const exempt = personId === input.presidentPersonId || personId === doc.presidedById || personId === input.secretaryPersonId
+        || personId === actingSecretary || mayorWrittenApart;
+    return exempt && !presentInList;
+}
+
+/**
  * Roll call + placed events → who was present for each subject, along the
  * transcript order. A document's own present list (bodies that print one) wins for
  * its subject and resets the state from there; what it changed without a stated
@@ -207,24 +232,13 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
             const stated = new Map<string, AttendanceStatus>();
             for (const personId of [...state.keys(), ...doc.presentIds, ...(doc.absentIds ?? [])]) {
                 // §3: a per-decision member list is ΤΑ ΜΕΛΗ — it omits the mayor by
-                // construction, so their absence from it states nothing about them.
-                if (personId === mayorPersonId) continue;
-                // Nor about whoever presides: the list is of the members, and the chair is
-                // not written into it — the president in 185 of 192 documents across 13
-                // bodies, and the vice-president instead on the 48 where Zografou ΔΕ says
-                // he presided. Reading the omission as absence took them, and their vote,
-                // out of every decision they chaired. Some bodies leave the secretary out
-                // the same way (Chalandri and Papagos ΔΣ; Argos ΔΣ lists theirs), which is
-                // a convention of the body. A list that does name them is still believed,
-                // and a stated departure still takes them out — and, where the body states
-                // the mayor in a sentence of its own (`mayorStatedSeparately`), the mayor:
-                // the mayor's state then comes from the roll call and the mayor's own
-                // stated changes.
-                const actingSecretary = input.secretaryPersonId !== null && input.secretaryPersonId !== undefined ? doc.actingSecretaryId : null;
-                const mayorWrittenApart = input.conventions?.mayorStatedSeparately === true && personId === input.cityMayorPersonId;
-                const notWrittenIn = personId === input.presidentPersonId || personId === doc.presidedById || personId === input.secretaryPersonId
-                    || personId === actingSecretary || mayorWrittenApart;
-                if (notWrittenIn && !statedPresent.has(personId)) continue;
+                // construction, so their absence from it states nothing about them. Nor
+                // does it about whoever presides, the secretary or their stand-in where
+                // the body's rule leaves the list without them, or, where the body states
+                // the mayor in a sentence of its own (`mayorStatedSeparately`), the city's
+                // mayor: their state then comes from the roll call and their own stated
+                // changes, the same as a member the list does not judge.
+                if (notWrittenInList(personId, statedPresent.has(personId), input, doc)) continue;
                 stated.set(personId, statedPresent.has(personId) ? 'PRESENT' : 'ABSENT');
             }
             const eventHere = new Map(eventsHere.map(e => [e.personId, e]));

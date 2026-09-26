@@ -22,7 +22,7 @@ import path from 'path';
 // The production reader, not a second one: this sheet's whole job is telling a
 // person whether production reads a body correctly, so every fact it prints
 // about a document comes from the same function the derivation reads it with.
-import { deriveMeetingFacts, documentFactsFromDecision, loadDerivationInput, readingStatesFacts } from '@/lib/derivation';
+import { deriveMeetingFacts, documentFactsFromDecision, loadDerivationInput, notWrittenInList, readingStatesFacts } from '@/lib/derivation';
 import { issueMessageEn } from '@/lib/derivation/issueTextEn';
 import { isConfirmedByPerson, isDecisionConventions } from '@/lib/decisionConventions';
 import { loadGolden } from './lib/minutes-golden';
@@ -33,11 +33,9 @@ const opt = (flag: string) => { const i = argv.indexOf(flag); return i === -1 ? 
 const OUT = opt('--out') ?? '.context/sheets';
 const CITY = opt('--city');
 
-// The stated arrivals and departures, which DocumentFacts does not carry: the
-// derivation reads those from AttendanceEvent rows, and this sheet measures the
-// document's own sentences against where the roll call puts the same person.
-const asObj = (v: unknown) => (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null);
-const objs = (v: unknown) => (Array.isArray(v) ? v.map(asObj).filter((x): x is Record<string, unknown> => !!x) : []);
+// The stated arrivals and departures: `documentFactsFromDecision` reads them off
+// the same page as `statedChanges`, and this sheet measures each one's sentence
+// against where the roll call puts the same person.
 const doc = (ada: string) => `[${ada}](https://diavgeia.gov.gr/doc/${ada})`;
 
 type Check = { rank: number; text: string };
@@ -102,7 +100,7 @@ async function main() {
             for (const a of out.attendance) if (a.status === 'PRESENT') { if (!presentBySubject.has(a.subjectId)) presentBySubject.set(a.subjectId, new Set()); presentBySubject.get(a.subjectId)!.add(a.personId); }
             lines.push(`## ${m.id} (${m.dateTime.toISOString().slice(0, 10)})${golden.has(key) ? ' — golden' : ''}`, '', `${decisions.length} documents read; derived ${out.attendance.length} attendance rows, ${out.votes.length} votes, ${out.issues.length} issues.`, '');
             for (const d of decisions) {
-                const r = asObj(d.extraction); if (!r || !d.ada) continue;
+                if (!d.ada) continue;
                 const facts = documentFactsFromDecision(d, rosterPersonIds);
                 const presentIds = facts.rollCallPresentIds ?? []; const absentIds = facts.rollCallAbsentIds ?? [];
                 const list = facts.presentIds ?? [];
@@ -116,30 +114,30 @@ async function main() {
                     omitted.set(k, e);
                 }
                 // stated arrivals: inside ΠΑΡΟΝΤΕΣ or ΑΠΟΝΤΕΣ?
-                for (const c of objs(r.attendanceChanges)) {
-                    if (c.type !== 'arrival' || typeof c.personId !== 'string') continue;
-                    if (asObj(c.anchor)?.kind === 'subject') continue; // a per-vote return, not a late arrival
+                for (const c of facts.statedChanges) {
+                    if (c.kind !== 'ARRIVAL') continue;
+                    if (c.anchorKind === 'SUBJECT') continue; // a per-vote return, not a late arrival
                     // «η κα. Χ αναπληρώνει το απουσιάζον τακτικό μέλος» explains a substitute in the roll call; it is not an arrival (Chania ΔΕ, settled twice).
-                    if (/αναπληρών|αναπληρώθηκ/i.test(String(c.rawText))) continue;
+                    if (/αναπληρών|αναπληρώθηκ/i.test(c.rawText)) continue;
                     if (presentIds.includes(c.personId)) arrivals.inPresent++; else if (absentIds.includes(c.personId)) arrivals.inAbsent++; else arrivals.neither++;
-                    if (arrivals.examples.length < 2) arrivals.examples.push(`${doc(d.ada)} item ${item}: «${String(c.rawText).slice(0, 110)}»`);
+                    if (arrivals.examples.length < 2) arrivals.examples.push(`${doc(d.ada)} item ${item}: «${c.rawText.slice(0, 110)}»`);
                 }
                 // per-vote absence vs derived
-                const outForVote = objs(r.attendanceChanges).filter(c => asObj(c.anchor)?.kind === 'subject' && c.type === 'departure' && typeof c.personId === 'string');
+                const outForVote = facts.statedChanges.filter(c => c.anchorKind === 'SUBJECT' && c.kind === 'DEPARTURE');
                 if (outForVote.length) {
                     const present = presentBySubject.get(d.subjectId) ?? new Set();
-                    const stillPresent = outForVote.filter(c => present.has(c.personId as string)).map(c => nameOf(c.personId as string));
-                    const names = outForVote.map(c => nameOf(c.personId as string)).join(', ');
+                    const stillPresent = outForVote.filter(c => present.has(c.personId)).map(c => nameOf(c.personId));
+                    const names = outForVote.map(c => nameOf(c.personId)).join(', ');
                     if (stillPresent.length) checks.push({ rank: DISAGREE, text: `${doc(d.ada)} item ${item}: the page says ${names} were out for the vote, but we derive **${stillPresent.join(', ')} present**. Read the «απουσίαζαν» sentence and tell me the names.` });
                     else checks.push({ rank: CONFIRM, text: `${doc(d.ada)} item ${item}: page says out for the vote: ${names}; we derive them absent. Confirm the sentence names exactly these.` });
                 }
                 // a list shorter than roll call − known exemptions with no stated absence: someone left unrecorded?
                 if (list.length && conv?.statesPerDecisionAttendance === true) {
-                    // The same four the derivation exempts (replayAttendance §3): the body's
-                    // head, whoever this page says presided, and — only where the body's rule
-                    // leaves the secretary out — the secretary and any acting one.
-                    const exempt = new Set([input.presidentPersonId, input.secretaryPersonId, facts.presidedById, input.secretaryPersonId && facts.actingSecretaryId]);
-                    const unexplained = presentIds.filter(pid => !list.includes(pid) && !exempt.has(pid) && !outForVote.some(c => c.personId === pid));
+                    // The replay's own exemption (replayAttendance §3, `notWrittenInList`):
+                    // the body's own mayor, whoever this page says presided, the secretary
+                    // where the body's rule leaves them out of the list (any acting one
+                    // too), and the mayor where the body states them in a sentence apart.
+                    const unexplained = presentIds.filter(pid => !list.includes(pid) && !notWrittenInList(pid, false, input, facts) && !outForVote.some(c => c.personId === pid));
                     if (unexplained.length) checks.push({ rank: DOUBT, text: `${doc(d.ada)} item ${item}: ${unexplained.map(nameOf).join(', ')} ${unexplained.length === 1 ? 'is' : 'are'} in the roll call but not in ΤΑ ΜΕΛΗ, with no stated absence — we derive them absent for this decision. Does the page say they left, or is the list just short?` });
                 }
             }
