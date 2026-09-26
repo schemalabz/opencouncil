@@ -1,0 +1,60 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`MinutesDocx roll call prints a committee the mayor presides, with a substitute sitting in 1`] = `
+[
+  "ΔΗΜΟΣ ΑΡΓΟΥΣ-ΜΥΚΗΝΩΝ",
+  "Δημοτική Επιτροπή",
+  "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+  "ΠΡΑΚΤΙΚΑ ΣΥΝΕΔΡΙΑΣΗΣ",
+  "Τακτική Συνεδρίαση",
+  "Τρίτη, 21 Ιουλίου 2026, 14:00",
+  "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+  "<w:tblPr><w:tblW w:type="auto" w:w="100"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="700"/><w:gridCol w:w="8100"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="700"/><w:tcBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders><w:vAlign w:val="center"/></w:tcPr><w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="381000" cy="323850"/><wp:effectExtent t="0" r="0" b="0" l="0"/><wp:docPr id="1" name="" descr="" title=""/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="" descr=""/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId10" cstate="none"/><a:srcRect/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr bwMode="auto"><a:xfrm><a:off x="0" y="0"/><a:ext cx="381000" cy="323850"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:tc><w:tc><w:tcPr><w:tcBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders><w:vAlign w:val="center"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Relative Book Pro" w:cs="Relative Book Pro" w:eastAsia="Relative Book Pro" w:hAnsi="Relative Book Pro"/><w:color w:val="888888"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t xml:space="preserve">OpenCouncil",
+  "Το λειτουργικό σύστημα των συλλογικών οργάνων",
+  "opencouncil.gr/argos",
+  "ΠΡΟΕΔΡΟΣ: ",
+  "Μαλτέζος Ιωάννης (ΔΗΜΑΡΧΟΣ)",
+  "ΠΑΡΟΝΤΑ ΜΕΛΗ (4)",
+  "Μαλτέζος Ιωάννης",
+  " (Άργος Πρώτα)",
+  "Πετσέλης Χρήστος",
+  " (Άργος Πρώτα, Επικεφαλής)",
+  "Λιόλιος Αντώνης",
+  " (Άργος Πρώτα)",
+  "Δημάκης Γιώργος",
+  " (αναπλ. μέλος, Άργος Πρώτα)",
+  "ΑΠΟΝΤΑ ΜΕΛΗ (1)",
+  "Κολεβέντης Φώτιος",
+  " (Νέα Πνοή)",
+]
+`;
+
+exports[`MinutesDocx roll call prints a council with the mayor apart and the president absent 1`] = `
+[
+  "ΔΗΜΟΣ ΑΡΓΟΥΣ-ΜΥΚΗΝΩΝ",
+  "Δημοτικό Συμβούλιο",
+  "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+  "ΠΡΑΚΤΙΚΑ ΣΥΝΕΔΡΙΑΣΗΣ",
+  "Τακτική Συνεδρίαση",
+  "Τρίτη, 21 Ιουλίου 2026, 14:00",
+  "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+  "<w:tblPr><w:tblW w:type="auto" w:w="100"/><w:tblBorders><w:top w:val="single" w:color="auto" w:sz="4"/><w:left w:val="single" w:color="auto" w:sz="4"/><w:bottom w:val="single" w:color="auto" w:sz="4"/><w:right w:val="single" w:color="auto" w:sz="4"/><w:insideH w:val="single" w:color="auto" w:sz="4"/><w:insideV w:val="single" w:color="auto" w:sz="4"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="700"/><w:gridCol w:w="8100"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:type="dxa" w:w="700"/><w:tcBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders><w:vAlign w:val="center"/></w:tcPr><w:p><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="381000" cy="323850"/><wp:effectExtent t="0" r="0" b="0" l="0"/><wp:docPr id="1" name="" descr="" title=""/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="0" name="" descr=""/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId10" cstate="none"/><a:srcRect/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr bwMode="auto"><a:xfrm><a:off x="0" y="0"/><a:ext cx="381000" cy="323850"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:tc><w:tc><w:tcPr><w:tcBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/></w:tcBorders><w:vAlign w:val="center"/></w:tcPr><w:p><w:r><w:rPr><w:rFonts w:ascii="Relative Book Pro" w:cs="Relative Book Pro" w:eastAsia="Relative Book Pro" w:hAnsi="Relative Book Pro"/><w:color w:val="888888"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t xml:space="preserve">OpenCouncil",
+  "Το λειτουργικό σύστημα των συλλογικών οργάνων",
+  "opencouncil.gr/argos",
+  "ΔΗΜΑΡΧΟΣ: ",
+  "Ρούσσος Σίμος",
+  " (αποχώρησε από το 4ο θέμα)",
+  "ΠΡΟΕΔΡΟΣ: ",
+  "Καραγιάννη Τάνια",
+  " (ΑΠΟΥΣΑ)",
+  "ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ (3)",
+  "Καραγιάννη Τάνια",
+  " (Χαλάνδρι Ανάσα)",
+  "Λαμπρόπουλος Παναγιώτης",
+  " (Χαλάνδρι Ανάσα, Επικεφαλής)",
+  "Παπαγιαννάκη Νίκη",
+  "Κατά την έναρξη της συνεδρίασης απουσίαζαν οι ",
+  "Λαμπρόπουλος Παναγιώτης",
+  " (1)",
+]
+`;

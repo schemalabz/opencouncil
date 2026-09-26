@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import { renderMinutesDocx } from '../MinutesDocx';
 import { MinutesData, MinutesSubject } from '@/lib/minutes/types';
+import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
 
 function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
     return {
@@ -292,5 +293,19 @@ describe('MinutesDocx output', () => {
             proceduralVotes: [{ subjectId: 'subject-1', timestamp: 512 }],
         });
         expect(after).toEqual(before);
+    });
+});
+
+/**
+ * The roll call the minutes print before the first subject, run by run. The
+ * decisions page reads the same lines, so a change here is a change there too.
+ */
+describe('MinutesDocx roll call', () => {
+    it('prints a committee the mayor presides, with a substitute sitting in', async () => {
+        expect(await docxRuns(committeeWithSubstitute())).toMatchSnapshot();
+    });
+
+    it('prints a council with the mayor apart and the president absent', async () => {
+        expect(await docxRuns(councilWithAbsentPresident())).toMatchSnapshot();
     });
 });
