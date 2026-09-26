@@ -68,6 +68,17 @@ describe('measureMeeting', () => {
         expect(m.checks.listOmitsMayor).toBe(0);
     });
 
+    it('does not count a list without the mayor where the mayor chairs the body (check 3)', () => {
+        // argos/jul21_2026: the committee's roster names Μαλτέζος, the mayor, as its chair; ΤΑ ΜΕΛΗ lists the members without him.
+        const rollCall = [{ personId: 'p1', status: 'PRESENT' as const, source: 'decision' as const }, { personId: 'mayor', status: 'PRESENT' as const, source: 'decision' as const }];
+        const documents = [doc('s1', { presentIds: ['p1'] }), doc('s2', { presentIds: ['p1'] })];
+        const listOmitsMayor = (o: Partial<DerivationInput>) => measureMeeting('c/m', input({ documents, ...o }), output({ rollCall }), null).checks.listOmitsMayor;
+        expect(listOmitsMayor({ bodyType: 'committee', presidentPersonId: 'mayor' })).toBe(0);
+        // A committee chaired by someone else still counts: the check skips the mayor's chair, not the committee.
+        expect(listOmitsMayor({ bodyType: 'committee', presidentPersonId: 'p1' })).toBe(2);
+        expect(listOmitsMayor({ bodyType: 'council', presidentPersonId: 'p1' })).toBe(2);
+    });
+
     it('does not flag the mayor on a committee', () => {
         const attendance = [{ subjectId: 's1', personId: 'mayor', status: 'PRESENT' as const, origin: 'derived' as const }];
         expect(measureMeeting('c/m', input({ bodyType: 'committee' }), output({ attendance }), null).checks.mayorRowsOffBody).toBe(0);

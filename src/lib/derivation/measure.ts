@@ -21,7 +21,7 @@ export interface MeetingMeasure {
         mayorRowsOffBody: number;
         /** 2: a roll-call member absent on items though no departure of theirs is stated, no later arrival explains it, and the item's own page does not list them absent. */
         unstatedAbsences: Array<{ personId: string; absentOn: number; of: number }>;
-        /** 3: pages whose own list leaves out the mayor while the roll call has the mayor present. */
+        /** 3: pages whose own list leaves out the mayor while the roll call has the mayor present; 0 where the mayor chairs the body. */
         listOmitsMayor: number;
         /** 4: stated changes dropped or contradicted. */
         changesDropped: number;
@@ -97,7 +97,11 @@ export function measureMeeting(key: string, input: DerivationInput, output: Deri
     const unstatedAbsences = [...absentOn].map(([personId, n]) => ({ personId, absentOn: n, of: input.subjects.length }))
         .sort((x, y) => x.personId.localeCompare(y.personId));
 
-    const listOmitsMayor = mayor && presentAtRollCall.has(mayor)
+    // A chair signs apart from ΤΑ ΜΕΛΗ, and the replay exempts the chair from the
+    // list (`notWrittenInList`), so a list without a mayor who chairs the body
+    // lost nothing: in every committee meeting of c1sample check 3 counted, the
+    // committee's chair on its roster is the city's mayor (argos/jul21_2026).
+    const listOmitsMayor = mayor && presentAtRollCall.has(mayor) && input.presidentPersonId !== mayor
         ? input.documents.filter(d => d.presentIds && !d.presentIds.includes(mayor)).length
         : 0;
 
