@@ -773,6 +773,16 @@ export async function getSubjectIdsForMeeting(cityId: string, councilMeetingId: 
     return rows.map((row) => row.id);
 }
 
+/** The distinct meetings the given subjects belong to. Used to re-derive every meeting an edit of a reading touched (spec §5.2). */
+export async function getMeetingsOfSubjects(subjectIds: string[]): Promise<{ cityId: string; councilMeetingId: string }[]> {
+    const rows = await prisma.subject.findMany({
+        where: { id: { in: subjectIds } },
+        select: { cityId: true, councilMeetingId: true },
+    });
+    const meetings = new Map(rows.map(row => [`${row.cityId}/${row.councilMeetingId}`, row]));
+    return [...meetings.values()];
+}
+
 /** What the image backfill ranks a subject on — the same signals the landing feeds the ranker. */
 export type SubjectImageBackfillRow = {
     id: string;

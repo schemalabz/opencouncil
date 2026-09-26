@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
 import { getDecisionsForMeeting, getExtractedDataForMeeting, upsertDecision, deleteDecision, clearExtractedDataForMeeting, resetExtractionForSubject } from '@/lib/db/decisions';
 import { getUnresolvedCandidatesForMeeting, assignCandidate, dismissCandidate, undismissCandidate, getBackedDecisionIds } from '@/lib/db/decisionCandidates';
+import { explainMeeting } from '@/lib/derivation/persist';
+import { rederiveMeeting } from '@/lib/derivation/actions';
 import prisma from '@/lib/db/prisma';
 import { decisionWriteCause } from '@/lib/utils/decisionWriteCause';
 import { revalidateTag } from 'next/cache';
@@ -15,10 +17,14 @@ export async function GET(
     const params = await props.params;
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
-    const [decisions, extractedData, candidates] = await Promise.all([
+    // The derivation is read-only and pure over rows already fetched for it, so
+    // the page gets the issues and the per-row origins with the decisions
+    // themselves rather than on a second round trip.
+    const [decisions, extractedData, candidates, derivation] = await Promise.all([
         getDecisionsForMeeting(params.cityId, params.meetingId),
         getExtractedDataForMeeting(params.cityId, params.meetingId),
         getUnresolvedCandidatesForMeeting(params.cityId, params.meetingId),
+        explainMeeting(params.cityId, params.meetingId),
     ]);
 
     // Unlink is only reversible when a candidate row backs the decision
@@ -27,7 +33,7 @@ export async function GET(
     const backedIds = await getBackedDecisionIds(decisions.map((d) => d.id));
     const decisionsWithBacking = decisions.map((d) => ({ ...d, candidateBacked: backedIds.has(d.id) }));
 
-    return NextResponse.json({ decisions: decisionsWithBacking, extractedData, candidates });
+    return NextResponse.json({ decisions: decisionsWithBacking, extractedData, candidates, derivation });
 }
 
 const upsertSchema = z.object({
@@ -152,6 +158,7 @@ const postSchema = z.discriminatedUnion('action', [
     z.object({ action: z.literal('assignCandidate'), candidateId: z.string().min(1), subjectId: z.string().min(1) }),
     z.object({ action: z.literal('dismissCandidate'), candidateId: z.string().min(1) }),
     z.object({ action: z.literal('undismissCandidate'), candidateId: z.string().min(1) }),
+    z.object({ action: z.literal('rederive') }),
 ]);
 
 export async function POST(
@@ -181,6 +188,12 @@ export async function POST(
         const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
         revalidateTag(`city:${params.cityId}:meetings`, 'max');
         return NextResponse.json(result);
+    }
+
+    if (parsed.data.action === 'rederive') {
+        // Replaces the meeting's derived attendance and vote rows from the
+        // facts already stored: no poll, no extraction, nothing fetched.
+        return NextResponse.json(await rederiveMeeting(params.cityId, params.meetingId));
     }
 
     if (parsed.data.action === 'assignCandidate') {

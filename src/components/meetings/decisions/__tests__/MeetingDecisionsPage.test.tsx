@@ -4,6 +4,8 @@ import { NextIntlClientProvider } from 'next-intl';
 import { MeetingDecisionsPage } from '../MeetingDecisionsPage';
 import admin from '../../../../../messages/el/admin.json';
 import el from '../../../../../messages/el.json';
+import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
+import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
 
 /**
  * The page's own state, driven through the real table and the real card.
@@ -76,6 +78,8 @@ interface Store {
     posts: { action: string; candidateId?: string; subjectId?: string }[];
     /** When set, every write answers with this instead of succeeding. */
     failWrite: { status: number; body: unknown } | null;
+    /** What the minutes route answers; null answers 404, as when the minutes do not load. */
+    minutes: MinutesData | null;
 }
 
 let store: Store;
@@ -134,11 +138,11 @@ const fetchMock = jest.fn();
 const originalFetch = global.fetch;
 
 beforeEach(() => {
-    store = { decisions: [], extractedData: [], candidates: [], dismissed: new Set(), posts: [], failWrite: null };
+    store = { decisions: [], extractedData: [], candidates: [], dismissed: new Set(), posts: [], failWrite: null, minutes: null };
     mockToast.mockClear();
     fetchMock.mockReset();
     fetchMock.mockImplementation(async (url: string, init?: { method?: string; body?: string }) => {
-        if (url.includes('/minutes')) return { ok: false, status: 404, json: async () => ({}) };
+        if (url.includes('/minutes')) return store.minutes ? json(store.minutes) : { ok: false, status: 404, json: async () => ({}) };
         const method = init?.method ?? 'GET';
         if (method === 'GET') {
             return json({
@@ -363,5 +367,185 @@ describe('MeetingDecisionsPage — where the decisions come from', () => {
         const link = screen.getByRole('link', { name: 'στον οργανισμό 50026' });
         expect(link).toHaveAttribute('href', expect.stringContaining('50026'));
         expect(screen.getByText(/Δεν έχει ελεγχθεί ακόμη/)).toBeInTheDocument();
+    });
+});
+
+/**
+ * The minutes with the subject of `extracted`, whose attendance is the rows the
+ * decisions route sends: both routes read the same stored rows, and the subject
+ * block reads the minutes' snapshot.
+ */
+const withSubject = (data: MinutesData, extracted: StoreExtracted): MinutesData => {
+    const member = (a: StoreExtracted['attendance'][number]): MinutesMember => ({ personId: a.personId, name: a.personName, party: null, isPartyHead: false, role: null });
+    return {
+        ...data,
+        subjects: [{
+            subjectId: extracted.subjectId, agendaItemIndex: 1, nonAgendaReason: null, withdrawn: false, name: 'Έγκριση απολογισμού',
+            discussedWith: null, discussedElsewhere: null, decision: null, presidedBy: data.councilComposition?.presidedBy ?? null,
+            attendance: {
+                present: extracted.attendance.filter(a => a.status === 'PRESENT').map(member),
+                absent: extracted.attendance.filter(a => a.status === 'ABSENT').map(member),
+            },
+            voteResult: null, discussion: { kind: 'none', seconds: 0, start: null }, preDiscussionEntries: [], transcriptEntries: [],
+        }],
+    };
+};
+
+describe('MeetingDecisionsPage — who was present, as the minutes print it', () => {
+    /** The text of the line a label opens, inside `scope`. */
+    const lineIn = (scope: HTMLElement, label: string) => within(scope).getByText(label).parentElement!.textContent;
+    const rail = async () => (await screen.findByText('Παρουσίες')).parentElement!;
+
+    it('names the mayor only on the president\'s line of a committee the mayor presides', async () => {
+        store.minutes = committeeWithSubstitute();
+        await renderPage();
+
+        const card = await rail();
+        expect(lineIn(card, 'Πρόεδρος:')).toBe('Πρόεδρος: Μαλτέζος Ιωάννης (Δήμαρχος)');
+        expect(within(card).queryByText('Δήμαρχος:')).not.toBeInTheDocument();
+        expect(within(card).getByText('4 παρόντα μέλη')).toBeInTheDocument();
+        expect(lineIn(card, 'Αναπληρωματικά μέλη (1):')).toBe('Αναπληρωματικά μέλη (1): Δημάκης Γιώργος');
+    });
+
+    it('keeps a council\'s mayor on a line of their own', async () => {
+        store.minutes = councilWithAbsentPresident();
+        await renderPage();
+
+        const card = await rail();
+        expect(lineIn(card, 'Δήμαρχος:')).toBe('Δήμαρχος: Ρούσσος Σίμος (αποχώρησε από το 4ο θέμα)');
+        expect(lineIn(card, 'Πρόεδρος:')).toBe('Πρόεδρος: Καραγιάννη Τάνια — απούσα');
+    });
+
+    it('counts a subject as the card counts the roll call, and both agree with the tally', async () => {
+        // One regular member absent, one substitute in their place: the mayor
+        // who presides is a member, so the card, the subject and the tally all
+        // count the mayor, the two members and the substitute.
+        store.minutes = committeeWithSubstitute();
+        store.decisions = [linkedDecision('s1', '640/2026')];
+        store.extractedData = [{
+            subjectId: 's1',
+            attendance: [
+                { personId: 'mayor', personName: 'Ιωάννης Μαλτέζος', status: 'PRESENT' },
+                { personId: 'm1', personName: 'Χρήστος Πετσέλης', status: 'PRESENT' },
+                { personId: 'm2', personName: 'Αντώνης Λιόλιος', status: 'PRESENT' },
+                { personId: 'm3', personName: 'Φώτιος Κολεβέντης', status: 'ABSENT' },
+                { personId: 's1', personName: 'Γιώργος Δημάκης', status: 'PRESENT' },
+            ],
+            votes: ['mayor', 'm1', 'm2', 's1'].map(personId => ({ personId, personName: personId, voteType: 'FOR' })),
+        }];
+        store.minutes = withSubject(store.minutes, store.extractedData[0]);
+        await renderPage();
+
+        expect(within(await rail()).getByText('4 παρόντα μέλη')).toBeInTheDocument();
+
+        await userEvent.click(await screen.findByRole('button', { name: '640/2026' }));
+        const sheet = await screen.findByRole('dialog');
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Στοιχεία απόφασης' }));
+
+        expect(lineIn(sheet, 'Πρόεδρος:')).toBe('Πρόεδρος: Μαλτέζος Ιωάννης (Δήμαρχος)');
+        expect(within(sheet).getByText('4 παρόντες, 1 απόντες')).toBeInTheDocument();
+        expect(within(sheet).getByText(/4 υπέρ/)).toBeInTheDocument();
+    });
+
+    /** Opens the decision sheet of subject s1 and its facts section. */
+    const openSubjectSheet = async (number: string) => {
+        await userEvent.click(await screen.findByRole('button', { name: number }));
+        const sheet = await screen.findByRole('dialog');
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Στοιχεία απόφασης' }));
+        return sheet;
+    };
+
+    it('prints no mayor line on a council subject: the minutes print none per subject', async () => {
+        // The council's rows never hold the mayor, who is not a member.
+        store.minutes = councilWithAbsentPresident();
+        store.decisions = [linkedDecision('s1', '640/2026')];
+        store.extractedData = [{
+            subjectId: 's1',
+            attendance: [
+                { personId: 'p1', personName: 'Τάνια Καραγιάννη', status: 'ABSENT' },
+                { personId: 'p2', personName: 'Παναγιώτης Λαμπρόπουλος', status: 'PRESENT' },
+                { personId: 'p3', personName: 'Νίκη Παπαγιαννάκη', status: 'PRESENT' },
+            ],
+            votes: ['p2', 'p3'].map(personId => ({ personId, personName: personId, voteType: 'FOR' })),
+        }];
+        store.minutes = withSubject(store.minutes, store.extractedData[0]);
+        await renderPage();
+
+        expect(lineIn(await rail(), 'Δήμαρχος:')).toBe('Δήμαρχος: Ρούσσος Σίμος (αποχώρησε από το 4ο θέμα)');
+
+        const sheet = await openSubjectSheet('640/2026');
+        expect(within(sheet).queryByText('Δήμαρχος:')).not.toBeInTheDocument();
+        expect(within(sheet).queryByText(/Ρούσσος/)).not.toBeInTheDocument();
+        expect(lineIn(sheet, 'Πρόεδρος:')).toBe('Πρόεδρος: Καραγιάννη Τάνια — απούσα');
+    });
+
+    it('counts 9 of 9 on a committee the mayor presides, as the Argos tally does', async () => {
+        // Argos, 21 July 2026: the mayor presides, eight members and one
+        // substitute sit, one member is absent, and nine vote in favour.
+        const data = committeeWithSubstitute();
+        const others = ['Α', 'Β', 'Γ', 'Δ', 'Ε'].map((letter, i) => ({
+            personId: `m${i + 4}`, name: `Μέλος ${letter}`, party: 'Νέα Πνοή', isPartyHead: false, role: null,
+        }));
+        data.councilComposition!.members.push(...others);
+        store.minutes = data;
+        const present = ['mayor', 'm1', 'm2', ...others.map(m => m.personId), 's1'];
+        store.decisions = [linkedDecision('s1', '640/2026')];
+        store.extractedData = [{
+            subjectId: 's1',
+            attendance: [
+                ...present.map(personId => ({ personId, personName: personId, status: 'PRESENT' })),
+                { personId: 'm3', personName: 'Φώτιος Κολεβέντης', status: 'ABSENT' },
+            ],
+            votes: present.map(personId => ({ personId, personName: personId, voteType: 'FOR' })),
+        }];
+        store.minutes = withSubject(data, store.extractedData[0]);
+        await renderPage();
+
+        expect(within(await rail()).getByText('9 παρόντα μέλη')).toBeInTheDocument();
+
+        const sheet = await openSubjectSheet('640/2026');
+        expect(within(sheet).getByText('9 παρόντες, 1 απόντες')).toBeInTheDocument();
+        expect(within(sheet).getByText(/9 υπέρ/)).toBeInTheDocument();
+    });
+
+    it('counts and names a member who sat in on a subject with no roll-call row, as the tally does', async () => {
+        // chalandri/aug20_2026 items 7–11: Ευθυμίου has rows and a vote on the subject and no roll-call row.
+        store.minutes = committeeWithSubstitute();
+        store.decisions = [linkedDecision('s1', '640/2026')];
+        const present = ['mayor', 'm1', 'm2', 's1', 'x'];
+        store.extractedData = [{
+            subjectId: 's1',
+            attendance: [
+                ...present.map(personId => ({ personId, personName: personId === 'x' ? 'Ευθυμίου Κωνσταντίνος' : personId, status: 'PRESENT' })),
+                { personId: 'm3', personName: 'Φώτιος Κολεβέντης', status: 'ABSENT' },
+            ],
+            votes: present.map(personId => ({ personId, personName: personId, voteType: 'FOR' })),
+        }];
+        store.minutes = withSubject(store.minutes, store.extractedData[0]);
+        await renderPage();
+
+        const sheet = await openSubjectSheet('640/2026');
+        expect(within(sheet).getByText('5 παρόντες, 1 απόντες')).toBeInTheDocument();
+        expect(within(sheet).getByText(/5 υπέρ/)).toBeInTheDocument();
+        await userEvent.click(within(sheet).getByRole('button', { name: /Εμφάνιση ονομάτων \(παρόντες\)/ }));
+        expect(within(sheet).getByText(/Ευθυμίου Κωνσταντίνος/)).toBeInTheDocument();
+    });
+
+    it("shows the decisions' own rows for a subject when the minutes do not load", async () => {
+        store.decisions = [linkedDecision('s1', '640/2026')];
+        store.extractedData = [{
+            subjectId: 's1',
+            attendance: [
+                { personId: 'p2', personName: 'Παναγιώτης Λαμπρόπουλος', status: 'PRESENT' },
+                { personId: 'p3', personName: 'Νίκη Παπαγιαννάκη', status: 'PRESENT' },
+                { personId: 'p1', personName: 'Τάνια Καραγιάννη', status: 'ABSENT' },
+            ],
+            votes: ['p2', 'p3'].map(personId => ({ personId, personName: personId, voteType: 'FOR' })),
+        }];
+        await renderPage();
+
+        const sheet = await openSubjectSheet('640/2026');
+        expect(within(sheet).getByText('2 παρόντες, 1 απόντες')).toBeInTheDocument();
+        expect(within(sheet).queryByText('Πρόεδρος:')).not.toBeInTheDocument();
     });
 });

@@ -1,4 +1,4 @@
-import { Party, Role } from "@prisma/client";
+import { AdministrativeBodyType, Party, Role } from "@prisma/client";
 import { RoleWithRelations } from "@/lib/db/types";
 
 /**
@@ -412,6 +412,22 @@ export function getSpeakerDisplayInfo(
  */
 export function isMayorRole(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): boolean {
   return !!role.cityId && !role.partyId && !role.administrativeBodyId && role.isHead;
+}
+
+/**
+ * Whether the mayor sits on this body and votes like a member. On the Δημοτικό
+ * Συμβούλιο and a Κοινότητα never: the mayor attends and does not vote, whatever
+ * role the roster holds (Chalandri, Papagos and Argithea hold one without dates).
+ * On the Δημοτική Επιτροπή only when the roster gives the mayor an active role on
+ * it — the mayor can preside there and then votes; Argithea's mayor is not on its
+ * committee. Per-subject rows leave the mayor out wherever this is false.
+ */
+export function mayorIsMemberOf(
+  mayor: { roles: Array<{ administrativeBodyId?: string | null; startDate: Date | null; endDate: Date | null }> },
+  body: { id: string; type: AdministrativeBodyType } | null | undefined,
+  date: Date,
+): boolean {
+  return body?.type === 'committee' && mayor.roles.some(r => r.administrativeBodyId === body.id && isRoleActiveAt(r, date));
 }
 
 /**

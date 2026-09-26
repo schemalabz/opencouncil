@@ -1,4 +1,4 @@
-import { Subject, ProcessAgendaResult, SummarizeResult, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData } from '@/lib/apiTypes'
+import { Subject, ProcessAgendaResult, SummarizeResult, PollDecisionsResult, PollDecisionsMatch, DocumentRollCall, ExtractedDecisionData } from '@/lib/apiTypes'
 import { PersonWithRelations } from '@/lib/db/people'
 import { Transcript } from '@/lib/db/transcript'
 
@@ -128,8 +128,9 @@ export function makePollDecisionsResult(params: {
     unmatchedSubjects?: PollDecisionsResult['unmatchedSubjects']
     ambiguousSubjects?: PollDecisionsResult['ambiguousSubjects']
     extractions?: PollDecisionsResult['extractions']
-    costs?: PollDecisionsResult['costs']
+    usage?: PollDecisionsResult['usage']
 }): PollDecisionsResult {
+    // One entry per page read; the meeting's roll call and changes are the derivation's (spec §4.1).
     return {
         ...(params.decisions ? { decisions: params.decisions } : {}),
         matches: params.matches ?? [],
@@ -137,20 +138,55 @@ export function makePollDecisionsResult(params: {
         unmatchedSubjects: params.unmatchedSubjects ?? [],
         ambiguousSubjects: params.ambiguousSubjects ?? [],
         extractions: params.extractions ?? null,
-        costs: params.costs ?? { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+        usage: params.usage ?? { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
     }
 }
 
-export function makeExtractedDecision(overrides: Partial<ExtractedDecisionData> & { subjectId: string }): ExtractedDecisionData {
+/**
+ * A document as task v4 sends it. Callers say who the page's roll call states
+ * present and absent the short way, with `rollCallPresent` / `rollCallAbsent`,
+ * and this states it as that document's roll call — the derivation resolves
+ * the meeting's roll call from every page's. A caller passing its own `rollCall` keeps it;
+ * one passing neither states none, which is a meeting the derivation declines to
+ * write rows for.
+ *
+ * The deprecated v3 `presentMemberIds` / `absentMemberIds` are not emitted: v4
+ * ignores them, and a result carrying both was a shape no callback sends.
+ * `layout` and the page's own words for the two lists are the caller's to give —
+ * raw names equal to person ids are something no reading produces.
+ */
+export function makeExtractedDecision({ rollCallPresent, rollCallAbsent, rollCallLayout, rollCallPresentNames, rollCallAbsentNames, ...overrides }: Partial<ExtractedDecisionData> & {
+    subjectId: string
+    /** Ids the page's roll call states present, and absent. */
+    rollCallPresent?: string[]
+    rollCallAbsent?: string[]
+    /** How the page laid the roll call out, and its own words for the two lists. */
+    rollCallLayout?: DocumentRollCall['layout']
+    rollCallPresentNames?: string[]
+    rollCallAbsentNames?: string[]
+}): ExtractedDecisionData {
+    const presentIds = rollCallPresent ?? []
+    const absentIds = rollCallAbsent ?? []
+    const rollCall = overrides.rollCall !== undefined
+        ? overrides.rollCall
+        : (presentIds.length || absentIds.length)
+            ? {
+                layout: rollCallLayout ?? 'present_and_absent',
+                composition: [],
+                present: rollCallPresentNames ?? [],
+                absent: rollCallAbsentNames ?? [],
+                presentIds,
+                absentIds,
+            }
+            : null
     return {
         excerpt: '',
         references: '',
-        presentMemberIds: [],
-        absentMemberIds: [],
         voteResult: null,
         voteDetails: [],
         unmatchedMembers: [],
         subjectInfo: null,
         ...overrides,
+        rollCall,
     }
 }

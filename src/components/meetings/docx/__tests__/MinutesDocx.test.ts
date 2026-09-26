@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import { renderMinutesDocx } from '../MinutesDocx';
 import { MinutesData, MinutesSubject } from '@/lib/minutes/types';
+import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
 
 function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
     return {
@@ -22,6 +23,7 @@ function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
         absentMembers: null,
         preambleEntries: [],
         attendanceChanges: [],
+        attendanceChangesSource: 'diff',
         discussionOrderLabel: null,
         proceduralVotes: [],
         subjects: [],
@@ -40,6 +42,7 @@ function makeSubject(overrides: Partial<MinutesSubject> = {}): MinutesSubject {
         discussedWith: null,
         discussedElsewhere: null,
         decision: null,
+        presidedBy: null,
         attendance: null,
         voteResult: null,
         discussion: { kind: 'none', seconds: 0, start: null },
@@ -73,7 +76,7 @@ describe('renderMinutesDocx', () => {
     it('should handle subjects with full data', async () => {
         const data = makeMinutesData({
             councilComposition: {
-                mayor: { name: 'Δημήτρης Αντωνίου', personId: 'mayor-1' },
+                mayor: { name: 'Δημήτρης Αντωνίου', personId: 'mayor-1', note: null },
                 president: { name: 'Γιώργος Παπαδόπουλος', personId: 'p1' },
                 members: [
                     { personId: 'p1', name: 'Γιώργος Παπαδόπουλος', party: 'ΝΔ', isPartyHead: false, role: 'Πρόεδρος' },
@@ -93,6 +96,7 @@ describe('renderMinutesDocx', () => {
                         protocolNumber: '123/2024',
                         excerpt: 'Εγκρίνει **ομόφωνα** τον προϋπολογισμό.',
                         references: '- Ν. 3852/2010\n- Ν. 4555/2018',
+                        voteResultPhrase: null,
                     },
                     voteResult: {
                         forMembers: [
@@ -108,6 +112,7 @@ describe('renderMinutesDocx', () => {
                         ],
                         passed: true,
                         isUnanimous: true,
+                        fromPhraseOnly: false,
                     },
                     transcriptEntries: [
                         {
@@ -192,7 +197,7 @@ describe('MinutesDocx decision number', () => {
     it('renders decisionNumber, not protocolNumber', async () => {
         const text = await docxText(makeMinutesData({
             subjects: [makeSubject({
-                decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: null, references: null },
+                decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: null, references: null, voteResultPhrase: null },
             })],
         }));
         expect(text).toContain('425/2026');
@@ -202,7 +207,7 @@ describe('MinutesDocx decision number', () => {
     it('renders nothing when decisionNumber is unknown, even if protocolNumber is set', async () => {
         const text = await docxText(makeMinutesData({
             subjects: [makeSubject({
-                decision: { decisionNumber: null, protocolNumber: '29967', excerpt: null, references: null },
+                decision: { decisionNumber: null, protocolNumber: '29967', excerpt: null, references: null, voteResultPhrase: null },
             })],
         }));
         expect(text).not.toContain('29967');
@@ -236,7 +241,7 @@ describe('MinutesDocx output', () => {
 
     const populated = (overrides: Partial<MinutesData> = {}): MinutesData => makeMinutesData({
         councilComposition: {
-            mayor: { name: 'Δήμαρχος', personId: 'mayor' },
+            mayor: { name: 'Δήμαρχος', personId: 'mayor', note: null },
             president: { name: 'Πρόεδρος', personId: 'p1' },
             members: [member('p1', 'Άλφα'), member('p2', 'Βήτα')],
             substituteMembers: [],
@@ -247,7 +252,7 @@ describe('MinutesDocx output', () => {
             atSubject: { id: 'subject-1', name: 'Έγκριση προϋπολογισμού', agendaItemIndex: 1, nonAgendaReason: null, outOfAgendaIndex: null },
         }],
         subjects: [makeSubject({
-            decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: 'Εγκρίνει ομόφωνα.', references: null },
+            decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: 'Εγκρίνει ομόφωνα.', references: null, voteResultPhrase: null },
             transcriptEntries: [{
                 type: 'speaker', speakerName: 'Άλφα', party: null, isPartyHead: false, role: null,
                 text: 'Τοποθέτηση επί του θέματος.', timestamp: 120,
@@ -268,7 +273,7 @@ describe('MinutesDocx output', () => {
         const before = await docxRuns(populated());
         const after = await docxRuns(populated({
             subjects: [makeSubject({
-                decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: 'Εγκρίνει ομόφωνα.', references: null },
+                decision: { decisionNumber: '425/2026', protocolNumber: '29967', excerpt: 'Εγκρίνει ομόφωνα.', references: null, voteResultPhrase: null },
                 transcriptEntries: [{
                     type: 'speaker', speakerName: 'Άλφα', party: null, isPartyHead: false, role: null,
                     text: 'Τοποθέτηση επί του θέματος.', timestamp: 120,
@@ -289,5 +294,94 @@ describe('MinutesDocx output', () => {
             proceduralVotes: [{ subjectId: 'subject-1', timestamp: 512 }],
         });
         expect(after).toEqual(before);
+    });
+});
+
+/**
+ * The roll call the minutes print before the first subject, run by run. The
+ * decisions page reads the same lines, so a change here is a change there too.
+ */
+describe('MinutesDocx roll call', () => {
+    it('prints a committee the mayor presides, with a substitute sitting in', async () => {
+        expect(await docxRuns(committeeWithSubstitute())).toMatchSnapshot();
+    });
+
+    it('prints no «(ΔΗΜΑΡΧΟΣ)» after a committee president who is not the mayor, and no mayor line', async () => {
+        const data = committeeWithSubstitute();
+        data.councilComposition!.president = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        const runs = await docxRuns(data);
+        expect(runs).toContain('Πετσέλης Χρήστος');
+        expect(runs.join('\n')).not.toContain('ΔΗΜΑΡΧΟΣ');
+    });
+
+    it('prints the mayor\'s arrival once, in the note on the president\'s line of a committee the mayor presides', async () => {
+        // getMinutesData puts a presiding mayor's arrivals and departures in the
+        // note and leaves them out of the changes list.
+        const data = committeeWithSubstitute();
+        data.councilComposition!.mayor!.note = 'προσήλθε από το 3ο θέμα';
+        data.attendanceChanges = [];
+        const runs = await docxRuns(data);
+        expect(runs[runs.indexOf('Μαλτέζος Ιωάννης (ΔΗΜΑΡΧΟΣ)') + 1]).toBe(' (προσήλθε από το 3ο θέμα)');
+        expect(runs.filter(r => r.includes('από το 3ο θέμα'))).toHaveLength(1);
+    });
+
+    it('prints a council with the mayor apart and the president absent', async () => {
+        expect(await docxRuns(councilWithAbsentPresident())).toMatchSnapshot();
+    });
+
+    it('names who presided first when the mayor who presides a committee was absent, and lists the mayor as absent with the office', async () => {
+        // getMinutesData then puts the mayor's arrival in the changes list, and the note stays off the line.
+        const data = committeeWithSubstitute();
+        const composition = data.councilComposition!;
+        composition.mayor!.note = 'ΑΠΩΝ';
+        composition.presidedBy = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        data.absentMembers = [...data.absentMembers!, composition.members.find(m => m.personId === 'mayor')!];
+        const runs = await docxRuns(data);
+        const line = runs.indexOf('ΠΡΟΕΔΡΟΣ: ');
+        expect(runs.slice(line, line + 3)).toEqual(['ΠΡΟΕΔΡΟΣ: ', 'Πετσέλης Χρήστος', ' (λόγω απουσίας του ΠΡΟΕΔΡΟΥ, ΔΗΜΑΡΧΟΥ Μαλτέζος Ιωάννης)']);
+        expect(runs).toContain('ΑΠΟΝΤΑ ΜΕΛΗ (2)');
+        expect(runs[runs.indexOf('Μαλτέζος Ιωάννης') + 1]).toBe(' (ΠΡΟΕΔΡΟΣ, ΔΗΜΑΡΧΟΣ, Άργος Πρώτα)');
+        expect(runs.join('\n')).not.toContain('ΑΠΩΝ');
+    });
+
+    it('names who presided on a council whose president was absent, and puts the president in the absence sentence', async () => {
+        const data = councilWithAbsentPresident();
+        data.councilComposition!.presidedBy = { name: 'Παπαγιαννάκη Νίκη', personId: 'p3' };
+        const runs = await docxRuns(data);
+        const line = runs.indexOf('ΠΡΟΕΔΡΟΣ: ');
+        expect(runs.slice(line, line + 3)).toEqual(['ΠΡΟΕΔΡΟΣ: ', 'Παπαγιαννάκη Νίκη', ' (λόγω απουσίας της ΠΡΟΕΔΡΟΥ Καραγιάννη Τάνια)']);
+        expect(runs).toContain('Καραγιάννη Τάνια (ΠΡΟΕΔΡΟΣ), Λαμπρόπουλος Παναγιώτης');
+    });
+});
+
+describe('MinutesDocx vote result from the phrase', () => {
+    const member = (personId: string, name: string) =>
+        ({ personId, name, party: null, isPartyHead: false, role: null });
+
+    it('prints the phrase and still names the dissenters and the absent members', async () => {
+        const runs = await docxRuns(makeMinutesData({
+            subjects: [makeSubject({
+                voteResult: {
+                    forMembers: [],
+                    againstMembers: [member('p2', 'Βήτα Βασίλης')],
+                    abstainMembers: [member('p3', 'Γάμμα Γιώργος')],
+                    presentMembers: [member('p4', 'Δέλτα Δήμητρα')],
+                    didNotVoteMembers: [],
+                    absentMembers: [member('p5', 'Έψιλον Ελένη')],
+                    fromPhraseOnly: true,
+                    outcome: 'majority',
+                    phrase: 'Κατά πλειοψηφία με ΥΠΕΡ: 7 ψήφους, ΚΑΤΑ 1, ΛΕΥΚΟ 1',
+                },
+            })],
+        }));
+        const phraseAt = runs.indexOf('Κατά πλειοψηφία');
+        expect(phraseAt).toBeGreaterThan(-1);
+        expect(runs.slice(phraseAt + 1, phraseAt + 9)).toEqual([
+            'ΚΑΤΑ (1): ', 'Βήτα Βασίλης',
+            'ΛΕΥΚΑ (1): ', 'Γάμμα Γιώργος',
+            'ΠΑΡΟΝΤΕΣ (1): ', 'Δέλτα Δήμητρα',
+            'ΑΠΟΝΤΕΣ (1): ', 'Έψιλον Ελένη',
+        ]);
+        expect(runs.join('\n')).not.toContain('ΥΠΕΡ (');
     });
 });

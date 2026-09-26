@@ -10,6 +10,8 @@ import { getWithdrawnLabel, sectionHeadingAt, type RecordSection } from '@/lib/u
 import type { ResultKey } from '@/lib/utils/decisionResult';
 import { QuietButton } from '@/components/meetings/decisions/controls';
 import { Chip } from '@/components/meetings/decisions/RecordRow';
+import { AuditLine } from '@/components/meetings/decisions/AuditLine';
+import type { AuditSignal } from '@/components/meetings/decisions/auditSignal';
 
 /** How many rows show before the fold. */
 export const VISIBLE_ROWS = 12;
@@ -103,14 +105,23 @@ export interface TableRow {
     proposal: { candidateId: string; number: string; title: string | null; likely: boolean } | null;
     /** Set for a short while after "Όχι", so the answer can be taken back. */
     rejected: { candidateId: string; number: string } | null;
+    /** How this row's outcome came to be. Null unless audit mode is on, and
+     * null under it too for a row whose outcome has nothing to audit. */
+    audit: AuditSignal | null;
 }
+
+/** Which rows the table shows: everything, the outstanding ones, or the ones audit mode flagged. */
+export type DecisionsFilter = 'all' | 'missing' | 'audit';
 
 export interface DecisionsTableProps {
     rows: TableRow[];
     beforeAgenda: { id: string; name: string }[];
-    filter: 'all' | 'missing';
+    filter: DecisionsFilter;
     missingCount: number;
-    onFilterChange: (f: 'all' | 'missing') => void;
+    /** Subjects with at least one issue. 0 whenever audit mode is off, which is
+     * what keeps the chip out of an ordinary reader's way. */
+    auditCount: number;
+    onFilterChange: (f: DecisionsFilter) => void;
     openPanelSubjectId: string | null;
     onOpenPanel: (subjectId: string, mode: 'link' | 'change') => void;
     renderPanel: (subjectId: string) => ReactNode;
@@ -120,6 +131,9 @@ export interface DecisionsTableProps {
     onOpenDecision: (subjectId: string) => void;
     onOpenProposalDocument: (candidateId: string) => void;
     busySubjectId: string | null;
+    /** Opens the page's derivation glossary from an audit line. Superadmin-only,
+     * so the page passes it to one and withholds it from everyone else. */
+    onExplainDerivation?: () => void;
 }
 
 type T = ReturnType<typeof useTranslations>;
@@ -437,6 +451,20 @@ function NumberCell({
     );
 }
 
+/** The count a filter chip carries, in the chip's own two colourways. */
+function ChipCount({ active, children }: { active: boolean; children: ReactNode }) {
+    return (
+        <span
+            className={cn(
+                'ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold',
+                active ? 'bg-background/20' : 'bg-foreground/10',
+            )}
+        >
+            {children}
+        </span>
+    );
+}
+
 function FilterChip({ active, children, onClick }: { active: boolean; children: ReactNode; onClick: () => void }) {
     return (
         <button
@@ -469,6 +497,7 @@ export function DecisionsTable({
     beforeAgenda,
     filter,
     missingCount,
+    auditCount,
     onFilterChange,
     openPanelSubjectId,
     onOpenPanel,
@@ -479,13 +508,20 @@ export function DecisionsTable({
     onOpenDecision,
     onOpenProposalDocument,
     busySubjectId,
+    onExplainDerivation,
 }: DecisionsTableProps) {
     const t = useTranslations('admin.decisionsPage');
     const tSubject = useTranslations('Subject');
     const [expanded, setExpanded] = useState(false);
 
-    const filteredRows = filter === 'missing' ? rows.filter(r => r.result === 'none') : rows;
-    const effectiveExpanded = expanded || filter === 'missing' || filteredRows.length <= VISIBLE_ROWS;
+    const filteredRows = filter === 'missing'
+        ? rows.filter(r => r.result === 'none')
+        : filter === 'audit'
+            ? rows.filter(r => r.audit?.needsCheck)
+            : rows;
+    // A filtered table is already the short list someone asked for; folding it
+    // would hide part of the answer behind a second click.
+    const effectiveExpanded = expanded || filter !== 'all' || filteredRows.length <= VISIBLE_ROWS;
     const visibleRows = effectiveExpanded ? filteredRows : filteredRows.slice(0, VISIBLE_ROWS);
     const hiddenRows = effectiveExpanded ? [] : filteredRows.slice(VISIBLE_ROWS);
     const hiddenMissing = hiddenRows.filter(r => r.result === 'none').length;
@@ -512,22 +548,23 @@ export function DecisionsTable({
         <section className={cn(surfaceCardClass, 'overflow-hidden')}>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-foreground/10 px-5 py-4">
                 <h2 className="text-[15px] font-semibold">{t('table.title')}</h2>
-                {missingCount > 0 && (
+                {(missingCount > 0 || auditCount > 0) && (
                     <div className="flex flex-wrap items-center gap-2">
                         <FilterChip active={filter === 'all'} onClick={() => onFilterChange('all')}>
                             {t('table.filterAll')}
                         </FilterChip>
-                        <FilterChip active={filter === 'missing'} onClick={() => onFilterChange('missing')}>
-                            {t('table.filterMissing')}
-                            <span
-                                className={cn(
-                                    'ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold',
-                                    filter === 'missing' ? 'bg-background/20' : 'bg-foreground/10',
-                                )}
-                            >
-                                {missingCount}
-                            </span>
-                        </FilterChip>
+                        {missingCount > 0 && (
+                            <FilterChip active={filter === 'missing'} onClick={() => onFilterChange('missing')}>
+                                {t('table.filterMissing')}
+                                <ChipCount active={filter === 'missing'}>{missingCount}</ChipCount>
+                            </FilterChip>
+                        )}
+                        {auditCount > 0 && (
+                            <FilterChip active={filter === 'audit'} onClick={() => onFilterChange('audit')}>
+                                {t('table.filterAudit')}
+                                <ChipCount active={filter === 'audit'}>{auditCount}</ChipCount>
+                            </FilterChip>
+                        )}
                     </div>
                 )}
             </div>
@@ -591,9 +628,16 @@ export function DecisionsTable({
                                         index={row.subject.agendaItemIndex}
                                         muted={row.subject.withdrawn}
                                     />
+                                    {/* The proposal first, then the audit line
+                                        under it: the question the row is asking
+                                        outranks the note on how its facts were
+                                        reached, and the audit line sits on the
+                                        row's existing amber rather than
+                                        bringing a second ground of its own. */}
                                     {proposal && (
                                         <ProposalLine proposal={proposal} onOpenProposalDocument={onOpenProposalDocument} t={t} />
                                     )}
+                                    {row.audit && <AuditLine signal={row.audit} onExplainDerivation={onExplainDerivation} />}
                                 </div>
                                 <StackBreak />
                                 <div role="cell" className="order-4 text-right md:order-none md:text-left">

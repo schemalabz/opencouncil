@@ -35,6 +35,9 @@ export function buildTranscriptEntriesFromUtterances(
     utterances: TranscriptUtterance[],
     resolveSpeaker: SpeakerResolver,
     crossSubjectInfo?: CrossSubjectInfo,
+    /** Utterances that open a new block even when the speaker is the same:
+     *  where a subject's discussion resumes after other subjects. */
+    breakBefore?: Set<string>,
 ): MinutesTranscriptEntry[] {
     if (utterances.length === 0) return [];
 
@@ -108,6 +111,7 @@ export function buildTranscriptEntriesFromUtterances(
         const tag = u.speakerSegment.speakerTag;
         const isSameSpeaker =
             currentPersonId !== undefined &&
+            !breakBefore?.has(u.id) &&
             tag.personId === currentPersonId &&
             (tag.personId !== null || tag.label === currentLabel);
 

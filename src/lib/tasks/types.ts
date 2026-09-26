@@ -47,6 +47,11 @@ export const TASK_CONFIG = {
     requiredForPipeline: false,
     discordAlertMode: 'none',
   },
+  // Body-scoped, started by hand from the administrative-body form; it hangs
+  // off the body's most recent meeting because a TaskStatus needs one.
+  profileBody: {
+    requiredForPipeline: false,
+  },
 } satisfies Record<string, TaskConfig>;
 
 // Derive MeetingTaskType from the configuration

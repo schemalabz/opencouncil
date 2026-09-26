@@ -1,7 +1,16 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DecisionsRail } from '../DecisionsRail';
+import type { ConventionsPanel } from '../ConventionsSection';
 import { buildTimeline } from '../../timeline';
 import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
+import type { DecisionConventions } from '@/lib/decisionConventions';
+
+jest.mock('@/i18n/routing', () => ({
+    // `prefetch` is a Link prop, not a DOM attribute; React warns if it reaches an <a>.
+    Link: ({ children, prefetch, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
+        <a {...props}>{children}</a>
+    ),
+}));
 
 jest.mock('next-intl', () => ({
     useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -24,7 +33,7 @@ function data(o: Partial<MinutesData>): MinutesData {
         city: { name: 'Δ', name_municipality: 'Δ', timezone: 'Europe/Athens', logoImage: null, realm: 'greece' },
         meeting: { id: 'm', cityId: 'c', name: 'Σ', dateTime: '2026-06-15T18:00:00.000Z' },
         administrativeBody: null, councilComposition: null, absentMembers: null, preambleEntries: [],
-        attendanceChanges: [], discussionOrderLabel: null, proceduralVotes: [], subjects: [], epilogueEntries: [], ...o,
+        attendanceChanges: [], attendanceChangesSource: 'diff', discussionOrderLabel: null, proceduralVotes: [], subjects: [], epilogueEntries: [], ...o,
     };
 }
 
@@ -38,18 +47,46 @@ const basePollingProps = {
     onPollSkippingCache: jest.fn(),
 };
 
+const rules: DecisionConventions = {
+    version: 1,
+    rollCallLayout: 'present_and_absent',
+    presentListMeaning: 'opening',
+    attendanceChangeAnchors: ['agenda_item'],
+    statesPerDecisionAttendance: true,
+    statesPerVoteAbsence: false,
+    usesSubstitutes: false,
+    namedVoters: 'dissenters_only',
+    mayorStatedSeparately: true,
+    provenance: { source: 'profile', documentsSampled: 8 },
+};
+
+const conventions: ConventionsPanel = {
+    rules,
+    bodyName: 'Δημοτική Επιτροπή',
+    cityName: 'Δήμος Παπάγου-Χολαργού',
+    editHref: '/chalandri',
+};
+
 function renderRail(overrides: Partial<React.ComponentProps<typeof DecisionsRail>> = {}) {
     return render(
         <DecisionsRail
             minutes={minutes}
             timeline={buildTimeline(minutes)}
             isSuperAdmin={false}
+            auditMode={false}
+            onAuditModeChange={jest.fn()}
+            conventions={null}
             onPreviewMinutes={jest.fn()}
             onExportDocx={jest.fn()}
             previewDisabled={false}
             showResetExtractions={false}
             isClearing={false}
             onResetExtractions={jest.fn()}
+            issues={[]}
+            subjectName={() => undefined}
+            personName={() => undefined}
+            onRederive={jest.fn()}
+            isRederiving={false}
             {...basePollingProps}
             {...overrides}
         />
@@ -69,6 +106,17 @@ describe('DecisionsRail', () => {
         const { container } = renderRail();
         const titles = [...container.querySelectorAll('.text-\\[11px\\].font-extrabold')].map(el => el.textContent);
         expect(titles).toEqual(['rail.minutesTitle', 'attendance', 'factsArrivalsDepartures', 'factsDiscussionOrder']);
+    });
+
+    // The issues read against audit mode, which only a superadmin has; a city
+    // admin seeing the codes without the mode that explains them was confusing.
+    it('shows the issues card to a superadmin only, inside the admin frame', () => {
+        renderRail({ isSuperAdmin: false });
+        expect(screen.queryByText('issues.title')).not.toBeInTheDocument();
+
+        renderRail({ isSuperAdmin: true });
+        const frame = screen.getByText('Μόνο για διαχειριστές').parentElement!;
+        expect(frame).toContainElement(screen.getByText('issues.title'));
     });
 
     it('renders no reset strip for a non-superadmin', () => {
@@ -119,9 +167,63 @@ describe('DecisionsRail', () => {
         expect(frame.querySelectorAll('[style*="repeating-linear-gradient"]')).toHaveLength(0);
     });
 
+    it('prints the control hints on a solid surface rather than on the stripes', () => {
+        renderRail({ isSuperAdmin: true, showResetExtractions: true });
+        expect(screen.getByText('skipCacheHint').closest('.bg-background')).toBeInTheDocument();
+        expect(screen.getByText('resetExtractionsDescription').closest('.bg-background')).toBeInTheDocument();
+    });
+
+    it('summarises the body\'s reading rules on one line, collapsed', () => {
+        renderRail({ isSuperAdmin: true, conventions });
+        expect(screen.getByText('conventionsTitle')).toBeInTheDocument();
+        // The rules belong to the body; the page is one meeting of it.
+        expect(screen.getByText('Δημοτική Επιτροπή · Δήμος Παπάγου-Χολαργού')).toBeInTheDocument();
+        expect(screen.getByText(
+            'rollCallLayout.present_and_absent.label · presentListMeaning.opening.label · attendanceChangeAnchors.agenda_item.label · namedVoters.dissenters_only.label'
+        )).toBeInTheDocument();
+        expect(screen.queryByText('rollCallLayout.fieldLabel')).not.toBeInTheDocument();
+        expect(screen.queryByText('statesPerDecisionAttendance.label')).not.toBeInTheDocument();
+    });
+
+    it('opens to all nine fields, with the flags as ✓/✗ and a link to the form', () => {
+        const { container } = renderRail({ isSuperAdmin: true, conventions });
+        fireEvent.click(screen.getByText('conventionsTitle'));
+
+        for (const field of ['rollCallLayout', 'presentListMeaning', 'attendanceChangeAnchors', 'namedVoters']) {
+            expect(screen.getByText(`${field}.fieldLabel`)).toBeInTheDocument();
+        }
+        for (const flag of ['statesPerDecisionAttendance', 'statesPerVoteAbsence', 'usesSubstitutes', 'mayorStatedSeparately']) {
+            expect(screen.getByText(`${flag}.label`)).toBeInTheDocument();
+        }
+        expect(screen.getAllByText('✓')).toHaveLength(2);
+        expect(screen.getAllByText('✗')).toHaveLength(3);
+        expect(container.querySelector('.rotate-180')).toBeInTheDocument();
+        expect(screen.getByText('conventionsEdit →').closest('a')).toHaveAttribute('href', '/chalandri');
+    });
+
+    it('reveals a value\'s description as text rather than a tooltip', () => {
+        renderRail({ isSuperAdmin: true, conventions });
+        fireEvent.click(screen.getByText('conventionsTitle'));
+        expect(screen.queryByText('namedVoters.dissenters_only.description')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByText('namedVoters.dissenters_only.label'));
+        expect(screen.getByText('namedVoters.dissenters_only.description')).toBeInTheDocument();
+    });
+
+    it('says a body has no stored rules rather than hiding the section', () => {
+        renderRail({ isSuperAdmin: true, conventions: { ...conventions, rules: null } });
+        expect(screen.getByText('conventionsNone')).toBeInTheDocument();
+        expect(screen.getByText('conventionsEdit →').closest('a')).toHaveAttribute('href', '/chalandri');
+    });
+
+    it('shows no rules section when the meeting names no administrative body', () => {
+        renderRail({ isSuperAdmin: true, conventions: null });
+        expect(screen.queryByText('conventionsTitle')).not.toBeInTheDocument();
+    });
+
     it('shows a city admin no staff block at all', () => {
-        renderRail({ isSuperAdmin: false, showResetExtractions: true });
+        renderRail({ isSuperAdmin: false, showResetExtractions: true, conventions });
         expect(screen.queryByText('Μόνο για διαχειριστές')).not.toBeInTheDocument();
+        expect(screen.queryByText('conventionsTitle')).not.toBeInTheDocument();
         expect(screen.queryByText('pollButtonSkipCache')).not.toBeInTheDocument();
         expect(screen.queryByText('resetExtractions')).not.toBeInTheDocument();
     });

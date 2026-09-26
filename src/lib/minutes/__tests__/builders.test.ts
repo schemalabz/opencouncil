@@ -1,9 +1,21 @@
 import { AttendanceStatus, DiscussionStatus, VoteType } from '@prisma/client';
 import {
     buildAttendance,
+    buildAttendanceChanges,
     buildVoteResult,
     buildCouncilComposition,
+    buildMayorNote,
+    buildRollCall,
+    buildSubjectRollCall,
+    formatRollCallMemberLabel,
+    formatRollCallSentenceName,
+    formatChangePosition,
+    formatPhraseOnlyOutcome,
     sortSubjectsByDiscussionOrder,
+    orderedMinutesSubjects,
+    discussionOrderKeys,
+    discussionOrderLabel,
+    discussedElsewhereIds,
     sortByElectedOrder,
     buildDiscussionSummary,
     buildProceduralVotes,
@@ -11,6 +23,8 @@ import {
     ElectedOrderGetter,
 } from '../builders';
 import { MinutesMember } from '../types';
+import { committeeWithSubstitute, councilWithAbsentPresident } from './rollCallFixtures';
+import spartaMay6 from './fixtures/sparta-may6-2026-utterances.json';
 
 // --- Test helpers ---
 
@@ -169,8 +183,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.passed).toBe(true);
-        expect(result!.isUnanimous).toBe(false);
+        expect(result).toMatchObject({ passed: true, isUnanimous: false });
     });
 
     it('detects failed vote (AGAINST > FOR)', () => {
@@ -182,7 +195,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.passed).toBe(false);
+        expect(result).toMatchObject({ passed: false });
     });
 
     it('tie does not pass (FOR === AGAINST)', () => {
@@ -193,7 +206,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.passed).toBe(false);
+        expect(result).toMatchObject({ passed: false });
     });
 
     it('detects unanimous vote (all FOR)', () => {
@@ -205,8 +218,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.isUnanimous).toBe(true);
-        expect(result!.passed).toBe(true);
+        expect(result).toMatchObject({ isUnanimous: true, passed: true });
     });
 
     it('is not unanimous when abstains are present', () => {
@@ -218,8 +230,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.isUnanimous).toBe(false);
-        expect(result!.passed).toBe(true);
+        expect(result).toMatchObject({ isUnanimous: false, passed: true });
     });
 
     it('single FOR vote is unanimous and passed', () => {
@@ -227,8 +238,7 @@ describe('buildVoteResult', () => {
 
         const result = buildVoteResult(votes, [], null, simpleResolver, noElectedOrder);
 
-        expect(result!.isUnanimous).toBe(true);
-        expect(result!.passed).toBe(true);
+        expect(result).toMatchObject({ isUnanimous: true, passed: true });
     });
 
     it('derives absent members from attendance minus voters minus mayor', () => {
@@ -291,9 +301,337 @@ describe('buildVoteResult', () => {
 
         expect(result!.forMembers.map(m => m.personId)).toEqual(['p2', 'p1', 'p3']);
     });
+
+    it('reads the outcome off the phrase when the document named no voter', () => {
+        const result = buildVoteResult([], [], null, simpleResolver, noElectedOrder, 'Ομόφωνα');
+
+        expect(result).toMatchObject({ fromPhraseOnly: true, outcome: 'unanimous', phrase: 'Ομόφωνα' });
+        expect(result!.forMembers).toEqual([]);
+    });
+
+    it('a phrase that names a majority is a majority', () => {
+        const result = buildVoteResult([], [], null, simpleResolver, noElectedOrder, 'Κατά πλειοψηφία');
+
+        expect(result).toMatchObject({ fromPhraseOnly: true, outcome: 'majority' });
+    });
+
+    it('rows that hold the named dissent but no FOR print the phrase, not a rejection', () => {
+        // Athens ΔΕ 22/06/2026: «ΥΠΕΡ: 7, ΚΑΤΑ 1, ΛΕΥΚΟ 1», the two dissenters named,
+        // and no FOR inferred because more unnamed members were present than seven.
+        // Counting the rows would print a carried decision as 0–1 and rejected.
+        const phrase = 'Κατά πλειοψηφία με ΥΠΕΡ: 7 ψήφους, ΚΑΤΑ 1, ΛΕΥΚΟ 1';
+        const votes = [makeVote('p2', 'Bob', 'AGAINST'), makeVote('p3', 'Charlie', 'ABSTAIN')];
+        expect(buildVoteResult(votes, [], null, simpleResolver, noElectedOrder, phrase))
+            .toMatchObject({ fromPhraseOnly: true, outcome: 'majority', phrase });
+    });
+
+    it('keeps the named dissent and the absent members when the outcome comes from the phrase', () => {
+        // The phrase gives the outcome; the named ΚΑΤΑ, ΛΕΥΚΟ and ΠΑΡΩΝ voters and
+        // the absent members still belong in the minutes.
+        const phrase = 'Κατά πλειοψηφία με ΥΠΕΡ: 7 ψήφους, ΚΑΤΑ 1, ΛΕΥΚΟ 1';
+        const votes = [
+            makeVote('p4', 'Diana', 'PRESENT'),
+            makeVote('p3', 'Charlie', 'ABSTAIN'),
+            makeVote('p2', 'Bob', 'AGAINST'),
+        ];
+        const attendance = [
+            makeAttendance('p2', 'Bob', 'PRESENT'),
+            makeAttendance('p5', 'Eve', 'ABSENT'),
+            makeAttendance('mayor-1', 'Mayor', 'ABSENT'),
+        ];
+        const result = buildVoteResult(votes, attendance, 'mayor-1', simpleResolver, noElectedOrder, phrase);
+
+        expect(result).toMatchObject({ fromPhraseOnly: true, outcome: 'majority', phrase });
+        expect(result!.forMembers).toEqual([]);
+        expect(result!.againstMembers.map(m => m.personId)).toEqual(['p2']);
+        expect(result!.abstainMembers.map(m => m.personId)).toEqual(['p3']);
+        expect(result!.presentMembers.map(m => m.personId)).toEqual(['p4']);
+        expect(result!.absentMembers.map(m => m.personId)).toEqual(['p5']);
+    });
+
+    it('keeps the absent members when the phrase names no voter at all', () => {
+        const attendance = [makeAttendance('p1', 'Alice', 'PRESENT'), makeAttendance('p2', 'Bob', 'ABSENT')];
+        const result = buildVoteResult([], attendance, null, simpleResolver, noElectedOrder, 'Ομόφωνα');
+
+        expect(result).toMatchObject({ fromPhraseOnly: true, outcome: 'unanimous' });
+        expect(result!.absentMembers.map(m => m.personId)).toEqual(['p2']);
+    });
+
+    it('a phrase that counts and names no outcome names none', () => {
+        // Vrilissia's wording where nobody voted against and somebody declared
+        // ΠΑΡΩΝ: neither «ομόφωνα» nor «κατά πλειοψηφία» is what the page
+        // said, so the minutes print the page's own sentence instead of a word.
+        const phrase = 'Με πέντε (5) θετικές ψήφους';
+        expect(buildVoteResult([], [], null, simpleResolver, noElectedOrder, phrase))
+            .toMatchObject({ fromPhraseOnly: true, outcome: null, phrase });
+    });
+
+    it('reads the formal «ομοφώνως» as unanimity too', () => {
+        // The tonos on the ω is what a `φων` pattern misses.
+        const result = buildVoteResult([], [], null, simpleResolver, noElectedOrder, 'Εγκρίνεται ομοφώνως');
+
+        expect(result).toMatchObject({ fromPhraseOnly: true, outcome: 'unanimous' });
+    });
+
+    it('a phrase that states no outcome is no result at all', () => {
+        // `voteResultPhrase` is the extractor's verbatim field: it carries whatever
+        // the document decided, and «ΑΝΑΒΑΛΛΕΙ» must not print as «Κατά πλειοψηφία».
+        expect(buildVoteResult([], [], null, simpleResolver, noElectedOrder, 'ΑΝΑΒΑΛΛΕΙ')).toBeNull();
+        expect(buildVoteResult([], [], null, simpleResolver, noElectedOrder,
+            'ΓΝΩΜΟΔΟΤΕΙ θετικά επί του υπ. αριθμ. 12 αιτήματος')).toBeNull();
+    });
+
+    it('counted votes are never from the phrase', () => {
+        const result = buildVoteResult([makeVote('p1', 'Alice', 'FOR')], [], null, simpleResolver, noElectedOrder, 'Ομόφωνα');
+
+        expect(result).toMatchObject({ fromPhraseOnly: false, forMembers: [expect.objectContaining({ personId: 'p1' })] });
+    });
+});
+
+// --- formatPhraseOnlyOutcome ---
+
+describe('formatPhraseOnlyOutcome', () => {
+    it('prints the outcome word the document named', () => {
+        expect(formatPhraseOnlyOutcome({ outcome: 'unanimous', phrase: 'ΑΠΟΦΑΣΙΖΕΙ ΟΜΟΦΩΝΑ' })).toBe('Ομόφωνα');
+        expect(formatPhraseOnlyOutcome({ outcome: 'majority', phrase: 'Κατά πλειοψηφία με ΥΠΕΡ: 7' })).toBe('Κατά πλειοψηφία');
+    });
+
+    it("prints the document's own sentence when it named no outcome", () => {
+        // «Κατά πλειοψηφία» here would be Athens' word on Vrilissia's page, where
+        // nobody voted against and the outcome word was left out on purpose.
+        expect(formatPhraseOnlyOutcome({ outcome: null, phrase: 'Με δεκαεννιά (19) θετικές ψήφους' }))
+            .toBe('Με δεκαεννιά (19) θετικές ψήφους');
+    });
+});
+
+// --- buildMayorNote ---
+
+describe('buildMayorNote', () => {
+    const mayorChange = {
+        anchorLabel: null,
+        atSubject: { id: 's4', name: 'Θέμα 4', agendaItemIndex: 4, nonAgendaReason: null, outOfAgendaIndex: null },
+    };
+
+    it('says that the mayor was absent, and leaves who presided to the president\'s line', () => {
+        expect(buildMayorNote('ABSENT', [], true)).toBe('ΑΠΟΥΣΑ');
+        expect(buildMayorNote('ABSENT', [], false)).toBe('ΑΠΩΝ');
+    });
+
+    it("states a present mayor's own departure", () => {
+        // The label is what `buildAttendanceChangesFromEvents` emits — the position
+        // phrase the Προσελεύσεις/Αποχωρήσεις lists print, preposition included.
+        expect(buildMayorNote('PRESENT', [{ type: 'departure', label: formatChangePosition(mayorChange) }], true))
+            .toBe('αποχώρησε από το 4ο θέμα');
+    });
+
+    it('prints an anchor the document gave instead of a subject', () => {
+        expect(buildMayorNote('PRESENT', [{ type: 'arrival', label: formatChangePosition({ ...mayorChange, anchorLabel: 'στην 286 ΑΚΣ' }) }], false))
+            .toBe('προσήλθε στην 286 ΑΚΣ');
+    });
+
+    it('says nothing when the mayor was there throughout', () => {
+        expect(buildMayorNote('PRESENT', [], false)).toBeNull();
+        expect(buildMayorNote(null, [], false)).toBeNull();
+    });
+});
+
+// --- buildAttendanceChanges (older polls: per-subject diffs, no events) ---
+
+describe('buildAttendanceChanges', () => {
+    const member = (personId: string, name: string): MinutesMember => ({ personId, name, party: null, isPartyHead: false, role: null });
+    const mayor = member('mayor', 'Μαλτέζος Ιωάννης');
+    const m1 = member('m1', 'Λιόλιος Αντώνης');
+    const subject = (id: string, index: number, present: MinutesMember[], absent: MinutesMember[]) => ({
+        subjectId: id, name: `Θέμα ${index}`, agendaItemIndex: index, nonAgendaReason: null, attendance: { present, absent },
+    });
+    // The mayor and m1 both leave before the 2nd item.
+    const subjects = [subject('s1', 1, [mayor, m1], []), subject('s2', 2, [], [mayor, m1])];
+
+    it("takes the mayor's own departure out of the list when the mayor's note prints it", () => {
+        const { changes, mayorChanges } = buildAttendanceChanges(subjects, [], 'mayor');
+        expect(changes.map(c => c.personId)).toEqual(['m1']);
+        expect(mayorChanges).toEqual([{ type: 'departure', label: 'από το 2ο θέμα' }]);
+    });
+
+    it("keeps the mayor's departure in the list when no mayor is passed", () => {
+        const { changes, mayorChanges } = buildAttendanceChanges(subjects, [], null);
+        expect(changes.map(c => c.personId)).toEqual(['mayor', 'm1']);
+        expect(mayorChanges).toEqual([]);
+    });
 });
 
 // --- buildCouncilComposition ---
+
+describe('buildRollCall', () => {
+    const rollCallOf = (data: ReturnType<typeof committeeWithSubstitute>) => buildRollCall(
+        data.councilComposition!, new Set((data.absentMembers ?? []).map(m => m.personId)), data.administrativeBody?.type ?? null,
+    );
+    const names = (entries: Array<{ member: MinutesMember }>) => entries.map(e => e.member.name);
+
+    it('gives a committee no ΔΗΜΑΡΧΟΣ line, and lists members with substitutes after their party', () => {
+        const rollCall = rollCallOf(committeeWithSubstitute());
+        expect(rollCall.isCommittee).toBe(true);
+        expect(rollCall.mayor).toBeNull();
+        expect(names(rollCall.present)).toEqual(['Μαλτέζος Ιωάννης', 'Πετσέλης Χρήστος', 'Λιόλιος Αντώνης', 'Δημάκης Γιώργος']);
+        expect(rollCall.present.map(e => e.isSubstitute)).toEqual([false, false, false, true]);
+        expect(names(rollCall.absent)).toEqual(['Κολεβέντης Φώτιος']);
+    });
+
+    it('names the mayor on a committee president\'s line only when the mayor presides', () => {
+        expect(rollCallOf(committeeWithSubstitute()).president).toMatchObject({ name: 'Μαλτέζος Ιωάννης', isMayor: true });
+        const data = committeeWithSubstitute();
+        data.councilComposition!.president = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        const rollCall = rollCallOf(data);
+        expect(rollCall.mayor).toBeNull();
+        expect(rollCall.president).toMatchObject({ name: 'Πετσέλης Χρήστος', isMayor: false });
+    });
+
+    it('puts the mayor\'s note on the president\'s line of a committee the mayor presides', () => {
+        // A presiding mayor's note holds the absence and the mayor's arrivals and
+        // departures; getMinutesData keeps those changes out of the list. No
+        // document names who presided here, so the line names the mayor.
+        const note = 'ΑΠΩΝ, προσήλθε από το 3ο θέμα';
+        const data = committeeWithSubstitute();
+        data.councilComposition!.mayor!.note = note;
+        data.absentMembers = [...data.absentMembers!, simpleResolver('mayor', 'Μαλτέζος Ιωάννης')];
+        const rollCall = rollCallOf(data);
+        expect(rollCall.president).toMatchObject({ isMayor: true, absent: true, presidedBy: null, note, printedName: 'Μαλτέζος Ιωάννης (ΔΗΜΑΡΧΟΣ)', printedNote: note });
+        expect(names(rollCall.absent)).toEqual(['Μαλτέζος Ιωάννης', 'Κολεβέντης Φώτιος']);
+        expect(rollCall.absent.map(formatRollCallMemberLabel)).toEqual(['ΠΡΟΕΔΡΟΣ, ΔΗΜΑΡΧΟΣ, Άργος Πρώτα', 'Νέα Πνοή']);
+        data.councilComposition!.president = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        expect(rollCallOf(data).president).toMatchObject({ isMayor: false, note: null, printedNote: null });
+    });
+
+    it('counts a committee member mayor who does not preside among the members, with no line of their own', () => {
+        const data = committeeWithSubstitute();
+        data.councilComposition!.president = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        const rollCall = rollCallOf(data);
+        expect(rollCall.mayor).toBeNull();
+        expect(rollCall.president).toMatchObject({ name: 'Πετσέλης Χρήστος', isMayor: false, note: null });
+        expect(names(rollCall.present)).toContain('Μαλτέζος Ιωάννης');
+        expect(rollCall.present).toHaveLength(4);
+    });
+
+    it('names who presided first when the mayor who presides a committee was absent, and lists the mayor as absent with the office', () => {
+        const data = committeeWithSubstitute();
+        data.councilComposition!.mayor!.note = 'ΑΠΩΝ';
+        data.councilComposition!.presidedBy = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        data.absentMembers = [...data.absentMembers!, simpleResolver('mayor', 'Μαλτέζος Ιωάννης')];
+        const rollCall = rollCallOf(data);
+        expect(rollCall.president).toMatchObject({
+            name: 'Μαλτέζος Ιωάννης', personId: 'mayor', absent: true, isMayor: true, feminine: false,
+            presidedBy: { name: 'Πετσέλης Χρήστος', personId: 'm1' }, note: null,
+            printedName: 'Πετσέλης Χρήστος',
+            printedNote: 'λόγω απουσίας του ΠΡΟΕΔΡΟΥ, ΔΗΜΑΡΧΟΥ Μαλτέζος Ιωάννης',
+        });
+        expect(names(rollCall.absent)).toEqual(['Μαλτέζος Ιωάννης', 'Κολεβέντης Φώτιος']);
+        expect(rollCall.absent.map(e => e.office)).toEqual([{ isMayor: true, feminine: false }, null]);
+        expect(rollCall.present.every(e => e.office === null)).toBe(true);
+    });
+
+    it("names the person a subject's own document says presided, over the meeting's", () => {
+        const data = committeeWithSubstitute();
+        data.councilComposition!.presidedBy = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        const absentIds = new Set([...data.absentMembers!.map(m => m.personId), 'mayor']);
+        const subjectRollCall = buildRollCall(data.councilComposition!, absentIds, 'committee', { name: 'Άλλος Ένας', personId: 'other' });
+        expect(subjectRollCall.president).toMatchObject({ presidedBy: { name: 'Άλλος Ένας', personId: 'other' }, printedName: 'Άλλος Ένας' });
+        // Without a value of its own, the roll call names the meeting's.
+        expect(buildRollCall(data.councilComposition!, absentIds, 'committee').president).toMatchObject({ printedName: 'Πετσέλης Χρήστος' });
+    });
+
+    it('names the president when the president was present, whoever a document says presided', () => {
+        const data = committeeWithSubstitute();
+        data.councilComposition!.presidedBy = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        expect(rollCallOf(data).president).toMatchObject({ presidedBy: null, printedName: 'Μαλτέζος Ιωάννης (ΔΗΜΑΡΧΟΣ)', printedNote: null });
+    });
+
+    it('keeps an absent president on the line when the document names the president as the one who presided', () => {
+        const data = councilWithAbsentPresident();
+        data.councilComposition!.presidedBy = { name: 'ΚΑΡΑΓΙΑΝΝΗ ΤΑΝΙΑ', personId: 'p1' };
+        const rollCall = rollCallOf(data);
+        expect(rollCall.president).toMatchObject({ presidedBy: null, printedName: 'Καραγιάννη Τάνια', printedNote: 'ΑΠΟΥΣΑ' });
+        expect(names(rollCall.absent)).toEqual(['Λαμπρόπουλος Παναγιώτης']);
+    });
+
+    it('names who presided on a council whose president was absent, and puts the president in the absence sentence', () => {
+        const data = councilWithAbsentPresident();
+        data.councilComposition!.presidedBy = { name: 'ΠΑΠΑΓΙΑΝΝΑΚΗ ΝΙΚΗ', personId: null };
+        const rollCall = rollCallOf(data);
+        expect(rollCall.president).toMatchObject({
+            name: 'Καραγιάννη Τάνια', absent: true, isMayor: false, feminine: true,
+            printedName: 'ΠΑΠΑΓΙΑΝΝΑΚΗ ΝΙΚΗ', printedNote: 'λόγω απουσίας της ΠΡΟΕΔΡΟΥ Καραγιάννη Τάνια',
+        });
+        expect(rollCall.absent.map(formatRollCallSentenceName)).toEqual(['Καραγιάννη Τάνια (ΠΡΟΕΔΡΟΣ)', 'Λαμπρόπουλος Παναγιώτης']);
+        // The mayor's line does not change: the council's mayor never presides.
+        expect(rollCall.mayor).toMatchObject({ name: 'Ρούσσος Σίμος', note: 'αποχώρησε από το 4ο θέμα' });
+    });
+
+    it('gives a council the ΔΗΜΑΡΧΟΣ line with its note, and keeps an absent president out of the absence sentence', () => {
+        const rollCall = rollCallOf(councilWithAbsentPresident());
+        expect(rollCall.mayor).toMatchObject({ name: 'Ρούσσος Σίμος', absent: false, note: 'αποχώρησε από το 4ο θέμα', printedNote: 'αποχώρησε από το 4ο θέμα' });
+        expect(rollCall.president).toMatchObject({ name: 'Καραγιάννη Τάνια', absent: true, isMayor: false, printedNote: 'ΑΠΟΥΣΑ' });
+        expect(names(rollCall.present)).toEqual(['Παπαγιαννάκη Νίκη']);
+        expect(names(rollCall.absent)).toEqual(['Λαμπρόπουλος Παναγιώτης']);
+    });
+
+    it('prints ΑΠΩΝ for an absent mayor with no note', () => {
+        const data = councilWithAbsentPresident();
+        data.councilComposition!.mayor!.note = null;
+        const rollCall = buildRollCall(data.councilComposition!, new Set(['mayor']), 'council');
+        expect(rollCall.mayor).toMatchObject({ absent: true, note: null, printedNote: 'ΑΠΩΝ' });
+    });
+});
+
+describe('buildSubjectRollCall', () => {
+    const member = (personId: string, name: string, party: string | null = null): MinutesMember => ({ personId, name, party, isPartyHead: false, role: null });
+    const names = (entries: Array<{ member: MinutesMember }>) => entries.map(e => e.member.name);
+
+    it('counts and names a member the roll call does not name, from the subject\'s own attendance', () => {
+        // chalandri/aug20_2026 items 7–11: Ευθυμίου has subject rows and votes, and no roll-call row.
+        const data = committeeWithSubstitute();
+        const attendance = {
+            present: [member('mayor', 'Μαλτέζος Ιωάννης'), member('m1', 'Πετσέλης Χρήστος'), member('m2', 'Λιόλιος Αντώνης'),
+                member('s1', 'Δημάκης Γιώργος'), member('x', 'Ευθυμίου Κωνσταντίνος')],
+            absent: [member('m3', 'Κολεβέντης Φώτιος')],
+        };
+        const rollCall = buildSubjectRollCall(data.councilComposition, attendance, 'committee', null);
+        expect(rollCall.present).toHaveLength(5);
+        expect(names(rollCall.present)).toContain('Ευθυμίου Κωνσταντίνος');
+        expect(names(rollCall.absent)).toEqual(['Κολεβέντης Φώτιος']);
+        expect(rollCall.president).toMatchObject({ name: 'Μαλτέζος Ιωάννης', isMayor: true });
+    });
+
+    it('reads who is absent from the subject\'s attendance, and adds an absent member the composition lacks', () => {
+        const data = councilWithAbsentPresident();
+        const attendance = { present: [member('p1', 'Καραγιάννη Τάνια')], absent: [member('p2', 'Λαμπρόπουλος Παναγιώτης'), member('p3', 'Παπαγιαννάκη Νίκη'), member('y', 'Νέος Υ')] };
+        const rollCall = buildSubjectRollCall(data.councilComposition, attendance, 'council', null);
+        expect(rollCall.president).toMatchObject({ personId: 'p1', absent: false });
+        expect(names(rollCall.present)).toEqual(['Καραγιάννη Τάνια']);
+        expect(names(rollCall.absent)).toEqual(['Λαμπρόπουλος Παναγιώτης', 'Παπαγιαννάκη Νίκη', 'Νέος Υ']);
+    });
+
+    it('prints the subject\'s own lists and no head line without a composition', () => {
+        const attendance = { present: [member('a', 'Α Α'), member('b', 'Β Β')], absent: [member('c', 'Γ Γ')] };
+        const rollCall = buildSubjectRollCall(null, attendance, 'council', null);
+        expect(rollCall).toMatchObject({ mayor: null, president: null });
+        expect(names(rollCall.present)).toEqual(['Α Α', 'Β Β']);
+        expect(names(rollCall.absent)).toEqual(['Γ Γ']);
+    });
+});
+
+describe('formatRollCallMemberLabel', () => {
+    const m = (party: string | null, isPartyHead = false): MinutesMember => ({ personId: 'x', name: 'x', party, isPartyHead, role: null });
+    it('puts the substitute mark before the party and marks a party head', () => {
+        expect(formatRollCallMemberLabel({ member: m('ΝΔ', true), isSubstitute: true, office: null })).toBe('αναπλ. μέλος, ΝΔ, Επικεφαλής');
+        expect(formatRollCallMemberLabel({ member: m('ΝΔ'), isSubstitute: false, office: null })).toBe('ΝΔ');
+        expect(formatRollCallMemberLabel({ member: m(null), isSubstitute: false, office: null })).toBeNull();
+    });
+
+    it('puts an absent president\'s office before the party', () => {
+        expect(formatRollCallMemberLabel({ member: m('ΝΔ'), isSubstitute: false, office: { isMayor: true, feminine: true } })).toBe('ΠΡΟΕΔΡΟΣ, ΔΗΜΑΡΧΟΣ, ΝΔ');
+        expect(formatRollCallMemberLabel({ member: m(null), isSubstitute: false, office: { isMayor: false, feminine: false } })).toBe('ΠΡΟΕΔΡΟΣ');
+    });
+});
 
 describe('buildCouncilComposition', () => {
     const makeMember = (personId: string, name: string): MinutesMember => ({
@@ -312,7 +650,7 @@ describe('buildCouncilComposition', () => {
             members, [], mayor, null, 'mayor-1', noElectedOrder,
         );
 
-        expect(result.mayor).toEqual({ name: 'Antoniou Dimitris', personId: 'mayor-1' });
+        expect(result.mayor).toEqual({ name: 'Antoniou Dimitris', personId: 'mayor-1', note: null });
     });
 
     it('includes president with personId', () => {
@@ -565,7 +903,108 @@ describe('sortSubjectsByDiscussionOrder', () => {
     });
 });
 
+// --- discussionOrderKeys ---
+
+describe('discussionOrderKeys', () => {
+    const u = (subjectId: string | null, status: DiscussionStatus | null, startTimestamp: number) =>
+        ({ discussionSubjectId: subjectId, discussionStatus: status, startTimestamp, endTimestamp: startTimestamp + 1 });
+    const agendaItem = (n: number) => ({ id: `s${n}`, agendaItemIndex: n, nonAgendaReason: null, discussedIn: null });
+
+    it('puts an item stopped part-way and resumed at the end of the meeting last (Sparta may6_2026)', () => {
+        // «το θέμα το 5ο πάει τελευταίο προς συζήτηση»: item 5 is opened after
+        // item 4, stopped, and resumed and voted after item 14. The page for
+        // Τριτάκης reads «προσήλθε στο 10ο θέμα (παρών στα θέματα 10-14 και 5)».
+        const rows = (spartaMay6 as { item: number | null; status: DiscussionStatus | null; start: number }[])
+            .map(r => u(r.item === null ? null : `s${r.item}`, r.status, r.start));
+        const subjects = Array.from({ length: 14 }, (_, i) => agendaItem(i + 1));
+
+        const keys = discussionOrderKeys(rows);
+        const ordered = orderedMinutesSubjects(subjects, keys);
+
+        expect(ordered.map(s => s.agendaItemIndex)).toEqual([1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 5]);
+        // Where the discussion resumes («Κύριε Κακούρο, έχετε ενημέρωση για το
+        // θέμα…» at 715.3), not at the vote at 727.9.
+        expect(keys.get('s5')).toBeCloseTo(715.29, 2);
+    });
+
+    it('places a resumed subject where its discussion resumes, before a subject read inside that discussion', () => {
+        // s1 is opened, left pending while s2 is voted, and resumed at 300. s3 is
+        // read at 310, inside s1's resumed discussion, and voted after s1.
+        const keys = discussionOrderKeys([
+            u('s1', 'SUBJECT_DISCUSSION', 100), u('s2', 'SUBJECT_DISCUSSION', 150), u('s2', 'VOTE', 200),
+            u('s1', 'SUBJECT_DISCUSSION', 300), u('s3', 'SUBJECT_DISCUSSION', 310), u('s1', 'VOTE', 320), u('s3', 'VOTE', 400),
+        ]);
+        const ordered = orderedMinutesSubjects([agendaItem(1), agendaItem(2), agendaItem(3)], keys);
+
+        expect(keys.get('s1')).toBe(300);
+        expect(ordered.map(s => s.id)).toEqual(['s2', 's1', 's3']);
+    });
+
+    it('keeps a subject at its first utterance when no other subject is voted before its own vote', () => {
+        // Samothraki jul28_2026: items 5 and 6 are read together and voted in one
+        // sentence, tagged to item 5 only. Item 5 still comes first.
+        const keys = discussionOrderKeys([
+            u('s5', 'SUBJECT_DISCUSSION', 918), u('s6', 'SUBJECT_DISCUSSION', 992), u('s5', 'VOTE', 1088),
+        ]);
+        expect(keys).toEqual(new Map([['s5', 918], ['s6', 992]]));
+    });
+
+    it('keeps a subject voted in its first stretch at its first utterance, whatever is tagged to it later', () => {
+        // Sparta aug26_2026: after item 2 is voted, a member says at item 4 that
+        // he votes yes «στην προηγούμενη ψηφοφορία», tagged to item 2.
+        const keys = discussionOrderKeys([
+            u('s2', 'SUBJECT_DISCUSSION', 526), u('s2', 'VOTE', 3083), u('s3', 'VOTE', 3300), u('s2', 'SUBJECT_DISCUSSION', 3584),
+        ]);
+        expect(keys.get('s2')).toBe(526);
+    });
+
+    it('orders a procedural vote only when the subject has nothing else, and an untagged utterance as discussion', () => {
+        const keys = discussionOrderKeys([
+            u('oa1', 'PROCEDURAL_VOTE', 10), u('s1', null, 50), u('oa1', 'SUBJECT_DISCUSSION', 300), u('w', 'PROCEDURAL_VOTE', 400),
+        ]);
+        expect(keys).toEqual(new Map([['oa1', 300], ['s1', 50], ['w', 400]]));
+    });
+
+    it('does not count a procedural vote of another subject as that subject being decided', () => {
+        const keys = discussionOrderKeys([
+            u('s1', 'SUBJECT_DISCUSSION', 100), u('oa1', 'PROCEDURAL_VOTE', 150), u('s1', 'VOTE', 200),
+        ]);
+        expect(keys.get('s1')).toBe(100);
+    });
+});
+
 // --- sortByElectedOrder ---
+
+describe('discussionOrderLabel', () => {
+    const item = (agendaItemIndex: number | null) => ({ agendaItemIndex, nonAgendaReason: null });
+    const oa = (agendaItemIndex: number | null) => ({ agendaItemIndex, nonAgendaReason: 'outOfAgenda' });
+
+    it('is null for the natural order: out-of-agenda subjects first, then the agenda by index', () => {
+        expect(discussionOrderLabel([oa(null), oa(null), item(1), item(2)])).toBeNull();
+        expect(discussionOrderLabel([])).toBeNull();
+    });
+
+    it('collapses runs and counts out-of-agenda subjects in the order they were discussed', () => {
+        expect(discussionOrderLabel([item(1), item(2), item(4), item(3), oa(7), oa(8)])).toBe('1ο–2ο, 4ο, 3ο, ΕΗΔ1–ΕΗΔ2');
+    });
+
+    it('prints no label for an agenda item with no index, and never joins the items around it to a run', () => {
+        expect(discussionOrderLabel([item(2), item(null), item(3)])).toBe('2ο, 3ο');
+    });
+});
+
+describe('discussedElsewhereIds', () => {
+    it('lists the sections that hold an utterance tagged to the subject, once each, never the subject itself', () => {
+        const cross = new Map([
+            ['s5', new Map([['u1', 's6'], ['u2', 's7'], ['u3', 's6']])],
+            ['s6', new Map([['u4', 's5']])],
+            ['s8', new Map([['u5', 's6']])],
+        ]);
+        expect(discussedElsewhereIds('s6', cross)).toEqual(['s5', 's8']);
+        expect(discussedElsewhereIds('s5', cross)).toEqual(['s6']);
+        expect(discussedElsewhereIds('s9', cross)).toEqual([]);
+    });
+});
 
 describe('sortByElectedOrder', () => {
     const makeMember = (personId: string, name: string): MinutesMember => ({

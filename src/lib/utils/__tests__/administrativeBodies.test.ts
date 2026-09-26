@@ -21,6 +21,7 @@ function makeAdminBody(overrides: Partial<AdministrativeBody> = {}): Administrat
         youtubeChannelUrl: null,
         contactEmails: [],
         diavgeiaUnitIds: [],
+        decisionConventions: null,
         createdAt: new Date('2020-01-01'),
         updatedAt: new Date('2020-01-01'),
         ...overrides,

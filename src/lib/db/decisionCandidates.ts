@@ -3,6 +3,7 @@ import { localCalendarDate } from "@/lib/formatters/time";
 import { shapeCandidates, type MeetingCandidate } from "./decisionCandidateShape";
 import { DecisionWriteError } from "@/lib/utils/decisionWriteCause";
 import { clearDecisionDerivedFacts } from "./decisions";
+import { rederiveMeetingsOfSubjects } from "@/lib/derivation/rederive";
 
 export { shapeCandidates, type MeetingCandidate, type AdaHolder } from "./decisionCandidateShape";
 
@@ -261,7 +262,8 @@ export async function applyCandidateConflictResolution(
     candidateId: string,
     resolution: 'reassign' | 'dismiss',
 ): Promise<ConflictResolutionOutcome> {
-    return prisma.$transaction(async (tx): Promise<ConflictResolutionOutcome> => {
+    const moved: string[] = [];
+    const outcome = await prisma.$transaction(async (tx): Promise<ConflictResolutionOutcome> => {
         const candidate = await tx.decisionCandidate.findUnique({ where: { id: candidateId } });
         if (!candidate) throw new Error('Candidate not found');
         if (candidate.dismissedAt) return 'noop'; // resolved concurrently — nothing to do
@@ -328,7 +330,7 @@ export async function applyCandidateConflictResolution(
             // from a document that no longer belongs to it.
             await Promise.all(clearDecisionDerivedFacts(tx, holding.subjectId));
             await tx.decision.delete({ where: { id: holding.id } });
-            const moved = await tx.decision.create({
+            const movedDecision = await tx.decision.create({
                 data: {
                     subjectId: candidate.subjectId,
                     ada: holding.ada,
@@ -342,8 +344,9 @@ export async function applyCandidateConflictResolution(
                     createdById: holding.createdById,
                 },
             });
-            const linkedMoved = await tx.decisionCandidate.updateMany({ where: unresolved, data: { decisionId: moved.id } });
+            const linkedMoved = await tx.decisionCandidate.updateMany({ where: unresolved, data: { decisionId: movedDecision.id } });
             if (linkedMoved.count === 0) throw new Error('Candidate was resolved concurrently');
+            moved.push(holding.subjectId, candidate.subjectId);
             return 'reassigned';
         } else {
             // Holder vanished concurrently — plain assignment
@@ -361,7 +364,10 @@ export async function applyCandidateConflictResolution(
             });
             const linkedCreated = await tx.decisionCandidate.updateMany({ where: unresolved, data: { decisionId: created.id } });
             if (linkedCreated.count === 0) throw new Error('Candidate was resolved concurrently');
+            moved.push(candidate.subjectId);
             return 'reassigned';
         }
     });
+    if (outcome === 'reassigned') await rederiveMeetingsOfSubjects(moved);
+    return outcome;
 }

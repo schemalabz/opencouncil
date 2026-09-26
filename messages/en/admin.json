@@ -271,6 +271,7 @@
       "sectionOutOfAgenda": "Outside the agenda",
       "filterAll": "All",
       "filterMissing": "No decision",
+      "filterAudit": "Need checking",
       "fillNumber": "Fill in a number",
       "change": "Change",
       "openDocument": "Open the document",
@@ -428,6 +429,8 @@
     "showLess": "Show less",
     "showMore": "Show more",
     "showNames": "Show names",
+    "auditMode": "Audit mode",
+    "auditModeHint": "Shows how each fact came to be: what the document stated, what we derived, and where a gap remains.",
     "skipCacheHint": "The task server caches PDF extraction results — this bypasses that cache",
     "title": "Decisions",
     "validation": {
@@ -452,6 +455,7 @@
       "unknown": "Try again in a moment."
     },
     "previewMinutes": "Preview",
+    "debugClassification": "Debug: show classification",
     "exportDocx": "Export DOCX",
     "factsArrivalsDepartures": "Arrivals / departures",
     "factsChangeAt": "at {label}",
@@ -468,13 +472,222 @@
       "minutesAllDecided": "Every subject has a decision",
       "minutesUndecided": "{n, plural, one {# subject without a decision} other {# subjects without a decision}}",
       "minutesUndecidedHint": "{n, plural, one {It will appear in the minutes with no decision number.} other {They will appear in the minutes with no decision number.}}",
-      "minutesProvenance": "Drafted from the transcript and the decisions on this page."
+      "minutesProvenance": "Drafted from the transcript and the decisions on this page.",
+      "conventionsTitle": "Reading rules",
+      "conventionsEdit": "Edit the rules on the body",
+      "conventionsNone": "No rules are recorded for this body; the facts were derived on the defaults."
     },
     "presenceHeadline": "{present} present of {total}",
     "presenceAbsentInline": "{n} absent:",
     "presencePresentList": "Present ({n})",
+    "presenceMayor": "Mayor:",
+    "presencePresident": "President:",
+    "presenceAbsentMark": "{gender, select, other {absent}}",
+    "presenceMayorSuffix": "(mayor)",
+    "presenceSubstituteMark": "substitute member",
+    "presenceChairInAbsence": "in the absence of the {gender, select, other {president}}{mayor, select, yes { and mayor} other {}}, {name}",
+    "presenceChairMark": "{gender, select, other {president}}{mayor, select, yes {, mayor} other {}}",
+    "presenceMembersHeadline": "{present} members present",
+    "presenceMembersAbsentInline": "Absent members ({n}):",
+    "presenceMembersPresentList": "Members present ({n})",
+    "presenceSubstitutesInline": "Substitute members ({n}):",
     "minutesLoadFailed": "The minutes data did not load. Rows show the decisions only.",
-    "minutesRefreshFailed": "The minutes could not be refreshed — the minutes facts below may be out of date."
+    "minutesRefreshFailed": "The minutes could not be refreshed — the minutes facts below may be out of date.",
+    "issues": {
+      "codes": {
+        "NO_ROLL_CALL": "No roll call",
+        "PRESENCE_UNKNOWN": "Presence unknown",
+        "CONVENTIONS_UNCONFIRMED": "Conventions unconfirmed",
+        "UNMATCHED_NAME": "Unmatched name",
+        "UNPLACEABLE_ANCHOR": "Change could not be placed",
+        "IMPLIED_CHANGE": "Implied change",
+        "TALLY_MISMATCH": "Tally mismatch",
+        "INCOMPLETE_READ": "Incomplete read",
+        "PRESIDING_DISAGREES": "Presiding member disagrees",
+        "SOURCES_DISAGREE": "Sources disagree",
+        "NO_STORED_FACTS": "No stored facts",
+        "LAYOUT_DISAGREES": "Roll call layout disagrees",
+        "ITEM_NUMBER_DISAGREES": "Item number disagrees",
+        "UNREAD_DOCUMENT": "Unread document",
+        "LIST_DROPS_PRESENT": "List drops a present member",
+        "LIST_ADDS_ABSENT": "List adds an absent member",
+        "PERSON_IN_BOTH_LISTS": "Listed present and absent",
+        "CHANGE_NOT_CORROBORATED": "Change on too few pages",
+        "LATE_ARRIVAL_IN_OPENING_LIST": "Late arrival in the opening list",
+        "NAMED_VOTERS_UNEXPECTED": "Voters named unlike the body",
+        "NAMES_SHARE_ID": "Two names, one person",
+        "NAME_MATCHED_TWICE": "One name, two people",
+        "OUT_OF_AGENDA_PLACED_FIRST": "Out-of-agenda change placed first",
+        "VOTE_BY_ABSENT_MEMBER": "Vote by an absent member",
+        "NO_VOTE_RESULT": "No vote result"
+      },
+      "messages": {
+        "NO_ROLL_CALL": "{reason, select, noMajority {The pages print different roll calls and no one of them is on more than half of the pages, so presence cannot be replayed. The stored rows were left as they are.} other {No document yielded a roll call, so presence cannot be replayed. The stored rows were left as they are.}}",
+        "PRESENCE_UNKNOWN": "{reason, select, unsettled {The body's present list has no settled meaning (opening or cumulative), so attendance is not derived for this subject.} assumedOpening {The body's present list has no settled meaning; attendance is derived as if it were the opening roll call. Confirm the body's conventions.} noPerDecisionList {This document states no list of its own and the body's present list has no settled meaning, so attendance is not derived for this subject.} other {Presence could not be settled for this subject.}}",
+        "CONVENTIONS_UNCONFIRMED": "The body's decision conventions were profiled, not confirmed by a person.",
+        "UNMATCHED_NAME": "«{name}» matched nobody in the roster.",
+        "UNPLACEABLE_ANCHOR": "{reason, select, rangeNotInMeeting {The absence for decisions {detail} could not be placed, neither the departure nor the arrival: no subject of this meeting carries a decision of that range} rangeNoDecisionNumbers {The absence for decisions {detail} could not be placed, neither the departure nor the arrival: no subject of this meeting carries a decision number} rangeNumberNoDigits {The absence for decisions «{detail}» could not be placed, neither the departure nor the arrival: a decision number of the range has no digits} other {{kind, select, ARRIVAL {The arrival} other {The departure}} could not be placed: {reason, select, noAgendaItem {the anchor carries no agenda item} noSuchAgendaItem {no subject carries agenda item {detail}} noSuchSubject {subject {detail} is not in the meeting order} decisionNumberNoDigits {decision number «{detail}» has no digits} noDecisionNumbers {no subject of this meeting carries a decision number} decisionNumberBeyond {no subject's decision number reaches {detail}} other {the anchor cannot be resolved}}}}.",
+        "IMPLIED_CHANGE": "The document lists this member as {status, select, PRESENT {present} other {absent}} but no arrival or departure was stated; the change is implied from here on.",
+        "TALLY_MISMATCH": "The printed tally disagrees with the derived votes ({diffs}).",
+        "INCOMPLETE_READ": "The extractor did not reach ΑΠΟΦΑΣΙΖΕΙ; the decision text and the vote may be missing.",
+        "PRESIDING_DISAGREES": "Documents of this meeting name different presiding members ({names}).",
+        "SOURCES_DISAGREE": "{kind, select, rollCall {The roll call from {winSource, select, decision {the document} transcript {the transcript} manual {manual entry} other {{winSource}}} says the member is {winStatus, select, PRESENT {present} other {absent}} and the one from {loseSource, select, decision {the document} transcript {the transcript} manual {manual entry} other {{loseSource}}} says {loseStatus, select, PRESENT {present} other {absent}}; the first wins.} event {An arrival and a departure are stated at the same point («{winRawText}» from {winSource, select, decision {the document} transcript {the transcript} manual {manual entry} other {{winSource}}}, «{loseRawText}» from {loseSource, select, decision {the document} transcript {the transcript} manual {manual entry} other {{loseSource}}}); the {winKind, select, ARRIVAL {arrival} other {departure}} wins.} statedList {The document's own list says this member is {status, select, PRESENT {present} other {absent}} here, contradicting the stated {eventKind, select, ARRIVAL {arrival} other {departure}} («{rawText}»); the list wins.} doubleVote {The document names this member twice with different votes ({firstVote, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{firstVote}}} and {secondVote, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{secondVote}}}); the first is kept.} other {Two sources state different things; the source of higher precedence wins.}}",
+        "NO_STORED_FACTS": "{missing} of {total} documents were read before facts were stored; re-poll the meeting to derive attendance and votes. The stored rows were left as they are.",
+        "LAYOUT_DISAGREES": "The body's conventions say the roll call is printed as «{expected, select, composition_and_absent {Composition and absent} present_and_absent {Present and absent} present_only {Present only} mixed {Mixed} other {{expected}}}», but this document printed it as «{found, select, composition_and_absent {Composition and absent} present_and_absent {Present and absent} present_only {Present only} mixed {Mixed} other {{found}}}».",
+        "ITEM_NUMBER_DISAGREES": "The document states it decided agenda item {declared} but is linked to item {linked}; if the link is wrong, every fact the document carries sits on the wrong subject.",
+        "UNREAD_DOCUMENT": "This decision's document was not read; the subject's attendance comes from the meeting's other documents and its votes are missing. Re-poll the meeting.",
+        "LIST_DROPS_PRESENT": "The document's roll call says this member is present and the same document's member list leaves them out; the list wins and the member is absent for this item.",
+        "LIST_ADDS_ABSENT": "The document's roll call says this member is absent and the same document's member list names them; the list wins and the member is present. Check that the list is not a misread column of members who had left.",
+        "PERSON_IN_BOTH_LISTS": "This page lists the member both under ΠΑΡΟΝΤΕΣ and under ΑΠΟΝΤΕΣ. Where this page's roll call sets presence (as the meeting's roll call, or for its own item in a body that prints a roll call per decision), the member counts as absent.",
+        "CHANGE_NOT_CORROBORATED": "Only {stated} of the meeting's {total} pages state this change, and this body's pages repeat the session. It is not applied; check the page.",
+        "LATE_ARRIVAL_IN_OPENING_LIST": "The page says this member arrived later, yet lists them under ΠΑΡΟΝΤΕΣ, and this body's present list is the opening roll call. The reader probably moved the arrival into the list; the roll call most pages print decides.",
+        "NAMED_VOTERS_UNEXPECTED": "{expected, select, dissenters_only {This body names only those against, blank or declaring, but this page names members in favour.} none {This body names no voters, but this page names some.} all_when_split {This body names every voter, including those in favour, when a vote is split, but this page names nobody in favour under a phrase that carried.} other {This body names every voter, but this page names nobody in favour under a phrase that carried.}} Check whether the page was read correctly; the vote rows are unchanged.",
+        "NAMES_SHARE_ID": "Two entries of one list on this page were matched to the same person: {names}. A list names each member once, so one match is wrong. Check the page and the roster.",
+        "NAME_MATCHED_TWICE": "«{name}» was matched to different people on different pages of this meeting. Check which one it is and correct the roster.",
+        "OUT_OF_AGENDA_PLACED_FIRST": "{kind, select, ARRIVAL {The arrival} other {The departure}} is stated during the out-of-agenda items, but this meeting has no out-of-agenda subject. The out-of-agenda items come before the agenda, so the change takes effect before the first subject. Check the page if the member's first items look wrong.",
+        "VOTE_BY_ABSENT_MEMBER": "The page names this member's vote ({vote, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{vote}}}), but the member counts as absent on this subject. The vote row stays. Either the vote or the absence is wrong: check the page and the stated arrivals and departures.",
+        "NO_VOTE_RESULT": "The page states ΑΠΟΦΑΣΙΖΕΙ, but the read holds no vote result: no phrase, no named voter and no count. The subject has no votes. Check the page against its PDF."
+      },
+      "tallyDiff": "{type, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{type}}}: printed {printed}, derived {derived}",
+      "title": "Issues",
+      "none": "No issues",
+      "inferredFor": "Inferred — no document states it",
+      "severity": {
+        "error": "Error",
+        "warning": "Warning",
+        "info": "Information"
+      },
+      "raisedAt": "Raised {steps}",
+      "raisedJoin": "and",
+      "raisedIn": {
+        "read": "in the reading of the document",
+        "resolve": "in the combining of the pages",
+        "place": "in the placing of the changes",
+        "presence": "in working out who was present",
+        "votes": "in the count of the votes",
+        "write": "in the write"
+      },
+      "howDerived": "How the facts are derived",
+      "person": {
+        "member": "Member: {name}"
+      }
+    },
+    "rederive": "Re-derive",
+    "audit": {
+      "lineLabel": "Audit",
+      "moreIssues": "+{n} more",
+      "phraseOnly": "Outcome from the phrase alone",
+      "inferredVotes": "Inferred votes",
+      "namedInDocument": "Named in the document",
+      "inferredFromPresence": "Inferred from presence",
+      "ofTotal": "{n} of {total}",
+      "title": "Audit evidence",
+      "asPrinted": "As printed",
+      "tallyHeading": "Tally",
+      "tallyPrinted": "printed",
+      "tallyDerived": "derived",
+      "tallyType": "{type, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{type}}}",
+      "changesHeading": "Attendance changes",
+      "statedOn": "stated on {n} of {m} documents",
+      "unmatchedNames": "Names not matched:",
+      "attendanceFromList": "From the document's own present list",
+      "attendanceFromRollCall": "From the roll call"
+    },
+    "filterIssues": "With issues",
+    "derivation": {
+      "title": "How the facts are derived",
+      "subtitle": "From the Diavgeia PDF to the minutes, in six steps. Each step shows what we keep from the source, what we compute from it, and what can be left unanswered.",
+      "superadminOnly": "Superadmin only",
+      "rule": "We keep only what a source explicitly <b>states</b>, in its most detailed form. Everything cumulative is <b>computed</b> from that, from scratch every time.",
+      "ruleWhy": "That is why who was present at each subject and who voted FOR are never stored as facts: storing them would freeze one reading of the documents, and where they came from would no longer be visible. Because they are computed, they can be explained, checked and produced again without re-reading the PDFs.",
+      "stated": "Stated",
+      "derived": "Derived",
+      "alsoAtStep": "also at step {n}",
+      "footer": "The body's <b>reading rules</b> feed both ends: they tell the extractor what to expect at step 0, and at steps 1 and 3 what a present list means. If no human has confirmed them, every meeting of the body says so.",
+      "stages": {
+        "read": {
+          "name": "Reading the document",
+          "what": "Each PDF is read on its own and returns only what its page prints. It does not look at the other documents and does not fill gaps — what the page does not say does not exist at this step.",
+          "stated": "The roll call · the arrivals and departures together with the point the page ties them to · the vote phrase as printed · everyone it names · its own present list, if it has one.",
+          "derived": "Nothing. Names are matched to people, and the ones not found travel as text rather than being dropped.",
+          "codesLabel": "What can be left unanswered here"
+        },
+        "resolve": {
+          "name": "Combining the pages",
+          "what": "Every stored page of the meeting is read together: the opening roll call most pages print, and each arrival or departure the pages state. A later poll only adds pages, so nothing an earlier page stated is lost.",
+          "stated": "Each page's roll call and each change it states.",
+          "derived": "One opening roll call and one list of changes for the whole meeting.",
+          "codesLabel": "What can be left unanswered here"
+        },
+        "place": {
+          "name": "Placing the changes",
+          "what": "The page writes «X left during the discussion of subject Y». For that to count, it has to become a position inside the order the subjects were discussed in — the same order the minutes print.",
+          "stated": "The point as the document writes it: a subject, a decision number, or a phase of the sitting.",
+          "derived": "Which position in the discussion order that point corresponds to.",
+          "codesLabel": "What can be left unanswered here"
+        },
+        "presence": {
+          "name": "Replaying the presences",
+          "what": "Starts from the roll call and moves subject by subject, applying each change at its position. Where the body prints its own present list per decision, that list prevails from that subject onwards.",
+          "stated": "Who was present at the opening, and who arrived or left during the sitting.",
+          "derived": "Who was present at each individual subject. No document writes this for a whole sitting — it comes out of the replay.",
+          "codesLabel": "What can be left unanswered here"
+        },
+        "votes": {
+          "name": "Deriving the votes",
+          "what": "Pages almost never name the majority — they name those who disagreed. A FOR that was not printed is not a read fact, so it is added only here and stays marked as derived.",
+          "stated": "The result phrase as printed («Unanimously», «By majority»), the tally if there is one, and everyone named.",
+          "derived": "FOR for every present member who is not named — only where the phrase allows it.",
+          "codesLabel": "What can be left unanswered here"
+        },
+        "write": {
+          "name": "Writing to the database",
+          "what": "The write is all-or-nothing: it deletes every attendance and vote row of the sitting that came from decisions, and writes the freshly computed ones in their place. Anything a human entered is left untouched. Because it deletes everything first, an incomplete input would not break a few rows — it would empty them all. Hence the two blocks: if either one holds, nothing is written and the stored rows stay as they are.",
+          "codesLabel": "The two blocks"
+        }
+      },
+      "why": {
+        "read": {
+          "LAYOUT_DISAGREES": "The document printed a different roll-call layout from the one the body's rules describe. One of the two is wrong.",
+          "ITEM_NUMBER_DISAGREES": "The document states a different subject from the one it was linked to — then every fact it carries lands on the wrong subject.",
+          "UNREAD_DOCUMENT": "The document was never read: its subject has no votes, and its presence comes from the meeting's other documents.",
+          "INCOMPLETE_READ": "The read did not reach the ΑΠΟΦΑΣΙΖΕΙ, so the outcome is missing.",
+          "UNMATCHED_NAME": "A name that was not tied to a person; it counts in neither presences nor votes.",
+          "PRESIDING_DISAGREES": "Documents of the same sitting state a different presiding member.",
+          "CONVENTIONS_UNCONFIRMED": "The body's rules came out of a sample of documents and no human has confirmed them.",
+          "NAMED_VOTERS_UNEXPECTED": "A page that names voters unlike the rest of its body is either a misread or a sign that the body's rule is wrong.",
+          "NO_VOTE_RESULT": "A page that states ΑΠΟΦΑΣΙΖΕΙ records a vote. A read with no vote result lost it, so the subject has no votes."
+        },
+        "resolve": {
+          "PERSON_IN_BOTH_LISTS": "A page contradicts itself about one member. Where its roll call sets presence, the member counts as absent.",
+          "CHANGE_NOT_CORROBORATED": "This body prints the session's changes on every page, so a change that most pages leave out is probably a misread.",
+          "LATE_ARRIVAL_IN_OPENING_LIST": "In a body whose present list is the opening roll call, a member who arrived later cannot be in it.",
+          "NAMES_SHARE_ID": "The roll call and the changes are combined by person; a wrong match merges two members.",
+          "NAME_MATCHED_TWICE": "Pages read in different polls are matched separately, so one spelling can end on two people."
+        },
+        "place": {
+          "UNPLACEABLE_ANCHOR": "The point the document states corresponds to nothing. The change becomes a signal rather than being applied at the wrong position.",
+          "OUT_OF_AGENDA_PLACED_FIRST": "A page states a change during the out-of-agenda items, and the meeting has no out-of-agenda subject. The change takes effect before the first subject, and this note shows the assumption."
+        },
+        "presence": {
+          "NO_ROLL_CALL": "No source gives a roll call, so there is nothing for the replay to start from.",
+          "PRESENCE_UNKNOWN": "It is not clear whether the present list is the opening roll call or already includes those who arrived later. It changes who counts as present at the first subjects.",
+          "SOURCES_DISAGREE": "Two sources say different things about the same person. One prevails on precedence and the other is reported rather than erased.",
+          "IMPLIED_CHANGE": "A decision's list shows a change that no document stated explicitly as an arrival or a departure.",
+          "LIST_DROPS_PRESENT": "One document prints both a roll call and a member list, and the list drops a member the roll call has present. The list knows more, so a note is enough.",
+          "LIST_ADDS_ABSENT": "One document prints both a roll call and a member list, and the list adds a member the roll call has absent. This is how a misread column of members who had left shows up."
+        },
+        "votes": {
+          "TALLY_MISMATCH": "The printed tally does not agree with the rows that came out. Usually it means a presence change is missing.",
+          "SOURCES_DISAGREE": "Two sources give a different vote for the same person.",
+          "VOTE_BY_ABSENT_MEMBER": "A page names a vote for a member who counts as absent on that subject. One of the two is wrong: the vote was misread, or an arrival or a departure is missing or placed wrong."
+        },
+        "write": {
+          "NO_STORED_FACTS": "One document read before we started storing facts is enough. If it were written now, only its own subject would be built and every older one would be emptied. Re-reading the sitting fills in the rest.",
+          "NO_ROLL_CALL": "The presences are a replay of the roll call. With an empty roll call nobody would come out present anywhere — that would not be a correction of the rows but their deletion."
+        }
+      }
+    }
   },
   "decisionsOverview": {
     "title": "Decisions",
@@ -572,6 +785,141 @@
       "details": "Body details",
       "openInDiavgeia": "Open in Diavgeia",
       "all": "All bodies"
+    },
+    "readIssues": "{count, plural, one {# read issue} other {# read issues}}"
+  },
+  "conventions": {
+    "rollCallLayout": {
+      "fieldLabel": "Roll call layout",
+      "composition_and_absent": {
+        "label": "Composition and absent",
+        "description": "The page prints the body's full composition (ΣΥΝΘΕΣΗ) and then who was absent.",
+        "hint": "This administrative body's documents usually print attendance as a full ΣΥΝΘΕΣΗ roster followed by who was absent."
+      },
+      "present_and_absent": {
+        "label": "Present and absent",
+        "description": "The page prints a ΠΑΡΟΝΤΕΣ list and an ΑΠΟΝΤΕΣ list.",
+        "hint": "This administrative body's documents usually print attendance as separate ΠΑΡΟΝΤΕΣ and ΑΠΟΝΤΕΣ lists."
+      },
+      "present_only": {
+        "label": "Present only",
+        "description": "The page prints only who was present.",
+        "hint": "This administrative body's documents usually print attendance as a ΠΑΡΟΝΤΕΣ list only."
+      },
+      "mixed": {
+        "label": "Mixed",
+        "description": "The layout varies between documents of this body.",
+        "hint": "This administrative body's documents print attendance in no single layout."
+      }
+    },
+    "presentListMeaning": {
+      "fieldLabel": "What the present list means",
+      "opening": {
+        "label": "Opening roll call",
+        "description": "The present list is who was there when the session opened; arrivals are stated separately.",
+        "hint": "The present list is the opening roll call; arrivals are stated separately."
+      },
+      "cumulative": {
+        "label": "Cumulative",
+        "description": "The present list includes everyone who attended at any point of the session.",
+        "hint": "The present list includes everyone who attended at any point; do not read it as the opening roll call."
+      },
+      "per_decision": {
+        "label": "Per decision",
+        "description": "Each document's present list is the attendance as of that decision; it changes from document to document within a session.",
+        "hint": "Each document's ΠΑΡΟΝΤΕΣ/ΑΠΟΝΤΕΣ is the attendance as of ITS OWN decision, not the opening roll call: a member who arrived at item 3 is under ΑΠΟΝΤΕΣ on items 1–2 and under ΠΑΡΟΝΤΕΣ from item 3. Report the lists exactly as this page prints them, and still report the arrival or departure sentence when the page states one."
+      },
+      "unknown": {
+        "label": "Unknown",
+        "description": "Not settled yet; attendance is derived as an opening roll call and flagged until a person confirms.",
+        "hint": ""
+      }
+    },
+    "attendanceChangeAnchors": {
+      "fieldLabel": "Arrivals and departures are pinned to",
+      "agenda_item": {
+        "label": "agenda item",
+        "description": "«κατά τη συζήτηση του 3ου θέματος»",
+        "hint": ""
+      },
+      "decision_number": {
+        "label": "decision number",
+        "description": "«απεχώρησε στην 286 ΑΚΣ»",
+        "hint": ""
+      },
+      "phase": {
+        "label": "a phase of the session",
+        "description": "«πριν την έναρξη της ημερήσιας διάταξης», «κατά τα θέματα εκτός ημερήσιας διάταξης»",
+        "hint": ""
+      },
+      "subject": {
+        "label": "this document's own item",
+        "description": "«Κατά τη διαδικασία της ψηφοφορίας απουσίαζε…»",
+        "hint": ""
+      }
+    },
+    "anchors": {
+      "some": "Arrivals and departures, when stated, are pinned to:",
+      "none": "They rarely state arrivals or departures."
+    },
+    "statesPerDecisionAttendance": {
+      "label": "Lists who was present for this decision",
+      "description": "At the end of the document the page names every member present for this decision (ΤΑ ΜΕΛΗ).",
+      "hint": "At the end of the document, after the decision text, they list every member present for this decision under ΤΑ ΜΕΛΗ / ΠΑΡΟΝΤΑ ΜΕΛΗ; return that list as decisionAttendance and leave the opening roll call in presentMembers. An ΑΠΟΧΩΡΗΣΑΝΤΕΣ column beside it names who had LEFT — report those as departures, never as decisionAttendance."
+    },
+    "statesPerVoteAbsence": {
+      "label": "States per-vote absence",
+      "description": "«Κατά τη διαδικασία της ψηφοφορίας απουσίαζε…» printed after the decision.",
+      "hint": "They print who was absent for this decision's vote after the decision («Κατά τη διαδικασία της ψηφοφορίας απουσίαζε…»); report those as absent_for_vote."
+    },
+    "usesSubstitutes": {
+      "label": "Uses substitutes",
+      "description": "Substitute members (αναπληρωματικά μέλη) may sit for absent regular members.",
+      "hint": "Substitute members (αναπληρωματικά μέλη) sit for absent regular members and vote only while that member is absent. When the page says a replaced member arrived, also report the substitute's departure with the same anchor and the same timing as that arrival (type departure), quoting the substitution sentence («… αναπληρώθηκε από …»)."
+    },
+    "mayorStatedSeparately": {
+      "label": "Mayor stated separately",
+      "description": "The mayor's presence is stated in its own sentence, never in the member lists.",
+      "hint": "The mayor is stated in a separate sentence, never in the member lists."
+    },
+    "listOmitsSecretary": {
+      "label": "The secretary is not written into «Τα Μέλη»",
+      "description": "The member list at the end of the document leaves out the body's secretary, as it leaves out whoever presides.",
+      "hint": "The member list at the end of the document (ΤΑ ΜΕΛΗ) leaves out the body's secretary as well as whoever presides; both sign beside it. Return the list exactly as printed and do not add them to it."
+    },
+    "namedVoters": {
+      "fieldLabel": "Named voters",
+      "none": {
+        "label": "Nobody named",
+        "description": "The page names no voters; only the phrase.",
+        "hint": ""
+      },
+      "dissenters_only": {
+        "label": "Dissenters only",
+        "description": "Only those against, blank or declaring are named.",
+        "hint": "They name only dissenters and declarations; nobody in favour is listed."
+      },
+      "all": {
+        "label": "Every voter",
+        "description": "Every voter is named, including those in favour.",
+        "hint": "They name every voter, including those in favour."
+      },
+      "all_when_split": {
+        "label": "Every voter on a split vote",
+        "description": "On a split vote every voter is named, including those in favour; on a unanimous vote nobody is.",
+        "hint": "On a split vote they name every voter, including those in favour; on a unanimous vote («Ομόφωνα») they name nobody."
+      }
+    },
+    "provenance": {
+      "profile": "Profiled from {n} documents on {date}",
+      "manual": "Confirmed by {who} on {date}"
+    },
+    "form": {
+      "title": "Decision conventions",
+      "confirm": "Confirm conventions",
+      "confirmed": "Conventions confirmed",
+      "notes": "Notes",
+      "profile": "Profile from Diavgeia"
     }
   }
 }

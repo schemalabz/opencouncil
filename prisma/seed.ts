@@ -4,6 +4,9 @@ import * as path from 'path'
 import { env } from '@/env.mjs'
 import { CITY_DEFAULTS } from "@/lib/zod-schemas/city"
 import { CORE_PROCESSING_TASKS } from "@/lib/tasks/types"
+import { importBodyConventions, type BodyConventionsRecord } from "@/lib/db/bodyConventionsImport"
+// Imported, not read from disk: the preview runs a bundle of this file with no fixtures/ beside it.
+import bodyConventions from "../fixtures/body-conventions.json"
 
 const prisma = new PrismaClient()
 
@@ -306,11 +309,11 @@ async function main() {
       }
     })
 
+    // Meeting ids repeat across cities (every city has a jul15_2026), so the
+    // guard has to match on the pair or a second city's dump is skipped.
     const existingMeetings = await prisma.councilMeeting.findMany({
       where: {
-        id: {
-          in: seedData.meetings.map((meeting: { id: string }) => meeting.id)
-        }
+        OR: seedData.meetings.map((meeting: { id: string; cityId: string }) => ({ id: meeting.id, cityId: meeting.cityId }))
       }
     })
 
@@ -331,6 +334,10 @@ async function main() {
 
     // Then seed entities with foreign key dependencies
     await seedAdministrativeBodies(seedData.administrativeBodies)
+    // A dump taken before conventions existed carries none, and without them every
+    // subject of every meeting derives as «presence unknown».
+    const imported = await importBodyConventions(bodyConventions.bodies as BodyConventionsRecord[], prisma)
+    console.log(`Decision conventions: ${imported.written.length} bodies written, ${imported.missing.length} not in this seed`)
     await seedParties(seedData.parties)
 
     // Seed persons next (depends on cities and parties)

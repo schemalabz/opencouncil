@@ -1,4 +1,5 @@
 import type { NonAgendaReason, Realm } from '@prisma/client';
+import type { PhraseOutcome } from '@/lib/derivation/deriveVotes';
 export interface MinutesMember {
     personId: string;
     name: string;
@@ -13,14 +14,101 @@ export interface MinutesAttendance {
 }
 
 export interface MinutesCouncilComposition {
-    mayor: { name: string; personId: string } | null;
+    /**
+     * `note` is the parenthesis printed after the name on the ΔΗΜΑΡΧΟΣ line, or on
+     * the ΠΡΟΕΔΡΟΣ line of a committee the mayor presides: absence at the roll call, and the mayor's own arrivals and departures.
+     * Who presided in an absent president's place is `presidedBy`. Null when there is nothing to say — the
+     * renderers then fall back to the ΑΠΩΝ/ΑΠΟΥΣΑ label they derive themselves.
+     */
+    mayor: { name: string; personId: string; note: string | null } | null;
     president: { name: string; personId: string } | null;
+    /**
+     * Who presided, as the documents state it: the first document that names
+     * one (its `presidedBy`). The name is the roster name when the document's
+     * name resolved to a person, else the name as the document printed it.
+     * `buildRollCall` names this person on the ΠΡΟΕΔΡΟΣ line when the president
+     * was absent and this is someone else. Absent or null when no document names one.
+     */
+    presidedBy?: { name: string; personId: string | null } | null;
     members: MinutesMember[];
     /** Substitute members (αναπληρωματικά μέλη) — only for committees */
     substituteMembers: MinutesMember[];
 }
 
-export interface MinutesVoteResult {
+/** The office a roll-call list prints after an absent president's name: «ΠΡΟΕΔΡΟΣ», with «ΔΗΜΑΡΧΟΣ» when the president is the mayor. */
+export interface MinutesRollCallOffice {
+    isMayor: boolean;
+    /** For the languages whose word for the office has a feminine form. */
+    feminine: boolean;
+}
+
+/** A member on a roll-call list, and whether they sit as a substitute (αναπληρωματικό μέλος). */
+export interface MinutesRollCallMember {
+    member: MinutesMember;
+    isSubstitute: boolean;
+    /** Set on the absent president's entry of the absent list, null on every other entry. */
+    office: MinutesRollCallOffice | null;
+}
+
+/**
+ * The roll call as the minutes print it, before a renderer draws it: the DOCX,
+ * the on-screen minutes and the decisions page all read these lines from
+ * `buildRollCall`.
+ *
+ * `note` is the parenthesis the documents give (the mayor's note); `printedNote`
+ * is what the minutes print in its place, which falls back to ΑΠΩΝ/ΑΠΟΥΣΑ.
+ * A renderer in another language prints `note` and its own word for absent.
+ */
+export interface MinutesRollCall {
+    isCommittee: boolean;
+    /**
+     * The ΔΗΜΑΡΧΟΣ line. Councils only: a committee counts a member mayor in its
+     * lists and names the mayor on the president's line, when the mayor presides.
+     * `feminine` picks the gendered word for absent.
+     */
+    mayor: { name: string; personId: string; absent: boolean; feminine: boolean; note: string | null; printedNote: string | null } | null;
+    /**
+     * The ΠΡΟΕΔΡΟΣ line. `name` and `personId` are the president's. `isMayor`: a
+     * committee's president is the mayor, and the line prints «(ΔΗΜΑΡΧΟΣ)» after
+     * the name, then the mayor's note, as the minutes print it. The note holds the
+     * mayor's arrivals and departures, and the changes list then leaves them out.
+     *
+     * `presidedBy`: the president was absent and a document names another person
+     * who presided. The line then names that person first, and the parenthesis
+     * says that the president (the mayor, when `isMayor`) was absent:
+     * «ΠΡΟΕΔΡΟΣ: Μετικαρίδης Θεόδωρος (λόγω απουσίας της ΠΡΟΕΔΡΟΥ, ΔΗΜΑΡΧΟΥ Καφατσάκη Τίνα)».
+     * The president is then in the absent list, and the line carries no mayor's note.
+     * `feminine` picks the gendered words.
+     *
+     * `printedName` and `printedNote` are the line as the minutes print it.
+     */
+    president: {
+        name: string;
+        personId: string;
+        absent: boolean;
+        isMayor: boolean;
+        feminine: boolean;
+        presidedBy: { name: string; personId: string | null } | null;
+        note: string | null;
+        printedName: string;
+        printedNote: string | null;
+    } | null;
+    /**
+     * Committee: the ΠΑΡΟΝΤΑ ΜΕΛΗ list, substitutes after their party. Council:
+     * the members of the ΣΥΝΘΕΣΗ who are not absent.
+     */
+    present: MinutesRollCallMember[];
+    /**
+     * Committee: the ΑΠΟΝΤΑ ΜΕΛΗ list. Council: the «απουσίαζαν οι» sentence,
+     * which leaves out an absent president whose own line says they were absent.
+     * An absent president whose line names who presided is in the list, with
+     * `office` set.
+     */
+    absent: MinutesRollCallMember[];
+}
+
+/** The lists a vote result prints, one per vote value. All empty when the document named no voter. */
+export interface MinutesVoteMembers {
     forMembers: MinutesMember[];
     againstMembers: MinutesMember[];
     abstainMembers: MinutesMember[];
@@ -29,15 +117,35 @@ export interface MinutesVoteResult {
     /** Members who declined to participate (ΑΠΟΧΗ) */
     didNotVoteMembers: MinutesMember[];
     absentMembers: MinutesMember[];
-    passed: boolean;
-    isUnanimous: boolean;
 }
 
 /**
+ * A counted result, or — when the document named no voter in favour — what its
+ * own phrase says. The two carry different outcome fields, because a phrase-only
+ * result has no counts to read `passed` or a unanimity off: «Κατά πλειοψηφία
+ * απορρίπτει» did not pass, and a phrase that counts votes without naming an
+ * outcome is neither unanimous nor a majority. Its FOR list is empty because
+ * nobody was named in favour, not because nobody voted in favour. The other
+ * lists hold the voters the page named (ΚΑΤΑ, ΛΕΥΚΟ, ΠΑΡΩΝ) and the absent
+ * members, and the minutes print them under the phrase.
+ */
+export type MinutesVoteResult = MinutesVoteMembers & (
+    | { fromPhraseOnly: false; passed: boolean; isUnanimous: boolean }
+    | {
+        fromPhraseOnly: true;
+        /** The outcome the phrase names, null when it names none. */
+        outcome: PhraseOutcome | null;
+        /** The phrase as the document wrote it, printed whole when it names no outcome. */
+        phrase: string;
+    }
+);
+
+/**
  * What the transcript holds for a subject, in the terms of DiscussionStatus.
- * `start` is where the subject sits in the meeting: the first utterance that
- * is not a procedural vote, or the first procedural vote when that is all
- * there is — the same rule `sortSubjectsByDiscussionOrder` receives.
+ * `start` is the subject's first linked utterance that is not a procedural
+ * vote, or its first procedural vote when that is all there is. It is not the
+ * subject's place in the order: a subject left pending and resumed sorts where
+ * its discussion resumes (`discussionOrderKeys`).
  */
 export interface MinutesDiscussionSummary {
     /**
@@ -111,7 +219,18 @@ export interface MinutesSubject {
         protocolNumber: string | null;
         excerpt: string | null;
         references: string | null;
+        /** What the document itself says about the vote («Ομόφωνα»), verbatim. */
+        voteResultPhrase: string | null;
     } | null;
+
+    /**
+     * Who presided at this subject: the `presidedBy` of this subject's own
+     * document, else the meeting's (`MinutesCouncilComposition.presidedBy`).
+     * The subject's roll call (`buildRollCall`) names this person on the
+     * ΠΡΟΕΔΡΟΣ line when the president was absent. The meeting's own roll call
+     * keeps the meeting's value.
+     */
+    presidedBy: { name: string; personId: string | null } | null;
 
     attendance: MinutesAttendance | null;
     voteResult: MinutesVoteResult | null;
@@ -125,6 +244,14 @@ export interface MinutesAttendanceChange {
     personId: string;
     name: string;
     type: 'arrival' | 'departure';
+    /**
+     * What the document pinned the change to when it is not an agenda item
+     * («στην 286 ΑΚΣ», «στις 19:45»); printed instead of the subject label.
+     * Null when the change is reconstructed from attendance diffs.
+     */
+    anchorLabel?: string | null;
+    /** The sentence the document states the change in. Absent for changes reconstructed from attendance diffs. */
+    rawText?: string;
     /** The agenda item where this change is first observed (subject immediately after the change) */
     atSubject: {
         id: string;
@@ -171,8 +298,14 @@ export interface MinutesData {
     absentMembers: MinutesMember[] | null;
     /** Orphaned utterances before the first subject (opening remarks, procedural content) */
     preambleEntries: MinutesTranscriptEntry[];
-    /** Mid-meeting arrivals and departures derived from per-subject attendance diffs */
+    /** Mid-meeting arrivals and departures */
     attendanceChanges: MinutesAttendanceChange[];
+    /**
+     * Where `attendanceChanges` came from: 'events' = the arrivals and
+     * departures the documents state, 'diff' = reconstructed by diffing
+     * per-subject attendance (meetings polled before events were stored).
+     */
+    attendanceChangesSource: 'events' | 'diff';
     /** Discussion order summary, only set when subjects were discussed out of natural order */
     discussionOrderLabel: string | null;
     /** Procedural votes in time order. Empty when the transcript has none. */
