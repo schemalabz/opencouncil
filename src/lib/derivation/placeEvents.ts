@@ -45,7 +45,8 @@ function afterOrAt(index: number, timing: PlaceableEvent['timing']): number {
 /**
  * Where each stored event takes effect in the transcript order: the index of the
  * first subject whose attendance it changes. `subjects.length` means "after the
- * last subject" (no effect). Unplaceable events become issues, not rows.
+ * last subject" (no effect). Unplaceable events become issues, not rows; an event
+ * placed by an assumption is placed and carries an issue that states it.
  */
 export function placeEvents<E extends PlaceableEvent>(subjects: OrderedSubject[], events: E[]): { placed: PlacedEvent<E>[]; issues: Issue[] } {
     const placed: PlacedEvent<E>[] = [];
@@ -96,7 +97,16 @@ export function placeEvents<E extends PlaceableEvent>(subjects: OrderedSubject[]
             case 'PHASE': {
                 if (e.anchorPhase === 'OUT_OF_AGENDA') {
                     index = subjects.findIndex(s => s.nonAgendaReason === 'outOfAgenda');
-                    if (index < 0) { unplaceable(e, 'noOutOfAgenda'); continue; }
+                    if (index < 0) {
+                        // The out-of-agenda items are discussed before the agenda, so a
+                        // meeting that stored none of them still had them before its
+                        // first subject: Athens ΔΣ jan14_2026, «Προσήλθε κατά τη συζήτηση
+                        // των εκτός ημερήσιας διάταξης θεμάτων ο κ. Ευγ. Κολλάτος», who
+                        // votes on item 2. The note shows the back office the assumption.
+                        index = 0;
+                        issues.push({ code: 'OUT_OF_AGENDA_PLACED_FIRST', subjectId: subjects[0]?.id, personId: e.personId,
+                            source: e.source ?? null, rawText: e.rawText, params: { kind: e.kind } });
+                    }
                 } else index = 0;
                 break;
             }

@@ -129,7 +129,7 @@ export const ISSUE_CODES = [
     'IMPLIED_CHANGE', 'TALLY_MISMATCH', 'INCOMPLETE_READ', 'PRESIDING_DISAGREES', 'SOURCES_DISAGREE', 'NO_STORED_FACTS',
     'LAYOUT_DISAGREES', 'ITEM_NUMBER_DISAGREES', 'UNREAD_DOCUMENT', 'LIST_DROPS_PRESENT', 'LIST_ADDS_ABSENT',
     'PERSON_IN_BOTH_LISTS', 'CHANGE_NOT_CORROBORATED', 'LATE_ARRIVAL_IN_OPENING_LIST', 'NAMED_VOTERS_UNEXPECTED',
-    'NAMES_SHARE_ID', 'NAME_MATCHED_TWICE',
+    'NAMES_SHARE_ID', 'NAME_MATCHED_TWICE', 'OUT_OF_AGENDA_PLACED_FIRST',
 ] as const;
 export type IssueCode = typeof ISSUE_CODES[number];
 
@@ -156,7 +156,7 @@ export interface IssueParams {
     UNPLACEABLE_ANCHOR: {
         kind: AttendanceEventKind;
         reason: 'noAgendaItem' | 'noSuchAgendaItem' | 'noSuchSubject' | 'decisionNumberNoDigits' | 'noDecisionNumbers' | 'decisionNumberBeyond'
-            | 'rangeNotInMeeting' | 'rangeNoDecisionNumbers' | 'rangeNumberNoDigits' | 'noOutOfAgenda';
+            | 'rangeNotInMeeting' | 'rangeNoDecisionNumbers' | 'rangeNumberNoDigits';
         /** The anchor the reason names — «#3», «OA1», a subject id, a decision number — empty when it names none. */
         detail: string;
     };
@@ -188,6 +188,8 @@ export interface IssueParams {
     NAMES_SHARE_ID: { names: string };
     /** One printed name matched to different people on different pages of the meeting. */
     NAME_MATCHED_TWICE: { name: string };
+    /** A change stated during the out-of-agenda items, in a meeting with none, placed before the first subject. */
+    OUT_OF_AGENDA_PLACED_FIRST: { kind: AttendanceEventKind };
 }
 
 interface IssueFields {

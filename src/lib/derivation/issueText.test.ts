@@ -36,6 +36,7 @@ const CASES: { [C in IssueCode]: { params: IssueParams[C]; contains?: string[] }
     NAMED_VOTERS_UNEXPECTED: { params: { expected: 'dissenters_only' } },
     NAMES_SHARE_ID: { params: { names: 'Καββαθάς Τρύφων, Κωνσταντίνου Πέτρος' }, contains: ['Καββαθάς Τρύφων'] },
     NAME_MATCHED_TWICE: { params: { name: 'Κων/νος Αναγνωστόπουλος' }, contains: ['Κων/νος Αναγνωστόπουλος'] },
+    OUT_OF_AGENDA_PLACED_FIRST: { params: { kind: 'ARRIVAL' } },
 };
 
 describe('issueMessageEn', () => {

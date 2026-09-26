@@ -77,10 +77,18 @@ describe('placeEvents', () => {
         expect(placed.map(p => [p.event.id, p.effectAt])).toEqual([['p', 0], ['q', 0]]);
         expect(issues).toEqual([]);
     });
-    it('an out-of-agenda phase with no such subject is unplaceable', () => {
-        const { placed, issues } = placeEvents([subj('s1', 1)], [ev({ anchorKind: 'PHASE', anchorPhase: 'OUT_OF_AGENDA', rawText: 'κατά τα εκτός' })]);
-        expect(placed).toEqual([]);
-        expect(issues[0]).toMatchObject({ code: 'UNPLACEABLE_ANCHOR', personId: 'p1', rawText: 'κατά τα εκτός' });
+    it('an out-of-agenda phase with no such subject takes effect before the first subject, and says so', () => {
+        // Athens ΔΣ jan14_2026 has no out-of-agenda subject: «Προσήλθε κατά τη συζήτηση των εκτός
+        // ημερήσιας διάταξης θεμάτων ο κ. Ευγ. Κολλάτος», who is named in ΑΠΟΧΗ on item 2.
+        const rawText = 'Προσήλθε κατά τη συζήτηση των εκτός ημερήσιας διάταξης θεμάτων';
+        const { placed, issues } = placeEvents([subj('s1', 1), subj('s2', 2)], [ev({ kind: 'ARRIVAL', anchorKind: 'PHASE', anchorPhase: 'OUT_OF_AGENDA', rawText })]);
+        expect(placed.map(p => p.effectAt)).toEqual([0]);
+        expect(issues).toEqual([{ code: 'OUT_OF_AGENDA_PLACED_FIRST', subjectId: 's1', personId: 'p1', source: 'decision', rawText, params: { kind: 'ARRIVAL' } }]);
+    });
+    it('an out-of-agenda phase lands on the first out-of-agenda subject when the meeting has one, with no note', () => {
+        const { placed, issues } = placeEvents([subj('s1', 1), subj('oa1', null, 'outOfAgenda')], [ev({ anchorKind: 'PHASE', anchorPhase: 'OUT_OF_AGENDA' })]);
+        expect(placed.map(p => p.effectAt)).toEqual([1]);
+        expect(issues).toEqual([]);
     });
     it('session start and end', () => {
         const { placed } = placeEvents(order, [ev({ anchorKind: 'SESSION_START', kind: 'ARRIVAL' }), ev({ id: 'z', anchorKind: 'SESSION_END', kind: 'DEPARTURE' })]);

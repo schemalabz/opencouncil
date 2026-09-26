@@ -47,6 +47,7 @@ export const ISSUE_SEVERITY: Record<IssueCode, IssueSeverity> = {
     NAMED_VOTERS_UNEXPECTED: 'warning',
     NAMES_SHARE_ID: 'warning',
     NAME_MATCHED_TWICE: 'warning',
+    OUT_OF_AGENDA_PLACED_FIRST: 'info',
 };
 
 /** Worse first. Private: what callers need is "which of these is worse", below. */
@@ -93,6 +94,7 @@ export const ISSUE_STAGES: Record<IssueCode, readonly DerivationStage[]> = {
     NAMES_SHARE_ID: ['resolve'],
     NAME_MATCHED_TWICE: ['resolve'],
     UNPLACEABLE_ANCHOR: ['resolve', 'place'],
+    OUT_OF_AGENDA_PLACED_FIRST: ['place'],
     IMPLIED_CHANGE: ['presence'],
     PRESENCE_UNKNOWN: ['presence'],
     NO_ROLL_CALL: ['presence', 'write'],
