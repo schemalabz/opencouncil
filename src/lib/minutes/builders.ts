@@ -232,11 +232,20 @@ export function buildCouncilComposition(
  *
  * A council gets the ΔΗΜΑΡΧΟΣ line, then the ΠΡΟΕΔΡΟΣ line; its lists are the
  * ΣΥΝΘΕΣΗ members, and the absence sentence leaves the president out. A
- * committee gets no ΔΗΜΑΡΧΟΣ line: the mayor is named only as «(ΔΗΜΑΡΧΟΣ)» on
- * the president's line, when the mayor presides. A mayor who is not a member
- * of the committee is not printed at all. Its lists are the members and the
- * substitutes, the substitutes after their party (`interleaveSubstitutes`).
- * Neither list holds the mayor: `buildCouncilComposition` leaves them out.
+ * council's lists never hold the mayor: `buildCouncilComposition` leaves out a
+ * mayor who is not a member, and on a council the mayor never is.
+ *
+ * A committee gets no ΔΗΜΑΡΧΟΣ line. A mayor who is a member of the committee
+ * is an ordinary member, and the lists count the mayor. When the mayor
+ * presides, the president's line adds «(ΔΗΜΑΡΧΟΣ)» and the mayor's note, as
+ * the minutes print it: the absence at the roll call, the mayor's arrivals and
+ * departures, and who presided in the mayor's place. `getMinutesData` then
+ * keeps the mayor's arrivals and departures out of the changes list, so
+ * nothing prints twice. A member mayor who does not preside has no line of
+ * their own, and their arrivals and departures are in the changes list, like
+ * any member's. A mayor who is not a member of the committee is not printed at all.
+ * Its lists are the members and the substitutes, the substitutes after their
+ * party (`interleaveSubstitutes`).
  *
  * `absentIds` is who was absent at the point the lines describe: the roll call
  * for the minutes, or one subject for the decisions page.
@@ -262,7 +271,9 @@ export function buildRollCall(
             const { name, personId } = composition.president;
             const absent = absentIds.has(personId);
             const isMayor = isCommittee && personId === composition.mayor?.personId;
-            return { name, personId, absent, isMayor, note: null, printedNote: absent ? absentLabel(name) : null };
+            // A mayor who presides has no ΔΗΜΑΡΧΟΣ line, so their note goes on this one.
+            const note = isMayor ? composition.mayor?.note ?? null : null;
+            return { name, personId, absent, isMayor, note, printedNote: note ?? (absent ? absentLabel(name) : null) };
         })()
         : null;
 
@@ -287,13 +298,17 @@ export function formatRollCallMemberLabel({ member, isSubstitute }: MinutesRollC
     return labels.length > 0 ? labels.join(', ') : null;
 }
 
+/** One of the mayor's own arrivals or departures, worded for the mayor's note. */
+export type MayorChange = { type: 'arrival' | 'departure'; label: string };
+
 /**
- * The parenthesis after the mayor's name on the ΔΗΜΑΡΧΟΣ line: absent/present at the
- * roll call, their own arrivals or departures, and who presided in their absence.
+ * The parenthesis after the mayor's name — on the ΔΗΜΑΡΧΟΣ line, or on the
+ * ΠΡΟΕΔΡΟΣ line of a committee the mayor presides: absent/present at the roll
+ * call, their own arrivals or departures, and who presided in their absence.
  */
 export function buildMayorNote(
     rollCallStatus: 'PRESENT' | 'ABSENT' | null,
-    mayorChanges: Array<{ type: 'arrival' | 'departure'; label: string }>,
+    mayorChanges: MayorChange[],
     presidedByName: string | null,
     feminine: boolean,
 ): string | null {
@@ -333,10 +348,8 @@ export function mayorAbsentFromNote(note: string | null | undefined): boolean {
  * other side. Session-start arrivals and session-end departures are not changes
  * and are skipped.
  *
- * `mayorPersonId` is a mayor who is not a member of the body, else null. That
- * mayor's own changes are returned apart from the rest: they belong on the
- * ΔΗΜΑΡΧΟΣ line, not in the list of members who came and went. A mayor who is
- * a member (of a committee) is passed as null, and their changes stay in the list.
+ * `mayorPersonId` is a mayor whose note prints the mayor's own changes, else
+ * null. See `splitMayorChanges` for which mayor that is.
  */
 export function buildAttendanceChangesFromEvents(
     events: PlaceableEvent[],
@@ -350,7 +363,7 @@ export function buildAttendanceChangesFromEvents(
     }>,
     resolveMember: (personId: string) => MinutesMember | null,
     mayorPersonId: string | null,
-): { changes: MinutesAttendanceChange[]; mayorChanges: Array<{ type: 'arrival' | 'departure'; label: string }> } {
+): { changes: MinutesAttendanceChange[]; mayorChanges: MayorChange[] } {
     const oaIndexMap = new Map<string, number>();
     let oaCounter = 0;
     for (const s of subjects) if (s.nonAgendaReason === 'outOfAgenda') oaIndexMap.set(s.subjectId, ++oaCounter);
@@ -365,7 +378,6 @@ export function buildAttendanceChangesFromEvents(
     })), events).placed) effectAt.set(p.event, p.effectAt);
 
     const changes: MinutesAttendanceChange[] = [];
-    const mayorChanges: Array<{ type: 'arrival' | 'departure'; label: string }> = [];
     for (const e of events) {
         if (e.anchorKind === 'SESSION_START' || e.anchorKind === 'SESSION_END') continue;
         const member = resolveMember(e.personId);
@@ -388,12 +400,28 @@ export function buildAttendanceChangesFromEvents(
                 : s.attendance.present.some(m => m.personId === e.personId)));
         }
         if (index < 0) continue;
-        const at = atSubject(subjects[index]);
-        if (e.personId === mayorPersonId) {
-            mayorChanges.push({ type, label: formatChangePosition({ anchorLabel, atSubject: at }) });
-            continue;
-        }
-        changes.push({ personId: e.personId, name: member.name, type, atSubject: at, anchorLabel, rawText: e.rawText });
+        changes.push({ personId: e.personId, name: member.name, type, atSubject: atSubject(subjects[index]), anchorLabel, rawText: e.rawText });
+    }
+    return splitMayorChanges(changes, mayorPersonId);
+}
+
+/**
+ * Takes the mayor's own arrivals and departures out of the changes list, worded
+ * for the mayor's note. `mayorPersonId` is the mayor whose note prints them: a
+ * mayor who is not a member of the body (the ΔΗΜΑΡΧΟΣ line), or a committee
+ * member mayor who presides (the ΠΡΟΕΔΡΟΣ line). Pass null for a member mayor
+ * who does not preside: that mayor has no line, and their changes stay in the
+ * list, like any member's.
+ */
+function splitMayorChanges(
+    all: MinutesAttendanceChange[],
+    mayorPersonId: string | null,
+): { changes: MinutesAttendanceChange[]; mayorChanges: MayorChange[] } {
+    const changes: MinutesAttendanceChange[] = [];
+    const mayorChanges: MayorChange[] = [];
+    for (const c of all) {
+        if (c.personId === mayorPersonId) mayorChanges.push({ type: c.type, label: formatChangePosition(c) });
+        else changes.push(c);
     }
     return { changes, mayorChanges };
 }
@@ -408,6 +436,9 @@ export function buildAttendanceChangesFromEvents(
  *
  * A person who is present in subject N but absent in subject N+1 is a departure
  * (detected at subject N+1). A person absent in N but present in N+1 is an arrival.
+ *
+ * `mayorPersonId` splits the mayor's own changes out, as in
+ * `buildAttendanceChangesFromEvents` (see `splitMayorChanges`).
  */
 export function buildAttendanceChanges(
     subjects: Array<{
@@ -419,7 +450,8 @@ export function buildAttendanceChanges(
     }>,
     /** Initial roll call — absent members at session start. Used to detect changes at the first discussed subject. */
     initialAbsentMembers: MinutesMember[] | null,
-): MinutesAttendanceChange[] {
+    mayorPersonId: string | null,
+): { changes: MinutesAttendanceChange[]; mayorChanges: MayorChange[] } {
     const changes: MinutesAttendanceChange[] = [];
 
     // Pre-compute OA sequential indices (1-based)
@@ -493,7 +525,7 @@ export function buildAttendanceChanges(
         }
     }
 
-    return changes;
+    return splitMayorChanges(changes, mayorPersonId);
 }
 
 interface SortableSubject {

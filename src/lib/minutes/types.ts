@@ -15,8 +15,8 @@ export interface MinutesAttendance {
 
 export interface MinutesCouncilComposition {
     /**
-     * `note` is the parenthesis printed after the name on the ΔΗΜΑΡΧΟΣ line:
-     * absence at the roll call, the mayor's own arrivals and departures, and
+     * `note` is the parenthesis printed after the name on the ΔΗΜΑΡΧΟΣ line, or on
+     * the ΠΡΟΕΔΡΟΣ line of a committee the mayor presides: absence at the roll call, the mayor's own arrivals and departures, and
      * who presided in their place. Null when there is nothing to say — the
      * renderers then fall back to the ΑΠΩΝ/ΑΠΟΥΣΑ label they derive themselves.
      */
@@ -44,9 +44,17 @@ export interface MinutesRollCallMember {
  */
 export interface MinutesRollCall {
     isCommittee: boolean;
-    /** The ΔΗΜΑΡΧΟΣ line. Councils only: a committee names the mayor on the president's line, when the mayor presides. */
+    /**
+     * The ΔΗΜΑΡΧΟΣ line. Councils only: a committee counts a member mayor in its
+     * lists and names the mayor on the president's line, when the mayor presides.
+     */
     mayor: { name: string; personId: string; absent: boolean; note: string | null; printedNote: string | null } | null;
-    /** The ΠΡΟΕΔΡΟΣ line. `isMayor`: a committee's president is the mayor, and the line prints «(ΔΗΜΑΡΧΟΣ)» after the name. */
+    /**
+     * The ΠΡΟΕΔΡΟΣ line. `isMayor`: a committee's president is the mayor, and the
+     * line prints «(ΔΗΜΑΡΧΟΣ)» after the name, then the mayor's note, as the minutes
+     * print it. The note holds the mayor's arrivals and departures, and the changes
+     * list then leaves them out.
+     */
     president: { name: string; personId: string; absent: boolean; isMayor: boolean; note: string | null; printedNote: string | null } | null;
     /**
      * Committee: the ΠΑΡΟΝΤΑ ΜΕΛΗ list, substitutes after their party. Council:

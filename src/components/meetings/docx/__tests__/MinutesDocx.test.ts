@@ -313,6 +313,17 @@ describe('MinutesDocx roll call', () => {
         expect(runs.join('\n')).not.toContain('ΔΗΜΑΡΧΟΣ');
     });
 
+    it('prints the mayor\'s arrival once, in the note on the president\'s line of a committee the mayor presides', async () => {
+        // getMinutesData puts a presiding mayor's arrivals and departures in the
+        // note and leaves them out of the changes list.
+        const data = committeeWithSubstitute();
+        data.councilComposition!.mayor!.note = 'προσήλθε από το 3ο θέμα';
+        data.attendanceChanges = [];
+        const runs = await docxRuns(data);
+        expect(runs[runs.indexOf('Μαλτέζος Ιωάννης (ΔΗΜΑΡΧΟΣ)') + 1]).toBe(' (προσήλθε από το 3ο θέμα)');
+        expect(runs.filter(r => r.includes('από το 3ο θέμα'))).toHaveLength(1);
+    });
+
     it('prints a council with the mayor apart and the president absent', async () => {
         expect(await docxRuns(councilWithAbsentPresident())).toMatchSnapshot();
     });

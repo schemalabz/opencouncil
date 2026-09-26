@@ -34,6 +34,7 @@ import {
     buildProceduralVotes,
     MemberResolver,
     ElectedOrderGetter,
+    MayorChange,
 } from './builders';
 
 import { buildTranscriptEntriesFromUtterances, CrossSubjectInfo } from './transcriptEntries';
@@ -396,9 +397,15 @@ export async function getMinutesData(
     // them, else reconstructed from per-subject attendance diffs (older polls).
     const storedEvents = await getAttendanceEventsForMeeting(cityId, meetingId);
     const attendanceChangesSource = storedEvents.length > 0 ? 'events' : 'diff';
+    // The mayor's own arrivals and departures print in the mayor's note, not in
+    // the list, when the note has a line: the ΔΗΜΑΡΧΟΣ line of a mayor who is
+    // not a member, or the ΠΡΟΕΔΡΟΣ line of a committee the mayor presides, as
+    // the minutes print «ΠΡΟΕΔΡΟΣ: … (ΔΗΜΑΡΧΟΣ)». A member mayor who does not
+    // preside has no line, so their changes stay in the list.
+    const mayorPresides = mayorPersonId !== null && president?.personId === mayorPersonId;
+    const mayorWithNoteChanges = mayorExcludedFromRows ?? (mayorPresides ? mayorPersonId : null);
     let attendanceChanges: MinutesAttendanceChange[];
-    /** A non-member mayor's own arrivals and departures — printed on the ΔΗΜΑΡΧΟΣ line, not in the list. */
-    let mayorChanges: Array<{ type: 'arrival' | 'departure'; label: string }> = [];
+    let mayorChanges: MayorChange[];
     if (attendanceChangesSource === 'events') {
         const fromEvents = buildAttendanceChangesFromEvents(
             storedEvents,
@@ -410,18 +417,22 @@ export async function getMinutesData(
                 const person = peopleMap.get(personId);
                 return person ? resolveMember(personId, person.name) : null;
             },
-            mayorExcludedFromRows,
+            mayorWithNoteChanges,
         );
         attendanceChanges = fromEvents.changes;
         mayorChanges = fromEvents.mayorChanges;
     } else {
-        attendanceChanges = buildAttendanceChanges(
+        const fromDiff = buildAttendanceChanges(
             minutesSubjects.filter(s => !s.withdrawn),
             absentMembers,
+            mayorWithNoteChanges,
         );
+        attendanceChanges = fromDiff.changes;
+        mayorChanges = fromDiff.mayorChanges;
     }
 
-    // What the ΔΗΜΑΡΧΟΣ line says after the name. The roll call is the meeting's
+    // What the mayor's line says after the name: the ΔΗΜΑΡΧΟΣ line, or the
+    // ΠΡΟΕΔΡΟΣ line of a committee the mayor presides. The roll call is the meeting's
     // own attendance row; who presided in the mayor's place is the first document
     // that names one.
     if (councilCompositionResult?.mayor) {

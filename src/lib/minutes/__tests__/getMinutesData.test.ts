@@ -35,6 +35,7 @@ jest.mock('@/lib/db/prisma', () => ({
 }));
 
 import { getMinutesData } from '@/lib/minutes/getMinutesData';
+import { buildRollCall } from '@/lib/minutes/builders';
 import { MinutesCrossSubjectEntry } from '@/lib/minutes/types';
 
 const CITY_ID = 'city-1';
@@ -224,11 +225,28 @@ describe('getMinutesData — a mayor who is a member of the committee', () => {
         expect(data.councilComposition!.members).toHaveLength(3);
     });
 
-    it("lists the mayor's departure once, in the changes list like any member's", async () => {
+    it("lists the departure of a mayor who does not preside once, in the changes list like any member's", async () => {
         const data = await getMinutesData(CITY_ID, MEETING_ID);
         expect(data.attendanceChanges).toEqual([
             expect.objectContaining({ personId: 'mayor', type: 'departure', atSubject: expect.objectContaining({ id: 's2' }) }),
         ]);
         expect(data.councilComposition!.mayor!.note ?? '').not.toContain('αποχώρησε');
+    });
+
+    it("prints the departure of a mayor who presides on the president's line, not in the changes list", async () => {
+        // «ΠΡΟΕΔΡΟΣ: Μαλτέζος Ιωάννης (ΔΗΜΑΡΧΟΣ)»: the mayor heads the committee.
+        mockGetPeopleForCity.mockResolvedValue([
+            person('mayor', 'Ιωάννης Μαλτέζος', [role({ isHead: true, cityId: CITY_ID }), role({ isHead: true, administrativeBodyId: COMMITTEE.id })]),
+            person('p1', 'Χρήστος Πετσέλης', [role({ administrativeBodyId: COMMITTEE.id })]),
+            person('m1', 'Αντώνης Λιόλιος', [role({ administrativeBodyId: COMMITTEE.id })]),
+        ]);
+        const data = await getMinutesData(CITY_ID, MEETING_ID);
+        expect(data.attendanceChanges).toEqual([]);
+        expect(data.councilComposition!.president).toMatchObject({ personId: 'mayor' });
+        expect(data.councilComposition!.mayor!.note).toBe('αποχώρησε από το 2ο θέμα');
+        const rollCall = buildRollCall(data.councilComposition!, new Set(), data.administrativeBody?.type ?? null);
+        expect(rollCall.president).toMatchObject({ isMayor: true, printedNote: 'αποχώρησε από το 2ο θέμα' });
+        // Still a member: the counts agree with the tallies.
+        expect(rollCall.present.map(e => e.member.personId)).toContain('mayor');
     });
 });

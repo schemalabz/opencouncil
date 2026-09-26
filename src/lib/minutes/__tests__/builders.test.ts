@@ -1,6 +1,7 @@
 import { AttendanceStatus, DiscussionStatus, VoteType } from '@prisma/client';
 import {
     buildAttendance,
+    buildAttendanceChanges,
     buildVoteResult,
     buildCouncilComposition,
     buildMayorNote,
@@ -395,6 +396,31 @@ describe('buildMayorNote', () => {
     });
 });
 
+// --- buildAttendanceChanges (older polls: per-subject diffs, no events) ---
+
+describe('buildAttendanceChanges', () => {
+    const member = (personId: string, name: string): MinutesMember => ({ personId, name, party: null, isPartyHead: false, role: null });
+    const mayor = member('mayor', 'Μαλτέζος Ιωάννης');
+    const m1 = member('m1', 'Λιόλιος Αντώνης');
+    const subject = (id: string, index: number, present: MinutesMember[], absent: MinutesMember[]) => ({
+        subjectId: id, name: `Θέμα ${index}`, agendaItemIndex: index, nonAgendaReason: null, attendance: { present, absent },
+    });
+    // The mayor and m1 both leave before the 2nd item.
+    const subjects = [subject('s1', 1, [mayor, m1], []), subject('s2', 2, [], [mayor, m1])];
+
+    it("takes the mayor's own departure out of the list when the mayor's note prints it", () => {
+        const { changes, mayorChanges } = buildAttendanceChanges(subjects, [], 'mayor');
+        expect(changes.map(c => c.personId)).toEqual(['m1']);
+        expect(mayorChanges).toEqual([{ type: 'departure', label: 'από το 2ο θέμα' }]);
+    });
+
+    it("keeps the mayor's departure in the list when no mayor is passed", () => {
+        const { changes, mayorChanges } = buildAttendanceChanges(subjects, [], null);
+        expect(changes.map(c => c.personId)).toEqual(['mayor', 'm1']);
+        expect(mayorChanges).toEqual([]);
+    });
+});
+
 // --- buildCouncilComposition ---
 
 describe('buildRollCall', () => {
@@ -419,6 +445,30 @@ describe('buildRollCall', () => {
         const rollCall = rollCallOf(data);
         expect(rollCall.mayor).toBeNull();
         expect(rollCall.president).toMatchObject({ name: 'Πετσέλης Χρήστος', isMayor: false });
+    });
+
+    it('puts the mayor\'s note on the president\'s line of a committee the mayor presides', () => {
+        // A presiding mayor's note holds the absence, the mayor's arrivals and
+        // departures, and who presided; getMinutesData keeps those changes out of the list.
+        const note = 'ΑΠΩΝ, προσήλθε από το 3ο θέμα, προήδρευσε Πετσέλης Χρήστος';
+        const data = committeeWithSubstitute();
+        data.councilComposition!.mayor!.note = note;
+        data.absentMembers = [...data.absentMembers!, simpleResolver('mayor', 'Μαλτέζος Ιωάννης')];
+        const rollCall = rollCallOf(data);
+        expect(rollCall.president).toMatchObject({ isMayor: true, absent: true, note, printedNote: note });
+        expect(names(rollCall.absent)).toEqual(['Μαλτέζος Ιωάννης', 'Κολεβέντης Φώτιος']);
+        data.councilComposition!.president = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        expect(rollCallOf(data).president).toMatchObject({ isMayor: false, note: null, printedNote: null });
+    });
+
+    it('counts a committee member mayor who does not preside among the members, with no line of their own', () => {
+        const data = committeeWithSubstitute();
+        data.councilComposition!.president = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        const rollCall = rollCallOf(data);
+        expect(rollCall.mayor).toBeNull();
+        expect(rollCall.president).toMatchObject({ name: 'Πετσέλης Χρήστος', isMayor: false, note: null });
+        expect(names(rollCall.present)).toContain('Μαλτέζος Ιωάννης');
+        expect(rollCall.present).toHaveLength(4);
     });
 
     it('gives a council the ΔΗΜΑΡΧΟΣ line with its note, and keeps an absent president out of the absence sentence', () => {
