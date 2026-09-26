@@ -16,13 +16,11 @@ import { formatCalendarDate, formatDate, formatNumericDate } from '@/lib/formatt
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
 import { isDecisionConventions } from '@/lib/decisionConventions';
 import { isRecordSubject, recordSection } from '@/lib/utils/subjects';
-import { splitAttendance } from '@/lib/utils/attendance';
-import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
 import { hasRecordedVote, resultKey } from '@/lib/utils/decisionResult';
 import { causeFromPayload, decisionWriteCause, DecisionWriteError } from '@/lib/utils/decisionWriteCause';
 import { normalizeText } from '@/lib/utils';
 import { TWO_COLUMN_GRID } from '@/components/ui/surface-card';
-import { CollapsibleMarkdown, NameList, sortNamesByElectedOrder } from '@/components/meetings/decisions/shared';
+import { CollapsibleMarkdown, NameList } from '@/components/meetings/decisions/shared';
 import { scrollElementToContainerTop } from '@/lib/utils/scrollAnchor';
 import { attentionCount, estimateWork, isLikelyMatch, routeCandidates, splitWaitingSubjects } from '@/components/meetings/decisions/candidates';
 import { rowCandidates } from '@/components/meetings/decisions/rowCandidates';
@@ -41,6 +39,8 @@ import { readDiavgeiaUnitEntries } from '@/lib/utils/diavgeiaUnitScope';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
 import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 import { buildTimeline } from '@/components/meetings/decisions/timeline';
+import { SubjectPresence } from '@/components/meetings/decisions/SubjectPresence';
+import { buildRollCall } from '@/lib/minutes/builders';
 import { downloadFile } from '@/lib/export/download';
 import { MinutesPreviewDialog } from '@/components/meetings/decisions/MinutesPreviewDialog';
 import { DerivationDialog } from '@/components/meetings/decisions/DerivationDialog';
@@ -152,12 +152,11 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const [auditModePreference, setAuditMode] = useAuditMode();
     const auditMode = isSuperAdmin && auditModePreference;
     const { toast } = useToast();
-    const { subjects, meeting, city, people, getPerson } = useCouncilMeetingData();
+    const { subjects, meeting, city, getPerson } = useCouncilMeetingData();
     const t = useTranslations('admin.adminActions');
     const tPage = useTranslations('admin.decisionsPage');
     const tSubject = useTranslations('Subject');
     const locale = useLocale();
-    const administrativeBodyId = meeting.administrativeBodyId ?? null;
     // What a poll would actually ask Diavgeia for. Parsed through the same
     // helper the task uses, so a malformed entry surfaces here — in the admin
     // page, before it fails a poll — rather than only in the task log.
@@ -180,13 +179,6 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             editHref: `/${city.id}`,
         };
     }, [meeting.administrativeBody, city, locale]);
-    const meetingDate = new Date(meeting.dateTime);
-    const mayorPersonId = people.find(p =>
-        p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
-    )?.id ?? null;
-    const presidentPersonId = people.find(p =>
-        p.roles.some(r => isRoleActiveAt(r, meetingDate) && r.isHead && r.administrativeBodyId === administrativeBodyId)
-    )?.id ?? null;
 
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
     const [candidates, setCandidates] = useState<CandidateView[]>([]);
@@ -1163,39 +1155,15 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                     </div>
                 )}
 
-                {extracted && extracted.attendance.length > 0 && (() => {
-                    const filteredAttendance = splitAttendance(extracted.attendance, mayorPersonId);
-                    const presidentRow = extracted.attendance.find(a => a.personId === presidentPersonId);
-                    const mayorRow = extracted.attendance.find(a => a.personId === mayorPersonId && a.personId !== presidentPersonId);
-                    // splitAttendance already dropped the mayor's row; only the president stays to exclude.
-                    const counted = (rows: typeof filteredAttendance.present) => rows.filter(a => a.personId !== presidentPersonId);
-                    const present = sortNamesByElectedOrder(counted(filteredAttendance.present), getPerson, administrativeBodyId);
-                    const absent = sortNamesByElectedOrder(counted(filteredAttendance.absent), getPerson, administrativeBodyId);
-                    return (
-                        <div>
-                            <div className="text-xs font-medium text-muted-foreground mb-1">{tPage('attendance')}</div>
-                            <div className="text-xs text-foreground space-y-1">
-                                {presidentRow && <div>{tPage('presencePresident')} {presidentRow.personName}{presidentRow.status === 'ABSENT' ? ` — ${tPage('presenceAbsentMark')}` : ''}</div>}
-                                {mayorRow && <div>{tPage('presenceMayor')} {mayorRow.personName}{mayorRow.status === 'ABSENT' ? ` — ${tPage('presenceAbsentMark')}` : ''}</div>}
-                                <span>{present.length} {tPage('present')}, {absent.length} {tPage('absent')}</span>
-                                <div className="flex flex-col gap-1">
-                                    {present.length > 0 && (
-                                        <NameList
-                                            names={present.map(a => a.personName)}
-                                            label={`${tPage('showNames')} (${tPage('present')})`}
-                                        />
-                                    )}
-                                    {absent.length > 0 && (
-                                        <NameList
-                                            names={absent.map(a => a.personName)}
-                                            label={`${tPage('showNames')} (${tPage('absent')})`}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })()}
+                {extracted && extracted.attendance.length > 0 && minutes?.councilComposition && (
+                    <SubjectPresence
+                        rollCall={buildRollCall(
+                            minutes.councilComposition,
+                            new Set(extracted.attendance.filter(a => a.status === 'ABSENT').map(a => a.personId)),
+                            minutes.administrativeBody?.type ?? null,
+                        )}
+                    />
+                )}
 
                 {extracted && extracted.votes.length > 0 && (() => {
                     const voteResult = calculateVoteResult(extracted.votes);

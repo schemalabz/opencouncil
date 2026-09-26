@@ -1,22 +1,12 @@
-import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
-import { mayorAbsentFromNote } from '@/lib/minutes/builders';
+import type { MinutesData, MinutesRollCall, MinutesSubject } from '@/lib/minutes/types';
+import { buildRollCall } from '@/lib/minutes/builders';
 
-/** A live present/absent count, at the roll call or at a later point in the meeting. */
-export interface PresenceCount {
-    present: number;
-    absent: number;
-}
-
-/** The meeting's opening fact: who was present and who was absent at the roll call. */
-export interface RollCall {
-    count: PresenceCount | null;
-    absentNames: string[];
-    presentNames: string[];
-    /** The ΔΗΜΑΡΧΟΣ line, as the Πρακτικά print it; the mayor is never in the counts. */
-    mayor: { name: string; note: string | null; absent: boolean } | null;
-    /** The ΠΡΟΕΔΡΟΣ line; the president is left out of the counts. `isMayor`: one line for both. */
-    president: { name: string; absent: boolean; isMayor: boolean } | null;
-}
+/**
+ * The meeting's opening fact: the roll call as the minutes print it
+ * (`buildRollCall`), and the size of the council's ΣΥΝΘΕΣΗ, which the minutes
+ * print as the count of the council's members.
+ */
+export type RollCall = MinutesRollCall & { compositionSize: number };
 
 /** A subject in the timeline, with the withdrawal time it carries — parent and child alike. */
 export interface TimelineSubject {
@@ -40,7 +30,7 @@ export type TimelineItem =
     | ({ type: 'subject'; subjectId: string; children: TimelineSubject[] } & TimelineSubject);
 
 export interface Timeline {
-    rollCall: RollCall;
+    rollCall: RollCall | null;
     items: TimelineItem[];
 }
 
@@ -63,33 +53,19 @@ export function hasDiscussionOrder(data: Pick<MinutesData, 'subjects'>): boolean
  * the parent's. `observedAtId` is where the change was actually observed, and
  * the names come from that observation.
  *
- * The roll call derives its count and both name lists from one pool — the
- * composition's members plus substitutes, with the president filtered out —
- * which never includes the mayor either (both shown separately, as
- * `RollCall.mayor` and `RollCall.president`). So an absentee outside the pool
- * cannot make the count and the lists disagree.
+ * The roll call is `buildRollCall` on the minutes' composition and roll-call
+ * absentees — the lines the minutes print, so the page cannot count or name
+ * the roll call differently. Null when the minutes hold no composition or no
+ * roll call.
  */
-export function buildTimeline(data: Pick<MinutesData, 'subjects' | 'attendanceChanges' | 'proceduralVotes' | 'absentMembers' | 'councilComposition'>): Timeline {
+export function buildTimeline(data: Pick<MinutesData, 'subjects' | 'attendanceChanges' | 'proceduralVotes' | 'absentMembers' | 'councilComposition' | 'administrativeBody'>): Timeline {
     const composition = data.councilComposition;
-    const presidentId = composition?.president?.personId ?? null;
-    const pool = composition
-        ? [...composition.members, ...composition.substituteMembers].filter(m => m.personId !== presidentId)
-        : [];
-    const absentIds = new Set((data.absentMembers ?? []).map(m => m.personId));
-    const presentNames = pool.filter(m => !absentIds.has(m.personId)).map(m => m.name);
-    const absentNames = pool.filter(m => absentIds.has(m.personId)).map(m => m.name);
-    const rollCallCount: PresenceCount | null = data.councilComposition && data.absentMembers
-        ? { present: presentNames.length, absent: absentNames.length }
+    const rollCall: RollCall | null = composition && data.absentMembers
+        ? {
+            ...buildRollCall(composition, new Set(data.absentMembers.map(m => m.personId)), data.administrativeBody?.type ?? null),
+            compositionSize: composition.members.length,
+        }
         : null;
-
-    const mayor = composition?.mayor
-        ? { name: composition.mayor.name, note: composition.mayor.note, absent: mayorAbsentFromNote(composition.mayor.note) }
-        : null;
-    const president = composition?.president
-        ? { name: composition.president.name, absent: absentIds.has(composition.president.personId), isMayor: composition.president.personId === composition.mayor?.personId }
-        : null;
-
-    const rollCall: RollCall = { count: rollCallCount, absentNames, presentNames, mayor, president };
     const items: TimelineItem[] = [];
 
     const topLevelIds = new Set(data.subjects.filter(s => s.discussedWith === null).map(s => s.subjectId));

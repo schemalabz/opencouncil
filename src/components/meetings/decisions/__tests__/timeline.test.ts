@@ -1,6 +1,7 @@
 import { buildTimeline, hasDiscussionOrder, isPendingDecision, minutesReadiness } from '../timeline';
 import type { MinutesSubject, MinutesProceduralVote, MinutesAttendanceChange, MinutesCouncilComposition } from '@/lib/minutes/types';
-import type { MinutesMember } from '@/lib/minutes/types';
+import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
+import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
 import type { TimelineItem } from '../timeline';
 
 const member = (name: string): MinutesMember => ({ personId: name, name, party: null, isPartyHead: false, role: null });
@@ -27,93 +28,18 @@ function subject(o: Partial<MinutesSubject> & { subjectId: string }): MinutesSub
 const at = (id: string): MinutesAttendanceChange['atSubject'] => ({ id, name: id, agendaItemIndex: null, nonAgendaReason: null, outOfAgendaIndex: null });
 
 /** No roll-call data: most buildTimeline tests don't care about the roll call's own count. */
-const noComposition = { councilComposition: null, absentMembers: null } as const;
+const noComposition = { councilComposition: null, absentMembers: null, administrativeBody: null } as const;
 
 describe('buildTimeline', () => {
-    it('puts the roll call first with the count from composition and absentees', () => {
-        const councilComposition: MinutesCouncilComposition = {
-            mayor: null,
-            president: null,
-            members: [member('Α'), member('Β'), member('Γ')],
-            substituteMembers: [member('Δ')],
-        };
-        const { rollCall } = buildTimeline({
-            subjects: [],
-            attendanceChanges: [],
-            proceduralVotes: [],
-            councilComposition,
-            absentMembers: [member('Α'), member('Β')],
-        });
-        expect(rollCall).toEqual({ count: { present: 2, absent: 2 }, absentNames: ['Α', 'Β'], presentNames: ['Γ', 'Δ'], mayor: null, president: null });
+    it('gives no roll call when there is no council composition', () => {
+        const { rollCall } = buildTimeline({ ...noComposition, subjects: [], attendanceChanges: [], proceduralVotes: [], absentMembers: [member('Α')] });
+        expect(rollCall).toBeNull();
     });
 
-    it('gives the roll call a null count when there is no council composition', () => {
-        const { rollCall } = buildTimeline({
-            subjects: [],
-            attendanceChanges: [],
-            proceduralVotes: [],
-            councilComposition: null,
-            absentMembers: [member('Α')],
-        });
-        expect(rollCall).toEqual({ count: null, absentNames: [], presentNames: [], mayor: null, president: null });
-    });
-
-    it('excludes an absent mayor from both the count and the absent names, since the composition pool never held them', () => {
-        const mayor = member('mayor');
-        const councilComposition: MinutesCouncilComposition = {
-            mayor: { ...mayor, note: null },
-            president: null,
-            members: members(3),
-            substituteMembers: [],
-        };
-        const { rollCall } = buildTimeline({
-            subjects: [],
-            attendanceChanges: [],
-            proceduralVotes: [],
-            councilComposition,
-            absentMembers: [mayor, member('m1')],
-        });
-        expect(rollCall).toEqual({
-            count: { present: 2, absent: 1 },
-            absentNames: ['m1'],
-            presentNames: ['m0', 'm2'],
-            mayor: { name: 'mayor', note: null, absent: false },
-            president: null,
-        });
-    });
-
-    it('puts a normal absence in both the count and the absent names', () => {
-        const councilComposition: MinutesCouncilComposition = {
-            mayor: null,
-            president: null,
-            members: members(3),
-            substituteMembers: [],
-        };
-        const { rollCall } = buildTimeline({
-            subjects: [],
-            attendanceChanges: [],
-            proceduralVotes: [],
-            councilComposition,
-            absentMembers: [member('m1')],
-        });
-        expect(rollCall).toEqual({ count: { present: 2, absent: 1 }, absentNames: ['m1'], presentNames: ['m0', 'm2'], mayor: null, president: null });
-    });
-
-    it('lists the council composition\'s members and substitutes not among the absentees as presentNames', () => {
-        const councilComposition: MinutesCouncilComposition = {
-            mayor: null,
-            president: null,
-            members: [member('Α'), member('Β'), member('Γ')],
-            substituteMembers: [member('Δ')],
-        };
-        const { rollCall } = buildTimeline({
-            subjects: [],
-            attendanceChanges: [],
-            proceduralVotes: [],
-            councilComposition,
-            absentMembers: [member('Β')],
-        });
-        expect(rollCall).toMatchObject({ presentNames: ['Α', 'Γ', 'Δ'] });
+    it('gives no roll call when the minutes hold no roll call', () => {
+        const councilComposition: MinutesCouncilComposition = { mayor: null, president: null, members: members(3), substituteMembers: [] };
+        const { rollCall } = buildTimeline({ ...noComposition, subjects: [], attendanceChanges: [], proceduralVotes: [], councilComposition });
+        expect(rollCall).toBeNull();
     });
 
     it('attaches a subject with discussedWith to its parent and drops it as its own item', () => {
@@ -290,24 +216,25 @@ describe('buildTimeline', () => {
 });
 
 describe('buildTimeline roll call', () => {
-    it('counts the members without the mayor and the president, and names both apart', () => {
-        const presidentMember: MinutesMember = { personId: 'pres', name: 'Πρόεδρος Π.', party: null, isPartyHead: false, role: null };
-        const councilComposition: MinutesCouncilComposition = {
-            mayor: { name: 'Δήμαρχος Δ.', personId: 'mayor', note: 'ΑΠΩΝ' },
-            president: { name: 'Πρόεδρος Π.', personId: 'pres' },
-            members: [presidentMember, member('a'), member('b')],
-            substituteMembers: [],
-        };
-        const { rollCall } = buildTimeline({
-            subjects: [],
-            attendanceChanges: [],
-            proceduralVotes: [],
-            absentMembers: [presidentMember],
-            councilComposition,
-        });
-        expect(rollCall.count).toEqual({ present: 2, absent: 0 });
-        expect(rollCall.mayor).toEqual({ name: 'Δήμαρχος Δ.', note: 'ΑΠΩΝ', absent: true });
-        expect(rollCall.president).toEqual({ name: 'Πρόεδρος Π.', absent: true, isMayor: false });
+    const names = (entries: Array<{ member: MinutesMember }>) => entries.map(e => e.member.name);
+    const timelineOf = (data: MinutesData) => buildTimeline({ ...data, subjects: [], attendanceChanges: [], proceduralVotes: [] });
+
+    it('is the roll call the minutes print for a committee: the mayor a member and on the president\'s line, substitutes among the members', () => {
+        const rollCall = timelineOf(committeeWithSubstitute()).rollCall!;
+        expect(rollCall.mayor).toBeNull();
+        expect(rollCall.president).toMatchObject({ name: 'Μαλτέζος Ιωάννης', isMayor: true });
+        expect(names(rollCall.present)).toEqual(['Μαλτέζος Ιωάννης', 'Πετσέλης Χρήστος', 'Λιόλιος Αντώνης', 'Δημάκης Γιώργος']);
+        expect(rollCall.present.filter(e => e.isSubstitute).map(e => e.member.name)).toEqual(['Δημάκης Γιώργος']);
+        expect(names(rollCall.absent)).toEqual(['Κολεβέντης Φώτιος']);
+    });
+
+    it('is the roll call the minutes print for a council: the mayor apart, the president counted in the ΣΥΝΘΕΣΗ', () => {
+        const rollCall = timelineOf(councilWithAbsentPresident()).rollCall!;
+        expect(rollCall.mayor).toMatchObject({ name: 'Ρούσσος Σίμος', note: 'αποχώρησε από το 4ο θέμα', absent: false });
+        expect(rollCall.president).toMatchObject({ name: 'Καραγιάννη Τάνια', absent: true, isMayor: false });
+        expect(rollCall.compositionSize).toBe(3);
+        expect(names(rollCall.present)).toEqual(['Παπαγιαννάκη Νίκη']);
+        expect(names(rollCall.absent)).toEqual(['Λαμπρόπουλος Παναγιώτης']);
     });
 });
 
