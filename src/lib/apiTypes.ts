@@ -446,7 +446,7 @@ export interface ExtractedDecisionData {
     voteResult: string | null;
     voteTally?: Record<VoteValue, number | null>;
     voteDetails: { personId: string; name?: string; vote: VoteValue }[];
-    /** The changes this document states (v4); a per-vote absence is already a departure/arrival pair. */
+    /** The changes this document states (v4): arrivals, departures and per-vote absences (`absent_for_vote`). A reading stored before `absent_for_vote` holds a per-vote absence as a departure/arrival pair. */
     attendanceChanges?: PollDecisionsAttendanceEvent[];
     unmatchedMembers: string[];
     /** How each name was matched (task v4 from C1); absent on older readings. */

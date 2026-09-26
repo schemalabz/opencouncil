@@ -115,9 +115,12 @@ export async function pollDecisionsForMeeting(
         p.roles.some(r => isMayorRole(r) && isRoleActiveAt(r, councilMeeting.dateTime))
     );
 
-    // Sort subjects by discussion order (transcript timestamps) so OA subjects
-    // are in the correct sequence. Uses the same sortSubjectsByDiscussionOrder
-    // used by the minutes renderer.
+    // The order of the subjects in the task request: each subject is keyed by its
+    // first linked utterance of any status, through sortSubjectsByDiscussionOrder.
+    // The minutes and the derivation key a subject by discussionOrderKeys instead,
+    // so a subject that was left pending and resumed can sort differently here.
+    // No derived row depends on this order: the task passes the anchors through,
+    // and the derivation places them in its own order (loadDerivationInput).
     const subjectIds = councilMeeting.subjects.map(s => s.id);
     const firstUtteranceBySubject = new Map<string, number>();
     if (subjectIds.length > 0) {

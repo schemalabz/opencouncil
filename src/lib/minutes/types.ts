@@ -140,9 +140,10 @@ export type MinutesVoteResult = MinutesVoteMembers & (
 
 /**
  * What the transcript holds for a subject, in the terms of DiscussionStatus.
- * `start` is where the subject sits in the meeting: the first utterance that
- * is not a procedural vote, or the first procedural vote when that is all
- * there is — the same rule `sortSubjectsByDiscussionOrder` receives.
+ * `start` is the subject's first linked utterance that is not a procedural
+ * vote, or its first procedural vote when that is all there is. It is not the
+ * subject's place in the order: a subject left pending and resumed sorts where
+ * its discussion resumes (`discussionOrderKeys`).
  */
 export interface MinutesDiscussionSummary {
     /**
