@@ -956,8 +956,8 @@ describe('discussionOrderLabel', () => {
         expect(discussionOrderLabel([item(1), item(2), item(4), item(3), oa(7), oa(8)])).toBe('1ο–2ο, 4ο, 3ο, ΕΗΔ1–ΕΗΔ2');
     });
 
-    it('never joins an unnumbered agenda item to a run', () => {
-        expect(discussionOrderLabel([item(2), item(null), item(3)])).toBe('2ο, nullο, 3ο');
+    it('prints no label for an agenda item with no index, and never joins the items around it to a run', () => {
+        expect(discussionOrderLabel([item(2), item(null), item(3)])).toBe('2ο, 3ο');
     });
 });
 

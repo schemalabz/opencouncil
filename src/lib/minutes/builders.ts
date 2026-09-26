@@ -754,7 +754,8 @@ interface OrderLineSubject {
 /**
  * Each subject's place in the order line, for subjects in printed order:
  * «3ο» for an agenda item, «ΕΗΔ1», «ΕΗΔ2», … for the out-of-agenda subjects in
- * the order they were discussed.
+ * the order they were discussed. An agenda item with no index has an empty
+ * label: it has no number to print.
  */
 export function discussionOrderPositions(subjects: readonly OrderLineSubject[]): OrderPosition[] {
     let oaCounter = 0;
@@ -767,7 +768,7 @@ export function discussionOrderPositions(subjects: readonly OrderLineSubject[]):
         // counting, so it gets a sequence of its own and never joins a
         // run with the numbered items around it.
         return s.agendaItemIndex === null
-            ? { label: `${s.agendaItemIndex}ο`, sequence: `unnumbered-${i}`, index: i }
+            ? { label: '', sequence: `unnumbered-${i}`, index: i }
             : { label: `${s.agendaItemIndex}ο`, sequence: 'agenda', index: s.agendaItemIndex };
     });
 }
@@ -785,7 +786,8 @@ export function discussionOrderLabel(subjects: readonly OrderLineSubject[]): str
         return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
     });
     if (subjects.length === 0 || subjects.every((s, i) => s === naturalOrder[i])) return null;
-    return collapseOrderRuns(discussionOrderPositions(subjects)).join(', ');
+    // A position with an empty label stays in the walk, so it still breaks a run, and prints nothing.
+    return collapseOrderRuns(discussionOrderPositions(subjects)).filter(part => part !== '').join(', ');
 }
 
 /**
