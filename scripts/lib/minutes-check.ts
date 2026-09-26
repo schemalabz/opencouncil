@@ -13,7 +13,7 @@
  */
 import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
 import { buildRollCall } from '@/lib/minutes/builders';
-import { expectedOf, subjectsByClaimKey, type GoldenMeeting, type Outcome } from './minutes-golden';
+import { expectedOf, subjectsByClaimKey, type Claim, type GoldenMeeting, type Outcome } from './minutes-golden';
 
 const norm = (n: string) => n
     .replace(/\s*\([^)]*\)\s*/g, ' ').replace(/[‐-―−]/g, ' ')
@@ -82,6 +82,13 @@ const names = (ms: MinutesMember[] | null | undefined) => (ms ?? []).map(m => m.
 export type CheckLine =
     | { kind: 'claim'; meeting: string; claim: string; outcome: Outcome; expect: Outcome; detail: string }
     | { kind: 'issue'; meeting: string; claim: string; detail: string };
+
+/** Each claim a subject can make, with the label its line carries. */
+const SUBJECT_CLAIMS = [
+    ['outcome', 'outcome'], ['against', 'against'], ['blank', 'blank'], ['declaredPresent', 'declared παρών'],
+    ['declaredAbstain', 'declared αποχή'], ['for', 'for'], ['present', 'present'], ['absent', 'absent'],
+    ['decisionNumber', 'decisionNumber'],
+] as const satisfies ReadonlyArray<readonly [keyof Claim & string, string]>;
 
 export function checkMeeting(m: GoldenMeeting, data: MinutesData): CheckLine[] {
     const key = `${m.cityId}/${m.meetingId}`;
@@ -171,8 +178,16 @@ export function checkMeeting(m: GoldenMeeting, data: MinutesData): CheckLine[] {
     }
     for (const [k, claim] of Object.entries(m.subjects)) {
         const s = byKey.get(k);
-        // A subject the minutes lack fails every claim it makes alike, so only a single outcome records it.
-        if (!s) { claimLine(`subject ${k}`, 'missing', 'no such subject in minutes data', typeof claim.expect === 'string' ? claim.expect : 'agree'); continue; }
+        // A subject the minutes lack makes each of its claims missing. Each claim keeps
+        // its own expectation, so a per-claim `expect` holds here as it does below.
+        if (!s) {
+            const claimed = SUBJECT_CLAIMS.filter(([field]) => claim[field] !== undefined);
+            if (!claimed.length) claimLine(`subject ${k}`, 'missing', 'no such subject in minutes data', typeof claim.expect === 'string' ? claim.expect : 'agree');
+            for (const [field, label] of claimed) {
+                claimLine(`subject ${k} ${label}`, 'missing', 'no such subject in minutes data', expectedOf(claim.expect, field));
+            }
+            continue;
+        }
         const v = s.voteResult;
         if (claim.outcome) {
             // A phrase-only result reports the outcome the page named, and none when the page named none.
