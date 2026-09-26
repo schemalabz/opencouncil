@@ -10,7 +10,6 @@ import { getCity } from '@/lib/db/cities';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, mayorIsMemberOf, simplifyRoleName } from '@/lib/utils/roles';
 import { agendaItemTitleOrName, isRecordSubject } from '@/lib/utils/subjects';
-import { collapseOrderRuns, type OrderPosition } from '@/lib/utils/discussionOrder';
 import { PersonWithRelations } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
 import {
@@ -29,7 +28,9 @@ import {
     buildAttendanceChangesFromEvents,
     buildMayorNote,
     presidentStandIn,
+    discussedElsewhereIds,
     discussionOrderKeys,
+    discussionOrderLabel,
     orderedMinutesSubjects,
     sortByElectedOrder,
     buildDiscussionSummary,
@@ -254,24 +255,16 @@ export async function getMinutesData(
             ? (assignment.preDiscussionByIndex.get(activeIndex) || [])
             : [];
 
-        // Compute discussedElsewhere: which subjects had cross-subject utterances
-        // claimed by another subject's window
-        let discussedElsewhere: MinutesSubject['discussedElsewhere'] = null;
-        for (const [ownerSubjectId, crossMap] of assignment.crossSubjectMap) {
-            for (const [, linkedSubjectId] of crossMap) {
-                if (linkedSubjectId === s.id && ownerSubjectId !== s.id) {
-                    if (!discussedElsewhere) discussedElsewhere = [];
-                    const ownerSubject = sectionSubjects.find(ss => ss.id === ownerSubjectId);
-                    if (ownerSubject && !discussedElsewhere.some(d => d.subjectId === ownerSubjectId)) {
-                        discussedElsewhere.push({
-                            subjectId: ownerSubjectId,
-                            name: agendaItemTitleOrName(ownerSubject),
-                            agendaItemIndex: ownerSubject.agendaItemIndex,
-                        });
-                    }
-                }
-            }
-        }
+        // Which subjects' sections hold utterances tagged to this subject
+        const discussedElsewhere: NonNullable<MinutesSubject['discussedElsewhere']> = discussedElsewhereIds(s.id, assignment.crossSubjectMap)
+            .flatMap(ownerSubjectId => {
+                const ownerSubject = sectionSubjects.find(ss => ss.id === ownerSubjectId);
+                return ownerSubject ? [{
+                    subjectId: ownerSubjectId,
+                    name: agendaItemTitleOrName(ownerSubject),
+                    agendaItemIndex: ownerSubject.agendaItemIndex,
+                }] : [];
+            });
 
         return {
             subjectId: s.id,
@@ -285,7 +278,7 @@ export async function getMinutesData(
                 agendaItemIndex: s.discussedIn.agendaItemIndex,
                 nonAgendaReason: s.discussedIn.nonAgendaReason,
             } : null,
-            discussedElsewhere,
+            discussedElsewhere: discussedElsewhere.length > 0 ? discussedElsewhere : null,
             decision: s.decision ? {
                 decisionNumber: s.decision.decisionNumber ?? null,
                 protocolNumber: s.decision.protocolNumber,
@@ -454,37 +447,8 @@ export async function getMinutesData(
         );
     }
 
-    // Build discussion order label if subjects were discussed out of natural order.
-    // Natural order: OA subjects first (sorted), then regular subjects (sorted by agendaItemIndex).
-    const nonWithdrawn = minutesSubjects.filter(s => !s.withdrawn);
-    const naturalOrder = [
-        ...nonWithdrawn.filter(s => s.nonAgendaReason === 'outOfAgenda'),
-        ...nonWithdrawn.filter(s => s.nonAgendaReason !== 'outOfAgenda'),
-    ].sort((a, b) => {
-        const aIsOA = a.nonAgendaReason === 'outOfAgenda';
-        const bIsOA = b.nonAgendaReason === 'outOfAgenda';
-        if (aIsOA !== bIsOA) return aIsOA ? -1 : 1;
-        return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
-    });
-    const isNaturalOrder = nonWithdrawn.every((s, i) => s.subjectId === naturalOrder[i]?.subjectId);
-
-    let discussionOrderLabel: string | null = null;
-    if (!isNaturalOrder && nonWithdrawn.length > 0) {
-        let oaCounter = 0;
-        const positions: OrderPosition[] = nonWithdrawn.map((s, i) => {
-            if (s.nonAgendaReason === 'outOfAgenda') {
-                oaCounter++;
-                return { label: `ΕΗΔ${oaCounter}`, sequence: 'outOfAgenda', index: oaCounter };
-            }
-            // An agenda item with no index has no place in the agenda's
-            // counting, so it gets a sequence of its own and never joins a
-            // run with the numbered items around it.
-            return s.agendaItemIndex === null
-                ? { label: `${s.agendaItemIndex}ο`, sequence: `unnumbered-${i}`, index: i }
-                : { label: `${s.agendaItemIndex}ο`, sequence: 'agenda', index: s.agendaItemIndex };
-        });
-        discussionOrderLabel = collapseOrderRuns(positions).join(', ');
-    }
+    // The order line, when subjects were discussed out of natural order.
+    const discussionOrderLabelText = discussionOrderLabel(minutesSubjects.filter(s => !s.withdrawn));
 
     return {
         city: {
@@ -508,7 +472,7 @@ export async function getMinutesData(
         preambleEntries,
         attendanceChanges,
         attendanceChangesSource,
-        discussionOrderLabel,
+        discussionOrderLabel: discussionOrderLabelText,
         proceduralVotes: buildProceduralVotes(
             allUtterances,
             sectionSubjects.map(s => ({

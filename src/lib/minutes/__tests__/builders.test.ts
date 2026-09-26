@@ -14,6 +14,8 @@ import {
     sortSubjectsByDiscussionOrder,
     orderedMinutesSubjects,
     discussionOrderKeys,
+    discussionOrderLabel,
+    discussedElsewhereIds,
     sortByElectedOrder,
     buildDiscussionSummary,
     buildProceduralVotes,
@@ -940,6 +942,37 @@ describe('discussionOrderKeys', () => {
 });
 
 // --- sortByElectedOrder ---
+
+describe('discussionOrderLabel', () => {
+    const item = (agendaItemIndex: number | null) => ({ agendaItemIndex, nonAgendaReason: null });
+    const oa = (agendaItemIndex: number | null) => ({ agendaItemIndex, nonAgendaReason: 'outOfAgenda' });
+
+    it('is null for the natural order: out-of-agenda subjects first, then the agenda by index', () => {
+        expect(discussionOrderLabel([oa(null), oa(null), item(1), item(2)])).toBeNull();
+        expect(discussionOrderLabel([])).toBeNull();
+    });
+
+    it('collapses runs and counts out-of-agenda subjects in the order they were discussed', () => {
+        expect(discussionOrderLabel([item(1), item(2), item(4), item(3), oa(7), oa(8)])).toBe('1ο–2ο, 4ο, 3ο, ΕΗΔ1–ΕΗΔ2');
+    });
+
+    it('never joins an unnumbered agenda item to a run', () => {
+        expect(discussionOrderLabel([item(2), item(null), item(3)])).toBe('2ο, nullο, 3ο');
+    });
+});
+
+describe('discussedElsewhereIds', () => {
+    it('lists the sections that hold an utterance tagged to the subject, once each, never the subject itself', () => {
+        const cross = new Map([
+            ['s5', new Map([['u1', 's6'], ['u2', 's7'], ['u3', 's6']])],
+            ['s6', new Map([['u4', 's5']])],
+            ['s8', new Map([['u5', 's6']])],
+        ]);
+        expect(discussedElsewhereIds('s6', cross)).toEqual(['s5', 's8']);
+        expect(discussedElsewhereIds('s5', cross)).toEqual(['s6']);
+        expect(discussedElsewhereIds('s9', cross)).toEqual([]);
+    });
+});
 
 describe('sortByElectedOrder', () => {
     const makeMember = (personId: string, name: string): MinutesMember => ({

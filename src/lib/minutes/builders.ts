@@ -6,6 +6,7 @@ import { splitAttendance } from '@/lib/utils/attendance';
 import { isRecordSubject } from '@/lib/utils/subjects';
 import { phrasePermitsInference, phraseOutcome, type PhraseOutcome } from '@/lib/derivation/deriveVotes';
 import { decisionOrdinal, placeEvents, type PlaceableEvent } from '@/lib/derivation/placeEvents';
+import { collapseOrderRuns, type OrderPosition } from '@/lib/utils/discussionOrder';
 import {
     MinutesMember,
     MinutesAttendance,
@@ -721,6 +722,70 @@ export function orderedMinutesSubjects<T extends SortableSubject>(
     firstUtteranceBySubject: Map<string, number>,
 ): T[] {
     return sortSubjectsByDiscussionOrder(subjects.filter(isRecordSubject), firstUtteranceBySubject);
+}
+
+interface OrderLineSubject {
+    agendaItemIndex: number | null;
+    nonAgendaReason: string | null;
+}
+
+/**
+ * Each subject's place in the order line, for subjects in printed order:
+ * «3ο» for an agenda item, «ΕΗΔ1», «ΕΗΔ2», … for the out-of-agenda subjects in
+ * the order they were discussed.
+ */
+export function discussionOrderPositions(subjects: readonly OrderLineSubject[]): OrderPosition[] {
+    let oaCounter = 0;
+    return subjects.map((s, i) => {
+        if (s.nonAgendaReason === 'outOfAgenda') {
+            oaCounter++;
+            return { label: `ΕΗΔ${oaCounter}`, sequence: 'outOfAgenda', index: oaCounter };
+        }
+        // An agenda item with no index has no place in the agenda's
+        // counting, so it gets a sequence of its own and never joins a
+        // run with the numbered items around it.
+        return s.agendaItemIndex === null
+            ? { label: `${s.agendaItemIndex}ο`, sequence: `unnumbered-${i}`, index: i }
+            : { label: `${s.agendaItemIndex}ο`, sequence: 'agenda', index: s.agendaItemIndex };
+    });
+}
+
+/**
+ * The «Σειρά συζήτησης» line of the minutes, for the non-withdrawn subjects in
+ * printed order. Null when the order is the natural one: out-of-agenda subjects
+ * first, then the agenda items by index.
+ */
+export function discussionOrderLabel(subjects: readonly OrderLineSubject[]): string | null {
+    const naturalOrder = [...subjects].sort((a, b) => {
+        const aIsOA = a.nonAgendaReason === 'outOfAgenda';
+        const bIsOA = b.nonAgendaReason === 'outOfAgenda';
+        if (aIsOA !== bIsOA) return aIsOA ? -1 : 1;
+        return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
+    });
+    if (subjects.length === 0 || subjects.every((s, i) => s === naturalOrder[i])) return null;
+    return collapseOrderRuns(discussionOrderPositions(subjects)).join(', ');
+}
+
+/**
+ * The subjects whose sections hold utterances tagged to `subjectId` (the
+ * «Μέρος της συζήτησης πραγματοποιήθηκε κατά τη συζήτηση …» note), in the order
+ * the assignment met them. Read from `AssignmentResult.crossSubjectMap`.
+ */
+export function discussedElsewhereIds(
+    subjectId: string,
+    crossSubjectMap: ReadonlyMap<string, ReadonlyMap<string, string>>,
+): string[] {
+    const owners: string[] = [];
+    for (const [ownerSubjectId, crossMap] of crossSubjectMap) {
+        if (ownerSubjectId === subjectId || owners.includes(ownerSubjectId)) continue;
+        for (const linkedSubjectId of crossMap.values()) {
+            if (linkedSubjectId === subjectId) {
+                owners.push(ownerSubjectId);
+                break;
+            }
+        }
+    }
+    return owners;
 }
 
 /**
