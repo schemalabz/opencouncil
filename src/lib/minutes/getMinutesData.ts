@@ -29,9 +29,8 @@ import {
     buildMayorNote,
     presidentStandIn,
     discussedElsewhereIds,
-    discussionOrderKeys,
     discussionOrderLabel,
-    orderedMinutesSubjects,
+    minutesSections,
     sortByElectedOrder,
     buildDiscussionSummary,
     buildProceduralVotes,
@@ -41,7 +40,6 @@ import {
 } from './builders';
 
 import { buildTranscriptEntriesFromUtterances, CrossSubjectInfo } from './transcriptEntries';
-import { computeTemporalWindows, assignUtterances } from './temporalWindows';
 
 /** Who a document says presided, read off the raw extraction it was stored with. */
 function presidedByOf(extraction: unknown): { name: string; personId: string | null } | null {
@@ -84,9 +82,6 @@ export async function getMinutesData(
     // Includes withdrawn subjects — they appear in the TOC but get empty transcript entries
     const sectionSubjects = subjects.filter(isRecordSubject);
 
-    // Get active (non-withdrawn) subject IDs for temporal window computation
-    const activeSubjectIds = sectionSubjects.filter(s => !s.withdrawn).map(s => s.id);
-
     // Fetch ALL meeting utterances in a single query (no status filter)
     const allUtterances = await prisma.utterance.findMany({
         where: {
@@ -124,9 +119,6 @@ export async function getMinutesData(
     // Subject title map for cross-subject annotations (includes all subjects)
     const subjectNameMap = new Map(subjects.map(s => [s.id, agendaItemTitleOrName(s)]));
 
-    // Compute temporal windows from linked utterances
-    const windows = computeTemporalWindows(allUtterances, activeSubjectIds);
-
     const meetingDate = new Date(meeting.dateTime);
 
     // Identify mayor once. A mayor who is not a member of the body is left out of
@@ -160,11 +152,8 @@ export async function getMinutesData(
         return getElectedOrderForBody(person, adminBodyId);
     };
 
-    const sortedSubjects = orderedMinutesSubjects(sectionSubjects, discussionOrderKeys(allUtterances));
-    const sortedActiveIds = sortedSubjects.filter(s => !s.withdrawn).map(s => s.id);
-
-    // Assign all utterances to temporal windows
-    const assignment = assignUtterances(allUtterances, windows, sortedActiveIds);
+    // The subjects in discussion order, their temporal windows, and every utterance assigned to one bucket.
+    const { ordered: sortedSubjects, assignment } = minutesSections(sectionSubjects, allUtterances);
 
     function buildTranscriptEntries(subjectId: string): MinutesTranscriptEntry[] {
         const utterances = assignment.utterancesBySubject.get(subjectId) || [];
@@ -207,7 +196,7 @@ export async function getMinutesData(
     const preambleEntries = buildOrphanTranscriptEntries(assignment.preambleUtterances);
     const epilogueEntries = buildOrphanTranscriptEntries(assignment.epilogueUtterances);
 
-    // Build a map from sortedActiveIds index → sortedSubjects index
+    // Build a map from the active subjects' index → sortedSubjects index
     // so we can look up pre-discussion utterances correctly (preDiscussionByIndex
     // is keyed by active subject index, not by sortedSubjects index)
     const activeIndexToSubjectId = new Map<number, string>();

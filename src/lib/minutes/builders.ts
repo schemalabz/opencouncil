@@ -19,7 +19,7 @@ import {
     MinutesRollCallMember,
     MinutesRollCallOffice,
 } from './types';
-import { discussionSpans, type SpanUtterance } from './temporalWindows';
+import { assignUtterances, computeTemporalWindows, discussionSpans, type AssignmentResult, type SpanUtterance, type TemporalWindow, type WindowUtterance } from './temporalWindows';
 
 // --- Dependency types for testability ---
 
@@ -722,6 +722,28 @@ export function orderedMinutesSubjects<T extends SortableSubject>(
     firstUtteranceBySubject: Map<string, number>,
 ): T[] {
     return sortSubjectsByDiscussionOrder(subjects.filter(isRecordSubject), firstUtteranceBySubject);
+}
+
+/**
+ * A meeting's sections as the minutes print them: the record subjects in
+ * discussion order (`orderedMinutesSubjects`), the temporal windows of the
+ * subjects that are not withdrawn, and every utterance assigned to one bucket.
+ * `getMinutesData` and the `decisions sections` script both call this, so the
+ * script prints the sections that the minutes print.
+ *
+ * `subjects` can hold every subject of the meeting. `ordered` keeps the record
+ * subjects, withdrawn ones included (the minutes list them in the table of
+ * contents). `utterances` are all the meeting's utterances, sorted by start.
+ */
+export function minutesSections<T extends SortableSubject & { withdrawn: boolean }>(
+    subjects: T[],
+    utterances: WindowUtterance[],
+): { ordered: T[]; windows: TemporalWindow[]; assignment: AssignmentResult } {
+    const activeIds = subjects.filter(s => isRecordSubject(s) && !s.withdrawn).map(s => s.id);
+    const windows = computeTemporalWindows(utterances, activeIds);
+    const ordered = orderedMinutesSubjects(subjects, discussionOrderKeys(utterances));
+    const assignment = assignUtterances(utterances, windows, ordered.filter(s => !s.withdrawn).map(s => s.id));
+    return { ordered, windows, assignment };
 }
 
 interface OrderLineSubject {

@@ -5,7 +5,7 @@ import {
     discussionSpans,
     WindowUtterance,
 } from '../temporalWindows';
-import { discussionOrderKeys, orderedMinutesSubjects } from '../builders';
+import { discussionOrderKeys, minutesSections, orderedMinutesSubjects } from '../builders';
 import spartaMay6 from './fixtures/sparta-may6-2026-utterances.json';
 
 function makeUtterance(overrides: {
@@ -399,5 +399,17 @@ describe('the sections of Sparta may6_2026', () => {
             + [...result.utterancesBySubject.values()].reduce((n, l) => n + l.length, 0)
             + [...result.preDiscussionByIndex.values()].reduce((n, l) => n + l.length, 0);
         expect(assigned).toBe(utterances.length);
+    });
+
+    it('gives the same order, windows and assignment through minutesSections, which the minutes and the sections script call', () => {
+        // A withdrawn subject and a subject before the agenda: the order keeps the record subjects, withdrawn
+        // ones included; the windows and the assignment leave the withdrawn subject out.
+        const withdrawn = { id: 'w', agendaItemIndex: 15, nonAgendaReason: null, discussedIn: null, withdrawn: true };
+        const beforeAgenda = { id: 'b', agendaItemIndex: null, nonAgendaReason: 'beforeAgenda', discussedIn: null, withdrawn: false };
+        const result = minutesSections([...subjects.map(s => ({ ...s, withdrawn: false })), withdrawn, beforeAgenda], utterances);
+
+        expect(result.ordered.map(s => s.id)).toEqual([...sortedIds, 'w']);
+        expect(result.windows).toEqual(computeTemporalWindows(utterances, subjectIds));
+        expect(result.assignment).toEqual(assignUtterances(utterances, computeTemporalWindows(utterances, subjectIds), sortedIds));
     });
 });

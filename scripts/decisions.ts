@@ -10,6 +10,7 @@
  *   npm run decisions -- equivalence [--report f.md]   (historical: pre-C1 rows only)
  *   npm run decisions -- check [--derive] [--report f.txt] [meetings...]
  *   npm run decisions -- reread-count [--report f.txt]
+ *   npm run decisions -- sections <city> <meeting> [--json] [--out f]
  *
  * Output goes to the files named: the nix shell prints its banner to stdout.
  */
@@ -34,6 +35,7 @@ import { buildMeetingTrace, type MeetingTraceMeta } from './lib/trace';
 import { loadGolden, subjectsByClaimKey } from './lib/minutes-golden';
 import { checkMeeting, type CheckLine } from './lib/minutes-check';
 import { summarizeReread, type RereadMeeting } from './lib/rereadCount';
+import { formatMeetingSections, meetingSections, sectionsSubjectSelect, sectionsUtteranceSelect } from './lib/sections';
 
 interface MeasureFile { generatedAt: string; commit: string; meetings: MeetingMeasure[] }
 
@@ -305,6 +307,24 @@ async function traceAll(args: { city?: string; outDir: string }) {
     process.stderr.write(`wrote ${count} trace files to ${args.outDir}\n`);
 }
 
+/**
+ * Read-only: the discussion order and the transcript sections of one meeting,
+ * as the minutes print them. Reads only Subject and Utterance columns, so it
+ * runs on any database, a pre-C1 schema included.
+ */
+async function sections(city: string, meeting: string, json: boolean, out?: string) {
+    const subjects = await prisma.subject.findMany({ where: { cityId: city, councilMeetingId: meeting }, select: sectionsSubjectSelect });
+    if (subjects.length === 0) throw new Error(`${city}/${meeting}: no subjects`);
+    const utterances = await prisma.utterance.findMany({
+        where: { speakerSegment: { cityId: city, meetingId: meeting } },
+        select: sectionsUtteranceSelect,
+        orderBy: { startTimestamp: 'asc' },
+    });
+    const result = meetingSections(`${city}/${meeting}`, subjects, utterances);
+    const text = json ? JSON.stringify(result, null, 1) + '\n' : formatMeetingSections(result);
+    if (out) write(out, text); else process.stderr.write(text);
+}
+
 yargs(hideBin(process.argv))
     .command('measure', 'measure every meeting with readings', y => y
         .option('city', { type: 'string' }).option('out', { type: 'string' }).option('report', { type: 'string' }),
@@ -338,6 +358,11 @@ yargs(hideBin(process.argv))
     .command('reread-count', 'the linked pages the first cron poll after deploy reads again', y => y
         .option('report', { type: 'string' }),
         a => rereadCount(a.report).then(() => prisma.$disconnect()))
+    .command('sections <city> <meeting>', "one meeting's discussion order and transcript sections, as the minutes print them", y => y
+        .positional('city', { type: 'string', demandOption: true }).positional('meeting', { type: 'string', demandOption: true })
+        .option('json', { type: 'boolean', default: false })
+        .option('out', { type: 'string' }),
+        a => sections(a.city, a.meeting, a.json, a.out).then(() => prisma.$disconnect()))
     .demandCommand(1)
     .strict()
     .parse();
