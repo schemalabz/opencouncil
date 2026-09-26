@@ -29,6 +29,36 @@ describe('measureMeeting', () => {
         expect(m.checks.unstatedAbsences).toEqual([{ personId: 'mayor', absentOn: 3, of: 3 }]);
     });
 
+    it('does not count an absence a later stated arrival explains (check 2)', () => {
+        // chania/jan15_2025: «Μετά την 2/2025 προσήλθε», so the member is absent on the items before it.
+        const attendance = ['s1', 's2', 's3'].map((subjectId, i) => ({ subjectId, personId: 'p1', status: i < 2 ? 'ABSENT' as const : 'PRESENT' as const, origin: 'derived' as const }));
+        const rollCall = [{ personId: 'p1', status: 'PRESENT' as const, source: 'decision' as const }];
+        const arrival = { id: 'e', personId: 'p1', kind: 'ARRIVAL' as const, anchorKind: 'AGENDA_ITEM' as const, anchorAgendaItemIndex: 2, anchorNonAgendaReason: null,
+            anchorDecisionNumber: null, anchorSubjectId: null, anchorPhase: null, timing: 'AFTER' as const, rawText: 'Μετά την 2 προσήλθε',
+            reportingDocuments: 1, totalDocuments: 1, source: 'decision' as const };
+        expect(measureMeeting('c/m', input(), output({ attendance, rollCall, events: [arrival] }), null).checks.unstatedAbsences).toEqual([]);
+        // An arrival before the absence explains nothing: the member is absent after it with no departure stated.
+        const early = { ...arrival, anchorAgendaItemIndex: 1, timing: 'BEFORE' as const };
+        const late = ['s1', 's2', 's3'].map((subjectId, i) => ({ subjectId, personId: 'p1', status: i === 2 ? 'ABSENT' as const : 'PRESENT' as const, origin: 'derived' as const }));
+        expect(measureMeeting('c/m', input(), output({ attendance: late, rollCall, events: [early] }), null).checks.unstatedAbsences).toEqual([{ personId: 'p1', absentOn: 1, of: 3 }]);
+    });
+
+    it("does not count an absence the item's own per-decision list states (check 2)", () => {
+        // papagos-cholargos/aug31_2_2026 item 9: the page's own list marks the member absent, with no sentence.
+        const attendance = ['s1', 's2', 's3'].map((subjectId, i) => ({ subjectId, personId: 'p1', status: i === 2 ? 'ABSENT' as const : 'PRESENT' as const, origin: 'derived' as const }));
+        const rollCall = [{ personId: 'p1', status: 'PRESENT' as const, source: 'decision' as const }];
+        const conventions = { version: 1 as const, rollCallLayout: 'present_and_absent' as const, presentListMeaning: 'opening' as const, attendanceChangeAnchors: [],
+            statesPerDecisionAttendance: false, statesPerVoteAbsence: false, usesSubstitutes: false, namedVoters: 'dissenters_only' as const,
+            mayorStatedSeparately: false, provenance: { source: 'manual' as const } };
+        const unstated = (o: Partial<DerivationInput>) => measureMeeting('c/m', input(o), output({ attendance, rollCall }), null).checks.unstatedAbsences;
+        const byRollCall = [doc('s1'), doc('s2'), doc('s3', { rollCallPresentIds: ['p2'], rollCallAbsentIds: ['p1'] })];
+        expect(unstated({ conventions: { ...conventions, presentListMeaning: 'per_decision' }, documents: byRollCall })).toEqual([]);
+        const byMembers = [doc('s1'), doc('s2'), doc('s3', { presentIds: ['p2'] })];
+        expect(unstated({ conventions: { ...conventions, statesPerDecisionAttendance: true }, documents: byMembers })).toEqual([]);
+        // The same pages on a body whose lists are not per decision state nothing about the item.
+        expect(unstated({ conventions, documents: byRollCall })).toEqual([{ personId: 'p1', absentOn: 1, of: 3 }]);
+    });
+
     it('ranks the roll call as the replay does: a manual ABSENT outranks the pages\' PRESENT (checks 2 and 3)', () => {
         const attendance = ['s1', 's2', 's3'].map(subjectId => ({ subjectId, personId: 'p1', status: 'ABSENT' as const, origin: 'derived' as const }));
         const rollCall = [{ personId: 'p1', status: 'PRESENT' as const, source: 'decision' as const }, { personId: 'mayor', status: 'PRESENT' as const, source: 'decision' as const }];

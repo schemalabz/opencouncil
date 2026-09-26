@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { placeEvents } from './placeEvents';
 import { rankRollCall } from './replayAttendance';
 import type { DerivationInput, DerivationOutput, IssueCode } from './types';
 
@@ -18,7 +19,7 @@ export interface MeetingMeasure {
     checks: {
         /** 1: rows for a person who cannot sit on the body: the mayor on a council or a community. */
         mayorRowsOffBody: number;
-        /** 2: a roll-call member absent on items though no departure of theirs is stated. */
+        /** 2: a roll-call member absent on items though no departure of theirs is stated, no later arrival explains it, and the item's own page does not list them absent. */
         unstatedAbsences: Array<{ personId: string; absentOn: number; of: number }>;
         /** 3: pages whose own list leaves out the mayor while the roll call has the mayor present. */
         listOmitsMayor: number;
@@ -65,9 +66,31 @@ export function measureMeeting(key: string, input: DerivationInput, output: Deri
     const events = [...(output?.events ?? []), ...input.events];
     const presentAtRollCall = new Set([...rollCall.values()].filter(r => r.status === 'PRESENT').map(r => r.personId));
     const departed = new Set(events.filter(e => e.kind === 'DEPARTURE').map(e => e.personId));
+    // A stated arrival explains every absence before it: the member was not there
+    // yet (chania/jan15_2025 «Μετά την 2/2025 προσήλθε»). The arrival is placed the
+    // way the replay places it.
+    const subjectIndex = new Map(input.subjects.map((s, i) => [s.id, i]));
+    const lastArrival = new Map<string, number>();
+    for (const p of placeEvents(input.subjects, events).placed) {
+        if (p.event.kind === 'ARRIVAL') lastArrival.set(p.event.personId, Math.max(p.effectAt, lastArrival.get(p.event.personId) ?? -1));
+    }
+    const arrivedLater = (subjectId: string, personId: string) => (subjectIndex.get(subjectId) ?? Infinity) < (lastArrival.get(personId) ?? -1);
+    // The item's own page states the absence where its list is the attendance of
+    // that item, as the replay reads it: a per-decision roll call's ΑΠΟΝΤΕΣ, or a
+    // ΤΑ ΜΕΛΗ that leaves the member out (papagos-cholargos/aug31_2_2026 item 9).
+    const perDecisionRollCall = input.conventions?.presentListMeaning === 'per_decision';
+    const perDecisionList = input.conventions?.statesPerDecisionAttendance === true;
+    const pageOf = new Map(input.documents.filter(d => d.hasExtraction).map(d => [d.subjectId, d]));
+    const pageStatesAbsent = (subjectId: string, personId: string) => {
+        const page = pageOf.get(subjectId);
+        if (!page) return false;
+        return (perDecisionRollCall && page.rollCallPresentIds !== null && (page.rollCallAbsentIds ?? []).includes(personId))
+            || (perDecisionList && page.presentIds !== null && !page.presentIds.includes(personId));
+    };
     const absentOn = new Map<string, number>();
     for (const a of attendance) {
-        if (a.status === 'ABSENT' && presentAtRollCall.has(a.personId) && !departed.has(a.personId)) {
+        if (a.status === 'ABSENT' && presentAtRollCall.has(a.personId) && !departed.has(a.personId)
+            && !arrivedLater(a.subjectId, a.personId) && !pageStatesAbsent(a.subjectId, a.personId)) {
             absentOn.set(a.personId, (absentOn.get(a.personId) ?? 0) + 1);
         }
     }
