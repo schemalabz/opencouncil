@@ -26,6 +26,8 @@ export interface ReplayResult {
     attendance: DerivedAttendanceRow[];
     /** Present member ids per subject (mayor excluded); absent for subjects with no rows. */
     presentBySubject: Map<string, Set<string>>;
+    /** Absent member ids per subject (mayor excluded), the ABSENT rows; absent for subjects with no rows. */
+    absentBySubject: Map<string, Set<string>>;
     issues: Issue[];
     unknownSubjectIds: string[];
 }
@@ -89,11 +91,12 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
     const issues: Issue[] = [];
     const attendance: DerivedAttendanceRow[] = [];
     const presentBySubject = new Map<string, Set<string>>();
+    const absentBySubject = new Map<string, Set<string>>();
     const unknownSubjectIds: string[] = [];
 
     if (rollCall.length === 0) {
         issues.push({ code: 'NO_ROLL_CALL', source: null, params: { reason: input.rollCallMissing ?? 'noRollCall' } });
-        return { attendance, presentBySubject, issues, unknownSubjectIds };
+        return { attendance, presentBySubject, absentBySubject, issues, unknownSubjectIds };
     }
     const meaning = conventions?.presentListMeaning ?? 'unknown';
     const statesPerDecision = conventions?.statesPerDecisionAttendance === true;
@@ -107,7 +110,7 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
             unknownSubjectIds.push(s.id);
             issues.push({ code: 'PRESENCE_UNKNOWN', subjectId: s.id, source: null, params: { reason: 'unsettled' } });
         }
-        return { attendance, presentBySubject, issues, unknownSubjectIds };
+        return { attendance, presentBySubject, absentBySubject, issues, unknownSubjectIds };
     }
 
     const { placed, issues: placeIssues } = placeEvents(subjects, input.events);
@@ -167,13 +170,14 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
     if (meaning === 'cumulative') for (const p of placed) if (p.event.kind === 'ARRIVAL') state.set(p.event.personId, 'ABSENT');
 
     const emit = (subjectId: string, origin: DerivedAttendanceRow['origin']) => {
-        const present = new Set<string>();
+        const present = new Set<string>(), absent = new Set<string>();
         for (const [personId, status] of state) {
             if (personId === mayorPersonId) continue;
             attendance.push({ subjectId, personId, status, origin });
-            if (status === 'PRESENT') present.add(personId);
+            (status === 'PRESENT' ? present : absent).add(personId);
         }
         presentBySubject.set(subjectId, present);
+        absentBySubject.set(subjectId, absent);
     };
 
     /**
@@ -315,5 +319,5 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
             issues.push({ code: 'PRESENCE_UNKNOWN', subjectId: s.id, source: null, params: { reason: 'noPerDecisionList' } });
         }
     });
-    return { attendance, presentBySubject, issues, unknownSubjectIds };
+    return { attendance, presentBySubject, absentBySubject, issues, unknownSubjectIds };
 }

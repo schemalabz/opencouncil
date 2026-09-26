@@ -56,9 +56,11 @@ function tallyOf(doc: DocumentFacts): VoteTally | null {
 /**
  * The vote rows for one subject: what the document named (stated), plus FOR for
  * every present member it did not name when the phrase permits it (inferred). A
- * printed count that disagrees with the rows is a TALLY_MISMATCH issue.
+ * printed count that disagrees with the rows is a TALLY_MISMATCH issue; a named
+ * vote of a member in `absent` (the subject's ABSENT rows) is a
+ * VOTE_BY_ABSENT_MEMBER issue, and the row stays.
  */
-export function deriveVotes(doc: DocumentFacts, present: Set<string> | null, mayorPersonId: string | null): { votes: DerivedVoteRow[]; issues: Issue[] } {
+export function deriveVotes(doc: DocumentFacts, present: Set<string> | null, mayorPersonId: string | null, absent: ReadonlySet<string> | null = null): { votes: DerivedVoteRow[]; issues: Issue[] } {
     const votes: DerivedVoteRow[] = [];
     const issues: Issue[] = [];
     const seen = new Set<string>();
@@ -77,6 +79,10 @@ export function deriveVotes(doc: DocumentFacts, present: Set<string> | null, may
         statedVote.set(v.personId, v.vote);
         seen.add(v.personId);
         votes.push({ subjectId: doc.subjectId, personId: v.personId, voteType: v.vote, origin: 'stated' });
+        // The page's own vote against the attendance the pages resolved: one of the
+        // two is wrong, and nothing here says which, so the vote row stays.
+        if (absent?.has(v.personId)) issues.push({ code: 'VOTE_BY_ABSENT_MEMBER', subjectId: doc.subjectId, personId: v.personId,
+            decisionId: doc.decisionId, source: 'decision', params: { vote: v.vote } });
     }
     // The mayor's own FOR is not "the page named somebody FOR": §6.5 keeps the
     // mayor out of the rows, so counting it here would switch inference off for

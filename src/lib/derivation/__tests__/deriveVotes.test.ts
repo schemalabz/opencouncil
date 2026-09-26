@@ -105,6 +105,16 @@ describe('deriveVotes', () => {
         expect(votes).toEqual([{ subjectId: 's', personId: 'p1', voteType: 'AGAINST', origin: 'stated' }]);
         expect(issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', subjectId: 's', personId: 'p1', decisionId: 'd' })]);
     });
+    it('a vote the page names for an absent member stays, and is reported once with the vote', () => {
+        // Zografou dec11_2025 decision 224: Καραβίδας left during the 9th item, and the page names his vote AGAINST on item 10.
+        const d = doc({ voteResultPhrase: 'Κατά πλειοψηφία', namedVotes: [{ personId: 'p2', vote: 'AGAINST' }, { personId: 'p2', vote: 'AGAINST' }, { personId: 'mayor', vote: 'FOR' }] });
+        const { votes, issues } = deriveVotes(d, new Set(['p1']), 'mayor', new Set(['p2', 'mayor']));
+        expect(votes).toEqual(expect.arrayContaining([{ subjectId: 's', personId: 'p2', voteType: 'AGAINST', origin: 'stated' }]));
+        expect(issues).toEqual([{ code: 'VOTE_BY_ABSENT_MEMBER', subjectId: 's', personId: 'p2', decisionId: 'd', source: 'decision', params: { vote: 'AGAINST' } }]);
+        // A member who is present, or whom no row covers, is not reported.
+        expect(deriveVotes(d, new Set(['p1', 'p2']), 'mayor', new Set()).issues).toEqual([]);
+        expect(deriveVotes(d, new Set(['p1']), 'mayor', null).issues).toEqual([]);
+    });
     it('an exact duplicate named vote is dropped silently', () => {
         const { votes, issues } = deriveVotes(doc({ namedVotes: [{ personId: 'p1', vote: 'AGAINST' }, { personId: 'p1', vote: 'AGAINST' }] }), new Set(['p1']), null);
         expect(votes).toHaveLength(1);

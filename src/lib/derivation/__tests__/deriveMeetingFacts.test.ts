@@ -123,6 +123,18 @@ describe('deriveMeetingFacts', () => {
         expect(unexpected(page('Με πέντε (5) θετικές ψήφους', []))).toEqual([]);
     });
 
+    it('reports a vote the page names for a member its departure made absent', () => {
+        // p2 left before item 2, and the page of item 2 still names p2 AGAINST.
+        const out = deriveMeetingFacts({ ...base, events: [{ id: 'e1', personId: 'p2', kind: 'DEPARTURE', anchorKind: 'AGENDA_ITEM', anchorAgendaItemIndex: 1,
+            anchorNonAgendaReason: null, anchorDecisionNumber: null, anchorSubjectId: null, anchorPhase: null, timing: 'AFTER', rawText: 'αποχώρησε μετά το 1ο θέμα',
+            reportingDocuments: 1, totalDocuments: 1, source: 'manual' }] });
+        expect(out.issues.filter(i => i.code === 'VOTE_BY_ABSENT_MEMBER')).toEqual([
+            expect.objectContaining({ subjectId: 's2', personId: 'p2', decisionId: 'd2', params: { vote: 'AGAINST' } }),
+        ]);
+        expect(out.votes).toContainEqual({ subjectId: 's2', personId: 'p2', voteType: 'AGAINST', origin: 'stated' });
+        expect(deriveMeetingFacts(base).issues.filter(i => i.code === 'VOTE_BY_ABSENT_MEMBER')).toEqual([]);
+    });
+
     it("does not count the mayor's own FOR as naming voters", () => {
         const mayorFor = { ...base.documents[0], namedVotes: [{ personId: 'mayor', vote: 'FOR' as const }] };
         // cityMayorPersonId, not mayorPersonId: a mayor written apart from the

@@ -130,6 +130,7 @@ export const ISSUE_CODES = [
     'LAYOUT_DISAGREES', 'ITEM_NUMBER_DISAGREES', 'UNREAD_DOCUMENT', 'LIST_DROPS_PRESENT', 'LIST_ADDS_ABSENT',
     'PERSON_IN_BOTH_LISTS', 'CHANGE_NOT_CORROBORATED', 'LATE_ARRIVAL_IN_OPENING_LIST', 'NAMED_VOTERS_UNEXPECTED',
     'NAMES_SHARE_ID', 'NAME_MATCHED_TWICE', 'OUT_OF_AGENDA_PLACED_FIRST',
+    'VOTE_BY_ABSENT_MEMBER',
 ] as const;
 export type IssueCode = typeof ISSUE_CODES[number];
 
@@ -190,6 +191,8 @@ export interface IssueParams {
     NAME_MATCHED_TWICE: { name: string };
     /** A change stated during the out-of-agenda items, in a meeting with none, placed before the first subject. */
     OUT_OF_AGENDA_PLACED_FIRST: { kind: AttendanceEventKind };
+    /** A page names a vote for a member the derivation has absent on that subject (`personId` names them). */
+    VOTE_BY_ABSENT_MEMBER: { vote: VoteType };
 }
 
 interface IssueFields {

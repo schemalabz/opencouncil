@@ -92,8 +92,9 @@ export function deriveMeetingFacts(input: DerivationInput): DerivationOutput {
             continue;
         }
         const present = replay.presentBySubject.get(doc.subjectId) ?? null;
+        const absent = replay.absentBySubject.get(doc.subjectId) ?? null;
         issues.push(...documentDisagreements(doc, subjectById.get(doc.subjectId), input.conventions, input.cityMayorPersonId, present));
-        const r = deriveVotes(doc, present, input.mayorPersonId);
+        const r = deriveVotes(doc, present, input.mayorPersonId, absent);
         votes.push(...r.votes); issues.push(...r.issues);
         for (const name of doc.unmatchedNames) issues.push({ code: 'UNMATCHED_NAME', subjectId: doc.subjectId, decisionId: doc.decisionId,
             source: 'decision', rawText: name, params: { name } });
