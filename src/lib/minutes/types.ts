@@ -44,9 +44,9 @@ export interface MinutesRollCallMember {
  */
 export interface MinutesRollCall {
     isCommittee: boolean;
-    /** The ΔΗΜΑΡΧΟΣ line. Councils only: a committee names the mayor on the president's line. */
+    /** The ΔΗΜΑΡΧΟΣ line. Councils only: a committee names the mayor on the president's line, when the mayor presides. */
     mayor: { name: string; personId: string; absent: boolean; note: string | null; printedNote: string | null } | null;
-    /** The ΠΡΟΕΔΡΟΣ line. `isMayor`: the line prints «(ΔΗΜΑΡΧΟΣ)» after the name. */
+    /** The ΠΡΟΕΔΡΟΣ line. `isMayor`: a committee's president is the mayor, and the line prints «(ΔΗΜΑΡΧΟΣ)» after the name. */
     president: { name: string; personId: string; absent: boolean; isMayor: boolean; note: string | null; printedNote: string | null } | null;
     /**
      * Committee: the ΠΑΡΟΝΤΑ ΜΕΛΗ list, substitutes after their party. Council:

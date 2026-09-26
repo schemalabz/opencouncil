@@ -412,6 +412,15 @@ describe('buildRollCall', () => {
         expect(names(rollCall.absent)).toEqual(['Κολεβέντης Φώτιος']);
     });
 
+    it('names the mayor on a committee president\'s line only when the mayor presides', () => {
+        expect(rollCallOf(committeeWithSubstitute()).president).toMatchObject({ name: 'Μαλτέζος Ιωάννης', isMayor: true });
+        const data = committeeWithSubstitute();
+        data.councilComposition!.president = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        const rollCall = rollCallOf(data);
+        expect(rollCall.mayor).toBeNull();
+        expect(rollCall.president).toMatchObject({ name: 'Πετσέλης Χρήστος', isMayor: false });
+    });
+
     it('gives a council the ΔΗΜΑΡΧΟΣ line with its note, and keeps an absent president out of the absence sentence', () => {
         const rollCall = rollCallOf(councilWithAbsentPresident());
         expect(rollCall.mayor).toMatchObject({ name: 'Ρούσσος Σίμος', absent: false, note: 'αποχώρησε από το 4ο θέμα', printedNote: 'αποχώρησε από το 4ο θέμα' });

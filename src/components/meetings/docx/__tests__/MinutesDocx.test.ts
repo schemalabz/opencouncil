@@ -305,6 +305,14 @@ describe('MinutesDocx roll call', () => {
         expect(await docxRuns(committeeWithSubstitute())).toMatchSnapshot();
     });
 
+    it('prints no «(ΔΗΜΑΡΧΟΣ)» after a committee president who is not the mayor, and no mayor line', async () => {
+        const data = committeeWithSubstitute();
+        data.councilComposition!.president = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        const runs = await docxRuns(data);
+        expect(runs).toContain('Πετσέλης Χρήστος');
+        expect(runs.join('\n')).not.toContain('ΔΗΜΑΡΧΟΣ');
+    });
+
     it('prints a council with the mayor apart and the president absent', async () => {
         expect(await docxRuns(councilWithAbsentPresident())).toMatchSnapshot();
     });

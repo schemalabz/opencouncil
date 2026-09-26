@@ -232,7 +232,9 @@ export function buildCouncilComposition(
  *
  * A council gets the ΔΗΜΑΡΧΟΣ line, then the ΠΡΟΕΔΡΟΣ line; its lists are the
  * ΣΥΝΘΕΣΗ members, and the absence sentence leaves the president out. A
- * committee gets no ΔΗΜΑΡΧΟΣ line; its lists are the members and the
+ * committee gets no ΔΗΜΑΡΧΟΣ line: the mayor is named only as «(ΔΗΜΑΡΧΟΣ)» on
+ * the president's line, when the mayor presides. A mayor who is not a member
+ * of the committee is not printed at all. Its lists are the members and the
  * substitutes, the substitutes after their party (`interleaveSubstitutes`).
  * Neither list holds the mayor: `buildCouncilComposition` leaves them out.
  *
@@ -259,7 +261,8 @@ export function buildRollCall(
         ? (() => {
             const { name, personId } = composition.president;
             const absent = absentIds.has(personId);
-            return { name, personId, absent, isMayor: isCommittee, note: null, printedNote: absent ? absentLabel(name) : null };
+            const isMayor = isCommittee && personId === composition.mayor?.personId;
+            return { name, personId, absent, isMayor, note: null, printedNote: absent ? absentLabel(name) : null };
         })()
         : null;
 
