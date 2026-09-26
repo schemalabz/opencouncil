@@ -12,7 +12,7 @@
  * than in a person's memory of the last run.
  */
 import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
-import { mayorAbsentFromNote } from '@/lib/minutes/builders';
+import { buildRollCall } from '@/lib/minutes/builders';
 import { expectedOf, subjectsByClaimKey, type GoldenMeeting, type Outcome } from './minutes-golden';
 
 const norm = (n: string) => n
@@ -95,31 +95,45 @@ export function checkMeeting(m: GoldenMeeting, data: MinutesData): CheckLine[] {
         claimLine(claim, detail ? 'disagree' : 'agree', detail, expect);
     };
 
+    // The roll call the minutes print, read from the one builder the minutes use.
+    const rollCall = data.councilComposition
+        ? buildRollCall(data.councilComposition, new Set((data.absentMembers ?? []).map(a => a.personId)), data.administrativeBody?.type ?? null)
+        : null;
     if (m.rollCall) {
-        // The mayor is printed on their own line, never in the member lists; compare them apart.
-        const mayor = data.councilComposition?.mayor?.name ?? null;
-        const notMayor = (n: string) => !mayor || !samePerson(n, mayor);
-        // A substitute who sat in is present; the minutes keep substitutes in their own list.
-        const present = [...names(data.councilComposition?.members), ...names(data.councilComposition?.substituteMembers)].filter(n => !has(names(data.absentMembers), n)).filter(notMayor);
-        report('rollCall.present', m.rollCall.present.filter(notMayor), present, expectedOf(m.rollCall.expect, 'present'));
-        report('rollCall.absent', m.rollCall.absent.filter(notMayor), names(data.absentMembers).filter(notMayor), expectedOf(m.rollCall.expect, 'absent'));
+        // A council's mayor is on the ΔΗΜΑΡΧΟΣ line; a mayor who is not a member of a
+        // committee is not printed. Either way the lists leave them out, so the fixture's
+        // lists are compared without them. A member mayor is in the lists like any member.
+        const cityMayor = data.councilComposition?.mayor ?? null;
+        const mayorApart = cityMayor && rollCall && ![...rollCall.present, ...rollCall.absent].some(e => e.member.personId === cityMayor.personId)
+            ? cityMayor.name : null;
+        const notMayorApart = (n: string) => !mayorApart || !samePerson(n, mayorApart);
+        const present = (rollCall?.present ?? []).map(e => e.member.name);
+        // The minutes print an absent council president on the president's line, not in the
+        // absence sentence; the fixture's absent list is compared with the president added back.
+        // A committee's absent list already holds an absent president, so nothing is added there.
+        const president = rollCall?.president ?? null;
+        const absent = [
+            ...(rollCall?.absent ?? []).map(e => e.member.name),
+            ...(president?.absent && !rollCall?.absent.some(e => e.member.personId === president.personId) ? [president.name] : []),
+        ];
+        report('rollCall.present', m.rollCall.present.filter(notMayorApart), present, expectedOf(m.rollCall.expect, 'present'));
+        report('rollCall.absent', m.rollCall.absent.filter(notMayorApart), absent, expectedOf(m.rollCall.expect, 'absent'));
         if (m.rollCall.mayorPresent !== undefined) {
-            const mayorLine = data.councilComposition?.mayor ?? null;
-            const got = mayorLine ? !mayorAbsentFromNote(mayorLine.note) : null;
+            const got = rollCall?.mayor ? !rollCall.mayor.absent : null;
             lines.push({ kind: 'claim', meeting: key, claim: 'rollCall.mayorPresent', outcome: got === null ? 'missing' : got === m.rollCall.mayorPresent ? 'agree' : 'disagree',
                 expect: expectedOf(m.rollCall.expect, 'mayorPresent'), detail: got === null ? 'no mayor line' : `wanted ${m.rollCall.mayorPresent}, got ${got}` });
         }
         if (m.rollCall.president) {
-            const got = data.councilComposition?.president?.name ?? null;
+            const got = president?.name ?? null;
             lines.push({ kind: 'claim', meeting: key, claim: 'rollCall.president', outcome: got === null ? 'missing' : samePerson(got, m.rollCall.president) ? 'agree' : 'disagree',
                 expect: expectedOf(m.rollCall.expect, 'president'), detail: got ?? 'no president line' });
         }
     }
-    const mayorName = data.councilComposition?.mayor?.name ?? null;
+    const mayorLine = rollCall?.mayor ?? null;
     for (const c of m.changes ?? []) {
-        // The mayor is never in the changes block: their movement is the note on the ΔΗΜΑΡΧΟΣ line.
-        if (mayorName && samePerson(c.name, mayorName)) {
-            const note = data.councilComposition?.mayor?.note ?? '';
+        // A council's mayor is never in the changes block: their movement is the note on the ΔΗΜΑΡΧΟΣ line.
+        if (mayorLine && samePerson(c.name, mayorLine.name)) {
+            const note = mayorLine.note ?? '';
             const verb = c.kind === 'arrival' ? 'προσήλθε' : 'αποχώρησε';
             // The position is resolved along the discussion order, as the minutes do: «after item 8»
             // is whatever was discussed next, which on a reordered meeting may be item 1.

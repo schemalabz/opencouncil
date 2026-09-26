@@ -320,22 +320,6 @@ export function buildMayorNote(
 }
 
 /**
- * True when a ΔΗΜΑΡΧΟΣ note says the mayor was absent at the roll call.
- * buildMayorNote puts ΑΠΩΝ/ΑΠΟΥΣΑ as the note's own first part, whole,
- * followed by nothing else or a ", " before the next part — so the mayor is
- * absent at the roll call exactly when the note opens with one of the two.
- *
- * `\b` is ASCII-only in JavaScript and never matches after a Greek letter, so
- * the two full words are spelled out rather than shared through a `\b`-bounded
- * prefix.
- */
-export function mayorAbsentFromNote(note: string | null | undefined): boolean {
-    return /^(ΑΠΩΝ|ΑΠΟΥΣΑ)(,|$)/.test(note ?? '');
-}
-
-
-
-/**
  * Arrivals and departures from the events the documents state, printed at the
  * subject the anchor resolves to. Which subject that is, is `placeEvents` — the
  * same placement the derivation writes the rows with, so a sentence cannot name

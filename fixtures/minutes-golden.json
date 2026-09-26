@@ -1065,7 +1065,10 @@
     "absent": [
      "ΓΚΡΕΚΑΣ ΠΑΝΑΓΙΩΤΗΣ",
      "ΧΑΛΚΙΑΔΑΚΗ ΕΙΡΗΝΗ (ΡΕΝΑ)"
-    ]
+    ],
+    "expect": {
+     "absent": "disagree"
+    }
    },
    "subjects": {
     "11": {
@@ -1076,7 +1079,8 @@
     "30": {
      "outcome": "unanimous"
     }
-   }
+   },
+   "notes": "Added 2026-09-26: the document leaves the mayor Τίνα Καφατσάκη out of the absent list. She is the president of the committee, was absent at the roll call, and the page names who presided in her place. The minutes count a member mayor as an ordinary member, so ΑΠΟΝΤΑ ΜΕΛΗ lists her. apr1_2026 (6ΜΕ6ΩΡΦ-ΝΘ4, the same Δημοτική Επιτροπή) lists «ΤΙΝΑ ΚΑΦΑΤΣΑΚΗ» as absent, so no single rule matches both documents."
   },
   {
    "cityId": "zografou",
