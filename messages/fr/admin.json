@@ -572,6 +572,7 @@
       "tallyDerived": "déduit",
       "tallyType": "{type, select, FOR {POUR} AGAINST {CONTRE} ABSTAIN {BLANC} PRESENT {PRÉSENT} DID_NOT_VOTE {N'A PAS VOTÉ} other {{type}}}",
       "changesHeading": "Changements de présence",
+      "statedOn": "stated on {n} of {m} documents",
       "unmatchedNames": "Noms non appariés :",
       "attendanceFromList": "D'après la liste des présents du document",
       "attendanceFromRollCall": "D'après l'appel"

@@ -29,6 +29,7 @@ import { rowCandidates } from '@/components/meetings/decisions/rowCandidates';
 import { QuestionsCard, type Receipt } from '@/components/meetings/decisions/QuestionsCard';
 import { DecisionsTable, type DecisionsFilter, type TableRow } from '@/components/meetings/decisions/DecisionsTable';
 import { auditSignalFor } from '@/components/meetings/decisions/auditSignal';
+import { changeKey, documentCountsByChange } from '@/components/meetings/decisions/changeDocumentCounts';
 import { AuditEvidence } from '@/components/meetings/decisions/AuditEvidence';
 import { useAuditMode } from '@/components/meetings/decisions/useAuditMode';
 import { LinkPanel, type PanelConfirm, type PanelSubject } from '@/components/meetings/decisions/LinkPanel';
@@ -406,6 +407,9 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const issuesBySubject = useMemo(() => bySubject(derivation?.issues ?? []), [derivation]);
     const derivedVotesBySubject = useMemo(() => bySubject(derivation?.votes ?? []), [derivation]);
     const derivedAttendanceBySubject = useMemo(() => bySubject(derivation?.attendance ?? []), [derivation]);
+    /** How many of the meeting's documents stated each change (`changeKey`): the
+     * audit line looks the counts up here instead of `src/lib/minutes` carrying them too. */
+    const eventDocumentCounts = useMemo(() => documentCountsByChange(derivation?.events ?? []), [derivation]);
     /** Subjects whose outcome is the document's phrase with nobody behind it. */
     const phraseOnlySubjects = useMemo(
         () => new Set(derivation?.phraseOnlySubjectIds ?? []),
@@ -1099,14 +1103,18 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         const attendance = derivedAttendanceBySubject.get(subjectId) ?? [];
         const tally = issues.find(issue => issue.code === 'TALLY_MISMATCH');
         const diffs = tally?.code === 'TALLY_MISMATCH' ? tally.params.diffs : [];
-        const changeTexts = (minutes?.attendanceChanges ?? []).flatMap(change =>
-            change.atSubject.id === subjectId && change.rawText ? [change.rawText] : []);
+        const changes = (minutes?.attendanceChanges ?? []).flatMap(change => {
+            if (change.atSubject.id !== subjectId || !change.rawText) return [];
+            const counts = eventDocumentCounts.get(changeKey({ ...change, rawText: change.rawText }))
+                ?? { reportingDocuments: null, totalDocuments: null };
+            return [{ text: change.rawText, ...counts }];
+        });
         const unmatchedNames = decision?.unmatchedNames ?? [];
         const phraseOnly = phraseOnlySubjects.has(subjectId);
         const nameOf = (personId: string): string => getPerson(personId)?.name ?? personId;
 
         const empty = !decision?.voteResultPhrase && votes.length === 0 && attendance.length === 0
-            && diffs.length === 0 && changeTexts.length === 0 && issues.length === 0
+            && diffs.length === 0 && changes.length === 0 && issues.length === 0
             && unmatchedNames.length === 0 && !phraseOnly;
         if (empty) return null;
 
@@ -1116,7 +1124,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 votes={votes.map(vote => ({ name: nameOf(vote.personId), origin: vote.origin }))}
                 attendance={attendance.map(row => ({ name: nameOf(row.personId), status: row.status, origin: row.origin }))}
                 tallyDiffs={diffs}
-                changeTexts={changeTexts}
+                changes={changes}
                 issues={issues}
                 unmatchedNames={unmatchedNames}
                 phraseOnly={phraseOnly}

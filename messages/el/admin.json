@@ -572,6 +572,7 @@
       "tallyDerived": "κατά τεκμήριο",
       "tallyType": "{type, select, FOR {ΥΠΕΡ} AGAINST {ΚΑΤΑ} ABSTAIN {ΛΕΥΚΟ} PRESENT {ΠΑΡΩΝ} DID_NOT_VOTE {ΑΠΟΧΗ} other {{type}}}",
       "changesHeading": "Μεταβολές παρουσίας",
+      "statedOn": "δηλώθηκε σε {n} από {m} έγγραφα",
       "unmatchedNames": "Ονόματα χωρίς αντιστοίχιση:",
       "attendanceFromList": "Από τον κατάλογο παρόντων του εγγράφου",
       "attendanceFromRollCall": "Από το παρουσιολόγιο"

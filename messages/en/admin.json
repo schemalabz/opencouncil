@@ -572,6 +572,7 @@
       "tallyDerived": "derived",
       "tallyType": "{type, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{type}}}",
       "changesHeading": "Attendance changes",
+      "statedOn": "stated on {n} of {m} documents",
       "unmatchedNames": "Names not matched:",
       "attendanceFromList": "From the document's own present list",
       "attendanceFromRollCall": "From the roll call"

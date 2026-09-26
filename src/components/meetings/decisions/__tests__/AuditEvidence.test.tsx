@@ -9,7 +9,7 @@ const props: AuditEvidenceProps = {
     votes: [],
     attendance: [],
     tallyDiffs: [],
-    changeTexts: [],
+    changes: [],
     issues: [],
     unmatchedNames: [],
     phraseOnly: false,
@@ -77,7 +77,22 @@ describe('AuditEvidence', () => {
     });
 
     it('shows the sentence a document states an attendance change in', () => {
-        renderEvidence({ changeTexts: ['Προσήλθε ο κ. Νικολάου κατά τη συζήτηση του 3ου θέματος'] });
+        renderEvidence({
+            changes: [{
+                text: 'Προσήλθε ο κ. Νικολάου κατά τη συζήτηση του 3ου θέματος',
+                reportingDocuments: null, totalDocuments: null,
+            }],
+        });
         expect(screen.getByText(/Προσήλθε ο κ. Νικολάου/)).toBeInTheDocument();
+    });
+
+    it('says how many documents stated the change', () => {
+        renderEvidence({
+            changes: [{
+                text: 'Προσήλθε ο κ. Νικολάου κατά τη συζήτηση του 3ου θέματος',
+                reportingDocuments: 2, totalDocuments: 3,
+            }],
+        });
+        expect(screen.getByText(/δηλώθηκε σε 2 από 3 έγγραφα/)).toBeInTheDocument();
     });
 });

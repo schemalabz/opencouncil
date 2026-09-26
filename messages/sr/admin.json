@@ -572,6 +572,7 @@
             "tallyDerived": "изведено",
             "tallyType": "{type, select, FOR {ЗА} AGAINST {ПРОТИВ} ABSTAIN {УЗДРЖАН} PRESENT {ПРИСУТАН} DID_NOT_VOTE {НИЈЕ ГЛАСАО} other {{type}}}",
             "changesHeading": "Промене присуства",
+            "statedOn": "stated on {n} of {m} documents",
             "unmatchedNames": "Неупарена имена:",
             "attendanceFromList": "Iz spiska prisutnih u dokumentu",
             "attendanceFromRollCall": "Iz prozivke"

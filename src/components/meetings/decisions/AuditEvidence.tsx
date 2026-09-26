@@ -9,6 +9,9 @@ type T = ReturnType<typeof useTranslations>;
 
 export interface AuditVoteRow { name: string; origin: VoteOrigin }
 export interface AuditAttendanceRow { name: string; status: AttendanceStatus; origin: AttendanceOrigin }
+/** One stated attendance change, with how many of the meeting's documents
+ * reported it — null when the matching `AttendanceEvent` row was not found. */
+export interface AuditChangeRow { text: string; reportingDocuments: number | null; totalDocuments: number | null }
 
 export interface AuditEvidenceProps {
     /** What the document itself says about the vote, verbatim. */
@@ -17,8 +20,8 @@ export interface AuditEvidenceProps {
     attendance: AuditAttendanceRow[];
     /** The vote types whose printed count and derived rows disagree. */
     tallyDiffs: TallyDiff[];
-    /** The sentences the documents state this subject's attendance changes in. */
-    changeTexts: string[];
+    /** The sentences the documents state this subject's attendance changes in, one per stated change. */
+    changes: AuditChangeRow[];
     /** This subject's issues, meeting-wide ones excluded. */
     issues: Issue[];
     /** Names a document printed that matched no person. */
@@ -85,7 +88,7 @@ function AttendanceNames({ t, rows }: { t: T; rows: AuditAttendanceRow[] }) {
  */
 export function AuditEvidence(props: AuditEvidenceProps) {
     const t = useTranslations('admin.decisionsPage');
-    const { voteResultPhrase, votes, attendance, tallyDiffs, changeTexts, issues, unmatchedNames, phraseOnly } = props;
+    const { voteResultPhrase, votes, attendance, tallyDiffs, changes, issues, unmatchedNames, phraseOnly } = props;
 
     const statedVotes = votes.filter(v => v.origin === 'stated');
     const inferredVotes = votes.filter(v => v.origin === 'inferred');
@@ -164,19 +167,16 @@ export function AuditEvidence(props: AuditEvidenceProps) {
                 </div>
             )}
 
-            {changeTexts.length > 0 && (
+            {changes.length > 0 && (
                 <div className={SECTION}>
                     <div className={HEADING}>{t('audit.changesHeading')}</div>
-                    {/* TODO(audit): the event's reportingDocuments/totalDocuments
-                        belong here — «δηλώθηκε σε 5 από 8 έγγραφα» — but they are
-                        stored on AttendanceEvent and reach no client payload:
-                        DerivationOutput carries neither the events nor those
-                        counts, and MinutesAttendanceChange drops them. Adding
-                        them means changing src/lib/derivation (owned elsewhere
-                        while this was written). The sentence is what is
-                        reachable today. */}
-                    {changeTexts.map((text, i) => (
-                        <div key={i} className="text-xs text-muted-foreground">{text}</div>
+                    {changes.map((change, i) => (
+                        <div key={i} className="text-xs text-muted-foreground">
+                            {change.text}
+                            {change.reportingDocuments !== null && change.totalDocuments !== null && (
+                                <>{' — '}{t('audit.statedOn', { n: change.reportingDocuments, m: change.totalDocuments })}</>
+                            )}
+                        </div>
                     ))}
                 </div>
             )}
