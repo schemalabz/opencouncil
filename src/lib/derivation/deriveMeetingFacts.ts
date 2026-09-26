@@ -1,5 +1,5 @@
 import { replayAttendance } from './replayAttendance';
-import { deriveVotes, phrasePermitsInference } from './deriveVotes';
+import { deriveVotes, phraseOutcome, phrasePermitsInference } from './deriveVotes';
 import { resolveSession } from './resolveSession';
 import { isConfirmedByPerson, type DecisionConventions } from '@/lib/decisionConventions';
 import type { DocumentFacts, DerivationInput, DerivationOutput, Issue, OrderedSubject } from './types';
@@ -14,7 +14,10 @@ import type { DocumentFacts, DerivationInput, DerivationOutput, Issue, OrderedSu
  * on. A body profiled as `mixed` states that its documents vary, so no single
  * layout contradicts it.
  */
-function documentDisagreements(doc: DocumentFacts, subject: OrderedSubject | undefined, conventions: DecisionConventions | null, cityMayorPersonId: string | null): Issue[] {
+function documentDisagreements(
+    doc: DocumentFacts, subject: OrderedSubject | undefined, conventions: DecisionConventions | null, cityMayorPersonId: string | null,
+    present: ReadonlySet<string> | null,
+): Issue[] {
     const issues: Issue[] = [];
     const where = { subjectId: doc.subjectId, decisionId: doc.decisionId, source: 'decision' } as const;
     const expected = conventions?.rollCallLayout;
@@ -39,9 +42,18 @@ function documentDisagreements(doc: DocumentFacts, subject: OrderedSubject | und
     const expectedVoters = conventions?.namedVoters;
     const named = doc.namedVotes.filter(v => v.personId !== cityMayorPersonId);
     const namesFor = named.some(v => v.vote === 'FOR');
+    // A unanimous page that names every member present on the subject, all with
+    // one vote, named every voter, whatever that vote: Athens 4η 9ΖΘΨΩ6Μ-Θ0Ζ names
+    // nine members ΚΑΤΑ and then «ΑΠΟΦΑΣΙΖΕΙ ΟΜΟΦΩΝΑ Δεν εγκρίνει», a unanimous
+    // rejection with nobody FOR. A page that names only some of them has lost the
+    // FOR names, and with no presence known nothing shows that it named everyone.
+    const namedIds = new Set(named.map(v => v.personId));
+    const namesEveryonePresent = present !== null && [...present].every(personId => personId === cityMayorPersonId || namedIds.has(personId));
+    const unanimousOneVote = named.length > 0 && namesEveryonePresent && phraseOutcome(doc.voteResultPhrase) === 'unanimous'
+        && new Set(named.map(v => v.vote)).size === 1;
     const unlikeBody = expectedVoters === 'dissenters_only' ? namesFor
         : expectedVoters === 'none' ? named.length > 0
-        : expectedVoters === 'all' ? !namesFor && phrasePermitsInference(doc.voteResultPhrase)
+        : expectedVoters === 'all' ? !namesFor && phrasePermitsInference(doc.voteResultPhrase) && !unanimousOneVote
         : false;
     if (expectedVoters && unlikeBody) issues.push({ code: 'NAMED_VOTERS_UNEXPECTED', ...where, params: { expected: expectedVoters } });
     return issues;
@@ -75,7 +87,7 @@ export function deriveMeetingFacts(input: DerivationInput): DerivationOutput {
             continue;
         }
         const present = replay.presentBySubject.get(doc.subjectId) ?? null;
-        issues.push(...documentDisagreements(doc, subjectById.get(doc.subjectId), input.conventions, input.cityMayorPersonId));
+        issues.push(...documentDisagreements(doc, subjectById.get(doc.subjectId), input.conventions, input.cityMayorPersonId, present));
         const r = deriveVotes(doc, present, input.mayorPersonId);
         votes.push(...r.votes); issues.push(...r.issues);
         for (const name of doc.unmatchedNames) issues.push({ code: 'UNMATCHED_NAME', subjectId: doc.subjectId, decisionId: doc.decisionId,
