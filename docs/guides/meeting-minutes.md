@@ -4,7 +4,37 @@
 
 A system for generating official meeting minutes (πρακτικά συνεδρίασης) from council meetings. Minutes combine transcript data, agenda subjects, and the facts stated in the decision documents each administrative body publishes on Diavgeia. They are rendered as a DOCX that municipalities can use as their official record. The same facts feed the decisions page and the voting records.
 
-The governing rule comes from [the design in force](../superpowers/specs/2026-09-17-decision-facts-derivation-design.md) (§2): **store the finest-grained thing a source states; derive the aggregates.** A document states a roll call, arrivals and departures, a vote phrase and the members it names. Who was present for each subject and who voted FOR are computed from that, never stored as facts.
+The governing rule comes from [the design record](../superpowers/specs/2026-09-17-decision-facts-derivation-design.md) (§2), amended by the C1 iteration; where the two differ, this guide is in force. **Store the finest-grained thing a source states; derive the aggregates.** A page states its own roll call, its own arrivals and departures, a vote phrase and the members it names. opencouncil combines every page's statement into one roll call and one set of events (below). Who was present for each subject and who voted FOR are computed from that, never stored as facts.
+
+## How a page becomes the minutes
+
+```mermaid
+flowchart TB
+    pdf["Decision PDF on Diavgeia<br/>one per subject"]
+    subgraph tasks["opencouncil-tasks — one page at a time"]
+        read["Read<br/>the model reads one page;<br/>conventions arrive as prompt text"]
+        match["Match names<br/>token-sort, then one LLM call per poll"]
+    end
+    subgraph app["opencouncil — every page of the meeting"]
+        store["Store<br/>Decision.extraction, one row per page"]
+        load["Load<br/>readings of task v4 or later"]
+        resolve["Resolve<br/>opening roll call and session changes,<br/>by convention"]
+        derive["Derive<br/>presence per subject, votes, issues"]
+        write["Write, one transaction<br/>SubjectAttendance · SubjectVote ·<br/>MeetingAttendance · AttendanceEvent (output)"]
+        show["Minutes · decisions page · issues"]
+    end
+    conv[("Body conventions")]
+    manual[("Manual rows<br/>(later: transcript)")]
+    pdf -->|one PDF| read --> |names as printed| match
+    match -->|"wire: one entry per page, names + ids"| store
+    store -->|every stored page| load -->|usable readings| resolve -->|roll call + events| derive -->|rows + issues| write --> show
+    conv -.->|prompt text| read
+    conv -.->|rules| resolve
+    conv -.->|rules| derive
+    manual -.->|outrank the pages| resolve
+```
+
+opencouncil-tasks reads one page and matches its names; it never computes a fact from two or more pages. opencouncil stores each page's reading as it arrives and combines every stored page. A later poll only adds pages. `MeetingAttendance` and `AttendanceEvent` rows of source `decision` are derivation output, never read back; rows of any other source are stated facts and outrank the pages.
 
 ## Architectural split
 
@@ -30,9 +60,9 @@ flowchart LR
     subgraph oc [opencouncil]
         C[(AdministrativeBody<br/>decisionConventions)]
         A[admin form]
-        F[(stated facts<br/>roll call · AttendanceEvent · Decision)]
-        D[derivation<br/>per-subject attendance and votes<br/>issues where it cannot]
-        R[(SubjectAttendance<br/>SubjectVote)]
+        F[(stated facts<br/>Decision readings · manual rows)]
+        D[derivation<br/>roll call, changes, per-subject<br/>attendance and votes; issues]
+        R[(SubjectAttendance · SubjectVote<br/>MeetingAttendance · AttendanceEvent)]
         M[minutes<br/>DOCX · decisions page]
         K[meeting checker<br/>claims fixture]
     end
@@ -57,23 +87,24 @@ Two loops share the middle row. The **production path** runs left to right: PDF,
 
 ### Stated facts (opencouncil)
 
-Three places hold what the documents state, all written by the poll callback in `src/lib/tasks/pollDecisions.ts` with `source = decision`:
+One place holds what the documents state, written by the poll callback in `src/lib/tasks/pollDecisions.ts`:
 
-- **Roll call** — `MeetingAttendance`, one row per person per source.
-- **Arrivals and departures** — `AttendanceEvent`, each with its anchor, the sentence it came from, and how many of the session's documents stated it.
 - **Per-document facts** — columns on `Decision` (the vote phrase, the mayor sentence, the declared item number, whether the read was incomplete, the unmatched names) plus `Decision.extraction`, the wire entry as received; the named votes, the printed tally, the per-decision present list and the presiding member are read from there. No vote outcome, tally or provenance is stored: all are views over the rows.
+
+Each page's own roll call and its own stated arrivals and departures live inside that same `Decision.extraction`. They are not stored as meeting-wide facts: the derivation combines them (below) into the roll call and the events it writes as output.
 
 ### Derivation (opencouncil)
 
-`src/lib/derivation/` turns stated facts into per-subject rows. It is pure and deterministic: `deriveMeetingFacts()` takes everything it needs as one input (`loadDerivationInput()` does the only database reads) and running it twice yields identical rows. Three steps:
+`src/lib/derivation/` turns stated facts into the resolved roll call, the resolved events and per-subject rows. It is pure and deterministic: `deriveMeetingFacts()` takes everything it needs as one input (`loadDerivationInput()` does the only database reads) and running it twice yields identical rows. Four steps:
 
-1. **Place events** (`placeEvents.ts`) — each event's anchor becomes an index into the meeting's discussion order, the same transcript-derived order the minutes print. An anchor that matches nothing becomes an issue, not a row.
-2. **Replay attendance** (`replayAttendance.ts`) — start from the roll call, apply the placed events subject by subject. Where the body prints a per-decision present list, that list wins for its subject and resets the state from there on. A change it implies without a stated event is reported.
-3. **Derive votes** (`deriveVotes.ts`) — the named votes are `stated`. When the phrase permits it (unanimous, majority, or a counted phrase), every present member the page did not name gets FOR, marked `inferred`. A printed count that disagrees with the rows is reported.
+1. **Resolve the session** (`resolveSession.ts`) — combine every stored page's own roll call, and its own stated arrivals and departures, into one roll call and one set of events. The rule it combines them by depends on the body's conventions ([below](#rules-by-body-convention)).
+2. **Place events** (`placeEvents.ts`) — each event's anchor becomes an index into the meeting's discussion order, the same transcript-derived order the minutes print. An anchor that matches nothing becomes an issue, not a row.
+3. **Replay attendance** (`replayAttendance.ts`) — start from the roll call, apply the placed events subject by subject. Where the body prints a per-decision present list, that list wins for its subject and resets the state from there on. A change it implies without a stated event is reported.
+4. **Derive votes** (`deriveVotes.ts`) — the named votes are `stated`. When the phrase permits it (unanimous, majority, or a counted phrase), every present member the page did not name gets FOR, marked `inferred`. A printed count that disagrees with the rows is reported.
 
 Where a fact is missing, unresolved or contradicted, the derivation returns an issue rather than guessing silently. The closed set of codes is `ISSUE_CODES` in `src/lib/derivation/types.ts`; the site that raises each one says why in its message. Issues are not stored: the decisions page recomputes them on read (`explainMeeting()`), and "Re-derive" (`rederiveMeeting()`) rewrites the rows without polling.
 
-The write replaces every `decision`-sourced `SubjectAttendance` and `SubjectVote` row of the meeting at once. The derivation therefore refuses an input that would empty them: a document read before facts were stored, or no roll call at all. `derivationSkipIssue()` in `persist.ts` says why, and the stored rows stand.
+The write replaces every `decision`-sourced `MeetingAttendance`, `AttendanceEvent`, `SubjectAttendance` and `SubjectVote` row of the meeting at once, in one transaction. `MeetingAttendance` and `AttendanceEvent` rows of source `decision` are derivation output, never read back; rows of any other source are stated facts and outrank the pages. The derivation therefore refuses an input that would empty the rows: a document read before facts were stored, or no roll call at all. `derivationSkipIssue()` in `persist.ts` says why, and the stored rows stand.
 
 ### Conventions (both repos)
 
@@ -101,6 +132,43 @@ The middle one is in this repository because everything that gives it meaning is
 A database with no conventions is not an error, it is silence: every subject derives as «presence unknown» and nothing is printed. A meeting also shows nothing until it has been polled under task v4, since attendance and votes derive from stored readings.
 
 The meeting checker reads whatever rows a meeting last derived to. After changing a record or a derivation rule, run it as `npm run decisions -- check --derive`, or its numbers describe the rule you just replaced.
+
+### Rules by body convention
+
+Two questions about a body's documents, each answered by its own field of `DecisionConventions`:
+
+| question | field | values |
+| --- | --- | --- |
+| Which moment does the top-of-page list describe? | `presentListMeaning` | `opening` — the start, the same on every page. `cumulative` — everyone who attended, late arrivals included, the same on every page. `per_decision` — the state at this page's own decision; it changes from page to page. `unknown` — not settled. |
+| How does a page state a change? | `statesPerVoteAbsence`, `statesPerDecisionAttendance` | A sentence anchors a per-vote absence («αποχώρησε…»). A second list, ΤΑ ΜΕΛΗ, printed after the decision, states `statesPerDecisionAttendance`. |
+
+`resolveSession.ts` combines every page's own roll call and events into one, by these rules (spec §4.1.1):
+
+- **Opening roll call.** For an `opening`, `cumulative` or `unknown` body: the roll call that more than half of the pages with a roll call print. A majority settles a misread. For a `per_decision` body: the roll call of the first page in the derivation's subject order. Either way, each page's own roll call still sets its own subject.
+- **Session changes, a body whose pages carry their own list** (`per_decision`, or `statesPerDecisionAttendance` when at least one usable page of the meeting prints its list): every stated change counts, restatements merge, and a later page's list is checked against it.
+- **Session changes, every other body:** the majority of pages decide, as the pre-C1 task did. A change needs more than half of the pages. A change that half of the pages or fewer state raises `CHANGE_NOT_CORROBORATED`.
+- **A change pinned to the page's own decision** (a per-vote absence): always counts, on its own page, never voted.
+
+Four page checks catch what these rules cannot settle from one page alone:
+
+- `LATE_ARRIVAL_IN_OPENING_LIST` — an `opening` body's page lists a member under ΠΑΡΟΝΤΕΣ that the same page also says arrived later.
+- `NAMED_VOTERS_UNEXPECTED` — a page names voters unlike its body's convention: FOR on a body that names only dissenters, anyone on a body that names nobody, or nobody FOR on a body that names everyone under a phrase that carried.
+- `NAMES_SHARE_ID` — two entries of one list on one page matched to the same person; one match is wrong.
+- `NAME_MATCHED_TWICE` — one printed name matched to two different people on two pages of the same meeting.
+
+The mayor: never a member of a council or a community; a member of a committee only with an active role on it.
+
+### Tools
+
+`npm run decisions -- <command>`, one command at a time:
+
+- `measure` — measures every meeting with stored readings and reports the checks that need attention.
+- `diff` — compares two measure files and reports what changed between them.
+- `derive` — derives one meeting; add `--write` to persist the rows, otherwise it only reports what would change.
+- `trace` — traces one meeting from its pages to its rows, as JSON; `--all --out-dir` traces every meeting.
+- `equivalence` — historical: compares the resolver against the rows the pre-C1 poll handler stored.
+- `check` — compares the derived minutes with the official Πρακτικά golden claims, and prints each meeting's issues under its claims.
+- `reread-count` — counts the linked pages that the next polls will read again, because they have no usable reading. It only reads.
 
 ### Quality path
 
