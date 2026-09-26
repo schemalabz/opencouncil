@@ -124,8 +124,8 @@ export async function getMinutesData(
 
     const meetingDate = new Date(meeting.dateTime);
 
-    // Identify mayor once — used to exclude them from per-subject attendance/votes
-    // (the mayor is shown separately on the ΔΗΜΑΡΧΟΣ line in council composition)
+    // Identify mayor once. A mayor who is not a member of the body is left out of
+    // the rows, the composition and the changes list: the ΔΗΜΑΡΧΟΣ line names them.
     const mayorPersonRow = people.find(p =>
         p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
     ) ?? null;
@@ -370,7 +370,7 @@ export async function getMinutesData(
         const substituteMembers = allMembers.filter(m => substitutePersonIds.has(m.personId));
 
         councilCompositionResult = buildCouncilComposition(
-            regularMembers, substituteMembers, mayor, president, mayorPersonId, getElectedOrder,
+            regularMembers, substituteMembers, mayor, president, mayorExcludedFromRows, getElectedOrder,
         );
 
         absentMembers = meetingAttendance
@@ -387,7 +387,7 @@ export async function getMinutesData(
         const substituteMembers = allMembers.filter(m => substitutePersonIds.has(m.personId));
 
         councilCompositionResult = buildCouncilComposition(
-            regularMembers, substituteMembers, mayor, president, mayorPersonId, getElectedOrder,
+            regularMembers, substituteMembers, mayor, president, mayorExcludedFromRows, getElectedOrder,
         );
     }
 
@@ -397,7 +397,7 @@ export async function getMinutesData(
     const storedEvents = await getAttendanceEventsForMeeting(cityId, meetingId);
     const attendanceChangesSource = storedEvents.length > 0 ? 'events' : 'diff';
     let attendanceChanges: MinutesAttendanceChange[];
-    /** The mayor's own arrivals and departures — printed on the ΔΗΜΑΡΧΟΣ line, not in the list. */
+    /** A non-member mayor's own arrivals and departures — printed on the ΔΗΜΑΡΧΟΣ line, not in the list. */
     let mayorChanges: Array<{ type: 'arrival' | 'departure'; label: string }> = [];
     if (attendanceChangesSource === 'events') {
         const fromEvents = buildAttendanceChangesFromEvents(
@@ -410,7 +410,7 @@ export async function getMinutesData(
                 const person = peopleMap.get(personId);
                 return person ? resolveMember(personId, person.name) : null;
             },
-            mayorPersonId,
+            mayorExcludedFromRows,
         );
         attendanceChanges = fromEvents.changes;
         mayorChanges = fromEvents.mayorChanges;

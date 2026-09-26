@@ -195,7 +195,8 @@ export function buildVoteResult(
  * @param substituteMembers - Substitute members (αναπληρωματικά μέλη)
  * @param mayor - Mayor info, or null if not found
  * @param president - Council president info, or null if not found
- * @param mayorPersonId - Mayor's person ID (to exclude from members list)
+ * @param mayorPersonId - A mayor who is not a member of the body, left out of the
+ *   member lists (the ΔΗΜΑΡΧΟΣ line names them); null keeps a member mayor in them
  * @param getElectedOrder - Resolver for council election order
  */
 export function buildCouncilComposition(
@@ -215,7 +216,6 @@ export function buildCouncilComposition(
         ? { name: formatSurnameFirst(president.name), personId: president.personId }
         : null;
 
-    // Exclude mayor from members list — they're shown separately
     const sortedMembers = members
         .filter(m => m.personId !== mayorPersonId)
         .sort((a, b) => sortByElectedOrder(a, b, getElectedOrder));
@@ -333,8 +333,10 @@ export function mayorAbsentFromNote(note: string | null | undefined): boolean {
  * other side. Session-start arrivals and session-end departures are not changes
  * and are skipped.
  *
- * The mayor's own changes are returned apart from the rest: they belong on the
- * ΔΗΜΑΡΧΟΣ line, not in the list of members who came and went.
+ * `mayorPersonId` is a mayor who is not a member of the body, else null. That
+ * mayor's own changes are returned apart from the rest: they belong on the
+ * ΔΗΜΑΡΧΟΣ line, not in the list of members who came and went. A mayor who is
+ * a member (of a committee) is passed as null, and their changes stay in the list.
  */
 export function buildAttendanceChangesFromEvents(
     events: PlaceableEvent[],
