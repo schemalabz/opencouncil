@@ -1,6 +1,8 @@
 import type { AttendanceTiming } from '@prisma/client';
 import type { DecisionConventions } from '@/lib/decisionConventions';
-import type { DerivationInput, DocumentFacts, EventRow, Issue, NameMatch, PerVoteAbsence, RollCallRow, StatedChange } from './types';
+import { rangeCoversDecision } from './anchors';
+import { placeEvents } from './placeEvents';
+import type { DerivationInput, DocumentFacts, EventRow, Issue, NameMatch, OrderedSubject, PerVoteAbsence, RollCallRow, StatedChange } from './types';
 
 /**
  * What the pages of one meeting state together (spec §4.1.1). Pure: it reads
@@ -126,19 +128,123 @@ function mostStatedTiming(votes: Map<AttendanceTiming | null, number>): Attendan
     return best;
 }
 
-/** A per-vote absence as one page's departure before and arrival after the decisions it names. */
+/**
+ * A change the resolver makes from a per-vote absence: the person and the
+ * sentence of the statement `a`, with the anchor given and every other anchor
+ * field empty.
+ */
+const absenceChange = (
+    a: PerVoteAbsence, kind: StatedChange['kind'],
+    anchor: Pick<StatedChange, 'anchorKind' | 'timing'> & Partial<Pick<StatedChange, 'anchorDecisionNumber' | 'anchorSubjectId'>>,
+): StatedChange => ({
+    personId: a.personId, kind, anchorAgendaItemIndex: null, anchorNonAgendaReason: null, anchorDecisionNumber: null,
+    anchorSubjectId: null, anchorPhase: null, rawText: a.rawText, ...anchor,
+});
+
+/** A per-vote absence as one page's departure before and arrival after the decisions it names: for an absence no subject of the order can hold. */
 function perPageExpansion(a: PerVoteAbsence, subjectId: string): StatedChange[] {
-    const at = (kind: StatedChange['kind'], decisionNumber: string | null, timing: StatedChange['timing']): StatedChange => ({
-        personId: a.personId, kind, anchorKind: decisionNumber === null ? 'SUBJECT' : 'DECISION_NUMBER', anchorAgendaItemIndex: null,
-        anchorNonAgendaReason: null, anchorDecisionNumber: decisionNumber, anchorSubjectId: decisionNumber === null ? subjectId : null,
-        anchorPhase: null, timing, rawText: a.rawText,
-    });
+    const at = (kind: StatedChange['kind'], decisionNumber: string | null, timing: StatedChange['timing']) => absenceChange(a, kind, decisionNumber === null
+        ? { anchorKind: 'SUBJECT', anchorSubjectId: subjectId, timing }
+        : { anchorKind: 'DECISION_NUMBER', anchorDecisionNumber: decisionNumber, timing });
     return [at('DEPARTURE', a.decisionNumberFrom, 'BEFORE'), at('ARRIVAL', a.decisionNumberTo, 'AFTER')];
 }
 
 /**
+ * The subjects a range of decisions covers, as indices in the derivation's
+ * order: every subject from the first whose decision the range includes to the
+ * last. A subject between them with no decision number is covered too.
+ */
+function rangeSpan(subjects: OrderedSubject[], a: PerVoteAbsence): number[] {
+    const matching = subjects.flatMap((s, i) => (rangeCoversDecision(a, s.decisionNumber) ? [i] : []));
+    if (matching.length === 0) return [];
+    const first = matching[0], last = matching[matching.length - 1];
+    return Array.from({ length: last - first + 1 }, (_, k) => first + k);
+}
+
+/** One page's statement of a per-vote absence, with its position in the walk over the pages. */
+interface AbsenceStatement { seq: number; page: DocumentFacts; absence: PerVoteAbsence }
+
+/** The changes pinned to pages, in the order of the first statement of each, and the pages that state each. */
+type OwnChange = { seq: number; changes: StatedChange[]; pages: DocumentFacts[] };
+
+/**
+ * The per-vote absences of the session, combined by the maintainer's rule (C5).
+ * A member out for consecutive subjects in the derivation's order left once,
+ * before the first, and came back once, before the first later subject whose
+ * page does not state the absence; a run that reaches the last subject has no
+ * return. A range of decisions covers every subject whose decision it includes,
+ * so a range is one departure before its first decision and one arrival after
+ * its last, and a page that states the absence of one of those decisions again
+ * joins the same run. A subject with no decision number between two decisions
+ * of a range is part of the range. Each run counts the pages that state it.
+ *
+ * A boundary that a range states is anchored at its decision number, when that
+ * number places the event where the run starts or ends. Every other boundary is
+ * anchored at the subject. An absence that no subject of the order holds (a
+ * range with no decision in the meeting, a page off the order) keeps one
+ * departure and one arrival, so the replay reports the anchor it cannot place.
+ */
+function perVoteAbsenceChanges(subjects: OrderedSubject[], statements: AbsenceStatement[]): OwnChange[] {
+    const indexOf = new Map(subjects.map((s, i) => [s.id, i]));
+    const covering = new Map<string, Map<number, AbsenceStatement[]>>();
+    const out: OwnChange[] = [];
+    const unplaced = new Map<string, OwnChange>();
+    for (const st of statements) {
+        const { absence: a, page } = st;
+        const own = indexOf.get(page.subjectId);
+        const covered = a.decisionNumberFrom === null
+            ? (own === undefined ? [] : [own])
+            : rangeSpan(subjects, a);
+        if (covered.length === 0) {
+            const key = `${a.personId}|${a.decisionNumberFrom ?? `own:${page.subjectId}`}|${a.decisionNumberTo ?? ''}`;
+            const g = unplaced.get(key);
+            if (!g) unplaced.set(key, { seq: st.seq, changes: perPageExpansion(a, page.subjectId), pages: [page] });
+            else if (!g.pages.includes(page)) g.pages.push(page);
+            continue;
+        }
+        const byIndex = covering.get(a.personId) ?? new Map<number, AbsenceStatement[]>();
+        covering.set(a.personId, byIndex);
+        for (const i of covered) byIndex.set(i, [...(byIndex.get(i) ?? []), st]);
+    }
+    out.push(...unplaced.values());
+
+    const firstStated = (sts: AbsenceStatement[]) => sts.reduce((x, y) => (y.seq < x.seq ? y : x));
+    /**
+     * The range's own boundary, when it takes effect at `effectAt`; else the
+     * subject there. The event keeps the sentence of the statement whose anchor it uses.
+     */
+    const boundary = (kind: StatedChange['kind'], sts: AbsenceStatement[], effectAt: number): StatedChange => {
+        const ordered = [...sts].sort((x, y) => x.seq - y.seq);
+        for (const { absence: a } of ordered) {
+            if (a.decisionNumberFrom === null) continue;
+            const stated = kind === 'DEPARTURE'
+                ? absenceChange(a, kind, { anchorKind: 'DECISION_NUMBER', anchorDecisionNumber: a.decisionNumberFrom, timing: 'BEFORE' })
+                : absenceChange(a, kind, { anchorKind: 'DECISION_NUMBER', anchorDecisionNumber: a.decisionNumberTo, timing: 'AFTER' });
+            if (placeEvents(subjects, [stated]).placed[0]?.effectAt === effectAt) return stated;
+        }
+        return absenceChange(ordered[0].absence, kind, { anchorKind: 'SUBJECT', anchorSubjectId: subjects[effectAt].id, timing: 'BEFORE' });
+    };
+    for (const byIndex of covering.values()) {
+        const indices = [...byIndex.keys()].sort((x, y) => x - y);
+        let start = 0;
+        for (let k = 0; k < indices.length; k++) {
+            if (k + 1 < indices.length && indices[k + 1] === indices[k] + 1) continue;
+            const first = indices[start], last = indices[k];
+            start = k + 1;
+            const run = indices.filter(i => i >= first && i <= last).flatMap(i => byIndex.get(i)!);
+            const pages = [...new Set([...run].sort((x, y) => x.seq - y.seq).map(st => st.page))];
+            const changes = [boundary('DEPARTURE', byIndex.get(first)!, first)];
+            if (last + 1 < subjects.length) changes.push(boundary('ARRIVAL', byIndex.get(last)!, last + 1));
+            out.push({ seq: firstStated(run).seq, changes, pages });
+        }
+    }
+    return out;
+}
+
+/**
  * The session's arrivals and departures. A change pinned to a page's own
- * decision always counts. A change pinned elsewhere counts where the pages carry
+ * decision always counts, and so does a per-vote absence, combined across the
+ * pages (`perVoteAbsenceChanges`). A change pinned elsewhere counts where the pages carry
  * their own list (`pagesCarryOwnList`: those lists then show whether it happened,
  * and the replay reports a list that contradicts it) and, in every other body,
  * when more than half of the pages state it. Those bodies repeat the session on
@@ -147,10 +253,11 @@ function perPageExpansion(a: PerVoteAbsence, subjectId: string): StatedChange[] 
  *
  * Order is part of the result: the replay settles a contradiction with "first
  * wins". Session changes come in the order of the first page that states them,
- * then the per-page changes in page order. Ids are deterministic so the minutes,
+ * then the changes pinned to pages and the per-vote absences, in the order of
+ * their first statement in page order. Ids are deterministic so the minutes,
  * which read the stored events ordered by `createdAt, id`, see this order.
  */
-export function resolveEvents(input: Pick<DerivationInput, 'cityId' | 'meetingId' | 'documents' | 'conventions'>): Pick<ResolvedSession, 'events' | 'issues'> {
+export function resolveEvents(input: Pick<DerivationInput, 'cityId' | 'meetingId' | 'documents' | 'conventions' | 'subjects'>): Pick<ResolvedSession, 'events' | 'issues'> {
     const pages = usablePages(input.documents);
     const total = pages.length;
     const everyStatedChangeCounts = pagesCarryOwnList(input.conventions, pages);
@@ -182,9 +289,17 @@ export function resolveEvents(input: Pick<DerivationInput, 'cityId' | 'meetingId
         }
         events.push({ ...g.change, timing: mostStatedTiming(g.timings), id: id(), reportingDocuments: stated, totalDocuments: total, source: 'decision' });
     }
+    // The changes pinned to pages, in the order of their first statement in the page walk.
+    let seq = 0;
+    const own: OwnChange[] = [];
+    const absences: AbsenceStatement[] = [];
     for (const d of pages) {
-        const own = [...d.statedChanges.filter(c => c.anchorKind === 'SUBJECT'), ...d.perVoteAbsences.flatMap(a => perPageExpansion(a, d.subjectId))];
-        for (const c of own) events.push({ ...c, id: id(), reportingDocuments: 1, totalDocuments: total, source: 'decision' });
+        for (const c of d.statedChanges) if (c.anchorKind === 'SUBJECT') own.push({ seq: seq++, changes: [c], pages: [d] });
+        for (const a of d.perVoteAbsences) absences.push({ seq: seq++, page: d, absence: a });
+    }
+    own.push(...perVoteAbsenceChanges(input.subjects, absences));
+    for (const o of own.sort((x, y) => x.seq - y.seq)) {
+        for (const c of o.changes) events.push({ ...c, id: id(), reportingDocuments: o.pages.length, totalDocuments: total, source: 'decision' });
     }
     return { events, issues };
 }
@@ -193,8 +308,10 @@ export function resolveEvents(input: Pick<DerivationInput, 'cityId' | 'meetingId
  * A page of an `opening` body that lists under ΠΑΡΟΝΤΕΣ a member it says arrived
  * later: the reader moved the arrival into the list (Athens 7η jan22_2026, 4 of
  * 22 pages). The roll-call majority already settles which list stands; this names
- * the page so a person can label it. A session-start arrival and the return after
- * a per-vote absence are not late arrivals.
+ * the page so a person can label it. A session-start arrival is not a late
+ * arrival. A return after a per-vote absence is not a stated change
+ * (`DocumentFacts.perVoteAbsences`), so an arrival pinned to the page's own
+ * subject is a real arrival and counts.
  */
 export function lateArrivalsInOpeningList(input: Pick<DerivationInput, 'documents' | 'conventions'>): Issue[] {
     if (input.conventions?.presentListMeaning !== 'opening') return [];
@@ -202,7 +319,7 @@ export function lateArrivalsInOpeningList(input: Pick<DerivationInput, 'document
     for (const d of usablePages(input.documents)) {
         const present = new Set(d.rollCallPresentIds ?? []);
         for (const c of d.statedChanges) {
-            if (c.kind !== 'ARRIVAL' || c.anchorKind === 'SESSION_START' || c.anchorKind === 'SUBJECT' || !present.has(c.personId)) continue;
+            if (c.kind !== 'ARRIVAL' || c.anchorKind === 'SESSION_START' || !present.has(c.personId)) continue;
             issues.push({ code: 'LATE_ARRIVAL_IN_OPENING_LIST', subjectId: d.subjectId, decisionId: d.decisionId, personId: c.personId, source: 'decision', rawText: c.rawText, params: {} });
         }
     }

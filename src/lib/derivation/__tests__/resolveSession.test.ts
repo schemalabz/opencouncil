@@ -1,6 +1,7 @@
+import { pageStatementsOf } from '../anchors';
 import { lateArrivalsInOpeningList, nameMatchIssues, pagesCarryOwnList, resolveEvents, resolveRollCall, resolveSession } from '../resolveSession';
 import type { DecisionConventions } from '@/lib/decisionConventions';
-import type { DerivationInput, DocumentFacts, PerVoteAbsence, StatedChange } from '../types';
+import type { DerivationInput, DocumentFacts, OrderedSubject, PerVoteAbsence, StatedChange } from '../types';
 
 const conv = (o: Partial<DecisionConventions> = {}): DecisionConventions => ({
     version: 1, rollCallLayout: 'present_and_absent', presentListMeaning: 'opening', attendanceChangeAnchors: ['agenda_item'],
@@ -103,7 +104,7 @@ describe('resolveRollCall rollCallBasis', () => {
 });
 
 describe('resolveEvents', () => {
-    const base = { cityId: 'c', meetingId: 'm', conventions: conv() };
+    const base = { cityId: 'c', meetingId: 'm', conventions: conv(), subjects: [] as OrderedSubject[] };
 
     it('keeps a change more than half of the pages state, with its count', () => {
         const r = resolveEvents({ ...base, documents: [page(['a']), page(['a'], [], { statedChanges: [departure('b', 1)] }), page(['a'], [], { statedChanges: [departure('b', 1)] })] });
@@ -173,20 +174,114 @@ describe('resolveEvents', () => {
         expect(r.events.map(e => [e.personId, e.anchorKind, e.reportingDocuments])).toEqual([['b', 'AGENDA_ITEM', 2], ['c', 'SUBJECT', 1]]);
     });
 
-    it('turns a per-vote absence into a departure before and an arrival after the decisions it names, after the session changes', () => {
-        const absence = (o: Partial<PerVoteAbsence> = {}): PerVoteAbsence => ({ personId: 'c', decisionNumberFrom: null, decisionNumberTo: null, rawText: 'απουσίαζε', ...o });
-        const own = page(['a'], [], { perVoteAbsences: [absence()] });
-        const range = page(['a'], [], { perVoteAbsences: [absence({ decisionNumberFrom: '31', decisionNumberTo: '40' })] });
-        const r = resolveEvents({ ...base, conventions: conv({ statesPerDecisionAttendance: true }), documents: [own, range] });
-        expect(r.events.map(e => [e.kind, e.anchorKind, e.anchorSubjectId, e.anchorDecisionNumber, e.timing])).toEqual([
-            ['DEPARTURE', 'SUBJECT', own.subjectId, null, 'BEFORE'], ['ARRIVAL', 'SUBJECT', own.subjectId, null, 'AFTER'],
-            ['DEPARTURE', 'DECISION_NUMBER', null, '31', 'BEFORE'], ['ARRIVAL', 'DECISION_NUMBER', null, '40', 'AFTER'],
-        ]);
-    });
-
     it('ignores a page without a usable reading', () => {
         const r = resolveEvents({ ...base, documents: [page(['a'], [], { statedChanges: [departure('b', 1)] }), page(['a'], [], { hasExtraction: false })] });
         expect(r.events.map(e => [e.personId, e.totalDocuments])).toEqual([['b', 1]]);
+    });
+});
+
+describe('resolveEvents: per-vote absences (C5)', () => {
+    // Items 1–6, decisions 30–35, one page each.
+    const subjects: OrderedSubject[] = [1, 2, 3, 4, 5, 6].map(i => ({ id: `item${i}`, name: `item ${i}`, agendaItemIndex: i, nonAgendaReason: null, decisionNumber: `${29 + i}/2026` }));
+    const absence = (o: Partial<PerVoteAbsence> = {}): PerVoteAbsence => ({ personId: 'x', decisionNumberFrom: null, decisionNumberTo: null, rawText: 'απουσίαζε ο Χ', ...o });
+    const pages = (absent: Record<number, PerVoteAbsence[]>) => subjects.map((s, i) => page(['a', 'x'], [], { subjectId: s.id, perVoteAbsences: absent[i + 1] ?? [] }));
+    const resolve = (documents: DocumentFacts[], conventions = conv()) => resolveEvents({ cityId: 'c', meetingId: 'm', conventions, subjects, documents });
+    const shape = (r: ReturnType<typeof resolve>) => r.events.map(e => [e.personId, e.kind, e.anchorKind, e.anchorSubjectId ?? e.anchorDecisionNumber, e.timing, e.reportingDocuments]);
+
+    it('makes a run of consecutive subjects one departure before the first and one arrival before the next', () => {
+        const r = resolve(pages({ 2: [absence()], 3: [absence()], 4: [absence()] }));
+        expect(shape(r)).toEqual([['x', 'DEPARTURE', 'SUBJECT', 'item2', 'BEFORE', 3], ['x', 'ARRIVAL', 'SUBJECT', 'item5', 'BEFORE', 3]]);
+        expect(r.issues).toEqual([]);
+    });
+
+    it('makes two runs of subjects with a gap between them', () => {
+        const r = resolve(pages({ 3: [absence()], 5: [absence()] }));
+        expect(shape(r)).toEqual([
+            ['x', 'DEPARTURE', 'SUBJECT', 'item3', 'BEFORE', 1], ['x', 'ARRIVAL', 'SUBJECT', 'item4', 'BEFORE', 1],
+            ['x', 'DEPARTURE', 'SUBJECT', 'item5', 'BEFORE', 1], ['x', 'ARRIVAL', 'SUBJECT', 'item6', 'BEFORE', 1],
+        ]);
+    });
+
+    it('states no return for a run that reaches the last subject', () => {
+        expect(shape(resolve(pages({ 5: [absence()], 6: [absence()] })))).toEqual([['x', 'DEPARTURE', 'SUBJECT', 'item5', 'BEFORE', 2]]);
+    });
+
+    it('breaks a run at a subject with no page, which states nothing', () => {
+        const documents = pages({ 2: [absence()], 4: [absence()] }).filter(d => d.subjectId !== 'item3');
+        expect(shape(resolve(documents)).map(e => [e[1], e[3]])).toEqual([['DEPARTURE', 'item2'], ['ARRIVAL', 'item3'], ['DEPARTURE', 'item4'], ['ARRIVAL', 'item5']]);
+    });
+
+    it('makes a range stated on several pages one departure before its first decision and one arrival after its last', () => {
+        const range = absence({ decisionNumberFrom: '31', decisionNumberTo: '33', rawText: 'Εκτός αιθούσης στις με αρ. 31 – 33' });
+        // Items 2–4 are decisions 31–33. Item 3 states it as its own decision: the same absence.
+        const r = resolve(pages({ 2: [range], 3: [absence()], 4: [range] }));
+        expect(shape(r)).toEqual([['x', 'DEPARTURE', 'DECISION_NUMBER', '31', 'BEFORE', 3], ['x', 'ARRIVAL', 'DECISION_NUMBER', '33', 'AFTER', 3]]);
+        expect(r.events.map(e => e.rawText)).toEqual(['Εκτός αιθούσης στις με αρ. 31 – 33', 'Εκτός αιθούσης στις με αρ. 31 – 33']);
+    });
+
+    it('covers a subject with no decision number inside a range', () => {
+        // Decisions 31, 32, (none), 33, 34, 35: the range 31–34 is one absence across the subject with no number.
+        const numbered: OrderedSubject[] = ['31', '32', null, '33', '34', '35'].map((decisionNumber, i) => ({
+            id: `n${i}`, name: `n${i}`, agendaItemIndex: i + 1, nonAgendaReason: null, decisionNumber,
+        }));
+        const range = absence({ decisionNumberFrom: '31', decisionNumberTo: '34', rawText: 'Εκτός αιθούσης 31 – 34' });
+        const documents = numbered.filter(s => s.decisionNumber !== null)
+            .map(s => page(['a', 'x'], [], { subjectId: s.id, perVoteAbsences: s.id === 'n0' ? [range] : [] }));
+        const r = resolveEvents({ cityId: 'c', meetingId: 'm', conventions: conv(), subjects: numbered, documents });
+        expect(shape(r)).toEqual([['x', 'DEPARTURE', 'DECISION_NUMBER', '31', 'BEFORE', 1], ['x', 'ARRIVAL', 'DECISION_NUMBER', '34', 'AFTER', 1]]);
+    });
+
+    it("gives a range boundary the sentence of the statement whose anchor it uses", () => {
+        const range = absence({ decisionNumberFrom: '31', decisionNumberTo: '33', rawText: 'Εκτός αιθούσης στις με αρ. 31 – 33' });
+        // Item 2 (decision 31) states the absence as its own decision first; item 3 states the range.
+        const r = resolve(pages({ 2: [absence()], 3: [range] }));
+        expect(shape(r)).toEqual([['x', 'DEPARTURE', 'DECISION_NUMBER', '31', 'BEFORE', 2], ['x', 'ARRIVAL', 'DECISION_NUMBER', '33', 'AFTER', 2]]);
+        expect(r.events.map(e => e.rawText)).toEqual(['Εκτός αιθούσης στις με αρ. 31 – 33', 'Εκτός αιθούσης στις με αρ. 31 – 33']);
+        // A boundary at the subject keeps the sentence of the first statement there.
+        const own = resolve(pages({ 2: [absence({ rawText: 'πρώτη' })], 3: [absence({ rawText: 'δεύτερη' })] }));
+        expect(own.events.map(e => [e.kind, e.rawText])).toEqual([['DEPARTURE', 'πρώτη'], ['ARRIVAL', 'δεύτερη']]);
+    });
+
+    it('anchors at the subject a range boundary whose decision number places elsewhere', () => {
+        // Decision 32 is missing from the meeting: «after 32» is before item 4 (decision 33), where the run ends.
+        const documents = pages({ 2: [absence({ decisionNumberFrom: '31', decisionNumberTo: '32' })] }).filter(d => d.subjectId !== 'item3');
+        const r = resolveEvents({ cityId: 'c', meetingId: 'm', conventions: conv(), subjects: subjects.filter(s => s.id !== 'item3'), documents });
+        expect(shape(r)).toEqual([['x', 'DEPARTURE', 'DECISION_NUMBER', '31', 'BEFORE', 1], ['x', 'ARRIVAL', 'SUBJECT', 'item4', 'BEFORE', 1]]);
+    });
+
+    it('keeps one departure and one arrival for an absence that no subject holds, so the replay can report the anchor', () => {
+        const beyond = absence({ decisionNumberFrom: '90', decisionNumberTo: '95' });
+        const r = resolve([...pages({ 1: [beyond], 2: [beyond] }), page(['a'], [], { subjectId: 'off-order', perVoteAbsences: [absence()] })]);
+        expect(shape(r)).toEqual([
+            ['x', 'DEPARTURE', 'DECISION_NUMBER', '90', 'BEFORE', 2], ['x', 'ARRIVAL', 'DECISION_NUMBER', '95', 'AFTER', 2],
+            ['x', 'DEPARTURE', 'SUBJECT', 'off-order', 'BEFORE', 1], ['x', 'ARRIVAL', 'SUBJECT', 'off-order', 'AFTER', 1],
+        ]);
+    });
+
+    it('gives the same events for the stored pair shape and the new entry', () => {
+        const rawText = 'Κατά τη διαδικασία της ψηφοφορίας απουσίαζε ο Χ';
+        const anchor = { agendaItemIndex: null, nonAgendaReason: null, decisionNumber: null, phase: null };
+        const pair = (subjectId: string) => [
+            { personId: 'x', name: 'Χ', type: 'departure', rawText, anchor: { ...anchor, kind: 'subject', subjectId, timing: 'before' } },
+            { personId: 'x', name: 'Χ', type: 'arrival', rawText, anchor: { ...anchor, kind: 'subject', subjectId, timing: 'after' } },
+        ];
+        const entry = { personId: 'x', name: 'Χ', type: 'absent_for_vote', rawText, anchor: { ...anchor, kind: 'this_document', decisionNumberTo: null, timing: null } };
+        const read = (entries: (subjectId: string) => unknown[]) =>
+            subjects.map((s, i) => page(['a', 'x'], [], { subjectId: s.id, ...pageStatementsOf(i >= 1 && i <= 3 ? entries(s.id) : []) }));
+        const stored = resolve(read(pair)), fresh = resolve(read(() => [entry]));
+        expect(stored).toEqual(fresh);
+        expect(shape(fresh)).toEqual([['x', 'DEPARTURE', 'SUBJECT', 'item2', 'BEFORE', 3], ['x', 'ARRIVAL', 'SUBJECT', 'item5', 'BEFORE', 3]]);
+    });
+
+    it('orders the absences with the changes pinned to pages, by their first statement, after the session changes', () => {
+        const pinned: StatedChange = { ...departure('y', 0), anchorKind: 'SUBJECT', anchorAgendaItemIndex: null, anchorSubjectId: 'item3', timing: 'DURING' };
+        const documents = pages({ 2: [absence()], 3: [absence()] });
+        documents[2] = { ...documents[2], statedChanges: [pinned, departure('z', 1)] };
+        documents[3] = { ...documents[3], statedChanges: [departure('z', 1)] };
+        const r = resolve(documents, conv({ presentListMeaning: 'per_decision' }));
+        expect(r.events.map(e => [e.personId, e.kind, e.id])).toEqual([
+            ['z', 'DEPARTURE', 'c:m:ev0000'], ['x', 'DEPARTURE', 'c:m:ev0001'], ['x', 'ARRIVAL', 'c:m:ev0002'], ['y', 'DEPARTURE', 'c:m:ev0003'],
+        ]);
     });
 });
 
@@ -216,7 +311,22 @@ describe('lateArrivalsInOpeningList', () => {
     it('says nothing for a cumulative body, a session-start arrival or a return after a per-vote absence', () => {
         const pages = [page(['a', 'g'], [], { statedChanges: [arrival('g'), arrival('a', 'SESSION_START'), arrival('a', 'SUBJECT')] })];
         expect(lateArrivalsInOpeningList({ conventions: conv({ presentListMeaning: 'cumulative' }), documents: pages })).toEqual([]);
-        expect(lateArrivalsInOpeningList({ conventions: conv(), documents: [page(['a'], [], { statedChanges: [arrival('a', 'SESSION_START'), arrival('a', 'SUBJECT')] })] })).toEqual([]);
+        expect(lateArrivalsInOpeningList({ conventions: conv(), documents: [page(['a'], [], { statedChanges: [arrival('a', 'SESSION_START')] })] })).toEqual([]);
+        // The stored pair of an older reading is a per-vote absence, not a stated arrival.
+        const anchor = { kind: 'subject', subjectId: 's', agendaItemIndex: null, nonAgendaReason: null, decisionNumber: null, phase: null };
+        const pair = pageStatementsOf([
+            { personId: 'a', name: 'Α', type: 'departure', rawText: 'απουσίαζε ο Α', anchor: { ...anchor, timing: 'before' } },
+            { personId: 'a', name: 'Α', type: 'arrival', rawText: 'απουσίαζε ο Α', anchor: { ...anchor, timing: 'after' } },
+        ]);
+        expect(lateArrivalsInOpeningList({ conventions: conv(), documents: [page(['a'], [], pair)] })).toEqual([]);
+    });
+
+    it("reports an arrival pinned to the page's own subject in an opening list", () => {
+        // «προσήλθε κατά τη συζήτηση του θέματος» on the page of that subject, with the member under ΠΑΡΟΝΤΕΣ.
+        const pages = [page(['a'], [], { statedChanges: [arrival('a', 'SUBJECT')] })];
+        expect(lateArrivalsInOpeningList({ conventions: conv(), documents: pages })).toEqual([
+            expect.objectContaining({ code: 'LATE_ARRIVAL_IN_OPENING_LIST', personId: 'a', decisionId: pages[0].decisionId }),
+        ]);
     });
 });
 

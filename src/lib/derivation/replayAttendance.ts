@@ -1,5 +1,6 @@
 import type { AttendanceStatus } from '@prisma/client';
 import type { DecisionConventions } from '@/lib/decisionConventions';
+import { outForOwnVote, rangeCoversDecision } from './anchors';
 import { placeEvents, type PlacedEvent } from './placeEvents';
 import { sourceRank } from './types';
 import type { DerivedAttendanceRow, DocumentFacts, EventRow, Issue, IssueParams, OrderedSubject, RollCallRow } from './types';
@@ -126,6 +127,23 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
     const byIndex = new Map<number, EventRow[]>();
     for (const p of placed) byIndex.set(p.effectAt, [...(byIndex.get(p.effectAt) ?? []), p.event]);
     const docBySubject = new Map(input.documents.map(d => [d.subjectId, d]));
+    /**
+     * Per subject, the members a range of decisions on any page puts out of the
+     * room for that subject's decision, with the sentence. The run's departure is
+     * at its first subject, so a later subject of the range has no event of its own.
+     */
+    const outByRange = new Map<string, Map<string, string>>();
+    for (const d of input.documents) {
+        for (const a of d.perVoteAbsences) {
+            if (a.decisionNumberFrom === null) continue;
+            for (const s of subjects) {
+                if (!rangeCoversDecision(a, s.decisionNumber)) continue;
+                const out = outByRange.get(s.id) ?? new Map<string, string>();
+                outByRange.set(s.id, out);
+                if (!out.has(a.personId)) out.set(a.personId, a.rawText);
+            }
+        }
+    }
 
     const ranked = rankRollCall(rollCall);
     issues.push(...ranked.issues);
@@ -164,7 +182,10 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
      * member out for two decisions running has an arrival and a departure at one
      * point. Those are two documents each describing their own vote, in time order,
      * and the later one stands. Only this shape: a return stated any other way
-     * against a departure is still two sources disagreeing.
+     * against a departure is still two sources disagreeing. The resolver combines
+     * the pages' per-vote absences into one departure and one arrival per run
+     * (resolveSession.ts), so this settles the pair shape only when it reaches the
+     * replay some other way.
      */
     const outAgainForTheNextVote = (a: EventRow, b: EventRow, i: number, subjectId: string): EventRow | null => {
         const [back, out] = a.kind === 'ARRIVAL' ? [a, b] : [b, a];
@@ -207,10 +228,24 @@ export function replayAttendance(input: ReplayInput): ReplayResult {
         const namedByPageRollCall = perDecisionRollCall ? new Set([...perDecisionRollCall, ...pageAbsent]) : null;
         if (perDecisionRollCall && doc) {
             const eventHere = new Map(eventsHere.map(e => [e.personId, e]));
+            // The page's own word that a member was out for this decision outranks its
+            // roll call, as a departure pinned here does below. A run of per-vote
+            // absences has one departure, before its first subject, so the later
+            // subjects of the run have no event of their own to say it.
+            const outForThisVote = outForOwnVote(doc, s.decisionNumber);
             for (const personId of new Set([...doc.rollCallPresentIds ?? [], ...doc.rollCallAbsentIds ?? []])) {
                 if (personId === mayorPersonId) continue;
+                if (outForThisVote.has(personId)) { state.set(personId, 'ABSENT'); continue; }
                 const status: AttendanceStatus = perDecisionRollCall.has(personId) ? 'PRESENT' : 'ABSENT';
                 const contradicted = eventHere.get(personId);
+                const rangeSentence = outByRange.get(s.id)?.get(personId);
+                if (!contradicted && status === 'PRESENT' && rangeSentence !== undefined) {
+                    // A range on another page puts the member out for this decision, and
+                    // this page lists them present without stating the absence: the page's
+                    // roll call is the state, and the disagreement is reported.
+                    issues.push({ code: 'SOURCES_DISAGREE', subjectId: s.id, personId, decisionId: doc.decisionId, source: 'decision',
+                        rawText: rangeSentence, params: { kind: 'statedList', status, eventKind: 'DEPARTURE', rawText: rangeSentence } });
+                }
                 if (contradicted && (contradicted.kind === 'ARRIVAL') !== (status === 'PRESENT')) {
                     // A departure the page states for this very item («κατά την λήψη της
                     // παρούσας απόφασης είχαν αποχωρήσει») is its more specific word on that

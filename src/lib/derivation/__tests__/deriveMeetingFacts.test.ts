@@ -100,6 +100,40 @@ describe('deriveMeetingFacts', () => {
         // No arrival is stated here, so the meaning could not have changed a row.
         expect(out.issues.filter(i => i.code === 'PRESENCE_UNKNOWN')).toEqual([]);
     });
+    describe('per-vote absences on a per_decision body (C5)', () => {
+        // Four items; the member p2 is out for the votes on items 2 and 3, and each of those pages says so.
+        const subjects = [1, 2, 3, 4].map(i => ({ id: `s${i}`, name: `${i}`, agendaItemIndex: i, nonAgendaReason: null, decisionNumber: `${9 + i}` }));
+        const conventions = { ...base.conventions!, presentListMeaning: 'per_decision' as const, statesPerDecisionAttendance: true };
+        const outForVote = [{ personId: 'p2', decisionNumberFrom: null, decisionNumberTo: null, rawText: 'απουσίαζε ο p2' }];
+        const pageOf = (i: number, present: string[], absent: string[], members: string[], out: boolean) => ({
+            ...base.documents[0], subjectId: `s${i}`, decisionId: `d${i}`, unmatchedNames: [], presidedById: null, presidedByName: null,
+            rollCallPresentIds: present, rollCallAbsentIds: absent, presentIds: members, perVoteAbsences: out ? outForVote : [],
+        });
+        const derive = (documents: DerivationInput['documents']) => deriveMeetingFacts({ ...base, rollCall: [], mayorPersonId: null, subjects, conventions, documents });
+        const absentOn = (out: ReturnType<typeof derive>) => subjects.filter(s => out.attendance.some(a => a.subjectId === s.id && a.personId === 'p2' && a.status === 'ABSENT')).map(s => s.id);
+        const attendanceIssues = (out: ReturnType<typeof derive>) => out.issues.filter(i => ['SOURCES_DISAGREE', 'IMPLIED_CHANGE', 'LIST_DROPS_PRESENT', 'LIST_ADDS_ABSENT'].includes(i.code));
+
+        it('raises no contradiction where the pages own lists already mark the member absent', () => {
+            const out = derive([
+                pageOf(1, ['p1', 'p2'], [], ['p1', 'p2'], false), pageOf(2, ['p1'], ['p2'], ['p1'], true),
+                pageOf(3, ['p1'], ['p2'], ['p1'], true), pageOf(4, ['p1', 'p2'], [], ['p1', 'p2'], false),
+            ]);
+            expect(out.events.map(e => [e.kind, e.anchorSubjectId])).toEqual([['DEPARTURE', 's2'], ['ARRIVAL', 's4']]);
+            expect(absentOn(out)).toEqual(['s2', 's3']);
+            expect(attendanceIssues(out)).toEqual([]);
+        });
+
+        it('keeps the member absent on a later page of the run whose roll call lists them present', () => {
+            // ΠΑΡΟΝΤΕΣ names p2 on items 2 and 3. ΤΑ ΜΕΛΗ leaves p2 out: `documentFactsFromDecision` removes a member out for the vote.
+            const out = derive([
+                pageOf(1, ['p1', 'p2'], [], ['p1', 'p2'], false), pageOf(2, ['p1', 'p2'], [], ['p1'], true),
+                pageOf(3, ['p1', 'p2'], [], ['p1'], true), pageOf(4, ['p1', 'p2'], [], ['p1', 'p2'], false),
+            ]);
+            expect(absentOn(out)).toEqual(['s2', 's3']);
+            expect(attendanceIssues(out)).toEqual([]);
+        });
+    });
+
     describe('the roll call and the changes the pages state', () => {
         const departure = { personId: 'p2', kind: 'DEPARTURE' as const, anchorKind: 'AGENDA_ITEM' as const, anchorAgendaItemIndex: 1, anchorNonAgendaReason: null,
             anchorDecisionNumber: null, anchorSubjectId: null, anchorPhase: null, timing: 'AFTER' as const, rawText: 'αποχώρησε μετά το 1ο θέμα' };

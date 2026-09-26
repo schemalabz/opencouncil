@@ -59,6 +59,22 @@ describe('replayAttendance', () => {
         expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', subjectId: 's2', personId: 'p2',
             params: expect.objectContaining({ kind: 'statedList', status: 'PRESENT', eventKind: 'DEPARTURE' }) })]);
     });
+    it('a per-decision roll call that lists a member a range from another page puts out of the room is reported', () => {
+        // The page of decision 31 states «Εκτός αιθούσης στις με αρ. 31 – 33» for p2. The page of decision 32
+        // does not state the absence and lists p2 under ΠΑΡΟΝΤΕΣ: its roll call stands, and the two pages disagree.
+        const numbered = ['31', '32', '33'].map((decisionNumber, i) => ({ ...subj(`s${i + 1}`, i + 1), decisionNumber }));
+        const range = { personId: 'p2', decisionNumberFrom: '31', decisionNumberTo: '33', rawText: 'Εκτός αιθούσης στις με αρ. 31 – 33' };
+        const r = replayAttendance({ subjects: numbered, rollCall: [rc('p1'), rc('p2')], conventions: conv({ presentListMeaning: 'per_decision' }), mayorPersonId: null,
+            events: [ev({ personId: 'p2', kind: 'DEPARTURE', anchorKind: 'DECISION_NUMBER', anchorDecisionNumber: '31', timing: 'BEFORE', rawText: range.rawText })],
+            documents: [
+                doc('s1', { rollCallPresentIds: ['p1'], rollCallAbsentIds: ['p2'], perVoteAbsences: [range] }),
+                doc('s2', { rollCallPresentIds: ['p1', 'p2'], rollCallAbsentIds: [] }),
+                doc('s3', { rollCallPresentIds: ['p1'], rollCallAbsentIds: [], perVoteAbsences: [range] }),
+            ] });
+        expect(present(r, 's2')).toEqual(['p1', 'p2']);
+        expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', subjectId: 's2', personId: 'p2', decisionId: 'd-s2',
+            params: { kind: 'statedList', status: 'PRESENT', eventKind: 'DEPARTURE', rawText: range.rawText } })]);
+    });
     it('a person a per-decision page names under both headings is absent for that page\'s subject', () => {
         // Spec §4.1.12, as resolveRollCall seeds the opening roll call.
         const r = replayAttendance({ subjects, rollCall: [rc('a'), rc('b')], conventions: conv({ presentListMeaning: 'per_decision' }), mayorPersonId: null, events: [],
