@@ -1,10 +1,10 @@
 import { readDerivationRows } from '@/lib/db/derivationFacts';
-import { statedChangeOf } from './anchors';
+import { outForOwnVote, pageStatementsOf } from './anchors';
 import { CONVENTION_FIELDS, isDecisionConventions, type RollCallLayout } from '@/lib/decisionConventions';
 import { orderedMinutesSubjects } from '@/lib/minutes/builders';
 import { isMayorRole, isRoleActiveAt, mayorIsMemberOf } from '@/lib/utils/roles';
 import type { VoteType } from '@prisma/client';
-import type { DerivationInput, DocumentFacts, NameMatch, StatedChange, VoteTally } from './types';
+import type { DerivationInput, DocumentFacts, NameMatch, VoteTally } from './types';
 
 const VOTE_TYPES: VoteType[] = ['FOR', 'AGAINST', 'ABSTAIN', 'PRESENT', 'DID_NOT_VOTE'];
 
@@ -46,6 +46,8 @@ export function readingStatesFacts(d: { extraction: unknown; extractorVersion: s
 export function documentFactsFromDecision(d: {
     id: string; subjectId: string; voteResultPhrase: string | null; unmatchedNames: string[]; incomplete: boolean; mayorPresent: boolean | null; extraction: unknown;
     declaredItemNumber: number | null; declaredOutOfAgenda: boolean | null; extractorVersion: string | null;
+    /** The page's own decision number: a per-vote absence from a range of decisions covers this page only when the range includes it. */
+    decisionNumber?: string | null;
 }, rosterPersonIds?: ReadonlySet<string>): DocumentFacts {
     // Only a v4 reading states facts. A v3 `voteDetails` already held the FOR
     // votes the old pipeline inferred, so believing one returns invented votes as
@@ -57,9 +59,9 @@ export function documentFactsFromDecision(d: {
     const statesFacts = readingStatesFacts(d);
     const raw = statesFacts ? asObject(d.extraction) ?? {} : {};
     const onRoster = (personId: string) => !rosterPersonIds || rosterPersonIds.has(personId);
-    const statedChanges = (Array.isArray(raw.attendanceChanges) ? raw.attendanceChanges : [])
-        .map(statedChangeOf)
-        .filter((c): c is StatedChange => c !== null && onRoster(c.personId));
+    const statements = pageStatementsOf(raw.attendanceChanges);
+    const statedChanges = statements.statedChanges.filter(c => onRoster(c.personId));
+    const perVoteAbsences = statements.perVoteAbsences.filter(a => onRoster(a.personId));
     const nameMatches: NameMatch[] | null = Array.isArray(raw.nameMatches)
         ? raw.nameMatches.flatMap(entry => {
             const m = asObject(entry);
@@ -98,7 +100,7 @@ export function documentFactsFromDecision(d: {
     // return that column as the list (Argos 6Ι9ΑΩΨΔ-0Υ8: one name, the departed
     // one, against a roll call of 26). The departure is the more specific
     // statement; the list is not believed for that person.
-    const outForThisVote = new Set(statedChanges.filter(c => c.kind === 'DEPARTURE' && c.anchorKind === 'SUBJECT').map(c => c.personId));
+    const outForThisVote = outForOwnVote({ statedChanges, perVoteAbsences }, d.decisionNumber);
     const believedPresent = statedPresent.filter(id => !outForThisVote.has(id));
     const storedRollCall = asObject(raw.rollCall);
     const printed = (v: unknown) => (Array.isArray(v) ? v : []).filter((n): n is string => typeof n === 'string');
@@ -118,7 +120,7 @@ export function documentFactsFromDecision(d: {
             rollCallAbsent: printed(storedRollCall?.absent),
             decisionPresent: printed(storedDecisionAttendance?.present),
         },
-        statedChanges, nameMatches,
+        statedChanges, perVoteAbsences, nameMatches,
         unmatchedNames, incomplete: d.incomplete,
         rollCallLayout: readRollCallLayout(raw), declaredItemNumber: d.declaredItemNumber, declaredOutOfAgenda: d.declaredOutOfAgenda,
         mayorPresent: d.mayorPresent,

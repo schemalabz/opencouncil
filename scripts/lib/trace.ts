@@ -44,6 +44,7 @@ export interface MeetingTrace {
         rollCall: { layout: string | null; present: number; absent: number; matchedPresent: number; matchedAbsent: number } | null;
         ownList: number | null;
         statedChanges: number;
+        perVoteAbsences: number;
         nameMatches: { token: number; llm: number; unmatched: number } | null;
         unmatchedNames: string[];
     }>;
@@ -114,6 +115,7 @@ export function buildMeetingTrace(input: DerivationInput, output: DerivationOutp
             } : null,
             ownList: doc.presentIds?.length ?? null,
             statedChanges: doc.statedChanges.length,
+            perVoteAbsences: doc.perVoteAbsences.length,
             nameMatches: doc.nameMatches ? {
                 token: doc.nameMatches.filter(m => m.method === 'token').length,
                 llm: doc.nameMatches.filter(m => m.method === 'llm').length,

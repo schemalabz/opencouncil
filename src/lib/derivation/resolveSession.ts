@@ -1,6 +1,6 @@
 import type { AttendanceTiming } from '@prisma/client';
 import type { DecisionConventions } from '@/lib/decisionConventions';
-import type { DerivationInput, DocumentFacts, EventRow, Issue, NameMatch, RollCallRow, StatedChange } from './types';
+import type { DerivationInput, DocumentFacts, EventRow, Issue, NameMatch, PerVoteAbsence, RollCallRow, StatedChange } from './types';
 
 /**
  * What the pages of one meeting state together (spec §4.1.1). Pure: it reads
@@ -126,6 +126,16 @@ function mostStatedTiming(votes: Map<AttendanceTiming | null, number>): Attendan
     return best;
 }
 
+/** A per-vote absence as one page's departure before and arrival after the decisions it names. */
+function perPageExpansion(a: PerVoteAbsence, subjectId: string): StatedChange[] {
+    const at = (kind: StatedChange['kind'], decisionNumber: string | null, timing: StatedChange['timing']): StatedChange => ({
+        personId: a.personId, kind, anchorKind: decisionNumber === null ? 'SUBJECT' : 'DECISION_NUMBER', anchorAgendaItemIndex: null,
+        anchorNonAgendaReason: null, anchorDecisionNumber: decisionNumber, anchorSubjectId: decisionNumber === null ? subjectId : null,
+        anchorPhase: null, timing, rawText: a.rawText,
+    });
+    return [at('DEPARTURE', a.decisionNumberFrom, 'BEFORE'), at('ARRIVAL', a.decisionNumberTo, 'AFTER')];
+}
+
 /**
  * The session's arrivals and departures. A change pinned to a page's own
  * decision always counts. A change pinned elsewhere counts where the pages carry
@@ -145,10 +155,9 @@ export function resolveEvents(input: Pick<DerivationInput, 'cityId' | 'meetingId
     const total = pages.length;
     const everyStatedChangeCounts = pagesCarryOwnList(input.conventions, pages);
     const groups = new Map<string, { change: StatedChange; pages: DocumentFacts[]; timings: Map<AttendanceTiming | null, number> }>();
-    const own: StatedChange[] = [];
     for (const d of pages) {
         for (const c of d.statedChanges) {
-            if (c.anchorKind === 'SUBJECT') { own.push(c); continue; }
+            if (c.anchorKind === 'SUBJECT') continue;
             const key = `${c.personId}|${c.kind}|${anchorKey(c)}`;
             const g = groups.get(key);
             if (!g) groups.set(key, { change: c, pages: [d], timings: new Map([[c.timing, 1]]) });
@@ -173,7 +182,10 @@ export function resolveEvents(input: Pick<DerivationInput, 'cityId' | 'meetingId
         }
         events.push({ ...g.change, timing: mostStatedTiming(g.timings), id: id(), reportingDocuments: stated, totalDocuments: total, source: 'decision' });
     }
-    for (const c of own) events.push({ ...c, id: id(), reportingDocuments: 1, totalDocuments: total, source: 'decision' });
+    for (const d of pages) {
+        const own = [...d.statedChanges.filter(c => c.anchorKind === 'SUBJECT'), ...d.perVoteAbsences.flatMap(a => perPageExpansion(a, d.subjectId))];
+        for (const c of own) events.push({ ...c, id: id(), reportingDocuments: 1, totalDocuments: total, source: 'decision' });
+    }
     return { events, issues };
 }
 

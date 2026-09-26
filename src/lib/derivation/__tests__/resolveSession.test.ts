@@ -1,6 +1,6 @@
 import { lateArrivalsInOpeningList, nameMatchIssues, pagesCarryOwnList, resolveEvents, resolveRollCall, resolveSession } from '../resolveSession';
 import type { DecisionConventions } from '@/lib/decisionConventions';
-import type { DerivationInput, DocumentFacts, StatedChange } from '../types';
+import type { DerivationInput, DocumentFacts, PerVoteAbsence, StatedChange } from '../types';
 
 const conv = (o: Partial<DecisionConventions> = {}): DecisionConventions => ({
     version: 1, rollCallLayout: 'present_and_absent', presentListMeaning: 'opening', attendanceChangeAnchors: ['agenda_item'],
@@ -13,7 +13,7 @@ const page = (present: string[], absent: string[] = [], o: Partial<DocumentFacts
     return {
         subjectId: `s${n}`, decisionId: `d${n}`, voteResultPhrase: null, namedVotes: [], tally: null, presentIds: null, absentIds: null,
         rollCallPresentIds: present.length + absent.length ? present : null, rollCallAbsentIds: present.length + absent.length ? absent : null,
-        lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], nameMatches: null,
+        lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], perVoteAbsences: [], nameMatches: null,
         unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null,
         mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, ...o,
     };
@@ -171,6 +171,17 @@ describe('resolveEvents', () => {
         const own: StatedChange = { ...departure('c', 0), anchorKind: 'SUBJECT', anchorAgendaItemIndex: null, anchorSubjectId: 's-own', timing: 'BEFORE' };
         const r = resolveEvents({ ...base, documents: [page(['a'], [], { statedChanges: [own, departure('b', 1)] }), page(['a'], [], { statedChanges: [departure('b', 1)] })] });
         expect(r.events.map(e => [e.personId, e.anchorKind, e.reportingDocuments])).toEqual([['b', 'AGENDA_ITEM', 2], ['c', 'SUBJECT', 1]]);
+    });
+
+    it('turns a per-vote absence into a departure before and an arrival after the decisions it names, after the session changes', () => {
+        const absence = (o: Partial<PerVoteAbsence> = {}): PerVoteAbsence => ({ personId: 'c', decisionNumberFrom: null, decisionNumberTo: null, rawText: 'απουσίαζε', ...o });
+        const own = page(['a'], [], { perVoteAbsences: [absence()] });
+        const range = page(['a'], [], { perVoteAbsences: [absence({ decisionNumberFrom: '31', decisionNumberTo: '40' })] });
+        const r = resolveEvents({ ...base, conventions: conv({ statesPerDecisionAttendance: true }), documents: [own, range] });
+        expect(r.events.map(e => [e.kind, e.anchorKind, e.anchorSubjectId, e.anchorDecisionNumber, e.timing])).toEqual([
+            ['DEPARTURE', 'SUBJECT', own.subjectId, null, 'BEFORE'], ['ARRIVAL', 'SUBJECT', own.subjectId, null, 'AFTER'],
+            ['DEPARTURE', 'DECISION_NUMBER', null, '31', 'BEFORE'], ['ARRIVAL', 'DECISION_NUMBER', null, '40', 'AFTER'],
+        ]);
     });
 
     it('ignores a page without a usable reading', () => {

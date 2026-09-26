@@ -49,6 +49,24 @@ describe('documentFactsFromDecision', () => {
         expect(facts.statedChanges).toEqual([expect.objectContaining({ personId: 'p2', kind: 'DEPARTURE', anchorKind: 'SUBJECT' })]);
         expect(facts.presentIds).toEqual(['p1']);
     });
+    it('does not believe the list for someone out for this vote, in either stored shape of a per-vote absence', () => {
+        const absent = (anchor: Record<string, unknown>) => ({ type: 'absent_for_vote', personId: 'p2', rawText: 'απουσίαζε', anchor });
+        const pair = [
+            { type: 'departure', personId: 'p2', rawText: 'απουσίαζε', anchor: { kind: 'subject', subjectId: 's1', timing: 'before' } },
+            { type: 'arrival', personId: 'p2', rawText: 'απουσίαζε', anchor: { kind: 'subject', subjectId: 's1', timing: 'after' } },
+        ];
+        const read = (attendanceChanges: unknown[], decisionNumber: string | null = '35/2026') =>
+            documentFactsFromDecision({ ...decision({ decisionAttendance: { presentIds: ['p1', 'p2'] }, attendanceChanges }), decisionNumber }, roster);
+        expect(read(pair).presentIds).toEqual(['p1']);
+        expect(read(pair).perVoteAbsences).toEqual([{ personId: 'p2', decisionNumberFrom: null, decisionNumberTo: null, rawText: 'απουσίαζε' }]);
+        expect(read(pair).statedChanges).toEqual([]);
+        expect(read([absent({ kind: 'this_document' })]).presentIds).toEqual(['p1']);
+        // A range stated on this page covers this page only when it includes this page's decision.
+        expect(read([absent({ kind: 'decision_number', decisionNumber: '31', decisionNumberTo: '40' })]).presentIds).toEqual(['p1']);
+        expect(read([absent({ kind: 'decision_number', decisionNumber: '36', decisionNumberTo: '40' })]).presentIds).toEqual(['p1', 'p2']);
+        expect(read([absent({ kind: 'decision_number', decisionNumber: '31', decisionNumberTo: '40' })], null).presentIds).toEqual(['p1', 'p2']);
+    });
+
     it('drops an id the roster no longer holds and counts it as unmatched', () => {
         const facts = documentFactsFromDecision(decision({
             voteDetails: [{ personId: 'p1', vote: 'FOR' }, { personId: 'deleted', vote: 'AGAINST' }],
@@ -126,6 +144,8 @@ describe('documentFactsFromDecision: stated changes and name matches', () => {
     it('reads each stated change of a person on the roster, and drops the rest', () => {
         const facts = documentFactsFromDecision(decision({ attendanceChanges: [change('p1'), change('gone'), change(null)] }), new Set(['p1']));
         expect(facts.statedChanges.map(c => c.personId)).toEqual(['p1']);
+        const absent = (personId: string) => ({ ...change(personId), type: 'absent_for_vote' });
+        expect(documentFactsFromDecision(decision({ attendanceChanges: [absent('p1'), absent('gone')] }), new Set(['p1'])).perVoteAbsences.map(a => a.personId)).toEqual(['p1']);
     });
 
     it('reads the name matches when the reading has them, and null when it predates them', () => {

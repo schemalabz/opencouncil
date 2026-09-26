@@ -12,7 +12,7 @@ import type { DerivationInput, DerivationOutput, DocumentFacts, Issue, StatedCha
 const doc = (subjectId: string, decisionId: string, o: Partial<DocumentFacts> = {}): DocumentFacts => ({
     subjectId, decisionId, voteResultPhrase: null, namedVotes: [], tally: null, presentIds: null, absentIds: null,
     rollCallPresentIds: null, rollCallAbsentIds: null,
-    lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], nameMatches: null,
+    lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], perVoteAbsences: [], nameMatches: null,
     unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null,
     mayorPresent: null, presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction: true, ...o,
 });
@@ -90,7 +90,7 @@ describe('buildMeetingTrace', () => {
         expect(trace.pages[0]).toMatchObject({
             ada: 'ADA1', url: 'http://pdf1', subjectId: 's1', item: 1, nonAgenda: false, decisionNumber: '10', version: '4', usable: true,
             rollCall: { layout: null, present: 2, absent: 1, matchedPresent: 2, matchedAbsent: 1 },
-            ownList: null, statedChanges: 1, nameMatches: null, unmatchedNames: ['Foo'],
+            ownList: null, statedChanges: 1, perVoteAbsences: 0, nameMatches: null, unmatchedNames: ['Foo'],
         });
         expect(trace.pages[1]).toMatchObject({ ada: null, url: 'http://pdf2' });
     });

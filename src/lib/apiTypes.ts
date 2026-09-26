@@ -555,12 +555,21 @@ export interface TaskTokenUsage {
 export interface PollDecisionsAttendanceEvent {
     personId: string | null;
     name: string;
-    type: 'arrival' | 'departure';
+    /**
+     * `absent_for_vote`: the page states the member was out of the room for a
+     * vote — this page's decision (anchor `subject` or `this_document`), or the
+     * range of decisions the anchor names (`decision_number` to `decisionNumberTo`).
+     * A reading stored before this value existed carries it as a departure before
+     * and an arrival after the page's own subject, with one rawText.
+     */
+    type: 'arrival' | 'departure' | 'absent_for_vote';
     anchor: {
         kind: 'agenda_item' | 'decision_number' | 'subject' | 'phase' | 'session_start' | 'session_end' | 'clock_time' | 'session_phase' | 'this_document';
         agendaItemIndex: number | null;
         nonAgendaReason: 'outOfAgenda' | null;
         decisionNumber: string | null;
+        /** The last decision of a range the page names («στις με αρ. 31 – 40»), for kind `decision_number`; absent or null otherwise. */
+        decisionNumberTo?: string | null;
         /** The document's own subject, for kind `subject`. */
         subjectId?: string | null;
         phase: 'pre_agenda' | 'out_of_agenda' | string | null;

@@ -38,6 +38,7 @@ import fs from 'fs';
 import { pollDecisionsForMeeting } from '@/lib/tasks/pollDecisions';
 import { getMinutesData } from '@/lib/minutes/getMinutesData';
 import { readingStatesFacts } from '@/lib/derivation';
+import { pageStatementsOf } from '@/lib/derivation/anchors';
 import { loadGolden, subjectsByClaimKey, type Claim, type GoldenMeeting } from './lib/minutes-golden';
 
 const prisma = new PrismaClient();
@@ -59,8 +60,6 @@ const DISSENT = ['AGAINST', 'ABSTAIN', 'PRESENT', 'DID_NOT_VOTE'];
 const counted = (r: Reading, type: string) => Number((r.voteTally as Record<string, unknown> | null)?.[type] ?? 0);
 /** One per person, as the derivation counts them: a dissenter named twice attributes one vote. */
 const namedOf = (r: Reading, type: string) => new Set(list(r.voteDetails).filter(v => v.vote === type).map(v => String(v.personId ?? v.name))).size;
-const ownSubject = (c: Record<string, unknown>) => ['subject', 'this_document'].includes(String((c.anchor as Record<string, unknown> | null)?.kind));
-const timing = (c: Record<string, unknown>) => (c.anchor as Record<string, unknown> | null)?.timing;
 
 /**
  * A mechanism is one thing a document can state that extraction has to handle.
@@ -72,7 +71,7 @@ const timing = (c: Record<string, unknown>) => (c.anchor as Record<string, unkno
 const MECHANISMS: Array<{ name: string; testedBy: ClaimKind; of?: (o: Observation) => boolean; inReading?: (r: Reading) => boolean }> = [
     { name: 'arrivalOrDeparture', testedBy: 'changes', of: o => o.attendanceChangesStated === true, inReading: r => list(r.attendanceChanges).length > 0 },
     { name: 'perVoteAbsence', testedBy: 'presence', of: o => o.perVoteAbsenceStated === true,
-        inReading: r => list(r.attendanceChanges).some(c => ownSubject(c) && c.type === 'departure' && timing(c) === 'before') },
+        inReading: r => pageStatementsOf(r.attendanceChanges).perVoteAbsences.length > 0 },
     { name: 'namesAllVoters', testedBy: 'vote', of: o => o.namedVoters === 'all', inReading: r => votesOf(r).includes('FOR') },
     { name: 'namesDissenters', testedBy: 'vote', of: o => o.namedVoters === 'dissenters_only', inReading: r => votesOf(r).length > 0 && !votesOf(r).includes('FOR') },
     { name: 'voteCountsInPhrase', testedBy: 'vote', of: o => o.votePhraseCarriesCounts === true, inReading: r => ['FOR', ...DISSENT].some(t => counted(r, t) > 0) },

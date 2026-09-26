@@ -37,6 +37,20 @@ export interface EventRow {
 /** A change one page states, before the session resolves it (spec §4.1.2). */
 export type StatedChange = Omit<EventRow, 'id' | 'reportingDocuments' | 'totalDocuments' | 'source'>;
 
+/**
+ * A member a page states was out of the room for a vote: for this page's own
+ * decision, or for a range of decisions the page names («Εκτός αιθούσης στις με
+ * αρ. 31 – 40 ΑΔΣ»). It is not a change of its own: the session's resolution
+ * combines the statements of every page into departures and arrivals.
+ */
+export interface PerVoteAbsence {
+    personId: string;
+    /** The first and the last decision of the range, as printed; both null for this page's own decision. */
+    decisionNumberFrom: string | null;
+    decisionNumberTo: string | null;
+    rawText: string;
+}
+
 /** How one name on a page was matched to the roster (task v4 from C1); `method` is null when nothing matched. */
 export interface NameMatch { name: string; personId: string | null; method: 'token' | 'llm' | null }
 
@@ -60,6 +74,8 @@ export interface DocumentFacts {
     lists: { rollCallPresent: string[]; rollCallAbsent: string[]; decisionPresent: string[] };
     /** The changes this page states about a person on the roster; empty for a reading that states no facts. */
     statedChanges: StatedChange[];
+    /** The members this page states out of the room for a vote; not in `statedChanges`. */
+    perVoteAbsences: PerVoteAbsence[];
     /** How each name on this page was matched, or null for a reading that predates the field. */
     nameMatches: NameMatch[] | null;
     unmatchedNames: string[];

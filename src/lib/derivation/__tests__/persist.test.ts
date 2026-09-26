@@ -12,7 +12,7 @@ import type { DerivationInput, DocumentFacts } from '../types';
 /** A read page prints the roll call «p1 present» unless told otherwise; an unread one states nothing. */
 const doc = (subjectId: string, hasExtraction: boolean, rollCallPresentIds: string[] | null = hasExtraction ? ['p1'] : null): DocumentFacts => ({
     subjectId, decisionId: `d-${subjectId}`, voteResultPhrase: 'Ομόφωνα', namedVotes: [], tally: null,
-    presentIds: null, absentIds: null, rollCallPresentIds, rollCallAbsentIds: rollCallPresentIds ? [] : null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], nameMatches: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null,
+    presentIds: null, absentIds: null, rollCallPresentIds, rollCallAbsentIds: rollCallPresentIds ? [] : null, lists: { rollCallPresent: [], rollCallAbsent: [], decisionPresent: [] }, statedChanges: [], perVoteAbsences: [], nameMatches: null, unmatchedNames: [], incomplete: false, rollCallLayout: null, declaredItemNumber: null, declaredOutOfAgenda: null, mayorPresent: null,
     presidedById: null, presidedByName: null, actingSecretaryId: null, hasExtraction,
 });
 
