@@ -4,7 +4,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { MeetingDecisionsPage } from '../MeetingDecisionsPage';
 import admin from '../../../../../messages/el/admin.json';
 import el from '../../../../../messages/el.json';
-import type { MinutesData } from '@/lib/minutes/types';
+import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
 import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
 
 /**
@@ -370,6 +370,27 @@ describe('MeetingDecisionsPage — where the decisions come from', () => {
     });
 });
 
+/**
+ * The minutes with the subject of `extracted`, whose attendance is the rows the
+ * decisions route sends: both routes read the same stored rows, and the subject
+ * block reads the minutes' snapshot.
+ */
+const withSubject = (data: MinutesData, extracted: StoreExtracted): MinutesData => {
+    const member = (a: StoreExtracted['attendance'][number]): MinutesMember => ({ personId: a.personId, name: a.personName, party: null, isPartyHead: false, role: null });
+    return {
+        ...data,
+        subjects: [{
+            subjectId: extracted.subjectId, agendaItemIndex: 1, nonAgendaReason: null, withdrawn: false, name: 'Έγκριση απολογισμού',
+            discussedWith: null, discussedElsewhere: null, decision: null, presidedBy: data.councilComposition?.presidedBy ?? null,
+            attendance: {
+                present: extracted.attendance.filter(a => a.status === 'PRESENT').map(member),
+                absent: extracted.attendance.filter(a => a.status === 'ABSENT').map(member),
+            },
+            voteResult: null, discussion: { kind: 'none', seconds: 0, start: null }, preDiscussionEntries: [], transcriptEntries: [],
+        }],
+    };
+};
+
 describe('MeetingDecisionsPage — who was present, as the minutes print it', () => {
     /** The text of the line a label opens, inside `scope`. */
     const lineIn = (scope: HTMLElement, label: string) => within(scope).getByText(label).parentElement!.textContent;
@@ -392,7 +413,7 @@ describe('MeetingDecisionsPage — who was present, as the minutes print it', ()
 
         const card = await rail();
         expect(lineIn(card, 'Δήμαρχος:')).toBe('Δήμαρχος: Ρούσσος Σίμος (αποχώρησε από το 4ο θέμα)');
-        expect(lineIn(card, 'Πρόεδρος:')).toBe('Πρόεδρος: Καραγιάννη Τάνια — απών/απούσα');
+        expect(lineIn(card, 'Πρόεδρος:')).toBe('Πρόεδρος: Καραγιάννη Τάνια — απούσα');
     });
 
     it('counts a subject as the card counts the roll call, and both agree with the tally', async () => {
@@ -412,6 +433,7 @@ describe('MeetingDecisionsPage — who was present, as the minutes print it', ()
             ],
             votes: ['mayor', 'm1', 'm2', 's1'].map(personId => ({ personId, personName: personId, voteType: 'FOR' })),
         }];
+        store.minutes = withSubject(store.minutes, store.extractedData[0]);
         await renderPage();
 
         expect(within(await rail()).getByText('4 παρόντα μέλη')).toBeInTheDocument();
@@ -446,6 +468,7 @@ describe('MeetingDecisionsPage — who was present, as the minutes print it', ()
             ],
             votes: ['p2', 'p3'].map(personId => ({ personId, personName: personId, voteType: 'FOR' })),
         }];
+        store.minutes = withSubject(store.minutes, store.extractedData[0]);
         await renderPage();
 
         expect(lineIn(await rail(), 'Δήμαρχος:')).toBe('Δήμαρχος: Ρούσσος Σίμος (αποχώρησε από το 4ο θέμα)');
@@ -453,7 +476,7 @@ describe('MeetingDecisionsPage — who was present, as the minutes print it', ()
         const sheet = await openSubjectSheet('640/2026');
         expect(within(sheet).queryByText('Δήμαρχος:')).not.toBeInTheDocument();
         expect(within(sheet).queryByText(/Ρούσσος/)).not.toBeInTheDocument();
-        expect(lineIn(sheet, 'Πρόεδρος:')).toBe('Πρόεδρος: Καραγιάννη Τάνια — απών/απούσα');
+        expect(lineIn(sheet, 'Πρόεδρος:')).toBe('Πρόεδρος: Καραγιάννη Τάνια — απούσα');
     });
 
     it('counts 9 of 9 on a committee the mayor presides, as the Argos tally does', async () => {
@@ -475,6 +498,7 @@ describe('MeetingDecisionsPage — who was present, as the minutes print it', ()
             ],
             votes: present.map(personId => ({ personId, personName: personId, voteType: 'FOR' })),
         }];
+        store.minutes = withSubject(data, store.extractedData[0]);
         await renderPage();
 
         expect(within(await rail()).getByText('9 παρόντα μέλη')).toBeInTheDocument();
@@ -482,5 +506,46 @@ describe('MeetingDecisionsPage — who was present, as the minutes print it', ()
         const sheet = await openSubjectSheet('640/2026');
         expect(within(sheet).getByText('9 παρόντες, 1 απόντες')).toBeInTheDocument();
         expect(within(sheet).getByText(/9 υπέρ/)).toBeInTheDocument();
+    });
+
+    it('counts and names a member who sat in on a subject with no roll-call row, as the tally does', async () => {
+        // chalandri/aug20_2026 items 7–11: Ευθυμίου has rows and a vote on the subject and no roll-call row.
+        store.minutes = committeeWithSubstitute();
+        store.decisions = [linkedDecision('s1', '640/2026')];
+        const present = ['mayor', 'm1', 'm2', 's1', 'x'];
+        store.extractedData = [{
+            subjectId: 's1',
+            attendance: [
+                ...present.map(personId => ({ personId, personName: personId === 'x' ? 'Ευθυμίου Κωνσταντίνος' : personId, status: 'PRESENT' })),
+                { personId: 'm3', personName: 'Φώτιος Κολεβέντης', status: 'ABSENT' },
+            ],
+            votes: present.map(personId => ({ personId, personName: personId, voteType: 'FOR' })),
+        }];
+        store.minutes = withSubject(store.minutes, store.extractedData[0]);
+        await renderPage();
+
+        const sheet = await openSubjectSheet('640/2026');
+        expect(within(sheet).getByText('5 παρόντες, 1 απόντες')).toBeInTheDocument();
+        expect(within(sheet).getByText(/5 υπέρ/)).toBeInTheDocument();
+        await userEvent.click(within(sheet).getByRole('button', { name: /Εμφάνιση ονομάτων \(παρόντες\)/ }));
+        expect(within(sheet).getByText(/Ευθυμίου Κωνσταντίνος/)).toBeInTheDocument();
+    });
+
+    it("shows the decisions' own rows for a subject when the minutes do not load", async () => {
+        store.decisions = [linkedDecision('s1', '640/2026')];
+        store.extractedData = [{
+            subjectId: 's1',
+            attendance: [
+                { personId: 'p2', personName: 'Παναγιώτης Λαμπρόπουλος', status: 'PRESENT' },
+                { personId: 'p3', personName: 'Νίκη Παπαγιαννάκη', status: 'PRESENT' },
+                { personId: 'p1', personName: 'Τάνια Καραγιάννη', status: 'ABSENT' },
+            ],
+            votes: ['p2', 'p3'].map(personId => ({ personId, personName: personId, voteType: 'FOR' })),
+        }];
+        await renderPage();
+
+        const sheet = await openSubjectSheet('640/2026');
+        expect(within(sheet).getByText('2 παρόντες, 1 απόντες')).toBeInTheDocument();
+        expect(within(sheet).queryByText('Πρόεδρος:')).not.toBeInTheDocument();
     });
 });

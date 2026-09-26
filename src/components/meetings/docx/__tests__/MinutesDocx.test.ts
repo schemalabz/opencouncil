@@ -42,6 +42,7 @@ function makeSubject(overrides: Partial<MinutesSubject> = {}): MinutesSubject {
         discussedWith: null,
         discussedElsewhere: null,
         decision: null,
+        presidedBy: null,
         attendance: null,
         voteResult: null,
         discussion: { kind: 'none', seconds: 0, start: null },
@@ -326,5 +327,29 @@ describe('MinutesDocx roll call', () => {
 
     it('prints a council with the mayor apart and the president absent', async () => {
         expect(await docxRuns(councilWithAbsentPresident())).toMatchSnapshot();
+    });
+
+    it('names who presided first when the mayor who presides a committee was absent, and lists the mayor as absent with the office', async () => {
+        // getMinutesData then puts the mayor's arrival in the changes list, and the note stays off the line.
+        const data = committeeWithSubstitute();
+        const composition = data.councilComposition!;
+        composition.mayor!.note = 'ΑΠΩΝ';
+        composition.presidedBy = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        data.absentMembers = [...data.absentMembers!, composition.members.find(m => m.personId === 'mayor')!];
+        const runs = await docxRuns(data);
+        const line = runs.indexOf('ΠΡΟΕΔΡΟΣ: ');
+        expect(runs.slice(line, line + 3)).toEqual(['ΠΡΟΕΔΡΟΣ: ', 'Πετσέλης Χρήστος', ' (λόγω απουσίας του ΠΡΟΕΔΡΟΥ, ΔΗΜΑΡΧΟΥ Μαλτέζος Ιωάννης)']);
+        expect(runs).toContain('ΑΠΟΝΤΑ ΜΕΛΗ (2)');
+        expect(runs[runs.indexOf('Μαλτέζος Ιωάννης') + 1]).toBe(' (ΠΡΟΕΔΡΟΣ, ΔΗΜΑΡΧΟΣ, Άργος Πρώτα)');
+        expect(runs.join('\n')).not.toContain('ΑΠΩΝ');
+    });
+
+    it('names who presided on a council whose president was absent, and puts the president in the absence sentence', async () => {
+        const data = councilWithAbsentPresident();
+        data.councilComposition!.presidedBy = { name: 'Παπαγιαννάκη Νίκη', personId: 'p3' };
+        const runs = await docxRuns(data);
+        const line = runs.indexOf('ΠΡΟΕΔΡΟΣ: ');
+        expect(runs.slice(line, line + 3)).toEqual(['ΠΡΟΕΔΡΟΣ: ', 'Παπαγιαννάκη Νίκη', ' (λόγω απουσίας της ΠΡΟΕΔΡΟΥ Καραγιάννη Τάνια)']);
+        expect(runs).toContain('Καραγιάννη Τάνια (ΠΡΟΕΔΡΟΣ), Λαμπρόπουλος Παναγιώτης');
     });
 });

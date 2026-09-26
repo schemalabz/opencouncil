@@ -73,7 +73,7 @@ describe('buildAttendanceChangesFromEvents', () => {
         expect(mayorChanges).toEqual([{ type: 'departure', label: 'από το 23ο θέμα' }]);
         // The label goes straight after the verb on the ΔΗΜΑΡΧΟΣ line, so it has
         // to be a position phrase and not a bare «23ο θέμα».
-        expect(buildMayorNote('PRESENT', mayorChanges, null, true)).toBe('αποχώρησε από το 23ο θέμα');
+        expect(buildMayorNote('PRESENT', mayorChanges, true)).toBe('αποχώρησε από το 23ο θέμα');
     });
 
     // The placement is placeEvents', so the sentence and the attendance table it

@@ -11,7 +11,7 @@ import {
 import { formatTimestamp } from '@/lib/utils';
 
 import { markdownToDocxParagraphs } from '@/lib/minutes/markdownToDocx';
-import { buildRollCall, formatRollCallMemberLabel, formatChangePosition, formatPhraseOnlyOutcome, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
+import { buildRollCall, formatRollCallMemberLabel, formatRollCallSentenceName, formatChangePosition, formatPhraseOnlyOutcome, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
 import {
     MinutesData,
     MinutesSubject,
@@ -373,7 +373,7 @@ function createCouncilCompositionSection(
             spacing: { before: isCommittee ? 200 : 80, after: 200 },
             children: [
                 new TextRun({ text: 'ΠΡΟΕΔΡΟΣ: ', bold: true, size: FONT_SIZE.BODY }),
-                new TextRun({ text: rollCall.president.name + (rollCall.president.isMayor ? ' (ΔΗΜΑΡΧΟΣ)' : ''), size: FONT_SIZE.BODY }),
+                new TextRun({ text: rollCall.president.printedName, size: FONT_SIZE.BODY }),
                 ...noteRun(rollCall.president.printedNote),
             ],
         }));
@@ -403,7 +403,7 @@ function createCouncilCompositionSection(
                 bold: true,
             })],
         }));
-        for (const member of composition.members) paragraphs.push(memberBullet({ member, isSubstitute: false }));
+        for (const member of composition.members) paragraphs.push(memberBullet({ member, isSubstitute: false, office: null }));
     }
 
     // Attendance section — format depends on body type
@@ -424,7 +424,7 @@ function createCouncilCompositionSection(
         }
     } else if (!isCommittee && rollCall.absent.length > 0) {
         // Council: absent inline sentence
-        const names = rollCall.absent.map(m => m.member.name);
+        const names = rollCall.absent.map(formatRollCallSentenceName);
         paragraphs.push(new Paragraph({
             spacing: { before: 200, after: 80 },
             children: [

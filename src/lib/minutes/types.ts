@@ -16,21 +16,38 @@ export interface MinutesAttendance {
 export interface MinutesCouncilComposition {
     /**
      * `note` is the parenthesis printed after the name on the ΔΗΜΑΡΧΟΣ line, or on
-     * the ΠΡΟΕΔΡΟΣ line of a committee the mayor presides: absence at the roll call, the mayor's own arrivals and departures, and
-     * who presided in their place. Null when there is nothing to say — the
+     * the ΠΡΟΕΔΡΟΣ line of a committee the mayor presides: absence at the roll call, and the mayor's own arrivals and departures.
+     * Who presided in an absent president's place is `presidedBy`. Null when there is nothing to say — the
      * renderers then fall back to the ΑΠΩΝ/ΑΠΟΥΣΑ label they derive themselves.
      */
     mayor: { name: string; personId: string; note: string | null } | null;
     president: { name: string; personId: string } | null;
+    /**
+     * Who presided, as the documents state it: the first document that names
+     * one (its `presidedBy`). The name is the roster name when the document's
+     * name resolved to a person, else the name as the document printed it.
+     * `buildRollCall` names this person on the ΠΡΟΕΔΡΟΣ line when the president
+     * was absent and this is someone else. Absent or null when no document names one.
+     */
+    presidedBy?: { name: string; personId: string | null } | null;
     members: MinutesMember[];
     /** Substitute members (αναπληρωματικά μέλη) — only for committees */
     substituteMembers: MinutesMember[];
+}
+
+/** The office a roll-call list prints after an absent president's name: «ΠΡΟΕΔΡΟΣ», with «ΔΗΜΑΡΧΟΣ» when the president is the mayor. */
+export interface MinutesRollCallOffice {
+    isMayor: boolean;
+    /** For the languages whose word for the office has a feminine form. */
+    feminine: boolean;
 }
 
 /** A member on a roll-call list, and whether they sit as a substitute (αναπληρωματικό μέλος). */
 export interface MinutesRollCallMember {
     member: MinutesMember;
     isSubstitute: boolean;
+    /** Set on the absent president's entry of the absent list, null on every other entry. */
+    office: MinutesRollCallOffice | null;
 }
 
 /**
@@ -47,15 +64,35 @@ export interface MinutesRollCall {
     /**
      * The ΔΗΜΑΡΧΟΣ line. Councils only: a committee counts a member mayor in its
      * lists and names the mayor on the president's line, when the mayor presides.
+     * `feminine` picks the gendered word for absent.
      */
-    mayor: { name: string; personId: string; absent: boolean; note: string | null; printedNote: string | null } | null;
+    mayor: { name: string; personId: string; absent: boolean; feminine: boolean; note: string | null; printedNote: string | null } | null;
     /**
-     * The ΠΡΟΕΔΡΟΣ line. `isMayor`: a committee's president is the mayor, and the
-     * line prints «(ΔΗΜΑΡΧΟΣ)» after the name, then the mayor's note, as the minutes
-     * print it. The note holds the mayor's arrivals and departures, and the changes
-     * list then leaves them out.
+     * The ΠΡΟΕΔΡΟΣ line. `name` and `personId` are the president's. `isMayor`: a
+     * committee's president is the mayor, and the line prints «(ΔΗΜΑΡΧΟΣ)» after
+     * the name, then the mayor's note, as the minutes print it. The note holds the
+     * mayor's arrivals and departures, and the changes list then leaves them out.
+     *
+     * `presidedBy`: the president was absent and a document names another person
+     * who presided. The line then names that person first, and the parenthesis
+     * says that the president (the mayor, when `isMayor`) was absent:
+     * «ΠΡΟΕΔΡΟΣ: Μετικαρίδης Θεόδωρος (λόγω απουσίας της ΠΡΟΕΔΡΟΥ, ΔΗΜΑΡΧΟΥ Καφατσάκη Τίνα)».
+     * The president is then in the absent list, and the line carries no mayor's note.
+     * `feminine` picks the gendered words.
+     *
+     * `printedName` and `printedNote` are the line as the minutes print it.
      */
-    president: { name: string; personId: string; absent: boolean; isMayor: boolean; note: string | null; printedNote: string | null } | null;
+    president: {
+        name: string;
+        personId: string;
+        absent: boolean;
+        isMayor: boolean;
+        feminine: boolean;
+        presidedBy: { name: string; personId: string | null } | null;
+        note: string | null;
+        printedName: string;
+        printedNote: string | null;
+    } | null;
     /**
      * Committee: the ΠΑΡΟΝΤΑ ΜΕΛΗ list, substitutes after their party. Council:
      * the members of the ΣΥΝΘΕΣΗ who are not absent.
@@ -63,7 +100,9 @@ export interface MinutesRollCall {
     present: MinutesRollCallMember[];
     /**
      * Committee: the ΑΠΟΝΤΑ ΜΕΛΗ list. Council: the «απουσίαζαν οι» sentence,
-     * which leaves out the president — their own line says they were absent.
+     * which leaves out an absent president whose own line says they were absent.
+     * An absent president whose line names who presided is in the list, with
+     * `office` set.
      */
     absent: MinutesRollCallMember[];
 }
@@ -180,6 +219,15 @@ export interface MinutesSubject {
         /** What the document itself says about the vote («Ομόφωνα»), verbatim. */
         voteResultPhrase: string | null;
     } | null;
+
+    /**
+     * Who presided at this subject: the `presidedBy` of this subject's own
+     * document, else the meeting's (`MinutesCouncilComposition.presidedBy`).
+     * The subject's roll call (`buildRollCall`) names this person on the
+     * ΠΡΟΕΔΡΟΣ line when the president was absent. The meeting's own roll call
+     * keeps the meeting's value.
+     */
+    presidedBy: { name: string; personId: string | null } | null;
 
     attendance: MinutesAttendance | null;
     voteResult: MinutesVoteResult | null;

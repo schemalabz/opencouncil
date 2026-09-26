@@ -6,7 +6,9 @@ import {
     buildCouncilComposition,
     buildMayorNote,
     buildRollCall,
+    buildSubjectRollCall,
     formatRollCallMemberLabel,
+    formatRollCallSentenceName,
     formatChangePosition,
     formatPhraseOnlyOutcome,
     sortSubjectsByDiscussionOrder,
@@ -373,26 +375,26 @@ describe('buildMayorNote', () => {
         atSubject: { id: 's4', name: 'Θέμα 4', agendaItemIndex: 4, nonAgendaReason: null, outOfAgendaIndex: null },
     };
 
-    it('says who presided when the mayor was absent', () => {
-        expect(buildMayorNote('ABSENT', [], 'ο Αντιπρόεδρος Θ. Μετικαρίδης', true))
-            .toBe('ΑΠΟΥΣΑ, προήδρευσε ο Αντιπρόεδρος Θ. Μετικαρίδης');
+    it('says that the mayor was absent, and leaves who presided to the president\'s line', () => {
+        expect(buildMayorNote('ABSENT', [], true)).toBe('ΑΠΟΥΣΑ');
+        expect(buildMayorNote('ABSENT', [], false)).toBe('ΑΠΩΝ');
     });
 
     it("states a present mayor's own departure", () => {
         // The label is what `buildAttendanceChangesFromEvents` emits — the position
         // phrase the Προσελεύσεις/Αποχωρήσεις lists print, preposition included.
-        expect(buildMayorNote('PRESENT', [{ type: 'departure', label: formatChangePosition(mayorChange) }], null, true))
+        expect(buildMayorNote('PRESENT', [{ type: 'departure', label: formatChangePosition(mayorChange) }], true))
             .toBe('αποχώρησε από το 4ο θέμα');
     });
 
     it('prints an anchor the document gave instead of a subject', () => {
-        expect(buildMayorNote('PRESENT', [{ type: 'arrival', label: formatChangePosition({ ...mayorChange, anchorLabel: 'στην 286 ΑΚΣ' }) }], null, false))
+        expect(buildMayorNote('PRESENT', [{ type: 'arrival', label: formatChangePosition({ ...mayorChange, anchorLabel: 'στην 286 ΑΚΣ' }) }], false))
             .toBe('προσήλθε στην 286 ΑΚΣ');
     });
 
     it('says nothing when the mayor was there throughout', () => {
-        expect(buildMayorNote('PRESENT', [], null, false)).toBeNull();
-        expect(buildMayorNote(null, [], 'ο Αντιπρόεδρος', false)).toBeNull();
+        expect(buildMayorNote('PRESENT', [], false)).toBeNull();
+        expect(buildMayorNote(null, [], false)).toBeNull();
     });
 });
 
@@ -448,15 +450,17 @@ describe('buildRollCall', () => {
     });
 
     it('puts the mayor\'s note on the president\'s line of a committee the mayor presides', () => {
-        // A presiding mayor's note holds the absence, the mayor's arrivals and
-        // departures, and who presided; getMinutesData keeps those changes out of the list.
-        const note = 'ΑΠΩΝ, προσήλθε από το 3ο θέμα, προήδρευσε Πετσέλης Χρήστος';
+        // A presiding mayor's note holds the absence and the mayor's arrivals and
+        // departures; getMinutesData keeps those changes out of the list. No
+        // document names who presided here, so the line names the mayor.
+        const note = 'ΑΠΩΝ, προσήλθε από το 3ο θέμα';
         const data = committeeWithSubstitute();
         data.councilComposition!.mayor!.note = note;
         data.absentMembers = [...data.absentMembers!, simpleResolver('mayor', 'Μαλτέζος Ιωάννης')];
         const rollCall = rollCallOf(data);
-        expect(rollCall.president).toMatchObject({ isMayor: true, absent: true, note, printedNote: note });
+        expect(rollCall.president).toMatchObject({ isMayor: true, absent: true, presidedBy: null, note, printedName: 'Μαλτέζος Ιωάννης (ΔΗΜΑΡΧΟΣ)', printedNote: note });
         expect(names(rollCall.absent)).toEqual(['Μαλτέζος Ιωάννης', 'Κολεβέντης Φώτιος']);
+        expect(rollCall.absent.map(formatRollCallMemberLabel)).toEqual(['ΠΡΟΕΔΡΟΣ, ΔΗΜΑΡΧΟΣ, Άργος Πρώτα', 'Νέα Πνοή']);
         data.councilComposition!.president = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
         expect(rollCallOf(data).president).toMatchObject({ isMayor: false, note: null, printedNote: null });
     });
@@ -469,6 +473,60 @@ describe('buildRollCall', () => {
         expect(rollCall.president).toMatchObject({ name: 'Πετσέλης Χρήστος', isMayor: false, note: null });
         expect(names(rollCall.present)).toContain('Μαλτέζος Ιωάννης');
         expect(rollCall.present).toHaveLength(4);
+    });
+
+    it('names who presided first when the mayor who presides a committee was absent, and lists the mayor as absent with the office', () => {
+        const data = committeeWithSubstitute();
+        data.councilComposition!.mayor!.note = 'ΑΠΩΝ';
+        data.councilComposition!.presidedBy = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        data.absentMembers = [...data.absentMembers!, simpleResolver('mayor', 'Μαλτέζος Ιωάννης')];
+        const rollCall = rollCallOf(data);
+        expect(rollCall.president).toMatchObject({
+            name: 'Μαλτέζος Ιωάννης', personId: 'mayor', absent: true, isMayor: true, feminine: false,
+            presidedBy: { name: 'Πετσέλης Χρήστος', personId: 'm1' }, note: null,
+            printedName: 'Πετσέλης Χρήστος',
+            printedNote: 'λόγω απουσίας του ΠΡΟΕΔΡΟΥ, ΔΗΜΑΡΧΟΥ Μαλτέζος Ιωάννης',
+        });
+        expect(names(rollCall.absent)).toEqual(['Μαλτέζος Ιωάννης', 'Κολεβέντης Φώτιος']);
+        expect(rollCall.absent.map(e => e.office)).toEqual([{ isMayor: true, feminine: false }, null]);
+        expect(rollCall.present.every(e => e.office === null)).toBe(true);
+    });
+
+    it("names the person a subject's own document says presided, over the meeting's", () => {
+        const data = committeeWithSubstitute();
+        data.councilComposition!.presidedBy = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        const absentIds = new Set([...data.absentMembers!.map(m => m.personId), 'mayor']);
+        const subjectRollCall = buildRollCall(data.councilComposition!, absentIds, 'committee', { name: 'Άλλος Ένας', personId: 'other' });
+        expect(subjectRollCall.president).toMatchObject({ presidedBy: { name: 'Άλλος Ένας', personId: 'other' }, printedName: 'Άλλος Ένας' });
+        // Without a value of its own, the roll call names the meeting's.
+        expect(buildRollCall(data.councilComposition!, absentIds, 'committee').president).toMatchObject({ printedName: 'Πετσέλης Χρήστος' });
+    });
+
+    it('names the president when the president was present, whoever a document says presided', () => {
+        const data = committeeWithSubstitute();
+        data.councilComposition!.presidedBy = { name: 'Πετσέλης Χρήστος', personId: 'm1' };
+        expect(rollCallOf(data).president).toMatchObject({ presidedBy: null, printedName: 'Μαλτέζος Ιωάννης (ΔΗΜΑΡΧΟΣ)', printedNote: null });
+    });
+
+    it('keeps an absent president on the line when the document names the president as the one who presided', () => {
+        const data = councilWithAbsentPresident();
+        data.councilComposition!.presidedBy = { name: 'ΚΑΡΑΓΙΑΝΝΗ ΤΑΝΙΑ', personId: 'p1' };
+        const rollCall = rollCallOf(data);
+        expect(rollCall.president).toMatchObject({ presidedBy: null, printedName: 'Καραγιάννη Τάνια', printedNote: 'ΑΠΟΥΣΑ' });
+        expect(names(rollCall.absent)).toEqual(['Λαμπρόπουλος Παναγιώτης']);
+    });
+
+    it('names who presided on a council whose president was absent, and puts the president in the absence sentence', () => {
+        const data = councilWithAbsentPresident();
+        data.councilComposition!.presidedBy = { name: 'ΠΑΠΑΓΙΑΝΝΑΚΗ ΝΙΚΗ', personId: null };
+        const rollCall = rollCallOf(data);
+        expect(rollCall.president).toMatchObject({
+            name: 'Καραγιάννη Τάνια', absent: true, isMayor: false, feminine: true,
+            printedName: 'ΠΑΠΑΓΙΑΝΝΑΚΗ ΝΙΚΗ', printedNote: 'λόγω απουσίας της ΠΡΟΕΔΡΟΥ Καραγιάννη Τάνια',
+        });
+        expect(rollCall.absent.map(formatRollCallSentenceName)).toEqual(['Καραγιάννη Τάνια (ΠΡΟΕΔΡΟΣ)', 'Λαμπρόπουλος Παναγιώτης']);
+        // The mayor's line does not change: the council's mayor never presides.
+        expect(rollCall.mayor).toMatchObject({ name: 'Ρούσσος Σίμος', note: 'αποχώρησε από το 4ο θέμα' });
     });
 
     it('gives a council the ΔΗΜΑΡΧΟΣ line with its note, and keeps an absent president out of the absence sentence', () => {
@@ -487,12 +545,54 @@ describe('buildRollCall', () => {
     });
 });
 
+describe('buildSubjectRollCall', () => {
+    const member = (personId: string, name: string, party: string | null = null): MinutesMember => ({ personId, name, party, isPartyHead: false, role: null });
+    const names = (entries: Array<{ member: MinutesMember }>) => entries.map(e => e.member.name);
+
+    it('counts and names a member the roll call does not name, from the subject\'s own attendance', () => {
+        // chalandri/aug20_2026 items 7–11: Ευθυμίου has subject rows and votes, and no roll-call row.
+        const data = committeeWithSubstitute();
+        const attendance = {
+            present: [member('mayor', 'Μαλτέζος Ιωάννης'), member('m1', 'Πετσέλης Χρήστος'), member('m2', 'Λιόλιος Αντώνης'),
+                member('s1', 'Δημάκης Γιώργος'), member('x', 'Ευθυμίου Κωνσταντίνος')],
+            absent: [member('m3', 'Κολεβέντης Φώτιος')],
+        };
+        const rollCall = buildSubjectRollCall(data.councilComposition, attendance, 'committee', null);
+        expect(rollCall.present).toHaveLength(5);
+        expect(names(rollCall.present)).toContain('Ευθυμίου Κωνσταντίνος');
+        expect(names(rollCall.absent)).toEqual(['Κολεβέντης Φώτιος']);
+        expect(rollCall.president).toMatchObject({ name: 'Μαλτέζος Ιωάννης', isMayor: true });
+    });
+
+    it('reads who is absent from the subject\'s attendance, and adds an absent member the composition lacks', () => {
+        const data = councilWithAbsentPresident();
+        const attendance = { present: [member('p1', 'Καραγιάννη Τάνια')], absent: [member('p2', 'Λαμπρόπουλος Παναγιώτης'), member('p3', 'Παπαγιαννάκη Νίκη'), member('y', 'Νέος Υ')] };
+        const rollCall = buildSubjectRollCall(data.councilComposition, attendance, 'council', null);
+        expect(rollCall.president).toMatchObject({ personId: 'p1', absent: false });
+        expect(names(rollCall.present)).toEqual(['Καραγιάννη Τάνια']);
+        expect(names(rollCall.absent)).toEqual(['Λαμπρόπουλος Παναγιώτης', 'Παπαγιαννάκη Νίκη', 'Νέος Υ']);
+    });
+
+    it('prints the subject\'s own lists and no head line without a composition', () => {
+        const attendance = { present: [member('a', 'Α Α'), member('b', 'Β Β')], absent: [member('c', 'Γ Γ')] };
+        const rollCall = buildSubjectRollCall(null, attendance, 'council', null);
+        expect(rollCall).toMatchObject({ mayor: null, president: null });
+        expect(names(rollCall.present)).toEqual(['Α Α', 'Β Β']);
+        expect(names(rollCall.absent)).toEqual(['Γ Γ']);
+    });
+});
+
 describe('formatRollCallMemberLabel', () => {
     const m = (party: string | null, isPartyHead = false): MinutesMember => ({ personId: 'x', name: 'x', party, isPartyHead, role: null });
     it('puts the substitute mark before the party and marks a party head', () => {
-        expect(formatRollCallMemberLabel({ member: m('ΝΔ', true), isSubstitute: true })).toBe('αναπλ. μέλος, ΝΔ, Επικεφαλής');
-        expect(formatRollCallMemberLabel({ member: m('ΝΔ'), isSubstitute: false })).toBe('ΝΔ');
-        expect(formatRollCallMemberLabel({ member: m(null), isSubstitute: false })).toBeNull();
+        expect(formatRollCallMemberLabel({ member: m('ΝΔ', true), isSubstitute: true, office: null })).toBe('αναπλ. μέλος, ΝΔ, Επικεφαλής');
+        expect(formatRollCallMemberLabel({ member: m('ΝΔ'), isSubstitute: false, office: null })).toBe('ΝΔ');
+        expect(formatRollCallMemberLabel({ member: m(null), isSubstitute: false, office: null })).toBeNull();
+    });
+
+    it('puts an absent president\'s office before the party', () => {
+        expect(formatRollCallMemberLabel({ member: m('ΝΔ'), isSubstitute: false, office: { isMayor: true, feminine: true } })).toBe('ΠΡΟΕΔΡΟΣ, ΔΗΜΑΡΧΟΣ, ΝΔ');
+        expect(formatRollCallMemberLabel({ member: m(null), isSubstitute: false, office: { isMayor: false, feminine: false } })).toBe('ΠΡΟΕΔΡΟΣ');
     });
 });
 

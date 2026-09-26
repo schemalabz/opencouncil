@@ -40,7 +40,7 @@ import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
 import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 import { buildTimeline } from '@/components/meetings/decisions/timeline';
 import { SubjectPresence } from '@/components/meetings/decisions/SubjectPresence';
-import { buildRollCall } from '@/lib/minutes/builders';
+import { buildAttendance, buildSubjectRollCall } from '@/lib/minutes/builders';
 import { downloadFile } from '@/lib/export/download';
 import { MinutesPreviewDialog } from '@/components/meetings/decisions/MinutesPreviewDialog';
 import { DerivationDialog } from '@/components/meetings/decisions/DerivationDialog';
@@ -1131,6 +1131,16 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         const extracted = extractedData[subjectId];
         const auditEvidence = renderAuditEvidence(subjectId);
         if (!decision?.excerpt && !decision?.references && !extracted && !auditEvidence) return null;
+        // The subject's presence from one snapshot: the minutes' subject, whose
+        // attendance gives both the absentees and the people the roll call does
+        // not name. When the minutes did not load, the decisions request's own
+        // rows, with no ΔΗΜΑΡΧΟΣ or ΠΡΟΕΔΡΟΣ line.
+        const minutesSubject = minutesById.get(subjectId);
+        const subjectRollCall = minutes?.councilComposition && minutesSubject?.attendance
+            ? buildSubjectRollCall(minutes.councilComposition, minutesSubject.attendance, minutes.administrativeBody?.type ?? null, minutesSubject.presidedBy)
+            : extracted && extracted.attendance.length > 0
+                ? buildSubjectRollCall(null, buildAttendance(extracted.attendance, null, (personId, name) => ({ personId, name, party: null, isPartyHead: false, role: null }), () => null), null, null)
+                : null;
         return (
             <div className="space-y-3">
                 {decision?.excerpt && (
@@ -1155,15 +1165,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                     </div>
                 )}
 
-                {extracted && extracted.attendance.length > 0 && minutes?.councilComposition && (
-                    <SubjectPresence
-                        rollCall={buildRollCall(
-                            minutes.councilComposition,
-                            new Set(extracted.attendance.filter(a => a.status === 'ABSENT').map(a => a.personId)),
-                            minutes.administrativeBody?.type ?? null,
-                        )}
-                    />
-                )}
+                {subjectRollCall && <SubjectPresence rollCall={subjectRollCall} />}
 
                 {extracted && extracted.votes.length > 0 && (() => {
                     const voteResult = calculateVoteResult(extracted.votes);

@@ -16,6 +16,7 @@ function subject(o: Partial<MinutesSubject> & { subjectId: string }): MinutesSub
         discussedWith: null,
         discussedElsewhere: null,
         decision: null,
+        presidedBy: null,
         attendance: { present: [], absent: [] },
         voteResult: null,
         preDiscussionEntries: [],

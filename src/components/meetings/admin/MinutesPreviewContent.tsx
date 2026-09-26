@@ -15,7 +15,7 @@ import {
     MinutesRollCall,
     MinutesRollCallMember,
 } from '@/lib/minutes/types';
-import { buildRollCall, formatRollCallMemberLabel, formatChangePosition, formatPhraseOnlyOutcome, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
+import { buildRollCall, formatRollCallMemberLabel, formatRollCallSentenceName, formatChangePosition, formatPhraseOnlyOutcome, getWithdrawnLabelGreek } from '@/lib/minutes/builders';
 
 
 type DebugCategory = 'SUBJECT_DISCUSSION' | 'VOTE' | 'PROCEDURAL_VOTE' | 'ATTENDANCE' | 'OTHER' | 'CROSS_SUBJECT';
@@ -219,8 +219,7 @@ function CouncilCompositionSection({ composition, absentMembers, adminBody }: {
             {rollCall.president && (
                 <p className="text-sm mb-4">
                     <span className="font-bold">ΠΡΟΕΔΡΟΣ: </span>
-                    {rollCall.president.name}
-                    {rollCall.president.isMayor && ' (ΔΗΜΑΡΧΟΣ)'}
+                    {rollCall.president.printedName}
                     {rollCall.president.printedNote && (
                         <span className="text-gray-500"> ({rollCall.president.printedNote})</span>
                     )}
@@ -239,13 +238,13 @@ function CouncilCompositionSection({ composition, absentMembers, adminBody }: {
                 <>
                     <ul className="list-disc pl-6 space-y-1">
                         {composition.members.map((member) => (
-                            <RollCallMemberItem key={member.personId} entry={{ member, isSubstitute: false }} />
+                            <RollCallMemberItem key={member.personId} entry={{ member, isSubstitute: false, office: null }} />
                         ))}
                     </ul>
 
                     {rollCall.absent.length > 0 && (
                         <p className="text-sm mt-4">
-                            Κατά την έναρξη της συνεδρίασης απουσίαζαν οι {rollCall.absent.map(m => m.member.name).join(', ')}
+                            Κατά την έναρξη της συνεδρίασης απουσίαζαν οι {rollCall.absent.map(formatRollCallSentenceName).join(', ')}
                             <span className="text-gray-500"> ({rollCall.absent.length})</span>
                         </p>
                     )}

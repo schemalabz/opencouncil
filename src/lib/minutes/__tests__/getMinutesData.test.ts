@@ -249,4 +249,72 @@ describe('getMinutesData — a mayor who is a member of the committee', () => {
         // Still a member: the counts agree with the tallies.
         expect(rollCall.present.map(e => e.member.personId)).toContain('mayor');
     });
+
+    it('names who presided when the mayor who presides was absent, and lists the mayor\'s arrival once, in the changes list', async () => {
+        // «ΠΡΟΕΔΡΟΣ: Πετσέλης Χρήστος (λόγω απουσίας του ΠΡΟΕΔΡΟΥ, ΔΗΜΑΡΧΟΥ Μαλτέζος Ιωάννης)»
+        mockGetPeopleForCity.mockResolvedValue([
+            person('mayor', 'Ιωάννης Μαλτέζος', [role({ isHead: true, cityId: CITY_ID }), role({ isHead: true, administrativeBodyId: COMMITTEE.id })]),
+            person('p1', 'Χρήστος Πετσέλης', [role({ administrativeBodyId: COMMITTEE.id })]),
+            person('m1', 'Αντώνης Λιόλιος', [role({ administrativeBodyId: COMMITTEE.id })]),
+        ]);
+        mockGetMeetingAttendance.mockResolvedValue(['mayor', 'p1', 'm1'].map(personId => ({
+            personId, status: personId === 'mayor' ? 'ABSENT' : 'PRESENT',
+            person: { name: personId === 'mayor' ? 'Ιωάννης Μαλτέζος' : personId === 'p1' ? 'Χρήστος Πετσέλης' : 'Αντώνης Λιόλιος' },
+        })));
+        mockAttendanceEventFindMany.mockResolvedValue([{
+            personId: 'mayor', kind: 'ARRIVAL', anchorKind: 'AGENDA_ITEM', anchorAgendaItemIndex: 2, anchorNonAgendaReason: null,
+            anchorDecisionNumber: null, anchorSubjectId: null, anchorPhase: null, timing: 'BEFORE', rawText: 'Ο Δήμαρχος προσήλθε',
+        }]);
+        const presidedBy = { name: 'ΠΕΤΣΕΛΗΣ ΧΡΗΣΤΟΣ', personId: 'p1', rawText: 'προήδρευσε ο Αντιπρόεδρος' };
+        mockGetSubjectsForMeeting.mockResolvedValue([
+            { ...subjectRow({ id: 's1', name: 'Ένα', agendaItemTitle: null, agendaItemIndex: 1 }), decision: { extraction: { presidedBy }, extractorVersion: '4' } },
+            subjectRow({ id: 's2', name: 'Δύο', agendaItemTitle: null, agendaItemIndex: 2 }),
+        ]);
+        const data = await getMinutesData(CITY_ID, MEETING_ID);
+        expect(data.councilComposition!.presidedBy).toEqual({ name: 'Πετσέλης Χρήστος', personId: 'p1' });
+        expect(data.attendanceChanges).toEqual([
+            expect.objectContaining({ personId: 'mayor', type: 'arrival', atSubject: expect.objectContaining({ id: 's2' }) }),
+        ]);
+        const rollCall = buildRollCall(data.councilComposition!, new Set(data.absentMembers!.map(m => m.personId)), data.administrativeBody?.type ?? null);
+        expect(rollCall.president).toMatchObject({
+            personId: 'mayor', isMayor: true, printedName: 'Πετσέλης Χρήστος',
+            printedNote: 'λόγω απουσίας του ΠΡΟΕΔΡΟΥ, ΔΗΜΑΡΧΟΥ Μαλτέζος Ιωάννης',
+        });
+        expect(rollCall.absent).toEqual([expect.objectContaining({ member: expect.objectContaining({ personId: 'mayor' }), office: { isMayor: true, feminine: false } })]);
+    });
+
+    it("names on each subject's roll call who its own document says presided, else who presided at the meeting", async () => {
+        mockGetPeopleForCity.mockResolvedValue([
+            person('mayor', 'Ιωάννης Μαλτέζος', [role({ isHead: true, cityId: CITY_ID }), role({ isHead: true, administrativeBodyId: COMMITTEE.id })]),
+            person('p1', 'Χρήστος Πετσέλης', [role({ administrativeBodyId: COMMITTEE.id })]),
+            person('m1', 'Αντώνης Λιόλιος', [role({ administrativeBodyId: COMMITTEE.id })]),
+        ]);
+        mockGetMeetingAttendance.mockResolvedValue(['mayor', 'p1', 'm1'].map(personId => ({
+            personId, status: personId === 'mayor' ? 'ABSENT' : 'PRESENT',
+            person: { name: personId === 'mayor' ? 'Ιωάννης Μαλτέζος' : personId === 'p1' ? 'Χρήστος Πετσέλης' : 'Αντώνης Λιόλιος' },
+        })));
+        mockAttendanceEventFindMany.mockResolvedValue([]);
+        const withPage = (row: ReturnType<typeof subjectRow>, extraction: object) => ({ ...row, decision: { extraction, extractorVersion: '4' } });
+        mockGetSubjectsForMeeting.mockResolvedValue([
+            withPage(subjectRow({ id: 's1', name: 'Ένα', agendaItemTitle: null, agendaItemIndex: 1 }), { presidedBy: { name: 'ΠΕΤΣΕΛΗΣ ΧΡΗΣΤΟΣ', personId: 'p1' } }),
+            withPage(subjectRow({ id: 's2', name: 'Δύο', agendaItemTitle: null, agendaItemIndex: 2 }), {}),
+            withPage(subjectRow({ id: 's3', name: 'Τρία', agendaItemTitle: null, agendaItemIndex: 3 }), { presidedBy: { name: 'ΛΙΟΛΙΟΣ ΑΝΤΩΝΗΣ', personId: 'm1' } }),
+            subjectRow({ id: 's4', name: 'Τέσσερα', agendaItemTitle: null, agendaItemIndex: 4 }),
+        ]);
+        const data = await getMinutesData(CITY_ID, MEETING_ID);
+        const composition = data.councilComposition!;
+        const absentIds = new Set(data.absentMembers!.map(m => m.personId));
+        const printedNameAt = (subjectId: string) => buildRollCall(
+            composition, absentIds, 'committee', data.subjects.find(s => s.subjectId === subjectId)!.presidedBy,
+        ).president!.printedName;
+
+        // The meeting's own line names who the first document says presided.
+        expect(composition.presidedBy).toEqual({ name: 'Πετσέλης Χρήστος', personId: 'p1' });
+        expect(buildRollCall(composition, absentIds, 'committee').president!.printedName).toBe('Πετσέλης Χρήστος');
+        expect(printedNameAt('s1')).toBe('Πετσέλης Χρήστος');
+        expect(printedNameAt('s3')).toBe('Λιόλιος Αντώνης');
+        // A page that names no one, and a subject with no page, fall back to the meeting's.
+        expect(printedNameAt('s2')).toBe('Πετσέλης Χρήστος');
+        expect(printedNameAt('s4')).toBe('Πετσέλης Χρήστος');
+    });
 });

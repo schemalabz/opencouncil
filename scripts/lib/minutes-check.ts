@@ -109,8 +109,9 @@ export function checkMeeting(m: GoldenMeeting, data: MinutesData): CheckLine[] {
         const notMayorApart = (n: string) => !mayorApart || !samePerson(n, mayorApart);
         const present = (rollCall?.present ?? []).map(e => e.member.name);
         // The minutes print an absent council president on the president's line, not in the
-        // absence sentence; the fixture's absent list is compared with the president added back.
-        // A committee's absent list already holds an absent president, so nothing is added there.
+        // absence sentence, unless the line names who presided instead; the fixture's absent list
+        // is compared with the president added back. A committee's absent list already holds an
+        // absent president, and so does a council's when the line names who presided.
         const president = rollCall?.president ?? null;
         const absent = [
             ...(rollCall?.absent ?? []).map(e => e.member.name),

@@ -11,7 +11,7 @@ jest.mock('next-intl', () => ({
 function subjectWithStart(start: number | null): MinutesSubject {
     return {
         subjectId: 's', agendaItemIndex: 1, nonAgendaReason: null, withdrawn: false, name: 's',
-        discussedWith: null, discussedElsewhere: null, decision: null, attendance: null, voteResult: null,
+        discussedWith: null, discussedElsewhere: null, decision: null, presidedBy: null, attendance: null, voteResult: null,
         preDiscussionEntries: [], transcriptEntries: [], discussion: { kind: start === null ? 'none' : 'discussed', seconds: 0, start },
     };
 }

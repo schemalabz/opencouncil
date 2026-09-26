@@ -1,6 +1,6 @@
 import { AttendanceStatus, DiscussionStatus, VoteType } from '@prisma/client';
 import { compareRanks } from '@/lib/sorting/people';
-import { extractFirstName, formatSurnameFirst, getAbsentLabel } from '@/lib/formatters/name';
+import { extractFirstName, formatSurnameFirst, getAbsentLabel, isFemaleName } from '@/lib/formatters/name';
 import { calculateVoteResult, getAbsentNonVoterIds } from '@/lib/utils/votes';
 import { splitAttendance } from '@/lib/utils/attendance';
 import { isRecordSubject } from '@/lib/utils/subjects';
@@ -16,6 +16,7 @@ import {
     MinutesProceduralVote,
     MinutesRollCall,
     MinutesRollCallMember,
+    MinutesRollCallOffice,
 } from './types';
 
 // --- Dependency types for testability ---
@@ -228,32 +229,64 @@ export function buildCouncilComposition(
 }
 
 /**
+ * Who presided in the president's place at the roll call: the person the
+ * documents say presided (the meeting's `MinutesCouncilComposition.presidedBy`,
+ * or one subject's `MinutesSubject.presidedBy`), when the
+ * president was absent and that person is someone else. Null otherwise, and
+ * the ΠΡΟΕΔΡΟΣ line then names the president.
+ *
+ * `buildRollCall` prints the ΠΡΟΕΔΡΟΣ line from this, and `getMinutesData`
+ * reads it to decide where a presiding mayor's own arrivals and departures print.
+ */
+export function presidentStandIn(
+    presidentPersonId: string,
+    presidentAbsent: boolean,
+    presidedBy: { name: string; personId: string | null } | null,
+): { name: string; personId: string | null } | null {
+    if (!presidentAbsent || !presidedBy) return null;
+    return presidedBy.personId === presidentPersonId ? null : presidedBy;
+}
+
+/**
  * The roll call the minutes print, from the composition and who was absent.
  *
  * A council gets the ΔΗΜΑΡΧΟΣ line, then the ΠΡΟΕΔΡΟΣ line; its lists are the
- * ΣΥΝΘΕΣΗ members, and the absence sentence leaves the president out. A
- * council's lists never hold the mayor: `buildCouncilComposition` leaves out a
- * mayor who is not a member, and on a council the mayor never is.
+ * ΣΥΝΘΕΣΗ members, and the absence sentence leaves out an absent president
+ * whose own line says they were absent. A council's lists never hold the
+ * mayor: `buildCouncilComposition` leaves out a mayor who is not a member, and
+ * on a council the mayor never is.
  *
  * A committee gets no ΔΗΜΑΡΧΟΣ line. A mayor who is a member of the committee
  * is an ordinary member, and the lists count the mayor. When the mayor
  * presides, the president's line adds «(ΔΗΜΑΡΧΟΣ)» and the mayor's note, as
- * the minutes print it: the absence at the roll call, the mayor's arrivals and
- * departures, and who presided in the mayor's place. `getMinutesData` then
- * keeps the mayor's arrivals and departures out of the changes list, so
- * nothing prints twice. A member mayor who does not preside has no line of
- * their own, and their arrivals and departures are in the changes list, like
- * any member's. A mayor who is not a member of the committee is not printed at all.
- * Its lists are the members and the substitutes, the substitutes after their
- * party (`interleaveSubstitutes`).
+ * the minutes print it: the absence at the roll call, and the mayor's arrivals
+ * and departures. `getMinutesData` then keeps the mayor's arrivals and
+ * departures out of the changes list, so nothing prints twice. A member mayor
+ * who does not preside has no line of their own, and their arrivals and
+ * departures are in the changes list, like any member's. A mayor who is not a
+ * member of the committee is not printed at all. Its lists are the members and
+ * the substitutes, the substitutes after their party (`interleaveSubstitutes`).
+ *
+ * When the president was absent and another person presided
+ * (`presidentStandIn`), the ΠΡΟΕΔΡΟΣ line names that person first, and the
+ * parenthesis names the absent president, with the mayor's office when the
+ * president is the mayor. The line then carries no mayor's note:
+ * `getMinutesData` puts that mayor's arrivals and departures in the changes
+ * list. On a council and on a committee, the absent list then holds the
+ * president with the office (`office`). When no document names who presided,
+ * the line names the absent president, as before.
  *
  * `absentIds` is who was absent at the point the lines describe: the roll call
- * for the minutes, or one subject for the decisions page.
+ * for the minutes, or one subject for the decisions page. `presidedBy` is who
+ * the documents say presided at that point: the meeting's by default, or one
+ * subject's (`MinutesSubject.presidedBy`), since a meeting's documents can name
+ * different people.
  */
 export function buildRollCall(
     composition: MinutesCouncilComposition,
     absentIds: ReadonlySet<string>,
     bodyType: string | null,
+    presidedBy: { name: string; personId: string | null } | null = composition.presidedBy ?? null,
 ): MinutesRollCall {
     const isCommittee = bodyType === 'committee';
     const absentLabel = (name: string) => getAbsentLabel(extractFirstName(name, 'surnameFirst'));
@@ -262,7 +295,8 @@ export function buildRollCall(
         ? (() => {
             const { name, personId, note } = composition.mayor;
             const absent = absentIds.has(personId);
-            return { name, personId, absent, note, printedNote: note ?? (absent ? absentLabel(name) : null) };
+            const feminine = isFemaleName(extractFirstName(name, 'surnameFirst'));
+            return { name, personId, absent, feminine, note, printedNote: note ?? (absent ? absentLabel(name) : null) };
         })()
         : null;
 
@@ -271,31 +305,90 @@ export function buildRollCall(
             const { name, personId } = composition.president;
             const absent = absentIds.has(personId);
             const isMayor = isCommittee && personId === composition.mayor?.personId;
+            const feminine = isFemaleName(extractFirstName(name, 'surnameFirst'));
+            const standIn = presidentStandIn(personId, absent, presidedBy);
+            if (standIn) {
+                return {
+                    name, personId, absent, isMayor, feminine, presidedBy: standIn, note: null,
+                    printedName: standIn.name,
+                    printedNote: `λόγω απουσίας ${feminine ? 'της' : 'του'} ΠΡΟΕΔΡΟΥ${isMayor ? ', ΔΗΜΑΡΧΟΥ' : ''} ${name}`,
+                };
+            }
             // A mayor who presides has no ΔΗΜΑΡΧΟΣ line, so their note goes on this one.
             const note = isMayor ? composition.mayor?.note ?? null : null;
-            return { name, personId, absent, isMayor, note, printedNote: note ?? (absent ? absentLabel(name) : null) };
+            return {
+                name, personId, absent, isMayor, feminine, presidedBy: null, note,
+                printedName: isMayor ? `${name} (ΔΗΜΑΡΧΟΣ)` : name,
+                printedNote: note ?? (absent ? absentLabel(name) : null),
+            };
         })()
         : null;
 
     const substituteIds = new Set(composition.substituteMembers.map(m => m.personId));
     const pool: MinutesRollCallMember[] = interleaveSubstitutes(composition.members, composition.substituteMembers)
-        .map(member => ({ member, isSubstitute: substituteIds.has(member.personId) }));
+        .map(member => ({ member, isSubstitute: substituteIds.has(member.personId), office: null }));
     const present = pool.filter(m => !absentIds.has(m.member.personId));
-    const absent = pool.filter(m => absentIds.has(m.member.personId)
-        && (isCommittee || m.member.personId !== composition.president?.personId));
+    const presidentOffice: MinutesRollCallOffice | null = president ? { isMayor: president.isMayor, feminine: president.feminine } : null;
+    const absent = pool
+        .filter(m => absentIds.has(m.member.personId)
+            && (isCommittee || m.member.personId !== president?.personId || president.presidedBy !== null))
+        .map(m => m.member.personId === president?.personId ? { ...m, office: presidentOffice } : m);
 
     return { isCommittee, mayor, president, present, absent };
 }
 
 /**
- * The parenthesis after a member's name in the minutes' lists: «αναπλ. μέλος»
- * for a substitute, then the party, with «Επικεφαλής» for its head.
+ * One subject's roll call on the decisions page, from one snapshot: the
+ * subject's own attendance (`MinutesSubject.attendance`) gives both the absent
+ * ids and the extra people. The pool is the meeting's composition, and every
+ * member of the subject's attendance that the composition does not hold. The
+ * replay gives subject rows to a person that no roll call names (their first
+ * event or a per-decision list puts them there), and that person votes, so the
+ * block counts and names them as the vote tally does.
+ *
+ * With no composition (the minutes did not load), the lines are the subject's
+ * own lists, with no ΔΗΜΑΡΧΟΣ or ΠΡΟΕΔΡΟΣ line.
  */
-export function formatRollCallMemberLabel({ member, isSubstitute }: MinutesRollCallMember): string | null {
+export function buildSubjectRollCall(
+    composition: MinutesCouncilComposition | null,
+    attendance: MinutesAttendance,
+    bodyType: string | null,
+    presidedBy: { name: string; personId: string | null } | null,
+): MinutesRollCall {
+    const absentIds = new Set(attendance.absent.map(m => m.personId));
+    if (!composition) {
+        const entry = (member: MinutesMember): MinutesRollCallMember => ({ member, isSubstitute: false, office: null });
+        return { isCommittee: bodyType === 'committee', mayor: null, president: null, present: attendance.present.map(entry), absent: attendance.absent.map(entry) };
+    }
+    const held = new Set([
+        ...composition.members.map(m => m.personId), ...composition.substituteMembers.map(m => m.personId),
+        ...(composition.president ? [composition.president.personId] : []), ...(composition.mayor ? [composition.mayor.personId] : []),
+    ]);
+    const extra = [...attendance.present, ...attendance.absent].filter(m => !held.has(m.personId));
+    return buildRollCall({ ...composition, members: [...composition.members, ...extra] }, absentIds, bodyType, presidedBy);
+}
+
+/** The office after an absent president's name in the minutes' lists: «ΠΡΟΕΔΡΟΣ», or «ΠΡΟΕΔΡΟΣ, ΔΗΜΑΡΧΟΣ». */
+export function formatRollCallOffice(office: MinutesRollCallOffice): string {
+    return office.isMayor ? 'ΠΡΟΕΔΡΟΣ, ΔΗΜΑΡΧΟΣ' : 'ΠΡΟΕΔΡΟΣ';
+}
+
+/**
+ * The parenthesis after a member's name in the minutes' lists: «αναπλ. μέλος»
+ * for a substitute, the office of an absent president, then the party, with
+ * «Επικεφαλής» for its head.
+ */
+export function formatRollCallMemberLabel({ member, isSubstitute, office }: MinutesRollCallMember): string | null {
     const labels: string[] = [];
     if (isSubstitute) labels.push('αναπλ. μέλος');
+    if (office) labels.push(formatRollCallOffice(office));
     if (member.party) labels.push(member.isPartyHead ? `${member.party}, Επικεφαλής` : member.party);
     return labels.length > 0 ? labels.join(', ') : null;
+}
+
+/** A name in a council's «απουσίαζαν οι» sentence: an absent president carries the office. */
+export function formatRollCallSentenceName({ member, office }: MinutesRollCallMember): string {
+    return office ? `${member.name} (${formatRollCallOffice(office)})` : member.name;
 }
 
 /** One of the mayor's own arrivals or departures, worded for the mayor's note. */
@@ -304,18 +397,17 @@ export type MayorChange = { type: 'arrival' | 'departure'; label: string };
 /**
  * The parenthesis after the mayor's name — on the ΔΗΜΑΡΧΟΣ line, or on the
  * ΠΡΟΕΔΡΟΣ line of a committee the mayor presides: absent/present at the roll
- * call, their own arrivals or departures, and who presided in their absence.
+ * call, and their own arrivals or departures. Who presided in an absent
+ * president's place is on the ΠΡΟΕΔΡΟΣ line (`buildRollCall`), not here.
  */
 export function buildMayorNote(
     rollCallStatus: 'PRESENT' | 'ABSENT' | null,
     mayorChanges: MayorChange[],
-    presidedByName: string | null,
     feminine: boolean,
 ): string | null {
     const parts: string[] = [];
     if (rollCallStatus === 'ABSENT') parts.push(feminine ? 'ΑΠΟΥΣΑ' : 'ΑΠΩΝ');
     for (const c of mayorChanges) parts.push(`${c.type === 'arrival' ? 'προσήλθε' : 'αποχώρησε'} ${c.label}`);
-    if (rollCallStatus === 'ABSENT' && presidedByName) parts.push(`προήδρευσε ${presidedByName}`);
     return parts.length ? parts.join(', ') : null;
 }
 
@@ -389,8 +481,9 @@ export function buildAttendanceChangesFromEvents(
  * for the mayor's note. `mayorPersonId` is the mayor whose note prints them: a
  * mayor who is not a member of the body (the ΔΗΜΑΡΧΟΣ line), or a committee
  * member mayor who presides (the ΠΡΟΕΔΡΟΣ line). Pass null for a member mayor
- * who does not preside: that mayor has no line, and their changes stay in the
- * list, like any member's.
+ * who does not preside, or a presiding mayor whose line names who presided in
+ * their absence (`presidentStandIn`): that mayor's line carries no note, and
+ * their changes stay in the list, like any member's.
  */
 function splitMayorChanges(
     all: MinutesAttendanceChange[],
