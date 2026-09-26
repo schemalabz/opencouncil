@@ -708,14 +708,16 @@ function createSubjectSection(subject: MinutesSubject): (Paragraph | Table)[] {
 
     // --- Subject footer: attendance, dissenting votes, decision number ---
 
-    // Full vote breakdown — or the document's own outcome alone, when it named no voter
+    // The document's own outcome when it named no voter in favour, then every
+    // list it did name: the named dissent and the absent members still print.
     const voteResult = subject.voteResult;
     if (voteResult?.fromPhraseOnly) {
         paragraphs.push(new Paragraph({
             spacing: { before: 60, after: 40 },
             children: [new TextRun({ text: formatPhraseOnlyOutcome(voteResult), bold: true, size: FONT_SIZE.SMALL })],
         }));
-    } else if (voteResult) {
+    }
+    if (voteResult) {
         const voteCategories: { label: string; members: MinutesMember[] }[] = [
             { label: 'ΥΠΕΡ', members: voteResult.forMembers },
             { label: 'ΚΑΤΑ', members: voteResult.againstMembers },

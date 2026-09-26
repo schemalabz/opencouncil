@@ -325,6 +325,38 @@ describe('buildVoteResult', () => {
             .toMatchObject({ fromPhraseOnly: true, outcome: 'majority', phrase });
     });
 
+    it('keeps the named dissent and the absent members when the outcome comes from the phrase', () => {
+        // The phrase gives the outcome; the named ΚΑΤΑ, ΛΕΥΚΟ and ΠΑΡΩΝ voters and
+        // the absent members still belong in the minutes.
+        const phrase = 'Κατά πλειοψηφία με ΥΠΕΡ: 7 ψήφους, ΚΑΤΑ 1, ΛΕΥΚΟ 1';
+        const votes = [
+            makeVote('p4', 'Diana', 'PRESENT'),
+            makeVote('p3', 'Charlie', 'ABSTAIN'),
+            makeVote('p2', 'Bob', 'AGAINST'),
+        ];
+        const attendance = [
+            makeAttendance('p2', 'Bob', 'PRESENT'),
+            makeAttendance('p5', 'Eve', 'ABSENT'),
+            makeAttendance('mayor-1', 'Mayor', 'ABSENT'),
+        ];
+        const result = buildVoteResult(votes, attendance, 'mayor-1', simpleResolver, noElectedOrder, phrase);
+
+        expect(result).toMatchObject({ fromPhraseOnly: true, outcome: 'majority', phrase });
+        expect(result!.forMembers).toEqual([]);
+        expect(result!.againstMembers.map(m => m.personId)).toEqual(['p2']);
+        expect(result!.abstainMembers.map(m => m.personId)).toEqual(['p3']);
+        expect(result!.presentMembers.map(m => m.personId)).toEqual(['p4']);
+        expect(result!.absentMembers.map(m => m.personId)).toEqual(['p5']);
+    });
+
+    it('keeps the absent members when the phrase names no voter at all', () => {
+        const attendance = [makeAttendance('p1', 'Alice', 'PRESENT'), makeAttendance('p2', 'Bob', 'ABSENT')];
+        const result = buildVoteResult([], attendance, null, simpleResolver, noElectedOrder, 'Ομόφωνα');
+
+        expect(result).toMatchObject({ fromPhraseOnly: true, outcome: 'unanimous' });
+        expect(result!.absentMembers.map(m => m.personId)).toEqual(['p2']);
+    });
+
     it('a phrase that counts and names no outcome names none', () => {
         // Vrilissia's wording where nobody voted against and somebody declared
         // ΠΑΡΩΝ: neither «ομόφωνα» nor «κατά πλειοψηφία» is what the page

@@ -120,12 +120,14 @@ export interface MinutesVoteMembers {
 }
 
 /**
- * A counted result, or — when the document named no voter — what its own phrase
- * says. The two carry different outcome fields, because a phrase-only result has
- * no counts to read `passed` or a unanimity off: «Κατά πλειοψηφία απορρίπτει»
- * did not pass, and a phrase that counts votes without naming an outcome is
- * neither unanimous nor a majority. Its member lists are empty because nobody
- * was counted, not because nobody voted.
+ * A counted result, or — when the document named no voter in favour — what its
+ * own phrase says. The two carry different outcome fields, because a phrase-only
+ * result has no counts to read `passed` or a unanimity off: «Κατά πλειοψηφία
+ * απορρίπτει» did not pass, and a phrase that counts votes without naming an
+ * outcome is neither unanimous nor a majority. Its FOR list is empty because
+ * nobody was named in favour, not because nobody voted in favour. The other
+ * lists hold the voters the page named (ΚΑΤΑ, ΛΕΥΚΟ, ΠΑΡΩΝ) and the absent
+ * members, and the minutes print them under the phrase.
  */
 export type MinutesVoteResult = MinutesVoteMembers & (
     | { fromPhraseOnly: false; passed: boolean; isUnanimous: boolean }

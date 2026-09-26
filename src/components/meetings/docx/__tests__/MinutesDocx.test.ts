@@ -353,3 +353,35 @@ describe('MinutesDocx roll call', () => {
         expect(runs).toContain('Καραγιάννη Τάνια (ΠΡΟΕΔΡΟΣ), Λαμπρόπουλος Παναγιώτης');
     });
 });
+
+describe('MinutesDocx vote result from the phrase', () => {
+    const member = (personId: string, name: string) =>
+        ({ personId, name, party: null, isPartyHead: false, role: null });
+
+    it('prints the phrase and still names the dissenters and the absent members', async () => {
+        const runs = await docxRuns(makeMinutesData({
+            subjects: [makeSubject({
+                voteResult: {
+                    forMembers: [],
+                    againstMembers: [member('p2', 'Βήτα Βασίλης')],
+                    abstainMembers: [member('p3', 'Γάμμα Γιώργος')],
+                    presentMembers: [member('p4', 'Δέλτα Δήμητρα')],
+                    didNotVoteMembers: [],
+                    absentMembers: [member('p5', 'Έψιλον Ελένη')],
+                    fromPhraseOnly: true,
+                    outcome: 'majority',
+                    phrase: 'Κατά πλειοψηφία με ΥΠΕΡ: 7 ψήφους, ΚΑΤΑ 1, ΛΕΥΚΟ 1',
+                },
+            })],
+        }));
+        const phraseAt = runs.indexOf('Κατά πλειοψηφία');
+        expect(phraseAt).toBeGreaterThan(-1);
+        expect(runs.slice(phraseAt + 1, phraseAt + 9)).toEqual([
+            'ΚΑΤΑ (1): ', 'Βήτα Βασίλης',
+            'ΛΕΥΚΑ (1): ', 'Γάμμα Γιώργος',
+            'ΠΑΡΟΝΤΕΣ (1): ', 'Δέλτα Δήμητρα',
+            'ΑΠΟΝΤΕΣ (1): ', 'Έψιλον Ελένη',
+        ]);
+        expect(runs.join('\n')).not.toContain('ΥΠΕΡ (');
+    });
+});

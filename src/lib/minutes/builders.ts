@@ -115,10 +115,10 @@ export function buildAttendance(
  * Builds vote result from extracted vote + attendance data.
  * Derives absent members as: those in attendance who are absent AND didn't vote (excluding mayor).
  *
- * With no votes there is still a result when the document states one in words
- * («Ομόφωνα») — nobody was named, so there are no lists at all and the result
- * carries the phrase with whatever outcome it names. Returns null when there is
- * neither.
+ * With no FOR row there is still a result when the document states one in words
+ * («Ομόφωνα»): the result carries the phrase with whatever outcome it names,
+ * and keeps the voters the page did name (ΚΑΤΑ, ΛΕΥΚΟ, ΠΑΡΩΝ) and the absent
+ * members. Returns null when there are no votes and no such phrase.
  *
  * Only a phrase that states an outcome counts: `voteResultPhrase` is the
  * extractor's verbatim field and often holds something else entirely
@@ -138,13 +138,8 @@ export function buildVoteResult(
     // members present do not fit that count. The rows then hold only the named
     // dissent, and counting them would print a carried decision as rejected.
     const permits = !!phrase && phrasePermitsInference(phrase);
-    if (!votes.some(v => v.voteType === 'FOR') && permits) {
-        return {
-            forMembers: [], againstMembers: [], abstainMembers: [], presentMembers: [], didNotVoteMembers: [], absentMembers: [],
-            fromPhraseOnly: true, outcome: phraseOutcome(phrase), phrase,
-        };
-    }
-    if (votes.length === 0) return null;
+    const fromPhraseOnly = !votes.some(v => v.voteType === 'FOR') && permits;
+    if (votes.length === 0 && !fromPhraseOnly) return null;
 
     const sortedVotes = [...votes].sort((a, b) =>
         compareRanks(getElectedOrder(a.personId), getElectedOrder(b.personId))
@@ -180,6 +175,13 @@ export function buildVoteResult(
             || a.personName.localeCompare(b.personName)
         )
         .map(a => resolveMember(a.personId, a.personName));
+
+    if (fromPhraseOnly) {
+        return {
+            forMembers, againstMembers, abstainMembers, presentMembers, didNotVoteMembers, absentMembers,
+            fromPhraseOnly: true, outcome: phraseOutcome(phrase), phrase,
+        };
+    }
 
     const { passed, isUnanimous } = calculateVoteResult(votes);
 

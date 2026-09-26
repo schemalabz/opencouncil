@@ -474,13 +474,13 @@ function SubjectFooter({ subject }: { subject: MinutesSubject }) {
 
     return (
         <div className="mt-4 text-xs">
-            {/* The document's own outcome alone, when it named no voter */}
+            {/* The document's own outcome, when it named no voter in favour */}
             {voteResult?.fromPhraseOnly && (
                 <p className="my-0.5 font-bold">{formatPhraseOnlyOutcome(voteResult)}</p>
             )}
 
-            {/* Full vote breakdown */}
-            {voteResult && !voteResult.fromPhraseOnly && (
+            {/* Every list the document named, under the phrase too */}
+            {voteResult && (
                 <>
                     {voteResult.forMembers.length > 0 && (
                         <p className="my-0.5">
