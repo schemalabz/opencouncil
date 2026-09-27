@@ -306,11 +306,11 @@ async function main() {
       }
     })
 
+    // Meeting ids repeat across cities (every city has a jul15_2026), so the
+    // guard has to match on the pair or a second city's dump is skipped.
     const existingMeetings = await prisma.councilMeeting.findMany({
       where: {
-        id: {
-          in: seedData.meetings.map((meeting: { id: string }) => meeting.id)
-        }
+        OR: seedData.meetings.map((meeting: { id: string; cityId: string }) => ({ id: meeting.id, cityId: meeting.cityId }))
       }
     })
 
