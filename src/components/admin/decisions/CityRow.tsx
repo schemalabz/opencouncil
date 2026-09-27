@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatCalendarDate } from '@/lib/formatters/time';
 import { RelativeTime } from '@/components/RelativeTime';
 import type { CityDecisionHealth, CityState } from '@/lib/db/decisionHealth';
+import type { DecisionReadIssueCount } from '@/lib/db/decisions';
 import type { CityDecisionDetail } from '@/lib/db/decisionHealthDetail';
 import type { CandidateConflict } from '@/lib/db/decisionCandidates';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
@@ -51,8 +52,10 @@ export interface OpenRequest {
 }
 
 /** One city on the decisions overview; detail loads on first expansion. */
-export function CityRow({ city, state, label, openRequest }: {
+export function CityRow({ city, state, label, openRequest, readIssues = [] }: {
     city: CityDecisionHealth; state: CityState; label: string; openRequest?: OpenRequest | null;
+    /** The city's meetings holding documents read incompletely or with an unmatched name. */
+    readIssues?: DecisionReadIssueCount[];
 }) {
     const t = useTranslations('admin.decisionsOverview');
     const locale = useLocale();
@@ -198,6 +201,20 @@ export function CityRow({ city, state, label, openRequest }: {
             {open && (
                 <div className="px-5 pb-4 pt-1">
                     <BodyRows city={city} selected={selectedBody} onSelect={setSelectedBody} />
+                    {/* Documents we hold and read, but not cleanly: the fix is on the
+                        meeting's own decisions page, so each row links straight to it. */}
+                    {readIssues.length > 0 && (
+                        <ul className="mb-2 space-y-0.5">
+                            {[...readIssues].sort((a, b) => b.sessionDate.localeCompare(a.sessionDate)).map(r => (
+                                <li key={r.councilMeetingId} className="flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
+                                    <span>{formatCalendarDate(r.sessionDate, locale)}{' · '}{t('readIssues', { count: r.count })}</span>
+                                    <Link className="shrink-0 text-[#fc550a] hover:underline" href={`/${city.cityId}/${r.councilMeetingId}/decisions`}>
+                                        {t('openMeeting')} <ExternalLink className="inline h-3 w-3" />
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                     {loading && <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{t('loadingDetail')}</div>}
                     {detail && (() => {
                         const shown = selectedBody === null ? detail : narrowDetailToBody(detail, selectedBody.bodyId);

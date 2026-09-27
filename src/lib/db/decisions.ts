@@ -333,3 +333,34 @@ export async function getDecisionForSubject(subjectId: string): Promise<{
         updatedAt: decision.updatedAt?.toISOString() ?? null,
     };
 }
+
+/** One meeting's count of documents we read but could not read cleanly. */
+export interface DecisionReadIssueCount {
+    cityId: string;
+    councilMeetingId: string;
+    /** City-local calendar date of the session, so the row reads as a date. */
+    sessionDate: string;
+    count: number;
+}
+
+/**
+ * Per meeting, how many of its decisions the extraction could not read in full:
+ * the read was flagged incomplete, or it left a name it could not match to a
+ * person. These are the issues a human can fix at the document — the
+ * derivation's other issues follow from the facts and change with them.
+ */
+export async function countDecisionReadIssuesByMeeting(cityId?: string): Promise<DecisionReadIssueCount[]> {
+    return prisma.$queryRaw<DecisionReadIssueCount[]>`
+        SELECT s."cityId" AS "cityId",
+               s."councilMeetingId" AS "councilMeetingId",
+               to_char(cm."dateTime" AT TIME ZONE c.timezone, 'YYYY-MM-DD') AS "sessionDate",
+               COUNT(*)::int AS count
+        FROM "Decision" d
+        JOIN "Subject" s ON s.id = d."subjectId"
+        JOIN "CouncilMeeting" cm ON cm.id = s."councilMeetingId" AND cm."cityId" = s."cityId"
+        JOIN "City" c ON c.id = s."cityId"
+        WHERE (d.incomplete OR cardinality(d."unmatchedNames") > 0)
+          ${cityId ? Prisma.sql`AND s."cityId" = ${cityId}` : Prisma.empty}
+        GROUP BY 1, 2, 3
+    `;
+}
