@@ -1221,7 +1221,14 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         />
                     )}
 
-                    {minutes && <MinutesPreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} data={minutes} />}
+                    {minutes && (
+                        <MinutesPreviewDialog
+                            open={previewOpen}
+                            onOpenChange={setPreviewOpen}
+                            data={minutes}
+                            isSuperAdmin={isSuperAdmin}
+                        />
+                    )}
                 </div>
                 <aside className="min-w-0">
                     <DecisionsRail
