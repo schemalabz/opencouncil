@@ -2,6 +2,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { DecisionsTable, type TableRow, type DecisionsTableProps } from '../DecisionsTable';
+import type { AuditSignal } from '../auditSignal';
+import type { Issue } from '@/lib/derivation/types';
 import admin from '../../../../../messages/el/admin.json';
 import el from '../../../../../messages/el.json';
 
@@ -9,7 +11,23 @@ const subject = (over: Partial<TableRow['subject']> = {}): TableRow['subject'] =
     id: 's1', name: 'Καθαρισμός τμημάτων', agendaItemIndex: 2, nonAgendaReason: null, withdrawn: false, ...over,
 });
 const row = (over: Partial<TableRow> = {}): TableRow => ({
-    subject: subject(), decision: null, result: 'none', resultHint: null, voteCounts: null, proposal: null, rejected: null, ...over,
+    subject: subject(), decision: null, result: 'none', resultHint: null, voteCounts: null, proposal: null, rejected: null,
+    audit: null, ...over,
+});
+
+/** What the page hands a row while audit mode is on. */
+const signal = (over: Partial<AuditSignal> = {}): AuditSignal => ({
+    severity: 'info', kind: 'stated', code: null, extraIssues: 0, inferred: 0, derivedVotes: 4,
+    needsCheck: false, issues: [], ...over,
+});
+
+const layoutIssue: Issue = { code: 'LAYOUT_DISAGREES', subjectId: 's1', source: 'decision', params: { expected: 'composition_and_absent', found: 'present_and_absent' } };
+const tallyIssue: Issue = { code: 'TALLY_MISMATCH', subjectId: 's1', source: 'decision', params: { diffs: [{ type: 'FOR', printed: 8, derived: 7 }] } };
+/** A row whose subject has two issues, the worst of them on its line. */
+const withIssues = (over: Partial<TableRow> = {}) => row({
+    audit: signal({ severity: 'warning', kind: 'issues', code: 'LAYOUT_DISAGREES', needsCheck: true, extraIssues: 1,
+        issues: [{ issue: layoutIssue, person: null }, { issue: tallyIssue, person: null }] }),
+    ...over,
 });
 
 const props: DecisionsTableProps = {
@@ -17,6 +35,7 @@ const props: DecisionsTableProps = {
     beforeAgenda: [],
     filter: 'all',
     missingCount: 1,
+    auditCount: 0,
     onFilterChange: jest.fn(),
     openPanelSubjectId: null,
     onOpenPanel: jest.fn(),
@@ -27,6 +46,8 @@ const props: DecisionsTableProps = {
     onOpenDecision: jest.fn(),
     onOpenProposalDocument: jest.fn(),
     busySubjectId: null,
+    openAuditSubjectId: null,
+    onToggleAudit: jest.fn(),
 };
 
 const renderTable = (over: Partial<typeof props> = {}) => render(
@@ -290,6 +311,116 @@ describe('DecisionsTable', () => {
         expect(screen.getByText('ΤΟ ΠΛΑΙΣΙΟ')).toBeInTheDocument();
         expect(screen.getByText('Καθαρισμός τμημάτων')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Συμπλήρωση αριθμού' })).toBeInTheDocument();
+    });
+
+    describe('audit mode', () => {
+        it('says nothing about how a fact was reached while the mode is off', () => {
+            renderTable({ rows: [row({ decision: { number: '643/2026', manualBy: null }, result: 'unanimous' })] });
+            expect(screen.queryByLabelText('Έλεγχος')).not.toBeInTheDocument();
+        });
+
+        it('puts the line under the subject title, in the slot the proposal line uses', () => {
+            renderTable({ rows: [row({ audit: signal({ kind: 'inferredVotes', inferred: 3 }) })] });
+            const line = screen.getByLabelText('Έλεγχος');
+            expect(line).toHaveTextContent(admin.decisionsPage.audit.inferredVotes);
+            expect(line).toHaveTextContent('3 από τις 4 ψήφους');
+            const title = screen.getByText('Καθαρισμός τμημάτων');
+            expect(line.closest('[role="cell"]')).toBe(title.closest('[role="cell"]'));
+        });
+
+        it('keeps a proposal ahead of the audit line, on the one amber ground the row already has', () => {
+            renderTable({ rows: [row({
+                proposal: { candidateId: 'c1', number: '637/2026', title: null, likely: false },
+                audit: signal({ severity: 'warning', kind: 'issues', code: 'TALLY_MISMATCH', needsCheck: true }),
+            })] });
+            const cell = screen.getByText('Καθαρισμός τμημάτων').closest('[role="cell"]') as HTMLElement;
+            const children = Array.from(cell.children);
+            const proposalLine = screen.getByText('Βρήκαμε πιθανή απόφαση:').closest('div') as HTMLElement;
+            const auditLine = screen.getByLabelText('Έλεγχος');
+            expect(children.indexOf(proposalLine)).toBeLessThan(children.indexOf(auditLine));
+            // One ground, the row's own: the line brings no second one.
+            expect(auditLine.className).not.toMatch(/bg-/);
+            expect(auditLine.className).not.toMatch(/repeating-linear-gradient/);
+            expect(auditLine).toHaveClass('border-[hsl(var(--orange))]/20', 'rounded-[7px]', 'inline-flex');
+        });
+
+        it('colours the dot and never the row', () => {
+            renderTable({ rows: [row({
+                audit: signal({ severity: 'error', kind: 'issues', code: 'NO_STORED_FACTS', needsCheck: true }),
+            })] });
+            const line = screen.getByLabelText('Έλεγχος');
+            expect(line).toHaveTextContent(admin.decisionsPage.issues.codes.NO_STORED_FACTS);
+            expect(line.querySelector('.bg-red-600')).not.toBeNull();
+            const tableRow = line.closest('[role="row"]') as HTMLElement;
+            expect(tableRow.className).not.toMatch(/bg-red|bg-amber/);
+        });
+
+        it('leaves an inferred row grey, since a body that names only dissenters is not broken', () => {
+            renderTable({ rows: [row({ audit: signal({ kind: 'inferredVotes', inferred: 2 }) })] });
+            const line = screen.getByLabelText('Έλεγχος');
+            expect(line.querySelector('.bg-muted-foreground\\/40')).not.toBeNull();
+            expect(line.querySelector('.bg-red-600, .bg-amber-500')).toBeNull();
+        });
+
+        it('opens a subject\'s issues from its line, for the line\'s name and for «+X ακόμη» alike', async () => {
+            const onToggleAudit = jest.fn();
+            renderTable({ rows: [withIssues()], onToggleAudit });
+            await userEvent.click(screen.getByRole('button', { name: admin.decisionsPage.issues.codes.LAYOUT_DISAGREES }));
+            await userEvent.click(screen.getByRole('button', { name: new RegExp(admin.decisionsPage.audit.moreIssuesAction) }));
+            expect(onToggleAudit.mock.calls).toEqual([['s1'], ['s1']]);
+        });
+
+        it('lays the open issues across the whole card, under the row and outside its cells', () => {
+            renderTable({ rows: [withIssues(), row({ subject: subject({ id: 's2', name: 'Άλλο θέμα' }) })], openAuditSubjectId: 's1' });
+            const region = screen.getByRole('region', { name: '2 ζητήματα σε αυτό το θέμα' });
+            expect(region.closest('[role="cell"]')).toBeNull();
+            expect(region.closest('[role="row"]')).toBeNull();
+            // Straight after its own row, before the next one.
+            const rows = screen.getAllByRole('row');
+            const own = rows.find(r => r.textContent?.includes('Καθαρισμός τμημάτων')) as HTMLElement;
+            const next = rows.find(r => r.textContent?.includes('Άλλο θέμα')) as HTMLElement;
+            expect(own.compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(region.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(within(region).getByText(admin.decisionsPage.issues.codes.TALLY_MISMATCH)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: admin.decisionsPage.issues.codes.LAYOUT_DISAGREES })).toHaveAttribute('aria-expanded', 'true');
+        });
+
+        it('closes the open issues from the row itself', async () => {
+            const onToggleAudit = jest.fn();
+            renderTable({ rows: [withIssues()], openAuditSubjectId: 's1', onToggleAudit });
+            await userEvent.click(screen.getByRole('button', { name: admin.decisionsPage.audit.issueRow.close }));
+            expect(onToggleAudit).toHaveBeenCalledWith('s1');
+        });
+
+        it('unfolds the table when the subject whose issues are open sits past the fold', () => {
+            const rows = Array.from({ length: 14 }, (_, i) => i === 13
+                ? withIssues({ subject: subject({ id: 's14', name: 'Το τελευταίο θέμα', agendaItemIndex: 14 }) })
+                : row({ subject: subject({ id: `s${i + 1}`, name: `Θέμα ${i + 1}`, agendaItemIndex: i + 1 }) }));
+            renderTable({ rows, openAuditSubjectId: 's14' });
+            expect(screen.getByText('Το τελευταίο θέμα')).toBeInTheDocument();
+            expect(screen.getByRole('region', { name: '2 ζητήματα σε αυτό το θέμα' })).toBeInTheDocument();
+        });
+
+        it('offers a chip for the subjects that need checking, beside the existing ones', async () => {
+            const onFilterChange = jest.fn();
+            renderTable({ auditCount: 2, onFilterChange });
+            const chip = screen.getByRole('button', { name: /Χρειάζονται έλεγχο/ });
+            expect(chip).toHaveTextContent('2');
+            expect(screen.getByRole('button', { name: /Χωρίς απόφαση/ })).toBeInTheDocument();
+            await userEvent.click(chip);
+            expect(onFilterChange).toHaveBeenCalledWith('audit');
+        });
+
+        it('shows only the rows with an issue under that chip, unfolded', () => {
+            const rows = Array.from({ length: 20 }, (_, i) => row({
+                subject: subject({ id: `s${i}`, name: `Θέμα ${i}`, agendaItemIndex: i + 1 }),
+                audit: signal({ needsCheck: i >= 18, kind: i >= 18 ? 'issues' : 'stated', code: i >= 18 ? 'INCOMPLETE_READ' : null }),
+            }));
+            renderTable({ rows, filter: 'audit', auditCount: 2 });
+            expect(screen.getByText('Θέμα 18')).toBeInTheDocument();
+            expect(screen.getByText('Θέμα 19')).toBeInTheDocument();
+            expect(screen.queryByText('Θέμα 1')).not.toBeInTheDocument();
+        });
     });
 
     // jsdom has no layout engine: it applies no stylesheet and measures

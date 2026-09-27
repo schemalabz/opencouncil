@@ -13,6 +13,9 @@ function renderCard(overrides: Partial<React.ComponentProps<typeof MinutesCard>>
             onExport={jest.fn()}
             previewDisabled={false}
             readiness={{ subjects: 12, undecided: 3 }}
+            onRederive={jest.fn()}
+            isRederiving={false}
+            showRederive={false}
             {...overrides}
         />
     );
@@ -85,5 +88,19 @@ describe('MinutesCard', () => {
         expect(screen.queryByText('minutes.noSubjects')).not.toBeInTheDocument();
         // The export still stands: the server builds it from its own read.
         expect(screen.getByText('exportDocx').closest('button')).not.toBeDisabled();
+    });
+
+    it('offers no re-derive without audit mode', () => {
+        renderCard({ showRederive: false });
+        expect(screen.queryByText('rederive')).not.toBeInTheDocument();
+        expect(screen.queryByText('rederiveHint')).not.toBeInTheDocument();
+    });
+
+    it('offers the re-derive in audit mode, with when it is needed', () => {
+        const onRederive = jest.fn();
+        renderCard({ showRederive: true, onRederive });
+        expect(screen.getByText('rederiveHint')).toBeInTheDocument();
+        fireEvent.click(screen.getByText('rederive'));
+        expect(onRederive).toHaveBeenCalledTimes(1);
     });
 });

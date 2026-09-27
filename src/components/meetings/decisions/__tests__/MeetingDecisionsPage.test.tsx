@@ -5,6 +5,7 @@ import { MeetingDecisionsPage } from '../MeetingDecisionsPage';
 import admin from '../../../../../messages/el/admin.json';
 import el from '../../../../../messages/el.json';
 import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
+import type { DerivationOutput, Issue } from '@/lib/derivation/types';
 import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
 
 /**
@@ -80,6 +81,8 @@ interface Store {
     failWrite: { status: number; body: unknown } | null;
     /** What the minutes route answers; null answers 404, as when the minutes do not load. */
     minutes: MinutesData | null;
+    /** What the derivation says about the meeting, as the route sends it to a superadmin. */
+    derivation?: DerivationOutput;
 }
 
 let store: Store;
@@ -95,7 +98,7 @@ const mockMeetingData = {
     },
     city: { id: CITY_ID, diavgeiaUid: '50026', timezone: 'Europe/Athens' },
     people: [],
-    getPerson: () => undefined,
+    getPerson: (_id: string): { name: string } | undefined => undefined,
     subjects: [
         { id: 's1', name: 'Έγκριση απολογισμού', agendaItemIndex: 1, agendaItemTitle: null, nonAgendaReason: null, withdrawn: false, description: null },
         { id: 's2', name: 'Παροχή εντολής σε δικηγόρο', agendaItemIndex: 2, agendaItemTitle: null, nonAgendaReason: null, withdrawn: false, description: null },
@@ -149,6 +152,7 @@ beforeEach(() => {
                 decisions: store.decisions,
                 extractedData: store.extractedData,
                 candidates: store.candidates.filter(c => !store.dismissed.has(c.id)),
+                derivation: store.derivation,
             });
         }
         const body = JSON.parse(init?.body ?? '{}') as { action: string; candidateId?: string; subjectId?: string };
@@ -328,6 +332,62 @@ describe('MeetingDecisionsPage — the vote behind the Αποτέλεσμα word
 
         expect(await screen.findByTitle('Το έγγραφο δεν αναφέρει ψηφοφορία')).toBeInTheDocument();
         expect(screen.queryByText(/υπέρ/)).not.toBeInTheDocument();
+    });
+});
+
+describe('MeetingDecisionsPage — the declarations beside the vote', () => {
+    const openSubjectSheet = async (number: string) => {
+        await userEvent.click(await screen.findByRole('button', { name: number }));
+        const sheet = await screen.findByRole('dialog');
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Στοιχεία απόφασης' }));
+        return sheet;
+    };
+    const votesOf = (counts: Partial<Record<'FOR' | 'AGAINST' | 'PRESENT' | 'DID_NOT_VOTE', string[]>>) =>
+        Object.entries(counts).flatMap(([voteType, names]) =>
+            (names ?? []).map((personName, i) => ({ personId: `${voteType}-${i}`, personName, voteType })));
+
+    it('names the ΠΑΡΩΝ member of a majority vote (Argos, 3η/2025, item 1: 16 for, 4 against, 1 ΠΑΡΩΝ)', async () => {
+        store.decisions = [linkedDecision('s1', '640/2026')];
+        store.extractedData = [{
+            subjectId: 's1',
+            attendance: [],
+            votes: votesOf({
+                FOR: Array.from({ length: 16 }, (_, i) => `Υπέρ ${i + 1}`),
+                AGAINST: Array.from({ length: 4 }, (_, i) => `Κατά ${i + 1}`),
+                PRESENT: ['Γρίβας Γρηγόρης'],
+            }),
+        }];
+        await renderPage();
+
+        const sheet = await openSubjectSheet('640/2026');
+        // A declaration is not a vote: the outcome sentence keeps to the votes.
+        expect(within(sheet).getByText('Κατά πλειοψηφία (16 υπέρ, 4 κατά)')).toBeInTheDocument();
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Παρών (1)' }));
+        expect(within(sheet).getByText('Γρίβας Γρηγόρης')).toBeInTheDocument();
+        expect(within(sheet).queryByRole('button', { name: /^Αποχή/ })).not.toBeInTheDocument();
+    });
+
+    it('names the ΠΑΡΩΝ and ΑΠΟΧΗ members of a unanimous vote', async () => {
+        store.decisions = [linkedDecision('s1', '640/2026')];
+        store.extractedData = [{
+            subjectId: 's1',
+            attendance: [],
+            votes: votesOf({
+                FOR: ['Α. Παπαδόπουλος', 'Β. Γεωργίου', 'Γ. Νικολάου'],
+                PRESENT: ['Δ. Δημητρίου'],
+                DID_NOT_VOTE: ['Ε. Ευαγγέλου', 'Ζ. Ζαχαρίου'],
+            }),
+        }];
+        await renderPage();
+
+        const sheet = await openSubjectSheet('640/2026');
+        expect(within(sheet).getByText('Ομόφωνα (3 υπέρ)')).toBeInTheDocument();
+        // The unanimous vote keeps its FOR list folded away, as before.
+        expect(within(sheet).queryByRole('button', { name: /υπέρ\)$/ })).not.toBeInTheDocument();
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Παρών (1)' }));
+        expect(within(sheet).getByText('Δ. Δημητρίου')).toBeInTheDocument();
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Αποχή (2)' }));
+        expect(within(sheet).getByText('Ε. Ευαγγέλου, Ζ. Ζαχαρίου')).toBeInTheDocument();
     });
 });
 
@@ -547,5 +607,73 @@ describe('MeetingDecisionsPage — who was present, as the minutes print it', ()
         const sheet = await openSubjectSheet('640/2026');
         expect(within(sheet).getByText('2 παρόντες, 1 απόντες')).toBeInTheDocument();
         expect(within(sheet).queryByText('Πρόεδρος:')).not.toBeInTheDocument();
+    });
+});
+
+describe('MeetingDecisionsPage — the names an issue prints', () => {
+    const derivation = (issues: Issue[]): DerivationOutput => ({ attendance: [], votes: [], issues, rollCall: [], events: [] });
+    const original = mockMeetingData.getPerson;
+    beforeEach(() => { mockMeetingData.getPerson = id => (id === 'p1' ? { name: 'Παπαδόπουλος Γιώργος' } : undefined); });
+    afterEach(() => { mockMeetingData.getPerson = original; });
+
+    const renderAsSuperAdmin = async () => {
+        render(
+            <NextIntlClientProvider locale="el" messages={{ admin, Subject: el.Subject }}>
+                <MeetingDecisionsPage isSuperAdmin />
+            </NextIntlClientProvider>,
+        );
+        await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
+    };
+
+    it('names the presiding members from the city\'s people, never by id', async () => {
+        store.derivation = derivation([{ code: 'PRESIDING_DISAGREES', source: 'decision',
+            params: { presiding: [{ personId: 'p1', name: 'Γ. Παπαδόπουλος' }, { personId: null, name: 'Κ. Δήμου' }] } }]);
+        await renderAsSuperAdmin();
+        const label = admin.decisionsPage.issues.codes.PRESIDING_DISAGREES;
+        const button = screen.queryByRole('button', { name: new RegExp(label) });
+        if (button) await userEvent.click(button);
+        expect(await screen.findByText(/Παπαδόπουλος Γιώργος, Κ\. Δήμου/)).toBeInTheDocument();
+        expect(screen.queryByText(/\bp1\b/)).not.toBeInTheDocument();
+    });
+
+    it('names a subject that left the order by its agenda number and title, not by id', async () => {
+        store.derivation = derivation([{ code: 'UNPLACEABLE_ANCHOR', source: 'manual', personId: 'p1',
+            params: { kind: 'ARRIVAL', reason: 'noSuchSubject', detail: 's2' } }]);
+        await renderAsSuperAdmin();
+        const label = admin.decisionsPage.issues.codes.UNPLACEABLE_ANCHOR;
+        const button = screen.queryByRole('button', { name: new RegExp(label) });
+        if (button) await userEvent.click(button);
+        expect(await screen.findByText(/«2\. Παροχή εντολής σε δικηγόρο»/)).toBeInTheDocument();
+        expect(screen.queryByText(/«s2»/)).not.toBeInTheDocument();
+    });
+});
+
+describe('MeetingDecisionsPage — from the issues card to the subject', () => {
+    const renderAsSuperAdmin = async () => {
+        render(
+            <NextIntlClientProvider locale="el" messages={{ admin, Subject: el.Subject }}>
+                <MeetingDecisionsPage isSuperAdmin />
+            </NextIntlClientProvider>,
+        );
+        await screen.findByRole('table', { name: 'Πίνακας αποφάσεων' });
+    };
+    afterEach(() => window.localStorage.clear());
+
+    it('opens the subject\'s issues under its row, turning audit mode on, and states each issue once', async () => {
+        store.derivation = { attendance: [], votes: [], rollCall: [], events: [], issues: [
+            { code: 'CONVENTIONS_UNCONFIRMED', source: null, params: {} },
+            { code: 'UNMATCHED_NAME', subjectId: 's2', decisionId: 'd2', source: 'decision', rawText: 'Κ. Δήμου', params: { name: 'Κ. Δήμου' } },
+            { code: 'UNMATCHED_NAME', subjectId: 's2', decisionId: 'd2', source: 'decision', rawText: 'Λ. Λάμπρου', params: { name: 'Λ. Λάμπρου' } },
+        ] };
+        await renderAsSuperAdmin();
+        const card = screen.getByRole('region', { name: admin.decisionsPage.issues.subjectsTitle });
+        expect(screen.queryByRole('region', { name: '2 ζητήματα σε αυτό το θέμα' })).not.toBeInTheDocument();
+        await userEvent.click(within(card).getByRole('button', { name: new RegExp(admin.decisionsPage.issues.codes.UNMATCHED_NAME) }));
+        const region = await screen.findByRole('region', { name: '2 ζητήματα σε αυτό το θέμα' });
+        expect(within(region).getByText(/«Κ\. Δήμου»/)).toBeInTheDocument();
+        expect(screen.getAllByText(/«Κ\. Δήμου» δεν αντιστοιχίστηκε/)).toHaveLength(1);
+        // The meeting-wide issue is stated in the card, in full, and not in the table.
+        expect(screen.getAllByText(admin.decisionsPage.issues.messages.CONVENTIONS_UNCONFIRMED)).toHaveLength(1);
+        expect(within(region).queryByText(admin.decisionsPage.issues.messages.CONVENTIONS_UNCONFIRMED)).not.toBeInTheDocument();
     });
 });

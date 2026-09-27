@@ -13,6 +13,8 @@ import { getPollingHistoryForMeeting, requestPollDecisions, resolveCandidateConf
 import { pollCadence } from '@/lib/tasks/pollDecisionsBackoff';
 import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib/utils/votes';
 import { formatCalendarDate, formatDate } from '@/lib/formatters/time';
+import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
+import { isDecisionConventions } from '@/lib/decisionConventions';
 import { isRecordSubject, recordSection } from '@/lib/utils/subjects';
 import { hasRecordedVote, resultKey } from '@/lib/utils/decisionResult';
 import { causeFromPayload, decisionWriteCause, DecisionWriteError } from '@/lib/utils/decisionWriteCause';
@@ -23,7 +25,11 @@ import { scrollElementToContainerTop } from '@/lib/utils/scrollAnchor';
 import { attentionCount, estimateWork, isLikelyMatch, routeCandidates, splitWaitingSubjects } from '@/components/meetings/decisions/candidates';
 import { rowCandidates } from '@/components/meetings/decisions/rowCandidates';
 import { QuestionsCard, type Receipt } from '@/components/meetings/decisions/QuestionsCard';
-import { DecisionsTable, type TableRow } from '@/components/meetings/decisions/DecisionsTable';
+import { DecisionsTable, type DecisionsFilter, type TableRow } from '@/components/meetings/decisions/DecisionsTable';
+import { auditSignalFor } from '@/components/meetings/decisions/auditSignal';
+import { changeKey, documentCountsByChange } from '@/components/meetings/decisions/changeDocumentCounts';
+import { AuditEvidence } from '@/components/meetings/decisions/AuditEvidence';
+import { useAuditMode } from '@/components/meetings/decisions/useAuditMode';
 import { LinkPanel, type PanelConfirm, type PanelSubject } from '@/components/meetings/decisions/LinkPanel';
 import { SubjectPicker } from '@/components/meetings/decisions/SubjectPicker';
 import type { DiavgeiaFooterState } from '@/components/meetings/decisions/DiavgeiaFooter';
@@ -37,7 +43,11 @@ import { SubjectPresence } from '@/components/meetings/decisions/SubjectPresence
 import { buildAttendance, buildSubjectRollCall } from '@/lib/minutes/builders';
 import { downloadFile } from '@/lib/export/download';
 import { MinutesPreviewDialog } from '@/components/meetings/decisions/MinutesPreviewDialog';
+import { DerivationDialog } from '@/components/meetings/decisions/DerivationDialog';
 import { DecisionsRail } from '@/components/meetings/decisions/rail/DecisionsRail';
+import type { ConventionsPanel } from '@/components/meetings/decisions/rail/ConventionsSection';
+import type { DerivationOutput } from '@/lib/derivation/types';
+import { nameIssue } from '@/lib/derivation/issueText';
 
 /** MeetingCandidate as it arrives over JSON — dates serialized to strings. */
 type CandidateView = Omit<MeetingCandidate, 'publishDate' | 'meetingDate'> & {
@@ -50,6 +60,7 @@ interface DecisionsPayload {
     decisions: DecisionWithSource[];
     extractedData: SubjectExtractedData[];
     candidates?: CandidateView[];
+    derivation?: DerivationOutput;
 }
 
 /** Every write the page can POST to the decisions route. */
@@ -116,6 +127,19 @@ const MAX_RECEIPTS = 4;
  * for a sticky header the container may gain later). */
 const JUMP_TO_TABLE_MARGIN_PX = 16;
 
+/** Index anything the derivation reports per subject. Rows with no subject —
+ * the meeting-wide issues — belong to the rail's card, not to a table row. */
+function bySubject<T extends { subjectId?: string }>(rows: T[]): Map<string, T[]> {
+    const map = new Map<string, T[]>();
+    for (const row of rows) {
+        if (!row.subjectId) continue;
+        const list = map.get(row.subjectId);
+        if (list) list.push(row);
+        else map.set(row.subjectId, [row]);
+    }
+    return map;
+}
+
 /** Turn a failed response into the error the page reads causes from. */
 const writeFailure = async (response: Response): Promise<DecisionWriteError> => {
     const payload = await response.json().catch(() => null) as unknown;
@@ -123,6 +147,11 @@ const writeFailure = async (response: Response): Promise<DecisionWriteError> => 
 };
 
 export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }) {
+    // The mode lives here rather than in the rail that toggles it, because the
+    // table and the sheet read it too, and a superadmin's choice must never
+    // reach a page rendered for anyone else.
+    const [auditModePreference, setAuditMode] = useAuditMode();
+    const auditMode = isSuperAdmin && auditModePreference;
     const { toast } = useToast();
     const { subjects, meeting, city, getPerson } = useCouncilMeetingData();
     const t = useTranslations('admin.adminActions');
@@ -136,15 +165,39 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         () => readDiavgeiaUnitEntries(meeting.administrativeBody?.diavgeiaUnitIds),
         [meeting.administrativeBody?.diavgeiaUnitIds],
     );
+    // The rules the derivation read this body's documents by, for the rail.
+    // Parsed rather than asserted: an unparseable record is as good as none, and
+    // the section says so. Nothing routes to a body on its own — its fields sit
+    // in the city form — so the edit link goes to the city's own page, whose
+    // admin strip opens that form.
+    const conventionsPanel = useMemo<ConventionsPanel | null>(() => {
+        const body = meeting.administrativeBody;
+        if (!body) return null;
+        return {
+            rules: isDecisionConventions(body.decisionConventions) ? body.decisionConventions : null,
+            bodyName: getLocalizedName(body, locale),
+            cityName: getLocalizedMunicipalityName(city, locale),
+            editHref: `/${city.id}`,
+        };
+    }, [meeting.administrativeBody, city, locale]);
 
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
     const [candidates, setCandidates] = useState<CandidateView[]>([]);
     const [extractedData, setExtractedData] = useState<Record<string, SubjectExtractedData>>({});
+    const [derivation, setDerivation] = useState<DerivationOutput | null>(null);
+    const [isRederiving, setIsRederiving] = useState(false);
     const [hasLoaded, setHasLoaded] = useState(false);
     const [loadFailed, setLoadFailed] = useState(false);
     const [minutes, setMinutes] = useState<MinutesData | null>(null);
     const [minutesFailed, setMinutesFailed] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
+    const [derivationOpen, setDerivationOpen] = useState(false);
+    const openDerivation = useCallback(() => setDerivationOpen(true), []);
+    // Undefined for anyone but a superadmin. The audit line and the issues card
+    // offer the link only when they are handed one, so withholding the callback
+    // is what keeps the glossary out of a city admin's reach — no second
+    // permission check down there to keep in step with this one.
+    const explainDerivation = isSuperAdmin ? openDerivation : undefined;
     const [pollingStatus, setPollingStatus] = useState<Awaited<ReturnType<typeof getPollingHistoryForMeeting>> | null>(null);
     const [isPolling, setIsPolling] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
@@ -152,7 +205,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const [busySubjectId, setBusySubjectId] = useState<string | null>(null);
     const [busyCandidateId, setBusyCandidateId] = useState<string | null>(null);
 
-    const [filter, setFilter] = useState<'all' | 'missing'>('all');
+    const [filter, setFilter] = useState<DecisionsFilter>('all');
     const [subjectQuery, setSubjectQuery] = useState('');
     const [panel, setPanel] = useState<PanelState | null>(null);
     const [pickerCandidateId, setPickerCandidateId] = useState<string | null>(null);
@@ -168,6 +221,11 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     // change it triggers has committed, so it measures the table at its new
     // (post-filter) height rather than the one before the click.
     const [jumpToTableRequest, setJumpToTableRequest] = useState(0);
+    /** The subject whose issues are open in a row under it, in audit mode. */
+    const [openAuditSubjectId, setOpenAuditSubjectId] = useState<string | null>(null);
+    // Bumped when the issues card sends the page to a subject; the effect below
+    // scrolls once the row it opened has rendered.
+    const [auditJumpRequest, setAuditJumpRequest] = useState(0);
     const tableRef = useRef<HTMLDivElement>(null);
     const receiptSeq = useRef(0);
     /** The last write the row panel sent. Its error strip sends this one again:
@@ -192,6 +250,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             setDecisions(decisionMap);
             setCandidates(data.candidates ?? []);
             setExtractedData(extractedMap);
+            setDerivation(data.derivation ?? null);
             setLoadFailed(false);
             return data;
         } catch {
@@ -338,6 +397,32 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         return map;
     }, [decisions, candidates]);
 
+    // ─── What the derivation says, per subject ───────────────────────────
+    //
+    // The audit line and the sheet's evidence both ask the same three questions
+    // of one subject, so the meeting-wide output is indexed once here rather
+    // than scanned per row.
+
+    /** A person's name from the city's people the page already holds, for the issues that concern one. */
+    const personName = useCallback((personId: string) => getPerson(personId)?.name, [getPerson]);
+    /** A subject as the table numbers it: «3. Title», or the title alone off the agenda. */
+    const subjectLabel = useCallback((subjectId: string) => {
+        const subject = subjects.find(s => s.id === subjectId);
+        if (!subject) return undefined;
+        return subject.agendaItemIndex !== null ? `${subject.agendaItemIndex}. ${displayName(subject)}` : displayName(subject);
+    }, [subjects, displayName]);
+    /** The derivation's issues with the ids their messages would print replaced by names, once for every surface. */
+    const issues = useMemo(
+        () => (derivation?.issues ?? []).map(issue => nameIssue(issue, { person: personName, subject: subjectLabel })),
+        [derivation, personName, subjectLabel],
+    );
+    const issuesBySubject = useMemo(() => bySubject(issues), [issues]);
+    const derivedVotesBySubject = useMemo(() => bySubject(derivation?.votes ?? []), [derivation]);
+    const derivedAttendanceBySubject = useMemo(() => bySubject(derivation?.attendance ?? []), [derivation]);
+    /** How many of the meeting's documents stated each change (`changeKey`): the
+     * audit line looks the counts up here instead of `src/lib/minutes` carrying them too. */
+    const eventDocumentCounts = useMemo(() => documentCountsByChange(derivation?.events ?? []), [derivation]);
+
     const rows: TableRow[] = orderedSubjects.map(subject => {
         const decision = decisions[subject.id];
         const votes = extractedData[subject.id]?.votes ?? [];
@@ -374,6 +459,15 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             rejected: rejected[subject.id]
                 ? { candidateId: rejected[subject.id].candidateId, number: rejected[subject.id].number }
                 : null,
+            // Only under the mode: the row is the clerk's table for everyone
+            // else, and a line about how a fact was reached is not theirs.
+            audit: auditMode
+                ? auditSignalFor({
+                    issues: issuesBySubject.get(subject.id) ?? [],
+                    votes: derivedVotesBySubject.get(subject.id) ?? [],
+                    personName,
+                })
+                : null,
         };
     });
 
@@ -388,15 +482,16 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     };
     const visibleRows = query ? rows.filter(matchesQuery) : rows;
     const missingCount = visibleRows.filter(row => row.result === 'none').length;
+    const auditCount = visibleRows.filter(row => row.audit?.needsCheck).length;
 
-    // The table hides the all/missing chips at zero, so a filter still set to
-    // 'missing' strands the clerk on an empty table with no control to get
-    // back — at the moment the last row is filled in, which is the success
-    // path of the whole page. Only 'all' is ever set here, so a deliberate
-    // choice of 'all' is never undone.
-    useEffect(() => {
-        if (missingCount === 0) setFilter('all');
-    }, [missingCount]);
+    // The table hides a chip at zero, so a filter still set to the one that just
+    // emptied would strand the clerk on an empty table with no control to get
+    // back — at the moment the last row is filled in, which is the success path
+    // of the whole page. Whether a filter still holds is a function of the
+    // counts, not an event, so it is answered here; `filter` stays the choice
+    // that was made, and applies again as soon as its rows come back.
+    const chipCount: Record<DecisionsFilter, number> = { all: visibleRows.length, missing: missingCount, audit: auditCount };
+    const effectiveFilter: DecisionsFilter = chipCount[filter] === 0 ? 'all' : filter;
 
     // A poll or another admin can fill a row after its proposal was rejected.
     // The rejection is settled then, and a kept entry would show its "Αναίρεση"
@@ -773,6 +868,31 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         setJumpToTableRequest(request => request + 1);
     };
 
+    const toggleAuditSubject = useCallback((subjectId: string) => {
+        setOpenAuditSubjectId(open => (open === subjectId ? null : subjectId));
+    }, []);
+
+    /**
+     * From the issues card to a subject: its issues open under its row, and the
+     * row comes into view. The card shows whether or not audit mode is on, and
+     * the row exists only under it, so the jump turns the mode on. A search or
+     * the missing filter could hide the row, so both give way.
+     */
+    const selectIssueSubject = (subjectId: string) => {
+        if (!auditModePreference) setAuditMode(true);
+        setSubjectQuery('');
+        if (filter === 'missing') setFilter('all');
+        setOpenAuditSubjectId(subjectId);
+        setAuditJumpRequest(request => request + 1);
+    };
+
+    useEffect(() => {
+        if (auditJumpRequest === 0 || !openAuditSubjectId) return;
+        const row = Array.from(tableRef.current?.querySelectorAll<HTMLElement>('[data-subject-id]') ?? [])
+            .find(element => element.dataset.subjectId === openAuditSubjectId);
+        if (row) scrollElementToContainerTop(row, JUMP_TO_TABLE_MARGIN_PX);
+    }, [auditJumpRequest, openAuditSubjectId]);
+
     // Runs after the filter/query change above has committed and the table
     // has re-rendered at its new height, so the measurement below reflects
     // the layout the user actually sees rather than the one before the click.
@@ -817,6 +937,25 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             toast({ title: tPage('resetError'), description: failureSentence(error), variant: 'destructive' });
         } finally {
             setIsClearing(false);
+        }
+    };
+
+    /** Re-run the derivation over the facts already stored, then show what it produced. */
+    const handleRederive = async () => {
+        setIsRederiving(true);
+        try {
+            const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'rederive' }),
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            // The derived rows are what the minutes read, so both are refetched.
+            await Promise.all([fetchDecisions(), fetchMinutes()]);
+        } catch (error) {
+            toast({ title: tPage('rederive'), description: `${error}`, variant: 'destructive' });
+        } finally {
+            setIsRederiving(false);
         }
     };
 
@@ -979,12 +1118,58 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         );
     };
 
+    /**
+     * What audit mode adds to the extraction pane: where each derived name came
+     * from, the phrase that licensed the inferences, the printed tally beside
+     * the derived one, the sentences behind the attendance changes, and this
+     * subject's issues as text rather than as tooltips.
+     *
+     * Null when the mode is off — the ordinary pane above is untouched — and
+     * null too when the derivation left this subject nothing to show.
+     */
+    const renderAuditEvidence = (subjectId: string): ReactNode => {
+        if (!auditMode) return null;
+        const decision = decisions[subjectId];
+        const issues = issuesBySubject.get(subjectId) ?? [];
+        const votes = derivedVotesBySubject.get(subjectId) ?? [];
+        const attendance = derivedAttendanceBySubject.get(subjectId) ?? [];
+        const tally = issues.find(issue => issue.code === 'TALLY_MISMATCH');
+        const diffs = tally?.code === 'TALLY_MISMATCH' ? tally.params.diffs : [];
+        const changes = (minutes?.attendanceChanges ?? []).flatMap(change => {
+            if (change.atSubject.id !== subjectId || !change.rawText) return [];
+            const counts = eventDocumentCounts.get(changeKey({ ...change, rawText: change.rawText }))
+                ?? { reportingDocuments: null, totalDocuments: null };
+            return [{ text: change.rawText, ...counts }];
+        });
+        const unmatchedNames = decision?.unmatchedNames ?? [];
+        const nameOf = (personId: string): string => personName(personId) ?? personId;
+
+        const empty = !decision?.voteResultPhrase && votes.length === 0 && attendance.length === 0
+            && diffs.length === 0 && changes.length === 0 && issues.length === 0
+            && unmatchedNames.length === 0;
+        if (empty) return null;
+
+        return (
+            <AuditEvidence
+                voteResultPhrase={decision?.voteResultPhrase ?? null}
+                votes={votes.map(vote => ({ name: nameOf(vote.personId), origin: vote.origin }))}
+                attendance={attendance.map(row => ({ name: nameOf(row.personId), status: row.status, origin: row.origin }))}
+                tallyDiffs={diffs}
+                changes={changes}
+                issues={issues}
+                personName={personName}
+                unmatchedNames={unmatchedNames}
+            />
+        );
+    };
+
     /** The extraction results for a linked subject: excerpt, references, roll call, votes.
      * Shown in the view sheet's second tab. */
     const renderExtractedDetails = (subjectId: string): ReactNode => {
         const decision = decisions[subjectId];
         const extracted = extractedData[subjectId];
-        if (!decision?.excerpt && !decision?.references && !extracted) return null;
+        const auditEvidence = renderAuditEvidence(subjectId);
+        if (!decision?.excerpt && !decision?.references && !extracted && !auditEvidence) return null;
         // The subject's presence from one snapshot: the minutes' subject, whose
         // attendance gives both the absentees and the people the roll call does
         // not name. When the minutes did not load, the decisions request's own
@@ -1046,10 +1231,25 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                         )}
                                     </div>
                                 )}
+                                {/* A ΠΑΡΩΝ or ΑΠΟΧΗ declaration is not a vote, so a unanimous vote can still hold one. */}
+                                {(voteResult.presentCount > 0 || voteResult.didNotVoteCount > 0) && (
+                                    <div className="flex flex-col gap-1">
+                                        <NameList
+                                            names={extracted.votes.filter(v => v.voteType === 'PRESENT').map(v => v.personName)}
+                                            label={`${tSubject('votePresent')} (${voteResult.presentCount})`}
+                                        />
+                                        <NameList
+                                            names={extracted.votes.filter(v => v.voteType === 'DID_NOT_VOTE').map(v => v.personName)}
+                                            label={`${tSubject('voteDidNotVote')} (${voteResult.didNotVoteCount})`}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     );
                 })()}
+
+                {auditEvidence}
 
                 {isSuperAdmin && (
                     <AdminStrip>
@@ -1180,8 +1380,9 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                 <DecisionsTable
                                     rows={visibleRows}
                                     beforeAgenda={beforeAgenda}
-                                    filter={filter}
+                                    filter={effectiveFilter}
                                     missingCount={missingCount}
+                                    auditCount={auditCount}
                                     onFilterChange={setFilter}
                                     openPanelSubjectId={panel?.subjectId ?? null}
                                     onOpenPanel={openPanel}
@@ -1194,6 +1395,9 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                     onOpenDecision={subjectId => setViewing(decisions[subjectId]?.id ?? null)}
                                     onOpenProposalDocument={setViewing}
                                     busySubjectId={busySubjectId}
+                                    openAuditSubjectId={openAuditSubjectId}
+                                    onToggleAudit={toggleAuditSubject}
+                                    onExplainDerivation={explainDerivation}
                                 />
                             </div>
                         </>
@@ -1229,6 +1433,10 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                             isSuperAdmin={isSuperAdmin}
                         />
                     )}
+
+                    {isSuperAdmin && (
+                        <DerivationDialog open={derivationOpen} onOpenChange={setDerivationOpen} />
+                    )}
                 </div>
                 <aside className="min-w-0">
                     <DecisionsRail
@@ -1243,6 +1451,18 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         isClearing={isClearing}
                         onResetExtractions={handleClearExtractedData}
                         showResetExtractions={hasLoaded && hasExtractions}
+                        issues={issues}
+                        subjectName={subjectLabel}
+                        personName={personName}
+                        subjectOrder={orderedSubjects.map(subject => subject.id)}
+                        openIssueSubjectId={openAuditSubjectId}
+                        onSelectIssueSubject={selectIssueSubject}
+                        onRederive={handleRederive}
+                        isRederiving={isRederiving}
+                        onExplainDerivation={explainDerivation}
+                        auditMode={auditMode}
+                        onAuditModeChange={setAuditMode}
+                        conventions={conventionsPanel}
                     />
                 </aside>
             </div>
