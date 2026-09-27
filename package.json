@@ -34,7 +34,8 @@
     "convert-regulation": "tsx scripts/convert-regulation-pdf.ts",
     "transform-regulation": "tsx scripts/transform-regulation-coordinates.ts",
     "generate-openapi": "tsx scripts/generate-openapi.ts",
-    "generate-pwa-icons": "tsx scripts/generate-pwa-icons.ts"
+    "generate-pwa-icons": "tsx scripts/generate-pwa-icons.ts",
+    "decisions": "tsx scripts/decisions.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
