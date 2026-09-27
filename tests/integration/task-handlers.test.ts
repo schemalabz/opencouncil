@@ -1001,6 +1001,8 @@ describe('resolveCandidateConflict', () => {
 })
 
 describe('pollDecisions extraction processing', () => {
+    // A reading counts only when a v4 task stored it (readingStatesFacts), and a real
+    // callback writes the version before the handler runs; these tasks carry it too.
     let cityId: string
     let meetingId: string
     let personA: { id: string }
@@ -1031,7 +1033,7 @@ describe('pollDecisions extraction processing', () => {
         await prisma.decision.create({
             data: { subjectId: subject.id, pdfUrl: 'https://example.com/1.pdf', ada: 'ADA-1' },
         })
-        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
 
         await handlePollDecisionsResult(task.id, makePollDecisionsResult({
             extractions: {
@@ -1040,8 +1042,8 @@ describe('pollDecisions extraction processing', () => {
                         subjectId: subject.id,
                         excerpt: 'ΑΠΟΦΑΣΙΖΕΙ ομόφωνα...',
                         references: '- Ν. 3852/2010',
-                        presentMemberIds: [personA.id, personB.id],
-                        absentMemberIds: [personC.id],
+                        rollCallPresent: [personA.id, personB.id],
+                        rollCallAbsent: [personC.id],
                         voteDetails: [
                             { personId: personA.id, vote: 'FOR' },
                             { personId: personB.id, vote: 'AGAINST' },
@@ -1091,7 +1093,7 @@ describe('pollDecisions extraction processing', () => {
         await prisma.decision.create({
             data: { subjectId: subject.id, pdfUrl: 'https://example.com/2.pdf', ada: 'ADA-2' },
         })
-        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
 
         // Vote inference is handled by the backend — voteDetails arrives pre-populated
         await handlePollDecisionsResult(task.id, makePollDecisionsResult({
@@ -1099,7 +1101,7 @@ describe('pollDecisions extraction processing', () => {
                 decisions: [
                     makeExtractedDecision({
                         subjectId: subject.id,
-                        presentMemberIds: [personA.id, personB.id, personC.id],
+                        rollCallPresent: [personA.id, personB.id, personC.id],
                         voteResult: 'Ομόφωνα',
                         voteDetails: [
                             { personId: personA.id, vote: 'FOR' },
@@ -1145,14 +1147,14 @@ describe('pollDecisions extraction processing', () => {
         })
 
         // First extraction via pollDecisions
-        const task1 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        const task1 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
         await handlePollDecisionsResult(task1.id, makePollDecisionsResult({
             extractions: {
                 decisions: [
                     makeExtractedDecision({
                         subjectId: subject.id,
-                        presentMemberIds: [personA.id],
-                        absentMemberIds: [personB.id],
+                        rollCallPresent: [personA.id],
+                        rollCallAbsent: [personB.id],
                         voteResult: 'Ομόφωνα',
                         voteDetails: [
                             { personId: personA.id, vote: 'FOR' },
@@ -1171,13 +1173,13 @@ describe('pollDecisions extraction processing', () => {
         expect(votes).toHaveLength(2) // A (decision), C (manual)
 
         // Second extraction — replaces decision-sourced, preserves manual
-        const task2 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        const task2 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
         await handlePollDecisionsResult(task2.id, makePollDecisionsResult({
             extractions: {
                 decisions: [
                     makeExtractedDecision({
                         subjectId: subject.id,
-                        presentMemberIds: [personA.id, personB.id],
+                        rollCallPresent: [personA.id, personB.id],
                         // No absent members this time
                         voteDetails: [
                             { personId: personA.id, vote: 'FOR' },
@@ -1227,7 +1229,7 @@ describe('pollDecisions extraction processing', () => {
         const meeting2 = await createMeeting(cityId, { id: 'm2', administrativeBodyId: (await prisma.administrativeBody.findFirst())!.id })
         const subjectB = await createSubject(meeting2.id, cityId, { name: 'Subject B', agendaItemIndex: 1 })
         const subjectC = await createSubject(meeting2.id, cityId, { name: 'Subject C', agendaItemIndex: 2 })
-        const task = await createTaskStatus(meeting2.id, cityId, { type: 'pollDecisions' })
+        const task = await createTaskStatus(meeting2.id, cityId, { type: 'pollDecisions', version: 4 })
 
         // Backend returns both matches and extractions in one response
         await handlePollDecisionsResult(task.id, makePollDecisionsResult({
@@ -1240,8 +1242,8 @@ describe('pollDecisions extraction processing', () => {
                     makeExtractedDecision({
                         subjectId: subjectB.id,
                         excerpt: 'Should not be stored',
-                        presentMemberIds: [personA.id, personB.id],
-                        absentMemberIds: [personC.id],
+                        // No roll call: the conflicting document must contribute
+                        // nothing at all, the meeting's included.
                         voteDetails: [
                             { personId: personA.id, vote: 'FOR' },
                             { personId: personB.id, vote: 'FOR' },
@@ -1250,8 +1252,8 @@ describe('pollDecisions extraction processing', () => {
                     makeExtractedDecision({
                         subjectId: subjectC.id,
                         excerpt: 'Should be stored',
-                        presentMemberIds: [personA.id, personC.id],
-                        absentMemberIds: [personB.id],
+                        rollCallPresent: [personA.id, personC.id],
+                        rollCallAbsent: [personB.id],
                         voteDetails: [
                             { personId: personA.id, vote: 'FOR' },
                             { personId: personC.id, vote: 'AGAINST' },
@@ -1265,10 +1267,13 @@ describe('pollDecisions extraction processing', () => {
         // SubjectB: ADA conflict — no Decision, no extraction data stored
         const decisionB = await prisma.decision.findUnique({ where: { subjectId: subjectB.id } })
         expect(decisionB).toBeNull()
-        const attendanceB = await prisma.subjectAttendance.findMany({ where: { subjectId: subjectB.id } })
-        expect(attendanceB).toHaveLength(0)
         const votesB = await prisma.subjectVote.findMany({ where: { subjectId: subjectB.id } })
         expect(votesB).toHaveLength(0)
+        // Attendance is replayed over every subject of the meeting from its roll
+        // call, so subjectB has rows — they say who was in the room, which the
+        // rejected document had no part in saying.
+        const attendanceB = await prisma.subjectAttendance.findMany({ where: { subjectId: subjectB.id } })
+        expect(attendanceB).toHaveLength(3)
 
         // SubjectC: clean match — Decision created, extraction data stored
         const decisionC = await prisma.decision.findUnique({ where: { subjectId: subjectC.id } })
@@ -1280,21 +1285,22 @@ describe('pollDecisions extraction processing', () => {
         expect(votesC).toHaveLength(2)
     })
 
-    test('no votes created when not unanimous and no vote details', async () => {
+    test('a majority phrase naming nobody infers FOR for those present', async () => {
         const subject = await createSubject(meetingId, cityId, { name: 'Misc', agendaItemIndex: 1 })
         await prisma.decision.create({
             data: { subjectId: subject.id, pdfUrl: 'https://example.com/4.pdf', ada: 'ADA-4' },
         })
-        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
 
         await handlePollDecisionsResult(task.id, makePollDecisionsResult({
             extractions: {
                 decisions: [
                     makeExtractedDecision({
                         subjectId: subject.id,
-                        presentMemberIds: [personA.id, personB.id],
+                        rollCallPresent: [personA.id, personB.id],
                         voteResult: 'Κατά πλειοψηφία',
-                        // no voteDetails — can't infer individual votes for non-unanimous
+                        // No named voters. «Κατά πλειοψηφία» permits inference just as
+                        // «ομόφωνα» does, so everyone present and unnamed gets FOR.
                     }),
                 ],
                 warnings: [],
@@ -1302,11 +1308,41 @@ describe('pollDecisions extraction processing', () => {
         }))
 
         const votes = await prisma.subjectVote.findMany({ where: { subjectId: subject.id } })
-        expect(votes).toHaveLength(0)
+        expect(votes).toHaveLength(2)
+        expect(votes.every(v => v.voteType === 'FOR')).toBe(true)
 
-        // But attendance is still created
         const attendance = await prisma.subjectAttendance.findMany({ where: { subjectId: subject.id } })
         expect(attendance).toHaveLength(2)
+    })
+
+    test('a callback still carrying the retired meeting-level fields is accepted and ignored', async () => {
+        // A tasks server from before Task 16 (opencouncil-tasks) still sends
+        // initialAttendance / unmatchedInitialAttendance / attendanceEvents on
+        // extractions. The app must not reject the callback for the unknown
+        // keys — version skew is safe in both directions.
+        const subject = await createSubject(meetingId, cityId, { name: 'Legacy wire', agendaItemIndex: 1 })
+        await prisma.decision.create({
+            data: { subjectId: subject.id, pdfUrl: 'https://example.com/legacy.pdf', ada: 'ADA-LEGACY' },
+        })
+        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions', version: 4 })
+
+        const legacyResult = makePollDecisionsResult({
+            extractions: {
+                decisions: [makeExtractedDecision({ subjectId: subject.id, rollCallPresent: [personA.id] })],
+                warnings: [],
+            },
+        })
+        const legacyExtractions = legacyResult.extractions as Record<string, unknown>
+        legacyExtractions.initialAttendance = [{ personId: personA.id, status: 'PRESENT' }]
+        legacyExtractions.unmatchedInitialAttendance = ['Unknown Person']
+        legacyExtractions.attendanceEvents = []
+
+        await expect(handlePollDecisionsResult(task.id, legacyResult)).resolves.not.toThrow()
+
+        // The derivation over the stored page produced this, not the ignored wire fields.
+        const attendance = await prisma.subjectAttendance.findMany({ where: { subjectId: subject.id } })
+        expect(attendance).toHaveLength(1)
+        expect(attendance[0].personId).toBe(personA.id)
     })
 })
 

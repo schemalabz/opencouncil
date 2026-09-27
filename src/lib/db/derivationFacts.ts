@@ -86,3 +86,12 @@ export async function replaceDerivedRows(
         })) });
     });
 }
+
+/** Every meeting of an administrative body, newest first. Ungated: the caller checks rights. */
+export async function getMeetingsOfBody(administrativeBodyId: string): Promise<{ cityId: string; id: string }[]> {
+    return prisma.councilMeeting.findMany({
+        where: { administrativeBodyId },
+        select: { cityId: true, id: true },
+        orderBy: { dateTime: 'desc' },
+    });
+}

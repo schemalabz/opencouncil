@@ -6,6 +6,7 @@
 import "server-only";
 import prisma from './prisma';
 import { localCalendarDate } from '@/lib/formatters/time';
+import { rederiveMeetingQuietly, rederiveMeetingsOfSubjects } from '@/lib/derivation/rederive';
 import { AttendanceStatus, DataSource, Decision, Prisma, TaskStatus, User, VoteType } from '@prisma/client';
 
 /** Subjects eligible for decisions: agenda + out-of-agenda, excluding withdrawn.
@@ -65,7 +66,7 @@ export interface UpsertDecisionData {
  */
 export function clearDecisionDerivedFacts(tx: Prisma.TransactionClient, subjectId: string) {
     return [
-        tx.decision.updateMany({ where: { subjectId }, data: { excerpt: null, references: null } }),
+        tx.decision.updateMany({ where: { subjectId }, data: CLEARED_EXTRACTION }),
         tx.subjectAttendance.deleteMany({ where: { subjectId, source: DataSource.decision } }),
         tx.subjectVote.deleteMany({ where: { subjectId, source: DataSource.decision } }),
     ];
@@ -89,7 +90,7 @@ export async function upsertDecision(data: UpsertDecisionData): Promise<Decision
     const replacesDocument = existing !== null
         && ((data.ada ?? null) !== existing.ada || data.pdfUrl !== existing.pdfUrl);
 
-    return prisma.$transaction(async tx => {
+    const decision = await prisma.$transaction(async tx => {
         if (replacesDocument) await Promise.all(clearDecisionDerivedFacts(tx, data.subjectId));
         return tx.decision.upsert({
             where: { subjectId: data.subjectId },
@@ -115,6 +116,8 @@ export async function upsertDecision(data: UpsertDecisionData): Promise<Decision
             },
         });
     });
+    if (replacesDocument) await rederiveMeetingsOfSubjects([data.subjectId]);
+    return decision;
 }
 
 export async function deleteDecision(subjectId: string): Promise<void> {
@@ -122,20 +125,41 @@ export async function deleteDecision(subjectId: string): Promise<void> {
         await Promise.all(clearDecisionDerivedFacts(tx, subjectId));
         await tx.decision.deleteMany({ where: { subjectId } });
     });
+    await rederiveMeetingsOfSubjects([subjectId]);
 }
+
+/**
+ * What a reading left on a Decision, cleared: the text, the facts it stated and
+ * the audit of the read. Every column the extraction writes belongs here, or
+ * "reset" leaves the subject counting as read (`incomplete`,
+ * `unmatchedNames`) and the derivation rebuilding rows from the surviving
+ * `extraction`.
+ */
+const CLEARED_EXTRACTION = {
+    excerpt: null, references: null,
+    voteResultPhrase: null, mayorPresent: null, declaredItemNumber: null, declaredOutOfAgenda: null,
+    incomplete: false, unmatchedNames: [], extractorVersion: null, extraction: Prisma.DbNull,
+} satisfies Prisma.DecisionUpdateManyMutationInput;
 
 export async function resetExtractionForSubject(subjectId: string): Promise<void> {
     await prisma.$transaction(async tx => {
         await Promise.all(clearDecisionDerivedFacts(tx, subjectId));
     });
+    await rederiveMeetingsOfSubjects([subjectId]);
 }
 
 /**
  * Clear extracted data for all decisions in a meeting, keeping the decision
  * links (pdfUrl, ada, protocolNumber) intact. Removes:
- * - Decision.excerpt and Decision.references (set to null)
- * - Decision-sourced SubjectAttendance records
- * - Decision-sourced SubjectVote records
+ * - everything a reading wrote on the Decision rows (CLEARED_EXTRACTION)
+ * - decision-sourced SubjectAttendance and SubjectVote records
+ * - the meeting's roll call and its decision-sourced AttendanceEvent rows —
+ *   the events are what the arrivals/departures block prints from, and leaving
+ *   them behind keeps a cleared meeting stating changes it no longer holds
+ *   documents for.
+ *
+ * Re-derives the meeting afterward. The derivation then refuses (no reading
+ * left), so the cleared tables stay empty.
  */
 export async function clearExtractedDataForMeeting(cityId: string, meetingId: string): Promise<{ clearedCount: number }> {
     // Get all subject IDs for this meeting
@@ -151,7 +175,7 @@ export async function clearExtractedDataForMeeting(cityId: string, meetingId: st
     const [updated] = await prisma.$transaction([
         prisma.decision.updateMany({
             where: { subjectId: { in: subjectIds } },
-            data: { excerpt: null, references: null },
+            data: CLEARED_EXTRACTION,
         }),
         prisma.subjectAttendance.deleteMany({
             where: { subjectId: { in: subjectIds }, source: DataSource.decision },
@@ -162,7 +186,12 @@ export async function clearExtractedDataForMeeting(cityId: string, meetingId: st
         prisma.meetingAttendance.deleteMany({
             where: { cityId, councilMeetingId: meetingId, source: DataSource.decision },
         }),
+        prisma.attendanceEvent.deleteMany({
+            where: { cityId, councilMeetingId: meetingId, source: DataSource.decision },
+        }),
     ]);
+
+    await rederiveMeetingQuietly(cityId, meetingId);
 
     return { clearedCount: updated.count };
 }

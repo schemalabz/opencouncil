@@ -157,6 +157,8 @@ export async function createTaskStatus(meetingId: string, cityId: string, data?:
     requestBody?: string
     responseBody?: string | null
     createdAt?: Date
+    /** The task server's version, which a real callback writes before the handler runs. */
+    version?: number
 }) {
     return prisma.taskStatus.create({
         data: {
@@ -165,6 +167,7 @@ export async function createTaskStatus(meetingId: string, cityId: string, data?:
             requestBody: data?.requestBody ?? '{}',
             responseBody: data?.responseBody ?? null,
             createdAt: data?.createdAt,
+            version: data?.version,
             councilMeetingId: meetingId,
             cityId,
         },
