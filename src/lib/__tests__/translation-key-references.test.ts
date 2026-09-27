@@ -91,6 +91,18 @@ function unionMembers(file: string, typeName: string): string[] {
     return [...decl[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
 }
 
+/**
+ * Members of a `const X = ['a', 'b'] as const;` array declared in source, for the
+ * sets stated as values rather than as a union (`ISSUE_CODES`, whose union is
+ * `typeof ISSUE_CODES[number]`).
+ */
+function constArrayMembers(file: string, name: string): string[] {
+    const text = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const decl = new RegExp(`const\\s+${name}\\s*(?::[^=]+)?=\\s*\\[([^\\]]*)\\]`).exec(text);
+    if (!decl) throw new Error(`${name} not found in ${file} — update this test`);
+    return [...decl[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+}
+
 /** Members of an enum declared in `prisma/schema.prisma`. */
 function prismaEnumMembers(name: string): string[] {
     const text = fs.readFileSync(path.join(ROOT, 'prisma', 'schema.prisma'), 'utf8');
@@ -233,7 +245,7 @@ function collectReferences(): { refs: Reference[]; groups: Reference[]; skipped:
     return { refs, groups, skipped };
 }
 
-type MemberSource = { file?: string; type?: string; prismaEnum?: string };
+type MemberSource = { file?: string; type?: string; prismaEnum?: string; constArray?: string };
 
 /**
  * Every computed group the scan finds. `members` names the type that supplies
@@ -319,6 +331,18 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         why: "keyed by the sheet's inline 'view' | 'reassign' prop, joined to a suffix (`${action}Title`): the group also holds the buttons",
     },
     {
+        group: 'admin.decisionsPage.issues.messages.',
+        members: { file: 'src/lib/derivation/types.ts', constArray: 'ISSUE_CODES' },
+    },
+    {
+        group: 'admin.decisionsPage.issues.person.',
+        members: { file: 'src/lib/derivation/issueText.ts', type: 'IssuePersonKind' },
+    },
+    {
+        group: 'admin.decisionsPage.issues.raisedIn.',
+        members: { file: 'src/lib/derivation/issueCatalogue.ts', constArray: 'DERIVATION_STAGES' },
+    },
+    {
         group: 'admin.decisionsOverview.conflict.',
         why: 'ConflictResolutionOutcome supplies the toast leaves, but the group also holds literal panel copy',
     },
@@ -396,7 +420,9 @@ describe('message keys referenced by the code', () => {
         it('has copy for every member the type declares', () => {
             const declared = members!.prismaEnum
                 ? prismaEnumMembers(members!.prismaEnum)
-                : unionMembers(members!.file!, members!.type!);
+                : members!.constArray
+                    ? constArrayMembers(members!.file!, members!.constArray)
+                    : unionMembers(members!.file!, members!.type!);
             expect(memberLeaves(catalog, group).sort()).toEqual([...declared].sort());
         });
     });
