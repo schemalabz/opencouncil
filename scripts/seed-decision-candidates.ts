@@ -28,31 +28,17 @@ import { PrismaClient } from "@prisma/client";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { localCalendarDate } from "@/lib/formatters/time";
+import { assertLocalDatabase } from "./lib/local-database";
 
 // Never the ambient DATABASE_URL (dotenv is not loaded on purpose) — that
 // points at production in this environment. This is the only database the
 // script will ever touch.
 const LOCAL_DB_URL = "postgresql://opencouncil@127.0.0.1:5432/opencouncil";
-const LOCAL_DB_NAME = "opencouncil";
-const LOCAL_DB_HOST = "127.0.0.1";
 
 const prisma = new PrismaClient({ datasourceUrl: LOCAL_DB_URL });
 
 function idFor(cityId: string, meetingId: string, slug: string): string {
     return `seed-decision-candidate-${cityId}-${meetingId}-${slug}`;
-}
-
-async function assertLocalDatabase(): Promise<void> {
-    const [row] = await prisma.$queryRaw<{ db: string; host: string | null }[]>`
-        select current_database() as db, host(inet_server_addr()) as host
-    `;
-    console.log(`Connected to database "${row.db}" on host "${row.host}"`);
-    if (row.db !== LOCAL_DB_NAME || row.host !== LOCAL_DB_HOST) {
-        throw new Error(
-            `Refusing to run: expected database "${LOCAL_DB_NAME}" on host "${LOCAL_DB_HOST}", ` +
-            `got database "${row.db}" on host "${row.host}". This script only ever touches the local dev database.`,
-        );
-    }
 }
 
 function parseArgs() {
@@ -233,7 +219,7 @@ async function seedFixtures(cityId: string, meetingId: string): Promise<void> {
 
 async function main() {
     const args = parseArgs();
-    await assertLocalDatabase();
+    await assertLocalDatabase(prisma, ["opencouncil"]);
 
     if (args.clear) {
         await clearFixtures(args.city, args.meeting);
