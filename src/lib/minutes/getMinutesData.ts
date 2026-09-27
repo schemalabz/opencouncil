@@ -1,10 +1,14 @@
-import { getCouncilMeeting } from '@/lib/db/meetings';
+// Callers authorize (the minutes and decisions routes gate on editing rights); the
+// data function itself must also run from scripts, outside a request.
+import { getCouncilMeetingDirect } from '@/lib/db/meetings';
 import { getSubjectsForMeeting } from '@/lib/db/subject';
 import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData } from '@/lib/db/decisions';
+import { getAttendanceEventsForMeeting } from '@/lib/db/derivationFacts';
+import { readingStatesFacts } from '@/lib/derivation/load';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
-import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
+import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, mayorIsMemberOf, simplifyRoleName } from '@/lib/utils/roles';
 import { agendaItemTitleOrName, isRecordSubject } from '@/lib/utils/subjects';
 import { PersonWithRelations } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
@@ -12,14 +16,18 @@ import {
     MinutesData,
     MinutesSubject,
     MinutesMember,
+    MinutesAttendanceChange,
     MinutesTranscriptEntry,
 } from './types';
-import { formatSurnameFirst } from '@/lib/formatters/name';
+import { extractFirstName, formatSurnameFirst, isFemaleName } from '@/lib/formatters/name';
 import {
     buildAttendance,
     buildVoteResult,
     buildCouncilComposition,
     buildAttendanceChanges,
+    buildAttendanceChangesFromEvents,
+    buildMayorNote,
+    presidentStandIn,
     discussedElsewhereIds,
     discussionOrderLabel,
     minutesSections,
@@ -28,16 +36,27 @@ import {
     buildProceduralVotes,
     MemberResolver,
     ElectedOrderGetter,
+    MayorChange,
 } from './builders';
 
 import { buildTranscriptEntriesFromUtterances, CrossSubjectInfo } from './transcriptEntries';
+
+/** Who a document says presided, read off the raw extraction it was stored with. */
+function presidedByOf(extraction: unknown): { name: string; personId: string | null } | null {
+    if (!extraction || typeof extraction !== 'object') return null;
+    const presidedBy = (extraction as { presidedBy?: unknown }).presidedBy;
+    if (!presidedBy || typeof presidedBy !== 'object') return null;
+    const { name, personId } = presidedBy as { name?: unknown; personId?: unknown };
+    if (typeof name !== 'string' || name.length === 0) return null;
+    return { name, personId: typeof personId === 'string' && personId.length > 0 ? personId : null };
+}
 
 export async function getMinutesData(
     cityId: string,
     meetingId: string,
 ): Promise<MinutesData> {
     const [meeting, city, subjects, extractedData, people, meetingAttendance] = await Promise.all([
-        getCouncilMeeting(cityId, meetingId),
+        getCouncilMeetingDirect(cityId, meetingId),
         getCity(cityId),
         getSubjectsForMeeting(cityId, meetingId),
         getExtractedDataForMeeting(cityId, meetingId),
@@ -102,11 +121,14 @@ export async function getMinutesData(
 
     const meetingDate = new Date(meeting.dateTime);
 
-    // Identify mayor once — used to exclude them from per-subject attendance/votes
-    // (the mayor is shown separately on the ΔΗΜΑΡΧΟΣ line in council composition)
-    const mayorPersonId = people.find(p =>
+    // Identify mayor once. A mayor who is not a member of the body is left out of
+    // the rows, the composition and the changes list: the ΔΗΜΑΡΧΟΣ line names them.
+    const mayorPersonRow = people.find(p =>
         p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
-    )?.id ?? null;
+    ) ?? null;
+    const mayorPersonId = mayorPersonRow?.id ?? null;
+    // On a body the mayor sits on (the Δημοτική Επιτροπή) they vote like a member and stay in the rows.
+    const mayorExcludedFromRows = mayorPersonRow && !mayorIsMemberOf(mayorPersonRow, meeting.administrativeBody ? { id: meeting.administrativeBody.id, type: meeting.administrativeBody.type } : null, meetingDate) ? mayorPersonId : null;
 
     // Shared member resolver: looks up person in peopleMap, resolves display info
     const resolveMember: MemberResolver = (personId, fallbackName) => {
@@ -191,15 +213,32 @@ export async function getMinutesData(
         subjectIdToActiveIndex.set(id, idx);
     }
 
+    // Who presided, as each subject's own document names it: the roster name when
+    // the name resolved to a person, else the name as the document printed it.
+    const documentedPresidedBy = new Map(sortedSubjects.map((s): [string, MinutesSubject['presidedBy']] => {
+        const documented = s.decision && readingStatesFacts(s.decision) ? presidedByOf(s.decision.extraction) : null;
+        const person = documented?.personId ? peopleMap.get(documented.personId) : undefined;
+        return [s.id, person ? { name: resolveMember(person.id, person.name).name, personId: person.id } : documented];
+    }));
+    // Who presided at the meeting: the first document that names one. The
+    // meeting's ΠΡΟΕΔΡΟΣ line names this person when the president was absent
+    // (`buildRollCall`), and a subject whose document names no one falls back to it.
+    const presidedBy = sortedSubjects
+        .map(s => documentedPresidedBy.get(s.id) ?? null)
+        .find((p): p is NonNullable<typeof p> => p !== null) ?? null;
+
     // Build MinutesSubject for each
     const minutesSubjects: MinutesSubject[] = sortedSubjects.map((s) => {
         const ed = extractedDataMap.get(s.id);
         const attendance = ed && ed.attendance.length > 0
-            ? buildAttendance(ed.attendance, mayorPersonId, resolveMember, getElectedOrder)
+            ? buildAttendance(ed.attendance, mayorExcludedFromRows, resolveMember, getElectedOrder)
             : null;
-        const voteResult = ed
-            ? buildVoteResult(ed.votes, ed.attendance, mayorPersonId, resolveMember, getElectedOrder)
-            : null;
+        // No `ed` guard: a document can state its outcome in words and name no
+        // voter at all, and that result comes from the phrase alone.
+        const voteResult = buildVoteResult(
+            ed?.votes ?? [], ed?.attendance ?? [], mayorExcludedFromRows, resolveMember, getElectedOrder,
+            s.decision?.voteResultPhrase ?? null,
+        );
         const activeIndex = subjectIdToActiveIndex.get(s.id);
         const preDiscussionUtterances = activeIndex !== undefined
             ? (assignment.preDiscussionByIndex.get(activeIndex) || [])
@@ -235,7 +274,9 @@ export async function getMinutesData(
                 protocolNumber: s.decision.protocolNumber,
                 excerpt: s.decision.excerpt ?? null,
                 references: s.decision.references ?? null,
+                voteResultPhrase: s.decision.voteResultPhrase ?? null,
             } : null,
+            presidedBy: documentedPresidedBy.get(s.id) ?? presidedBy,
             attendance,
             voteResult,
             discussion: buildDiscussionSummary(linkedBySubject.get(s.id) ?? []),
@@ -315,7 +356,7 @@ export async function getMinutesData(
         const substituteMembers = allMembers.filter(m => substitutePersonIds.has(m.personId));
 
         councilCompositionResult = buildCouncilComposition(
-            regularMembers, substituteMembers, mayor, president, mayorPersonId, getElectedOrder,
+            regularMembers, substituteMembers, mayor, president, mayorExcludedFromRows, getElectedOrder,
         );
 
         absentMembers = meetingAttendance
@@ -332,16 +373,69 @@ export async function getMinutesData(
         const substituteMembers = allMembers.filter(m => substitutePersonIds.has(m.personId));
 
         councilCompositionResult = buildCouncilComposition(
-            regularMembers, substituteMembers, mayor, president, mayorPersonId, getElectedOrder,
+            regularMembers, substituteMembers, mayor, president, mayorExcludedFromRows, getElectedOrder,
         );
     }
 
 
-    // Compute mid-meeting attendance changes from per-subject attendance diffs
-    const attendanceChanges = buildAttendanceChanges(
-        minutesSubjects.filter(s => !s.withdrawn),
-        absentMembers,
-    );
+    if (councilCompositionResult) councilCompositionResult.presidedBy = presidedBy;
+    const presidentPersonId = president?.personId ?? null;
+    const someoneElsePresided = presidentPersonId !== null && presidentStandIn(
+        presidentPersonId,
+        meetingAttendance.some(a => a.personId === presidentPersonId && a.status === 'ABSENT'),
+        presidedBy,
+    ) !== null;
+
+    // Arrivals and departures: from the events the documents state when we hold
+    // them, else reconstructed from per-subject attendance diffs (older polls).
+    const storedEvents = await getAttendanceEventsForMeeting(cityId, meetingId);
+    const attendanceChangesSource = storedEvents.length > 0 ? 'events' : 'diff';
+    // The mayor's own arrivals and departures print in the mayor's note, not in
+    // the list, when the note has a line: the ΔΗΜΑΡΧΟΣ line of a mayor who is
+    // not a member, or the ΠΡΟΕΔΡΟΣ line of a committee the mayor presides, as
+    // the minutes print «ΠΡΟΕΔΡΟΣ: … (ΔΗΜΑΡΧΟΣ)». A member mayor who does not
+    // preside has no line, so their changes stay in the list. So do the changes
+    // of an absent presiding mayor whose line names who presided instead.
+    const mayorPresides = mayorPersonId !== null && presidentPersonId === mayorPersonId && !someoneElsePresided;
+    const mayorWithNoteChanges = mayorExcludedFromRows ?? (mayorPresides ? mayorPersonId : null);
+    let attendanceChanges: MinutesAttendanceChange[];
+    let mayorChanges: MayorChange[];
+    if (attendanceChangesSource === 'events') {
+        const fromEvents = buildAttendanceChangesFromEvents(
+            storedEvents,
+            minutesSubjects.filter(s => !s.withdrawn).map(s => ({
+                subjectId: s.subjectId, name: s.name, agendaItemIndex: s.agendaItemIndex, nonAgendaReason: s.nonAgendaReason,
+                attendance: s.attendance, decisionNumber: s.decision?.decisionNumber ?? null,
+            })),
+            (personId) => {
+                const person = peopleMap.get(personId);
+                return person ? resolveMember(personId, person.name) : null;
+            },
+            mayorWithNoteChanges,
+        );
+        attendanceChanges = fromEvents.changes;
+        mayorChanges = fromEvents.mayorChanges;
+    } else {
+        const fromDiff = buildAttendanceChanges(
+            minutesSubjects.filter(s => !s.withdrawn),
+            absentMembers,
+            mayorWithNoteChanges,
+        );
+        attendanceChanges = fromDiff.changes;
+        mayorChanges = fromDiff.mayorChanges;
+    }
+
+    // What the mayor's line says after the name: the ΔΗΜΑΡΧΟΣ line, or the
+    // ΠΡΟΕΔΡΟΣ line of a committee the mayor presides. The roll call is the meeting's
+    // own attendance row.
+    if (councilCompositionResult?.mayor) {
+        const mayorRollCall = meetingAttendance.find(a => a.personId === mayorPersonId)?.status ?? null;
+        councilCompositionResult.mayor.note = buildMayorNote(
+            mayorRollCall,
+            mayorChanges,
+            mayorPerson ? isFemaleName(extractFirstName(mayorPerson.name)) : false,
+        );
+    }
 
     // The order line, when subjects were discussed out of natural order.
     const discussionOrderLabelText = discussionOrderLabel(minutesSubjects.filter(s => !s.withdrawn));
