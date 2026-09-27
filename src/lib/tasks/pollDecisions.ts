@@ -1,6 +1,8 @@
 "use server";
 
 import { PollDecisionsRequest, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData } from "@/lib/apiTypes";
+import { isDecisionConventions } from "@/lib/decisionConventions";
+import { renderConventionsText, conventionsGlossaryEn } from "@/lib/decisionConventionsText";
 import { storeDecisionFacts } from "@/lib/db/decisionFacts";
 import { deriveAndPersist } from "@/lib/derivation/persist";
 import { readingStatesFacts } from "@/lib/derivation";
@@ -75,6 +77,7 @@ export async function pollDecisionsForMeeting(
                     id: true,
                     name: true,
                     diavgeiaUnitIds: true,
+                    decisionConventions: true,
                 },
             },
             subjects: {
@@ -158,6 +161,17 @@ export async function pollDecisionsForMeeting(
         select: { ada: true, meetingDate: true, readStatus: true },
     });
 
+    // The extractor is told the body's conventions as sentences; the glossary lives in messages/en/admin.json.
+    const conventionsValue = councilMeeting.administrativeBody?.decisionConventions;
+    const conventionsText = isDecisionConventions(conventionsValue)
+        ? renderConventionsText(conventionsValue, conventionsGlossaryEn)
+        : null;
+    // No conventions record, no extraction: the poll only links the body's
+    // decisions. A page read without the hints keeps that reading, because the
+    // hints are part of the task's cache key. A page left unread has no usable
+    // reading, so the first poll after a person records the conventions reads it.
+    const extract = conventionsText !== null;
+
     const body: Omit<PollDecisionsRequest, 'callbackUrl'> = {
         // City-local: documents print local dates, and the partition compares
         // against this value. The UTC date is the previous day for meetings
@@ -168,6 +182,8 @@ export async function pollDecisionsForMeeting(
             ? councilMeeting.administrativeBody.diavgeiaUnitIds
             : undefined,
         administrativeBodyName: councilMeeting.administrativeBody?.name ?? null,
+        conventionsText: conventionsText ?? undefined,
+        extract,
         mayorId: mayorPerson?.id,
         forceExtract: options?.forceExtract || undefined,
         people: peopleForRequest,

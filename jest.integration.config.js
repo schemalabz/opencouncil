@@ -22,10 +22,13 @@ module.exports = {
         '^next-intl/server$': '<rootDir>/tests/mocks/nextIntlServer.ts',
         '^@/(.*)$': '<rootDir>/src/$1',
     },
-    // @auth/prisma-adapter is ESM-only (no CJS build), so requiring it from the
-    // CommonJS test runner fails. Transform just that package; everything else in
-    // node_modules stays untransformed.
-    transformIgnorePatterns: ['/node_modules/(?!@auth/prisma-adapter/)'],
+    // @auth/prisma-adapter and the ICU formatting chain (intl-messageformat,
+    // icu-minify, the @formatjs/* and @schummar/* packages, as in jest.config.js)
+    // are ESM-only, so requiring them from the CommonJS test runner fails. The poll
+    // request renders the conventions text through intl-messageformat, so every
+    // suite that loads pollDecisions needs it. Transform just these packages;
+    // everything else in node_modules stays untransformed.
+    transformIgnorePatterns: ['/node_modules/(?!(@auth/prisma-adapter|intl-messageformat|icu-minify|@formatjs|@schummar)/)'],
     transform: {
         '^.+\\.(ts|tsx)$': ['ts-jest', {
             tsconfig: 'tsconfig.json',

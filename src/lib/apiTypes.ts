@@ -515,6 +515,13 @@ export interface PollDecisionsRequest extends TaskRequest {
      * meetingDate decides which partition the decision belongs to.
      */
     knownDecisions?: Array<{ ada: string; meetingDate: string | null; readStatus: string }>;
+    /** The body's conventions rendered as sentences for the prompt; opencouncil owns the glossary. */
+    conventionsText?: string | null;
+    /**
+     * false = match and link only, read no page: the body has no conventions
+     * record. Absent = extract, for a request from an older app.
+     */
+    extract?: boolean;
 }
 
 /**
