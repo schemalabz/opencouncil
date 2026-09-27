@@ -1,6 +1,6 @@
 # Infrastructure & Deployment
 
-How OpenCouncil's environments, databases, and services are connected. For database access procedures (roles, copying data), see [guides/database-access.md](./guides/database-access.md).
+How OpenCouncil's environments, databases, and services are connected.
 
 ## Deployment Topology
 
@@ -118,6 +118,12 @@ Two repositories, connected via callbacks:
 | **opencouncil-tasks** | Heavy processing (transcription, AI, media) | Express, Node.js |
 
 The app queues a task in the database and sends a request to the tasks server. The tasks server does the work (calling external APIs) and POSTs results back to the app via a callback URL. See [task-architecture.md](./task-architecture.md) for details. For the full meeting processing pipeline, see [guides/meeting-lifecycle.md](./guides/meeting-lifecycle.md).
+
+## Backups
+
+DigitalOcean backs up the whole database cluster, with point-in-time recovery. SnapShooter also dumps the `production` and `notis-production` databases to the `opencouncil-db-backups` Spaces bucket. To restore those dumps locally and check that they work, use the [`test-backup`](../.claude/skills/test-backup/SKILL.md) skill.
+
+The Notis job connects as the read-only role `notis_backup`. DigitalOcean does not store its password, so a password reset in the DigitalOcean panel stops the job until SnapShooter has the new password.
 
 ## Known Limitations
 

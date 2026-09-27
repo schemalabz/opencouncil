@@ -4,7 +4,7 @@
 
 Start here to build a mental model of how OpenCouncil works.
 
-- **[infrastructure.md](./infrastructure.md)** — Deployment topology: which branch deploys where, how environments and databases connect, known limitations. Includes a visual diagram of the full system.
+- **[infrastructure.md](./infrastructure.md)** — Deployment topology: which branch deploys where, how environments and databases connect and how they are backed up, known limitations. Includes a visual diagram of the full system.
 - **[task-architecture.md](./task-architecture.md)** — How the async task system works: the callback flow between this app and the opencouncil-tasks server, task lifecycle, handler registry pattern, and how to add new task types.
 - **[pricing-system.md](./pricing-system.md)** — Centralized pricing configuration, calculation logic, and immutability guarantees.
 
@@ -39,7 +39,6 @@ Deep dives into specific features — architecture, data flow, and implementatio
 
 Procedures for working with the deployed environments.
 
-- **[guides/database-access.md](./guides/database-access.md)** — Database roles (readonly, readandwrite), copying production data with `scripts/copy_db.sh`, connecting locally to remote databases
 - **[guides/preview-deployments.md](./guides/preview-deployments.md)** — Automated per-PR preview environments: GitHub Actions flow, NixOS droplet, port mapping, Caddy config
 - **[guides/cachix-setup.md](./guides/cachix-setup.md)** — Nix binary cache configuration for preview deployment builds
 - **[admin-alerts.md](./admin-alerts.md)** — Discord webhook setup for system event notifications
