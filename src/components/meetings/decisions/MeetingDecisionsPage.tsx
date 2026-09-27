@@ -14,13 +14,11 @@ import { pollCadence } from '@/lib/tasks/pollDecisionsBackoff';
 import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib/utils/votes';
 import { formatCalendarDate, formatDate } from '@/lib/formatters/time';
 import { isRecordSubject, recordSection } from '@/lib/utils/subjects';
-import { splitAttendance } from '@/lib/utils/attendance';
-import { isMayorRole, isRoleActiveAt } from '@/lib/utils/roles';
 import { hasRecordedVote, resultKey } from '@/lib/utils/decisionResult';
 import { causeFromPayload, decisionWriteCause, DecisionWriteError } from '@/lib/utils/decisionWriteCause';
 import { compareAgendaPosition, normalizeText } from '@/lib/utils';
 import { TWO_COLUMN_GRID } from '@/components/ui/surface-card';
-import { CollapsibleMarkdown, NameList, sortNamesByElectedOrder } from '@/components/meetings/decisions/shared';
+import { CollapsibleMarkdown, NameList } from '@/components/meetings/decisions/shared';
 import { scrollElementToContainerTop } from '@/lib/utils/scrollAnchor';
 import { attentionCount, estimateWork, isLikelyMatch, routeCandidates, splitWaitingSubjects } from '@/components/meetings/decisions/candidates';
 import { rowCandidates } from '@/components/meetings/decisions/rowCandidates';
@@ -35,6 +33,8 @@ import { readDiavgeiaUnitEntries } from '@/lib/utils/diavgeiaUnitScope';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
 import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 import { buildTimeline } from '@/components/meetings/decisions/timeline';
+import { SubjectPresence } from '@/components/meetings/decisions/SubjectPresence';
+import { buildAttendance, buildSubjectRollCall } from '@/lib/minutes/builders';
 import { downloadFile } from '@/lib/export/download';
 import { MinutesPreviewDialog } from '@/components/meetings/decisions/MinutesPreviewDialog';
 import { DecisionsRail } from '@/components/meetings/decisions/rail/DecisionsRail';
@@ -124,12 +124,11 @@ const writeFailure = async (response: Response): Promise<DecisionWriteError> => 
 
 export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     const { toast } = useToast();
-    const { subjects, meeting, city, people, getPerson } = useCouncilMeetingData();
+    const { subjects, meeting, city, getPerson } = useCouncilMeetingData();
     const t = useTranslations('admin.adminActions');
     const tPage = useTranslations('admin.decisionsPage');
     const tSubject = useTranslations('Subject');
     const locale = useLocale();
-    const administrativeBodyId = meeting.administrativeBodyId ?? null;
     // What a poll would actually ask Diavgeia for. Parsed through the same
     // helper the task uses, so a malformed entry surfaces here — in the admin
     // page, before it fails a poll — rather than only in the task log.
@@ -137,10 +136,6 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         () => readDiavgeiaUnitEntries(meeting.administrativeBody?.diavgeiaUnitIds),
         [meeting.administrativeBody?.diavgeiaUnitIds],
     );
-    const meetingDate = new Date(meeting.dateTime);
-    const mayorPersonId = people.find(p =>
-        p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
-    )?.id ?? null;
 
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
     const [candidates, setCandidates] = useState<CandidateView[]>([]);
@@ -990,6 +985,16 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         const decision = decisions[subjectId];
         const extracted = extractedData[subjectId];
         if (!decision?.excerpt && !decision?.references && !extracted) return null;
+        // The subject's presence from one snapshot: the minutes' subject, whose
+        // attendance gives both the absentees and the people the roll call does
+        // not name. When the minutes did not load, the decisions request's own
+        // rows, with no ΔΗΜΑΡΧΟΣ or ΠΡΟΕΔΡΟΣ line.
+        const minutesSubject = minutesById.get(subjectId);
+        const subjectRollCall = minutes?.councilComposition && minutesSubject?.attendance
+            ? buildSubjectRollCall(minutes.councilComposition, minutesSubject.attendance, minutes.administrativeBody?.type ?? null, minutesSubject.presidedBy)
+            : extracted && extracted.attendance.length > 0
+                ? buildSubjectRollCall(null, buildAttendance(extracted.attendance, null, (personId, name) => ({ personId, name, party: null, isPartyHead: false, role: null }), () => null), null, null)
+                : null;
         return (
             <div className="space-y-3">
                 {decision?.excerpt && (
@@ -1014,33 +1019,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                     </div>
                 )}
 
-                {extracted && extracted.attendance.length > 0 && (() => {
-                    const filteredAttendance = splitAttendance(extracted.attendance, mayorPersonId);
-                    const present = sortNamesByElectedOrder(filteredAttendance.present, getPerson, administrativeBodyId);
-                    const absent = sortNamesByElectedOrder(filteredAttendance.absent, getPerson, administrativeBodyId);
-                    return (
-                        <div>
-                            <div className="text-xs font-medium text-muted-foreground mb-1">{tPage('attendance')}</div>
-                            <div className="text-xs text-foreground space-y-1">
-                                <span>{present.length} {tPage('present')}, {absent.length} {tPage('absent')}</span>
-                                <div className="flex flex-col gap-1">
-                                    {present.length > 0 && (
-                                        <NameList
-                                            names={present.map(a => a.personName)}
-                                            label={`${tPage('showNames')} (${tPage('present')})`}
-                                        />
-                                    )}
-                                    {absent.length > 0 && (
-                                        <NameList
-                                            names={absent.map(a => a.personName)}
-                                            label={`${tPage('showNames')} (${tPage('absent')})`}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })()}
+                {subjectRollCall && <SubjectPresence rollCall={subjectRollCall} />}
 
                 {extracted && extracted.votes.length > 0 && (() => {
                     const voteResult = calculateVoteResult(extracted.votes);
