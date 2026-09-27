@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# One-time setup for the test-backup skill's S3 fetch mode.
+# One-time setup for the test-backup skill, which fetches the dumps from the
+# backup bucket.
 #
 # Registers a READ-ONLY rclone remote named `oc-backups` pointing at the
 # DigitalOcean Spaces cold-storage backup bucket. Run it yourself in your
@@ -35,6 +36,7 @@ if rclone listremotes | grep -qx "${REMOTE}:"; then
 fi
 
 echo "Enter your READ-ONLY DigitalOcean Spaces key for '${BUCKET}'."
+echo "No key yet? Create one in the DigitalOcean control panel: API -> Spaces Keys, read-only."
 read -rp  "  Access key: " KEY
 read -rsp "  Secret key: " SECRET; echo
 if [ -z "$KEY" ] || [ -z "$SECRET" ]; then

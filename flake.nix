@@ -1607,6 +1607,8 @@ EOF
 
         in {
           inherit oc-dev oc-dev-db-nix oc-dev-db-nix-locked oc-dev-db-docker oc-dev-cache oc-dev-app-local oc-studio oc-cleanup oc-rss opencouncil-prod notis-prod;
+          # The test-backup skill runs a private throwaway cluster with this build.
+          postgres-postgis = postgres;
         });
 
       checks = forAllSystems (_system: pkgs: _pkgs-unstable:
