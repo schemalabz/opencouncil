@@ -4,6 +4,8 @@ import { formatSurnameFirst } from '@/lib/formatters/name';
 import { calculateVoteResult, getAbsentNonVoterIds } from '@/lib/utils/votes';
 import { splitAttendance } from '@/lib/utils/attendance';
 import { compareAgendaPosition } from '@/lib/utils';
+import { isRecordSubject } from '@/lib/utils/subjects';
+import { collapseOrderRuns, type OrderPosition } from '@/lib/utils/discussionOrder';
 import {
     MinutesMember,
     MinutesAttendance,
@@ -13,6 +15,7 @@ import {
     MinutesDiscussionSummary,
     MinutesProceduralVote,
 } from './types';
+import { assignUtterances, computeTemporalWindows, discussionSpans, type AssignmentResult, type SpanUtterance, type TemporalWindow, type WindowUtterance } from './temporalWindows';
 
 // --- Dependency types for testability ---
 
@@ -301,6 +304,22 @@ export function buildAttendanceChanges(
     return changes;
 }
 
+/**
+ * The time at which each subject takes its place in the discussion order, for
+ * `sortSubjectsByDiscussionOrder`: the start of the subject's first discussion
+ * span (`discussionSpans`), which is its first utterance that is not a
+ * procedural vote (its procedural vote when it has nothing else; an untagged
+ * utterance status counts as discussion). The whole transcript thus reads in
+ * time order: a subject that was left pending and resumed later stays where its
+ * discussion started, and its later span prints where it happened, with a
+ * pointer to the subject (`assignUtterances`).
+ */
+export function discussionOrderKeys(utterances: SpanUtterance[]): Map<string, number> {
+    const keys = new Map<string, number>();
+    for (const [id, spans] of discussionSpans(utterances)) keys.set(id, spans[0].start);
+    return keys;
+}
+
 interface SortableSubject {
     id: string;
     agendaItemIndex: number | null;
@@ -383,6 +402,114 @@ export function sortSubjectsByDiscussionOrder<T extends SortableSubject>(
     }
 
     return result;
+}
+
+/**
+ * The meeting's subjects as the record walks them: the record subjects
+ * (`isRecordSubject` — agenda plus out-of-agenda, never `beforeAgenda`) in
+ * discussion order.
+ *
+ * One helper because the sequence is an index: an «after item 3» anchor is
+ * placed by position, so a caller walking a different set, or the same set in a
+ * different order, puts the change on a different subject than the page prints
+ * it against. The minutes and the derivation both come through here. Withdrawn
+ * subjects are kept — the minutes list them in the table of contents; callers
+ * that place events drop them.
+ */
+export function orderedMinutesSubjects<T extends SortableSubject>(
+    subjects: T[],
+    firstUtteranceBySubject: Map<string, number>,
+): T[] {
+    return sortSubjectsByDiscussionOrder(subjects.filter(isRecordSubject), firstUtteranceBySubject);
+}
+
+/**
+ * A meeting's sections as the minutes print them: the record subjects in
+ * discussion order (`orderedMinutesSubjects`), the temporal windows of the
+ * subjects that are not withdrawn, and every utterance assigned to one bucket.
+ * `getMinutesData` and the `decisions sections` script both call this, so the
+ * script prints the sections that the minutes print.
+ *
+ * `subjects` can hold every subject of the meeting. `ordered` keeps the record
+ * subjects, withdrawn ones included (the minutes list them in the table of
+ * contents). `utterances` are all the meeting's utterances, sorted by start.
+ */
+export function minutesSections<T extends SortableSubject & { withdrawn: boolean }>(
+    subjects: T[],
+    utterances: WindowUtterance[],
+): { ordered: T[]; windows: TemporalWindow[]; assignment: AssignmentResult } {
+    const activeIds = subjects.filter(s => isRecordSubject(s) && !s.withdrawn).map(s => s.id);
+    const windows = computeTemporalWindows(utterances, activeIds);
+    const ordered = orderedMinutesSubjects(subjects, discussionOrderKeys(utterances));
+    const assignment = assignUtterances(utterances, windows, ordered.filter(s => !s.withdrawn).map(s => s.id));
+    return { ordered, windows, assignment };
+}
+
+interface OrderLineSubject {
+    agendaItemIndex: number | null;
+    agendaSectionIndex?: number | null;
+    nonAgendaReason: string | null;
+}
+
+/**
+ * Each subject's place in the order line, for subjects in printed order:
+ * «3ο» for an agenda item, «ΕΗΔ1», «ΕΗΔ2», … for the out-of-agenda subjects in
+ * the order they were discussed. An agenda item with no index has an empty
+ * label: it has no number to print.
+ */
+export function discussionOrderPositions(subjects: readonly OrderLineSubject[]): OrderPosition[] {
+    let oaCounter = 0;
+    return subjects.map((s, i) => {
+        if (s.nonAgendaReason === 'outOfAgenda') {
+            oaCounter++;
+            return { label: `ΕΗΔ${oaCounter}`, sequence: 'outOfAgenda', index: oaCounter };
+        }
+        // An agenda item with no index has no place in the agenda's
+        // counting, so it gets a sequence of its own and never joins a
+        // run with the numbered items around it.
+        return s.agendaItemIndex === null
+            ? { label: '', sequence: `unnumbered-${i}`, index: i }
+            : { label: `${s.agendaItemIndex}ο`, sequence: 'agenda', index: s.agendaItemIndex };
+    });
+}
+
+/**
+ * The «Σειρά συζήτησης» line of the minutes, for the non-withdrawn subjects in
+ * printed order. Null when the order is the natural one: out-of-agenda subjects
+ * first, then the agenda items by agenda position (`compareAgendaPosition`).
+ */
+export function discussionOrderLabel(subjects: readonly OrderLineSubject[]): string | null {
+    const naturalOrder = [...subjects].sort((a, b) => {
+        const aIsOA = a.nonAgendaReason === 'outOfAgenda';
+        const bIsOA = b.nonAgendaReason === 'outOfAgenda';
+        if (aIsOA !== bIsOA) return aIsOA ? -1 : 1;
+        return compareAgendaPosition(a, b);
+    });
+    if (subjects.length === 0 || subjects.every((s, i) => s === naturalOrder[i])) return null;
+    // A position with an empty label stays in the walk, so it still breaks a run, and prints nothing.
+    return collapseOrderRuns(discussionOrderPositions(subjects)).filter(part => part !== '').join(', ');
+}
+
+/**
+ * The subjects whose sections hold utterances tagged to `subjectId` (the
+ * «Μέρος της συζήτησης πραγματοποιήθηκε κατά τη συζήτηση …» note), in the order
+ * the assignment met them. Read from `AssignmentResult.crossSubjectMap`.
+ */
+export function discussedElsewhereIds(
+    subjectId: string,
+    crossSubjectMap: ReadonlyMap<string, ReadonlyMap<string, string>>,
+): string[] {
+    const owners: string[] = [];
+    for (const [ownerSubjectId, crossMap] of crossSubjectMap) {
+        if (ownerSubjectId === subjectId || owners.includes(ownerSubjectId)) continue;
+        for (const linkedSubjectId of crossMap.values()) {
+            if (linkedSubjectId === subjectId) {
+                owners.push(ownerSubjectId);
+                break;
+            }
+        }
+    }
+    return owners;
 }
 
 /**

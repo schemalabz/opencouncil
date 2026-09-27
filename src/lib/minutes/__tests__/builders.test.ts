@@ -4,6 +4,10 @@ import {
     buildVoteResult,
     buildCouncilComposition,
     sortSubjectsByDiscussionOrder,
+    orderedMinutesSubjects,
+    discussionOrderKeys,
+    discussionOrderLabel,
+    discussedElsewhereIds,
     sortByElectedOrder,
     buildDiscussionSummary,
     buildProceduralVotes,
@@ -11,6 +15,7 @@ import {
     ElectedOrderGetter,
 } from '../builders';
 import { MinutesMember } from '../types';
+import spartaMay6 from './fixtures/sparta-may6-2026-utterances.json';
 
 // --- Test helpers ---
 
@@ -593,7 +598,107 @@ describe('sortSubjectsByDiscussionOrder', () => {
     });
 });
 
+// --- discussionOrderKeys ---
+
+describe('discussionOrderKeys', () => {
+    const u = (subjectId: string | null, status: DiscussionStatus | null, startTimestamp: number) =>
+        ({ discussionSubjectId: subjectId, discussionStatus: status, startTimestamp, endTimestamp: startTimestamp + 1 });
+    const agendaItem = (n: number) => ({ id: `s${n}`, agendaItemIndex: n, nonAgendaReason: null, discussedIn: null });
+
+    it('keeps an item stopped part-way and resumed at the end of the meeting where its discussion started (Sparta may6_2026)', () => {
+        // «το θέμα το 5ο πάει τελευταίο προς συζήτηση»: item 5 is opened after
+        // item 4, stopped, and resumed and voted after item 14. The minutes read
+        // in time order: item 5 prints after item 4, and its resumed discussion
+        // prints after item 14 with a pointer to item 5.
+        const rows = (spartaMay6 as { item: number | null; status: DiscussionStatus | null; start: number }[])
+            .map(r => u(r.item === null ? null : `s${r.item}`, r.status, r.start));
+        const subjects = Array.from({ length: 14 }, (_, i) => agendaItem(i + 1));
+
+        const keys = discussionOrderKeys(rows);
+        const ordered = orderedMinutesSubjects(subjects, keys);
+
+        expect(ordered.map(s => s.agendaItemIndex)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+        expect(keys.get('s5')).toBeCloseTo(287.47, 2);
+    });
+
+    it('places a resumed subject where its discussion started', () => {
+        // s1 is opened, left pending while s2 is voted, and resumed at 300. s3 is
+        // read at 310, inside s1's resumed discussion, and voted after s1.
+        const keys = discussionOrderKeys([
+            u('s1', 'SUBJECT_DISCUSSION', 100), u('s2', 'SUBJECT_DISCUSSION', 150), u('s2', 'VOTE', 200),
+            u('s1', 'SUBJECT_DISCUSSION', 300), u('s3', 'SUBJECT_DISCUSSION', 310), u('s1', 'VOTE', 320), u('s3', 'VOTE', 400),
+        ]);
+        const ordered = orderedMinutesSubjects([agendaItem(1), agendaItem(2), agendaItem(3)], keys);
+
+        expect(keys.get('s1')).toBe(100);
+        expect(ordered.map(s => s.id)).toEqual(['s1', 's2', 's3']);
+    });
+
+    it('keeps a subject at its first utterance when no other subject is voted before its own vote', () => {
+        // Samothraki jul28_2026: items 5 and 6 are read together and voted in one
+        // sentence, tagged to item 5 only. Item 5 still comes first.
+        const keys = discussionOrderKeys([
+            u('s5', 'SUBJECT_DISCUSSION', 918), u('s6', 'SUBJECT_DISCUSSION', 992), u('s5', 'VOTE', 1088),
+        ]);
+        expect(keys).toEqual(new Map([['s5', 918], ['s6', 992]]));
+    });
+
+    it('keeps a subject voted in its first stretch at its first utterance, whatever is tagged to it later', () => {
+        // Sparta aug26_2026: after item 2 is voted, a member says at item 4 that
+        // he votes yes «στην προηγούμενη ψηφοφορία», tagged to item 2.
+        const keys = discussionOrderKeys([
+            u('s2', 'SUBJECT_DISCUSSION', 526), u('s2', 'VOTE', 3083), u('s3', 'VOTE', 3300), u('s2', 'SUBJECT_DISCUSSION', 3584),
+        ]);
+        expect(keys.get('s2')).toBe(526);
+    });
+
+    it('orders a procedural vote only when the subject has nothing else, and an untagged utterance as discussion', () => {
+        const keys = discussionOrderKeys([
+            u('oa1', 'PROCEDURAL_VOTE', 10), u('s1', null, 50), u('oa1', 'SUBJECT_DISCUSSION', 300), u('w', 'PROCEDURAL_VOTE', 400),
+        ]);
+        expect(keys).toEqual(new Map([['oa1', 300], ['s1', 50], ['w', 400]]));
+    });
+
+    it('does not count a procedural vote of another subject as that subject being decided', () => {
+        const keys = discussionOrderKeys([
+            u('s1', 'SUBJECT_DISCUSSION', 100), u('oa1', 'PROCEDURAL_VOTE', 150), u('s1', 'VOTE', 200),
+        ]);
+        expect(keys.get('s1')).toBe(100);
+    });
+});
+
 // --- sortByElectedOrder ---
+
+describe('discussionOrderLabel', () => {
+    const item = (agendaItemIndex: number | null) => ({ agendaItemIndex, nonAgendaReason: null });
+    const oa = (agendaItemIndex: number | null) => ({ agendaItemIndex, nonAgendaReason: 'outOfAgenda' });
+
+    it('is null for the natural order: out-of-agenda subjects first, then the agenda by index', () => {
+        expect(discussionOrderLabel([oa(null), oa(null), item(1), item(2)])).toBeNull();
+        expect(discussionOrderLabel([])).toBeNull();
+    });
+
+    it('collapses runs and counts out-of-agenda subjects in the order they were discussed', () => {
+        expect(discussionOrderLabel([item(1), item(2), item(4), item(3), oa(7), oa(8)])).toBe('1ο–2ο, 4ο, 3ο, ΕΗΔ1–ΕΗΔ2');
+    });
+
+    it('prints no label for an agenda item with no index, and never joins the items around it to a run', () => {
+        expect(discussionOrderLabel([item(2), item(null), item(3)])).toBe('2ο, 3ο');
+    });
+});
+
+describe('discussedElsewhereIds', () => {
+    it('lists the sections that hold an utterance tagged to the subject, once each, never the subject itself', () => {
+        const cross = new Map([
+            ['s5', new Map([['u1', 's6'], ['u2', 's7'], ['u3', 's6']])],
+            ['s6', new Map([['u4', 's5']])],
+            ['s8', new Map([['u5', 's6']])],
+        ]);
+        expect(discussedElsewhereIds('s6', cross)).toEqual(['s5', 's8']);
+        expect(discussedElsewhereIds('s5', cross)).toEqual(['s6']);
+        expect(discussedElsewhereIds('s9', cross)).toEqual([]);
+    });
+});
 
 describe('sortByElectedOrder', () => {
     const makeMember = (personId: string, name: string): MinutesMember => ({

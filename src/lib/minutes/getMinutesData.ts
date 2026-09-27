@@ -4,10 +4,8 @@ import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData 
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
-import { compareAgendaPosition } from '@/lib/utils';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, simplifyRoleName } from '@/lib/utils/roles';
 import { agendaItemTitleOrName, isRecordSubject } from '@/lib/utils/subjects';
-import { collapseOrderRuns, type OrderPosition } from '@/lib/utils/discussionOrder';
 import { PersonWithRelations } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
 import {
@@ -22,7 +20,9 @@ import {
     buildVoteResult,
     buildCouncilComposition,
     buildAttendanceChanges,
-    sortSubjectsByDiscussionOrder,
+    discussedElsewhereIds,
+    discussionOrderLabel,
+    minutesSections,
     sortByElectedOrder,
     buildDiscussionSummary,
     buildProceduralVotes,
@@ -31,7 +31,6 @@ import {
 } from './builders';
 
 import { buildTranscriptEntriesFromUtterances, CrossSubjectInfo } from './transcriptEntries';
-import { computeTemporalWindows, assignUtterances } from './temporalWindows';
 
 export async function getMinutesData(
     cityId: string,
@@ -63,9 +62,6 @@ export async function getMinutesData(
     // isRecordSubject is the one definition, shared with the decisions page.
     // Includes withdrawn subjects — they appear in the TOC but get empty transcript entries
     const sectionSubjects = subjects.filter(isRecordSubject);
-
-    // Get active (non-withdrawn) subject IDs for temporal window computation
-    const activeSubjectIds = sectionSubjects.filter(s => !s.withdrawn).map(s => s.id);
 
     // Fetch ALL meeting utterances in a single query (no status filter)
     const allUtterances = await prisma.utterance.findMany({
@@ -104,9 +100,6 @@ export async function getMinutesData(
     // Subject title map for cross-subject annotations (includes all subjects)
     const subjectNameMap = new Map(subjects.map(s => [s.id, agendaItemTitleOrName(s)]));
 
-    // Compute temporal windows from linked utterances
-    const windows = computeTemporalWindows(allUtterances, activeSubjectIds);
-
     const meetingDate = new Date(meeting.dateTime);
 
     // Identify mayor once — used to exclude them from per-subject attendance/votes
@@ -137,27 +130,8 @@ export async function getMinutesData(
         return getElectedOrderForBody(person, adminBodyId);
     };
 
-    // Compute preliminary first-utterance timestamps for discussion order sorting.
-    // First pass: exclude PROCEDURAL_VOTE; second pass: fallback for procedural-only subjects.
-    const preliminaryFirstUtterance = new Map<string, number>();
-    for (const u of allUtterances) {
-        if (u.discussionSubjectId && !preliminaryFirstUtterance.has(u.discussionSubjectId)) {
-            if (u.discussionStatus !== 'PROCEDURAL_VOTE') {
-                preliminaryFirstUtterance.set(u.discussionSubjectId, u.startTimestamp);
-            }
-        }
-    }
-    for (const u of allUtterances) {
-        if (u.discussionSubjectId && !preliminaryFirstUtterance.has(u.discussionSubjectId)) {
-            preliminaryFirstUtterance.set(u.discussionSubjectId, u.startTimestamp);
-        }
-    }
-
-    const sortedSubjects = sortSubjectsByDiscussionOrder(sectionSubjects, preliminaryFirstUtterance);
-    const sortedActiveIds = sortedSubjects.filter(s => !s.withdrawn).map(s => s.id);
-
-    // Assign all utterances to temporal windows
-    const assignment = assignUtterances(allUtterances, windows, sortedActiveIds);
+    // The subjects in discussion order, their temporal windows, and every utterance assigned to one bucket.
+    const { ordered: sortedSubjects, assignment } = minutesSections(sectionSubjects, allUtterances);
 
     function buildTranscriptEntries(subjectId: string): MinutesTranscriptEntry[] {
         const utterances = assignment.utterancesBySubject.get(subjectId) || [];
@@ -200,7 +174,7 @@ export async function getMinutesData(
     const preambleEntries = buildOrphanTranscriptEntries(assignment.preambleUtterances);
     const epilogueEntries = buildOrphanTranscriptEntries(assignment.epilogueUtterances);
 
-    // Build a map from sortedActiveIds index → sortedSubjects index
+    // Build a map from the active subjects' index → sortedSubjects index
     // so we can look up pre-discussion utterances correctly (preDiscussionByIndex
     // is keyed by active subject index, not by sortedSubjects index)
     const activeIndexToSubjectId = new Map<number, string>();
@@ -231,24 +205,16 @@ export async function getMinutesData(
             ? (assignment.preDiscussionByIndex.get(activeIndex) || [])
             : [];
 
-        // Compute discussedElsewhere: which subjects had cross-subject utterances
-        // claimed by another subject's window
-        let discussedElsewhere: MinutesSubject['discussedElsewhere'] = null;
-        for (const [ownerSubjectId, crossMap] of assignment.crossSubjectMap) {
-            for (const [, linkedSubjectId] of crossMap) {
-                if (linkedSubjectId === s.id && ownerSubjectId !== s.id) {
-                    if (!discussedElsewhere) discussedElsewhere = [];
-                    const ownerSubject = sectionSubjects.find(ss => ss.id === ownerSubjectId);
-                    if (ownerSubject && !discussedElsewhere.some(d => d.subjectId === ownerSubjectId)) {
-                        discussedElsewhere.push({
-                            subjectId: ownerSubjectId,
-                            name: agendaItemTitleOrName(ownerSubject),
-                            agendaItemIndex: ownerSubject.agendaItemIndex,
-                        });
-                    }
-                }
-            }
-        }
+        // Which subjects' sections hold utterances tagged to this subject
+        const discussedElsewhere: NonNullable<MinutesSubject['discussedElsewhere']> = discussedElsewhereIds(s.id, assignment.crossSubjectMap)
+            .flatMap(ownerSubjectId => {
+                const ownerSubject = sectionSubjects.find(ss => ss.id === ownerSubjectId);
+                return ownerSubject ? [{
+                    subjectId: ownerSubjectId,
+                    name: agendaItemTitleOrName(ownerSubject),
+                    agendaItemIndex: ownerSubject.agendaItemIndex,
+                }] : [];
+            });
 
         return {
             subjectId: s.id,
@@ -263,7 +229,7 @@ export async function getMinutesData(
                 agendaItemIndex: s.discussedIn.agendaItemIndex,
                 nonAgendaReason: s.discussedIn.nonAgendaReason,
             } : null,
-            discussedElsewhere,
+            discussedElsewhere: discussedElsewhere.length > 0 ? discussedElsewhere : null,
             decision: s.decision ? {
                 decisionNumber: s.decision.decisionNumber ?? null,
                 protocolNumber: s.decision.protocolNumber,
@@ -377,37 +343,8 @@ export async function getMinutesData(
         absentMembers,
     );
 
-    // Build discussion order label if subjects were discussed out of natural order.
-    // Natural order: OA subjects first (sorted), then regular subjects (sorted by agenda position).
-    const nonWithdrawn = minutesSubjects.filter(s => !s.withdrawn);
-    const naturalOrder = [
-        ...nonWithdrawn.filter(s => s.nonAgendaReason === 'outOfAgenda'),
-        ...nonWithdrawn.filter(s => s.nonAgendaReason !== 'outOfAgenda'),
-    ].sort((a, b) => {
-        const aIsOA = a.nonAgendaReason === 'outOfAgenda';
-        const bIsOA = b.nonAgendaReason === 'outOfAgenda';
-        if (aIsOA !== bIsOA) return aIsOA ? -1 : 1;
-        return compareAgendaPosition(a, b);
-    });
-    const isNaturalOrder = nonWithdrawn.every((s, i) => s.subjectId === naturalOrder[i]?.subjectId);
-
-    let discussionOrderLabel: string | null = null;
-    if (!isNaturalOrder && nonWithdrawn.length > 0) {
-        let oaCounter = 0;
-        const positions: OrderPosition[] = nonWithdrawn.map((s, i) => {
-            if (s.nonAgendaReason === 'outOfAgenda') {
-                oaCounter++;
-                return { label: `ΕΗΔ${oaCounter}`, sequence: 'outOfAgenda', index: oaCounter };
-            }
-            // An agenda item with no index has no place in the agenda's
-            // counting, so it gets a sequence of its own and never joins a
-            // run with the numbered items around it.
-            return s.agendaItemIndex === null
-                ? { label: `${s.agendaItemIndex}ο`, sequence: `unnumbered-${i}`, index: i }
-                : { label: `${s.agendaItemIndex}ο`, sequence: 'agenda', index: s.agendaItemIndex };
-        });
-        discussionOrderLabel = collapseOrderRuns(positions).join(', ');
-    }
+    // The order line, when subjects were discussed out of natural order.
+    const discussionOrderLabelText = discussionOrderLabel(minutesSubjects.filter(s => !s.withdrawn));
 
     return {
         city: {
@@ -430,7 +367,7 @@ export async function getMinutesData(
         absentMembers,
         preambleEntries,
         attendanceChanges,
-        discussionOrderLabel,
+        discussionOrderLabel: discussionOrderLabelText,
         proceduralVotes: buildProceduralVotes(
             allUtterances,
             sectionSubjects.map(s => ({

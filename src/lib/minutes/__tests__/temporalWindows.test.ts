@@ -2,8 +2,12 @@ import { DiscussionStatus } from '@prisma/client';
 import {
     computeTemporalWindows,
     assignUtterances,
+    discussionSpans,
     WindowUtterance,
 } from '../temporalWindows';
+import { discussedElsewhereIds, discussionOrderKeys, minutesSections, orderedMinutesSubjects } from '../builders';
+import { buildTranscriptEntriesFromUtterances } from '../transcriptEntries';
+import spartaMay6 from './fixtures/sparta-may6-2026-utterances.json';
 
 function makeUtterance(overrides: {
     id?: string;
@@ -216,5 +220,255 @@ describe('assignUtterances', () => {
         expect(result.utterancesBySubject.get('s1')?.map(u => u.id)).toEqual(['u-subject']);
         expect(result.epilogueUtterances.map(u => u.id)).toEqual(['u-after']);
     });
+    it('prints a later window of a subject inside the window it lies in, with a pointer to its subject', () => {
+        // Athens jul29_2_2026: item 25 is voted, «26.» is read (a VOTE of item
+        // 26), and item 25 is taken up again: «Όχι, ένα λεπτό στο 25…».
+        const utterances = [
+            makeUtterance({ id: 'a1', startTimestamp: 10, endTimestamp: 12, discussionSubjectId: 's25', discussionStatus: 'SUBJECT_DISCUSSION' }),
+            makeUtterance({ id: 'a2', startTimestamp: 13, endTimestamp: 14, discussionSubjectId: 's25', discussionStatus: 'VOTE' }),
+            makeUtterance({ id: 'b1', startTimestamp: 15, endTimestamp: 16, discussionSubjectId: 's26', discussionStatus: 'VOTE' }),
+            makeUtterance({ id: 'a3', startTimestamp: 17, endTimestamp: 18, discussionSubjectId: 's25', discussionStatus: 'SUBJECT_DISCUSSION' }),
+            makeUtterance({ id: 'x', startTimestamp: 19, endTimestamp: 20, discussionSubjectId: null }),
+            makeUtterance({ id: 'a4', startTimestamp: 21, endTimestamp: 22, discussionSubjectId: 's25', discussionStatus: 'SUBJECT_DISCUSSION' }),
+            makeUtterance({ id: 'b2', startTimestamp: 30, endTimestamp: 35, discussionSubjectId: 's26', discussionStatus: 'VOTE' }),
+        ];
+        const windows = computeTemporalWindows(utterances, ['s25', 's26']);
 
+        const result = assignUtterances(utterances, windows, ['s25', 's26']);
+
+        expect(windows).toEqual([
+            { subjectId: 's25', start: 10, end: 14 },
+            { subjectId: 's26', start: 15, end: 35 },
+            { subjectId: 's25', start: 17, end: 22 },
+        ]);
+        expect(result.utterancesBySubject.get('s25')?.map(u => u.id)).toEqual(['a1', 'a2']);
+        expect(result.utterancesBySubject.get('s26')?.map(u => u.id)).toEqual(['b1', 'a3', 'x', 'a4', 'b2']);
+        expect(result.crossSubjectMap.get('s26')).toEqual(new Map([['a3', 's25'], ['a4', 's25']]));
+    });
+
+    it('prints a later window between windows in the section discussed before it, with a pointer to its subject', () => {
+        const utterances = [
+            makeUtterance({ id: 'a1', startTimestamp: 10, endTimestamp: 12, discussionSubjectId: 's1', discussionStatus: 'SUBJECT_DISCUSSION' }),
+            makeUtterance({ id: 'gap1', startTimestamp: 13, endTimestamp: 14 }),
+            makeUtterance({ id: 'b1', startTimestamp: 20, endTimestamp: 22, discussionSubjectId: 's2', discussionStatus: 'VOTE' }),
+            makeUtterance({ id: 'gap2', startTimestamp: 25, endTimestamp: 26 }),
+            makeUtterance({ id: 'a2', startTimestamp: 30, endTimestamp: 32, discussionSubjectId: 's1', discussionStatus: 'VOTE' }),
+        ];
+        const windows = computeTemporalWindows(utterances, ['s1', 's2']);
+        // s1 is printed first: its discussion started first. It resumed and was voted after s2.
+        const result = assignUtterances(utterances, windows, ['s1', 's2']);
+
+        expect(result.preDiscussionByIndex.get(1)?.map(u => u.id)).toEqual(['gap1']);
+        expect(result.utterancesBySubject.get('s1')?.map(u => u.id)).toEqual(['a1']);
+        expect(result.utterancesBySubject.get('s2')?.map(u => u.id)).toEqual(['b1', 'gap2', 'a2']);
+        expect(result.crossSubjectMap.get('s2')).toEqual(new Map([['a2', 's1']]));
+    });
+
+    it('points an untagged utterance inside a later window to that window\'s subject', () => {
+        const utterances = [
+            makeUtterance({ id: 'a1', startTimestamp: 10, endTimestamp: 12, discussionSubjectId: 's1', discussionStatus: 'SUBJECT_DISCUSSION' }),
+            makeUtterance({ id: 'b1', startTimestamp: 20, endTimestamp: 22, discussionSubjectId: 's2', discussionStatus: 'VOTE' }),
+            makeUtterance({ id: 'a2', startTimestamp: 30, endTimestamp: 32, discussionSubjectId: 's1', discussionStatus: 'SUBJECT_DISCUSSION' }),
+            makeUtterance({ id: 'x', startTimestamp: 33, endTimestamp: 34 }),
+            makeUtterance({ id: 'a3', startTimestamp: 35, endTimestamp: 36, discussionSubjectId: 's1', discussionStatus: 'VOTE' }),
+        ];
+        const windows = computeTemporalWindows(utterances, ['s1', 's2']);
+
+        const result = assignUtterances(utterances, windows, ['s1', 's2']);
+
+        expect(result.utterancesBySubject.get('s2')?.map(u => u.id)).toEqual(['b1', 'a2', 'x', 'a3']);
+        expect(result.crossSubjectMap.get('s2')).toEqual(new Map([['a2', 's1'], ['x', 's1'], ['a3', 's1']]));
+    });
+});
+
+describe('discussionSpans', () => {
+    const u = (id: string | null, status: DiscussionStatus | null, start: number) =>
+        makeUtterance({ startTimestamp: start, endTimestamp: start + 1, discussionSubjectId: id, discussionStatus: status });
+
+    it('splits a subject where another subject is voted between two of its utterances', () => {
+        const spans = discussionSpans([
+            u('s1', 'SUBJECT_DISCUSSION', 10), u('s2', 'SUBJECT_DISCUSSION', 20), u('s2', 'VOTE', 30),
+            u('s1', 'SUBJECT_DISCUSSION', 40), u('s1', 'VOTE', 50),
+        ]);
+        expect(spans.get('s1')).toEqual([
+            { start: 10, end: 11 },
+            { start: 40, end: 51 },
+        ]);
+        expect(spans.get('s2')).toEqual([{ start: 20, end: 31 }]);
+    });
+
+    it('does not split at a joint vote tagged to one of the two subjects', () => {
+        // Samothraki jul28_2026: items 5 and 6 are voted in one sentence, tagged to item 5.
+        const spans = discussionSpans([
+            u('s5', 'SUBJECT_DISCUSSION', 918), u('s6', 'SUBJECT_DISCUSSION', 992), u('s5', 'VOTE', 1088),
+        ]);
+        expect(spans.get('s5')).toEqual([{ start: 918, end: 1089 }]);
+    });
+
+    it('does not split at another subject\'s procedural vote, or at a discussion without a vote', () => {
+        const spans = discussionSpans([
+            u('s1', 'SUBJECT_DISCUSSION', 10), u('oa1', 'PROCEDURAL_VOTE', 20), u('s2', 'SUBJECT_DISCUSSION', 25),
+            u('s1', 'VOTE', 30),
+        ]);
+        expect(spans.get('s1')).toEqual([{ start: 10, end: 31 }]);
+    });
+
+    it('ends a span with the procedural votes that follow it, up to an utterance of another subject', () => {
+        const spans = discussionSpans([
+            u('s1', 'PROCEDURAL_VOTE', 5), u('s1', 'SUBJECT_DISCUSSION', 10), u('s1', 'PROCEDURAL_VOTE', 12),
+            u(null, null, 14), u('s1', 'PROCEDURAL_VOTE', 16), u('s2', 'SUBJECT_DISCUSSION', 20),
+            u('s1', 'PROCEDURAL_VOTE', 22), u('s2', 'VOTE', 30), u('s1', 'VOTE', 40),
+        ]);
+        expect(spans.get('s1')).toEqual([
+            { start: 10, end: 17 },
+            { start: 40, end: 41 },
+        ]);
+    });
+});
+
+describe('the sections of Athens jul29_2_2026', () => {
+    // Item 2 is discussed until 17632, and the council votes to postpone it:
+    // «θα συνεχίσουμε το θέμα όταν επιστρέψει ο Δήμαρχος» (procedural votes to
+    // 17698). Items 8–11 are discussed and voted, «να συνεχίσουμε το θέμα 2;» is
+    // asked at 20249, and item 2 is resumed at 20257 and voted.
+    const utterances = [
+        makeUtterance({ id: 'a1', startTimestamp: 17311, endTimestamp: 17313, discussionSubjectId: 's2', discussionStatus: 'SUBJECT_DISCUSSION' }),
+        makeUtterance({ id: 'a2', startTimestamp: 17629, endTimestamp: 17632, discussionSubjectId: 's2', discussionStatus: 'SUBJECT_DISCUSSION' }),
+        makeUtterance({ id: 'p1', startTimestamp: 17632, endTimestamp: 17634, discussionSubjectId: 's2', discussionStatus: 'PROCEDURAL_VOTE' }),
+        makeUtterance({ id: 'gap1', startTimestamp: 17646, endTimestamp: 17649 }),
+        makeUtterance({ id: 'p2', startTimestamp: 17696, endTimestamp: 17698, discussionSubjectId: 's2', discussionStatus: 'PROCEDURAL_VOTE' }),
+        makeUtterance({ id: 'b1', startTimestamp: 17698.8, endTimestamp: 17701, discussionSubjectId: 's8', discussionStatus: 'SUBJECT_DISCUSSION' }),
+        makeUtterance({ id: 'b2', startTimestamp: 17780, endTimestamp: 17781, discussionSubjectId: 's8', discussionStatus: 'VOTE' }),
+        makeUtterance({ id: 'c1', startTimestamp: 20150, endTimestamp: 20154, discussionSubjectId: 's11', discussionStatus: 'SUBJECT_DISCUSSION' }),
+        makeUtterance({ id: 'c2', startTimestamp: 20241, endTimestamp: 20244, discussionSubjectId: 's11', discussionStatus: 'VOTE' }),
+        makeUtterance({ id: 'gap2', startTimestamp: 20249, endTimestamp: 20252 }),
+        makeUtterance({ id: 'a3', startTimestamp: 20257, endTimestamp: 20272, discussionSubjectId: 's2', discussionStatus: 'SUBJECT_DISCUSSION' }),
+        makeUtterance({ id: 'a4', startTimestamp: 20400, endTimestamp: 20402, discussionSubjectId: 's2', discussionStatus: 'VOTE' }),
+    ];
+    const subjects = [
+        { id: 's2', agendaItemIndex: 2, nonAgendaReason: null, discussedIn: null },
+        { id: 's8', agendaItemIndex: 8, nonAgendaReason: null, discussedIn: null },
+        { id: 's11', agendaItemIndex: 11, nonAgendaReason: null, discussedIn: null },
+    ];
+
+    it('prints the procedural vote to postpone item 2 at the end of its first stretch', () => {
+        const order = orderedMinutesSubjects(subjects, discussionOrderKeys(utterances)).map(s => s.id);
+        const windows = computeTemporalWindows(utterances, order);
+
+        const result = assignUtterances(utterances, windows, order);
+
+        expect(order).toEqual(['s2', 's8', 's11']);
+        expect(windows.filter(w => w.subjectId === 's2')).toEqual([
+            { subjectId: 's2', start: 17311, end: 17698 },
+            { subjectId: 's2', start: 20257, end: 20402 },
+        ]);
+        expect(result.utterancesBySubject.get('s2')?.map(u => u.id)).toEqual(['a1', 'a2', 'p1', 'gap1', 'p2']);
+        expect(result.crossSubjectMap.get('s2')).toBeUndefined();
+        expect(result.utterancesBySubject.get('s8')?.map(u => u.id)).toEqual(['b1', 'b2']);
+        // Item 2 resumes after item 11: it prints there, with a pointer to item 2.
+        expect(result.utterancesBySubject.get('s11')?.map(u => u.id)).toEqual(['c1', 'c2', 'gap2', 'a3', 'a4']);
+        expect(result.crossSubjectMap.get('s11')).toEqual(new Map([['a3', 's2'], ['a4', 's2']]));
+    });
+
+    it('does not read the procedural votes into the order', () => {
+        const withoutProcedural = utterances.filter(u => u.discussionStatus !== 'PROCEDURAL_VOTE');
+
+        expect(discussionOrderKeys(utterances)).toEqual(discussionOrderKeys(withoutProcedural));
+    });
+});
+
+describe('the sections of Sparta may6_2026', () => {
+    // «το θέμα το 5ο πάει τελευταίο προς συζήτηση» at 363: item 5 is stopped,
+    // items 6–14 are discussed and voted, and item 5 is resumed at 715 and voted.
+    const rows = spartaMay6 as { item: number | null; status: DiscussionStatus | null; start: number; end: number }[];
+    const utterances = rows.map((r, i) => makeUtterance({
+        id: `u${i}`,
+        startTimestamp: r.start,
+        endTimestamp: r.end,
+        discussionSubjectId: r.item === null ? null : `s${r.item}`,
+        discussionStatus: r.status,
+    }));
+    const subjectIds = Array.from({ length: 14 }, (_, i) => `s${i + 1}`);
+    const subjects = subjectIds.map((id, i) => ({ id, agendaItemIndex: i + 1, nonAgendaReason: null, discussedIn: null }));
+    const sortedIds = orderedMinutesSubjects(subjects, discussionOrderKeys(utterances)).map(s => s.id);
+
+    it('gives item 5 two windows, and items 6–14 windows of their own between them', () => {
+        const windows = computeTemporalWindows(utterances, subjectIds);
+
+        const item5 = windows.filter(w => w.subjectId === 's5');
+        expect(item5.map(w => [Math.floor(w.start), Math.floor(w.end)])).toEqual([[287, 365], [715, 732]]);
+        const between = windows.filter(w => w.start > item5[0].end && w.start < item5[1].start).map(w => w.subjectId);
+        expect(between).toEqual(['s6', 's7', 's8', 's9', 's10', 's11', 's12', 's13', 's14']);
+    });
+
+    it('prints item 5 after item 4, and its resumed discussion inside item 14 with a pointer to item 5', () => {
+        const result = assignUtterances(utterances, computeTemporalWindows(utterances, subjectIds), sortedIds);
+
+        expect(sortedIds).toEqual(subjectIds);
+        const resumed5 = utterances.filter(u => u.discussionSubjectId === 's5' && u.startTimestamp >= 715).map(u => u.id);
+        for (const id of subjectIds) {
+            const own = utterances.filter(u => u.discussionSubjectId === id && !resumed5.includes(u.id)).map(u => u.id);
+            expect(result.utterancesBySubject.get(id)?.map(u => u.id) ?? []).toEqual(id === 's14' ? [...own, ...resumed5] : own);
+            expect(result.crossSubjectMap.get(id)).toEqual(id === 's14' ? new Map(resumed5.map(u => [u, 's5'])) : undefined);
+        }
+        // Item 5's section: 287–363 only.
+        expect((result.utterancesBySubject.get('s5') ?? []).every(u => u.startTimestamp <= 365)).toBe(true);
+
+        const assigned = result.preambleUtterances.length + result.epilogueUtterances.length
+            + [...result.utterancesBySubject.values()].reduce((n, l) => n + l.length, 0)
+            + [...result.preDiscussionByIndex.values()].reduce((n, l) => n + l.length, 0);
+        expect(assigned).toBe(utterances.length);
+    });
+
+    it('gives the same order, windows and assignment through minutesSections, which the minutes and the sections script call', () => {
+        // A withdrawn subject and a subject before the agenda: the order keeps the record subjects, withdrawn
+        // ones included; the windows and the assignment leave the withdrawn subject out.
+        const withdrawn = { id: 'w', agendaItemIndex: 15, nonAgendaReason: null, discussedIn: null, withdrawn: true };
+        const beforeAgenda = { id: 'b', agendaItemIndex: null, nonAgendaReason: 'beforeAgenda', discussedIn: null, withdrawn: false };
+        const result = minutesSections([...subjects.map(s => ({ ...s, withdrawn: false })), withdrawn, beforeAgenda], utterances);
+
+        expect(result.ordered.map(s => s.id)).toEqual([...sortedIds, 'w']);
+        expect(result.windows).toEqual(computeTemporalWindows(utterances, subjectIds));
+        expect(result.assignment).toEqual(assignUtterances(utterances, computeTemporalWindows(utterances, subjectIds), sortedIds));
+    });
+});
+
+describe('the sections of Chalandri jul29_2026', () => {
+    // Item 4 is discussed from 873 and left without a vote, and items 5–7 are
+    // discussed and voted. Item 8 is read at 2194 and withdrawn («Το θέμα 8,
+    // λοιπόν, αποσύρεται»), and item 4 is resumed at 2216 and voted.
+    const utterances = [
+        makeUtterance({ id: 'd1', startTimestamp: 873, endTimestamp: 880, discussionSubjectId: 's4', discussionStatus: 'SUBJECT_DISCUSSION' }),
+        makeUtterance({ id: 'e1', startTimestamp: 998, endTimestamp: 1005, discussionSubjectId: 's5', discussionStatus: 'SUBJECT_DISCUSSION' }),
+        makeUtterance({ id: 'e2', startTimestamp: 1673, endTimestamp: 1675, discussionSubjectId: 's5', discussionStatus: 'VOTE' }),
+        makeUtterance({ id: 'g1', startTimestamp: 2132, endTimestamp: 2143.6, discussionSubjectId: 's7', discussionStatus: 'SUBJECT_DISCUSSION' }),
+        makeUtterance({ id: 'g2', startTimestamp: 2188.9, endTimestamp: 2190, discussionSubjectId: 's7', discussionStatus: 'VOTE' }),
+        makeUtterance({ id: 'h1', startTimestamp: 2194.2, endTimestamp: 2204.4, discussionSubjectId: 's8', discussionStatus: 'SUBJECT_DISCUSSION', text: 'Και το θέμα 8 είναι' }),
+        makeUtterance({ id: 'h2', startTimestamp: 2210.9, endTimestamp: 2212.7, discussionSubjectId: 's8', discussionStatus: 'PROCEDURAL_VOTE', text: 'Το θέμα 8, λοιπόν, αποσύρεται.' }),
+        makeUtterance({ id: 'd2', startTimestamp: 2216, endTimestamp: 2216.6, discussionSubjectId: 's4', discussionStatus: 'SUBJECT_DISCUSSION', text: 'Πρόεδρε.' }),
+        makeUtterance({ id: 'd3', startTimestamp: 2234, endTimestamp: 2237.4, discussionSubjectId: 's4', discussionStatus: 'VOTE', text: 'Ομόφωνα και αυτό.' }),
+    ];
+    const subjects = [4, 5, 7, 8].map(i => ({ id: `s${i}`, agendaItemIndex: i, nonAgendaReason: null, discussedIn: null, withdrawn: i === 8 }));
+
+    it('prints the withdrawn item 8 and the resumed item 4 inside item 7, each with a pointer to its item', () => {
+        const { ordered, assignment } = minutesSections(subjects, utterances);
+
+        expect(ordered.map(s => s.id)).toEqual(['s4', 's5', 's7', 's8']);
+        expect(assignment.utterancesBySubject.get('s4')?.map(u => u.id)).toEqual(['d1']);
+        expect(assignment.utterancesBySubject.get('s7')?.map(u => u.id)).toEqual(['g1', 'g2', 'h1', 'h2', 'd2', 'd3']);
+        expect(assignment.crossSubjectMap.get('s7')).toEqual(new Map([['h1', 's8'], ['h2', 's8'], ['d2', 's4'], ['d3', 's4']]));
+        expect(discussedElsewhereIds('s8', assignment.crossSubjectMap)).toEqual(['s7']);
+        expect(discussedElsewhereIds('s4', assignment.crossSubjectMap)).toEqual(['s7']);
+
+        const entries = buildTranscriptEntriesFromUtterances(
+            assignment.utterancesBySubject.get('s7') ?? [],
+            () => ({ speakerName: 'Ομιλητής', party: null, isPartyHead: false, role: null }),
+            { crossSubjectUtterances: assignment.crossSubjectMap.get('s7')!, subjectNames: new Map([['s8', 'Τραπεζοκαθίσματα MAMAS LAB'], ['s4', 'Θέμα 4']]) },
+        );
+        expect(entries.map(e => (e.type === 'cross-subject' ? `${e.direction} ${e.subject.name}` : e.text))).toEqual([
+            'text text',
+            'start Τραπεζοκαθίσματα MAMAS LAB', 'Και το θέμα 8 είναι Το θέμα 8, λοιπόν, αποσύρεται.', 'end Τραπεζοκαθίσματα MAMAS LAB',
+            'start Θέμα 4', 'Πρόεδρε. Ομόφωνα και αυτό.', 'end Θέμα 4',
+        ]);
+    });
 });
