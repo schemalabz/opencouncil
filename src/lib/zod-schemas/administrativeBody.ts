@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { decisionConventionsSchema } from '@/lib/decisionConventions';
 
 export const administrativeBodyTypeSchema = z.enum(['council', 'committee', 'community']);
 export const notificationBehaviorSchema = z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']);
@@ -55,6 +56,10 @@ export const administrativeBodyFormSchema = z.object({
     notificationBehavior: notificationBehaviorSchema,
     showUnreviewedTranscript: z.boolean(),
     diavgeiaUnitIds: z.string().optional().transform(val => val === '' ? undefined : val),
+    // Edited through its own fields and written by its own Confirm button, not
+    // by this form's submit. Held as the parsed record, so the fields and the
+    // Confirm handler take a typed value rather than an unchecked one.
+    decisionConventions: decisionConventionsSchema.nullable(),
 });
 
 export type AdministrativeBodyFormValues = z.infer<typeof administrativeBodyFormSchema>;

@@ -18,7 +18,7 @@ describe('administrativeBodySchema', () => {
 });
 
 describe('administrativeBodyFormSchema', () => {
-    const validForm = { ...validBody, notificationBehavior: 'NOTIFICATIONS_APPROVAL', showUnreviewedTranscript: true };
+    const validForm = { ...validBody, notificationBehavior: 'NOTIFICATIONS_APPROVAL', showUnreviewedTranscript: true, decisionConventions: null };
 
     it('rejects a CC list with an invalid address', () => {
         expect(administrativeBodyFormSchema.safeParse({ ...validForm, contactEmailsCC: 'a@example.com, nope' }).success).toBe(false);

@@ -311,6 +311,10 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
     { group: 'about.team.roadmap.items.', why: 'const array in the component' },
     { group: 'admin.adminActions.forms.forceDescription.', why: 'const array in the component' },
     {
+        group: 'admin.conventions.',
+        why: 'keyed by CONVENTION_FIELDS and CONVENTION_FLAGS, two const declarations; the form and rail tests render every member',
+    },
+    {
         group: 'admin.decisionsPage.sheet.',
         why: "keyed by the sheet's inline 'view' | 'reassign' prop, joined to a suffix (`${action}Title`): the group also holds the buttons",
     },
