@@ -1,4 +1,7 @@
-"use server";
+// Not a Server Action module: a browser reaches the one read it needs through
+// src/lib/actions/administrativeBodies.ts, and the API routes check their
+// input with zod.
+import "server-only";
 import { AdministrativeBody } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
