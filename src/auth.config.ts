@@ -1,7 +1,7 @@
 import Resend from "next-auth/providers/resend"
 import Google, { type GoogleProfile } from "next-auth/providers/google"
 import type { NextAuthConfig } from "next-auth"
-import { AuthEmail, authEmailCopy } from "./lib/email/templates/AuthEmail"
+import { AuthEmail, authEmailCopy, authEmailPurpose } from "./lib/email/templates/AuthEmail"
 import { renderReactEmailToHtml } from "./lib/email/render"
 import { env } from "./env.mjs"
 import { isTestUserEmail } from "./lib/dev/test-users"
@@ -39,8 +39,10 @@ export default {
             // Write the email in the language of the domain it was requested
             // from — opencouncil.rs users were getting a Greek magic link.
             const locale = localeForRequest(request)
-            const copy = authEmailCopy(locale)
-            const html = await renderReactEmailToHtml(AuthEmail({ url: signInUrl, locale }))
+            // A link that publishes a comment the reader wrote while signed out asks for a confirmation.
+            const purpose = authEmailPurpose(url)
+            const copy = authEmailCopy(locale, purpose)
+            const html = await renderReactEmailToHtml(AuthEmail({ url: signInUrl, locale, purpose }))
 
             // Redirect test user emails to DEV_EMAIL_OVERRIDE if set
             // This allows testing different admin roles with a single real inbox
