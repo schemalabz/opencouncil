@@ -71,7 +71,7 @@ describe('publishPendingConsultationComments', () => {
         });
         expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({
             municipalityEmail: 'dimos@example.org',
-            entityTitle: 'Βουτσινά, δεξιά πλευρά',
+            entityLabel: 'Θέσεις κατοίκων · Βουτσινά, δεξιά πλευρά',
             consultationUrl: 'https://opencouncil.gr/papagos/consultation/ses',
         }));
     });

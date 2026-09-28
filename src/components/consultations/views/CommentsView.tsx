@@ -5,7 +5,7 @@ import { Link } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import type { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import type { ConsultationView } from "../consultationUrl";
-import { describeEntity } from "../entityDisplay";
+import { describeEntity, entityLabel } from "../entityDisplay";
 import type { GeoSetData, RegulationData } from "../types";
 import CommentList, { type CommentListProps } from "./CommentList";
 import { cardClass, pageClass, textLinkClass, ViewHeader, ViewLink } from "./ui";
@@ -38,10 +38,7 @@ export default function CommentsView({ comments, regulationData, geoSets, href, 
         const display = describeEntity(regulationData, geoSets, comment.entityId);
         if (!display) return null;
         const onMap = display.type === 'geometry' || display.type === 'geoset';
-        const label = display.type === 'geometry'
-            ? `${display.what} · ${display.where}`
-            : display.type === 'article' ? `${display.where}: ${display.what}` : display.what;
-        return { label, href: href(onMap ? 'map' : 'document', display.id) };
+        return { label: entityLabel(display), href: href(onMap ? 'map' : 'document', display.id) };
     };
 
     return (

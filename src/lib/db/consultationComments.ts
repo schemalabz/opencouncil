@@ -4,6 +4,7 @@ import prisma from "./prisma";
 import { env } from "@/env.mjs";
 import { sendConsultationCommentEmail } from "../email/consultation";
 import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
+import { describeEntity, entityLabel, extractGeoSets } from "@/components/consultations/entityDisplay";
 import type { RegulationData } from "@/components/consultations/types";
 
 /*
@@ -35,109 +36,13 @@ export async function fetchRegulationData(jsonUrl: string): Promise<RegulationDa
     }
 }
 
-/** Whether the regulation has the entity a comment targets. */
+/** Whether the regulation has the entity a comment targets, with that type. */
 export function regulationHasEntity(
     regulationData: RegulationData,
     entityType: ConsultationCommentEntityType,
     entityId: string
 ): boolean {
-    if (!regulationData?.regulation) {
-        return false;
-    }
-
-    switch (entityType) {
-        case ConsultationCommentEntityType.CHAPTER:
-            return regulationData.regulation
-                .filter(item => item.type === 'chapter')
-                .some(chapter => chapter.id === entityId);
-
-        case ConsultationCommentEntityType.ARTICLE:
-            return regulationData.regulation
-                .filter(item => item.type === 'chapter')
-                .some(chapter =>
-                    chapter.articles?.some(article => article.id === entityId)
-                );
-
-        case ConsultationCommentEntityType.GEOSET:
-            return regulationData.regulation
-                .filter(item => item.type === 'geoset')
-                .some(geoset => geoset.id === entityId);
-
-        case ConsultationCommentEntityType.GEOMETRY:
-            return regulationData.regulation
-                .filter(item => item.type === 'geoset')
-                .some(geoset =>
-                    geoset.geometries?.some(geometry => geometry.id === entityId)
-                );
-
-        default:
-            return false;
-    }
-}
-
-// Helper function to get entity details for email
-function getEntityDetailsForEmail(
-    regulationData: RegulationData,
-    entityType: ConsultationCommentEntityType,
-    entityId: string
-): { entityTitle: string; entityNumber?: string; entityTypeForEmail: 'chapter' | 'article' | 'geoset' | 'geometry'; parentGeosetName?: string } | null {
-    if (!regulationData?.regulation) {
-        return null;
-    }
-
-    switch (entityType) {
-        case ConsultationCommentEntityType.CHAPTER: {
-            const chapter = regulationData.regulation
-                .filter(item => item.type === 'chapter')
-                .find(chapter => chapter.id === entityId);
-            return chapter ? {
-                entityTitle: chapter.title || 'Unnamed Chapter',
-                entityNumber: chapter.num?.toString(),
-                entityTypeForEmail: 'chapter'
-            } : null;
-        }
-
-        case ConsultationCommentEntityType.ARTICLE: {
-            for (const chapter of regulationData.regulation.filter(item => item.type === 'chapter')) {
-                const article = chapter.articles?.find(article => article.id === entityId);
-                if (article) {
-                    return {
-                        entityTitle: article.title || 'Unnamed Article',
-                        entityNumber: article.num?.toString(),
-                        entityTypeForEmail: 'article'
-                    };
-                }
-            }
-            return null;
-        }
-
-        case ConsultationCommentEntityType.GEOSET: {
-            const geoset = regulationData.regulation
-                .filter(item => item.type === 'geoset')
-                .find(geoset => geoset.id === entityId);
-            return geoset ? {
-                entityTitle: geoset.name || 'Unnamed Area Set',
-                entityTypeForEmail: 'geoset'
-            } : null;
-        }
-
-        case ConsultationCommentEntityType.GEOMETRY: {
-            for (const geoset of regulationData.regulation.filter(item => item.type === 'geoset')) {
-                const geometry = geoset.geometries?.find(geometry => geometry.id === entityId);
-                if (geometry) {
-                    return {
-                        entityTitle: geometry.name || 'Unnamed Area',
-                        entityTypeForEmail: 'geometry',
-                        parentGeosetName: geoset.name || 'Unnamed Geoset'
-                    };
-                }
-            }
-            return null;
-        }
-
-        default:
-            return null;
-    }
+    return describeEntity(regulationData, extractGeoSets(regulationData), entityId)?.commentType === entityType;
 }
 
 export interface PublishCommentInput {
@@ -175,23 +80,21 @@ export async function publishConsultationComment(input: PublishCommentInput): Pr
 
 /** Emails a published comment to the municipality's contact address. A failure is logged, not thrown. */
 async function notifyMunicipality(input: PublishCommentInput): Promise<void> {
-    const { consultation, regulationData, userId, entityType, entityId, bodyHtml, notify } = input;
+    const { consultation, regulationData, userId, entityId, bodyHtml, notify } = input;
     if (notify && regulationData.contactEmail) {
         try {
-            const entityDetails = getEntityDetailsForEmail(regulationData, entityType, entityId);
+            const display = describeEntity(regulationData, extractGeoSets(regulationData), entityId);
             const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
-            if (entityDetails && user?.email) {
+            if (display && user?.email) {
                 // The email is read outside the site, so the link must name the city's domain.
                 const consultationUrl = `${realmBaseUrl(consultation.city.realm)}/${consultation.cityId}/consultation/${consultation.id}`;
                 await sendConsultationCommentEmail({
                     userName: user.name || 'Unknown User',
                     userEmail: user.email,
                     consultationTitle: regulationData.title || 'Consultation',
-                    entityType: entityDetails.entityTypeForEmail,
+                    entityType: display.type,
                     entityId,
-                    entityTitle: entityDetails.entityTitle,
-                    entityNumber: entityDetails.entityNumber,
-                    parentGeosetName: entityDetails.parentGeosetName,
+                    entityLabel: entityLabel(display),
                     commentBody: bodyHtml,
                     consultationUrl,
                     municipalityEmail: regulationData.contactEmail,
