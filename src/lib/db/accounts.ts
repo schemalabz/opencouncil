@@ -11,6 +11,11 @@ export async function getLinkedProviders(userId: string): Promise<string[]> {
     return accounts.map((account) => account.provider);
 }
 
+/** Whether a Google account is linked to the user. */
+export async function hasGoogleAccount(userId: string): Promise<boolean> {
+    return (await getLinkedProviders(userId)).includes('google');
+}
+
 /**
  * Removes every link to `provider`. The magic link remains, so this never
  * locks the user out.

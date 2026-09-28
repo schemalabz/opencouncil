@@ -6,7 +6,7 @@ OpenCouncil sends real-time admin alerts to Discord for key events:
 - ▶️ **Task started/completed/failed** - With links to admin panel
 - 📋 **pollDecisions batch** - Batch started + aggregated completion summary (replaces per-task alerts)
 - ✅ **Human review completed** - With review statistics (edits, time, efficiency)
-- ✨ **User onboarded** - Via notification preferences, petition, magic link, or admin invite
+- ✨ **User onboarded** - Via notification preferences, petition, the profile form, or admin invite. When the user has signed in, the alert says whether a Google account is linked.
 - 📝 **New petition** - When submitted for a municipality
 - 🔔 **Citizen notification signup** - When users sign up for citizen notifications
 - 📬 **Notifications created** - Summary when notifications are created for a meeting
@@ -143,7 +143,7 @@ Succeeded: 5 | Failed: 0 | Decisions Found: 0
 **User Onboarded:**
 ```
 ✨ User Onboarded
-Municipality: Athens | Source: Notification Preferences
+Municipality: Athens | Source: Notification Preferences | Google Account: Linked
 (PII not transmitted)
 ```
 

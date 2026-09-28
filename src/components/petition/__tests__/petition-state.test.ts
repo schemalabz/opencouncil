@@ -61,10 +61,11 @@ describe('petitionIssues', () => {
         expect(petitionIssues(anonymous, { ...ok, signedIn: true })).toEqual([]);
     });
 
-    it('accepts an empty phone and refuses a wrong one', () => {
+    it('accepts an empty phone and refuses a wrong one, signed in or out', () => {
         expect(petitionIssues(base, { phoneEmpty: true, phoneValid: false, signedIn: false })).toEqual([]);
         expect(petitionIssues(base, { phoneEmpty: false, phoneValid: false, signedIn: false })).toEqual(['phone_invalid']);
         expect(petitionIssues(base, { phoneEmpty: false, phoneValid: true, signedIn: false })).toEqual([]);
+        expect(petitionIssues(base, { phoneEmpty: false, phoneValid: false, signedIn: true })).toEqual(['phone_invalid']);
     });
 });
 
@@ -99,6 +100,16 @@ describe('buildPetitionSubmission', () => {
             isResident: false,
             isCitizen: true,
             otherRelation: null,
+        });
+    });
+
+    it('sends a phone a signed-in reader typed, because the form asks when the account has none', () => {
+        expect(buildPetitionSubmission(state, 'rhodes', true, false)).toEqual({
+            cityId: 'rhodes',
+            isResident: false,
+            isCitizen: true,
+            otherRelation: 'Είμαι παραθεριστής',
+            phone: '+30 694 3472297',
         });
     });
 });

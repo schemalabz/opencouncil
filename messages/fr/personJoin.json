@@ -24,7 +24,10 @@
     "invalid": "Cela ne ressemble pas à un e-mail. Vérifiez-le et réessayez.",
     "sendFailed": "Nous n'avons pas pu envoyer le message. Réessayez dans un instant.",
     "suggestion": "Vouliez-vous dire {email} ?",
-    "useSuggestion": "Oui, corrigez"
+    "useSuggestion": "Oui, corrigez",
+    "or": "ou par e-mail",
+    "leadGoogle": "Continuez avec votre compte Google, ou indiquez-nous votre e-mail et nous vous enverrons un message avec un bouton. Aucun mot de passe n'est nécessaire.",
+    "googleFailed": "La connexion Google n'a pas démarré. Réessayez, ou continuez par e-mail."
   },
   "sent": {
     "title": "Consultez vos e-mails",

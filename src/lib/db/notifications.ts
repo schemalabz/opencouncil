@@ -279,6 +279,18 @@ function sanitizeSeedUser(
 }
 
 /**
+ * What a signed-in signup save sets on the account: the onboarded flag, for
+ * a user who has a name and lacks the flag. The signup asked for what the
+ * profile's onboarding asks, so a user that Google created (onboarded false,
+ * name from Google) is onboarded by the save, and the onboarding form does
+ * not greet them on their next visit to the profile. One rule for both the
+ * notifications and the petition save.
+ */
+function signupOnboards(user: Pick<User, 'name' | 'onboarded'>): boolean {
+    return Boolean(user.name) && !user.onboarded;
+}
+
+/**
  * Delete the given Location rows that nothing points at any more.
  *
  * A preference's places are its own rows: saveNotificationPreferences creates
@@ -331,6 +343,8 @@ export async function saveNotificationPreferences(data: OnboardingData & {
 
     let userId: string;
     let isNewlyCreatedUser = false;
+    // The signed-in user this save onboards, for the admin alert.
+    let onboardedUserId: string | null = null;
 
     console.log('Saving notification preferences for cityId:', cityId);
     console.log('Locations:', locations);
@@ -359,16 +373,18 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 return createError(PHONE_REJECTION_CODES.empty);
             }
 
-            // Update phone if provided
-            if (phone) {
-                if (await phoneBelongsToAnotherUser(phone, user.id)) {
-                    return createError(PHONE_IN_USE_CODE);
-                }
-                await prisma.user.update({
-                    where: { id: user.id },
-                    data: { phone }
-                });
+            if (phone && (await phoneBelongsToAnotherUser(phone, user.id))) {
+                return createError(PHONE_IN_USE_CODE);
             }
+            const onboards = signupOnboards(user);
+            const data = {
+                ...(phone ? { phone } : {}),
+                ...(onboards ? { onboarded: true } : {}),
+            };
+            if (Object.keys(data).length > 0) {
+                await prisma.user.update({ where: { id: user.id }, data });
+            }
+            if (onboards) onboardedUserId = user.id;
         } else if (email) {
             if (notifyByPhone && !phone) {
                 return createError(PHONE_REJECTION_CODES.empty);
@@ -511,19 +527,21 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 topicCount: preference.interests.length,
             });
 
-            if (isNewlyCreatedUser) {
-                sendUserOnboardedAdminAlert({
-                    cityId,
-                    cityName: preference.city.name_en,
-                    onboardingSource: 'notification_preferences',
-                });
-            }
-
             // The welcome email, non-blocking. The WhatsApp welcome is Notis's:
             // its poller enrolls the reader and opens the thread with the intro.
             sendWelcomeEmail(userId, preference.city).catch(err =>
                 console.error('Error sending welcome email:', err)
             );
+        }
+
+        // A user this save created, or a signed-in user it onboarded.
+        if (isNewlyCreatedUser || onboardedUserId) {
+            sendUserOnboardedAdminAlert({
+                cityId,
+                cityName: preference.city.name_en,
+                onboardingSource: 'notification_preferences',
+                ...(onboardedUserId ? { signedInUserId: onboardedUserId } : {}),
+            });
         }
 
         return createSuccess(preference);
@@ -566,6 +584,8 @@ export async function savePetition(data: OnboardingData & {
 
     let userId: string;
     let isNewlyCreatedUser = false;
+    // The signed-in user this save onboards, for the admin alert.
+    let onboardedUserId: string | null = null;
 
     try {
         // Get or create user
@@ -586,13 +606,16 @@ export async function savePetition(data: OnboardingData & {
             if (phone && (await phoneBelongsToAnotherUser(phone, user.id))) {
                 return createError(PHONE_IN_USE_CODE);
             }
+            const onboards = signupOnboards(user);
             await prisma.user.update({
                 where: { id: user.id },
                 data: {
                     allowPetitionUpdates: true,
                     ...(phone ? { phone } : {}),
+                    ...(onboards ? { onboarded: true } : {}),
                 },
             });
+            if (onboards) onboardedUserId = user.id;
         } else if (email) {
             // Non-authenticated user
             // Check if this email already exists
@@ -680,12 +703,13 @@ export async function savePetition(data: OnboardingData & {
                 isCitizen: isCitizen,
             });
 
-            // Send Discord admin alert for user onboarding (if we just created the user)
-            if (isNewlyCreatedUser) {
+            // A user this save created, or a signed-in user it onboarded.
+            if (isNewlyCreatedUser || onboardedUserId) {
                 sendUserOnboardedAdminAlert({
                     cityId,
                     cityName: result.city.name_en,
                     onboardingSource: 'petition',
+                    ...(onboardedUserId ? { signedInUserId: onboardedUserId } : {}),
                 });
             }
 

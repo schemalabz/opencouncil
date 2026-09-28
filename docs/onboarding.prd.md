@@ -33,6 +33,10 @@ This flow allows a new, unauthenticated user to sign up while submitting their n
 5. The notification preferences or petition signature is then associated with the existing or newly created user account.
 6. This process creates a user record in the database but does not automatically sign the user in. The user can later sign in using the standard magic link flow, which will give them access to manage their preferences or petitions.
 
+**With Google:** the account fields of both forms offer "Continue with Google" when the provider is configured. The reader signs in with Google and returns to the same step. The draft in the browser puts the answers back, and the reader submits the form signed in. No account is created by the form in that case.
+
+**The QR join flow** (`/{cityId}/join`) offers the same button on its email step. The server mints the return path with a `confirmed` mark bound to a nonce that the browser holds as a cookie. The route `/api/join/{token}` claims the person for the signed-in user when the mark and the nonce match, and the page opens on the consent step. A return path copied into another browser claims nothing.
+
 ### 3. Admin-Initiated User Creation & Invitation
 
 Super Admins can create new administrative users directly from the `/admin` panel.

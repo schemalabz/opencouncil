@@ -10,6 +10,9 @@ jest.mock('@/env.mjs', () => ({ env: mockEnv }));
 const mockGetCityRealm = jest.fn<Promise<Realm | null>, [string]>();
 jest.mock('@/lib/db/cityRealm', () => ({ getCityRealm: (cityId: string) => mockGetCityRealm(cityId) }));
 
+const mockHasGoogleAccount = jest.fn<Promise<boolean>, [string]>();
+jest.mock('@/lib/db/accounts', () => ({ hasGoogleAccount: (userId: string) => mockHasGoogleAccount(userId) }));
+
 let requestHost: string | null = null;
 jest.mock('next/headers', () => ({
     headers: async () => {
@@ -22,6 +25,7 @@ import {
     sendMeetingCreatedAdminAlert,
     sendTaskAdminAlert,
     sendPollDecisionsBatchCompletedAlert,
+    sendUserOnboardedAdminAlert,
 } from '../discord';
 import { sendErrorAdminAlert } from '../discord-core';
 
@@ -43,6 +47,7 @@ beforeEach(() => {
     requestHost = null;
     // The shared fixture below is a French city; tests that need another realm say so.
     mockGetCityRealm.mockResolvedValue('france');
+    mockHasGoogleAccount.mockReset();
     global.fetch = jest.fn().mockResolvedValue({ ok: true, statusText: 'OK' });
 });
 
@@ -115,6 +120,32 @@ describe('alert links', () => {
         mockGetCityRealm.mockRejectedValue(new Error('database is down'));
         await expect(sendMeetingCreatedAdminAlert(meeting)).resolves.toBeUndefined();
         expect(postedLinks()).toEqual(['https://opencouncil.gr/rennes/cm-1']);
+    });
+});
+
+describe('user onboarded alert', () => {
+    const field = (name: string) => (postedEmbed().fields as Array<{ name: string; value: string }>).find(f => f.name === name);
+
+    it('says whether a Google account is linked when the user has signed in', async () => {
+        mockHasGoogleAccount.mockResolvedValue(true);
+        await sendUserOnboardedAdminAlert({ cityName: 'General', onboardingSource: 'profile', signedInUserId: 'u1' });
+        expect(mockHasGoogleAccount).toHaveBeenCalledWith('u1');
+        expect(field('Google Account')?.value).toBe('Linked');
+        expect(field('Onboarding Source')?.value).toBe('Profile Form');
+    });
+
+    it('has no Google field for a user who has not signed in', async () => {
+        await sendUserOnboardedAdminAlert({ cityName: 'Admin User', onboardingSource: 'admin_invite' });
+        expect(mockHasGoogleAccount).not.toHaveBeenCalled();
+        expect(field('Google Account')).toBeUndefined();
+    });
+
+    it('still posts, without the field, when the lookup fails', async () => {
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockHasGoogleAccount.mockRejectedValue(new Error('db down'));
+        await sendUserOnboardedAdminAlert({ cityId: 'athens', cityName: 'Athens', onboardingSource: 'petition', signedInUserId: 'u1' });
+        expect(field('Google Account')).toBeUndefined();
+        expect(field('Onboarding Source')?.value).toBe('Petition');
     });
 });
 

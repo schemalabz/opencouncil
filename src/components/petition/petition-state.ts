@@ -55,10 +55,8 @@ export function petitionIssues(
     const issues: SignupIssue[] = [];
     if (!state.isResident && !state.isCitizen && !state.other) issues.push('relation_missing');
     if (state.other && !state.otherText.trim()) issues.push('other_relation_missing');
-    if (!opts.signedIn) {
-        issues.push(...accountIssues(state));
-        if (!opts.phoneEmpty && !opts.phoneValid) issues.push('phone_invalid');
-    }
+    if (!opts.signedIn) issues.push(...accountIssues(state));
+    if (!opts.phoneEmpty && !opts.phoneValid) issues.push('phone_invalid');
     return issues;
 }
 
@@ -80,9 +78,10 @@ export interface PetitionSubmission {
 
 /**
  * What the save action receives. An unticked «Άλλο» sends null, so an
- * earlier answer is cleared. A signed-in reader's name, email and phone are
- * the account's; a signed-out reader's phone goes only when they typed one,
- * because the field carries the dial code even while empty.
+ * earlier answer is cleared. A signed-in reader's name and email are the
+ * account's. The phone goes only when one was typed, because the field
+ * carries the dial code even while empty: a signed-out reader's, or a
+ * signed-in reader's whose account has none (the form asks only then).
  */
 export function buildPetitionSubmission(
     state: PetitionState,
@@ -97,12 +96,7 @@ export function buildPetitionSubmission(
         isResident: state.isResident,
         isCitizen: state.isCitizen,
         otherRelation: state.other ? state.otherText.trim() : null,
-        ...(signedIn
-            ? {}
-            : {
-                  name: state.name.trim(),
-                  email: state.email.trim(),
-                  ...(phoneEmpty ? {} : { phone: state.phone }),
-              }),
+        ...(signedIn ? {} : { name: state.name.trim(), email: state.email.trim() }),
+        ...(phoneEmpty ? {} : { phone: state.phone }),
     };
 }

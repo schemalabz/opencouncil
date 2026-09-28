@@ -31,8 +31,9 @@ export async function POST(request: Request) {
         if (isCompletingOnboarding) {
             console.log('Sending Discord admin alert for user onboarding');
             sendUserOnboardedAdminAlert({
-                cityName: 'General', // No specific city for magic link signups
-                onboardingSource: 'magic_link',
+                cityName: 'General', // No specific city for the profile form
+                onboardingSource: 'profile',
+                signedInUserId: user.id,
             });
         }
 

@@ -54,3 +54,30 @@ export function readDraft<T>(key: string): T | null {
 export function clearDraft(key: string): void {
     removeStored('local', key);
 }
+
+const GOOGLE_RETURN_PREFIX = 'oc:signup-google-return:';
+
+/**
+ * The phone in the form when this tab left for Google, kept in this tab
+ * only. The draft is the browser's, keyed by flow and municipality, so on a
+ * shared browser it may be another reader's, and a phone must never cross
+ * into the account that signs in next. Session storage is the tab's own: it
+ * survives the round trip to Google and back, and another tab, or another
+ * reader in a fresh tab, never sees it.
+ */
+export function stashPhoneForGoogleReturn(draftKey: string, phone: string): void {
+    const key = GOOGLE_RETURN_PREFIX + draftKey;
+    // An empty field takes nothing, and it must not leave an earlier trip's
+    // number in the tab for this trip's reader to pick up.
+    if (phone.trim()) writeStored('session', key, phone);
+    else removeStored('session', key);
+}
+
+/** The phone this tab took to Google, once; null when it took none. */
+export function takePhoneFromGoogleReturn(draftKey: string): string | null {
+    const key = GOOGLE_RETURN_PREFIX + draftKey;
+    const phone = readStored('session', key);
+    if (phone !== null) removeStored('session', key);
+    return phone || null;
+}
+

@@ -17,7 +17,7 @@ const mockAlert = jest.fn().mockResolvedValue(undefined);
 jest.mock('@/lib/discord', () => ({ sendPersonClaimedAdminAlert: (...args: unknown[]) => mockAlert(...args) }));
 
 import { NextRequest } from 'next/server';
-import { generatePersonClaimToken, signJoinConfirmation } from '@/lib/auth/personClaim';
+import { JOIN_NONCE_COOKIE, generatePersonClaimToken, newJoinNonce, signJoinConfirmation } from '@/lib/auth/personClaim';
 import { GET } from '../route';
 
 const scan = (token: string, query = '') => new NextRequest(new URL(`/api/join/${token}${query}`, 'https://opencouncil.cy'));
@@ -25,6 +25,10 @@ const params = (token: string) => ({ params: Promise.resolve({ token }) });
 const EMAIL = 'maria@gmail.com';
 const confirmed = (token: string, at = Date.now(), email = EMAIL) => `?confirmed=${signJoinConfirmation(token, email, at)}`;
 const location = (res: Response) => new URL(res.headers.get('location') as string, 'https://opencouncil.cy');
+/** A request from the browser that pressed "Continue with Google": the nonce cookie that `startJoinGoogle` set. */
+const withNonce = (token: string, nonce: string, query = '') =>
+    new NextRequest(new URL(`/api/join/${token}${query}`, 'https://opencouncil.cy'), { headers: { cookie: `${JOIN_NONCE_COOKIE}=${nonce}` } });
+const clearsNonce = (res: Response) => res.headers.getSetCookie().some((c) => c.startsWith(`${JOIN_NONCE_COOKIE}=;`) && /max-age=0/i.test(c));
 
 beforeEach(() => {
     mockGetCurrentUser.mockReset();
@@ -141,5 +145,50 @@ describe('GET /api/join/[token]', () => {
         const token = generatePersonClaimToken('gone');
         expect((await GET(scan(token), params(token))).headers.get('location')).toBe('/claim?claim=invalid');
         expect(mockGetCurrentUser).not.toHaveBeenCalled();
+    });
+
+    describe('the Google return path', () => {
+        it('claims for a mark minted over the nonce this browser holds, and spends the nonce', async () => {
+            mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: 'reader@gmail.com' });
+            mockClaimPerson.mockResolvedValue({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
+            const token = generatePersonClaimToken('person-1');
+            const nonce = newJoinNonce();
+            const res = await GET(withNonce(token, nonce, `?confirmed=${signJoinConfirmation(token, nonce)}`), params(token));
+            expect(mockClaimPerson).toHaveBeenCalledWith('user-1', 'person-1');
+            expect(location(res).searchParams.get('step')).toBe('3');
+            expect(clearsNonce(res)).toBe(true);
+        });
+
+        it('claims nothing for that mark in a browser without the nonce, or with another one', async () => {
+            mockGetCurrentUser.mockResolvedValue({ id: 'user-2', email: 'other@gmail.com' });
+            const token = generatePersonClaimToken('person-1');
+            const mark = `?confirmed=${signJoinConfirmation(token, newJoinNonce())}`;
+            const copied = await GET(scan(token, mark), params(token));
+            expect(mockClaimPerson).not.toHaveBeenCalled();
+            expect(location(copied).searchParams.has('step')).toBe(false);
+            const other = await GET(withNonce(token, newJoinNonce(), mark), params(token));
+            expect(mockClaimPerson).not.toHaveBeenCalled();
+            expect(clearsNonce(other)).toBe(false);
+        });
+
+        it('claims nothing for a hand-typed mark or without a session, nonce or not', async () => {
+            const token = generatePersonClaimToken('person-1');
+            const nonce = newJoinNonce();
+            mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: 'reader@gmail.com' });
+            await GET(withNonce(token, nonce, '?confirmed=1'), params(token));
+            expect(mockClaimPerson).not.toHaveBeenCalled();
+            mockGetCurrentUser.mockResolvedValue(null);
+            await GET(withNonce(token, nonce, `?confirmed=${signJoinConfirmation(token, nonce)}`), params(token));
+            expect(mockClaimPerson).not.toHaveBeenCalled();
+        });
+
+        it('leaves a pending nonce alone when a scan or an email link passes through meanwhile', async () => {
+            mockGetCurrentUser.mockResolvedValue({ id: 'user-1', email: EMAIL });
+            mockClaimPerson.mockResolvedValue({ status: 'linked', cityId: 'chania', cityName: 'Χανιά', personName: 'Α. Β.' });
+            const token = generatePersonClaimToken('person-1');
+            const nonce = newJoinNonce();
+            expect(clearsNonce(await GET(withNonce(token, nonce), params(token)))).toBe(false);
+            expect(clearsNonce(await GET(withNonce(token, nonce, confirmed(token)), params(token)))).toBe(false);
+        });
     });
 });

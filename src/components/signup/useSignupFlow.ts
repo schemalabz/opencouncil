@@ -3,9 +3,46 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PhoneFieldValidity } from '@/components/ui/phone-field';
 import { captureEvent } from '@/lib/analytics/capture';
-import { clearDraft, readDraft, writeDraft } from './signup-draft';
+import { clearDraft, draftKey, readDraft, stashPhoneForGoogleReturn, takePhoneFromGoogleReturn, writeDraft } from './signup-draft';
 
 const INITIAL_VALIDITY: PhoneFieldValidity = { isActive: false, isEmpty: true, isValid: false, reason: null };
+
+/** The fields every signup flow shares: the account's, and the step. */
+interface SignupFields {
+    step: number;
+    name: string;
+    email: string;
+    phone: string;
+}
+
+/** The signed-in account, as far as the draft cares: whether it has a phone. */
+interface DraftAccount {
+    phone: string | null;
+}
+
+/**
+ * The account fields a kept draft may put back. They belong to the session
+ * once there is one. A phone the account lacks comes back only from this
+ * tab's own trip to Google, never from the draft: the draft is the
+ * browser's, and on a shared browser it may be another reader's.
+ */
+function restoreAccountFields<S extends SignupFields>(
+    state: S,
+    stored: Partial<S> | null,
+    account: DraftAccount | null,
+    googlePhone: string | null,
+): S {
+    if (account) {
+        return account.phone || googlePhone === null ? state : { ...state, phone: googlePhone };
+    }
+    if (!stored) return state;
+    return {
+        ...state,
+        name: stored.name ?? state.name,
+        email: stored.email ?? state.email,
+        phone: stored.phone ?? state.phone,
+    };
+}
 
 /** What a flow's submit reports back: saved, or refused with a key under `signup.errors`. */
 export type SubmitOutcome = { ok: true } | { ok: false; error: string };
@@ -17,18 +54,26 @@ export type SubmitOutcome = { ok: true } | { ok: false; error: string };
  * bookkeeping around a submit. Each flow keeps its own state shape, its own
  * rules and its own JSX.
  */
-export function useSignupFlow<S extends { step: number }>(opts: {
+export function useSignupFlow<S extends SignupFields>(opts: {
     initial: () => S;
     cityId: string;
     signedIn: boolean;
     events: { stepViewed: string; failed: string };
     /**
      * Keeps the half-filled form in this browser, so the inbox round trip a
-     * reader with an existing account has to make does not cost them their
-     * answers. `apply` decides what a stored draft may put back — the flow
-     * knows which of its fields are the reader's and which are the server's.
+     * reader with an existing account has to make, or the trip to Google,
+     * does not cost them their answers. The hook restores the account fields
+     * (see restoreAccountFields); `apply` decides what a stored draft may put
+     * back of the flow's own fields — the flow knows which of them are the
+     * reader's and which are the server's.
      */
-    draft?: { key: string; apply: (state: S, stored: Partial<S>) => S };
+    draft?: {
+        /** Names the flow in the storage key. */
+        flow: string;
+        /** The signed-in account, or null for a visitor. */
+        account: DraftAccount | null;
+        apply: (state: S, stored: Partial<S>) => S;
+    };
 }) {
     const { cityId, signedIn, events, draft } = opts;
     const [state, setState] = useState<S>(opts.initial);
@@ -56,7 +101,7 @@ export function useSignupFlow<S extends { step: number }>(opts: {
     // would serialize the whole state on every keystroke.
     const draftRef = useRef(draft);
     draftRef.current = draft;
-    const draftKey = draft?.key;
+    const storageKey = draft ? draftKey(draft.flow, cityId) : undefined;
 
     // The draft arrives in a mount effect, never during the first render:
     // reading storage while rendering makes the server HTML and the
@@ -65,24 +110,35 @@ export function useSignupFlow<S extends { step: number }>(opts: {
     // put the pre-restore form back over the draft it just read.
     const [restored, setRestored] = useState(false);
     useEffect(() => {
-        if (!draftKey || restored) return;
-        const stored = readDraft<Partial<S>>(draftKey);
-        const apply = draftRef.current?.apply;
-        if (stored && apply) setState((s) => apply(s, stored));
+        if (!storageKey || restored) return;
+        const current = draftRef.current;
+        if (current) {
+            const stored = readDraft<Partial<S>>(storageKey);
+            // Taken on every restore, and outside the updater: the stash is
+            // spent on read, and a number left behind by a reader whose
+            // account did not need it must not wait in the tab for the next.
+            const googlePhone = takePhoneFromGoogleReturn(storageKey);
+            setState((s) => restoreAccountFields(stored ? current.apply(s, stored) : s, stored, current.account, googlePhone));
+        }
         setRestored(true);
-    }, [draftKey, restored]);
+    }, [storageKey, restored]);
 
     // Kept from the reader's first edit — a visitor who types nothing leaves
     // nothing behind — and cleared the moment the form is saved.
     const [edited, setEdited] = useState(false);
     useEffect(() => {
-        if (!draftKey || !restored) return;
+        if (!storageKey || !restored) return;
         if (done) {
-            clearDraft(draftKey);
+            clearDraft(storageKey);
             return;
         }
-        if (edited) writeDraft(draftKey, state);
-    }, [draftKey, done, edited, restored, state]);
+        if (edited) writeDraft(storageKey, state);
+    }, [storageKey, done, edited, restored, state]);
+
+    /** Keeps the phone in the form for this tab's return from Google. */
+    const stashPhoneForGoogle = () => {
+        if (storageKey) stashPhoneForGoogleReturn(storageKey, state.phone);
+    };
 
     const patch = useCallback((next: Partial<S>) => {
         setEdited(true);
@@ -147,5 +203,6 @@ export function useSignupFlow<S extends { step: number }>(opts: {
         setPhoneValidity,
         validity,
         submit,
+        stashPhoneForGoogle,
     };
 }

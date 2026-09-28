@@ -10,6 +10,7 @@ import { env } from '@/env.mjs';
 import { formatDate, formatDateTime, formatWeekday } from '@/lib/formatters/time';
 import { formatDurationMs } from '@/lib/formatters/time';
 import { getCityRealm } from '@/lib/db/cityRealm';
+import { hasGoogleAccount } from '@/lib/db/accounts';
 import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import { sendAdminAlert, truncateField } from '@/lib/discord-core';
 import type { ReviewerInfo } from '@/lib/db/reviews';
@@ -153,14 +154,31 @@ export async function sendTaskAdminAlert(data: {
 export async function sendUserOnboardedAdminAlert(data: {
     cityId?: string;
     cityName: string;
-    onboardingSource: 'notification_preferences' | 'petition' | 'admin_invite' | 'magic_link';
+    onboardingSource: 'notification_preferences' | 'petition' | 'admin_invite' | 'profile';
+    /**
+     * The user, when they have signed in: the alert then says whether a
+     * Google account is linked. Absent for an admin invite, and for a signup
+     * that created the user. A database session does not record which
+     * provider opened it, so the link is the signal we have.
+     */
+    signedInUserId?: string;
 }): Promise<void> {
     const sourceLabels = {
         notification_preferences: 'Notification Preferences',
         petition: 'Petition',
         admin_invite: 'Admin Invite',
-        magic_link: 'Magic Link',
+        profile: 'Profile Form',
     };
+    // Looked up here, off the caller's save path: a failed lookup costs the
+    // field, not the save.
+    let googleLinked: boolean | null = null;
+    if (data.signedInUserId) {
+        try {
+            googleLinked = await hasGoogleAccount(data.signedInUserId);
+        } catch (error) {
+            console.error('Could not read the linked accounts for the onboarding alert:', error);
+        }
+    }
 
     const title = data.cityId
         ? `✨ User Onboarded - ${data.cityId}`
@@ -181,6 +199,11 @@ export async function sendUserOnboardedAdminAlert(data: {
                 value: sourceLabels[data.onboardingSource],
                 inline: true,
             },
+            ...(googleLinked === null ? [] : [{
+                name: 'Google Account',
+                value: googleLinked ? 'Linked' : 'Not linked',
+                inline: true,
+            }]),
         ],
         footer: {
             text: 'PII not transmitted for privacy',
