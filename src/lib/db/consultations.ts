@@ -399,8 +399,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NAME_MAX_LENGTH = 100;
 
 /**
- * A comment from a reader who is not signed in. It waits, hidden, until they open the magic link
- * sent to `email`; the sign-in then publishes it (publishPendingConsultationComments). The account
+ * A comment from a reader who is not signed in. It waits, hidden, until they open the confirmation
+ * link sent to `email`; the page that link lands on publishes it (confirmPendingConsultationComment). The account
  * is found or created by email, the way the notifications signup does it; the typed name goes on
  * the account only at publication. Returns whether the email went out.
  */
@@ -427,7 +427,7 @@ export async function submitPendingConsultationComment(data: {
     // An upsert, so two submissions at once for a new address create one account, not an error.
     const user = await prisma.user.upsert({ where: { email }, update: {}, create: { email }, select: { id: true } });
 
-    await createPendingConsultationComment({
+    const pending = await createPendingConsultationComment({
         userId: user.id,
         consultationId: consultation.id,
         cityId: consultation.cityId,
@@ -437,8 +437,9 @@ export async function submitPendingConsultationComment(data: {
         authorName: name || null
     });
 
-    // `posted=1` tells the page to say the comment is live, and the auth email to ask for a confirmation rather than a sign-in.
-    const returnTo = `/${consultation.cityId}/consultation/${consultation.id}?view=comment&entity=${encodeURIComponent(data.entityId)}&posted=1`;
+    // `pending` names the comment the link publishes (the page confirms it on arrival), and tells the
+    // auth email to ask for a confirmation, quoting the comment, rather than a sign-in.
+    const returnTo = `/${consultation.cityId}/consultation/${consultation.id}?view=comment&entity=${encodeURIComponent(data.entityId)}&pending=${encodeURIComponent(pending.id)}`;
     return { emailSent: await sendMagicLink(email, returnTo) };
 }
 
