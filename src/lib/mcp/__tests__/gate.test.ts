@@ -30,9 +30,9 @@ describe('requireVisibleMeeting', () => {
     it('passes released meetings for everyone', async () => {
         const meeting = { released: true, dateTime: new Date('2026-05-12T18:00:00Z') };
         mockMeetingFindFirst.mockResolvedValue(meeting);
-        await expect(requireVisibleMeeting('athens', 'm1', null)).resolves.toEqual(meeting);
-        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual(meeting);
-        await expect(requireVisibleMeeting('athens', 'm1', SERVICE)).resolves.toEqual(meeting);
+        await expect(requireVisibleMeeting('athens', 'm1', null)).resolves.toEqual({ ...meeting, editor: null });
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual({ ...meeting, editor: null });
+        await expect(requireVisibleMeeting('athens', 'm1', SERVICE)).resolves.toEqual({ ...meeting, editor: null });
     });
 
     it('hides unreleased meetings from anonymous and unrelated users', async () => {
@@ -43,13 +43,13 @@ describe('requireVisibleMeeting', () => {
 
     it('shows unreleased meetings to service identities and city editors', async () => {
         mockMeetingFindFirst.mockResolvedValue({ released: false, dateTime: new Date('2026-05-12T18:00:00Z') });
-        await expect(requireVisibleMeeting('athens', 'm1', SERVICE)).resolves.toEqual({ released: false, dateTime: new Date('2026-05-12T18:00:00Z') });
+        await expect(requireVisibleMeeting('athens', 'm1', SERVICE)).resolves.toEqual({ released: false, dateTime: new Date('2026-05-12T18:00:00Z'), editor: true });
 
         mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [{ cityId: 'athens' }] });
-        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual({ released: false, dateTime: new Date('2026-05-12T18:00:00Z') });
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual({ released: false, dateTime: new Date('2026-05-12T18:00:00Z'), editor: true });
 
         mockUserFindUnique.mockResolvedValue({ isSuperAdmin: true, administers: [] });
-        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual({ released: false, dateTime: new Date('2026-05-12T18:00:00Z') });
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual({ released: false, dateTime: new Date('2026-05-12T18:00:00Z'), editor: true });
     });
 
     it('hides unreleased meetings from editors of other cities', async () => {
