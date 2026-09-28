@@ -11,6 +11,7 @@ import { MessageCircle, ChevronDown, LogIn, ChevronUp, Trash2, Clock } from "luc
 import { cn } from "@/lib/utils";
 import { getSafeHtmlContent } from "@/lib/utils/sanitize";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+import { buildConsultationUrl, getConsultationViewForEntityType } from "./consultationUrl";
 import posthog from "posthog-js";
 import { formatDateTime } from '@/lib/formatters/time';
 
@@ -130,6 +131,8 @@ export default function CommentSection({
 
             setComments(prev => [commentWithUpvotes, ...prev]);
             setComment("");
+            // Counts elsewhere on the page (header, layer panel, lists) come from the server.
+            router.refresh();
         } catch (error) {
             console.error('Error submitting comment:', error);
             alert(error instanceof Error ? error.message : "Υπήρξε σφάλμα κατά την υποβολή του σχολίου. Παρακαλώ δοκιμάστε ξανά.");
@@ -196,6 +199,7 @@ export default function CommentSection({
 
             // Remove the comment from the list
             setComments(prev => prev.filter(comment => comment.id !== commentId));
+            router.refresh();
         } catch (error) {
             console.error('Error deleting comment:', error);
             alert(error instanceof Error ? error.message : "Υπήρξε σφάλμα κατά τη διαγραφή του σχολίου.");
@@ -205,7 +209,12 @@ export default function CommentSection({
     };
 
     const handleLoginRedirect = () => {
-        router.push('/sign-in');
+        // Bring the reader back to the entity they wanted to comment on, in the view that shows it.
+        const target = buildConsultationUrl(window.location.pathname, {
+            view: getConsultationViewForEntityType(entityType),
+            entityId
+        });
+        router.push(`/sign-in?callbackUrl=${encodeURIComponent(target)}`);
     };
 
     const commentCount = comments?.filter(c =>
