@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import MarkdownContent from "./MarkdownContent";
 import GeometryListItem from "./GeometryListItem";
-import { formatDistance, type AddressLookupResult, type NearbyGroup } from "./addressLookup";
+import { formatDistance, type AddressLookupResult, type NearbyItem } from "./addressLookup";
+import type { GeoSetData } from "./types";
+
+interface NearbyGroup {
+    geoSet: GeoSetData;
+    items: NearbyItem[];
+}
 import type { ReferenceFormat, RegulationData } from "./types";
 
 const GROUP_PREVIEW_COUNT = 8;
@@ -74,7 +80,13 @@ export default function AddressLookupPanel({
     regulationData,
     onOpenGeometryDetail
 }: AddressLookupPanelProps) {
-    const { zone, zoneConfigured, areaGroups, points, config } = result;
+    const { zone, zoneConfigured, street, nearby: points, config } = result;
+    const areaGroups: NearbyGroup[] = [];
+    for (const item of street) {
+        const group = areaGroups.find((g) => g.geoSet.id === item.geoSet.id);
+        if (group) group.items.push(item);
+        else areaGroups.push({ geoSet: item.geoSet, items: [item] });
+    }
     const hasAreas = areaGroups.length > 0;
     const hasPoints = points.length > 0;
 
@@ -132,7 +144,7 @@ export default function AddressLookupPanel({
                     {zoneConfigured && <Separator />}
                     <div className="space-y-3">
                         <h4 className="font-semibold text-sm">
-                            Κοντινές θέσεις <span className="font-normal text-muted-foreground">(ακτίνα {config.nearbyRadiusMeters}μ.)</span>
+                            Κοντινές θέσεις <span className="font-normal text-muted-foreground">(ακτίνα {config.streetRadiusMeters}μ.)</span>
                         </h4>
                         {areaGroups.map((group) => (
                             <NearbyGroupList
@@ -151,7 +163,7 @@ export default function AddressLookupPanel({
                     {(zoneConfigured || hasAreas) && <Separator />}
                     <div>
                         <h4 className="font-semibold text-sm mb-3">
-                            Κοντινά σημεία <span className="font-normal text-muted-foreground">(ακτίνα {config.pointRadiusMeters}μ.)</span>
+                            Κοντινά σημεία <span className="font-normal text-muted-foreground">(ακτίνα {config.nearbyRadiusMeters}μ.)</span>
                         </h4>
                         <div className="space-y-1.5">
                             {points.map(({ geometry, geoSet, distance }) => (

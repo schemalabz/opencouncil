@@ -97,16 +97,36 @@
     },
     "addressLookup": {
       "type": "object",
-      "description": "Τι δείχνει ο χάρτης για μια διεύθυνση που αναζητά ο πολίτης (Βρες τον δρόμο σου)",
+      "description": "Τι βλέπει ο πολίτης για τη διεύθυνσή του (Βρες τον δρόμο σου)",
       "properties": {
         "zoneGeoSetId": {
           "type": "string",
           "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
           "description": "Το geoset περιοχών που απαντά σε ποια ζώνη ανήκει η διεύθυνση"
         },
+        "streetGeoSetIds": {
+          "type": "array",
+          "description": "Geosets πολυγώνων που εμφανίζονται ως «στον δρόμο σας». Προεπιλογή: όλα τα geosets πολυγώνων εκτός από το zoneGeoSetId",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+          }
+        },
+        "streetRadiusMeters": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 30,
+          "description": "Ακτίνα σε μέτρα για το «στον δρόμο σας»"
+        },
+        "streetMaxItems": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 4,
+          "description": "Πόσα στοιχεία δείχνει το «στον δρόμο σας»"
+        },
         "nearbyGeoSetIds": {
           "type": "array",
-          "description": "Geosets πολυγώνων που εμφανίζονται κατά απόσταση. Προεπιλογή: όλα τα geosets πολυγώνων εκτός από το zoneGeoSetId",
+          "description": "Geosets των οποίων το πλησιέστερο στοιχείο εμφανίζεται ως «κοντά σας». Προεπιλογή: όλα τα geosets σημείων",
           "items": {
             "type": "string",
             "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
@@ -115,18 +135,54 @@
         "nearbyRadiusMeters": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "default": 120,
-          "description": "Ακτίνα σε μέτρα για τα κοντινά πολύγωνα"
-        },
-        "pointRadiusMeters": {
-          "type": "number",
-          "exclusiveMinimum": 0,
-          "default": 500,
-          "description": "Ακτίνα σε μέτρα για τα κοντινά σημεία"
+          "default": 400,
+          "description": "Ακτίνα σε μέτρα για το «κοντά σας»"
         },
         "noZoneText": {
           "type": "string",
           "description": "Markdown που εμφανίζεται όταν καμία ζώνη δεν περιέχει τη διεύθυνση"
+        }
+      }
+    },
+    "overview": {
+      "type": "array",
+      "description": "«Το σχέδιο σε 2 λεπτά»: κάρτες σε απλή γλώσσα πριν από το πλήρες κείμενο",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "body"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string",
+            "description": "Κείμενο σε markdown"
+          },
+          "commentOn": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+            "description": "Το id του κεφαλαίου, άρθρου, geoset ή γεωμετρίας όπου πηγαίνουν τα σχόλια της κάρτας"
+          },
+          "commentLabel": {
+            "type": "string",
+            "description": "Κείμενο του συνδέσμου σχολίου (προεπιλογή «Σχολιάστε»)"
+          },
+          "explains": {
+            "type": "array",
+            "description": "Τα geosets που εξηγεί η κάρτα· τα στοιχεία τους παραπέμπουν σε αυτήν",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+            }
+          },
+          "linkLabel": {
+            "type": "string",
+            "description": "Κείμενο του συνδέσμου από ένα στοιχείο προς την κάρτα (προεπιλογή ο τίτλος)"
+          }
         }
       }
     },
@@ -260,6 +316,10 @@
           "type": "string",
           "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
           "description": "Χρώμα του geoset σε hex μορφή (π.χ. #FF5733)"
+        },
+        "legend": {
+          "type": "string",
+          "description": "Σύντομη ετικέτα για το υπόμνημα του χάρτη· χωρίς αυτήν το geoset δεν εμφανίζεται στο υπόμνημα"
         },
         "mapStyle": {
           "type": "object",

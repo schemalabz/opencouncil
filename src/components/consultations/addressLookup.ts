@@ -1,9 +1,10 @@
 import { distanceToGeometry, isPointInGeometry } from "@/lib/geo";
 import type { AddressLookupConfig, GeoSetData, Geometry, StaticGeometry } from "./types";
 
-export const DEFAULT_ADDRESS_LOOKUP: Required<Pick<AddressLookupConfig, 'nearbyRadiusMeters' | 'pointRadiusMeters'>> = {
-    nearbyRadiusMeters: 120,
-    pointRadiusMeters: 500,
+export const DEFAULT_ADDRESS_LOOKUP: Required<Pick<AddressLookupConfig, 'streetRadiusMeters' | 'streetMaxItems' | 'nearbyRadiusMeters'>> = {
+    streetRadiusMeters: 30,
+    streetMaxItems: 4,
+    nearbyRadiusMeters: 400,
 };
 
 export type ResolvedAddressLookupConfig = AddressLookupConfig & typeof DEFAULT_ADDRESS_LOOKUP;
@@ -14,19 +15,14 @@ export interface NearbyItem {
     distance: number;
 }
 
-export interface NearbyGroup {
-    geoSet: GeoSetData;
-    items: NearbyItem[];
-}
-
 export interface AddressLookupResult {
     /** The zone containing the address, when a zone geoset is configured and one matches. */
     zone: { geometry: Geometry; geoSet: GeoSetData } | null;
     zoneConfigured: boolean;
-    /** Area geometries within `nearbyRadiusMeters`, one group per geoset, nearest group first. */
-    areaGroups: NearbyGroup[];
-    /** Point geometries within `pointRadiusMeters`, nearest first. */
-    points: NearbyItem[];
+    /** Area geometries on the reader's street: within `streetRadiusMeters`, nearest first, at most `streetMaxItems`. */
+    street: NearbyItem[];
+    /** The nearest geometry of each "near you" geoset within `nearbyRadiusMeters`, nearest first. */
+    nearby: NearbyItem[];
     config: ResolvedAddressLookupConfig;
 }
 
@@ -45,11 +41,20 @@ function isArea(geojson: GeoJSON.Geometry): boolean {
     return geojson.type === 'Polygon' || geojson.type === 'MultiPolygon';
 }
 
+function hasGeometryOfKind(geoSet: GeoSetData, kind: 'area' | 'point', savedGeometries?: Record<string, GeoJSON.Geometry>): boolean {
+    return geoSet.geometries.some((g) => {
+        const geojson = resolveStaticGeoJSON(g, savedGeometries);
+        if (!geojson) return false;
+        return kind === 'area' ? isArea(geojson) : geojson.type === 'Point';
+    });
+}
+
 export function resolveAddressLookupConfig(config?: AddressLookupConfig): ResolvedAddressLookupConfig {
     return {
         ...config,
+        streetRadiusMeters: config?.streetRadiusMeters ?? DEFAULT_ADDRESS_LOOKUP.streetRadiusMeters,
+        streetMaxItems: config?.streetMaxItems ?? DEFAULT_ADDRESS_LOOKUP.streetMaxItems,
         nearbyRadiusMeters: config?.nearbyRadiusMeters ?? DEFAULT_ADDRESS_LOOKUP.nearbyRadiusMeters,
-        pointRadiusMeters: config?.pointRadiusMeters ?? DEFAULT_ADDRESS_LOOKUP.pointRadiusMeters,
     };
 }
 
@@ -58,9 +63,14 @@ export function formatDistance(meters: number): string {
     return `${(meters / 1000).toFixed(1)}χλμ`;
 }
 
+function pickGeoSets(ids: string[] | undefined, geoSets: GeoSetData[], fallback: (gs: GeoSetData) => boolean): GeoSetData[] {
+    if (!ids) return geoSets.filter(fallback);
+    return ids.map((id) => geoSets.find((gs) => gs.id === id)).filter((gs): gs is GeoSetData => !!gs);
+}
+
 /**
- * What the map should say about a searched address: the zone it falls in, the area geometries
- * (parking strips, communities, ...) around it and the point geometries near it.
+ * What a reader needs to know about their address: the zone it falls in, what the street sides
+ * right there become, and the nearest facility of each kind around it.
  */
 export function computeAddressLookup(
     point: [number, number],
@@ -80,40 +90,35 @@ export function computeAddressLookup(
         if (hit) zone = { geometry: hit, geoSet: zoneGeoSet };
     }
 
-    const areaGeoSets = resolved.nearbyGeoSetIds
-        ? resolved.nearbyGeoSetIds
-            .map((id) => geoSets.find((gs) => gs.id === id))
-            .filter((gs): gs is GeoSetData => !!gs)
-        : geoSets.filter((gs) => gs.id !== zoneGeoSet?.id && gs.geometries.some((g) => {
-            const geojson = resolveStaticGeoJSON(g, savedGeometries);
-            return geojson ? isArea(geojson) : false;
-        }));
-
-    const areaGroups: NearbyGroup[] = [];
-    for (const geoSet of areaGeoSets) {
-        const items: NearbyItem[] = [];
+    const streetGeoSets = pickGeoSets(resolved.streetGeoSetIds, geoSets,
+        (gs) => gs.id !== zoneGeoSet?.id && hasGeometryOfKind(gs, 'area', savedGeometries));
+    const street: NearbyItem[] = [];
+    for (const geoSet of streetGeoSets) {
         for (const geometry of geoSet.geometries) {
             const geojson = resolveStaticGeoJSON(geometry, savedGeometries);
             if (!geojson || !isArea(geojson)) continue;
             const distance = distanceToGeometry(point, geojson);
-            if (distance <= resolved.nearbyRadiusMeters) items.push({ geometry, geoSet, distance });
+            if (distance <= resolved.streetRadiusMeters) street.push({ geometry, geoSet, distance });
         }
-        if (items.length === 0) continue;
-        items.sort((a, b) => a.distance - b.distance);
-        areaGroups.push({ geoSet, items });
     }
-    areaGroups.sort((a, b) => a.items[0].distance - b.items[0].distance);
+    street.sort((a, b) => a.distance - b.distance);
+    street.splice(resolved.streetMaxItems);
 
-    const points: NearbyItem[] = [];
-    for (const geoSet of geoSets) {
+    const onStreet = new Set(street.map((item) => item.geometry.id));
+    const nearbyGeoSets = pickGeoSets(resolved.nearbyGeoSetIds, geoSets, (gs) => hasGeometryOfKind(gs, 'point', savedGeometries));
+    const nearby: NearbyItem[] = [];
+    for (const geoSet of nearbyGeoSets) {
+        let best: NearbyItem | null = null;
         for (const geometry of geoSet.geometries) {
+            if (onStreet.has(geometry.id)) continue;
             const geojson = resolveStaticGeoJSON(geometry, savedGeometries);
-            if (!geojson || geojson.type !== 'Point') continue;
+            if (!geojson) continue;
             const distance = distanceToGeometry(point, geojson);
-            if (distance <= resolved.pointRadiusMeters) points.push({ geometry, geoSet, distance });
+            if (distance <= resolved.nearbyRadiusMeters && (!best || distance < best.distance)) best = { geometry, geoSet, distance };
         }
+        if (best) nearby.push(best);
     }
-    points.sort((a, b) => a.distance - b.distance);
+    nearby.sort((a, b) => a.distance - b.distance);
 
-    return { zone, zoneConfigured: !!zoneGeoSet, areaGroups, points, config: resolved };
+    return { zone, zoneConfigured: !!zoneGeoSet, street, nearby, config: resolved };
 }

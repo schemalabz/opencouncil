@@ -1,7 +1,7 @@
 import { computeAddressLookup, formatDistance } from './addressLookup';
 import type { GeoSetData, Geometry } from './types';
 
-// A grid of ~100 m: 0.0009° is 100 m of latitude, and at the equator also of longitude.
+// A grid in metres: 0.0009° is 100 m of latitude, and at the equator also of longitude.
 const M = 0.0009 / 100;
 
 function square(id: string, x: number, y: number, size: number): Geometry {
@@ -29,9 +29,9 @@ const residents: GeoSetData = {
     id: 'residents',
     name: 'Κάτοικοι',
     geometries: [
-        square('res-near', 10 * M, 10 * M, 10 * M), // ~0 m from the address
-        square('res-mid', 90 * M, 10 * M, 10 * M), // ~75 m away
-        square('res-far', 300 * M, 300 * M, 10 * M), // far outside the radius
+        square('res-here', 10 * M, 10 * M, 10 * M), // contains the address
+        square('res-across', 10 * M, 30 * M, 10 * M), // ~15 m away, across the street
+        square('res-block', 90 * M, 10 * M, 10 * M), // ~75 m away, the next block
     ],
 };
 const paid: GeoSetData = {
@@ -39,11 +39,12 @@ const paid: GeoSetData = {
     name: 'Με πληρωμή',
     geometries: [square('paid-near', 30 * M, 10 * M, 10 * M)], // ~10 m away
 };
-const spots: GeoSetData = {
-    id: 'spots',
+const amea: GeoSetData = {
+    id: 'amea',
     name: 'ΑΜΕΑ',
-    geometries: [point('spot-near', 15 * M, 60 * M), point('spot-far', 15 * M, 900 * M)],
+    geometries: [point('amea-near', 15 * M, 60 * M), point('amea-nearer', 15 * M, 40 * M), point('amea-far', 15 * M, 900 * M)],
 };
+const ev: GeoSetData = { id: 'ev', name: 'Φόρτιση', geometries: [point('ev-far', 15 * M, 900 * M)] };
 const address: [number, number] = [15 * M, 15 * M];
 
 describe('computeAddressLookup', () => {
@@ -65,32 +66,30 @@ describe('computeAddressLookup', () => {
         expect(result.zone).toBeNull();
     });
 
-    it('lists area geosets by default, excluding the zone geoset and point-only geosets', () => {
-        const result = computeAddressLookup(address, [zones, residents, paid, spots], { zoneGeoSetId: 'zones' });
-        expect(result.areaGroups.map((g) => g.geoSet.id)).toEqual(['residents', 'paid']);
+    it('lists the street sides within the street radius, nearest first, from every area geoset but the zones', () => {
+        const result = computeAddressLookup(address, [zones, residents, paid, amea], { zoneGeoSetId: 'zones' });
+        expect(result.street.map((i) => i.geometry.id)).toEqual(['res-here', 'paid-near', 'res-across']);
+        expect(result.street[0].distance).toBe(0);
     });
 
-    it('honours nearbyGeoSetIds and the radius', () => {
-        const result = computeAddressLookup(address, [zones, residents, paid], {
-            zoneGeoSetId: 'zones',
-            nearbyGeoSetIds: ['paid'],
-            nearbyRadiusMeters: 5,
-        });
-        expect(result.areaGroups).toEqual([]);
-        expect(result.config.nearbyRadiusMeters).toBe(5);
+    it('honours streetGeoSetIds, the radius and the cap', () => {
+        const only = computeAddressLookup(address, [residents, paid], { streetGeoSetIds: ['paid'] });
+        expect(only.street.map((i) => i.geometry.id)).toEqual(['paid-near']);
+        const capped = computeAddressLookup(address, [residents, paid], { streetMaxItems: 1 });
+        expect(capped.street.map((i) => i.geometry.id)).toEqual(['res-here']);
+        const wide = computeAddressLookup(address, [residents], { streetRadiusMeters: 100 });
+        expect(wide.street.map((i) => i.geometry.id)).toEqual(['res-here', 'res-across', 'res-block']);
     });
 
-    it('orders groups by their nearest item and items by distance', () => {
-        const result = computeAddressLookup(address, [residents, paid], { nearbyGeoSetIds: ['paid', 'residents'] });
-        expect(result.areaGroups.map((g) => g.geoSet.id)).toEqual(['residents', 'paid']);
-        expect(result.areaGroups[0].items.map((i) => i.geometry.id)).toEqual(['res-near', 'res-mid']);
-        expect(result.areaGroups[0].items[1].distance).toBeCloseTo(75, -1);
+    it('gives the nearest geometry of each point geoset within the nearby radius', () => {
+        const result = computeAddressLookup(address, [residents, amea, ev]);
+        expect(result.nearby.map((i) => i.geometry.id)).toEqual(['amea-nearer']);
+        expect(result.nearby[0].distance).toBeCloseTo(25, -1);
     });
 
-    it('lists points within the point radius from any geoset', () => {
-        const result = computeAddressLookup(address, [spots, residents]);
-        expect(result.points.map((p) => p.geometry.id)).toEqual(['spot-near']);
-        expect(result.points[0].distance).toBeCloseTo(45, -1);
+    it('can list an area geoset as nearby without repeating what is on the street', () => {
+        const result = computeAddressLookup(address, [residents, amea], { nearbyGeoSetIds: ['residents', 'amea'] });
+        expect(result.nearby.map((i) => i.geometry.id)).toEqual(['amea-nearer', 'res-block']);
     });
 
     it('prefers an admin-saved geometry over the regulation file', () => {
@@ -98,19 +97,19 @@ describe('computeAddressLookup', () => {
             type: 'Polygon',
             coordinates: [[[500 * M, 500 * M], [510 * M, 500 * M], [510 * M, 510 * M], [500 * M, 510 * M], [500 * M, 500 * M]]],
         };
-        const result = computeAddressLookup(address, [residents], { nearbyGeoSetIds: ['residents'] }, { 'res-near': moved });
-        expect(result.areaGroups[0].items.map((i) => i.geometry.id)).toEqual(['res-mid']);
+        const result = computeAddressLookup(address, [residents], undefined, { 'res-here': moved });
+        expect(result.street.map((i) => i.geometry.id)).toEqual(['res-across']);
     });
 
     it('ignores derived geometries', () => {
         const derived: GeoSetData = {
             id: 'buffers',
             name: 'Buffers',
-            geometries: [{ type: 'derived', id: 'buf', name: 'buf', derivedFrom: { operation: 'buffer', sourceGeoSetId: 'spots', radius: 50 } }],
+            geometries: [{ type: 'derived', id: 'buf', name: 'buf', derivedFrom: { operation: 'buffer', sourceGeoSetId: 'amea', radius: 50 } }],
         };
-        const result = computeAddressLookup(address, [derived, spots]);
-        expect(result.areaGroups).toEqual([]);
-        expect(result.points.map((p) => p.geometry.id)).toEqual(['spot-near']);
+        const result = computeAddressLookup(address, [derived, amea]);
+        expect(result.street).toEqual([]);
+        expect(result.nearby.map((i) => i.geometry.id)).toEqual(['amea-nearer']);
     });
 });
 
