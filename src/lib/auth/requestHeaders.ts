@@ -18,11 +18,13 @@ export function firstHeaderValue(value: string | null): string | null {
 }
 
 /** The host the request arrived on, preferring the proxy's forwarded value. */
+export function hostFromHeaders(headers: Headers): string | null {
+    return firstHeaderValue(headers.get('x-forwarded-host')) ?? firstHeaderValue(headers.get('host'));
+}
+
+/** `hostFromHeaders` for the raw `Request` Auth.js hands to a provider. */
 export function hostFromRequest(request: Request): string | null {
-    return (
-        firstHeaderValue(request.headers.get('x-forwarded-host')) ??
-        firstHeaderValue(request.headers.get('host'))
-    );
+    return hostFromHeaders(request.headers);
 }
 
 /**

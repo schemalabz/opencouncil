@@ -52,6 +52,11 @@ export const env = createEnv({
     NEXTAUTH_URL: z.string().url(),
     BASIC_AUTH_USERNAME: z.string().optional(),
     BASIC_AUTH_PASSWORD: z.string().optional(),
+    // Sign in with Google. Both unset disables the provider and hides the
+    // button; the magic link keeps working. See docs/environment-variables.md
+    // for the redirect URIs the Google client must list.
+    AUTH_GOOGLE_ID: z.string().optional(),
+    AUTH_GOOGLE_SECRET: z.string().optional(),
     // Session-mirror cookie for the Notis admin (see applySessionMirror in
     // src/proxy.ts). Both default from DEPLOYMENT_ENV + NEXTAUTH_URL — see
     // derivedCookieDomain/derivedCookieSuffix above; set either only to
@@ -156,6 +161,8 @@ export const env = createEnv({
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     BASIC_AUTH_USERNAME: process.env.BASIC_AUTH_USERNAME,
     BASIC_AUTH_PASSWORD: process.env.BASIC_AUTH_PASSWORD,
+    AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
+    AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
     SESSION_COOKIE_DOMAIN: process.env.SESSION_COOKIE_DOMAIN ?? derivedCookieDomain(),
     SESSION_COOKIE_SUFFIX: process.env.SESSION_COOKIE_SUFFIX ?? derivedCookieSuffix(),
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,

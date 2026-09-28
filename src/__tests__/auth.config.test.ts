@@ -11,12 +11,21 @@ jest.mock('next-auth/providers/resend', () => ({
     }),
 }))
 
+// The Google provider ships ESM only too. No client is configured here, so the
+// config imports the module and never calls it.
+jest.mock('next-auth/providers/google', () => ({
+    __esModule: true,
+    default: () => ({ id: 'google', type: 'oidc', name: 'Google' }),
+}))
+
 import type { EmailProviderSendVerificationRequestParams } from 'next-auth/providers/email'
 import authConfig from '@/auth.config'
 
 // Auth.js merges the provider's options over its defaults before it calls the handler.
 function sendSignInEmail(identifier: string) {
+    // Resend is first; Google follows it only when its client is configured.
     const provider = authConfig.providers[0]
+    if (provider.type !== 'email') throw new Error('expected the Resend provider first')
     const params = {
         identifier,
         url: 'http://localhost:3000/api/auth/callback/resend?token=t',

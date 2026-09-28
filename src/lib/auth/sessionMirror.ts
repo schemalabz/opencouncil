@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { env } from '@/env.mjs';
+import { isBaseUrlHost } from './requestUrl';
 
 /**
  * The session-mirror cookie for the Notis admin (see the design note in
@@ -15,6 +16,27 @@ import { env } from '@/env.mjs';
 
 /** The Auth.js session cookie name on https deployments (Auth.js default). */
 export const PROD_SESSION_COOKIE = '__Secure-authjs.session-token';
+
+/**
+ * The cookie in which Auth.js keeps the callbackUrl a sign-in started with
+ * (Auth.js default name; secure-prefixed on https deployments). The sign-in
+ * page reads it back after an error redirect, which carries no callbackUrl.
+ */
+export function callbackUrlCookieName(): string {
+    return `${usesSecureCookies() ? '__Secure-' : ''}authjs.callback-url`;
+}
+
+/**
+ * Whether this deployment's cookies carry the Secure flag and the
+ * `__Secure-`/`__Host-` prefixes: Auth.js's own rule, the protocol of
+ * NEXTAUTH_URL. Every cookie the app sets beside Auth.js's follows it.
+ *
+ * src/auth.ts evaluates this when the module loads. The Nix build loads it
+ * with SKIP_ENV_VALIDATION=1 and no NEXTAUTH_URL, so the value may be absent.
+ */
+export function usesSecureCookies(): boolean {
+    return env.NEXTAUTH_URL?.startsWith('https:') === true;
+}
 
 /** The port-suffixed dev session cookie name (see src/auth.config.ts). */
 export function devSessionCookieName(port: string): string {
@@ -41,12 +63,7 @@ function mirrorSetCookie(value: string, domain: string, maxAge: number): string 
  *  can see it — which is why only this host may read its absence as a
  *  sign-out. */
 export function isSessionHost(host: string | null): boolean {
-    const hostname = host?.split(':')[0] ?? '';
-    try {
-        return hostname === new URL(env.NEXTAUTH_URL).hostname;
-    } catch {
-        return false;
-    }
+    return isBaseUrlHost(host, env.NEXTAUTH_URL);
 }
 
 /** Whether mirroring applies: a domain is configured and the host is under it. */

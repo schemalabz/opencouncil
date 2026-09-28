@@ -3,6 +3,8 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/db/prisma"
 import authConfig from "@/auth.config"
 import { isTrustedExternalRedirect } from "@/lib/auth/trustedRedirect"
+import { signInAllowed } from "@/lib/auth/signInGuard"
+import { usesSecureCookies } from "@/lib/auth/sessionMirror"
 
 declare module "next-auth" {
     interface Session {
@@ -21,7 +23,14 @@ declare module "next-auth" {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     adapter: PrismaAdapter(prisma),
+    // next-auth derives this from NEXTAUTH_URL; the realm route (Auth.js core
+    // on the request's own URL) would derive it from the forwarded protocol.
+    // Said once here, both paths look for the same cookie names.
+    useSecureCookies: usesSecureCookies(),
     callbacks: {
+        signIn({ account, profile }) {
+            return signInAllowed(account, profile);
+        },
         /**
          * Auth.js resolves redirect targets against `NEXTAUTH_URL`'s origin
          * (next-auth rewrites every request's URL to it — `reqWithEnvURL`), so

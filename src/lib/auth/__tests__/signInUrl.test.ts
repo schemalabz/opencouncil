@@ -46,6 +46,16 @@ describe('signInUrlForRequest', () => {
         expect(new URL(result).protocol).toBe('https:');
     });
 
+    it('drops the port of the configured base when the realm host names none', () => {
+        const url = 'http://localhost:3000/api/auth/callback/resend?token=abc&callbackUrl=http%3A%2F%2Flocalhost%3A3000%2Fprofile';
+        const request = new Request('http://localhost:3000/api/auth/signin/resend', {
+            headers: { host: 'opencouncil.rs', 'x-forwarded-proto': 'https' },
+        });
+        const result = new URL(signInUrlForRequest(url, request));
+        expect(result.origin).toBe('https://opencouncil.rs');
+        expect(result.searchParams.get('callbackUrl')).toBe('https://opencouncil.rs/profile');
+    });
+
     it('leaves the dev URL untouched (localhost over http, no forwarded headers)', () => {
         const devUrl = 'http://localhost:3000/api/auth/callback/resend?token=t';
         const result = signInUrlForRequest(devUrl, reqWith({ host: 'localhost:3000' }));
