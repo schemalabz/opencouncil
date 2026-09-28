@@ -5,7 +5,7 @@ import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 import { AlertCircle, X } from 'lucide-react';
 import { Input } from './input';
-import { type PhoneRejection, isPhoneEmpty, toMobileE164 } from './lib/phone';
+import { type PhoneRejection, isPhoneEmpty, toE164, toMobileE164 } from './lib/phone';
 
 export interface PhoneFieldValidity {
     isActive: boolean;
@@ -24,6 +24,9 @@ interface PhoneFieldProps {
     invalidMessage?: string;
     /** Shown instead of invalidMessage when the number is a landline. */
     notMobileMessage?: string;
+    /** Refuse a number that WhatsApp or SMS cannot reach, such as a landline.
+     *  Set it to false for a number we only call. */
+    mobileOnly?: boolean;
     id?: string;
 }
 
@@ -35,6 +38,7 @@ export function PhoneField({
     activePlaceholder,
     invalidMessage,
     notMobileMessage,
+    mobileOnly = true,
     id = 'phone',
 }: PhoneFieldProps) {
     const [active, setActive] = useState(!isPhoneEmpty(value));
@@ -51,7 +55,7 @@ export function PhoneField({
     }, [value, active]);
 
     const isEmpty = isPhoneEmpty(value);
-    const parsed = toMobileE164(value);
+    const parsed = mobileOnly ? toMobileE164(value) : toE164(value);
     const isValid = parsed.ok;
     const reason: PhoneRejection | null = isEmpty || parsed.ok ? null : parsed.reason;
     const showError = active && !isEmpty && !isValid;

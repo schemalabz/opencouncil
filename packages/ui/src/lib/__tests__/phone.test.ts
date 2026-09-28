@@ -4,6 +4,7 @@ import {
     isPhoneValid,
     normalizeMobilePhone,
     repairGreekNational,
+    toE164,
     toMobileE164,
 } from '../phone';
 
@@ -48,6 +49,24 @@ describe('toMobileE164', () => {
         expect(toMobileE164('   ')).toEqual({ ok: false, reason: 'empty' });
         expect(toMobileE164(null)).toEqual({ ok: false, reason: 'empty' });
         expect(toMobileE164(undefined)).toEqual({ ok: false, reason: 'empty' });
+    });
+});
+
+describe('toE164', () => {
+    it('accepts a landline as well as a mobile', () => {
+        expect(toE164(' +30 210 645 9454 ')).toEqual({ ok: true, e164: '+302106459454', country: 'GR' });
+        expect(toE164('+306943472297')).toMatchObject({ ok: true, e164: '+306943472297' });
+    });
+
+    it('refuses a number without its country code, or not valid anywhere', () => {
+        expect(toE164('2106459454')).toEqual({ ok: false, reason: 'invalid' });
+        expect(toE164('+4074101434')).toEqual({ ok: false, reason: 'invalid' });
+        expect(toE164('+30')).toEqual({ ok: false, reason: 'invalid' });
+    });
+
+    it('treats blank input as empty, not invalid', () => {
+        expect(toE164('')).toEqual({ ok: false, reason: 'empty' });
+        expect(toE164(null)).toEqual({ ok: false, reason: 'empty' });
     });
 });
 

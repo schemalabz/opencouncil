@@ -6,9 +6,11 @@ import { PhoneField, PhoneFieldValidity } from '../phone-field';
 function Harness({
     initialValue = '',
     onValidityChange,
+    mobileOnly,
 }: {
     initialValue?: string;
     onValidityChange?: (validity: PhoneFieldValidity) => void;
+    mobileOnly?: boolean;
 }) {
     const [value, setValue] = useState(initialValue);
     return (
@@ -20,6 +22,7 @@ function Harness({
             activePlaceholder="Your phone"
             invalidMessage="Enter a valid phone"
             notMobileMessage="Enter a mobile number"
+            mobileOnly={mobileOnly}
         />
     );
 }
@@ -131,6 +134,19 @@ describe('PhoneField — one rule with the server', () => {
             reason: 'landline',
         });
         expect(screen.getByText('Enter a mobile number')).toBeInTheDocument();
+    });
+
+    it('accepts a landline when the field is not mobile-only', () => {
+        const onValidityChange = jest.fn();
+        render(<Harness initialValue="+302106459454" mobileOnly={false} onValidityChange={onValidityChange} />);
+        expect(onValidityChange).toHaveBeenLastCalledWith({
+            isActive: true,
+            isEmpty: false,
+            isValid: true,
+            reason: null,
+        });
+        expect(screen.queryByText('Enter a mobile number')).not.toBeInTheDocument();
+        expect(screen.queryByText('Enter a valid phone')).not.toBeInTheDocument();
     });
 
     it('accepts a foreign mobile', () => {
