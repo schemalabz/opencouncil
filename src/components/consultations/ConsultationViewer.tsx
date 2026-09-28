@@ -109,6 +109,25 @@ export default function ConsultationViewer({
     // Track whether the map summary card has been dismissed.
     const [showMapSummary, setShowMapSummary] = useState(() => !getResolvedUrlState().entityId);
 
+    // A reader who dismissed the welcome dialog once does not see it on every visit; the Info
+    // button brings it back. Read in an effect so server and first client render agree.
+    const welcomeSeenKey = `oc:consultation:${consultationId}:welcome-seen`;
+    useEffect(() => {
+        try {
+            if (localStorage.getItem(welcomeSeenKey)) setShowMapSummary(false);
+        } catch {
+            // Storage can be unavailable (private mode, blocked site data); the dialog just shows.
+        }
+    }, [welcomeSeenKey]);
+    const dismissWelcome = () => {
+        setShowMapSummary(false);
+        try {
+            localStorage.setItem(welcomeSeenKey, '1');
+        } catch {
+            // Same as above: forgetting the dismissal is the only consequence.
+        }
+    };
+
     // Track whether any drawer is open in the map view (for ViewToggleButton positioning on mobile)
     const [mapDrawerOpen, setMapDrawerOpen] = useState(false);
 
@@ -361,7 +380,7 @@ export default function ConsultationViewer({
                     </div>
 
                     {/* Welcome dialog */}
-                    <Credenza open={showMapSummary && !!regulationData?.summary} onOpenChange={setShowMapSummary}>
+                    <Credenza open={showMapSummary && !!regulationData?.summary} onOpenChange={(open) => open ? setShowMapSummary(true) : dismissWelcome()}>
                         <CredenzaContent className="max-w-xl">
                             {/* Logos */}
                             <CredenzaBody>
@@ -405,7 +424,7 @@ export default function ConsultationViewer({
                                             className="text-sm"
                                             referenceFormat={regulationData.referenceFormat}
                                             onReferenceClick={(id) => {
-                                                setShowMapSummary(false);
+                                                dismissWelcome();
                                                 handleReferenceClick(id);
                                             }}
                                             regulationData={regulationData}
@@ -415,7 +434,7 @@ export default function ConsultationViewer({
                                 <div className="flex flex-col gap-2 pt-1">
                                     <Button
                                         onClick={() => {
-                                            setShowMapSummary(false);
+                                            dismissWelcome();
                                             setAddressSearchRequest(n => n + 1);
                                         }}
                                         className="w-full"
@@ -426,7 +445,7 @@ export default function ConsultationViewer({
                                     <div className="flex gap-2">
                                         <Button
                                             onClick={() => {
-                                                setShowMapSummary(false);
+                                                dismissWelcome();
                                                 toggleView();
                                             }}
                                             variant="outline"
@@ -438,7 +457,7 @@ export default function ConsultationViewer({
                                         {comments.length > 0 && (
                                             <Button
                                                 onClick={() => {
-                                                    setShowMapSummary(false);
+                                                    dismissWelcome();
                                                     setCommentsSheetOpen(true);
                                                 }}
                                                 variant="outline"
