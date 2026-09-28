@@ -1,8 +1,9 @@
-import { Consultation, User, ConsultationComment, ConsultationCommentEntityType } from '@prisma/client';
+import { Consultation, User, ConsultationComment, ConsultationCommentEntityType, Realm } from '@prisma/client';
 import { Session } from 'next-auth';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
 import { sendConsultationCommentEmail } from "../email/consultation";
+import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
 import { RegulationData } from "@/components/consultations/types";
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
@@ -109,6 +110,7 @@ export type ConsultationWithStatus = Consultation & {
     isActiveComputed: boolean;
     city: {
         timezone: string;
+        realm: Realm;
     };
 }
 
@@ -184,7 +186,8 @@ export async function getConsultationById(cityId: string, consultationId: string
         include: {
             city: {
                 select: {
-                    timezone: true
+                    timezone: true,
+                    realm: true
                 }
             }
         }
@@ -534,7 +537,8 @@ export async function addConsultationComment(
             const entityDetails = getEntityDetailsForEmail(regulationData, entityType, entityId);
 
             if (entityDetails && regulationData.contactEmail) {
-                const consultationUrl = `/${consultation.cityId}/consultation/${consultationId}`;
+                // The email is read outside the site, so the link must name the city's domain.
+                const consultationUrl = `${realmBaseUrl(consultation.city.realm)}/${consultation.cityId}/consultation/${consultationId}`;
 
                 await sendConsultationCommentEmail({
                     userName: user.name || 'Unknown User',
