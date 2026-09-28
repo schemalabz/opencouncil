@@ -1,5 +1,52 @@
 {
-  "_comment": "Facts the pipeline and the generator need that are not in the drawings or the report. spotAreaM2 is calibrated so the estimated totals match Table 4.4 of the report (1910 / 491 / 519).",
+  "_comment": "Facts the pipeline and the generator need that are not in the drawings or the report. spotAreaM2 is calibrated so the estimated totals match Table 4.4 of the report (1910 / 491 / 519). contactEmail and the source URLs are placeholders until the municipality confirms them; the generator warns while they contain REPLACE.",
   "publicDir": "consultations/papagou-ses",
-  "spotAreaM2": {"residents": 18.7, "paid": 14.8, "motorcycles": 3.2, "excluded": 0}
+  "spotAreaM2": {"residents": 18.7, "paid": 14.8, "motorcycles": 3.2, "excluded": 0},
+
+  "title": "Σύστημα Ελεγχόμενης Στάθμευσης Δήμου Παπάγου-Χολαργού – Τελικό Σχέδιο",
+  "contactEmail": "REPLACE@dpapxol.gov.gr",
+  "ccEmails": [],
+  "sources": [
+    {"title": "Τεχνική Έκθεση – Τελικό Σχέδιο Ελεγχόμενης Στάθμευσης (ΙΡΙΣ ΟΕ, Σεπτέμβριος 2026)", "url": "https://www.dpapxol.gov.gr/REPLACE", "description": "Το πλήρες κείμενο της μελέτης, όπως θα δημοσιευθεί από τον Δήμο."},
+    {"title": "Σχέδιο Π1 – Ζώνες στάθμευσης κατοίκων", "url": "https://www.dpapxol.gov.gr/REPLACE", "description": "Το σχέδιο των τεσσάρων ζωνών κατοίκων."},
+    {"title": "Σχέδιο Π2 – Οργάνωση Συστήματος Ελεγχόμενης Στάθμευσης", "url": "https://www.dpapxol.gov.gr/REPLACE", "description": "Το σχέδιο με τις θέσεις κατοίκων, επισκεπτών, δικύκλων, ΑΜΕΑ και φόρτισης ανά οδό."}
+  ],
+  "defaultView": "map",
+  "summary": "Ο Δήμος Παπάγου-Χολαργού θέτει σε διαβούλευση το **τελικό σχέδιο** του Συστήματος Ελεγχόμενης Στάθμευσης (ΣΕΣ) στην περιοχή του παραδρόμου της Λ. Μεσογείων, όπως διαμορφώθηκε μετά την πρώτη διαβούλευση της άνοιξης (465 συμμετοχές).\n\nΤο σχέδιο ορίζει **τέσσερις ζώνες κατοίκων** ({REF:zones}), θέσεις **επισκεπτών με πληρωμή** ({REF:paid}), θέσεις **δικύκλων** ({REF:motorcycles}), θέσεις **ΑΜΕΑ** ({REF:amea-shared}) και **φόρτισης** ({REF:ev-spots}), καθώς και τους δρόμους που μένουν εκτός ({REF:excluded}).\n\n**Βρείτε τον δρόμο σας**: αναζητήστε τη διεύθυνσή σας για να δείτε σε ποια ζώνη ανήκει και τι προβλέπεται για κάθε πλευρά του δρόμου σας. Κάντε κλικ σε οποιοδήποτε τμήμα ή θέση στον χάρτη για να αφήσετε σχόλιο ακριβώς εκεί.",
+
+  "geosetOrder": ["zones", "residents", "paid", "motorcycles", "excluded", "amea_shared", "amea_dedicated", "ev", "special"],
+  "geosets": {
+    "zones": {"id": "zones", "name": "Ζώνες κατοίκων", "description": "Οι τέσσερις ζώνες στάθμευσης κατοίκων (Α, Β, Γ, Δ). Ο κάτοικος σταθμεύει δωρεάν στις θέσεις κατοίκων της ζώνης όπου βρίσκεται η κατοικία του, με την κάρτα κατοίκου ({REF:resident-cards}).", "color": "#627BBC", "mapStyle": {"fillOpacity": 0.08, "strokeWidth": 2, "hover": false}},
+    "residents": {"id": "residents", "name": "Στάθμευση κατοίκων", "description": "Πλευρές δρόμων με θέσεις αποκλειστικά για κατοίκους της ζώνης, δωρεάν με κάρτα κατοίκου, όλες τις ώρες και ημέρες ({REF:resident-parking}).", "color": "#1E4FE0", "mapStyle": {"showLabels": false}},
+    "paid": {"id": "paid", "name": "Στάθμευση με πληρωμή", "description": "Πλευρές δρόμων με θέσεις επισκεπτών με πληρωμή, έως 3 ώρες, στο ωράριο λειτουργίας του συστήματος ({REF:visitor-parking}).", "color": "#00A85A", "mapStyle": {"showLabels": false}},
+    "motorcycles": {"id": "motorcycles", "name": "Θέσεις δικύκλων", "description": "Θέσεις αποκλειστικά για δίκυκλα, δωρεάν όλο το 24ωρο ({REF:motorcycle-parking}).", "color": "#00A3A3", "mapStyle": {"showLabels": false}},
+    "excluded": {"id": "excluded", "name": "Οδοί εκτός ΣΕΣ", "description": "Οδικά τμήματα που εξαιρούνται από το σύστημα: ιδιωτικές οδοί, οδοί ανεπαρκούς πλάτους ή ειδικού καθεστώτος ({REF:road-network}).", "color": "#D9A400", "mapStyle": {"showLabels": false}},
+    "amea_shared": {"id": "amea-shared", "name": "Θέσεις ΑΜΕΑ κοινής χρήσης", "description": "Θέσεις για οχήματα με Ευρωπαϊκή Κάρτα ΑΜΕΑ, δωρεάν όλες τις ώρες και ημέρες ({REF:amea-parking}).", "color": "#F07800"},
+    "amea_dedicated": {"id": "amea-dedicated", "name": "Ειδικές θέσεις ΑΜΕΑ", "description": "Θέσεις που έχουν παραχωρηθεί σε συγκεκριμένο όχημα ΑΜΕΑ με προηγούμενες αποφάσεις ({REF:amea-dedicated-spots}).", "color": "#D400D4"},
+    "ev": {"id": "ev-spots", "name": "Θέσεις φόρτισης (ΣΦΗΟ)", "description": "Θέσεις ηλεκτροφόρτισης· στάθμευση μόνο κατά τη διάρκεια της φόρτισης ({REF:ev-charging}).", "color": "#D40000"},
+    "special": {"id": "special", "name": "Ειδικές θέσεις", "description": "Ειδικές θέσεις στάθμευσης που διατηρούνται όπως σήμερα ({REF:vertical-signage}).", "color": "#B8A000"}
+  },
+  "zoneDescription": "Οι κάτοικοι της Ζώνης {letter} σταθμεύουν δωρεάν στις θέσεις κατοίκων της ζώνης, με την **κάρτα κατοίκου Ζώνης {letter}**. Χορηγείται μία κάρτα ανά κατοικία, για συγκεκριμένο όχημα, εφόσον η κατοικία διαθέτει έως μία ιδιωτική θέση στάθμευσης ({REF:resident-cards}). Στις θέσεις κατοίκων άλλης ζώνης η στάθμευση δεν επιτρέπεται.",
+  "zoneNotes": {
+    "Α": "Στην οδό Αναστάσεως (κοινή ζώνη Α-Δ) σταθμεύουν οι κάτοικοι και των δύο ζωνών.",
+    "Δ": "Στην οδό Αναστάσεως (κοινή ζώνη Α-Δ) σταθμεύουν οι κάτοικοι και των δύο ζωνών."
+  },
+  "addressLookup": {
+    "zoneGeoSetId": "zones",
+    "nearbyGeoSetIds": ["residents", "paid", "motorcycles", "excluded"],
+    "nearbyRadiusMeters": 120,
+    "pointRadiusMeters": 500,
+    "noZoneText": "Η διεύθυνση βρίσκεται **εκτός της περιοχής εφαρμογής** του Συστήματος Ελεγχόμενης Στάθμευσης. Δείτε τα όρια της περιοχής στο {REF:area}."
+  },
+  "references": {
+    "residents": ["resident-parking", "resident-cards"],
+    "paid": ["visitor-parking"],
+    "motorcycles": ["motorcycle-parking"],
+    "excluded": ["road-network"],
+    "calmTraffic": ["road-network"],
+    "amea_shared": ["amea-parking"],
+    "amea_dedicated": ["amea-dedicated-spots"],
+    "ev": ["ev-charging"],
+    "special": ["vertical-signage"]
+  }
 }

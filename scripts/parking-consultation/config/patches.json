@@ -1,0 +1,6 @@
+{
+  "_comment": "Exact find/replace edits applied to an article's markdown after conversion. The generator fails when `find` is absent, so a changed report cannot silently drop a patch.",
+  "patches": [
+    {"article": "2.3", "find": "γρμματοσειρά", "replace": "γραμματοσειρά"}
+  ]
+}
