@@ -3,6 +3,7 @@ import { aiChat, AIConfig } from './ai';
 import { z } from 'zod';
 import { extendZodWithOpenApi, OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
 import { cityPopulationSchema, type CityPopulationData } from '@/lib/zod-schemas/cityPopulation';
+import { formatValidationIssues } from '@/lib/utils/validationIssues';
 
 extendZodWithOpenApi(z);
 
@@ -204,7 +205,7 @@ Generate the complete JSON structure now:`;
         const parsed = cityPopulationSchema.safeParse(result.result);
 
         if (!parsed.success) {
-            const errors = parsed.error.issues.map(issue => `${issue.path.join('.') || 'root'}: ${issue.message}`);
+            const errors = formatValidationIssues(parsed.error.issues);
 
             console.error(`[AI City Creator] Schema validation failed:`, errors);
 

@@ -15,6 +15,7 @@ const EXPECTED_OPERATIONS = [
     'GET /api/cities/{cityId}',
     'PUT /api/cities/{cityId}',
     'DELETE /api/cities/{cityId}',
+    'POST /api/cities/{cityId}/populate',
     'GET /api/cities/{cityId}/meetings',
     'POST /api/cities/{cityId}/meetings',
     'GET /api/cities/{cityId}/meetings/{meetingId}',
