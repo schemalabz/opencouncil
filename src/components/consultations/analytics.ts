@@ -1,7 +1,7 @@
 import { captureEvent } from "@/lib/analytics/capture";
 
 /** Where a reader opened a consultation entity from. */
-export type ConsultationEntityOpenSource = 'map' | 'list' | 'address_lookup' | 'url';
+export type ConsultationEntityOpenSource = 'map' | 'list' | 'address_lookup' | 'reference' | 'url';
 
 export function captureConsultationAddressSearched(props: {
     consultation_id?: string;
@@ -17,7 +17,7 @@ export function captureConsultationAddressSearched(props: {
 export function captureConsultationEntityOpened(props: {
     consultation_id?: string;
     city_id?: string;
-    entity_type: 'geoset' | 'geometry';
+    entity_type: 'chapter' | 'article' | 'geoset' | 'geometry';
     entity_id: string;
     geoset_id?: string;
     source: ConsultationEntityOpenSource;

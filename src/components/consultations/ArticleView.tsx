@@ -1,45 +1,33 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, MessageCircle } from "lucide-react";
 import PermalinkButton from "./PermalinkButton";
-import AISummaryCard from "./AISummaryCard";
+import { ViewLink } from "./views/ui";
 import MarkdownContent from "./MarkdownContent";
-import CommentSection from "./CommentSection";
-import { Article, ReferenceFormat, RegulationData, CurrentUser } from "./types";
-import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+import { Article, ReferenceFormat, RegulationData } from "./types";
 
 interface ArticleViewProps {
     article: Article;
-    baseUrl: string;
     isExpanded: boolean;
     onToggle: () => void;
     referenceFormat?: ReferenceFormat;
     onReferenceClick?: (referenceId: string) => void;
     regulationData?: RegulationData;
-    comments?: ConsultationCommentWithUpvotes[];
-    currentUser?: CurrentUser;
-    consultationId?: string;
-    cityId?: string;
-    consultationIsActive?: boolean;
+    commentCount: number;
+    commentHref: string;
+    active: boolean;
 }
 
 export default function ArticleView({
     article,
-    baseUrl,
     isExpanded,
     onToggle,
     referenceFormat,
     onReferenceClick,
     regulationData,
-    comments,
-    currentUser,
-    consultationId,
-    cityId,
-    consultationIsActive = true
+    commentCount,
+    commentHref,
+    active
 }: ArticleViewProps) {
-    // Count comments for this article
-    const articleCommentCount = comments?.filter(comment =>
-        comment.entityType === 'ARTICLE' && comment.entityId === article.id
-    ).length || 0;
     return (
         <div id={article.id} className="pl-3 md:pl-6 border-l-2 border-muted">
             <Collapsible open={isExpanded} onOpenChange={onToggle}>
@@ -52,10 +40,12 @@ export default function ArticleView({
                             <h3 className="font-semibold text-base md:text-lg mb-1 md:mb-2">{article.title}</h3>
                         </div>
                         <div className="flex items-center gap-2 self-center">
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <MessageCircle className="h-3 w-3" />
-                                <span className="font-medium">{articleCommentCount}</span>
-                            </div>
+                            {commentCount > 0 && (
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    <MessageCircle className="h-3 w-3" aria-hidden="true" />
+                                    <span className="font-medium">{commentCount}</span>
+                                </div>
+                            )}
                             <ChevronDown className={`h-4 w-4 shrink-0 transition-transform text-muted-foreground ${isExpanded ? 'rotate-180' : ''}`} />
                         </div>
                     </CollapsibleTrigger>
@@ -64,13 +54,6 @@ export default function ArticleView({
                     </div>
                 </div>
 
-                {/* AI Summary Card - outside collapsible trigger for full width */}
-                {article.summary && (
-                    <div className="mt-1 md:mt-2 mb-2">
-                        <AISummaryCard summary={article.summary} />
-                    </div>
-                )}
-
                 <CollapsibleContent className="pt-3 md:pt-4 pb-2">
                     <MarkdownContent
                         content={article.body}
@@ -78,20 +61,12 @@ export default function ArticleView({
                         onReferenceClick={onReferenceClick}
                         regulationData={regulationData}
                     />
-
-                    {/* Comment Section */}
-                    <CommentSection
-                        entityType="article"
-                        entityId={article.id}
-                        entityTitle={article.title}
-                        contactEmail={regulationData?.contactEmail}
-                        comments={comments}
-                        consultationId={consultationId}
-                        cityId={cityId}
-                        consultationIsActive={consultationIsActive}
-                    />
+                    <ViewLink href={commentHref} className="mt-4 inline-flex items-center gap-2 rounded-lg border-[1.5px] border-[#c2410c] px-3 py-2 text-sm font-semibold text-[#9a3412] hover:bg-[#fff7ed]">
+                        <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                        {active ? 'Σχολιάστε αυτό το άρθρο' : 'Τα σχόλια'}{commentCount > 0 ? ` (${commentCount})` : ''}
+                    </ViewLink>
                 </CollapsibleContent>
             </Collapsible>
         </div>
     );
-} 
+}

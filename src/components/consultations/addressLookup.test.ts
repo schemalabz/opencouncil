@@ -101,15 +101,22 @@ describe('computeAddressLookup', () => {
         expect(result.street.map((i) => i.geometry.id)).toEqual(['res-across']);
     });
 
-    it('ignores derived geometries', () => {
-        const derived: GeoSetData = {
+    it('computes a derived zone the way the map draws it', () => {
+        // 50 m around each ΑΜΕΑ point; the address is 25 m from amea-nearer, so inside.
+        const buffers: GeoSetData = {
             id: 'buffers',
             name: 'Buffers',
             geometries: [{ type: 'derived', id: 'buf', name: 'buf', derivedFrom: { operation: 'buffer', sourceGeoSetId: 'amea', radius: 50 } }],
         };
-        const result = computeAddressLookup(address, [derived, amea]);
-        expect(result.street).toEqual([]);
-        expect(result.nearby.map((i) => i.geometry.id)).toEqual(['amea-nearer']);
+        const result = computeAddressLookup(address, [buffers, amea], { zoneGeoSetId: 'buffers' });
+        expect(result.zone?.geometry.id).toBe('buf');
+        expect(result.zone?.geojson.type).toBe('MultiPolygon');
+    });
+
+    it('returns the shape it measured with every item', () => {
+        const result = computeAddressLookup(address, [residents, amea]);
+        expect(result.street[0].geojson).toBe((residents.geometries[0] as { geojson: GeoJSON.Geometry }).geojson);
+        expect(result.nearby[0].geojson.type).toBe('Point');
     });
 });
 

@@ -1,103 +1,44 @@
 "use client";
 
-import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { FileText, ChevronDown, ChevronUp, FileTextIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { FileText, ChevronDown, ChevronUp } from "lucide-react";
 import ChapterView from "./ChapterView";
 import ArticleView from "./ArticleView";
 import DocumentNavigation from "./DocumentNavigation";
 import SourcesList from "./SourcesList";
-import MarkdownContent from "./MarkdownContent";
-import { RegulationData, ReferenceFormat, CurrentUser } from "./types";
-import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+import { RegulationData } from "./types";
 import type { Realm } from "@prisma/client";
 
 interface ConsultationDocumentProps {
     regulationData: RegulationData | null;
-    baseUrl: string; // Base URL for permalinks
     className?: string;
     expandedChapters?: Set<string>;
     expandedArticles?: Set<string>;
     onToggleChapter?: (chapterId: string) => void;
     onToggleArticle?: (articleId: string) => void;
     onReferenceClick?: (referenceId: string) => void; // Navigation callback from parent
-    comments?: ConsultationCommentWithUpvotes[];
-    currentUser?: CurrentUser;
+    commentCount: (entityIds: string[]) => number;
+    commentHref: (entityId: string) => string;
     consultationId?: string;
     cityId?: string;
     /** the request's realm, resolved server-side — picks the support phone number */
     realm: Realm;
-    consultationIsActive?: boolean; // Add consultation active status
+    consultationIsActive?: boolean;
     /** "Δήμος Χ", for the sources footer */
     municipalityName?: string;
 }
 
-interface SummaryCardProps {
-    summary: string;
-    referenceFormat?: ReferenceFormat;
-    onReferenceClick?: (referenceId: string) => void;
-    regulationData?: RegulationData;
-    className?: string;
-}
-
-function SummaryCard({ summary, referenceFormat, onReferenceClick, regulationData, className }: SummaryCardProps) {
-    const [isOpen, setIsOpen] = useState(false);
-
-    return (
-        <Card className={cn("mb-6", className)}>
-            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-                <CollapsibleTrigger className="w-full">
-                    <div className="flex items-center justify-between w-full hover:bg-muted/50 rounded-md p-4 transition-colors">
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                                <FileTextIcon className="h-4 w-4" style={{ color: 'hsl(var(--primary))' }} />
-                                <span className="text-sm md:text-md font-bold">
-                                    Σύνοψη κανονισμού με ΑΙ
-                                </span>
-                            </div>
-                            <div className="inline-flex items-center gap-1 text-xs font-medium relative overflow-hidden rounded-md px-2 py-1">
-                                <span className="absolute inset-0 bg-gradient-to-r from-[#fc550a] to-[#a4c0e1] opacity-20"></span>
-                                <span className="relative z-10 flex items-center gap-1">
-                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                                    Ξεκινήστε εδώ
-                                </span>
-                            </div>
-                        </div>
-                        <ChevronDown className={cn(
-                            "h-4 w-4 text-muted-foreground transition-transform",
-                            isOpen && "rotate-180"
-                        )} />
-                    </div>
-                </CollapsibleTrigger>
-
-                <CollapsibleContent className="px-4 pb-4">
-                    <MarkdownContent
-                        content={summary}
-                        referenceFormat={referenceFormat}
-                        onReferenceClick={onReferenceClick}
-                        regulationData={regulationData}
-                        className="text-sm leading-relaxed"
-                    />
-                </CollapsibleContent>
-            </Collapsible>
-        </Card>
-    );
-}
-
 export default function ConsultationDocument({
     regulationData,
-    baseUrl,
     className = "",
     expandedChapters = new Set(),
     expandedArticles = new Set(),
     onToggleChapter = () => { },
     onToggleArticle = () => { },
     onReferenceClick,
-    comments,
-    currentUser,
+    commentCount,
+    commentHref,
     consultationId,
     cityId,
     realm,
@@ -190,16 +131,6 @@ export default function ConsultationDocument({
             <DocumentNavigation regulationData={regulationData} />
 
             <div className="container mx-auto px-3 md:px-4 py-4 md:py-12 max-w-4xl">
-                {/* Summary Card */}
-                {regulationData.summary && (
-                    <SummaryCard
-                        summary={regulationData.summary}
-                        referenceFormat={regulationData.referenceFormat}
-                        onReferenceClick={handleReferenceClick}
-                        regulationData={regulationData}
-                    />
-                )}
-
                 {/* Expand/Collapse All Button */}
                 <div className="flex justify-center mb-6">
                     <Button
@@ -227,35 +158,27 @@ export default function ConsultationDocument({
                         <ChapterView
                             key={chapter.id}
                             chapter={chapter}
-                            baseUrl={baseUrl}
                             isExpanded={expandedChapters.has(chapter.id)}
                             onToggle={() => onToggleChapter(chapter.id)}
-                            expandedArticles={expandedArticles}
-                            onToggleArticle={onToggleArticle}
                             referenceFormat={regulationData.referenceFormat}
                             onReferenceClick={handleReferenceClick}
                             regulationData={regulationData}
-                            comments={comments}
-                            currentUser={currentUser}
-                            consultationId={consultationId}
-                            cityId={cityId}
-                            consultationIsActive={consultationIsActive}
+                            commentCount={commentCount([chapter.id, ...(chapter.articles ?? []).map(article => article.id)])}
+                            commentHref={commentHref(chapter.id)}
+                            active={consultationIsActive}
                         >
                             {chapter.articles?.map((article) => (
                                 <ArticleView
                                     key={article.id}
                                     article={article}
-                                    baseUrl={baseUrl}
                                     isExpanded={expandedArticles.has(article.id)}
                                     onToggle={() => onToggleArticle(article.id)}
                                     referenceFormat={regulationData.referenceFormat}
                                     onReferenceClick={handleReferenceClick}
                                     regulationData={regulationData}
-                                    comments={comments}
-                                    currentUser={currentUser}
-                                    consultationId={consultationId}
-                                    cityId={cityId}
-                                    consultationIsActive={consultationIsActive}
+                                    commentCount={commentCount([article.id])}
+                                    commentHref={commentHref(article.id)}
+                                    active={consultationIsActive}
                                 />
                             ))}
                         </ChapterView>
