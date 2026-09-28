@@ -20,11 +20,10 @@
     "clients": {
         "claude": {
             "title": "Claude",
-            "step1": "Στο claude.ai, ανοίξτε Settings → Connectors.",
-            "step2": "Πατήστε «Add custom connector».",
-            "step3": "Δώστε το όνομα OpenCouncil και επικολλήστε τη διεύθυνση. Τα υπόλοιπα πεδία μένουν κενά.",
-            "step4": "Πατήστε «Add» και μετά «Connect» — ο connector εμφανίζεται ως συνδεδεμένος.",
-            "openSettings": "Άνοιγμα ρυθμίσεων claude.ai",
+            "addToClaude": "Προσθήκη στο Claude",
+            "step1": "Πατήστε «Προσθήκη στο Claude». Το claude.ai ανοίγει τη φόρμα του connector με το όνομα και τη διεύθυνση ήδη συμπληρωμένα.",
+            "step2": "Πατήστε «Add» και μετά «Connect» — ο connector εμφανίζεται ως συνδεδεμένος.",
+            "fallback": "Αν η φόρμα ανοίξει κενή, δώστε στον connector το όνομα OpenCouncil και επικολλήστε τη διεύθυνση από πάνω.",
             "mobileNotice": "Από την εφαρμογή Claude για κινητό δεν μπορείτε να προσθέσετε custom connector — μόνο από το claude.ai σε browser ή από την εφαρμογή για υπολογιστή. Αφού τον προσθέσετε, λειτουργεί και στο κινητό, εφόσον είστε συνδεδεμένοι στον ίδιο λογαριασμό."
         },
         "chatgpt": {
