@@ -30,3 +30,38 @@ describe('cityPopulationSchema', () => {
         expect(cityPopulationSchema.safeParse(withParty('red')).success).toBe(false);
     });
 });
+
+describe('cityPopulationSchema role dates and elected order', () => {
+    it('keeps the dates and the elected order of a role', () => {
+        expect(parsedRole({ startDate: '2023-12-31', endDate: '2026-09-24T21:00:00.000Z', electedOrder: 3 })).toMatchObject({
+            startDate: new Date('2023-12-31T00:00:00.000Z'),
+            endDate: new Date('2026-09-24T21:00:00.000Z'),
+            electedOrder: 3,
+        });
+    });
+
+    it('accepts an end date without a start date', () => {
+        expect(parsedRole({ endDate: '2026-09-25' })).toMatchObject({ startDate: null, endDate: new Date('2026-09-25T00:00:00.000Z') });
+    });
+
+    it('treats missing dates and elected order as unknown', () => {
+        expect(parsedRole({})).toMatchObject({ startDate: null, endDate: null });
+        expect(parsedRole({ electedOrder: null })).toMatchObject({ electedOrder: null });
+    });
+
+    it('rejects an end date before the start date', () => {
+        const result = cityPopulationSchema.safeParse(payload({ startDate: '2026-09-25', endDate: '2026-09-24' }));
+        expect(result.success).toBe(false);
+        expect(result.error?.issues[0].path).toEqual(['people', 0, 'roles', 0, 'endDate']);
+        expect(result.error?.issues[0].message).toBe('The end date must not be before the start date.');
+    });
+
+    it('rejects a date-time without a time zone, which would parse in the server zone', () => {
+        expect(cityPopulationSchema.safeParse(payload({ endDate: '2026-09-24T21:00:00' })).success).toBe(false);
+    });
+
+    it('rejects a negative or fractional elected order', () => {
+        expect(cityPopulationSchema.safeParse(payload({ electedOrder: -1 })).success).toBe(false);
+        expect(cityPopulationSchema.safeParse(payload({ electedOrder: 1.5 })).success).toBe(false);
+    });
+});

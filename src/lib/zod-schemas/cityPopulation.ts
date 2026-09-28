@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { basePartyFields } from './party';
 import { basePersonFields } from './person';
 import { baseAdministrativeBodyFields } from './administrativeBody';
-import { roleTitleSchema } from './role';
+import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue } from './role';
 
 // The payload of the City Creator: the parties, administrative bodies, people
 // and roles of a city that has no data yet. A role names its party or its
@@ -18,12 +18,16 @@ const optionalText = z.string().nullable().optional();
 const cityPopulationRoleSchema = z.object({
     type: z.enum(['party', 'city', 'adminBody'])
         .describe('Type of role: party membership, city-wide position, or administrative body role'),
-    name: roleTitleSchema.describe('Role name in local language (empty/null for simple membership)'),
-    name_en: roleTitleSchema.describe('Role name in English (empty/null for simple membership)'),
-    isHead: z.boolean().optional().describe('Whether this person is head of the party/body'),
+    ...baseRoleFields,
+    name: baseRoleFields.name.describe('Role name in local language (empty/null for simple membership)'),
+    name_en: baseRoleFields.name_en.describe('Role name in English (empty/null for simple membership)'),
+    isHead: baseRoleFields.isHead.describe('Whether this person is head of the party/body'),
+    startDate: baseRoleFields.startDate.describe('ISO 8601 date or date-time the role started, null if unknown'),
+    endDate: baseRoleFields.endDate.describe('ISO 8601 date or date-time the role ended, null if the role is current'),
+    electedOrder: baseRoleFields.electedOrder.describe('Rank of the person in the election result of the body, null if unknown'),
     partyName: optionalText.describe('Party name for party-type roles'),
     administrativeBodyName: optionalText.describe('Administrative body name for adminBody-type roles'),
-});
+}).refine(roleDatesInOrder, roleDatesInOrderIssue);
 
 export const cityPopulationSchema = z.object({
     cityId: z.string().describe('Reference to existing city ID in the database'),
