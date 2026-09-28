@@ -16,6 +16,7 @@ import { useTranslations } from 'next-intl'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { roleDatesInOrder, roleDatesInOrderIssue } from "@/lib/zod-schemas/role"
 import { Loader2, Pencil, Trash2 } from "lucide-react"
 import { Party, AdministrativeBody } from '@prisma/client'
 import { RoleWithRelations } from '@/lib/db/types'
@@ -50,7 +51,7 @@ const formSchema = z.object({
     type: z.enum(['city', 'party', 'administrativeBody']),
     partyId: z.string().optional(),
     administrativeBodyId: z.string().optional(),
-})
+}).refine(roleDatesInOrder, roleDatesInOrderIssue)
 
 interface RolesListProps {
     personId?: string;

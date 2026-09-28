@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { createPerson, getPeopleForCity } from '@/lib/db/people'
 import { uploadFile } from '@/lib/s3'
-import { Role } from '@prisma/client'
+import { z } from 'zod'
+import { parseFormData } from '@/lib/api/form-data-parser'
+import { personFormDataSchema, type PersonFormData } from '@/lib/zod-schemas/person'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
@@ -21,15 +23,17 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
         return new NextResponse("Unauthorized", { status: 401 });
     }
     console.log('Creating person')
-    const formData = await request.formData()
-    const name = formData.get('name') as string
-    const name_en = formData.get('name_en') as string
-    const name_short = formData.get('name_short') as string
-    const name_short_en = formData.get('name_short_en') as string
-    const image = formData.get('image') as File | null
-    const profileUrl = formData.get('profileUrl') as string
-    const rolesJson = formData.get('roles') as string
-    const roles = JSON.parse(rolesJson) as Role[]
+    let data: PersonFormData
+    try {
+        data = await parseFormData(await request.formData(), personFormDataSchema)
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return NextResponse.json({ error: error.errors }, { status: 400 })
+        }
+        console.error('Error parsing form data:', error)
+        return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 })
+    }
+    const { name, name_en, name_short, name_short_en, image, profileUrl, roles } = data
 
     // Validate roles
     try {
@@ -54,7 +58,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
 
     let imageUrl: string | undefined = undefined
 
-    if (image && image instanceof File) {
+    if (image) {
         try {
             const result = await uploadFile(image, { 
                 prefix: 'person-images',

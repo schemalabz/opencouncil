@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { registry, sessionAuth, ErrorResponseSchema, MessageSchema, cityIdParam } from '../registry';
+import { registry, sessionAuth, ErrorResponseSchema, MessageSchema, ValidationErrorSchema, cityIdParam } from '../registry';
 import { PersonWithRolesSchema } from './people';
+import { partyFormDataSchema } from '@/lib/zod-schemas/party';
 
 // --- Schemas ---
 
@@ -24,15 +25,15 @@ const PartyWithPeopleSchema = PartySchema.extend({
     people: z.array(PersonWithRolesSchema),
 }).openapi('PartyWithPeople');
 
-// POST/PUT request — multipart/form-data (no Zod schema in handler; matches manual FormData extraction)
-const PartyRequestSchema = z.object({
-    name: z.string(),
-    name_en: z.string(),
-    name_short: z.string(),
-    name_short_en: z.string(),
-    colorHex: z.string().openapi({ description: 'Hex color code, e.g. #3B82F6' }),
-    logo: z.string().optional().openapi({ description: 'Logo image file', format: 'binary' }),
-}).openapi('PartyRequest');
+// POST/PUT request — multipart/form-data. Reuse the actual validation schema
+// from zod-schemas/party.ts; z.instanceof(File) doesn't serialize to OpenAPI,
+// so the logo is documented as binary.
+const PartyRequestSchema = partyFormDataSchema
+    .omit({ logo: true })
+    .extend({
+        logo: z.string().optional().openapi({ description: 'Logo image file', format: 'binary' }),
+    })
+    .openapi('PartyRequest');
 
 registry.register('Party', PartySchema);
 registry.register('PartyWithPeople', PartyWithPeopleSchema);
@@ -75,6 +76,10 @@ registry.registerPath({
         200: {
             description: 'Created party',
             content: { 'application/json': { schema: PartySchema } },
+        },
+        400: {
+            description: 'Invalid party data',
+            content: { 'application/json': { schema: ValidationErrorSchema } },
         },
         401: {
             description: 'Unauthorized',
@@ -119,6 +124,10 @@ registry.registerPath({
         200: {
             description: 'Updated party',
             content: { 'application/json': { schema: PartySchema } },
+        },
+        400: {
+            description: 'Invalid party data',
+            content: { 'application/json': { schema: ValidationErrorSchema } },
         },
         401: {
             description: 'Unauthorized',

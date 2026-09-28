@@ -4,7 +4,9 @@ import { uploadFile } from '@/lib/s3'
 import { getPerson, editPerson, deletePerson } from '@/lib/db/people'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
-import { Role } from '@prisma/client'
+import { z } from 'zod'
+import { parseFormData } from '@/lib/api/form-data-parser'
+import { personFormDataSchema, type PersonFormData } from '@/lib/zod-schemas/person'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
 import { validateRoles } from '@/lib/utils/roles'
 
@@ -27,38 +29,19 @@ export async function PUT(
         return new NextResponse("Unauthorized", { status: 401 });
     }
     console.log(`Updating person ${params.personId}`)
-    let formData: FormData;
+    let data: PersonFormData
     try {
-        console.log('About to parse form data...', {
-            contentType: request.headers.get('content-type'),
-            method: request.method,
-            bodyUsed: request.bodyUsed
-        })
-        formData = await request.formData()
-        console.log('Form data received')
+        data = await parseFormData(await request.formData(), personFormDataSchema)
     } catch (error) {
+        if (error instanceof z.ZodError) {
+            return NextResponse.json({ error: error.errors }, { status: 400 })
+        }
         console.error('Error parsing form data:', error)
         return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 })
     }
-
-    // Log received data
-    console.log('Received form data fields:', Array.from(formData.keys()))
-
-    const name = formData.get('name') as string
-    const name_en = formData.get('name_en') as string
-    const name_short = formData.get('name_short') as string
-    const name_short_en = formData.get('name_short_en') as string
-    const image = formData.get('image') as File | null
-    const removeImage = formData.get('removeImage') === 'true'
-    const profileUrl = formData.get('profileUrl') as string
-    const rolesJson = formData.get('roles') as string
-    console.log('Raw roles JSON:', rolesJson)
-    let roles: Role[];
+    const { name, name_en, name_short, name_short_en, image, removeImage, profileUrl, roles } = data
 
     try {
-        roles = JSON.parse(rolesJson) as Role[]
-        console.log('Parsed roles:', roles)
-
         // Validate roles
         console.log('Starting role validation...')
         // Get valid parties and administrative bodies for this city
@@ -85,7 +68,7 @@ export async function PUT(
 
     let imageUrl: string | undefined = undefined
 
-    if (image && image instanceof File) {
+    if (image) {
         try {
             const result = await uploadFile(image, { prefix: 'person-images' })
             imageUrl = result.url

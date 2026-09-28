@@ -27,3 +27,11 @@ export const partyFormSchema = z.object({
 });
 
 export type PartyFormValues = z.infer<typeof partyFormSchema>;
+
+// FormData body of POST /parties and PUT /parties/{partyId}
+export const partyFormDataSchema = z.object({
+    ...basePartyFields,
+    logo: z.instanceof(File).optional(),
+    // PUT only: remove the current logo when no new one is sent
+    removeLogo: z.string().optional().transform(val => val === 'true'),
+});

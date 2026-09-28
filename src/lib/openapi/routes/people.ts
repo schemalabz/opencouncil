@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { registry, sessionAuth, ErrorResponseSchema, MessageSchema, cityIdParam } from '../registry';
+import { registry, sessionAuth, ErrorResponseSchema, MessageSchema, ValidationErrorSchema, cityIdParam } from '../registry';
+import { personFormDataSchema } from '@/lib/zod-schemas/person';
 
 // --- Schemas ---
 
@@ -43,16 +44,19 @@ export const PersonWithRolesSchema = PersonSchema.extend({
     roles: z.array(RoleSchema),
 }).openapi('PersonWithRoles');
 
-// POST/PUT request — multipart/form-data (no Zod schema in handler; matches manual FormData extraction)
-const PersonRequestSchema = z.object({
-    name: z.string(),
-    name_en: z.string(),
-    name_short: z.string(),
-    name_short_en: z.string(),
-    profileUrl: z.string().optional(),
-    image: z.string().optional().openapi({ description: 'Profile image file', format: 'binary' }),
-    roles: z.string().optional().openapi({ description: 'JSON array of role objects' }),
-}).openapi('PersonRequest');
+// POST/PUT request — multipart/form-data. Reuse the actual validation schema
+// from zod-schemas/person.ts; z.instanceof(File) doesn't serialize to OpenAPI,
+// so the image is documented as binary, and the roles field is a JSON string.
+const PersonRequestSchema = personFormDataSchema
+    .omit({ image: true, roles: true })
+    .extend({
+        image: z.string().optional().openapi({ description: 'Profile image file', format: 'binary' }),
+        roles: z.string().openapi({
+            description: 'JSON array of role objects, each with cityId, partyId or administrativeBodyId, '
+                + 'name, name_en, isHead, startDate, endDate and electedOrder. Replaces all roles of the person.',
+        }),
+    })
+    .openapi('PersonRequest');
 
 registry.register('Person', PersonSchema);
 registry.register('Role', RoleSchema);
@@ -98,8 +102,8 @@ registry.registerPath({
             content: { 'application/json': { schema: PersonWithRolesSchema } },
         },
         400: {
-            description: 'Invalid role data',
-            content: { 'application/json': { schema: ErrorResponseSchema } },
+            description: 'Invalid person or role data',
+            content: { 'application/json': { schema: z.union([ValidationErrorSchema, ErrorResponseSchema]) } },
         },
         401: {
             description: 'Unauthorized',
@@ -142,8 +146,8 @@ registry.registerPath({
             content: { 'application/json': { schema: PersonWithRolesSchema } },
         },
         400: {
-            description: 'Invalid role data',
-            content: { 'application/json': { schema: ErrorResponseSchema } },
+            description: 'Invalid person or role data',
+            content: { 'application/json': { schema: z.union([ValidationErrorSchema, ErrorResponseSchema]) } },
         },
         401: {
             description: 'Unauthorized',
