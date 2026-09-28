@@ -1,4 +1,4 @@
-import { plainTextToCommentHtml } from './commentText';
+import { normalizeNonBreakingSpaces, plainTextToCommentHtml } from './commentText';
 
 describe('plainTextToCommentHtml', () => {
     it('wraps paragraphs and keeps single line breaks', () => {
@@ -12,5 +12,11 @@ describe('plainTextToCommentHtml', () => {
     it('normalises Windows line breaks and drops blank lines', () => {
         expect(plainTextToCommentHtml('α\r\n\r\n\r\n  \r\nβ  ')).toBe('<p>α</p><p>β</p>');
         expect(plainTextToCommentHtml('   \n  ')).toBe('');
+    });
+});
+
+describe('normalizeNonBreakingSpaces', () => {
+    it('turns the old editor\'s non-breaking spaces into spaces', () => {
+        expect(normalizeNonBreakingSpaces('<p>Ένα&nbsp;δύο\u00a0τρία</p>')).toBe('<p>Ένα δύο τρία</p>');
     });
 });

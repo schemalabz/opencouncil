@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ChevronRight, MessageCircle, TriangleAlert } from "lucide-react";
 import GeometryItem from "./GeometryItem";
-import CommentSection from "./CommentSection";
 import { Geometry } from "./types";
 import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 
