@@ -1,4 +1,4 @@
-import { isInSupportedMunicipality } from './geo';
+import { distanceToGeometry, haversineDistance, isInSupportedMunicipality } from './geo';
 
 describe('isInSupportedMunicipality', () => {
     // The function only needs each δήμος's `geometry`; build minimal shapes rather than full cities.
@@ -92,5 +92,68 @@ describe('isInSupportedMunicipality', () => {
         });
         expect(isInSupportedMunicipality([5.5, 5.5], [islands])).toBe(true);
         expect(isInSupportedMunicipality([3, 3], [islands])).toBe(false);
+    });
+});
+
+describe('distanceToGeometry', () => {
+    // A ~100 m square at the origin: 0.0009° of latitude is 100 m, and at lat 0 so is longitude.
+    const side = 0.0009;
+    const square: GeoJSON.Polygon = {
+        type: 'Polygon',
+        coordinates: [[[0, 0], [side, 0], [side, side], [0, side], [0, 0]]],
+    };
+    const inside: [number, number] = [side / 2, side / 2];
+
+    it('is 0 inside a polygon', () => {
+        expect(distanceToGeometry(inside, square)).toBe(0);
+    });
+
+    it('measures to the nearest edge outside a polygon', () => {
+        // 50 m east of the square's east edge, level with its middle.
+        const point: [number, number] = [side + 0.00045, side / 2];
+        expect(distanceToGeometry(point, square)).toBeCloseTo(50, -1);
+    });
+
+    it('measures to the nearest vertex past a corner', () => {
+        // 30 m east and 40 m north of the north-east corner: a 3-4-5 triangle.
+        const point: [number, number] = [side + 0.00027, side + 0.00036];
+        expect(distanceToGeometry(point, square)).toBeCloseTo(50, -1);
+    });
+
+    it('measures to the hole ring for a point inside a hole', () => {
+        const holed: GeoJSON.Polygon = {
+            type: 'Polygon',
+            coordinates: [
+                square.coordinates[0],
+                [[0.0003, 0.0003], [0.0006, 0.0003], [0.0006, 0.0006], [0.0003, 0.0006], [0.0003, 0.0003]],
+            ],
+        };
+        // The centre of the hole is ~16.7 m from each hole edge.
+        expect(distanceToGeometry(inside, holed)).toBeCloseTo(16.7, 0);
+    });
+
+    it('takes the nearest member of a MultiPolygon', () => {
+        const far: GeoJSON.Polygon = {
+            type: 'Polygon',
+            coordinates: [[[1, 1], [1.001, 1], [1.001, 1.001], [1, 1.001], [1, 1]]],
+        };
+        const multi: GeoJSON.MultiPolygon = { type: 'MultiPolygon', coordinates: [far.coordinates, square.coordinates] };
+        expect(distanceToGeometry(inside, multi)).toBe(0);
+    });
+
+    it('matches haversine for a Point', () => {
+        const point: GeoJSON.Point = { type: 'Point', coordinates: [side, side] };
+        expect(distanceToGeometry([0, 0], point)).toBeCloseTo(haversineDistance([0, 0], [side, side]), 6);
+    });
+
+    it('measures to a LineString segment', () => {
+        const line: GeoJSON.LineString = { type: 'LineString', coordinates: [[0, 0], [side, 0]] };
+        // 20 m north of the middle of the segment.
+        expect(distanceToGeometry([side / 2, 0.00018], line)).toBeCloseTo(20, -1);
+    });
+
+    it('is infinite for an unsupported type', () => {
+        const unknown = { type: 'Unknown', coordinates: [] } as unknown as GeoJSON.Geometry;
+        expect(distanceToGeometry([0, 0], unknown)).toBe(Infinity);
     });
 });
