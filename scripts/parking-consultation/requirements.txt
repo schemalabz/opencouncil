@@ -1,0 +1,9 @@
+pymupdf==1.28.2
+shapely==2.1.2
+pyproj==3.7.2
+scipy==1.18.1
+numpy==2.5.3
+python-docx==1.2.0
+pillow==12.1.0
+requests==2.32.5
+pytest==9.0.2

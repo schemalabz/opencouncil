@@ -1,0 +1,5 @@
+{
+  "_comment": "Facts the pipeline and the generator need that are not in the drawings or the report. spotAreaM2 is calibrated so the estimated totals match Table 4.4 of the report (1910 / 491 / 519).",
+  "publicDir": "consultations/papagou-ses",
+  "spotAreaM2": {"residents": 18.7, "paid": 14.8, "motorcycles": 3.2, "excluded": 0}
+}
