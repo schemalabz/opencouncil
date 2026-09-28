@@ -63,6 +63,7 @@ interface MapProps {
 }
 
 const ANIMATE_ROTATION_SPEED = 1000;
+const CLICK_TOLERANCE_PX = 6;
 
 const guessCenterFromFeatures = (features: MapFeature[]): [number, number] => {
     if (features.length === 0) {
@@ -103,6 +104,11 @@ const Map = memo(function Map({
     const draw = useRef<MapboxDraw | null>(null)
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
     const currentHoveredFeature = useRef<string | null>(null)
+    // The click listener is registered once on load, so it reads the latest handler through a ref.
+    const onFeatureClickRef = useRef(onFeatureClick)
+    useEffect(() => {
+        onFeatureClickRef.current = onFeatureClick
+    }, [onFeatureClick])
 
     // Store user-controlled states in refs to preserve them during rerenders
     const isUserInteracted = useRef(false)
@@ -123,6 +129,18 @@ const Map = memo(function Map({
         animationFrame.current = requestAnimationFrame(rotateCamera)
     }, [])
 
+    // Put every layer back to its data-driven paint and forget the hovered feature.
+    const resetHoverPaint = useCallback(() => {
+        if (!map.current) return;
+        currentHoveredFeature.current = null;
+        map.current.getCanvas().style.cursor = '';
+        map.current.setPaintProperty('feature-fills', 'fill-opacity', ['get', 'fillOpacity']);
+        map.current.setPaintProperty('feature-points', 'circle-opacity', ['get', 'fillOpacity']);
+        map.current.setPaintProperty('feature-points', 'circle-radius', ['get', 'strokeWidth']);
+        map.current.setPaintProperty('feature-borders', 'line-width', ['get', 'strokeWidth']);
+        map.current.setPaintProperty('feature-borders', 'line-opacity', ['get', 'strokeOpacity']);
+    }, []);
+
     // Memoize event handlers
     const handleFeatureHover = useCallback((e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
         if (!map.current || !e.features || e.features.length === 0) return;
@@ -131,8 +149,16 @@ const Map = memo(function Map({
         // This prevents flickering when hovering over a point that sits on top of a polygon
         const feature = e.features.find(f => f.geometry.type === 'Point') || e.features[0];
         if (!feature.properties) return;
-        // Decorative features (e.g. the landing's city outlines) opt out of the built-in hover.
-        if (feature.properties.interactive === false) return;
+        // Decorative features (e.g. the landing's city outlines) opt out of the built-in hover, and so
+        // do clickable areas that sit under other features (`hover: false`). Moving from a highlighted
+        // feature onto one of these must still clear the highlight: mouseleave only fires when the
+        // cursor leaves every fill.
+        const decorative = feature.properties.interactive === false;
+        if (decorative || feature.properties.hover === false) {
+            if (currentHoveredFeature.current !== null) resetHoverPaint();
+            map.current.getCanvas().style.cursor = decorative ? '' : 'pointer';
+            return;
+        }
 
         const featureId = feature.properties.uniqueFeatureId;
         // If we're hovering the same feature, don't do anything to prevent flickering
@@ -232,7 +258,7 @@ const Map = memo(function Map({
                 .setDOMContent(container)
                 .addTo(map.current);
         }
-    }, [renderPopup]);
+    }, [renderPopup, resetHoverPaint]);
 
     const handleFeatureLeave = useCallback(() => {
         if (!map.current) return;
@@ -243,15 +269,7 @@ const Map = memo(function Map({
             hoverTimeout.current = null;
         }
 
-        // Reset current hovered feature
-        currentHoveredFeature.current = null;
-
-        map.current.getCanvas().style.cursor = '';
-        map.current.setPaintProperty('feature-fills', 'fill-opacity', ['get', 'fillOpacity']);
-        map.current.setPaintProperty('feature-points', 'circle-opacity', ['get', 'fillOpacity']);
-        map.current.setPaintProperty('feature-points', 'circle-radius', ['get', 'strokeWidth']);
-        map.current.setPaintProperty('feature-borders', 'line-width', ['get', 'strokeWidth']);
-        map.current.setPaintProperty('feature-borders', 'line-opacity', ['get', 'strokeOpacity']);
+        resetHoverPaint();
 
         if (popupRoot.current) {
             popupRoot.current.unmount();
@@ -260,23 +278,44 @@ const Map = memo(function Map({
         if (popup.current) {
             popup.current.remove();
         }
-    }, []);
+    }, [resetHoverPaint]);
 
     const handleMapFeatureClick = useCallback((e: mapboxgl.MapMouseEvent) => {
-        if (!map.current || !onFeatureClick) return;
+        const onClick = onFeatureClickRef.current;
+        if (!map.current || !onClick) return;
 
-        // Query both layers but prioritize points over polygons
-        const pointFeatures = map.current.queryRenderedFeatures(e.point, { layers: ['feature-points'] });
+        // A fingertip or a quick click misses a small circle or a thin strip by a few pixels.
+        const box: [mapboxgl.PointLike, mapboxgl.PointLike] = [
+            [e.point.x - CLICK_TOLERANCE_PX, e.point.y - CLICK_TOLERANCE_PX],
+            [e.point.x + CLICK_TOLERANCE_PX, e.point.y + CLICK_TOLERANCE_PX]
+        ];
+
+        // Points win over polygons; among several points take the nearest to the click.
+        const pointFeatures = map.current.queryRenderedFeatures(box, { layers: ['feature-points'] });
         if (pointFeatures.length > 0) {
-            onFeatureClick(pointFeatures[0]);
+            const distanceSq = (feature: mapboxgl.MapboxGeoJSONFeature) => {
+                if (feature.geometry.type !== 'Point' || !map.current) return Infinity;
+                const screen = map.current.project(feature.geometry.coordinates as [number, number]);
+                return (screen.x - e.point.x) ** 2 + (screen.y - e.point.y) ** 2;
+            };
+            onClick(pointFeatures.reduce((best, f) => distanceSq(f) < distanceSq(best) ? f : best));
             return;
         }
 
-        const fillFeatures = map.current.queryRenderedFeatures(e.point, { layers: ['feature-fills'] });
-        if (fillFeatures.length > 0) {
-            onFeatureClick(fillFeatures[0]);
+        // An exact hit first, so a precise click stays precise; the box only rescues thin polygons.
+        // Both queries return the top-most feature first, so a strip drawn over an area wins. An area
+        // under other features (`hover: false`, e.g. a zone under street strips) is hit by almost every
+        // click, so a feature within the box beats it: otherwise a near miss on a strip opens the zone.
+        const underneath = (feature: mapboxgl.MapboxGeoJSONFeature) => feature.properties?.hover === false;
+        const exact = map.current.queryRenderedFeatures(e.point, { layers: ['feature-fills'] });
+        if (exact.length > 0 && !underneath(exact[0])) {
+            onClick(exact[0]);
+            return;
         }
-    }, [onFeatureClick]);
+        const nearby = map.current.queryRenderedFeatures(box, { layers: ['feature-fills'] }).filter(f => !underneath(f));
+        const target = nearby[0] ?? exact[0];
+        if (target) onClick(target);
+    }, []);
 
     // Handle drawing events
     const handleDrawCreate = useCallback((e: any) => {
@@ -570,9 +609,7 @@ const Map = memo(function Map({
 
             // Add click listener on the whole map (not per-layer)
             // The handler queries features and prioritizes points over polygons
-            if (onFeatureClick) {
-                map.current?.on('click', handleMapFeatureClick);
-            }
+            map.current?.on('click', handleMapFeatureClick);
 
             map.current?.on('mousemove', 'feature-fills', handleFeatureHover);
             map.current?.on('mouseleave', 'feature-fills', handleFeatureLeave);
@@ -1045,6 +1082,7 @@ const Map = memo(function Map({
         prevProps.selectedGeometryForEdit === nextProps.selectedGeometryForEdit &&
         prevProps.zoomToGeometry === nextProps.zoomToGeometry &&
         prevProps.zoomPadding === nextProps.zoomPadding &&
+        prevProps.onFeatureClick === nextProps.onFeatureClick &&
         // Identity first: a caller that memoizes its features (a city boundary can run to 100KB)
         // would otherwise pay two serialisations of them on every parent render, e.g. per moveend.
         (prevProps.features === nextProps.features ||
