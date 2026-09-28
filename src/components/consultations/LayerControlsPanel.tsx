@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { X, Edit, Download, MapPin, MessageCircle, ChevronRight, TriangleAlert, Search, Info } from "lucide-react";
 import GeoSetItem, { CheckboxState } from "./GeoSetItem";
@@ -42,6 +42,8 @@ interface LayerControlsPanelProps {
     searchLocations?: Location[];
     onShowInfo?: () => void;
     variant?: 'desktop' | 'mobile';
+    /** Bumped by the parent to reveal and focus the address search. */
+    searchFocusRequest?: number;
 }
 
 export default function LayerControlsPanel({
@@ -75,10 +77,20 @@ export default function LayerControlsPanel({
     onNavigateToSearchLocation,
     searchLocations = [],
     onShowInfo,
-    variant = 'desktop'
+    variant = 'desktop',
+    searchFocusRequest = 0
 }: LayerControlsPanelProps) {
 
     const [showSearch, setShowSearch] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+
+    // Reveal the search box and focus it once the dialog that asked for it has closed (~300 ms animation).
+    useEffect(() => {
+        if (searchFocusRequest === 0) return;
+        setShowSearch(true);
+        const timer = setTimeout(() => searchInputRef.current?.focus(), 350);
+        return () => clearTimeout(timer);
+    }, [searchFocusRequest]);
 
     // Use savedGeometries from props (now synced from ConsultationMap)
     const savedGeometriesData = savedGeometries || {};
@@ -311,6 +323,7 @@ export default function LayerControlsPanel({
                             onRemove={(index) => onRemoveSearchLocation?.(index)}
                             city={cityData}
                             hideSelectedList
+                            inputRef={searchInputRef}
                         />
                     </div>
                 ) : (
