@@ -6,6 +6,7 @@
 import type {
     AddressLookupConfig,
     GeoSetMapStyle,
+    OverviewCard,
     RegulationData,
     RegulationItem,
     Source,
@@ -97,6 +98,7 @@ export interface GeoSetConfig {
     name: string;
     description?: string;
     color: string;
+    legend?: string;
     mapStyle?: GeoSetMapStyle;
 }
 
@@ -112,7 +114,7 @@ export interface ConsultationConfig {
     zoneDescription: string;
     zoneNotes?: Record<string, string>;
     addressLookup: AddressLookupConfig;
-    references: Record<string, string[]>;
+    overview?: OverviewCard[];
 }
 
 export interface AssemblyInput {
@@ -133,13 +135,6 @@ export interface AssemblyResult {
 }
 
 const SIDE_LABEL: Record<'l' | 'r', string> = { l: 'αριστερή πλευρά', r: 'δεξιά πλευρά' };
-const ZONE_ID: Record<string, string> = { 'Α': 'zone-a', 'Β': 'zone-b', 'Γ': 'zone-c', 'Δ': 'zone-d' };
-const SPOT_LABEL: Record<string, string> = {
-    amea_shared: 'Θέση ΑΜΕΑ κοινής χρήσης',
-    amea_dedicated: 'Ειδική θέση ΑΜΕΑ',
-    ev: 'Θέση φόρτισης (ΣΦΗΟ)',
-    special: 'Ειδική θέση στάθμευσης',
-};
 export const UNIT_CATEGORIES = ['residents', 'paid', 'motorcycles', 'excluded'];
 export const SPOT_CATEGORIES = ['amea_shared', 'amea_dedicated', 'ev', 'special'];
 const REF_PATTERN = /\{REF:([a-zA-Z][a-zA-Z0-9_-]*)\}/g;
@@ -149,94 +144,76 @@ function refLinks(ids: string[]): string {
     return Array.from(new Set(ids)).map((id) => `{REF:${id}}`).join(' · ');
 }
 
-function zoneRefs(zone: string | null): string[] {
-    if (!zone) return [];
-    if (zone === 'Α-Δ') return [ZONE_ID['Α'], ZONE_ID['Δ']];
-    return ZONE_ID[zone] ? [ZONE_ID[zone]] : [];
+function capitalize(text: string): string {
+    return text ? text[0].toLocaleUpperCase('el') + text.slice(1) : text;
 }
 
+/** Where a block side is: "Βουτσινά, δεξιά πλευρά, από Κύπρου προς Αναστάσεως". */
 export function unitName(p: UnitProperties): string {
-    const span = p.from && p.to ? `${p.from} – ${p.to}` : p.from ? `από ${p.from}` : p.to ? `έως ${p.to}` : 'όλο το μήκος';
-    return `${p.street} (${span}), ${SIDE_LABEL[p.side]}`;
+    const span = p.from && p.to ? `, από ${p.from} προς ${p.to}` : p.to ? `, προς ${p.to}` : p.from ? `, από ${p.from}` : '';
+    return `${p.street}, ${SIDE_LABEL[p.side]}${span}`;
 }
 
+/** The one detail a reader wants after the "where": how many cars fit, or why none do. */
 export function unitTextualDefinition(p: UnitProperties): string {
-    const direction = p.from && p.to
-        ? `με κατεύθυνση από ${p.from} προς ${p.to}`
-        : p.to ? `με κατεύθυνση προς ${p.to}` : p.from ? `με κατεύθυνση από ${p.from}` : '';
-    const parts = [`${SIDE_LABEL[p.side]} ${direction}`.trim()];
-    if (p.zone) parts.push(`Ζώνη ${p.zone}`);
-    return parts.join(' · ');
+    if (p.category === 'excluded') return p.excludedReason ? capitalize(p.excludedReason.toLowerCase()) : '';
+    if (p.estSpots <= 0) return '';
+    return p.estSpots === 1 ? 'περίπου 1 θέση' : `περίπου ${p.estSpots} θέσεις`;
 }
 
-export function unitDescription(p: UnitProperties, config: ConsultationConfig): string {
-    const links = [...(config.references[p.category] ?? []), ...zoneRefs(p.zone)];
-    let lead: string;
+/** One plain sentence: who may park here, and on what terms. */
+export function unitDescription(p: UnitProperties): string {
+    let sentence: string;
     switch (p.category) {
         case 'residents': {
-            const card = p.zone === 'Α-Δ' ? ' Ζώνης Α ή Δ' : p.zone ? ` Ζώνης ${p.zone}` : '';
-            lead = `Θέσεις **κατοίκων**${p.zone ? ` – Ζώνη ${p.zone}` : ''}. Στάθμευση μόνο με κάρτα κατοίκου${card}, δωρεάν, όλες τις ώρες και ημέρες.`;
+            const zone = p.zone === 'Α-Δ' ? ' Ζώνης Α ή Δ' : p.zone ? ` Ζώνης ${p.zone}` : '';
+            sentence = `Μόνο με κάρτα κατοίκου${zone}, δωρεάν, όλο το 24ωρο.`;
             break;
         }
         case 'paid':
-            lead = 'Θέσεις **επισκεπτών με πληρωμή**, έως 3 ώρες, στο ωράριο λειτουργίας του συστήματος. Κυριακές και αργίες η στάθμευση είναι ελεύθερη.';
+            sentence = 'Για επισκέπτες με πληρωμή, έως 3 ώρες. Κυριακές και αργίες δωρεάν.';
             break;
         case 'motorcycles':
-            lead = 'Θέσεις **δικύκλων**, δωρεάν όλο το 24ωρο.';
+            sentence = 'Για δίκυκλα, δωρεάν όλο το 24ωρο.';
             break;
         case 'excluded':
-            lead = `Οδικό τμήμα **εκτός ΣΕΣ**${p.excludedReason ? ` (${p.excludedReason.toLowerCase()})` : ''}: δεν προβλέπεται στάθμευση παρά την οδό.`;
+            sentence = 'Δεν επιτρέπεται η στάθμευση σε αυτό το κομμάτι του δρόμου.';
             break;
         default:
-            lead = '';
+            sentence = '';
     }
-    if (p.calmTraffic) {
-        lead += ' Υλοποιημένη οδός ήπιας κυκλοφορίας.';
-        links.push(...(config.references.calmTraffic ?? []));
-    }
-    const spots = p.estSpots > 0 ? `Εκτιμώμενες θέσεις: περίπου ${p.estSpots} (μήκος ${Math.round(p.lengthM)} μ.).` : '';
-    return [lead, spots, links.length ? `**Δείτε:** ${refLinks(links)}` : ''].filter(Boolean).join('\n\n');
+    return p.calmTraffic ? `${sentence} Οδός ήπιας κυκλοφορίας.` : sentence;
 }
 
+/** Where a spot is: "Γωνία Κύπρου και Τσιγάντε", or just the street. */
 export function spotName(p: SpotProperties): string {
-    const label = SPOT_LABEL[p.category] ?? 'Θέση στάθμευσης';
-    const where = p.street ? `${p.street}${p.cross ? ` / ${p.cross}` : ''}` : 'χωρίς οδό';
-    const count = p.nSpots > 1 ? ` (${p.nSpots} θέσεις)` : '';
-    return `${label}: ${where}${count}`;
+    if (!p.street) return 'Χωρίς οδό';
+    return p.cross ? `Γωνία ${p.street} και ${p.cross}` : p.street;
 }
 
 export function spotTextualDefinition(p: SpotProperties): string {
-    if (p.address) return p.address;
-    if (!p.street) return '';
-    return p.cross ? `${p.street}, κοντά στη διασταύρωση με ${p.cross}` : p.street;
+    return p.nSpots > 1 ? `${p.nSpots} θέσεις` : '';
 }
 
-export function spotDescription(p: SpotProperties, config: ConsultationConfig): string {
-    let lead: string;
+export function spotDescription(p: SpotProperties): string {
     switch (p.category) {
         case 'amea_shared':
-            lead = `Θέση στάθμευσης ΑΜΕΑ κοινής χρήσης${p.nSpots > 1 ? ` (${p.nSpots} θέσεις)` : ''}. Δωρεάν για οχήματα με Ευρωπαϊκή Κάρτα ΑΜΕΑ, όλες τις ώρες και ημέρες.`;
-            break;
+            return 'Για οχήματα με ευρωπαϊκή κάρτα ΑΜΕΑ, δωρεάν, όλο το 24ωρο.';
         case 'amea_dedicated':
-            lead = 'Ειδική θέση ΑΜΕΑ, παραχωρημένη σε συγκεκριμένο όχημα (πινακίδα ΙΧ) με προηγούμενη απόφαση. Παραμένει σε ισχύ.';
-            break;
+            return 'Για ένα συγκεκριμένο όχημα ΑΜΕΑ, με παλαιότερη απόφαση του Δήμου. Μένει όπως είναι.';
         case 'ev':
-            lead = `Θέση ηλεκτροφόρτισης (ΣΦΗΟ)${p.nSpots > 1 ? ` (${p.nSpots} θέσεις)` : ''}. Στάθμευση μόνο κατά τη διάρκεια της φόρτισης.`;
-            break;
+            return 'Μόνο όσο φορτίζει ένα ηλεκτρικό όχημα.';
         case 'special':
-            lead = 'Ειδική θέση στάθμευσης που διατηρείται όπως ισχύει σήμερα.';
-            break;
+            return 'Ειδική θέση που μένει όπως είναι σήμερα.';
         default:
-            lead = '';
+            return '';
     }
-    const links = config.references[p.category] ?? [];
-    return [lead, links.length ? `**Δείτε:** ${refLinks(links)}` : ''].filter(Boolean).join('\n\n');
 }
 
 export function zoneDescription(letter: string, config: ConsultationConfig): string {
     const base = config.zoneDescription.split('{letter}').join(letter);
     const note = config.zoneNotes?.[letter];
-    return note ? `${base}\n\n${note}` : base;
+    return note ? `${base} ${note}` : base;
 }
 
 /** A plain-text summary of an article: its first sentences, without tables, figures or markup. */
@@ -315,6 +292,7 @@ function geoSetItem(config: GeoSetConfig, geometries: StaticGeometry[]): Regulat
         name: config.name,
         ...(config.description ? { description: config.description } : {}),
         color: config.color,
+        ...(config.legend ? { legend: config.legend } : {}),
         ...(config.mapStyle ? { mapStyle: config.mapStyle } : {}),
         geometries,
     };
@@ -343,8 +321,8 @@ export function buildGeoSets(input: Pick<AssemblyInput, 'units' | 'spots' | 'zon
                     type: 'polygon',
                     id: f.properties.id,
                     name: unitName(f.properties),
-                    description: unitDescription(f.properties, config),
-                    textualDefinition: unitTextualDefinition(f.properties),
+                    description: unitDescription(f.properties),
+                    ...(unitTextualDefinition(f.properties) ? { textualDefinition: unitTextualDefinition(f.properties) } : {}),
                     geojson: f.geometry as StaticGeometry['geojson'],
                 }));
         } else {
@@ -354,8 +332,8 @@ export function buildGeoSets(input: Pick<AssemblyInput, 'units' | 'spots' | 'zon
                     type: 'point',
                     id: f.properties.id,
                     name: spotName(f.properties),
-                    description: spotDescription(f.properties, config),
-                    textualDefinition: spotTextualDefinition(f.properties),
+                    description: spotDescription(f.properties),
+                    ...(spotTextualDefinition(f.properties) ? { textualDefinition: spotTextualDefinition(f.properties) } : {}),
                     geojson: f.geometry as StaticGeometry['geojson'],
                 }));
         }
@@ -376,6 +354,7 @@ export function assembleRegulation(input: AssemblyInput): AssemblyResult {
         sources: config.sources,
         defaultView: config.defaultView ?? 'map',
         addressLookup: config.addressLookup,
+        ...(config.overview?.length ? { overview: config.overview } : {}),
         regulation: [...geosets, ...chapters.items],
     };
     return { data, warnings: chapters.warnings };
@@ -412,6 +391,13 @@ export function checkRegulation(data: RegulationData): string[] {
                 texts.push([`geometry ${geometry.id}`, geometry.description], [`geometry ${geometry.id} definition`, geometry.textualDefinition]);
             }
         }
+    }
+    const geosetIds = new Set(data.regulation.filter((item) => item.type === 'geoset').map((item) => item.id));
+    for (const card of data.overview ?? []) {
+        if (!ID_PATTERN.test(card.id)) problems.push(`overview card id "${card.id}" does not match ${ID_PATTERN}`);
+        texts.push([`overview ${card.id}`, card.body]);
+        if (card.commentOn && !ids.has(card.commentOn)) problems.push(`overview ${card.id}: commentOn "${card.commentOn}" resolves to nothing`);
+        for (const geoset of card.explains ?? []) if (!geosetIds.has(geoset)) problems.push(`overview ${card.id}: explains "${geoset}", which is not a geoset`);
     }
     for (const [id, count] of ids) if (count > 1) problems.push(`id "${id}" is used ${count} times`);
     for (const [where, text] of texts) {

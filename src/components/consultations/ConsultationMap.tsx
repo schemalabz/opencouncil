@@ -450,7 +450,7 @@ export default function ConsultationMap({
         return computeAddressLookup(activeSearchLocation.coordinates, geoSets, regulationData?.addressLookup, savedGeometries);
     }, [activeSearchLocation, geoSets, regulationData?.addressLookup, savedGeometries]);
     const nearbyUnitIds = useMemo(
-        () => new Set(addressLookup?.areaGroups.flatMap(group => group.items.map(item => item.geometry.id)) ?? []),
+        () => new Set(addressLookup?.street.map(item => item.geometry.id) ?? []),
         [addressLookup]
     );
 
@@ -466,8 +466,8 @@ export default function ConsultationMap({
             city_id: cityId,
             in_zone: !!lookup.zone,
             zone_id: lookup.zone?.geometry.id ?? null,
-            nearby_area_count: lookup.areaGroups.reduce((n, group) => n + group.items.length, 0),
-            nearby_point_count: lookup.points.length
+            street_count: lookup.street.length,
+            nearby_count: lookup.nearby.length
         });
     };
 
