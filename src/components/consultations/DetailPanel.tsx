@@ -116,8 +116,9 @@ export default function DetailPanel({
             };
         }
         if (detailType === 'geometry' && currentGeometry) {
+            const parentGeoSet = geoSets.find(gs => gs.geometries.some(g => g.id === currentGeometry.id));
             return {
-                label: toGreekUppercase(getGeometryTypeLabel(currentGeometry.type)),
+                label: toGreekUppercase(parentGeoSet?.name ?? getGeometryTypeLabel(currentGeometry.type)),
                 title: currentGeometry.name
             };
         }
@@ -480,13 +481,16 @@ export default function DetailPanel({
         );
     }
 
+    // Non-modal: the reader clicks strip after strip on the map while the panel stays open.
+    // Outside interactions are ignored (not dismissals); Escape and the close button still close.
     return (
-        <Sheet open={panelOpen} onOpenChange={(open) => !open && onClose()}>
+        <Sheet open={panelOpen} onOpenChange={(open) => !open && onClose()} modal={false}>
             <SheetContent
                 side="right"
                 className={cn("w-96 max-w-[calc(100vw-2rem)] sm:max-w-md flex flex-col", className)}
-                overlayClassName="bg-black/20"
                 onOpenAutoFocus={(event) => event.preventDefault()}
+                onInteractOutside={(event) => event.preventDefault()}
+                onPointerDownOutside={(event) => event.preventDefault()}
             >
                 <SheetTitle className="sr-only">{getTitleData().title}</SheetTitle>
                 {renderContent()}
