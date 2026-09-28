@@ -98,6 +98,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
                     success: true,
                     message: 'AI data generation completed',
                     data: result.data,
+                    warnings: result.warnings ?? [],
                     usage: result.usage
                 });
 

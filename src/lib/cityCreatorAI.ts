@@ -2,7 +2,7 @@ import { CityLanguage } from '@prisma/client';
 import { aiChat, AIConfig } from './ai';
 import { z } from 'zod';
 import { extendZodWithOpenApi, OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
-import { cityPopulationSchema, type CityPopulationData } from '@/lib/zod-schemas/cityPopulation';
+import { cityPopulationSchema, type CityPopulationInput } from '@/lib/zod-schemas/cityPopulation';
 import { formatValidationIssues } from '@/lib/utils/validationIssues';
 
 extendZodWithOpenApi(z);
@@ -21,7 +21,23 @@ export interface CityCreatorResult {
     success: boolean;
     data?: any;
     errors?: string[];
+    // Field rules the answer breaks. The data still loads into the editor, where
+    // a person fixes these fields; the save enforces the rules.
+    warnings?: string[];
     usage?: any;
+}
+
+// Fields of a party, person or body that the editor shows, so a person can fix
+// a value that breaks their rule (too short, or not a #RRGGBB color). Any other
+// issue means the answer does not have the shape of the payload.
+const EDITABLE_FIELDS = new Set(['name', 'name_en', 'name_short', 'name_short_en', 'colorHex']);
+
+function isEditableFieldIssue(issue: z.ZodIssue): boolean {
+    const [list, , field] = issue.path;
+    return issue.path.length === 3
+        && (list === 'parties' || list === 'people' || list === 'administrativeBodies')
+        && typeof field === 'string' && EDITABLE_FIELDS.has(field)
+        && (issue.code === z.ZodIssueCode.too_small || issue.code === z.ZodIssueCode.invalid_string);
 }
 
 export async function generateCityDataWithAI(
@@ -204,7 +220,7 @@ Generate the complete JSON structure now:`;
         // Validate against the schema the populate route applies on save
         const parsed = cityPopulationSchema.safeParse(result.result);
 
-        if (!parsed.success) {
+        if (!parsed.success && !parsed.error.issues.every(isEditableFieldIssue)) {
             const errors = formatValidationIssues(parsed.error.issues);
 
             console.error(`[AI City Creator] Schema validation failed:`, errors);
@@ -219,8 +235,13 @@ Generate the complete JSON structure now:`;
             };
         }
 
+        // The schema found no issue, or only issues in editable fields, so the
+        // answer has the shape of the payload.
+        const answer = result.result as CityPopulationInput;
+        const warnings = parsed.success ? [] : formatValidationIssues(parsed.error.issues);
+
         // Additional business logic validation
-        const businessValidation = validateBusinessLogic(parsed.data);
+        const businessValidation = validateBusinessLogic(answer);
         if (!businessValidation.valid) {
             console.error(`[AI City Creator] Business logic validation failed:`, businessValidation.errors);
 
@@ -248,9 +269,14 @@ Generate the complete JSON structure now:`;
         console.log(`  - Administrative Bodies: ${data.administrativeBodies?.length || 0}`);
         console.log(`  - Roles (embedded): ${totalRoles}`);
 
+        if (warnings.length > 0) {
+            console.log(`[AI City Creator] Returning data with ${warnings.length} field warnings`);
+        }
+
         return {
             success: true,
             data: result.result,
+            ...(warnings.length > 0 && { warnings }),
             usage: result.usage
         };
 
@@ -424,9 +450,9 @@ Generate the complete JSON structure now:`;
     return { systemPrompt, userPrompt };
 }
 
-// Rules the schema cannot express. The schema has already checked the shape
-// and the field rules of each entry.
-function validateBusinessLogic(data: CityPopulationData): { valid: boolean; errors: string[] } {
+// Rules the schema cannot express. The schema has already checked the shape of
+// the answer.
+function validateBusinessLogic(data: CityPopulationInput): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
     if (data.parties.length === 0) {

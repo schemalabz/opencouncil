@@ -65,6 +65,58 @@ describe('generateCityDataWithAI', () => {
         expect(generated.errors).toContain("Person 1, Role 2: Invalid party reference 'Άγνωστη Παράταξη'");
     });
 
+    it('returns an answer that breaks field rules, with a warning for each field', async () => {
+        const result = aiAnswer();
+        result.parties[0].name_short = 'Λ';
+        result.parties[0].colorHex = 'red';
+        result.people[0].name_short_en = '';
+        answer(result);
+        const generated = await generateCityDataWithAI('testcity', 'Test City');
+        expect(generated).toMatchObject({ success: true, data: result });
+        expect(generated.warnings).toEqual([
+            'parties.0.name_short: Short name must be at least 2 characters.',
+            'parties.0.colorHex: Color must be a hex code such as #1A73E8.',
+            'people.0.name_short_en: Short name (English) must be at least 2 characters.',
+        ]);
+    });
+
+    it('has no warnings for a valid answer', async () => {
+        answer(aiAnswer());
+        expect((await generateCityDataWithAI('testcity', 'Test City')).warnings).toBeUndefined();
+    });
+
+    // The editor has no date field, so a person could not fix these.
+    it.each([
+        ['a role date without a time zone', { endDate: '2026-09-24T21:00:00' }],
+        ['role dates out of order', { startDate: '2026-09-25', endDate: '2026-09-24' }],
+    ])('rejects %s', async (_, dates) => {
+        const result = aiAnswer();
+        Object.assign(result.people[0].roles[2], dates);
+        answer(result);
+        const generated = await generateCityDataWithAI('testcity', 'Test City');
+        expect(generated.success).toBe(false);
+        expect(generated.errors?.[1]).toMatch(/^people\.0\.roles\.2\.endDate: /);
+    });
+
+    it('rejects an answer with a missing name', async () => {
+        const result = aiAnswer();
+        const { name_en: _missing, ...person } = result.people[0];
+        answer({ ...result, people: [person] });
+        const generated = await generateCityDataWithAI('testcity', 'Test City');
+        expect(generated.success).toBe(false);
+        expect(generated.errors?.[1]).toMatch(/^people\.0\.name_en: /);
+    });
+
+    it('still applies the business rules to an answer with warnings', async () => {
+        const result = aiAnswer();
+        result.parties[0].name_short = 'Λ';
+        result.people[0].roles[1].partyName = 'Άγνωστη Παράταξη';
+        answer(result);
+        const generated = await generateCityDataWithAI('testcity', 'Test City');
+        expect(generated.success).toBe(false);
+        expect(generated.errors).toContain("Person 1, Role 2: Invalid party reference 'Άγνωστη Παράταξη'");
+    });
+
     it('rejects an answer without a council', async () => {
         answer({ ...aiAnswer(), administrativeBodies: [{ name: 'Δημοτική Επιτροπή', name_en: 'Municipal Committee', type: 'committee' }], people: [] });
         const generated = await generateCityDataWithAI('testcity', 'Test City');

@@ -31,6 +31,8 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
     const [saving, setSaving] = useState(false);
     const [aiLoading, setAiLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Field rules the AI answer breaks, to fix in the editor before saving
+    const [aiWarnings, setAiWarnings] = useState<string[]>([]);
     const [userProvidedText, setUserProvidedText] = useState<string>('');
     const [showAiDialog, setShowAiDialog] = useState(false);
     const [aiStatusMessage, setAiStatusMessage] = useState<string>('');
@@ -75,6 +77,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
     const handleAiImportExecute = async () => {
         setAiLoading(true);
         setError(null);
+        setAiWarnings([]);
 
         try {
             // Send user text in request body (same pattern as chat)
@@ -151,9 +154,13 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                         } else if (data.type === 'complete') {
                             if (data.success && data.data) {
                                 setCityData(data.data);
+                                const warnings: string[] = Array.isArray(data.warnings) ? data.warnings : [];
+                                setAiWarnings(warnings);
                                 toast({
                                     title: 'Success',
-                                    description: 'AI data generation completed successfully',
+                                    description: warnings.length > 0
+                                        ? `AI data loaded. Fix ${warnings.length} field(s) before saving.`
+                                        : 'AI data generation completed successfully',
                                 });
                             } else {
                                 throw new Error('Invalid completion data');
@@ -510,6 +517,15 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                 <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription className="whitespace-pre-line">{error}</AlertDescription>
+                </Alert>
+            )}
+
+            {aiWarnings.length > 0 && (
+                <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="whitespace-pre-line">
+                        {['Fix these fields of the AI data before saving:', ...aiWarnings].join('\n')}
+                    </AlertDescription>
                 </Alert>
             )}
 

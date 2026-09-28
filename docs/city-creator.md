@@ -37,6 +37,7 @@ The system uses Claude Sonnet 4 with web search to find current information abou
 - Uses web search to find current council member data
 - Handles incomplete information gracefully with null values
 - Validates against `cityPopulationSchema` (the schema the save route applies) and business logic
+- A name that is too short or a color that is not `#RRGGBB` does not reject the answer: the data loads into the editor with a warning for each such field, and the save rejects the data until the fields are fixed
 - Searches for 15-30+ council members per municipality
 
 ### Editing Interface
