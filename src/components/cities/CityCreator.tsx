@@ -129,33 +129,39 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                     buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
                     for (const line of lines) {
-                        if (line.startsWith('data: ')) { // Process SSE data lines
-                            try {
-                                const data = JSON.parse(line.substring(6));
+                        if (!line.startsWith('data: ')) continue; // Process SSE data lines
 
-                                if (data.type === 'status') {
-                                    console.log('[AI Stream]', data.message);
-                                    setAiStatusMessage(data.message);
-                                } else if (data.type === 'heartbeat') {
-                                    // Keep connection alive - no action needed
-                                    console.log('[AI Stream] Heartbeat:', data.message);
-                                    setAiStatusMessage(data.message);
-                                } else if (data.type === 'complete') {
-                                    if (data.success && data.data) {
-                                        setCityData(data.data);
-                                        toast({
-                                            title: 'Success',
-                                            description: 'AI data generation completed successfully',
-                                        });
-                                    } else {
-                                        throw new Error('Invalid completion data');
-                                    }
-                                } else if (data.type === 'error') {
-                                    throw new Error(data.error || 'AI generation failed');
-                                }
-                            } catch (parseError) {
-                                console.error('Failed to parse stream data:', line);
+                        // Only a malformed line is skipped. An error event must
+                        // reach the outer catch, which shows it.
+                        let data;
+                        try {
+                            data = JSON.parse(line.substring(6));
+                        } catch {
+                            console.error('Failed to parse stream data:', line);
+                            continue;
+                        }
+
+                        if (data.type === 'status') {
+                            console.log('[AI Stream]', data.message);
+                            setAiStatusMessage(data.message);
+                        } else if (data.type === 'heartbeat') {
+                            // Keep connection alive - no action needed
+                            console.log('[AI Stream] Heartbeat:', data.message);
+                            setAiStatusMessage(data.message);
+                        } else if (data.type === 'complete') {
+                            if (data.success && data.data) {
+                                setCityData(data.data);
+                                toast({
+                                    title: 'Success',
+                                    description: 'AI data generation completed successfully',
+                                });
+                            } else {
+                                throw new Error('Invalid completion data');
                             }
+                        } else if (data.type === 'error') {
+                            // `details` lists what failed, one line per problem
+                            const details: string[] = Array.isArray(data.details) ? data.details : [];
+                            throw new Error([data.error || 'AI generation failed', ...details].join('\n'));
                         }
                     }
                 }
