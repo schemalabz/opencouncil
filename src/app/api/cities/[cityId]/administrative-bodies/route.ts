@@ -4,29 +4,8 @@ import { getAdministrativeBodiesForCity, createAdministrativeBody } from '@/lib/
 import { z } from 'zod';
 import prisma from '@/lib/db/prisma';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
 
-const bodySchema = z.object({
-    name: z.string().min(2, {
-        message: "Name must be at least 2 characters.",
-    }),
-    name_en: z.string().min(2, {
-        message: "Name (English) must be at least 2 characters.",
-    }),
-    type: z.enum(['council', 'committee', 'community']),
-    youtubeChannelUrl: z.union([
-        z.string().url({
-            message: "Must be a valid URL.",
-        }),
-        z.literal('')
-    ]).optional().transform(val => val === '' ? undefined : val),
-    contactEmails: z.array(z.string().email()).optional().default([]),
-    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']).optional(),
-    showUnreviewedTranscript: z.boolean().optional(),
-    diavgeiaUnitIds: z.string().optional().transform(val => {
-        if (!val || val.trim() === '') return [];
-        return val.split(',').map(s => s.trim()).filter(Boolean);
-    }),
-});
 
 export async function GET(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -58,7 +37,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         const cityId = params.cityId;
         const body = await request.json();
-        const parsed = bodySchema.parse(body);
+        const parsed = administrativeBodySchema.parse(body);
         const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds } = parsed;
 
         const newBody = await createAdministrativeBody({

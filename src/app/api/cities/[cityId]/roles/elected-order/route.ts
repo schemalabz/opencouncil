@@ -3,12 +3,13 @@ import { revalidateTag } from 'next/cache'
 import { withUserAuthorizedToEdit } from '@/lib/auth'
 import { updateElectedOrder } from '@/lib/db/roles'
 import { z } from 'zod'
+import { electedOrderSchema } from '@/lib/zod-schemas/role'
 
-const electedOrderSchema = z.object({
+const electedOrderRequestSchema = z.object({
     administrativeBodyId: z.string().min(1),
     rankings: z.array(z.object({
         roleId: z.string().min(1),
-        electedOrder: z.number().int().nonnegative().nullable(),
+        electedOrder: electedOrderSchema,
     })),
 });
 
@@ -18,7 +19,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
         await withUserAuthorizedToEdit({ cityId: params.cityId });
 
         const body = await request.json();
-        const { administrativeBodyId, rankings } = electedOrderSchema.parse(body);
+        const { administrativeBodyId, rankings } = electedOrderRequestSchema.parse(body);
 
         await updateElectedOrder(params.cityId, administrativeBodyId, rankings);
 

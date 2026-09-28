@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTranslations } from 'next-intl'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { administrativeBodyFormSchema, type AdministrativeBodyFormValues } from "@/lib/zod-schemas/administrativeBody"
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client'
 import { Switch } from "@/components/ui/switch"
@@ -25,34 +25,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 
-const formSchema = z.object({
-    name: z.string().min(2, {
-        message: "Name must be at least 2 characters.",
-    }),
-    name_en: z.string().min(2, {
-        message: "Name (English) must be at least 2 characters.",
-    }),
-    type: z.enum(['council', 'committee', 'community']),
-    youtubeChannelUrl: z.union([
-        z.string().url({
-            message: "Must be a valid URL.",
-        }),
-        z.literal('')
-    ]).optional().transform(val => val === '' ? undefined : val),
-    contactEmailPrimary: z.union([
-        z.string().email({ message: "Must be a valid email address" }),
-        z.literal('')
-    ]).optional().transform(val => val === '' ? undefined : val),
-    contactEmailsCC: z.string().optional().refine(val => {
-        if (!val || val.trim() === '') return true;
-        const emails = val.split(',').map(e => e.trim()).filter(e => e !== '');
-        const emailSchema = z.string().email();
-        return emails.every(email => emailSchema.safeParse(email).success);
-    }, { message: "All entries must be valid email addresses" }),
-    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']),
-    showUnreviewedTranscript: z.boolean(),
-    diavgeiaUnitIds: z.string().optional().transform(val => val === '' ? undefined : val),
-})
 
 interface AdministrativeBody {
     id: string;
@@ -72,7 +44,7 @@ interface AdministrativeBodiesListProps {
     onUpdate: () => void;
 }
 
-function getFormDefaults(body?: AdministrativeBody | null): z.infer<typeof formSchema> {
+function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFormValues {
     return {
         name: body?.name || "",
         name_en: body?.name_en || "",
@@ -93,12 +65,12 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const t = useTranslations('AdministrativeBodiesList')
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm<AdministrativeBodyFormValues>({
+        resolver: zodResolver(administrativeBodyFormSchema),
         defaultValues: getFormDefaults(editingBody),
     })
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: AdministrativeBodyFormValues) {
         setIsSubmitting(true)
         setFormError(null)
 

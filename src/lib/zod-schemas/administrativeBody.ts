@@ -1,0 +1,60 @@
+import { z } from 'zod';
+
+export const administrativeBodyTypeSchema = z.enum(['council', 'committee', 'community']);
+export const notificationBehaviorSchema = z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']);
+
+// Field rules of an administrative body — validation only, no defaults.
+// Shared by the body form, the body routes, and the city import
+// (zod-schemas/cityPopulation.ts).
+export const baseAdministrativeBodyFields = {
+    name: z.string().min(2, {
+        message: "Name must be at least 2 characters.",
+    }),
+    name_en: z.string().min(2, {
+        message: "Name (English) must be at least 2 characters.",
+    }),
+    type: administrativeBodyTypeSchema,
+};
+
+const youtubeChannelUrl = z.union([
+    z.string().url({
+        message: "Must be a valid URL.",
+    }),
+    z.literal('')
+]).optional().transform(val => val === '' ? undefined : val);
+
+// JSON body of POST /administrative-bodies and PUT /administrative-bodies/{bodyId}
+export const administrativeBodySchema = z.object({
+    ...baseAdministrativeBodyFields,
+    youtubeChannelUrl,
+    contactEmails: z.array(z.string().email()).optional(),
+    notificationBehavior: notificationBehaviorSchema.optional(),
+    showUnreviewedTranscript: z.boolean().optional(),
+    // Comma-separated in the request, an array in the database
+    diavgeiaUnitIds: z.string().optional().transform(val => {
+        if (!val || val.trim() === '') return [];
+        return val.split(',').map(s => s.trim()).filter(Boolean);
+    }),
+});
+
+// Frontend form schema (React Hook Form). The form edits the contact emails as
+// a primary address plus a comma-separated CC list, and joins them on submit.
+export const administrativeBodyFormSchema = z.object({
+    ...baseAdministrativeBodyFields,
+    youtubeChannelUrl,
+    contactEmailPrimary: z.union([
+        z.string().email({ message: "Must be a valid email address" }),
+        z.literal('')
+    ]).optional().transform(val => val === '' ? undefined : val),
+    contactEmailsCC: z.string().optional().refine(val => {
+        if (!val || val.trim() === '') return true;
+        const emails = val.split(',').map(e => e.trim()).filter(e => e !== '');
+        const emailSchema = z.string().email();
+        return emails.every(email => emailSchema.safeParse(email).success);
+    }, { message: "All entries must be valid email addresses" }),
+    notificationBehavior: notificationBehaviorSchema,
+    showUnreviewedTranscript: z.boolean(),
+    diavgeiaUnitIds: z.string().optional().transform(val => val === '' ? undefined : val),
+});
+
+export type AdministrativeBodyFormValues = z.infer<typeof administrativeBodyFormSchema>;

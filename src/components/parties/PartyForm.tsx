@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { partyFormSchema, type PartyFormValues } from "@/lib/zod-schemas/party"
 import { Button } from "../../components/ui/button"
 import {
     Form,
@@ -26,24 +26,6 @@ import React from "react";
 // @ts-ignore
 import { HexColorPicker, HexColorInput } from "react-colorful";
 
-const formSchema = z.object({
-    name: z.string().min(2, {
-        message: "Party name must be at least 2 characters.",
-    }),
-    name_en: z.string().min(2, {
-        message: "Party name (English) must be at least 2 characters.",
-    }),
-    name_short: z.string().min(2, {
-        message: "Short name must be at least 2 characters.",
-    }),
-    name_short_en: z.string().min(2, {
-        message: "Short name (English) must be at least 2 characters.",
-    }),
-    colorHex: z.string().min(4, {
-        message: "Color Hex must be at least 4 characters.",
-    }),
-    logo: z.instanceof(File).optional(),
-})
 
 interface PartyFormProps {
     party?: Party
@@ -61,8 +43,8 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
     const [logoPreview, setLogoPreview] = useState<string | null>(party?.logo || null)
     const t = useTranslations('PartyForm')
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm<PartyFormValues>({
+        resolver: zodResolver(partyFormSchema),
         defaultValues: {
             name: party?.name || "",
             name_en: party?.name_en || "",
@@ -71,7 +53,7 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
             colorHex: party?.colorHex || "",
         },
     })
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: PartyFormValues) {
         setIsSubmitting(true)
         setFormError(null)
         const url = party ? `/api/cities/${cityId}/parties/${party.id}` : `/api/cities/${cityId}/parties`

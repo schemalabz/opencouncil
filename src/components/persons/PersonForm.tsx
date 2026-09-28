@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { personFormSchema, type PersonFormValues } from "@/lib/zod-schemas/person"
 import { Button } from "../../components/ui/button"
 import {
     Form,
@@ -29,22 +29,6 @@ import { useToast } from "@/hooks/use-toast"
 import { ImageCropDialog } from "@/components/ui/ImageCropDialog"
 import RolesList from './RolesList'
 
-const formSchema = z.object({
-    name: z.string().min(2, {
-        message: "Person name must be at least 2 characters.",
-    }),
-    name_en: z.string().min(2, {
-        message: "Person name (English) must be at least 2 characters.",
-    }),
-    name_short: z.string().min(2, {
-        message: "Short name must be at least 2 characters.",
-    }),
-    name_short_en: z.string().min(2, {
-        message: "Short name (English) must be at least 2 characters.",
-    }),
-    image: z.instanceof(File).optional(),
-    profileUrl: z.string().url().optional().or(z.literal('')),
-})
 
 interface PersonFormProps {
     person?: Person & { roles?: RoleWithRelations[] }
@@ -67,8 +51,8 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
     const { toast } = useToast()
     const nameInputRef = useRef<HTMLInputElement>(null)
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm<PersonFormValues>({
+        resolver: zodResolver(personFormSchema),
         defaultValues: {
             name: person?.name || "",
             name_en: person?.name_en || "",
@@ -78,7 +62,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
         },
     })
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: PersonFormValues) {
         setIsSubmitting(true)
         const url = person ? `/api/cities/${cityId}/people/${person.id}` : `/api/cities/${cityId}/people`
         const method = person ? 'PUT' : 'POST'
