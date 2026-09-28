@@ -12,7 +12,10 @@ import { getRealm } from "@/lib/realm.server";
 import { getRealmContactPhone, getRealmDomain } from "@/lib/realm";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { localizeText } from "@/lib/serbian";
-import { getSafeHtmlContent } from "@/lib/utils/sanitize";
+import { getSafeCommentHtml } from "@/lib/utils/sanitize";
+import Header, { PathElement } from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import { hasExplainPage } from "@/lib/explain/availability";
 
 interface PageProps {
     params: Promise<{ cityId: string; id: string; locale: string }>;
@@ -291,8 +294,17 @@ export default async function CommentsPage(props: PageProps) {
 
     const currentDate = new Date();
     const consultationUrl = `/${params.cityId}/consultation/${params.id}`;
+    const pathElements: PathElement[] = [
+        { name: getLocalizedName(city, params.locale), link: `/${params.cityId}`, city },
+        { name: "Διαβουλεύσεις", link: `/${params.cityId}/consultations` },
+        { name: localizeText(consultation.name, params.locale), link: consultationUrl },
+    ];
 
     return (
+        <>
+        <div className="print:hidden">
+            <Header path={pathElements} currentEntity={{ cityId: city.id }} showExplain={hasExplainPage(realm)} />
+        </div>
         <div className="min-h-screen bg-white">
             {/* Header - visible on screen only */}
             <div className="print:hidden bg-gray-50 border-b p-4">
@@ -352,7 +364,7 @@ export default async function CommentsPage(props: PageProps) {
                                         </div>
                                         <div
                                             className="text-gray-700 prose prose-sm max-w-none"
-                                            dangerouslySetInnerHTML={{ __html: getSafeHtmlContent(comment.body) }}
+                                            dangerouslySetInnerHTML={{ __html: getSafeCommentHtml(comment.body) }}
                                         />
                                         {index < documentComments.length - 1 && (
                                             <div className="mt-4 border-b border-gray-100"></div>
@@ -385,7 +397,7 @@ export default async function CommentsPage(props: PageProps) {
                                         </div>
                                         <div
                                             className="text-gray-700 prose prose-sm max-w-none"
-                                            dangerouslySetInnerHTML={{ __html: getSafeHtmlContent(comment.body) }}
+                                            dangerouslySetInnerHTML={{ __html: getSafeCommentHtml(comment.body) }}
                                         />
                                         {index < locationComments.length - 1 && (
                                             <div className="mt-4 border-b border-gray-100"></div>
@@ -413,5 +425,9 @@ export default async function CommentsPage(props: PageProps) {
                 </div>
             </div>
         </div>
+        <div className="print:hidden">
+            <Footer realm={realm} />
+        </div>
+        </>
     );
 } 

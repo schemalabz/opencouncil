@@ -94,7 +94,7 @@ export default function DocumentNavigation({ regulationData }: DocumentNavigatio
         : currentItem?.type === 'chapter' ? currentItem : null;
 
     return (
-        <div className="hidden xl:block fixed left-8 top-1/2 transform -translate-y-1/2 z-30 max-w-64">
+        <div className="hidden 2xl:block fixed left-8 top-1/2 transform -translate-y-1/2 z-30 max-w-64">
             <div className="space-y-4">
                 {currentChapter && (
                     <div className="space-y-2">

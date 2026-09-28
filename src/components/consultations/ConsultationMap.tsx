@@ -1,114 +1,58 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useSearchParams } from "next/navigation";
-import { usePathname, useRouter } from "@/i18n/routing";
-import { stripLocalePrefix } from "@/i18n/config";
+import { useState, useMemo, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { Pencil, Search } from "lucide-react";
 import Map, { MapFeature } from "@/components/map/map";
 import { cn } from "@/lib/utils";
-import { RegulationData, RegulationItem, Geometry, ReferenceFormat, StaticGeometry, DerivedGeometry, BufferOperation, DifferenceOperation, CurrentUser, GeoSetData, SEARCH_COLORS } from "./types";
-import LayerControlsButton from "./LayerControlsButton";
+import { RegulationData, StaticGeometry, CurrentUser, GeoSetData } from "./types";
 import LayerControlsPanel from "./LayerControlsPanel";
-import DetailPanel from "./DetailPanel";
+import { computeDerivedGeometry } from "./derivedGeometry";
 import EditingToolsPanel from "./EditingToolsPanel";
+import AddressSearchBar from "./views/AddressSearchBar";
 import { CheckboxState } from "./GeoSetItem";
-import { createCircleBuffer } from "@/lib/geo";
-import { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
+import { CityWithGeometry } from "@/lib/db/cities";
 import { Location } from "@/lib/types/onboarding";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
-import { buildConsultationUrl, resolveConsultationUrlState } from "./consultationUrl";
-import { computeAddressLookup } from "./addressLookup";
-import { captureConsultationAddressSearched, captureConsultationEntityOpened, type ConsultationEntityOpenSource } from "./analytics";
 
 interface ConsultationMapProps {
     className?: string;
-    regulationData?: RegulationData | null;
-    baseUrl: string;
-    referenceFormat?: ReferenceFormat;
-    onReferenceClick?: (referenceId: string) => void;
-    comments?: ConsultationCommentWithUpvotes[];
+    regulationData: RegulationData | null;
+    geoSets: GeoSetData[];
+    /** The place the reader has open; the viewer owns it (it lives in the URL). */
+    selectedId: string | null;
+    onSelect: (id: string) => void;
+    /** The reader's address, drawn as a pin; the map zooms to it and the highlighted places when it changes. */
+    address: Location | null;
+    /** Places to outline, e.g. the street sides at the reader's address. */
+    highlightIds: Set<string>;
+    onAddressClick?: () => void;
+    /** Sets the reader's address from the map's search bar; without it there is no search bar (the regulation has no address lookup). */
+    onAddress?: (location: Location) => void;
     currentUser?: CurrentUser;
-    consultationId?: string;
-    cityId?: string;
-    onShowInfo?: () => void;
-    onDrawerStateChange?: (isOpen: boolean) => void;
-    consultationIsActive?: boolean;
-    /** Bumped by the parent to open the layer controls with the address search focused. */
-    addressSearchRequest?: number;
+    cityData: CityWithGeometry | null;
+    /** Height in px of an overlay covering the bottom of the map (the phone's place card); zooms keep clear of it. */
+    bottomInset?: number;
+    /** Drawn before the search pill, e.g. the phone's back button. */
+    leading?: ReactNode;
+    /** Overlays drawn over the map, e.g. the phone's place card. */
+    children?: ReactNode;
 }
 
 // Generate distinct colors for different geosets
 const GEOSET_COLORS = [
     '#627BBC', // Primary blue
-    '#E53E3E', // Red
-    '#38A169', // Green
-    '#DD6B20', // Orange
-    '#805AD5', // Purple
-    '#319795', // Teal
-    '#D53F8C', // Pink
-    '#4A5568', // Gray
+    '#E57373', // Red
+    '#81C784', // Green
+    '#FFB74D', // Orange
+    '#BA68C8', // Purple
+    '#4FC3F7', // Light blue
+    '#F06292', // Pink
+    '#AED581', // Light green
+    '#FFD54F', // Yellow
+    '#90A4AE'  // Blue grey
 ];
 
-// Helper function to compute derived geometry
-function computeDerivedGeometry(derivedGeometry: DerivedGeometry, allGeoSets: GeoSetData[]): GeoJSON.Geometry | null {
-    const { derivedFrom } = derivedGeometry;
-
-    if (derivedFrom.operation === 'buffer') {
-        const bufferOp = derivedFrom as BufferOperation;
-        const sourceGeoSet = allGeoSets.find(gs => gs.id === bufferOp.sourceGeoSetId);
-
-        if (!sourceGeoSet) {
-            console.warn(`Source GeoSet not found: ${bufferOp.sourceGeoSetId}`);
-            return null;
-        }
-
-        // Convert radius to meters
-        const radiusInMeters = bufferOp.units === 'kilometers' ? bufferOp.radius * 1000 : bufferOp.radius;
-
-        // For buffer operations, we'll create individual circles for each point
-        // and combine them into a MultiPolygon for simplicity
-        const polygons: number[][][][] = [];
-
-        sourceGeoSet.geometries.forEach(geometry => {
-            if (geometry.type === 'point') {
-                const staticGeometry = geometry as StaticGeometry;
-                if (staticGeometry.geojson && staticGeometry.geojson.type === 'Point') {
-                    const circle = createCircleBuffer(
-                        staticGeometry.geojson.coordinates as [number, number],
-                        radiusInMeters
-                    );
-                    polygons.push(circle.coordinates);
-                }
-            }
-        });
-
-        if (polygons.length === 0) {
-            return null;
-        }
-
-        // Return as MultiPolygon if we have multiple circles, or Polygon if just one
-        if (polygons.length === 1) {
-            return {
-                type: 'Polygon',
-                coordinates: polygons[0]
-            };
-        } else {
-            return {
-                type: 'MultiPolygon',
-                coordinates: polygons
-            };
-        }
-    }
-
-    // TODO: Implement difference operation
-    if (derivedFrom.operation === 'difference') {
-        console.warn('Difference operation not yet implemented');
-        return null;
-    }
-
-    return null;
-}
+const SELECTED_STROKE = '#111827';
+const SAVED_GEOMETRIES_KEY = 'opencouncil-edited-geometries';
 
 // Helper function to create line features between selected locations
 function createLocationLineFeatures(locations: Location[]): MapFeature[] {
@@ -178,265 +122,93 @@ function createLocationLineFeatures(locations: Location[]): MapFeature[] {
 export default function ConsultationMap({
     className,
     regulationData,
-    baseUrl,
-    referenceFormat,
-    onReferenceClick,
-    comments,
+    geoSets,
+    selectedId,
+    onSelect,
+    address,
+    highlightIds,
+    onAddressClick,
+    onAddress,
     currentUser,
-    consultationId,
-    cityId,
-    onShowInfo,
-    onDrawerStateChange,
-    consultationIsActive = true,
-    addressSearchRequest = 0
+    cityData,
+    bottomInset = 0,
+    leading,
+    children
 }: ConsultationMapProps) {
-    const router = useRouter();
-    const pathname = usePathname();
-    const searchParams = useSearchParams();
-    const isMobile = useIsMobile();
-
-    // `pathname` from the i18n helpers carries no locale prefix, and the i18n
-    // router adds the prefix back on each navigation. `window.location.pathname`
-    // does carry the prefix, so strip it. Without this step the router builds
-    // `/lat/lat/...`, which is a 404 on every locale but the default one.
-    const getLivePathname = useCallback(() => {
-        if (typeof window !== "undefined" && window.location.pathname) {
-            return stripLocalePrefix(window.location.pathname);
-        }
-
-        return pathname;
-    }, [pathname]);
-
-    const navigateMapEntity = useCallback((entityId: string | null, replace = false) => {
-        const nextUrl = buildConsultationUrl(getLivePathname(), {
-            view: "map",
-            entityId,
-        });
-        const navigate = replace ? router.replace : router.push;
-        navigate(nextUrl, { scroll: false });
-    }, [getLivePathname, router]);
-
-    const [isControlsOpen, setIsControlsOpen] = useState(true);
     const [enabledGeoSets, setEnabledGeoSets] = useState<Set<string>>(new Set());
     const [enabledGeometries, setEnabledGeometries] = useState<Set<string>>(new Set());
     const [expandedGeoSets, setExpandedGeoSets] = useState<Set<string>>(new Set());
 
-    // Detail panel state
-    const [detailType, setDetailType] = useState<'geoset' | 'geometry' | 'search-location' | null>(null);
-    const [detailId, setDetailId] = useState<string | null>(null);
-    const [selectedSearchLocationIndex, setSelectedSearchLocationIndex] = useState<number | null>(null);
-
-    // Editing state
+    // Editing state (superadmins only): the geo-editor for drawing geometries a regulation lacks
     const [isEditingMode, setIsEditingMode] = useState(false);
     const [drawingMode, setDrawingMode] = useState<'point' | 'polygon'>('point');
     const [selectedGeometryForEdit, setSelectedGeometryForEdit] = useState<string | null>(null);
-    
-    // Local storage state for saved geometries
-    const [savedGeometries, setSavedGeometries] = useState<Record<string, any>>({});
-
-    // State for selected locations (for line drawing)
+    const [savedGeometries, setSavedGeometries] = useState<Record<string, GeoJSON.Geometry>>({});
     const [selectedLocations, setSelectedLocations] = useState<Location[]>([]);
 
-    // Search locations state (shown when user searches addresses in the community picker)
-    const [searchLocations, setSearchLocations] = useState<Location[]>([]);
+    const [zoomGeometry, setZoomGeometry] = useState<GeoJSON.Geometry | null>(null);
+    // A place the reader clicked on the map is already in view: its selection must not move the camera.
+    const clickedIdRef = useRef<string | null>(null);
+    const didInitialFit = useRef(false);
 
-    // The actively viewed search location (passed directly to DetailPanel to avoid index timing issues)
-    const [activeSearchLocation, setActiveSearchLocation] = useState<Location | null>(null);
-
-    // Ref to prevent hash handler from overriding search-location detail mode
-    const isInSearchLocationMode = useRef(false);
-
-    // The entity the UI just opened. The URL effect then skips its own zoom: a list click zooms
-    // once, and a map click does not move the camera at all. Deep links and back/forward still zoom.
-    const uiOpenedEntityRef = useRef<string | null>(null);
-
-    // The welcome dialog's "find your street" button: open the controls, whose search box then focuses.
-    useEffect(() => {
-        if (addressSearchRequest > 0) setIsControlsOpen(true);
-    }, [addressSearchRequest]);
-
-    // Report drawer state to parent (for ViewToggleButton positioning)
-    useEffect(() => {
-        const anyDrawerOpen = isControlsOpen || detailType !== null;
-        onDrawerStateChange?.(anyDrawerOpen);
-    }, [isControlsOpen, detailType, onDrawerStateChange]);
-
-    // Load saved geometries from localStorage on mount and when editing mode changes
+    // Load saved geometries from localStorage on mount; other tabs and the editor notify changes
     useEffect(() => {
         const loadSavedGeometries = () => {
             try {
-                const saved = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
-                
-                // Only update state if the data actually changed (deep comparison)
-                setSavedGeometries(prev => {
-                    const hasChanged = JSON.stringify(prev) !== JSON.stringify(saved);
-                    return hasChanged ? saved : prev;
-                });
+                const saved = JSON.parse(localStorage.getItem(SAVED_GEOMETRIES_KEY) || '{}');
+                setSavedGeometries(prev => JSON.stringify(prev) !== JSON.stringify(saved) ? saved : prev);
             } catch (error) {
                 console.error('Error loading saved geometries:', error);
                 setSavedGeometries({});
             }
         };
-
         loadSavedGeometries();
-
-        // Listen for localStorage changes (from other tabs)
         const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'opencouncil-edited-geometries') {
-                loadSavedGeometries();
-            }
+            if (e.key === SAVED_GEOMETRIES_KEY) loadSavedGeometries();
         };
-
         window.addEventListener('storage', handleStorageChange);
-        
-        // Custom event for same-tab localStorage changes (we'll dispatch this from the map component)
-        const handleCustomStorageChange = () => {
-            loadSavedGeometries();
-        };
-
-        window.addEventListener('opencouncil-storage-change', handleCustomStorageChange);
-
+        window.addEventListener('opencouncil-storage-change', loadSavedGeometries);
         return () => {
             window.removeEventListener('storage', handleStorageChange);
-            window.removeEventListener('opencouncil-storage-change', handleCustomStorageChange);
+            window.removeEventListener('opencouncil-storage-change', loadSavedGeometries);
         };
     }, []);
 
-    // Extract geosets from regulation data
-    const geoSets: GeoSetData[] = useMemo(() => {
-        if (!regulationData) return [];
+    // Every geoset starts visible, or only those the regulation lists as visible by default.
+    useEffect(() => {
+        const defaults = regulationData?.defaultVisibleGeosets;
+        const visible = defaults?.length ? geoSets.filter(gs => defaults.includes(gs.id)) : geoSets;
+        setEnabledGeoSets(new Set(visible.map(gs => gs.id)));
+        setEnabledGeometries(new Set(visible.flatMap(gs => gs.geometries.map(g => g.id))));
+        setExpandedGeoSets(new Set());
+    }, [geoSets, regulationData?.defaultVisibleGeosets]);
 
-        return regulationData.regulation
-            .filter((item): item is RegulationItem & { type: 'geoset' } => item.type === 'geoset')
-            .map(item => ({
-                id: item.id,
-                name: item.name || item.title || 'Unnamed GeoSet',
-                description: item.description,
-                color: item.color,
-                mapStyle: item.mapStyle,
-                geometries: item.geometries || []
-            }));
-    }, [regulationData]);
-
-    // Initialize enabled states when geosets change
-    useMemo(() => {
-        const allGeoSetIds = new Set(geoSets.map(gs => gs.id));
-        const allGeometryIds = new Set(geoSets.flatMap(gs => gs.geometries.map(g => g.id)));
-
-        // Check if defaultVisibleGeosets is specified in regulation data
-        if (regulationData?.defaultVisibleGeosets && regulationData.defaultVisibleGeosets.length > 0) {
-            // Only enable geosets specified in defaultVisibleGeosets
-            const defaultVisibleSet = new Set(regulationData.defaultVisibleGeosets);
-            const enabledGeoSetIds = new Set(
-                geoSets
-                    .filter(gs => defaultVisibleSet.has(gs.id))
-                    .map(gs => gs.id)
-            );
-
-            const enabledGeometryIds = new Set(
-                geoSets
-                    .filter(gs => defaultVisibleSet.has(gs.id))
-                    .flatMap(gs => gs.geometries.map(g => g.id))
-            );
-
-            setEnabledGeoSets(enabledGeoSetIds);
-            setEnabledGeometries(enabledGeometryIds);
-        } else {
-            // Default behavior: enable all geosets and geometries
-            setEnabledGeoSets(allGeoSetIds);
-            setEnabledGeometries(allGeometryIds);
+    // Find the zoomable GeoJSON for a geometry (or a whole geoset) by id
+    const findGeoJSON = useCallback((id: string): GeoJSON.Geometry | null => {
+        const geoSet = geoSets.find(gs => gs.id === id);
+        if (geoSet) {
+            const geometries = geoSet.geometries
+                .map(g => savedGeometries[g.id] ?? (g.type !== 'derived' && 'geojson' in g ? g.geojson : null))
+                .filter((g): g is StaticGeometry['geojson'] => !!g);
+            return geometries.length ? { type: 'GeometryCollection', geometries } : null;
         }
-
-        setExpandedGeoSets(new Set()); // Start with all collapsed
-    }, [geoSets, regulationData]);
-
-    const closeDetail = useCallback((updateUrl = true) => {
-        isInSearchLocationMode.current = false;
-        setDetailType(null);
-        setDetailId(null);
-        setSelectedSearchLocationIndex(null);
-        setActiveSearchLocation(null);
-
-        if (updateUrl) {
-            navigateMapEntity(null);
-        }
-    }, [navigateMapEntity]);
-
-    // Find the zoomable GeoJSON for a geometry by id
-    const findGeometryGeoJSON = useCallback((geometryId: string): GeoJSON.Geometry | null => {
-        const geometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === geometryId);
+        const geometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === id);
         if (!geometry) return null;
-
         if (savedGeometries[geometry.id]) return savedGeometries[geometry.id];
         if (geometry.type !== 'derived' && 'geojson' in geometry && geometry.geojson) return geometry.geojson;
         if (geometry.type === 'derived') return computeDerivedGeometry(geometry, geoSets);
         return null;
     }, [geoSets, savedGeometries]);
 
-    // Functions to manage detail panel
-    const openGeoSetDetail = (geoSetId: string, options?: { source?: ConsultationEntityOpenSource }) => {
-        isInSearchLocationMode.current = false;
-        if (isMobile) setIsControlsOpen(false);
-        setDetailType('geoset');
-        setDetailId(geoSetId);
-        setSelectedSearchLocationIndex(null);
-        uiOpenedEntityRef.current = geoSetId;
-        navigateMapEntity(geoSetId);
-        captureConsultationEntityOpened({
-            consultation_id: consultationId, city_id: cityId,
-            entity_type: 'geoset', entity_id: geoSetId, geoset_id: geoSetId, source: options?.source ?? 'list'
-        });
-
-        const geoSet = geoSets.find(gs => gs.id === geoSetId);
-        if (geoSet) ensureGeoSetVisibleAndZoom(geoSet);
-    };
-
-    const openGeometryDetail = (geometryId: string, options?: { zoom?: boolean; source?: ConsultationEntityOpenSource }) => {
-        isInSearchLocationMode.current = false;
-        if (isMobile) setIsControlsOpen(false);
-        setDetailType('geometry');
-        setDetailId(geometryId);
-        setSelectedSearchLocationIndex(null);
-        uiOpenedEntityRef.current = geometryId;
-        navigateMapEntity(geometryId);
-        captureConsultationEntityOpened({
-            consultation_id: consultationId, city_id: cityId,
-            entity_type: 'geometry', entity_id: geometryId,
-            geoset_id: geoSets.find(gs => gs.geometries.some(g => g.id === geometryId))?.id,
-            source: options?.source ?? 'list'
-        });
-
-        if (options?.zoom !== false) {
-            const geoJSON = findGeometryGeoJSON(geometryId);
-            if (geoJSON) setZoomGeometry(geoJSON);
-        }
-    };
-
-    const openSearchLocationDetail = (location: Location, locationIndex: number) => {
-        isInSearchLocationMode.current = true;
-        if (isMobile) setIsControlsOpen(false);
-        setDetailType('search-location');
-        setDetailId(`search-location-${locationIndex}`);
-        setSelectedSearchLocationIndex(locationIndex);
-        setActiveSearchLocation(location);
-        navigateMapEntity(null);
-    };
-
-    // Handle map feature clicks
     const handleMapFeatureClick = (feature: GeoJSON.Feature) => {
-        // Clicking a search location pin opens its detail panel
         if (feature.properties?.type === 'search-location') {
-            const pinIndex = searchLocations.findIndex(l => l.text === feature.properties?.name);
-            if (pinIndex >= 0) {
-                openSearchLocationDetail(searchLocations[pinIndex], pinIndex);
-            }
+            onAddressClick?.();
             return;
         }
-
-        if (feature.properties?.id) {
-            // The reader is already looking at what they clicked, so the camera stays put.
-            openGeometryDetail(feature.properties.id, { zoom: false, source: 'map' });
-        }
+        const id = feature.properties?.id;
+        if (typeof id !== 'string' || feature.properties?.type === 'location-point') return;
+        clickedIdRef.current = id;
+        onSelect(id);
     };
 
     // Map registers its click listener once, so hand it a stable callback that reads the latest handler.
@@ -444,153 +216,124 @@ export default function ConsultationMap({
     mapFeatureClickRef.current = handleMapFeatureClick;
     const onMapFeatureClick = useCallback((feature: GeoJSON.Feature) => mapFeatureClickRef.current(feature), []);
 
-    // What the regulation says about the searched address; also drives the map highlight below.
-    const addressLookup = useMemo(() => {
-        if (!activeSearchLocation) return null;
-        return computeAddressLookup(activeSearchLocation.coordinates, geoSets, regulationData?.addressLookup, savedGeometries);
-    }, [activeSearchLocation, geoSets, regulationData?.addressLookup, savedGeometries]);
-    const nearbyUnitIds = useMemo(
-        () => new Set(addressLookup?.street.map(item => item.geometry.id) ?? []),
-        [addressLookup]
-    );
-
-    const handleSearchLocation = (location: Location) => {
-        const newIndex = searchLocations.length;
-        setSearchLocations(prev => [...prev, location]);
-        openSearchLocationDetail(location, newIndex);
-        setZoomGeometry({ type: 'Point', coordinates: location.coordinates });
-
-        const lookup = computeAddressLookup(location.coordinates, geoSets, regulationData?.addressLookup, savedGeometries);
-        captureConsultationAddressSearched({
-            consultation_id: consultationId,
-            city_id: cityId,
-            in_zone: !!lookup.zone,
-            zone_id: lookup.zone?.geometry.id ?? null,
-            street_count: lookup.street.length,
-            nearby_count: lookup.nearby.length
-        });
-    };
-
-    // Convert enabled geometries to map features
     const mapFeatures: MapFeature[] = useMemo(() => {
         const features: MapFeature[] = [];
 
         geoSets.forEach((geoSet, geoSetIndex) => {
             if (!enabledGeoSets.has(geoSet.id)) return;
-
-            // Use geoset's own color if available, otherwise fall back to default colors
             const color = geoSet.color || GEOSET_COLORS[geoSetIndex % GEOSET_COLORS.length];
+            const mapStyle = geoSet.mapStyle;
 
             geoSet.geometries.forEach(geometry => {
                 if (!enabledGeometries.has(geometry.id)) return;
 
-                let geoJSON: GeoJSON.Geometry | null = null;
-                let isFromLocalStorage = false;
+                const isFromLocalStorage = !!savedGeometries[geometry.id];
+                const geoJSON: GeoJSON.Geometry | null = isFromLocalStorage
+                    ? savedGeometries[geometry.id]
+                    : geometry.type === 'derived'
+                        ? computeDerivedGeometry(geometry, geoSets)
+                        : ('geojson' in geometry && geometry.geojson) || null;
+                if (!geoJSON) return;
 
-                // First check if we have a saved geometry in localStorage
-                if (savedGeometries[geometry.id]) {
-                    geoJSON = savedGeometries[geometry.id];
-                    isFromLocalStorage = true;
-                }
-                // Otherwise handle static geometries
-                else if (geometry.type !== 'derived' && 'geojson' in geometry && geometry.geojson) {
-                    geoJSON = geometry.geojson;
-                }
-                // Handle derived geometries
-                else if (geometry.type === 'derived') {
-                    geoJSON = computeDerivedGeometry(geometry, geoSets);
-                }
+                const isPoint = geometry.type === 'point';
+                const label = mapStyle?.showLabels === false
+                    ? ''
+                    : (isPoint && geometry.textualDefinition) ? geometry.textualDefinition : geometry.name;
+                const fillOpacity = geometry.type === 'derived' ? 0.15 : (isFromLocalStorage ? 0.5 : (mapStyle?.fillOpacity ?? 0.4));
+                const strokeWidth = geometry.type === 'derived'
+                    ? 0
+                    : isPoint
+                        ? (mapStyle?.strokeWidth ?? 4)
+                        : (isFromLocalStorage ? 3 : (mapStyle?.strokeWidth ?? 2));
+                // The open place stands out most; the places at the reader's address are outlined.
+                const isSelected = geometry.id === selectedId;
+                const isHighlighted = highlightIds.has(geometry.id);
 
-                // Only add to features if we have valid geometry
-                if (geoJSON) {
-                    const mapStyle = geoSet.mapStyle;
-                    // For point features, show the address as the map label
-                    // For polygons and other types, use the geometry's own name
-                    const label = mapStyle?.showLabels === false
-                        ? ''
-                        : (geometry.type === 'point' && geometry.textualDefinition)
-                            ? geometry.textualDefinition
-                            : geometry.name;
-
-                    const fillOpacity = geometry.type === 'derived' ? 0.15 : (isFromLocalStorage ? 0.5 : (mapStyle?.fillOpacity ?? 0.4));
-                    const strokeWidth = geometry.type === 'derived'
-                        ? 0
-                        : geometry.type === 'point'
-                            ? (mapStyle?.strokeWidth ?? 4)
-                            : (isFromLocalStorage ? 3 : (mapStyle?.strokeWidth ?? 2));
-                    // The units listed for a searched address stand out on the map as well.
-                    const isNearby = nearbyUnitIds.has(geometry.id);
-
-                    features.push({
-                        id: geometry.id,
-                        geometry: geoJSON,
-                        properties: {
-                            geoSetId: geoSet.id,
-                            geoSetName: geoSet.name,
-                            name: geometry.name,
-                            description: geometry.description,
-                            isDerived: geometry.type === 'derived',
-                            isFromLocalStorage,
-                            ...(mapStyle?.hover === false ? { hover: false } : {})
-                        },
-                        style: {
-                            // Color: use blue for localStorage, otherwise use geoset color
-                            fillColor: isFromLocalStorage ? '#3B82F6' : color,
-                            // Opacity: derived geometries are very transparent, localStorage medium, regular per geoset
-                            fillOpacity: isNearby ? Math.min(1, fillOpacity + 0.25) : fillOpacity,
-                            // Stroke: derived geometries have no stroke, localStorage get blue stroke, regular get geoset color
-                            strokeColor: geometry.type === 'derived' ? 'transparent' : (isNearby ? '#111827' : (isFromLocalStorage ? '#1D4ED8' : color)),
-                            // Stroke width (the circle radius for points): derived have none, localStorage get thicker stroke
-                            strokeWidth: isNearby && geometry.type !== 'point' ? 4 : strokeWidth,
-                            label
-                        }
-                    });
-                }
+                features.push({
+                    id: geometry.id,
+                    geometry: geoJSON,
+                    properties: {
+                        geoSetId: geoSet.id,
+                        geoSetName: geoSet.name,
+                        name: geometry.name,
+                        description: geometry.description,
+                        isDerived: geometry.type === 'derived',
+                        isFromLocalStorage,
+                        ...(mapStyle?.hover === false ? { hover: false } : {})
+                    },
+                    style: {
+                        fillColor: isFromLocalStorage ? '#3B82F6' : color,
+                        // A faint area (a zone) stays faint when selected: filled in, it would hide the streets.
+                        fillOpacity: isSelected || isHighlighted
+                            ? (fillOpacity < 0.2 ? fillOpacity + 0.06 : Math.min(1, fillOpacity + 0.3))
+                            : fillOpacity,
+                        strokeColor: geometry.type === 'derived'
+                            ? 'transparent'
+                            : (isSelected || isHighlighted) && !isPoint ? SELECTED_STROKE : (isFromLocalStorage ? '#1D4ED8' : color),
+                        strokeWidth: isPoint
+                            ? (isSelected ? strokeWidth + 3 : strokeWidth)
+                            : isSelected ? 5 : isHighlighted ? 3 : strokeWidth,
+                        label
+                    }
+                });
             });
         });
 
-        // Add location features (points and lines) in editing mode
         if (isEditingMode && selectedLocations.length > 0) {
-            const locationLineFeatures = createLocationLineFeatures(selectedLocations);
-            features.push(...locationLineFeatures);
+            features.push(...createLocationLineFeatures(selectedLocations));
         }
 
-        // Add search location pins (user searched addresses in the community picker)
-        if (!isEditingMode && searchLocations.length > 0) {
-            searchLocations.forEach((location, index) => {
-                const color = SEARCH_COLORS[index % SEARCH_COLORS.length];
-                features.push({
-                    id: `search-location-${index}`,
-                    geometry: {
-                        type: 'Point',
-                        coordinates: location.coordinates
-                    },
-                    properties: {
-                        type: 'search-location',
-                        name: location.text,
-                        alwaysShowLabel: true
-                    },
-                    style: {
-                        fillColor: color,
-                        fillOpacity: 0.95,
-                        strokeColor: '#ffffff',
-                        strokeWidth: searchLocations.length === 1 ? 14 : 12,
-                        label: location.text
-                    }
-                });
+        if (address && !isEditingMode) {
+            features.push({
+                id: 'search-location',
+                geometry: { type: 'Point', coordinates: address.coordinates },
+                properties: { type: 'search-location', name: address.text, alwaysShowLabel: true },
+                style: { fillColor: '#C2410C', fillOpacity: 0.95, strokeColor: '#ffffff', strokeWidth: 10, label: address.text }
             });
         }
 
         return features;
-    }, [geoSets, enabledGeoSets, enabledGeometries, savedGeometries, isEditingMode, selectedLocations, searchLocations, nearbyUnitIds]);
+    }, [geoSets, enabledGeoSets, enabledGeometries, savedGeometries, isEditingMode, selectedLocations, address, selectedId, highlightIds]);
 
-    // Get geoset checkbox state (checked, indeterminate, or unchecked)
+    // Camera: the whole plan first; the reader's address and its street when it changes; a place
+    // opened from a list or a link. Declared in that order so a selected place wins on first load.
+    useEffect(() => {
+        if (didInitialFit.current || mapFeatures.length === 0) return;
+        didInitialFit.current = true;
+        if (selectedId || address) return;
+        setZoomGeometry({ type: 'GeometryCollection', geometries: mapFeatures.map(f => f.geometry) });
+    }, [mapFeatures, selectedId, address]);
+
+    useEffect(() => {
+        if (!address) return;
+        const street = [...highlightIds].map(id => findGeoJSON(id)).filter((g): g is GeoJSON.Geometry => !!g);
+        setZoomGeometry({ type: 'GeometryCollection', geometries: [{ type: 'Point', coordinates: address.coordinates }, ...street] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-zoom only when the address itself changes
+    }, [address]);
+
+    useEffect(() => {
+        if (!selectedId) return;
+        if (clickedIdRef.current === selectedId) {
+            clickedIdRef.current = null;
+            return;
+        }
+        const geoJSON = findGeoJSON(selectedId);
+        if (geoJSON) setZoomGeometry(geoJSON);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- zoom when the selection changes, not when geometries reload
+    }, [selectedId]);
+
+    // Zooms keep clear of the search pill and legend at the top and of a card at the bottom.
+    // Memoised: Map re-fits whenever this object's identity changes.
+    const zoomPadding = useMemo(
+        () => ({ top: 130, bottom: bottomInset + 24, left: 24, right: 24 }),
+        [bottomInset]
+    );
+
+    // Editing: layer checkboxes and the geometry editor
     const getGeoSetCheckboxState = (geoSetId: string): CheckboxState => {
         const geoSet = geoSets.find(gs => gs.id === geoSetId);
         if (!geoSet || geoSet.geometries.length === 0) return 'unchecked';
-
         const enabledCount = geoSet.geometries.filter(g => enabledGeometries.has(g.id)).length;
-
         if (enabledCount === 0) return 'unchecked';
         if (enabledCount === geoSet.geometries.length) return 'checked';
         return 'indeterminate';
@@ -599,290 +342,117 @@ export default function ConsultationMap({
     const toggleGeoSet = (geoSetId: string) => {
         const geoSet = geoSets.find(gs => gs.id === geoSetId);
         if (!geoSet) return;
-
-        const currentState = getGeoSetCheckboxState(geoSetId);
-
-        if (currentState === 'checked') {
-            // If all are checked, uncheck all
-            setEnabledGeoSets(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(geoSetId);
-                return newSet;
-            });
-            setEnabledGeometries(prev => {
-                const newSet = new Set(prev);
-                geoSet.geometries.forEach(g => newSet.delete(g.id));
-                return newSet;
-            });
-        } else {
-            // If none or some are checked, check all
-            setEnabledGeoSets(prev => new Set(prev).add(geoSetId));
-            setEnabledGeometries(prev => {
-                const newSet = new Set(prev);
-                geoSet.geometries.forEach(g => newSet.add(g.id));
-                return newSet;
-            });
-        }
+        const enable = getGeoSetCheckboxState(geoSetId) !== 'checked';
+        setEnabledGeoSets(prev => {
+            const next = new Set(prev);
+            if (enable) next.add(geoSetId); else next.delete(geoSetId);
+            return next;
+        });
+        setEnabledGeometries(prev => {
+            const next = new Set(prev);
+            geoSet.geometries.forEach(g => { if (enable) next.add(g.id); else next.delete(g.id); });
+            return next;
+        });
     };
 
     const toggleGeometry = (geometryId: string) => {
         const parentGeoSet = geoSets.find(gs => gs.geometries.some(g => g.id === geometryId));
-
-        let newEnabledGeometries: Set<string> | undefined;
-        setEnabledGeometries(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(geometryId)) {
-                newSet.delete(geometryId);
-            } else {
-                newSet.add(geometryId);
-            }
-            newEnabledGeometries = newSet;
-            return newSet;
-        });
-
-        if (parentGeoSet && newEnabledGeometries) {
-            setEnabledGeoSets(prevGeoSets => {
-                const newGeoSets = new Set(prevGeoSets);
-                const enabledCount = parentGeoSet.geometries.filter(g => (newEnabledGeometries as Set<string>).has(g.id)).length;
-                
-                if (enabledCount > 0) {
-                    newGeoSets.add(parentGeoSet.id);
-                } else {
-                    newGeoSets.delete(parentGeoSet.id);
-                }
-                return newGeoSets;
-            });
-        }
-    };
-
-    // Shared helper: ensure a renderable geoset is visible, then zoom to its geometries
-    const ensureGeoSetVisibleAndZoom = (geoSet: GeoSetData) => {
-        // Make the geoset visible if it's currently hidden and has renderable geometries
-        if (geoSet.geometries.some(g => ('geojson' in g && g.geojson) || g.type === 'derived')) {
-            if (getGeoSetCheckboxState(geoSet.id) === 'unchecked') {
-                toggleGeoSet(geoSet.id);
-            }
-        }
-
-        const allGeometries = geoSet.geometries
-            .map(g => findGeometryGeoJSON(g.id))
-            .filter((g): g is GeoJSON.Geometry => g !== null);
-
-        if (allGeometries.length > 0) {
-            setZoomGeometry({
-                type: 'GeometryCollection',
-                geometries: allGeometries
-            });
-        }
-    };
-
-    const openDetailFromId = useCallback((id: string) => {
-        // Don't override search-location detail
-        if (isInSearchLocationMode.current) return;
-
-        // An entity the UI opened has already zoomed (or chose not to); only a URL-driven open zooms here.
-        const openedByUi = uiOpenedEntityRef.current === id;
-        uiOpenedEntityRef.current = null;
-
-        // Check if it's a geoset
-        const geoSet = geoSets.find(gs => gs.id === id);
-        if (geoSet) {
-            setDetailType('geoset');
-            setDetailId(id);
-            if (!openedByUi) {
-                ensureGeoSetVisibleAndZoom(geoSet);
-                captureConsultationEntityOpened({
-                    consultation_id: consultationId, city_id: cityId,
-                    entity_type: 'geoset', entity_id: id, geoset_id: id, source: 'url'
-                });
-            }
-            return;
-        }
-
-        // Check if it's a geometry
-        const parentGeoSet = geoSets.find(gs => gs.geometries.some(g => g.id === id));
+        const next = new Set(enabledGeometries);
+        if (next.has(geometryId)) next.delete(geometryId); else next.add(geometryId);
+        setEnabledGeometries(next);
         if (parentGeoSet) {
-            setDetailType('geometry');
-            setDetailId(id);
-
-            if (!openedByUi) {
-                const geoJSON = findGeometryGeoJSON(id);
-                if (geoJSON) setZoomGeometry(geoJSON);
-                captureConsultationEntityOpened({
-                    consultation_id: consultationId, city_id: cityId,
-                    entity_type: 'geometry', entity_id: id, geoset_id: parentGeoSet.id, source: 'url'
-                });
-            }
-            return;
+            setEnabledGeoSets(prev => {
+                const geoSetsNext = new Set(prev);
+                if (parentGeoSet.geometries.some(g => next.has(g.id))) geoSetsNext.add(parentGeoSet.id);
+                else geoSetsNext.delete(parentGeoSet.id);
+                return geoSetsNext;
+            });
         }
-
-        // If not found, close detail
-        closeDetail();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [geoSets, closeDetail, findGeometryGeoJSON]);
-
-    useEffect(() => {
-        if (typeof window === "undefined") {
-            return;
-        }
-
-        const urlState = resolveConsultationUrlState({
-            pathname: getLivePathname(),
-            defaultView: "map",
-            regulationData,
-            searchParams,
-            liveSearch: window.location.search,
-            liveHash: window.location.hash,
-        });
-
-        if (urlState.needsCanonicalUrl) {
-            const currentUrl = `${stripLocalePrefix(window.location.pathname)}${window.location.search}`;
-            if (currentUrl !== urlState.canonicalUrl) {
-                router.replace(urlState.canonicalUrl, { scroll: false });
-            }
-        }
-
-        if (urlState.view !== "map") {
-            return;
-        }
-
-        if (urlState.entityId) {
-            openDetailFromId(urlState.entityId);
-        } else if (!isInSearchLocationMode.current) {
-            closeDetail(false);
-        }
-    }, [closeDetail, getLivePathname, openDetailFromId, regulationData, router, searchParams]);
+    };
 
     const toggleGeoSetExpansion = (geoSetId: string) => {
         setExpandedGeoSets(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(geoSetId)) {
-                newSet.delete(geoSetId);
-            } else {
-                newSet.add(geoSetId);
-            }
-            return newSet;
+            const next = new Set(prev);
+            if (next.has(geoSetId)) next.delete(geoSetId); else next.add(geoSetId);
+            return next;
         });
     };
 
-    // Function to handle geometry selection for editing with auto-zoom
     const handleSelectGeometryForEdit = (geometryId: string | null) => {
         setSelectedGeometryForEdit(geometryId);
-
         if (geometryId) {
-            const geoJSON = findGeometryGeoJSON(geometryId);
-            if (geoJSON) {
-                setZoomGeometry(geoJSON);
-            }
+            const geoJSON = findGeoJSON(geometryId);
+            if (geoJSON) setZoomGeometry(geoJSON);
         }
     };
 
-    // State for geometry to zoom to
-    const [zoomGeometry, setZoomGeometry] = useState<GeoJSON.Geometry | null>(null);
-    const [hasInitialFit, setHasInitialFit] = useState(false);
-
-    // City data state
-    const [cityData, setCityData] = useState<any>(null);
-
-    // Fetch city data when cityId changes
-    useEffect(() => {
-        if (cityId) {
-            fetch(`/api/cities/${cityId}`)
-                .then(res => res.json())
-                .then(data => {
-                    setCityData(data); // Store complete city data including geometry
-                })
-                .catch(error => {
-                    console.error('Error fetching city data:', error);
-                });
-        }
-    }, [cityId]);
-
-    // Handle navigation to location (for location search)
-    const handleNavigateToLocation = (coordinates: [number, number]) => {
-        const pointGeometry: GeoJSON.Geometry = {
-            type: 'Point',
-            coordinates: coordinates
-        };
-        setZoomGeometry(pointGeometry);
-    };
-
-    // Handle selected locations change from LocationNavigator
     const handleSelectedLocationsChange = useCallback((locations: Location[]) => {
         setSelectedLocations(locations);
     }, []);
 
-    // Apply a searched location's coordinates as the current geometry's point
-    const handleApplyLocationToGeometry = useCallback((coordinates: [number, number]) => {
+    const writeSavedGeometries = (next: Record<string, GeoJSON.Geometry>) => {
+        localStorage.setItem(SAVED_GEOMETRIES_KEY, JSON.stringify(next));
+        setSavedGeometries({ ...next });
+        window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
+    };
+
+    const handleApplyLocationToGeometry = (coordinates: [number, number]) => {
         if (!selectedGeometryForEdit) return;
         try {
-            const saved = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
-            saved[selectedGeometryForEdit] = {
-                type: 'Point',
-                coordinates: coordinates
-            };
-            localStorage.setItem('opencouncil-edited-geometries', JSON.stringify(saved));
-            setSavedGeometries({ ...saved });
-            window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
+            const saved = JSON.parse(localStorage.getItem(SAVED_GEOMETRIES_KEY) || '{}');
+            saved[selectedGeometryForEdit] = { type: 'Point', coordinates };
+            writeSavedGeometries(saved);
         } catch (error) {
             console.error('Error applying location to geometry:', error);
         }
-    }, [selectedGeometryForEdit]);
+    };
 
-    // Function to handle deleting saved geometry
     const handleDeleteSavedGeometry = (geometryId: string) => {
         try {
-            const savedGeometries = JSON.parse(localStorage.getItem('opencouncil-edited-geometries') || '{}');
-            delete savedGeometries[geometryId];
-            localStorage.setItem('opencouncil-edited-geometries', JSON.stringify(savedGeometries));
-            
-            // IMMEDIATELY update local state to reflect the change
-            setSavedGeometries(savedGeometries);
-            
-            // Dispatch custom event to notify components of localStorage change
-            window.dispatchEvent(new CustomEvent('opencouncil-storage-change'));
-            
-            // If the deleted geometry was selected for editing, deselect it
-            if (selectedGeometryForEdit === geometryId) {
-                setSelectedGeometryForEdit(null);
-            }
+            const saved = JSON.parse(localStorage.getItem(SAVED_GEOMETRIES_KEY) || '{}');
+            delete saved[geometryId];
+            writeSavedGeometries(saved);
+            if (selectedGeometryForEdit === geometryId) setSelectedGeometryForEdit(null);
         } catch (error) {
             console.error('Error deleting saved geometry:', error);
         }
     };
 
-    // Fit map to all features on initial load (unless a hash navigation already set a zoom target)
-    useEffect(() => {
-        if (hasInitialFit || zoomGeometry) return;
-        if (mapFeatures.length === 0) return;
+    // One filter chip per labelled geoset; it also shows and hides the unlabelled geosets of its
+    // colour (the dedicated ΑΜΕΑ spots go with "ΑΜΕΑ"). Unlabelled geosets of another colour, such
+    // as the zones, always stay on. A regulation without labels gets a chip per geoset, by name.
+    const geoSetColor = (gs: GeoSetData) => gs.color || GEOSET_COLORS[geoSets.indexOf(gs) % GEOSET_COLORS.length];
+    const labelled = geoSets.filter(gs => gs.legend);
+    const filters = labelled.length > 0
+        ? labelled.map(gs => ({
+            id: gs.id,
+            label: gs.legend ?? gs.name,
+            color: geoSetColor(gs),
+            members: [gs.id, ...geoSets.filter(other => !other.legend && other.color === gs.color).map(other => other.id)],
+        }))
+        : geoSets.filter(gs => gs.geometries.length > 0).map(gs => ({ id: gs.id, label: gs.name, color: geoSetColor(gs), members: [gs.id] }));
 
-        const geometries = mapFeatures.map(f => f.geometry);
-        const collection: GeoJSON.GeometryCollection = {
-            type: 'GeometryCollection',
-            geometries
-        };
-        setZoomGeometry(collection);
-        setHasInitialFit(true);
-    }, [mapFeatures, hasInitialFit, zoomGeometry]);
-
-    const zoomToGeometry = zoomGeometry;
-
-    // On mobile, offset zoom target upward to account for bottom sheet covering ~40% of screen.
-    // Memoised: Map re-fits whenever this object's identity changes.
-    const anyDrawerOpen = isControlsOpen || detailType !== null;
-    const mapZoomPadding = useMemo(
-        () => isMobile && anyDrawerOpen
-            ? { top: 60, bottom: Math.round(window.innerHeight * 0.35), left: 40, right: 40 }
-            : 100,
-        [isMobile, anyDrawerOpen]
-    );
+    const toggleFilter = (members: string[]) => {
+        const show = !members.every(id => enabledGeoSets.has(id));
+        const memberGeoSets = geoSets.filter(gs => members.includes(gs.id));
+        setEnabledGeoSets(prev => {
+            const next = new Set(prev);
+            members.forEach(id => { if (show) next.add(id); else next.delete(id); });
+            return next;
+        });
+        setEnabledGeometries(prev => {
+            const next = new Set(prev);
+            memberGeoSets.forEach(gs => gs.geometries.forEach(g => { if (show) next.add(g.id); else next.delete(g.id); }));
+            return next;
+        });
+    };
 
     return (
         <div className={cn("relative", className)}>
-            {/* Map */}
             <Map
                 center={[23.7275, 37.9755]} // Athens fallback
                 zoom={12}
+                pitch={0}
                 animateRotation={false}
                 features={mapFeatures}
                 onFeatureClick={onMapFeatureClick}
@@ -891,11 +461,92 @@ export default function ConsultationMap({
                 showStreetLabels={true}
                 drawingMode={drawingMode}
                 selectedGeometryForEdit={selectedGeometryForEdit}
-                zoomToGeometry={zoomToGeometry}
-                zoomPadding={mapZoomPadding}
+                zoomToGeometry={zoomGeometry}
+                zoomPadding={zoomPadding}
             />
 
-            {/* Editing Tools Panel */}
+            {!isEditingMode && (
+                // Spans the map's width; only its controls take clicks, so the map stays clickable around them.
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2 pt-3">
+                    <div className="flex items-center gap-2 px-3 [&>*]:pointer-events-auto">
+                        {leading}
+                        {onAddress && (cityData ? (
+                            <AddressSearchBar city={cityData} address={address} onAddress={onAddress} />
+                        ) : (
+                            <div className="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-full bg-white px-4 text-base text-stone-500 shadow-md">
+                                <Search className="h-5 w-5 shrink-0" aria-hidden="true" />
+                                Βρείτε τον δρόμο σας
+                            </div>
+                        ))}
+                        {currentUser?.isSuperAdmin && (
+                            <button
+                                type="button"
+                                onClick={() => setIsEditingMode(true)}
+                                aria-label="Επεξεργασία γεωμετριών"
+                                title="Επεξεργασία γεωμετριών"
+                                className="ml-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-stone-700 shadow-md"
+                            >
+                                <Pencil className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                        )}
+                    </div>
+                    {filters.length > 0 && (
+                        <ul className="flex gap-2 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Τι δείχνει ο χάρτης">
+                            {filters.map(filter => {
+                                const on = filter.members.every(id => enabledGeoSets.has(id));
+                                return (
+                                    <li key={filter.id} className="pointer-events-auto min-w-fit flex-1">
+                                        <button
+                                            type="button"
+                                            aria-pressed={on}
+                                            onClick={() => toggleFilter(filter.members)}
+                                            title={on ? `Απόκρυψη: ${filter.label}` : `Εμφάνιση: ${filter.label}`}
+                                            className={cn(
+                                                "inline-flex h-9 w-full items-center justify-center gap-2 whitespace-nowrap rounded-full px-3.5 text-sm font-semibold shadow-sm transition-colors",
+                                                on ? "bg-white text-stone-900" : "bg-white/70 text-stone-500 line-through decoration-stone-400"
+                                            )}
+                                        >
+                                            <span
+                                                className="h-3 w-3 rounded-full border-2"
+                                                style={{ backgroundColor: on ? filter.color : 'transparent', borderColor: filter.color }}
+                                                aria-hidden="true"
+                                            />
+                                            {filter.label}
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    )}
+                </div>
+            )}
+
+            {isEditingMode && (
+                <LayerControlsPanel
+                    geoSets={geoSets}
+                    colors={GEOSET_COLORS}
+                    enabledGeometries={enabledGeometries}
+                    expandedGeoSets={expandedGeoSets}
+                    activeCount={mapFeatures.length}
+                    onClose={() => {
+                        setIsEditingMode(false);
+                        setSelectedGeometryForEdit(null);
+                        setSelectedLocations([]);
+                    }}
+                    onToggleGeoSet={toggleGeoSet}
+                    onToggleExpansion={toggleGeoSetExpansion}
+                    onToggleGeometry={toggleGeometry}
+                    getGeoSetCheckboxState={getGeoSetCheckboxState}
+                    onOpenGeoSetDetail={onSelect}
+                    onOpenGeometryDetail={onSelect}
+                    selectedGeometryForEdit={selectedGeometryForEdit}
+                    savedGeometries={savedGeometries}
+                    regulationData={regulationData}
+                    onSelectGeometryForEdit={handleSelectGeometryForEdit}
+                    onDeleteSavedGeometry={handleDeleteSavedGeometry}
+                />
+            )}
+
             {isEditingMode && selectedGeometryForEdit && (
                 <EditingToolsPanel
                     selectedGeometryForEdit={selectedGeometryForEdit}
@@ -903,169 +554,14 @@ export default function ConsultationMap({
                     drawingMode={drawingMode}
                     cityData={cityData}
                     onSetDrawingMode={setDrawingMode}
-                    onNavigateToLocation={handleNavigateToLocation}
+                    onNavigateToLocation={(coordinates) => setZoomGeometry({ type: 'Point', coordinates })}
                     onSelectedLocationsChange={handleSelectedLocationsChange}
                     onApplyLocationToGeometry={handleApplyLocationToGeometry}
                     onClose={() => handleSelectGeometryForEdit(null)}
                 />
             )}
 
-            {/* Layer Controls Toggle Button */}
-            {geoSets.length > 0 && (
-                <LayerControlsButton
-                    isOpen={isControlsOpen}
-                    activeCount={mapFeatures.length}
-                    onToggle={() => setIsControlsOpen(!isControlsOpen)}
-                />
-            )}
-
-            {/* Layer Controls Panel */}
-            {isMobile && geoSets.length > 0 ? (
-                <Drawer
-                    open={isControlsOpen}
-                    onOpenChange={setIsControlsOpen}
-                    modal={false}
-                    shouldScaleBackground={false}
-                >
-                    <DrawerContent hideOverlay className="max-h-[45vh] flex flex-col">
-                        <DrawerTitle className="sr-only">Επιλέξτε Περιοχή</DrawerTitle>
-                        <DrawerDescription className="sr-only">Επίπεδα χάρτη</DrawerDescription>
-                        <LayerControlsPanel
-                            variant="mobile"
-                            geoSets={geoSets}
-                            colors={GEOSET_COLORS}
-                            enabledGeometries={enabledGeometries}
-                            expandedGeoSets={expandedGeoSets}
-                            activeCount={mapFeatures.length}
-                            onClose={() => setIsControlsOpen(false)}
-                            onToggleGeoSet={toggleGeoSet}
-                            onToggleExpansion={toggleGeoSetExpansion}
-                            onToggleGeometry={toggleGeometry}
-                            getGeoSetCheckboxState={getGeoSetCheckboxState}
-                            onOpenGeoSetDetail={openGeoSetDetail}
-                            onOpenGeometryDetail={openGeometryDetail}
-                            contactEmail={regulationData?.contactEmail}
-                            comments={comments}
-                            consultationId={consultationId}
-                            cityId={cityId}
-                            currentUser={currentUser}
-                            isEditingMode={isEditingMode}
-                            selectedGeometryForEdit={selectedGeometryForEdit}
-                            savedGeometries={savedGeometries}
-                            regulationData={regulationData}
-                            onToggleEditingMode={(enabled: boolean) => {
-                                setIsEditingMode(enabled);
-                                if (!enabled) {
-                                    setSelectedGeometryForEdit(null);
-                                    setSelectedLocations([]);
-                                }
-                            }}
-                            onSelectGeometryForEdit={handleSelectGeometryForEdit}
-                            onDeleteSavedGeometry={handleDeleteSavedGeometry}
-                            cityData={cityData}
-                            searchLocations={searchLocations}
-                            onNavigateToSearchLocation={(location, index) => {
-                                openSearchLocationDetail(location, index);
-                                const pointGeometry: GeoJSON.Geometry = {
-                                    type: 'Point',
-                                    coordinates: location.coordinates
-                                };
-                                setZoomGeometry(pointGeometry);
-                            }}
-                            onSearchLocation={handleSearchLocation}
-                            searchFocusRequest={addressSearchRequest}
-                            onRemoveSearchLocation={(index) => {
-                                setSearchLocations(prev => prev.filter((_, i) => i !== index));
-                                if (selectedSearchLocationIndex === index) {
-                                    closeDetail();
-                                } else if (selectedSearchLocationIndex !== null && selectedSearchLocationIndex > index) {
-                                    setSelectedSearchLocationIndex(selectedSearchLocationIndex - 1);
-                                }
-                            }}
-                            onShowInfo={onShowInfo}
-                        />
-                    </DrawerContent>
-                </Drawer>
-            ) : isControlsOpen && geoSets.length > 0 && (
-                <LayerControlsPanel
-                    geoSets={geoSets}
-                    colors={GEOSET_COLORS}
-                    enabledGeometries={enabledGeometries}
-                    expandedGeoSets={expandedGeoSets}
-                    activeCount={mapFeatures.length}
-                    onClose={() => setIsControlsOpen(false)}
-                    onToggleGeoSet={toggleGeoSet}
-                    onToggleExpansion={toggleGeoSetExpansion}
-                    onToggleGeometry={toggleGeometry}
-                    getGeoSetCheckboxState={getGeoSetCheckboxState}
-                    onOpenGeoSetDetail={openGeoSetDetail}
-                    onOpenGeometryDetail={openGeometryDetail}
-                    contactEmail={regulationData?.contactEmail}
-                    comments={comments}
-                    consultationId={consultationId}
-                    cityId={cityId}
-                    currentUser={currentUser}
-                    isEditingMode={isEditingMode}
-                    selectedGeometryForEdit={selectedGeometryForEdit}
-                    savedGeometries={savedGeometries}
-                    regulationData={regulationData}
-                    onToggleEditingMode={(enabled: boolean) => {
-                        setIsEditingMode(enabled);
-                        if (!enabled) {
-                            setSelectedGeometryForEdit(null);
-                            setSelectedLocations([]);
-                        }
-                    }}
-                    onSelectGeometryForEdit={handleSelectGeometryForEdit}
-                    onDeleteSavedGeometry={handleDeleteSavedGeometry}
-                    cityData={cityData}
-                    searchLocations={searchLocations}
-                    onNavigateToSearchLocation={(location, index) => {
-                        openSearchLocationDetail(location, index);
-                        const pointGeometry: GeoJSON.Geometry = {
-                            type: 'Point',
-                            coordinates: location.coordinates
-                        };
-                        setZoomGeometry(pointGeometry);
-                    }}
-                    onSearchLocation={handleSearchLocation}
-                    searchFocusRequest={addressSearchRequest}
-                    onRemoveSearchLocation={(index) => {
-                        setSearchLocations(prev => prev.filter((_, i) => i !== index));
-                        if (selectedSearchLocationIndex === index) {
-                            closeDetail();
-                        } else if (selectedSearchLocationIndex !== null && selectedSearchLocationIndex > index) {
-                            setSelectedSearchLocationIndex(selectedSearchLocationIndex - 1);
-                        }
-                    }}
-                    onShowInfo={onShowInfo}
-                />
-            )}
-
-            {/* Detail Panel */}
-            <DetailPanel
-                isOpen={detailType !== null}
-                onClose={closeDetail}
-                detailType={detailType}
-                detailId={detailId}
-                geoSets={geoSets}
-                baseUrl={baseUrl}
-                referenceFormat={referenceFormat}
-                onReferenceClick={onReferenceClick}
-                regulationData={regulationData || undefined}
-                onOpenGeometryDetail={openGeometryDetail}
-                onOpenGeoSetDetail={openGeoSetDetail}
-                comments={comments}
-                currentUser={currentUser}
-                consultationId={consultationId}
-                cityId={cityId}
-                isEditingMode={isEditingMode}
-                selectedGeometryForEdit={selectedGeometryForEdit}
-                savedGeometries={savedGeometries}
-                searchLocation={activeSearchLocation || undefined}
-                addressLookup={addressLookup}
-                consultationIsActive={consultationIsActive}
-            />
+            {!isEditingMode && children}
         </div>
     );
-} 
+}

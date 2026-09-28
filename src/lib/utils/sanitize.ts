@@ -1,4 +1,5 @@
 import sanitizeHtml from 'sanitize-html';
+import { normalizeNonBreakingSpaces } from './commentText';
 
 /**
  * Sanitize HTML content for safe rendering in consultation comments.
@@ -23,4 +24,9 @@ export function getSafeHtmlContent(html: string): string {
             })
         }
     });
+}
+
+/** A stored consultation comment as safe HTML to render, with the old editor's spacing repaired. */
+export function getSafeCommentHtml(body: string): string {
+    return normalizeNonBreakingSpaces(getSafeHtmlContent(body));
 }

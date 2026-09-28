@@ -16,3 +16,11 @@ export function plainTextToCommentHtml(text: string): string {
         .filter((lines) => lines.length > 0);
     return paragraphs.map((lines) => `<p>${lines.map(escapeHtml).join('<br>')}</p>`).join('');
 }
+
+/**
+ * Comments written in the old rich-text editor put a non-breaking space between every word, so a
+ * line never wrapped. This turns them into normal spaces.
+ */
+export function normalizeNonBreakingSpaces(html: string): string {
+    return html.replace(/&nbsp;|\u00a0/g, ' ');
+}
