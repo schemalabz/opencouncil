@@ -2,10 +2,18 @@ import { Consultation, User, ConsultationComment, ConsultationCommentEntityType,
 import { Session } from 'next-auth';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
-import { sendConsultationCommentEmail } from "../email/consultation";
-import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
-import { RegulationData } from "@/components/consultations/types";
+import { sendMagicLink } from "@/lib/auth/magicLink";
+import { plainTextToCommentHtml } from "@/lib/utils/commentText";
+import {
+    COMMENT_MAX_LENGTH,
+    createPendingConsultationComment,
+    fetchRegulationData,
+    publishConsultationComment,
+    regulationHasEntity,
+} from "./consultationComments";
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+
+export { fetchRegulationData };
 
 // Re-export the enum for use in other files
 export { ConsultationCommentEntityType };
@@ -251,131 +259,6 @@ export async function getAllConsultationsForCity(cityId: string): Promise<Consul
     });
 }
 
-// Helper function to validate that an entity exists in the regulation data
-async function validateEntityExists(
-    regulationData: RegulationData,
-    entityType: ConsultationCommentEntityType,
-    entityId: string
-): Promise<boolean> {
-    if (!regulationData?.regulation) {
-        return false;
-    }
-
-    switch (entityType) {
-        case ConsultationCommentEntityType.CHAPTER:
-            return regulationData.regulation
-                .filter(item => item.type === 'chapter')
-                .some(chapter => chapter.id === entityId);
-
-        case ConsultationCommentEntityType.ARTICLE:
-            return regulationData.regulation
-                .filter(item => item.type === 'chapter')
-                .some(chapter =>
-                    chapter.articles?.some(article => article.id === entityId)
-                );
-
-        case ConsultationCommentEntityType.GEOSET:
-            return regulationData.regulation
-                .filter(item => item.type === 'geoset')
-                .some(geoset => geoset.id === entityId);
-
-        case ConsultationCommentEntityType.GEOMETRY:
-            return regulationData.regulation
-                .filter(item => item.type === 'geoset')
-                .some(geoset =>
-                    geoset.geometries?.some(geometry => geometry.id === entityId)
-                );
-
-        default:
-            return false;
-    }
-}
-
-// Fetch regulation data from URL (exported for use in page components)
-export async function fetchRegulationData(jsonUrl: string): Promise<RegulationData | null> {
-    try {
-        // Resolve relative URLs (e.g. /regulation.json) against the app's base URL
-        const { env } = await import('@/env.mjs');
-        const url = jsonUrl.startsWith('http') ? jsonUrl : `${env.NEXTAUTH_URL}${jsonUrl}`;
-        const response = await fetch(url, { cache: 'no-store' });
-
-        if (!response.ok) {
-            console.error(`Failed to fetch regulation data: ${response.status}`);
-            return null;
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error('Error fetching regulation data:', error);
-        return null;
-    }
-}
-
-// Helper function to get entity details for email
-function getEntityDetailsForEmail(
-    regulationData: RegulationData,
-    entityType: ConsultationCommentEntityType,
-    entityId: string
-): { entityTitle: string; entityNumber?: string; entityTypeForEmail: 'chapter' | 'article' | 'geoset' | 'geometry'; parentGeosetName?: string } | null {
-    if (!regulationData?.regulation) {
-        return null;
-    }
-
-    switch (entityType) {
-        case ConsultationCommentEntityType.CHAPTER: {
-            const chapter = regulationData.regulation
-                .filter(item => item.type === 'chapter')
-                .find(chapter => chapter.id === entityId);
-            return chapter ? {
-                entityTitle: chapter.title || 'Unnamed Chapter',
-                entityNumber: chapter.num?.toString(),
-                entityTypeForEmail: 'chapter'
-            } : null;
-        }
-
-        case ConsultationCommentEntityType.ARTICLE: {
-            for (const chapter of regulationData.regulation.filter(item => item.type === 'chapter')) {
-                const article = chapter.articles?.find(article => article.id === entityId);
-                if (article) {
-                    return {
-                        entityTitle: article.title || 'Unnamed Article',
-                        entityNumber: article.num?.toString(),
-                        entityTypeForEmail: 'article'
-                    };
-                }
-            }
-            return null;
-        }
-
-        case ConsultationCommentEntityType.GEOSET: {
-            const geoset = regulationData.regulation
-                .filter(item => item.type === 'geoset')
-                .find(geoset => geoset.id === entityId);
-            return geoset ? {
-                entityTitle: geoset.name || 'Unnamed Area Set',
-                entityTypeForEmail: 'geoset'
-            } : null;
-        }
-
-        case ConsultationCommentEntityType.GEOMETRY: {
-            for (const geoset of regulationData.regulation.filter(item => item.type === 'geoset')) {
-                const geometry = geoset.geometries?.find(geometry => geometry.id === entityId);
-                if (geometry) {
-                    return {
-                        entityTitle: geometry.name || 'Unnamed Area',
-                        entityTypeForEmail: 'geometry',
-                        parentGeosetName: geoset.name || 'Unnamed Geoset'
-                    };
-                }
-            }
-            return null;
-        }
-
-        default:
-            return null;
-    }
-}
-
 // Get all comments for a consultation with upvote information
 export async function getConsultationComments(
     consultationId: string,
@@ -460,108 +343,103 @@ export async function getCommentsForEntity(
 }
 
 // Add a new comment (with server-side validation and auth)
+/** Checks a comment against its consultation and regulation, and renders its plain text. */
+async function prepareComment(consultationId: string, cityId: string, entityType: ConsultationCommentEntityType, entityId: string, text: string) {
+    const consultation = await getConsultationById(cityId, consultationId);
+    if (!consultation) {
+        throw new Error('Consultation not found');
+    }
+    if (!consultation.isActiveComputed) {
+        throw new Error('This consultation is no longer accepting comments');
+    }
+
+    const regulationData = await fetchRegulationData(consultation.jsonUrl);
+    if (!regulationData) {
+        throw new Error('Could not fetch regulation data');
+    }
+    if (!regulationHasEntity(regulationData, entityType, entityId)) {
+        throw new Error(`Entity ${entityType}:${entityId} not found in regulation`);
+    }
+
+    if (!text.trim()) {
+        throw new Error('Comment body cannot be empty');
+    }
+    if (text.length > COMMENT_MAX_LENGTH) {
+        throw new Error(`Comment body too long (max ${COMMENT_MAX_LENGTH} characters)`);
+    }
+
+    return { consultation, regulationData, bodyHtml: plainTextToCommentHtml(text) };
+}
+
+/** A signed-in reader's comment: published at once. `text` is plain text. */
 export async function addConsultationComment(
     consultationId: string,
     cityId: string,
     session: Session | null,
     entityType: ConsultationCommentEntityType,
     entityId: string,
-    body: string
+    text: string
 ): Promise<ConsultationComment | null> {
-    // Check authentication
     if (!session?.user?.id) {
         throw new Error('Authentication required');
     }
+    const { consultation, regulationData, bodyHtml } = await prepareComment(consultationId, cityId, entityType, entityId, text);
+    return publishConsultationComment({
+        consultation,
+        regulationData,
+        userId: session.user.id,
+        entityType,
+        entityId,
+        bodyHtml,
+        notify: true
+    });
+}
 
-    // First, get the consultation to access the regulation data
-    const consultation = await getConsultationById(cityId, consultationId);
-    if (!consultation) {
-        throw new Error('Consultation not found');
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NAME_MAX_LENGTH = 100;
+
+/**
+ * A comment from a reader who is not signed in. It waits, hidden, until they open the magic link
+ * sent to `email`; the sign-in then publishes it (publishPendingConsultationComments). The account
+ * is found or created by email, the way the notifications signup does it; the typed name goes on
+ * the account only at publication. Returns whether the email went out.
+ */
+export async function submitPendingConsultationComment(data: {
+    consultationId: string;
+    cityId: string;
+    entityType: ConsultationCommentEntityType;
+    entityId: string;
+    text: string;
+    name: string;
+    email: string;
+}): Promise<{ emailSent: boolean }> {
+    const email = data.email.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(email)) {
+        throw new Error('A valid email is required');
+    }
+    const name = data.name.trim();
+    if (name.length > NAME_MAX_LENGTH) {
+        throw new Error(`Name too long (max ${NAME_MAX_LENGTH} characters)`);
     }
 
-    // Check if consultation is active (both flag and date)
-    if (!consultation.isActiveComputed) {
-        throw new Error('This consultation is no longer accepting comments');
-    }
+    const { consultation, bodyHtml } = await prepareComment(data.consultationId, data.cityId, data.entityType, data.entityId, data.text);
 
-    // Fetch and validate the regulation data
-    const regulationData = await fetchRegulationData(consultation.jsonUrl);
-    if (!regulationData) {
-        throw new Error('Could not fetch regulation data');
-    }
+    // An upsert, so two submissions at once for a new address create one account, not an error.
+    const user = await prisma.user.upsert({ where: { email }, update: {}, create: { email }, select: { id: true } });
 
-    // console.log('Regulation data structure:', JSON.stringify(regulationData, null, 2));
-    // console.log('Validating entity:', entityType, entityId);
-
-    // Validate that the entity exists in the regulation
-    const entityExists = await validateEntityExists(regulationData, entityType, entityId);
-    if (!entityExists) {
-        throw new Error(`Entity ${entityType}:${entityId} not found in regulation`);
-    }
-
-    // Validate body content
-    if (!body.trim()) {
-        throw new Error('Comment body cannot be empty');
-    }
-
-    if (body.length > 5000) {
-        throw new Error('Comment body too long (max 5000 characters)');
-    }
-
-    // Get user details for the email
-    const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { name: true, email: true }
+    await createPendingConsultationComment({
+        userId: user.id,
+        consultationId: consultation.id,
+        cityId: consultation.cityId,
+        entityType: data.entityType,
+        entityId: data.entityId,
+        bodyHtml,
+        authorName: name || null
     });
 
-    if (!user?.email) {
-        throw new Error('User email not found');
-    }
-
-    // Create the comment
-    const comment = await prisma.consultationComment.create({
-        data: {
-            body: body.trim(),
-            entityType,
-            entityId,
-            userId: session.user.id,
-            consultationId,
-            cityId
-        }
-    });
-
-    // Only send email notification if consultation is still active
-    if (consultation.isActiveComputed) {
-        try {
-            // Get entity details for the email
-            const entityDetails = getEntityDetailsForEmail(regulationData, entityType, entityId);
-
-            if (entityDetails && regulationData.contactEmail) {
-                // The email is read outside the site, so the link must name the city's domain.
-                const consultationUrl = `${realmBaseUrl(consultation.city.realm)}/${consultation.cityId}/consultation/${consultationId}`;
-
-                await sendConsultationCommentEmail({
-                    userName: user.name || 'Unknown User',
-                    userEmail: user.email,
-                    consultationTitle: regulationData.title || 'Consultation',
-                    entityType: entityDetails.entityTypeForEmail,
-                    entityId: entityId,
-                    entityTitle: entityDetails.entityTitle,
-                    entityNumber: entityDetails.entityNumber,
-                    parentGeosetName: entityDetails.parentGeosetName,
-                    commentBody: body.trim(),
-                    consultationUrl,
-                    municipalityEmail: regulationData.contactEmail,
-                    ccEmails: regulationData.ccEmails
-                });
-            }
-        } catch (emailError) {
-            // Log email error but don't fail the comment creation
-            console.error('Failed to send comment notification email:', emailError);
-        }
-    }
-
-    return comment;
+    // `posted=1` tells the page to say the comment is live, and the auth email to ask for a confirmation rather than a sign-in.
+    const returnTo = `/${consultation.cityId}/consultation/${consultation.id}?view=comment&entity=${encodeURIComponent(data.entityId)}&posted=1`;
+    return { emailSent: await sendMagicLink(email, returnTo) };
 }
 
 // Toggle upvote on a comment (with auth)

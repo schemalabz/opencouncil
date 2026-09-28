@@ -1,9 +1,7 @@
 import "server-only";
 
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
-import { auth, signIn } from "@/auth";
-import { signInFailurePath } from "@/lib/auth/signInResult";
-import { safeRedirectPath } from "@/lib/safeRedirect";
+import { auth } from "@/auth";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
 import { classifyDeliveries, deliveriesWhereForStatus } from '@/lib/notifications/deliveryStatus';
 import { attachGeometryToCities } from "./cities";
@@ -19,6 +17,7 @@ import { sendWelcomeEmail } from "@/lib/notifications/welcome";
 import { setNotisSubscription } from "@/lib/notis/client";
 import { IS_DEV } from "@/lib/utils";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
+import { sendMagicLink } from "@/lib/auth/magicLink";
 
 // Type definitions for user preferences data
 export type PetitionWithRelations = Petition & {
@@ -69,38 +68,6 @@ async function requireSelfOrSuperadmin(userId: string): Promise<void> {
     const actor = await getCurrentUser();
     if (!actor || (actor.id !== userId && !actor.isSuperAdmin)) {
         throw new Error("Not authorized");
-    }
-}
-
-/**
- * Sends the magic link. `returnTo` is where it lands — the page the reader
- * was filling in, so an existing account costs them a tap rather than the
- * whole form. Anything that is not a same-origin relative path falls back to
- * the profile (safeRedirectPath), so the link can never carry a reader to
- * another origin.
- */
-async function sendMagicLink(email: string, returnTo?: string) {
-    try {
-        // Use the existing signIn function with the resend provider
-        // This will create the user if they don't exist and send a magic link.
-        // redirect: false — with the default, Auth.js throws NEXT_REDIRECT on
-        // success, so every sent magic link landed in the catch below and was
-        // logged as a failure.
-        const url: string = await signIn("resend", {
-            email,
-            ...(returnTo ? { redirectTo: safeRedirectPath(returnTo) } : {}),
-            redirect: false,
-        });
-        const failurePath = signInFailurePath(url);
-        if (failurePath) {
-            console.error(`Magic link not sent to ${email} (redirected to ${failurePath})`);
-            return false;
-        }
-        console.log(`Magic link sent to ${email}`);
-        return true;
-    } catch (error) {
-        console.error('Error sending magic link:', error);
-        return false;
     }
 }
 
