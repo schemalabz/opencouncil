@@ -2,7 +2,8 @@ import { Metadata } from "next";
 import { getCityCached } from "@/lib/cache";
 import { getConsultationById, getConsultationComments, fetchRegulationData } from "@/lib/db/consultations";
 import { notFound } from "next/navigation";
-import { RegulationData } from "@/components/consultations/types";
+import { GeoSetData, RegulationData } from "@/components/consultations/types";
+import { describeEntity, entityLabel, extractGeoSets } from "@/components/consultations/entityDisplay";
 import { auth } from "@/auth";
 import { formatDate } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
@@ -181,79 +182,10 @@ function orderCommentsByDocumentStructure(
     return { documentComments, locationComments };
 }
 
-// Helper function to get entity details for display
-function getEntityDetails(entityType: string, entityId: string, regulationData: RegulationData) {
-    switch (entityType) {
-        case 'CHAPTER': {
-            const chapter = regulationData.regulation
-                .filter(item => item.type === 'chapter')
-                .find(chapter => chapter.id === entityId);
-
-            return {
-                label: 'Στο κεφάλαιο',
-                title: chapter?.title || 'Άγνωστο κεφάλαιο',
-                number: chapter?.num,
-                parentContext: null
-            };
-        }
-        case 'ARTICLE': {
-            for (const chapter of regulationData.regulation.filter(item => item.type === 'chapter')) {
-                const article = chapter.articles?.find(article => article.id === entityId);
-                if (article) {
-                    return {
-                        label: 'Στο άρθρο',
-                        title: article.title,
-                        number: article.num,
-                        parentContext: `του κεφαλαίου ${chapter.num}`
-                    };
-                }
-            }
-            return {
-                label: 'Στο άρθρο',
-                title: 'Άγνωστο άρθρο',
-                number: null,
-                parentContext: null
-            };
-        }
-        case 'GEOSET': {
-            const geoset = regulationData.regulation
-                .filter(item => item.type === 'geoset')
-                .find(geoset => geoset.id === entityId);
-
-            return {
-                label: 'Στο γεωγραφικό σύνολο',
-                title: geoset?.name || 'Άγνωστο σύνολο περιοχών',
-                number: null,
-                parentContext: null
-            };
-        }
-        case 'GEOMETRY': {
-            for (const geoset of regulationData.regulation.filter(item => item.type === 'geoset')) {
-                const geometry = geoset.geometries?.find(geometry => geometry.id === entityId);
-                if (geometry) {
-                    return {
-                        label: 'Στην τοποθεσία',
-                        title: geometry.name,
-                        number: null,
-                        parentContext: `του γεωγραφικού συνόλου «${geoset.name}»`
-                    };
-                }
-            }
-            return {
-                label: 'Στην τοποθεσία',
-                title: 'Άγνωστη περιοχή',
-                number: null,
-                parentContext: null
-            };
-        }
-        default:
-            return {
-                label: 'Στο στοιχείο',
-                title: 'Άγνωστο στοιχείο',
-                number: null,
-                parentContext: null
-            };
-    }
+/** The place or section a comment is about, named as the consultation's screens and emails name it. */
+function commentPlace(entityId: string, regulationData: RegulationData, geoSets: GeoSetData[]): string {
+    const display = describeEntity(regulationData, geoSets, entityId);
+    return display ? entityLabel(display) : 'Στοιχείο που δεν υπάρχει πια στη διαβούλευση';
 }
 
 export default async function CommentsPage(props: PageProps) {
@@ -291,6 +223,7 @@ export default async function CommentsPage(props: PageProps) {
 
     // Order comments by document structure
     const { documentComments, locationComments } = orderCommentsByDocumentStructure(comments, regulationData);
+    const geoSets = extractGeoSets(regulationData);
 
     const currentDate = new Date();
     const consultationUrl = `/${params.cityId}/consultation/${params.id}`;
@@ -352,13 +285,10 @@ export default async function CommentsPage(props: PageProps) {
 
                         <div className="space-y-6">
                             {documentComments.map((comment, index) => {
-                                const entityDetails = getEntityDetails(comment.entityType, comment.entityId, regulationData);
-
                                 return (
                                     <div key={comment.id} className="border-l-4 border-blue-200 pl-4">
                                         <div className="text-sm font-medium text-gray-900 mb-2">
-                                            {entityDetails.label} {entityDetails.number ? `${entityDetails.number} ` : ''}«{entityDetails.title}»
-                                            {entityDetails.parentContext ? ` ${entityDetails.parentContext}` : ''},
+                                            «{commentPlace(comment.entityId, regulationData, geoSets)}»,
                                             ο χρήστης <span className="font-semibold">{comment.user.name || 'Ανώνυμος'}</span> στις{' '}
                                             {formatDate(new Date(comment.createdAt))}:
                                         </div>
@@ -385,13 +315,10 @@ export default async function CommentsPage(props: PageProps) {
 
                         <div className="space-y-6">
                             {locationComments.map((comment, index) => {
-                                const entityDetails = getEntityDetails(comment.entityType, comment.entityId, regulationData);
-
                                 return (
                                     <div key={comment.id} className="border-l-4 border-green-200 pl-4">
                                         <div className="text-sm font-medium text-gray-900 mb-2">
-                                            {entityDetails.label} «{entityDetails.title}»
-                                            {entityDetails.parentContext ? ` ${entityDetails.parentContext}` : ''},
+                                            «{commentPlace(comment.entityId, regulationData, geoSets)}»,
                                             ο χρήστης <span className="font-semibold">{comment.user.name || 'Ανώνυμος'}</span> στις{' '}
                                             {formatDate(new Date(comment.createdAt))}:
                                         </div>
