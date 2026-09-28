@@ -239,6 +239,10 @@ export default function ConsultationMap({
     // Ref to prevent hash handler from overriding search-location detail mode
     const isInSearchLocationMode = useRef(false);
 
+    // The entity the UI just opened. The URL effect then skips its own zoom: a list click zooms
+    // once, and a map click does not move the camera at all. Deep links and back/forward still zoom.
+    const uiOpenedEntityRef = useRef<string | null>(null);
+
     // Report drawer state to parent (for ViewToggleButton positioning)
     useEffect(() => {
         const anyDrawerOpen = isControlsOpen || detailType !== null;
@@ -297,6 +301,7 @@ export default function ConsultationMap({
                 name: item.name || item.title || 'Unnamed GeoSet',
                 description: item.description,
                 color: item.color,
+                mapStyle: item.mapStyle,
                 geometries: item.geometries || []
             }));
     }, [regulationData]);
@@ -363,19 +368,26 @@ export default function ConsultationMap({
         setDetailType('geoset');
         setDetailId(geoSetId);
         setSelectedSearchLocationIndex(null);
+        uiOpenedEntityRef.current = geoSetId;
         navigateMapEntity(geoSetId);
 
         const geoSet = geoSets.find(gs => gs.id === geoSetId);
         if (geoSet) ensureGeoSetVisibleAndZoom(geoSet);
     };
 
-    const openGeometryDetail = (geometryId: string) => {
+    const openGeometryDetail = (geometryId: string, options?: { zoom?: boolean }) => {
         isInSearchLocationMode.current = false;
         if (isMobile) setIsControlsOpen(false);
         setDetailType('geometry');
         setDetailId(geometryId);
         setSelectedSearchLocationIndex(null);
+        uiOpenedEntityRef.current = geometryId;
         navigateMapEntity(geometryId);
+
+        if (options?.zoom !== false) {
+            const geoJSON = findGeometryGeoJSON(geometryId);
+            if (geoJSON) setZoomGeometry(geoJSON);
+        }
     };
 
     const openSearchLocationDetail = (location: Location, locationIndex: number) => {
@@ -400,20 +412,15 @@ export default function ConsultationMap({
         }
 
         if (feature.properties?.id) {
-            const geometryId = feature.properties.id;
-
-            // Check if this is a polygon in a geoset with other geometries
-            // If so, open the parent geoset (e.g. clicking community boundary opens the community)
-            const parentGeoSet = geoSets.find(gs => gs.geometries.some(g => g.id === geometryId));
-            const clickedGeometry = parentGeoSet?.geometries.find(g => g.id === geometryId);
-
-            openGeometryDetail(geometryId);
-            // Zoom to the clicked feature's geometry
-            if (feature.geometry) {
-                setZoomGeometry(feature.geometry);
-            }
+            // The reader is already looking at what they clicked, so the camera stays put.
+            openGeometryDetail(feature.properties.id, { zoom: false });
         }
     };
+
+    // Map registers its click listener once, so hand it a stable callback that reads the latest handler.
+    const mapFeatureClickRef = useRef(handleMapFeatureClick);
+    mapFeatureClickRef.current = handleMapFeatureClick;
+    const onMapFeatureClick = useCallback((feature: GeoJSON.Feature) => mapFeatureClickRef.current(feature), []);
 
     // Convert enabled geometries to map features
     const mapFeatures: MapFeature[] = useMemo(() => {
@@ -447,11 +454,14 @@ export default function ConsultationMap({
 
                 // Only add to features if we have valid geometry
                 if (geoJSON) {
+                    const mapStyle = geoSet.mapStyle;
                     // For point features, show the address as the map label
                     // For polygons and other types, use the geometry's own name
-                    const label = (geometry.type === 'point' && geometry.textualDefinition)
-                        ? geometry.textualDefinition
-                        : geometry.name;
+                    const label = mapStyle?.showLabels === false
+                        ? ''
+                        : (geometry.type === 'point' && geometry.textualDefinition)
+                            ? geometry.textualDefinition
+                            : geometry.name;
 
                     features.push({
                         id: geometry.id,
@@ -462,17 +472,22 @@ export default function ConsultationMap({
                             name: geometry.name,
                             description: geometry.description,
                             isDerived: geometry.type === 'derived',
-                            isFromLocalStorage
+                            isFromLocalStorage,
+                            ...(mapStyle?.hover === false ? { hover: false } : {})
                         },
                         style: {
                             // Color: use blue for localStorage, otherwise use geoset color
                             fillColor: isFromLocalStorage ? '#3B82F6' : color,
-                            // Opacity: derived geometries are very transparent, localStorage medium, regular normal
-                            fillOpacity: geometry.type === 'derived' ? 0.15 : (isFromLocalStorage ? 0.5 : 0.4),
+                            // Opacity: derived geometries are very transparent, localStorage medium, regular per geoset
+                            fillOpacity: geometry.type === 'derived' ? 0.15 : (isFromLocalStorage ? 0.5 : (mapStyle?.fillOpacity ?? 0.4)),
                             // Stroke: derived geometries have no stroke, localStorage get blue stroke, regular get geoset color
                             strokeColor: geometry.type === 'derived' ? 'transparent' : (isFromLocalStorage ? '#1D4ED8' : color),
-                            // Stroke width: derived have none, points are smaller, localStorage get thicker stroke
-                            strokeWidth: geometry.type === 'derived' ? 0 : (geometry.type === 'point' ? 4 : (isFromLocalStorage ? 3 : 2)),
+                            // Stroke width (the circle radius for points): derived have none, localStorage get thicker stroke
+                            strokeWidth: geometry.type === 'derived'
+                                ? 0
+                                : geometry.type === 'point'
+                                    ? (mapStyle?.strokeWidth ?? 4)
+                                    : (isFromLocalStorage ? 3 : (mapStyle?.strokeWidth ?? 2)),
                             label
                         }
                     });
@@ -611,12 +626,16 @@ export default function ConsultationMap({
         // Don't override search-location detail
         if (isInSearchLocationMode.current) return;
 
+        // An entity the UI opened has already zoomed (or chose not to); only a URL-driven open zooms here.
+        const openedByUi = uiOpenedEntityRef.current === id;
+        uiOpenedEntityRef.current = null;
+
         // Check if it's a geoset
         const geoSet = geoSets.find(gs => gs.id === id);
         if (geoSet) {
             setDetailType('geoset');
             setDetailId(id);
-            ensureGeoSetVisibleAndZoom(geoSet);
+            if (!openedByUi) ensureGeoSetVisibleAndZoom(geoSet);
             return;
         }
 
@@ -626,9 +645,10 @@ export default function ConsultationMap({
             setDetailType('geometry');
             setDetailId(id);
 
-            // Zoom to the geometry
-            const geoJSON = findGeometryGeoJSON(id);
-            if (geoJSON) setZoomGeometry(geoJSON);
+            if (!openedByUi) {
+                const geoJSON = findGeometryGeoJSON(id);
+                if (geoJSON) setZoomGeometry(geoJSON);
+            }
             return;
         }
 
@@ -783,11 +803,15 @@ export default function ConsultationMap({
 
     const zoomToGeometry = zoomGeometry;
 
-    // On mobile, offset zoom target upward to account for bottom sheet covering ~40% of screen
+    // On mobile, offset zoom target upward to account for bottom sheet covering ~40% of screen.
+    // Memoised: Map re-fits whenever this object's identity changes.
     const anyDrawerOpen = isControlsOpen || detailType !== null;
-    const mapZoomPadding = isMobile && anyDrawerOpen
-        ? { top: 60, bottom: Math.round(window.innerHeight * 0.35), left: 40, right: 40 }
-        : 100;
+    const mapZoomPadding = useMemo(
+        () => isMobile && anyDrawerOpen
+            ? { top: 60, bottom: Math.round(window.innerHeight * 0.35), left: 40, right: 40 }
+            : 100,
+        [isMobile, anyDrawerOpen]
+    );
 
     return (
         <div className={cn("relative", className)}>
@@ -797,7 +821,7 @@ export default function ConsultationMap({
                 zoom={12}
                 animateRotation={false}
                 features={mapFeatures}
-                onFeatureClick={handleMapFeatureClick}
+                onFeatureClick={onMapFeatureClick}
                 className="w-full h-full"
                 editingMode={isEditingMode}
                 showStreetLabels={true}
