@@ -1,0 +1,39 @@
+{
+  "_comment": "Section number → article id, a title prefix that must still hold (catches renumbering), and the map entities the section links to. Chapter ids by chapter number.",
+  "chapters": {
+    "1": "intro",
+    "2": "first-consultation",
+    "3": "area-and-network",
+    "4": "categories-and-pricing",
+    "5": "payment",
+    "6": "signage-and-enforcement"
+  },
+  "articles": {
+    "1.1": {"id": "contract", "titleStartsWith": "Συμβατικά"},
+    "1.2": {"id": "scope", "titleStartsWith": "Αντικείμενο"},
+    "1.3": {"id": "background", "titleStartsWith": "Ιστορικό"},
+    "1.4": {"id": "study-team", "titleStartsWith": "Ομάδα"},
+    "2.1": {"id": "preliminary-plan", "titleStartsWith": "Προκαταρκτικό"},
+    "2.2": {"id": "first-consultation-process", "titleStartsWith": "Διαβούλευση"},
+    "2.3": {"id": "first-consultation-results", "titleStartsWith": "Αποτελέσματα"},
+    "2.4": {"id": "final-plan-changes", "titleStartsWith": "Τελικό", "refs": ["zones"]},
+    "3.1": {"id": "area", "titleStartsWith": "Περιοχή", "refs": ["zones"]},
+    "3.2": {"id": "road-network", "titleStartsWith": "Οδικό", "refs": ["excluded", "residents"]},
+    "3.3": {"id": "amea-dedicated-spots", "titleStartsWith": "Θέσεις στάθμευσης αποκλειστικά", "refs": ["amea-dedicated"]},
+    "4.1": {"id": "visitor-parking", "titleStartsWith": "Στάθμευση Επισκεπτών", "refs": ["paid"]},
+    "4.2": {"id": "resident-parking", "titleStartsWith": "Στάθμευση Κατοίκων", "refs": ["residents", "zones"]},
+    "4.3": {"id": "motorcycle-parking", "titleStartsWith": "Στάθμευση Δικύκλων", "refs": ["motorcycles"]},
+    "4.4": {"id": "amea-parking", "titleStartsWith": "Στάθμευση", "refs": ["amea-shared"]},
+    "4.5": {"id": "deliveries", "titleStartsWith": "Στάση"},
+    "4.6": {"id": "ev-charging", "titleStartsWith": "Θέσεις ηλεκτροφόρτισης", "refs": ["ev-spots"]},
+    "4.7": {"id": "electric-vehicles", "titleStartsWith": "Ηλεκτροκίνητα"},
+    "4.8": {"id": "spot-totals", "titleStartsWith": "Σύνοψη"},
+    "5.1": {"id": "pay-online", "titleStartsWith": "Χρήση"},
+    "5.2": {"id": "parking-cards", "titleStartsWith": "Κάρτες Στάθμευσης"},
+    "5.3": {"id": "resident-cards", "titleStartsWith": "Κάρτες Κατοίκων", "refs": ["zones"]},
+    "5.4": {"id": "delivery-vehicles", "titleStartsWith": "Οχήματα"},
+    "6.1": {"id": "vertical-signage", "titleStartsWith": "Κατακόρυφη", "refs": ["special"]},
+    "6.2": {"id": "horizontal-signage", "titleStartsWith": "Οριζόντια"},
+    "6.3": {"id": "enforcement", "titleStartsWith": "Αστυνόμευση"}
+  }
+}
