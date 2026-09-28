@@ -24,7 +24,11 @@
     "invalid": "This does not look like an email. Check it and try again.",
     "sendFailed": "We could not send the message. Try again in a moment.",
     "suggestion": "Did you mean {email}?",
-    "useSuggestion": "Yes, fix it"
+    "useSuggestion": "Yes, fix it",
+    "google": "Continue with Google",
+    "or": "or by email",
+    "leadGoogle": "Continue with your Google account, or tell us your email and we send you a message with a button. You do not need a password.",
+    "googleFailed": "Google did not start. Try again, or continue by email."
   },
   "sent": {
     "title": "Check your email",

@@ -344,15 +344,19 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 return createError(PHONE_REJECTION_CODES.empty);
             }
 
-            // Update phone if provided
-            if (phone) {
-                if (await phoneBelongsToAnotherUser(phone, user.id)) {
-                    return createError(PHONE_IN_USE_CODE);
-                }
-                await prisma.user.update({
-                    where: { id: user.id },
-                    data: { phone }
-                });
+            if (phone && (await phoneBelongsToAnotherUser(phone, user.id))) {
+                return createError(PHONE_IN_USE_CODE);
+            }
+            // The signup asked for what the profile's onboarding asks, so a
+            // user that Google created (onboarded false, name from Google)
+            // is onboarded once they save here. The onboarding form would
+            // otherwise greet them on their next visit to the profile.
+            const data = {
+                ...(phone ? { phone } : {}),
+                ...(user.name && !user.onboarded ? { onboarded: true } : {}),
+            };
+            if (Object.keys(data).length > 0) {
+                await prisma.user.update({ where: { id: user.id }, data });
             }
         } else if (email) {
             if (notifyByPhone && !phone) {
@@ -566,6 +570,8 @@ export async function savePetition(data: OnboardingData & {
                 data: {
                     allowPetitionUpdates: true,
                     ...(phone ? { phone } : {}),
+                    // See saveNotificationPreferences: a user Google created is onboarded by this save.
+                    ...(user.name && !user.onboarded ? { onboarded: true } : {}),
                 },
             });
         } else if (email) {

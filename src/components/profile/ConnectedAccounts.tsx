@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
@@ -36,7 +36,18 @@ function connectErrorKey(code: string | null): string | null {
 export function ConnectedAccounts({ googleLinked }: { googleLinked: boolean }) {
     const t = useTranslations("Profile");
     const router = useRouter();
-    const connectError = connectErrorKey(useSearchParams().get("error"));
+    const searchParams = useSearchParams();
+    // Read once: the code arrives in the URL from the sign-in page, and a
+    // reload or a change of user must not show it again. So the URL is
+    // rewritten without it as soon as the message is on screen.
+    const [connectError] = useState(() => connectErrorKey(searchParams.get("error")));
+    useEffect(() => {
+        if (!connectError) return;
+        const url = new URL(window.location.href);
+        if (!url.searchParams.has("error")) return;
+        url.searchParams.delete("error");
+        window.history.replaceState(window.history.state, "", url);
+    }, [connectError]);
     const [busy, setBusy] = useState(false);
     // The line under the row: the answer to a Connect that came back, or to
     // a press that failed here. A key under `Profile`.

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
-import { draftKey } from '@/components/signup/signup-draft';
+import { draftKey, stashPhoneForGoogleReturn, takePhoneFromGoogleReturn } from '@/components/signup/signup-draft';
 import { SIGN_IN_LINK_SENT, failureKind, saveErrorKey } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { saveNotificationPreferences } from '@/lib/actions/notifications';
@@ -35,20 +35,26 @@ const TOTAL_STEPS = 3;
 
 /**
  * What a kept draft may put back. The step comes from the URL, not the
- * draft. The account fields belong to the session once there is one. The
+ * draft. The account fields belong to the session once there is one. A
+ * phone the account lacks comes back only from this tab's own trip to
+ * Google (`takePhoneFromGoogleReturn`), never from the draft: the draft is
+ * the browser's, and on a shared browser it may be another reader's. The
  * WhatsApp tick is Notis's answer and is never restored — a stale tick over
  * his could resubscribe a reader who said ΣΤΟΠ.
  */
-function notificationsDraft(cityId: string, signedIn: boolean) {
+function notificationsDraft(cityId: string, account: SignupAccount | null) {
+    const key = draftKey('notifications', cityId);
     return {
-        key: draftKey('notifications', cityId),
+        key,
         apply: (state: SignupState, stored: Partial<SignupState>): SignupState => ({
             ...state,
             locations: stored.locations ?? state.locations,
             topics: stored.topics ?? state.topics,
             emailChannel: stored.emailChannel ?? state.emailChannel,
-            ...(signedIn
-                ? {}
+            ...(account
+                ? account.phone
+                    ? {}
+                    : { phone: takePhoneFromGoogleReturn(key) ?? state.phone }
                 : {
                       name: stored.name ?? state.name,
                       email: stored.email ?? state.email,
@@ -77,6 +83,7 @@ export function NotificationSignup({
     pickerQuery,
     existing,
     account,
+    googleAvailable,
 }: {
     city: CityWithGeometry;
     topics: Topic[];
@@ -85,6 +92,8 @@ export function NotificationSignup({
     pickerQuery: string;
     existing: ExistingPreference | null;
     account: SignupAccount | null;
+    /** Whether the account fields offer "Continue with Google" (see googleSignInAvailable). */
+    googleAvailable: boolean;
 }) {
     const t = useTranslations('notificationSignup');
     const ts = useTranslations('signup');
@@ -97,7 +106,7 @@ export function NotificationSignup({
         // Nothing is kept for a reader who is editing what they already
         // saved: the server's answers are the truth, and a draft from an
         // abandoned session would put yesterday's places over them.
-        draft: existing ? undefined : notificationsDraft(city.id, signedIn),
+        draft: existing ? undefined : notificationsDraft(city.id, account),
     });
     const { state, patch, goTo, edited, done, submitting, attempted, failures, saveError, validity, setPhoneValidity } = flow;
 
@@ -244,6 +253,11 @@ export function NotificationSignup({
                     submitting={submitting}
                     state={state}
                     signedIn={signedIn}
+                    googleAvailable={googleAvailable}
+                    onGoogleStart={() => {
+                        stashPhoneForGoogleReturn(draftKey('notifications', city.id), state.phone);
+                        captureEvent('notification_signup_google_started', { city_id: city.id });
+                    }}
                     phoneChannelLocked={channelLocked}
                     phoneChannelPending={notisPending}
                     issues={issues}

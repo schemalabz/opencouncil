@@ -19,7 +19,9 @@ jest.mock('@/i18n/routing', () => ({
 jest.mock('@/components/signup/useCelebration', () => ({ useCelebration: jest.fn() }));
 jest.mock('@/components/ImageOrInitials', () => ({ ImageOrInitials: () => null }));
 jest.mock('@/lib/analytics/capture', () => ({ captureEvent: jest.fn() }));
-jest.mock('@/lib/actions/personJoin', () => ({ claimWithToken: jest.fn(), sendJoinEmail: jest.fn() }));
+jest.mock('@/lib/actions/personJoin', () => ({ claimWithToken: jest.fn(), sendJoinEmail: jest.fn(), startJoinGoogle: jest.fn() }));
+// The Google button imports next-auth/react, which ships ESM only; the flow under test never presses it.
+jest.mock('next-auth/react', () => ({ signIn: jest.fn() }));
 jest.mock('@/lib/actions/personConsent', () => ({ setVoicePrintConsent: jest.fn() }));
 
 const mockedClaim = claimWithToken as jest.MockedFunction<typeof claimWithToken>;

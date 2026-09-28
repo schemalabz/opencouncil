@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { LocationPreview } from '@/components/signup/LocationPreview';
 import { SignupFooter, SignupLayout, SignupProgress } from '@/components/signup/SignupChrome';
-import { draftKey } from '@/components/signup/signup-draft';
+import { draftKey, stashPhoneForGoogleReturn, takePhoneFromGoogleReturn } from '@/components/signup/signup-draft';
 import { SIGN_IN_LINK_SENT, failureKind, saveErrorKey, type SignupAccount } from '@/components/signup/signup-shared';
 import { useSignupFlow } from '@/components/signup/useSignupFlow';
 import { savePetition } from '@/lib/actions/notifications';
@@ -26,19 +26,26 @@ const TOTAL_STEPS = 2;
 
 /**
  * What a kept draft may put back. The step comes from the URL; the account
- * fields belong to the session once there is one.
+ * fields belong to the session once there is one. A phone the account lacks
+ * comes back only from this tab's own trip to Google
+ * (`takePhoneFromGoogleReturn`), never from the draft: the draft is the
+ * browser's, and on a shared browser it may be another reader's. The form
+ * still asks for it (see `phoneKnown`).
  */
-function petitionDraft(cityId: string, signedIn: boolean) {
+function petitionDraft(cityId: string, account: SignupAccount | null) {
+    const key = draftKey('petition', cityId);
     return {
-        key: draftKey('petition', cityId),
+        key,
         apply: (state: PetitionState, stored: Partial<PetitionState>): PetitionState => ({
             ...state,
             isResident: stored.isResident ?? state.isResident,
             isCitizen: stored.isCitizen ?? state.isCitizen,
             other: stored.other ?? state.other,
             otherText: stored.otherText ?? state.otherText,
-            ...(signedIn
-                ? {}
+            ...(account
+                ? account.phone
+                    ? {}
+                    : { phone: takePhoneFromGoogleReturn(key) ?? state.phone }
                 : {
                       name: stored.name ?? state.name,
                       email: stored.email ?? state.email,
@@ -62,6 +69,7 @@ export function PetitionSignup({
     pickerQuery,
     existing,
     account,
+    googleAvailable,
 }: {
     city: CityWithGeometry;
     bucket: PetitionBucket | null;
@@ -70,6 +78,8 @@ export function PetitionSignup({
     pickerQuery: string;
     existing: ExistingPetition | null;
     account: SignupAccount | null;
+    /** Whether the account fields offer "Continue with Google" (see googleSignInAvailable). */
+    googleAvailable: boolean;
 }) {
     const t = useTranslations('petition');
     const ts = useTranslations('signup');
@@ -81,7 +91,7 @@ export function PetitionSignup({
         events: { stepViewed: 'petition_step_viewed', failed: 'petition_failed' },
         // Nothing is kept for a reader who is updating a petition they
         // already signed: the server's answers are the truth.
-        draft: existing ? undefined : petitionDraft(city.id, signedIn),
+        draft: existing ? undefined : petitionDraft(city.id, account),
     });
     const { state, patch, goTo, edited, done, submitting, attempted, failures, saveError, validity, phoneValidity, setPhoneValidity } =
         flow;
@@ -160,6 +170,12 @@ export function PetitionSignup({
                     existing={existing !== null}
                     state={state}
                     signedIn={signedIn}
+                    phoneKnown={Boolean(account?.phone)}
+                    googleAvailable={googleAvailable}
+                    onGoogleStart={() => {
+                        stashPhoneForGoogleReturn(draftKey('petition', city.id), state.phone);
+                        captureEvent('petition_google_started', { city_id: city.id });
+                    }}
                     issues={issues}
                     saveError={saveError}
                     failures={failures}

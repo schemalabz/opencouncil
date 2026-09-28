@@ -17,7 +17,9 @@
     "namePlaceholder": "Votre nom",
     "emailLabel": "E-mail",
     "emailPlaceholder": "vous@email.fr",
-    "emailHint": "Vous vous connectez par un lien envoyé par e-mail, sans mot de passe."
+    "emailHint": "Vous vous connectez par un lien envoyé par e-mail, sans mot de passe.",
+    "google": "Continuer avec Google",
+    "or": "ou remplissez vos coordonnées"
   },
   "phone": {
     "label": "Mobile",

@@ -1,7 +1,9 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { PersonJoin } from "@/components/personJoin/PersonJoin";
 import { getCurrentUser } from "@/lib/auth";
+import { googleSignInAvailable } from "@/lib/auth/googleSignIn";
 import { personJoinPagePath } from "@/lib/personJoin/paths";
 import { getJoinStage } from "@/lib/personJoin/stage";
 
@@ -30,7 +32,7 @@ interface PageProps {
  * Without it, a code whose person has an account is spent.
  */
 export default async function PersonJoinPage(props: PageProps) {
-    const [{ cityId }, query, user] = await Promise.all([props.params, props.searchParams, getCurrentUser()]);
+    const [{ cityId }, query, user, requestHeaders] = await Promise.all([props.params, props.searchParams, getCurrentUser(), headers()]);
     const token = Array.isArray(query.c) ? query.c[0] : query.c;
     const step = Array.isArray(query.step) ? query.step[0] : query.step;
     const cameThroughEmail = step === "3";
@@ -49,5 +51,13 @@ export default async function PersonJoinPage(props: PageProps) {
         redirect(personJoinPagePath(stage.person.cityId, token));
     }
 
-    return <PersonJoin token={token ?? ""} stage={stage} totalSteps={user && !cameThroughEmail ? 2 : 3} finished={finished} />;
+    return (
+        <PersonJoin
+            token={token ?? ""}
+            stage={stage}
+            totalSteps={user && !cameThroughEmail ? 2 : 3}
+            finished={finished}
+            googleAvailable={googleSignInAvailable(requestHeaders)}
+        />
+    );
 }

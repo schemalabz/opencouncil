@@ -17,7 +17,9 @@
     "namePlaceholder": "Ваше име",
     "emailLabel": "Имејл",
     "emailPlaceholder": "vi@email.rs",
-    "emailHint": "Пријављујете се линком из имејла, без лозинке."
+    "emailHint": "Пријављујете се линком из имејла, без лозинке.",
+    "google": "Настави са Google налогом",
+    "or": "или попуните своје податке"
   },
   "phone": {
     "label": "Мобилни",

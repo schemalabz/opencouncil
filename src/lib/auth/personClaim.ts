@@ -1,5 +1,5 @@
 import "server-only";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import type { Realm } from "@prisma/client";
 import { env } from "@/env.mjs";
 import { normalizeEmail } from "@/lib/personJoin/email";
@@ -91,6 +91,20 @@ export function verifyPersonClaimToken(token: string, graceMs = 0): string | nul
 }
 
 /**
+ * The cookie that holds the nonce of a Google return path (see
+ * `startJoinGoogle`), scoped to the join route alone.
+ */
+export const JOIN_NONCE_COOKIE = "oc-join-nonce";
+
+/** How long the nonce cookie lives: the time it takes to pick a Google account. */
+export const JOIN_NONCE_MAX_AGE_S = 15 * 60;
+
+/** A fresh nonce for one Google return path. Hex, so `normalizeEmail` leaves it as it is. */
+export function newJoinNonce(): string {
+    return randomBytes(16).toString("hex");
+}
+
+/**
  * The mark of the sign-in email's link: `<issued at, base-36 seconds>.<mac>`,
  * bound to one code and to the address the email goes to. Only
  * `sendJoinEmail` mints it, and only while the code is valid, so it proves
@@ -98,6 +112,11 @@ export function verifyPersonClaimToken(token: string, graceMs = 0): string | nul
  * after the code expired: the grace runs from when the email was sent, never
  * from a parameter the caller chose. The address is in the mac, so a copied
  * link claims nothing in a browser that is signed in as somebody else.
+ *
+ * The Google way in mints the same mark over a nonce instead of an address
+ * (`startJoinGoogle`): the address is not known before Google answers, and
+ * the nonce lives in a cookie of the browser that pressed the button, so
+ * that browser is the only one the return path claims for.
  */
 export function signJoinConfirmation(token: string, email: string, now: number = Date.now()): string {
     const at = Math.floor(now / 1000).toString(36);
