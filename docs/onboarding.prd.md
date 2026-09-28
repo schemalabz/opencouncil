@@ -19,6 +19,8 @@ This is the primary, general-purpose authentication method. It handles both new 
 3. A magic link is sent to their email.
 4. Clicking the link authenticates the user and creates a session. If the user does not exist, an account is automatically created by NextAuth.
 
+**Sign in with Google:** the same page offers a "Continue with Google" button when `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` are set. Google returns a verified email. Auth.js links that email to the existing user, or creates the user when none exists. The `Account` table holds the link. The profile's Account tab shows the link, and lets the user connect or disconnect Google. The magic link always remains, so a disconnect never locks the user out. The button appears only on the host that `NEXTAUTH_URL` names (see `docs/environment-variables.md`).
+
 ### 2. Onboarding-Integrated Sign-Up
 
 This flow allows a new, unauthenticated user to sign up while submitting their notification preferences or a petition.

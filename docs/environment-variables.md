@@ -74,6 +74,8 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 | `BASIC_AUTH_USERNAME` | Username for basic auth protection. | No | - |
 | `BASIC_AUTH_PASSWORD` | Password for basic auth protection. | No | - |
 | `NEXTAUTH_SECRET` | Secret used by NextAuth.js to hash tokens, sign/encrypt cookies, and generate cryptographic keys. | Yes | - |
+| `AUTH_GOOGLE_ID` | OAuth client id for "Sign in with Google". Unset hides the Google button. The magic link keeps working. | No | - |
+| `AUTH_GOOGLE_SECRET` | OAuth client secret for "Sign in with Google". Set it together with `AUTH_GOOGLE_ID`. | No | - |
 | `SESSION_COOKIE_DOMAIN` | Domain for the session-mirror cookie that authenticates the Notis admin. Derived from `DEPLOYMENT_ENV` + `NEXTAUTH_URL` (`.opencouncil.gr` on production, `.staging.opencouncil.gr` on staging; none in development or previews). Set only to override. | No | derived |
 | `SESSION_COOKIE_SUFFIX` | Per-environment suffix for the mirror cookie name, so the production mirror never authenticates a staging service. Derived from `DEPLOYMENT_ENV` (`-staging` on staging, empty on production). Set only to override — and if you do, set Notis's `MAIN_SESSION_COOKIE_NAME` to match. | No | derived |
 
@@ -84,6 +86,11 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 | `NOTIS_SERVICE_TOKEN` | Bearer token presented on `NOTIS_API_URL/api/subscriptions/*`. The same value as the Notis component's `NOTIS_SERVICE_TOKEN`, at least 32 characters (`openssl rand -hex 32`), different per environment. | No | - |
 
 Every WhatsApp and SMS message to a reader belongs to the Notis service, which holds the Bird credentials and its own webhook subscription. Its variables are in [services/notis/README.md](../services/notis/README.md), and the Bird workspace setup in [bird-setup.md](./bird-setup.md).
+
+#### Sign in with Google
+Create an OAuth 2.0 client of type "Web application" in the Google Cloud Console. Add one authorized redirect URI per deployment host: `<NEXTAUTH_URL>/api/auth/callback/google`, for example `http://localhost:3000/api/auth/callback/google` and `https://opencouncil.gr/api/auth/callback/google`.
+
+The button appears only on the host that `NEXTAUTH_URL` names. Auth.js builds the OAuth `redirect_uri` from `NEXTAUTH_URL`, so a sign-in that starts on another realm domain (`opencouncil.rs`, `opencouncil.fr`) cannot finish there. Those domains keep the magic link only. A preview names its own host in `NEXTAUTH_URL`, so it works once `https://pr-<N>.opencouncil.dev/api/auth/callback/google` is in the client's redirect URIs.
 
 #### NEXTAUTH_SECRET
 You can quickly create a good value on the command line via this openssl command:

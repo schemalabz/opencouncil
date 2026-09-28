@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/db/prisma"
 import authConfig from "@/auth.config"
 import { isTrustedExternalRedirect } from "@/lib/auth/trustedRedirect"
+import { signInAllowed } from "@/lib/auth/signInGuard"
 
 declare module "next-auth" {
     interface Session {
@@ -22,6 +23,9 @@ declare module "next-auth" {
 export const { handlers, signIn, signOut, auth } = NextAuth({
     adapter: PrismaAdapter(prisma),
     callbacks: {
+        signIn({ account, profile }) {
+            return signInAllowed(account, profile);
+        },
         /**
          * Auth.js resolves redirect targets against `NEXTAUTH_URL`'s origin
          * (next-auth rewrites every request's URL to it — `reqWithEnvURL`), so

@@ -16,6 +16,16 @@ import { env } from '@/env.mjs';
 /** The Auth.js session cookie name on https deployments (Auth.js default). */
 export const PROD_SESSION_COOKIE = '__Secure-authjs.session-token';
 
+/**
+ * The cookie in which Auth.js keeps the callbackUrl a sign-in started with
+ * (Auth.js default name; secure-prefixed on https deployments). The sign-in
+ * page reads it back after an error redirect, which carries no callbackUrl.
+ */
+export function callbackUrlCookieName(): string {
+    const secure = env.NEXTAUTH_URL.startsWith('https:');
+    return `${secure ? '__Secure-' : ''}authjs.callback-url`;
+}
+
 /** The port-suffixed dev session cookie name (see src/auth.config.ts). */
 export function devSessionCookieName(port: string): string {
     return `authjs.session-token-${port}`;

@@ -691,8 +691,20 @@
         "personalLead": "The name we know you by, and the mobile number Notis can write to.",
         "notificationsLead": "The municipalities you follow, and how we keep you posted about them.",
         "communicationLead": "How OpenCouncil may get in touch with you, beyond the notifications you set up.",
-        "accountLead": "Your sign-in, your data, and deleting the account.",
-        "signOutDescription": "You sign out on this device. To sign back in, we send a new link to your email.",
+        "accountLead": "How you sign in, your data, and deleting the account.",
+        "signOutDescription": "You sign out on this device. You can sign back in at any time from the sign-in page.",
+        "connectedAccounts": "Connected accounts",
+        "connectedAccountsDescription": "Sign in with one tap instead of waiting for an email link. The link keeps working either way.",
+        "googleLinked": "Connected. You can sign in with this Google account.",
+        "googleNotLinked": "Not connected.",
+        "connect": "Connect",
+        "disconnect": "Disconnect",
+        "disconnectError": "Disconnecting did not work. Please try again.",
+        "connectErrors": {
+            "alreadyLinked": "This Google account is already connected to another OpenCouncil account.",
+            "accessDenied": "We can only connect a Google account whose email is verified.",
+            "generic": "Connecting did not work. Please try again."
+        },
         "saved": "Saved",
         "saveError": "The changes could not be saved. Try again.",
         "voicePrintTitle": "Voice recognition",
@@ -1149,6 +1161,13 @@
         "emailPlaceholder": "Enter your email",
         "submit": "Continue with Email",
         "loading": "Please wait...",
+        "google": "Continue with Google",
+        "or": "or",
+        "errors": {
+            "verification": "This sign-in link has expired or was already used. Enter your email to get a new one.",
+            "accessDenied": "We can only sign you in with a Google account whose email is verified.",
+            "generic": "Sign-in did not complete. Please try again."
+        },
         "error": "There was a problem sending the email. Please try again later.",
         "checkEmail": {
             "title": "Check your email",

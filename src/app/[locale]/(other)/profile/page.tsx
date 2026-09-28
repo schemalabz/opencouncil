@@ -12,6 +12,10 @@ import { StepHeading } from "@/components/signup/SignupChrome";
 import { getVoicePrintConsents } from "@/lib/db/personConsent";
 import { hasNotificationPreference } from "@/lib/db/signup";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { googleSignInAvailable } from "@/lib/auth/googleSignIn";
+import { getLinkedProviders } from "@/lib/db/accounts";
+import { ConnectedAccounts } from "@/components/profile/ConnectedAccounts";
 import { Metadata } from "next";
 import { env } from "@/env.mjs";
 
@@ -33,12 +37,21 @@ export default async function ProfilePage() {
         claimed,
         consent: consents.get(person.id) ?? null,
     }));
-    const [t, highlightsAllowed, signedUp] = await Promise.all([
+    const [t, highlightsAllowed, signedUp, linkedProviders, requestHeaders] = await Promise.all([
         getTranslations("Profile"),
         canAccessMyHighlights(),
         // Only the settings view invites; the onboarding form does not ask.
         user.onboarded ? hasNotificationPreference(user.id) : true,
+        getLinkedProviders(user.id),
+        headers(),
     ]);
+    const googleLinked = linkedProviders.includes("google");
+    // The card is for connecting where the button works on this host, and
+    // for disconnecting wherever a link exists. Nothing to show otherwise.
+    const connections =
+        googleLinked || googleSignInAvailable(requestHeaders) ? (
+            <ConnectedAccounts googleLinked={googleLinked} />
+        ) : undefined;
     const isPreview = env.DEPLOYMENT_ENV === 'preview';
     const showDevTools = showsDevelopmentSection(isPreview);
     const administersSomething = user.isSuperAdmin || user.administers.length > 0;
@@ -84,6 +97,7 @@ export default async function ProfilePage() {
                 // who deleted their last municipality. An unsubscribe keeps the
                 // row, so it does not bring the offer back.
                 promo={signedUp ? undefined : <NotisInviteCard surface="profile" />}
+                connections={connections}
                 aside={administersSomething || showDevTools ? (
                     <>
                         {administersSomething && <AdminSection user={user} t={t} />}
