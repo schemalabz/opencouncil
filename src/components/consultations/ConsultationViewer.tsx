@@ -109,6 +109,9 @@ export default function ConsultationViewer({
     // Track whether any drawer is open in the map view (for ViewToggleButton positioning on mobile)
     const [mapDrawerOpen, setMapDrawerOpen] = useState(false);
 
+    // Counter bumped by the welcome dialog's "find your street" button; the map focuses its address search.
+    const [addressSearchRequest, setAddressSearchRequest] = useState(0);
+
     // Keep local state aligned with the committed URL and normalize old hash links.
     useEffect(() => {
         if (typeof window === "undefined") {
@@ -341,12 +344,16 @@ export default function ConsultationViewer({
                             baseUrl={baseUrl}
                             className="w-full h-full"
                             regulationData={regulationData}
+                            referenceFormat={regulationData?.referenceFormat}
+                            onReferenceClick={handleReferenceClick}
                             comments={comments}
                             currentUser={currentUser}
                             consultationId={consultationId}
                             cityId={cityId}
+                            consultationIsActive={consultation.isActiveComputed}
                             onShowInfo={() => setShowMapSummary(true)}
                             onDrawerStateChange={setMapDrawerOpen}
+                            addressSearchRequest={addressSearchRequest}
                         />
                     </div>
 
@@ -404,11 +411,14 @@ export default function ConsultationViewer({
                                 )}
                                 <div className="flex flex-col gap-2 pt-1">
                                     <Button
-                                        onClick={() => setShowMapSummary(false)}
+                                        onClick={() => {
+                                            setShowMapSummary(false);
+                                            setAddressSearchRequest(n => n + 1);
+                                        }}
                                         className="w-full"
                                     >
                                         <MapPin className="h-4 w-4 mr-2" />
-                                        Βρείτε την περιοχή σας
+                                        Βρείτε τον δρόμο σας
                                     </Button>
                                     <div className="flex gap-2">
                                         <Button
