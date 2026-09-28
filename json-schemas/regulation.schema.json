@@ -89,6 +89,47 @@
         "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
       }
     },
+    "defaultView": {
+      "type": "string",
+      "enum": ["map", "document"],
+      "default": "document",
+      "description": "Η προβολή που ανοίγει πρώτη (χάρτης ή κείμενο)"
+    },
+    "addressLookup": {
+      "type": "object",
+      "description": "Τι δείχνει ο χάρτης για μια διεύθυνση που αναζητά ο πολίτης (Βρες τον δρόμο σου)",
+      "properties": {
+        "zoneGeoSetId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$",
+          "description": "Το geoset περιοχών που απαντά σε ποια ζώνη ανήκει η διεύθυνση"
+        },
+        "nearbyGeoSetIds": {
+          "type": "array",
+          "description": "Geosets πολυγώνων που εμφανίζονται κατά απόσταση. Προεπιλογή: όλα τα geosets πολυγώνων εκτός από το zoneGeoSetId",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]*$"
+          }
+        },
+        "nearbyRadiusMeters": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 120,
+          "description": "Ακτίνα σε μέτρα για τα κοντινά πολύγωνα"
+        },
+        "pointRadiusMeters": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 500,
+          "description": "Ακτίνα σε μέτρα για τα κοντινά σημεία"
+        },
+        "noZoneText": {
+          "type": "string",
+          "description": "Markdown που εμφανίζεται όταν καμία ζώνη δεν περιέχει τη διεύθυνση"
+        }
+      }
+    },
     "definitions": {
       "type": "object",
       "description": "Λεξικό ορισμών όρων που χρησιμοποιούνται στον κανονισμό",
@@ -220,6 +261,33 @@
           "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$",
           "description": "Χρώμα του geoset σε hex μορφή (π.χ. #FF5733)"
         },
+        "mapStyle": {
+          "type": "object",
+          "description": "Προαιρετικές οδηγίες απεικόνισης του geoset στον χάρτη",
+          "properties": {
+            "fillOpacity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Αδιαφάνεια γεμίσματος (προεπιλογή 0.4)"
+            },
+            "strokeWidth": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Πάχος περιγράμματος σε px. Για σημεία είναι η ακτίνα του κύκλου"
+            },
+            "showLabels": {
+              "type": "boolean",
+              "default": true,
+              "description": "false: καμία ετικέτα στον χάρτη για τις γεωμετρίες του geoset"
+            },
+            "hover": {
+              "type": "boolean",
+              "default": true,
+              "description": "false: χωρίς επισήμανση κατά το hover (παραμένει clickable)"
+            }
+          }
+        },
         "geometries": {
           "type": "array",
           "description": "Γεωγραφικές τοποθεσίες",
@@ -273,6 +341,9 @@
             },
             {
               "$ref": "#/definitions/GeoJSONPolygon"
+            },
+            {
+              "$ref": "#/definitions/GeoJSONMultiPolygon"
             }
           ]
         },
@@ -351,6 +422,35 @@
             }
           },
           "description": "Array από linear rings, όπου το πρώτο είναι το εξωτερικό boundary"
+        }
+      }
+    },
+    "GeoJSONMultiPolygon": {
+      "type": "object",
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "MultiPolygon"
+        },
+        "coordinates": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "minItems": 4,
+              "items": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 3,
+                "items": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "description": "Array από πολύγωνα, καθένα array από linear rings"
         }
       }
     },
