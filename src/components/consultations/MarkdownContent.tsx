@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Link2Off, Map, BookOpen } from 'lucide-react';
 import { ReferenceFormat, RegulationData } from './types';
 
@@ -137,7 +138,15 @@ export default function MarkdownContent({
     return (
         <div className={allClasses}>
             <ReactMarkdown
-                components={hasReferenceHandling ? {
+                remarkPlugins={[remarkGfm]}
+                components={{
+                    // A wide table scrolls inside a narrow panel instead of overflowing it.
+                    table: ({ children }) => (
+                        <div className="my-4 overflow-x-auto">
+                            <table className="w-full text-xs">{children}</table>
+                        </div>
+                    ),
+                    ...(hasReferenceHandling ? {
                     // Custom link renderer to handle ref:// links
                     a: ({ href, children, ...props }) => {
                         // Helper function to resolve reference info
@@ -279,7 +288,8 @@ export default function MarkdownContent({
                         // Regular link
                         return <a href={href} className="text-blue-600 hover:underline">{children}</a>;
                     }
-                } : undefined}
+                    } : {})
+                }}
             >
                 {processedContent}
             </ReactMarkdown>
