@@ -11,7 +11,7 @@ The consultation feature is a JSON-driven viewer with a few plain screens:
 1. **Regulation JSON**: Each consultation points to a remote JSON file (`jsonUrl`) that defines the entire regulation structure — chapters, articles, geographic areas, cross-references, and definitions. The schema is defined in [`json-schemas/regulation.schema.json`](../../json-schemas/regulation.schema.json).
 2. **Database Layer**: Prisma stores consultation metadata (name, end date, active status), comments, and upvotes. Comments are entity-scoped — tied to a specific chapter, article, geoset, or geometry by `entityType` + `entityId`.
 3. **Frontend Layer**: A `ConsultationViewer` client component shows one screen at a time. The screen is the `view` query parameter: `home` asks for the reader's address, `street` shows what changes at it, `map` shows every place, `comment` is the form for one entity, `plan` shows the summary cards, `comments` lists every comment, and `document` is the full text. On a phone each screen is a page. On a computer the map stays on screen and a side panel shows the screen.
-4. **Comment System**: Readers leave plain-text comments on any entity. A signed-in reader's comment goes live at once. A signed-out reader gives a name and an email, and the comment goes live when they open the link in the email. Comments support upvoting and trigger email notifications to the municipality's contact address.
+4. **Comment System**: Readers leave plain-text comments on any entity. A signed-in reader's comment goes live at once. A signed-out reader gives a name and an email, and the comment goes live when they open the confirmation link in the email. Comments support upvoting and trigger email notifications to the municipality's contact address.
 5. **Admin Geo-Editor**: Administrators can draw missing geometries directly on the map when regulation text defines areas textually but lacks GeoJSON coordinates. Edits are stored in localStorage and exported as a complete updated regulation JSON.
 
 The consultation feature is gated per-city via the `consultationsEnabled` flag on the City model.
@@ -116,8 +116,9 @@ sequenceDiagram
     * `getAllConsultationsForCity()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (all consultations including inactive, used on listing page)
     * `getConsultationById()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (single consultation with computed active status)
     * `addConsultationComment()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (signed-in reader: validates that the entity exists in the regulation JSON, stores the plain text as HTML, sends email)
-    * `submitPendingConsultationComment()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (signed-out reader: finds or creates the user by email, stores a pending comment, sends a magic link back to the comment screen)
-    * `publishPendingConsultationComments()`: [`src/lib/db/consultationComments.ts`](../../src/lib/db/consultationComments.ts) (called by the Auth.js `signIn` event; publishes the reader's pending comments)
+    * `submitPendingConsultationComment()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (signed-out reader: finds or creates the user by email, stores a pending comment, sends a magic link back to the comment screen with `pending=<id>`)
+    * `confirmPendingConsultationComment()`: [`src/lib/db/consultationComments.ts`](../../src/lib/db/consultationComments.ts) (called by the consultation page when a signed-in reader lands with `pending`; publishes that one comment if the reader wrote it)
+    * `pendingCommentQuote()`: [`src/lib/db/consultationComments.ts`](../../src/lib/db/consultationComments.ts) (the comment's text, which the confirmation email quotes; `src/auth.ts` passes it to `authProviders`, which hands it to the magic-link provider)
     * `toggleCommentUpvote()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (toggle on/off, returns new count)
     * `deleteConsultationComment()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (owner-only, cascades to upvotes)
     * `isConsultationActive()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (checks isActive flag AND end date with timezone awareness)
@@ -261,14 +262,15 @@ For local development, you can place regulation JSON files in the `public/` dire
 3. Inactive consultations are visible on the listing page but comments are disabled
 
 ### Comments
-1. A signed-in reader's comment goes live at once. A signed-out reader's comment waits in `PendingConsultationComment` until they open the magic link. The Auth.js `signIn` event then publishes it with its original time. A pending comment older than 7 days, or on a consultation that is no longer active, is not published
-2. Comments are entity-scoped: each comment targets a specific `entityType` (CHAPTER, ARTICLE, GEOSET, GEOMETRY) and `entityId`
-3. Before saving, the API fetches the regulation JSON and validates the target entity actually exists
-4. Comment body is validated: non-empty, max 5000 characters
-5. Readers write plain text. The server escapes it and stores it as paragraphs and line breaks. Rendering still sanitizes the HTML of older rich-text comments, allowing only safe tags (`p`, `strong`, `em`, `a`, `ul`, `ol`, `li`)
-6. Comments can only be deleted by their author
-7. Upvotes use a unique constraint (`userId`, `commentId`) for toggle behavior
-8. Each new comment triggers an email notification to the municipality (`contactEmail` from the regulation JSON, CC'd to `ccEmails`)
+1. A signed-in reader's comment goes live at once. A signed-out reader's comment waits in `PendingConsultationComment`. The confirmation email quotes it and links back to the comment screen with `pending=<id>`. Only that link publishes it: the page confirms it for the signed-in author, with its original time. A sign-in by any other route publishes nothing, so nobody can comment in someone else's name by typing their email. A pending comment lives 24 hours, as long as the link. After that, or on a consultation that is no longer active, it is not published
+2. The screens, the email to the municipality and the printout name a place the same way (`entityLabel`)
+3. Comments are entity-scoped: each comment targets a specific `entityType` (CHAPTER, ARTICLE, GEOSET, GEOMETRY) and `entityId`
+4. Before saving, the API fetches the regulation JSON and validates the target entity actually exists
+5. Comment body is validated: non-empty, max 5000 characters
+6. Readers write plain text. The server escapes it and stores it as paragraphs and line breaks. Rendering still sanitizes the HTML of older rich-text comments, allowing only safe tags (`p`, `strong`, `em`, `a`, `ul`, `ol`, `li`)
+7. Comments can only be deleted by their author
+8. Upvotes use a unique constraint (`userId`, `commentId`) for toggle behavior
+9. Each new comment triggers an email notification to the municipality (`contactEmail` from the regulation JSON, CC'd to `ccEmails`)
 
 ### Regulation JSON
 1. The regulation JSON is fetched from a remote URL stored in `Consultation.jsonUrl`

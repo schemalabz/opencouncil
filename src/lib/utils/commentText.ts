@@ -24,3 +24,15 @@ export function plainTextToCommentHtml(text: string): string {
 export function normalizeNonBreakingSpaces(html: string): string {
     return html.replace(/&nbsp;|\u00a0/g, ' ');
 }
+
+const HTML_UNESCAPES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
+
+/** The plain text of a comment stored by plainTextToCommentHtml, for a plain-text quote (an email). */
+export function commentHtmlToPlainText(html: string): string {
+    return html
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>\s*<p>/gi, '\n\n')
+        .replace(/<[^>]*>/g, '')
+        .replace(/&(amp|lt|gt|quot|#39);/g, (_, entity: string) => HTML_UNESCAPES[entity])
+        .trim();
+}
