@@ -2,12 +2,13 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
-import { AlertTriangle, Briefcase, Building2, CheckCircle2, Mail, User, type LucideIcon } from 'lucide-react'
+import { AlertTriangle, Briefcase, Building2, CheckCircle2, Mail, Phone, User, type LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { Realm } from '@prisma/client'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { PhoneField } from '@/components/ui/phone-field'
 import { Link } from '@/i18n/routing'
 import { sendContactEmail } from '@/lib/email/contact'
 import { getRealmDomain } from '@/lib/realm'
@@ -25,23 +26,31 @@ interface ContactFormPopupProps {
 
 type Status = 'form' | 'sending' | 'sent' | 'failed'
 
-const EMPTY = { name: '', position: '', email: '', municipality: '' }
+const EMPTY = { name: '', position: '', email: '', municipality: '', phone: '' }
 
 const inputClass =
     'h-11 rounded-xl border-border bg-card px-3.5 text-[15px] placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-0'
 
+function FieldLabel({ htmlFor, icon: Icon, children }: { htmlFor: string; icon: LucideIcon; children: React.ReactNode }) {
+    return (
+        <Label htmlFor={htmlFor} className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+            <Icon className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+            {children}
+        </Label>
+    )
+}
+
 function Field({
     id,
     label,
-    icon: Icon,
+    icon,
     ...input
 }: { id: string; label: string; icon: LucideIcon } & React.ComponentProps<typeof Input>) {
     return (
         <div className="flex flex-col gap-1.5">
-            <Label htmlFor={id} className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
-                <Icon className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+            <FieldLabel htmlFor={id} icon={icon}>
                 {label}
-            </Label>
+            </FieldLabel>
             <Input id={id} className={inputClass} required {...input} />
         </div>
     )
@@ -58,6 +67,7 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice, rea
     const t = useTranslations('about.contactForm')
     const [status, setStatus] = useState<Status>('form')
     const [form, setForm] = useState(EMPTY)
+    const [phoneValid, setPhoneValid] = useState(true)
 
     // A reopened dialog starts on the form, not on the last outcome.
     useEffect(() => {
@@ -75,6 +85,7 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice, rea
             contactPosition: form.position,
             contactEmail: form.email,
             contactMunicipality: form.municipality,
+            contactPhone: form.phone,
             calculatedPrice,
         })
         setStatus(result.success ? 'sent' : 'failed')
@@ -117,7 +128,22 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice, rea
                                 <Field id="municipality" label={t('municipality')} icon={Building2} value={form.municipality} onChange={update('municipality')} placeholder={t('municipalityPlaceholder')} autoComplete="organization" />
                                 <Field id="email" label="Email" icon={Mail} type="email" value={form.email} onChange={update('email')} placeholder="email@example.com" autoComplete="email" />
                             </div>
-                            <PillButton type="submit" className="mt-1 w-full" disabled={status === 'sending'}>
+                            <div className="flex flex-col gap-1.5">
+                                <FieldLabel htmlFor="phone" icon={Phone}>
+                                    {t('phone')}
+                                    <span className="font-normal text-muted-foreground">· {t('optional')}</span>
+                                </FieldLabel>
+                                <PhoneField
+                                    id="phone"
+                                    mobileOnly={false}
+                                    value={form.phone}
+                                    onChange={(phone) => setForm((current) => ({ ...current, phone }))}
+                                    onValidityChange={({ isEmpty, isValid }) => setPhoneValid(isEmpty || isValid)}
+                                    placeholder={t('phonePlaceholder')}
+                                    invalidMessage={t('phoneInvalid')}
+                                />
+                            </div>
+                            <PillButton type="submit" className="mt-1 w-full" disabled={status === 'sending' || !phoneValid}>
                                 {t('submit')}
                             </PillButton>
                         </form>
