@@ -4,17 +4,21 @@ import prisma from "./prisma";
 import { env } from "@/env.mjs";
 import { sendConsultationCommentEmail } from "../email/consultation";
 import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
+import { commentHtmlToPlainText } from "@/lib/utils/commentText";
 import { describeEntity, entityLabel, extractGeoSets } from "@/components/consultations/entityDisplay";
-import type { RegulationData } from "@/components/consultations/types";
+import type { PendingCommentConfirmation, RegulationData } from "@/components/consultations/types";
 
 /*
  * Publishing a consultation comment, and the comments that wait for their author to confirm an
  * email address. This module must not import "@/auth" (directly or through "@/lib/auth"): the
- * Auth.js sign-in event in src/auth.ts calls publishPendingConsultationComments.
+ * Auth.js email provider in src/auth.ts quotes pending comments from here.
  */
 
-/** A pending comment older than this is dropped instead of published: a sign-in months later is not a confirmation. */
-export const PENDING_COMMENT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+/**
+ * A pending comment lives as long as its confirmation link: the Resend magic link's default
+ * `maxAge`, 24 hours. After that nothing can confirm it.
+ */
+export const PENDING_COMMENT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 export const COMMENT_MAX_LENGTH = 5000;
 
 // Fetch regulation data from URL (exported for use in page components)
@@ -108,6 +112,7 @@ async function notifyMunicipality(input: PublishCommentInput): Promise<void> {
     }
 }
 
+/** Stores a signed-out reader's comment until they confirm it; clears the ones nobody confirmed in time. */
 export async function createPendingConsultationComment(data: {
     userId: string;
     consultationId: string;
@@ -116,7 +121,10 @@ export async function createPendingConsultationComment(data: {
     entityId: string;
     bodyHtml: string;
     authorName: string | null;
-}) {
+}, now: Date = new Date()) {
+    await prisma.pendingConsultationComment.deleteMany({
+        where: { createdAt: { lt: new Date(now.getTime() - PENDING_COMMENT_MAX_AGE_MS) } }
+    });
     return prisma.pendingConsultationComment.create({
         data: {
             userId: data.userId,
@@ -130,25 +138,59 @@ export async function createPendingConsultationComment(data: {
     });
 }
 
+/** The id of the pending comment a confirmation link publishes, from the link's `callbackUrl`. */
+export function pendingCommentIdFromMagicLink(magicLinkUrl: string): string | null {
+    try {
+        const callbackUrl = new URL(magicLinkUrl).searchParams.get('callbackUrl');
+        return callbackUrl ? new URL(callbackUrl, 'https://opencouncil.invalid').searchParams.get('pending') : null;
+    } catch {
+        return null;
+    }
+}
+
 /**
- * Publishes the comments a reader wrote before confirming their email. Called on every sign-in:
- * opening the magic link proves the address. A row older than PENDING_COMMENT_MAX_AGE_MS, on a
- * consultation an administrator closed, or on an entity the regulation no longer has is dropped.
- * A row whose regulation cannot be fetched stays pending for the next sign-in. Returns how many
- * comments were published.
+ * The text of the comment a confirmation link publishes, for the email that carries the link, so
+ * the reader sees what they confirm. Only a comment of the account the email goes to is quoted.
  */
-export async function publishPendingConsultationComments(userId: string, now: Date = new Date()): Promise<number> {
-    const pending = await prisma.pendingConsultationComment.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'asc' },
+export async function pendingCommentQuote(magicLinkUrl: string, email: string): Promise<string | null> {
+    const pendingId = pendingCommentIdFromMagicLink(magicLinkUrl);
+    if (!pendingId) return null;
+    const row = await prisma.pendingConsultationComment.findUnique({
+        where: { id: pendingId },
+        select: { body: true, user: { select: { email: true } } }
+    });
+    if (!row || row.user.email?.toLowerCase() !== email.toLowerCase()) return null;
+    return commentHtmlToPlainText(row.body);
+}
+
+/**
+ * Publishes the pending comment a confirmation link names, when the signed-in reader is its author.
+ * Only that link publishes it: a sign-in by any other route does not, so nobody can publish a
+ * comment in someone else's name by typing their email. A comment whose link expired, on a
+ * consultation an administrator closed, or on a place the regulation no longer has is dropped. One
+ * whose regulation cannot be fetched stays pending, so opening the link again retries.
+ */
+export async function confirmPendingConsultationComment(pendingId: string, userId: string, now: Date = new Date()): Promise<PendingCommentConfirmation> {
+    const row = await prisma.pendingConsultationComment.findUnique({
+        where: { id: pendingId },
         include: { consultation: { include: { city: { select: { realm: true } } } } }
     });
-    if (pending.length === 0) return 0;
+    if (!row || row.userId !== userId) return 'not-found';
 
-    const fresh = pending.filter(p => now.getTime() - p.createdAt.getTime() <= PENDING_COMMENT_MAX_AGE_MS && p.consultation.isActive);
+    if (now.getTime() - row.createdAt.getTime() > PENDING_COMMENT_MAX_AGE_MS || !row.consultation.isActive) {
+        await prisma.pendingConsultationComment.deleteMany({ where: { id: row.id } });
+        return 'expired';
+    }
+
+    const regulationData = await fetchRegulationData(row.consultation.jsonUrl);
+    if (!regulationData) return 'unavailable';
+    if (!regulationHasEntity(regulationData, row.entityType, row.entityId)) {
+        await prisma.pendingConsultationComment.deleteMany({ where: { id: row.id } });
+        return 'not-found';
+    }
 
     // The name the reader typed goes on the account before the municipality's email names them.
-    const authorName = [...fresh].reverse().find(p => p.authorName?.trim())?.authorName?.trim();
+    const authorName = row.authorName?.trim();
     if (authorName) {
         await prisma.user.updateMany({
             where: { id: userId, OR: [{ name: null }, { name: '' }] },
@@ -156,45 +198,25 @@ export async function publishPendingConsultationComments(userId: string, now: Da
         });
     }
 
-    const regulations = new Map<string, RegulationData | null>();
-    let published = 0;
-    for (const row of pending) {
-        if (!fresh.includes(row)) {
-            await prisma.pendingConsultationComment.deleteMany({ where: { id: row.id } });
-            continue;
-        }
+    const input: PublishCommentInput = {
+        consultation: row.consultation,
+        regulationData,
+        userId,
+        entityType: row.entityType,
+        entityId: row.entityId,
+        bodyHtml: row.body,
+        createdAt: row.createdAt,
+        notify: true
+    };
+    // Claiming the row and storing the comment commit together: a failed insert leaves the
+    // comment pending, and of two openings of the link at once only the one that deletes the row publishes it.
+    const comment = await prisma.$transaction(async (tx) => {
+        const claimed = await tx.pendingConsultationComment.deleteMany({ where: { id: row.id } });
+        if (claimed.count === 0) return null;
+        return tx.consultationComment.create({ data: commentData(input) });
+    });
+    if (!comment) return 'not-found';
 
-        if (!regulations.has(row.consultation.jsonUrl)) {
-            regulations.set(row.consultation.jsonUrl, await fetchRegulationData(row.consultation.jsonUrl));
-        }
-        const regulationData = regulations.get(row.consultation.jsonUrl);
-        if (!regulationData) continue;
-        if (!regulationHasEntity(regulationData, row.entityType, row.entityId)) {
-            await prisma.pendingConsultationComment.deleteMany({ where: { id: row.id } });
-            continue;
-        }
-
-        const input: PublishCommentInput = {
-            consultation: row.consultation,
-            regulationData,
-            userId,
-            entityType: row.entityType,
-            entityId: row.entityId,
-            bodyHtml: row.body,
-            createdAt: row.createdAt,
-            notify: true
-        };
-        // Claiming the row and storing the comment commit together: a failed insert leaves the
-        // comment pending, and of two sign-ins at once only the one that deletes the row publishes it.
-        const comment = await prisma.$transaction(async (tx) => {
-            const claimed = await tx.pendingConsultationComment.deleteMany({ where: { id: row.id } });
-            if (claimed.count === 0) return null;
-            return tx.consultationComment.create({ data: commentData(input) });
-        });
-        if (!comment) continue;
-
-        await notifyMunicipality(input);
-        published++;
-    }
-    return published;
+    await notifyMunicipality(input);
+    return 'published';
 }

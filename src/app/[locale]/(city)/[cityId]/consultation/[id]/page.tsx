@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import { getCityCached } from "@/lib/cache";
 import { getConsultationById, getConsultationComments, fetchRegulationData } from "@/lib/db/consultations";
+import { confirmPendingConsultationComment } from "@/lib/db/consultationComments";
+import type { PendingCommentConfirmation } from "@/components/consultations/types";
 import { notFound } from "next/navigation";
 import { ConsultationViewer } from "@/components/consultations";
 import { auth } from "@/auth";
@@ -16,6 +18,7 @@ import { hasExplainPage } from '@/lib/explain/availability';
 
 interface PageProps {
     params: Promise<{ cityId: string; id: string; locale: string }>;
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export async function generateMetadata(props: PageProps): Promise<Metadata> {
@@ -119,11 +122,28 @@ export default async function ConsultationPage(props: PageProps) {
         notFound();
     }
 
+    // A comment's confirmation link lands here with `pending`: opening it publishes that comment,
+    // before the comments are read, so the page shows it. Only the signed-in author can.
+    const searchParams = await props.searchParams;
+    const pendingId = typeof searchParams.pending === 'string' ? searchParams.pending : null;
+    let pendingConfirmation: PendingCommentConfirmation | null = null;
+    if (pendingId) {
+        pendingConfirmation = session?.user?.id
+            ? await confirmPendingConsultationComment(pendingId, session.user.id)
+            : 'not-found';
+    }
+
     // Fetch regulation data and comments in parallel
     const [regulationData, comments] = await Promise.all([
         fetchRegulationData(consultation.jsonUrl),
         getConsultationComments(params.id, params.cityId, session)
     ]);
+
+    // Opened again after it worked (a reload, a second click), the link finds nothing to publish.
+    if (pendingConfirmation === 'not-found' && session?.user?.id
+        && comments.some(comment => comment.userId === session.user.id && comment.entityId === searchParams.entity)) {
+        pendingConfirmation = 'published';
+    }
 
     // Base URL for permalinks — the realm's canonical domain (per request Host)
     const realmBaseUrl = await getRealmBaseUrlFromRequest();
@@ -179,6 +199,7 @@ export default async function ConsultationPage(props: PageProps) {
             <Suspense fallback={null}>
                 <ConsultationViewer
                     header={header}
+                    pendingConfirmation={pendingConfirmation}
                     realm={realm}
                     consultation={consultation}
                     regulationData={regulationData}

@@ -8,6 +8,7 @@ import { captureEvent } from "@/lib/analytics/capture";
 import { cn } from "@/lib/utils";
 import type { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import type { EntityDisplay } from "../entityDisplay";
+import type { PendingCommentConfirmation } from "../types";
 import { buildConsultationUrl } from "../consultationUrl";
 import CommentList, { type CommentListProps } from "./CommentList";
 import { cardClass, Dot, pageClass, primaryButtonClass, SectionLabel, textLinkClass, navigateTo, ViewHeader, ViewLink } from "./ui";
@@ -18,10 +19,9 @@ export interface CommentViewProps {
     consultationId: string;
     cityId: string;
     active: boolean;
-    /** The reader arrived from the confirmation link (`posted=1`). */
-    posted: boolean;
+    /** What opening the comment's confirmation link did, when the reader arrived from it. */
+    confirmation: PendingCommentConfirmation | null;
     comments: ConsultationCommentWithUpvotes[];
-    currentUserId?: string;
     onUpvoted: CommentListProps['onUpvoted'];
     onDeleted: CommentListProps['onDeleted'];
 }
@@ -31,13 +31,19 @@ type Outcome =
     | { kind: 'pending'; email: string; emailSent: boolean }
     | { kind: 'error'; message: string };
 
+const CONFIRMATION_PROBLEM: Record<Exclude<PendingCommentConfirmation, 'published'>, string> = {
+    expired: 'Ο σύνδεσμος έληξε: ισχύει 24 ώρες. Γράψτε το σχόλιο ξανά παρακάτω.',
+    'not-found': 'Δεν βρήκαμε το σχόλιο που επιβεβαιώνετε. Γράψτε το ξανά παρακάτω.',
+    unavailable: 'Δεν μπορέσαμε να δημοσιεύσουμε το σχόλιο αυτή τη στιγμή. Ανανεώστε τη σελίδα σε λίγο.',
+};
+
 const inputClass = "h-12 w-full rounded-xl border-[1.5px] border-stone-300 bg-white px-4 text-base text-stone-900 focus:border-[#c2410c] focus:outline-none";
 
 /**
  * The comment form for one place, chapter or article. A signed-in reader's comment goes live at once;
  * anyone else leaves a name and an email, and the comment goes live when they open the link we send.
  */
-export default function CommentView({ display, backHref, consultationId, cityId, active, posted, comments, currentUserId, onUpvoted, onDeleted }: CommentViewProps) {
+export default function CommentView({ display, backHref, consultationId, cityId, active, confirmation, comments, onUpvoted, onDeleted }: CommentViewProps) {
     const router = useRouter();
     const { data: session, status } = useSession();
     const signedIn = status === 'authenticated' && !!session?.user;
@@ -46,15 +52,13 @@ export default function CommentView({ display, backHref, consultationId, cityId,
     const [email, setEmail] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [outcome, setOutcome] = useState<Outcome | null>(null);
-    // The confirmation link says "published" only if the comment is here: a link opened after it
-    // expired, or a comment dropped on the way (a closed consultation, a removed place), is not.
-    const [confirmation] = useState<'published' | 'missing' | null>(() =>
-        !posted ? null : comments.some(comment => comment.userId === currentUserId) ? 'published' : 'missing'
-    );
-    // Once read, `posted` leaves the URL, so a reload or a shared link does not repeat the notice.
+    // Once the link has done its work, `pending` leaves the URL, so a reload or a shared link does not
+    // repeat it. When the regulation could not be reached it stays, so a reload tries again.
     useEffect(() => {
-        if (posted) navigateTo(buildConsultationUrl('', { view: 'comment', entityId: display.id }), { replace: true });
-    }, [posted, display.id]);
+        if (confirmation && confirmation !== 'unavailable') {
+            navigateTo(buildConsultationUrl('', { view: 'comment', entityId: display.id }), { replace: true });
+        }
+    }, [confirmation, display.id]);
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
@@ -106,10 +110,10 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                         <p className="text-base">Το σχόλιό σας δημοσιεύτηκε και στάλθηκε στον Δήμο. Ευχαριστούμε.</p>
                     </div>
                 )}
-                {confirmation === 'missing' && (
+                {confirmation && confirmation !== 'published' && (
                     <div role="status" className="flex items-start gap-3 rounded-2xl bg-[#fff7ed] p-4 text-[#431407]">
                         <Mail className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                        <p className="text-base">Δεν βρήκαμε το σχόλιό σας εδώ. Ο σύνδεσμος ισχύει 24 ώρες. Αν έληξε, γράψτε το σχόλιο ξανά παρακάτω.</p>
+                        <p className="text-base">{CONFIRMATION_PROBLEM[confirmation]}</p>
                     </div>
                 )}
 

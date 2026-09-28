@@ -20,7 +20,7 @@ import {
     type ConsultationView,
 } from "./consultationUrl";
 import { describeEntity, extractGeoSets, findExplainingCard } from "./entityDisplay";
-import type { CurrentUser, RegulationData } from "./types";
+import type { CurrentUser, PendingCommentConfirmation, RegulationData } from "./types";
 import CommentsView from "./views/CommentsView";
 import CommentView from "./views/CommentView";
 import HomeView from "./views/HomeView";
@@ -34,6 +34,8 @@ import { navigateTo, ViewLink } from "./views/ui";
 interface ConsultationViewerProps {
     /** The site's header. It tops every screen but the phone's full-screen map. */
     header?: ReactNode;
+    /** What opening a comment's confirmation link did, when the page was opened from one. */
+    pendingConfirmation?: PendingCommentConfirmation | null;
     consultation: ConsultationWithStatus;
     regulationData: RegulationData | null;
     comments: ConsultationCommentWithUpvotes[];
@@ -101,6 +103,7 @@ const href = (view: ConsultationView, entityId?: string | null) => buildConsulta
  */
 export default function ConsultationViewer({
     header,
+    pendingConfirmation = null,
     consultation,
     regulationData,
     comments,
@@ -342,9 +345,8 @@ export default function ConsultationViewer({
                         consultationId={consultationId}
                         cityId={cityId}
                         active={active}
-                        posted={searchParams.get('posted') === '1'}
+                        confirmation={pendingConfirmation}
                         comments={liveComments.filter(comment => comment.entityId === entityDisplay.id)}
-                        currentUserId={currentUser?.id}
                         onUpvoted={onUpvoted}
                         onDeleted={onDeleted}
                     />

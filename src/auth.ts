@@ -1,9 +1,9 @@
 import NextAuth, { DefaultSession } from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/db/prisma"
-import authConfig from "@/auth.config"
+import authConfig, { resendProvider } from "@/auth.config"
 import { isTrustedExternalRedirect } from "@/lib/auth/trustedRedirect"
-import { publishPendingConsultationComments } from "@/lib/db/consultationComments"
+import { pendingCommentQuote } from "@/lib/db/consultationComments"
 
 declare module "next-auth" {
     interface Session {
@@ -22,21 +22,6 @@ declare module "next-auth" {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     adapter: PrismaAdapter(prisma),
-    events: {
-        /**
-         * Opening a magic link proves the email address, which is what a comment written while
-         * signed out was waiting for: publish it. A failure must not block the sign-in.
-         */
-        async signIn({ user }) {
-            if (!user.id) return;
-            try {
-                const published = await publishPendingConsultationComments(user.id);
-                if (published > 0) console.log(`Published ${published} pending consultation comment(s) for user ${user.id}`);
-            } catch (error) {
-                console.error('Failed to publish pending consultation comments:', error);
-            }
-        },
-    },
     callbacks: {
         /**
          * Auth.js resolves redirect targets against `NEXTAUTH_URL`'s origin
@@ -76,4 +61,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
     },
     ...authConfig,
+    // The same provider as the proxy's, plus the quote of the comment a confirmation link publishes.
+    providers: [resendProvider(pendingCommentQuote)],
 })

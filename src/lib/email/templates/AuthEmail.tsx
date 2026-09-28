@@ -109,8 +109,8 @@ const CONFIRM_COMMENT_COPY: typeof COPY = {
 export type AuthEmailPurpose = 'signIn' | 'confirmComment';
 
 /**
- * What a magic link is for, read from where it lands: a consultation comment view with `posted=1`
- * is the link that publishes a pending comment. Anything else, or an unreadable link, is a sign-in.
+ * What a magic link is for, read from where it lands: a consultation comment view that names a
+ * `pending` comment is the link that publishes it. Anything else, or an unreadable link, is a sign-in.
  */
 export function authEmailPurpose(magicLinkUrl: string): AuthEmailPurpose {
     try {
@@ -119,7 +119,7 @@ export function authEmailPurpose(magicLinkUrl: string): AuthEmailPurpose {
         const target = new URL(callbackUrl, 'https://opencouncil.invalid');
         const isComment = target.pathname.includes('/consultation/')
             && target.searchParams.get('view') === 'comment'
-            && target.searchParams.get('posted') === '1';
+            && !!target.searchParams.get('pending');
         return isComment ? 'confirmComment' : 'signIn';
     } catch {
         return 'signIn';
@@ -136,9 +136,11 @@ interface AuthEmailProps {
     /** UI locale of the domain the sign-in was requested from. */
     locale: string;
     purpose?: AuthEmailPurpose;
+    /** The comment a confirmation link publishes, as plain text, so the reader sees what they confirm. */
+    quote?: string | null;
 }
 
-export const AuthEmail = ({ url, locale, purpose = 'signIn' }: AuthEmailProps): React.ReactElement => {
+export const AuthEmail = ({ url, locale, purpose = 'signIn', quote }: AuthEmailProps): React.ReactElement => {
     const copy = authEmailCopy(locale, purpose);
 
     return (
@@ -164,6 +166,24 @@ export const AuthEmail = ({ url, locale, purpose = 'signIn' }: AuthEmailProps): 
                 >
                     {copy.body}
                 </Text>
+
+                {quote && (
+                    <Text
+                        style={{
+                            backgroundColor: '#f3f4f6',
+                            borderRadius: '6px',
+                            color: '#1f2937',
+                            fontSize: '16px',
+                            lineHeight: '24px',
+                            margin: '16px 0',
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            whiteSpace: 'pre-wrap',
+                        }}
+                    >
+                        {quote}
+                    </Text>
+                )}
 
                 <Button
                     href={url}

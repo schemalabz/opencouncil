@@ -16,15 +16,13 @@ const isDev = process.env.NODE_ENV === 'development'
 // APP_PORT is set by flake.nix when running multiple instances
 const port = process.env.APP_PORT || '3000'
 
-export default {
-    trustHost: true,
-    cookies: isDev ? {
-        sessionToken: {
-            name: devSessionCookieName(port),
-            options: { httpOnly: true, sameSite: 'lax' as const, path: '/', secure: false },
-        },
-    } : undefined,
-    providers: [Resend({
+/**
+ * The magic-link provider. `quoteFor` adds the comment a confirmation link publishes to its email,
+ * so the reader sees what they confirm; it reads the database, so only src/auth.ts (Node) passes it,
+ * never the proxy.
+ */
+export function resendProvider(quoteFor?: (magicLinkUrl: string, email: string) => Promise<string | null>) {
+    return Resend({
         from: 'OpenCouncil <auth@opencouncil.gr>',
         apiKey: env.RESEND_API_KEY,
         sendVerificationRequest: async (params) => {
@@ -39,7 +37,16 @@ export default {
             // A link that publishes a comment the reader wrote while signed out asks for a confirmation.
             const purpose = authEmailPurpose(url)
             const copy = authEmailCopy(locale, purpose)
-            const html = await renderReactEmailToHtml(AuthEmail({ url: signInUrl, locale, purpose }))
+            let quote: string | null = null
+            if (purpose === 'confirmComment' && quoteFor) {
+                try {
+                    quote = await quoteFor(url, to)
+                } catch (error) {
+                    // The link still works without the quote.
+                    console.error('[Auth] Could not quote the pending comment:', error)
+                }
+            }
+            const html = await renderReactEmailToHtml(AuthEmail({ url: signInUrl, locale, purpose, quote }))
 
             // Redirect test user emails to DEV_EMAIL_OVERRIDE if set
             // This allows testing different admin roles with a single real inbox
@@ -60,12 +67,23 @@ export default {
                     to: emailTo,
                     subject: copy.subject,
                     html,
-                    text: `${copy.subject}: ${signInUrl}`,
+                    text: quote ? `${copy.subject}\n\n«${quote}»\n\n${signInUrl}` : `${copy.subject}: ${signInUrl}`,
                 }),
             })
 
             if (!res.ok)
                 throw new Error("Resend error: " + JSON.stringify(await res.json()))
         }
-    })],
+    })
+}
+
+export default {
+    trustHost: true,
+    cookies: isDev ? {
+        sessionToken: {
+            name: devSessionCookieName(port),
+            options: { httpOnly: true, sameSite: 'lax' as const, path: '/', secure: false },
+        },
+    } : undefined,
+    providers: [resendProvider()],
 } satisfies NextAuthConfig
