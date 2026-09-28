@@ -187,7 +187,7 @@ function getEntityDetails(entityType: string, entityId: string, regulationData: 
                 .find(chapter => chapter.id === entityId);
 
             return {
-                type: 'κεφάλαιο',
+                label: 'Στο κεφάλαιο',
                 title: chapter?.title || 'Άγνωστο κεφάλαιο',
                 number: chapter?.num,
                 parentContext: null
@@ -198,15 +198,15 @@ function getEntityDetails(entityType: string, entityId: string, regulationData: 
                 const article = chapter.articles?.find(article => article.id === entityId);
                 if (article) {
                     return {
-                        type: 'άρθρο',
+                        label: 'Στο άρθρο',
                         title: article.title,
                         number: article.num,
-                        parentContext: `κεφάλαιο ${chapter.num}`
+                        parentContext: `του κεφαλαίου ${chapter.num}`
                     };
                 }
             }
             return {
-                type: 'άρθρο',
+                label: 'Στο άρθρο',
                 title: 'Άγνωστο άρθρο',
                 number: null,
                 parentContext: null
@@ -218,7 +218,7 @@ function getEntityDetails(entityType: string, entityId: string, regulationData: 
                 .find(geoset => geoset.id === entityId);
 
             return {
-                type: 'γεωγραφικό σύνολο',
+                label: 'Στο γεωγραφικό σύνολο',
                 title: geoset?.name || 'Άγνωστο σύνολο περιοχών',
                 number: null,
                 parentContext: null
@@ -229,15 +229,15 @@ function getEntityDetails(entityType: string, entityId: string, regulationData: 
                 const geometry = geoset.geometries?.find(geometry => geometry.id === entityId);
                 if (geometry) {
                     return {
-                        type: 'τοποθεσία',
+                        label: 'Στην τοποθεσία',
                         title: geometry.name,
                         number: null,
-                        parentContext: `γεωγραφικό σύνολο &quot;${geoset.name}&quot;`
+                        parentContext: `του γεωγραφικού συνόλου «${geoset.name}»`
                     };
                 }
             }
             return {
-                type: 'τοποθεσία',
+                label: 'Στην τοποθεσία',
                 title: 'Άγνωστη περιοχή',
                 number: null,
                 parentContext: null
@@ -245,7 +245,7 @@ function getEntityDetails(entityType: string, entityId: string, regulationData: 
         }
         default:
             return {
-                type: 'στοιχείο',
+                label: 'Στο στοιχείο',
                 title: 'Άγνωστο στοιχείο',
                 number: null,
                 parentContext: null
@@ -345,8 +345,8 @@ export default async function CommentsPage(props: PageProps) {
                                 return (
                                     <div key={comment.id} className="border-l-4 border-blue-200 pl-4">
                                         <div className="text-sm font-medium text-gray-900 mb-2">
-                                            Στο {entityDetails.type} {entityDetails.number && `${entityDetails.number} `}
-                                            {entityDetails.parentContext && `(${entityDetails.parentContext})`},
+                                            {entityDetails.label} {entityDetails.number ? `${entityDetails.number} ` : ''}«{entityDetails.title}»
+                                            {entityDetails.parentContext ? ` ${entityDetails.parentContext}` : ''},
                                             ο χρήστης <span className="font-semibold">{comment.user.name || 'Ανώνυμος'}</span> στις{' '}
                                             {formatDate(new Date(comment.createdAt))}:
                                         </div>
@@ -378,8 +378,8 @@ export default async function CommentsPage(props: PageProps) {
                                 return (
                                     <div key={comment.id} className="border-l-4 border-green-200 pl-4">
                                         <div className="text-sm font-medium text-gray-900 mb-2">
-                                            Στη {entityDetails.type} &quot;{entityDetails.title}&quot;
-                                            {entityDetails.parentContext && ` του ${entityDetails.parentContext}`},
+                                            {entityDetails.label} «{entityDetails.title}»
+                                            {entityDetails.parentContext ? ` ${entityDetails.parentContext}` : ''},
                                             ο χρήστης <span className="font-semibold">{comment.user.name || 'Ανώνυμος'}</span> στις{' '}
                                             {formatDate(new Date(comment.createdAt))}:
                                         </div>

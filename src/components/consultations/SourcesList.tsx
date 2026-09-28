@@ -12,6 +12,8 @@ interface SourcesListProps {
     ccEmails?: string[];
     consultationId?: string;
     cityId?: string;
+    /** "Δήμος Χ" as the city writes it; rendered in the accusative ("τον Δήμο Χ") */
+    municipalityName?: string;
 }
 
 export default function SourcesList({
@@ -20,8 +22,10 @@ export default function SourcesList({
     ccEmails,
     consultationId,
     cityId,
+    municipalityName,
     realm
 }: SourcesListProps) {
+    const municipalityAccusative = municipalityName ? municipalityName.replace(/^Δήμος(?=\s|$)/u, 'Δήμο') : 'δήμο';
     if (sources.length === 0) return null;
 
     return (
@@ -117,7 +121,7 @@ export default function SourcesList({
                 <div className="pt-3 border-t">
                     <h4 className="font-medium text-sm text-muted-foreground mb-2">Σχετικά με την εφαρμογή</h4>
                     <p className="text-xs text-muted-foreground">
-                        Αυτή η εφαρμογή αναπτύχθηκε από την <a href="/about" className="text-blue-600 hover:underline">OpenCouncil</a> και δεν σχετίζεται ούτε υποστηρίζεται από τον δήμο Αθηναίων.
+                        Αυτή η εφαρμογή αναπτύχθηκε από την <a href="/about" className="text-blue-600 hover:underline">OpenCouncil</a> και δεν σχετίζεται ούτε υποστηρίζεται από τον {municipalityAccusative}.
                     </p>
                     <p className="text-xs text-muted-foreground mt-2">
                         Για τεχνική υποστήριξη ή απορίες σχετικά με την εφαρμογή, μπορείτε να επικοινωνήσετε απευθείας μαζί μας:

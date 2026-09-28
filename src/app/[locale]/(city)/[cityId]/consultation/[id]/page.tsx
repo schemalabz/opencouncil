@@ -175,6 +175,7 @@ export default async function ConsultationPage(props: PageProps) {
                     consultationId={params.id}
                     cityId={params.cityId}
                     cityName={city.name}
+                    municipalityName={city.name_municipality}
                     cityLogoUrl={city.logoImage || null}
                 />
             </Suspense>
