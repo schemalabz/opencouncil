@@ -31,6 +31,8 @@ interface ConsultationDocumentProps {
     /** the request's realm, resolved server-side — picks the support phone number */
     realm: Realm;
     consultationIsActive?: boolean; // Add consultation active status
+    /** "Δήμος Χ", for the sources footer */
+    municipalityName?: string;
 }
 
 interface SummaryCardProps {
@@ -99,6 +101,7 @@ export default function ConsultationDocument({
     consultationId,
     cityId,
     realm,
+    municipalityName,
     consultationIsActive = true // Default to true for backward compatibility
 }: ConsultationDocumentProps) {
 
@@ -265,6 +268,7 @@ export default function ConsultationDocument({
                         ccEmails={regulationData.ccEmails}
                         consultationId={consultationId}
                         cityId={cityId}
+                        municipalityName={municipalityName}
                         realm={realm}
                     />
                 </div>

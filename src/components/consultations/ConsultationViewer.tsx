@@ -49,6 +49,8 @@ interface ConsultationViewerProps {
     /** the request's realm, resolved server-side — picks the support phone number */
     realm: Realm;
     cityName?: string;
+    /** "Δήμος Χ" as written by the city; the sources footer turns it into the accusative */
+    municipalityName?: string;
     cityLogoUrl?: string | null;
 }
 
@@ -62,6 +64,7 @@ export default function ConsultationViewer({
     cityId,
     realm,
     cityName,
+    municipalityName,
     cityLogoUrl
 }: ConsultationViewerProps) {
     const router = useRouter();
@@ -495,6 +498,7 @@ export default function ConsultationViewer({
                     currentUser={currentUser}
                     consultationId={consultationId}
                     cityId={cityId}
+                    municipalityName={municipalityName}
                     consultationIsActive={consultation.isActiveComputed}
                 />
 
