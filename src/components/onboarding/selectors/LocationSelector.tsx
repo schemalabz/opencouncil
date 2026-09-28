@@ -28,6 +28,8 @@ interface LocationSelectorProps {
      * always-visible search input. Defaults to false.
      */
     collapseAfterAdd?: boolean;
+    /** Lets a parent focus the search input, e.g. after a dialog that invited the search closes. */
+    inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 export function LocationSelector({
@@ -37,7 +39,8 @@ export function LocationSelector({
     city,
     onLocationClick,
     hideSelectedList = false,
-    collapseAfterAdd = false
+    collapseAfterAdd = false,
+    inputRef: externalInputRef
 }: LocationSelectorProps) {
     const t = useTranslations('Common');
     const [inputValue, setInputValue] = useState('');
@@ -51,7 +54,8 @@ export function LocationSelector({
     const [isSelectingLocation, setIsSelectingLocation] = useState(false);
     const [isWaitingForDebounce, setIsWaitingForDebounce] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const ownInputRef = useRef<HTMLInputElement>(null);
+    const inputRef = externalInputRef ?? ownInputRef;
 
     // Debounce the input value to avoid making too many API calls
     const debouncedInputValue = useDebounce(inputValue, 300);

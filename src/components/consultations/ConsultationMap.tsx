@@ -18,6 +18,8 @@ import { Location } from "@/lib/types/onboarding";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Drawer, DrawerContent, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { buildConsultationUrl, resolveConsultationUrlState } from "./consultationUrl";
+import { computeAddressLookup } from "./addressLookup";
+import { captureConsultationAddressSearched, captureConsultationEntityOpened, type ConsultationEntityOpenSource } from "./analytics";
 
 interface ConsultationMapProps {
     className?: string;
@@ -31,6 +33,9 @@ interface ConsultationMapProps {
     cityId?: string;
     onShowInfo?: () => void;
     onDrawerStateChange?: (isOpen: boolean) => void;
+    consultationIsActive?: boolean;
+    /** Bumped by the parent to open the layer controls with the address search focused. */
+    addressSearchRequest?: number;
 }
 
 // Generate distinct colors for different geosets
@@ -181,7 +186,9 @@ export default function ConsultationMap({
     consultationId,
     cityId,
     onShowInfo,
-    onDrawerStateChange
+    onDrawerStateChange,
+    consultationIsActive = true,
+    addressSearchRequest = 0
 }: ConsultationMapProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -242,6 +249,11 @@ export default function ConsultationMap({
     // The entity the UI just opened. The URL effect then skips its own zoom: a list click zooms
     // once, and a map click does not move the camera at all. Deep links and back/forward still zoom.
     const uiOpenedEntityRef = useRef<string | null>(null);
+
+    // The welcome dialog's "find your street" button: open the controls, whose search box then focuses.
+    useEffect(() => {
+        if (addressSearchRequest > 0) setIsControlsOpen(true);
+    }, [addressSearchRequest]);
 
     // Report drawer state to parent (for ViewToggleButton positioning)
     useEffect(() => {
@@ -362,7 +374,7 @@ export default function ConsultationMap({
     }, [geoSets, savedGeometries]);
 
     // Functions to manage detail panel
-    const openGeoSetDetail = (geoSetId: string) => {
+    const openGeoSetDetail = (geoSetId: string, options?: { source?: ConsultationEntityOpenSource }) => {
         isInSearchLocationMode.current = false;
         if (isMobile) setIsControlsOpen(false);
         setDetailType('geoset');
@@ -370,12 +382,16 @@ export default function ConsultationMap({
         setSelectedSearchLocationIndex(null);
         uiOpenedEntityRef.current = geoSetId;
         navigateMapEntity(geoSetId);
+        captureConsultationEntityOpened({
+            consultation_id: consultationId, city_id: cityId,
+            entity_type: 'geoset', entity_id: geoSetId, geoset_id: geoSetId, source: options?.source ?? 'list'
+        });
 
         const geoSet = geoSets.find(gs => gs.id === geoSetId);
         if (geoSet) ensureGeoSetVisibleAndZoom(geoSet);
     };
 
-    const openGeometryDetail = (geometryId: string, options?: { zoom?: boolean }) => {
+    const openGeometryDetail = (geometryId: string, options?: { zoom?: boolean; source?: ConsultationEntityOpenSource }) => {
         isInSearchLocationMode.current = false;
         if (isMobile) setIsControlsOpen(false);
         setDetailType('geometry');
@@ -383,6 +399,12 @@ export default function ConsultationMap({
         setSelectedSearchLocationIndex(null);
         uiOpenedEntityRef.current = geometryId;
         navigateMapEntity(geometryId);
+        captureConsultationEntityOpened({
+            consultation_id: consultationId, city_id: cityId,
+            entity_type: 'geometry', entity_id: geometryId,
+            geoset_id: geoSets.find(gs => gs.geometries.some(g => g.id === geometryId))?.id,
+            source: options?.source ?? 'list'
+        });
 
         if (options?.zoom !== false) {
             const geoJSON = findGeometryGeoJSON(geometryId);
@@ -413,7 +435,7 @@ export default function ConsultationMap({
 
         if (feature.properties?.id) {
             // The reader is already looking at what they clicked, so the camera stays put.
-            openGeometryDetail(feature.properties.id, { zoom: false });
+            openGeometryDetail(feature.properties.id, { zoom: false, source: 'map' });
         }
     };
 
@@ -421,6 +443,33 @@ export default function ConsultationMap({
     const mapFeatureClickRef = useRef(handleMapFeatureClick);
     mapFeatureClickRef.current = handleMapFeatureClick;
     const onMapFeatureClick = useCallback((feature: GeoJSON.Feature) => mapFeatureClickRef.current(feature), []);
+
+    // What the regulation says about the searched address; also drives the map highlight below.
+    const addressLookup = useMemo(() => {
+        if (!activeSearchLocation) return null;
+        return computeAddressLookup(activeSearchLocation.coordinates, geoSets, regulationData?.addressLookup, savedGeometries);
+    }, [activeSearchLocation, geoSets, regulationData?.addressLookup, savedGeometries]);
+    const nearbyUnitIds = useMemo(
+        () => new Set(addressLookup?.areaGroups.flatMap(group => group.items.map(item => item.geometry.id)) ?? []),
+        [addressLookup]
+    );
+
+    const handleSearchLocation = (location: Location) => {
+        const newIndex = searchLocations.length;
+        setSearchLocations(prev => [...prev, location]);
+        openSearchLocationDetail(location, newIndex);
+        setZoomGeometry({ type: 'Point', coordinates: location.coordinates });
+
+        const lookup = computeAddressLookup(location.coordinates, geoSets, regulationData?.addressLookup, savedGeometries);
+        captureConsultationAddressSearched({
+            consultation_id: consultationId,
+            city_id: cityId,
+            in_zone: !!lookup.zone,
+            zone_id: lookup.zone?.geometry.id ?? null,
+            nearby_area_count: lookup.areaGroups.reduce((n, group) => n + group.items.length, 0),
+            nearby_point_count: lookup.points.length
+        });
+    };
 
     // Convert enabled geometries to map features
     const mapFeatures: MapFeature[] = useMemo(() => {
@@ -463,6 +512,15 @@ export default function ConsultationMap({
                             ? geometry.textualDefinition
                             : geometry.name;
 
+                    const fillOpacity = geometry.type === 'derived' ? 0.15 : (isFromLocalStorage ? 0.5 : (mapStyle?.fillOpacity ?? 0.4));
+                    const strokeWidth = geometry.type === 'derived'
+                        ? 0
+                        : geometry.type === 'point'
+                            ? (mapStyle?.strokeWidth ?? 4)
+                            : (isFromLocalStorage ? 3 : (mapStyle?.strokeWidth ?? 2));
+                    // The units listed for a searched address stand out on the map as well.
+                    const isNearby = nearbyUnitIds.has(geometry.id);
+
                     features.push({
                         id: geometry.id,
                         geometry: geoJSON,
@@ -479,15 +537,11 @@ export default function ConsultationMap({
                             // Color: use blue for localStorage, otherwise use geoset color
                             fillColor: isFromLocalStorage ? '#3B82F6' : color,
                             // Opacity: derived geometries are very transparent, localStorage medium, regular per geoset
-                            fillOpacity: geometry.type === 'derived' ? 0.15 : (isFromLocalStorage ? 0.5 : (mapStyle?.fillOpacity ?? 0.4)),
+                            fillOpacity: isNearby ? Math.min(1, fillOpacity + 0.25) : fillOpacity,
                             // Stroke: derived geometries have no stroke, localStorage get blue stroke, regular get geoset color
-                            strokeColor: geometry.type === 'derived' ? 'transparent' : (isFromLocalStorage ? '#1D4ED8' : color),
+                            strokeColor: geometry.type === 'derived' ? 'transparent' : (isNearby ? '#111827' : (isFromLocalStorage ? '#1D4ED8' : color)),
                             // Stroke width (the circle radius for points): derived have none, localStorage get thicker stroke
-                            strokeWidth: geometry.type === 'derived'
-                                ? 0
-                                : geometry.type === 'point'
-                                    ? (mapStyle?.strokeWidth ?? 4)
-                                    : (isFromLocalStorage ? 3 : (mapStyle?.strokeWidth ?? 2)),
+                            strokeWidth: isNearby && geometry.type !== 'point' ? 4 : strokeWidth,
                             label
                         }
                     });
@@ -528,7 +582,7 @@ export default function ConsultationMap({
         }
 
         return features;
-    }, [geoSets, enabledGeoSets, enabledGeometries, savedGeometries, isEditingMode, selectedLocations, searchLocations]);
+    }, [geoSets, enabledGeoSets, enabledGeometries, savedGeometries, isEditingMode, selectedLocations, searchLocations, nearbyUnitIds]);
 
     // Get geoset checkbox state (checked, indeterminate, or unchecked)
     const getGeoSetCheckboxState = (geoSetId: string): CheckboxState => {
@@ -635,19 +689,29 @@ export default function ConsultationMap({
         if (geoSet) {
             setDetailType('geoset');
             setDetailId(id);
-            if (!openedByUi) ensureGeoSetVisibleAndZoom(geoSet);
+            if (!openedByUi) {
+                ensureGeoSetVisibleAndZoom(geoSet);
+                captureConsultationEntityOpened({
+                    consultation_id: consultationId, city_id: cityId,
+                    entity_type: 'geoset', entity_id: id, geoset_id: id, source: 'url'
+                });
+            }
             return;
         }
 
         // Check if it's a geometry
-        const geometry = geoSets.flatMap(gs => gs.geometries).find(g => g.id === id);
-        if (geometry) {
+        const parentGeoSet = geoSets.find(gs => gs.geometries.some(g => g.id === id));
+        if (parentGeoSet) {
             setDetailType('geometry');
             setDetailId(id);
 
             if (!openedByUi) {
                 const geoJSON = findGeometryGeoJSON(id);
                 if (geoJSON) setZoomGeometry(geoJSON);
+                captureConsultationEntityOpened({
+                    consultation_id: consultationId, city_id: cityId,
+                    entity_type: 'geometry', entity_id: id, geoset_id: parentGeoSet.id, source: 'url'
+                });
             }
             return;
         }
@@ -908,16 +972,8 @@ export default function ConsultationMap({
                                 };
                                 setZoomGeometry(pointGeometry);
                             }}
-                            onSearchLocation={(location) => {
-                                const newIndex = searchLocations.length;
-                                setSearchLocations(prev => [...prev, location]);
-                                openSearchLocationDetail(location, newIndex);
-                                const pointGeometry: GeoJSON.Geometry = {
-                                    type: 'Point',
-                                    coordinates: location.coordinates
-                                };
-                                setZoomGeometry(pointGeometry);
-                            }}
+                            onSearchLocation={handleSearchLocation}
+                            searchFocusRequest={addressSearchRequest}
                             onRemoveSearchLocation={(index) => {
                                 setSearchLocations(prev => prev.filter((_, i) => i !== index));
                                 if (selectedSearchLocationIndex === index) {
@@ -972,16 +1028,8 @@ export default function ConsultationMap({
                         };
                         setZoomGeometry(pointGeometry);
                     }}
-                    onSearchLocation={(location) => {
-                        const newIndex = searchLocations.length;
-                        setSearchLocations(prev => [...prev, location]);
-                        openSearchLocationDetail(location, newIndex);
-                        const pointGeometry: GeoJSON.Geometry = {
-                            type: 'Point',
-                            coordinates: location.coordinates
-                        };
-                        setZoomGeometry(pointGeometry);
-                    }}
+                    onSearchLocation={handleSearchLocation}
+                    searchFocusRequest={addressSearchRequest}
                     onRemoveSearchLocation={(index) => {
                         setSearchLocations(prev => prev.filter((_, i) => i !== index));
                         if (selectedSearchLocationIndex === index) {
@@ -1015,6 +1063,8 @@ export default function ConsultationMap({
                 selectedGeometryForEdit={selectedGeometryForEdit}
                 savedGeometries={savedGeometries}
                 searchLocation={activeSearchLocation || undefined}
+                addressLookup={addressLookup}
+                consultationIsActive={consultationIsActive}
             />
         </div>
     );
