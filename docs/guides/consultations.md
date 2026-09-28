@@ -27,7 +27,8 @@ The regulation JSON file is the core data source for each consultation. It follo
 - `definitions` — dictionary of terms that can be referenced via `{DEF:id}` in markdown
 - `defaultView` — initial view mode (`"map"` or `"document"`, defaults to `"document"`)
 - `defaultVisibleGeosets` — which geosets are visible on the map by default
-- `regulation` — array of `Chapter` and `GeoSet` items (the main content)
+- `addressLookup` — what the map shows for a searched address ("Βρες τον δρόμο σου"): `zoneGeoSetId` (the area geoset that answers "which zone am I in"), `nearbyGeoSetIds` (area geosets listed by distance; default: every polygon geoset except the zone geoset), `nearbyRadiusMeters` (120), `pointRadiusMeters` (500), `noZoneText` (markdown when no zone contains the address)
+- `regulation` — array of `Chapter` and `GeoSet` items (the main content). Order is draw order on the map: a later geoset draws on top and wins clicks, so put large areas (zones, communities) first and small clickable shapes after them
 
 **Chapter** (`type: "chapter"`):
 - `num`, `id`, `title`, `summary`, `preludeBody` (intro markdown before articles)
@@ -35,12 +36,13 @@ The regulation JSON file is the core data source for each consultation. It follo
 
 **GeoSet** (`type: "geoset"`):
 - `id`, `name`, `description`, `color` (hex)
+- `mapStyle` — optional rendering hints: `fillOpacity` (default 0.4), `strokeWidth` (px; the circle radius for points), `showLabels` (false: no map labels for this geoset, e.g. hundreds of parking strips that would hide the street names), `hover` (false: no hover highlight for areas that sit under other clickable shapes)
 - `geometries[]` — individual geographic shapes
 
 **Geometry** types:
 - `point` — single location with GeoJSON Point
 - `circle` — point with radius
-- `polygon` — area boundary with GeoJSON Polygon
+- `polygon` — area boundary with GeoJSON Polygon or MultiPolygon
 - `derived` — computed from other geosets via `buffer` (zone around source) or `difference` (subtract geosets from base) operations
 
 **Cross-Reference System:**
@@ -190,13 +192,19 @@ Generates the complete regulation JSON for the Athens cooking oil collection bin
 
 ### Typical Pipeline
 
-| Step | Scooter Regulation | Cooking Oil Regulation |
-|------|-------------------|----------------------|
-| 1. Extract structure | `convert-regulation-pdf.ts` (AI) | `generate-cooking-oil-regulation.ts` (manual) |
-| 2. Resolve coordinates | `transform-regulation-coordinates.ts` (GGRS87→WGS84) | `geocode-regulation-addresses.ts` (address→lat/lng) |
-| 3. Fix failures | Admin geo-editor | Admin geo-editor (4 addresses) |
-| 4. Upload JSON to S3 | Admin dashboard upload | Admin dashboard upload |
-| 5. Create DB record | Prisma seed | Admin consultations page |
+| Step | Scooter Regulation | Cooking Oil Regulation | Papagou Parking (ΣΕΣ) |
+|------|-------------------|----------------------|----------------------|
+| 1. Extract structure | `convert-regulation-pdf.ts` (AI) | `generate-cooking-oil-regulation.ts` (manual) | `python -m ses docx` (report .docx → chapters, tables, figures) |
+| 2. Resolve coordinates | `transform-regulation-coordinates.ts` (GGRS87→WGS84) | `geocode-regulation-addresses.ts` (address→lat/lng) | `python -m ses build` (CAD PDF vectors georeferenced against OSM) |
+| 3. Fix failures | Admin geo-editor | Admin geo-editor (4 addresses) | `config/street-aliases.json`, `config/id-aliases.json`, `out/diff-report.md` |
+| 4. Upload JSON to S3 | Admin dashboard upload | Admin dashboard upload | `generate-parking-regulation.ts` then admin dashboard upload |
+| 5. Create DB record | Prisma seed | Admin consultations page | Admin consultations page |
+
+### Parking Consultation Pipeline (Papagou-Cholargou)
+
+[`scripts/parking-consultation/`](../../scripts/parking-consultation/README.md) (Python) and [`scripts/generate-parking-regulation.ts`](../../scripts/generate-parking-regulation.ts)
+
+The source material is two AutoCAD PDF plots (zones, parking organisation per street side) and a technical report. The Python pipeline georeferences each plot from its street labels against OpenStreetMap, reads the filled shapes by colour, groups the parking strips into block-side units with stable transliterated ids, clusters the spot symbols, derives the zone areas from the street network's blocks, and converts the report to markdown. The TypeScript generator assembles the regulation JSON from those outputs, names and links every unit, and validates it with the shared [`scripts/lib/regulation-schema.ts`](../../scripts/lib/regulation-schema.ts) plus checks for duplicate ids and dangling `{REF:}` references. The README covers setup, the re-run procedure and the sanity numbers.
 
 ## Hosting Regulation JSON Files
 
@@ -264,9 +272,9 @@ For local development, you can place regulation JSON files in the `public/` dire
 1. The map uses Mapbox GL with custom styling for different geosets (each has a `color`) and always-on street labels
 2. `defaultVisibleGeosets` in the regulation JSON controls initial map layer visibility
 3. The map auto-fits to all visible features on initial load (unless a hash navigation targets a specific entity)
-4. Citizens can search addresses via the community picker; searched locations appear as colored pins and open a detail panel showing nearby points within 500m
-5. Clicking a community boundary polygon opens the parent geoset detail; clicking a point opens the geometry detail
-6. Point labels (addresses) appear at higher zoom levels; polygon labels (community names) fade out at street level to avoid noise
+4. Citizens can search addresses via the community picker; searched locations appear as colored pins and open the address lookup panel: the zone that contains the address (when `addressLookup.zoneGeoSetId` is set), the area geometries within `nearbyRadiusMeters` grouped by geoset and sorted by distance (highlighted on the map with a dark outline), and the point geometries within `pointRadiusMeters`. The welcome dialog's "Βρείτε τον δρόμο σας" button opens the picker with the search focused
+5. Clicking any geometry (polygon or point) opens that geometry's detail without moving the camera; a click tolerates a few pixels of miss and prefers a point over a polygon and an exact polygon hit over a near one. Deep links and list clicks zoom to the geometry
+6. Point labels (addresses) appear at higher zoom levels; polygon labels are always on unless the geoset sets `mapStyle.showLabels: false`
 7. Derived geometries are computed client-side using buffer/difference operations
 8. The admin geo-editor stores drawn geometries in browser `localStorage` until exported
 9. Export produces a complete updated `regulation.json` merging local edits with original data
