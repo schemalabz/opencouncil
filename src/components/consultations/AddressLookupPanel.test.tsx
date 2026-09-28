@@ -22,9 +22,9 @@ const residents: GeoSetData = { id: 'residents', name: 'Στάθμευση κα�
 const baseResult: AddressLookupResult = {
     zone: null,
     zoneConfigured: false,
-    areaGroups: [],
-    points: [],
-    config: { nearbyRadiusMeters: 120, pointRadiusMeters: 500 },
+    street: [],
+    nearby: [],
+    config: { streetRadiusMeters: 30, streetMaxItems: 4, nearbyRadiusMeters: 400 },
 };
 
 describe('AddressLookupPanel', () => {
@@ -33,7 +33,7 @@ describe('AddressLookupPanel', () => {
             ...baseResult,
             zone: { geometry: { ...zones.geometries[0], description: 'Κάρτα κατοίκου 10 €.' }, geoSet: zones },
             zoneConfigured: true,
-            areaGroups: [{ geoSet: residents, items: [{ geometry: residents.geometries[0], geoSet: residents, distance: 42 }] }],
+            street: [{ geometry: residents.geometries[0], geoSet: residents, distance: 42 }],
         };
         const onOpen = jest.fn();
         render(<AddressLookupPanel result={result} onOpenGeometryDetail={onOpen} />);
