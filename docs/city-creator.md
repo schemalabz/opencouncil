@@ -21,7 +21,7 @@ The system uses Claude Sonnet 4 with web search to find current information abou
 2. Clicks "Import Data" button (appears when city has no existing data)
 3. Clicks "✨ Import with AI" button
 4. AI searches web for municipal information using Greek queries
-5. System generates data matching `json-schemas/city.schema.json`
+5. System generates data matching `cityPopulationSchema` in `src/lib/zod-schemas/cityPopulation.ts`
 6. User reviews/edits data in tabbed interface
 7. Click "Save" to create all entities and activate city
 
@@ -36,7 +36,7 @@ The system uses Claude Sonnet 4 with web search to find current information abou
 - Uses eligibility check before proceeding
 - Uses web search to find current council member data
 - Handles incomplete information gracefully with null values
-- Validates against JSON schema and business logic
+- Validates against `cityPopulationSchema` (the schema the save route applies) and business logic
 - Searches for 15-30+ council members per municipality
 
 ### Editing Interface

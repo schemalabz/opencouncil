@@ -5,43 +5,7 @@ import { canUseCityCreator, getCity } from '@/lib/db/cities';
 import prisma from '@/lib/db/prisma';
 import { AdministrativeBodyType } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
-
-// Zod schema for city JSON validation
-const cityPopulationSchema = z.object({
-    cityId: z.string(),
-    parties: z.array(z.object({
-        name: z.string(),
-        name_en: z.string(),
-        name_short: z.string(),
-        name_short_en: z.string(),
-        colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-        logo: z.string().nullable().optional(),
-    })),
-    administrativeBodies: z.array(z.object({
-        name: z.string(),
-        name_en: z.string(),
-        type: z.enum(['council', 'committee', 'community']),
-    })),
-    people: z.array(z.object({
-        name: z.string(),
-        name_en: z.string(),
-        name_short: z.string(),
-        name_short_en: z.string(),
-        image: z.string().nullable().optional(),
-        activeFrom: z.string().nullable().optional(),
-        activeTo: z.string().nullable().optional(),
-        profileUrl: z.string().nullable().optional(),
-        partyName: z.string().nullable().optional(),
-        roles: z.array(z.object({
-            type: z.enum(['party', 'city', 'adminBody']),
-            name: z.union([z.string(), z.null()]).transform(val => (typeof val === 'string' && val.trim()) || null).optional(),
-            name_en: z.union([z.string(), z.null()]).transform(val => (typeof val === 'string' && val.trim()) || null).optional(),
-            isHead: z.boolean().optional(),
-            partyName: z.string().nullable().optional(),
-            administrativeBodyName: z.string().nullable().optional(),
-        })).optional(),
-    })),
-});
+import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 
 // GET: Load initial empty structure
 export async function GET(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {

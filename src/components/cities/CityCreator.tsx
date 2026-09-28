@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import type { CityPopulationInput } from '@/lib/zod-schemas/cityPopulation';
 
 interface CityCreatorProps {
     cityId: string;
@@ -23,45 +24,8 @@ interface CityCreatorProps {
     onCancel?: () => void;
 }
 
-interface PersonRole {
-    type: 'party' | 'city' | 'adminBody';
-    name: string;
-    name_en: string;
-    isHead?: boolean;
-    partyName?: string;
-    administrativeBodyName?: string;
-}
-
-interface CityData {
-    cityId: string;
-    parties: Array<{
-        name: string;
-        name_en: string;
-        name_short: string;
-        name_short_en: string;
-        colorHex: string;
-        logo?: string;
-    }>;
-    administrativeBodies: Array<{
-        name: string;
-        name_en: string;
-        type: 'council' | 'committee' | 'community';
-    }>;
-    people: Array<{
-        name: string;
-        name_en: string;
-        name_short: string;
-        name_short_en: string;
-        image?: string;
-        activeFrom?: string;
-        activeTo?: string;
-        profileUrl?: string;
-        roles?: PersonRole[];
-    }>;
-}
-
 export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: CityCreatorProps) {
-    const [cityData, setCityData] = useState<CityData | null>(null);
+    const [cityData, setCityData] = useState<CityPopulationInput | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [aiLoading, setAiLoading] = useState(false);
@@ -762,7 +726,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                                                         </Badge>
 
                                                         <Input
-                                                            value={role.name}
+                                                            value={role.name ?? ''}
                                                             onChange={(e) => updatePersonRole(index, roleIndex, 'name', e.target.value)}
                                                             placeholder="Role name"
                                                             className="h-7 flex-1"

@@ -1,13 +1,20 @@
 import { CityLanguage } from '@prisma/client';
 import { aiChat, AIConfig } from './ai';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
-import citySchemaJson from '../../json-schemas/city.schema.json';
+import { z } from 'zod';
+import { extendZodWithOpenApi, OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
+import { cityPopulationSchema, type CityPopulationData } from '@/lib/zod-schemas/cityPopulation';
 
-// Initialize AJV validator
-const ajv = new Ajv({ allErrors: true });
-addFormats(ajv);
-const validateCitySchema = ajv.compile(citySchemaJson);
+extendZodWithOpenApi(z);
+
+// The prompt describes the payload with the JSON Schema of the zod schema that
+// validates the answer and the save. An OpenAPI 3.1 schema is a JSON Schema.
+export function cityPopulationJsonSchema() {
+    const registry = new OpenAPIRegistry();
+    registry.register('CityPopulation', cityPopulationSchema);
+    return new OpenApiGeneratorV31(registry.definitions).generateComponents().components?.schemas?.CityPopulation;
+}
+
+const citySchemaJson = cityPopulationJsonSchema();
 
 export interface CityCreatorResult {
     success: boolean;
@@ -193,13 +200,11 @@ Generate the complete JSON structure now:`;
 
         console.log(`[AI City Creator] Received response, validating schema...`);
 
-        // Validate against JSON schema
-        const isValid = validateCitySchema(result.result);
+        // Validate against the schema the populate route applies on save
+        const parsed = cityPopulationSchema.safeParse(result.result);
 
-        if (!isValid) {
-            const errors = validateCitySchema.errors?.map(error => {
-                return `${error.instancePath || 'root'}: ${error.message}`;
-            }) || ['Unknown validation error'];
+        if (!parsed.success) {
+            const errors = parsed.error.issues.map(issue => `${issue.path.join('.') || 'root'}: ${issue.message}`);
 
             console.error(`[AI City Creator] Schema validation failed:`, errors);
 
@@ -214,7 +219,7 @@ Generate the complete JSON structure now:`;
         }
 
         // Additional business logic validation
-        const businessValidation = validateBusinessLogic(result.result);
+        const businessValidation = validateBusinessLogic(parsed.data);
         if (!businessValidation.valid) {
             console.error(`[AI City Creator] Business logic validation failed:`, businessValidation.errors);
 
@@ -418,86 +423,48 @@ Generate the complete JSON structure now:`;
     return { systemPrompt, userPrompt };
 }
 
-function validateBusinessLogic(data: any): { valid: boolean; errors: string[] } {
+// Rules the schema cannot express. The schema has already checked the shape
+// and the field rules of each entry.
+function validateBusinessLogic(data: CityPopulationData): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
-    try {
-        // Validate cityId matches
-        if (!data.cityId || typeof data.cityId !== 'string') {
-            errors.push('Missing or invalid cityId');
-        }
+    if (data.parties.length === 0) {
+        errors.push('Must have at least one political party');
+    }
 
-        // Validate parties
-        if (!Array.isArray(data.parties) || data.parties.length === 0) {
-            errors.push('Must have at least one political party');
-        } else {
-            data.parties.forEach((party: any, index: number) => {
-                if (!party.name || !party.name_en || !party.colorHex) {
-                    errors.push(`Party ${index + 1}: Missing required fields`);
-                }
-                if (party.colorHex && party.colorHex !== null && !/^#[0-9a-fA-F]{6}$/i.test(party.colorHex)) {
-                    errors.push(`Party ${index + 1}: Invalid color hex format '${party.colorHex}' - should be #RRGGBB`);
-                }
-            });
-        }
+    if (data.administrativeBodies.length === 0) {
+        errors.push('Must have at least one administrative body');
+    } else if (!data.administrativeBodies.some(body => body.type === 'council')) {
+        errors.push('Must have at least one council-type administrative body');
+    }
 
-        // Validate administrative bodies
-        if (!Array.isArray(data.administrativeBodies) || data.administrativeBodies.length === 0) {
-            errors.push('Must have at least one administrative body');
-        } else {
-            const hasCouncil = data.administrativeBodies.some((body: any) => body.type === 'council');
-            if (!hasCouncil) {
-                errors.push('Must have at least one council-type administrative body');
+    if (data.people.length === 0) {
+        errors.push('Must have at least one person');
+    }
+
+    const partyNames = new Set(data.parties.map(p => p.name));
+    const bodyNames = new Set(data.administrativeBodies.map(b => b.name));
+    let totalRoles = 0;
+
+    data.people.forEach((person, personIndex) => {
+        (person.roles ?? []).forEach((role, roleIndex) => {
+            totalRoles++;
+            // Only validate party/body references if they're provided (not null)
+            if (role.type === 'party' && role.partyName && !partyNames.has(role.partyName)) {
+                errors.push(`Person ${personIndex + 1}, Role ${roleIndex + 1}: Invalid party reference '${role.partyName}'`);
             }
-        }
-
-        // Validate people
-        if (!Array.isArray(data.people) || data.people.length === 0) {
-            errors.push('Must have at least one person');
-        } else {
-            data.people.forEach((person: any, index: number) => {
-                if (!person.name || !person.name_en || !person.name_short || !person.name_short_en) {
-                    errors.push(`Person ${index + 1}: Missing required name fields`);
-                }
-            });
-        }
-
-        // Validate embedded roles within people
-        const partyNames = new Set(data.parties.map((p: any) => p.name));
-        const bodyNames = new Set(data.administrativeBodies.map((b: any) => b.name));
-        let totalRoles = 0;
-
-        data.people.forEach((person: any, personIndex: number) => {
-            if (person.roles && Array.isArray(person.roles)) {
-                totalRoles += person.roles.length;
-                person.roles.forEach((role: any, roleIndex: number) => {
-                    if (!role.type || !['party', 'city', 'adminBody'].includes(role.type)) {
-                        errors.push(`Person ${personIndex + 1}, Role ${roleIndex + 1}: Invalid role type '${role.type}'`);
-                    }
-                    // Only validate party/body references if they're provided (not null)
-                    if (role.type === 'party' && role.partyName && role.partyName !== null && !partyNames.has(role.partyName)) {
-                        errors.push(`Person ${personIndex + 1}, Role ${roleIndex + 1}: Invalid party reference '${role.partyName}'`);
-                    }
-                    if (role.type === 'adminBody' && role.administrativeBodyName && role.administrativeBodyName !== null && !bodyNames.has(role.administrativeBodyName)) {
-                        errors.push(`Person ${personIndex + 1}, Role ${roleIndex + 1}: Invalid administrative body reference '${role.administrativeBodyName}'`);
-                    }
-                });
+            if (role.type === 'adminBody' && role.administrativeBodyName && !bodyNames.has(role.administrativeBodyName)) {
+                errors.push(`Person ${personIndex + 1}, Role ${roleIndex + 1}: Invalid administrative body reference '${role.administrativeBodyName}'`);
             }
         });
+    });
 
-        if (totalRoles === 0) {
-            errors.push('Must have at least one role assigned to people');
-        }
-
-        return {
-            valid: errors.length === 0,
-            errors
-        };
-
-    } catch (error) {
-        return {
-            valid: false,
-            errors: [`Validation error: ${error instanceof Error ? error.message : String(error)}`]
-        };
+    if (totalRoles === 0) {
+        errors.push('Must have at least one role assigned to people');
     }
-} 
+
+    return {
+        valid: errors.length === 0,
+        errors
+    };
+}
