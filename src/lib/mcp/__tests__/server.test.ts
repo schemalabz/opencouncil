@@ -12,6 +12,13 @@ jest.mock('../data', () =>
     })
 );
 
+// The admin tools close over ../adminData in the same way.
+jest.mock('../adminData', () =>
+    new Proxy({ __esModule: true } as Record<string, unknown>, {
+        get: (target, prop: string) => (target[prop] ??= jest.fn()),
+    })
+);
+
 // auth.ts reaches Prisma (and through it env.mjs, which jest won't transform).
 // Same stub gate.test.ts uses; registration never touches the client.
 jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
@@ -21,7 +28,9 @@ import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { registerOpenCouncilServer } from '../server';
 import { mcpRealmStore, requestContext } from '../realm-context';
 import type { McpIdentity } from '../auth';
+import type { McpAdminAccess } from '../adminAccess';
 import * as data from '../data';
+import * as adminData from '../adminData';
 
 const HIGHLIGHT_TOOLS = [
     'create_highlight', 'generate_highlight_video', 'list_highlights',
@@ -30,10 +39,15 @@ const HIGHLIGHT_TOOLS = [
 const USER: McpIdentity = { type: 'user', userId: 'u1' };
 const SERVICE: McpIdentity = { type: 'service', keyName: 'bot' };
 
-const CATEGORIES = ['discovery', 'directory', 'meetings', 'highlights'];
+const CATEGORIES = ['discovery', 'directory', 'meetings', 'highlights', 'admin'];
+
+const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'start_task'];
+const SUPERADMIN_TOOLS = ['create_city', 'populate_city'];
+const CITY_ADMIN: McpAdminAccess = { superadmin: false, cityIds: new Set(['athens']) };
+const SUPERADMIN: McpAdminAccess = { superadmin: true, cityIds: new Set() };
 
 type RecordedToolConfig = {
-    annotations?: { readOnlyHint?: boolean };
+    annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
     _meta?: { category?: string };
     description?: string;
     inputSchema?: { parse: (value: unknown) => unknown };
@@ -45,7 +59,10 @@ const ctxFor = (identity: McpIdentity) =>
     ({ http: { authInfo: { extra: { identity } } } }) as unknown as ServerContext;
 
 /** What a connection with this identity would see in tools/list & prompts/list. */
-function advertised(identity: McpIdentity, { inRequestScope = true } = {}) {
+function advertised(
+    identity: McpIdentity,
+    { inRequestScope = true, adminAccess = null }: { inRequestScope?: boolean; adminAccess?: McpAdminAccess | null } = {}
+) {
     const tools: string[] = [];
     const prompts: string[] = [];
     const meta: Record<string, RecordedToolConfig> = {};
@@ -61,7 +78,7 @@ function advertised(identity: McpIdentity, { inRequestScope = true } = {}) {
 
     const register = () => registerOpenCouncilServer(recorder);
     if (inRequestScope) {
-        mcpRealmStore.run(requestContext(Realm.greece, 'opencouncil.gr', identity), register);
+        mcpRealmStore.run(requestContext(Realm.greece, 'opencouncil.gr', identity, { adminAccess }), register);
     } else {
         register();
     }
@@ -99,6 +116,76 @@ describe('highlight tools are advertised only on authenticated connections', () 
     });
 });
 
+describe('admin tools are advertised by admin access', () => {
+
+    it('withholds the whole suite from a caller with no admin access', () => {
+        const admin = [...MEETING_ADMIN_TOOLS, ...SUPERADMIN_TOOLS];
+        expect(advertised(null).tools.filter(n => admin.includes(n))).toEqual([]);
+        expect(advertised(USER).tools.filter(n => admin.includes(n))).toEqual([]);
+        // The identity alone decides nothing: the route resolves the access.
+        expect(advertised(USER).tools.filter(n => admin.includes(n))).toEqual([]);
+        expect(advertised(SERVICE).tools.filter(n => admin.includes(n))).toEqual([]);
+    });
+
+    it('gives a city administrator the meeting tools only', () => {
+        const base = advertised(USER).tools;
+        const cityAdmin = advertised(USER, { adminAccess: CITY_ADMIN }).tools;
+        expect(cityAdmin.filter(n => !base.includes(n))).toEqual(MEETING_ADMIN_TOOLS);
+    });
+
+    it('gives a superadmin the city and user tools as well', () => {
+        const base = advertised(USER).tools;
+        const superadmin = advertised(SERVICE, { adminAccess: SUPERADMIN }).tools;
+        expect(superadmin.filter(n => !base.includes(n))).toEqual([...MEETING_ADMIN_TOOLS, ...SUPERADMIN_TOOLS]);
+    });
+
+    it('offers no tool that deletes a meeting', () => {
+        const { tools } = advertised(SERVICE, { adminAccess: SUPERADMIN });
+        expect(tools.filter(n => /delete.*meeting|meeting.*delete/.test(n))).toEqual([]);
+    });
+
+    it('marks the writes that lose data as destructive', () => {
+        const { meta } = advertised(SERVICE, { adminAccess: SUPERADMIN });
+        const destructive = Object.keys(meta).filter(name => meta[name].annotations?.destructiveHint === true);
+        // start_task with force deletes a transcript.
+        expect(destructive).toEqual(['start_task']);
+    });
+
+    it('accepts only a real IANA time zone for create_city', () => {
+        const { meta } = advertised(SERVICE, { adminAccess: SUPERADMIN });
+        const city = { id: 'lyon', name: 'Lyon', name_en: 'Lyon', name_municipality: 'Ville de Lyon', name_municipality_en: 'City of Lyon' };
+        expect(() => meta.create_city.inputSchema?.parse({ ...city, timezone: 'Athens' })).toThrow(/IANA/);
+        expect(() => meta.create_city.inputSchema?.parse({ ...city, timezone: 'Europe/Athens' })).not.toThrow();
+    });
+
+    it('forwards the caller identity to the data layer', async () => {
+        const { handlers } = advertised(USER, { adminAccess: SUPERADMIN });
+        await handlers.start_task({ cityId: 'athens', meetingId: 'm1', type: 'transcribe' } as never, ctxFor(USER));
+        expect(adminData.mcpStartTask).toHaveBeenCalledWith(USER, { cityId: 'athens', meetingId: 'm1', type: 'transcribe' });
+    });
+
+    it('accepts only the four pipeline steps for start_task', () => {
+        const { meta } = advertised(USER, { adminAccess: CITY_ADMIN });
+        const base = { cityId: 'athens', meetingId: 'm1' };
+        expect(() => meta.start_task.inputSchema?.parse({ ...base, type: 'humanReview' })).toThrow();
+        expect(meta.start_task.inputSchema?.parse({ ...base, type: 'summarize' })).toMatchObject({ type: 'summarize', force: false });
+    });
+
+    it('rejects an option of another step instead of dropping it', () => {
+        const { meta } = advertised(USER, { adminAccess: CITY_ADMIN });
+        const base = { cityId: 'athens', meetingId: 'm1' };
+        expect(() => meta.start_task.inputSchema?.parse({ ...base, type: 'processAgenda', videoUrl: 'https://youtu.be/x' })).toThrow(/transcribe only/);
+        expect(() => meta.start_task.inputSchema?.parse({ ...base, type: 'transcribe', videoUrl: 'https://youtu.be/x' })).not.toThrow();
+    });
+
+    it('rejects a meeting date without a UTC offset', () => {
+        const { meta } = advertised(USER, { adminAccess: CITY_ADMIN });
+        const base = { cityId: 'athens', name: 'Συνεδρίαση', name_en: 'Meeting' };
+        expect(() => meta.create_meeting.inputSchema?.parse({ ...base, dateTime: '2026-10-05T18:00:00' })).toThrow();
+        expect(() => meta.create_meeting.inputSchema?.parse({ ...base, dateTime: '2026-10-05T18:00:00+03:00' })).not.toThrow();
+    });
+});
+
 describe('tool metadata', () => {
     // An invariant, not an inventory: adding a tool needs no test edit, but a
     // tool registered without annotations (which would land in the client's
@@ -108,7 +195,7 @@ describe('tool metadata', () => {
     // place that can notice. Filtering into an array makes Jest name the
     // offending tool.
     it('gives every tool a readOnlyHint and a known category', () => {
-        const { tools, meta } = advertised(USER);
+        const { tools, meta } = advertised(SERVICE, { adminAccess: SUPERADMIN });
         expect(tools.filter(name =>
             typeof meta[name].annotations?.readOnlyHint !== 'boolean'
             || !CATEGORIES.includes(meta[name]._meta?.category ?? '')

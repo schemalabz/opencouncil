@@ -1,9 +1,10 @@
 import { z } from 'zod4';
 import { AdministrativeBodyType } from '@prisma/client';
-import type { McpServer, ServerContext, CallToolResult } from '@modelcontextprotocol/server';
-import { ApiError } from '@/lib/api/errors';
+import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { identityFromContext } from './auth';
-import { currentMcpIdentity } from './realm-context';
+import { currentAdminAccess, currentMcpIdentity } from './realm-context';
+import { registerAdminTools } from './adminTools';
+import { category, run } from './toolSupport';
 import {
     mcpCreateHighlight,
     mcpFetch,
@@ -25,39 +26,6 @@ import {
     mcpListPeople,
     mcpSearch,
 } from './data';
-
-function json(data: unknown): CallToolResult {
-    return { content: [{ type: 'text', text: JSON.stringify(data) }] };
-}
-
-function errorResult(message: string): CallToolResult {
-    return { isError: true, content: [{ type: 'text', text: message }] };
-}
-
-/**
- * Wrap a tool implementation so ApiErrors surface as readable tool errors and
- * anything unexpected stays generic (no stack traces to clients).
- */
-async function run(fn: () => Promise<unknown>): Promise<CallToolResult> {
-    try {
-        return json(await fn());
-    } catch (error) {
-        if (error instanceof ApiError) {
-            return errorResult(error.message);
-        }
-        console.error('MCP tool error:', error);
-        return errorResult('Internal error');
-    }
-}
-
-/**
- * Tool grouping, stamped into each tool's `_meta`. Not decorative: the
- * PostHog MCP analytics SDK reads exactly `_meta.category` into
- * $mcp_tool_category, so these strings become analytics dimensions — keep
- * them stable, and keep this union the only place they are defined.
- */
-type ToolCategory = 'discovery' | 'directory' | 'meetings' | 'highlights';
-const category = (category: ToolCategory) => ({ category });
 
 const paginationShape = {
     page: z.number().int().min(1).default(1).describe('Page number, starting at 1'),
@@ -467,6 +435,14 @@ export function registerOpenCouncilServer(server: McpServer) {
     // tool and prompt orders are identical for every caller, merely extended.
     if (currentMcpIdentity()) {
         registerHighlightTools(server);
+    }
+
+    // Same rule, one level up: the admin tools go only to a caller who has
+    // admin access, and the access decides which of them. After the highlight
+    // suite, so every list a caller sees is a prefix of the next larger one.
+    const adminAccess = currentAdminAccess();
+    if (adminAccess) {
+        registerAdminTools(server, adminAccess);
     }
 }
 
