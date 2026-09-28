@@ -85,7 +85,25 @@ export interface RegulationItem {
     name?: string; // GeoSet name
     description?: string; // GeoSet description
     color?: string; // GeoSet color in hex format (e.g. #FF5733)
+    mapStyle?: GeoSetMapStyle;
     geometries?: Geometry[];
+}
+
+/** Per-geoset rendering hints for the consultation map. Every field is optional. */
+export interface GeoSetMapStyle {
+    fillOpacity?: number; // 0..1, default 0.4 for static polygons
+    strokeWidth?: number; // px; polygons default 2, points (circle radius) default 4
+    showLabels?: boolean; // default true; false draws no map label for this geoset's geometries
+    hover?: boolean; // default true; false disables the hover highlight (still clickable)
+}
+
+/** Configures what the map shows for a searched address ("Βρες τον δρόμο σου"). */
+export interface AddressLookupConfig {
+    zoneGeoSetId?: string; // area geoset that answers "which zone am I in"
+    nearbyGeoSetIds?: string[]; // area geosets listed by distance; default: every polygon geoset except the zone geoset
+    nearbyRadiusMeters?: number; // default 120
+    pointRadiusMeters?: number; // default 500, applies to point geometries of every geoset
+    noZoneText?: string; // markdown shown when no zone contains the address
 }
 
 export interface Definition {
@@ -102,6 +120,7 @@ export interface RegulationData {
     referenceFormat?: ReferenceFormat;
     defaultView?: 'map' | 'document'; // Default view mode (defaults to 'document')
     defaultVisibleGeosets?: string[]; // Array of geoset IDs that should be visible by default
+    addressLookup?: AddressLookupConfig; // What the map shows for a searched address
     definitions?: Record<string, Definition>; // Map from English IDs to term definitions
     regulation: RegulationItem[];
 }
@@ -120,6 +139,7 @@ export interface GeoSetData {
     name: string;
     description?: string;
     color?: string;
+    mapStyle?: GeoSetMapStyle;
     geometries: Geometry[];
 }
 
