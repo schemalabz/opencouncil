@@ -57,7 +57,7 @@ export function describeEntity(
     for (const item of regulationData.regulation) {
         if (item.type !== 'chapter') continue;
         if (item.id === entityId) {
-            return { id: entityId, type: 'chapter', commentType: COMMENT_TYPE.chapter, what: item.title ?? '' };
+            return { id: entityId, type: 'chapter', commentType: COMMENT_TYPE.chapter, what: item.title ?? '', where: `Κεφάλαιο ${item.num} της μελέτης` };
         }
         const article = item.articles?.find((a) => a.id === entityId);
         if (article) {
@@ -65,6 +65,16 @@ export function describeEntity(
         }
     }
     return null;
+}
+
+/**
+ * One line naming an entity: the same on the screens, in the email to the municipality and in the
+ * printout of the comments. "Θέσεις κατοίκων · Βουτσινά, δεξιά πλευρά, από Κύπρου προς Αναστάσεως",
+ * "Ενότητα 4.2 της μελέτης: Στάθμευση κατοίκων", "Θέσεις κατοίκων".
+ */
+export function entityLabel(display: EntityDisplay): string {
+    if (!display.where) return display.what;
+    return display.type === 'geometry' ? `${display.what} · ${display.where}` : `${display.where}: ${display.what}`;
 }
 
 /** The overview card that explains a geoset, for a "what does this mean?" link from one of its places. */

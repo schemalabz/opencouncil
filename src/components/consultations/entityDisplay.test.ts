@@ -1,4 +1,4 @@
-import { describeEntity, extractGeoSets, findExplainingCard } from './entityDisplay';
+import { describeEntity, entityLabel, extractGeoSets, findExplainingCard } from './entityDisplay';
 import type { RegulationData } from './types';
 
 const regulation: RegulationData = {
@@ -32,7 +32,7 @@ describe('describeEntity', () => {
 
     it('names geosets, chapters and articles', () => {
         expect(describeEntity(regulation, geoSets, 'residents')).toMatchObject({ type: 'geoset', commentType: 'GEOSET', what: 'Θέσεις κατοίκων' });
-        expect(describeEntity(regulation, geoSets, 'categories')).toMatchObject({ type: 'chapter', what: 'Κατηγορίες' });
+        expect(describeEntity(regulation, geoSets, 'categories')).toMatchObject({ type: 'chapter', what: 'Κατηγορίες', where: 'Κεφάλαιο 4 της μελέτης' });
         expect(describeEntity(regulation, geoSets, 'visitor-parking')).toMatchObject({ type: 'article', what: 'Στάθμευση Επισκεπτών', where: 'Ενότητα 4.1 της μελέτης' });
     });
 
@@ -51,5 +51,15 @@ describe('findExplainingCard and extractGeoSets', () => {
 
     it('carries the legend label', () => {
         expect(geoSets[0]).toMatchObject({ id: 'residents', legend: 'Κάτοικοι' });
+    });
+});
+
+describe('entityLabel', () => {
+    it('names a place, a section and a chapter in one line', () => {
+        const label = (id: string) => entityLabel(describeEntity(regulation, geoSets, id)!);
+        expect(label('res-1')).toBe('Θέσεις κατοίκων · Βουτσινά, δεξιά πλευρά');
+        expect(label('visitor-parking')).toBe('Ενότητα 4.1 της μελέτης: Στάθμευση Επισκεπτών');
+        expect(label('categories')).toBe('Κεφάλαιο 4 της μελέτης: Κατηγορίες');
+        expect(label('residents')).toBe('Θέσεις κατοίκων');
     });
 });
