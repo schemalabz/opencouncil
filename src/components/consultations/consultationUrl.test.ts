@@ -158,3 +158,40 @@ describe("consultationUrl", () => {
         });
     });
 });
+
+describe("the simplified consultation views", () => {
+    const resolve = (search: string) => resolveConsultationUrlState({
+        pathname: "/athens/consultation/test",
+        defaultView: "home",
+        regulationData,
+        liveSearch: search,
+    });
+
+    it("keeps a comment view on any entity instead of opening the entity", () => {
+        expect(resolve("?view=comment&entity=geometry-1")).toMatchObject({ view: "comment", entityId: "geometry-1", entityType: "geometry" });
+        expect(resolve("?view=comment&entity=article-1")).toMatchObject({ view: "comment", entityId: "article-1" });
+    });
+
+    it("keeps a plan view with a card id that is not a regulation entity", () => {
+        expect(resolve("?view=plan&entity=hours-prices")).toMatchObject({ view: "plan", entityId: "hours-prices", entityType: null });
+    });
+
+    it("drops the entity of views that take none", () => {
+        expect(resolve("?view=street&entity=geometry-1")).toMatchObject({ view: "street", entityId: null, needsCanonicalUrl: true });
+        expect(resolve("?view=home")).toMatchObject({ view: "home", entityId: null, needsCanonicalUrl: false });
+        expect(resolve("?view=comments")).toMatchObject({ view: "comments", entityId: null });
+    });
+
+    it("falls back to the default view, and still lets an entity pick map or document", () => {
+        expect(resolve("")).toMatchObject({ view: "home", entityId: null });
+        expect(resolve("?entity=geometry-1")).toMatchObject({ view: "map", entityId: "geometry-1" });
+        expect(resolve("?view=map&entity=article-1")).toMatchObject({ view: "document", entityId: "article-1" });
+    });
+
+    it("tells which views accept which entities", () => {
+        expect(isConsultationEntityCompatibleWithView("geometry", "comment")).toBe(true);
+        expect(isConsultationEntityCompatibleWithView("geometry", "street")).toBe(false);
+        expect(isConsultationEntityCompatibleWithView("article", "map")).toBe(false);
+    });
+});
+

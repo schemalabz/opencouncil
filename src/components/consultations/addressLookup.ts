@@ -1,4 +1,5 @@
 import { distanceToGeometry, isPointInGeometry } from "@/lib/geo";
+import { computeDerivedGeometry } from "./derivedGeometry";
 import type { AddressLookupConfig, GeoSetData, Geometry, StaticGeometry } from "./types";
 
 export const DEFAULT_ADDRESS_LOOKUP: Required<Pick<AddressLookupConfig, 'streetRadiusMeters' | 'streetMaxItems' | 'nearbyRadiusMeters'>> = {
@@ -12,12 +13,14 @@ export type ResolvedAddressLookupConfig = AddressLookupConfig & typeof DEFAULT_A
 export interface NearbyItem {
     geometry: Geometry;
     geoSet: GeoSetData;
+    /** The shape the distance was measured to (a derived geometry's computed shape). */
+    geojson: GeoJSON.Geometry;
     distance: number;
 }
 
 export interface AddressLookupResult {
     /** The zone containing the address, when a zone geoset is configured and one matches. */
-    zone: { geometry: Geometry; geoSet: GeoSetData } | null;
+    zone: { geometry: Geometry; geoSet: GeoSetData; geojson: GeoJSON.Geometry } | null;
     zoneConfigured: boolean;
     /** Area geometries on the reader's street: within `streetRadiusMeters`, nearest first, at most `streetMaxItems`. */
     street: NearbyItem[];
@@ -26,14 +29,18 @@ export interface AddressLookupResult {
     config: ResolvedAddressLookupConfig;
 }
 
-/** The GeoJSON a static geometry renders with: an admin edit wins over the regulation file. */
-export function resolveStaticGeoJSON(
+/**
+ * The GeoJSON a geometry renders with: an admin edit wins over the regulation file, and a derived
+ * geometry (a buffer around another geoset's points) is computed the way the map draws it.
+ */
+export function resolveGeoJSON(
     geometry: Geometry,
+    geoSets: GeoSetData[],
     savedGeometries?: Record<string, GeoJSON.Geometry>
 ): GeoJSON.Geometry | null {
     const saved = savedGeometries?.[geometry.id];
     if (saved) return saved;
-    if (geometry.type === 'derived') return null;
+    if (geometry.type === 'derived') return computeDerivedGeometry(geometry, geoSets);
     return (geometry as StaticGeometry).geojson ?? null;
 }
 
@@ -41,9 +48,9 @@ function isArea(geojson: GeoJSON.Geometry): boolean {
     return geojson.type === 'Polygon' || geojson.type === 'MultiPolygon';
 }
 
-function hasGeometryOfKind(geoSet: GeoSetData, kind: 'area' | 'point', savedGeometries?: Record<string, GeoJSON.Geometry>): boolean {
+function hasGeometryOfKind(geoSet: GeoSetData, geoSets: GeoSetData[], kind: 'area' | 'point', savedGeometries?: Record<string, GeoJSON.Geometry>): boolean {
     return geoSet.geometries.some((g) => {
-        const geojson = resolveStaticGeoJSON(g, savedGeometries);
+        const geojson = resolveGeoJSON(g, geoSets, savedGeometries);
         if (!geojson) return false;
         return kind === 'area' ? isArea(geojson) : geojson.type === 'Point';
     });
@@ -83,38 +90,40 @@ export function computeAddressLookup(
 
     let zone: AddressLookupResult['zone'] = null;
     if (zoneGeoSet) {
-        const hit = zoneGeoSet.geometries.find((g) => {
-            const geojson = resolveStaticGeoJSON(g, savedGeometries);
-            return geojson ? isPointInGeometry(point, geojson) : false;
-        });
-        if (hit) zone = { geometry: hit, geoSet: zoneGeoSet };
+        for (const geometry of zoneGeoSet.geometries) {
+            const geojson = resolveGeoJSON(geometry, geoSets, savedGeometries);
+            if (geojson && isPointInGeometry(point, geojson)) {
+                zone = { geometry, geoSet: zoneGeoSet, geojson };
+                break;
+            }
+        }
     }
 
     const streetGeoSets = pickGeoSets(resolved.streetGeoSetIds, geoSets,
-        (gs) => gs.id !== zoneGeoSet?.id && hasGeometryOfKind(gs, 'area', savedGeometries));
+        (gs) => gs.id !== zoneGeoSet?.id && hasGeometryOfKind(gs, geoSets, 'area', savedGeometries));
     const street: NearbyItem[] = [];
     for (const geoSet of streetGeoSets) {
         for (const geometry of geoSet.geometries) {
-            const geojson = resolveStaticGeoJSON(geometry, savedGeometries);
+            const geojson = resolveGeoJSON(geometry, geoSets, savedGeometries);
             if (!geojson || !isArea(geojson)) continue;
             const distance = distanceToGeometry(point, geojson);
-            if (distance <= resolved.streetRadiusMeters) street.push({ geometry, geoSet, distance });
+            if (distance <= resolved.streetRadiusMeters) street.push({ geometry, geoSet, geojson, distance });
         }
     }
     street.sort((a, b) => a.distance - b.distance);
     street.splice(resolved.streetMaxItems);
 
     const onStreet = new Set(street.map((item) => item.geometry.id));
-    const nearbyGeoSets = pickGeoSets(resolved.nearbyGeoSetIds, geoSets, (gs) => hasGeometryOfKind(gs, 'point', savedGeometries));
+    const nearbyGeoSets = pickGeoSets(resolved.nearbyGeoSetIds, geoSets, (gs) => hasGeometryOfKind(gs, geoSets, 'point', savedGeometries));
     const nearby: NearbyItem[] = [];
     for (const geoSet of nearbyGeoSets) {
         let best: NearbyItem | null = null;
         for (const geometry of geoSet.geometries) {
             if (onStreet.has(geometry.id)) continue;
-            const geojson = resolveStaticGeoJSON(geometry, savedGeometries);
+            const geojson = resolveGeoJSON(geometry, geoSets, savedGeometries);
             if (!geojson) continue;
             const distance = distanceToGeometry(point, geojson);
-            if (distance <= resolved.nearbyRadiusMeters && (!best || distance < best.distance)) best = { geometry, geoSet, distance };
+            if (distance <= resolved.nearbyRadiusMeters && (!best || distance < best.distance)) best = { geometry, geoSet, geojson, distance };
         }
         if (best) nearby.push(best);
     }
