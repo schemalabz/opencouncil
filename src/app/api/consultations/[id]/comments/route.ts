@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import {
     getConsultationComments,
     addConsultationComment,
+    submitPendingConsultationComment,
     ConsultationCommentEntityType,
     getConsultationById
 } from '@/lib/db/consultations';
@@ -42,7 +43,9 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
     try {
         const session = await auth();
         const body = await request.json();
-        const { cityId, entityType, entityId, body: commentBody } = body;
+        // `body` is the reader's plain text. `name` and `email` come only from a reader who is not
+        // signed in: their comment waits until they confirm the email.
+        const { cityId, entityType, entityId, body: commentBody, name, email } = body;
 
         // Validate required fields
         if (!cityId || !entityType || !entityId || !commentBody) {
@@ -76,13 +79,26 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
             );
         }
 
+        if (!session?.user?.id && typeof email === 'string' && email.trim()) {
+            const { emailSent } = await submitPendingConsultationComment({
+                consultationId: params.id,
+                cityId,
+                entityType,
+                entityId,
+                text: String(commentBody),
+                name: typeof name === 'string' ? name : '',
+                email
+            });
+            return NextResponse.json({ pending: true, emailSent }, { status: 202 });
+        }
+
         const comment = await addConsultationComment(
             params.id,
             cityId,
             session,
             entityType,
             entityId,
-            commentBody
+            String(commentBody)
         );
 
         return NextResponse.json({ comment });
