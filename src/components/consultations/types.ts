@@ -85,6 +85,7 @@ export interface RegulationItem {
     name?: string; // GeoSet name
     description?: string; // GeoSet description
     color?: string; // GeoSet color in hex format (e.g. #FF5733)
+    legend?: string; // short label for the map legend; a geoset without one gets no legend chip
     mapStyle?: GeoSetMapStyle;
     geometries?: Geometry[];
 }
@@ -97,13 +98,26 @@ export interface GeoSetMapStyle {
     hover?: boolean; // default true; false disables the hover highlight (still clickable)
 }
 
-/** Configures what the map shows for a searched address ("Βρες τον δρόμο σου"). */
+/** Configures what a reader sees for their address ("Βρες τον δρόμο σου"). */
 export interface AddressLookupConfig {
     zoneGeoSetId?: string; // area geoset that answers "which zone am I in"
-    nearbyGeoSetIds?: string[]; // area geosets listed by distance; default: every polygon geoset except the zone geoset
-    nearbyRadiusMeters?: number; // default 120
-    pointRadiusMeters?: number; // default 500, applies to point geometries of every geoset
+    streetGeoSetIds?: string[]; // area geosets shown as "on your street"; default: every polygon geoset except the zone geoset
+    streetRadiusMeters?: number; // default 30
+    streetMaxItems?: number; // default 4
+    nearbyGeoSetIds?: string[]; // geosets whose nearest geometry is shown as "near you"; default: every point geoset
+    nearbyRadiusMeters?: number; // default 400
     noZoneText?: string; // markdown shown when no zone contains the address
+}
+
+/** One plain-language card of the "plan in two minutes" view. */
+export interface OverviewCard {
+    id: string; // Should match pattern: ^[a-zA-Z][a-zA-Z0-9_-]*$
+    title: string;
+    body: string; // markdown
+    commentOn?: string; // id of the chapter, article, geoset or geometry that comments on this card go to
+    commentLabel?: string; // default "Σχολιάστε"
+    explains?: string[]; // geoset ids this card explains; a place of those geosets links here
+    linkLabel?: string; // text of that link; default the card's title
 }
 
 export interface Definition {
@@ -120,7 +134,8 @@ export interface RegulationData {
     referenceFormat?: ReferenceFormat;
     defaultView?: 'map' | 'document'; // Default view mode (defaults to 'document')
     defaultVisibleGeosets?: string[]; // Array of geoset IDs that should be visible by default
-    addressLookup?: AddressLookupConfig; // What the map shows for a searched address
+    addressLookup?: AddressLookupConfig; // What a reader sees for their address
+    overview?: OverviewCard[]; // "The plan in two minutes": plain-language cards shown before the full text
     definitions?: Record<string, Definition>; // Map from English IDs to term definitions
     regulation: RegulationItem[];
 }
@@ -139,6 +154,7 @@ export interface GeoSetData {
     name: string;
     description?: string;
     color?: string;
+    legend?: string;
     mapStyle?: GeoSetMapStyle;
     geometries: Geometry[];
 }

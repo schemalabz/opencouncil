@@ -8,8 +8,8 @@ export function captureConsultationAddressSearched(props: {
     city_id?: string;
     in_zone: boolean;
     zone_id: string | null;
-    nearby_area_count: number;
-    nearby_point_count: number;
+    street_count: number;
+    nearby_count: number;
 }): void {
     captureEvent('consultation_address_searched', props);
 }
