@@ -16,7 +16,7 @@ import posthog from "posthog-js";
 import { formatDateTime } from '@/lib/formatters/time';
 
 // Dynamically import ReactQuill to avoid SSR issues
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
 
 interface CommentSectionProps {
     entityType: 'chapter' | 'article' | 'geoset' | 'geometry';
@@ -98,7 +98,9 @@ export default function CommentSection({
                     cityId,
                     entityType: entityType.toUpperCase(),
                     entityId,
-                    body: comment
+                    // Quill serialises the space after each typed word as a non-breaking space, which would
+                    // stop a long comment from wrapping wherever it is shown.
+                    body: comment.replace(/&nbsp;|\u00a0/g, ' ')
                 })
             });
 
