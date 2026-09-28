@@ -4,17 +4,27 @@ import { useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { ArrowUpRight, CirclePlay, Terminal } from "lucide-react";
+import { AddToClaudeButton } from "./AddToClaudeButton";
 
 const CLIENTS = ["claude", "chatgpt", "claudeCode"] as const;
 type Client = (typeof CLIENTS)[number];
 
-/** Where each client's connector settings live. Claude Code needs no page. */
+/**
+ * Where each client's connector settings live. Claude gets a deep link that
+ * opens the form with the address filled in instead; Claude Code needs no page.
+ */
 const SETTINGS_URL: Partial<Record<Client, string>> = {
-    claude: "https://claude.ai/settings/connectors",
     chatgpt: "https://chatgpt.com/#settings/Connectors",
 };
 
-const STEPS = ["step1", "step2", "step3", "step4"] as const;
+/**
+ * Claude takes two steps because the deep link fills the form in; ChatGPT has
+ * no such link, so the reader pastes by hand.
+ */
+const STEPS: Record<Exclude<Client, "claudeCode">, readonly string[]> = {
+    claude: ["step1", "step2"],
+    chatgpt: ["step1", "step2", "step3", "step4"],
+};
 
 /**
  * The install instructions, one client at a time. Two columns of four steps
@@ -87,8 +97,11 @@ export function ConnectPanel({ serverUrl, videoUrl }: { serverUrl: string; video
                     </>
                 ) : (
                     <>
+                        {client === "claude" && (
+                            <AddToClaudeButton serverUrl={serverUrl} className="mb-6 w-full sm:w-auto" />
+                        )}
                         <ol className="space-y-3.5">
-                            {STEPS.map((step, index) => (
+                            {STEPS[client].map((step, index) => (
                                 <li key={step} className="flex items-start gap-3.5">
                                     <span className="mt-px flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-muted-foreground">
                                         {index + 1}
@@ -99,6 +112,11 @@ export function ConnectPanel({ serverUrl, videoUrl }: { serverUrl: string; video
                                 </li>
                             ))}
                         </ol>
+                        {client === "claude" && (
+                            <p className="mt-5 text-sm leading-relaxed text-muted-foreground">
+                                {t("clients.claude.fallback")}
+                            </p>
+                        )}
                         {settingsUrl && (
                             <a
                                 href={settingsUrl}

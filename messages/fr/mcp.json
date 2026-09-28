@@ -20,11 +20,10 @@
     "clients": {
         "claude": {
             "title": "Claude",
-            "step1": "Dans claude.ai, ouvrez Settings → Connectors.",
-            "step2": "Cliquez sur « Add custom connector ».",
-            "step3": "Nommez-le OpenCouncil et collez l'adresse. Laissez les autres champs vides.",
-            "step4": "Cliquez sur « Add », puis sur « Connect » — le connecteur s'affiche comme connecté.",
-            "openSettings": "Ouvrir les réglages claude.ai",
+            "addToClaude": "Ajouter à Claude",
+            "step1": "Cliquez sur « Ajouter à Claude ». claude.ai ouvre le formulaire du connecteur avec le nom et l'adresse déjà remplis.",
+            "step2": "Cliquez sur « Add », puis sur « Connect » — le connecteur s'affiche comme connecté.",
+            "fallback": "Si le formulaire s'ouvre vide, nommez le connecteur OpenCouncil et collez l'adresse ci-dessus.",
             "mobileNotice": "Vous ne pouvez pas ajouter un connecteur personnalisé depuis l'application mobile Claude — seulement depuis claude.ai dans un navigateur ou l'application de bureau. Une fois ajouté, il fonctionne aussi sur mobile, tant que vous êtes connecté au même compte."
         },
         "chatgpt": {
