@@ -265,6 +265,67 @@ export function isPointInGeometry(point: [number, number], geometry: GeoJSON.Geo
     return false;
 }
 
+const METERS_PER_DEGREE = 111320;
+
+/** Planar offset of `q` from `origin` in metres, scaling longitude by the origin's latitude. */
+function toLocalMeters(origin: [number, number], q: GeoJSON.Position): [number, number] {
+    const cosLat = Math.cos(origin[1] * Math.PI / 180);
+    return [(q[0] - origin[0]) * METERS_PER_DEGREE * cosLat, (q[1] - origin[1]) * METERS_PER_DEGREE];
+}
+
+/** Distance in metres from `point` to the segment a-b. */
+function distanceToSegmentMeters(point: [number, number], a: GeoJSON.Position, b: GeoJSON.Position): number {
+    const [ax, ay] = toLocalMeters(point, a);
+    const [bx, by] = toLocalMeters(point, b);
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lengthSquared = dx * dx + dy * dy;
+    // The point is the local origin, so its projection parameter along a-b is -(a . ab) / |ab|^2.
+    const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lengthSquared));
+    const px = ax + t * dx;
+    const py = ay + t * dy;
+    return Math.sqrt(px * px + py * py);
+}
+
+function distanceToLineMeters(point: [number, number], line: GeoJSON.Position[]): number {
+    let best = Infinity;
+    for (let i = 1; i < line.length; i++) {
+        best = Math.min(best, distanceToSegmentMeters(point, line[i - 1], line[i]));
+    }
+    return best;
+}
+
+function distanceToRingsMeters(point: [number, number], rings: GeoJSON.Position[][]): number {
+    if (pointInPolygonRings(point, rings)) return 0;
+    return Math.min(...rings.map((ring) => distanceToLineMeters(point, ring)));
+}
+
+/**
+ * Distance in metres from a [lng, lat] point to a geometry: 0 inside an area, otherwise the
+ * distance to the nearest edge or vertex. Planar at a municipality's scale, like `isPointInGeometry`.
+ * Geometry types that are neither areas, lines nor points are infinitely far away.
+ */
+export function distanceToGeometry(point: [number, number], geometry: GeoJSON.Geometry): number {
+    switch (geometry.type) {
+        case 'Point':
+            return haversineDistance(point, geometry.coordinates as [number, number]);
+        case 'MultiPoint':
+            return Math.min(...geometry.coordinates.map((c) => haversineDistance(point, c as [number, number])));
+        case 'LineString':
+            return distanceToLineMeters(point, geometry.coordinates);
+        case 'MultiLineString':
+            return Math.min(...geometry.coordinates.map((line) => distanceToLineMeters(point, line)));
+        case 'Polygon':
+            return distanceToRingsMeters(point, geometry.coordinates);
+        case 'MultiPolygon':
+            return Math.min(...geometry.coordinates.map((rings) => distanceToRingsMeters(point, rings)));
+        case 'GeometryCollection':
+            return Math.min(...geometry.geometries.map((g) => distanceToGeometry(point, g)));
+        default:
+            return Infinity;
+    }
+}
+
 /**
  * Whether a [lng, lat] centre falls inside any of the given δήμος boundaries — i.e. sits in a
  * municipality OpenCouncil covers. Takes the geometries structurally (anything with a `geometry`)
