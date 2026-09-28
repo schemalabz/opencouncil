@@ -1,4 +1,4 @@
-import { normalizeNonBreakingSpaces, plainTextToCommentHtml } from './commentText';
+import { commentHtmlToPlainText, normalizeNonBreakingSpaces, plainTextToCommentHtml } from './commentText';
 
 describe('plainTextToCommentHtml', () => {
     it('wraps paragraphs and keeps single line breaks', () => {
@@ -18,5 +18,12 @@ describe('plainTextToCommentHtml', () => {
 describe('normalizeNonBreakingSpaces', () => {
     it('turns the old editor\'s non-breaking spaces into spaces', () => {
         expect(normalizeNonBreakingSpaces('<p>Ένα&nbsp;δύο\u00a0τρία</p>')).toBe('<p>Ένα δύο τρία</p>');
+    });
+});
+
+describe('commentHtmlToPlainText', () => {
+    it('turns a stored comment back into the text the reader typed', () => {
+        const typed = 'Πρώτη <γραμμή> & "δεύτερη"\nσυνέχεια\n\nΝέα παράγραφος με &lt;';
+        expect(commentHtmlToPlainText(plainTextToCommentHtml(typed))).toBe(typed);
     });
 });

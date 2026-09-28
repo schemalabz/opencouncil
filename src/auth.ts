@@ -1,11 +1,11 @@
 import NextAuth, { DefaultSession, type NextAuthConfig } from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/db/prisma"
-import authConfig from "@/auth.config"
+import authConfig, { authProviders } from "@/auth.config"
 import { isTrustedExternalRedirect } from "@/lib/auth/trustedRedirect"
 import { signInAllowed } from "@/lib/auth/signInGuard"
 import { usesSecureCookies } from "@/lib/auth/sessionMirror"
-import { publishPendingConsultationComments } from "@/lib/db/consultationComments"
+import { pendingCommentQuote } from "@/lib/db/consultationComments"
 
 declare module "next-auth" {
     interface Session {
@@ -34,21 +34,6 @@ export const authOptions = {
     // on the request's own URL) would derive it from the forwarded protocol.
     // Said once here, both paths look for the same cookie names.
     useSecureCookies: usesSecureCookies(),
-    events: {
-        /**
-         * Opening a magic link proves the email address, which is what a comment written while
-         * signed out was waiting for: publish it. A failure must not block the sign-in.
-         */
-        async signIn({ user }) {
-            if (!user.id) return;
-            try {
-                const published = await publishPendingConsultationComments(user.id);
-                if (published > 0) console.log(`Published ${published} pending consultation comment(s) for user ${user.id}`);
-            } catch (error) {
-                console.error('Failed to publish pending consultation comments:', error);
-            }
-        },
-    },
     callbacks: {
         signIn({ account, profile }) {
             return signInAllowed(account, profile);
@@ -91,6 +76,8 @@ export const authOptions = {
         }
     },
     ...authConfig,
+    // The same providers as the proxy's, plus the quote of the comment a confirmation link publishes.
+    providers: authProviders(pendingCommentQuote),
 } satisfies NextAuthConfig
 
 export const { handlers, signIn, signOut, auth } = NextAuth(authOptions)

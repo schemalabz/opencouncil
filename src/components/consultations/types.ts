@@ -160,4 +160,10 @@ export interface GeoSetData {
 }
 
 // Colors for search location pins on the map
-export const SEARCH_COLORS = ['#EF4444', '#8B5CF6', '#F59E0B', '#10B981', '#3B82F6']; 
+export const SEARCH_COLORS = ['#EF4444', '#8B5CF6', '#F59E0B', '#10B981', '#3B82F6'];
+
+/**
+ * What opening a comment's confirmation link did: published it, found it expired (the link lasts
+ * 24 hours) or on a closed consultation, found nothing to publish, or could not reach the regulation.
+ */
+export type PendingCommentConfirmation = 'published' | 'expired' | 'not-found' | 'unavailable';
