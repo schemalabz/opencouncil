@@ -19,9 +19,8 @@ interface ConsultationCommentEmailProps {
     consultationTitle: string
     entityType: 'chapter' | 'article' | 'geoset' | 'geometry'
     entityId: string
-    entityTitle: string
-    entityNumber?: string
-    parentGeosetName?: string // For geometries, the name of the parent geoset
+    /** The place or section, named as the consultation's screens name it. */
+    entityLabel: string
     commentBody: string
     consultationUrl: string
 }
@@ -32,9 +31,7 @@ export const ConsultationCommentEmail = ({
     consultationTitle,
     entityType,
     entityId,
-    entityTitle,
-    entityNumber,
-    parentGeosetName,
+    entityLabel,
     commentBody,
     consultationUrl
 }: ConsultationCommentEmailProps) => {
@@ -42,7 +39,8 @@ export const ConsultationCommentEmail = ({
     // Sanitize HTML content to only allow safe tags for email
     const getSafeHtmlContent = (html: string): string => {
         return sanitizeHtml(html, {
-            allowedTags: ['strong', 'b', 'em', 'i', 'a'],
+            // Paragraphs and line breaks carry the structure of a plain-text comment.
+            allowedTags: ['p', 'br', 'strong', 'b', 'em', 'i', 'a'],
             allowedAttributes: {
                 'a': ['href']
             },
@@ -56,21 +54,6 @@ export const ConsultationCommentEmail = ({
             }
         });
     };
-
-    const getEntityTypeGreek = (type: string) => {
-        switch (type) {
-            case 'chapter':
-                return 'το κεφάλαιο';
-            case 'article':
-                return 'το άρθρο';
-            case 'geoset':
-            case 'geometry':
-                return 'την τοποθεσία';
-            default:
-                return 'το στοιχείο';
-        }
-    };
-
 
     const userNameGeniki = geniki(userName);
 
@@ -103,9 +86,7 @@ export const ConsultationCommentEmail = ({
                     <Text style={text}>
                         Παρακαλώ όπως συμπεριλάβετε το ακόλουθο σχόλιο
                         στη διαδικασία της διαβούλευσης &ldquo;<strong>{consultationTitle}</strong>&rdquo;,
-                        και συγκεκριμένα για {getEntityTypeGreek(entityType)} &ldquo;<Link href={entityPermalink} style={link}>
-                            {entityTitle}{entityType === 'geometry' && parentGeosetName ? ` (${parentGeosetName})` : ''}
-                        </Link>&rdquo;.
+                        και συγκεκριμένα για &ldquo;<Link href={entityPermalink} style={link}>{entityLabel}</Link>&rdquo;.
                     </Text>
 
                     <Container style={commentSection}>
@@ -115,16 +96,8 @@ export const ConsultationCommentEmail = ({
                         <Text style={label}><strong>Διεύθυνση email:</strong></Text>
                         <Text style={value}>{userEmail} (CC σε αυτό το μήνυμα)</Text>
 
-                        <Text style={label}>
-                            <strong>
-                                {entityType === 'chapter' ? 'Κεφάλαιο' :
-                                    entityType === 'article' ? 'Άρθρο' :
-                                        'Τοποθεσία'} που αφορά:
-                            </strong>
-                        </Text>
-                        <Text style={value}>
-                            {entityTitle}{entityType === 'geometry' && parentGeosetName ? ` (${parentGeosetName})` : ''}
-                        </Text>
+                        <Text style={label}><strong>Αφορά:</strong></Text>
+                        <Text style={value}>{entityLabel}</Text>
 
                         <Text style={label}><strong>Σχόλιο:</strong></Text>
                         <div style={text} dangerouslySetInnerHTML={{ __html: getSafeHtmlContent(commentBody) }} />
