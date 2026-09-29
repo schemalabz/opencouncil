@@ -4,7 +4,6 @@ export interface CapturedExcerpt {
     firstUtteranceId: string;
     lastUtteranceId: string;
     runs: ExcerptRun[];
-    startTimestamp: number;
     rect: { top: number; bottom: number; left: number; right: number };
 }
 export type SelectionResult = { status: 'ok'; selection: CapturedExcerpt } | { status: 'empty' | 'invalid' | 'too-long' };
@@ -14,7 +13,7 @@ function captureSources(sources: ExcerptSource[], rect: DOMRect): SelectionResul
     if (!runs) return { status: 'too-long' };
     return { status: 'ok', selection: {
         firstUtteranceId: sources[0].id, lastUtteranceId: sources[sources.length - 1].id,
-        runs, startTimestamp: sources[0].startTimestamp,
+        runs,
         rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
     } };
 }

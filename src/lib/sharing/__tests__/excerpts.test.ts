@@ -20,15 +20,12 @@ describe('bounded public excerpt reconstruction', () => {
         query.mockResolvedValue([source]);
         selector.digest = await digestExcerpt([{ id: 'u1', text: source.text, speakerTagId: 'tag', personId: 'p', speakerName: 'Άννα' }]);
     });
-    it('reconstructs complete utterance text with bounded same-meeting queries and zero timestamps', async () => {
+    it('reconstructs complete utterance text with bounded same-meeting queries', async () => {
         const result = await getPublicExcerpt(selector, 'greece');
         expect(result.status).toBe('ok');
         if (result.status !== 'ok') throw new Error('Expected public excerpt');
         expect(result.excerpt.runs[0].text).toBe(source.text);
-        expect(result.excerpt.startTimestamp).toBe(0);
         expect(result.excerpt.isReviewed).toBe(true);
-        expect(result.excerpt.before).toBe('');
-        expect(result.excerpt.after).toBe('');
         expect(result.excerpt.subject).toMatchObject({ id: 's', name: 'Πλατεία' });
         expect(query).toHaveBeenCalledTimes(2);
         expect(query.mock.calls[0][0]).toMatchObject({ where: { speakerSegment: { cityId: 'city', meetingId: 'meeting' } }, take: 2 });
@@ -37,13 +34,12 @@ describe('bounded public excerpt reconstruction', () => {
     it('borrows the subject of the nearest assigned utterance when the passage carries none', async () => {
         query.mockResolvedValue([unassigned]);
         (prisma.utterance.findFirst as jest.Mock)
-            .mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined) // no context on either side
             .mockResolvedValueOnce({ startTimestamp: -60, discussionSubject: { id: 'far', name: 'Πριν', topic } })
             .mockResolvedValueOnce({ startTimestamp: 30, discussionSubject: { id: 'near', name: 'Μετά', topic } });
         const result = await getPublicExcerpt({ ...selector, maxDrift: 100 }, 'greece');
         if (result.status !== 'ok') throw new Error('Expected public excerpt');
         expect(result.excerpt.subject).toMatchObject({ id: 'near', name: 'Μετά', topic });
-        const [beforeArgs, afterArgs] = (prisma.utterance.findFirst as jest.Mock).mock.calls.slice(2).map(([args]) => args);
+        const [beforeArgs, afterArgs] = (prisma.utterance.findFirst as jest.Mock).mock.calls.map(([args]) => args);
         expect(beforeArgs.where).toMatchObject({ speakerSegment: { cityId: 'city', meetingId: 'meeting' }, drift: { lte: 100 }, discussionSubjectId: { not: null }, startTimestamp: { lt: 0 } });
         expect(afterArgs.where).toMatchObject({ discussionSubjectId: { not: null }, startTimestamp: { gt: 0 } });
         expect(prisma.subject.findMany).not.toHaveBeenCalled();
@@ -54,13 +50,12 @@ describe('bounded public excerpt reconstruction', () => {
         const result = await getPublicExcerpt(selector, 'greece');
         if (result.status !== 'ok') throw new Error('Expected public excerpt');
         expect(result.excerpt.subject).toBeNull();
-        expect(prisma.utterance.findFirst).toHaveBeenCalledTimes(2); // the context queries only
+        expect(prisma.utterance.findFirst).not.toHaveBeenCalled();
         expect(prisma.subject.findMany).not.toHaveBeenCalled();
     });
     it('names the meeting\'s only subject when no utterance nearby is assigned', async () => {
         query.mockResolvedValue([unassigned]);
         (prisma.utterance.findFirst as jest.Mock)
-            .mockResolvedValueOnce(undefined).mockResolvedValueOnce(undefined)
             .mockResolvedValueOnce({ startTimestamp: -5000, discussionSubject: { id: 'far', name: 'Πολύ πριν', topic } }).mockResolvedValueOnce(undefined);
         (prisma.subject.findMany as jest.Mock).mockResolvedValue([{ id: 'only', name: 'Το μόνο θέμα', topic }]);
         const result = await getPublicExcerpt(selector, 'greece');
@@ -89,11 +84,13 @@ describe('bounded public excerpt reconstruction', () => {
         expect(reviewed.excerpt.selector).toEqual(unreviewed.excerpt.selector);
         expect(reviewed.excerpt.runs).toEqual(unreviewed.excerpt.runs);
     });
-    it('applies the exact display filter before bounding text and context queries', async () => {
+    it('applies the exact display filter to the text and subject queries', async () => {
+        query.mockResolvedValue([unassigned]);
         const result = await getPublicExcerpt({ ...selector, maxDrift: 100 }, 'greece');
         expect(result.status).toBe('ok');
         expect(query.mock.calls[0][0].where.drift).toEqual({ lte: 100 });
         expect(query.mock.calls[1][0].where.AND[0].drift).toEqual({ lte: 100 });
+        expect(prisma.utterance.findFirst).toHaveBeenCalledTimes(2);
         for (const [args] of (prisma.utterance.findFirst as jest.Mock).mock.calls) expect(args.where.drift).toEqual({ lte: 100 });
     });
     it('does not read text for unreleased, foreign-realm or hidden unreviewed meetings', async () => {
@@ -119,14 +116,8 @@ describe('bounded public excerpt reconstruction', () => {
         query.mockResolvedValueOnce([source]).mockResolvedValueOnce([]);
         expect(await getPublicExcerpt(selector, 'greece')).toEqual({ status: 'invalid' });
     });
-    it('adds at most one adjacent utterance per side for a full saved utterance', async () => {
-        const findNeighbor = prisma.utterance.findFirst as jest.Mock;
-        findNeighbor.mockResolvedValueOnce({ text: 'Προηγούμενο.' }).mockResolvedValueOnce({ text: 'Επόμενο.' });
-        const full = { ...selector, digest: await digestExcerpt([{ id: source.id, text: source.text, speakerTagId: 'tag', personId: 'p', speakerName: 'Άννα' }]) };
-        const result = await getPublicExcerpt(full, 'greece');
-        expect(result.status === 'ok' && result.excerpt.before).toBe('Προηγούμενο.');
-        expect(result.status === 'ok' && result.excerpt.after).toBe('Επόμενο.');
-        expect(findNeighbor).toHaveBeenCalledTimes(2);
-        expect(findNeighbor.mock.calls.every(([args]) => args.where.speakerSegmentId === 'seg' && Object.keys(args.select).join() === 'text')).toBe(true);
+    it('reads no neighbouring utterances when the passage names its own subject', async () => {
+        expect((await getPublicExcerpt(selector, 'greece')).status).toBe('ok');
+        expect(prisma.utterance.findFirst).not.toHaveBeenCalled();
     });
 });

@@ -28,7 +28,6 @@ describe('native transcript selection', () => {
         expect(result.selection).not.toHaveProperty('startOffset');
         expect(result.selection).not.toHaveProperty('endOffset');
         expect(result.selection.runs[1].speakerName).toBeNull();
-        expect(result.selection.startTimestamp).toBe(0);
     });
 
     it('normalizes element boundaries and excludes synthetic trailing separators', () => {
@@ -85,7 +84,7 @@ describe('native transcript selection', () => {
         const result = captureExcerptSegment(root, sources, ['u2']);
         expect(result.status).toBe('ok');
         if (result.status !== 'ok') throw new Error('Expected a complete segment');
-        expect(result.selection).toMatchObject({ firstUtteranceId: 'u2', lastUtteranceId: 'u2', startTimestamp: 10, runs: [sources[1]] });
+        expect(result.selection).toMatchObject({ firstUtteranceId: 'u2', lastUtteranceId: 'u2', runs: [sources[1]] });
         expect(captureExcerptSegment(root, sources, ['u1', 'u2'])).toMatchObject({ status: 'ok', selection: { runs: sources } });
     });
 

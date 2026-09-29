@@ -14,6 +14,7 @@ import { UtteranceContextMenu } from "./UtteranceContextMenu";
 import { getScrollContainer } from "@/lib/utils/scrollAnchor";
 import { ExcerptSelectionToolbar, useExcerptSources } from '@/components/sharing/ExcerptSelectionToolbar';
 import { ExcerptRangeHighlight } from '@/components/sharing/ExcerptRangeHighlight';
+import { parseExcerptSelector } from '@/lib/sharing/excerptSelector';
 
 // Helper functions for speaker segment identification and parsing
 const SPEAKER_SEGMENT_PREFIX = 'speaker-segment-';
@@ -41,7 +42,10 @@ export default function Transcript() {
     const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
     const [isScrolled, setIsScrolled] = useState(false);
     const searchParams = useSearchParams();
-    const excerptSources = useExcerptSources();
+    // A shared excerpt is checked in the locale it was shared in: a reader on
+    // the other Serbian script sees other words, but the same passage.
+    const excerptLocale = useMemo(() => parseExcerptSelector(new URLSearchParams(searchParams.toString()))?.textLocale, [searchParams]);
+    const excerptSources = useExcerptSources(excerptLocale);
     const canShareExcerpt = meeting.released && !editingHighlight && !transcriptHiddenForReview;
 
     // Check if transcript is unverified (humanReview not completed)

@@ -18,9 +18,9 @@ export interface SharingContext {
 }
 type SharingEvent = 'sharing_opened' | 'sharing_action_started' | 'sharing_action_succeeded' | 'sharing_action_failed' | 'sharing_action_cancelled'
     | 'sharing_destination_selected' | 'sharing_story_opened' | 'sharing_story_ready' | 'sharing_story_failed'
-    | 'sharing_download_clicked' | 'sharing_selection_failed' | 'sharing_received' | 'sharing_source_opened';
+    | 'sharing_download_clicked' | 'sharing_selection_failed' | 'sharing_received';
 interface SharingDetails {
-    action?: 'copy_link' | 'copy_text' | 'native_share' | 'share_image' | 'copy_embed' | 'preview_image' | 'retry_image' | 'change_embed_theme' | 'open_transcript' | 'listen' | 'open_subject';
+    action?: 'copy_link' | 'copy_text' | 'native_share' | 'share_image' | 'copy_embed' | 'preview_image' | 'retry_image' | 'change_embed_theme';
     mode?: 'menu' | 'link' | 'story' | 'embed';
     destination?: 'whatsapp' | 'facebook' | 'email';
     reason?: 'invalid' | 'too-long' | 'empty' | 'source-changed' | 'unavailable' | 'failed';

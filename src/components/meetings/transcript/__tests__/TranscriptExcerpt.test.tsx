@@ -11,15 +11,15 @@ const mockSources: ExcerptSource[] = [0, 100, 0, 100].map((drift, index) => ({
     id: `u${index + 1}`, text: `Utterance ${index + 1}`, drift,
     speakerTagId: 'speaker', personId: null, speakerName: null, startTimestamp: index,
 }));
-const mockSegments = [{ id: 'segment', startTimestamp: 0, endTimestamp: 4 }];
+const mockSegments = [{ id: 'segment', startTimestamp: 0, endTimestamp: 4, utterances: [] }];
 const mockSetScroll = jest.fn();
 
 jest.mock('next/navigation', () => ({ useSearchParams: () => mockQuery }));
 jest.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
-jest.mock('@/components/meetings/VideoProvider', () => ({ useVideo: () => ({ setCurrentScrollInterval: mockSetScroll }) }));
+jest.mock('@/components/meetings/VideoProvider', () => ({ useVideo: () => ({ setCurrentScrollInterval: mockSetScroll }), useVideoActions: () => ({ seekToWithoutScroll: jest.fn() }) }));
 jest.mock('@/components/meetings/HighlightContext', () => ({ useHighlight: () => ({ editingHighlight: null }) }));
 jest.mock('@/components/meetings/CouncilMeetingDataContext', () => ({
-    useCouncilMeetingData: () => ({ transcript: mockSegments, taskStatus: { humanReview: true }, meeting: { released: true } }),
+    useCouncilMeetingData: () => ({ transcript: mockSegments, subjects: [], taskStatus: { humanReview: true }, meeting: { released: true, cityId: 'city', id: 'meeting' } }),
 }));
 jest.mock('@/lib/utils', () => ({ debounce: (fn: unknown) => fn, joinTranscriptSegments: (segments: unknown) => segments }));
 jest.mock('@/components/sharing/ExcerptSelectionToolbar', () => ({

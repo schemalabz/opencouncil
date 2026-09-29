@@ -92,6 +92,19 @@ describe('excerpt review disclosure', () => {
         window.getSelection()!.removeAllRanges();
     });
 
+    it('links the excerpt to its highlighted passage in the transcript', async () => {
+        render(<Fixture />);
+        fireEvent(screen.getByTestId('transcript'), new CustomEvent(EXCERPT_SHARE_EVENT, { detail: { range: null, utteranceId: 'u3' } }));
+        await screen.findByRole('dialog');
+        fireEvent.click(screen.getByRole('button', { name: 'copyLink' }));
+        await waitFor(() => expect(writeText).toHaveBeenCalled());
+        const url = new URL(writeText.mock.calls[0][0]);
+        expect(url.pathname).toBe('/en/city/meeting/transcript');
+        expect(url.searchParams.get('firstUtteranceId')).toBe('u3');
+        expect(url.searchParams.get('lastUtteranceId')).toBe('u3');
+        expect(url.searchParams.has('t')).toBe(false);
+    });
+
     it('explains when a complete turn cannot be shared instead of omitting a passage', async () => {
         render(<Fixture missingPassage editable />);
         fireEvent.click(screen.getByRole('button', { name: 'shareSegment' }));

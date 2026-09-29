@@ -23,6 +23,8 @@ export interface ExcerptSource extends ExcerptRun { startTimestamp: number; drif
 export const excerptSourceIsVisible = (source: { drift?: number }, maxDrift: number) => (source.drift ?? 0) <= maxDrift;
 
 const keys = ['cityId', 'meetingId', 'firstUtteranceId', 'lastUtteranceId', 'textLocale', 'digest'] as const;
+/** Every query key a selector writes, for code that removes a selector from a URL. */
+export const EXCERPT_SELECTOR_KEYS: readonly string[] = [...keys, 'maxDrift'];
 export const validSourceId = (value: unknown): value is string => typeof value === 'string' && /^[\p{L}\p{N}_-]{1,160}$/u.test(value);
 
 export function parseExcerptSelector(input: URLSearchParams | QueryParams): ExcerptSelector | null {
@@ -44,12 +46,11 @@ export function serializeExcerptSelector(selector: ExcerptSelector): URLSearchPa
 }
 
 export const localePath = (locale: string, path: string) => `${localePathPrefix(locale)}${path}`;
-export const excerptPath = (selector: ExcerptSelector, uiLocale: string = selector.textLocale) => `${localePath(uiLocale, '/share/excerpt')}?${serializeExcerptSelector(selector)}`;
-export function transcriptExcerptPath(selector: ExcerptSelector, timestamp: number) {
-    const query = serializeExcerptSelector(selector);
-    query.set('t', String(Math.floor(timestamp)));
-    return `${localePath(selector.textLocale, `/${selector.cityId}/${selector.meetingId}/transcript`)}?${query}`;
-}
+// No `t`: the transcript seeks to the excerpt's first utterance itself. A
+// rounded second can name the utterance before it, and goes stale when an
+// editor moves the timestamps.
+export const transcriptExcerptPath = (selector: ExcerptSelector) =>
+    `${localePath(selector.textLocale, `/${selector.cityId}/${selector.meetingId}/transcript`)}?${serializeExcerptSelector(selector)}`;
 
 export function selectExcerptRuns(sources: ExcerptRun[]): ExcerptRun[] | null {
     if (!sources.length || sources.length > MAX_EXCERPT_UTTERANCES) return null;

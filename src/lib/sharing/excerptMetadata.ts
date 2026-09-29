@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { getMetadataBaseFromRequest } from '@/lib/realm.server';
 import { compactMetadataDescription } from '@/lib/seo/metadataDescription';
 import { groupExcerptSpeakers } from '@/components/sharing/ExcerptQuote';
-import { serializeExcerptSelector } from '@/lib/sharing/excerptSelector';
+import { serializeExcerptSelector, transcriptExcerptPath } from '@/lib/sharing/excerptSelector';
 import { shareCardMetadata } from '@/lib/sharing/shareCard';
 import type { PublicExcerpt } from '@/lib/sharing/excerpts';
 
@@ -19,5 +19,6 @@ export async function excerptMetadata(excerpt: PublicExcerpt, locale: string): P
     ).join('\n\n');
     const description = [!excerpt.isReviewed && t('unreviewedNotice'), previewDescription].filter(Boolean).join('\n\n');
     const image = `${base}/api/og/excerpt?${serializeExcerptSelector(excerpt.selector)}`;
-    return shareCardMetadata({ title, description, image });
+    // The transcript's canonical names the meeting. og:url keeps a scraper on the shared excerpt.
+    return shareCardMetadata({ title, description, image, url: `${base}${transcriptExcerptPath(excerpt.selector)}` });
 }

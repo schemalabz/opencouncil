@@ -27,9 +27,6 @@ export interface PublicExcerpt {
     runs: ExcerptRun[];
     /** The subject the passage belongs to, for its title and its picture; null when the meeting gives no clue. */
     subject: SubjectRow | null;
-    before: string;
-    after: string;
-    startTimestamp: number;
 }
 export type ExcerptResult = { status: 'ok'; excerpt: PublicExcerpt } | { status: 'invalid' | 'source-changed' | 'unavailable' };
 
@@ -87,26 +84,10 @@ export async function getPublicExcerpt(selector: ExcerptSelector, realm: Realm):
     }));
     if (!runs) return { status: 'invalid' };
     if (createHash('sha256').update(canonicalExcerpt(runs)).digest('hex') !== selector.digest) return { status: 'source-changed' };
-    // Stay within each endpoint's speaker segment so context has honest attribution.
-    // The subject most of the passage carries needs no query; the rest asks the meeting alongside the context.
-    const majority = majoritySubject(sources.map(source => source.discussionSubject));
-    const [previous, next, subject] = await Promise.all([
-        prisma.utterance.findFirst({
-            where: { ...driftFilter, speakerSegmentId: first.speakerSegmentId, OR: [{ startTimestamp: { lt: first.startTimestamp } }, { startTimestamp: first.startTimestamp, id: { lt: first.id } }] },
-            orderBy: [{ startTimestamp: 'desc' }, { id: 'desc' }], select: { text: true },
-        }),
-        prisma.utterance.findFirst({
-            where: { ...driftFilter, speakerSegmentId: last.speakerSegmentId, OR: [{ startTimestamp: { gt: last.startTimestamp } }, { startTimestamp: last.startTimestamp, id: { gt: last.id } }] },
-            orderBy: [{ startTimestamp: 'asc' }, { id: 'asc' }], select: { text: true },
-        }),
-        majority ?? subjectFromMeeting(sources, scope, first, last, meeting),
-    ]);
-    const before = previous ? localizeText(previous.text, selector.textLocale).slice(-120) : '';
-    const after = next ? localizeText(next.text, selector.textLocale).slice(0, 120) : '';
+    // The subject most of the passage carries needs no query; the rest asks the meeting.
+    const subject = majoritySubject(sources.map(source => source.discussionSubject)) ?? await subjectFromMeeting(sources, scope, first, last, meeting);
     return { status: 'ok', excerpt: {
         meeting, isReviewed: meeting.taskStatuses.length > 0, selector, runs,
         subject: subject && { ...subject, name: localizeText(subject.name, selector.textLocale) },
-        startTimestamp: first.startTimestamp,
-        before, after,
     } };
 }
