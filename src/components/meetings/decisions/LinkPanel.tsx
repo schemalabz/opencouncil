@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { formatCalendarDate } from '@/lib/formatters/time';
 import type { RowCandidate } from '@/components/meetings/decisions/rowCandidates';
-import { AdaForm, type AdaEntry } from '@/components/meetings/decisions/AdaForm';
 import { ANSWER_ROW, PANEL_SHELL, PANEL_TABLE_INDENT, QuietButton } from '@/components/meetings/decisions/controls';
 import { Chip, RecordRow } from '@/components/meetings/decisions/RecordRow';
+
+/** How many rows the list shows before «Εμφάνιση όλων». */
+const LIST_LIMIT = 8;
 
 /** What a row in the panel's list needs about the decision itself. */
 export interface PanelCandidate {
@@ -50,7 +52,7 @@ export interface LinkPanelProps {
      * interpolate `subjectLabel`: a numbered subject fits "Σύνδεση με το θέμα
      * 30" on one line, a named one does not, so those buttons fall back to a
      * plain outcome word instead (see the row list, the confirm strip's move
-     * action, and `AdaForm`'s submit button). */
+     * action). */
     hasAgendaNumber: boolean;
     current: {
         /** The linked decision's own id, which `onOpenDocument` takes as well
@@ -82,7 +84,15 @@ export interface LinkPanelProps {
      * lose in the first place.
      */
     onLink: (candidateId: string) => void;
-    onAdaSubmit: (entry: AdaEntry) => void;
+    /** How many decisions the row could take before any search:
+     * `rowCandidates(…, query: '').length`. Zero opens the panel on the ΑΔΑ
+     * step, and hides the way back to a list that would be empty. */
+    offerableCount: number;
+    /** The ΑΔΑ step. The page renders it, because the page owns the poll that
+     * answers it. `onBack` is `null` when there is no list to go back to. */
+    renderAdaStep: (args: { noCandidates: boolean; onBack: (() => void) | null; onManual: () => void; onClose: () => void }) => ReactNode;
+    /** The step that adds a decision by hand, for one Diavgeia does not have. */
+    renderManualStep: (args: { onBack: () => void; toAda: () => void; onClose: () => void }) => ReactNode;
     onOpenDocument: (documentId: string) => void;
     onClose: () => void;
     saving: boolean;
@@ -117,7 +127,9 @@ export function LinkPanel({
     onCancelConfirm,
     onConfirm,
     onLink,
-    onAdaSubmit,
+    offerableCount,
+    renderAdaStep,
+    renderManualStep,
     onOpenDocument,
     onClose,
     saving,
@@ -126,7 +138,10 @@ export function LinkPanel({
 }: LinkPanelProps) {
     const t = useTranslations('admin.decisionsPage');
     const locale = useLocale();
-    const [adaOpen, setAdaOpen] = useState(false);
+    // The first step follows the data: with nothing to pick, a list would be
+    // an empty box above a search field that filters nothing.
+    const [step, setStep] = useState<'list' | 'ada' | 'manual'>(offerableCount > 0 ? 'list' : 'ada');
+    const [showAll, setShowAll] = useState(false);
     // Which row's button was pressed, so only that one shows the spinner —
     // `saving` alone can't tell rows apart, and disabling every row without
     // marking the one actually in flight reads as the click did nothing.
@@ -196,10 +211,13 @@ export function LinkPanel({
 
     return (
         <div className={cn(PANEL_SHELL, PANEL_TABLE_INDENT)}>
-            <h3 className="text-[15px] font-semibold">
-                {current ? t('panel.changeTitle', { subject: subjectLabel }) : t('panel.linkTitle', { subject: subjectLabel })}
-            </h3>
-            {current && (
+            {/* The ΑΔΑ step and the manual form carry their own titles. */}
+            {step === 'list' && (
+                <h3 className="text-[15px] font-semibold">
+                    {current ? t('panel.changeTitle', { subject: subjectLabel }) : t('panel.linkTitle', { subject: subjectLabel })}
+                </h3>
+            )}
+            {step === 'list' && current && (
                 <p className="mt-1 text-sm text-muted-foreground">
                     {t('panel.currentIs')} <span className="font-semibold text-foreground">{current.number}</span>
                     {current.title && <> — {current.title}</>}{' '}
@@ -212,25 +230,28 @@ export function LinkPanel({
                     </QuietButton>
                 </p>
             )}
-            {/* Rendered above the ΑΔΑ-form/search fork, not inside either branch:
-                a write can fail from either one, and an error trapped in the
-                branch that produced it disappears the moment the other branch
-                is the one left open. */}
+            {/* Rendered above the steps, not inside any one of them: a write
+                or a lookup can fail from more than one step, and an error
+                trapped in the step that produced it disappears the moment
+                another step is the one left open. */}
             {error && (
-                <div className={cn(ANSWER_ROW, 'mt-3 items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm')}>
+                <div className={cn(ANSWER_ROW, 'mt-3 first:mt-0 items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm')}>
                     <span>{t('panel.saveFailed')} {error}</span>
                     <Button variant="outline" size="sm" onClick={onRetry}>{t('panel.retry')}</Button>
                 </div>
             )}
-            {adaOpen ? (
-                <div className="mt-3">
-                    <AdaForm
-                        subjectLabel={subjectLabel}
-                        hasAgendaNumber={hasAgendaNumber}
-                        saving={saving}
-                        onSubmit={onAdaSubmit}
-                        onBack={() => setAdaOpen(false)}
-                    />
+            {step === 'ada' ? (
+                <div className="mt-3 first:mt-0">
+                    {renderAdaStep({
+                        noCandidates: offerableCount === 0,
+                        onBack: offerableCount > 0 ? () => setStep('list') : null,
+                        onManual: () => setStep('manual'),
+                        onClose,
+                    })}
+                </div>
+            ) : step === 'manual' ? (
+                <div className="mt-3 first:mt-0">
+                    {renderManualStep({ onBack: () => setStep(offerableCount > 0 ? 'list' : 'ada'), toAda: () => setStep('ada'), onClose })}
                 </div>
             ) : (
                 <div className="mt-3 space-y-3">
@@ -245,7 +266,7 @@ export function LinkPanel({
                         className="max-w-xs"
                     />
                     <div className="space-y-1.5">
-                        {rows.slice(0, 8).map((row, index) => {
+                        {(showAll ? rows : rows.slice(0, LIST_LIMIT)).map((row, index) => {
                             const date = row.candidate.publishDate ? formatCalendarDate(row.candidate.publishDate, locale) : null;
                             const elsewhereLabel = row.elsewhere?.label ?? '';
                             // Every row's controls read alike — "Άνοιγμα", "Σύνδεση" —
@@ -311,10 +332,13 @@ export function LinkPanel({
                             );
                         })}
                     </div>
+                    {!showAll && rows.length > LIST_LIMIT && (
+                        <QuietButton onClick={() => setShowAll(true)}>{t('panel.showAll', { count: rows.length })}</QuietButton>
+                    )}
                     {noResults && (
                         <div className="space-y-2 text-sm text-muted-foreground">
                             <p>{t('panel.noResults', { query })}</p>
-                            <Button variant="outline" size="sm" onClick={() => setAdaOpen(true)}>{t('panel.addWithAda')}</Button>
+                            <Button variant="outline" size="sm" onClick={() => setStep('ada')}>{t('panel.addWithAda')}</Button>
                         </div>
                     )}
                     <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
@@ -324,9 +348,11 @@ export function LinkPanel({
                         {!noResults && (
                             <>
                                 <span aria-hidden>&middot;</span>
-                                <QuietButton onClick={() => setAdaOpen(true)} disabled={saving}>{t('panel.addWithAda')}</QuietButton>
+                                <QuietButton onClick={() => setStep('ada')} disabled={saving}>{t('panel.addWithAda')}</QuietButton>
                             </>
                         )}
+                        <span aria-hidden>&middot;</span>
+                        <QuietButton onClick={() => setStep('manual')} disabled={saving}>{t('panel.addManually')}</QuietButton>
                         {current && (
                             <>
                                 <span aria-hidden>&middot;</span>

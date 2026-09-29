@@ -9,6 +9,8 @@ import { AdminStrip, AdminToolButton } from '@/components/admin/AdminStrip';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { DecisionWithSource, SubjectExtractedData } from '@/lib/db/decisions';
 import { MeetingCandidate } from '@/lib/db/decisionCandidateShape';
+import type { AdaLookupOutcome } from '@/lib/db/types';
+import { ADA_LOOKUP_SETTLE_MS } from '@/lib/db/types/adaLookups';
 import { getPollingHistoryForMeeting, requestPollDecisions, resolveCandidateConflict } from '@/lib/tasks/pollDecisions';
 import { pollCadence } from '@/lib/tasks/pollDecisionsBackoff';
 import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib/utils/votes';
@@ -33,8 +35,8 @@ import { useAuditMode } from '@/components/meetings/decisions/useAuditMode';
 import { LinkPanel, type PanelConfirm, type PanelSubject } from '@/components/meetings/decisions/LinkPanel';
 import { SubjectPicker } from '@/components/meetings/decisions/SubjectPicker';
 import type { DiavgeiaFooterState } from '@/components/meetings/decisions/DiavgeiaFooter';
-import type { AdaEntry } from '@/components/meetings/decisions/AdaForm';
-import { diavgeiaDocUrl } from '@/components/meetings/decisions/pdfUrl';
+import { AdaLookupStep, type AdaLookupState } from '@/components/meetings/decisions/AdaLookupStep';
+import { readAdaLookup } from '@/lib/actions/adaLookups';
 import { readDiavgeiaUnitEntries } from '@/lib/utils/diavgeiaUnitScope';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
 import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
@@ -82,6 +84,8 @@ interface PanelState {
     confirm: PanelConfirm | null;
     /** A failed write, shown inline. The row is unchanged when this is set. */
     error: string | null;
+    /** The ΑΔΑ step's state. It lives on the page because the poll that answers it does. */
+    lookup: AdaLookupState;
 }
 
 /** A rejected proposal, kept on the page so the row and its receipt can undo it together. */
@@ -217,6 +221,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const [setAside, setSetAside] = useState<Record<string, CandidateView>>({});
     const [rejected, setRejected] = useState<Record<string, RejectedProposal>>({});
     const [viewing, setViewing] = useState<string | null>(null);
+    const openSheet = useCallback((documentId: string, _targetSubjectId: string | null) => setViewing(documentId), []);
     // Bumped by handleJumpToTable; the effect below fires after the filter
     // change it triggers has committed, so it measures the table at its new
     // (post-filter) height rather than the one before the click.
@@ -363,6 +368,77 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             case 'unknown': return tPage('writeFailure.unknown');
         }
     }, [tPage, labelOfId]);
+
+    // The poll that answers a lookup ends on another service; when the page's
+    // own poll watch sees it gone, read what it found for the typed ΑΔΑ. A read
+    // that finds the task still running asks again ten seconds later: the task
+    // can end before the watch ever sees it, or the watch can fail to start,
+    // and the step must not wait on it forever.
+    const lookup = panel?.lookup;
+    const panelSubjectId = panel?.subjectId ?? null;
+    useEffect(() => {
+        if (lookup?.kind !== 'searching' || pollingStatus?.pendingTaskId === lookup.taskId) return;
+        const { ada, taskId } = lookup;
+        // A later run re-reads the same task, so an outcome this run is still
+        // waiting for must not land on a panel that has moved on.
+        let cancelled = false;
+        let retry: ReturnType<typeof setTimeout> | null = null;
+        let candidateMissingSince: number | null = null;
+        const read = async () => {
+            const outcome = await readAdaLookup(meeting.cityId, meeting.id, taskId, ada)
+                .catch((): AdaLookupOutcome => ({ state: 'failed' }));
+            if (cancelled) return;
+            if (outcome.state === 'running') {
+                retry = setTimeout(() => { void read(); }, 10_000);
+                return;
+            }
+            const data = outcome.state === 'found' ? await fetchDecisions() : null;
+            if (cancelled) return;
+            // The candidate list can be read before the poll's result handler
+            // has written the candidate the outcome names: keep searching for
+            // as long as the outcome read itself would.
+            if (outcome.state === 'found' && outcome.candidateId !== null
+                && !data?.candidates?.some(c => c.id === outcome.candidateId)) {
+                candidateMissingSince ??= Date.now();
+                if (Date.now() - candidateMissingSince < ADA_LOOKUP_SETTLE_MS) {
+                    retry = setTimeout(() => { void read(); }, 10_000);
+                    return;
+                }
+            }
+            const next: AdaLookupState = (() => {
+                switch (outcome.state) {
+                    case 'notFound': return { kind: 'notFound', ada };
+                    case 'error': return { kind: 'error', ada };
+                    case 'notADecision': return { kind: 'notADecision', ada };
+                    case 'failed': return { kind: 'failed', ada, cause: null };
+                    case 'found': {
+                        const holder = outcome.linkedTo;
+                        if (holder) {
+                            const label = holder.meetingId === meeting.id
+                                ? (labelOfId(holder.subjectId) ?? ada)
+                                : tPage('panel.otherMeetingSubject', {
+                                    subject: holder.agendaItemIndex !== null
+                                        ? tPage('subjectLabel.numbered', { n: holder.agendaItemIndex })
+                                        : tPage('subjectLabel.named', { name: holder.subjectName }),
+                                    meeting: holder.meetingName,
+                                });
+                            return { kind: 'linkedElsewhere', ada, label };
+                        }
+                        const candidate = data?.candidates?.find(c => c.id === outcome.candidateId);
+                        if (!candidate) return { kind: 'failed', ada, cause: null };
+                        return { kind: 'found', ada, candidateId: candidate.id, number: candidateNumberOf(candidate), organizationLabel: outcome.organizationLabel };
+                    }
+                }
+            })();
+            setPanel(p => p && p.lookup.kind === 'searching' && p.lookup.taskId === taskId ? { ...p, lookup: next } : p);
+            if (next.kind === 'found') openSheet(next.candidateId, panelSubjectId);
+        };
+        void read();
+        return () => {
+            cancelled = true;
+            if (retry !== null) clearTimeout(retry);
+        };
+    }, [lookup, pollingStatus?.pendingTaskId, meeting.cityId, meeting.id, fetchDecisions, labelOfId, tPage, openSheet, panelSubjectId]);
 
     // ─── The view model ──────────────────────────────────────────────────
 
@@ -745,27 +821,20 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         if (ok) dropReceipt(receiptId);
     };
 
-    const handleAdaLink = async (subjectId: string, entry: AdaEntry) => {
-        const subject = subjectById.get(subjectId);
-        if (!subject) return;
-        panelRetry.current = () => { void handleAdaLink(subjectId, entry); };
-        const ok = await runWrite({ subjectId, inPanel: true, changesDecision: true }, () => putDecision({
-            subjectId,
-            ada: entry.ada,
-            decisionNumber: entry.decisionNumber,
-            pdfUrl: diavgeiaDocUrl(entry.ada),
-        }));
-        if (!ok) return;
-        setPanel(null);
-        addReceipt(tPage('receipts.linked', {
-            number: entry.decisionNumber ?? entry.ada,
-            subject: labelOf(subject),
-        }));
-        // A decision typed in by hand carries no excerpt, no attendance and no
-        // votes. The poll's re-extraction path fills them, so the Αποτέλεσμα
-        // column has something to say without anyone asking for it.
-        await requestPollDecisions(meeting.cityId, meeting.id).catch(() => undefined);
-        await refreshPollingStatus();
+    // A failed search is the step's own state, retried from the step's own
+    // button: the panel's error strip and its retry belong to writes.
+    const handleAdaSearch = async (subjectId: string, ada: string) => {
+        setPanel(p => p && { ...p, error: null });
+        try {
+            const start = await requestPollDecisions(meeting.cityId, meeting.id, { lookupAdas: [ada] });
+            setPanel(p => p && p.subjectId === subjectId ? {
+                ...p,
+                lookup: start.status === 'started' ? { kind: 'searching', ada, taskId: start.taskId } : { kind: 'blocked' },
+            } : p);
+            await refreshPollingStatus();
+        } catch (error) {
+            setPanel(p => p && p.subjectId === subjectId ? { ...p, lookup: { kind: 'failed', ada, cause: failureSentence(error) } } : p);
+        }
     };
 
     const handleUnlink = async (subjectId: string) => {
@@ -976,7 +1045,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const openPanel = (subjectId: string, mode: 'link' | 'change') => {
         setPickerCandidateId(null);
         panelRetry.current = null;
-        setPanel({ subjectId, mode, query: '', confirm: null, error: null });
+        setPanel({ subjectId, mode, query: '', confirm: null, error: null, lookup: { kind: 'idle' } });
     };
 
     /** A pick in the row panel adds when the row is empty and replaces when it
@@ -1045,6 +1114,11 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         const subject = subjectById.get(subjectId);
         if (!subject) return null;
         const current = panel.mode === 'change' ? decisions[subjectId] : undefined;
+        // `blocked` is only a poll someone else started: it clears itself the
+        // moment that poll ends, since nothing here stored it.
+        const lookupState: AdaLookupState = panel.lookup.kind === 'idle' || panel.lookup.kind === 'blocked'
+            ? (pollingStatus?.pendingTaskId ? { kind: 'blocked' } : { kind: 'idle' })
+            : panel.lookup;
         return (
             <LinkPanel
                 subjectLabel={labelOf(subject)}
@@ -1071,8 +1145,21 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 onCancelConfirm={() => setPanel(p => p && { ...p, confirm: null })}
                 onConfirm={confirm => handlePanelConfirm(subjectId, confirm)}
                 onLink={candidateId => handlePanelPick(subjectId, candidateId)}
-                onAdaSubmit={entry => { void handleAdaLink(subjectId, entry); }}
-                onOpenDocument={setViewing}
+                offerableCount={rowCandidates({ subjectId, candidates, subjectByCandidate, subjects: panelSubjects, query: '' }).length}
+                renderAdaStep={({ noCandidates, onBack, onManual, onClose }) => (
+                    <AdaLookupStep
+                        subjectLabel={labelOf(subject)}
+                        noCandidates={noCandidates}
+                        state={lookupState}
+                        onSearch={ada => { void handleAdaSearch(subjectId, ada); }}
+                        onOpenFound={candidateId => openSheet(candidateId, subjectId)}
+                        onManual={onManual}
+                        onBack={onBack}
+                        onClose={onClose}
+                    />
+                )}
+                renderManualStep={() => null}
+                onOpenDocument={documentId => openSheet(documentId, subjectId)}
                 onClose={() => setPanel(null)}
                 saving={busySubjectId === subjectId}
                 error={panel.error}

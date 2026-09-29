@@ -1,7 +1,9 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { MeetingDecisionsPage } from '../MeetingDecisionsPage';
+import { requestPollDecisions } from '@/lib/tasks/pollDecisions';
+import { readAdaLookup } from '@/lib/actions/adaLookups';
 import admin from '../../../../../messages/el/admin.json';
 import el from '../../../../../messages/el.json';
 import type { MinutesData, MinutesMember } from '@/lib/minutes/types';
@@ -121,6 +123,9 @@ jest.mock('@/components/meetings/CouncilMeetingDataContext', () => ({
     useCouncilMeetingData: () => mockMeetingData,
 }));
 
+/** The poll the status watch reports as running; a test sets it to play another poll. */
+let mockPendingTaskId: string | null = null;
+
 jest.mock('@/lib/tasks/pollDecisions', () => ({
     getPollingHistoryForMeeting: jest.fn(async () => ({
         totalPolls: 0,
@@ -129,11 +134,16 @@ jest.mock('@/lib/tasks/pollDecisions', () => ({
         currentTier: null,
         currentTierLabel: null,
         nextPollEligible: null,
-        pendingTaskId: null,
+        pendingTaskId: mockPendingTaskId,
     })),
     requestPollDecisions: jest.fn(async () => ({ status: 'started', taskId: 't1' })),
     resolveCandidateConflict: jest.fn(async () => 'noop'),
 }));
+
+jest.mock('@/lib/actions/adaLookups', () => ({ readAdaLookup: jest.fn() }));
+
+const mockRequestPoll = requestPollDecisions as jest.MockedFunction<typeof requestPollDecisions>;
+const mockReadAdaLookup = readAdaLookup as jest.MockedFunction<typeof readAdaLookup>;
 
 const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
 
@@ -141,6 +151,7 @@ const fetchMock = jest.fn();
 const originalFetch = global.fetch;
 
 beforeEach(() => {
+    mockPendingTaskId = null;
     store = { decisions: [], extractedData: [], candidates: [], dismissed: new Set(), posts: [], failWrite: null, minutes: null };
     mockToast.mockClear();
     fetchMock.mockReset();
@@ -675,5 +686,178 @@ describe('MeetingDecisionsPage — from the issues card to the subject', () => {
         // The meeting-wide issue is stated in the card, in full, and not in the table.
         expect(screen.getAllByText(admin.decisionsPage.issues.messages.CONVENTIONS_UNCONFIRMED)).toHaveLength(1);
         expect(within(region).queryByText(admin.decisionsPage.issues.messages.CONVENTIONS_UNCONFIRMED)).not.toBeInTheDocument();
+    });
+});
+
+describe('MeetingDecisionsPage — looking up a typed ΑΔΑ', () => {
+    const ADA = '9ΩΡΤΩΞ1-0ΥΣ';
+
+    beforeEach(() => {
+        mockRequestPoll.mockReset();
+        mockRequestPoll.mockResolvedValue({ status: 'started', taskId: 't1' });
+        mockReadAdaLookup.mockReset();
+        mockReadAdaLookup.mockResolvedValue({ state: 'running' });
+    });
+
+    afterAll(() => {
+        mockRequestPoll.mockReset();
+        mockRequestPoll.mockResolvedValue({ status: 'started', taskId: 't1' });
+    });
+
+    type User = Pick<ReturnType<typeof userEvent.setup>, 'click' | 'type'>;
+    const NOT_FOUND = /δεν έχει δημοσιευμένη απόφαση με ΑΔΑ 9ΩΡΤΩΞ1-0ΥΣ/;
+    const SEARCH_FAILED = 'Η αναζήτηση για τον ΑΔΑ 9ΩΡΤΩΞ1-0ΥΣ δεν ολοκληρώθηκε. Δοκιμάστε ξανά.';
+
+    /** No candidate exists, so the panel opens straight on the ΑΔΑ step. */
+    const searchFromTheFirstRow = async (user: User = userEvent) => {
+        await renderPage();
+        await user.click((await screen.findAllByRole('button', { name: 'Συμπλήρωση αριθμού' }))[0]);
+        await user.type(screen.getByLabelText('ΑΔΑ'), ADA);
+        await user.click(screen.getByRole('button', { name: 'Αναζήτηση στη Διαύγεια' }));
+    };
+
+    /** The ten-second waits below run on jest's clock. */
+    const withFakeTimers = async (run: (user: User) => Promise<void>) => {
+        jest.useFakeTimers();
+        try {
+            await run(userEvent.setup({ advanceTimers: jest.advanceTimersByTime }));
+        } finally {
+            jest.useRealTimers();
+        }
+    };
+
+    it('opens the ΑΔΑ step for an empty row and starts a poll that looks the ΑΔΑ up', async () => {
+        await searchFromTheFirstRow();
+        expect(mockRequestPoll).toHaveBeenCalledWith(CITY_ID, MEETING_ID, { lookupAdas: [ADA] });
+        expect(await screen.findByText(/Αναζήτηση στη Διαύγεια…/)).toBeInTheDocument();
+        expect(screen.getByText('Δεν υπάρχει απόφαση της Διαύγειας για αυτή τη συνεδρίαση χωρίς θέμα.')).toBeInTheDocument();
+    });
+
+    it('closes the panel from the ΑΔΑ step while the search runs', async () => {
+        await searchFromTheFirstRow();
+        expect(await screen.findByText(/Αναζήτηση στη Διαύγεια…/)).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Κλείσιμο' }));
+        expect(screen.queryByLabelText('ΑΔΑ')).not.toBeInTheDocument();
+    });
+
+    it('says nothing was found once the poll ends', async () => {
+        mockReadAdaLookup.mockResolvedValue({ state: 'notFound' });
+        await searchFromTheFirstRow();
+        expect(await screen.findByText(NOT_FOUND)).toBeInTheDocument();
+        expect(mockReadAdaLookup).toHaveBeenCalledWith(CITY_ID, MEETING_ID, 't1', ADA);
+        expect(screen.getByLabelText('ΑΔΑ')).toHaveValue(ADA);
+    });
+
+    it('says the found document is not a decision', async () => {
+        mockReadAdaLookup.mockResolvedValue({ state: 'notADecision' });
+        await searchFromTheFirstRow();
+        expect(await screen.findByText(/υπάρχει στη Διαύγεια, αλλά δεν είναι απόφαση συλλογικού οργάνου/)).toBeInTheDocument();
+        expect(screen.queryByText(SEARCH_FAILED)).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('reads the outcome again when the status watch never sees the task', async () => {
+        // The task ended before the page's first status read, so the watch
+        // never reports it pending; only the step's own re-read can finish it.
+        mockReadAdaLookup.mockReset();
+        mockReadAdaLookup.mockResolvedValueOnce({ state: 'running' }).mockResolvedValue({ state: 'notFound' });
+        await withFakeTimers(async user => {
+            await searchFromTheFirstRow(user);
+            await waitFor(() => expect(mockReadAdaLookup).toHaveBeenCalledTimes(1));
+            expect(screen.queryByText(NOT_FOUND)).not.toBeInTheDocument();
+            expect(screen.getByText(/Αναζήτηση στη Διαύγεια…/)).toBeInTheDocument();
+
+            await act(async () => { jest.advanceTimersByTime(10_000); });
+            expect(await screen.findByText(NOT_FOUND)).toBeInTheDocument();
+            expect(mockReadAdaLookup).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    it('shows a poll-start failure in the step, not as a failed link', async () => {
+        mockRequestPoll.mockRejectedValue(new Error('boom'));
+        await searchFromTheFirstRow();
+        expect(await screen.findByText(`${SEARCH_FAILED} Δοκιμάστε ξανά σε λίγο.`)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Δοκιμάστε ξανά' })).toBeEnabled();
+        expect(screen.queryByText(/Η σύνδεση δεν αποθηκεύτηκε/)).not.toBeInTheDocument();
+        expect(mockReadAdaLookup).not.toHaveBeenCalled();
+    });
+
+    it('says the search did not finish when its outcome cannot be read', async () => {
+        mockReadAdaLookup.mockRejectedValue(new Error('boom'));
+        await searchFromTheFirstRow();
+        expect(await screen.findByText(SEARCH_FAILED)).toBeInTheDocument();
+        expect(screen.queryByText(/Η Διαύγεια δεν απάντησε/)).not.toBeInTheDocument();
+    });
+
+    it('waits for a poll someone else started, then lets the search run', async () => {
+        mockRequestPoll.mockImplementation(async () => {
+            mockPendingTaskId = 't0';
+            return { status: 'alreadyRunning', taskId: 't0' };
+        });
+        await withFakeTimers(async user => {
+            await searchFromTheFirstRow(user);
+            expect(await screen.findByText(/Μια αναζήτηση στη Διαύγεια τρέχει ήδη/)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Αναζήτηση στη Διαύγεια' })).toBeDisabled();
+
+            mockPendingTaskId = null;
+            await act(async () => { jest.advanceTimersByTime(10_000); });
+            await waitFor(() => expect(screen.getByRole('button', { name: 'Αναζήτηση στη Διαύγεια' })).toBeEnabled());
+            expect(screen.queryByText(/Μια αναζήτηση στη Διαύγεια τρέχει ήδη/)).not.toBeInTheDocument();
+        });
+    });
+
+    it('names the subject and the meeting that already hold a decision of another meeting', async () => {
+        mockReadAdaLookup.mockResolvedValue({
+            state: 'found',
+            candidateId: null,
+            organizationLabel: null,
+            linkedTo: { subjectId: 'x5', meetingId: 'm-other', meetingName: 'Ειδική συνεδρίαση', subjectName: 'Κάτι άλλο', agendaItemIndex: 5 },
+        });
+        await searchFromTheFirstRow();
+        expect(await screen.findByText(
+            'Η απόφαση με ΑΔΑ 9ΩΡΤΩΞ1-0ΥΣ είναι ήδη συνδεδεμένη με το θέμα 5 της συνεδρίασης «Ειδική συνεδρίαση».',
+        )).toBeInTheDocument();
+    });
+
+    it('opens a found document next to the row', async () => {
+        // The poll filed the document on this meeting by the time it ended; the
+        // refetch that follows the outcome is what the panel reads the number from.
+        mockReadAdaLookup.mockImplementation(async () => {
+            store.candidates = [candidate({ id: 'cand-9', ada: ADA, decisionNumber: '66/2026', subjectId: null, confidence: null })];
+            return { state: 'found', candidateId: 'cand-9', organizationLabel: null, linkedTo: null };
+        });
+        await searchFromTheFirstRow();
+        expect(await screen.findByText('Βρέθηκε η απόφαση 66/2026.')).toBeInTheDocument();
+        expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('keeps searching while a found candidate is not in the refetch yet, then opens it', async () => {
+        // The task is marked done before its result handler writes the
+        // candidate, so the refetch can come back without it.
+        mockReadAdaLookup.mockResolvedValue({ state: 'found', candidateId: 'cand-9', organizationLabel: null, linkedTo: null });
+        await withFakeTimers(async user => {
+            await searchFromTheFirstRow(user);
+            await waitFor(() => expect(mockReadAdaLookup).toHaveBeenCalledTimes(1));
+            await act(async () => { await Promise.resolve(); });
+            expect(screen.getByText(/Αναζήτηση στη Διαύγεια…/)).toBeInTheDocument();
+            expect(screen.queryByText(SEARCH_FAILED)).not.toBeInTheDocument();
+
+            store.candidates = [candidate({ id: 'cand-9', ada: ADA, decisionNumber: '66/2026', subjectId: null, confidence: null })];
+            await act(async () => { jest.advanceTimersByTime(10_000); });
+            expect(await screen.findByText('Βρέθηκε η απόφαση 66/2026.')).toBeInTheDocument();
+            expect(mockReadAdaLookup).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    it('says the search did not finish when a found candidate stays out of the refetch', async () => {
+        mockReadAdaLookup.mockResolvedValue({ state: 'found', candidateId: 'cand-gone', organizationLabel: null, linkedTo: null });
+        await withFakeTimers(async user => {
+            await searchFromTheFirstRow(user);
+            await waitFor(() => expect(mockReadAdaLookup).toHaveBeenCalledTimes(1));
+            for (let i = 0; i < 13; i++) {
+                await act(async () => { jest.advanceTimersByTime(10_000); });
+            }
+            expect(await screen.findByText(SEARCH_FAILED)).toBeInTheDocument();
+        });
     });
 });
