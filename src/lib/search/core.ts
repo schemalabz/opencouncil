@@ -1,6 +1,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
+import { subjectDecisionSelect } from '@/lib/db/types';
 import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches, RelatedScope } from './types';
 import { buildSearchQuery } from './query';
@@ -398,7 +399,7 @@ async function hydrateSubjectHits(hits: SubjectSearchHit[], detailed: boolean): 
                 }
             },
             highlights: true,
-            decision: true,
+            decision: { select: subjectDecisionSelect },
             discussedIn: {
                 include: {
                     topic: true

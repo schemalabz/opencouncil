@@ -14,6 +14,7 @@ const mockUtteranceFindMany = jest.fn();
 const mockGetPeopleForCity = jest.fn(async (): Promise<unknown[]> => []);
 const mockGetMeetingAttendance = jest.fn(async (): Promise<unknown[]> => []);
 const mockAttendanceEventFindMany = jest.fn(async (): Promise<unknown[]> => []);
+const mockGetDecisionReadings = jest.fn(async (): Promise<Map<string, DecisionReading>> => new Map());
 
 jest.mock('@/lib/db/meetings', () => ({ getCouncilMeetingDirect: (...a: unknown[]) => mockGetCouncilMeetingDirect(...a) }));
 jest.mock('@/lib/db/subject', () => ({ getSubjectsForMeeting: (...a: unknown[]) => mockGetSubjectsForMeeting(...a) }));
@@ -23,6 +24,10 @@ jest.mock('@/lib/db/decisions', () => ({
     getMeetingAttendance: () => mockGetMeetingAttendance(),
 }));
 jest.mock('@/lib/db/people', () => ({ getPeopleForCity: () => mockGetPeopleForCity() }));
+// The subject payload carries no stored reading; the minutes load the readings
+// on their own, and each test states the ones it needs.
+jest.mock('@/lib/db/decisionFacts', () => ({ getDecisionReadingsForMeeting: () => mockGetDecisionReadings() }));
+
 jest.mock('@/lib/sorting/people', () => ({ ...jest.requireActual('@/lib/sorting/people'), getElectedOrderForBody: () => null }));
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
@@ -37,6 +42,7 @@ jest.mock('@/lib/db/prisma', () => ({
 import { getMinutesData } from '@/lib/minutes/getMinutesData';
 import { buildRollCall } from '@/lib/minutes/builders';
 import { MinutesCrossSubjectEntry } from '@/lib/minutes/types';
+import type { DecisionReading } from '@/lib/db/decisionFacts';
 
 const CITY_ID = 'city-1';
 const MEETING_ID = 'meeting-1';
@@ -267,9 +273,10 @@ describe('getMinutesData — a mayor who is a member of the committee', () => {
         }]);
         const presidedBy = { name: 'ΠΕΤΣΕΛΗΣ ΧΡΗΣΤΟΣ', personId: 'p1', rawText: 'προήδρευσε ο Αντιπρόεδρος' };
         mockGetSubjectsForMeeting.mockResolvedValue([
-            { ...subjectRow({ id: 's1', name: 'Ένα', agendaItemTitle: null, agendaItemIndex: 1 }), decision: { extraction: { presidedBy }, extractorVersion: '4' } },
+            { ...subjectRow({ id: 's1', name: 'Ένα', agendaItemTitle: null, agendaItemIndex: 1 }), decision: { extractorVersion: '4' } },
             subjectRow({ id: 's2', name: 'Δύο', agendaItemTitle: null, agendaItemIndex: 2 }),
         ]);
+        mockGetDecisionReadings.mockResolvedValueOnce(new Map([['s1', { extraction: { presidedBy }, extractorVersion: '4' }]]));
         const data = await getMinutesData(CITY_ID, MEETING_ID);
         expect(data.councilComposition!.presidedBy).toEqual({ name: 'Πετσέλης Χρήστος', personId: 'p1' });
         expect(data.attendanceChanges).toEqual([
@@ -294,13 +301,18 @@ describe('getMinutesData — a mayor who is a member of the committee', () => {
             person: { name: personId === 'mayor' ? 'Ιωάννης Μαλτέζος' : personId === 'p1' ? 'Χρήστος Πετσέλης' : 'Αντώνης Λιόλιος' },
         })));
         mockAttendanceEventFindMany.mockResolvedValue([]);
-        const withPage = (row: ReturnType<typeof subjectRow>, extraction: object) => ({ ...row, decision: { extraction, extractorVersion: '4' } });
+        const readings = new Map<string, DecisionReading>();
+        const withPage = (row: ReturnType<typeof subjectRow>, extraction: object) => {
+            readings.set(row.id, { extraction, extractorVersion: '4' });
+            return { ...row, decision: { extractorVersion: '4' } };
+        };
         mockGetSubjectsForMeeting.mockResolvedValue([
             withPage(subjectRow({ id: 's1', name: 'Ένα', agendaItemTitle: null, agendaItemIndex: 1 }), { presidedBy: { name: 'ΠΕΤΣΕΛΗΣ ΧΡΗΣΤΟΣ', personId: 'p1' } }),
             withPage(subjectRow({ id: 's2', name: 'Δύο', agendaItemTitle: null, agendaItemIndex: 2 }), {}),
             withPage(subjectRow({ id: 's3', name: 'Τρία', agendaItemTitle: null, agendaItemIndex: 3 }), { presidedBy: { name: 'ΛΙΟΛΙΟΣ ΑΝΤΩΝΗΣ', personId: 'm1' } }),
             subjectRow({ id: 's4', name: 'Τέσσερα', agendaItemTitle: null, agendaItemIndex: 4 }),
         ]);
+        mockGetDecisionReadings.mockResolvedValueOnce(readings);
         const data = await getMinutesData(CITY_ID, MEETING_ID);
         const composition = data.councilComposition!;
         const absentIds = new Set(data.absentMembers!.map(m => m.personId));
