@@ -462,6 +462,7 @@ describe('lateArrivalsInOpeningList', () => {
 describe('resolveSession', () => {
     it('returns the roll call, the events and the issues of both parts', () => {
         const input: DerivationInput = {
+    sources: [], partyMembers: new Map(), 
             cityId: 'c', meetingId: 'm', subjects: [], rollCall: [], events: [], subjectIdsWithStoredVotes: [], conventions: conv(),
             mayorPersonId: null, presidentPersonId: null, secretaryPersonId: null, bodyType: null, cityMayorPersonId: null,
             documents: [page(['a', 'b'], ['b'], { statedChanges: [departure('c', 1)] }), page(['a', 'b'], ['b'])],

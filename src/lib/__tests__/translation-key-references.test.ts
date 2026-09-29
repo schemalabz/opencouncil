@@ -267,6 +267,7 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         members: { file: 'src/lib/utils/geojson.ts', type: 'BoundaryParseError' },
     },
     { group: 'Common.adminBodyType_', members: { prismaEnum: 'AdministrativeBodyType' } },
+    { group: 'editing.speakerHints.status.', members: { file: 'src/lib/speakerHints.ts', type: 'SpeakerHintsStatus' } },
     { group: 'AddMeetingForm.administrativeBodyType.', members: { prismaEnum: 'AdministrativeBodyType' } },
     { group: 'AdministrativeBodiesList.types.', members: { prismaEnum: 'AdministrativeBodyType' } },
     { group: 'meetingStage.label.', members: { file: 'src/lib/meetingStage.ts', type: 'PublicMeetingStage' } },
@@ -329,6 +330,14 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
     {
         group: 'admin.decisionsPage.sheet.',
         why: "keyed by the sheet's inline 'view' | 'reassign' prop, joined to a suffix (`${action}Title`): the group also holds the buttons",
+    },
+    {
+        group: 'admin.decisionsPage.table.resultFrom.',
+        why: "keyed by the vote's source when it is the sheet or the transcript, the two sources that state a vote before a document is linked",
+    },
+    {
+        group: 'admin.decisionsPage.table.sourceShort.',
+        why: 'the same two sources, as the short label beside the counts',
     },
     {
         group: 'admin.decisionsPage.issues.codes.',

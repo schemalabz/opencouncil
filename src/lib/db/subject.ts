@@ -12,6 +12,7 @@ import {
     Prisma,
     Realm,
     AdministrativeBodyType,
+    DataSource,
 } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
 import { extractUtteranceIds } from '@/lib/utils/references';
@@ -76,11 +77,20 @@ const personWithElectedOrderSelect = {
     },
 } satisfies Prisma.PersonDefaultArgs;
 
+/**
+ * The sources the public pages print. The sheet and the transcript feed the
+ * minutes and the decisions page while the documents are awaited (issue #807);
+ * a reader of the subject page sees a vote only once a document, or a person,
+ * states it.
+ */
+export const PUBLIC_FACT_SOURCES: DataSource[] = ['decision', 'manual'];
+
 const votesInclude = {
     select: {
         voteType: true,
         person: personWithElectedOrderSelect,
     },
+    where: { source: { in: PUBLIC_FACT_SOURCES } },
     orderBy: { person: { name: 'asc' as const } },
 } satisfies Prisma.SubjectVoteFindManyArgs;
 
@@ -89,6 +99,7 @@ const attendanceInclude = {
         status: true,
         person: personWithElectedOrderSelect,
     },
+    where: { source: { in: PUBLIC_FACT_SOURCES } },
 } satisfies Prisma.SubjectAttendanceFindManyArgs;
 
 // Type for location with coordinates

@@ -1,10 +1,11 @@
 import { handleTranscribeResult } from './transcribe';
 import { handleSummarizeResult } from './summarize';
-import { handleFixTranscriptResult } from './fixTranscript';
+import { handleFixTranscriptResult } from './fixTranscriptInternal';
 import { handleProcessAgendaResult } from './processAgenda';
 import { handleGenerateVoiceprintResult } from './generateVoiceprint';
 import { handleGenerateHighlightResult } from './generateHighlight';
 import { handlePollDecisionsResult, checkBatchCompletionAndAlert } from './pollDecisions';
+import { handleReadAttendanceSheetResult, handleReadTranscriptFactsResult } from './meetingFacts';
 
 // Task handler registry - maps task types to their result handlers
 export type TaskResultHandler = (taskId: string, result: any, options?: { force?: boolean }) => Promise<void>;
@@ -17,6 +18,8 @@ export const taskHandlers: Record<string, TaskResultHandler> = {
     generateVoiceprint: handleGenerateVoiceprintResult,
     generateHighlight: handleGenerateHighlightResult,
     pollDecisions: handlePollDecisionsResult,
+    readAttendanceSheet: handleReadAttendanceSheetResult,
+    readTranscriptFacts: handleReadTranscriptFactsResult,
 };
 
 // Hooks called after a task reaches a terminal state (succeeded or failed).

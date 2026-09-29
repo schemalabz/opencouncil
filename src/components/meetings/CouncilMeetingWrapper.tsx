@@ -6,6 +6,7 @@ import { BarHighlightProvider } from '@/components/meetings/bar/BarHighlightCont
 import { BarModeProvider } from '@/components/meetings/bar/PlaybackBar';
 import { VideoProvider } from './VideoProvider'
 import { TranscriptOptionsProvider } from './options/OptionsContext'
+import { SpeakerHintsProvider } from './SpeakerHintsContext'
 import { CouncilMeetingDataProvider } from './CouncilMeetingDataContext'
 import { HighlightProvider } from './HighlightContext'
 import { UtteranceExpansionProvider } from './subject/UtteranceExpansionContext'
@@ -49,6 +50,7 @@ export default function CouncilMeetingWrapper({ meetingData, editable, canCreate
         <LayoutContext.Provider value={{ isWide }}>
             <CouncilMeetingDataProvider data={meetingData}>
                 <TranscriptOptionsProvider editable={editable} canCreateHighlights={canCreateHighlights}>
+                    <SpeakerHintsProvider>
                     <VideoProvider meeting={memoizedMeeting} utterances={memoizedUtterances}>
                         <BarDataProvider>
                         <BarHighlightProvider>
@@ -67,6 +69,7 @@ export default function CouncilMeetingWrapper({ meetingData, editable, canCreate
                         </BarHighlightProvider>
                         </BarDataProvider>
                     </VideoProvider>
+                    </SpeakerHintsProvider>
                 </TranscriptOptionsProvider>
             </CouncilMeetingDataProvider>
         </LayoutContext.Provider>

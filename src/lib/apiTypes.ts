@@ -274,6 +274,9 @@ export interface RequestOnTranscript extends TaskRequest {
         speakerRole: string | null;
         speakerId: string | null;  // personId from voiceprint matching
         speakerSegmentId: string;
+        // The diarization speaker this segment belongs to. Every segment of one
+        // voice shares it, whether or not that voice has been matched to a person.
+        speakerTagId?: string;
         text: string;
         utterances: {
             text: string;
@@ -301,7 +304,42 @@ export interface RequestOnTranscript extends TaskRequest {
  * Fix Transcript
  */
 
-export interface FixTranscriptRequest extends RequestOnTranscript { }
+/** Someone a speaker can be identified as: a person record of the city. */
+export interface RosterPerson {
+    id: string;
+    name: string;
+    /** Roles held on the meeting date, the ones in the meeting's body first. */
+    role: string | null;
+    party: string | null;
+    /** Holds an active role in the administrative body that is meeting. */
+    memberOfMeetingBody?: boolean;
+}
+
+/**
+ * Who a diarization speaker is, judged from the transcript text alone (the
+ * chair giving the floor by name, roll calls, self-introductions). Independent
+ * of voiceprint matching: the caller reconciles the two.
+ */
+export interface SpeakerHint {
+    speakerTagId: string;
+    personId: string;
+    /** 0–100. The caller decides how confident a hint must be to act on. */
+    confidence: number;
+    /** The transcript lines the hint rests on, for debugging a wrong name. */
+    evidence: string;
+}
+
+export interface FixTranscriptRequest extends RequestOnTranscript {
+    /** The meeting's items, for the meeting-facts pass to anchor its statements to. */
+    agendaItems?: MeetingAgendaItem[];
+    /**
+     * Every person of the city. When present, and segments carry speakerTagId,
+     * the task also identifies speakers from the transcript text and returns
+     * speakerHints. The whole city rather than the meeting's body: councillors
+     * and officials from outside the body attend and speak.
+     */
+    roster?: RosterPerson[];
+}
 
 export interface FixTranscriptResult {
     updateUtterances: {
@@ -309,6 +347,138 @@ export interface FixTranscriptResult {
         markUncertain: boolean;
         text: string;
     }[];
+    /** One entry per speaker the transcript identifies. Absent when the request had no roster. */
+    speakerHints?: SpeakerHint[];
+    /** What the transcript states about the meeting. Absent when the request had no roster or the pass failed. */
+    meetingFacts?: MeetingFactsReading;
+}
+
+/*
+ * Meeting facts: what the meeting states about itself
+ *
+ * Two sources beside the decision documents: the sheet the back office keeps
+ * during the meeting, and the transcript. Each reader returns what its source
+ * states, with the line or the utterance it read it from, and nothing that
+ * follows from two statements. opencouncil combines the sources.
+ */
+
+/** A range of items a statement covers: agenda items 2 to 8, or the 1st out-of-agenda item. */
+export interface ItemRange {
+    kind: 'agenda_item' | 'out_of_agenda';
+    from: number;
+    to: number;
+}
+
+/** One person on a stated roll call, with where the reader read it. */
+export interface StatedRollCallEntry {
+    name: string;
+    /** Resolved person, or null when the name matched nobody in the roster. */
+    personId: string | null;
+    status: 'PRESENT' | 'ABSENT';
+    /** The sheet says whether the absence was justified; null when it does not say. */
+    absenceJustified: boolean | null;
+    rawText: string;
+    /** Transcript: the utterance the entry was read from. */
+    utteranceId: string | null;
+    /** Sheet: the line on the page, counted from 1, as the reader numbered it. */
+    line: number | null;
+}
+
+/** An arrival, a departure or a per-vote absence a source states, with where it was read. */
+export interface MeetingFactsChange extends PollDecisionsAttendanceEvent {
+    utteranceId: string | null;
+    line: number | null;
+}
+
+export type StatedOutcome = 'unanimous' | 'majority' | 'rejected';
+
+/** One vote as a source states it: the items it covers, the outcome, and whoever it names. */
+export interface StatedVote {
+    /** Empty when the reader could not tell which item was voted; the app then reports the statement. */
+    items: ItemRange[];
+    outcome: StatedOutcome | null;
+    /** The outcome as stated: «Άρα κατά πλειοψηφία», the sheet's own mark. */
+    phrase: string;
+    /** Counts printed or spoken, per vote value; absent when none are. */
+    tally?: Partial<Record<VoteValue, number | null>>;
+    namedVotes: Array<{ name: string; personId: string | null; vote: VoteValue; rawText: string; utteranceId: string | null }>;
+    /**
+     * A party answering for its members («Εμείς κατά»). `party` is the party as
+     * named, or null when it is the speaker's own; `speakerUtteranceId` names the
+     * utterance whose speaker's party it is. opencouncil resolves the members
+     * present at that item.
+     */
+    partyVotes: Array<{ party: string | null; speakerUtteranceId: string | null; vote: VoteValue; rawText: string }>;
+    rawText: string;
+    utteranceIds: string[];
+    line: number | null;
+    /** 0–100, the reader's own confidence that this is a vote of this meeting on these items. */
+    confidence: number;
+}
+
+/** What one source states about a meeting, matched to ids. */
+export interface MeetingFactsReading {
+    rollCall: { entries: StatedRollCallEntry[]; rawText: string; utteranceIds: string[] } | null;
+    attendanceChanges: MeetingFactsChange[];
+    votes: StatedVote[];
+    presidedBy: { name: string; personId: string | null; rawText: string } | null;
+    /** How each name the source states was matched: by token-sort, by the model, or not at all. */
+    nameMatches: Array<{ name: string; personId: string | null; method: 'token' | 'llm' | null }>;
+    unmatchedNames: string[];
+    warnings: DecisionWarning[];
+}
+
+/** An agenda item as the meeting knows it, for anchoring statements. */
+export interface MeetingAgendaItem {
+    name: string;
+    /** Null for a non-agenda item. */
+    agendaItemIndex: number | null;
+    /** The 1-based position among the out-of-agenda items; null otherwise. */
+    outOfAgendaOrdinal: number | null;
+}
+
+/*
+ * Task: Read Attendance Sheet
+ */
+
+export interface ReadAttendanceSheetRequest extends TaskRequest {
+    /** A URL the task server can fetch without credentials for a short time: the app presigns it. */
+    fileUrl: string;
+    /** The file's media type; the reader sends a PDF as a document and anything else as an image. */
+    mediaType: 'application/pdf' | 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+    cityName: string;
+    cityLanguage: CityLanguage;
+    administrativeBodyName: string | null;
+    /** ISO date (YYYY-MM-DD) of the meeting. */
+    date: string;
+    roster: RosterPerson[];
+    agendaItems: MeetingAgendaItem[];
+    mayorId?: string;
+    /** How this body's sheet is laid out, in a person's words; absent for a body nobody described. */
+    layoutNotes?: string | null;
+    /** Read the file again rather than return the reading cached for it: a person asked to read it again. */
+    forceRead?: boolean;
+}
+
+export interface ReadAttendanceSheetResult {
+    reading: MeetingFactsReading;
+    usage: TaskTokenUsage;
+}
+
+/*
+ * Task: Read Transcript Facts
+ *
+ * The same pass fixTranscript runs; on its own for a rerun after review.
+ */
+
+export interface ReadTranscriptFactsRequest extends RequestOnTranscript {
+    roster: RosterPerson[];
+    agendaItems?: MeetingAgendaItem[];
+}
+
+export interface ReadTranscriptFactsResult {
+    reading: MeetingFactsReading;
+    usage: TaskTokenUsage;
 }
 
 /*

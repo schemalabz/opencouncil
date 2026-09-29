@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 
 import { PrismaClient } from '@prisma/client';
+import { publicSpeakerTagSelect } from '../src/lib/db/types/speakerTag';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
@@ -254,8 +255,9 @@ async function extractPersons(prisma: PrismaClient, cityIds: string[]) {
           updatedAt: true,
         }
       },
-      // Include speakerTags - these belong to the person (one-to-many)
-      speakerTags: true,
+      // Include speakerTags - these belong to the person (one-to-many). The dump is
+      // public, so it carries the public fields only, never the speaker hints.
+      speakerTags: { select: publicSpeakerTagSelect },
       // Include voicePrints - these belong to the person (one-to-many)
       voicePrints: {
         select: {

@@ -4,10 +4,11 @@ import React, { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { useVideo } from '../VideoProvider';
+import { useSpeakerHints } from '../SpeakerHintsContext';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, Clock, Hash, ChevronRight, ChevronDown, Play, User } from 'lucide-react';
+import { AlertTriangle, Users, Clock, Hash, ChevronRight, ChevronDown, Play, User } from 'lucide-react';
 import { getPartyFromRoles, UNKNOWN_SPEAKER_LABEL } from "@/lib/utils";
 import { formatDuration, formatTimestamp } from "@/lib/formatters/time";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ function SpeakerStatsContent() {
     const { transcript, getSpeakerTag, getPerson, meeting } = useCouncilMeetingData();
     const { seekTo } = useVideo();
     const t = useTranslations('editing');
+    const { needsReview } = useSpeakerHints();
     const [expandedSpeakerId, setExpandedSpeakerId] = useState<string | null>(null);
 
     const speakerStats = useMemo(() => {
@@ -153,6 +155,12 @@ function SpeakerStatsContent() {
                                                 <Hash className="h-3 w-3" />
                                                 {stat.segmentCount}
                                             </div>
+                                            {Array.from(stat.speakerTagIds).some(needsReview) && (
+                                                <div className="flex items-center gap-1 text-amber-600" title={t('speakerHints.disagree')}>
+                                                    <AlertTriangle className="h-3 w-3" />
+                                                    {t('speakerHints.needsReview')}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
