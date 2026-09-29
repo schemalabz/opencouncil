@@ -1,7 +1,7 @@
 import { pageStatementsOf } from '../anchors';
-import { lateArrivalsInOpeningList, nameMatchIssues, pagesCarryOwnList, resolveEvents, resolveRollCall, resolveSession } from '../resolveSession';
+import { lateArrivalsInOpeningList, mergeRestatedChanges, nameMatchIssues, pagesCarryOwnList, resolveEvents, resolveRollCall, resolveSession } from '../resolveSession';
 import type { DecisionConventions } from '@/lib/decisionConventions';
-import type { DerivationInput, DocumentFacts, OrderedSubject, PerVoteAbsence, StatedChange } from '../types';
+import type { DerivationInput, DocumentFacts, EventRow, OrderedSubject, PerVoteAbsence, RollCallRow, StatedChange } from '../types';
 
 const conv = (o: Partial<DecisionConventions> = {}): DecisionConventions => ({
     version: 1, rollCallLayout: 'present_and_absent', presentListMeaning: 'opening', attendanceChangeAnchors: ['agenda_item'],
@@ -498,5 +498,58 @@ describe('nameMatchIssues', () => {
 
     it('says nothing for readings that predate the field', () => {
         expect(nameMatchIssues({ documents: [page(['p1']), page(['p1'])] })).toEqual([]);
+    });
+});
+
+describe('mergeRestatedChanges', () => {
+    // Thira jun29_2026 in miniature: the out-of-agenda item, then items 1 to 5.
+    const subjects: OrderedSubject[] = [
+        { id: 'oa', name: 'OA', agendaItemIndex: null, nonAgendaReason: 'outOfAgenda', decisionNumber: '125/2026' },
+        ...[1, 2, 3, 4, 5].map(i => ({ id: `s${i}`, name: `S${i}`, agendaItemIndex: i, nonAgendaReason: null, decisionNumber: `${125 + i}/2026` })),
+    ];
+    const rollCall: RollCallRow[] = [
+        { personId: 'late', status: 'ABSENT', source: 'decision' },
+        { personId: 'out', status: 'PRESENT', source: 'decision' },
+    ];
+    let seq = 0;
+    const ev = (personId: string, kind: EventRow['kind'], subjectId: string, timing: EventRow['timing'], reportingDocuments = 1, o: Partial<EventRow> = {}): EventRow => ({
+        id: `ev${seq++}`, personId, kind, anchorKind: 'SUBJECT', anchorAgendaItemIndex: null, anchorNonAgendaReason: null, anchorDecisionNumber: null,
+        anchorSubjectId: subjectId, anchorPhase: null, timing, rawText: `${personId} ${kind} ${subjectId}`, reportingDocuments, totalDocuments: 6,
+        source: 'decision', ...o,
+    });
+    const shape = (events: EventRow[]) => events.map(e => [e.personId, e.kind, e.anchorSubjectId ?? e.anchorAgendaItemIndex, e.reportingDocuments]);
+
+    it("keeps one arrival where every later page restates it, and drops the departure of a member who was never in the room", () => {
+        // A per-vote absence run from the first subject gives «out before OA, back before 3»;
+        // each later page restates the arrival, pinned to itself.
+        const events = [
+            ev('late', 'DEPARTURE', 'oa', 'BEFORE', 3), ev('late', 'ARRIVAL', 's3', 'BEFORE', 3),
+            ev('late', 'ARRIVAL', 's3', 'DURING'), ev('late', 'ARRIVAL', 's4', 'DURING'), ev('late', 'ARRIVAL', 's5', 'DURING'),
+        ];
+        expect(shape(mergeRestatedChanges(subjects, rollCall, events))).toEqual([['late', 'ARRIVAL', 's3', 6]]);
+    });
+
+    it('keeps a real return after a departure, and each departure of two absences', () => {
+        const events = [
+            ev('out', 'DEPARTURE', 's1', 'BEFORE'), ev('out', 'ARRIVAL', 's2', 'BEFORE'),
+            ev('out', 'DEPARTURE', 's4', 'BEFORE'), ev('out', 'ARRIVAL', 's5', 'BEFORE'),
+        ];
+        expect(shape(mergeRestatedChanges(subjects, rollCall, events))).toEqual(shape(events));
+    });
+
+    it('keeps a change anchored to an agenda item even when it repeats the kind: two anchors of one change are a disagreement', () => {
+        const byItem = (item: number) => ev('out', 'DEPARTURE', '', 'DURING', 7, { anchorKind: 'AGENDA_ITEM', anchorSubjectId: null, anchorAgendaItemIndex: item });
+        const events = [byItem(1), byItem(2)];
+        expect(mergeRestatedChanges(subjects, rollCall, events)).toEqual(events);
+    });
+
+    it('never counts more pages than the meeting has', () => {
+        const events = [ev('out', 'DEPARTURE', 's1', 'BEFORE', 5), ev('out', 'DEPARTURE', 's2', 'DURING', 4)];
+        expect(shape(mergeRestatedChanges(subjects, rollCall, events))).toEqual([['out', 'DEPARTURE', 's1', 6]]);
+    });
+
+    it('leaves an event it cannot place as it is', () => {
+        const events = [ev('out', 'DEPARTURE', 'missing', 'BEFORE'), ev('out', 'DEPARTURE', 's2', 'BEFORE')];
+        expect(mergeRestatedChanges(subjects, rollCall, events)).toEqual(events);
     });
 });

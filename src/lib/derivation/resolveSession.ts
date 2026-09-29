@@ -446,12 +446,56 @@ export function nameMatchIssues(input: Pick<DerivationInput, 'documents'>): Issu
     return issues;
 }
 
+/**
+ * Drops the events that state nothing new. A page can restate a change an earlier
+ * page stated, pinned to its own subject: every Thira page after item 3 says
+ * «Κατά την ώρα της συζήτησης του θέματος προσήλθαν…» for the same two members,
+ * and `resolveEvents` counts a page-pinned change on its own page, so each page
+ * became an event (jun29_2026: 38 events where the meeting had 8).
+ *
+ * In the order the replay places them, a page-pinned change of the same kind as
+ * the member's previous change, with no opposite change between, restates it: it
+ * merges into that change, which counts its pages. A change anchored any other
+ * way is kept, because two anchors of one change are a disagreement the resolver
+ * reports (Vrilissia jun3_2026). A departure that is the first change of a member
+ * absent in the opening roll call is dropped too: that member was never in the
+ * room. A run of per-vote absences that starts at the first subject gives one.
+ * The replay ignores both kinds; the event list and the minutes print them.
+ */
+export function mergeRestatedChanges(subjects: OrderedSubject[], rollCall: RollCallRow[], events: EventRow[]): EventRow[] {
+    const opening = new Map(rollCall.map(r => [r.personId, r.status]));
+    const effectAt = new Map(placeEvents(subjects, events).placed.map(p => [p.event, p.effectAt]));
+    const inOrder = events
+        .map((event, index) => ({ event, index, at: effectAt.get(event) }))
+        .filter((x): x is { event: EventRow; index: number; at: number } => x.at !== undefined)
+        .sort((x, y) => x.at - y.at || x.index - y.index);
+    const dropped = new Set<EventRow>();
+    const absorbed = new Map<EventRow, number>();
+    const previous = new Map<string, EventRow>();
+    for (const { event } of inOrder) {
+        const prev = previous.get(event.personId);
+        if (!prev && event.kind === 'DEPARTURE' && opening.get(event.personId) === 'ABSENT') {
+            dropped.add(event);
+            continue;
+        }
+        if (prev && prev.kind === event.kind && event.anchorKind === 'SUBJECT') {
+            dropped.add(event);
+            absorbed.set(prev, (absorbed.get(prev) ?? 0) + event.reportingDocuments);
+            continue;
+        }
+        previous.set(event.personId, event);
+    }
+    return events
+        .filter(e => !dropped.has(e))
+        .map(e => absorbed.has(e) ? { ...e, reportingDocuments: Math.min(e.totalDocuments, e.reportingDocuments + absorbed.get(e)!) } : e);
+}
+
 /** The roll call, the events and their issues for one meeting. */
 export function resolveSession(input: DerivationInput): ResolvedSession {
     const roll = resolveRollCall(input);
     const ev = resolveEvents(input);
     return {
-        rollCall: roll.rollCall, events: ev.events, missing: roll.missing, rollCallBasis: roll.rollCallBasis,
+        rollCall: roll.rollCall, events: mergeRestatedChanges(input.subjects, roll.rollCall, ev.events), missing: roll.missing, rollCallBasis: roll.rollCallBasis,
         issues: [...roll.issues, ...ev.issues, ...lateArrivalsInOpeningList(input), ...nameMatchIssues(input)],
     };
 }
