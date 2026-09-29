@@ -35,6 +35,12 @@ export async function requireVisibleMeeting(
     name: string;
     videoUrl: string | null;
     administrativeBody: { name: string } | null;
+    /**
+     * Whether the identity edits the city, when the gate had to find out. A
+     * released meeting needs no answer, and a caller that needs one then
+     * asks canSeeUnreleased itself; null says so.
+     */
+    editor: boolean | null;
 }> {
     const meeting = await prisma.councilMeeting.findFirst({
         // Realm-scoped: a connector added on one domain must not reach another
@@ -54,10 +60,10 @@ export async function requireVisibleMeeting(
         },
     });
 
-    if (!meeting || (!meeting.released && !(await canSeeUnreleased(identity, cityId)))) {
-        throw new NotFoundError('Meeting not found');
-    }
+    if (!meeting) throw new NotFoundError('Meeting not found');
 
+    const editor = meeting.released ? null : await canSeeUnreleased(identity, cityId);
+    if (editor === false) throw new NotFoundError('Meeting not found');
 
-    return meeting;
+    return { ...meeting, editor };
 }

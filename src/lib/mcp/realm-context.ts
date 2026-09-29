@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { Realm } from '@prisma/client';
 import { getRealmBaseUrl } from '@/lib/realm';
 import type { McpIdentity } from './auth';
+import type { McpAdminAccess } from './adminAccess';
 
 /**
  * The realm a request arrived on, resolved once in the route handler and read
@@ -22,6 +23,12 @@ export type McpRequestContext = {
      * reading identity from their ServerContext instead.
      */
     identity: McpIdentity;
+    /**
+     * What the identity may administer, resolved once in the route handler for
+     * the same reason: tool registration is synchronous. Null withholds the
+     * admin tools. Tool handlers resolve it again for themselves.
+     */
+    adminAccess: McpAdminAccess | null;
 };
 
 export const mcpRealmStore = new AsyncLocalStorage<McpRequestContext>();
@@ -46,13 +53,19 @@ export function currentMcpIdentity(): McpIdentity {
     return mcpRealmStore.getStore()?.identity ?? null;
 }
 
+/** The current request's admin access; null when there is none or outside a request. */
+export function currentAdminAccess(): McpAdminAccess | null {
+    return mcpRealmStore.getStore()?.adminAccess ?? null;
+}
+
 /** Build the request context from the incoming Host, for the route handler. */
 export function requestContext(
     realm: Realm,
     host: string | null,
-    identity: McpIdentity
+    identity: McpIdentity,
+    { adminAccess = null }: { adminAccess?: McpAdminAccess | null } = {}
 ): McpRequestContext {
-    if (!host) return { realm, origin: getRealmBaseUrl(realm), identity };
-    const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(host);
-    return { realm, origin: `${isLocal ? 'http' : 'https'}://${host}`, identity };
+    const isLocal = host ? /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(host) : false;
+    const origin = host ? `${isLocal ? 'http' : 'https'}://${host}` : getRealmBaseUrl(realm);
+    return { realm, origin, identity, adminAccess };
 }

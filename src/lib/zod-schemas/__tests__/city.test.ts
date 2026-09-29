@@ -155,6 +155,13 @@ describe('createCityFormDataSchema (Backend POST)', () => {
     const { name, ...missingName } = validCreateData;
     expect(() => createCityFormDataSchema.parse(missingName)).toThrow();
   });
+
+  // Every page of the city formats its dates in this zone, and Intl throws on
+  // a name that it does not know.
+  it('should reject a time zone that Intl does not know', () => {
+    expect(() => createCityFormDataSchema.parse({ ...validCreateData, timezone: 'Athens' })).toThrow(/IANA/);
+    expect(() => createCityFormDataSchema.parse({ ...validCreateData, timezone: 'Europe/Paris' })).not.toThrow();
+  });
 });
 
 describe('updateCityFormDataSchema (Backend PUT)', () => {

@@ -13,9 +13,15 @@ export type DiscordAlertMode = 'all' | 'none';
 /** Why the idempotency guard blocks a new run of a pipeline task. */
 export type TaskBlockedReason = 'already_succeeded' | 'already_running';
 
-interface TaskConfig {
+export interface TaskConfig {
   requiredForPipeline: boolean;
   discordAlertMode?: DiscordAlertMode;
+  /**
+   * The task runs per highlight, per person or per poll, so two of them on
+   * one meeting at the same time are expected. Every other task is one per
+   * meeting: startTask refuses a second one while the first still runs.
+   */
+  concurrentRuns?: boolean;
 }
 
 export const TASK_CONFIG = {
@@ -39,13 +45,16 @@ export const TASK_CONFIG = {
   },
   generateHighlight: {
     requiredForPipeline: false,
+    concurrentRuns: true,
   },
   generateVoiceprint: {
     requiredForPipeline: false,
+    concurrentRuns: true,
   },
   pollDecisions: {
     requiredForPipeline: false,
     discordAlertMode: 'none',
+    concurrentRuns: true,
   },
 } satisfies Record<string, TaskConfig>;
 
@@ -68,6 +77,22 @@ export class TaskAlreadyExistsError extends Error {
         : `A ${taskType} task is already running for this council meeting`
     );
     this.name = 'TaskAlreadyExistsError';
+  }
+}
+
+/**
+ * startTask throws this when another step of the pipeline is still running on
+ * the meeting and the two must not overlap (see pipelineRules.ts). Unlike
+ * TaskAlreadyExistsError it is not a skip: the caller wanted a step that is
+ * not there yet, and has to wait for the blocking one.
+ */
+export class PipelineBusyError extends Error {
+  constructor(
+    readonly taskType: MeetingTaskType,
+    readonly blockedBy: MeetingTaskType
+  ) {
+    super(`A ${blockedBy} task is still running for this council meeting; ${taskType} has to wait for it`);
+    this.name = 'PipelineBusyError';
   }
 }
 

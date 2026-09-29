@@ -1,18 +1,14 @@
 import { CityLanguage } from '@prisma/client';
 import { aiChat, AIConfig } from './ai';
 import { z } from 'zod';
-import { extendZodWithOpenApi, OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
+import { jsonSchemaOf } from '@/lib/openapi/jsonSchema';
 import { cityPopulationSchema, type CityPopulationInput } from '@/lib/zod-schemas/cityPopulation';
 import { formatValidationIssues } from '@/lib/utils/validationIssues';
 
-extendZodWithOpenApi(z);
-
 // The prompt describes the payload with the JSON Schema of the zod schema that
-// validates the answer and the save. An OpenAPI 3.1 schema is a JSON Schema.
+// validates the answer and the save.
 export function cityPopulationJsonSchema() {
-    const registry = new OpenAPIRegistry();
-    registry.register('CityPopulation', cityPopulationSchema);
-    return new OpenApiGeneratorV31(registry.definitions).generateComponents().components?.schemas?.CityPopulation;
+    return jsonSchemaOf(cityPopulationSchema);
 }
 
 const citySchemaJson = cityPopulationJsonSchema();

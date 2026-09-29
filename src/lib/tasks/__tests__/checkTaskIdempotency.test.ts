@@ -6,21 +6,26 @@ const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
 
 // Mock all transitive dependencies of tasks.ts before import
-jest.mock('../../db/prisma', () => ({
-  __esModule: true,
-  default: {
-    taskStatus: {
-      findFirst: (...args: unknown[]) => mockFindFirst(...args),
-      findUnique: (...args: unknown[]) => mockFindUnique(...args),
-      create: (...args: unknown[]) => mockCreate(...args),
-      update: (...args: unknown[]) => mockUpdate(...args),
-      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-    },
+const mockExecuteRaw = jest.fn().mockResolvedValue(0);
+// startTask admits a task inside a transaction; the same stub serves as the
+// transaction client, so the tests see the lock, the reads and the create.
+const prismaStub = {
+  $executeRaw: (...args: unknown[]) => mockExecuteRaw(...args),
+  $transaction: (fn: (tx: unknown) => Promise<unknown>) => fn(prismaStub),
+  taskStatus: {
+    findFirst: (...args: unknown[]) => mockFindFirst(...args),
+    findUnique: (...args: unknown[]) => mockFindUnique(...args),
+    create: (...args: unknown[]) => mockCreate(...args),
+    update: (...args: unknown[]) => mockUpdate(...args),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
   },
-}));
+};
+jest.mock('../../db/prisma', () => ({ __esModule: true, default: prismaStub }));
 jest.mock('@/env.mjs', () => ({ env: { NEXTAUTH_URL: 'http://test', NEXTAUTH_SECRET: 'test-secret', TASK_API_URL: 'http://test', TASK_API_KEY: 'key' } }));
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }));
 jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
+// The exclusion rule has its own test; here every step is free to start.
+jest.mock('../pipelineRules', () => ({ findConflictingTask: jest.fn().mockResolvedValue(null) }));
 jest.mock('../../discord', () => ({
   sendTaskAdminAlert: jest.fn(),
 }));
@@ -66,26 +71,11 @@ describe('checkTaskIdempotency', () => {
     const result = await checkTaskIdempotency('summarize', CITY_ID, MEETING_ID);
 
     expect(result).toEqual({ proceed: true, existingTask: null });
-    // Should have checked both succeeded and running
+    // Should have checked both running and succeeded
     expect(mockFindFirst).toHaveBeenCalledTimes(2);
   });
 
-  it('blocks when a succeeded task exists', async () => {
-    mockFindFirst.mockResolvedValueOnce(succeededTask);
-
-    const result = await checkTaskIdempotency('summarize', CITY_ID, MEETING_ID);
-
-    expect(result).toEqual({
-      proceed: false,
-      existingTask: succeededTask,
-      blockedReason: 'already_succeeded',
-    });
-    // Should NOT check for running tasks — succeeded takes priority
-    expect(mockFindFirst).toHaveBeenCalledTimes(1);
-  });
-
   it('blocks when a running task exists', async () => {
-    mockFindFirst.mockResolvedValueOnce(null);
     mockFindFirst.mockResolvedValueOnce(runningTask);
 
     const result = await checkTaskIdempotency('summarize', CITY_ID, MEETING_ID);
@@ -95,39 +85,63 @@ describe('checkTaskIdempotency', () => {
       existingTask: runningTask,
       blockedReason: 'already_running',
     });
-    expect(mockFindFirst).toHaveBeenCalledTimes(2);
+    // Should NOT check for succeeded tasks — running takes priority
+    expect(mockFindFirst).toHaveBeenCalledTimes(1);
   });
 
-  it('prioritizes succeeded over running when both exist', async () => {
+  it('blocks when a succeeded task exists', async () => {
+    mockFindFirst.mockResolvedValueOnce(null);
     mockFindFirst.mockResolvedValueOnce(succeededTask);
 
     const result = await checkTaskIdempotency('summarize', CITY_ID, MEETING_ID);
 
-    expect(result.blockedReason).toBe('already_succeeded');
-    expect(result.existingTask).toBe(succeededTask);
+    expect(result).toEqual({
+      proceed: false,
+      existingTask: succeededTask,
+      blockedReason: 'already_succeeded',
+    });
+    expect(mockFindFirst).toHaveBeenCalledTimes(2);
+  });
+
+  it('prioritizes running over succeeded when both exist', async () => {
+    mockFindFirst.mockResolvedValueOnce(runningTask);
+
+    const result = await checkTaskIdempotency('summarize', CITY_ID, MEETING_ID);
+
+    expect(result.blockedReason).toBe('already_running');
+    expect(result.existingTask).toBe(runningTask);
     expect(mockFindFirst).toHaveBeenCalledTimes(1);
   });
 
   describe('force option', () => {
-    it('skips all checks when force is true', async () => {
+    it('skips the succeeded check when force is true', async () => {
       const result = await checkTaskIdempotency('summarize', CITY_ID, MEETING_ID, { force: true });
 
       expect(result).toEqual({ proceed: true, existingTask: null });
-      expect(mockFindFirst).not.toHaveBeenCalled();
+      expect(mockFindFirst).toHaveBeenCalledTimes(1);
     });
 
-    it('skips even when succeeded task exists', async () => {
-      mockFindFirst.mockResolvedValueOnce(succeededTask);
+    it('lets a re-run through when a succeeded task exists, without reading it', async () => {
+      mockFindFirst.mockResolvedValueOnce(null);
 
       const result = await checkTaskIdempotency('summarize', CITY_ID, MEETING_ID, { force: true });
 
       expect(result.proceed).toBe(true);
-      expect(mockFindFirst).not.toHaveBeenCalled();
+      // Only the running read: the succeeded row would block, and force skips it.
+      expect(mockFindFirst).toHaveBeenCalledTimes(1);
+    });
+
+    it('never lets a second run start beside a running one', async () => {
+      mockFindFirst.mockResolvedValueOnce(runningTask);
+
+      const result = await checkTaskIdempotency('summarize', CITY_ID, MEETING_ID, { force: true });
+
+      expect(result).toEqual({ proceed: false, existingTask: runningTask, blockedReason: 'already_running' });
     });
   });
 
   describe('query correctness', () => {
-    it('queries succeeded tasks with correct filters and ordering', async () => {
+    it('queries running tasks with correct filters', async () => {
       await checkTaskIdempotency('transcribe', CITY_ID, MEETING_ID);
 
       expect(mockFindFirst).toHaveBeenNthCalledWith(1, {
@@ -135,13 +149,12 @@ describe('checkTaskIdempotency', () => {
           councilMeetingId: MEETING_ID,
           cityId: CITY_ID,
           type: 'transcribe',
-          status: 'succeeded',
+          status: { notIn: ['failed', 'succeeded'] },
         },
-        orderBy: { createdAt: 'desc' },
       });
     });
 
-    it('queries running tasks with correct filters', async () => {
+    it('queries succeeded tasks with correct filters and ordering', async () => {
       await checkTaskIdempotency('transcribe', CITY_ID, MEETING_ID);
 
       expect(mockFindFirst).toHaveBeenNthCalledWith(2, {
@@ -149,8 +162,9 @@ describe('checkTaskIdempotency', () => {
           councilMeetingId: MEETING_ID,
           cityId: CITY_ID,
           type: 'transcribe',
-          status: { notIn: ['failed', 'succeeded'] },
+          status: 'succeeded',
         },
+        orderBy: { createdAt: 'desc' },
       });
     });
 
@@ -188,6 +202,7 @@ describe('startTask — idempotency scoping', () => {
   });
 
   it('enforces idempotency for pipeline tasks (e.g. summarize)', async () => {
+    mockFindFirst.mockResolvedValueOnce(null); // no running
     mockFindFirst.mockResolvedValueOnce(succeededTask);
 
     await expect(startTask('summarize', {}, MEETING_ID, CITY_ID))
@@ -197,10 +212,10 @@ describe('startTask — idempotency scoping', () => {
   // autoTriggerTask tells a benign duplicate from a real failure with instanceof, so
   // the type of the error is the contract — the message alone cannot carry it
   it.each([
-    ['already_succeeded', () => mockFindFirst.mockResolvedValueOnce(succeededTask)],
-    ['already_running', () => {
+    ['already_running', () => mockFindFirst.mockResolvedValueOnce(runningTask)],
+    ['already_succeeded', () => {
       mockFindFirst.mockResolvedValueOnce(null);
-      mockFindFirst.mockResolvedValueOnce(runningTask);
+      mockFindFirst.mockResolvedValueOnce(succeededTask);
     }],
   ] as const)('reports a blocked pipeline task as TaskAlreadyExistsError (%s)', async (reason, arrange) => {
     arrange();
@@ -213,37 +228,54 @@ describe('startTask — idempotency scoping', () => {
   });
 
   it('enforces idempotency for pipeline tasks (e.g. transcribe)', async () => {
-    // Simulate a running transcribe task
-    mockFindFirst.mockResolvedValueOnce(null); // no succeeded
-    mockFindFirst.mockResolvedValueOnce(runningTask); // running
+    mockFindFirst.mockResolvedValueOnce(runningTask);
 
     await expect(startTask('transcribe', {}, MEETING_ID, CITY_ID))
       .rejects.toThrow('already running');
   });
 
-  it('skips idempotency for non-pipeline tasks (e.g. generateHighlight)', async () => {
-    // Even with a succeeded task in the DB, non-pipeline tasks should proceed
-    mockFindFirst.mockResolvedValueOnce(succeededTask);
+  it('admits under the lock of the meeting, before any read, and creates inside the same transaction', async () => {
+    await startTask('summarize', {}, MEETING_ID, CITY_ID);
 
-    // Should NOT throw — idempotency check is skipped entirely
+    expect(mockExecuteRaw).toHaveBeenCalledTimes(1);
+    expect(mockExecuteRaw.mock.calls[0].flat().join(' ')).toContain(`${CITY_ID}:${MEETING_ID}`);
+    expect(mockExecuteRaw.mock.invocationCallOrder[0]).toBeLessThan(mockFindFirst.mock.invocationCallOrder[0]);
+    expect(mockFindFirst.mock.invocationCallOrder[0]).toBeLessThan(mockCreate.mock.invocationCallOrder[0]);
+  });
+
+  it('lets tasks that run per highlight, person or poll start beside each other', async () => {
+    // Even with a running task in the DB, these proceed without a read
+    mockFindFirst.mockResolvedValue(runningTask);
+
     await startTask('generateHighlight', {}, MEETING_ID, CITY_ID);
-
-    // findFirst should not have been called (no idempotency check)
-    expect(mockFindFirst).not.toHaveBeenCalled();
-  });
-
-  it('skips idempotency for non-pipeline tasks (e.g. generateVoiceprint)', async () => {
     await startTask('generateVoiceprint', {}, MEETING_ID, CITY_ID);
+    await startTask('pollDecisions', {}, MEETING_ID, CITY_ID);
+
     expect(mockFindFirst).not.toHaveBeenCalled();
   });
 
-  it('allows pipeline tasks with force:true to bypass the guard', async () => {
+  it('holds processAgenda to the same rules as the pipeline steps', async () => {
+    mockFindFirst.mockResolvedValueOnce(runningTask);
+    await expect(startTask('processAgenda', {}, MEETING_ID, CITY_ID)).rejects.toThrow('already running');
+
+    // A run that found no subjects still succeeded: a repeat needs force.
+    mockFindFirst.mockResolvedValueOnce(null);
     mockFindFirst.mockResolvedValueOnce(succeededTask);
+    await expect(startTask('processAgenda', {}, MEETING_ID, CITY_ID)).rejects.toThrow('already succeeded');
 
+    mockFindFirst.mockResolvedValueOnce(null);
+    await startTask('processAgenda', {}, MEETING_ID, CITY_ID, { force: true });
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets force repeat a succeeded pipeline task, and never a running one', async () => {
+    mockFindFirst.mockResolvedValueOnce(null);
     await startTask('transcribe', {}, MEETING_ID, CITY_ID, { force: true });
+    expect(mockCreate).toHaveBeenCalledTimes(1);
 
-    // force skips the DB check entirely
-    expect(mockFindFirst).not.toHaveBeenCalled();
+    mockFindFirst.mockResolvedValueOnce(runningTask);
+    await expect(startTask('transcribe', {}, MEETING_ID, CITY_ID, { force: true })).rejects.toThrow('already running');
+    expect(mockCreate).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -498,4 +530,16 @@ describe('handleTaskUpdate — terminal hooks', () => {
 
     expect(mockTerminalHook).toHaveBeenCalledTimes(1);
   });
+});
+
+describe('startTask — pipeline exclusion', () => {
+    it('refuses a step beside a running step it excludes, before it creates anything, force or not', async () => {
+        const { findConflictingTask } = jest.requireMock('../pipelineRules') as { findConflictingTask: jest.Mock };
+        findConflictingTask.mockResolvedValueOnce({ id: 't9', type: 'transcribe' });
+        const { startTask } = await import('../tasks');
+        const { PipelineBusyError } = await import('../types');
+        await expect(startTask('summarize', {}, 'm1', 'athens', { force: true })).rejects.toThrow(PipelineBusyError);
+        expect(findConflictingTask).toHaveBeenCalledWith('summarize', 'athens', 'm1', prismaStub);
+        expect(mockCreate).not.toHaveBeenCalled();
+    });
 });

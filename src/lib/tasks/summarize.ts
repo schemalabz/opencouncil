@@ -3,26 +3,27 @@ import { CouncilMeeting, Prisma, SpeakerSegment } from "@prisma/client";
 import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "../apiTypes";
 import { getTranscript } from "../db/transcript";
 import { getPartiesForCity } from "../db/parties";
-import { startTask } from "./tasks";
 import { getCity } from "../db/cities";
 import { getCouncilMeeting } from "../db/meetings";
 import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
-import { getAvailableSpeakerSegmentIds, getSummarizeRequestBody, saveSubjectsForMeeting } from "../db/utils";
+import { getAvailableSpeakerSegmentIds, saveSubjectsForMeeting } from "../db/utils";
+import { requestSummarizeInternal } from "./summarizeInternal";
 import { withUserAuthorizedToEdit } from "../auth";
 import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
 
+/**
+ * Browser-facing entry point for the admin panel's summarize button. Callers
+ * with no session, such as the MCP admin tools, use requestSummarizeInternal.
+ */
 export async function requestSummarize(cityId: string, councilMeetingId: string, requestedSubjects: string[] = [], additionalInstructions?: string, {
     force = false
 }: {
     force?: boolean;
 } = {}) {
     await withUserAuthorizedToEdit({ cityId });
-
-    const body = await getSummarizeRequestBody(councilMeetingId, cityId, requestedSubjects, additionalInstructions, { force });
-
-    return startTask('summarize', body, councilMeetingId, cityId, { force });
+    return requestSummarizeInternal(cityId, councilMeetingId, requestedSubjects, additionalInstructions, { force });
 }
 
 export async function handleSummarizeResult(taskId: string, response: SummarizeResult) {

@@ -21,9 +21,10 @@ import {
 } from '../helpers/factories'
 
 const ANON = null
+const SERVICE = { type: 'service', keyName: 'test' } as const
 
-const asRequest = <T>(fn: () => Promise<T>) =>
-    mcpRealmStore.run(requestContext(Realm.greece, 'opencouncil.gr', ANON), fn)
+const asRequest = <T>(fn: () => Promise<T>, identity: typeof ANON | typeof SERVICE = ANON) =>
+    mcpRealmStore.run(requestContext(Realm.greece, 'opencouncil.gr', identity), fn)
 
 /** A meeting that has been transcribed: one segment carrying one utterance. */
 async function transcribe(meetingId: string, cityId = 'athens') {
@@ -97,5 +98,17 @@ describe('MCP signals for a transcribed but unsummarized meeting - integration',
                 { id: 'transcribed', subjectCount: 0, hasTranscript: true },
                 { id: 'summarized', subjectCount: 1, hasTranscript: true },
             ])
+    })
+
+    it('lists the pipeline tasks to an editor and to nobody else', async () => {
+        await prisma.taskStatus.create({
+            data: { type: 'transcribe', status: 'failed', requestBody: '{}', responseBody: 'worker down', councilMeetingId: 'transcribed', cityId: 'athens' },
+        })
+
+        const seen = await asRequest(() => mcpGetMeeting('athens', 'transcribed', SERVICE), SERVICE)
+        expect(seen.tasks).toEqual([expect.objectContaining({ type: 'transcribe', status: 'failed', error: 'worker down' })])
+
+        const hidden = await asRequest(() => mcpGetMeeting('athens', 'transcribed', ANON))
+        expect(hidden).not.toHaveProperty('tasks')
     })
 })

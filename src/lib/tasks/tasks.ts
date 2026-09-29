@@ -6,7 +6,9 @@ import "server-only";
 
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
-import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode } from '@/lib/tasks/types';
+import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, type TaskConfig } from '@/lib/tasks/types';
+import { PipelineBusyError } from '@/lib/tasks/types';
+import { findConflictingTask } from './pipelineRules';
 import { withUserAuthorizedToEdit } from '../auth';
 import { env } from '@/env.mjs';
 import { sendTaskAdminAlert } from '@/lib/discord';
@@ -21,18 +23,41 @@ export interface TaskIdempotencyResult {
     blockedReason?: TaskBlockedReason;
 }
 
+/**
+ * Whether a task of this type may start on the meeting now.
+ *
+ * A task that is still running blocks a second one whatever `force` says:
+ * two of them cost twice and their results collide. `force` lifts only the
+ * block of a task that already succeeded, which is what a re-run is.
+ *
+ * `db` lets startTask run the read inside the transaction that holds the
+ * meeting lock; the other callers only report, and read outside it.
+ */
 export async function checkTaskIdempotency(
     taskType: MeetingTaskType,
     cityId: string,
     councilMeetingId: string,
-    options: { force?: boolean } = {}
+    options: { force?: boolean } = {},
+    db: Prisma.TransactionClient | typeof prisma = prisma
 ): Promise<TaskIdempotencyResult> {
+    const runningTask = await db.taskStatus.findFirst({
+        where: {
+            councilMeetingId,
+            cityId,
+            type: taskType,
+            status: { notIn: ['failed', 'succeeded'] },
+        },
+    });
+
+    if (runningTask) {
+        return { proceed: false, existingTask: runningTask, blockedReason: 'already_running' };
+    }
+
     if (options.force) {
         return { proceed: true, existingTask: null };
     }
 
-    // Check for already-succeeded task
-    const succeededTask = await prisma.taskStatus.findFirst({
+    const succeededTask = await db.taskStatus.findFirst({
         where: {
             councilMeetingId,
             cityId,
@@ -44,20 +69,6 @@ export async function checkTaskIdempotency(
 
     if (succeededTask) {
         return { proceed: false, existingTask: succeededTask, blockedReason: 'already_succeeded' };
-    }
-
-    // Check for currently running task
-    const runningTask = await prisma.taskStatus.findFirst({
-        where: {
-            councilMeetingId,
-            cityId,
-            type: taskType,
-            status: { notIn: ['failed', 'succeeded'] },
-        },
-    });
-
-    if (runningTask) {
-        return { proceed: false, existingTask: runningTask, blockedReason: 'already_running' };
     }
 
     return { proceed: true, existingTask: null };
@@ -86,29 +97,52 @@ const taskStatusWithMeetingInclude = {
 } satisfies Prisma.TaskStatusInclude;
 
 export const startTask = async (taskType: MeetingTaskType, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean; silent?: boolean } = {}) => {
-    // Only enforce idempotency for core pipeline tasks — non-pipeline tasks
-    // (generateHighlight, generateVoiceprint, etc.) can legitimately run multiple times
-    if (TASK_CONFIG[taskType].requiredForPipeline) {
-        const idempotency = await checkTaskIdempotency(taskType, cityId, councilMeetingId, options);
-        if (!idempotency.proceed) {
-            // No default: a new blocked reason must fail here rather than reach the
-            // reviewer relabelled as "already running"
-            if (!idempotency.blockedReason) {
-                throw new Error(`checkTaskIdempotency blocked ${taskType} for ${cityId}/${councilMeetingId} without a reason`);
-            }
-            throw new TaskAlreadyExistsError(taskType, idempotency.blockedReason);
-        }
-    }
+    const config: TaskConfig = TASK_CONFIG[taskType];
 
-    // Create new task in database
-    const newTask = await prisma.taskStatus.create({
-        data: {
-            type: taskType,
-            status: 'pending',
-            requestBody: JSON.stringify(requestBody),
-            councilMeeting: { connect: { cityId_id: { cityId, id: councilMeetingId } } }
-        },
-        include: taskStatusWithMeetingInclude
+    // Admission and the row that records it happen under one lock per
+    // meeting, for every caller: the admin page, the cron, the auto-triggers
+    // and the MCP tools. Two calls that arrive together then serialize here,
+    // and the second one reads the row the first one committed. Checks
+    // outside this transaction would let both pass and both pay.
+    const newTask = await prisma.$transaction(async (tx) => {
+        // $executeRaw, not $queryRaw: the lock function returns void, which
+        // the query client cannot deserialize.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${cityId}:${councilMeetingId}`}))`;
+
+        // A step that would work on rows another running step is about to
+        // replace is refused, force or not. The automatic fixTranscript after a
+        // transcribe is not affected: handleTaskUpdate marks the transcribe
+        // succeeded before it runs the result handler that triggers it.
+        const conflicting = await findConflictingTask(taskType, cityId, councilMeetingId, tx);
+        if (conflicting) {
+            throw new PipelineBusyError(taskType, conflicting.type as MeetingTaskType);
+        }
+
+        // One run at a time for every task that is one per meeting, and a
+        // re-run after success needs force. processAgenda included: a run
+        // that found no subjects still succeeded, and a caller that repeats
+        // it without force pays for the same answer.
+        if (!config.concurrentRuns) {
+            const idempotency = await checkTaskIdempotency(taskType, cityId, councilMeetingId, options, tx);
+            if (!idempotency.proceed) {
+                // No default: a new blocked reason must fail here rather than reach the
+                // reviewer relabelled as "already running"
+                if (!idempotency.blockedReason) {
+                    throw new Error(`checkTaskIdempotency blocked ${taskType} for ${cityId}/${councilMeetingId} without a reason`);
+                }
+                throw new TaskAlreadyExistsError(taskType, idempotency.blockedReason);
+            }
+        }
+
+        return tx.taskStatus.create({
+            data: {
+                type: taskType,
+                status: 'pending',
+                requestBody: JSON.stringify(requestBody),
+                councilMeeting: { connect: { cityId_id: { cityId, id: councilMeetingId } } }
+            },
+            include: taskStatusWithMeetingInclude
+        });
     });
 
     // Prepare callback URL; the task server posts back to it verbatim, so the
