@@ -23,7 +23,7 @@ describe('replayAttendance', () => {
             events: [ev({ personId: 'p1', anchorAgendaItemIndex: 2 }), ev({ personId: 'p3', kind: 'ARRIVAL', anchorAgendaItemIndex: 2, timing: 'AFTER' })] });
         expect(present(r, 's1')).toEqual(['p1', 'p2']); expect(present(r, 's2')).toEqual(['p2']); expect(present(r, 's3')).toEqual(['p2', 'p3']);
         expect(r.attendance.filter(a => a.subjectId === 's2')).toEqual(expect.arrayContaining([
-            { subjectId: 's2', personId: 'p1', status: 'ABSENT', origin: 'derived' }, { subjectId: 's2', personId: 'p2', status: 'PRESENT', origin: 'derived' }]));
+            { subjectId: 's2', personId: 'p1', status: 'ABSENT', origin: 'derived', source: 'decision' }, { subjectId: 's2', personId: 'p2', status: 'PRESENT', origin: 'derived', source: 'decision' }]));
         expect(r.issues).toEqual([]);
     });
     it('a per-vote absence pair removes the member for one subject only', () => {
@@ -81,7 +81,7 @@ describe('replayAttendance', () => {
             documents: [doc('s1', { rollCallPresentIds: ['a', 'b'], rollCallAbsentIds: [] }), doc('s2', { rollCallPresentIds: ['a', 'b'], rollCallAbsentIds: ['b'] })] });
         expect(present(r, 's1')).toEqual(['a', 'b']);
         expect(present(r, 's2')).toEqual(['a']);
-        expect(r.attendance.filter(x => x.subjectId === 's2' && x.personId === 'b')).toEqual([{ subjectId: 's2', personId: 'b', status: 'ABSENT', origin: 'derived' }]);
+        expect(r.attendance.filter(x => x.subjectId === 's2' && x.personId === 'b')).toEqual([{ subjectId: 's2', personId: 'b', status: 'ABSENT', origin: 'derived', source: 'decision' }]);
     });
     it('a subject without a document keeps the state of the last one read, under a per-decision roll call', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1'), rc('p2')], conventions: conv({ presentListMeaning: 'per_decision' }), mayorPersonId: null, events: [],
@@ -203,13 +203,12 @@ describe('replayAttendance', () => {
         expect(present(r, 's2')).toEqual(['p1', 'p2']);
         expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', subjectId: 's2', personId: 'p2', decisionId: 'd-s2', rawText: 'αποχώρησε ο κ. Β' })]);
     });
-    it('two roll-call rows that disagree resolve by source precedence', () => {
-        // The pages resolve to one row per person and no other source writes a
-        // roll call yet, so the disagreement has no message to report it by.
+    it('two roll-call rows that disagree resolve by source precedence, and the disagreement is reported', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1', 'ABSENT', 'decision'), rc('p1', 'PRESENT', 'manual'), rc('p2'), rc('p2')],
             conventions: conv(), mayorPersonId: null, events: [], documents: [] });
         expect(present(r, 's1')).toEqual(['p1', 'p2']);
-        expect(r.issues).toEqual([]);
+        expect(r.issues).toEqual([expect.objectContaining({ code: 'SOURCES_DISAGREE', personId: 'p1',
+            params: expect.objectContaining({ kind: 'rollCall', winSource: 'manual', winStatus: 'PRESENT', loseSource: 'decision', loseStatus: 'ABSENT' }) })]);
     });
     it('a person known only from an event still gets a row for every subject', () => {
         const r = replayAttendance({ subjects, rollCall: [rc('p1')], conventions: conv(), mayorPersonId: null, documents: [],

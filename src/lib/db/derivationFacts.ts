@@ -1,6 +1,7 @@
 import prisma from './prisma';
 import { DataSource, type AttendanceStatus, type Prisma, type VoteType } from '@prisma/client';
-import type { EventRow } from '@/lib/derivation/types';
+import { DERIVED_SOURCES } from '@/lib/derivation/types';
+import type { DerivedAttendanceRow, DerivedVoteRow, EventRow, RollCallRow } from '@/lib/derivation/types';
 
 /**
  * The rows the derivation reads for one meeting, unshaped: the meeting with its
@@ -28,17 +29,30 @@ export async function readDerivationRows(cityId: string, meetingId: string) {
             select: { discussionSubjectId: true, discussionStatus: true, startTimestamp: true, endTimestamp: true },
         })
         : [];
-    const [rollCall, events, people] = await Promise.all([
-        // Only what another source states. The pages' own roll call and events are
-        // resolved by the derivation from every stored page, and the rows of source
-        // `decision` are its output: reading them back would repeat a partial poll.
-        prisma.meetingAttendance.findMany({ where: { cityId, councilMeetingId: meetingId, source: { not: DataSource.decision } }, select: { personId: true, status: true, source: true }, orderBy: { personId: 'asc' } }),
-        getAttendanceEventsForMeeting(cityId, meetingId, { not: DataSource.decision }),
+    const [rollCall, events, people, factSources, parties] = await Promise.all([
+        // Only what a person states. The pages', the sheet's and the transcript's
+        // roll call and events are resolved by the derivation from every stored
+        // reading, and their rows are its output: reading them back would repeat a
+        // partial poll or an earlier reading.
+        prisma.meetingAttendance.findMany({ where: { cityId, councilMeetingId: meetingId, source: { notIn: DERIVED_SOURCES } }, select: { personId: true, status: true, source: true }, orderBy: { personId: 'asc' } }),
+        getAttendanceEventsForMeeting(cityId, meetingId, { notIn: DERIVED_SOURCES }),
         prisma.person.findMany({ where: { cityId }, select: { id: true, roles: true } }),
+        prisma.meetingFactSource.findMany({ where: { cityId, councilMeetingId: meetingId }, select: { source: true, status: true, reading: true } }),
+        prisma.party.findMany({ where: { cityId }, select: { id: true, name: true, name_short: true } }),
     ]);
     const voted = await prisma.subjectVote.findMany({ where: { subjectId: { in: subjectIds }, source: 'decision' }, select: { subjectId: true }, distinct: ['subjectId'] });
     const subjectIdsWithStoredVotes = voted.map(r => r.subjectId).sort();
-    return { meeting, linkedUtterances, rollCall, events, people, subjectIdsWithStoredVotes };
+    return { meeting, linkedUtterances, rollCall, events, people, factSources, parties, subjectIdsWithStoredVotes };
+}
+
+/** The person now assigned to the speaker of each utterance, for a party that answered by voice. */
+export async function readUtteranceSpeakers(utteranceIds: string[]): Promise<Map<string, string | null>> {
+    if (utteranceIds.length === 0) return new Map();
+    const rows = await prisma.utterance.findMany({
+        where: { id: { in: utteranceIds } },
+        select: { id: true, speakerSegment: { select: { speakerTag: { select: { personId: true } } } } },
+    });
+    return new Map(rows.map(r => [r.id, r.speakerSegment.speakerTag.personId]));
 }
 
 /**
@@ -59,30 +73,53 @@ export async function getAttendanceEventsForMeeting(cityId: string, meetingId: s
     });
 }
 
-/** Replace the meeting's decision-sourced derived rows — per subject and per meeting — in one transaction. */
+/**
+ * Remove the derived rows of the sources named, per subject and per meeting. For
+ * a source whose reading is gone or no longer counts — a removed or replaced
+ * sheet — when the write that would replace its rows refuses to run: the rows
+ * would otherwise stand for a reading that no longer exists.
+ */
+export async function deleteDerivedRowsOfSources(meeting: { cityId: string; meetingId: string }, subjectIds: string[], sources: DataSource[]): Promise<void> {
+    if (sources.length === 0) return;
+    const { cityId, meetingId } = meeting;
+    const gone = { in: sources };
+    await prisma.$transaction([
+        prisma.subjectAttendance.deleteMany({ where: { subjectId: { in: subjectIds }, source: gone } }),
+        prisma.subjectVote.deleteMany({ where: { subjectId: { in: subjectIds }, source: gone } }),
+        prisma.meetingAttendance.deleteMany({ where: { cityId, councilMeetingId: meetingId, source: gone } }),
+        prisma.attendanceEvent.deleteMany({ where: { cityId, councilMeetingId: meetingId, source: gone } }),
+    ]);
+}
+
+/**
+ * Replace the meeting's derived rows — those of every source in DERIVED_SOURCES,
+ * per subject and per meeting — in one transaction. Each row is written with the
+ * source whose statement decided it; a `manual` row is never touched.
+ */
 export async function replaceDerivedRows(
     meeting: { cityId: string; meetingId: string },
     subjectIds: string[],
-    attendance: Array<{ subjectId: string; personId: string; status: AttendanceStatus }>,
-    votes: Array<{ subjectId: string; personId: string; voteType: VoteType }>,
-    rollCall: Array<{ personId: string; status: AttendanceStatus }>,
+    attendance: Array<Pick<DerivedAttendanceRow, 'subjectId' | 'personId' | 'status' | 'source'>>,
+    votes: Array<Pick<DerivedVoteRow, 'subjectId' | 'personId' | 'voteType' | 'source'>>,
+    rollCall: Array<Pick<RollCallRow, 'personId' | 'status' | 'source' | 'absenceJustified'>>,
     events: EventRow[],
     taskId: string | null,
 ): Promise<void> {
     const { cityId, meetingId } = meeting;
+    const derived = { in: DERIVED_SOURCES };
     await prisma.$transaction(async tx => {
-        await tx.subjectAttendance.deleteMany({ where: { subjectId: { in: subjectIds }, source: DataSource.decision } });
-        await tx.subjectVote.deleteMany({ where: { subjectId: { in: subjectIds }, source: DataSource.decision } });
-        await tx.meetingAttendance.deleteMany({ where: { cityId, councilMeetingId: meetingId, source: DataSource.decision } });
-        await tx.attendanceEvent.deleteMany({ where: { cityId, councilMeetingId: meetingId, source: DataSource.decision } });
-        if (attendance.length) await tx.subjectAttendance.createMany({ data: attendance.map(a => ({ ...a, source: DataSource.decision, taskId })) });
-        if (votes.length) await tx.subjectVote.createMany({ data: votes.map(v => ({ ...v, source: DataSource.decision, taskId })) });
-        if (rollCall.length) await tx.meetingAttendance.createMany({ data: rollCall.map(r => ({ cityId, councilMeetingId: meetingId, personId: r.personId, status: r.status, source: DataSource.decision, taskId })) });
+        await tx.subjectAttendance.deleteMany({ where: { subjectId: { in: subjectIds }, source: derived } });
+        await tx.subjectVote.deleteMany({ where: { subjectId: { in: subjectIds }, source: derived } });
+        await tx.meetingAttendance.deleteMany({ where: { cityId, councilMeetingId: meetingId, source: derived } });
+        await tx.attendanceEvent.deleteMany({ where: { cityId, councilMeetingId: meetingId, source: derived } });
+        if (attendance.length) await tx.subjectAttendance.createMany({ data: attendance.map(a => ({ subjectId: a.subjectId, personId: a.personId, status: a.status, source: a.source, taskId })) });
+        if (votes.length) await tx.subjectVote.createMany({ data: votes.map(v => ({ subjectId: v.subjectId, personId: v.personId, voteType: v.voteType, source: v.source, taskId })) });
+        if (rollCall.length) await tx.meetingAttendance.createMany({ data: rollCall.map(r => ({ cityId, councilMeetingId: meetingId, personId: r.personId, status: r.status, source: r.source, absenceJustified: r.absenceJustified ?? null, taskId })) });
         if (events.length) await tx.attendanceEvent.createMany({ data: events.map(e => ({
             id: e.id, cityId, councilMeetingId: meetingId, personId: e.personId, kind: e.kind, anchorKind: e.anchorKind,
             anchorAgendaItemIndex: e.anchorAgendaItemIndex, anchorNonAgendaReason: e.anchorNonAgendaReason, anchorDecisionNumber: e.anchorDecisionNumber,
             anchorSubjectId: e.anchorSubjectId, anchorPhase: e.anchorPhase, timing: e.timing, rawText: e.rawText,
-            reportingDocuments: e.reportingDocuments, totalDocuments: e.totalDocuments, source: DataSource.decision, taskId,
+            reportingDocuments: e.reportingDocuments, totalDocuments: e.totalDocuments, source: e.source, taskId,
         })) });
     });
 }

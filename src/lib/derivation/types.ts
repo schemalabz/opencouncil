@@ -13,7 +13,28 @@ export interface OrderedSubject {
     decisionNumber: string | null;
 }
 
-export interface RollCallRow { personId: string; status: AttendanceStatus; source: DataSource }
+export interface RollCallRow {
+    personId: string;
+    status: AttendanceStatus;
+    source: DataSource;
+    /** The sheet says whether the absence was justified; null where the source does not say. */
+    absenceJustified?: boolean | null;
+    rawText?: string;
+    evidence?: Evidence;
+}
+
+/**
+ * Where a statement can be checked: the recording at an utterance, a line of the
+ * sheet, a decision document. An issue carries the evidence of the statement it
+ * reports, so the page can open the recording at that moment, the sheet at that
+ * line, or the document.
+ */
+export interface Evidence {
+    utteranceId?: string;
+    /** The line of the sheet, counted from 1 as its reader numbered it. */
+    line?: number;
+    decisionId?: string;
+}
 
 /** An AttendanceEvent row, as stored. */
 export interface EventRow {
@@ -32,10 +53,61 @@ export interface EventRow {
     reportingDocuments: number;
     totalDocuments: number;
     source: DataSource;
+    /** Where the statement can be checked; absent on a row read back from the database. */
+    evidence?: Evidence;
 }
 
 /** A change one page states, before the session resolves it. */
 export type StatedChange = Omit<EventRow, 'id' | 'reportingDocuments' | 'totalDocuments' | 'source'>;
+
+/** The outcome a source states in its own words, when it names one. */
+export type StatedOutcomeWord = 'unanimous' | 'majority' | 'rejected';
+
+/**
+ * A vote as one source states it for one subject: what `deriveVotes` reads. A
+ * page's is read off its `DocumentFacts`; a sheet's or the transcript's is read
+ * off its reading, one entry per subject the statement covers.
+ */
+export interface VoteFacts {
+    subjectId: string;
+    source: DataSource;
+    /** The page, for a page's statement; null for the other sources. */
+    decisionId: string | null;
+    /** The vote phrase as the source states it; the outcome is read from it. */
+    voteResultPhrase: string | null;
+    /** The outcome the source states in its own words, when the phrase alone does not name one. */
+    statedOutcome: StatedOutcomeWord | null;
+    namedVotes: Array<{ personId: string; vote: VoteType; evidence?: Evidence }>;
+    /**
+     * A party answering for its members («Εμείς κατά»): the party as the source
+     * names it, and the party of the speaker where the source names none. The
+     * members present at the subject get the vote, once presence is replayed.
+     */
+    partyVotes: Array<{ partyId: string | null; vote: VoteType; rawText: string; evidence?: Evidence }>;
+    tally: VoteTally | null;
+    rawText: string | null;
+    evidence?: Evidence;
+}
+
+/**
+ * What one source other than the pages states about the meeting, shaped for the
+ * derivation: the sheet a back office keeps, or the transcript. Read off
+ * `MeetingFactSource.reading` by `sourceFactsFromReading` (./sources.ts).
+ */
+export interface SourceFacts {
+    source: DataSource;
+    /** The roll call as the source states it; null when it states none. */
+    rollCall: RollCallRow[] | null;
+    statedChanges: Array<StatedChange & { evidence?: Evidence }>;
+    /** The votes, one entry per subject a statement covers. */
+    votes: VoteFacts[];
+    /** Statements the source makes about a vote that names no item the meeting has. */
+    unplacedVotes: Array<{ rawText: string; evidence?: Evidence }>;
+    presidedById: string | null;
+    presidedByName: string | null;
+    nameMatches: NameMatch[] | null;
+    unmatchedNames: string[];
+}
 
 /**
  * A member a page states was out of the room for a vote: for this page's own
@@ -104,11 +176,15 @@ export interface DerivationInput {
     cityId: string;
     meetingId: string;
     subjects: OrderedSubject[];
-    /** Stated roll-call rows from sources other than the pages (manual, later transcript). The pages' own roll call is resolved (resolveSession). */
+    /** Stated roll-call rows of source `manual`. The pages' own roll call is resolved (resolveSession); the other sources' come with `sources`. */
     rollCall: RollCallRow[];
-    /** Stated events from sources other than the pages; the pages' own are resolved. */
+    /** Stated events of source `manual`; the pages' own are resolved, the other sources' come with `sources`. */
     events: EventRow[];
     documents: DocumentFacts[];
+    /** The sheet and the transcript, where the meeting has a reading of them. */
+    sources: SourceFacts[];
+    /** The members of each party on the meeting date, for a party's answer on a vote. */
+    partyMembers: Map<string, string[]>;
     /** Subjects holding decision-sourced vote rows now: what a write replaces and, for an unread document, cannot rebuild. */
     subjectIdsWithStoredVotes: string[];
     conventions: DecisionConventions | null;
@@ -136,7 +212,7 @@ export const ISSUE_CODES = [
     'LAYOUT_DISAGREES', 'ITEM_NUMBER_DISAGREES', 'UNREAD_DOCUMENT', 'LIST_DROPS_PRESENT', 'LIST_ADDS_ABSENT',
     'PERSON_IN_BOTH_LISTS', 'CHANGE_NOT_CORROBORATED', 'LATE_ARRIVAL_IN_OPENING_LIST', 'NAMED_VOTERS_UNEXPECTED',
     'NAMES_SHARE_ID', 'NAME_MATCHED_TWICE', 'OUT_OF_AGENDA_PLACED_FIRST',
-    'VOTE_BY_ABSENT_MEMBER', 'NO_VOTE_RESULT', 'LIST_CUT', 'CLOSING_BLOCK_CUT', 'CLOSING_READ_FAILED',
+    'VOTE_BY_ABSENT_MEMBER', 'NO_VOTE_RESULT', 'LIST_CUT', 'CLOSING_BLOCK_CUT', 'CLOSING_READ_FAILED', 'UNPLACEABLE_VOTE', 'PARTY_VOTE_UNRESOLVED',
 ] as const;
 export type IssueCode = typeof ISSUE_CODES[number];
 
@@ -150,7 +226,15 @@ export interface PresidingStatement { personId: string | null; name: string | nu
 export type SourcesDisagreeParams =
     | { kind: 'event'; winKind: AttendanceEventKind; winRawText: string; winSource: DataSource; loseRawText: string; loseSource: DataSource }
     | { kind: 'statedList'; status: AttendanceStatus; eventKind: AttendanceEventKind; rawText: string }
-    | { kind: 'doubleVote'; firstVote: VoteType; secondVote: VoteType };
+    | { kind: 'doubleVote'; firstVote: VoteType; secondVote: VoteType }
+    /** Two sources state a different roll-call status for one member; the higher-precedence one stands. */
+    | { kind: 'rollCall'; winSource: DataSource; winStatus: AttendanceStatus; loseSource: DataSource; loseStatus: AttendanceStatus }
+    /** Two sources state the same kind of change for one member at different points of the order; the higher-precedence one stands. */
+    | { kind: 'eventPosition'; winSource: DataSource; winRawText: string; loseSource: DataSource; loseRawText: string }
+    /** Two sources state a different outcome for one subject's vote. */
+    | { kind: 'outcome'; winSource: DataSource; winOutcome: string; loseSource: DataSource; loseOutcome: string }
+    /** Two sources state a different vote for one member on one subject. */
+    | { kind: 'vote'; winSource: DataSource; winVote: VoteType; loseSource: DataSource; loseVote: VoteType };
 
 /**
  * What each code's message interpolates. A code raised in more than one
@@ -214,6 +298,10 @@ export interface IssueParams {
     VOTE_BY_ABSENT_MEMBER: { vote: VoteType };
     /** A page that states ΑΠΟΦΑΣΙΖΕΙ, read whole, with no vote phrase, no named voter and no count. */
     NO_VOTE_RESULT: Record<string, never>;
+    /** A sheet or transcript statement about a vote that names no item of the meeting, or an item the meeting does not have. */
+    UNPLACEABLE_VOTE: Record<string, never>;
+    /** A party answered for its members, and the party or its members present could not be resolved. */
+    PARTY_VOTE_UNRESOLVED: { vote: VoteType };
 }
 
 interface IssueFields {
@@ -222,6 +310,8 @@ interface IssueFields {
     decisionId?: string;
     source: DataSource | null;
     rawText?: string;
+    /** Where the reported statement can be checked. */
+    evidence?: Evidence;
 }
 
 /**
@@ -239,29 +329,39 @@ export type Issue = { [C in IssueCode]: IssueFields & { code: C; params: IssuePa
 export type AttendanceOrigin = 'stated' | 'derived';
 export type VoteOrigin = 'stated' | 'inferred';
 
-export interface DerivedAttendanceRow { subjectId: string; personId: string; status: AttendanceStatus; origin: AttendanceOrigin }
-export interface DerivedVoteRow { subjectId: string; personId: string; voteType: VoteType; origin: VoteOrigin }
+/** Rows carry the source whose statement decided them, so a reader can say where a fact came from. */
+export interface DerivedAttendanceRow { subjectId: string; personId: string; status: AttendanceStatus; origin: AttendanceOrigin; source: DataSource }
+export interface DerivedVoteRow { subjectId: string; personId: string; voteType: VoteType; origin: VoteOrigin; source: DataSource }
 
 export interface DerivationOutput {
     attendance: DerivedAttendanceRow[];
     votes: DerivedVoteRow[];
     issues: Issue[];
-    /** The opening roll call the pages state together (source decision), written as output and never read back. */
+    /** The opening roll call the derived sources state together, one row per person, ranked by SOURCE_PRECEDENCE; written as output and never read back. */
     rollCall: RollCallRow[];
-    /** The session's changes the pages state together (source decision), written as output and never read back. */
+    /** The session's changes the derived sources state together, ranked per person; written as output and never read back. */
     events: EventRow[];
 }
 
 /**
- * Source precedence when two sources state different values for one fact.
+ * Source precedence when two sources state different values for one fact: a
+ * person's entry outranks the decision documents, the documents outrank the
+ * sheet the back office kept, and the sheet outranks the transcript. The
+ * documents stay the reference until the other two are measured (issue #807).
+ * The loser of every disagreement is reported as SOURCES_DISAGREE.
  *
- * A placeholder until the other sources land: nothing writes a `manual` row yet,
- * and the readers (`getExtractedDataForMeeting`, `getMeetingAttendance`) select
- * every source, so the first manual row written would render beside the decision
- * row rather than instead of it. The filter belongs there before any manual-entry
- * UI ships.
+ * Nothing writes a `manual` row yet. The derivation writes one row per person
+ * and subject for the derived sources, so the readers see no duplicate; a
+ * manual row would still render beside it until a manual-entry UI ships.
  */
-export const SOURCE_PRECEDENCE: DataSource[] = ['manual', 'decision', 'transcript'];
+export const SOURCE_PRECEDENCE: DataSource[] = ['manual', 'decision', 'sheet', 'transcript'];
+
+/**
+ * The sources whose rows in the four fact tables are derivation output: the
+ * write replaces them all at once, and the derivation never reads them back.
+ * Every other source's rows are stated facts.
+ */
+export const DERIVED_SOURCES: DataSource[] = ['decision', 'sheet', 'transcript'];
 
 /** Lower wins. A source outside the list ranks last, so an unknown one never displaces a known one. */
 export function sourceRank(source: DataSource): number {
