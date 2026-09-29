@@ -6,6 +6,7 @@ const mockSendAutoFixAlert = jest.fn();
 const mockTaskFindUnique = jest.fn();
 const mockMeetingUpdate = jest.fn();
 const mockSpeakerTagCreate = jest.fn();
+const mockPersonFindUnique = jest.fn();
 const mockSpeakerSegmentCreate = jest.fn();
 
 // Mock all transitive dependencies of transcribe.ts before import
@@ -20,7 +21,7 @@ jest.mock('../../db/prisma', () => ({
     },
     $transaction: (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
-        person: { findUnique: jest.fn() },
+        person: { findUnique: (...args: unknown[]) => mockPersonFindUnique(...args) },
         speakerTag: { create: (...args: unknown[]) => mockSpeakerTagCreate(...args) },
         speakerSegment: { create: (...args: unknown[]) => mockSpeakerSegmentCreate(...args) },
       }),
@@ -79,6 +80,7 @@ beforeEach(() => {
   mockTaskFindUnique.mockResolvedValue(task);
   mockMeetingUpdate.mockResolvedValue({ id: MEETING_ID });
   mockSpeakerTagCreate.mockResolvedValue({ id: 'tag-1' });
+  mockPersonFindUnique.mockResolvedValue(undefined);
   mockSpeakerSegmentCreate.mockResolvedValue({ id: 'segment-1' });
   mockRequestFixTranscriptInternal.mockResolvedValue({ id: 'fix-task-1' });
   mockSendAutoFixAlert.mockResolvedValue(undefined);
@@ -189,5 +191,44 @@ describe('handleTranscribeResult — utterance confidence scores', () => {
     expect(createdUtterances()).toEqual([
       expect.objectContaining({ confidence: 0.9, minWordConfidence: null, totalConfidence: null }),
     ]);
+  });
+});
+
+describe('handleTranscribeResult — voiceprint hints', () => {
+  const withSpeakers = (speakers: unknown[]) => ({
+    ...response,
+    transcript: { transcription: { ...response.transcript.transcription, speakers } },
+  });
+
+  it('keeps a voiceprint match as the tag\'s voiceprint hint, with its score', async () => {
+    mockPersonFindUnique.mockResolvedValue({ id: 'anna' });
+
+    await handleTranscribeResult('task-1', withSpeakers([{ speaker: 0, match: 'anna', confidence: { anna: 87.5, babis: 12 } }]) as never);
+
+    expect(mockSpeakerTagCreate).toHaveBeenCalledWith({
+      data: {
+        label: 'SPEAKER_0',
+        person: { connect: { id: 'anna' } },
+        personSetBy: 'voiceprint',
+        voiceprintPerson: { connect: { id: 'anna' } },
+        voiceprintConfidence: 87.5,
+      },
+    });
+  });
+
+  it('records no hint and no source for an unmatched speaker', async () => {
+    await handleTranscribeResult('task-1', withSpeakers([{ speaker: 0, match: null, confidence: {} }]) as never);
+
+    const { data } = mockSpeakerTagCreate.mock.calls[0][0];
+    expect(Object.keys(data)).toEqual(['label']);
+  });
+
+  it('records no hint when the matched person no longer exists', async () => {
+    mockPersonFindUnique.mockResolvedValue(null);
+
+    await handleTranscribeResult('task-1', withSpeakers([{ speaker: 0, match: 'ghost', confidence: { ghost: 90 } }]) as never);
+
+    const { data } = mockSpeakerTagCreate.mock.calls[0][0];
+    expect(Object.keys(data)).toEqual(['label']);
   });
 });

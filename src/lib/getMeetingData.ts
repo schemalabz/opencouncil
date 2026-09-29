@@ -10,7 +10,8 @@ import { Statistics } from '@/lib/statistics';
 import { getMeetingTaskStatus, MeetingTaskStatus } from '@/lib/db/tasks';
 import { createCache } from '@/lib/cache';
 import { getRealm } from '@/lib/realm.server';
-import { Realm, SpeakerTag } from '@prisma/client';
+import { Realm } from '@prisma/client';
+import { PublicSpeakerTag } from '@/lib/db/types/speakerTag';
 import { Party } from '@prisma/client';
 
 const EMPTY_STATISTICS: Statistics = {
@@ -27,7 +28,7 @@ export type MeetingDataCore = {
     people: PersonWithRelations[];
     parties: Party[];
     subjects: (SubjectWithRelations & { statistics?: Statistics })[];
-    speakerTags: SpeakerTag[];
+    speakerTags: PublicSpeakerTag[];
     taskStatus: MeetingTaskStatus;
     transcriptHiddenForReview: boolean;
 }
@@ -138,7 +139,7 @@ async function fetchMeetingDataCore(cityId: string, meetingId: string, realm: Re
     }));
 
     // Extract unique speaker tags in O(n) using Map
-    const speakerTagsMap = new Map<string, SpeakerTag>();
+    const speakerTagsMap = new Map<string, PublicSpeakerTag>();
     for (const segment of transcript) {
         if (!speakerTagsMap.has(segment.speakerTag.id)) {
             speakerTagsMap.set(segment.speakerTag.id, segment.speakerTag);

@@ -1,6 +1,6 @@
 import { handleTranscribeResult } from './transcribe';
 import { handleSummarizeResult } from './summarize';
-import { handleFixTranscriptResult } from './fixTranscript';
+import { handleFixTranscriptResult } from './fixTranscriptInternal';
 import { handleProcessAgendaResult } from './processAgenda';
 import { handleGenerateVoiceprintResult } from './generateVoiceprint';
 import { handleGenerateHighlightResult } from './generateHighlight';
