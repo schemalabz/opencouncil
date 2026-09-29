@@ -831,10 +831,11 @@ async function seedSubjects(subjects: any[], meeting: any) {
   }
 
   // Create all subjects — spread all scalar fields from dump, exclude relation objects
+  // and the columns the schema no longer has (claimedAda went with DecisionCandidate).
   const validSubjectData = subjects.map(({
     location: _location, introducedBy: _introducedBy, topic: _topic,
     highlights: _highlights, speakerSegments: _speakerSegments,
-    contributions: _contributions, decision: _decision,
+    contributions: _contributions, decision: _decision, claimedAda: _claimedAda,
     ...subject
   }) => ({
     ...subject,
