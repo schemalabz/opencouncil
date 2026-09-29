@@ -1,4 +1,4 @@
-import { isLogodosiaMeeting } from "./pollDecisionsBackoff";
+import { isLogodosiaMeeting, pollDueAt } from "./pollDecisionsBackoff";
 import { MeetingDecisionCounts } from "../db/decisions";
 
 export type PollSkipReason = "logodosia" | "noEligibleSubjects";
@@ -73,13 +73,32 @@ export function partitionMeetingsForPolling(
 }
 
 /**
- * Round-robin meetings across cities, newest first within each city.
+ * The cron's dispatch order: most overdue first (see pollDueAt), round-robin
+ * across cities.
+ *
+ * Week-one meetings are due on every run, so a capped batch taken newest
+ * first re-polls the same meetings each run while older ones wait. Ordering
+ * by due time spreads the cap over the whole backlog along the backoff
+ * schedule; a meeting never attempted is due first, so a new one still leads.
+ * Ties keep input order (newest first).
+ */
+export function orderForPolling<T extends { cityId: string; firstPollAt: Date | null; lastAttemptAt: Date | null }>(meetings: T[]): T[] {
+    const dueAt = new Map(meetings.map(m => [m, pollDueAt(m.firstPollAt, m.lastAttemptAt)]));
+    const overdueFirst = [...meetings].sort((a, b) => {
+        const da = dueAt.get(a)!, db = dueAt.get(b)!;
+        return da === db ? 0 : da < db ? -1 : 1;
+    });
+    return interleaveByCity(overdueFirst);
+}
+
+/**
+ * Round-robin meetings across cities, preserving input order within each city.
  *
  * The cron dispatches the first N meetings that pass backoff. Without the
  * interleave, one city with a deep backlog fills the whole batch, which
  * starves other cities and makes same-city polls run concurrently — parallel
  * polls do not see each other's knownDecisions, so cross-poll candidates
- * duplicate work. Input order (newest first) is preserved within each city.
+ * duplicate work.
  */
 export function interleaveByCity<T extends { cityId: string }>(meetings: T[]): T[] {
     const byCity = new Map<string, T[]>();

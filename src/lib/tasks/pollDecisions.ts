@@ -15,7 +15,7 @@ import { localCalendarDate } from "@/lib/formatters/time";
 import { applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } from "../db/decisionCandidates";
 import { isRoleActiveAt, isMayorRole } from "../utils/roles";
 import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, isLogodosiaMeeting, LOGODOSIA_NAME_PATTERN, pendingPollTaskId, type BackoffTier } from "./pollDecisionsBackoff";
-import { interleaveByCity } from "./pollableMeetings";
+import { orderForPolling } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "../discord";
 import { agendaItemTitleOrName, isRecordSubject } from "@/lib/utils/subjects";
 
@@ -233,28 +233,51 @@ export async function pollDecisionsForRecentMeetings() {
         return { meetingsProcessed: 0, results: [] };
     }
 
-    // One backlogged city must not fill the whole batch — see interleaveByCity.
-    const orderedMeetings = interleaveByCity(meetings);
-
-    // Batch-fetch polling history for all candidate meetings in one query
-    const pollHistory = await prisma.taskStatus.groupBy({
-        by: ['councilMeetingId', 'cityId'],
-        where: {
-            councilMeetingId: { in: meetings.map(m => m.id) },
-            type: 'pollDecisions',
-            status: 'succeeded',
-        },
-        _count: true,
-        _min: { createdAt: true },
-        _max: { createdAt: true },
-    });
+    // Batch-fetch polling history for all candidate meetings: succeeded polls
+    // drive backoff, attempts of any status drive dispatch order.
+    const meetingIds = meetings.map(m => m.id);
+    const [pollHistory, attemptHistory] = await Promise.all([
+        prisma.taskStatus.groupBy({
+            by: ['councilMeetingId', 'cityId'],
+            where: {
+                councilMeetingId: { in: meetingIds },
+                type: 'pollDecisions',
+                status: 'succeeded',
+            },
+            _count: true,
+            _min: { createdAt: true },
+            _max: { createdAt: true },
+        }),
+        prisma.taskStatus.groupBy({
+            by: ['councilMeetingId', 'cityId'],
+            where: {
+                councilMeetingId: { in: meetingIds },
+                type: 'pollDecisions',
+            },
+            _max: { createdAt: true },
+        }),
+    ]);
 
     const historyByMeeting = new Map(
         pollHistory.map(h => [
             `${h.cityId}:${h.councilMeetingId}`,
-            { count: h._count, firstPollAt: h._min.createdAt, lastPollAt: h._max.createdAt },
+            { firstPollAt: h._min.createdAt, lastPollAt: h._max.createdAt },
         ])
     );
+    const lastAttemptByMeeting = new Map(
+        attemptHistory.map(h => [`${h.cityId}:${h.councilMeetingId}`, h._max.createdAt])
+    );
+
+    const orderedMeetings = orderForPolling(meetings.map(m => {
+        const key = `${m.cityId}:${m.id}`;
+        const history = historyByMeeting.get(key);
+        return {
+            ...m,
+            firstPollAt: history?.firstPollAt ?? null,
+            lastPollAt: history?.lastPollAt ?? null,
+            lastAttemptAt: lastAttemptByMeeting.get(key) ?? null,
+        };
+    }));
 
     const results: Array<{ cityId: string; meetingId: string; status: string }> = [];
     let dispatched = 0;
@@ -265,13 +288,7 @@ export async function pollDecisionsForRecentMeetings() {
     for (const meeting of orderedMeetings) {
         if (dispatched >= 10) break;
 
-        const key = `${meeting.cityId}:${meeting.id}`;
-        const history = historyByMeeting.get(key);
-
-        const skipReason = shouldSkipPolling(
-            history?.firstPollAt ?? null,
-            history?.lastPollAt ?? null,
-        );
+        const skipReason = shouldSkipPolling(meeting.firstPollAt, meeting.lastPollAt);
         if (skipReason) {
             results.push({ cityId: meeting.cityId, meetingId: meeting.id, status: `skipped: ${skipReason}` });
             skipped++;

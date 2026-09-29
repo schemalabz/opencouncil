@@ -20,8 +20,9 @@ export function isLogodosiaMeeting(name: string): boolean {
 }
 
 // ─── Backoff configuration ───────────────────────────────────────────
-// Controls how often the cron polls for each meeting's decisions.
-// Based on time elapsed since the first poll for a meeting.
+// Controls how often each meeting becomes due for a cron poll — a floor,
+// not a promise: each run dispatches at most 10, most overdue first (see
+// pollDueAt). Based on time elapsed since the first poll.
 // With the cron running 2x/day:
 //   Days  0–7  → every cron run (~14 polls)
 //   Days  7–14 → once per 2 days (~3-4 polls)
@@ -56,6 +57,31 @@ export function getPollableMeetingDateRange(now: Date = new Date()): { gte: Date
     };
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The schedule entry in force `daysSinceFirstPoll` days in (last one passed). */
+function scheduleEntry(daysSinceFirstPoll: number): { afterDays: number; minIntervalDays: number } | undefined {
+    return [...BACKOFF_SCHEDULE].reverse().find(t => daysSinceFirstPoll >= t.afterDays);
+}
+
+/**
+ * When a meeting falls due for its next cron poll: its last poll plus the
+ * interval its backoff tier asks for. `-Infinity` when it was never polled —
+ * due before anything else. The cron dispatches the earliest first, so when
+ * more meetings are due than a batch takes, the most overdue go first rather
+ * than the newest.
+ *
+ * `lastPollAt` may be the last attempt of any outcome: the cron passes that,
+ * so a meeting whose polls keep failing waits its turn instead of leading
+ * every batch.
+ */
+export function pollDueAt(firstPollAt: Date | null, lastPollAt: Date | null): number {
+    if (!lastPollAt) return -Infinity;
+    const daysSinceFirstPoll = firstPollAt ? (Date.now() - firstPollAt.getTime()) / DAY_MS : 0;
+    const intervalDays = scheduleEntry(daysSinceFirstPoll)?.minIntervalDays ?? 0;
+    return lastPollAt.getTime() + intervalDays * DAY_MS;
+}
+
 /**
  * Determines whether a meeting should be polled based on its polling history.
  * Returns null if polling should proceed, or a skip reason string if not.
@@ -67,18 +93,17 @@ export function shouldSkipPolling(
     if (!firstPollAt || !lastPollAt) return null; // Never polled → go ahead
 
     const now = Date.now();
-    const daysSinceFirstPoll = (now - firstPollAt.getTime()) / (1000 * 60 * 60 * 24);
+    const daysSinceFirstPoll = (now - firstPollAt.getTime()) / DAY_MS;
 
     if (daysSinceFirstPoll >= MAX_POLLING_DAYS) {
         return `exceeded ${MAX_POLLING_DAYS}-day polling window`;
     }
 
-    // Find the applicable tier (last entry whose afterDays we've passed)
-    const tier = [...BACKOFF_SCHEDULE].reverse().find(t => daysSinceFirstPoll >= t.afterDays);
+    const tier = scheduleEntry(daysSinceFirstPoll);
     if (!tier || tier.minIntervalDays === 0) return null; // No backoff yet
 
-    const daysSinceLastPoll = (now - lastPollAt.getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSinceLastPoll < tier.minIntervalDays) {
+    if (now < pollDueAt(firstPollAt, lastPollAt)) {
+        const daysSinceLastPoll = (now - lastPollAt.getTime()) / DAY_MS;
         return `backoff: ${daysSinceLastPoll.toFixed(1)}d since last poll, need ${tier.minIntervalDays}d (day ${daysSinceFirstPoll.toFixed(0)} of polling)`;
     }
 
@@ -113,27 +138,22 @@ export function getBackoffState(
     }
 
     const now = Date.now();
-    const daysSinceFirstPoll = (now - firstPollAt.getTime()) / (1000 * 60 * 60 * 24);
+    const daysSinceFirstPoll = (now - firstPollAt.getTime()) / DAY_MS;
 
     if (daysSinceFirstPoll >= MAX_POLLING_DAYS) {
         const stopped: BackoffTier = { kind: 'stopped', maxDays: MAX_POLLING_DAYS };
         return { currentTier: stopped, currentTierLabel: backoffTierLabel(stopped), nextPollEligible: null };
     }
 
-    const tier = [...BACKOFF_SCHEDULE].reverse().find(t => daysSinceFirstPoll >= t.afterDays);
+    const tier = scheduleEntry(daysSinceFirstPoll);
 
     const currentTier: BackoffTier = !tier || tier.minIntervalDays === 0
         ? { kind: 'everyRun' }
         : { kind: 'interval', week: Math.floor(tier.afterDays / 7) + 1, intervalDays: tier.minIntervalDays };
     const currentTierLabel = backoffTierLabel(currentTier);
 
-    let nextPollEligible: string | null = null;
-    if (tier && tier.minIntervalDays > 0) {
-        const nextEligible = new Date(lastPollAt.getTime() + tier.minIntervalDays * 24 * 60 * 60 * 1000);
-        if (nextEligible.getTime() > now) {
-            nextPollEligible = nextEligible.toISOString();
-        }
-    }
+    const dueAt = pollDueAt(firstPollAt, lastPollAt);
+    const nextPollEligible = dueAt > now ? new Date(dueAt).toISOString() : null;
 
     return { currentTier, currentTierLabel, nextPollEligible };
 }
