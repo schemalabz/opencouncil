@@ -12,6 +12,7 @@ import { QuietButton } from '@/components/meetings/decisions/controls';
 import { Chip } from '@/components/meetings/decisions/RecordRow';
 import { AuditLine } from '@/components/meetings/decisions/AuditLine';
 import { AuditIssueRow } from '@/components/meetings/decisions/AuditIssueRow';
+import type { EvidenceLinks } from '@/components/meetings/decisions/IssueEvidence';
 import type { AuditSignal } from '@/components/meetings/decisions/auditSignal';
 
 /** How many rows show before the fold. */
@@ -139,6 +140,8 @@ export interface DecisionsTableProps {
     /** Opens the page's derivation glossary from a subject's issue row. Superadmin-only,
      * so the page passes it to one and withholds it from everyone else. */
     onExplainDerivation?: () => void;
+    /** Where a statement cited by an issue can be checked: the recording, the sheet. */
+    evidenceLinks?: EvidenceLinks;
 }
 
 /** The id of a subject's issue row, which its audit line controls. */
@@ -521,6 +524,7 @@ export function DecisionsTable({
     openAuditSubjectId,
     onToggleAudit,
     onExplainDerivation,
+    evidenceLinks,
 }: DecisionsTableProps) {
     const t = useTranslations('admin.decisionsPage');
     const tSubject = useTranslations('Subject');
@@ -690,6 +694,7 @@ export function DecisionsTable({
                                         issues={row.audit.issues}
                                         onClose={() => onToggleAudit(row.subject.id)}
                                         onExplainDerivation={onExplainDerivation}
+                                        evidenceLinks={evidenceLinks}
                                     />
                                 </div>
                             )}

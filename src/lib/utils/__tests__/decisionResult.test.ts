@@ -8,8 +8,12 @@ describe('resultKey', () => {
         expect(resultKey({ withdrawn: true, hasDecision: true, votes: votes('FOR', 'FOR') })).toBe('withdrawn');
     });
 
-    it('says nothing when no decision is linked', () => {
+    it('says nothing when no decision is linked and nothing states a vote', () => {
         expect(resultKey({ withdrawn: false, hasDecision: false, votes: [] })).toBe('none');
+    });
+
+    it('reads a vote another source states before any decision is linked', () => {
+        expect(resultKey({ withdrawn: false, hasDecision: false, votes: votes('FOR', 'FOR', 'AGAINST') })).toBe('majority');
     });
 
     it('separates a linked decision with no recorded vote from a missing one', () => {
