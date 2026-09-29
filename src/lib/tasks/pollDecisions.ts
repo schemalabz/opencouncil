@@ -26,11 +26,16 @@ import { orderForPolling } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "@/lib/discord";
 import { agendaItemTitleOrName, isRecordSubject } from "@/lib/utils/subjects";
 
+/** A manual poll either starts, or finds one already running for the meeting. */
+export type PollStart =
+    | { status: 'started'; taskId: string }
+    | { status: 'alreadyRunning'; taskId: string };
+
 export async function requestPollDecisions(
     cityId: string,
     councilMeetingId: string,
-    options?: { forceExtract?: boolean },
-) {
+    options?: { forceExtract?: boolean; lookupAdas?: string[] },
+): Promise<PollStart> {
     await withUserAuthorizedToEdit({ cityId });
 
     // The plain poll stays city-admin: a manual link starts extraction
@@ -43,7 +48,17 @@ export async function requestPollDecisions(
         }
     }
 
-    return pollDecisionsForMeeting(cityId, councilMeetingId, options);
+    // Two polls of one meeting race on the same candidates and bill twice;
+    // the running one reads anything this one would.
+    const openTasks = await prisma.taskStatus.findMany({
+        where: { councilMeetingId, cityId, type: 'pollDecisions', status: { in: ['pending', 'processing'] } },
+        select: { id: true, status: true },
+    });
+    const runningId = pendingPollTaskId(openTasks);
+    if (runningId) return { status: 'alreadyRunning', taskId: runningId };
+
+    const task = await pollDecisionsForMeeting(cityId, councilMeetingId, options);
+    return { status: 'started', taskId: task.id };
 }
 
 /**
@@ -52,11 +67,12 @@ export async function requestPollDecisions(
  *
  * @param options.silent - When true, suppresses the per-task "started" Discord alert (used by cron batch)
  * @param options.forceExtract - When true, skips extraction cache and reprocesses all PDFs
+ * @param options.lookupAdas - Typed ΑΔΑ values the tasks server fetches outside the poll scope
  */
 export async function pollDecisionsForMeeting(
     cityId: string,
     councilMeetingId: string,
-    options?: { silent?: boolean; forceExtract?: boolean },
+    options?: { silent?: boolean; forceExtract?: boolean; lookupAdas?: string[] },
 ) {
     const councilMeeting = await prisma.councilMeeting.findUnique({
         where: {
@@ -193,14 +209,17 @@ export async function pollDecisionsForMeeting(
             meetingDate: k.meetingDate ? k.meetingDate.toISOString().split('T')[0] : null,
             readStatus: k.readStatus,
         })),
+        lookupAdas: options?.lookupAdas?.length ? options.lookupAdas : undefined,
         subjects: sortedSubjects.map(s => ({
             subjectId: s.id,
             name: agendaItemTitleOrName(s),
             agendaItemIndex: s.agendaItemIndex,
             nonAgendaReason: s.nonAgendaReason,
-            ...(s.decision?.ada ? {
+            // A decision with no ΑΔΑ is an uploaded or external PDF: it has
+            // no Diavgeia record, but extraction reads it by its URL.
+            ...(s.decision ? {
                 existingDecision: {
-                    ada: s.decision.ada,
+                    ...(s.decision.ada ? { ada: s.decision.ada } : {}),
                     decisionTitle: s.decision.title ?? '',
                     pdfUrl: s.decision.pdfUrl,
                     // Linked but without a usable reading — never read, read before v4,
@@ -780,6 +799,10 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     const requestBody = JSON.parse(task.requestBody) as PollDecisionsRequest;
     const mayorId = requestBody.mayorId;
 
+    // A person typed these ΑΔΑ values from this meeting's page: that request,
+    // not the document's own reading, places them in this meeting's pool.
+    const typedAdas = new Set(requestBody.lookupAdas ?? []);
+
     let reassignmentCount = 0;
     let processedCount = 0;
     let conflictCount = 0;
@@ -934,6 +957,10 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             for (const d of result.decisions) {
                 const stored = storedByAda.get(d.ada);
                 const freshRead = !d.fromKnown && d.readStatus !== 'unread';
+                const promoted = await tx.decision.findUnique({
+                    where: { ada: d.ada },
+                    select: { id: true },
+                });
                 // Resolve the declared session to one of our meetings (same body).
                 let councilMeetingId: string | null = null;
                 if (freshRead && d.meetingDate && polledMeeting?.administrativeBodyId) {
@@ -959,10 +986,13 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                         if (sameDay.length === 1) healedMeetingId = sameDay[0].id;
                     }
                 }
-                const promoted = await tx.decision.findUnique({
-                    where: { ada: d.ada },
-                    select: { id: true },
-                });
+                // Never for a candidate a decision holds: that link already says
+                // where the document belongs.
+                const pinned = typedAdas.has(d.ada) && !promoted;
+                if (pinned) {
+                    councilMeetingId = task.councilMeetingId;
+                    healedMeetingId = null;
+                }
 
                 const placedOn = freshRead ? councilMeetingId : healedMeetingId;
                 if (placedOn && placedOn !== task.councilMeetingId && placedOn !== stored?.councilMeetingId
@@ -997,7 +1027,9 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                             decisionNumber: d.decisionNumber,
                             readStatus: d.readStatus,
                             councilMeetingId,
-                        } : (healedMeetingId ? { councilMeetingId: healedMeetingId } : {})),
+                        } : pinned ? { councilMeetingId } : (healedMeetingId ? { councilMeetingId: healedMeetingId } : {})),
+                        // Typing the ΑΔΑ again is the answer to an earlier dismissal.
+                        ...(pinned ? { dismissedAt: null } : {}),
                         // The suggestion is recorded once, as made; later polls
                         // never overwrite an accepted suggestion's record.
                         ...(d.subjectId && !promoted ? { subjectId: d.subjectId, confidence: d.confidence, reasoning: d.reasoning } : {}),
@@ -1032,7 +1064,7 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                     // match may have been wrong (ADA conflict), so this data is unreliable.
                     const existingDecision = await tx.decision.findFirst({
                         where: { subjectId: decision.subjectId },
-                        select: { id: true, subjectId: true, title: true, protocolNumber: true, publishDate: true },
+                        select: { id: true, subjectId: true, title: true, protocolNumber: true, publishDate: true, ada: true, decisionNumber: true },
                     });
                     if (!existingDecision) {
                         console.log(`Skipping extraction for subject ${decision.subjectId} — no linked Decision`);
@@ -1054,7 +1086,10 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                         data: {
                             excerpt: decision.excerpt || null,
                             references: decision.references || null,
-                            ...(extractedDecisionNumber ? { decisionNumber: extractedDecisionNumber } : {}),
+                            // A decision with no ΑΔΑ carries the number its clerk
+                            // typed from the document; the reading only fills a gap.
+                            ...(extractedDecisionNumber && (existingDecision.ada || !existingDecision.decisionNumber)
+                                ? { decisionNumber: extractedDecisionNumber } : {}),
                             ...(!existingDecision.title && decision.diavgeiaTitle ? { title: decision.diavgeiaTitle } : {}),
                             ...(!existingDecision.protocolNumber && decision.diavgeiaProtocolNumber ? { protocolNumber: decision.diavgeiaProtocolNumber } : {}),
                             ...(!existingDecision.publishDate && decision.diavgeiaPublishDate ? { publishDate: new Date(decision.diavgeiaPublishDate) } : {}),

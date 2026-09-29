@@ -130,7 +130,7 @@ export interface DecisionsTableProps {
     onRejectProposal: (subjectId: string, candidateId: string) => void;
     onUndoReject: (subjectId: string, candidateId: string) => void;
     onOpenDecision: (subjectId: string) => void;
-    onOpenProposalDocument: (candidateId: string) => void;
+    onOpenProposalDocument: (candidateId: string, subjectId: string) => void;
     busySubjectId: string | null;
     /** The subject whose issues are open in a row under it; null when none is. */
     openAuditSubjectId: string | null;
@@ -248,11 +248,13 @@ function ResultCell({ row, t, tSubject }: { row: TableRow; t: T; tSubject: T }) 
  */
 function ProposalLine({
     proposal,
+    subjectId,
     onOpenProposalDocument,
     t,
 }: {
     proposal: NonNullable<TableRow['proposal']>;
-    onOpenProposalDocument: (candidateId: string) => void;
+    subjectId: string;
+    onOpenProposalDocument: (candidateId: string, subjectId: string) => void;
     t: T;
 }) {
     // Document order is the one line this reads as from `md` up. Below it the
@@ -272,7 +274,7 @@ function ProposalLine({
             )}
             <StackBreak order="order-6" />
             {proposal.likely && <span className="order-2 font-semibold text-green-700 md:order-none">{t('attention.likelyMatch')}</span>}
-            <QuietButton className="order-7 md:order-none" onClick={() => onOpenProposalDocument(proposal.candidateId)}>{t('table.openDocument')}</QuietButton>
+            <QuietButton className="order-7 md:order-none" onClick={() => onOpenProposalDocument(proposal.candidateId, subjectId)}>{t('table.openDocument')}</QuietButton>
         </div>
     );
 }
@@ -651,7 +653,7 @@ export function DecisionsTable({
                                         row's existing amber rather than
                                         bringing a second ground of its own. */}
                                     {proposal && (
-                                        <ProposalLine proposal={proposal} onOpenProposalDocument={onOpenProposalDocument} t={t} />
+                                        <ProposalLine proposal={proposal} subjectId={row.subject.id} onOpenProposalDocument={onOpenProposalDocument} t={t} />
                                     )}
                                     {row.audit && (
                                         <AuditLine

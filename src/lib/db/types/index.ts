@@ -45,3 +45,4 @@ export interface SeedData {
     administrativeBodies: AdministrativeBody[];
 }
 export * from './meeting';
+export * from './adaLookups';

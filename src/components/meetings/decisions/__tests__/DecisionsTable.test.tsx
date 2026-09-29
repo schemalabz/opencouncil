@@ -103,6 +103,16 @@ describe('DecisionsTable', () => {
         expect(screen.getByRole('button', { name: 'Όχι' })).toBeInTheDocument();
     });
 
+    it('opens a proposal’s document with the subject it was proposed for', async () => {
+        const onOpenProposalDocument = jest.fn();
+        renderTable({
+            onOpenProposalDocument,
+            rows: [row({ proposal: { candidateId: 'c1', number: '637/2026', title: 'Παροχή εντολής', likely: false } })],
+        });
+        await userEvent.click(screen.getByRole('button', { name: 'Άνοιγμα εγγράφου' }));
+        expect(onOpenProposalDocument).toHaveBeenCalledWith('c1', 's1');
+    });
+
     it('centres a proposal row’s answers against its subject instead of stranding them', () => {
         // The proposal makes the Θέμα cell two lines tall. Under `items-start`
         // the Ναι/Όχι buttons stayed at the top of the cell beside it, with the

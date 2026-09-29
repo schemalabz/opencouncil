@@ -627,6 +627,32 @@
       }
     },
     {
+      "cityId": "thira",
+      "body": "Δημοτικό Συμβούλιο",
+      "conventions": {
+        "version": 1,
+        "rollCallLayout": "present_and_absent",
+        "presentListMeaning": "opening",
+        "attendanceChangeAnchors": [
+          "subject"
+        ],
+        "statesPerDecisionAttendance": true,
+        "statesPerVoteAbsence": true,
+        "usesSubstitutes": false,
+        "namedVoters": "dissenters_only",
+        "mayorStatedSeparately": true,
+        "listOmitsSecretary": false,
+        "notes": "ΠΑΡΟΝΤΕΣ/ΑΠΟΝΤΕΣ in two columns, body of 25; the header is the opening roll call and every page repeats it. Before the discussion each page names who was out of the chamber for its own item («Κατά την ώρα της συζήτησης του θέματος αυτού απουσίασαν / δεν παρεβρίσκονταν…»): this body's per-vote absence, printed before the decision, not after it. Each later page also restates every arrival since the opening («Κατά την ώρα της συζήτησης του θέματος / της συνεδρίασης προσήλθαν…»); the wording does not pin the arrival to that page's item. ΤΑ ΜΕΛΗ after the decision lists the members present for this decision, the president included; on the first pages of 29/06/2026 it also listed two members who had not arrived yet. Presidents of communities attend and can be named voting FOR on their community's matters.",
+        "provenance": {
+          "source": "manual",
+          "profiledAt": "2026-09-29",
+          "documentsSampled": 18,
+          "confirmedBy": "kouloumos",
+          "confirmedAt": "2026-09-29"
+        }
+      }
+    },
+    {
       "cityId": "vrilissia",
       "body": "Δημοτική Επιτροπή",
       "conventions": {

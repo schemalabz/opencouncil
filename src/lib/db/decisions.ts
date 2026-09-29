@@ -112,7 +112,9 @@ export async function upsertDecision(data: UpsertDecisionData): Promise<Decision
                 ada: data.ada ?? null,
                 title: data.title ?? null,
                 publishDate: data.publishDate ?? null,
-                // Don't update taskId/createdById on updates - preserve original source
+                // The source follows the document: a new document is the new
+                // author's, a correction to the same one keeps its origin.
+                ...(replacesDocument ? { taskId: data.taskId ?? null, createdById: data.createdById ?? null } : {}),
             },
         });
     });

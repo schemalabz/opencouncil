@@ -1,34 +1,46 @@
 "use client"
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { diavgeiaViewUrl, inlinePdfUrl } from './pdfUrl';
 import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
+import { FormattedTextDisplay } from '@/components/FormattedTextDisplay';
 
 interface ConfirmSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    action: 'view' | 'reassign';
+    action: 'view' | 'reassign' | 'assign' | 'link';
     decisionTitle: string | null;
     decisionNumber: string | null;
     subjectName: string | null;
     pdfUrl: string;
     /** Links the header to the decision's page on Diavgeia. */
     ada: string | null;
+    /** Where the document comes from when it has no ΑΔΑ, shown in place of the Diavgeia link. */
+    sourceNote?: string;
+    /** The confirm button's text; defaults to the generic confirm. */
+    confirmLabel?: string;
     /** The subject's own description — the context for judging the match. */
     subjectDescription?: string | null;
     agendaItemTitle?: string | null;
+    /** Resolves the summary's `REF:` links to this meeting's pages. */
+    meetingId?: string;
+    cityId?: string;
+    /** What the document says about itself, shown under the header. */
+    facts?: ReactNode;
     busy: boolean;
     onConfirm: () => void;
-    /** Reassign mode: renders a dismiss button next to the confirm button, to keep the current holder instead of moving the decision. */
+    /** Reassign and assign modes: renders a dismiss button next to the confirm button — in reassign mode it keeps the current holder, in assign mode it sets the candidate aside. */
     onDismiss?: () => void;
     /** View mode: extraction results rendered in a second in-sheet tab. */
-    extraContent?: React.ReactNode;
+    extraContent?: ReactNode;
+    /** A consequence of the confirm, shown after the explanation. */
+    explainNote?: string;
     /** Cross-meeting callers (the decisions overview) link to the meeting here. */
-    meetingLink?: React.ReactNode;
+    meetingLink?: ReactNode;
     /** Reassign mode: names the subject that loses the decision. */
     holderName?: string | null;
 }
@@ -37,7 +49,7 @@ interface ConfirmSheetProps {
  * The commit gate for link-changing actions: the admin confirms while looking
  * at the document itself, not only at metadata.
  */
-export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, agendaItemTitle, busy, onConfirm, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
+export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, sourceNote, confirmLabel, explainNote, subjectDescription, agendaItemTitle, meetingId, cityId, facts, busy, onConfirm, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
     const t = useTranslations('admin.decisionsPage.sheet');
     const [pane, setPane] = useState<'document' | 'extraction'>('document');
     useEffect(() => { if (open) setPane('document'); }, [open]);
@@ -60,13 +72,13 @@ export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisi
                     {subjectDescription && (
                         <div className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                             <span className="font-medium text-foreground">{t('subjectDescriptionLabel')}</span>{' '}
-                            <span>{subjectDescription}</span>
+                            <FormattedTextDisplay text={subjectDescription} meetingId={meetingId} cityId={cityId} linkColor="black" />
                             <AIGeneratedBadge className="mt-1 justify-end" />
                         </div>
                     )}
-                    {(ada || meetingLink) && (
+                    {(ada || sourceNote || meetingLink) && (
                         <div className="flex items-center gap-4">
-                            {ada && (
+                            {ada ? (
                                 <a
                                     href={diavgeiaViewUrl(ada)}
                                     target="_blank"
@@ -76,11 +88,14 @@ export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisi
                                     {t('viewOnDiavgeia')}
                                     <ExternalLink className="h-3 w-3" />
                                 </a>
+                            ) : sourceNote && (
+                                <span className="text-xs text-muted-foreground">{sourceNote}</span>
                             )}
                             {meetingLink}
                         </div>
                     )}
                 </SheetHeader>
+                {facts}
                 {extraContent && (
                     <div className="flex gap-4 border-b text-sm">
                         <button
@@ -107,18 +122,19 @@ export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisi
                 {action !== 'view' && (
                     <div className="rounded-lg bg-muted/60 px-3 py-2.5 text-sm">
                         {explain}
+                        {explainNote && <p className="mt-1">{explainNote}</p>}
                     </div>
                 )}
                 <SheetFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>{t(action === 'view' ? 'close' : 'cancel')}</Button>
-                    {onDismiss && (
+                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>{t(action === 'view' ? 'close' : action === 'link' ? 'back' : 'cancel')}</Button>
+                    {onDismiss && (action === 'reassign' || action === 'assign') && (
                         <Button variant="outline" className="text-destructive hover:text-destructive" onClick={onDismiss} disabled={busy}>
                             {t('dismissAction')}
                         </Button>
                     )}
                     {action !== 'view' && (
                         <Button onClick={onConfirm} disabled={busy}>
-                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t('confirm')}
+                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : confirmLabel ?? t('confirm')}
                         </Button>
                     )}
                 </SheetFooter>

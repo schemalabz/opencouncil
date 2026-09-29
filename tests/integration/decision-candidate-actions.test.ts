@@ -11,6 +11,8 @@ import {
     createMeeting,
     createPerson,
     createSubject,
+    createTaskStatus,
+    createUser,
 } from '../helpers/factories'
 
 function makeCandidate(cityId: string, ada: string, data?: {
@@ -212,6 +214,24 @@ describe('decision candidate actions — assign, dismiss, conflict resolution', 
         expect(decision!.decisionNumber).toBe('42/2026')
         expect(decision!.excerpt).toBe('what the document said')
         expect(await prisma.subjectAttendance.count({ where: { subjectId: subject.id } })).toBe(1)
+    })
+
+    test('a new document is credited to whoever put it there; a correction keeps the original author', async () => {
+        const subject = await createSubject(meetingId, cityId, { id: 's1', agendaItemIndex: 1 })
+        const first = await createUser('first@example.com')
+        const second = await createUser('second@example.com')
+        const task = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        await prisma.decision.create({
+            data: { subjectId: subject.id, ada: 'ADA-1', pdfUrl: 'https://diavgeia.gov.gr/doc/ADA-1', taskId: task.id, createdById: first.id },
+        })
+
+        await upsertDecision({ subjectId: subject.id, ada: 'ADA-1', pdfUrl: 'https://diavgeia.gov.gr/doc/ADA-1', decisionNumber: '42/2026', createdById: second.id })
+        expect(await prisma.decision.findUnique({ where: { subjectId: subject.id } }))
+            .toMatchObject({ taskId: task.id, createdById: first.id })
+
+        await upsertDecision({ subjectId: subject.id, pdfUrl: 'https://files.example/manual.pdf', decisionNumber: '42/2026', createdById: second.id })
+        expect(await prisma.decision.findUnique({ where: { subjectId: subject.id } }))
+            .toMatchObject({ ada: null, taskId: null, createdById: second.id })
     })
 
     test('conflict reassign moves the decision and drops the old subject\'s extracted rows', async () => {

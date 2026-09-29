@@ -498,7 +498,7 @@ export interface PollDecisionsRequest extends TaskRequest {
         agendaItemIndex: number | null;
         nonAgendaReason: string | null;
         existingDecision?: {
-            ada: string;
+            ada?: string; // absent for a decision that is not on Diavgeia
             decisionTitle: string;
             pdfUrl: string;
             needsExtraction?: boolean;
@@ -522,6 +522,7 @@ export interface PollDecisionsRequest extends TaskRequest {
      * record. Absent = extract, for a request from an older app.
      */
     extract?: boolean;
+    lookupAdas?: string[]; // typed ΑΔΑ values, fetched outside the poll scope
 }
 
 /**
@@ -597,6 +598,15 @@ export interface PollDecisionsAttendanceEvent {
     totalPdfCount: number;
 }
 
+/** What the tasks server found for one typed ΑΔΑ. */
+export interface PollDecisionsLookup {
+    ada: string;
+    outcome: 'found' | 'not_found' | 'error';
+    organizationId: string | null;
+    /** Set only when the document belongs to another organization than the city's. */
+    organizationLabel: string | null;
+}
+
 export interface PollDecisionsResult {
     /** Every decision read in the poll window. Absent from older tasks versions. */
     decisions?: PollDecisionsReadDecision[];
@@ -632,4 +642,5 @@ export interface PollDecisionsResult {
         unmatchedCount: number;
         ambiguousCount: number;
     };
+    lookups?: PollDecisionsLookup[]; // absent from older tasks versions and from polls with no lookupAdas
 }
