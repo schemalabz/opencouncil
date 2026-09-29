@@ -1,6 +1,7 @@
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { InfoPanel } from '../InfoPanel';
+import { captureLandingAction } from '@/lib/landing/analytics';
 import type { GeneralSubjectRow, LandingListCity } from '@/lib/landing/landingData';
 
 jest.mock('next-intl', () => {
@@ -139,7 +140,12 @@ describe('InfoPanel', () => {
     });
 
     it('offers the film where the realm has one, and plays it in a dialog', () => {
-        const video = { src: 'https://cdn.example/film.mp4', poster: 'https://cdn.example/p.jpg', thumb: 'https://cdn.example/t.jpg', duration: '1:03' };
+        const video = {
+            src: 'https://data.opencouncil.gr/explain/film.mp4',
+            poster: 'https://data.opencouncil.gr/explain/p.jpg',
+            thumb: 'https://data.opencouncil.gr/explain/t.jpg',
+            duration: '1:03',
+        };
         render(<InfoPanel cities={cities} subjects={subjects} explainAvailable video={video} onExploreMap={() => {}} />);
         // nothing loads until asked
         expect(document.querySelector('video')).toBeNull();
@@ -147,6 +153,13 @@ describe('InfoPanel', () => {
         const dialog = screen.getByRole('dialog');
         expect(dialog).toHaveTextContent('info.video.title');
         expect(dialog.querySelector('video')).toHaveAttribute('src', video.src);
+    });
+
+    it('counts the explainer door with the other doors, and keeps its older event', () => {
+        render(<InfoPanel cities={cities} subjects={subjects} explainAvailable onExploreMap={() => {}} />);
+        fireEvent.click(screen.getByRole('link', { name: /^info\.cta\.more/ }));
+        expect(captureLandingAction).toHaveBeenCalledWith('info_cta_clicked', { target: 'explain' });
+        expect(captureLandingAction).toHaveBeenCalledWith('info_explain_clicked', {});
     });
 
     it('offers no film where the realm has none', () => {
@@ -165,6 +178,6 @@ describe('InfoPanel', () => {
         );
         expect(screen.queryByRole('link', { name: /^info\.cta\.city: / })).toBeNull();
         expect(screen.queryByRole('link', { name: /^info\.cta\.subject: / })).toBeNull();
-        expect(screen.getByRole('link', { name: /^info\.cta\.more/ })).toHaveAttribute('href', '/about#how-it-works');
+        expect(screen.getByRole('link', { name: /^info\.cta\.more/ })).toHaveAttribute('href', '/about#process');
     });
 });

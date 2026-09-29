@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
 import { ArrowRight, AudioLines, BookOpen, Flame, Landmark, Map as MapIcon, PawPrint, Play, Recycle, Search, Type } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
@@ -132,14 +133,16 @@ export function InfoPanel({
                     )}
 
                     {/* /explain is about Greek local government and exists on the Greek realm only;
-                        elsewhere the door opens on how OpenCouncil itself works. */}
+                        elsewhere the door opens on how OpenCouncil itself works (the about page's
+                        process section). */}
                     <Link
-                        href={explainAvailable ? '/explain' : '/about#how-it-works'}
-                        onClick={() =>
-                            explainAvailable
-                                ? captureLandingAction('info_explain_clicked', {})
-                                : captureLandingAction('info_cta_clicked', { target: 'about' })
-                        }
+                        href={explainAvailable ? '/explain' : '/about#process'}
+                        onClick={() => {
+                            // the door's own event, like the other three; the older explain event
+                            // stays alongside it so existing dashboards keep counting
+                            captureLandingAction('info_cta_clicked', { target: explainAvailable ? 'explain' : 'about' });
+                            if (explainAvailable) captureLandingAction('info_explain_clicked', {});
+                        }}
                         className={rowClass}
                     >
                         <DoorIcon>
@@ -181,10 +184,11 @@ function VideoOffer({ video }: { video: AboutVideo }) {
                     className="group -mt-1 flex shrink-0 items-center gap-3 self-start rounded-lg pr-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
                 >
                     <span className="relative aspect-video w-[88px] shrink-0 overflow-hidden rounded-lg border border-border bg-card">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
                             src={video.thumb}
                             alt=""
+                            width={176}
+                            height={99}
                             className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.06]"
                         />
                         <span className="absolute inset-0 flex items-center justify-center">
@@ -640,8 +644,7 @@ const rowClass = cn(
 function CityLogo({ src }: { src: string | null }) {
     return src ? (
         <span className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-border">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt="" className="h-full w-full object-contain" />
+            <Image src={src} alt="" width={32} height={32} className="h-full w-full object-contain" />
         </span>
     ) : (
         <Landmark className="h-3.5 w-3.5 shrink-0" />
