@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { MoreVertical, Share, SquarePlus } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { InstallPlatform } from "@/lib/pwa/install";
 
 interface InstallStepsDialogProps {
@@ -32,7 +32,7 @@ export default function InstallStepsDialog({ open, onOpenChange, platform }: Ins
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-[calc(100%-2rem)] max-w-[340px] gap-0 rounded-2xl p-6 pt-7">
+            <DialogContent aria-describedby={undefined} className="w-[calc(100%-2rem)] max-w-[340px] gap-0 rounded-2xl p-6 pt-7">
                 <Image
                     src="/logo.png"
                     alt=""
@@ -43,9 +43,6 @@ export default function InstallStepsDialog({ open, onOpenChange, platform }: Ins
                 <DialogTitle className="mt-4 text-base font-semibold leading-snug">
                     {t('title')}
                 </DialogTitle>
-                <DialogDescription className="mt-1 text-[13px]">
-                    {t('subtitle')}
-                </DialogDescription>
                 <ol className="mt-5 grid w-full grid-cols-[1.5rem_1rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3 rounded-xl bg-muted p-4 text-left">
                     {steps.map(({ icon: Icon, text }, index) => (
                         <li key={text} className="contents">
