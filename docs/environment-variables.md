@@ -88,9 +88,9 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 Every WhatsApp and SMS message to a reader belongs to the Notis service, which holds the Bird credentials and its own webhook subscription. Its variables are in [services/notis/README.md](../services/notis/README.md), and the Bird workspace setup in [bird-setup.md](./bird-setup.md).
 
 #### Sign in with Google
-Create an OAuth 2.0 client of type "Web application" in the Google Cloud Console. Add one authorized redirect URI per deployment host: `<NEXTAUTH_URL>/api/auth/callback/google`, for example `http://localhost:3000/api/auth/callback/google` and `https://opencouncil.gr/api/auth/callback/google`.
+Create an OAuth 2.0 client of type "Web application" in the Google Cloud Console. Add one authorized redirect URI per host that offers the button: `<host>/api/auth/callback/google`. For production that is `https://opencouncil.gr/api/auth/callback/google`, `https://opencouncil.rs/api/auth/callback/google` and `https://opencouncil.fr/api/auth/callback/google`. For development it is `http://localhost:3000/api/auth/callback/google`. Add each realm domain to the authorized domains of the OAuth consent screen too.
 
-The button appears only on the host that `NEXTAUTH_URL` names. Auth.js builds the OAuth `redirect_uri` from `NEXTAUTH_URL`, so a sign-in that starts on another realm domain (`opencouncil.rs`, `opencouncil.fr`) cannot finish there. Those domains keep the magic link only. A preview names its own host in `NEXTAUTH_URL`, so it works once `https://pr-<N>.opencouncil.dev/api/auth/callback/google` is in the client's redirect URIs.
+The button appears on the host that `NEXTAUTH_URL` names and on every realm apex. One deployment serves every realm, and next-auth rewrites each request to the origin of `NEXTAUTH_URL`. The auth route therefore sends the Google sign-in and its callback on another realm apex through Auth.js core with the request's own host (`realmOAuthUrl`), so the sign-in finishes on the domain it started on. A preview names its own host in `NEXTAUTH_URL`, so it works once `https://pr-<N>.opencouncil.dev/api/auth/callback/google` is in the client's redirect URIs.
 
 #### NEXTAUTH_SECRET
 You can quickly create a good value on the command line via this openssl command:
