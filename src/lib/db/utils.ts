@@ -10,6 +10,7 @@ import { getPartiesForCity } from "./parties";
 import { getTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeetingDirect } from "./meetings";
+import { getMeetingAgendaItems } from "./meetingFactSources";
 import { FixTranscriptRequest, RequestOnTranscript, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
 import { buildSpeakerRoster } from "@/lib/tasks/speakerRoster";
 import prisma from "./prisma";
@@ -120,13 +121,15 @@ export async function getRequestOnTranscriptRequestBody(
  * makes the task return speaker hints alongside the text corrections.
  */
 export async function getFixTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<FixTranscriptRequest, 'callbackUrl'>> {
-    const [baseRequest, councilMeeting, people] = await Promise.all([
+    const [baseRequest, councilMeeting, people, agendaItems] = await Promise.all([
         // Speaker hints judge each diarization speaker on its own, so two tags the
         // voiceprint matched to one person must not reach the task as one speaker.
         getRequestOnTranscriptRequestBody(councilMeetingId, cityId, { keepSpeakerTagsApart: true }),
         // Ungated: the task-server callback carries no session (see getCouncilMeetingDirect).
         getCouncilMeetingDirect(cityId, councilMeetingId),
         getPeopleForCity(cityId),
+        // The items the meeting-facts pass anchors its statements to; empty before the agenda is processed.
+        getMeetingAgendaItems(cityId, councilMeetingId),
     ]);
 
     if (!councilMeeting) {
@@ -136,6 +139,7 @@ export async function getFixTranscriptRequestBody(councilMeetingId: string, city
     return {
         ...baseRequest,
         roster: buildSpeakerRoster(people, councilMeeting.dateTime, councilMeeting.administrativeBodyId),
+        agendaItems,
     };
 }
 
