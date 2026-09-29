@@ -4,7 +4,6 @@ import { getMessages } from "next-intl/server";
 
 import { routing } from '@/i18n/routing';
 import { notFound } from "next/navigation";
-import { Toaster } from "@/components/ui/toaster";
 import ConsentChip from "@/components/analytics/ConsentChip";
 import { env } from "@/env.mjs";
 
@@ -51,7 +50,6 @@ export default async function LocaleLayout(
         <NextIntlClientProvider locale={locale} messages={messages}>
             {children}
 
-            <Toaster />
             <ConsentChip />
             {QuickLogin && <QuickLogin isPreview={env.DEPLOYMENT_ENV === 'preview'} />}
             {MobilePreviewReporter && <MobilePreviewReporter />}
