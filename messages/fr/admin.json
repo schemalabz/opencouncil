@@ -112,7 +112,7 @@
       "force": "Force",
       "forceDescription": {
         "transcribe": "Supprime tous les segments d'intervenant, les énoncés et les résumés de cette séance, puis relance la transcription depuis le début.",
-        "processAgenda": "Supprime tous les sujets et les extraits générés automatiquement de cette séance, puis retraite l'ordre du jour depuis le début. Les extraits créés par les utilisateurs sont conservés (dissociés des sujets).",
+        "processAgenda": "Les sujets toujours à l'ordre du jour sont conservés et mis à jour ; ceux qui n'y figurent plus sont supprimés. Les sujets hors ordre du jour sont supprimés — relancez summarize pour les rétablir. Les extraits générés automatiquement sont supprimés ; les extraits créés par les utilisateurs sont conservés.",
         "summarize": "Les sujets de l'ordre du jour sont conservés et mis à jour ; les sujets hors ordre du jour sont remplacés. Supprime les étiquettes de sujet et réinitialise le suivi de discussion des énoncés (statut et liens vers les sujets)."
       },
       "released": "Publiée"
