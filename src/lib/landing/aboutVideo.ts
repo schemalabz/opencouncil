@@ -17,11 +17,12 @@ export type AboutVideo = {
 const BASE = 'https://data.opencouncil.gr/explain';
 
 /**
- * The film is in Greek and about Greek municipalities (it names Athens and opencouncil.gr), so
- * it is offered on the Greek realm only — the same line `hasExplainPage` draws for /explain.
+ * The film is in Greek, has no subtitles, and is about Greek municipalities (it names Athens and
+ * opencouncil.gr). It is offered on the Greek realm only, the same line `hasExplainPage` draws for
+ * /explain, and only in Greek: a reader of the realm's /en pages cannot follow it.
  */
-export function aboutVideo(realm: Realm): AboutVideo | null {
-    if (realm !== 'greece') return null;
+export function aboutVideo(realm: Realm, locale: string): AboutVideo | null {
+    if (realm !== 'greece' || locale !== 'el') return null;
     return {
         src: `${BASE}/oc-about-v1.mp4`,
         poster: `${BASE}/oc-about-v1-poster.jpg`,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { LocateFixed, Loader2, PanelLeftClose } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { ListHeader, RankedListHint, ZoomGroup } from './conceptShared';
 import { type LayoutProps, type LandingView } from '@/lib/landing/landingCore';
 import { matchesMunicipalityName } from '@/lib/landing/landingData';
@@ -72,6 +72,7 @@ export function DesktopLayout({
     realm,
 }: LayoutProps) {
     const t = useTranslations('landingV2');
+    const locale = useLocale();
     // The list panel beside the rail — collapsible (X), default open.
     const [panelOpen, setPanelOpen] = useState(true);
     // The Δήμοι tab's name search. It narrows the cards and the petition leaderboard. The
@@ -173,7 +174,7 @@ export function DesktopLayout({
                     )}
 
                     {infoOpen ? (
-                        <InfoPanel cities={cities} subjects={hotSubjects} explainAvailable={explainAvailable} video={aboutVideo(realm)} onExploreMap={() => onToggleInfo()} />
+                        <InfoPanel cities={cities} subjects={hotSubjects} explainAvailable={explainAvailable} video={aboutVideo(realm, locale)} onExploreMap={() => onToggleInfo()} />
                     ) : view === 'municipalities' ? (
                         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/50 mb-3 px-4 py-4">
                             <MunicipalitiesList
