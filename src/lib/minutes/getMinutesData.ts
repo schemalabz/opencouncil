@@ -6,6 +6,7 @@ import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData 
 import { getDecisionReadingsForMeeting } from '@/lib/db/decisionFacts';
 import { getAttendanceEventsForMeeting } from '@/lib/db/derivationFacts';
 import { readingStatesFacts } from '@/lib/derivation/load';
+import { explainMeeting } from '@/lib/derivation/persist';
 import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getRoleTitles } from '@/i18n/roleTitles';
@@ -211,6 +212,11 @@ export async function getMinutesData(
         .map(s => documentedPresidedBy.get(s.id) ?? null)
         .find((p): p is NonNullable<typeof p> => p !== null) ?? null;
 
+    // The outcome word of the statement that supplied each subject's vote rows,
+    // for a subject whose rows do not cover the vote: the sheet or the transcript
+    // stated the outcome, no page did, and the rows hold the named dissent alone.
+    const outcomes = new Map((await explainMeeting(cityId, meetingId)).outcomes.map(o => [o.subjectId, o]));
+
     // Build MinutesSubject for each
     const minutesSubjects: MinutesSubject[] = sortedSubjects.map((s) => {
         const ed = extractedDataMap.get(s.id);
@@ -219,9 +225,11 @@ export async function getMinutesData(
             : null;
         // No `ed` guard: a document can state its outcome in words and name no
         // voter at all, and that result comes from the phrase alone.
+        const pagePhrase = s.decision?.voteResultPhrase?.trim() || null;
+        const stated = pagePhrase ? null : outcomes.get(s.id) ?? null;
         const voteResult = buildVoteResult(
             ed?.votes ?? [], ed?.attendance ?? [], mayorExcludedFromRows, resolveMember, getElectedOrder,
-            s.decision?.voteResultPhrase ?? null,
+            pagePhrase ?? stated?.phrase ?? null, stated?.outcome ?? null,
         );
         const activeIndex = subjectIdToActiveIndex.get(s.id);
         const preDiscussionUtterances = activeIndex !== undefined

@@ -25,6 +25,8 @@ jest.mock('@/lib/db/prisma', () => ({
 jest.mock('@/lib/db/utils', () => ({ getFixTranscriptRequestBody: jest.fn() }));
 jest.mock('@/lib/tasks/tasks', () => ({ startTask: jest.fn() }));
 jest.mock('../speakerHints', () => ({ applySpeakerHints: (...args: unknown[]) => mockApplySpeakerHints(...args) }));
+// The transcript's meeting facts are stored by a server-only module; no result here carries them.
+jest.mock('../meetingFacts', () => ({ storeTranscriptFacts: jest.fn() }));
 
 import { handleFixTranscriptResult } from '../fixTranscriptInternal';
 
