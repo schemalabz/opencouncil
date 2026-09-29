@@ -71,7 +71,7 @@ export function ExcerptSelectionToolbar({ rootRef, disabled, editable }: { rootR
     const openRef = useRef(false);
     openRef.current = open;
     // The subject the share page and its images will name, by the rules the server applies (passageSubject.ts).
-    const selectedSubject = useMemo(() => active && subjectOfPassage(transcript.flatMap(segment => segment.utterances), new Set(active.runs.map(run => run.id)), subjects), [active, transcript, subjects]);
+    const selectedSubject = useMemo(() => active && subjectOfPassage(transcript.flatMap(segment => segment.utterances), new Set(active.runs.map(run => run.id)), subjects, maxUtteranceDrift), [active, transcript, subjects, maxUtteranceDrift]);
     const context = `${getLocalizedName(city, locale)} · ${formatDate(meeting.dateTime, city.timezone, locale)}`;
 
     const openSelection = useCallback(async (captured: SelectionResult, surface: 'transcript_selection' | 'transcript_context_menu' | 'transcript_segment' = 'transcript_selection') => {
