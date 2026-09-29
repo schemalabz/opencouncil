@@ -201,6 +201,7 @@
       "listen": "Listens to the meeting",
       "write": "Transcribes it word for word",
       "sort": "Turns it into searchable subjects",
+      "map": "Puts them on the map",
       "speaker1": "Mayor",
       "text1": "From October, [waste collection in the centre] changes.",
       "speaker2": "Councillor",
@@ -208,7 +209,9 @@
       "topic1": "Cleanliness",
       "subject1": "Collection in the centre",
       "topic2": "Animals & Strays",
-      "subject2": "Strays at the harbour"
+      "subject2": "Strays at the harbour",
+      "place1": "Centre",
+      "place2": "Harbour"
     },
     "startHere": "Start here",
     "cta": {
@@ -217,6 +220,8 @@
       "city": "See a municipality",
       "cityMeetings": "{count, plural, one {# meeting} other {# meetings}}",
       "subject": "See a popular subject",
+      "notify": "Sign up for updates",
+      "notifySub": "When something near you comes up",
       "more": "Learn more",
       "moreExplain": "How a municipal council works",
       "moreAbout": "How OpenCouncil works"

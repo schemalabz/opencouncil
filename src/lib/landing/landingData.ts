@@ -37,6 +37,9 @@ export type UpcomingMeeting = Pick<UpcomingMeetingWithCity, 'id' | 'cityId' | 'n
     administrativeBody: { name: string } | null;
 };
 
+/** A much-discussed subject as the "?" drawer's subject door shows one: only what it links and labels. */
+export type LandingHotSubject = Pick<GeneralSubjectRow, 'id' | 'name' | 'cityId' | 'cityName' | 'councilMeetingId' | 'logoImage'>;
+
 /** A subject page's path — the one place the landing spells it. */
 export function subjectPath(cityId: string, meetingId: string, subjectId: string): string {
     return `/${cityId}/${meetingId}/subjects/${subjectId}`;

@@ -75,7 +75,15 @@ export default async function HomePage() {
             initial={{
                 subjects,
                 generalRows,
-                hotSubjects,
+                // only what the drawer's subject door links and labels, not each subject's description
+                hotSubjects: hotSubjects.map(({ id, name, cityId, cityName, councilMeetingId, logoImage }) => ({
+                    id,
+                    name,
+                    cityId,
+                    cityName,
+                    councilMeetingId,
+                    logoImage,
+                })),
                 cities: cities.map((c) => ({
                     id: c.id,
                     name: c.name,

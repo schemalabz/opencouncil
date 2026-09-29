@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { calculateGeometryBounds } from '@/lib/geo';
 import { topicStyle } from '@/lib/topicStyle';
 import type {
-    GeneralSubjectRow,
+    LandingHotSubject,
     LandingListCity,
     LandingMapCity,
     LandingPetitionedCity,
@@ -333,7 +333,7 @@ export type LayoutProps = {
     cities: LandingListCity[];
     /** the realm's most-discussed subjects lately (server-loaded, see HOT_SUBJECTS_MONTHS) — the "?"
      *  drawer's "see a subject" door rotates through them, whatever the range pill says */
-    hotSubjects: GeneralSubjectRow[];
+    hotSubjects: LandingHotSubject[];
     /** unfiltered total subjects per cityId (for the Δήμοι tab stats) */
     subjectCountByCity: Record<string, number>;
     /** out-of-network δήμοι with enough petitions — the Δήμοι tab's leaderboard */

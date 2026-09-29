@@ -201,6 +201,7 @@
       "listen": "Écoute la séance",
       "write": "La transcrit mot à mot",
       "sort": "La transforme en sujets consultables",
+      "map": "Les place sur la carte",
       "speaker1": "Maire",
       "text1": "Dès octobre, la [collecte au centre] change.",
       "speaker2": "Conseillère",
@@ -208,7 +209,9 @@
       "topic1": "Propreté",
       "subject1": "Collecte au centre",
       "topic2": "Animaux errants",
-      "subject2": "Chiens errants au port"
+      "subject2": "Chiens errants au port",
+      "place1": "Centre",
+      "place2": "Port"
     },
     "startHere": "Par où commencer",
     "cta": {
@@ -217,6 +220,8 @@
       "city": "Voir une commune",
       "cityMeetings": "{count, plural, one {# séance} other {# séances}}",
       "subject": "Voir un sujet très débattu",
+      "notify": "S'abonner aux alertes",
+      "notifySub": "Quand un sujet vous concerne",
       "more": "En savoir plus",
       "moreExplain": "Comment fonctionne un conseil municipal",
       "moreAbout": "Comment fonctionne OpenCouncil"

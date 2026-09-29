@@ -1,8 +1,9 @@
+import type * as ReactModule from 'react';
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { InfoPanel } from '../InfoPanel';
 import { captureLandingAction } from '@/lib/landing/analytics';
-import type { GeneralSubjectRow, LandingListCity } from '@/lib/landing/landingData';
+import type { LandingHotSubject, LandingListCity } from '@/lib/landing/landingData';
 
 jest.mock('next-intl', () => {
     const t = (key: string) => key;
@@ -16,13 +17,34 @@ jest.mock('@/i18n/routing', () => ({
 }));
 jest.mock('@/lib/landing/analytics', () => ({ captureLandingAction: jest.fn() }));
 // The doors slide with framer-motion; here they just render. `mockReducedMotion` flips the
-// reduced-motion preference per test.
+// reduced-motion preference per test. A change of child ends its "exit" at once, unless
+// `mockHoldExits` is set: then the exit waits in `mockPendingExits` until a test ends it.
 let mockReducedMotion = false;
-jest.mock('framer-motion', () => ({
-    AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
-    motion: { span: ({ children, ...props }: { children: ReactNode }) => <span {...props}>{children}</span> },
-    useReducedMotion: () => mockReducedMotion,
-}));
+let mockHoldExits = false;
+const mockPendingExits: Array<() => void> = [];
+jest.mock('framer-motion', () => {
+    const { isValidElement, useEffect, useRef } = jest.requireActual<typeof ReactModule>('react');
+    function AnimatePresence({ children, onExitComplete }: { children: ReactNode; onExitComplete?: () => void }) {
+        const key = isValidElement(children) ? children.key : null;
+        const first = useRef(true);
+        useEffect(() => {
+            if (first.current) {
+                first.current = false;
+                return;
+            }
+            if (!onExitComplete) return;
+            if (mockHoldExits) mockPendingExits.push(onExitComplete);
+            else onExitComplete();
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [key]);
+        return <>{children}</>;
+    }
+    return {
+        AnimatePresence,
+        motion: { span: ({ children, ...props }: { children: ReactNode }) => <span {...props}>{children}</span> },
+        useReducedMotion: () => mockReducedMotion,
+    };
+});
 
 const city = (id: string, name: string, councilMeetings = 3): LandingListCity => ({
     id,
@@ -33,17 +55,13 @@ const city = (id: string, name: string, councilMeetings = 3): LandingListCity =>
     _count: { persons: 0, parties: 0, councilMeetings },
 });
 
-const subject = (id: string, name: string): GeneralSubjectRow => ({
+const subject = (id: string, name: string): LandingHotSubject => ({
     id,
     name,
-    description: '',
     cityId: 'chania',
     cityName: 'Χανιά',
-    nameMunicipality: 'Δήμος Χανίων',
-    logoImage: null,
-    cityTimezone: 'Europe/Athens',
     councilMeetingId: 'm1',
-    topicColor: '#888888',
+    logoImage: null,
 });
 
 const cities = [city('chania', 'Χανιά'), city('vrilissia', 'Βριλήσσια')];
@@ -52,9 +70,18 @@ const subjects = [subject('s1', 'Πεζόδρομος Χάληδων'), subject(
 // The shuffle is random; read the shown item off the link's accessible name instead.
 const shownName = (link: HTMLElement, prefix: string) => link.getAttribute('aria-label')!.slice(`${prefix}: `.length);
 
+// jsdom has no media playback; the player's play() only has to be called.
+const play = jest.fn(() => Promise.resolve());
+beforeAll(() => {
+    Object.defineProperty(HTMLMediaElement.prototype, 'play', { configurable: true, value: play });
+});
+
 beforeEach(() => {
     jest.useFakeTimers();
+    jest.clearAllMocks();
     mockReducedMotion = false;
+    mockHoldExits = false;
+    mockPendingExits.length = 0;
 });
 afterEach(() => jest.useRealTimers());
 
@@ -67,6 +94,7 @@ describe('InfoPanel', () => {
         expect(screen.getByRole('link', { name: /^info\.cta\.city: / })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /^info\.cta\.subject: / })).toBeInTheDocument();
         expect(screen.getByRole('link', { name: /^info\.cta\.more/ })).toHaveAttribute('href', '/explain');
+        expect(screen.getByRole('link', { name: /info\.cta\.notify/ })).toHaveAttribute('href', '/notifications');
     });
 
     it('links each door to the very item it is showing, and moves on with time', () => {
@@ -110,24 +138,42 @@ describe('InfoPanel', () => {
         render(<InfoPanel cities={cities} subjects={subjects} explainAvailable onExploreMap={() => {}} />);
         const cityDoor = screen.getByRole('link', { name: /^info\.cta\.city: / });
         const before = cityDoor.getAttribute('href');
-        fireEvent.mouseEnter(cityDoor);
+        fireEvent.pointerEnter(cityDoor);
         act(() => {
             jest.advanceTimersByTime(2600 * 3);
         });
         expect(cityDoor).toHaveAttribute('href', before!);
     });
 
-    it('writes the meeting down word by word, then makes its subjects', () => {
+    it('keeps the link on the item on screen until its text has left', () => {
+        mockHoldExits = true;
+        render(<InfoPanel cities={cities} subjects={subjects} explainAvailable onExploreMap={() => {}} />);
+        const cityDoor = screen.getByRole('link', { name: /^info\.cta\.city: / });
+        const before = cityDoor.getAttribute('href');
+        act(() => {
+            jest.advanceTimersByTime(2600);
+        });
+        // the next δήμος is on its way in, but the old one's text is still leaving
+        expect(cityDoor).toHaveAttribute('href', before!);
+        act(() => {
+            mockPendingExits.splice(0).forEach((complete) => complete());
+        });
+        expect(cityDoor.getAttribute('href')).not.toBe(before);
+    });
+
+    it('writes the meeting down word by word, then makes its subjects and places them', () => {
         const { container } = render(<InfoPanel cities={cities} subjects={subjects} explainAvailable onExploreMap={() => {}} />);
         const state = (sel: string) => [...container.querySelectorAll(sel)].map((el) => el.getAttribute('data-state'));
         // at the start nothing has been said and no subject made: placeholders and slots
         expect(state('[data-state="said"]')).toHaveLength(0);
         expect(state('[data-state="made"]')).toHaveLength(0);
+        expect(state('[data-state="placed"]')).toHaveLength(0);
         act(() => {
-            for (let ms = 0; ms < 6000; ms += 16) jest.advanceTimersByTime(16);
+            for (let ms = 0; ms < 7000; ms += 16) jest.advanceTimersByTime(16);
         });
         expect(container.querySelectorAll('[data-state="pending"]')).toHaveLength(0);
         expect(container.querySelectorAll('[data-state="made"]')).toHaveLength(2);
+        expect(container.querySelectorAll('[data-state="placed"]')).toHaveLength(2);
     });
 
     it('stands still, finished, when motion is not welcome', () => {
@@ -135,8 +181,10 @@ describe('InfoPanel', () => {
         const { container } = render(<InfoPanel cities={cities} subjects={subjects} explainAvailable onExploreMap={() => {}} />);
         expect(container.querySelectorAll('[data-state="pending"]')).toHaveLength(0);
         expect(container.querySelectorAll('[data-state="made"]')).toHaveLength(2);
+        expect(container.querySelectorAll('[data-state="placed"]')).toHaveLength(2);
         // the steps are real text, whatever the pictures do
         expect(screen.getByText('info.how.sort')).toBeInTheDocument();
+        expect(screen.getByText('info.how.map')).toBeInTheDocument();
     });
 
     it('offers the film where the realm has one, and plays it in a dialog', () => {
@@ -153,6 +201,9 @@ describe('InfoPanel', () => {
         const dialog = screen.getByRole('dialog');
         expect(dialog).toHaveTextContent('info.video.title');
         expect(dialog.querySelector('video')).toHaveAttribute('src', video.src);
+        // started from the opening tap itself, which iOS Safari needs for sound
+        expect(play).toHaveBeenCalledTimes(1);
+        expect(captureLandingAction).toHaveBeenCalledWith('info_video_opened', {});
     });
 
     it('counts the explainer door with the other doors, and keeps its older event', () => {

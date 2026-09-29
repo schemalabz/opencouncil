@@ -5,7 +5,7 @@ import {
     type LandingPetitionedCity,
     type MapSubject,
     type GeneralCityRow,
-    type GeneralSubjectRow,
+    type LandingHotSubject,
     type UpcomingMeeting,
 } from '@/lib/landing/landingData';
 import { DATE_RANGES, type DateRangeKey, type MapFilters } from '@/lib/landing/landingCore';
@@ -26,7 +26,7 @@ export type LandingInitialData = {
     /** non-located subjects for the default range */
     generalRows: GeneralCityRow[];
     /** the realm's most-discussed subjects of the last HOT_SUBJECTS_MONTHS, best first */
-    hotSubjects: GeneralSubjectRow[];
+    hotSubjects: LandingHotSubject[];
 };
 
 type Args = {
