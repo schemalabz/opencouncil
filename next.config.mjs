@@ -73,6 +73,15 @@ const nextConfig = {
                 ],
             },
             {
+                // The browser checks this script for updates on every
+                // navigation; an intermediary cache must not answer for it,
+                // or a deploy's new worker waits out the cached copy.
+                source: '/sw.js',
+                headers: [
+                    { key: 'Cache-Control', value: 'no-cache, max-age=0' },
+                ],
+            },
+            {
                 // HTML pages vary by auth (per-user profile data, admin-only UI, the admin
                 // dashboard itself), so they must NEVER be stored by a shared cache like
                 // Cloudflare — doing so leaks one user's rendered page to another and can
