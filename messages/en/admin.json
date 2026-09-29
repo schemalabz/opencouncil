@@ -112,7 +112,7 @@
       "force": "Force",
       "forceDescription": {
         "transcribe": "Deletes all speaker segments, utterances, and summaries for this meeting, then re-transcribes from scratch.",
-        "processAgenda": "Deletes all subjects and auto-generated highlights for this meeting, then re-processes the agenda from scratch. User-created highlights are preserved (unlinked from subjects).",
+        "processAgenda": "Subjects still on the agenda are kept and updated; subjects no longer on it are deleted. Non-agenda subjects are deleted — re-run summarize to restore them. Auto-generated highlights are deleted; user-created highlights are kept.",
         "summarize": "Agenda subjects are kept and updated; non-agenda subjects are replaced. Deletes topic labels and resets utterance discussion tracking (status and subject links)."
       },
       "released": "Released"

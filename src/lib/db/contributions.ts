@@ -2,7 +2,7 @@
 import prisma from './prisma';
 import { AdministrativeBodyType, Prisma, Topic } from '@prisma/client';
 import { isUserAuthorizedToEdit } from '../auth';
-import { ContributionForPerson, roleWithRelationsInclude } from './types';
+import { ContributionForPerson, contributionSubjectSelect, roleWithRelationsInclude } from './types';
 
 async function shouldIncludeUnreleasedForPerson(personId: string): Promise<boolean> {
     const person = await prisma.person.findUnique({
@@ -95,21 +95,7 @@ export async function getLatestContributionsForSpeaker(
                 speaker: {
                     include: { roles: roleWithRelationsInclude },
                 },
-                subject: {
-                    select: {
-                        id: true,
-                        name: true,
-                        cityId: true,
-                        councilMeetingId: true,
-                        agendaItemIndex: true,
-                        nonAgendaReason: true,
-                        withdrawn: true,
-                        topic: true,
-                        councilMeeting: {
-                            include: { administrativeBody: true },
-                        },
-                    },
-                },
+                subject: { select: contributionSubjectSelect },
             },
             orderBy: [
                 { subject: { councilMeeting: { dateTime: 'desc' } } },
@@ -153,21 +139,7 @@ export async function getLatestContributionsForParty(
                 speaker: {
                     include: { roles: roleWithRelationsInclude },
                 },
-                subject: {
-                    select: {
-                        id: true,
-                        name: true,
-                        cityId: true,
-                        councilMeetingId: true,
-                        agendaItemIndex: true,
-                        nonAgendaReason: true,
-                        withdrawn: true,
-                        topic: true,
-                        councilMeeting: {
-                            include: { administrativeBody: true },
-                        },
-                    },
-                },
+                subject: { select: contributionSubjectSelect },
             },
             orderBy: [
                 { subject: { councilMeeting: { dateTime: 'desc' } } },

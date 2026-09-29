@@ -10,6 +10,8 @@ import {
   subjectToMapFeature,
   sortSubjectsByImportance,
   sortSubjectsBySpeakerContributionCount,
+  sortSubjectsByAgendaIndex,
+  compareAgendaPosition,
   joinTranscriptSegments,
   isRoleActive,
   filterActiveRoles,
@@ -855,5 +857,48 @@ describe('calculateOfferTotals', () => {
     expect(result.subtotal).toBe(3700); // 1200 + 500 + 1800 + 200 + 0
     expect(result.discount).toBe(0); // 0% discount
     expect(result.total).toBe(3700); // 3700 - 0
+  });
+});
+
+describe('compareAgendaPosition', () => {
+  it('orders by section, then by number, and puts subjects without a number last', () => {
+    const items = [
+      { name: 'S2 #1', agendaSectionIndex: 2, agendaItemIndex: 1 },
+      { name: 'S1 #2', agendaSectionIndex: 1, agendaItemIndex: 2 },
+      { name: 'none', agendaSectionIndex: null, agendaItemIndex: null },
+      { name: 'S1 #1', agendaSectionIndex: 1, agendaItemIndex: 1 },
+    ];
+
+    const sorted = [...items].sort(compareAgendaPosition);
+    expect(sorted.map(i => i.name)).toEqual(['S1 #1', 'S1 #2', 'S2 #1', 'none']);
+  });
+
+  it('treats a missing section as section 0, so a one-list agenda keeps plain number order', () => {
+    const items = [
+      { name: '#3', agendaItemIndex: 3 },
+      { name: '#1', agendaItemIndex: 1 },
+      { name: '#2', agendaItemIndex: 2, agendaSectionIndex: null },
+    ];
+
+    const sorted = [...items].sort(compareAgendaPosition);
+    expect(sorted.map(i => i.name)).toEqual(['#1', '#2', '#3']);
+  });
+
+  it('returns 0 for two subjects without a number', () => {
+    expect(compareAgendaPosition({ agendaItemIndex: null }, { agendaItemIndex: null })).toBe(0);
+  });
+});
+
+describe('sortSubjectsByAgendaIndex', () => {
+  it('follows the document: section 1 in full, then section 2, when both start at 1', () => {
+    const subjects = [
+      { name: 'Παρέα', agendaSectionIndex: 2, agendaItemIndex: 1 },
+      { name: 'Στέγη', agendaSectionIndex: 1, agendaItemIndex: 2 },
+      { name: 'Ο ΑΛΛΟΣ', agendaSectionIndex: 2, agendaItemIndex: 2 },
+      { name: 'Γλυπτό', agendaSectionIndex: 1, agendaItemIndex: 1 },
+    ];
+
+    const sorted = sortSubjectsByAgendaIndex(subjects);
+    expect(sorted.map(s => s.name)).toEqual(['Γλυπτό', 'Στέγη', 'Παρέα', 'Ο ΑΛΛΟΣ']);
   });
 });

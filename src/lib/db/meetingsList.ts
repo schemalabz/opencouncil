@@ -9,6 +9,7 @@ import prisma from "./prisma";
 const meetingWithSubjectsInclude = {
     subjects: {
         orderBy: [
+            { agendaSectionIndex: { sort: 'asc' as const, nulls: 'first' as const } },
             { agendaItemIndex: 'asc' as const },
             { name: 'asc' as const },
         ],
@@ -36,6 +37,7 @@ const meetingWithSubjectPreviewInclude = {
         // every row anyway. The app already re-sorts by importance, so ordering
         // here only has to match the projection this replaced.
         orderBy: [
+            { agendaSectionIndex: { sort: 'asc' as const, nulls: 'first' as const } },
             { agendaItemIndex: 'asc' as const },
             { name: 'asc' as const },
         ],
@@ -43,6 +45,7 @@ const meetingWithSubjectPreviewInclude = {
             id: true,
             name: true,
             agendaItemIndex: true,
+            agendaSectionIndex: true,
             nonAgendaReason: true,
             withdrawn: true,
             topic: { select: { colorHex: true, icon: true } },

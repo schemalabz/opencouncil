@@ -3,6 +3,7 @@ import { compareRanks } from '@/lib/sorting/people';
 import { formatSurnameFirst } from '@/lib/formatters/name';
 import { calculateVoteResult, getAbsentNonVoterIds } from '@/lib/utils/votes';
 import { splitAttendance } from '@/lib/utils/attendance';
+import { compareAgendaPosition } from '@/lib/utils';
 import {
     MinutesMember,
     MinutesAttendance,
@@ -303,6 +304,7 @@ export function buildAttendanceChanges(
 interface SortableSubject {
     id: string;
     agendaItemIndex: number | null;
+    agendaSectionIndex?: number | null;
     nonAgendaReason: string | null;
     discussedIn: { id: string } | null;
 }
@@ -335,7 +337,7 @@ export function sortSubjectsByDiscussionOrder<T extends SortableSubject>(
         const aIsChild = a.discussedIn != null;
         const bIsChild = b.discussedIn != null;
         if (aIsChild !== bIsChild) return aIsChild ? 1 : -1;
-        return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
+        return compareAgendaPosition(a, b);
     });
 
     if (withoutTime.length === 0) return sortedWithTime;
@@ -346,24 +348,22 @@ export function sortSubjectsByDiscussionOrder<T extends SortableSubject>(
         const bIsOOA = b.nonAgendaReason === 'outOfAgenda';
         if (aIsOOA && !bIsOOA) return 1;
         if (!aIsOOA && bIsOOA) return -1;
-        return (a.agendaItemIndex ?? 0) - (b.agendaItemIndex ?? 0);
+        return compareAgendaPosition(a, b);
     });
 
     // Interleave: insert each non-timestamped subject at its natural agenda position
     const result = [...sortedWithTime];
     for (const s of sortedWithoutTime) {
-        const agendaIdx = s.agendaItemIndex ?? Infinity;
         const isOOA = s.nonAgendaReason === 'outOfAgenda';
 
-        // Find insertion point: after the last timestamped subject with a lower agenda index.
-        // Default to 0 (beginning) — if no subject has a lower index, this one goes first.
+        // Find insertion point: after the last timestamped subject with a lower agenda position.
+        // Default to 0 (beginning) — if no subject has a lower position, this one goes first.
         let insertAt = 0;
         for (let i = result.length - 1; i >= 0; i--) {
             const existing = result[i];
             const existingIsOOA = existing.nonAgendaReason === 'outOfAgenda';
-            const existingIdx = existing.agendaItemIndex ?? 0;
 
-            if (isOOA === existingIsOOA && existingIdx <= agendaIdx) {
+            if (isOOA === existingIsOOA && compareAgendaPosition(existing, s) <= 0) {
                 insertAt = Math.max(insertAt, i + 1);
                 break;
             }

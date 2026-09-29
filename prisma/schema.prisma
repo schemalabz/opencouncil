@@ -513,6 +513,18 @@ model Subject {
   // The item as written on the official agenda. processAgenda sets it; summarize never touches
   // it. Null for non-agenda subjects, rows that predate the field, or an item with no printed text.
   agendaItemTitle String?
+  // The 1-based order of the agenda section the item sits under, and the section
+  // heading as printed. Null when the agenda is one numbered list. processAgenda
+  // sets both; summarize never touches them. (issue 366)
+  //
+  // A municipality sometimes publishes several invitations in one PDF — Sparta
+  // bundles a Δημοτική Επιτροπή sitting with one per κληροδότημα committee. Those
+  // are separate meetings sharing a document, and the section then stands in for
+  // one of them: the title is the body from the letterhead, not an agenda heading.
+  // Keeping them as sections is what makes agendaItemIndex unambiguous; splitting
+  // the meeting record itself is the real fix and is not done here.
+  agendaSectionIndex Int?
+  agendaSectionTitle String?
   nonAgendaReason NonAgendaReason?
   withdrawn       Boolean          @default(false)
   topicId String?

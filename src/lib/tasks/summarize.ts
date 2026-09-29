@@ -146,7 +146,8 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     // With batching, this should complete quickly (< 10 seconds)
     await prisma.$transaction(operations);
 
-    // Save subjects: matches by agendaItemIndex to preserve existing IDs (avoids ES orphans)
+    // Save subjects: matches by the id the task hands back, then name, then agenda
+    // position, so existing IDs survive (avoids ES orphans)
     // The discussion tags go in with the subjects: they must commit together, or the search
     // index keeps the pre-tagging discussion metrics (elasticsearch/README.md).
     await saveSubjectsForMeeting(

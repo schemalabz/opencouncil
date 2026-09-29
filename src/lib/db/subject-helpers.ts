@@ -3,17 +3,26 @@ import { Subject } from "../apiTypes";
 /**
  * Categorize incoming subjects against existing ones for upsert operations.
  *
- * Matching runs in two passes, because an existing row's id is public — it is
- * in shared URLs, in the search index, and in notification links already
+ * Matching runs in three passes, because an existing row's id is public — it
+ * is in shared URLs, in the search index, and in notification links already
  * delivered — so the goal is to keep each id on the SAME subject:
  *
+ *  0. By id, when the caller names the row. summarize is given each row's id
+ *     and hands it back (issue 366); processAgenda has none to give. This is
+ *     what survives both renumbering and rewording at once.
  *  1. By name, when that name is unambiguous on both sides. This is what
  *     survives renumbering: an item that moves from θέμα 3 to θέμα 2 because
  *     an earlier item was withdrawn keeps its own id.
- *  2. By agendaItemIndex, for whatever pass 1 did not claim. This is what
- *     survives rewording: the same slot, new text.
+ *  2. By agenda position, for whatever the earlier passes did not claim. This
+ *     is what survives rewording: the same slot, new text. The slot is the
+ *     pair (section, number): sections number their items independently, so
+ *     the number alone repeats (issue 366). An incoming subject without a
+ *     section compares on the number alone. An incoming subject with a
+ *     section falls back to the number alone only while no stored row
+ *     carries a section, which is what lets rows written before sections
+ *     existed match on the first re-run after the change.
  *
- * Matching index-first would hand a remaining subject's id to a DIFFERENT
+ * Matching position-first would hand a remaining subject's id to a DIFFERENT
  * subject whenever the agenda renumbers — a URL that used to open "Roads"
  * would open "Parks" — which is worse than losing the id, because it is
  * silent and it looks correct.
@@ -27,6 +36,8 @@ import { Subject } from "../apiTypes";
 export interface ExistingSubjectRow {
     id: string;
     agendaItemIndex: number | null;
+    /** Absent reads as null: a one-list agenda, or a row that predates sections. */
+    agendaSectionIndex?: number | null;
     name: string;
     /** Set for BEFORE_AGENDA / OUT_OF_AGENDA rows, which never match. */
     nonAgendaReason?: string | null;
@@ -48,6 +59,10 @@ function unambiguousNames(names: string[]): Set<string> {
     return new Set([...counts].filter(([, n]) => n === 1).map(([key]) => key));
 }
 
+function positionKey(section: number, index: number): string {
+    return `${section}:${index}`;
+}
+
 export function categorizeSubjectsForUpsert(
     incomingSubjects: Subject[],
     existingSubjects: ExistingSubjectRow[]
@@ -61,6 +76,16 @@ export function categorizeSubjectsForUpsert(
     const claimed = new Set<string>();
     const matches = new Map<Subject, string>();
 
+    // Pass 0 — the row itself, when the caller names it.
+    const byId = new Map(candidates.map((e) => [e.id, e]));
+    for (const subject of incomingSubjects) {
+        if (typeof subject.agendaItemIndex !== "number" || !subject.id) continue;
+        const existing = byId.get(subject.id);
+        if (!existing || claimed.has(existing.id)) continue;
+        claimed.add(existing.id);
+        matches.set(subject, existing.id);
+    }
+
     const namedOnce = unambiguousNames(candidates.map((e) => e.name));
     const incomingNamedOnce = unambiguousNames(incomingSubjects.map((s) => s.name));
     const byName = new Map<string, ExistingSubjectRow>();
@@ -71,6 +96,8 @@ export function categorizeSubjectsForUpsert(
 
     // Pass 1 — the same text is the same subject, wherever it now sits.
     for (const subject of incomingSubjects) {
+        if (matches.has(subject)) continue;
+        if (typeof subject.agendaItemIndex !== "number") continue;
         const key = normalizeName(subject.name);
         if (!incomingNamedOnce.has(key)) continue;
         const existing = byName.get(key);
@@ -79,17 +106,58 @@ export function categorizeSubjectsForUpsert(
         matches.set(subject, existing.id);
     }
 
-    // Pass 2 — the same slot, for whatever is left on both sides.
-    const byIndex = new Map<number, ExistingSubjectRow>();
-    for (const existing of candidates) {
-        if (existing.agendaItemIndex !== null && !claimed.has(existing.id)) {
-            byIndex.set(existing.agendaItemIndex, existing);
+    // Pass 2 — the same slot, for whatever is left on both sides. Several rows
+    // can hold the same (section, number); the sort breaks that tie on the row
+    // id, which is creation order for a cuid. The outcome is therefore the same
+    // on every run: the rows go to the incoming subjects one each, in id order,
+    // and the rows that are left over stay unmatched.
+    const unclaimed = candidates
+        .filter((e) => e.agendaItemIndex !== null && !claimed.has(e.id))
+        .sort((a, b) =>
+            (a.agendaSectionIndex ?? 0) - (b.agendaSectionIndex ?? 0)
+            || a.agendaItemIndex! - b.agendaItemIndex!
+            || a.id.localeCompare(b.id));
+    /** Whether this meeting predates sections: no candidate row carries one.
+     *  Read off every candidate, never the unclaimed ones — once the earlier
+     *  passes claim the sectioned rows, a lone section-less leftover would make
+     *  a sectioned meeting look pre-section. The number-alone fallback
+     *  below is for the migration only: it lets rows written before sections
+     *  existed match on the first re-run after the change. Once ANY row carries
+     *  a section, a section-less row is one summarize created — summarize never
+     *  sends a section — and a numbered agenda item must not take it over
+     *  (issue 366). */
+    const storeIsPreSection = candidates.every((e) => (e.agendaSectionIndex ?? null) === null);
+    const byPosition = new Map<string, ExistingSubjectRow[]>();
+    const byIndexUnsectioned = new Map<number, ExistingSubjectRow[]>();
+    const byIndexAny = new Map<number, ExistingSubjectRow[]>();
+    const push = <K,>(map: Map<K, ExistingSubjectRow[]>, key: K, row: ExistingSubjectRow) => {
+        const rows = map.get(key);
+        if (rows) rows.push(row); else map.set(key, [row]);
+    };
+    for (const existing of unclaimed) {
+        const index = existing.agendaItemIndex!;
+        const section = existing.agendaSectionIndex ?? null;
+        if (section !== null) {
+            push(byPosition, positionKey(section, index), existing);
+        } else {
+            push(byIndexUnsectioned, index, existing);
         }
+        push(byIndexAny, index, existing);
     }
+    /** The first row of this key that nothing has claimed yet. A number that
+     *  several rows share hands out one row per incoming subject, in id order,
+     *  instead of giving up on the second (issue 366). */
+    const firstUnclaimed = (rows: ExistingSubjectRow[] | undefined) =>
+        rows?.find((row) => !claimed.has(row.id));
     for (const subject of incomingSubjects) {
         if (matches.has(subject)) continue;
         if (typeof subject.agendaItemIndex !== "number") continue;
-        const existing = byIndex.get(subject.agendaItemIndex);
+        const index = subject.agendaItemIndex;
+        const section = subject.agendaSection?.index ?? null;
+        const existing = section !== null
+            ? firstUnclaimed(byPosition.get(positionKey(section, index)))
+              ?? (storeIsPreSection ? firstUnclaimed(byIndexUnsectioned.get(index)) : undefined)
+            : firstUnclaimed(byIndexAny.get(index));
         if (!existing || claimed.has(existing.id)) continue;
         claimed.add(existing.id);
         matches.set(subject, existing.id);
