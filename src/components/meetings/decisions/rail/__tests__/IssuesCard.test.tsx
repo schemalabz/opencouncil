@@ -2,6 +2,12 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import { IssuesCard } from '../IssuesCard';
 import type { Issue } from '@/lib/derivation/types';
 
+jest.mock('@/i18n/routing', () => ({
+    Link: ({ children, prefetch, ...props }: React.PropsWithChildren<Record<string, unknown>>) => (
+        <a {...props}>{children}</a>
+    ),
+}));
+
 jest.mock('next-intl', () => ({
     useTranslations: () => (key: string, params?: Record<string, unknown>) =>
         params ? `${key}${JSON.stringify(params)}` : key,
@@ -68,6 +74,28 @@ describe('IssuesCard', () => {
     it('says when one of the two sections has nothing', () => {
         render(<IssuesCard issues={[issue({ subjectId: 'a' })]} />);
         expect(screen.getByText('issues.meetingNone')).toBeInTheDocument();
+    });
+
+    it('links an utterance the page can place to the recording, and prints one it cannot', () => {
+        render(
+            <IssuesCard
+                issues={[
+                    issue({ code: 'UNPLACEABLE_VOTE', source: 'transcript', params: {}, evidence: { utteranceId: 'u1' } }),
+                    issue({ code: 'UNPLACEABLE_VOTE', source: 'transcript', params: {}, evidence: { utteranceId: 'u2' } }),
+                ]}
+                evidenceLinks={{ recordingHref: (id: string) => (id === 'u1' ? '/athens/m1?t=90' : undefined) }}
+            />,
+        );
+        expect(screen.getByText('issues.evidence.openRecording').closest('a')).toHaveAttribute('href', '/athens/m1?t=90');
+        expect(screen.getByText('issues.evidence.utterance{"id":"u2"}')).toBeInTheDocument();
+    });
+
+    it('names the sheet line an issue was read from', () => {
+        const { rerender } = render(<IssuesCard issues={[issue({ source: 'sheet', evidence: { line: 7 } })]} />);
+        expect(screen.getByText('issues.evidence.sheetLine{"line":7}')).toBeInTheDocument();
+        // With the sheet uploaded, the line opens it.
+        rerender(<IssuesCard issues={[issue({ source: 'sheet', evidence: { line: 7 } })]} evidenceLinks={{ sheetHref: '/api/cities/c/meetings/m/sheet?file=1' }} />);
+        expect(screen.getByText('issues.evidence.sheetLine{"line":7}').closest('a')).toHaveAttribute('href', '/api/cities/c/meetings/m/sheet?file=1');
     });
 
     it('offers the derivation only when the page passed a way to open it', () => {

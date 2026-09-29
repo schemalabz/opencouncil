@@ -341,6 +341,14 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         why: "keyed by the sheet's inline 'view' | 'reassign' prop, joined to a suffix (`${action}Title`): the group also holds the buttons",
     },
     {
+        group: 'admin.decisionsPage.table.resultFrom.',
+        why: "keyed by the vote's source when it is the sheet or the transcript, the two sources that state a vote before a document is linked",
+    },
+    {
+        group: 'admin.decisionsPage.table.sourceShort.',
+        why: 'the same two sources, as the short label beside the counts',
+    },
+    {
         group: 'admin.decisionsPage.issues.codes.',
         members: { file: 'src/lib/derivation/types.ts', constArray: 'ISSUE_CODES' },
     },
