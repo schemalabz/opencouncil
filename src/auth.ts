@@ -1,4 +1,4 @@
-import NextAuth, { DefaultSession } from "next-auth"
+import NextAuth, { DefaultSession, type NextAuthConfig } from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/db/prisma"
 import authConfig from "@/auth.config"
@@ -21,7 +21,13 @@ declare module "next-auth" {
     }
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+/**
+ * The config both entry points share: next-auth's handlers, and the realm
+ * route in src/app/api/auth/[...nextauth]/route.ts, which calls Auth.js core
+ * with it directly. NextAuth fills in the secret and the base path on this
+ * object when it starts, so the core call gets the same, finished config.
+ */
+export const authOptions = {
     adapter: PrismaAdapter(prisma),
     // next-auth derives this from NEXTAUTH_URL; the realm route (Auth.js core
     // on the request's own URL) would derive it from the forwarded protocol.
@@ -69,4 +75,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
     },
     ...authConfig,
-})
+} satisfies NextAuthConfig
+
+export const { handlers, signIn, signOut, auth } = NextAuth(authOptions)

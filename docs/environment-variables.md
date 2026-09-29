@@ -106,9 +106,9 @@ In development, the QuickLogin tool signs you in as a seeded [test user](#test-u
 When a send fails, the dev server console shows `[auth][error] Error: Resend error (<status>): <Resend's response>`. Resend's message names the cause.
 
 #### Sign in with Google
-Create an OAuth 2.0 client of type "Web application" in the Google Cloud Console. Add one authorized redirect URI per deployment host: `<NEXTAUTH_URL>/api/auth/callback/google`, for example `http://localhost:3000/api/auth/callback/google` and `https://opencouncil.gr/api/auth/callback/google`.
+Create an OAuth 2.0 client of type "Web application" in the Google Cloud Console. The client needs two settings for each realm in `REALMS` (`src/lib/realm.ts`), because the button shows on every realm apex: an authorized redirect URI, `https://<realm domain>/api/auth/callback/google`, and the realm domain in the authorized domains of the OAuth consent screen. Today that is `opencouncil.gr`, `opencouncil.fr`, `opencouncil.cy` and `opencouncil.rs`. A new realm needs its two entries before its readers see the button. For development add `http://localhost:3000/api/auth/callback/google`.
 
-The button appears only on the host that `NEXTAUTH_URL` names. Auth.js builds the OAuth `redirect_uri` from `NEXTAUTH_URL`, so a sign-in that starts on another realm domain (`opencouncil.rs`, `opencouncil.fr`) cannot finish there. Those domains keep the magic link only. A preview names its own host in `NEXTAUTH_URL`, so it works once `https://pr-<N>.opencouncil.dev/api/auth/callback/google` is in the client's redirect URIs.
+The button appears on the host that `NEXTAUTH_URL` names and on every realm apex. One deployment serves every realm, and next-auth rewrites each request to the origin of `NEXTAUTH_URL`. The auth route therefore sends the Google sign-in and its callback on another realm apex through Auth.js core with the request's own host (`realmOAuthUrl`), so the sign-in finishes on the domain it started on. A preview names its own host in `NEXTAUTH_URL`, so it works once `https://pr-<N>.opencouncil.dev/api/auth/callback/google` is in the client's redirect URIs.
 
 #### NEXTAUTH_SECRET
 You can quickly create a good value on the command line via this openssl command:
