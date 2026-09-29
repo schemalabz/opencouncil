@@ -7,6 +7,18 @@ import { AlertCircle, X } from 'lucide-react';
 import { Input } from './input';
 import { type PhoneRejection, isPhoneEmpty, toE164, toMobileE164 } from './lib/phone';
 
+// The international input takes its size and colours from these variables:
+// its stylesheet outranks a utility class on the input. They match the
+// inactive Input, including 16px text on a phone, below which iOS zooms in.
+const PHONE_INPUT_THEME = [
+    '[--react-international-phone-height:2.75rem] md:[--react-international-phone-height:2.5rem]',
+    '[--react-international-phone-font-size:1rem] md:[--react-international-phone-font-size:0.875rem]',
+    '[--react-international-phone-border-radius:calc(var(--radius)_-_2px)]',
+    '[--react-international-phone-border-color:hsl(var(--input))]',
+    '[--react-international-phone-background-color:hsl(var(--background))]',
+    '[--react-international-phone-text-color:hsl(var(--foreground))]',
+].join(' ');
+
 export interface PhoneFieldValidity {
     isActive: boolean;
     isEmpty: boolean;
@@ -77,7 +89,7 @@ export function PhoneField({
     return (
         <>
             {active ? (
-                <div className="phone-input-container relative">
+                <div className={`phone-input-container relative ${PHONE_INPUT_THEME}`}>
                     <PhoneInput
                         defaultCountry="gr"
                         // The dial code cannot be deleted: a reader who types
@@ -86,7 +98,7 @@ export function PhoneField({
                         forceDialCode
                         value={value}
                         onChange={(next) => onChange(next)}
-                        inputProps={{ autoFocus: shouldAutoFocus, id }}
+                        inputProps={{ autoFocus: shouldAutoFocus, id, autoComplete: 'tel' }}
                         inputClassName="flex h-11 md:h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 pr-8"
                         placeholder={activePlaceholder}
                     />
