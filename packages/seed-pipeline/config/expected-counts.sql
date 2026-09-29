@@ -48,6 +48,7 @@ SELECT t AS "table", n::text AS n FROM (VALUES
   ('SubjectVote', (SELECT count(*) FROM "SubjectVote" sv JOIN subj ON subj.id = sv."subjectId")),
   ('MeetingAttendance', (SELECT count(*) FROM "MeetingAttendance" ma JOIN mtg ON (mtg.c, mtg.m) = (ma."cityId", ma."councilMeetingId"))),
   ('AttendanceEvent', (SELECT count(*) FROM "AttendanceEvent" a JOIN mtg ON (mtg.c, mtg.m) = (a."cityId", a."councilMeetingId"))),
+  ('MeetingFactSource', (SELECT count(*) FROM "MeetingFactSource" fs JOIN mtg ON (mtg.c, mtg.m) = (fs."cityId", fs."councilMeetingId"))),
   ('TaskStatus', (SELECT count(*) FROM "TaskStatus" ts JOIN mtg ON (mtg.c, mtg.m) = (ts."cityId", ts."councilMeetingId"))),
   ('CityMessage', (SELECT count(*) FROM "CityMessage")),
   ('Consultation', (SELECT count(*) FROM "Consultation"))

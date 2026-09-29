@@ -6,7 +6,7 @@
  * meeting underivable for good.
  */
 // The module reaches Prisma through readDerivationRows; the pure half under test does not.
-jest.mock('@/lib/db/derivationFacts', () => ({ readDerivationRows: jest.fn(), replaceDerivedRows: jest.fn() }));
+jest.mock('@/lib/db/derivationFacts', () => ({ readDerivationRows: jest.fn(), replaceDerivedRows: jest.fn(), sourcesVersionOf: () => null }));
 
 import { documentFactsFromDecision, readingStatesFacts } from '../load';
 
