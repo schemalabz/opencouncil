@@ -14,7 +14,7 @@ import { getCountries, getCountryCallingCode, parsePhoneNumberFromString } from 
 
 export type PhoneRejection = 'empty' | 'invalid' | 'landline';
 
-export type MobilePhoneResult =
+export type PhoneResult =
     | { ok: true; e164: string; country: string | undefined }
     | { ok: false; reason: PhoneRejection };
 
@@ -38,7 +38,7 @@ const REACHABLE_TYPES = new Set(['MOBILE', 'FIXED_LINE_OR_MOBILE']);
  * default country: a number without one cannot be dialled, whatever the
  * reader meant by it.
  */
-export function toMobileE164(input: string | null | undefined): MobilePhoneResult {
+export function toMobileE164(input: string | null | undefined): PhoneResult {
     const text = (input ?? '').trim();
     if (!text) return { ok: false, reason: 'empty' };
     const parsed = parsePhoneNumberFromString(text);
@@ -48,6 +48,19 @@ export function toMobileE164(input: string | null | undefined): MobilePhoneResul
     // A valid number whose type the metadata does not know is kept:
     // refusing it would lock a real reader out over a metadata gap.
     if (type !== undefined && !REACHABLE_TYPES.has(type)) return { ok: false, reason: 'invalid' };
+    return { ok: true, e164: parsed.number, country: parsed.country };
+}
+
+/**
+ * The same parse without the type check: any valid number passes, a
+ * landline included. It is for a number we only call, and never store or
+ * message, such as the contact number on the about page's form.
+ */
+export function toE164(input: string | null | undefined): PhoneResult {
+    const text = (input ?? '').trim();
+    if (!text) return { ok: false, reason: 'empty' };
+    const parsed = parsePhoneNumberFromString(text);
+    if (!parsed || !parsed.isValid()) return { ok: false, reason: 'invalid' };
     return { ok: true, e164: parsed.number, country: parsed.country };
 }
 
@@ -64,7 +77,7 @@ export function repairGreekNational(input: string): string {
 }
 
 /** The server's entry point: repair the legacy shapes, then apply the rule. */
-export function normalizeMobilePhone(input: string | null | undefined): MobilePhoneResult {
+export function normalizeMobilePhone(input: string | null | undefined): PhoneResult {
     if (input === null || input === undefined) return { ok: false, reason: 'empty' };
     return toMobileE164(repairGreekNational(input));
 }
@@ -81,9 +94,11 @@ export function isPhoneValid(phoneNumber: string): boolean {
 const CALLING_CODES = new Set(getCountries().map((country) => getCountryCallingCode(country)));
 
 /** A bare dial code is what the input shows before the reader types, so it
- *  counts as empty — not as a phone, and not as an error. */
+ *  counts as empty — not as a phone, and not as an error. Any mark other than
+ *  a space, `+` or a digit makes the value a phone to validate. */
 export function isPhoneEmpty(phone: string): boolean {
-    if (!phone) return true;
-    const digits = phone.replace(/\D/g, '');
+    const text = phone.replace(/\s/g, '');
+    if (!/^\+?\d*$/.test(text)) return false;
+    const digits = text.replace('+', '');
     return digits === '' || CALLING_CODES.has(digits);
 }
