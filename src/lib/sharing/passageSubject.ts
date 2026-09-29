@@ -40,3 +40,27 @@ export function nearestSubject<T>(passage: { start: number; end: number }, befor
     const nearest = candidates.filter(candidate => candidate.distance <= NEAREST_SUBJECT_WINDOW_S).sort((a, b) => a.distance - b.distance)[0];
     return nearest?.subject ?? null;
 }
+
+/** An utterance as the browser holds it in the meeting data. */
+export interface PassageUtterance { id: string; startTimestamp: number; discussionSubjectId: string | null }
+
+/**
+ * The subject of the selected utterances: the subject most of them carry,
+ * else the nearest assigned utterance within the window, else the meeting's
+ * only subject. The sender's share dialog and the recipient's transcript use
+ * it, so both analytics events name the same subject.
+ */
+export function subjectOfPassage<T extends { id: string }>(utterances: PassageUtterance[], selectedIds: ReadonlySet<string>, subjects: T[]): T | null {
+    const byId = (id: string | null) => (id && subjects.find(subject => subject.id === id)) || null;
+    const selected = utterances.filter(utterance => selectedIds.has(utterance.id));
+    const majority = majoritySubject(selected.map(utterance => byId(utterance.discussionSubjectId)));
+    if (majority) return majority;
+    const passage = { start: Math.min(...selected.map(u => u.startTimestamp)), end: Math.max(...selected.map(u => u.startTimestamp)) };
+    const neighbour = (utterance: PassageUtterance | undefined) => {
+        const subject = utterance ? byId(utterance.discussionSubjectId) : null;
+        return utterance && subject ? { at: utterance.startTimestamp, subject } : null;
+    };
+    const assigned = utterances.filter(utterance => utterance.discussionSubjectId);
+    const nearest = nearestSubject(passage, neighbour(assigned.filter(u => u.startTimestamp < passage.start).at(-1)), neighbour(assigned.find(u => u.startTimestamp > passage.end)));
+    return nearest ?? (subjects.length === 1 ? subjects[0] : null);
+}
