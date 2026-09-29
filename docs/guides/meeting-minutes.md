@@ -85,6 +85,8 @@ One place holds what the documents state, written by the poll callback in `src/l
 
 Each page's own roll call and its own stated arrivals and departures live inside that same `Decision.extraction`. They are not stored as meeting-wide facts: the derivation combines them (below) into the roll call and the events it writes as output.
 
+- **The other sources** — one `MeetingFactSource` row per meeting and source. It holds what the attendance sheet or the transcript states, as its reader returned it (`reading`, a `MeetingFactsReading`). See [Sources beside the pages](#sources-beside-the-pages).
+
 ### Derivation (opencouncil)
 
 `src/lib/derivation/` turns stated facts into the resolved roll call, the resolved events and per-subject rows. It is pure and deterministic: `deriveMeetingFacts()` takes everything it needs as one input (`loadDerivationInput()` does the only database reads) and running it twice yields identical rows. Four steps:
@@ -107,7 +109,32 @@ A failure in the first three cases is logged, not thrown: the edit stands, and t
 
 Two codes pass on a warning that the reader stored with the page in `Decision.extraction.warnings`. `CLOSING_BLOCK_CUT` (warning) says that the member list or the signatures continue past the pages that the reader read, so the page's list and votes can be incomplete. `CLOSING_READ_FAILED` (warning) says that the reader could not read the pages after the decision, so the votes, the members and the number that they print can be missing. Each is raised once for the page's subject.
 
-The write replaces every `decision`-sourced `MeetingAttendance`, `AttendanceEvent`, `SubjectAttendance` and `SubjectVote` row of the meeting at once, in one transaction. `MeetingAttendance` and `AttendanceEvent` rows of source `decision` are derivation output, never read back; rows of any other source are stated facts and outrank the pages. The derivation therefore refuses an input that would empty the rows: a document read before facts were stored, or no roll call at all. `derivationSkipIssue()` in `persist.ts` says why, and the stored rows stand. Because this check runs first, the replay never receives an empty roll call, and only the write step raises `NO_ROLL_CALL`.
+The write replaces every `MeetingAttendance`, `AttendanceEvent`, `SubjectAttendance` and `SubjectVote` row of the meeting whose source is in `DERIVED_SOURCES`. Those sources are `decision`, `sheet` and `transcript`. The write happens at once, in one transaction. Each row carries the source whose statement decided it. Those rows are derivation output, never read back; a `manual` row is a stated fact and outranks every reading. The derivation therefore refuses an input that would empty the rows: a document read before facts were stored, or no roll call from any source. `derivationSkipIssue()` in `persist.ts` says why, and the stored rows stand, with one exception for the sheet and the transcript. On a refusal for want of any roll call, every sheet and transcript row goes. Those rows were written from a reading that has been replaced since. On any other refusal, only the rows of a source that states nothing any more go. Because this check runs first, the replay never receives an empty roll call, and only the write step raises `NO_ROLL_CALL`.
+
+### Sources beside the pages
+
+Two sources state the same facts as the decision documents, from inside the meeting (issue #807). One is the sheet that the back office keeps while the meeting happens. The other is the transcript. opencouncil-tasks reads both into one wire shape, `MeetingFactsReading` (`src/lib/apiTypes.ts`). The reading holds the roll call. It holds the arrivals and the departures, with the anchor that the source pins them to. It holds the votes, with the items that they cover. It also holds where the reader read each statement: the utterance, or the line of the sheet.
+
+| source | read by | counts when | replaced by |
+| --- | --- | --- | --- |
+| `sheet` | `readAttendanceSheet`, on a file a superadmin uploads on the decisions page | as soon as it is stored | the next upload, which drops the earlier file and reading |
+| `transcript` | the meeting-facts pass of `fixTranscript`, or `readTranscriptFacts` on its own | as soon as it is stored | the next run |
+
+The sheet file is a private object in Spaces. The decisions page serves it to a superadmin. The task server reads it through a signed URL that expires. A person cannot correct or confirm a reading yet. The schema keeps the `confirmed` status and the confirmation columns of `MeetingFactSource` for that step, which comes with the manual editing of attendance and results.
+
+`loadDerivationInput()` shapes each counting reading into `SourceFacts` (`src/lib/derivation/sources.ts`). A statement about an item range («τα οκτώ πρώτα θέματα ομόφωνα») becomes one vote statement per subject that the range covers. A party's answer («Εμείς κατά») keeps the party of the speaker of that utterance. The derivation resolves that party from the speaker's current person, so a reviewer's correction applies. A statement that names no item that the meeting has raises `UNPLACEABLE_VOTE`.
+
+**Precedence.** `SOURCE_PRECEDENCE` is `manual > decision > sheet > transcript`. A person's row outranks the pages. The pages outrank the sheet. The sheet outranks the transcript. The documents stay the reference until the other two are measured; the rule is one constant. Per fact:
+
+- **Roll call** — one row per person, the highest-precedence source that names them (`rankRollCall`); a lower source that says otherwise raises `SOURCES_DISAGREE` (`rollCall`).
+- **Arrivals and departures** — per person, the highest-precedence source that states any change for them supplies all of their changes (`rankSources.ts`). A lower source's change at the same point with the same kind corroborates it. Any other change of a lower source is dropped. That drop raises `SOURCES_DISAGREE` (`eventPosition`) with both sentences. A source that says nothing about a person is not a disagreement.
+- **Votes** — per subject, the highest-precedence source that states a vote supplies the rows, through the same `deriveVotes`. The derivation compares the other sources' statements against those rows. Each difference raises `SOURCES_DISAGREE` (`outcome` or `vote`). A source that states nothing for a subject leaves it to the next. A party's answer names the party's members present at the subject; one that resolves to nobody raises `PARTY_VOTE_UNRESOLVED`. A unanimous rejection («Ομόφωνα … να μην κοπεί») gives every unnamed present member AGAINST.
+
+Every issue about a statement carries its `evidence`. The decisions page uses it to open the recording at that utterance, the sheet at that line, or the document. A disagreement is a warning, never a hold: the minutes print the winning source, and the source is on each row.
+
+**The public pages print the documents only.** `PUBLIC_FACT_SOURCES` in `src/lib/db/subject.ts` limits the subject page to `decision` and `manual` rows. The minutes and the decisions page read every source.
+
+**Measuring.** `npm run decisions -- compare-sources [--city X] [--report f]` measures the sheet and the transcript against the pages. It works per body, over the meetings that hold both. It reports how often each source's roll call, outcomes and named votes agree with the pages. It lists each disagreement with the recording at the moment it was read, the sheet line, and the document. Run it before trusting either source with more than a warning.
 
 ### Conventions (both repos)
 
