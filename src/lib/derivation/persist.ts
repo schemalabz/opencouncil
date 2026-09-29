@@ -1,7 +1,9 @@
-import { replaceDerivedRows } from '@/lib/db/derivationFacts';
+import type { DataSource } from '@prisma/client';
+import { deleteDerivedRowsOfSources, replaceDerivedRows } from '@/lib/db/derivationFacts';
 import { deriveMeetingFacts } from './deriveMeetingFacts';
 import { loadDerivationInput } from './load';
 import { resolveRollCall } from './resolveSession';
+import { DERIVED_SOURCES } from './types';
 import type { DerivationInput, DerivationOutput, Issue } from './types';
 
 /** Replace the meeting's derived rows (source = decision), per subject and per meeting, with the output. */
@@ -9,11 +11,12 @@ export async function applyDerivation(input: DerivationInput, output: Derivation
     await replaceDerivedRows(
         { cityId: input.cityId, meetingId: input.meetingId },
         input.subjects.map(s => s.id),
-        output.attendance.map(a => ({ subjectId: a.subjectId, personId: a.personId, status: a.status })),
-        output.votes.map(v => ({ subjectId: v.subjectId, personId: v.personId, voteType: v.voteType })),
-        output.rollCall.map(r => ({ personId: r.personId, status: r.status })),
+        output.attendance,
+        output.votes,
+        output.rollCall,
         output.events,
         taskId,
+        { sourcesVersion: input.sourcesVersion ?? null },
     );
 }
 
@@ -36,23 +39,28 @@ export async function applyDerivation(input: DerivationInput, output: Derivation
  *   like any subject's, no vote is derived for it, and it is an issue on its own
  *   subject (`UNREAD_DOCUMENT`) — which is why the guard reads votes and not
  *   attendance, or the rows one run writes for that subject would refuse the
- *   next. A meeting with no facts at all is never written.
+ *   next. A meeting whose pages are all unread is written only when the sheet,
+ *   the transcript or a person states facts for it: it then derives from those,
+ *   and the pages come in as they are read.
  * - **No roll call.** Neither the pages resolve one — none prints one, or no
- *   roll call has a strict majority — nor another source states one. Presence
+ *   roll call has a strict majority — nor the sheet, the transcript or a person
+ *   states one. Presence
  *   is a replay of the roll call, so an empty one derives nobody present
  *   anywhere — again not a correction of the stored rows but their deletion.
  */
 export function derivationSkipIssue(input: DerivationInput): Issue | null {
     const unread = input.documents.filter(d => !d.hasExtraction);
     const holdsVotes = new Set(input.subjectIdsWithStoredVotes);
-    if (unread.length > 0 && (unread.length === input.documents.length || unread.some(d => holdsVotes.has(d.subjectId)))) {
+    const factsStatedElsewhere = input.sources.length > 0 || input.rollCall.length > 0 || input.events.length > 0;
+    if (unread.length > 0 && ((unread.length === input.documents.length && !factsStatedElsewhere) || unread.some(d => holdsVotes.has(d.subjectId)))) {
         return {
             code: 'NO_STORED_FACTS', source: null,
             params: { missing: unread.length, total: input.documents.length },
         };
     }
     const resolved = resolveRollCall(input);
-    if (resolved.rollCall.length === 0 && input.rollCall.length === 0) {
+    const statedElsewhere = input.rollCall.length > 0 || input.sources.some(s => (s.rollCall?.length ?? 0) > 0);
+    if (resolved.rollCall.length === 0 && !statedElsewhere) {
         return { code: 'NO_ROLL_CALL', source: null, params: { reason: resolved.missing ?? 'noRollCall' } };
     }
     return null;
@@ -63,10 +71,33 @@ export function hasNothingToDeriveFrom(input: DerivationInput): boolean {
     return derivationSkipIssue(input) !== null;
 }
 
+/** What a refused run still has to say: the reason. */
+function skippedOutput(skip: Issue): DerivationOutput {
+    return { attendance: [], votes: [], outcomes: [], rollCall: [], events: [], issues: [skip] };
+}
+
+/**
+ * The derived sources with nothing in the input: a sheet or a transcript whose
+ * reading is gone or does not count. Their rows are stale whatever the write
+ * decides. The pages are not listed: a meeting with no usable page keeps their
+ * rows, by the guard's own rule.
+ */
+function sourcesWithNothingToState(input: DerivationInput): DataSource[] {
+    const stated = new Set(input.sources.map(s => s.source));
+    return DERIVED_SOURCES.filter(s => s !== 'decision' && !stated.has(s));
+}
+
 export async function deriveAndPersist(cityId: string, meetingId: string, taskId: string | null = null): Promise<DerivationOutput> {
     const input = await loadDerivationInput(cityId, meetingId);
     const skip = derivationSkipIssue(input);
-    if (skip) return { attendance: [], votes: [], rollCall: [], events: [], issues: [skip] };
+    if (skip) {
+        // With no roll call from any source, every sheet or transcript row was
+        // written from a reading that had one and has been replaced since; with a
+        // roll call, only a source that states nothing any more is stale.
+        const stale = skip.code === 'NO_ROLL_CALL' ? DERIVED_SOURCES.filter(s => s !== 'decision') : sourcesWithNothingToState(input);
+        await deleteDerivedRowsOfSources({ cityId, meetingId }, input.subjects.map(s => s.id), stale, { sourcesVersion: input.sourcesVersion ?? null });
+        return skippedOutput(skip);
+    }
     const output = deriveMeetingFacts(input);
     await applyDerivation(input, output, taskId);
     return output;
@@ -78,6 +109,6 @@ export async function explainMeeting(cityId: string, meetingId: string): Promise
     // The page describes the rows a write would leave, so a refusal is reported
     // as itself rather than as rows nothing stored.
     const skip = derivationSkipIssue(input);
-    if (skip) return { attendance: [], votes: [], rollCall: [], events: [], issues: [skip] };
+    if (skip) return skippedOutput(skip);
     return deriveMeetingFacts(input);
 }

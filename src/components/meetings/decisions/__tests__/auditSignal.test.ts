@@ -9,7 +9,7 @@ const issue = (over: Partial<Issue> = {}): Issue => ({
 const noName = () => undefined;
 
 const vote = (origin: DerivedVoteRow['origin'], personId = 'p1'): DerivedVoteRow =>
-    ({ subjectId: 's1', personId, voteType: 'FOR', origin });
+    ({ subjectId: 's1', personId, voteType: 'FOR', origin, source: 'decision' });
 
 describe('auditSignalFor', () => {
     it('names the worst issue and counts the rest', () => {
