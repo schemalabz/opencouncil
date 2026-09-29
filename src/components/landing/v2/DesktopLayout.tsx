@@ -66,6 +66,7 @@ export function DesktopLayout({
     infoOpen,
     onToggleInfo,
     infoHint,
+    hotSubjects,
     explainAvailable,
     realm,
 }: LayoutProps) {
@@ -171,7 +172,7 @@ export function DesktopLayout({
                     )}
 
                     {infoOpen ? (
-                        <InfoPanel explainAvailable={explainAvailable} />
+                        <InfoPanel cities={cities} subjects={hotSubjects} explainAvailable={explainAvailable} onExploreMap={() => onToggleInfo()} />
                     ) : view === 'municipalities' ? (
                         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/50 mb-3 px-4 py-4">
                             <MunicipalitiesList

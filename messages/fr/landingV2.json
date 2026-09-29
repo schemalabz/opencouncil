@@ -190,23 +190,30 @@
   },
   "info": {
     "title": "Qu'est-ce que c'est ?",
-    "intro": "La carte montre les sujets débattus lors des séances des conseils municipaux. Vous pouvez trouver ceux qui vous intéressent par catégorie, par zone ou directement sur la carte.",
-    "pins": {
-      "title": "Sujets sur la carte",
-      "body": "Chaque point est un sujet. Touchez-le pour ouvrir l'aperçu et lire sa description."
+    "heading": "OpenCouncil utilise l''<em>IA</em> pour écouter les séances publiques des conseils municipaux et les rendre simples et compréhensibles.",
+    "how": {
+      "listen": "Écoute la séance",
+      "write": "La transcrit mot à mot",
+      "sort": "La transforme en sujets consultables",
+      "speaker1": "Maire",
+      "text1": "Dès octobre, la [collecte au centre] change.",
+      "speaker2": "Conseillère",
+      "text2": "Et que fait-on des [chiens errants au port] ?",
+      "topic1": "Propreté",
+      "subject1": "Collecte au centre",
+      "topic2": "Animaux errants",
+      "subject2": "Chiens errants au port"
     },
-    "cluster": {
-      "title": "Plusieurs sujets au même endroit",
-      "body": "Quand un endroit regroupe plusieurs sujets, un nombre apparaît. Touchez-le et choisissez celui qui vous intéresse."
-    },
-    "general": {
-      "title": "Sujets d'intérêt général",
-      "body": "Ils n'ont pas de localisation précise ; vous les trouvez sous l'icône de chaque commune."
-    },
-    "moreBody": "Envie d'en savoir plus sur l'administration locale — comment fonctionne le conseil, comment les communes sont financées, et plus encore ?",
-    "moreCta": "En savoir plus",
-    "sampleTopic": "Propreté",
-    "sampleSubject": "Collecte des déchets dans le centre",
-    "sampleDesc": "Le conseil a débattu du nouveau calendrier de collecte et des itinéraires."
+    "startHere": "Par où commencer",
+    "cta": {
+      "map": "Explorer la carte",
+      "mapSub": "Les sujets, là où ils ont été discutés",
+      "city": "Voir une commune",
+      "cityMeetings": "{count, plural, one {# séance} other {# séances}}",
+      "subject": "Voir un sujet très débattu",
+      "more": "En savoir plus",
+      "moreExplain": "Comment fonctionne un conseil municipal",
+      "moreAbout": "Comment fonctionne OpenCouncil"
+    }
   }
 }

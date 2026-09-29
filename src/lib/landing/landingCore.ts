@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { calculateGeometryBounds } from '@/lib/geo';
 import { topicStyle } from '@/lib/topicStyle';
 import type {
+    GeneralSubjectRow,
     LandingListCity,
     LandingMapCity,
     LandingPetitionedCity,
@@ -47,6 +48,13 @@ export const DATE_RANGES = [
 ] as const;
 export type DateRangeKey = (typeof DATE_RANGES)[number]['key'];
 export const DEFAULT_RANGE: DateRangeKey = '3m';
+
+/** The "?" drawer's much-discussed subjects: how far back they are drawn from, and how many. A
+ *  year rather than the map's default window, so a recess or a slow release never empties the door.
+ *  The query is realm-wide and runs on the home page's first paint whenever the landing cache
+ *  (15 min) is cold — the same order of work as the map's own "12 months" range. */
+export const HOT_SUBJECTS_MONTHS = 12;
+export const HOT_SUBJECTS_LIMIT = 12;
 
 /**
  * A range key as the fields the subject finders take (monthsBack / daysBack / allTime), so the
@@ -323,6 +331,9 @@ export type LayoutProps = {
     setQuery: (v: string) => void;
     topics: Topic[];
     cities: LandingListCity[];
+    /** the realm's most-discussed subjects lately (server-loaded, see HOT_SUBJECTS_MONTHS) — the "?"
+     *  drawer's "see a subject" door rotates through them, whatever the range pill says */
+    hotSubjects: GeneralSubjectRow[];
     /** unfiltered total subjects per cityId (for the Δήμοι tab stats) */
     subjectCountByCity: Record<string, number>;
     /** out-of-network δήμοι with enough petitions — the Δήμοι tab's leaderboard */

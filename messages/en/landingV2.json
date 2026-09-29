@@ -190,23 +190,30 @@
   },
   "info": {
     "title": "What is this?",
-    "intro": "The map shows the subjects discussed in municipal council meetings. You can find the ones that interest you by category, by area, or straight from the map.",
-    "pins": {
-      "title": "Subjects on the map",
-      "body": "Each dot is a subject. Tap it to open the preview and read its description."
+    "heading": "OpenCouncil uses <em>AI</em> to listen to municipalities' public council meetings and make them simple and understandable.",
+    "how": {
+      "listen": "Listens to the meeting",
+      "write": "Transcribes it word for word",
+      "sort": "Turns it into searchable subjects",
+      "speaker1": "Mayor",
+      "text1": "From October, [waste collection in the centre] changes.",
+      "speaker2": "Councillor",
+      "text2": "And what about the [strays at the harbour]?",
+      "topic1": "Cleanliness",
+      "subject1": "Collection in the centre",
+      "topic2": "Animals & Strays",
+      "subject2": "Strays at the harbour"
     },
-    "cluster": {
-      "title": "Several subjects at one spot",
-      "body": "When a spot has more than one subject, a number appears. Tap it and pick the one you want."
-    },
-    "general": {
-      "title": "Subjects of general interest",
-      "body": "These have no specific location, so you'll find them under each municipality's icon."
-    },
-    "moreBody": "Want to learn more about local government — how the council works, how municipalities are funded, and more?",
-    "moreCta": "Learn more",
-    "sampleTopic": "Cleanliness",
-    "sampleSubject": "Waste collection in the centre",
-    "sampleDesc": "The council discussed the new collection schedule and routes."
+    "startHere": "Start here",
+    "cta": {
+      "map": "Explore the map",
+      "mapSub": "Subjects, where they were discussed",
+      "city": "See a municipality",
+      "cityMeetings": "{count, plural, one {# meeting} other {# meetings}}",
+      "subject": "See a popular subject",
+      "more": "Learn more",
+      "moreExplain": "How a municipal council works",
+      "moreAbout": "How OpenCouncil works"
+    }
   }
 }

@@ -804,6 +804,7 @@ export function LandingV2({ realm, defaultView, initial }: LandingV2Props) {
         setQuery,
         topics,
         cities,
+        hotSubjects: initial.hotSubjects,
         subjectCountByCity,
         petitionedCities,
         petitionedBelowThreshold,

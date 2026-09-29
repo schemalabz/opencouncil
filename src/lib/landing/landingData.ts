@@ -37,6 +37,11 @@ export type UpcomingMeeting = Pick<UpcomingMeetingWithCity, 'id' | 'cityId' | 'n
     administrativeBody: { name: string } | null;
 };
 
+/** A subject page's path — the one place the landing spells it. */
+export function subjectPath(cityId: string, meetingId: string, subjectId: string): string {
+    return `/${cityId}/${meetingId}/subjects/${subjectId}`;
+}
+
 /** The topic accent shown on chips, pins and cards. */
 export type SubjectTopic = { name: string; color: string; icon: string | null };
 
@@ -236,7 +241,7 @@ export function toGeneralCities(
             durationMin: Math.round((s.discussionTimeSeconds ?? 0) / 60),
             speakers: s.speakerCount ?? 0,
             hot: false,
-            href: `/${s.cityId}/${s.councilMeetingId}/subjects/${s.id}`,
+            href: subjectPath(s.cityId, s.councilMeetingId, s.id),
         })),
     }));
 }
@@ -285,7 +290,7 @@ export function toLandingSubjects(
                 durationMin: Math.round((s.discussionTimeSeconds ?? 0) / 60),
                 speakers: s.speakerCount ?? 0,
                 hot: false,
-                href: `/${s.cityId}/${s.councilMeetingId}/subjects/${s.id}`,
+                href: subjectPath(s.cityId, s.councilMeetingId, s.id),
             };
         });
 

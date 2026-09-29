@@ -69,6 +69,7 @@ export function MobileLayout({
     infoOpen,
     onToggleInfo,
     infoHint,
+    hotSubjects,
     petitionedCities,
     petitionedBelowThreshold,
     onOpenPetitioned,
@@ -136,7 +137,7 @@ export function MobileLayout({
             {infoOpen && (
                 <section className="absolute inset-x-3 bottom-[10px] top-[76px] z-[8] flex flex-col overflow-hidden rounded-2xl border border-black/40 bg-muted shadow-xl">
                     <ListHeader title={t('info.title')} className="bg-card" onToggle={() => onToggleInfo()} />
-                    <InfoPanel explainAvailable={explainAvailable} />
+                    <InfoPanel cities={cities} subjects={hotSubjects} explainAvailable={explainAvailable} onExploreMap={() => onToggleInfo()} />
                 </section>
             )}
 
