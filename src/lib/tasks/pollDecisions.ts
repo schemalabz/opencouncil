@@ -2,6 +2,7 @@
 
 import { PollDecisionsRequest, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData } from "../apiTypes";
 import { startTask } from "./tasks";
+import { after } from "next/server";
 import prisma from "../db/prisma";
 import { AttendanceStatus, DataSource, VoteType, Prisma } from "@prisma/client";
 import { sortSubjectsByDiscussionOrder } from "../minutes/builders";
@@ -187,6 +188,14 @@ export async function pollDecisionsForMeeting(
     return startTask('pollDecisions', body, councilMeetingId, cityId, { silent: options?.silent });
 }
 
+// A meeting still waiting on decisions: a decision-eligible subject without
+// one, and not a Λογοδοσία session (see isLogodosiaMeeting). What the cron and
+// follow-up polls both require before polling a meeting.
+const AWAITING_DECISIONS_MEETING_WHERE = {
+    NOT: { name: { contains: LOGODOSIA_NAME_PATTERN } },
+    subjects: { some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null } },
+} satisfies Prisma.CouncilMeetingWhereInput;
+
 /**
  * Polls decisions for recent meetings across all cities with Diavgeia configured.
  * Called by the cron endpoint. Finds meetings in the pollable date window
@@ -202,23 +211,14 @@ export async function pollDecisionsForMeeting(
  * Limits to 10 dispatched tasks per invocation.
  */
 export async function pollDecisionsForRecentMeetings() {
-    // Find meetings in the pollable date window in cities with diavgeiaUid,
-    // that have at least one subject with agendaItemIndex but no decision.
-    // Λογοδοσία meetings are excluded — see isLogodosiaMeeting().
+    // Meetings in the pollable date window, in cities with diavgeiaUid, still
+    // waiting on decisions.
     const meetings = await prisma.councilMeeting.findMany({
         where: {
+            ...AWAITING_DECISIONS_MEETING_WHERE,
             dateTime: getPollableMeetingDateRange(),
             city: {
                 diavgeiaUid: { not: null },
-            },
-            NOT: {
-                name: { contains: LOGODOSIA_NAME_PATTERN },
-            },
-            subjects: {
-                some: {
-                    ...DECISION_ELIGIBLE_SUBJECT_WHERE,
-                    decision: null,
-                },
             },
         },
         select: {
@@ -757,6 +757,8 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     let reassignmentCount = 0;
     let processedCount = 0;
     let conflictCount = 0;
+    // Other meetings this poll newly placed decisions on — polled once it is done.
+    const meetingsWithNewCandidates = new Set<string>();
 
     // Collect all subjectIds from matches and non-decision attendance for validation
     const allSubjectIds = [
@@ -938,6 +940,12 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
                     where: { ada: d.ada },
                     select: { id: true },
                 });
+
+                const placedOn = freshRead ? councilMeetingId : healedMeetingId;
+                if (placedOn && placedOn !== task.councilMeetingId && placedOn !== stored?.councilMeetingId
+                    && !promoted && !stored?.dismissedAt) {
+                    meetingsWithNewCandidates.add(placedOn);
+                }
 
                 await tx.decisionCandidate.upsert({
                     where: { cityId_ada: { cityId: task.cityId, ada: d.ada } },
@@ -1241,4 +1249,43 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
     }
 
     console.log(`Poll decisions completed: ${processedCount} matched, ${extractedCount} extracted, ${reassignmentCount} reassigned, ${conflictCount} conflicts, ${result.unmatchedSubjects.length} unmatched, ${result.ambiguousSubjects.length} ambiguous`);
+
+    // Through after(): the task service waits on this callback with a
+    // timeout, and a poll that placed decisions on many meetings must not
+    // hold it open while their polls start.
+    const followUps = [...meetingsWithNewCandidates];
+    if (followUps.length > 0) after(() => pollMeetingsWithNewCandidates(task.cityId, followUps));
+}
+
+/**
+ * Poll the meetings a poll just placed new decisions on — a fresh reading
+ * that declares them, or an orphan the heal assigned. A poll matches only its
+ * own meeting's subjects, so without this those decisions sit unmatched until
+ * something polls their meeting — days, with the cron's backoff or paused.
+ * A decision already placed there triggers nothing, so a follow-up never
+ * bounces back; a chain continues only while polls keep placing new ones.
+ * Failures are logged, never raised: the triggering poll has already committed.
+ */
+async function pollMeetingsWithNewCandidates(cityId: string, meetingIds: string[]) {
+    try {
+        const meetings = await prisma.councilMeeting.findMany({
+            where: {
+                ...AWAITING_DECISIONS_MEETING_WHERE,
+                cityId,
+                id: { in: meetingIds },
+                taskStatuses: { none: { type: 'pollDecisions', status: { in: ['pending', 'processing'] } } },
+            },
+            select: { id: true },
+        });
+        for (const meeting of meetings) {
+            try {
+                await pollDecisionsForMeeting(cityId, meeting.id, { silent: true });
+                console.log(`Polling ${cityId}/${meeting.id}: an earlier poll placed new decisions on it`);
+            } catch (error) {
+                console.error(`Failed to start follow-up poll for ${cityId}/${meeting.id}:`, error);
+            }
+        }
+    } catch (error) {
+        console.error(`Failed to start follow-up polls for ${cityId}:`, error);
+    }
 }

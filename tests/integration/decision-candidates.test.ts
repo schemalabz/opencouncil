@@ -5,6 +5,9 @@ jest.mock('@/lib/tasks/generateHighlight', () => ({
     handleGenerateHighlightResult: jest.fn(),
 }))
 
+// Follow-up polls go through after(), which needs a request scope.
+jest.mock('next/server', () => ({ ...jest.requireActual('next/server'), after: () => {} }))
+
 jest.mock('@/lib/auth', () => ({
     withUserAuthorizedToEdit: jest.fn(),
     isUserAuthorizedToEdit: jest.fn().mockResolvedValue(true),
