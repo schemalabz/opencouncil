@@ -15,6 +15,7 @@ import { MobileSearchOverlay } from './SearchPanel';
 import { CoLocatedBox, GeneralSubjectsBox } from './mapMarkers';
 import { MobileHeader } from './MobileHeader';
 import { InfoPanel } from './InfoPanel';
+import { aboutVideo } from '@/lib/landing/aboutVideo';
 import { MunicipalityCard, PetitionCta, PetitionedRow } from './MunicipalitiesList';
 import { SubjectStrip } from '@/components/map/subjects/SubjectStrip';
 import { SubjectExpandedCard } from '@/components/map/subjects/SubjectExpandedCard';
@@ -137,7 +138,7 @@ export function MobileLayout({
             {infoOpen && (
                 <section className="absolute inset-x-3 bottom-[10px] top-[76px] z-[8] flex flex-col overflow-hidden rounded-2xl border border-black/40 bg-muted shadow-xl">
                     <ListHeader title={t('info.title')} className="bg-card" onToggle={() => onToggleInfo()} />
-                    <InfoPanel cities={cities} subjects={hotSubjects} explainAvailable={explainAvailable} onExploreMap={() => onToggleInfo()} />
+                    <InfoPanel cities={cities} subjects={hotSubjects} explainAvailable={explainAvailable} video={aboutVideo(realm)} onExploreMap={() => onToggleInfo()} />
                 </section>
             )}
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
-import { ArrowRight, AudioLines, BookOpen, Flame, Landmark, Map as MapIcon, PawPrint, Recycle, Search, Type } from 'lucide-react';
+import { ArrowRight, AudioLines, BookOpen, Flame, Landmark, Map as MapIcon, PawPrint, Play, Recycle, Search, Type } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import { subjectPath, type GeneralSubjectRow, type LandingListCity } from '@/lib/landing/landingData';
 import { topicStyle } from '@/lib/topicStyle';
+import type { AboutVideo } from '@/lib/landing/aboutVideo';
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 // How long a δήμος / subject stays in a door before the next one comes in.
 const TICK_MS = 2600;
@@ -25,6 +27,7 @@ export function InfoPanel({
     cities,
     subjects,
     explainAvailable,
+    video = null,
     onExploreMap,
 }: {
     /** the covered municipalities — the "see a δήμος" door rotates through them */
@@ -34,6 +37,8 @@ export function InfoPanel({
     subjects: GeneralSubjectRow[];
     /** whether this realm has an /explain page; otherwise "learn more" opens on how OpenCouncil works */
     explainAvailable: boolean;
+    /** the film about OpenCouncil, where the realm has one (see aboutVideo) */
+    video?: AboutVideo | null;
     /** closes the drawer, leaving the subjects map in view */
     onExploreMap: () => void;
 }) {
@@ -50,6 +55,8 @@ export function InfoPanel({
             <p className="shrink-0 text-balance text-[16px] font-semibold leading-snug text-foreground">
                 {t.rich('info.heading', { em: (chunks) => <em>{chunks}</em> })}
             </p>
+
+            {video && <VideoOffer video={video} />}
 
             <HowItWorks />
 
@@ -149,6 +156,74 @@ export function InfoPanel({
                 </div>
             </div>
         </div>
+    );
+}
+
+/* ================================== the film ================================== */
+
+/* An offer, not a second hero: a small preview and a line, under the sentence it expands on. The
+   player opens in a dialog and exists only while it is open, so nothing downloads behind the
+   drawer and closing it stops the sound. */
+function VideoOffer({ video }: { video: AboutVideo }) {
+    const t = useTranslations('landingV2');
+    const [open, setOpen] = useState(false);
+    return (
+        <Dialog
+            open={open}
+            onOpenChange={(next) => {
+                if (next) captureLandingAction('info_video_opened', {});
+                setOpen(next);
+            }}
+        >
+            <DialogTrigger asChild>
+                <button
+                    type="button"
+                    className="group -mt-1 flex shrink-0 items-center gap-3 self-start rounded-lg pr-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2"
+                >
+                    <span className="relative aspect-video w-[88px] shrink-0 overflow-hidden rounded-lg border border-border bg-card">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={video.thumb}
+                            alt=""
+                            className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.06]"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/85 text-background shadow-md transition-transform duration-200 group-hover:scale-110">
+                                <Play className="h-3 w-3 translate-x-px fill-current" />
+                            </span>
+                        </span>
+                    </span>
+                    <span className="flex min-w-0 flex-col gap-0.5">
+                        <span className="text-sm font-semibold text-foreground underline-offset-2 group-hover:underline">
+                            {t('info.video.cta')}
+                        </span>
+                        <span className="text-[13px] text-muted-foreground">
+                            <span className="font-mono-roboto text-[12px]">{video.duration}</span> · {t('info.video.sub')}
+                        </span>
+                    </span>
+                </button>
+            </DialogTrigger>
+            <DialogContent
+                align="start"
+                className="w-[calc(100vw-24px)] max-w-[960px] gap-0 overflow-hidden border-0 bg-black p-0 text-white sm:rounded-xl [&>button]:right-3 [&>button]:top-2.5 [&>button]:flex [&>button]:h-8 [&>button]:w-8 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:!bg-transparent [&>button]:text-white [&>button]:opacity-80 [&>button:hover]:!bg-white/15 [&>button:hover]:opacity-100 [&>button]:focus:ring-white/70 [&>button]:focus:ring-offset-0"
+            >
+                <div className="flex items-center gap-2 px-4 py-3 pr-14">
+                    <DialogTitle className="truncate text-sm font-semibold text-white">{t('info.video.title')}</DialogTitle>
+                    <span className="font-mono-roboto text-xs text-white/60">{video.duration}</span>
+                </div>
+                <DialogDescription className="sr-only">{t('info.video.description')}</DialogDescription>
+                <video
+                    className="aspect-video w-full bg-black"
+                    src={video.src}
+                    poster={video.poster}
+                    controls
+                    autoPlay
+                    playsInline
+                    preload="auto"
+                    onEnded={() => captureLandingAction('info_video_completed', {})}
+                />
+            </DialogContent>
+        </Dialog>
     );
 }
 

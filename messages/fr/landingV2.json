@@ -191,6 +191,12 @@
   "info": {
     "title": "Qu'est-ce que c'est ?",
     "heading": "OpenCouncil utilise l''<em>IA</em> pour écouter les séances publiques des conseils municipaux et les rendre simples et compréhensibles.",
+    "video": {
+      "cta": "Voir la vidéo",
+      "sub": "avec le son",
+      "title": "Qu'est-ce qu'OpenCouncil",
+      "description": "Un film d'une minute sur OpenCouncil et Notis, le voisin numérique qui vous tient informé."
+    },
     "how": {
       "listen": "Écoute la séance",
       "write": "La transcrit mot à mot",

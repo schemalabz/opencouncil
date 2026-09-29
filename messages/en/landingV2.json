@@ -191,6 +191,12 @@
   "info": {
     "title": "What is this?",
     "heading": "OpenCouncil uses <em>AI</em> to listen to municipalities' public council meetings and make them simple and understandable.",
+    "video": {
+      "cta": "Watch the video",
+      "sub": "with sound",
+      "title": "What is OpenCouncil",
+      "description": "A one-minute film about OpenCouncil and Notis, the digital neighbour who keeps you informed."
+    },
     "how": {
       "listen": "Listens to the meeting",
       "write": "Transcribes it word for word",

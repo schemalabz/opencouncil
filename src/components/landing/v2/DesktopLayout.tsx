@@ -14,6 +14,7 @@ import { MunicipalitiesList, MunicipalitySearch } from './MunicipalitiesList';
 import { LandingAside } from './LandingAside';
 import { SubjectList } from './SubjectList';
 import { InfoPanel } from './InfoPanel';
+import { aboutVideo } from '@/lib/landing/aboutVideo';
 
 /* ============================ DESKTOP LAYOUT ============================ */
 export function DesktopLayout({
@@ -172,7 +173,7 @@ export function DesktopLayout({
                     )}
 
                     {infoOpen ? (
-                        <InfoPanel cities={cities} subjects={hotSubjects} explainAvailable={explainAvailable} onExploreMap={() => onToggleInfo()} />
+                        <InfoPanel cities={cities} subjects={hotSubjects} explainAvailable={explainAvailable} video={aboutVideo(realm)} onExploreMap={() => onToggleInfo()} />
                     ) : view === 'municipalities' ? (
                         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-muted/50 mb-3 px-4 py-4">
                             <MunicipalitiesList

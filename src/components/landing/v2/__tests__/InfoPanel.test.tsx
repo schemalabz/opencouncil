@@ -138,6 +138,22 @@ describe('InfoPanel', () => {
         expect(screen.getByText('info.how.sort')).toBeInTheDocument();
     });
 
+    it('offers the film where the realm has one, and plays it in a dialog', () => {
+        const video = { src: 'https://cdn.example/film.mp4', poster: 'https://cdn.example/p.jpg', thumb: 'https://cdn.example/t.jpg', duration: '1:03' };
+        render(<InfoPanel cities={cities} subjects={subjects} explainAvailable video={video} onExploreMap={() => {}} />);
+        // nothing loads until asked
+        expect(document.querySelector('video')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: /info\.video\.cta/ }));
+        const dialog = screen.getByRole('dialog');
+        expect(dialog).toHaveTextContent('info.video.title');
+        expect(dialog.querySelector('video')).toHaveAttribute('src', video.src);
+    });
+
+    it('offers no film where the realm has none', () => {
+        render(<InfoPanel cities={cities} subjects={subjects} explainAvailable video={null} onExploreMap={() => {}} />);
+        expect(screen.queryByRole('button', { name: /info\.video\.cta/ })).toBeNull();
+    });
+
     it('skips a δήμος with no meetings yet and a realm with no explainer', () => {
         render(
             <InfoPanel
