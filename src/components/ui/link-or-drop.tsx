@@ -16,10 +16,29 @@ export interface LinkOrDropProps
     onUrlChange?: (url: string) => void
     onProgress?: (percentage: number) => void
     config?: UploadConfig
+    /** File types the upload takes, in the form of the file input's `accept`.
+     * A dropped file skips the picker's filter, so both paths check it. */
+    accept?: string
+}
+
+/** Whether a file matches an `accept` list: MIME types, `type/*` wildcards or `.ext` suffixes. */
+const matchesAccept = (file: File, accept: string): boolean =>
+    accept.split(',').map(entry => entry.trim().toLowerCase()).filter(Boolean).some(entry => {
+        if (entry.startsWith('.')) return file.name.toLowerCase().endsWith(entry)
+        if (entry.endsWith('/*')) return file.type.toLowerCase().startsWith(entry.slice(0, -1))
+        return file.type.toLowerCase() === entry
+    })
+
+/** The type the upload stores the file under. A browser can leave a PDF's
+ * type empty or generic, and the presigned-URL route refuses an empty one.
+ * Every other file keeps the type the browser reported. */
+const uploadContentType = (file: File): string => {
+    const generic = !file.type || file.type === 'application/octet-stream'
+    return generic && file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : file.type
 }
 
 const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
-    ({ className, inputClassName, onUrlChange, onProgress, config, ...props }, ref) => {
+    ({ className, inputClassName, onUrlChange, onProgress, config, accept, ...props }, ref) => {
         const [isDragging, setIsDragging] = React.useState(false)
         const [isUploading, setIsUploading] = React.useState(false)
         const [showCheck, setShowCheck] = React.useState(false)
@@ -42,6 +61,11 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
         }, [])
 
         const handleFileUpload = React.useCallback(async (file: File) => {
+            if (accept && !matchesAccept(file, accept)) {
+                setShowCheck(false)
+                setUploadError(`This file type is not accepted (${accept})`)
+                return
+            }
             setIsUploading(true)
             setUploadProgress(0)
             setUploadError(null)
@@ -54,7 +78,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         filename: file.name,
-                        contentType: file.type,
+                        contentType: uploadContentType(file),
                         config: config
                     })
                 })
@@ -104,7 +128,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                     xhr.ontimeout = () => reject(new Error('Upload timeout. Please try again'))
 
                     xhr.open('PUT', presignedUrl)
-                    xhr.setRequestHeader('Content-Type', file.type)
+                    xhr.setRequestHeader('Content-Type', uploadContentType(file))
                     // Set timeout to 25 minutes for large file uploads
                     xhr.timeout = 1500000
                     xhr.send(file)
@@ -145,7 +169,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                 // Reset progress after a short delay
                 setTimeout(() => setUploadProgress(0), 500)
             }
-        }, [combinedRef, onUrlChange, onProgress, config])
+        }, [combinedRef, onUrlChange, onProgress, config, accept])
 
         const handleDrop = React.useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
             e.preventDefault()
@@ -243,6 +267,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                         <input
                             ref={fileInputRef}
                             type="file"
+                            accept={accept}
                             className="hidden"
                             onChange={handleFileSelect}
                         />

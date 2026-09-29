@@ -259,7 +259,12 @@
             "subjectDescriptionLabel": "Сажетак теме:",
             "agendaItemTitleLabel": "Наслов тачке дневног реда:",
             "reassignTitle": "Премести одлуку",
-            "reassignExplain": "Одлука се премешта на тачку „{subject}”. Тачка „{holder}” остаје без одлуке."
+            "reassignExplain": "Одлука се премешта на тачку „{subject}”. Тачка „{holder}” остаје без одлуке.",
+            "linkTitle": "Повезивање документа",
+            "linkExplain": "„Сачувај” повезује документ са {subject}.",
+            "saveAction": "Сачувај",
+            "back": "Назад",
+            "notOnDiavgeia": "Није у Диавгији"
         },
         "table": {
             "title": "Табела одлука",
@@ -330,6 +335,17 @@
             "adaRetry": "Покушајте поново",
             "adaLinkedElsewhere": "Одлука са ADA {ada} је већ повезана: {label}.",
             "addManually": "Ручно додавање",
+            "manualTitle": "Ручно додавање одлуке за {subject}",
+            "manualHint": "Користите ово само за одлуку која није на Diavgeia. Отпремите PDF или унесите његов линк.",
+            "manualPdfLabel": "PDF одлуке",
+            "manualNumberLabel": "Број одлуке",
+            "manualTitleLabel": "Наслов (опционо)",
+            "manualProtocolLabel": "Деловодни број (опционо)",
+            "manualContinue": "Настави",
+            "manualPdfRequired": "Отпремите PDF или унесите http(s) линк.",
+            "manualNumberRequired": "Број одлуке је обавезан.",
+            "manualDiavgeiaLink": "Ово је линк са Diavgeia. Потражите одлуку по ADA {ada}.",
+            "manualUseAda": "Претрага по ADA",
             "showAll": "Прикажи све ({count})",
             "adaSearchFailed": "Претрага за ADA {ada} није завршена. Покушајте поново.",
             "adaNotADecision": "Документ са ADA {ada} постоји на Diavgeia, али није одлука колегијалног органа.",
@@ -413,7 +429,8 @@
             "dismissed": "Одлука {number} не односи се на ову седницу.",
             "kept": "Одлука {number} остаје код {subject}.",
             "moved": "Одлука {number} премештена је на {subject}.",
-            "rejected": "Предлог за одлуку {number} је одбијен."
+            "rejected": "Предлог за одлуку {number} је одбијен.",
+            "savedManual": "Одлука {number} је додата на {subject}. Следећа претрага ће је прочитати."
         },
         "decisionNumberPlaceholder": "нпр. 261/2024",
         "searchSubjects": "Претражи тачку или одлуку…",

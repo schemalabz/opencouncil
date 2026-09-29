@@ -11,13 +11,17 @@ import { AIGeneratedBadge } from '@/components/AIGeneratedBadge';
 interface ConfirmSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    action: 'view' | 'reassign';
+    action: 'view' | 'reassign' | 'link';
     decisionTitle: string | null;
     decisionNumber: string | null;
     subjectName: string | null;
     pdfUrl: string;
     /** Links the header to the decision's page on Diavgeia. */
     ada: string | null;
+    /** Where the document comes from when it has no ΑΔΑ, shown in place of the Diavgeia link. */
+    sourceNote?: string;
+    /** The confirm button's text; defaults to the generic confirm. */
+    confirmLabel?: string;
     /** The subject's own description — the context for judging the match. */
     subjectDescription?: string | null;
     agendaItemTitle?: string | null;
@@ -27,6 +31,8 @@ interface ConfirmSheetProps {
     onDismiss?: () => void;
     /** View mode: extraction results rendered in a second in-sheet tab. */
     extraContent?: React.ReactNode;
+    /** A consequence of the confirm, shown after the explanation. */
+    explainNote?: string;
     /** Cross-meeting callers (the decisions overview) link to the meeting here. */
     meetingLink?: React.ReactNode;
     /** Reassign mode: names the subject that loses the decision. */
@@ -37,7 +43,7 @@ interface ConfirmSheetProps {
  * The commit gate for link-changing actions: the admin confirms while looking
  * at the document itself, not only at metadata.
  */
-export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, subjectDescription, agendaItemTitle, busy, onConfirm, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
+export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisionNumber, subjectName, pdfUrl, ada, sourceNote, confirmLabel, explainNote, subjectDescription, agendaItemTitle, busy, onConfirm, onDismiss, extraContent, meetingLink, holderName }: ConfirmSheetProps) {
     const t = useTranslations('admin.decisionsPage.sheet');
     const [pane, setPane] = useState<'document' | 'extraction'>('document');
     useEffect(() => { if (open) setPane('document'); }, [open]);
@@ -64,9 +70,9 @@ export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisi
                             <AIGeneratedBadge className="mt-1 justify-end" />
                         </div>
                     )}
-                    {(ada || meetingLink) && (
+                    {(ada || sourceNote || meetingLink) && (
                         <div className="flex items-center gap-4">
-                            {ada && (
+                            {ada ? (
                                 <a
                                     href={diavgeiaViewUrl(ada)}
                                     target="_blank"
@@ -76,6 +82,8 @@ export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisi
                                     {t('viewOnDiavgeia')}
                                     <ExternalLink className="h-3 w-3" />
                                 </a>
+                            ) : sourceNote && (
+                                <span className="text-xs text-muted-foreground">{sourceNote}</span>
                             )}
                             {meetingLink}
                         </div>
@@ -107,10 +115,11 @@ export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisi
                 {action !== 'view' && (
                     <div className="rounded-lg bg-muted/60 px-3 py-2.5 text-sm">
                         {explain}
+                        {explainNote && <p className="mt-1">{explainNote}</p>}
                     </div>
                 )}
                 <SheetFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>{t(action === 'view' ? 'close' : 'cancel')}</Button>
+                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>{t(action === 'view' ? 'close' : action === 'link' ? 'back' : 'cancel')}</Button>
                     {onDismiss && (
                         <Button variant="outline" className="text-destructive hover:text-destructive" onClick={onDismiss} disabled={busy}>
                             {t('dismissAction')}
@@ -118,7 +127,7 @@ export function ConfirmSheet({ open, onOpenChange, action, decisionTitle, decisi
                     )}
                     {action !== 'view' && (
                         <Button onClick={onConfirm} disabled={busy}>
-                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t('confirm')}
+                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : confirmLabel ?? t('confirm')}
                         </Button>
                     )}
                 </SheetFooter>

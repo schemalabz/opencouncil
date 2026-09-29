@@ -142,6 +142,12 @@ jest.mock('@/lib/tasks/pollDecisions', () => ({
 
 jest.mock('@/lib/actions/adaLookups', () => ({ readAdaLookup: jest.fn() }));
 
+// LinkOrDrop uploads through the network; here it is a plain URL field.
+jest.mock('@/components/ui/link-or-drop', () => ({
+    LinkOrDrop: ({ value, onChange, id }: { value: string; onChange: (e: { target: { value: string } }) => void; id?: string }) =>
+        <input id={id} value={value} onChange={e => onChange({ target: { value: e.target.value } })} />,
+}));
+
 const mockRequestPoll = requestPollDecisions as jest.MockedFunction<typeof requestPollDecisions>;
 const mockReadAdaLookup = readAdaLookup as jest.MockedFunction<typeof readAdaLookup>;
 
@@ -858,6 +864,132 @@ describe('MeetingDecisionsPage — looking up a typed ΑΔΑ', () => {
                 await act(async () => { jest.advanceTimersByTime(10_000); });
             }
             expect(await screen.findByText(SEARCH_FAILED)).toBeInTheDocument();
+        });
+    });
+});
+
+describe('MeetingDecisionsPage — a decision that is not on Diavgeia', () => {
+    beforeEach(() => {
+        mockRequestPoll.mockReset();
+        mockRequestPoll.mockResolvedValue({ status: 'started', taskId: 't1' });
+    });
+
+    const putBodies = () => fetchMock.mock.calls
+        .filter(([, init]) => (init as { method?: string } | undefined)?.method === 'PUT')
+        .map(([, init]) => JSON.parse((init as { body: string }).body) as Record<string, unknown>);
+
+    const fillManualEntry = async () => {
+        await renderPage();
+        await userEvent.click((await screen.findAllByRole('button', { name: 'Συμπλήρωση αριθμού' }))[0]);
+        await userEvent.click(screen.getByRole('button', { name: 'Χειροκίνητη προσθήκη' }));
+        await userEvent.type(screen.getByLabelText('PDF απόφασης'), 'https://files.example/a.pdf');
+        await userEvent.type(screen.getByLabelText('Αριθμός απόφασης'), '12/2025');
+        await userEvent.click(screen.getByRole('button', { name: 'Συνέχεια' }));
+    };
+
+    it('saves the PDF and the number without an ΑΔΑ after the sheet, then starts a poll', async () => {
+        await fillManualEntry();
+        const sheet = await screen.findByRole('dialog');
+        expect(within(sheet).getByText('Δεν είναι στη Διαύγεια')).toBeInTheDocument();
+        expect(putBodies()).toHaveLength(0);
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Αποθήκευση' }));
+        await waitFor(() => expect(mockRequestPoll).toHaveBeenCalledWith(CITY_ID, MEETING_ID));
+        expect(putBodies()).toEqual([{ subjectId: 's1', pdfUrl: 'https://files.example/a.pdf', decisionNumber: '12/2025' }]);
+        expect(await screen.findByText(/Η απόφαση 12\/2025 προστέθηκε/)).toBeInTheDocument();
+    });
+
+    it('goes back to the filled form from the sheet without saving', async () => {
+        await fillManualEntry();
+        const sheet = await screen.findByRole('dialog');
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Πίσω' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect(screen.getByLabelText('Αριθμός απόφασης')).toHaveValue('12/2025');
+        expect(putBodies()).toHaveLength(0);
+    });
+
+    describe('over a linked decision', () => {
+        const writeMethods = () => fetchMock.mock.calls
+            .map(([, init]) => (init as { method?: string } | undefined)?.method ?? 'GET')
+            .filter(method => method !== 'GET');
+
+        /** «Αλλαγή» on the first row, then the manual form, filled and continued to the sheet. */
+        const fillManualOverTheFirstRow = async () => {
+            await renderPage();
+            await userEvent.click((await screen.findAllByRole('button', { name: 'Αλλαγή' }))[0]);
+            await userEvent.click(screen.getByRole('button', { name: 'Χειροκίνητη προσθήκη' }));
+            await userEvent.type(screen.getByLabelText('PDF απόφασης'), 'https://files.example/a.pdf');
+            await userEvent.type(screen.getByLabelText('Αριθμός απόφασης'), '12/2025');
+            await userEvent.click(screen.getByRole('button', { name: 'Συνέχεια' }));
+            return screen.findByRole('dialog');
+        };
+
+        it('says in the sheet what happens to the decision it replaces', async () => {
+            store.decisions = [linkedDecision('s1', '640/2026')];
+            const sheet = await fillManualOverTheFirstRow();
+            expect(within(sheet).getByText('Η 640/2026 επιστρέφει στις αποφάσεις χωρίς θέμα.')).toBeInTheDocument();
+        });
+
+        it('warns in the sheet that a decision added by hand is deleted', async () => {
+            store.decisions = [{ ...linkedDecision('s1', '640/2026'), candidateBacked: false }];
+            const sheet = await fillManualOverTheFirstRow();
+            expect(within(sheet).getByText(/Η 640\/2026 προστέθηκε με το χέρι: διαγράφεται οριστικά/)).toBeInTheDocument();
+        });
+
+        it('removes the current link before it saves the manual decision', async () => {
+            store.decisions = [linkedDecision('s1', '640/2026')];
+            const sheet = await fillManualOverTheFirstRow();
+            await userEvent.click(within(sheet).getByRole('button', { name: 'Αποθήκευση' }));
+            await waitFor(() => expect(mockRequestPoll).toHaveBeenCalledWith(CITY_ID, MEETING_ID));
+            expect(writeMethods()).toEqual(['DELETE', 'PUT']);
+            expect(fetchMock.mock.calls.find(([, init]) => (init as { method?: string } | undefined)?.method === 'DELETE')?.[0])
+                .toContain('subjectId=s1');
+            expect(await screen.findByText(/Η απόφαση 12\/2025 προστέθηκε/)).toBeInTheDocument();
+        });
+
+        it('replaces a decision added by hand with the save alone', async () => {
+            store.decisions = [{ ...linkedDecision('s1', '640/2026'), candidateBacked: false }];
+            const sheet = await fillManualOverTheFirstRow();
+            await userEvent.click(within(sheet).getByRole('button', { name: 'Αποθήκευση' }));
+            await waitFor(() => expect(mockRequestPoll).toHaveBeenCalledWith(CITY_ID, MEETING_ID));
+            expect(writeMethods()).toEqual(['PUT']);
+            expect(await screen.findByText(/Η απόφαση 12\/2025 προστέθηκε/)).toBeInTheDocument();
+        });
+
+        it('keeps a decision added by hand when the save that replaces it fails', async () => {
+            store.decisions = [{ ...linkedDecision('s1', '640/2026'), candidateBacked: false }];
+            const serve = fetchMock.getMockImplementation();
+            fetchMock.mockImplementation(async (url: string, init?: { method?: string; body?: string }) => {
+                if (init?.method === 'PUT') return { ok: false, status: 500, json: async () => ({ error: 'boom' }) };
+                return serve?.(url, init);
+            });
+            const sheet = await fillManualOverTheFirstRow();
+            await userEvent.click(within(sheet).getByRole('button', { name: 'Αποθήκευση' }));
+            await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+            expect(writeMethods()).toEqual(['PUT']);
+            expect(store.decisions).toHaveLength(1);
+            expect(mockToast).not.toHaveBeenCalledWith(expect.objectContaining({
+                title: expect.stringContaining('αφαιρέθηκε, αλλά η νέα σύνδεση δεν αποθηκεύτηκε'),
+            }));
+            expect(mockRequestPoll).not.toHaveBeenCalled();
+        });
+
+        it('says the row was left empty when the save fails after the removal', async () => {
+            // No candidate in the pool carries the removed ΑΔΑ, so it cannot be linked back.
+            store.decisions = [linkedDecision('s1', '640/2026')];
+            const serve = fetchMock.getMockImplementation();
+            fetchMock.mockImplementation(async (url: string, init?: { method?: string; body?: string }) => {
+                if (init?.method === 'PUT') return { ok: false, status: 500, json: async () => ({ error: 'boom' }) };
+                if (init?.method === 'DELETE') store.decisions = [];
+                return serve?.(url, init);
+            });
+            const sheet = await fillManualOverTheFirstRow();
+            await userEvent.click(within(sheet).getByRole('button', { name: 'Αποθήκευση' }));
+            await waitFor(() => expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+                title: expect.stringContaining('Η 640/2026 αφαιρέθηκε, αλλά η νέα σύνδεση δεν αποθηκεύτηκε'),
+                variant: 'destructive',
+            })));
+            expect(writeMethods()).toEqual(['DELETE', 'PUT']);
+            expect(mockRequestPoll).not.toHaveBeenCalled();
         });
     });
 });

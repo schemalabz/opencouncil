@@ -259,7 +259,12 @@
       "subjectDescriptionLabel": "Subject summary:",
       "agendaItemTitleLabel": "Agenda item title:",
       "reassignTitle": "Move decision",
-      "reassignExplain": "The decision moves to “{subject}”. “{holder}” is left without a decision."
+      "reassignExplain": "The decision moves to “{subject}”. “{holder}” is left without a decision.",
+      "linkTitle": "Link document",
+      "linkExplain": "«Save» links the document to {subject}.",
+      "saveAction": "Save",
+      "back": "Back",
+      "notOnDiavgeia": "Not on Diavgeia"
     },
     "table": {
       "title": "Decisions table",
@@ -330,6 +335,17 @@
       "adaRetry": "Try again",
       "adaLinkedElsewhere": "The decision with ADA {ada} is already linked to {label}.",
       "addManually": "Add manually",
+      "manualTitle": "Add a decision manually for {subject}",
+      "manualHint": "Use this only for a decision that is not on Diavgeia. Upload the PDF or give its link.",
+      "manualPdfLabel": "Decision PDF",
+      "manualNumberLabel": "Decision number",
+      "manualTitleLabel": "Title (optional)",
+      "manualProtocolLabel": "Protocol number (optional)",
+      "manualContinue": "Continue",
+      "manualPdfRequired": "Upload the PDF or give an http(s) link.",
+      "manualNumberRequired": "The decision number is required.",
+      "manualDiavgeiaLink": "This is a Diavgeia link. Search for the decision with ADA {ada}.",
+      "manualUseAda": "Search by ADA",
       "showAll": "Show all ({count})",
       "adaSearchFailed": "The search for ADA {ada} did not finish. Try again.",
       "adaNotADecision": "The document with ADA {ada} is on Diavgeia, but it is not a decision of a collective body.",
@@ -413,7 +429,8 @@
       "dismissed": "Decision {number} is not for this meeting.",
       "kept": "Decision {number} stays with {subject}.",
       "moved": "Decision {number} moved to {subject}.",
-      "rejected": "The proposal for decision {number} was rejected."
+      "rejected": "The proposal for decision {number} was rejected.",
+      "savedManual": "Decision {number} was added to {subject}. The next search reads it."
     },
     "decisionNumberPlaceholder": "e.g. 261/2024",
     "searchSubjects": "Search subject or decision…",

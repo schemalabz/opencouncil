@@ -39,6 +39,7 @@ import { AdaLookupStep, type AdaLookupState } from '@/components/meetings/decisi
 import { readAdaLookup } from '@/lib/actions/adaLookups';
 import { readDiavgeiaUnitEntries } from '@/lib/utils/diavgeiaUnitScope';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
+import { ManualDecisionForm, type ManualDecisionEntry } from '@/components/meetings/decisions/ManualDecisionForm';
 import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 import { buildTimeline } from '@/components/meetings/decisions/timeline';
 import { SubjectPresence } from '@/components/meetings/decisions/SubjectPresence';
@@ -86,6 +87,10 @@ interface PanelState {
     error: string | null;
     /** The ΑΔΑ step's state. It lives on the page because the poll that answers it does. */
     lookup: AdaLookupState;
+    /** A manual entry waiting in the sheet for «Αποθήκευση». */
+    manual: ManualDecisionEntry | null;
+    /** The last entry the form continued with, so the form refills if it remounts. */
+    lastManual: ManualDecisionEntry | null;
 }
 
 /** A rejected proposal, kept on the page so the row and its receipt can undo it together. */
@@ -646,15 +651,24 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         if (!response.ok) throw await writeFailure(response);
     };
 
-    const putDecision = async (body: { subjectId: string; ada: string; decisionNumber: string | null; pdfUrl: string }): Promise<void> => {
+    const putDecision = async (body: {
+        subjectId: string;
+        pdfUrl: string;
+        ada?: string;
+        decisionNumber?: string | null;
+        title?: string | null;
+        protocolNumber?: string | null;
+    }): Promise<void> => {
         const response = await fetch(`/api/cities/${meeting.cityId}/meetings/${meeting.id}/decisions`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 subjectId: body.subjectId,
-                ada: body.ada,
                 pdfUrl: body.pdfUrl,
+                ...(body.ada ? { ada: body.ada } : {}),
                 ...(body.decisionNumber ? { decisionNumber: body.decisionNumber } : {}),
+                ...(body.title ? { title: body.title } : {}),
+                ...(body.protocolNumber ? { protocolNumber: body.protocolNumber } : {}),
             }),
         });
         if (!response.ok) throw await writeFailure(response);
@@ -759,12 +773,14 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         return true;
     };
 
-    /** Delete one link, then make the other: the shared body of replace and move. */
+    /** Delete one link, then make the other: the shared body of replace, move
+     * and a manual save over a linked decision. A failure closes the manual
+     * sheet too, so the panel's error strip under it can be seen. */
     const replaceLink = async (args: {
         loserSubjectId: string;
         loserDecision: DecisionWithSource;
         winnerSubjectId: string;
-        candidateId: string;
+        link: () => Promise<void>;
         onDone: () => void;
     }): Promise<void> => {
         setBusySubjectId(args.winnerSubjectId);
@@ -773,17 +789,17 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             await deleteDecision(args.loserSubjectId);
         } catch (error) {
             setBusySubjectId(null);
-            setPanel(p => p && { ...p, confirm: null, error: failureSentence(error) });
+            setPanel(p => p && { ...p, confirm: null, manual: null, error: failureSentence(error) });
             return;
         }
         try {
-            await postAction({ action: 'assignCandidate', candidateId: args.candidateId, subjectId: args.winnerSubjectId });
+            await args.link();
             await refreshAfterWrite(true);
             args.onDone();
         } catch (error) {
             const restored = await relinkAfterFailure(args.loserSubjectId, args.loserDecision);
             if (restored) {
-                setPanel(p => p && { ...p, confirm: null, error: failureSentence(error) });
+                setPanel(p => p && { ...p, confirm: null, manual: null, error: failureSentence(error) });
             } else {
                 // The panel's note promises the row is unchanged, which is no
                 // longer true: say what is actually on the screen instead.
@@ -835,6 +851,46 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         } catch (error) {
             setPanel(p => p && p.subjectId === subjectId ? { ...p, lookup: { kind: 'failed', ada, cause: failureSentence(error) } } : p);
         }
+    };
+
+    const handleManualSave = async (subjectId: string, entry: ManualDecisionEntry) => {
+        const subject = subjectById.get(subjectId);
+        if (!subject) return;
+        panelRetry.current = () => { void handleManualSave(subjectId, entry); };
+        const afterSave = async () => {
+            setPanel(null);
+            addReceipt(tPage('receipts.savedManual', { number: entry.decisionNumber, subject: labelOf(subject) }));
+            // The poll reads the uploaded PDF like any linked decision. A poll already
+            // running reads it too if it started after the save; otherwise the next one does.
+            try {
+                const start = await requestPollDecisions(meeting.cityId, meeting.id);
+                if (start.status === 'started') await refreshPollingStatus();
+            } catch (error) {
+                toast({ title: tPage('pollError'), description: failureSentence(error), variant: 'destructive' });
+            }
+        };
+        // A PUT over a candidate-backed decision would overwrite it in place and
+        // leave its candidate linked to a row that is now manual: unlink it
+        // first, as a replace does. A decision no candidate backs has nothing to
+        // release, and the PUT alone replaces it, so a failure leaves it there.
+        const current = decisions[subjectId];
+        if (current?.candidateBacked) {
+            await replaceLink({
+                loserSubjectId: subjectId,
+                loserDecision: current,
+                winnerSubjectId: subjectId,
+                link: () => putDecision({ subjectId, ...entry }),
+                onDone: () => { void afterSave(); },
+            });
+            return;
+        }
+        const ok = await runWrite({ subjectId, inPanel: true, changesDecision: true }, () => putDecision({ subjectId, ...entry }));
+        // The failure and its retry are in the panel, under the sheet.
+        if (!ok) {
+            setPanel(p => p && { ...p, manual: null });
+            return;
+        }
+        await afterSave();
     };
 
     const handleUnlink = async (subjectId: string) => {
@@ -1045,7 +1101,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const openPanel = (subjectId: string, mode: 'link' | 'change') => {
         setPickerCandidateId(null);
         panelRetry.current = null;
-        setPanel({ subjectId, mode, query: '', confirm: null, error: null, lookup: { kind: 'idle' } });
+        setPanel({ subjectId, mode, query: '', confirm: null, error: null, lookup: { kind: 'idle' }, manual: null, lastManual: null });
     };
 
     /** A pick in the row panel adds when the row is empty and replaces when it
@@ -1093,7 +1149,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             loserSubjectId,
             loserDecision,
             winnerSubjectId: subjectId,
-            candidateId: confirm.candidateId,
+            link: () => postAction({ action: 'assignCandidate', candidateId: confirm.candidateId, subjectId }),
             onDone: () => {
                 setPanel(null);
                 const number = candidateNumberOf(candidate);
@@ -1158,7 +1214,17 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         onClose={onClose}
                     />
                 )}
-                renderManualStep={() => null}
+                renderManualStep={({ onBack, toAda, onClose }) => (
+                    <ManualDecisionForm
+                        subjectLabel={labelOf(subject)}
+                        uploadConfig={{ cityId: meeting.cityId, identifier: `${meeting.id}_${subjectId}`, suffix: 'decision' }}
+                        initial={panel.lastManual}
+                        onContinue={entry => setPanel(p => p && { ...p, manual: entry, lastManual: entry })}
+                        onUseAda={ada => { toAda(); void handleAdaSearch(subjectId, ada); }}
+                        onBack={onBack}
+                        onClose={onClose}
+                    />
+                )}
                 onOpenDocument={documentId => openSheet(documentId, subjectId)}
                 onClose={() => setPanel(null)}
                 saving={busySubjectId === subjectId}
@@ -1508,10 +1574,40 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                 ? subjectById.get(sheetView.subjectId)?.agendaItemTitle ?? null
                                 : null}
                             busy={false}
+                            sourceNote={tPage('sheet.notOnDiavgeia')}
                             extraContent={sheetView.subjectId ? renderExtractedDetails(sheetView.subjectId) : undefined}
                             onConfirm={() => undefined}
                         />
                     )}
+
+                    {panel?.manual && (() => {
+                        const subject = subjectById.get(panel.subjectId);
+                        const entry = panel.manual;
+                        const replaced = decisions[panel.subjectId];
+                        return (
+                            <ConfirmSheet
+                                open
+                                onOpenChange={open => { if (!open) setPanel(p => p && { ...p, manual: null }); }}
+                                action="link"
+                                decisionTitle={entry.title}
+                                decisionNumber={entry.decisionNumber}
+                                subjectName={subject ? labelOf(subject) : null}
+                                pdfUrl={entry.pdfUrl}
+                                ada={null}
+                                sourceNote={tPage('sheet.notOnDiavgeia')}
+                                subjectDescription={subject?.description ?? null}
+                                agendaItemTitle={subject?.agendaItemTitle ?? null}
+                                busy={busySubjectId === panel.subjectId}
+                                confirmLabel={tPage('sheet.saveAction')}
+                                explainNote={replaced
+                                    ? tPage(replaced.candidateBacked ? 'panel.replaceNote' : 'panel.replaceNoteDestructive', {
+                                        number: decisionNumberOf(replaced, tPage('table.linked')),
+                                    })
+                                    : undefined}
+                                onConfirm={() => { void handleManualSave(panel.subjectId, entry); }}
+                            />
+                        );
+                    })()}
 
                     {minutes && (
                         <MinutesPreviewDialog

@@ -259,7 +259,12 @@
       "subjectDescriptionLabel": "Résumé du sujet :",
       "agendaItemTitleLabel": "Intitulé à l'ordre du jour :",
       "reassignTitle": "Déplacer la décision",
-      "reassignExplain": "La décision sera déplacée vers « {subject} ». « {holder} » restera sans décision."
+      "reassignExplain": "La décision sera déplacée vers « {subject} ». « {holder} » restera sans décision.",
+      "linkTitle": "Lier le document",
+      "linkExplain": "« Enregistrer » lie le document à {subject}.",
+      "saveAction": "Enregistrer",
+      "back": "Retour",
+      "notOnDiavgeia": "Pas sur Diavgeia"
     },
     "table": {
       "title": "Tableau des décisions",
@@ -330,6 +335,17 @@
       "adaRetry": "Réessayer",
       "adaLinkedElsewhere": "La décision avec l'ADA {ada} est déjà liée à {label}.",
       "addManually": "Ajouter manuellement",
+      "manualTitle": "Ajouter manuellement une décision pour {subject}",
+      "manualHint": "N'utilisez ceci que pour une décision qui n'est pas sur Diavgeia. Téléversez le PDF ou donnez son lien.",
+      "manualPdfLabel": "PDF de la décision",
+      "manualNumberLabel": "Numéro de la décision",
+      "manualTitleLabel": "Titre (facultatif)",
+      "manualProtocolLabel": "Numéro de protocole (facultatif)",
+      "manualContinue": "Continuer",
+      "manualPdfRequired": "Téléversez le PDF ou donnez un lien http(s).",
+      "manualNumberRequired": "Le numéro de la décision est obligatoire.",
+      "manualDiavgeiaLink": "Ceci est un lien Diavgeia. Recherchez la décision avec l'ADA {ada}.",
+      "manualUseAda": "Rechercher par ADA",
       "showAll": "Tout afficher ({count})",
       "adaSearchFailed": "La recherche de l'ADA {ada} n'a pas abouti. Réessayez.",
       "adaNotADecision": "Le document avec l'ADA {ada} est sur Diavgeia, mais ce n'est pas une décision d'un organe collégial.",
@@ -413,7 +429,8 @@
       "dismissed": "La décision {number} ne concerne pas cette séance.",
       "kept": "La décision {number} reste avec {subject}.",
       "moved": "La décision {number} a été déplacée vers {subject}.",
-      "rejected": "La proposition pour la décision {number} a été rejetée."
+      "rejected": "La proposition pour la décision {number} a été rejetée.",
+      "savedManual": "La décision {number} a été ajoutée à {subject}. La prochaine recherche la lira."
     },
     "decisionNumberPlaceholder": "p. ex. 261/2024",
     "searchSubjects": "Rechercher un sujet ou une décision…",

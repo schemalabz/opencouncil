@@ -259,7 +259,12 @@
       "subjectDescriptionLabel": "Σύνοψη θέματος:",
       "agendaItemTitleLabel": "Τίτλος στην ημερήσια διάταξη:",
       "reassignTitle": "Μεταφορά απόφασης",
-      "reassignExplain": "Η απόφαση θα μεταφερθεί στο θέμα «{subject}». Το «{holder}» θα μείνει χωρίς απόφαση."
+      "reassignExplain": "Η απόφαση θα μεταφερθεί στο θέμα «{subject}». Το «{holder}» θα μείνει χωρίς απόφαση.",
+      "linkTitle": "Σύνδεση εγγράφου",
+      "linkExplain": "Με «Αποθήκευση» το έγγραφο συνδέεται με {subject}.",
+      "saveAction": "Αποθήκευση",
+      "back": "Πίσω",
+      "notOnDiavgeia": "Δεν είναι στη Διαύγεια"
     },
     "table": {
       "title": "Πίνακας αποφάσεων",
@@ -330,6 +335,17 @@
       "adaRetry": "Δοκιμάστε ξανά",
       "adaLinkedElsewhere": "Η απόφαση με ΑΔΑ {ada} είναι ήδη συνδεδεμένη με {label}.",
       "addManually": "Χειροκίνητη προσθήκη",
+      "manualTitle": "Χειροκίνητη προσθήκη απόφασης για {subject}",
+      "manualHint": "Χρησιμοποιήστε το μόνο για απόφαση που δεν είναι στη Διαύγεια. Ανεβάστε το PDF ή δώστε τον σύνδεσμό του.",
+      "manualPdfLabel": "PDF απόφασης",
+      "manualNumberLabel": "Αριθμός απόφασης",
+      "manualTitleLabel": "Τίτλος (προαιρετικός)",
+      "manualProtocolLabel": "Αριθμός πρωτοκόλλου (προαιρετικός)",
+      "manualContinue": "Συνέχεια",
+      "manualPdfRequired": "Ανεβάστε το PDF ή δώστε έναν σύνδεσμο http(s).",
+      "manualNumberRequired": "Ο αριθμός απόφασης είναι υποχρεωτικός.",
+      "manualDiavgeiaLink": "Αυτός είναι σύνδεσμος της Διαύγειας. Αναζητήστε την απόφαση με τον ΑΔΑ {ada}.",
+      "manualUseAda": "Αναζήτηση με ΑΔΑ",
       "showAll": "Εμφάνιση όλων ({count})",
       "adaSearchFailed": "Η αναζήτηση για τον ΑΔΑ {ada} δεν ολοκληρώθηκε. Δοκιμάστε ξανά.",
       "adaNotADecision": "Το έγγραφο με ΑΔΑ {ada} υπάρχει στη Διαύγεια, αλλά δεν είναι απόφαση συλλογικού οργάνου.",
@@ -413,7 +429,8 @@
       "dismissed": "Η απόφαση {number} δεν αφορά τη συνεδρίαση.",
       "kept": "Η απόφαση {number} μένει σ{subject}.",
       "moved": "Η απόφαση {number} μεταφέρθηκε σ{subject}.",
-      "rejected": "Η πρόταση για την απόφαση {number} απορρίφθηκε."
+      "rejected": "Η πρόταση για την απόφαση {number} απορρίφθηκε.",
+      "savedManual": "Η απόφαση {number} προστέθηκε σ{subject}. Θα διαβαστεί στην επόμενη αναζήτηση."
     },
     "decisionNumberPlaceholder": "π.χ. 261/2024",
     "searchSubjects": "Αναζήτηση θέματος ή απόφασης…",
