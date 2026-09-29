@@ -8,7 +8,7 @@ argument-hint: "[main] [--keep] | --main <file> [--notis <file>] [--keep]"
 
 `backup.sh test`, next to this file, does the whole test in one command. It fetches the newest `production` and `notis-production` dumps from the SnapShooter bucket. It restores them into a private PostgreSQL cluster that it creates for the run, checks them, and deletes the whole cluster. It prints a report that ends in `RESULT: PASS` or `RESULT: FAIL`. The exit code matches.
 
-The restored data holds readers' names and phone numbers. Never print rows from it. Deleting the whole cluster is what removes that data: dropping a database leaves every restored row in PostgreSQL's write-ahead log. The cluster listens on a socket only, with no network port. The test never touches a developer's database, never applies migrations, and never starts Notis or the app. So it cannot send a message or call an external service.
+The restored data holds readers' names and phone numbers. Never print rows from it. Deleting the whole cluster is what removes that data: dropping a database leaves every restored row in PostgreSQL's write-ahead log. The cluster listens on a socket only, with no network port. Only the user who runs the test can read or use what it creates: the downloads, the logs, the cluster and its socket. The test never touches a developer's database, never applies migrations, and never starts Notis or the app. So it cannot send a message or call an external service.
 
 ## 1. Prerequisites
 
@@ -30,7 +30,7 @@ The restored data holds readers' names and phone numbers. Never print rows from 
 nix develop --command .claude/skills/test-backup/backup.sh test
 ```
 
-It downloads about 900 MB and takes about five minutes. Run it in the background. When you run it, set `OC_TEST_BACKUP_DIR` to a directory in your scratchpad first. The downloads and logs go there.
+It downloads about 900 MB and takes about five minutes. Run it in the background. When you run it, set `OC_TEST_BACKUP_DIR` to a directory in your scratchpad first. The downloads and logs go into an `oc-test-backup` directory inside it. Without the variable, they go into `.data/oc-test-backup` in the repository. The logs stay there after the run, until `backup.sh clean` removes them.
 
 Arguments:
 
@@ -46,6 +46,7 @@ Show the user the report. For each `FAIL`, this is the meaning and the next step
 
 | Failure | Meaning | Next step |
 |---|---|---|
+| `… is a symbolic link`, or `… belongs to <user>` | A directory that the test needs is a link, or another user owns it. In `/tmp`, another user can create the path first. | If the path ends in `oc-test-backup`, set `OC_TEST_BACKUP_DIR` to another directory. If the path starts with `/tmp/oc-bt-`, ask that user or the machine's administrator to remove it. |
 | the test stopped before it finished | An unexpected error or an interrupt ended the run early. The cluster and the downloads are still deleted. | If the run was not interrupted, read the error printed above the `RESULT` line. |
 | the newest dump is over the age limit | The SnapShooter job has stopped. A stopped job sends no failure notification. | Look at the job's recent runs in SnapShooter. For the Notis job, `permission denied for table …` means that `notis_backup` cannot read a table that a role other than `notis_production_app` created. Grant it `SELECT` on that table. |
 | target holds no dump | The job has never written to its directory, or it writes somewhere else. | Compare the listed directories with `TARGET_DIR` in `backup.sh`. A renamed job writes to a new directory. |

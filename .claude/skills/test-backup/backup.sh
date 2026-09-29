@@ -11,6 +11,11 @@
 # migrations, and never starts a service.
 set -euo pipefail
 
+# Everything this script creates holds production data or leads to it: the
+# downloads, the logs, the cluster and its socket. Only the user who runs the
+# script may read them.
+umask 077
+
 BUCKET="oc-backups:opencouncil-db-backups/snapshooter"
 
 # SnapShooter target directories. The hex prefix identifies a SnapShooter
@@ -32,12 +37,30 @@ declare -A TEST_DB=(
 # stopped job sends no failure notification.
 MAX_AGE_HOURS="${BACKUP_TEST_MAX_AGE_HOURS:-30}"
 
-WORK_DIR="${OC_TEST_BACKUP_DIR:-${TMPDIR:-/tmp}/oc-test-backup}"
 DB_USER="opencouncil"
 
 die() { echo "error: $*" >&2; exit 1; }
 
+# A directory that only this user can use. In /tmp another user can create the
+# path first, and an earlier version of this script left its directories open,
+# so an existing directory must belong to this user and must not be a link.
+private_dir() {
+  local d="$1" owner
+  [ -L "$d" ] && die "$d is a symbolic link. The test uses only a real directory that you own."
+  mkdir -p "$d"
+  owner="$(stat -c %u "$d")" || die "cannot read the owner of $d"
+  [ "$owner" = "$(id -u)" ] \
+    || die "$d belongs to $(stat -c %U "$d"). Only that user or root can remove it."
+  chmod 700 "$d"
+}
+
 REPO_ROOT="$(git rev-parse --show-toplevel)" || die "not inside a git repository"
+
+# Always a directory of its own, because private_dir restricts it to its owner.
+# The default sits next to the cluster: a stable path that `clean` can find,
+# in a tree that belongs to this user. TMPDIR is not stable here, because
+# every `nix develop` shell sets a new one and does not remove it.
+WORK_DIR="${OC_TEST_BACKUP_DIR:-$REPO_ROOT/.data}/oc-test-backup"
 
 # The private cluster. Deleting its directory is the only way to remove the
 # restored data completely: DROP DATABASE removes the tables, but every row the
@@ -65,18 +88,22 @@ cluster_remove() {
   if [ -f "$CLUSTER_DATA/postmaster.pid" ]; then
     "${PG_BIN:?}/pg_ctl" -D "$CLUSTER_DATA" -m immediate -w stop >/dev/null 2>&1 || true
   fi
-  rm -rf "${CLUSTER_ROOT:?}" "${SOCKET:?}"
+  rm -rf "${CLUSTER_ROOT:?}"
+  # A socket directory that another user created cannot be removed here;
+  # private_dir then refuses it with a clear message.
+  rm -rf "${SOCKET:?}" 2>/dev/null || true
 }
 
 cluster_start() {
   # A cluster left by a crashed run or a --keep run goes first.
   cluster_remove
-  mkdir -p "$CLUSTER_ROOT" "$SOCKET"
+  private_dir "$CLUSTER_ROOT"
+  private_dir "$SOCKET"
   "$PG_BIN/initdb" -D "$CLUSTER_DATA" -U "$DB_USER" --auth=trust --no-sync --no-instructions -E UTF8 >/dev/null
-  # No TCP listener, so only processes on this machine can connect. The cluster
-  # is deleted after the run, so it does not need crash safety.
+  # No TCP listener, and a socket that only this user can open. The cluster is
+  # deleted after the run, so it does not need crash safety.
   "$PG_BIN/pg_ctl" -D "$CLUSTER_DATA" -l "$CLUSTER_ROOT/server.log" -w \
-    -o "-c listen_addresses='' -c unix_socket_directories=$SOCKET -c fsync=off -c synchronous_commit=off -c full_page_writes=off" \
+    -o "-c listen_addresses='' -c unix_socket_directories=$SOCKET -c unix_socket_permissions=0700 -c fsync=off -c synchronous_commit=off -c full_page_writes=off" \
     start >/dev/null
 }
 
@@ -106,7 +133,6 @@ fetch() {
     rclone lsf "$BUCKET/" | sed 's/^/    /'
     return 1
   fi
-  mkdir -p "$WORK_DIR"
   # Registered before the download starts, so that cleanup also deletes a file
   # that an interrupted run completed or left partial.
   FETCHED+=("$WORK_DIR/$file")
@@ -207,7 +233,6 @@ classify() {
 
 restore() {
   local t="$1" db="${TEST_DB[$1]}" log="$WORK_DIR/$1.restore-errors.log"
-  mkdir -p "$WORK_DIR"
   # template0, as PostgreSQL recommends for restoring a dump: the restore
   # then starts from a database with nothing added to it.
   lpsql postgres -c "CREATE DATABASE \"$db\" TEMPLATE template0;"
@@ -353,6 +378,7 @@ cmd_test() {
   done
   trap cleanup EXIT
   trap 'exit 130' INT TERM
+  private_dir "$WORK_DIR"
 
   local ts=()
   if [ -n "$main_file" ]; then
@@ -413,7 +439,9 @@ cmd_clean() {
   echo "removed the cluster at $CLUSTER_ROOT"
   local f
   for f in "$WORK_DIR/${DUMP_FILE[main]}" "$WORK_DIR/${DUMP_FILE[notis]}"; do rm -f "$f" "$f".*.partial; done
-  echo "removed downloaded dumps from $WORK_DIR"
+  # A failed restore can spill table rows into its error log.
+  rm -f "$WORK_DIR"/*.restore-errors.log
+  echo "removed downloaded dumps and restore logs from $WORK_DIR"
 }
 
 case "${1:-}" in
