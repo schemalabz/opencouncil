@@ -32,6 +32,8 @@ interface StoreCandidate {
     pdfUrl: string;
     subjectId: string | null;
     confidence: number | null;
+    reasoning: string | null;
+    readStatus: string;
     conflict: { subjectId: string; subjectName: string } | null;
     publishDate: string | null;
     meetingDate: string | null;
@@ -45,6 +47,8 @@ const candidate = (over: Partial<StoreCandidate> = {}): StoreCandidate => ({
     pdfUrl: 'https://diavgeia.gov.gr/doc/ΨΞΚ1ΩΗΔ-Α1Β',
     subjectId: 's2',
     confidence: 0.9,
+    reasoning: null,
+    readStatus: 'ok',
     conflict: null,
     publishDate: '2026-07-24',
     meetingDate: '2026-07-23T00:00:00.000Z',
@@ -837,6 +841,21 @@ describe('MeetingDecisionsPage — looking up a typed ΑΔΑ', () => {
         expect(await screen.findByRole('dialog')).toBeInTheDocument();
     });
 
+    it('still warns about another organization after the panel closes', async () => {
+        mockReadAdaLookup.mockImplementation(async () => {
+            store.candidates = [candidate({ id: 'cand-9', ada: ADA, decisionNumber: '66/2026', subjectId: null, confidence: null })];
+            return { state: 'found', candidateId: 'cand-9', organizationLabel: 'ΔΕΥΑ Χανίων', linkedTo: null };
+        });
+        await searchFromTheFirstRow();
+        expect(within(await screen.findByRole('dialog')).getByText(/ΔΕΥΑ Χανίων/)).toBeInTheDocument();
+        await userEvent.keyboard('{Escape}');
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        await userEvent.click(screen.getByRole('button', { name: 'Κλείσιμο' }));
+        await userEvent.click((await screen.findAllByRole('button', { name: 'Συμπλήρωση αριθμού' }))[0]);
+        await userEvent.click(screen.getByRole('button', { name: 'Άνοιγμα εγγράφου της απόφασης 66/2026' }));
+        expect(within(await screen.findByRole('dialog')).getByText(/ΔΕΥΑ Χανίων/)).toBeInTheDocument();
+    });
+
     it('keeps searching while a found candidate is not in the refetch yet, then opens it', async () => {
         // The task is marked done before its result handler writes the
         // candidate, so the refetch can come back without it.
@@ -991,5 +1010,44 @@ describe('MeetingDecisionsPage — a decision that is not on Diavgeia', () => {
             expect(writeMethods()).toEqual(['DELETE', 'PUT']);
             expect(mockRequestPoll).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('MeetingDecisionsPage — matching a candidate from its document sheet', () => {
+    const openFreeCandidateFromThePanel = async () => {
+        store.candidates = [candidate({ subjectId: null, confidence: null })];
+        await renderPage();
+        await userEvent.click((await screen.findAllByRole('button', { name: 'Συμπλήρωση αριθμού' }))[0]);
+        await userEvent.click(screen.getByRole('button', { name: 'Άνοιγμα εγγράφου της απόφασης 637/2026' }));
+        return screen.findByRole('dialog');
+    };
+
+    it('links the candidate to the row the sheet was opened from', async () => {
+        const sheet = await openFreeCandidateFromThePanel();
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Αντιστοίχιση' }));
+        await waitFor(() => expect(postsOf('assignCandidate')).toEqual([
+            { action: 'assignCandidate', candidateId: 'cand-1', subjectId: 's1' },
+        ]));
+    });
+
+    it('sets the candidate aside from the sheet', async () => {
+        const sheet = await openFreeCandidateFromThePanel();
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Απόρριψη' }));
+        await waitFor(() => expect(postsOf('dismissCandidate')).toEqual([
+            { action: 'dismissCandidate', candidateId: 'cand-1' },
+        ]));
+        expect(await screen.findByRole('button', { name: 'Αναίρεση: Η απόφαση 637/2026 δεν αφορά τη συνεδρίαση.' })).toBeInTheDocument();
+    });
+
+    it('opens a proposal with the resolver’s reasoning and links it to its row', async () => {
+        store.candidates = [candidate({ reasoning: 'Ίδιος τίτλος' })];
+        await renderPage();
+        await userEvent.click(await screen.findByRole('button', { name: 'Άνοιγμα εγγράφου' }));
+        const sheet = await screen.findByRole('dialog');
+        expect(within(sheet).getByText('Ίδιος τίτλος')).toBeInTheDocument();
+        await userEvent.click(within(sheet).getByRole('button', { name: 'Αντιστοίχιση' }));
+        await waitFor(() => expect(postsOf('assignCandidate')).toEqual([
+            { action: 'assignCandidate', candidateId: 'cand-1', subjectId: 's2' },
+        ]));
     });
 });

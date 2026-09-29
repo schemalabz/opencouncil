@@ -264,7 +264,17 @@
       "linkExplain": "« Enregistrer » lie le document à {subject}.",
       "saveAction": "Enregistrer",
       "back": "Retour",
-      "notOnDiavgeia": "Pas sur Diavgeia"
+      "notOnDiavgeia": "Pas sur Diavgeia",
+      "assignTitle": "Associer la décision",
+      "assignExplain": "« Associer » lie la décision à {subject}.",
+      "assignAction": "Associer",
+      "moveAction": "Déplacer ici",
+      "factsPublished": "Publiée sur Diavgeia : {date}",
+      "factsDeclared": "La décision indique la séance du {date}.",
+      "warnOtherSession": "La décision indique la séance du {date}, pas celle-ci. Vérifiez le document avant de le lier.",
+      "warnUnread": "Nous n'avons pas pu lire dans le document quelle séance l'a émis.",
+      "warnOtherOrganization": "La décision appartient à l'organisme « {label} », pas à la commune.",
+      "proposalReasoning": "Pourquoi elle a été proposée ({confidence} %) :"
     },
     "table": {
       "title": "Tableau des décisions",

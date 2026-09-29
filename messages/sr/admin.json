@@ -264,7 +264,17 @@
             "linkExplain": "„Сачувај” повезује документ са {subject}.",
             "saveAction": "Сачувај",
             "back": "Назад",
-            "notOnDiavgeia": "Није у Диавгији"
+            "notOnDiavgeia": "Није у Диавгији",
+            "assignTitle": "Повезивање одлуке",
+            "assignExplain": "„Повежи” повезује одлуку са {subject}.",
+            "assignAction": "Повежи",
+            "moveAction": "Премести овде",
+            "factsPublished": "Објављено у Диавгији: {date}",
+            "factsDeclared": "Одлука наводи седницу од {date}.",
+            "warnOtherSession": "Одлука наводи седницу од {date}, а не ову. Проверите документ пре него што га повежете.",
+            "warnUnread": "Из документа нисмо могли да прочитамо која седница га је донела.",
+            "warnOtherOrganization": "Одлука припада организацији „{label}”, а не општини.",
+            "proposalReasoning": "Зашто је предложена ({confidence}%):"
         },
         "table": {
             "title": "Табела одлука",

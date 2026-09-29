@@ -14,7 +14,7 @@ import { ADA_LOOKUP_SETTLE_MS } from '@/lib/db/types/adaLookups';
 import { getPollingHistoryForMeeting, requestPollDecisions, resolveCandidateConflict } from '@/lib/tasks/pollDecisions';
 import { pollCadence } from '@/lib/tasks/pollDecisionsBackoff';
 import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib/utils/votes';
-import { formatCalendarDate, formatDate } from '@/lib/formatters/time';
+import { formatCalendarDate, formatDate, localCalendarDate } from '@/lib/formatters/time';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
 import { isDecisionConventions } from '@/lib/decisionConventions';
 import { isRecordSubject, recordSection } from '@/lib/utils/subjects';
@@ -39,6 +39,7 @@ import { AdaLookupStep, type AdaLookupState } from '@/components/meetings/decisi
 import { readAdaLookup } from '@/lib/actions/adaLookups';
 import { readDiavgeiaUnitEntries } from '@/lib/utils/diavgeiaUnitScope';
 import { ConfirmSheet } from '@/components/meetings/decisions/ConfirmSheet';
+import { CandidateFacts } from '@/components/meetings/decisions/CandidateFacts';
 import { ManualDecisionForm, type ManualDecisionEntry } from '@/components/meetings/decisions/ManualDecisionForm';
 import type { MinutesData, MinutesSubject } from '@/lib/minutes/types';
 import { buildTimeline } from '@/components/meetings/decisions/timeline';
@@ -111,6 +112,8 @@ interface SheetView {
     /** Set only for a linked decision — the sheet names the subject it belongs to. */
     subjectId: string | null;
     subjectName: string | null;
+    /** A candidate opened from a subject's row: the subject a link would go to. */
+    target: { subjectId: string; candidate: CandidateView } | null;
 }
 
 /** The number a decision is known by; Diavgeia's filing protocol stands in until
@@ -225,8 +228,17 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
      * the next load — and its receipt could no longer show what it set aside. */
     const [setAside, setSetAside] = useState<Record<string, CandidateView>>({});
     const [rejected, setRejected] = useState<Record<string, RejectedProposal>>({});
-    const [viewing, setViewing] = useState<string | null>(null);
-    const openSheet = useCallback((documentId: string, _targetSubjectId: string | null) => setViewing(documentId), []);
+    /** The document the sheet shows, and the row it was opened from — a
+     * candidate opened from a row can be matched to it from the sheet. */
+    const [viewing, setViewing] = useState<{ id: string; targetSubjectId: string | null } | null>(null);
+    /** The other organization a looked-up document came from, by its ΑΔΑ. No
+     * column holds it, and the panel's lookup state goes when the panel closes:
+     * the sheet opened again later still has to warn. */
+    const [lookupOrganizations, setLookupOrganizations] = useState<Record<string, string>>({});
+    const openSheet = useCallback(
+        (documentId: string, targetSubjectId: string | null) => setViewing({ id: documentId, targetSubjectId }),
+        [],
+    );
     // Bumped by handleJumpToTable; the effect below fires after the filter
     // change it triggers has committed, so it measures the table at its new
     // (post-filter) height rather than the one before the click.
@@ -431,6 +443,8 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         }
                         const candidate = data?.candidates?.find(c => c.id === outcome.candidateId);
                         if (!candidate) return { kind: 'failed', ada, cause: null };
+                        const organizationLabel = outcome.organizationLabel;
+                        if (organizationLabel) setLookupOrganizations(labels => ({ ...labels, [candidate.ada]: organizationLabel }));
                         return { kind: 'found', ada, candidateId: candidate.id, number: candidateNumberOf(candidate), organizationLabel: outcome.organizationLabel };
                     }
                 }
@@ -944,7 +958,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         addReceipt(
             tPage('receipts.dismissed', { number }),
             receiptId => { void handleUndoDismiss(candidateId, receiptId); },
-            { label: number, onOpen: () => setViewing(candidateId) },
+            { label: number, onOpen: () => openSheet(candidateId, null) },
         );
     };
 
@@ -1428,7 +1442,8 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
      * "Άνοιγμα εγγράφου" controls. */
     const view: SheetView | null = (() => {
         if (!viewing) return null;
-        const candidate = candidates.find(c => c.id === viewing) ?? setAside[viewing];
+        const live = candidates.find(c => c.id === viewing.id);
+        const candidate = live ?? setAside[viewing.id];
         if (candidate) {
             return {
                 title: candidate.title,
@@ -1437,9 +1452,11 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 ada: candidate.ada,
                 subjectId: null,
                 subjectName: null,
+                // A candidate set aside is no longer offered, so it opens to be read only.
+                target: live && viewing.targetSubjectId ? { subjectId: viewing.targetSubjectId, candidate: live } : null,
             };
         }
-        const entry = Object.entries(decisions).find(([, decision]) => decision.id === viewing);
+        const entry = Object.entries(decisions).find(([, decision]) => decision.id === viewing.id);
         if (!entry) return null;
         const [subjectId, decision] = entry;
         const subject = subjectById.get(subjectId);
@@ -1450,6 +1467,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             ada: decision.ada,
             subjectId,
             subjectName: subject ? displayName(subject) : null,
+            target: null,
         };
     })();
     // The sheet stays mounted while it animates out — same dismissable-layer
@@ -1522,7 +1540,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                 pollState={pollState}
                                 onPoll={() => { void handlePoll(false); }}
                                 polling={isPolling}
-                                onOpenDocument={setViewing}
+                                onOpenDocument={documentId => openSheet(documentId, null)}
                                 onOpenPicker={candidateId => { setPanel(null); setPickerQuery(''); setPickerCandidateId(candidateId); }}
                                 onDismiss={candidateId => { void handleDismiss(candidateId); }}
                                 onKeepHolder={candidateId => { void resolveConflict(candidateId, 'dismiss'); }}
@@ -1546,8 +1564,11 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                     onUndoReject={(subjectId, candidateId) => {
                                         void handleUndoReject(subjectId, candidateId, rejected[subjectId]?.receiptId ?? null);
                                     }}
-                                    onOpenDecision={subjectId => setViewing(decisions[subjectId]?.id ?? null)}
-                                    onOpenProposalDocument={setViewing}
+                                    onOpenDecision={subjectId => {
+                                        const decisionId = decisions[subjectId]?.id;
+                                        if (decisionId) openSheet(decisionId, null);
+                                    }}
+                                    onOpenProposalDocument={openSheet}
                                     busySubjectId={busySubjectId}
                                     openAuditSubjectId={openAuditSubjectId}
                                     onToggleAudit={toggleAuditSubject}
@@ -1557,28 +1578,61 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         </>
                     )}
 
-                    {sheetView && (
-                        <ConfirmSheet
-                            open={view !== null}
-                            onOpenChange={open => { if (!open) setViewing(null); }}
-                            action="view"
-                            decisionTitle={sheetView.title}
-                            decisionNumber={sheetView.decisionNumber}
-                            subjectName={sheetView.subjectName}
-                            pdfUrl={sheetView.pdfUrl}
-                            ada={sheetView.ada}
-                            subjectDescription={sheetView.subjectId
-                                ? subjectById.get(sheetView.subjectId)?.description ?? null
-                                : null}
-                            agendaItemTitle={sheetView.subjectId
-                                ? subjectById.get(sheetView.subjectId)?.agendaItemTitle ?? null
-                                : null}
-                            busy={false}
-                            sourceNote={tPage('sheet.notOnDiavgeia')}
-                            extraContent={sheetView.subjectId ? renderExtractedDetails(sheetView.subjectId) : undefined}
-                            onConfirm={() => undefined}
-                        />
-                    )}
+                    {sheetView && (() => {
+                        const target = sheetView.target;
+                        const subjectId = target?.subjectId ?? sheetView.subjectId;
+                        const subject = subjectId ? subjectById.get(subjectId) : undefined;
+                        const holder = target ? subjectByCandidate.get(target.candidate.id) : undefined;
+                        const movesFromElsewhere = Boolean(target && holder && holder !== target.subjectId && decisions[holder]);
+                        return (
+                            <ConfirmSheet
+                                open={view !== null}
+                                onOpenChange={open => { if (!open) setViewing(null); }}
+                                action={target ? 'assign' : 'view'}
+                                decisionTitle={sheetView.title}
+                                decisionNumber={sheetView.decisionNumber}
+                                // `assignExplain` contracts «σε» with the label's article; `viewExplain` quotes the bare name.
+                                subjectName={target ? (subject ? labelOf(subject) : null) : sheetView.subjectName}
+                                pdfUrl={sheetView.pdfUrl}
+                                ada={sheetView.ada}
+                                subjectDescription={subject?.description ?? null}
+                                agendaItemTitle={subject?.agendaItemTitle ?? null}
+                                meetingId={meeting.id}
+                                cityId={meeting.cityId}
+                                busy={target ? busySubjectId === target.subjectId || busyCandidateId === target.candidate.id : false}
+                                sourceNote={tPage('sheet.notOnDiavgeia')}
+                                confirmLabel={movesFromElsewhere ? tPage('sheet.moveAction') : tPage('sheet.assignAction')}
+                                facts={target ? (
+                                    <CandidateFacts
+                                        publishDate={target.candidate.publishDate}
+                                        declaredDate={target.candidate.meetingDate?.slice(0, 10) ?? null}
+                                        meetingDate={localCalendarDate(new Date(meeting.dateTime), city.timezone)}
+                                        readStatus={target.candidate.readStatus}
+                                        organizationLabel={lookupOrganizations[target.candidate.ada] ?? null}
+                                        proposal={target.candidate.subjectId === target.subjectId
+                                            ? { confidence: target.candidate.confidence, reasoning: target.candidate.reasoning }
+                                            : null}
+                                    />
+                                ) : undefined}
+                                extraContent={!target && sheetView.subjectId ? renderExtractedDetails(sheetView.subjectId) : undefined}
+                                onConfirm={() => {
+                                    if (!target) return;
+                                    setViewing(null);
+                                    // The write reports a failure, and asks a move or a replace, in the
+                                    // row's panel — so the panel has to be open on that row first.
+                                    if (panel?.subjectId !== target.subjectId) {
+                                        openPanel(target.subjectId, decisions[target.subjectId] ? 'change' : 'link');
+                                    }
+                                    if (movesFromElsewhere && holder) {
+                                        setPanel(p => p && { ...p, confirm: { kind: 'move', candidateId: target.candidate.id, from: labelOfId(holder) ?? '' } });
+                                    } else {
+                                        handlePanelPick(target.subjectId, target.candidate.id);
+                                    }
+                                }}
+                                onDismiss={target ? () => { setViewing(null); void handleDismiss(target.candidate.id); } : undefined}
+                            />
+                        );
+                    })()}
 
                     {panel?.manual && (() => {
                         const subject = subjectById.get(panel.subjectId);
@@ -1597,6 +1651,8 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                                 sourceNote={tPage('sheet.notOnDiavgeia')}
                                 subjectDescription={subject?.description ?? null}
                                 agendaItemTitle={subject?.agendaItemTitle ?? null}
+                                meetingId={meeting.id}
+                                cityId={meeting.cityId}
                                 busy={busySubjectId === panel.subjectId}
                                 confirmLabel={tPage('sheet.saveAction')}
                                 explainNote={replaced
