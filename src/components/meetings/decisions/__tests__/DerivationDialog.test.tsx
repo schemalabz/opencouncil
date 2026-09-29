@@ -44,14 +44,19 @@ describe('DerivationDialog', () => {
         }
     });
 
-    it('lists a two-step code under both its steps, each pointing at the other', () => {
+    it('lists a code of several steps under each of them, each pointing at the others', () => {
         show();
-        expect(ISSUE_STAGES.SOURCES_DISAGREE).toEqual(['presence', 'votes']);
+        expect(ISSUE_STAGES.SOURCES_DISAGREE).toEqual(['resolve', 'presence', 'votes']);
         const label = el.issues.codes.SOURCES_DISAGREE;
-        // Step 3 sends the reader to step 4 and step 4 back to step 3.
+        // Each step sends the reader to the other two.
+        expect(stageCard('resolve').getByText(label)).toBeInTheDocument();
+        expect(stageCard('resolve').getByText('και στο βήμα 3')).toBeInTheDocument();
+        expect(stageCard('resolve').getByText('και στο βήμα 4')).toBeInTheDocument();
         expect(stageCard('presence').getByText(label)).toBeInTheDocument();
+        expect(stageCard('presence').getByText('και στο βήμα 1')).toBeInTheDocument();
         expect(stageCard('presence').getByText('και στο βήμα 4')).toBeInTheDocument();
         expect(stageCard('votes').getByText(label)).toBeInTheDocument();
+        expect(stageCard('votes').getByText('και στο βήμα 1')).toBeInTheDocument();
         expect(stageCard('votes').getByText('και στο βήμα 3')).toBeInTheDocument();
     });
 

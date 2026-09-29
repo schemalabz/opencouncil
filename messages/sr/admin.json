@@ -312,7 +312,15 @@
                 "none": "—",
                 "noVote": "—"
             },
-            "filterAudit": "Захтевају проверу"
+            "filterAudit": "Захтевају проверу",
+            "resultFrom": {
+                "sheet": "The vote comes from the attendance sheet; no document is linked yet",
+                "transcript": "The vote comes from the transcript; no document is linked yet"
+            },
+            "sourceShort": {
+                "sheet": "sheet",
+                "transcript": "transcript"
+            }
         },
         "panel": {
             "adaTitle": "Додај одлуку по ADA за {subject}",
@@ -517,6 +525,35 @@
             "conventionsEdit": "Уреди правила на телу",
             "conventionsNone": "За ово тело нису забележена правила. Странице његових одлука се не читају док их неко не забележи; приказане чињенице су изведене по подразумеваним вредностима."
         },
+        "sources": {
+            "title": "Sources",
+            "loadFailed": "The sources did not load.",
+            "actionFailed": "The action failed",
+            "readFailed": "Čitanje nije uspelo: {error}",
+            "warnings": "Reader warnings",
+            "unmatchedNames": "Names not matched: {names}",
+            "sheet": {
+                "label": "Attendance sheet",
+                "none": "No sheet uploaded. Upload a photo or a PDF of the back office's sheet.",
+                "upload": "Upload the sheet",
+                "uploaded": "Uploaded; the reader has not returned.",
+                "readerNotStarted": "List je otpremljen, ali čitanje nije pokrenuto",
+                "reading": "Reading {file}…",
+                "read": "Pročitano {date}.",
+                "reread": "Read again",
+                "remove": "Remove",
+                "removeConfirm": "Remove the sheet, its reading and everything derived from it?"
+            },
+            "transcript": {
+                "label": "Transcript",
+                "none": "Not read yet.",
+                "reading": "Reading…",
+                "read": "Read on {date}.",
+                "counts": "{entries, plural, one {# roll-call entry} other {# roll-call entries}} · {changes, plural, one {# change} other {# changes}} · {votes, plural, one {# vote statement} other {# vote statements}}",
+                "readButton": "Read the transcript",
+                "reread": "Read again"
+            }
+        },
         "presenceHeadline": "{present} присутних од {total}",
         "presenceAbsentInline": "{n} одсутних:",
         "presencePresentList": "Присутни ({n})",
@@ -564,6 +601,11 @@
             "person": {
                 "member": "Member: {name}"
             },
+            "evidence": {
+                "openRecording": "Open the recording",
+                "utterance": "Utterance {id}",
+                "sheetLine": "Sheet line {line}"
+            },
             "codes": {
                 "NO_ROLL_CALL": "Нема присуства на почетку",
                 "PRESENCE_UNKNOWN": "Узето као присуство на почетку",
@@ -592,7 +634,9 @@
                 "NAME_MATCHED_TWICE": "One name, two people",
                 "OUT_OF_AGENDA_PLACED_FIRST": "Долазак или одлазак ван дневног реда, пре прве тачке",
                 "VOTE_BY_ABSENT_MEMBER": "Vote by an absent member",
-                "NO_VOTE_RESULT": "No vote result"
+                "NO_VOTE_RESULT": "No vote result",
+                "UNPLACEABLE_VOTE": "Vote names no item",
+                "PARTY_VOTE_UNRESOLVED": "Party vote unresolved"
             },
             "messages": {
                 "NO_ROLL_CALL": "{reason, select, noMajority {Одлуке које наводе присуство на почетку се не слажу, и ниједна верзија није у више од половине њих. Без присуства на почетку не може се израчунати ко је био присутан на свакој тачки. Ништа се не чува и сачувани редови остају какви јесу.} other {Ниједна одлука и ниједан други извор не даје присуство на почетку. Без њега не може се израчунати ко је био присутан на свакој тачки. Ништа се не чува и сачувани редови остају какви јесу.}}",
@@ -604,7 +648,7 @@
                 "TALLY_MISMATCH": "Пребројавање у одлуци се разликује од израчунатих гласова ({diffs}).",
                 "INCOMPLETE_READ": "Читање није стигло до ΑΠΟΦΑΣΙΖΕΙ. Текст одлуке и гласање могу да недостају.",
                 "PRESIDING_DISAGREES": "Одлуке ове седнице наводе различите председавајуће ({names}).",
-                "SOURCES_DISAGREE": "{kind, select, event {За исту тачку наведени су и долазак и одлазак члана («{winRawText}» према наводу {winSource, select, decision {одлуке} transcript {транскрипта} manual {ручног уноса} other {{winSource}}}, «{loseRawText}» према наводу {loseSource, select, decision {одлуке} transcript {транскрипта} manual {ручног уноса} other {{loseSource}}}). Важи {winKind, select, ARRIVAL {долазак} other {одлазак}}.} statedList {Одлука ове тачке наводи да је члан {status, select, PRESENT {присутан} other {одсутан}}, а наведени {eventKind, select, ARRIVAL {долазак} other {одлазак}} каже супротно («{rawText}»). Важи одлука ове тачке.} doubleVote {Одлука наводи члана два пута са различитим гласом ({firstVote, select, FOR {ЗА} AGAINST {ПРОТИВ} ABSTAIN {УЗДРЖАН} PRESENT {ПРИСУТАН} DID_NOT_VOTE {НИЈЕ ГЛАСАО} other {{firstVote}}} и {secondVote, select, FOR {ЗА} AGAINST {ПРОТИВ} ABSTAIN {УЗДРЖАН} PRESENT {ПРИСУТАН} DID_NOT_VOTE {НИЈЕ ГЛАСАО} other {{secondVote}}}). Важи први глас.} other {Два извора наводе различите податке. Важи извор са већим приоритетом.}}",
+                "SOURCES_DISAGREE": "{kind, select, rollCall {The roll call from {winSource, select, decision {the document} transcript {the transcript} sheet {the sheet} manual {manual entry} other {{winSource}}} says the member is {winStatus, select, PRESENT {present} other {absent}} and the one from {loseSource, select, decision {the document} transcript {the transcript} sheet {the sheet} manual {manual entry} other {{loseSource}}} says {loseStatus, select, PRESENT {present} other {absent}}; the first wins.} event {За исту тачку наведени су и долазак и одлазак члана («{winRawText}» према наводу {winSource, select, decision {одлуке} transcript {транскрипта} sheet {the sheet} manual {ручног уноса} other {{winSource}}}, «{loseRawText}» према наводу {loseSource, select, decision {одлуке} transcript {транскрипта} sheet {the sheet} manual {ручног уноса} other {{loseSource}}}). Важи {winKind, select, ARRIVAL {долазак} other {одлазак}}.} statedList {Одлука ове тачке наводи да је члан {status, select, PRESENT {присутан} other {одсутан}}, а наведени {eventKind, select, ARRIVAL {долазак} other {одлазак}} каже супротно («{rawText}»). Важи одлука ове тачке.} doubleVote {Одлука наводи члана два пута са различитим гласом ({firstVote, select, FOR {ЗА} AGAINST {ПРОТИВ} ABSTAIN {УЗДРЖАН} PRESENT {ПРИСУТАН} DID_NOT_VOTE {НИЈЕ ГЛАСАО} other {{firstVote}}} и {secondVote, select, FOR {ЗА} AGAINST {ПРОТИВ} ABSTAIN {УЗДРЖАН} PRESENT {ПРИСУТАН} DID_NOT_VOTE {НИЈЕ ГЛАСАО} other {{secondVote}}}). Важи први глас.} eventPosition {Two sources state the same change for this member at different points («{winRawText}» from {winSource, select, decision {the document} sheet {the sheet} transcript {the transcript} manual {manual entry} other {{winSource}}}, «{loseRawText}» from {loseSource, select, decision {the document} sheet {the sheet} transcript {the transcript} manual {manual entry} other {{loseSource}}}); the first wins and the second is not applied.} outcome {The outcome of the vote differs: {winSource, select, decision {the document} sheet {the sheet} transcript {the transcript} manual {manual entry} other {{winSource}}} states {winOutcome, select, unanimous {unanimous} majority {by majority} rejected {rejected} other {{winOutcome}}}, {loseSource, select, decision {the document} sheet {the sheet} transcript {the transcript} manual {manual entry} other {{loseSource}}} states {loseOutcome, select, unanimous {unanimous} majority {by majority} rejected {rejected} other {{loseOutcome}}}; the first wins.} vote {This member's vote differs: {winSource, select, decision {the document} sheet {the sheet} transcript {the transcript} manual {manual entry} other {{winSource}}} states {winVote, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{winVote}}}, {loseSource, select, decision {the document} sheet {the sheet} transcript {the transcript} manual {manual entry} other {{loseSource}}} states {loseVote, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{loseVote}}}; the first wins.} other {Два извора наводе различите податке. Важи извор са већим приоритетом.}}",
                 "NO_STORED_FACTS": "{missing} од {total} одлука нема сачувано читање: прочитане су пре него што је почело чување њихових података, или никада нису прочитане. Поново покрените преузимање седнице да би се израчунали присуство и гласови. Ништа се не чува и сачувани редови остају какви јесу.",
                 "LAYOUT_DISAGREES": "Правила читања органа кажу да се присуство на почетку штампа као „{expected, select, composition_and_absent {Састав и одсутни} present_and_absent {Присутни и одсутни} present_only {Само присутни} mixed {Мешовито} other {{expected}}}”, али документ ове одлуке га штампа као „{found, select, composition_and_absent {Састав и одсутни} present_and_absent {Присутни и одсутни} present_only {Само присутни} mixed {Мешовито} other {{found}}}”.",
                 "ITEM_NUMBER_DISAGREES": "Одлука наводи да се односи на тачку {declared} дневног реда, али је повезана са тачком {linked}. Ако је веза погрешна, сви подаци из одлуке иду на погрешну тачку.",
@@ -622,7 +666,9 @@
                 "NAME_MATCHED_TWICE": "Име „{name}” упарено је са различитим особама у различитим одлукама ове седнице. Пронађите праву особу и исправите упаривање.",
                 "OUT_OF_AGENDA_PLACED_FIRST": "{kind, select, ARRIVAL {Долазак је наведен} other {Одлазак је наведен}} током тачака ван дневног реда, али ова седница нема тачку ван дневног реда. Те тачке се разматрају пре дневног реда, па {kind, select, ARRIVAL {долазак} other {одлазак}} важи од прве тачке. Ако прве тачке члана изгледају погрешно, проверите одлуку.",
                 "VOTE_BY_ABSENT_MEMBER": "Одлука наводи члана са гласом ({vote, select, FOR {ЗА} AGAINST {ПРОТИВ} ABSTAIN {УЗДРЖАН} PRESENT {ПРИСУТАН} DID_NOT_VOTE {НИЈЕ ГЛАСАО} other {{vote}}}), али се члан на овој тачки сматра одсутним. Глас остаје. Или је глас погрешан или одсуство: проверите одлуку и наведене доласке и одласке.",
-                "NO_VOTE_RESULT": "Одлука наводи ΑΠΟΦΑΣΙΖΕΙ, али читање нема резултат гласања: ни формулацију, ни наведене гласаче, ни пребројавање. Тачка остаје без гласова. Проверите читање у PDF-у."
+                "NO_VOTE_RESULT": "Одлука наводи ΑΠΟΦΑΣΙΖΕΙ, али читање нема резултат гласања: ни формулацију, ни наведене гласаче, ни пребројавање. Тачка остаје без гласова. Проверите читање у PDF-у.",
+                "UNPLACEABLE_VOTE": "The source states a vote that names no item of this meeting, or an item the meeting does not have. The statement is not applied; check it where it was read.",
+                "PARTY_VOTE_UNRESOLVED": "A party answered {vote, select, FOR {FOR} AGAINST {AGAINST} ABSTAIN {BLANK} PRESENT {PRESENT} DID_NOT_VOTE {DID NOT VOTE} other {{vote}}} for its members, and the party or its members present at this item could not be resolved. No vote is derived from it."
             },
             "tallyDiff": "{type, select, FOR {ЗА} AGAINST {ПРОТИВ} ABSTAIN {УЗДРЖАН} PRESENT {ПРИСУТАН} DID_NOT_VOTE {НИЈЕ ГЛАСАО} other {{type}}}: у одлуци {printed}, израчунато {derived}"
         },
@@ -725,7 +771,8 @@
                     "PRESIDING_DISAGREES": "Одлуке исте седнице наводе различите председавајуће.",
                     "CONVENTIONS_UNCONFIRMED": "Правила органа потичу из узорка одлука и ниједна особа их није потврдила.",
                     "NAMED_VOTERS_UNEXPECTED": "Одлука која наводи гласаче другачије него што кажу правила органа је или грешка читања или знак да је правило органа погрешно.",
-                    "NO_VOTE_RESULT": "Одлука која наводи ΑΠΟΦΑΣΙΖΕΙ бележи гласање. Ако читање нема резултат гласања, изгубило га је, и тачка остаје без гласова."
+                    "NO_VOTE_RESULT": "Одлука која наводи ΑΠΟΦΑΣΙΖΕΙ бележи гласање. Ако читање нема резултат гласања, изгубило га је, и тачка остаје без гласова.",
+                    "UNPLACEABLE_VOTE": "The sheet or the transcript states a vote that names no item of this meeting, or an item the meeting does not have. The statement is not applied."
                 },
                 "resolve": {
                     "PERSON_IN_BOTH_LISTS": "Одлука наводи истог члана и међу ΠΑΡΟΝΤΕΣ и међу ΑΠΟΝΤΕΣ. Тамо где ова одлука одређује ко је присутан, члан се сматра одсутним.",
@@ -733,7 +780,8 @@
                     "LATE_ARRIVAL_IN_OPENING_LIST": "У органу где је ΠΑΡΟΝΤΕΣ присуство на почетку, члан који је дошао касније не може бити међу њима.",
                     "NAMES_SHARE_ID": "Присуство на почетку и доласци и одласци спајају се по особи. Погрешно упаривање спаја два члана у једног.",
                     "NAME_MATCHED_TWICE": "Одлуке из различитих преузимања упарују се засебно, па једно име може бити упарено са две особе.",
-                    "UNPLACEABLE_ANCHOR": "Одлука наводи да члан није био на гласању о опсегу одлука («στις με αρ. 31–40») или о другој одлуци, али ниједна тачка седнице нема одлуку са тим бројем. Можда одлуке још нису повезане са тачкама, или је читање погрешно прочитало бројеве. Не додаје се ни одлазак ни долазак; ново рачунање, када се одлуке повежу, смешта их на место."
+                    "SOURCES_DISAGREE": "Two sources state the same kind of change for one member at different points of the order. The change of the higher-precedence source stands; the other is reported rather than erased.",
+                    "UNPLACEABLE_ANCHOR": "A range of decisions a page names covers no subject of the meeting yet, so its departure and arrival cannot be placed until the decisions are linked."
                 },
                 "place": {
                     "UNPLACEABLE_ANCHOR": "Тачка коју одлука наводи не одговара ниједној тачки седнице. Долазак или одлазак се приказује као проблем уместо да оде на погрешну тачку.",
@@ -750,7 +798,8 @@
                 "votes": {
                     "TALLY_MISMATCH": "Пребројавање у одлуци се не слаже са израчунатим гласовима. Обично недостаје долазак или одлазак.",
                     "SOURCES_DISAGREE": "Одлука наводи истог члана са два различита гласа. Важи први глас.",
-                    "VOTE_BY_ABSENT_MEMBER": "Одлука наводи глас члана који се на тој тачки сматра одсутним. Једно од то двоје је погрешно: глас је погрешно прочитан, или долазак или одлазак недостаје или је на погрешној тачки."
+                    "VOTE_BY_ABSENT_MEMBER": "Одлука наводи глас члана који се на тој тачки сматра одсутним. Једно од то двоје је погрешно: глас је погрешно прочитан, или долазак или одлазак недостаје или је на погрешној тачки.",
+                    "PARTY_VOTE_UNRESOLVED": "A party answered for its members, and the party or its members present at the item could not be resolved. No vote is derived from the answer."
                 },
                 "write": {
                     "NO_STORED_FACTS": "Довољна је једна одлука без сачуваног читања, ако њена тачка већ има гласове, или да ниједна одлука нема читање. Чување би изгубило гласове те тачке, јер нема читања из ког би се поново израчунали. Ново преузимање седнице допуњује читања.",
