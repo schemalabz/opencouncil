@@ -94,9 +94,11 @@ export function isPhoneValid(phoneNumber: string): boolean {
 const CALLING_CODES = new Set(getCountries().map((country) => getCountryCallingCode(country)));
 
 /** A bare dial code is what the input shows before the reader types, so it
- *  counts as empty — not as a phone, and not as an error. */
+ *  counts as empty — not as a phone, and not as an error. Any mark other than
+ *  a space, `+` or a digit makes the value a phone to validate. */
 export function isPhoneEmpty(phone: string): boolean {
-    if (!phone) return true;
-    const digits = phone.replace(/\D/g, '');
+    const text = phone.replace(/\s/g, '');
+    if (!/^\+?\d*$/.test(text)) return false;
+    const digits = text.replace('+', '');
     return digits === '' || CALLING_CODES.has(digits);
 }

@@ -41,8 +41,10 @@ describe('sendContactEmail', () => {
     });
 
     it('refuses an invalid phone without sending', async () => {
-        const result = await sendContactEmail({ ...form, contactPhone: '+30 210 64<b>' });
-        expect(result.success).toBe(false);
+        for (const contactPhone of ['+30 210 64<b>', '+30abc']) {
+            const result = await sendContactEmail({ ...form, contactPhone });
+            expect(result.success).toBe(false);
+        }
         expect(mockSendEmail).not.toHaveBeenCalled();
     });
 });

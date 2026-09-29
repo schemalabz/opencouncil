@@ -123,4 +123,9 @@ describe('field helpers', () => {
         expect(isPhoneEmpty('+306')).toBe(false);
         expect(isPhoneEmpty('+306980000000')).toBe(false);
     });
+
+    it('isPhoneEmpty reads a dial code with other marks as a phone to validate', () => {
+        expect(isPhoneEmpty('+30abc')).toBe(false);
+        expect(isPhoneEmpty('+30-')).toBe(false);
+    });
 });
