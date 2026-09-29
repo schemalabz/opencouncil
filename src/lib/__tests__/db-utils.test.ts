@@ -14,6 +14,7 @@ jest.mock('../db/topics', () => ({
     getTopics: jest.fn(),
 }));
 jest.mock('../db/cities', () => ({ getCity: jest.fn() }));
+jest.mock('../db/meetingFactSources', () => ({ getMeetingAgendaItems: jest.fn().mockResolvedValue([]) }));
 jest.mock('../db/meetings', () => ({
     getCouncilMeetingDirect: jest.fn(),
     // Mocked so a test can assert it is never reached: it consults the session,
