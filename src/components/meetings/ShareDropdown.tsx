@@ -27,7 +27,7 @@ import StoryTemplatePickerDialog from './StoryTemplatePickerDialog';
 import { captureEvent } from '@/lib/analytics/capture';
 import { useSharingTracker } from '@/lib/analytics/sharing';
 import { SubjectEmbedDialog } from '@/components/embed/SubjectEmbedDialog';
-import { validSourceId } from '@/lib/sharing/excerptSelector';
+import { EXCERPT_SELECTOR_KEYS, parseExcerptSelector, validSourceId } from '@/lib/sharing/excerptSelector';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { SubjectShareDialog } from '@/components/sharing/SubjectShareDialog';
 
@@ -59,6 +59,8 @@ function buildShareUrl(source: string, timestamp: number | null, subjectPage: bo
     if (!source) return '';
     const result = new URL(source);
     result.searchParams.delete('t');
+    // A reader who arrived on a shared excerpt shares the meeting, not that excerpt.
+    if (parseExcerptSelector(result.searchParams)) for (const key of EXCERPT_SELECTOR_KEYS) result.searchParams.delete(key);
     if (timestamp !== null) result.searchParams.set('t', Math.floor(timestamp).toString());
     if (subjectPage) {
         result.searchParams.delete('contribution');

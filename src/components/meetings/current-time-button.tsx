@@ -1,3 +1,4 @@
+"use client";
 import { useVideo } from "@/components/meetings/VideoProvider";
 import { Button } from "@/components/ui/button";
 import { ArrowDown, ArrowUp } from "lucide-react";

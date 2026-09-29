@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { MAX_EXCERPT_LENGTH, canonicalExcerpt, digestExcerpt, excerptPath, parseExcerptSelector, selectExcerptRuns, serializeExcerptSelector, transcriptExcerptPath, type ExcerptRun, type ExcerptSelector } from '../excerptSelector';
+import { MAX_EXCERPT_LENGTH, canonicalExcerpt, digestExcerpt, parseExcerptSelector, selectExcerptRuns, serializeExcerptSelector, transcriptExcerptPath, type ExcerptRun, type ExcerptSelector } from '../excerptSelector';
 import { localizeText } from '@/lib/serbian';
 
 const run: ExcerptRun = { id: 'u1', text: 'Λέμε ναι 🌳 στην πλατεία.', speakerTagId: 'tag', personId: 'person', speakerName: 'Άννα' };
@@ -10,7 +10,7 @@ describe('source-backed excerpt selectors', () => {
         for (const maxDrift of [0, 100, 500]) {
             const filtered = { ...selector, maxDrift };
             expect(parseExcerptSelector(serializeExcerptSelector(filtered))).toEqual(filtered);
-            expect(transcriptExcerptPath(filtered, 0)).toContain(`maxDrift=${maxDrift}`);
+            expect(transcriptExcerptPath(filtered)).toContain(`maxDrift=${maxDrift}`);
         }
         for (const value of ['-1', '501', 'Infinity', '1.5', '']) {
             const query = serializeExcerptSelector(selector); query.set('maxDrift', value);
@@ -66,9 +66,9 @@ describe('source-backed excerpt selectors', () => {
         expect(latinText).toBe('Ljiljana');
         expect(selectExcerptRuns([{ ...run, text: latinText }])?.[0].text).toBe('Ljiljana');
         const latin = { ...selector, textLocale: 'sr-Latn' as const };
-        expect(excerptPath(latin, 'en')).toMatch(/^\/en\/share\/excerpt/);
-        expect(transcriptExcerptPath(latin, 0)).toMatch(/^\/lat\/athens\/sep10_2026\/transcript\?/);
-        expect(transcriptExcerptPath(latin, 0)).toContain('&t=0');
-        expect(excerptPath(selector)).not.toBe(excerptPath({ ...selector, lastUtteranceId: 'u2' }));
+        expect(transcriptExcerptPath(latin)).toMatch(/^\/lat\/athens\/sep10_2026\/transcript\?/);
+        expect(transcriptExcerptPath(selector)).toMatch(/^\/athens\/sep10_2026\/transcript\?/);
+        expect(transcriptExcerptPath(selector)).not.toMatch(/[?&]t=/);
+        expect(transcriptExcerptPath(selector)).not.toBe(transcriptExcerptPath({ ...selector, lastUtteranceId: 'u2' }));
     });
 });

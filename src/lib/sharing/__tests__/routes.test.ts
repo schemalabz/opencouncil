@@ -2,8 +2,7 @@ jest.mock('@/lib/realm.server', () => ({ getRealm: jest.fn().mockResolvedValue('
 jest.mock('next-intl/server', () => ({ getTranslations: jest.fn().mockResolvedValue((key: string, values?: { count: number }) => values ? `${key}:${values.count}` : key) }));
 jest.mock('@/lib/sharing/excerpts', () => ({ getPublicExcerpt: jest.fn() }));
 jest.mock('@/lib/sharing/contributions', () => ({ getPublicContribution: jest.fn() }));
-jest.mock('@/components/sharing/SharedExcerpt', () => ({ SharedExcerpt: jest.fn() }));
-jest.mock('@/components/sharing/SharePageShell', () => ({ SharePageShell: jest.fn() }));
+jest.mock('@/components/sharing/SharePageShell', () => ({ ShareUnavailable: jest.fn() }));
 // The routes read the image inside the render slot; the mock hands back empty bytes and the headers it was given.
 jest.mock('next/og', () => ({ ImageResponse: jest.fn().mockImplementation((element, options) => ({ element, options, headers: new Headers(options?.headers), arrayBuffer: async () => new ArrayBuffer(0) })) }));
 jest.mock('@/lib/og/serverAssets', () => ({ OG_FONTS: [], LOGO_BLACK_DATA_URI: '' }));
@@ -13,6 +12,8 @@ jest.mock('@/lib/og/portrait', () => ({ getPortraitData: jest.fn().mockResolvedV
 
 jest.mock('next/navigation', () => ({ redirect: jest.fn((url: string) => { throw new Error(`REDIRECT:${url}`); }), notFound: jest.fn(() => { throw new Error('NOT_FOUND'); }) }));
 jest.mock('@/components/meetings/subject/subject', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('@/components/meetings/transcript/Transcript', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('@/components/meetings/current-time-button', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('@/components/analytics/SubjectReadTracker', () => ({ __esModule: true, default: jest.fn() }));
 // The related-subjects section reaches the search core, and through it the environment; the page under test is not about it.
 jest.mock('@/components/meetings/subject/RelatedSubjectsSection', () => ({ RelatedSubjectsSection: jest.fn() }));
@@ -22,12 +23,15 @@ jest.mock('@/lib/utils/hreflang', () => ({ buildCanonicalAlternates: jest.fn(asy
 jest.mock('@/lib/seo/subjectStructuredData', () => ({ buildSubjectStructuredData: jest.fn(() => ({})), serializeStructuredData: jest.fn(() => '{}') }));
 
 import { ImageResponse } from 'next/og';
+import { getTranslations } from 'next-intl/server';
+import { getRealm } from '@/lib/realm.server';
 import { getMeetingDataCached, getSubjectFromMeetingCached } from '@/lib/getMeetingData';
 import Subject from '@/components/meetings/subject/subject';
 import SubjectPage, { generateMetadata as subjectMetadata } from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/subjects/[subjectId]/page';
 import { getPublicExcerpt } from '@/lib/sharing/excerpts';
 import { getPublicContribution } from '@/lib/sharing/contributions';
-import { generateMetadata as excerptMetadata } from '@/app/[locale]/(sharing)/share/excerpt/page';
+import ExcerptPage, { generateMetadata as legacyExcerptMetadata } from '@/app/[locale]/(sharing)/share/excerpt/page';
+import { generateMetadata as transcriptMetadata } from '@/app/[locale]/(city)/[cityId]/(meetings)/[meetingId]/transcript/page';
 import ContributionPage, { generateMetadata as contributionMetadata } from '@/app/[locale]/(sharing)/share/contribution/[contributionId]/page';
 import { GET as excerptImage } from '@/app/api/og/excerpt/route';
 import { GET as contributionImage } from '@/app/api/og/contribution/route';
@@ -37,6 +41,7 @@ const selector: ExcerptSelector = { cityId: 'city', meetingId: 'meeting', firstU
 const meeting = { id: 'meeting', cityId: 'city', name: 'Συνεδρίαση', name_en: 'Meeting', dateTime: new Date('2026-09-10'), administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' }, city: { name: 'Αθήνα', name_en: 'Athens', timezone: 'Europe/Athens' } };
 const runs = [{ id: 'u1', text: 'Λόγια Άννας', speakerName: 'Άννα', personId: 'p1', speakerTagId: 'tag1' }, { id: 'u2', text: 'Λόγια Νίκου', speakerName: 'Νίκος', personId: 'p2', speakerTagId: 'tag2' }];
 const resolveExcerpt = getPublicExcerpt as jest.Mock;
+const transcriptProps = (query: Record<string, string> = Object.fromEntries(serializeExcerptSelector(selector))) => ({ params: Promise.resolve({ locale: 'en', cityId: 'city', meetingId: 'meeting' }), searchParams: Promise.resolve(query) });
 const resolveContribution = getPublicContribution as jest.Mock;
 
 describe('server-rendered social preview contracts', () => {
@@ -48,25 +53,35 @@ describe('server-rendered social preview contracts', () => {
         resolveContribution.mockResolvedValue({ id: 'c1', text: '**Περίληψη**.', subject: { id: 'subject', name: 'Πλατεία' }, speakerName: 'Άννα', meeting, subjectUrl: '/en/city/meeting/subjects/subject?contribution=c1#contribution-c1' });
     });
     it('puts complete selection-specific image URLs in server metadata and preserves multi-speaker attribution', async () => {
-        const metadata = await excerptMetadata({ params: Promise.resolve({ locale: 'en' }), searchParams: Promise.resolve(Object.fromEntries(serializeExcerptSelector(selector))) });
+        const metadata = await transcriptMetadata(transcriptProps());
         expect(metadata.title).toBe('excerpt · speakerCount:2');
         expect(metadata.description).toContain('«Λόγια Άννας»\n— Άννα');
         expect(metadata.description).toContain('«Λόγια Νίκου»\n— Νίκος');
         expect(metadata.openGraph?.images).toEqual([{ url: `https://pr-123.opencouncil.dev/api/og/excerpt?${serializeExcerptSelector(selector)}`, width: 1200, height: 630 }]);
+        expect(metadata.openGraph).toMatchObject({ url: `https://pr-123.opencouncil.dev/city/meeting/transcript?${serializeExcerptSelector(selector)}` });
         expect(metadata.robots).toEqual({ index: false, follow: true });
+    });
+    it('reads the excerpt in the request realm and labels it in the page locale', async () => {
+        (getRealm as jest.Mock).mockResolvedValueOnce('serbia');
+        await transcriptMetadata(transcriptProps());
+        expect(resolveExcerpt).toHaveBeenCalledWith(selector, 'serbia');
+        expect(getTranslations).toHaveBeenCalledWith({ locale: 'en', namespace: 'sharing' });
+        expect(getTranslations).not.toHaveBeenCalledWith(expect.objectContaining({ locale: selector.textLocale }));
     });
     it('bounds metadata for long passages while preserving each preview speaker', async () => {
         resolveExcerpt.mockResolvedValue({ status: 'ok', excerpt: { isReviewed: true, selector, meeting, runs: runs.map(run => ({ ...run, text: run.text.repeat(1000) })), subject: { name: 'Πλατεία' } } });
-        const metadata = await excerptMetadata({ params: Promise.resolve({ locale: 'en' }), searchParams: Promise.resolve(Object.fromEntries(serializeExcerptSelector(selector))) });
+        const metadata = await transcriptMetadata(transcriptProps());
         expect(metadata.description!.length).toBeLessThanOrEqual(620);
         expect(metadata.description).toContain('…»\n— Άννα');
         expect(metadata.description).toContain('…»\n— Νίκος');
     });
     it('never puts changed or unavailable content into metadata', async () => {
         resolveExcerpt.mockResolvedValue({ status: 'source-changed' });
-        const metadata = await excerptMetadata({ params: Promise.resolve({ locale: 'en' }), searchParams: Promise.resolve(Object.fromEntries(serializeExcerptSelector(selector))) });
-        expect(metadata.description).toBeUndefined();
-        expect(metadata.openGraph?.images).toEqual([]);
+        // The transcript keeps the meeting preview of its layout; the old share page names the gap.
+        expect(await transcriptMetadata(transcriptProps())).toEqual({ robots: { index: false, follow: true } });
+        const legacy = await legacyExcerptMetadata({ params: Promise.resolve({ locale: 'en' }), searchParams: Promise.resolve(Object.fromEntries(serializeExcerptSelector(selector))) });
+        expect(legacy).toMatchObject({ title: 'unavailableTitle', robots: { index: false, follow: false }, openGraph: { images: [] } });
+        expect(legacy.description).toBeUndefined();
         resolveContribution.mockResolvedValue(null);
         const missing = await contributionMetadata({ params: Promise.resolve({ locale: 'en', contributionId: 'c1' }) });
         expect(missing.description).toBeUndefined();
@@ -102,14 +117,13 @@ describe('server-rendered social preview contracts', () => {
     });
     it('carries the AI review warning in excerpt metadata and OG, then removes it after review', async () => {
         resolveExcerpt.mockResolvedValue({ status: 'ok', excerpt: { isReviewed: false, selector, runs, meeting, subject: { name: 'Πλατεία' } } });
-        const props = { params: Promise.resolve({ locale: 'en' }), searchParams: Promise.resolve(Object.fromEntries(serializeExcerptSelector(selector))) };
-        const metadata = await excerptMetadata(props);
+        const metadata = await transcriptMetadata(transcriptProps());
         expect(metadata.description).toMatch(/^unreviewedNotice\n\n/);
         expect(metadata.description).toContain('«Λόγια Άννας»');
         await excerptImage(new Request(`https://example.test/api/og/excerpt?${serializeExcerptSelector(selector)}`));
         expect((ImageResponse as unknown as jest.Mock).mock.calls.at(-1)[0].props.warning).toBe('unreviewedLabel');
         resolveExcerpt.mockResolvedValue({ status: 'ok', excerpt: { isReviewed: true, selector, runs, meeting, subject: { name: 'Πλατεία' } } });
-        expect((await excerptMetadata(props)).description).not.toContain('unreviewedNotice');
+        expect((await transcriptMetadata(transcriptProps())).description).not.toContain('unreviewedNotice');
         await excerptImage(new Request(`https://example.test/api/og/excerpt?${serializeExcerptSelector(selector)}`));
         expect((ImageResponse as unknown as jest.Mock).mock.calls.at(-1)[0].props.warning).toBeUndefined();
         expect((ImageResponse as unknown as jest.Mock).mock.calls.at(-1)[0].props.label).toBe('excerpt');
@@ -128,6 +142,35 @@ describe('server-rendered social preview contracts', () => {
     });
     it('redirects legacy contribution links to their real subject', async () => {
         await expect(ContributionPage({ params: Promise.resolve({ locale: 'en', contributionId: 'c1' }) })).rejects.toThrow('REDIRECT:/en/city/meeting/subjects/subject?contribution=c1#contribution-c1');
+    });
+
+    it('redirects legacy excerpt links to the highlighted passage in the transcript with their campaign parameters', async () => {
+        const props = { params: Promise.resolve({ locale: 'en' }), searchParams: Promise.resolve({ ...Object.fromEntries(serializeExcerptSelector(selector)), utm_source: 'news', t: '12', fbclid: 'X' }) };
+        await expect(ExcerptPage(props)).rejects.toThrow(`REDIRECT:/city/meeting/transcript?${serializeExcerptSelector(selector)}&utm_source=news&fbclid=X`);
+        resolveExcerpt.mockResolvedValue({ status: 'source-changed' });
+        const page = await ExcerptPage({ ...props, searchParams: Promise.resolve(Object.fromEntries(serializeExcerptSelector(selector))) });
+        expect(page.props).toMatchObject({ changed: true, meetingUrl: '/en/city/meeting' });
+    });
+
+    it('uses the shared excerpt preview on the transcript with its ordinary canonical', async () => {
+        const metadata = await transcriptMetadata(transcriptProps({ ...Object.fromEntries(serializeExcerptSelector(selector)), t: '12' }));
+        expect(metadata.title).toBe('excerpt · speakerCount:2');
+        expect(metadata.openGraph?.images).toEqual([{ url: `https://pr-123.opencouncil.dev/api/og/excerpt?${serializeExcerptSelector(selector)}`, width: 1200, height: 630 }]);
+        expect(metadata).not.toHaveProperty('alternates');
+    });
+
+    it.each(['meeting', 'city'])('ignores an excerpt from another %s in transcript metadata', async (mismatch) => {
+        const params = Promise.resolve({ locale: 'en', cityId: mismatch === 'city' ? 'other' : 'city', meetingId: mismatch === 'meeting' ? 'other' : 'meeting' });
+        expect(await transcriptMetadata({ params, searchParams: Promise.resolve(Object.fromEntries(serializeExcerptSelector(selector))) })).toEqual({ robots: { index: false, follow: true } });
+        expect(resolveExcerpt).not.toHaveBeenCalled();
+    });
+
+    it('adds nothing to an ordinary transcript URL and keeps every URL that robots.txt opens out of the index', async () => {
+        const params = Promise.resolve({ locale: 'en', cityId: 'city', meetingId: 'meeting' });
+        expect(await transcriptMetadata({ params, searchParams: Promise.resolve({ t: '12' }) })).toEqual({});
+        expect(await transcriptMetadata({ params, searchParams: Promise.resolve({ cityId: 'city' }) })).toEqual({ robots: { index: false, follow: true } });
+        resolveExcerpt.mockRejectedValue(new Error('pool timeout'));
+        expect(await transcriptMetadata({ params, searchParams: Promise.resolve(Object.fromEntries(serializeExcerptSelector(selector))) })).toEqual({ robots: { index: false, follow: true } });
     });
 
     it('uses the selected contribution preview on the full subject with its ordinary canonical', async () => {

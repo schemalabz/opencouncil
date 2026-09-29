@@ -146,6 +146,17 @@ describe('meeting and subject sharing menu', () => {
         expect(writeText).toHaveBeenCalledWith('http://localhost/en/city/meeting/transcript?textLocale=el');
     });
 
+    it('does not pass on the shared excerpt that the reader arrived with', async () => {
+        mockPathname = '/en/city/meeting/transcript';
+        mockSubjectId = undefined;
+        const selector = 'cityId=city&meetingId=meeting&firstUtteranceId=u1&lastUtteranceId=u2&textLocale=en&digest=' + 'a'.repeat(64) + '&maxDrift=500';
+        window.history.replaceState({}, '', `${mockPathname}?${selector}&utm_source=news`);
+        mount();
+        fireEvent.click(await openMenu());
+        await screen.findByRole('menuitem', { name: 'copied' });
+        expect(writeText).toHaveBeenCalledWith('http://localhost/en/city/meeting/transcript?utm_source=news');
+    });
+
     it('preserves zero for automatic timestamp copies and removes the timestamp when unchecked', async () => {
         mockPathname = '/en/city/meeting/transcript';
         mockSubjectId = undefined;

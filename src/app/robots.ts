@@ -20,7 +20,10 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
     return {
         rules: {
             userAgent: '*',
-            allow: '/',
+            // A shared excerpt links to the transcript with its selector, which
+            // starts with cityId. The longer rule wins, so link previews can
+            // read the excerpt. The transcript page marks these URLs noindex.
+            allow: ['/', '/*/*/transcript?cityId='],
             // Raw transcript pages are surfaced via subject pages; don't index them.
             disallow: '/*/*/transcript',
         },
