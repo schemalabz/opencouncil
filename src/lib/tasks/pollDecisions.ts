@@ -26,11 +26,16 @@ import { orderForPolling } from "./pollableMeetings";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "@/lib/discord";
 import { agendaItemTitleOrName, isRecordSubject } from "@/lib/utils/subjects";
 
+/** A manual poll either starts, or finds one already running for the meeting. */
+export type PollStart =
+    | { status: 'started'; taskId: string }
+    | { status: 'alreadyRunning'; taskId: string };
+
 export async function requestPollDecisions(
     cityId: string,
     councilMeetingId: string,
-    options?: { forceExtract?: boolean },
-) {
+    options?: { forceExtract?: boolean; lookupAdas?: string[] },
+): Promise<PollStart> {
     await withUserAuthorizedToEdit({ cityId });
 
     // The plain poll stays city-admin: a manual link starts extraction
@@ -43,7 +48,17 @@ export async function requestPollDecisions(
         }
     }
 
-    return pollDecisionsForMeeting(cityId, councilMeetingId, options);
+    // Two polls of one meeting race on the same candidates and bill twice;
+    // the running one reads anything this one would.
+    const openTasks = await prisma.taskStatus.findMany({
+        where: { councilMeetingId, cityId, type: 'pollDecisions', status: { in: ['pending', 'processing'] } },
+        select: { id: true, status: true },
+    });
+    const runningId = pendingPollTaskId(openTasks);
+    if (runningId) return { status: 'alreadyRunning', taskId: runningId };
+
+    const task = await pollDecisionsForMeeting(cityId, councilMeetingId, options);
+    return { status: 'started', taskId: task.id };
 }
 
 /**
@@ -52,11 +67,12 @@ export async function requestPollDecisions(
  *
  * @param options.silent - When true, suppresses the per-task "started" Discord alert (used by cron batch)
  * @param options.forceExtract - When true, skips extraction cache and reprocesses all PDFs
+ * @param options.lookupAdas - Typed ΑΔΑ values the tasks server fetches outside the poll scope
  */
 export async function pollDecisionsForMeeting(
     cityId: string,
     councilMeetingId: string,
-    options?: { silent?: boolean; forceExtract?: boolean },
+    options?: { silent?: boolean; forceExtract?: boolean; lookupAdas?: string[] },
 ) {
     const councilMeeting = await prisma.councilMeeting.findUnique({
         where: {
@@ -193,14 +209,17 @@ export async function pollDecisionsForMeeting(
             meetingDate: k.meetingDate ? k.meetingDate.toISOString().split('T')[0] : null,
             readStatus: k.readStatus,
         })),
+        lookupAdas: options?.lookupAdas?.length ? options.lookupAdas : undefined,
         subjects: sortedSubjects.map(s => ({
             subjectId: s.id,
             name: agendaItemTitleOrName(s),
             agendaItemIndex: s.agendaItemIndex,
             nonAgendaReason: s.nonAgendaReason,
-            ...(s.decision?.ada ? {
+            // A decision with no ΑΔΑ is an uploaded or external PDF: it has
+            // no Diavgeia record, but extraction reads it by its URL.
+            ...(s.decision ? {
                 existingDecision: {
-                    ada: s.decision.ada,
+                    ...(s.decision.ada ? { ada: s.decision.ada } : {}),
                     decisionTitle: s.decision.title ?? '',
                     pdfUrl: s.decision.pdfUrl,
                     // Linked but without a usable reading — never read, read before v4,

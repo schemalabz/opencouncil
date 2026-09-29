@@ -50,6 +50,7 @@ export function BulkPollDecisionsAction({
     }, [meetings, selectedMeetingIds, decisionCounts]);
 
     const dispatchPoll = useCallback(async (meeting: MeetingPollEligibility) => {
+        // A meeting whose poll is already running comes back as alreadyRunning, not as a failure.
         await requestPollDecisions(selectedCityId, meeting.meetingId, {
             forceExtract: skipCache,
         });

@@ -131,7 +131,7 @@ jest.mock('@/lib/tasks/pollDecisions', () => ({
         nextPollEligible: null,
         pendingTaskId: null,
     })),
-    requestPollDecisions: jest.fn(async () => undefined),
+    requestPollDecisions: jest.fn(async () => ({ status: 'started', taskId: 't1' })),
     resolveCandidateConflict: jest.fn(async () => 'noop'),
 }));
 

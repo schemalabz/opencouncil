@@ -904,7 +904,8 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const handlePoll = async (forceExtract: boolean) => {
         setIsPolling(true);
         try {
-            await requestPollDecisions(meeting.cityId, meeting.id, forceExtract ? { forceExtract: true } : undefined);
+            const start = await requestPollDecisions(meeting.cityId, meeting.id, forceExtract ? { forceExtract: true } : undefined);
+            if (start.status === 'alreadyRunning') toast({ title: tPage('poll.alreadyRunning') });
             await refreshPollingStatus();
         } catch (error) {
             toast({ title: tPage('pollError'), description: failureSentence(error), variant: 'destructive' });

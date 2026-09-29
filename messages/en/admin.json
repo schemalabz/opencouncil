@@ -382,7 +382,8 @@
     },
     "poll": {
       "action": "Check now",
-      "running": "We are checking Diavgeia for decisions on this meeting. It usually takes one to two minutes. The page will update itself, you can carry on."
+      "running": "We are checking Diavgeia for decisions on this meeting. It usually takes one to two minutes. The page will update itself, you can carry on.",
+      "alreadyRunning": "A Diavgeia search is already running for this meeting."
     },
     "status": {
       "loadFailed": "The decisions did not load. The table shows what we last knew.",
