@@ -18,6 +18,8 @@ jest.mock('@/lib/tasks/tasks', () => ({
 
 import prisma from '@/lib/db/prisma'
 import { handlePollDecisionsResult, requestPollDecisions } from '@/lib/tasks/pollDecisions'
+import { getAdaLookupOutcome } from '@/lib/db/adaLookups'
+import { ADA_LOOKUP_SETTLE_MS } from '@/lib/db/types/adaLookups'
 import { startTask } from '@/lib/tasks/tasks'
 import { resetDatabase } from '../helpers/test-db'
 import { createAdministrativeBody, createCity, createMeeting, createSubject, createTaskStatus } from '../helpers/factories'
@@ -148,5 +150,88 @@ describe('handlePollDecisionsResult — typed ΑΔΑ values', () => {
         const decision = await prisma.decision.findUniqueOrThrow({ where: { subjectId: 's1' } })
         expect(decision.decisionNumber).toBe('12/2025')
         expect(decision.excerpt).toBe('ΑΠΟΦΑΣΙΖΕΙ')
+    })
+})
+
+describe('getAdaLookupOutcome', () => {
+    beforeEach(async () => {
+        await resetDatabase(prisma)
+        await createCity({ id: cityId, diavgeiaUid: '6104' })
+        await createMeeting(cityId, { id: 'm1', dateTime: new Date('2025-01-10T10:00:00Z') })
+        await createSubject('m1', cityId, { id: 's1', name: 'Subject', agendaItemIndex: 1 })
+    })
+
+    const lookupTask = (status: string, lookups?: object[]) => createTaskStatus('m1', cityId, {
+        type: 'pollDecisions', status,
+        requestBody: JSON.stringify({ lookupAdas: ['ΑΑΑ1-ΒΒ1'] }),
+        responseBody: lookups ? JSON.stringify({ lookups }) : null,
+    })
+
+    it('is running while the task is open', async () => {
+        const task = await lookupTask('processing')
+        expect(await getAdaLookupOutcome(cityId, 'm1', task.id, 'ΑΑΑ1-ΒΒ1')).toEqual({ state: 'running' })
+    })
+
+    it('reports a found document with its candidate and organization', async () => {
+        const candidate = await prisma.decisionCandidate.create({ data: {
+            cityId, ada: 'ΑΑΑ1-ΒΒ1', pdfUrl: 'x', readStatus: 'ok', councilMeetingId: 'm1',
+        } })
+        const task = await lookupTask('succeeded', [{ ada: 'ΑΑΑ1-ΒΒ1', outcome: 'found', organizationId: '9999', organizationLabel: 'ΔΗΜΟΣ ΑΛΛΟΣ' }])
+
+        expect(await getAdaLookupOutcome(cityId, 'm1', task.id, 'ΑΑΑ1-ΒΒ1')).toEqual({
+            state: 'found', candidateId: candidate.id, organizationLabel: 'ΔΗΜΟΣ ΑΛΛΟΣ', linkedTo: null,
+        })
+    })
+
+    it('is still running while a just-ended task has not written the candidate yet', async () => {
+        const task = await lookupTask('succeeded', [{ ada: 'ΑΑΑ1-ΒΒ1', outcome: 'found', organizationId: '6104', organizationLabel: null }])
+        expect(await getAdaLookupOutcome(cityId, 'm1', task.id, 'ΑΑΑ1-ΒΒ1')).toEqual({ state: 'running' })
+    })
+
+    it('reports a found ΑΔΑ with no candidate once the task ended long enough ago', async () => {
+        const task = await lookupTask('succeeded', [{ ada: 'ΑΑΑ1-ΒΒ1', outcome: 'found', organizationId: '6104', organizationLabel: null }])
+        await prisma.taskStatus.update({ where: { id: task.id }, data: { updatedAt: new Date(Date.now() - ADA_LOOKUP_SETTLE_MS - 1000) } })
+        expect(await getAdaLookupOutcome(cityId, 'm1', task.id, 'ΑΑΑ1-ΒΒ1')).toEqual({
+            state: 'found', candidateId: null, organizationLabel: null, linkedTo: null,
+        })
+    })
+
+    it('says a found document is not a decision when its reading says so', async () => {
+        await prisma.decisionCandidate.create({ data: {
+            cityId, ada: 'ΑΑΑ1-ΒΒ1', pdfUrl: 'x', readStatus: 'not_a_decision', councilMeetingId: 'm1',
+        } })
+        const task = await lookupTask('succeeded', [{ ada: 'ΑΑΑ1-ΒΒ1', outcome: 'found', organizationId: '6104', organizationLabel: null }])
+
+        expect(await getAdaLookupOutcome(cityId, 'm1', task.id, 'ΑΑΑ1-ΒΒ1')).toEqual({ state: 'notADecision' })
+    })
+
+    it('names the subject that already holds the ΑΔΑ', async () => {
+        const decision = await prisma.decision.create({ data: { subjectId: 's1', ada: 'ΑΑΑ1-ΒΒ1', pdfUrl: 'x' } })
+        await prisma.decisionCandidate.create({ data: {
+            cityId, ada: 'ΑΑΑ1-ΒΒ1', pdfUrl: 'x', readStatus: 'ok', councilMeetingId: 'm1', decisionId: decision.id,
+        } })
+        const task = await lookupTask('succeeded', [{ ada: 'ΑΑΑ1-ΒΒ1', outcome: 'found', organizationId: '6104', organizationLabel: null }])
+
+        expect(await getAdaLookupOutcome(cityId, 'm1', task.id, 'ΑΑΑ1-ΒΒ1')).toEqual({
+            state: 'found', candidateId: null, organizationLabel: null, linkedTo: {
+                subjectId: 's1', meetingId: 'm1', meetingName: 'Test Meeting', subjectName: 'Subject', agendaItemIndex: 1,
+            },
+        })
+    })
+
+    it('maps not_found and error, and treats a missing lookups field as failed', async () => {
+        const nf = await lookupTask('succeeded', [{ ada: 'ΑΑΑ1-ΒΒ1', outcome: 'not_found', organizationId: null, organizationLabel: null }])
+        expect(await getAdaLookupOutcome(cityId, 'm1', nf.id, 'ΑΑΑ1-ΒΒ1')).toEqual({ state: 'notFound' })
+        const er = await lookupTask('succeeded', [{ ada: 'ΑΑΑ1-ΒΒ1', outcome: 'error', organizationId: null, organizationLabel: null }])
+        expect(await getAdaLookupOutcome(cityId, 'm1', er.id, 'ΑΑΑ1-ΒΒ1')).toEqual({ state: 'error' })
+        const old = await lookupTask('succeeded', undefined)
+        await prisma.taskStatus.update({ where: { id: old.id }, data: { responseBody: '{}' } })
+        expect(await getAdaLookupOutcome(cityId, 'm1', old.id, 'ΑΑΑ1-ΒΒ1')).toEqual({ state: 'failed' })
+    })
+
+    it('does not read a task of another meeting', async () => {
+        await createMeeting(cityId, { id: 'm9', dateTime: new Date('2025-02-10T10:00:00Z') })
+        const other = await createTaskStatus('m9', cityId, { type: 'pollDecisions', status: 'succeeded', responseBody: '{"lookups":[]}' })
+        expect(await getAdaLookupOutcome(cityId, 'm1', other.id, 'ΑΑΑ1-ΒΒ1')).toEqual({ state: 'failed' })
     })
 })
