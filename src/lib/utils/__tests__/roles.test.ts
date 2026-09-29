@@ -1,5 +1,5 @@
 import { Role, Party } from '@prisma/client';
-import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle } from '../roles';
+import { getSpeakerDisplayInfo, getPartyFromRoles, isRoleActiveAt, sortRolesByPriority, getPrimaryRole, simplifyRoleName, getRoleText, getRoleLabelAt, isPartyRole, isActivePartyRole, isActivePartyMember, getCouncilTitle, mayorIsMemberOf } from '../roles';
 import { RoleWithRelations } from '@/lib/db/types';
 
 function makeRole(overrides: Partial<Role> & { party?: Party | null } = {}): Role & { party?: Party | null; cityId?: string | null } {
@@ -570,6 +570,7 @@ function makeAdminBody(name: string) {
     youtubeChannelUrl: null,
     contactEmails: [],
     diavgeiaUnitIds: [],
+    decisionConventions: null,
     createdAt: new Date('2020-01-01'),
     updatedAt: new Date('2020-01-01'),
   };
@@ -718,5 +719,21 @@ describe('getCouncilTitle', () => {
     expect(getCouncilTitle([{ name: 'Πρόεδρος', administrativeBodyId: 'b', administrativeBody: council }])).toBe('Πρόεδρος');
     expect(getCouncilTitle([{ name: null, administrativeBodyId: 'b', administrativeBody: council }])).toBeNull();
     expect(getCouncilTitle([{ name: 'Μέλος', partyId: 'p', cityId: 'c' }])).toBeNull();
+  });
+});
+
+describe('mayorIsMemberOf', () => {
+  const date = new Date('2026-08-26');
+  const mayor = (bodyId: string | null) => ({ roles: [{ administrativeBodyId: bodyId, startDate: null, endDate: null }] });
+
+  it('is never true on a council or a community, whatever the roster holds', () => {
+    expect(mayorIsMemberOf(mayor('council-1'), { id: 'council-1', type: 'council' }, date)).toBe(false);
+    expect(mayorIsMemberOf(mayor('community-1'), { id: 'community-1', type: 'community' }, date)).toBe(false);
+  });
+
+  it('is true on a committee only when the roster gives the mayor an active role on it', () => {
+    expect(mayorIsMemberOf(mayor('committee-1'), { id: 'committee-1', type: 'committee' }, date)).toBe(true);
+    expect(mayorIsMemberOf(mayor(null), { id: 'committee-1', type: 'committee' }, date)).toBe(false);
+    expect(mayorIsMemberOf({ roles: [{ administrativeBodyId: 'committee-1', startDate: null, endDate: new Date('2025-01-01') }] }, { id: 'committee-1', type: 'committee' }, date)).toBe(false);
   });
 });

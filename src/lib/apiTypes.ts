@@ -420,25 +420,58 @@ export interface DecisionWarning {
     message: string;
 }
 
+export type VoteValue = 'FOR' | 'AGAINST' | 'ABSTAIN' | 'PRESENT' | 'DID_NOT_VOTE';
+
+/** The roll call as printed on one page, with the ids the names resolved to (task v4). */
+export interface DocumentRollCall {
+    layout: 'composition_and_absent' | 'present_and_absent';
+    composition: string[];
+    present: string[];
+    absent: string[];
+    presentIds: string[];
+    absentIds: string[];
+}
+
+/**
+ * What one document states, matched to ids — the mirror of opencouncil-tasks'
+ * ExtractedDecisionResult (task v4). The v3 fields stay optional so results
+ * stored by older task versions still parse; nothing derives from them.
+ */
 export interface ExtractedDecisionData {
     subjectId: string;
     excerpt: string;
     references: string;
-    presentMemberIds: string[];
-    absentMemberIds: string[];
-    mayorPresent?: boolean;
-    voteResult: string | null;
-    voteDetails: { personId: string; vote: 'FOR' | 'AGAINST' | 'ABSTAIN' | 'PRESENT' | 'DID_NOT_VOTE' }[];
-    unmatchedMembers: string[];
-    subjectInfo: { number: number; isOutOfAgenda: boolean } | null;
-    fromCache?: boolean;
-    warnings?: DecisionWarning[];
     /** The decision's own number (Αρ. Απόφασης / Πράξη), extracted from the document. */
     decisionNumber?: string | null;
-    /**
-     * @deprecated Older tasks versions sent the extracted decision number under this
-     * name. It was never Diavgeia's protocol number. Read for transition tolerance only.
-     */
+    subjectInfo: { number: number; isOutOfAgenda: boolean } | null;
+    /** The extractor did not reach ΑΠΟΦΑΣΙΖΕΙ (v4; v3 signals it through warnings). */
+    incomplete?: boolean;
+    rollCall?: DocumentRollCall | null;
+    mayorPresent?: boolean | { present: boolean; rawText: string } | null;
+    presidedBy?: { name: string; personId: string | null; rawText: string } | null;
+    /** Who kept the minutes in the secretary's place, when the page says so (task v4 from 2026-09-22). */
+    actingSecretary?: { name: string; personId: string | null; rawText: string } | null;
+    /** The item heading as printed; "" when the page prints none. Absent on readings stored before 2026-09-22. */
+    subjectHeading?: string;
+    /** The page's own list of who was present for THIS decision (ΤΑ ΜΕΛΗ after the decision text), never the opening roll call (v4). */
+    decisionAttendance?: { present: string[]; presentIds: string[]; rawText: string } | null;
+    voteResult: string | null;
+    voteTally?: Record<VoteValue, number | null>;
+    voteDetails: { personId: string; name?: string; vote: VoteValue }[];
+    /** The changes this document states (v4): arrivals, departures and per-vote absences (`absent_for_vote`). A reading stored before `absent_for_vote` holds a per-vote absence as a departure/arrival pair. */
+    attendanceChanges?: PollDecisionsAttendanceEvent[];
+    unmatchedMembers: string[];
+    /** How each name was matched (task v4 from C1); absent on older readings. */
+    nameMatches?: { name: string; personId: string | null; method: 'token' | 'llm' | null }[];
+    fromCache?: boolean;
+    warnings?: DecisionWarning[];
+    /** @deprecated task v3: replayed snapshot; ignored. */
+    presentMemberIds?: string[];
+    /** @deprecated task v3: replayed snapshot; ignored. */
+    absentMemberIds?: string[];
+    /** @deprecated task v3; ignored. */
+    absentForVoteIds?: string[];
+    /** @deprecated Diavgeia's protocol number is mirrored at match time. */
     protocolNumber?: string | null;
     /** Metadata fetched from Diavgeia API for needsExtraction subjects */
     diavgeiaTitle?: string;
@@ -482,6 +515,13 @@ export interface PollDecisionsRequest extends TaskRequest {
      * meetingDate decides which partition the decision belongs to.
      */
     knownDecisions?: Array<{ ada: string; meetingDate: string | null; readStatus: string }>;
+    /** The body's conventions rendered as sentences for the prompt; opencouncil owns the glossary. */
+    conventionsText?: string | null;
+    /**
+     * false = match and link only, read no page: the body has no conventions
+     * record. Absent = extract, for a request from an older app.
+     */
+    extract?: boolean;
 }
 
 /**
@@ -517,6 +557,46 @@ export interface PollDecisionsMatch {
     reasoning?: string | null; // resolver's stated reasoning for this match
 }
 
+/**
+ * Token usage a task reports with its result. Mirrors opencouncil-tasks
+ * `TaskTokenUsage` in `src/types.ts`: one shape for every task, so the two
+ * results that carry it cannot drift apart one field at a time.
+ */
+export interface TaskTokenUsage {
+    input_tokens: number;
+    output_tokens: number;
+    cache_creation_input_tokens: number;
+    cache_read_input_tokens: number;
+}
+
+export interface PollDecisionsAttendanceEvent {
+    personId: string | null;
+    name: string;
+    /**
+     * `absent_for_vote`: the page states the member was out of the room for a
+     * vote — this page's decision (anchor `subject` or `this_document`), or the
+     * range of decisions the anchor names (`decision_number` to `decisionNumberTo`).
+     * A reading stored before this value existed carries it as a departure before
+     * and an arrival after the page's own subject, with one rawText.
+     */
+    type: 'arrival' | 'departure' | 'absent_for_vote';
+    anchor: {
+        kind: 'agenda_item' | 'decision_number' | 'subject' | 'phase' | 'session_start' | 'session_end' | 'clock_time' | 'session_phase' | 'this_document';
+        agendaItemIndex: number | null;
+        nonAgendaReason: 'outOfAgenda' | null;
+        decisionNumber: string | null;
+        /** The last decision of a range the page names («στις με αρ. 31 – 40»), for kind `decision_number`; absent or null otherwise. */
+        decisionNumberTo?: string | null;
+        /** The document's own subject, for kind `subject`. */
+        subjectId?: string | null;
+        phase: 'pre_agenda' | 'out_of_agenda' | string | null;
+        timing: 'before' | 'during' | 'after' | null;
+    };
+    rawText: string;
+    reportingPdfCount: number;
+    totalPdfCount: number;
+}
+
 export interface PollDecisionsResult {
     /** Every decision read in the poll window. Absent from older tasks versions. */
     decisions?: PollDecisionsReadDecision[];
@@ -542,23 +622,8 @@ export interface PollDecisionsResult {
     extractions: {
         decisions: ExtractedDecisionData[];
         warnings: string[];
-        /** Initial roll call — who was present/absent at session start (meeting-level, not per-subject) */
-        initialAttendance?: { personId: string; status: 'PRESENT' | 'ABSENT' }[];
-        /** Names from the initial roll call that couldn't be matched to any person in the database */
-        unmatchedInitialAttendance?: string[];
-        /** Effective attendance for subjects WITHOUT linked decisions */
-        nonDecisionSubjectAttendance?: Array<{
-            subjectId: string;
-            presentMemberIds: string[];
-            absentMemberIds: string[];
-        }>;
     } | null;
-    costs: {
-        input_tokens: number;
-        output_tokens: number;
-        cache_creation_input_tokens: number;
-        cache_read_input_tokens: number;
-    };
+    usage: TaskTokenUsage;
     metadata?: {
         diavgeiaUid: string;
         query: object;

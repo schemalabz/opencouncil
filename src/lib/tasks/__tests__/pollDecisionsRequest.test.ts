@@ -37,6 +37,8 @@ jest.mock('@/lib/tasks/tasks', () => ({ startTask: (...args: unknown[]) => mockS
 jest.mock('@/lib/db/people', () => ({ getPeopleForMeeting: (...args: unknown[]) => mockGetPeopleForMeeting(...args) }));
 
 import { pollDecisionsForMeeting } from '@/lib/tasks/pollDecisions';
+import type { PollDecisionsRequest } from '@/lib/apiTypes';
+import type { DecisionConventions } from '@/lib/decisionConventions';
 
 const CITY_ID = 'city-1';
 const MEETING_ID = 'meeting-1';
@@ -49,13 +51,13 @@ type SubjectRow = {
     nonAgendaReason: string | null;
 };
 
-function meetingWith(subjects: SubjectRow[]) {
+function meetingWith(subjects: SubjectRow[], decisionConventions: unknown = null) {
     return {
         id: MEETING_ID,
         cityId: CITY_ID,
         dateTime: new Date('2026-03-04T18:00:00Z'),
         city: { diavgeiaUid: 'uid-1', timezone: 'Europe/Athens' },
-        administrativeBody: { id: 'body-1', name: 'Δημοτικό Συμβούλιο', diavgeiaUnitIds: [] },
+        administrativeBody: { id: 'body-1', name: 'Δημοτικό Συμβούλιο', diavgeiaUnitIds: [], decisionConventions },
         subjects: subjects.map(s => ({ ...s, discussedIn: null, decision: null })),
     };
 }
@@ -116,5 +118,80 @@ describe('pollDecisionsForMeeting — subject text sent to the matcher', () => {
         for (const s of sent) {
             expect(s).not.toHaveProperty('description');
         }
+    });
+});
+
+const CONVENTIONS: DecisionConventions = {
+    version: 1,
+    rollCallLayout: 'present_and_absent',
+    presentListMeaning: 'opening',
+    attendanceChangeAnchors: ['agenda_item'],
+    statesPerDecisionAttendance: false,
+    statesPerVoteAbsence: false,
+    usesSubstitutes: false,
+    namedVoters: 'dissenters_only',
+    mayorStatedSeparately: false,
+    provenance: { source: 'manual' },
+};
+
+const SUBJECT: SubjectRow = { id: 's1', name: 'Θέμα', agendaItemTitle: null, agendaItemIndex: 1, nonAgendaReason: null };
+
+/** The request body handed to startTask for a meeting of a body with the given record. */
+async function requestFor(decisionConventions: unknown, options?: { forceExtract?: boolean }) {
+    mockCouncilMeetingFindUnique.mockResolvedValue(meetingWith([SUBJECT], decisionConventions));
+    await pollDecisionsForMeeting(CITY_ID, MEETING_ID, options);
+    expect(mockStartTask).toHaveBeenCalledTimes(1);
+    return mockStartTask.mock.calls[0][1] as Omit<PollDecisionsRequest, 'callbackUrl'>;
+}
+
+/**
+ * A body with no conventions record gets no extraction: the poll only links its
+ * decisions. A page read without the hints would keep that reading.
+ */
+describe('pollDecisionsForMeeting — extraction waits for a conventions record', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockUtteranceGroupBy.mockResolvedValue([]);
+        mockDecisionFindMany.mockResolvedValue([]);
+        mockDecisionCandidateFindMany.mockResolvedValue([]);
+        mockStartTask.mockResolvedValue({ id: 'task-1' });
+        mockGetPeopleForMeeting.mockResolvedValue([]);
+    });
+
+    it('asks for no extraction when the body has no record', async () => {
+        const body = await requestFor(null);
+        expect(body.extract).toBe(false);
+        expect(body.conventionsText).toBeUndefined();
+    });
+
+    it('asks for no extraction when the stored record does not parse', async () => {
+        const body = await requestFor({ version: 1, rollCallLayout: 'present_and_absent' });
+        expect(body.extract).toBe(false);
+    });
+
+    it('asks for no extraction on a forced poll either', async () => {
+        const body = await requestFor(null, { forceExtract: true });
+        expect(body.extract).toBe(false);
+    });
+
+    it('asks for extraction, with the hints, when the body has a record', async () => {
+        const body = await requestFor(CONVENTIONS);
+        expect(body.extract).toBe(true);
+        expect(body.conventionsText).toEqual(expect.any(String));
+    });
+
+    it('reads a page it linked without extraction on the first poll after the record exists', async () => {
+        // What a gated poll left behind: the decision is linked, with no reading.
+        const linked = { ...SUBJECT, discussedIn: null, decision: { ada: 'ΑΔΑ-1', title: 'Απόφαση', pdfUrl: 'https://diavgeia.gov.gr/doc/ΑΔΑ-1', extraction: null, extractorVersion: null } };
+        mockCouncilMeetingFindUnique.mockResolvedValue({ ...meetingWith([], CONVENTIONS), subjects: [linked] });
+        await pollDecisionsForMeeting(CITY_ID, MEETING_ID);
+        const body = mockStartTask.mock.calls[0][1] as Omit<PollDecisionsRequest, 'callbackUrl'>;
+        expect(body.extract).toBe(true);
+        expect(body.subjects[0].existingDecision).toMatchObject({ ada: 'ΑΔΑ-1', needsExtraction: true });
+    });
+
+    it('asks for extraction for a record nobody has confirmed yet', async () => {
+        const body = await requestFor({ ...CONVENTIONS, provenance: { source: 'profile', profiledAt: '2026-09-13', documentsSampled: 38 } });
+        expect(body.extract).toBe(true);
     });
 });

@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { PersonWithRelations } from '@/lib/db/people';
-import { compareRanks, getElectedOrderForBody } from '@/lib/sorting/people';
 
 // Display-only building blocks for decision content. No admin actions live
 // here — a future public decisions view reuses these as-is.
@@ -57,19 +55,4 @@ export function NameList({ names, label }: { names: string[]; label: string }) {
             )}
         </span>
     );
-}
-
-/** Sort names by elected order, falling back to alphabetical. */
-export function sortNamesByElectedOrder(
-    items: { personId: string; personName: string }[],
-    getPerson: (id: string) => PersonWithRelations | undefined,
-    administrativeBodyId: string | null,
-): { personId: string; personName: string }[] {
-    return [...items].sort((a, b) => {
-        const aOrder = getElectedOrderForBody(getPerson(a.personId), administrativeBodyId);
-        const bOrder = getElectedOrderForBody(getPerson(b.personId), administrativeBodyId);
-        const orderCompare = compareRanks(aOrder, bOrder);
-        if (orderCompare !== 0) return orderCompare;
-        return a.personName.localeCompare(b.personName);
-    });
 }

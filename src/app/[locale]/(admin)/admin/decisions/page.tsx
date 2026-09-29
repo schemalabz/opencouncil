@@ -1,5 +1,6 @@
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { getDecisionHealth } from '@/lib/db/decisionHealth';
+import { countDecisionReadIssuesByMeeting } from '@/lib/db/decisions';
 import { DecisionsOverview, type OverviewRange } from '@/components/admin/decisions/DecisionsOverview';
 import { Metadata } from 'next';
 
@@ -14,6 +15,9 @@ export default async function DecisionsAdminPage({ searchParams }: { searchParam
     await withUserAuthorizedToEdit({});
     const { window: raw } = await searchParams;
     const range: OverviewRange = raw === '90' ? '90' : raw === 'all' ? 'all' : '30';
-    const cities = await getDecisionHealth(undefined, range === 'all' ? undefined : Number(range));
-    return <DecisionsOverview cities={cities} range={range} />;
+    const [cities, readIssues] = await Promise.all([
+        getDecisionHealth(undefined, range === 'all' ? undefined : Number(range)),
+        countDecisionReadIssuesByMeeting(),
+    ]);
+    return <DecisionsOverview cities={cities} range={range} readIssues={readIssues} />;
 }

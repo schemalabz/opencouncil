@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { editAdministrativeBody, deleteAdministrativeBody } from '@/lib/db/administrativeBodies';
+import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
+import { rederiveMeetingsOfBody } from '@/lib/derivation/rederive';
 import { z } from 'zod';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
@@ -14,6 +16,19 @@ export async function PUT(
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
+
+        // Confirming the conventions is its own write: it carries only the
+        // conventions, and the writer parses them and stamps who confirmed them.
+        // A malformed record throws a ZodError, which the handler below answers 400.
+        if (body?.confirmConventions) {
+            const confirmed = await confirmDecisionConventions(params.bodyId, body.decisionConventions);
+            revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
+            // Through after(): a body can hold hundreds of meetings, and the
+            // person waits for none of them.
+            after(() => rederiveMeetingsOfBody(params.bodyId));
+            return NextResponse.json(confirmed);
+        }
+
         const parsed = administrativeBodySchema.parse(body);
         const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds } = parsed;
 

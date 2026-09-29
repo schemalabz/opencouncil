@@ -6,7 +6,7 @@ import { DateRange } from "react-day-picker";
 
 import { getCitiesForRequestRealm } from "@/lib/db/cities";
 import { getPartiesForCity } from "@/lib/db/parties";
-import { getAdministrativeBodiesWithPublicMeetings } from "@/lib/db/administrativeBodies";
+import { getAdministrativeBodiesWithPublicMeetings } from "@/lib/actions/administrativeBodies";
 import { getPeopleForCity, getPerson, PersonWithRelations } from "@/lib/db/people";
 import { getLocalizedName, getLocalizedShortName } from "@/lib/formatters/name";
 import { getDateFnsLocale, getIntlLocale } from "@/lib/formatters/time";
