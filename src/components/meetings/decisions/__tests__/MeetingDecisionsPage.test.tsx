@@ -135,6 +135,13 @@ jest.mock('@/lib/tasks/pollDecisions', () => ({
     resolveCandidateConflict: jest.fn(async () => 'noop'),
 }));
 
+// The transcript reader's start is a Server Action behind the auth module,
+// which jest cannot load; the page renders for a city admin here, who never
+// reaches it.
+jest.mock('@/lib/actions/meetingFacts', () => ({
+    requestReadTranscriptFacts: jest.fn(async () => ({ taskId: 'task' })),
+}));
+
 const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
 
 const fetchMock = jest.fn();
