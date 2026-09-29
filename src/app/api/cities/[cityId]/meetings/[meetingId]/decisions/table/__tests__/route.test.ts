@@ -1,4 +1,8 @@
 /** @jest-environment node */
+jest.mock('@/lib/db/meetings', () => ({ getCouncilMeetingDirect: jest.fn() }));
+jest.mock('@/lib/db/decisionsTable', () => ({ getDecisionTableCity: jest.fn(), getDecisionTableSubjects: jest.fn() }));
+jest.mock('@/lib/derivation/persist', () => ({ explainMeeting: jest.fn() }));
+jest.mock('@/lib/meetingName', () => ({ meetingLabel: jest.fn(() => 'Council meeting') }));
 jest.mock('@/lib/auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
 jest.mock('@/lib/decisionsTable/getDecisionsTableData', () => ({ getDecisionsTableData: jest.fn() }));
 jest.mock('@/components/meetings/docx/DecisionsTableDocx', () => ({ renderDecisionsTableDocx: jest.fn() }));
@@ -7,6 +11,10 @@ import { GET } from '../route';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { getDecisionsTableData } from '@/lib/decisionsTable/getDecisionsTableData';
 import { renderDecisionsTableDocx } from '@/components/meetings/docx/DecisionsTableDocx';
+import { getCouncilMeetingDirect } from '@/lib/db/meetings';
+import { getDecisionTableCity, getDecisionTableSubjects } from '@/lib/db/decisionsTable';
+import { explainMeeting } from '@/lib/derivation/persist';
+import { meetingLabel } from '@/lib/meetingName';
 import { ForbiddenError, NotFoundError, UnauthorizedError } from '@/lib/api/errors';
 
 const mockAuthorize = withUserAuthorizedToEdit as jest.MockedFunction<typeof withUserAuthorizedToEdit>;
@@ -60,5 +68,39 @@ describe('GET decisions/table', () => {
         mockData.mockRejectedValue(new NotFoundError('Meeting not found: zografou/nope'));
         const response = await get();
         expect(response.status).toBe(404);
+    });
+});
+
+// Keep the export's actual data loader in this route suite: the regressions
+// need the persisted vote rows and the read-only statement to meet before rendering.
+describe('getDecisionsTableData source outcomes', () => {
+    const actualData = jest.requireActual<typeof import('@/lib/decisionsTable/getDecisionsTableData')>(
+        '@/lib/decisionsTable/getDecisionsTableData',
+    ).getDecisionsTableData;
+
+    it.each([
+        { outcome: 'majority' as const, source: 'sheet' as const, votes: [{ voteType: 'AGAINST' as const }] },
+        { outcome: 'unanimous' as const, source: 'transcript' as const, votes: [] },
+    ])('exports a stated $outcome without treating incomplete rows as the vote', async ({ outcome, source, votes }) => {
+        jest.mocked(meetingLabel).mockReturnValue('Council meeting');
+        jest.mocked(getCouncilMeetingDirect).mockResolvedValue({
+            id: 'm1', cityId: 'zografou', dateTime: new Date('2026-07-21T16:00:00Z'),
+        } as Awaited<ReturnType<typeof getCouncilMeetingDirect>>);
+        jest.mocked(getDecisionTableCity).mockResolvedValue({ name_municipality: 'Zografou', timezone: 'Europe/Athens' });
+        jest.mocked(getDecisionTableSubjects).mockResolvedValue([{
+            id: 's1', name: 'Agenda item', agendaItemTitle: null, agendaItemIndex: 1,
+            agendaSectionIndex: null, nonAgendaReason: null, withdrawn: false,
+            outcome: null, decision: null, votes,
+        }]);
+        jest.mocked(explainMeeting).mockResolvedValue({
+            attendance: [], votes: [], rollCall: [], events: [], issues: [],
+            outcomes: [{ subjectId: 's1', source, outcome, phrase: outcome }],
+        });
+
+        const data = await actualData('zografou', 'm1');
+
+        expect(explainMeeting).toHaveBeenCalledWith('zografou', 'm1');
+        expect(data.table.rows).toHaveLength(1);
+        expect(data.table.rows[0]).toMatchObject({ result: outcome, voteCounts: null });
     });
 });

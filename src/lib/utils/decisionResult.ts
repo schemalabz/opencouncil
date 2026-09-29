@@ -1,4 +1,5 @@
 import type { VoteType } from '@prisma/client';
+import type { StatedOutcomeWord } from '@/lib/derivation/types';
 import { calculateVoteResult } from '@/lib/utils/votes';
 
 /** What the Αποτέλεσμα column says about one row. */
@@ -8,6 +9,19 @@ export interface ResultInput {
     withdrawn: boolean;
     hasDecision: boolean;
     votes: ReadonlyArray<{ voteType: VoteType }>;
+    /** The outcome word of the statement that supplied the rows, when it states one. */
+    statedOutcome?: StatedOutcomeWord | null;
+}
+
+/**
+ * Whether the rows are the vote: a FOR among them means the supporters were
+ * named or inferred. Rows of dissent alone are what a statement leaves when
+ * inference was refused (an unmatched or unresolved answer, a count it does
+ * not attribute): counting them would call an approval a rejection, and the
+ * statement's own word is the outcome.
+ */
+export function rowsCoverVote(input: Pick<ResultInput, 'votes' | 'statedOutcome'>): boolean {
+    return !input.statedOutcome || input.votes.some(v => v.voteType === 'FOR');
 }
 
 /**
@@ -16,12 +30,15 @@ export interface ResultInput {
  * The counts stay out of the word: a clerk reading down the column wants
  * "Ομόφωνα", and the numbers come back beside it when the row is hovered.
  * `none` and `noVote` both render as a dash but are different facts — nothing
- * is linked yet, versus a decision whose document records no vote — and only
- * the second one explains itself.
+ * is linked and nothing states a vote, versus a decision whose document records
+ * no vote — and only the second one explains itself. A vote the sheet or the
+ * transcript states counts before any document is linked (issue #807): the
+ * word comes from the rows, whatever source wrote them.
  */
 export function resultKey(input: ResultInput): ResultKey {
     if (input.withdrawn) return 'withdrawn';
-    if (!input.hasDecision) return 'none';
+    if (!rowsCoverVote(input)) return input.statedOutcome!;
+    if (!input.hasDecision && input.votes.length === 0) return 'none';
     const result = calculateVoteResult(input.votes.map(v => ({ voteType: v.voteType })));
     if (result.totalVotes === 0) return 'noVote';
     if (result.isUnanimous) return 'unanimous';

@@ -8,8 +8,22 @@ describe('resultKey', () => {
         expect(resultKey({ withdrawn: true, hasDecision: true, votes: votes('FOR', 'FOR') })).toBe('withdrawn');
     });
 
-    it('says nothing when no decision is linked', () => {
+    // A transcript stating a majority and naming one opponent the reader could
+    // not match: inference is refused, the rows hold the dissent alone, and the
+    // count alone would call the approval a rejection.
+    it('takes the statement\'s word when the rows hold no supporter', () => {
+        expect(resultKey({ withdrawn: false, hasDecision: false, votes: votes('AGAINST'), statedOutcome: 'majority' })).toBe('majority');
+        expect(resultKey({ withdrawn: false, hasDecision: false, votes: [], statedOutcome: 'unanimous' })).toBe('unanimous');
+        // Rows with a supporter are the vote, whatever the word.
+        expect(resultKey({ withdrawn: false, hasDecision: true, votes: votes('FOR', 'FOR', 'AGAINST'), statedOutcome: 'unanimous' })).toBe('majority');
+    });
+
+    it('says nothing when no decision is linked and nothing states a vote', () => {
         expect(resultKey({ withdrawn: false, hasDecision: false, votes: [] })).toBe('none');
+    });
+
+    it('reads a vote another source states before any decision is linked', () => {
+        expect(resultKey({ withdrawn: false, hasDecision: false, votes: votes('FOR', 'FOR', 'AGAINST') })).toBe('majority');
     });
 
     it('separates a linked decision with no recorded vote from a missing one', () => {

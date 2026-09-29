@@ -2,6 +2,7 @@ import 'server-only';
 import { getCouncilMeetingDirect } from '@/lib/db/meetings';
 import { getDecisionTableCity, getDecisionTableSubjects } from '@/lib/db/decisionsTable';
 import { NotFoundError } from '@/lib/api/errors';
+import { explainMeeting } from '@/lib/derivation/persist';
 import { meetingLabel } from '@/lib/meetingName';
 import { buildDecisionTable, type DecisionTable } from './rows';
 
@@ -26,6 +27,10 @@ export async function getDecisionsTableData(cityId: string, meetingId: string): 
     ]);
     if (!meeting || !city) throw new NotFoundError(`Meeting not found: ${cityId}/${meetingId}`);
 
+    // The export is edit-authenticated and reads every vote source. A stated
+    // outcome still stands when inference left only dissent, or no voter rows.
+    const outcomes = new Map((await explainMeeting(cityId, meetingId)).outcomes.map(o => [o.subjectId, o.outcome]));
+
     return {
         city: { name_municipality: city.name_municipality, timezone: city.timezone },
         meeting: {
@@ -34,6 +39,9 @@ export async function getDecisionsTableData(cityId: string, meetingId: string): 
             name: meetingLabel(meeting, 'el', city.timezone),
             dateTime: meeting.dateTime.toISOString(),
         },
-        table: buildDecisionTable(subjects),
+        table: buildDecisionTable(subjects.map(subject => ({
+            ...subject,
+            statedOutcome: outcomes.get(subject.id) ?? null,
+        })), { includeUnlinkedVotes: true }),
     };
 }
