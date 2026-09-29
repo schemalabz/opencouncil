@@ -41,6 +41,8 @@ const CASES: { [C in IssueCode]: { params: IssueParams[C]; contains?: string[] }
     OUT_OF_AGENDA_PLACED_FIRST: { params: { kind: 'ARRIVAL' } },
     VOTE_BY_ABSENT_MEMBER: { params: { vote: 'DID_NOT_VOTE' }, contains: ['DID NOT VOTE'] },
     NO_VOTE_RESULT: { params: {} },
+    UNPLACEABLE_VOTE: { params: {} },
+    PARTY_VOTE_UNRESOLVED: { params: { vote: 'AGAINST' }, contains: ['AGAINST'] },
 };
 
 describe('issueMessageEn', () => {
@@ -70,6 +72,9 @@ describe('issueMessageEn', () => {
             { kind: 'event', winKind: 'ARRIVAL', winRawText: 'προσήλθε', winSource: 'decision', loseRawText: 'αποχώρησε', loseSource: 'transcript' },
             { kind: 'statedList', status: 'ABSENT', eventKind: 'ARRIVAL', rawText: 'προσήλθε' },
             { kind: 'doubleVote', firstVote: 'FOR', secondVote: 'AGAINST' },
+            { kind: 'eventPosition', winSource: 'sheet', winRawText: 'προσήλθε στο 10ο', loseSource: 'transcript', loseRawText: 'προσήλθε στο 8ο' },
+            { kind: 'outcome', winSource: 'decision', winOutcome: 'majority', loseSource: 'transcript', loseOutcome: 'unanimous' },
+            { kind: 'vote', winSource: 'sheet', winVote: 'AGAINST', loseSource: 'transcript', loseVote: 'FOR' },
         ];
         const sentences = new Set(kinds.map(params => issueMessageEn({ code: 'SOURCES_DISAGREE', source: null, params })));
         expect(sentences.size).toBe(kinds.length);

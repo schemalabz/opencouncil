@@ -2,6 +2,7 @@ import { deriveMeetingFacts } from '../deriveMeetingFacts';
 import type { DerivationInput } from '../types';
 
 const base: DerivationInput = {
+    sources: [], partyMembers: new Map(), 
     cityId: 'c', meetingId: 'm', mayorPersonId: 'mayor', presidentPersonId: null, secretaryPersonId: null, subjectIdsWithStoredVotes: [],
     bodyType: null, cityMayorPersonId: null,
     subjects: [{ id: 's1', name: 'one', agendaItemIndex: 1, nonAgendaReason: null, decisionNumber: '10' }, { id: 's2', name: 'two', agendaItemIndex: 2, nonAgendaReason: null, decisionNumber: '11' }],
@@ -20,9 +21,9 @@ describe('deriveMeetingFacts', () => {
         const out = deriveMeetingFacts(base);
         expect(out.attendance.filter(a => a.subjectId === 's1').map(a => a.personId).sort()).toEqual(['p1', 'p2']);
         expect(out.votes).toEqual(expect.arrayContaining([
-            { subjectId: 's1', personId: 'p1', voteType: 'FOR', origin: 'inferred' },
-            { subjectId: 's2', personId: 'p2', voteType: 'AGAINST', origin: 'stated' },
-            { subjectId: 's2', personId: 'p1', voteType: 'FOR', origin: 'inferred' },
+            { subjectId: 's1', personId: 'p1', voteType: 'FOR', origin: 'inferred', source: 'decision' },
+            { subjectId: 's2', personId: 'p2', voteType: 'AGAINST', origin: 'stated', source: 'decision' },
+            { subjectId: 's2', personId: 'p1', voteType: 'FOR', origin: 'inferred', source: 'decision' },
         ]));
         const codes = out.issues.map(i => i.code).sort();
         expect(codes).toEqual(['CONVENTIONS_UNCONFIRMED', 'INCOMPLETE_READ', 'PRESIDING_DISAGREES', 'UNMATCHED_NAME']);
@@ -49,7 +50,7 @@ describe('deriveMeetingFacts', () => {
             conventions: { ...base.conventions!, statesPerDecisionAttendance: true, rollCallLayout: 'present_only' },
             documents: [{ ...base.documents[0], presentIds: ['p1'], absentIds: null }, base.documents[1]],
         });
-        expect(out.attendance.find(a => a.subjectId === 's1' && a.personId === 'p2')).toMatchObject({ status: 'ABSENT', origin: 'stated' });
+        expect(out.attendance.find(a => a.subjectId === 's1' && a.personId === 'p2')).toMatchObject({ status: 'ABSENT', origin: 'stated', source: 'decision' });
         expect(out.votes.filter(v => v.subjectId === 's1').map(v => v.personId)).toEqual(['p1']);
         expect(out.issues.filter(i => i.code === 'IMPLIED_CHANGE')).toHaveLength(1);
     });
@@ -137,7 +138,7 @@ describe('deriveMeetingFacts', () => {
         expect(out.issues.filter(i => i.code === 'VOTE_BY_ABSENT_MEMBER')).toEqual([
             expect.objectContaining({ subjectId: 's2', personId: 'p2', decisionId: 'd2', params: { vote: 'AGAINST' } }),
         ]);
-        expect(out.votes).toContainEqual({ subjectId: 's2', personId: 'p2', voteType: 'AGAINST', origin: 'stated' });
+        expect(out.votes).toContainEqual({ subjectId: 's2', personId: 'p2', voteType: 'AGAINST', origin: 'stated', source: 'decision' });
         expect(deriveMeetingFacts(base).issues.filter(i => i.code === 'VOTE_BY_ABSENT_MEMBER')).toEqual([]);
     });
 
@@ -278,11 +279,12 @@ describe('deriveMeetingFacts', () => {
         it('rank below a row another source states', () => {
             const out = deriveMeetingFacts({ ...base, rollCall: [{ personId: 'p1', status: 'ABSENT', source: 'manual' }], documents: pages });
             expect(out.attendance.find(a => a.subjectId === 's1' && a.personId === 'p1')).toMatchObject({ status: 'ABSENT' });
-            // Nothing writes a roll-call row of another source yet, so the
-            // disagreement is resolved without a report (rankRollCall).
-            expect(out.issues.filter(i => i.code === 'SOURCES_DISAGREE')).toEqual([]);
-            // The output is the pages' own statement, not the ranked result.
-            expect(out.rollCall.find(r => r.personId === 'p1')).toMatchObject({ status: 'PRESENT', source: 'decision' });
+            expect(out.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'SOURCES_DISAGREE', personId: 'p1' })]));
+            // The output is the ranked roll call without the manual rows: the person's
+            // manual row already stands in the table, and a derived row beside it
+            // would be a second row for one person.
+            expect(out.rollCall.find(r => r.personId === 'p1')).toBeUndefined();
+            expect(out.rollCall.find(r => r.personId === 'p2')).toMatchObject({ status: 'PRESENT', source: 'decision' });
         });
     });
 });

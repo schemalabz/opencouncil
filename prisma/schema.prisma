@@ -238,6 +238,7 @@ model CouncilMeeting {
   subjects Subject[]
   meetingAttendance MeetingAttendance[]
   attendanceEvents AttendanceEvent[]
+  factSources MeetingFactSource[]
 
   notifications Notification[]
   meetingOperator MeetingOperator?
@@ -288,6 +289,7 @@ model TaskStatus {
   subjectVotes SubjectVote[]
   meetingAttendance MeetingAttendance[]
   attendanceEvents AttendanceEvent[]
+  factSources MeetingFactSource[]
 
   @@index([councilMeetingId, cityId])
 }
@@ -816,7 +818,9 @@ model MeetingAttendance {
   personId String
 
   status AttendanceStatus // PRESENT | ABSENT at session start (initial roll call)
-  source DataSource       // decision | transcript | manual
+  source DataSource       // decision | sheet | transcript | manual
+  /// The sheet marks whether an absence was justified («δικαιολογημένη»); null where the source does not say.
+  absenceJustified Boolean?
 
   // Track whether added by task or manually by user
   task      TaskStatus? @relation(fields: [taskId], references: [id], onDelete: SetNull)
@@ -865,10 +869,60 @@ enum VoteType {
   DID_NOT_VOTE  // ΑΠΟΧΗ — declined to participate (declaration, not a vote)
 }
 
+/// Where a fact comes from. `SOURCE_PRECEDENCE` in src/lib/derivation/types.ts ranks them:
+/// a manual row outranks the pages, the pages outrank the sheet, the sheet outranks
+/// the transcript. `decision`, `sheet` and `transcript` rows of the four fact tables
+/// are derivation output; the stated facts of each live in Decision.extraction and
+/// MeetingFactSource.reading.
 enum DataSource {
-  decision    // Extracted from decision PDF
-  transcript  // Derived from transcript analysis
-  manual      // Manually entered by admin
+  decision    // Read from the decision documents on Diavgeia
+  transcript  // Read from the transcript
+  manual      // Entered by a person
+  sheet       // Read from the back office's attendance sheet, confirmed by a person
+}
+
+/// What one source other than the pages states about a meeting, as its reader
+/// returned it: the sheet a back office keeps during the meeting, uploaded and
+/// confirmed by a person, or the transcript. One row per meeting and source; a new
+/// upload or a new run replaces it. The derivation reads a sheet only once a person
+/// confirmed the reading; it reads the transcript's reading as soon as it is stored.
+model MeetingFactSource {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  councilMeeting   CouncilMeeting @relation(fields: [cityId, councilMeetingId], references: [cityId, id], onDelete: Cascade)
+  councilMeetingId String
+  cityId           String
+
+  source DataSource // sheet | transcript
+  status MeetingFactSourceStatus @default(uploaded)
+
+  /// The uploaded file, for the sheet: a private object in Spaces, served through an authorized route.
+  fileKey   String?
+  fileName  String?
+  mediaType String?
+
+  /// MeetingFactsReading (src/lib/apiTypes.ts), as received; corrected in place by the reviewer of a sheet.
+  reading       Json?
+  readerVersion String?
+
+  task   TaskStatus? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskId String?
+  uploadedBy   User?   @relation("MeetingFactSourceUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedById String?
+  confirmedBy   User?     @relation("MeetingFactSourceConfirmer", fields: [confirmedById], references: [id], onDelete: SetNull)
+  confirmedById String?
+  confirmedAt   DateTime?
+
+  @@unique([cityId, councilMeetingId, source])
+  @@index([taskId])
+}
+
+enum MeetingFactSourceStatus {
+  uploaded  // The file is stored; the reader has not returned
+  read      // The reader returned; a person has not confirmed
+  confirmed // A person confirmed the reading; the derivation reads it
 }
 
 enum LocationType {
@@ -1035,6 +1089,8 @@ model User {
   subjectAttendance SubjectAttendance[]
   subjectVotes SubjectVote[]
   meetingAttendance MeetingAttendance[]
+  uploadedFactSources MeetingFactSource[] @relation("MeetingFactSourceUploader")
+  confirmedFactSources MeetingFactSource[] @relation("MeetingFactSourceConfirmer")
   serviceApiKeys ServiceApiKey[]
   mcpTokens UserMcpToken[]
   searchQueries SearchQuery[]
