@@ -29,6 +29,11 @@ describe('cityPopulationSchema', () => {
         expect(cityPopulationSchema.safeParse(withParty('#123456')).success).toBe(true);
         expect(cityPopulationSchema.safeParse(withParty('red')).success).toBe(false);
     });
+
+    it('rejects a city without an administrative body', () => {
+        const result = cityPopulationSchema.safeParse({ ...payload({}), administrativeBodies: [], people: [] });
+        expect(result.success).toBe(false);
+    });
 });
 
 describe('cityPopulationSchema role dates and elected order', () => {

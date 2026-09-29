@@ -140,6 +140,20 @@ export function formatRelativeTime(date: Date, locale: string = 'el', options?: 
 }
 
 /**
+ * Whether Intl knows a time zone name. Every page of a city formats its dates
+ * in City.timezone, and Intl throws on a name that it does not know. Intl
+ * also accepts the old alias names, e.g. "Europe/Kiev".
+ */
+export function isTimeZone(name: string): boolean {
+    try {
+        new Intl.DateTimeFormat('en', { timeZone: name });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * The calendar date of a moment in a timezone, as `YYYY-MM-DD`. Documents and
  * badges work in local dates, and a meeting stored at local midnight is stored
  * before midnight UTC — the UTC (or machine) date would off-by-one every
