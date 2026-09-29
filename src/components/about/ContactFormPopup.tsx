@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { motion } from 'framer-motion'
 import { AlertTriangle, Briefcase, Building2, CheckCircle2, Mail, Phone, User, type LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -28,8 +28,9 @@ type Status = 'form' | 'sending' | 'sent' | 'failed'
 
 const EMPTY = { name: '', position: '', email: '', municipality: '', phone: '' }
 
+// 16px on a phone: iOS zooms the page when a focused field is smaller.
 const inputClass =
-    'h-11 rounded-xl border-border bg-card px-3.5 text-[15px] placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-0'
+    'h-11 rounded-xl border-border bg-card px-3.5 text-base md:text-[15px] placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-0'
 
 function FieldLabel({ htmlFor, icon: Icon, children }: { htmlFor: string; icon: LucideIcon; children: React.ReactNode }) {
     return (
@@ -68,6 +69,7 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice, rea
     const [status, setStatus] = useState<Status>('form')
     const [form, setForm] = useState(EMPTY)
     const [phoneValid, setPhoneValid] = useState(true)
+    const contentRef = useRef<HTMLDivElement>(null)
 
     // A reopened dialog starts on the form, not on the last outcome.
     useEffect(() => {
@@ -91,6 +93,14 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice, rea
         setStatus(result.success ? 'sent' : 'failed')
     }
 
+    // On a touch screen, focus on the first field opens the keyboard over the
+    // form before the reader has seen it. Focus the dialog itself instead.
+    const onOpenAutoFocus = (e: Event) => {
+        if (!window.matchMedia('(pointer: coarse)').matches) return
+        e.preventDefault()
+        contentRef.current?.focus()
+    }
+
     const outcome = (icon: React.ReactNode, title: string, body: React.ReactNode, action: React.ReactNode) => (
         <motion.div {...pop} className="flex flex-col items-center gap-3 p-8 text-center sm:p-10">
             {icon}
@@ -102,92 +112,101 @@ export default function ContactFormPopup({ isOpen, onClose, calculatedPrice, rea
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="overflow-hidden p-0 sm:max-w-[480px] sm:rounded-2xl">
-                {status === 'form' || status === 'sending' ? (
-                    <div className="p-6 sm:p-8">
-                        <DialogHeader className="space-y-1.5 text-left">
-                            {/* Radix renders the title as an h2, which the global h2 rule centres and shrinks: override all three. */}
-                            <DialogTitle className="!text-left !text-[22px] !font-normal leading-tight tracking-[-0.01em] text-foreground">{t('title')}</DialogTitle>
-                            <DialogDescription className="text-sm leading-relaxed text-muted-foreground">{t('subtitle')}</DialogDescription>
-                        </DialogHeader>
+            {/* The body scrolls inside a dialog no taller than the screen, so a phone reaches every
+                field and the submit button. The close button stays outside the scroll, as a 44px
+                target. */}
+            <DialogContent
+                ref={contentRef}
+                onOpenAutoFocus={onOpenAutoFocus}
+                className="flex max-h-[100dvh] flex-col gap-0 overflow-hidden p-0 sm:max-h-[90dvh] sm:max-w-[480px] sm:rounded-2xl [&>button]:right-2 [&>button]:top-2 [&>button]:flex [&>button]:size-11 [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full [&>button]:bg-background/90"
+            >
+                <div className="min-h-0 overflow-y-auto overscroll-contain">
+                    {status === 'form' || status === 'sending' ? (
+                        <div className="p-6 sm:p-8">
+                            <DialogHeader className="space-y-1.5 text-left">
+                                {/* Radix renders the title as an h2, which the global h2 rule centres and shrinks: override all three. */}
+                                <DialogTitle className="!text-left !text-[22px] !font-normal leading-tight tracking-[-0.01em] text-foreground">{t('title')}</DialogTitle>
+                                <DialogDescription className="text-sm leading-relaxed text-muted-foreground">{t('subtitle')}</DialogDescription>
+                            </DialogHeader>
 
-                        {calculatedPrice != null && (
-                            <div className="mt-5 flex items-baseline justify-between gap-4 rounded-xl bg-[hsl(24,100%,96%)] px-4 py-3.5">
-                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[hsl(var(--orange-deep))]">{t('estimatedCost')}</span>
-                                <span className="whitespace-nowrap">
-                                    <span className="text-[24px] font-semibold tabular-nums text-foreground" style={recordFont}>{formatCurrency(calculatedPrice)}</span>{' '}
-                                    <span className="text-sm text-muted-foreground">{t('vatSuffix')}</span>
-                                </span>
-                            </div>
-                        )}
+                            {calculatedPrice != null && (
+                                <div className="mt-5 flex items-baseline justify-between gap-4 rounded-xl bg-[hsl(24,100%,96%)] px-4 py-3.5">
+                                    <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[hsl(var(--orange-deep))]">{t('estimatedCost')}</span>
+                                    <span className="whitespace-nowrap">
+                                        <span className="text-[24px] font-semibold tabular-nums text-foreground" style={recordFont}>{formatCurrency(calculatedPrice)}</span>{' '}
+                                        <span className="text-sm text-muted-foreground">{t('vatSuffix')}</span>
+                                    </span>
+                                </div>
+                            )}
 
-                        <form onSubmit={submit} className="mt-5 flex flex-col gap-4">
-                            <Field id="name" label={t('name')} icon={User} value={form.name} onChange={update('name')} placeholder={t('namePlaceholder')} autoComplete="name" />
-                            <Field id="position" label={t('position')} icon={Briefcase} value={form.position} onChange={update('position')} placeholder={t('positionPlaceholder')} autoComplete="organization-title" />
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                <Field id="municipality" label={t('municipality')} icon={Building2} value={form.municipality} onChange={update('municipality')} placeholder={t('municipalityPlaceholder')} autoComplete="organization" />
-                                <Field id="email" label="Email" icon={Mail} type="email" value={form.email} onChange={update('email')} placeholder="email@example.com" autoComplete="email" />
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <FieldLabel htmlFor="phone" icon={Phone}>
-                                    {t('phone')}
-                                    <span className="font-normal text-muted-foreground">· {t('optional')}</span>
-                                </FieldLabel>
-                                <PhoneField
-                                    id="phone"
-                                    mobileOnly={false}
-                                    value={form.phone}
-                                    onChange={(phone) => setForm((current) => ({ ...current, phone }))}
-                                    onValidityChange={({ isEmpty, isValid }) => setPhoneValid(isEmpty || isValid)}
-                                    placeholder={t('phonePlaceholder')}
-                                    invalidMessage={t('phoneInvalid')}
-                                />
-                            </div>
-                            <PillButton type="submit" className="mt-1 w-full" disabled={status === 'sending' || !phoneValid}>
-                                {t('submit')}
-                            </PillButton>
-                        </form>
+                            <form onSubmit={submit} className="mt-5 flex flex-col gap-4">
+                                <Field id="name" label={t('name')} icon={User} value={form.name} onChange={update('name')} placeholder={t('namePlaceholder')} autoComplete="name" autoCapitalize="words" />
+                                <Field id="position" label={t('position')} icon={Briefcase} value={form.position} onChange={update('position')} placeholder={t('positionPlaceholder')} autoComplete="organization-title" />
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <Field id="municipality" label={t('municipality')} icon={Building2} value={form.municipality} onChange={update('municipality')} placeholder={t('municipalityPlaceholder')} autoComplete="organization" autoCapitalize="words" />
+                                    <Field id="email" label="Email" icon={Mail} type="email" value={form.email} onChange={update('email')} placeholder="email@example.com" autoComplete="email" />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <FieldLabel htmlFor="phone" icon={Phone}>
+                                        {t('phone')}
+                                        <span className="font-normal text-muted-foreground">· {t('optional')}</span>
+                                    </FieldLabel>
+                                    <PhoneField
+                                        id="phone"
+                                        mobileOnly={false}
+                                        value={form.phone}
+                                        onChange={(phone) => setForm((current) => ({ ...current, phone }))}
+                                        onValidityChange={({ isEmpty, isValid }) => setPhoneValid(isEmpty || isValid)}
+                                        placeholder={t('phonePlaceholder')}
+                                        invalidMessage={t('phoneInvalid')}
+                                    />
+                                </div>
+                                <PillButton type="submit" className="mt-1 w-full" disabled={status === 'sending' || !phoneValid}>
+                                    {t('submit')}
+                                </PillButton>
+                            </form>
 
-                        <p className="mt-4 text-center text-[12.5px] leading-relaxed text-muted-foreground">
-                            {t.rich('citizenNote', {
-                                domain: getRealmDomain(realm),
-                                link: (chunks) => (
-                                    <Link href="/petition" className="font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground">
-                                        {chunks}
-                                    </Link>
-                                ),
-                            })}
-                        </p>
-                    </div>
-                ) : status === 'sent' ? (
-                    outcome(
-                        <motion.span
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ delay: 0.15, type: 'spring', stiffness: 220, damping: 16 }}
-                            className="mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(24,100%,96%)] text-[hsl(var(--orange-deep))]"
-                        >
-                            <CheckCircle2 className="h-7 w-7" strokeWidth={1.8} aria-hidden />
-                        </motion.span>,
-                        t('thankYou'),
-                        t.rich('thankYouMessage', {
-                            email: form.email,
-                            strong: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
-                        }),
-                        <PillButton onClick={onClose}>{t('close')}</PillButton>,
-                    )
-                ) : (
-                    outcome(
-                        <span className="mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-                            <AlertTriangle className="h-7 w-7" strokeWidth={1.8} aria-hidden />
-                        </span>,
-                        t('errorTitle'),
-                        t.rich('errorMessage', {
-                            email: (chunks) => <a href="mailto:sales@touvlo.co" className="font-medium text-foreground underline decoration-border underline-offset-4">{chunks}</a>,
-                        }),
-                        <PillButton variant="outline" onClick={onClose}>{t('errorClose')}</PillButton>,
-                    )
-                )}
+                            <p className="mt-4 text-center text-[12.5px] leading-relaxed text-muted-foreground">
+                                {t.rich('citizenNote', {
+                                    domain: getRealmDomain(realm),
+                                    link: (chunks) => (
+                                        <Link href="/petition" className="font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground">
+                                            {chunks}
+                                        </Link>
+                                    ),
+                                })}
+                            </p>
+                        </div>
+                    ) : status === 'sent' ? (
+                        outcome(
+                            <motion.span
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: 0.15, type: 'spring', stiffness: 220, damping: 16 }}
+                                className="mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(24,100%,96%)] text-[hsl(var(--orange-deep))]"
+                            >
+                                <CheckCircle2 className="h-7 w-7" strokeWidth={1.8} aria-hidden />
+                            </motion.span>,
+                            t('thankYou'),
+                            t.rich('thankYouMessage', {
+                                email: form.email,
+                                strong: (chunks) => <span className="font-medium text-foreground">{chunks}</span>,
+                            }),
+                            <PillButton onClick={onClose}>{t('close')}</PillButton>,
+                        )
+                    ) : (
+                        outcome(
+                            <span className="mb-1 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                                <AlertTriangle className="h-7 w-7" strokeWidth={1.8} aria-hidden />
+                            </span>,
+                            t('errorTitle'),
+                            t.rich('errorMessage', {
+                                email: (chunks) => <a href="mailto:sales@touvlo.co" className="font-medium text-foreground underline decoration-border underline-offset-4">{chunks}</a>,
+                            }),
+                            <PillButton variant="outline" onClick={onClose}>{t('errorClose')}</PillButton>,
+                        )
+                    )}
+                </div>
             </DialogContent>
         </Dialog>
     )
