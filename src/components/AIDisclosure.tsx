@@ -48,7 +48,7 @@ export function AIDisclosure({ className }: { className?: string }) {
                 </div>
                 <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{t('aiDisclosure.body')}</p>
                 <a
-                    href={`${getPathname({ href: '/about', locale })}#how-it-works`}
+                    href={`${getPathname({ href: '/about', locale })}#process`}
                     className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[hsl(var(--orange))]"
                 >
                     {t('aiDisclosure.learnMore')}

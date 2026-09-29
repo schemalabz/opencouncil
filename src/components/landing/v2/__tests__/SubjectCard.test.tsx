@@ -60,7 +60,7 @@ describe('SubjectCard', () => {
         render(<SubjectCard subject={subject} onClick={onClick} />);
         fireEvent.click(screen.getByRole('button', { name: 'aiDisclosure.label' }));
         expect(screen.getByRole('dialog')).toHaveTextContent('aiDisclosure.title');
-        expect(screen.getByRole('link', { name: 'aiDisclosure.learnMore' })).toHaveAttribute('href', '/about#how-it-works');
+        expect(screen.getByRole('link', { name: 'aiDisclosure.learnMore' })).toHaveAttribute('href', '/about#process');
         expect(onClick).not.toHaveBeenCalled();
     });
 });
