@@ -100,5 +100,13 @@
     "procedural": "Διαδικαστικό",
     "currentTimeButton": {
         "jumpToCurrent": "Μεταφορά στον τρέχοντα χρόνο"
+    },
+    "speakerPicker": {
+        "searchPlaceholder": "Αναζήτηση προσώπων...",
+        "setLabel": "Ορισμός ετικέτας «{label}»",
+        "removePerson": "Αφαίρεση προσώπου",
+        "segmentCount": "{count, plural, one {# τμήμα} other {# τμήματα}}",
+        "onlyThisSegment": "Αλλαγή μόνο σε αυτό το τμήμα",
+        "onlyThisSegmentHint": "{others, plural, one {Το άλλο τμήμα αυτού του ομιλητή μένει ως έχει.} other {Τα άλλα # τμήματα αυτού του ομιλητή μένουν ως έχουν.}}"
     }
 }

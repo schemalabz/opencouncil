@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useId } from 'react';
+import { useTranslations } from 'next-intl';
 import { SpeakerTag } from "@prisma/client";
 import { ImageOrInitials } from "../ImageOrInitials";
 import { cn, filterActiveRoles, getPartyFromRoles, relevanceScore, UNKNOWN_SPEAKER_LABEL } from "@/lib/utils";
@@ -11,10 +12,12 @@ import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "@
 import { Check, X, Edit2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "../ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PersonWithRelations } from '@/lib/db/people';
 import { RoleDisplay } from './RoleDisplay';
 import { formatSurnameFirst } from '@/lib/formatters/name';
 import { useLocalizeText } from '@/hooks/useLocalizeText';
+import type { SpeakerAssignment, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
 
 interface PersonDisplayProps {
     person?: PersonWithRelations;
@@ -34,6 +37,7 @@ interface PersonDisplayProps {
 // A simpler version of PersonBadge used in search results
 function PersonDisplay({ person, speakerTag, segmentCount, short = false, preferFullName = false, size = 'md', editable = false, onClick, nonInteractive = false, date }: PersonDisplayProps) {
     const localize = useLocalizeText();
+    const t = useTranslations('transcript.speakerPicker');
     const activeRoles = person ? filterActiveRoles(person.roles) : [];
     const party = person ? getPartyFromRoles(person.roles, date) : null;
     const partyColor = party?.colorHex || 'gray';
@@ -94,7 +98,7 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
                         )}
                         {editable && segmentCount !== undefined && (
                             <span className="hidden sm:inline ml-2 text-muted-foreground font-normal">
-                                ({segmentCount} {segmentCount === 1 ? 'segment' : 'segments'})
+                                ({t('segmentCount', { count: segmentCount })})
                             </span>
                         )}
                     </div>
@@ -116,11 +120,39 @@ function PersonDisplay({ person, speakerTag, segmentCount, short = false, prefer
     );
 }
 
+function SegmentScopeFooter({ segmentCount, onlyThisSegment, onOnlyThisSegmentChange }: {
+    segmentCount: number;
+    onlyThisSegment: boolean;
+    onOnlyThisSegmentChange: (value: boolean) => void;
+}) {
+    const t = useTranslations('transcript.speakerPicker');
+    const checkboxId = useId();
+
+    return (
+        <div className="flex flex-col gap-1 border-t bg-muted/40 px-3 py-2.5">
+            <div className="flex items-center gap-2">
+                <Checkbox
+                    id={checkboxId}
+                    aria-describedby={`${checkboxId}-hint`}
+                    checked={onlyThisSegment}
+                    onCheckedChange={(checked) => onOnlyThisSegmentChange(checked === true)}
+                />
+                <label htmlFor={checkboxId} className="cursor-pointer text-sm font-medium leading-none">
+                    {t('onlyThisSegment')}
+                </label>
+            </div>
+            <p id={`${checkboxId}-hint`} className="pl-6 text-xs text-muted-foreground">
+                {t('onlyThisSegmentHint', { others: segmentCount - 1 })}
+            </p>
+        </div>
+    );
+}
+
 interface PersonBadgeProps extends PersonDisplayProps {
     withBorder?: boolean;
     isSelected?: boolean;
-    onPersonChange?: (personId: string | null) => void;
-    onLabelChange?: (label: string) => void;
+    /** Applies the picked person or label. The picker offers the `thisSegment` scope when the tag has 2 or more segments. */
+    onAssign?: (assignment: SpeakerAssignment, scope: SpeakerAssignmentScope) => void;
     availablePeople?: PersonWithRelations[];
     nextUnknownLabel?: string;
     variant?: 'default' | 'inline';
@@ -137,8 +169,7 @@ function PersonBadge({
     withBorder,
     isSelected = false,
     editable = false,
-    onPersonChange,
-    onLabelChange,
+    onAssign,
     availablePeople,
     nextUnknownLabel,
     preferFullName = false,
@@ -150,7 +181,9 @@ function PersonBadge({
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [editMode, setEditMode] = useState(false);
+    const [onlyThisSegment, setOnlyThisSegment] = useState(false);
     const localize = useLocalizeText();
+    const t = useTranslations('transcript.speakerPicker');
     const router = useRouter();
     const listRef = useRef<HTMLDivElement>(null);
 
@@ -183,11 +216,21 @@ function PersonBadge({
             .map(({ person }) => person);
     }, [availablePeople, searchQuery]);
 
-    const handleSetLabel = (label: string) => {
-        onPersonChange?.(null);
-        onLabelChange?.(label);
-        setIsOpen(false);
+    // The scope choice lasts for one opening of the picker, so the common case
+    // (change every segment of the tag) never needs an extra step.
+    const handleOpenChange = (open: boolean) => {
+        setIsOpen(open);
+        if (!open) setOnlyThisSegment(false);
     };
+
+    const canScopeToSegment = (segmentCount ?? 0) > 1;
+
+    const applyAssignment = (personId: string | null, label?: string) => {
+        onAssign?.({ personId, label }, canScopeToSegment && onlyThisSegment ? 'thisSegment' : 'allSegments');
+        handleOpenChange(false);
+    };
+
+    const handleSetLabel = (label: string) => applyAssignment(null, label);
 
     const handlePersonClick = () => {
         if (editable) {
@@ -269,15 +312,15 @@ function PersonBadge({
 
     if (editable && availablePeople) {
         return (
-            <Popover open={isOpen} onOpenChange={setIsOpen}>
+            <Popover open={isOpen} onOpenChange={handleOpenChange}>
                 <PopoverTrigger asChild>
                     {badge}
                 </PopoverTrigger>
-                <PopoverContent className="p-0" align="start">
+                <PopoverContent className="w-80 p-0" align="start">
                     <Command shouldFilter={false}>
                         <CommandInput
                             autoFocus
-                            placeholder="Search people..."
+                            placeholder={t('searchPlaceholder')}
                             value={searchQuery}
                             onValueChange={setSearchQuery}
                         />
@@ -308,10 +351,7 @@ function PersonBadge({
                                         <CommandItem
                                             key={p.id}
                                             value={p.id}
-                                            onSelect={() => {
-                                                onPersonChange?.(p.id);
-                                                setIsOpen(false);
-                                            }}
+                                            onSelect={() => applyAssignment(p.id)}
                                             className="flex items-center gap-2"
                                         >
                                             <Check
@@ -335,26 +375,30 @@ function PersonBadge({
                                         onSelect={() => handleSetLabel(searchQuery)}
                                     >
                                         <Edit2 className="mr-2 h-4 w-4" />
-                                        Set label to &quot;{searchQuery}&quot;
+                                        {t('setLabel', { label: searchQuery })}
                                     </CommandItem>
                                 </CommandGroup>
                             )}
                             {person && !searchQuery && (
                                 <CommandGroup>
                                     <CommandItem
-                                        onSelect={() => {
-                                            onPersonChange?.(null);
-                                            setIsOpen(false);
-                                        }}
+                                        onSelect={() => applyAssignment(null)}
                                         className="text-destructive"
                                     >
                                         <X className="mr-2 h-4 w-4" />
-                                        Remove person
+                                        {t('removePerson')}
                                     </CommandItem>
                                 </CommandGroup>
                             )}
                         </CommandList>
                     </Command>
+                    {canScopeToSegment && (
+                        <SegmentScopeFooter
+                            segmentCount={segmentCount ?? 0}
+                            onlyThisSegment={onlyThisSegment}
+                            onOnlyThisSegmentChange={setOnlyThisSegment}
+                        />
+                    )}
                 </PopoverContent>
             </Popover>
         );

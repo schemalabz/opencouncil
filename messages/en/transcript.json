@@ -100,5 +100,13 @@
     "procedural": "Procedural",
     "currentTimeButton": {
         "jumpToCurrent": "Jump to the current time"
+    },
+    "speakerPicker": {
+        "searchPlaceholder": "Search people...",
+        "setLabel": "Set label to \"{label}\"",
+        "removePerson": "Remove person",
+        "segmentCount": "{count, plural, one {# segment} other {# segments}}",
+        "onlyThisSegment": "Change this segment only",
+        "onlyThisSegmentHint": "{others, plural, one {The other segment of this speaker stays as it is.} other {The other # segments of this speaker stay as they are.}}"
     }
 }

@@ -1,7 +1,7 @@
 "use client"
 import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
-import { updateSpeakerTag } from '@/lib/db/speakerTags';
+import { assignSpeaker, SpeakerAssignment, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
 import { deleteUtterance } from '@/lib/db/utterance';
 import { Transcript } from '@/lib/db/transcript';
@@ -14,8 +14,7 @@ import type { HighlightWithUtterances } from '@/lib/db/highlights';
 // They are stable references for the lifetime of the provider, so consumers
 // that only need to mutate (e.g. Utterance) never re-render on data changes.
 export interface CouncilMeetingActions {
-    updateSpeakerTagPerson: (tagId: string, personId: string | null) => void;
-    updateSpeakerTagLabel: (tagId: string, label: string) => void;
+    assignSpeaker: (segmentId: string, assignment: SpeakerAssignment, scope: SpeakerAssignmentScope) => Promise<void>;
     createEmptySegmentAfter: (afterSegmentId: string) => Promise<void>;
     createEmptySegmentBefore: (beforeSegmentId: string) => Promise<void>;
     moveUtterancesToPrevious: (utteranceId: string, currentSegmentId: string) => Promise<void>;
@@ -96,20 +95,18 @@ export function CouncilMeetingDataProvider({ children, data }: {
         setHighlights(prev => prev.filter(h => h.id !== highlightId));
     }, []);
 
-    const updateSpeakerTagPerson = useCallback(async (tagId: string, personId: string | null) => {
-        console.log(`Updating speaker tag ${tagId} to person ${personId}`);
-        await updateSpeakerTag(tagId, { personId });
-        setSpeakerTags(prevTags =>
-            prevTags.map(tag => (tag.id === tagId ? { ...tag, personId } : tag))
-        );
-    }, []);
-
-    const updateSpeakerTagLabel = useCallback(async (tagId: string, label: string) => {
-        console.log(`Updating speaker tag ${tagId} label to ${label}`);
-        await updateSpeakerTag(tagId, { label });
-        setSpeakerTags(prevTags =>
-            prevTags.map(tag => (tag.id === tagId ? { ...tag, label } : tag))
-        );
+    const assignSpeakerAction = useCallback(async (segmentId: string, assignment: SpeakerAssignment, scope: SpeakerAssignmentScope) => {
+        const tag = await assignSpeaker(segmentId, assignment, scope);
+        setSpeakerTags(prev => prev.some(t => t.id === tag.id)
+            ? prev.map(t => (t.id === tag.id ? tag : t))
+            : [...prev, tag]);
+        // Only a segment that moved to a new tag changes the transcript; a
+        // shared-tag change reaches every segment through the tag lookup.
+        if (scope === 'thisSegment') {
+            setTranscript(prev => prev.map(segment =>
+                segment.id === segmentId ? { ...segment, speakerTagId: tag.id, speakerTag: tag } : segment
+            ));
+        }
     }, []);
 
     const createEmptySegmentAfter = useCallback(async (afterSegmentId: string) => {
@@ -269,8 +266,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
     // Stable for the lifetime of the provider — every callback above is
     // wrapped in useCallback with deps that never change.
     const actionsValue = useMemo<CouncilMeetingActions>(() => ({
-        updateSpeakerTagPerson,
-        updateSpeakerTagLabel,
+        assignSpeaker: assignSpeakerAction,
         createEmptySegmentAfter,
         createEmptySegmentBefore,
         moveUtterancesToPrevious,
@@ -285,8 +281,7 @@ export function CouncilMeetingDataProvider({ children, data }: {
         removeHighlight,
         extractSpeakerSegment: extractSpeakerSegmentAction,
     }), [
-        updateSpeakerTagPerson,
-        updateSpeakerTagLabel,
+        assignSpeakerAction,
         createEmptySegmentAfter,
         createEmptySegmentBefore,
         moveUtterancesToPrevious,

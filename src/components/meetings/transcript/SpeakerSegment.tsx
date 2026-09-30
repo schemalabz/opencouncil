@@ -184,7 +184,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
     // Resolve party color as of the meeting date so a councilor who later
     // changed affiliation keeps their historical color on older meetings.
     const meetingDate = meeting.dateTime;
-    const { updateSpeakerTagPerson, updateSpeakerTagLabel, deleteEmptySegment } = useCouncilMeetingActions();
+    const { assignSpeaker, deleteEmptySegment } = useCouncilMeetingActions();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
     const { toast } = useToast();
@@ -256,18 +256,6 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
 
     const summary = segment.summary;
 
-    const handlePersonChange = (personId: string | null) => {
-        if (headerData.speakerTag) {
-            updateSpeakerTagPerson(headerData.speakerTag.id, personId);
-        }
-    };
-
-    const handleLabelChange = (label: string) => {
-        if (headerData.speakerTag) {
-            updateSpeakerTagLabel(headerData.speakerTag.id, label);
-        }
-    };
-
     const handleCopySegment = () => {
         // Copy what the reader sees: the displayed utterances are localized to
         // the active Serbian script, so the clipboard must match.
@@ -331,8 +319,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
                                                     speakerTag={headerData.speakerTag}
                                                     segmentCount={headerData.segmentCount}
                                                     editable={options.editable}
-                                                    onPersonChange={handlePersonChange}
-                                                    onLabelChange={handleLabelChange}
+                                                    onAssign={(assignment, scope) => assignSpeaker(segment.id, assignment, scope)}
                                                     nextUnknownLabel={nextUnknownLabel}
                                                     availablePeople={people.map(p => ({
                                                         ...p,
