@@ -19,6 +19,8 @@ jest.mock('next/navigation', () => ({
     useRouter: () => ({ refresh: jest.fn() }),
 }));
 jest.mock('@/lib/actions/personConsent', () => ({ setVoicePrintConsent: jest.fn() }));
+// The code dialog reaches the auth module through its actions; this test never opens it.
+jest.mock('@/lib/actions/phoneVerification', () => ({ requestPhoneCode: jest.fn(), confirmPhoneCode: jest.fn() }));
 
 const mockedSetConsent = setVoicePrintConsent as jest.MockedFunction<typeof setVoicePrintConsent>;
 
@@ -36,6 +38,7 @@ const user = {
     name: 'Α. Β.',
     email: 'a@b.test',
     phone: null,
+    phoneVerifiedAt: null,
     allowProductUpdates: true,
     allowPetitionUpdates: false,
     allowFeedbackCalls: true,

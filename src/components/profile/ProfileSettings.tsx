@@ -38,7 +38,7 @@ const railRowClass =
 /** The account fields the settings edit; the rest of the row stays on the server. */
 export type ProfileAccount = Pick<
     User,
-    "name" | "email" | "phone" | "updatedAt" | "allowProductUpdates" | "allowPetitionUpdates" | "allowFeedbackCalls"
+    "name" | "email" | "phone" | "phoneVerifiedAt" | "updatedAt" | "allowProductUpdates" | "allowPetitionUpdates" | "allowFeedbackCalls"
 >;
 
 export function ProfileSettings({

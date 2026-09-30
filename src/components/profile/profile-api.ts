@@ -3,7 +3,10 @@
  * communication switches. The route validates a partial payload, so each
  * caller sends only the fields it owns.
  */
-export type ProfileSaveResult = { ok: true } | { ok: false; code: string | null };
+export type ProfileSaveResult =
+    /** `phoneNeedsCode`: saved, except the number, which another account typed first and a code must prove. */
+    | { ok: true; phoneNeedsCode: boolean }
+    | { ok: false; code: string | null };
 
 export async function postProfile(payload: object): Promise<ProfileSaveResult> {
     try {
@@ -12,7 +15,10 @@ export async function postProfile(payload: object): Promise<ProfileSaveResult> {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
         });
-        if (response.ok) return { ok: true };
+        if (response.ok) {
+            const saved = (await response.json().catch(() => null)) as { phoneNeedsCode?: boolean } | null;
+            return { ok: true, phoneNeedsCode: saved?.phoneNeedsCode === true };
+        }
         const body = (await response.json().catch(() => null)) as {
             error?: { code?: string; fieldErrors?: { phone?: string[] } };
         } | null;

@@ -11,6 +11,7 @@ import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
 import { PHONE_IN_USE_CODE, PHONE_REJECTION_CODES, normalizeMobilePhone } from "@/lib/utils/phone";
 import { phoneBelongsToAnotherUser } from "./users";
+import { setAccountPhone } from "./phoneVerification";
 import { NotFoundError } from "@/lib/api/errors";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
@@ -344,15 +345,10 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 return createError(PHONE_REJECTION_CODES.empty);
             }
 
-            // Update phone if provided
-            if (phone) {
-                if (await phoneBelongsToAnotherUser(phone, user.id)) {
-                    return createError(PHONE_IN_USE_CODE);
-                }
-                await prisma.user.update({
-                    where: { id: user.id },
-                    data: { phone }
-                });
+            // Update phone if provided. Any other holder refuses it here, as
+            // before: only the profile offers the code that takes a number over.
+            if (phone && (await setAccountPhone(user.id, phone)) !== "saved") {
+                return createError(PHONE_IN_USE_CODE);
             }
         } else if (email) {
             if (notifyByPhone && !phone) {
@@ -558,15 +554,12 @@ export async function savePetition(data: OnboardingData & {
 
             // Always set allowPetitionUpdates (submitting a petition is implicit
             // consent for petition updates); merge phone in if provided.
-            if (phone && (await phoneBelongsToAnotherUser(phone, user.id))) {
+            if (phone && (await setAccountPhone(user.id, phone)) !== "saved") {
                 return createError(PHONE_IN_USE_CODE);
             }
             await prisma.user.update({
                 where: { id: user.id },
-                data: {
-                    allowPetitionUpdates: true,
-                    ...(phone ? { phone } : {}),
-                },
+                data: { allowPetitionUpdates: true },
             });
         } else if (email) {
             // Non-authenticated user

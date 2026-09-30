@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { PhoneField, PhoneFieldValidity } from "@/components/ui/phone-field";
 import { formatNumericDateTime } from "@/lib/formatters/time";
 import { setVoicePrintConsent } from "@/lib/actions/personConsent";
@@ -17,6 +17,9 @@ import { DPO_EMAIL } from "@/lib/dpo";
 import { ErrorLine } from "@/components/ui/error-line";
 import { SaveStatus } from "@/components/profile/SettingsChrome";
 import { postProfile } from "@/components/profile/profile-api";
+import { PhoneCodeForm } from "@/components/phone/PhoneCodeForm";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toMobileE164 } from "@/lib/utils/phone";
 
 // Server phone rejections that have their own message in the Profile namespace.
 const PHONE_ERROR_KEYS: Record<string, string> = {
@@ -43,7 +46,7 @@ export interface ConsentPerson {
 }
 
 interface UserInfoFormProps {
-    user: Pick<User, "name" | "email" | "phone" | "updatedAt">;
+    user: Pick<User, "name" | "email" | "phone" | "phoneVerifiedAt" | "updatedAt">;
     isOnboarded: boolean;
     persons?: ConsentPerson[];
 }
@@ -54,6 +57,10 @@ interface UserInfoFormProps {
  * the account is. Inside the settings it is the body of a card; on the
  * first visit it is the whole onboarding page, and the one button on it
  * completes the registration.
+ *
+ * The number is saved with the form, as it always was. Proving it with a
+ * code is optional (issue #813): the line under the field offers it, and
+ * the code opens in a dialog, so the form keeps its layout.
  */
 export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormProps) {
     const t = useTranslations("Profile");
@@ -81,6 +88,11 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
         name: user.name || (claimed.length === 1 ? claimed[0].name : ""),
         phone: user.phone || "",
     });
+    // The number whose code dialog is open, and the one the
+    // reader proved in this session — the server's answer arrives with the
+    // refresh, and the field must not say "not confirmed" in between.
+    const [verifyingPhone, setVerifyingPhone] = useState<string | null>(null);
+    const [justVerified, setJustVerified] = useState<string | null>(null);
     // Only the boxes the user touched, never the whole set: the saved values
     // come from `persons`, which router.refresh() keeps current, so a person
     // linked from another device cannot be reverted by a stale tab.
@@ -110,6 +122,15 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
         savedTimer.current = setTimeout(() => setSaveState("idle"), SAVED_FOR_MS);
     }
 
+    // The typed number as the server stores it, or null when the field is
+    // empty or not yet a number. The line under the field speaks only about
+    // the number the account holds, not about one still being typed.
+    const typedPhone = formData.phone.trim() ? toMobileE164(formData.phone) : null;
+    const typedE164 = typedPhone?.ok ? typedPhone.e164 : null;
+    const isSavedPhone = typedE164 !== null && typedE164 === user.phone;
+    const isVerifiedPhone =
+        typedE164 !== null && ((isSavedPhone && user.phoneVerifiedAt !== null) || typedE164 === justVerified);
+
     // "phone": the server refused the number, and the field says why; the
     // form's own status line stays quiet so the reason is said once.
     async function saveDetails(): Promise<"saved" | "phone" | "failed"> {
@@ -120,12 +141,26 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
         });
         if (result.ok) {
             setServerPhoneError(null);
+            // Another account typed this number first: the rest is saved,
+            // and the number comes over once a code proves it.
+            if (result.phoneNeedsCode && typedE164) setVerifyingPhone(typedE164);
             router.refresh();
             return "saved";
         }
         const key = result.code ? PHONE_ERROR_KEYS[result.code] : undefined;
         setServerPhoneError(key ?? null);
         return key ? "phone" : "failed";
+    }
+
+    function phoneVerified(phone: string) {
+        setJustVerified(phone);
+        setVerifyingPhone(null);
+        showSaved();
+        router.refresh();
+    }
+
+    function closeVerify() {
+        setVerifyingPhone(null);
     }
 
     // The consent is the person's, not the account's, so it goes through its
@@ -210,6 +245,7 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
                         value={formData.phone}
                         onChange={(phone) => {
                             setServerPhoneError(null);
+                            setVerifyingPhone(null);
                             setFormData({ ...formData, phone });
                         }}
                         onValidityChange={setPhoneValidity}
@@ -218,8 +254,50 @@ export function UserInfoForm({ user, isOnboarded, persons = [] }: UserInfoFormPr
                         notMobileMessage={t("phoneNotMobile")}
                     />
                     {serverPhoneError && <ErrorLine>{t(serverPhoneError)}</ErrorLine>}
+                    {isVerifiedPhone ? (
+                        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Check className="h-3.5 w-3.5 text-emerald-700" aria-hidden />
+                            {t("phoneVerified")}
+                        </p>
+                    ) : isSavedPhone ? (
+                        // Saved and in use; proving it is the reader's choice.
+                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                            {t("phoneUnverified")}
+                            <button
+                                type="button"
+                                className="font-medium text-foreground underline underline-offset-2 hover:no-underline"
+                                onClick={() => setVerifyingPhone(typedE164)}
+                            >
+                                {t("phoneVerify")}
+                            </button>
+                        </p>
+                    ) : null}
                 </div>
             </div>
+
+            <Dialog open={verifyingPhone !== null} onOpenChange={(open) => !open && closeVerify()}>
+                {/* On a phone: inset, rounded, and near the top, so the numeric keyboard leaves the boxes in view. */}
+                <DialogContent
+                    align="start"
+                    aria-describedby={undefined}
+                    className="top-4 w-[calc(100%-2rem)] max-w-sm translate-y-0 gap-5 rounded-2xl sm:top-[50%] sm:translate-y-[-50%]"
+                >
+                    <DialogHeader>
+                        <DialogTitle>{t("phoneConfirmTitle")}</DialogTitle>
+                    </DialogHeader>
+                    {verifyingPhone && (
+                        <PhoneCodeForm
+                            className="w-full"
+                            phone={verifyingPhone}
+                            autoSend
+                            title={false}
+                            inDialog
+                            onVerified={phoneVerified}
+                            onCancel={closeVerify}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
 
             {persons.length > 0 && (
                 <div role="group" aria-labelledby="voicePrintTitle" className="flex flex-col gap-3">

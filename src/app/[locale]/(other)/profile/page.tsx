@@ -48,6 +48,7 @@ export default async function ProfilePage() {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        phoneVerifiedAt: user.phoneVerifiedAt,
         updatedAt: user.updatedAt,
         allowProductUpdates: user.allowProductUpdates,
         allowPetitionUpdates: user.allowPetitionUpdates,
