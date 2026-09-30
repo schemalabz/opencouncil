@@ -194,7 +194,7 @@ Located in `src/lib/search/`:
 
 Multi-channel delivery in `src/lib/notifications/`:
 - **Email**: Via Resend
-- **WhatsApp and SMS**: the Notis service (`services/notis`) — this app sends neither
+- **WhatsApp and SMS**: the Notis service (`services/notis`). This app sends one thing only: the SMS with a phone verification code (`src/lib/phone-verification/sms.ts`)
 - Matching engine for user preferences (topics, locations, people, parties)
 - Approval workflow with pending queue
 - Rate limiting (500ms delays between sends)
