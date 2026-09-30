@@ -24,6 +24,7 @@ const user: ProfileAccount = {
     name: 'Μαρία Παπαδοπούλου',
     email: 'maria@example.com',
     phone: null,
+    phoneVerifiedAt: null,
     updatedAt: new Date('2026-09-01T10:00:00.000Z'),
     allowProductUpdates: true,
     allowPetitionUpdates: false,

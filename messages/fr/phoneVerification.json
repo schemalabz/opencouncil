@@ -1,0 +1,28 @@
+{
+  "title": "Saisissez le code",
+  "sendPrompt": "Nous allons envoyer un code par SMS au {phone}.",
+  "sentTo": "Nous l'avons envoyé par SMS au {phone}. Il est valable {minutes} minutes.",
+  "devLog": "Environnement de test : aucun SMS n'est envoyé. Le code pour le {phone} est dans le journal du serveur.",
+  "send": "Envoyer un code",
+  "sending": "Envoi…",
+  "codeLabel": "Code",
+  "confirming": "Vérification…",
+  "notArrived": "Pas reçu ?",
+  "resend": "Renvoyer",
+  "resendIn": "Renvoyer dans {time}",
+  "limited": "Vous pourrez demander un nouveau code dans {time}.",
+  "cancel": "Pas maintenant",
+  "verified": "Votre mobile est confirmé.",
+  "sms": "{code} est votre code de vérification OpenCouncil. Il expire dans {minutes} minutes.",
+  "errors": {
+    "code_invalid": "Code incorrect. {attemptsLeft, plural, one {Il vous reste # essai.} other {Il vous reste # essais.}}",
+    "code_expired": "Le code a expiré. Demandez-en un nouveau.",
+    "too_many_attempts": "Trop d'essais incorrects. Demandez un nouveau code.",
+    "phone_in_use": "Ce mobile appartient déjà à un autre compte.",
+    "phone_invalid": "Ce numéro ne semble pas correct.",
+    "phone_not_mobile": "Il faut un numéro de mobile, pas de fixe.",
+    "send_failed": "Nous n'avons pas pu envoyer le code. Réessayez dans un moment.",
+    "no_pending": "Aucun code en attente. Demandez-en un nouveau.",
+    "generic": "Une erreur s'est produite. Réessayez."
+  }
+}

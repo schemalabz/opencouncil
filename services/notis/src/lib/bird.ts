@@ -1,3 +1,4 @@
+import { birdSmsEndpoint, birdSmsPayload, readBirdSmsReceipt } from "@opencouncil/ui/lib/bird-sms";
 import { env } from "@/env.mjs";
 import { TEMPLATES, type TemplateName } from "@/agent/templates";
 import { type BirdMessageLike, fullBodyText } from "@/lib/bird-extract";
@@ -474,12 +475,20 @@ export const realBird: BirdLike = {
       };
     }
     const raw = await birdFetch(
-      `https://api.bird.com/workspaces/${env.BIRD_WORKSPACE_ID}/channels/${env.BIRD_SMS_CHANNEL_ID}/messages`,
-      {
-        receiver: { contacts: [{ identifierValue: phone }] },
-        body: { type: "text", text: { text } },
-      },
+      birdSmsEndpoint(env.BIRD_WORKSPACE_ID ?? "", env.BIRD_SMS_CHANNEL_ID),
+      birdSmsPayload(phone, text),
     );
-    return toSendResult(raw, "sms");
+    if (raw.networkError) {
+      console.error("Bird sms error:", raw.networkError);
+      return { success: false, retryable: true, error: raw.networkError };
+    }
+    // The receipt rule is the main app's too: a 2xx without a message id is
+    // not a send, whatever the body says.
+    const receipt = readBirdSmsReceipt(raw.status, raw.json);
+    if (!receipt.sent) {
+      console.error(`Bird sms failed (${raw.status}):`, receipt.reason);
+      return { success: false, status: raw.status, retryable: receipt.retryable, error: receipt.reason };
+    }
+    return { success: true, messageId: receipt.messageId };
   },
 };

@@ -12,6 +12,7 @@
     "./hooks/use-toast": "./src/hooks/use-toast.ts",
     "./lib/utils": "./src/lib/utils.ts",
     "./lib/phone": "./src/lib/phone.ts",
+    "./lib/bird-sms": "./src/lib/bird-sms.ts",
     "./lib/pagination": "./src/lib/pagination.ts",
     "./*": "./src/*.tsx"
   },
