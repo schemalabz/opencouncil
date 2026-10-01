@@ -1,7 +1,8 @@
 "use client"
 import React, { createContext, useContext, ReactNode, useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Party, SpeakerTag, LastModifiedBy } from '@prisma/client';
-import { assignSpeaker, SpeakerAssignment, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
+import { assignSpeaker } from '@/lib/actions/speakerTags';
+import type { SpeakerAssignment, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
 import { createEmptySpeakerSegmentAfter, createEmptySpeakerSegmentBefore, moveUtterancesToPreviousSegment, moveUtterancesToNextSegment, deleteEmptySpeakerSegment, updateSpeakerSegmentData, EditableSpeakerSegmentData, extractSpeakerSegment, addUtteranceToSegment } from '@/lib/db/speakerSegments';
 import { deleteUtterance } from '@/lib/db/utterance';
 import { Transcript } from '@/lib/db/transcript';

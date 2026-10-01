@@ -1,34 +1,9 @@
-"use server";
-import { SpeakerTag, Person } from '@prisma/client';
+// Not a Server Action module: the browser reaches the one write it needs,
+// assignSpeaker, through src/lib/actions/speakerTags.ts.
+import "server-only";
+import { SpeakerTag } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from '../auth';
-
-export async function getSpeakerTag(id: string): Promise<(SpeakerTag & { person: Person | null }) | null> {
-    const speakerTag = await prisma.speakerTag.findUnique({
-        where: { id },
-        include: {
-            person: true,
-            speakerSegments: true,
-        }
-    });
-    return speakerTag;
-}
-
-export async function getSpeakerTagsForCityCouncilMeeting(cityCouncilMeetingId: string): Promise<SpeakerTag[]> {
-    const speakerTags = await prisma.speakerTag.findMany({
-        where: {
-            speakerSegments: {
-                some: {
-                    meetingId: cityCouncilMeetingId
-                }
-            }
-        },
-        orderBy: {
-            createdAt: 'asc',
-        },
-    });
-    return speakerTags;
-}
 
 /** Who speaks: a person, or no person (then the tag shows its label). Without a label, the tag keeps the label it has. */
 export type SpeakerAssignment = { personId: string | null; label?: string };
@@ -79,71 +54,4 @@ export async function assignSpeaker(
             }
         }
     });
-}
-
-export async function createEmptySpeakerSegmentAfter(
-    afterSegmentId: string,
-    speakerTagId: string,
-    cityId: string,
-    meetingId: string
-) {
-    await withUserAuthorizedToEdit({ cityId });
-    // First get the segment we're inserting after to get its end timestamp
-    const afterSegment = await prisma.speakerSegment.findUnique({
-        where: { id: afterSegmentId },
-        include: { utterances: true }
-    });
-
-    if (!afterSegment) {
-        throw new Error('Segment not found');
-    }
-
-    // Create a new segment starting at the end of the previous one
-    // We'll create it with a 10 second duration initially
-    const startTimestamp = afterSegment.endTimestamp;
-    const endTimestamp = startTimestamp + 10;
-
-    // Create the new segment
-    const newSegment = await prisma.speakerSegment.create({
-        data: {
-            startTimestamp,
-            endTimestamp,
-            cityId,
-            meetingId,
-            speakerTagId,
-            // Create an initial empty utterance
-            utterances: {
-                create: {
-                    startTimestamp,
-                    endTimestamp,
-                    text: '',
-                    lastModifiedBy: 'user'
-                }
-            }
-        },
-        include: {
-            utterances: true,
-            speakerTag: {
-                include: {
-                    person: {
-                        include: {
-                            roles: {
-                                include: {
-                                    party: true
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            summary: true,
-            topicLabels: {
-                include: {
-                    topic: true
-                }
-            }
-        }
-    });
-
-    return newSegment;
 }
