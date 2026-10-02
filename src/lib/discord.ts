@@ -355,6 +355,8 @@ export async function sendNotificationsSentAdminAlert(data: {
     notificationCount: number;
     emailsSent: number;
     failed: number;
+    // Failed sends whose deliveries stay pending, so a re-release retries them.
+    leftPending: number;
 }): Promise<void> {
     // Only send if we actually sent some notifications
     if (data.emailsSent === 0 && data.failed === 0) {
@@ -388,7 +390,9 @@ export async function sendNotificationsSentAdminAlert(data: {
             },
             {
                 name: '❌ Failed',
-                value: data.failed.toString(),
+                value: data.leftPending > 0
+                    ? `${data.failed} (${data.leftPending} left pending, re-release from Manage Notifications)`
+                    : data.failed.toString(),
                 inline: true,
             },
             {

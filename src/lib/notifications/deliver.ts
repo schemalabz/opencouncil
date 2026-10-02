@@ -7,8 +7,8 @@ import { getPendingDeliveries, updateDeliveryStatus } from '@/lib/db/notificatio
 const FROM_ADDRESS = 'OpenCouncil <notifications@opencouncil.gr>';
 const EMAIL_BATCH_SIZE = 100;
 // Space successive batch calls so a multi-batch release stays under Resend's
-// per-key request rate limit. A 429 maps the whole chunk to failedTos, which
-// would drop ~100 notifications at once, so this is cheap insurance.
+// per-key request rate limit. A rejected batch leaves its deliveries pending,
+// so the spacing saves a re-release rather than the notifications themselves.
 const BATCH_DELAY_MS = 500;
 
 // Derive the delivery row shape from the DB function — keeps us honest if the
@@ -40,10 +40,12 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
     emailsSent: number;
     skipped: number;
     failed: number;
+    leftPending: number;
 }> {
     let emailsSent = 0;
     let skipped = 0;
     let failed = 0;
+    let leftPending = 0;
 
     try {
         // Get all pending deliveries for these notifications
@@ -59,6 +61,7 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
         const emailResult = await sendEmailDeliveriesBatched(emailDeliveries);
         emailsSent += emailResult.sent;
         failed += emailResult.failed;
+        leftPending += emailResult.leftPending;
 
         // Messages are Notis's: a `message` row predates the switch and is never sent.
         for (const delivery of messageDeliveries) {
@@ -66,13 +69,14 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
             skipped++;
         }
 
-        console.log(`Release complete: ${emailsSent} emails, ${skipped} skipped, ${failed} failed`);
+        console.log(`Release complete: ${emailsSent} emails, ${skipped} skipped, ${failed} failed (${leftPending} left pending)`);
 
         return {
             success: true,
             emailsSent,
             skipped,
-            failed
+            failed,
+            leftPending
         };
     } catch (error) {
         console.error('Error releasing notifications:', error);
@@ -80,7 +84,8 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
             success: false,
             emailsSent,
             skipped,
-            failed
+            failed,
+            leftPending
         };
     }
 }
@@ -113,9 +118,11 @@ async function buildEmailPayload(delivery: PendingDelivery): Promise<EmailPayloa
 async function sendEmailDeliveriesBatched(deliveries: PendingDelivery[]): Promise<{
     sent: number;
     failed: number;
+    leftPending: number;
 }> {
     let sent = 0;
     let failed = 0;
+    let leftPending = 0;
 
     // Pair each successfully-built payload with its delivery so we can map
     // batch results back to delivery ids. Deliveries that fail validation
@@ -143,6 +150,17 @@ async function sendEmailDeliveriesBatched(deliveries: PendingDelivery[]): Promis
 
         const result = await sendEmailBatch(payloads, { idempotencyKey });
 
+        // `error` marks a failure of the whole batch (429, 5xx, network): Resend
+        // rejected no recipient in particular. Keep these rows `pending` so a
+        // re-release retries them. `failed` is final, because getPendingDeliveries
+        // selects only `pending` rows. They still count as failed for this release.
+        if (result.error) {
+            console.error(`Notification email batch failed; ${chunk.length} deliveries stay pending:`, result.error);
+            failed += chunk.length;
+            leftPending += chunk.length;
+            continue;
+        }
+
         // Resend reports failures as a list of `to` addresses (count == #fails).
         // If two deliveries target the same address and only one fails, the
         // address appears once. Consume the list as a multiset so we mark the
@@ -166,11 +184,11 @@ async function sendEmailDeliveriesBatched(deliveries: PendingDelivery[]): Promis
         }
 
         if (!result.success) {
-            console.error(`Notification email batch had failures:`, result.error);
+            console.error(`Notification email batch had per-recipient failures:`, result.failedTos);
         }
     }
 
-    return { sent, failed };
+    return { sent, failed, leftPending };
 }
 
 /**

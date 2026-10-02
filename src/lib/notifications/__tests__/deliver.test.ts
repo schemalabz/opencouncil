@@ -56,7 +56,7 @@ describe('releaseNotifications — email batching (issue #380)', () => {
             html: '<p>Body d0</p>',
         });
         expect(opts.idempotencyKey).toEqual(expect.any(String));
-        expect(result).toEqual({ success: true, emailsSent: 50, skipped: 0, failed: 0 });
+        expect(result).toEqual({ success: true, emailsSent: 50, skipped: 0, failed: 0, leftPending: 0 });
         expect(updateDeliveryStatusMock).toHaveBeenCalledTimes(50);
         for (const call of updateDeliveryStatusMock.mock.calls) {
             expect(call[1]).toBe('sent');
@@ -138,7 +138,7 @@ describe('releaseNotifications — email batching (issue #380)', () => {
         getPendingDeliveriesMock.mockResolvedValue([]);
         const result = await releaseNotifications(['n1']);
         expect(sendEmailBatchMock).not.toHaveBeenCalled();
-        expect(result).toEqual({ success: true, emailsSent: 0, skipped: 0, failed: 0 });
+        expect(result).toEqual({ success: true, emailsSent: 0, skipped: 0, failed: 0, leftPending: 0 });
     });
 
     it('marks message deliveries skipped and keeps them out of the email batch', async () => {
@@ -152,7 +152,7 @@ describe('releaseNotifications — email batching (issue #380)', () => {
 
         expect(sendEmailBatchMock.mock.calls[0][0]).toHaveLength(1);
         expect(updateDeliveryStatusMock).toHaveBeenCalledWith('m1', 'skipped');
-        expect(result).toEqual({ success: true, emailsSent: 1, skipped: 1, failed: 0 });
+        expect(result).toEqual({ success: true, emailsSent: 1, skipped: 1, failed: 0, leftPending: 0 });
     });
 
     it('attributes per-recipient failures correctly when two deliveries share an email', async () => {
@@ -181,9 +181,9 @@ describe('releaseNotifications — email batching (issue #380)', () => {
         expect(statuses).toEqual(['failed', 'sent']);
     });
 
-    it('marks both shared-email deliveries failed when the whole batch fails', async () => {
-        // Whole-batch failure (non-2xx / network throw) returns every `to`,
-        // so a duplicate recipient appears twice and both rows must fail.
+    it('leaves deliveries pending when the whole batch fails, so a re-release retries them', async () => {
+        // A whole-batch failure (non-2xx / network throw) sets `error` and returns
+        // every `to`. No recipient was rejected, so no row may become final.
         const deliveries = [
             emailDelivery('d1', 'dup@x.com'),
             emailDelivery('d2', 'dup@x.com'),
@@ -192,16 +192,30 @@ describe('releaseNotifications — email batching (issue #380)', () => {
         sendEmailBatchMock.mockResolvedValue({
             success: false,
             failedTos: ['dup@x.com', 'dup@x.com'],
+            error: 'Resend batch returned 429',
         });
 
         const result = await releaseNotifications(['n1']);
 
         expect(result.emailsSent).toBe(0);
         expect(result.failed).toBe(2);
+        expect(result.leftPending).toBe(2);
+        expect(updateDeliveryStatusMock).not.toHaveBeenCalled();
+    });
 
-        const statuses = updateDeliveryStatusMock.mock.calls
-            .filter((c) => ['d1', 'd2'].includes(c[0]))
-            .map((c) => c[1]);
-        expect(statuses).toEqual(['failed', 'failed']);
+    it('marks only the rejected rows failed and still sends the rest after a whole-batch failure', async () => {
+        // Two chunks: the first fails as a whole, the second succeeds.
+        const deliveries = Array.from({ length: 150 }, (_, i) => emailDelivery(`d${i}`, `u${i}@x.com`));
+        getPendingDeliveriesMock.mockResolvedValue(deliveries);
+        sendEmailBatchMock
+            .mockResolvedValueOnce({ success: false, failedTos: [], error: 'Resend batch returned 503' })
+            .mockResolvedValueOnce({ success: true, failedTos: [] });
+
+        const result = await releaseNotifications(['n1']);
+
+        expect(result).toEqual({ success: true, emailsSent: 50, skipped: 0, failed: 100, leftPending: 100 });
+        const touched = new Set(updateDeliveryStatusMock.mock.calls.map((c) => c[0]));
+        expect(touched.has('d0')).toBe(false);
+        expect(touched.has('d149')).toBe(true);
     });
 });
