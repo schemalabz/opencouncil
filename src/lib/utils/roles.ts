@@ -444,17 +444,19 @@ export function mayorIsMemberOf(
 }
 
 /**
- * The title to print under a council member's name: the city-level role
+ * The title to print under an elected member's name: the city-level role
  * (Δήμαρχος, Αντιδήμαρχος …) when there is one, else the council role
- * (Πρόεδρος …). Plain members have neither. Pass active roles only.
+ * (Πρόεδρος …), else the community role. Plain council members have none:
+ * the council is the strip's default context. A community role always names
+ * its community, because which one is the point ("Πρόεδρος - 3η Δημοτική
+ * Κοινότητα", or the community alone for a member). Pass active roles only.
  */
-export function getCouncilTitle(
-  roles: (TitleFields & { administrativeBody?: { type: string } | null })[],
-  titles: RoleTitles,
-): string | null {
+export function getCouncilTitle(roles: RoleTextFields[], titles: RoleTitles): string | null {
   const title = (role: TitleFields | undefined) => role ? getRoleTitle(role, titles) : null;
+  const communityRole = roles.find((r) => r.administrativeBody?.type === 'community');
   return title(roles.find((r) => getRoleKind(r) === 'city'))
-    ?? title(roles.find((r) => r.administrativeBody?.type === 'council'));
+    ?? title(roles.find((r) => r.administrativeBody?.type === 'council'))
+    ?? (communityRole ? getRoleText(communityRole, titles) : null);
 }
 
 /** The fields a mayor test reads off a role. */
@@ -574,10 +576,19 @@ export function getRoleTitle(role: TitleFields, { t, locale }: RoleTitles): stri
 }
 
 /**
+ * The role fields getRoleText reads. A RoleWithRelations fits; so does a
+ * narrower select that carries the party and body names.
+ */
+export type RoleTextFields = TitleFields & {
+  party?: { name: string } | null;
+  administrativeBody?: { name: string; type: AdministrativeBodyType } | null;
+};
+
+/**
  * Human-readable text for a single role — the label the site's badges render:
  * the title (getRoleTitle) with the party or the body it belongs to.
  */
-export function getRoleText(role: RoleWithRelations, titles: RoleTitles): string {
+export function getRoleText(role: RoleTextFields, titles: RoleTitles): string {
   const title = getRoleTitle(role, titles);
 
   if (role.partyId && role.party) {

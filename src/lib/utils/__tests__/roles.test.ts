@@ -746,7 +746,8 @@ describe('party membership predicates', () => {
 });
 
 describe('getCouncilTitle', () => {
-  const council = { type: 'council' };
+  const council = { name: 'Δημοτικό Συμβούλιο', type: 'council' as const };
+  const community = { name: '3η Δημοτική Κοινότητα', type: 'community' as const };
   it('prefers the city-level role, then the council role, and is null for a plain member', () => {
     expect(getCouncilTitle([
       { name: 'Πρόεδρος', isHead: true, administrativeBodyId: 'b', administrativeBody: council },
@@ -760,6 +761,22 @@ describe('getCouncilTitle', () => {
   it('titles a head that has no stored name', () => {
     expect(getCouncilTitle([{ name: null, isHead: true, cityId: 'c' }], roleT)).toBe('Δήμαρχος');
     expect(getCouncilTitle([{ name: null, isHead: true, administrativeBodyId: 'b', administrativeBody: council }], roleT)).toBe('Πρόεδρος');
+  });
+
+  // Community roles carry no name: the president is the head row. The title
+  // names the community, because which one is what the reader needs.
+  it('falls back to the community role, naming the community', () => {
+    expect(getCouncilTitle([{ name: null, isHead: true, administrativeBodyId: 'k', administrativeBody: community }], roleT))
+      .toBe('Πρόεδρος - 3η Δημοτική Κοινότητα');
+    expect(getCouncilTitle([{ name: null, isHead: false, administrativeBodyId: 'k', administrativeBody: community }], roleT))
+      .toBe('3η Δημοτική Κοινότητα');
+  });
+
+  it('keeps a council title ahead of a community one', () => {
+    expect(getCouncilTitle([
+      { name: null, isHead: true, administrativeBodyId: 'k', administrativeBody: community },
+      { name: 'Πρόεδρος', isHead: true, administrativeBodyId: 'b', administrativeBody: council },
+    ], roleT)).toBe('Πρόεδρος');
   });
 });
 

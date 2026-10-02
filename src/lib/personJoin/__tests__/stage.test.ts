@@ -16,13 +16,15 @@ jest.mock('next-intl/server', () => ({
         jest.requireActual('../../../../tests/helpers/catalog').getTranslationsFromCatalog(o),
 }));
 
-const row = (administrators: { userId: string }[], supportsNotifications = true) => ({
+type JoinRole = { name: string | null; isHead: boolean; cityId: string | null; partyId: null; administrativeBodyId: string | null; administrativeBody: { type: 'council' | 'community'; name: string } | null };
+const deputyMayor: JoinRole = { name: 'Αντιδήμαρχος Πολιτισμού', isHead: false, cityId: 'chania', partyId: null, administrativeBodyId: null, administrativeBody: null };
+const row = (administrators: { userId: string }[], supportsNotifications = true, roles: JoinRole[] = [deputyMayor]) => ({
     id: 'person-1',
     name: 'Αδάμ Μπούτζουκας',
     image: null,
     cityId: 'chania',
     city: { name: 'Χανιά', language: 'el', supportsNotifications },
-    roles: [{ name: 'Αντιδήμαρχος Πολιτισμού', isHead: false, cityId: 'chania', partyId: null, administrativeBodyId: null, administrativeBody: null }],
+    roles,
     administrators,
 });
 const token = () => generatePersonClaimToken('person-1');
@@ -62,6 +64,13 @@ describe('getJoinStage', () => {
             roles: [{ name: null, isHead: true, cityId: 'rouen', partyId: null, administrativeBodyId: null, administrativeBody: null }],
         });
         expect(await getJoinStage(token(), null)).toMatchObject({ person: { title: 'Maire' } });
+    });
+
+    it('titles a community councillor with their community', async () => {
+        const president: JoinRole = { name: null, isHead: true, cityId: null, partyId: null, administrativeBodyId: 'k3', administrativeBody: { type: 'community', name: '3η Δημοτική Κοινότητα' } };
+        mockGetJoinPerson.mockResolvedValue(row([], true, [president]));
+        const stage = await getJoinStage(token(), null);
+        expect(stage).toMatchObject({ kind: 'confirm', person: { title: 'Πρόεδρος - 3η Δημοτική Κοινότητα' } });
     });
 
     it('offers the city\'s notifications to a reader who does not get them, and asks nothing without an account', async () => {

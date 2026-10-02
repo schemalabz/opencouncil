@@ -118,7 +118,8 @@ const joinPersonSelect = {
             cityId: true,
             partyId: true,
             administrativeBodyId: true,
-            administrativeBody: { select: { type: true } },
+            // The name too: a community councillor's title is their community.
+            administrativeBody: { select: { type: true, name: true } },
         },
     },
     administrators: { where: { claimedAt: { not: null } }, select: { userId: true } },

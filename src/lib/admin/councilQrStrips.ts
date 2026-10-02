@@ -32,14 +32,15 @@ export interface CouncilQrStrips {
 }
 
 /**
- * Who gets a strip: a council member or the mayor. A deputy mayor is
- * appointed from the council, so the seat covers them. Not every city-level
- * role: a General Secretary is city staff, not elected, and must not be able
- * to claim a page. The roles are the active ones already: the query asks
- * for those.
+ * Who gets a strip: an elected member, so the mayor, a council member or a
+ * community council member. A deputy mayor is appointed from the council, so
+ * the seat covers them; a committee member sits on the council too. Not every
+ * city-level role: a General Secretary is city staff, not elected, and must
+ * not be able to claim a page. The roles are the active ones already: the
+ * query asks for those.
  */
-function isCouncilMemberOrMayor(person: PersonWithRelations): boolean {
-    return isMayor(person) || person.roles.some((r) => r.administrativeBody?.type === "council");
+function isElectedMember(person: PersonWithRelations): boolean {
+    return isMayor(person) || person.roles.some((r) => r.administrativeBody?.type === "council" || r.administrativeBody?.type === "community");
 }
 
 /**
@@ -48,9 +49,10 @@ function isCouncilMemberOrMayor(person: PersonWithRelations): boolean {
  * Codes from an earlier call stay valid until they expire. Null for an
  * unknown city.
  *
- * Council members, the mayor and the deputy mayors, in the order of the
- * people page. A person who already has an administrator gets no strip:
- * their code would be refused.
+ * The elected members of {@link isElectedMember}, in the order of the people
+ * page: by body, so each community's strips print together after the
+ * council's. A person whose page is already claimed gets no strip: their code
+ * would be refused. A delegate account does not count as a claim.
  */
 export async function getCouncilQrStrips(cityId: string): Promise<CouncilQrStrips | null> {
     const [city, people, claimed] = await Promise.all([
@@ -69,7 +71,7 @@ export async function getCouncilQrStrips(cityId: string): Promise<CouncilQrStrip
     // One expiry for all the strips: the date printed on every one of them.
     const expiresAt = claimExpiry();
 
-    const members = sortPeople(people.filter(isCouncilMemberOrMayor), "council");
+    const members = sortPeople(people.filter(isElectedMember));
     return {
         cityName: city.name,
         people: members
