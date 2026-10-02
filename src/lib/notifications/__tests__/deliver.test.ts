@@ -7,11 +7,33 @@ jest.mock('@/env.mjs', () => ({
     },
 }));
 
-// Mock the Resend batch helper — we assert call shape and choose the return.
+// The real resend.ts runs (chunking, pacing, request building). Only the HTTP
+// call is stubbed. `sendEmailBatchMock` records each batch the way
+// sendEmailBatch(payloads, { idempotencyKey }) receives it, and its return value
+// (a BatchEmailResult) is turned into the Resend response that produces it.
 const sendEmailBatchMock = jest.fn();
-jest.mock('@/lib/email/resend', () => ({
-    sendEmailBatch: (...args: unknown[]) => sendEmailBatchMock(...args),
-}));
+
+beforeEach(() => {
+    global.fetch = jest.fn(async (_url: unknown, init?: RequestInit) => {
+        const payloads = JSON.parse(String(init?.body)) as Array<{ to: string }>;
+        const headers = init?.headers as Record<string, string>;
+        const result = (await sendEmailBatchMock(payloads, { idempotencyKey: headers['Idempotency-Key'] })) as {
+            failedTos: string[];
+            error?: string;
+        };
+        if (result.error) {
+            return { ok: false, status: 429, text: async () => result.error } as unknown as Response;
+        }
+        // Permissive mode reports rejected items by index into the request.
+        const used = new Set<number>();
+        const errors = result.failedTos.map((to) => {
+            const index = payloads.findIndex((p, i) => p.to === to && !used.has(i));
+            used.add(index);
+            return { index, message: 'rejected' };
+        });
+        return { ok: true, status: 200, json: async () => ({ data: [], errors }) } as unknown as Response;
+    }) as typeof fetch;
+});
 
 // DB layer mocks — capture status updates per delivery.
 const getPendingDeliveriesMock = jest.fn();
