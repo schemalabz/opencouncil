@@ -100,5 +100,13 @@
     "procedural": "Процедурално",
     "currentTimeButton": {
         "jumpToCurrent": "Пређите на тренутно време"
+    },
+    "speakerPicker": {
+        "searchPlaceholder": "Претражите особе...",
+        "setLabel": "Постави ознаку „{label}“",
+        "removePerson": "Уклони особу",
+        "segmentCount": "{count, plural, one {# сегмент} few {# сегмента} other {# сегмената}}",
+        "onlyThisSegment": "Промени само овај сегмент",
+        "onlyThisSegmentHint": "{others, plural, =1 {Други сегмент овог говорника остаје непромењен.} one {Остали # сегмент овог говорника остаје непромењен.} few {Остала # сегмента овог говорника остају непромењена.} other {Осталих # сегмената овог говорника остаје непромењено.}}"
     }
 }

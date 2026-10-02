@@ -2,15 +2,11 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { SpeakerTag } from '@prisma/client';
 import { PersonBadge } from '../PersonBadge';
 import { PersonWithRelations } from '@/lib/db/people';
+import { NextIntlClientProvider } from 'next-intl';
+import transcript from '../../../../messages/en/transcript.json';
 
 jest.mock('next/navigation', () => ({
     useRouter: () => ({ push: jest.fn() }),
-}));
-
-// next-intl ships ESM that Jest doesn't transform; PersonBadge only reaches it
-// via useLocalizeText → useLocale. Greek keeps localization a no-op.
-jest.mock('next-intl', () => ({
-    useLocale: () => 'el',
 }));
 
 // The avatar and role rendering aren't under test here; keep them out of the
@@ -67,14 +63,15 @@ const people: PersonWithRelations[] = [
 
 const renderBadge = (props: Partial<React.ComponentProps<typeof PersonBadge>> = {}) =>
     render(
-        <PersonBadge
-            editable
-            speakerTag={speakerTag}
-            availablePeople={people}
-            onPersonChange={jest.fn()}
-            onLabelChange={jest.fn()}
-            {...props}
-        />,
+        <NextIntlClientProvider locale="en" messages={{ transcript }}>
+            <PersonBadge
+                editable
+                speakerTag={speakerTag}
+                availablePeople={people}
+                onAssign={jest.fn()}
+                {...props}
+            />
+        </NextIntlClientProvider>,
     );
 
 // Click the speaker badge to open the re-assignment popover, then type a query.
@@ -108,16 +105,15 @@ describe('PersonBadge editable speaker picker', () => {
         expect(screen.getByText('Set label to "Παπ"')).toBeInTheDocument();
     });
 
-    it('applies the typed label via onLabelChange and clears the person', () => {
-        const onPersonChange = jest.fn();
-        const onLabelChange = jest.fn();
-        renderBadge({ onPersonChange, onLabelChange });
+    it('applies the typed label and clears the person in one assignment', () => {
+        const onAssign = jest.fn();
+        renderBadge({ onAssign });
 
         search('Ζζζ');
         fireEvent.click(screen.getByText('Set label to "Ζζζ"'));
 
-        expect(onPersonChange).toHaveBeenCalledWith(null);
-        expect(onLabelChange).toHaveBeenCalledWith('Ζζζ');
+        expect(onAssign).toHaveBeenCalledTimes(1);
+        expect(onAssign).toHaveBeenCalledWith({ personId: null, label: 'Ζζζ' }, 'allSegments');
     });
 
     it('highlights the top match while searching, so Enter picks the person', () => {
@@ -142,5 +138,75 @@ describe('PersonBadge editable speaker picker', () => {
             target: { value: 'Παπ' },
         });
         expect(screen.queryByText('Άγνωστος Ομιλητής')).not.toBeInTheDocument();
+    });
+});
+
+describe('PersonBadge segment scope', () => {
+    const open = () => fireEvent.click(screen.getByText('Speaker 1'));
+
+    it('changes every segment of the tag when the person is picked directly', () => {
+        const onAssign = jest.fn();
+        renderBadge({ segmentCount: 7, onAssign });
+
+        open();
+        expect(screen.getByRole('checkbox')).not.toBeChecked();
+        fireEvent.click(screen.getByText('Σαλαμανή'));
+
+        expect(onAssign).toHaveBeenCalledWith({ personId: 'p2', label: undefined }, 'allSegments');
+    });
+
+    it('changes only this segment when the checkbox is ticked', () => {
+        const onAssign = jest.fn();
+        renderBadge({ segmentCount: 7, onAssign });
+
+        open();
+        fireEvent.click(screen.getByRole('checkbox'));
+        fireEvent.click(screen.getByText('Σαλαμανή'));
+
+        expect(onAssign).toHaveBeenCalledWith({ personId: 'p2', label: undefined }, 'thisSegment');
+    });
+
+    it('applies a label to this segment only', () => {
+        const onAssign = jest.fn();
+        renderBadge({ segmentCount: 3, onAssign });
+
+        open();
+        fireEvent.click(screen.getByRole('checkbox'));
+        fireEvent.change(screen.getByPlaceholderText('Search people...'), { target: { value: 'Ζζζ' } });
+        fireEvent.click(screen.getByText('Set label to "Ζζζ"'));
+
+        expect(onAssign).toHaveBeenCalledWith({ personId: null, label: 'Ζζζ' }, 'thisSegment');
+    });
+
+    it('describes the ticked state, whether or not the checkbox is ticked', () => {
+        // The hint reads as a subtitle of the option, so it must always say what
+        // ticking does, never what happens while it is unticked.
+        renderBadge({ segmentCount: 7, onAssign: jest.fn() });
+
+        open();
+        const checkbox = screen.getByRole('checkbox', { name: 'Change this segment only' });
+        const hint = 'The other 6 segments of this speaker stay as they are.';
+        expect(checkbox).toHaveAccessibleDescription(hint);
+        fireEvent.click(checkbox);
+        expect(checkbox).toHaveAccessibleDescription(hint);
+    });
+
+    it('resets to all segments the next time the picker opens', () => {
+        renderBadge({ segmentCount: 7, onAssign: jest.fn() });
+
+        open();
+        fireEvent.click(screen.getByRole('checkbox'));
+        fireEvent.click(screen.getByText('Σαλαμανή'));
+        open();
+
+        expect(screen.getByRole('checkbox')).not.toBeChecked();
+    });
+
+    it('hides the checkbox when the tag has one segment', () => {
+        renderBadge({ segmentCount: 1, onAssign: jest.fn() });
+
+        open();
+
+        expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
 });

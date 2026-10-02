@@ -100,5 +100,13 @@
     "procedural": "Procédural",
     "currentTimeButton": {
         "jumpToCurrent": "Aller au moment actuel"
+    },
+    "speakerPicker": {
+        "searchPlaceholder": "Rechercher des personnes...",
+        "setLabel": "Définir le libellé « {label} »",
+        "removePerson": "Retirer la personne",
+        "segmentCount": "{count, plural, one {# segment} other {# segments}}",
+        "onlyThisSegment": "Modifier uniquement ce segment",
+        "onlyThisSegmentHint": "{others, plural, one {L'autre segment de cet intervenant reste inchangé.} other {Les # autres segments de cet intervenant restent inchangés.}}"
     }
 }
