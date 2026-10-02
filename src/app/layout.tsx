@@ -133,6 +133,9 @@ export default async function RootLayout(
                 <SessionProvider>
                     <PlausibleAnalytics>
                         {children}
+                        {/* The only Toaster (see single-toaster.test.ts). It sits above
+                            src/app/error.tsx and the [locale] segment, so an open toast
+                            survives a render error and a locale switch. */}
                         <Toaster />
                     </PlausibleAnalytics>
                     {/* useSearchParams requires a Suspense boundary in layouts */}
