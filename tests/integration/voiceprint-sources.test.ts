@@ -110,6 +110,17 @@ describe('voiceprint source tags', () => {
         expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(0)
     })
 
+    test('with personIds, only those people are checked; an empty list checks nobody', async () => {
+        await speaks('user', 120)
+        const other = await createPerson(cityId, { name: 'Other' })
+        const tag = await prisma.speakerTag.create({ data: { label: 'SPEAKER_2', personId: other.id, personSetBy: 'user' } })
+        await createSpeakerSegment(meetingId, cityId, { speakerTagId: tag.id, startTimestamp: 0, endTimestamp: 120 })
+
+        expect((await findEligiblePeopleForVoiceprintGeneration(cityId)).count).toBe(2)
+        expect((await findEligiblePeopleForVoiceprintGeneration(cityId, [other.id])).eligiblePeople).toEqual([{ id: other.id, name: 'Other' }])
+        expect((await findEligiblePeopleForVoiceprintGeneration(cityId, [])).count).toBe(0)
+    })
+
     test('a person with several long source tags is listed once', async () => {
         await speaks('user', 60)
         await speaks('voiceprint', 90)

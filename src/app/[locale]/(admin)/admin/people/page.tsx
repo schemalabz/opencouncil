@@ -3,9 +3,9 @@ import { getPeopleWithVoicePrintsForCity, PersonWithVoicePrints } from "@/lib/db
 import { getVoicePrintConsentStatuses, VoicePrintConsentStatus } from "@/lib/db/personConsent";
 import { sortPersonsByLastName } from "@/lib/sorting/people";
 import CitySelector from "@/components/admin/people/city-selector";
-import { CouncilQrStripsButton } from "@/components/admin/cities/CouncilQrStripsButton";
 import People from "@/components/admin/people/people";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { getQrEligiblePersonIds } from "@/lib/admin/councilQrStrips";
 
 interface PageProps {
     searchParams: Promise<{ cityId?: string }>;
@@ -22,9 +22,15 @@ export default async function PeoplePage(props: PageProps) {
 
     let people: PersonWithVoicePrints[] = [];
     let consents: Record<string, VoicePrintConsentStatus> = {};
+    let qrEligibleIds: string[] = [];
     if (selectedCityId) {
-        people = sortPersonsByLastName(await getPeopleWithVoicePrintsForCity(selectedCityId));
+        const [peopleData, qrIds] = await Promise.all([
+            getPeopleWithVoicePrintsForCity(selectedCityId),
+            getQrEligiblePersonIds(selectedCityId),
+        ]);
+        people = sortPersonsByLastName(peopleData);
         consents = Object.fromEntries(await getVoicePrintConsentStatuses(people.map((p) => p.id)));
+        qrEligibleIds = qrIds;
     }
 
     const currentCityName = cities.find(c => c.id === selectedCityId)?.name || "Select City";
@@ -39,13 +45,15 @@ export default async function PeoplePage(props: PageProps) {
                 <div className='w-full md:w-1/3'>
                     <CitySelector cities={cities} selectedCityId={selectedCityId} />
                 </div>
-                {selectedCityId && <CouncilQrStripsButton cityId={selectedCityId} labelled />}
             </div>
 
+            {/* Keyed by city: a selection belongs to one city's people. */}
             <People
+                key={selectedCityId}
                 people={people}
                 consents={consents}
                 currentCityName={currentCityName}
+                qrEligibleIds={qrEligibleIds}
             />
         </div>
     );

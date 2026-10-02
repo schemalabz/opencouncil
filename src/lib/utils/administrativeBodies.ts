@@ -69,21 +69,26 @@ export function getAdministrativeBodyTypes(
 }
 
 /**
- * Extract individual bodies of a given type, sorted alphabetically.
+ * The distinct bodies among `bodies`, as picker options: in
+ * {@link compareAdministrativeBodies} order, so council, then committee, then
+ * community, and by name within a type.
  */
-/** The bodies of one type, sorted. Same caveat as {@link getAdministrativeBodyTypes}. */
+export function getBodyOptions(
+    bodies: (PublicAdministrativeBody | null | undefined)[]
+): { value: string; label: string }[] {
+    const byId = new Map<string, PublicAdministrativeBody>();
+    for (const body of bodies) {
+        if (body) byId.set(body.id, body);
+    }
+    return [...byId.values()].sort(compareAdministrativeBodies).map(body => ({ value: body.id, label: body.name }));
+}
+
+/** The bodies of one type, sorted by name. Same caveat as {@link getAdministrativeBodyTypes}. */
 export function getBodiesOfType(
     bodies: (PublicAdministrativeBody | null | undefined)[],
     type: AdministrativeBodyType
 ): { value: string; label: string }[] {
-    const map = new Map<string, string>();
-    for (const body of bodies) {
-        if (body?.type === type) {
-            map.set(body.id, body.name);
-        }
-    }
-    return Array.from(map, ([value, label]) => ({ value, label }))
-        .sort((a, b) => a.label.localeCompare(b.label, 'el'));
+    return getBodyOptions(bodies.filter(body => body?.type === type));
 }
 
 /** Extract admin body types present in a list of meetings */
@@ -132,6 +137,29 @@ export function filterMeetingByAdminBodyTypes(
 }
 
 /**
+ * Whether a person belongs in the council's view without a council seat: any
+ * city-level role. The mayor and the deputy mayors hold one, and a reader
+ * looks for them with the council. The one statement of that rule; both
+ * filters below read it.
+ */
+function sitsWithCouncil(person: PersonWithRelations): boolean {
+    return hasCityLevelRole(person.roles);
+}
+
+/**
+ * Whether a person sits on one body now: the per-body sibling of
+ * {@link filterPersonByAdminBodyTypes}, with the same council rule and the
+ * same active-roles-only reading.
+ */
+export function personSitsOnBody(
+    person: PersonWithRelations,
+    body: { id: string; type: AdministrativeBodyType }
+): boolean {
+    if (body.type === 'council' && sitsWithCouncil(person)) return true;
+    return person.roles.some(role => isRoleActive(role) && role.administrativeBodyId === body.id);
+}
+
+/**
  * Filter a person by selected admin body types.
  * Only currently-active roles are considered, so members whose membership has
  * ended are excluded (e.g. a former committee member is hidden under 'committee').
@@ -143,7 +171,7 @@ export function filterPersonByAdminBodyTypes(
     selectedTypes: AdministrativeBodyType[]
 ): boolean {
     if (selectedTypes.length === 0) return true;
-    if (selectedTypes.includes('council') && hasCityLevelRole(person.roles)) return true;
+    if (selectedTypes.includes('council') && sitsWithCouncil(person)) return true;
     return person.roles.some(role =>
         isRoleActive(role) &&
         role.administrativeBody &&

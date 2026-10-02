@@ -44,23 +44,49 @@ function isElectedMember(person: PersonWithRelations): boolean {
 }
 
 /**
- * What the strips PDF of a city needs, with claim tokens minted now: every
- * call gives new codes, each valid for the claim lifetime from this moment.
- * Codes from an earlier call stay valid until they expire. Null for an
- * unknown city.
- *
- * The elected members of {@link isElectedMember}, in the order of the people
- * page: by body, so each community's strips print together after the
- * council's. A person whose page is already claimed gets no strip: their code
- * would be refused. A delegate account does not count as a claim.
+ * The people of a city who can get a strip now, in print order: elected,
+ * and not claimed yet. By body, so each community's strips print together
+ * after the council's. Null for an unknown city.
  */
-export async function getCouncilQrStrips(cityId: string): Promise<CouncilQrStrips | null> {
+async function eligibleMembers(cityId: string) {
     const [city, people, claimed] = await Promise.all([
         getCity(cityId),
         getPeopleForCity(cityId, true),
         getClaimedPersonIds(cityId),
     ]);
     if (!city) return null;
+    return { city, members: sortPeople(people.filter((p) => isElectedMember(p) && !claimed.has(p.id))) };
+}
+
+/**
+ * The ids of the people {@link getCouncilQrStrips} would print a strip for.
+ * The admin people page counts and selects against it; the strips route still
+ * applies the rule itself, so a stale page cannot widen it.
+ */
+export async function getQrEligiblePersonIds(cityId: string): Promise<string[]> {
+    const eligible = await eligibleMembers(cityId);
+    return eligible ? eligible.members.map((p) => p.id) : [];
+}
+
+/**
+ * What the strips PDF of a city needs, with claim tokens minted now: every
+ * call gives new codes, each valid for the claim lifetime from this moment.
+ * Codes from an earlier call stay valid until they expire. Null for an
+ * unknown city.
+ *
+ * The elected members of {@link isElectedMember}, in the order of the people
+ * page. A person whose page is already claimed gets no strip: their code would
+ * be refused. A delegate account does not count as a claim.
+ *
+ * `personIds` narrows the sheet to those people; an id that is not eligible
+ * is dropped, never printed. Without it, the whole city.
+ */
+export async function getCouncilQrStrips(cityId: string, personIds?: string[]): Promise<CouncilQrStrips | null> {
+    const eligible = await eligibleMembers(cityId);
+    if (!eligible) return null;
+    const { city } = eligible;
+    const wanted = personIds ? new Set(personIds) : null;
+    const members = wanted ? eligible.members.filter((p) => wanted.has(p.id)) : eligible.members;
 
     // The councillors read the strips, so the texts follow the city's
     // language, not the admin's UI.
@@ -71,12 +97,9 @@ export async function getCouncilQrStrips(cityId: string): Promise<CouncilQrStrip
     // One expiry for all the strips: the date printed on every one of them.
     const expiresAt = claimExpiry();
 
-    const members = sortPeople(people.filter(isElectedMember));
     return {
         cityName: city.name,
-        people: members
-            .filter((p) => !claimed.has(p.id))
-            .map((p) => ({ id: p.id, name: p.name, role: getCouncilTitle(p.roles, roleTitles), joinUrl: personJoinUrl(p, city.realm, expiresAt) })),
+        people: members.map((p) => ({ id: p.id, name: p.name, role: getCouncilTitle(p.roles, roleTitles), joinUrl: personJoinUrl(p, city.realm, expiresAt) })),
         texts: {
             scan: t("scan"),
             validUntil: t("validUntil", { date: formatDate(claimLastValidDay(expiresAt), city.timezone, city.language) }),

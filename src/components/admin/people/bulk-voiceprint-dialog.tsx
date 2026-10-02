@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
     Dialog,
@@ -19,7 +19,13 @@ import { useToast } from "@/hooks/use-toast";
 interface BulkVoiceprintDialogProps {
     cityId: string;
     currentCityName: string;
+    /** The people in the page's scope who have no voiceprint yet: its selection, else what it shows. */
+    personIds: string[];
 }
+
+type BulkResult = Awaited<ReturnType<typeof requestGenerateVoiceprintsForCity>>;
+
+const VOICEPRINT_RULE = "A person needs a confirmed speaker segment of at least 30 seconds and no voiceprint yet.";
 
 interface Alert {
     variant?: "default" | "destructive" | "warning" | "success";
@@ -28,43 +34,39 @@ interface Alert {
     icon?: React.ReactNode;
 }
 
-export function BulkVoiceprintDialog({ cityId, currentCityName }: BulkVoiceprintDialogProps) {
+export function BulkVoiceprintDialog({ cityId, currentCityName, personIds }: BulkVoiceprintDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [isChecking, setIsChecking] = useState(false);
-    const [eligibleCount, setEligibleCount] = useState<number | null>(null);
-    const [result, setResult] = useState<any | null>(null);
+    const [result, setResult] = useState<BulkResult | null>(null);
+    /** Who of `personIds` can get a voiceprint; null while the check runs. */
+    const [eligibleIds, setEligibleIds] = useState<string[] | null>(null);
+    const [checkFailed, setCheckFailed] = useState(false);
+    // A slow answer from an earlier opening must not overwrite this one.
+    const checkRun = useRef(0);
     const router = useRouter();
     const { toast } = useToast();
 
-    // Check for eligible people when dialog opens
-    useEffect(() => {
-        if (!isOpen) return;
-
-        const checkEligiblePeople = async () => {
-            setIsChecking(true);
-            try {
-                const { count } = await findEligiblePeopleForVoiceprintGeneration(cityId);
-                setEligibleCount(count);
-            } catch (error) {
-                console.error("Error checking eligible people:", error);
-                toast({
-                    title: "Error",
-                    description: error instanceof Error ? error.message : "Failed to check eligible people",
-                    variant: "destructive",
-                });
-            } finally {
-                setIsChecking(false);
-            }
-        };
-
-        checkEligiblePeople();
-    }, [isOpen, cityId, toast]);
+    const handleOpenChange = async (open: boolean) => {
+        setIsOpen(open);
+        if (!open) return;
+        const run = ++checkRun.current;
+        setResult(null);
+        setEligibleIds(null);
+        setCheckFailed(false);
+        try {
+            const { eligiblePeople } = await findEligiblePeopleForVoiceprintGeneration(cityId, personIds);
+            if (run === checkRun.current) setEligibleIds(eligiblePeople.map(person => person.id));
+        } catch (error) {
+            console.error("Error checking eligible people:", error);
+            if (run === checkRun.current) setCheckFailed(true);
+        }
+    };
 
     const handleGenerateVoiceprints = async () => {
+        if (!eligibleIds) return;
         setIsLoading(true);
         try {
-            const result = await requestGenerateVoiceprintsForCity(cityId);
+            const result = await requestGenerateVoiceprintsForCity(cityId, eligibleIds);
             setResult(result);
             setIsLoading(false);
 
@@ -114,45 +116,29 @@ export function BulkVoiceprintDialog({ cityId, currentCityName }: BulkVoiceprint
     };
 
     return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="ml-2">
-                    <Volume2 className="mr-2 h-4 w-4" />
-                    Generate All Voiceprints
+                {/* Off when everyone in scope has a voiceprint, so the dialog never
+                    opens on a check that can only say none. */}
+                <Button variant="outline" size="sm" className="gap-2" disabled={personIds.length === 0}>
+                    <Volume2 className="h-4 w-4" />
+                    Generate Voiceprints
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>Bulk Voiceprint Generation</DialogTitle>
                     <DialogDescription>
-                        Generate voiceprints for all eligible people in {currentCityName}
+                        Generate voiceprints for the people you chose in {currentCityName}
                     </DialogDescription>
                 </DialogHeader>
 
-                {isChecking ? (
-                    <div className="flex justify-center items-center py-6">
-                        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                        <span className="ml-2">Checking eligible people...</span>
-                    </div>
-                ) : isLoading ? (
+                {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-6">
                         <Loader2 className="h-8 w-8 animate-spin text-slate-400 mb-4" />
                         <p className="text-center text-slate-600">Starting voiceprint generation tasks...</p>
                         <p className="text-center text-slate-600 text-sm mt-2">This may take a moment</p>
                     </div>
-                ) : eligibleCount === null ? (
-                    <CustomAlert
-                        variant="destructive"
-                        title="Error"
-                        description="Failed to check eligible people. Please try again."
-                        icon={<AlertCircle className="h-4 w-4" />}
-                    />
-                ) : eligibleCount === 0 ? (
-                    <CustomAlert
-                        title="No Eligible People"
-                        description={`There are no people in ${currentCityName} eligible for voiceprint generation. People need speaker segments longer than 30 seconds and no existing voiceprint.`}
-                        icon={<AlertCircle className="h-4 w-4" />}
-                    />
                 ) : result ? (
                     <div className="space-y-4">
                         <CustomAlert
@@ -175,14 +161,34 @@ export function BulkVoiceprintDialog({ cityId, currentCityName }: BulkVoiceprint
                             }
                         />
                     </div>
+                ) : checkFailed ? (
+                    <CustomAlert
+                        variant="destructive"
+                        title="Error"
+                        description="Failed to check eligible people. Please try again."
+                        icon={<AlertCircle className="h-4 w-4" />}
+                    />
+                ) : eligibleIds === null ? (
+                    <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-6 w-6 animate-spin text-slate-400 mr-2" />
+                        <span className="text-slate-600">Checking who can get a voiceprint...</span>
+                    </div>
+                ) : eligibleIds.length === 0 ? (
+                    <CustomAlert
+                        title="No Eligible People"
+                        description={`None of the ${personIds.length} people can get a voiceprint. ${VOICEPRINT_RULE}`}
+                        icon={<AlertCircle className="h-4 w-4" />}
+                    />
                 ) : (
                     <div className="space-y-4">
                         <CustomAlert
                             variant="warning"
-                            title="Important Information"
+                            title={`${eligibleIds.length} of the ${personIds.length} people can get a voiceprint`}
                             description={
                                 <>
-                                    <p>You are about to generate voiceprints for {eligibleCount} people in {currentCityName}.</p>
+                                    {eligibleIds.length < personIds.length && (
+                                        <p className="mb-2">{personIds.length - eligibleIds.length} cannot. {VOICEPRINT_RULE}</p>
+                                    )}
                                     <p className="mt-2">This operation:</p>
                                     <ul className="list-disc list-inside mt-1 space-y-1">
                                         <li>Requires significant processing time</li>
@@ -201,14 +207,14 @@ export function BulkVoiceprintDialog({ cityId, currentCityName }: BulkVoiceprint
                         {result ? "Close" : "Cancel"}
                     </Button>
 
-                    {!result && eligibleCount !== null && eligibleCount > 0 && (
+                    {!result && eligibleIds && eligibleIds.length > 0 && (
                         <Button
                             variant="default"
                             onClick={handleGenerateVoiceprints}
                             disabled={isLoading}
                         >
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Generate {eligibleCount} Voiceprints
+                            Generate {eligibleIds.length} Voiceprints
                         </Button>
                     )}
                 </DialogFooter>

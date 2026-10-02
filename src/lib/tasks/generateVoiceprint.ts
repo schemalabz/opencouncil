@@ -58,20 +58,27 @@ function voiceprintSourceSegments(tags: VoiceprintCandidateTag[]): SpeakerSegmen
 }
 
 /**
- * Find all people in a city who are eligible for voiceprint generation
- * Eligible means: they have at least one speaker segment longer than VOICEPRINT_DURATION
- * and they don't already have a voiceprint
+ * Find the people of a city who are eligible for voiceprint generation: all of
+ * them, or only those in `personIds`. Eligible means: they have at least one
+ * speaker segment longer than VOICEPRINT_DURATION and they don't already have
+ * a voiceprint. The query loads every segment of the people it reads, so pass
+ * the ids whenever the caller has them.
  */
-export async function findEligiblePeopleForVoiceprintGeneration(cityId: string): Promise<{
+export async function findEligiblePeopleForVoiceprintGeneration(cityId: string, personIds?: string[]): Promise<{
     eligiblePeople: Array<{ id: string; name: string }>;
     count: number;
 }> {
     await withUserAuthorizedToEdit({ cityId });
+    // A server action has no runtime types: check what the browser sent.
+    if (personIds !== undefined && !(Array.isArray(personIds) && personIds.every(id => typeof id === "string"))) {
+        throw new Error("personIds must be an array of strings");
+    }
 
-    // First, get all people in this city who don't have voiceprints
+    // First, get the people in this city who don't have voiceprints
     const peopleWithoutVoiceprints = await prisma.person.findMany({
         where: {
             cityId,
+            ...(personIds && { id: { in: personIds } }),
             voicePrints: {
                 none: {}
             }
@@ -99,12 +106,14 @@ export async function findEligiblePeopleForVoiceprintGeneration(cityId: string):
 }
 
 /**
- * Request to generate voiceprints for all eligible people in a city
+ * Request to generate voiceprints for the eligible people of a city: all of
+ * them, or only those in `personIds`. An id that is not eligible is skipped,
+ * so a page that went stale cannot ask for more than the rule allows.
  */
-export async function requestGenerateVoiceprintsForCity(cityId: string) {
+export async function requestGenerateVoiceprintsForCity(cityId: string, personIds?: string[]) {
     await withUserAuthorizedToEdit({ cityId });
 
-    const { eligiblePeople } = await findEligiblePeopleForVoiceprintGeneration(cityId);
+    const { eligiblePeople } = await findEligiblePeopleForVoiceprintGeneration(cityId, personIds);
 
     if (eligiblePeople.length === 0) {
         throw new Error("No eligible people found for voiceprint generation");

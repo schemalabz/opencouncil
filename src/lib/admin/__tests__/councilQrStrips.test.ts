@@ -14,7 +14,7 @@ jest.mock('@/lib/db/personClaim', () => ({ getClaimedPersonIds: (...args: unknow
 const mockGetTranslations = jest.fn();
 jest.mock('next-intl/server', () => ({ getTranslations: (...args: unknown[]) => mockGetTranslations(...args) }));
 
-import { getCouncilQrStrips } from '../councilQrStrips';
+import { getCouncilQrStrips, getQrEligiblePersonIds } from '../councilQrStrips';
 import { verifyPersonClaimToken } from '@/lib/auth/personClaim';
 
 const councilBody = { id: 'body-council', name: 'Δημοτικό Συμβούλιο', type: 'council' };
@@ -130,7 +130,7 @@ const communityBody = { id: 'body-k3', name: '3η Δημοτική Κοινότ�
 const seatIn = (body: typeof councilBody | typeof communityBody, overrides: Record<string, unknown> = {}) =>
     role({ administrativeBodyId: body.id, administrativeBody: body, ...overrides });
 
-describe('community councillors', () => {
+describe('community councillors and a narrowed sheet', () => {
     beforeEach(() => {
         mockGetCity.mockResolvedValue(chania);
         mockGetPeopleForCity.mockResolvedValue([
@@ -151,5 +151,15 @@ describe('community councillors', () => {
         expect(byId['k-member'].role).toBe('3η Δημοτική Κοινότητα');
         // The title is the councillor's, so it is in the city's language too.
         expect(mockGetTranslations).toHaveBeenCalledWith({ locale: 'el', namespace: 'Person' });
+    });
+
+    it('lists as eligible exactly the people the whole-city sheet prints', async () => {
+        const strips = await getCouncilQrStrips('chania');
+        expect(await getQrEligiblePersonIds('chania')).toEqual(strips!.people.map((p) => p.id));
+    });
+
+    it('narrows to the people it is asked for, and never prints one who is not eligible', async () => {
+        const strips = await getCouncilQrStrips('chania', ['k-member', 'claimed', 'secretary', 'nobody']);
+        expect(strips!.people.map((p) => p.id)).toEqual(['k-member']);
     });
 });
