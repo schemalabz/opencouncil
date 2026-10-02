@@ -10,15 +10,15 @@ jest.mock('@/env.mjs', () => ({
 // Mock the Resend batch helper — we assert call shape and choose the return.
 const sendEmailBatchMock = jest.fn();
 jest.mock('@/lib/email/resend', () => ({
-    sendEmailBatch: (...args: any[]) => sendEmailBatchMock(...args),
+    sendEmailBatch: (...args: unknown[]) => sendEmailBatchMock(...args),
 }));
 
 // DB layer mocks — capture status updates per delivery.
 const getPendingDeliveriesMock = jest.fn();
 const updateDeliveryStatusMock = jest.fn();
 jest.mock('@/lib/db/notifications', () => ({
-    getPendingDeliveries: (...args: any[]) => getPendingDeliveriesMock(...args),
-    updateDeliveryStatus: (...args: any[]) => updateDeliveryStatusMock(...args),
+    getPendingDeliveries: (...args: unknown[]) => getPendingDeliveriesMock(...args),
+    updateDeliveryStatus: (...args: unknown[]) => updateDeliveryStatusMock(...args),
 }));
 
 import { releaseNotifications } from '../deliver';
