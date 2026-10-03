@@ -190,6 +190,7 @@ model Person {
   voicePrintConsents VoicePrintConsent[]
 
   speakerTags SpeakerTag[]
+  speakerIdentifications SpeakerIdentification[]
   voicePrints VoicePrint[]
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
@@ -356,10 +357,62 @@ model SpeakerTag {
 
   person Person? @relation(fields: [personId], references: [id], onDelete: SetNull)
   personId String?
+  // Who decided personId. Null on a tag nobody has assigned. An automatic pass
+  // never reassigns a reviewer's tag (see isReviewerAssignment in src/lib/speakerIdentifications.ts).
+  personSetBy SpeakerAssignmentSource?
+
+  // What each method says about who this speaker is. Kept off the tag: the tag
+  // is public, the opinions are for reviewers.
+  identifications SpeakerIdentification[]
 
   speakerSegments SpeakerSegment[]
 
   @@index([personId])
+}
+
+enum SpeakerAssignmentSource {
+  voiceprint // the voiceprint match alone
+  transcript // the transcript identification alone
+  both       // the two methods agreed
+  user       // a reviewer; automatic passes never overwrite it
+}
+
+/// One method's opinion on who a diarization speaker is. A row stays as the
+/// method gave it, whatever the tag's personId ends up holding, so a reviewer
+/// can see where the methods disagree.
+///
+/// Private. Nothing here reaches a reader: the one read that leaves the server
+/// is getSpeakerIdentificationsForMeeting, which requires edit rights.
+model SpeakerIdentification {
+  id String @id @default(cuid())
+
+  speakerTag   SpeakerTag @relation(fields: [speakerTagId], references: [id], onDelete: Cascade)
+  speakerTagId String
+  method       SpeakerIdentificationMethod
+  person       Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId     String
+
+  /// Whether the method would act on this opinion by itself. The task server
+  /// decides, as it decides whether a voiceprint matched; nothing here
+  /// thresholds a number. False marks a suggestion for a reviewer.
+  actionable   Boolean @default(true)
+  /// The kind of cue a transcript identification rests on, as the task names it.
+  evidenceKind String?
+  /// 0–100, the method's own score. For a reviewer to read.
+  confidence   Float?
+  /// The decisive transcript line(s) with their timestamp.
+  evidence     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([speakerTagId, method])
+  @@index([personId])
+}
+
+enum SpeakerIdentificationMethod {
+  voiceprint // the transcribe task matched the voice to a stored voiceprint
+  transcript // the fixTranscript task read who is speaking from the text alone
 }
 
 model SpeakerSegment {

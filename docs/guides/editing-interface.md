@@ -68,6 +68,23 @@ The system divides editing into distinct categories and modes:
     *   Background tasks (like `fixTranscript`) can also modify utterances.
     *   These are treated similarly to user edits but are attributed to 'task' in the `lastModifiedBy` field and `UtteranceEdit` records.
 
+    **Speaker identifications.** Two tasks each give an independent opinion on who a speaker is. Each opinion is a `SpeakerIdentification` row, one per speaker tag and method:
+    *   The **voiceprint** identification comes from `transcribe`, which matches the voice against stored voiceprints.
+    *   The **transcript** identification comes from `fixTranscript`, which reads who is speaking from the text alone: the chair gives the floor by name, members answer the roll call. It never sees the voiceprint matches, and it works in a city that has no voiceprints. It carries the `evidence`: the decisive transcript line with its timestamp.
+    *   `personSetBy`, on the `SpeakerTag`, records who decided `personId`: `voiceprint`, `transcript`, `both` or `user`.
+
+    Each method decides on the task server whether it would act on its opinion by itself, and says so in `actionable`. For voiceprints that is the match threshold. For the transcript it is the kind of evidence, decided next to the prompt that produces it (see opencouncil-tasks, `docs/speaker-identification-backtest.md`). This app thresholds no score: `confidence` is stored for a reviewer to read.
+
+    `src/lib/speakerIdentifications.ts` holds the rules, as pure functions that compare identities and that the task handler and the editor share:
+    *   Both methods name the same person: that person.
+    *   Both would act, on different people: nobody. One of them is wrong, so the speaker shows as unknown and the editor alerts the reviewer, who decides.
+    *   Only the voiceprint would act: the voiceprint's person. A name the transcript would not act on does not unseat a match.
+    *   Only the transcript would act: the transcript's person.
+    *   **A reviewer's tag is never reassigned.** Any edit of a tag, a typed label included, sets `personSetBy` to `user`. A reviewer who agrees with a name leaves the tag untouched. So once a reviewer has edited any speaker of a meeting, or has completed its review, a run stores identifications and changes no assignment. A review counts for the transcript it looked at: after a re-transcribe, they apply again. A result that a later transcribe or fixTranscript run has superseded is ignored whole, its text corrections included.
+    *   Voiceprint generation never uses a tag that only the transcript named.
+
+    Identifications are for reviewers only, and they live in their own table so that the `SpeakerTag`, which every reader loads, holds nothing private: `personSetBy` says how the visible name was decided and nothing about an opinion that lost. The one read of the table that leaves the server is `getSpeakerIdentificationsForMeeting`, which requires edit rights; `SpeakerIdentificationsProvider` calls it when editing mode turns on. The speaker picker then lists each method's suggestion, the transcript's with the line it rests on, and a speaker whose methods disagree carries a warning mark, on the segment and in the speakers overview.
+
 6.  **Interaction Enhancements**:
     *   **Keyboard Shortcuts**: `ACTION_DEFINITIONS` in `KeyboardShortcutsContext` states what each shortcut is bound to. The in-app `EditingGuideDialog` renders its keys from that list. The guide therefore cannot show a key that the dispatcher does not honour. Do not write the key list down a second time. The rules that the code does not state are:
         *   **Editing mode claims the bare arrows.** In editing mode the four arrow keys drive playback from anywhere on the page. Focus can stay on the transcript.
