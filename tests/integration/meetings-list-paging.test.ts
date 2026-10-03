@@ -1,10 +1,11 @@
 /** @jest-environment node */
 import prisma from '@/lib/db/prisma'
-import { countCouncilMeetings, getCouncilMeetingsWithSubjectPreview, type MeetingListOptions } from '@/lib/db/meetingsList'
+import { countCouncilMeetings, findMeetingIdsMatching, getCouncilMeetingsWithSubjectPreview, type MeetingListOptions } from '@/lib/db/meetingsList'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import { buildMeetingArchive, MeetingArchive } from '../helpers/meetingArchive'
 
 const PAGE_SIZE = 12
+const TZ = 'Europe/Athens'
 
 /** Every row the options select, read page by page as the tab reads them. */
 async function readAllPages(cityId: string, options: MeetingListOptions) {
@@ -66,5 +67,72 @@ describe('meetings list paging - integration', () => {
             meetingIds: ['council-0', 'committee-35', 'unassigned-1'],
         })
         expect(rows.map(row => row.id)).toEqual(['committee-35', 'unassigned-1', 'council-0'])
+    })
+
+    describe('findMeetingIdsMatching', () => {
+        const reader = { includeUnreleased: false }
+
+        test('ignores case and accents on both sides, newest first', async () => {
+            expect(await findMeetingIdsMatching(archive.cityId, 'λογοδοσιας', reader, 'el', TZ)).toEqual(['council-24', 'council-12', 'council-0'])
+            expect(await findMeetingIdsMatching(archive.cityId, 'ΛΟΓΟΔΟΣΊΑΣ', reader, 'el', TZ)).toEqual(['council-24', 'council-12', 'council-0'])
+        })
+
+        test('requires every word, in any order', async () => {
+            expect(await findMeetingIdsMatching(archive.cityId, 'νικολαου αγιου', reader, 'el', TZ)).toEqual(['committee-0'])
+            expect(await findMeetingIdsMatching(archive.cityId, 'αγιου νικολαου λογοδοσιας', reader, 'el', TZ)).toEqual([])
+        })
+
+        test('matches the English name', async () => {
+            expect(await findMeetingIdsMatching(archive.cityId, 'accountability', reader, 'el', TZ)).toHaveLength(3)
+        })
+
+        test('matches the body name', async () => {
+            expect(await findMeetingIdsMatching(archive.cityId, '1η δημοτικη κοινοτητα', reader, 'el', TZ)).toHaveLength(33)
+        })
+
+        test('follows the body filter', async () => {
+            const ids = await findMeetingIdsMatching(archive.cityId, 'δημοτικο συμβουλιο', { ...reader, administrativeBodyIds: [archive.bodies.council] }, 'el', TZ)
+            expect(ids).not.toEqual(expect.arrayContaining([archive.unassignedIds[0]]))
+            expect(await findMeetingIdsMatching(archive.cityId, 'δημοτικο συμβουλιο', reader, 'el', TZ)).toEqual(expect.arrayContaining(archive.unassignedIds))
+        })
+
+        test('finds unreleased meetings for an editor only', async () => {
+            const unreleased = archive.unreleasedIds[0]
+            expect(await findMeetingIdsMatching(archive.cityId, 'θεμα 1', reader, 'el', TZ)).not.toContain(unreleased)
+            expect(await findMeetingIdsMatching(archive.cityId, 'θεμα 1', { includeUnreleased: true }, 'el', TZ)).toContain(unreleased)
+        })
+
+        test('matches the name in the script the reader sees, as the in-browser search did', async () => {
+            await prisma.councilMeeting.create({
+                data: { id: 'cyrillic-1', cityId: archive.cityId, name: 'Седница Скупштине 15/01/24', name_en: 'Assembly session 15/01/24', dateTime: new Date('2024-01-15T15:00:00Z'), released: true },
+            })
+            try {
+                // A reader on /lat sees «Sednica Skupštine» and types it in Latin script.
+                expect(await findMeetingIdsMatching(archive.cityId, 'sednica skupstine', reader, 'sr-Latn', TZ)).toEqual(['cyrillic-1'])
+                expect(await findMeetingIdsMatching(archive.cityId, 'седница скупштине', reader, 'sr', TZ)).toEqual(['cyrillic-1'])
+                // Greek and English pages never showed a transliteration, so they never matched one.
+                expect(await findMeetingIdsMatching(archive.cityId, 'sednica skupstine', reader, 'el', TZ)).toEqual([])
+            } finally {
+                await prisma.councilMeeting.delete({ where: { cityId_id: { cityId: archive.cityId, id: 'cyrillic-1' } } })
+            }
+        })
+
+        test('matches the title derived from the kind and number, as the card shows it', async () => {
+            await prisma.councilMeeting.create({
+                data: { id: 'derived-1', cityId: archive.cityId, name: null, name_en: null, kind: 'ordinary', sessionNumber: 3, administrativeBodyId: archive.bodies.council, dateTime: new Date('2024-03-11T15:00:00Z'), released: true },
+            })
+            try {
+                expect(await findMeetingIdsMatching(archive.cityId, '3η τακτικη', reader, 'el', TZ)).toEqual(['derived-1'])
+                expect(await findMeetingIdsMatching(archive.cityId, '3rd regular', reader, 'el', TZ)).toEqual(['derived-1'])
+            } finally {
+                await prisma.councilMeeting.delete({ where: { cityId_id: { cityId: archive.cityId, id: 'derived-1' } } })
+            }
+        })
+
+        test('reports no search for a query with no words, so the list shows unfiltered', async () => {
+            expect(await findMeetingIdsMatching(archive.cityId, '   ', reader, 'el', TZ)).toBeNull()
+            // A lone combining accent normalizes to nothing.
+            expect(await findMeetingIdsMatching(archive.cityId, '\u0301', reader, 'el', TZ)).toBeNull()
+        })
     })
 })
