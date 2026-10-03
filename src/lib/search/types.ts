@@ -75,6 +75,11 @@ export type SearchRequest = {
         end: string;
     };
     locations?: Location[];
+    /** A hard geographic filter: only subjects pinned within the radius match,
+     *  and a subject without a location pin never matches. Only a caller that
+     *  asks for a place explicitly sets it (the public search API). It is not
+     *  `locations`, which is a proximity boost read out of the query text. */
+    locationFilter?: Location;
     config?: SearchConfig;
 };
 

@@ -18,4 +18,15 @@ describe('searchRequestSchema', () => {
     it('rejects an unknown administrative body type', () => {
         expect(searchRequestSchema.safeParse({ query: 'πάρκα', adminBodyTypes: ['board'] }).success).toBe(false);
     });
+
+    // Elasticsearch rejects a geo_distance point outside these ranges, which
+    // made a bad coordinate a 500 and a search failure alert instead of a 400.
+    it.each([
+        { lat: 91, lon: 23.7 },
+        { lat: -91, lon: 23.7 },
+        { lat: 38, lon: 181 },
+        { lat: 38, lon: -181 },
+    ])('rejects an out-of-range location point %o', (point) => {
+        expect(searchRequestSchema.safeParse({ query: 'πάρκα', location: { point } }).success).toBe(false);
+    });
 });

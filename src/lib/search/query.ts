@@ -683,6 +683,13 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
         });
     }
 
+    // The caller asked for this place, so a subject without a pin is dropped.
+    // An extracted location must never get here: see buildLocationClause.
+    const locationFilter = buildLocationClause(request.locationFilter && [request.locationFilter]);
+    if (locationFilter) {
+        filters.push(locationFilter);
+    }
+
     return filters;
 }
 

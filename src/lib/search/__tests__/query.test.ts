@@ -882,6 +882,26 @@ describe('buildSearchQuery location handling', () => {
 
         expect(JSON.stringify(filter)).toContain('geo_distance');
     });
+
+    // The public API's `location` is a place the caller asked for, so unlike an
+    // extracted location it narrows a text search.
+    it('applies an explicit location filter as a hard filter on a text search', () => {
+        const q = buildSearchQuery(
+            { query: 'πάρκα', locationFilter: LOCATIONS[0] },
+            NO_EXTRACTED_FILTERS
+        );
+        const geo = hardFiltersOf(q).filter((f) => JSON.stringify(f).includes('geo_distance'));
+
+        expect(geo).toHaveLength(1);
+        expect(JSON.stringify(geo[0])).toContain('"distance":"2000m"');
+    });
+
+    it('applies an explicit location filter on the filter-only browse path', () => {
+        const q = buildSearchQuery({ locationFilter: LOCATIONS[0] }, NO_EXTRACTED_FILTERS);
+        const filter = (q.query?.bool?.filter ?? []) as QueryContainer[];
+
+        expect(JSON.stringify(filter)).toContain('geo_distance');
+    });
 });
 
 describe('buildSearchQuery punctuation variants', () => {

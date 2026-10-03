@@ -17,9 +17,15 @@ export async function POST(request: NextRequest) {
         // Calculate offset for pagination
         const offset = (validatedRequest.page - 1) * validatedRequest.pageSize;
 
-        // Prepare search request
+        // Prepare search request. The API takes the radius in kilometres;
+        // the search takes it in metres.
+        const { location, ...filters } = validatedRequest;
         const searchRequest = {
-            ...validatedRequest,
+            ...filters,
+            locationFilter: location && {
+                point: location.point,
+                radiusMeters: location.radius * 1000
+            },
             config: {
                 ...SEARCH_CONFIG,
                 size: validatedRequest.pageSize,
