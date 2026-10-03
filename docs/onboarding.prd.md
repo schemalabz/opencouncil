@@ -19,6 +19,8 @@ This is the primary, general-purpose authentication method. It handles both new 
 3. A magic link is sent to their email.
 4. Clicking the link authenticates the user and creates a session. If the user does not exist, an account is automatically created by NextAuth.
 
+**Sign in with Google:** the same page offers a "Continue with Google" button when `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` are set. Google returns a verified email. Auth.js links that email to the existing user, or creates the user when none exists. The `Account` table holds the link. The profile's Account tab shows the link, and lets the user connect or disconnect Google. The magic link always remains, so a disconnect never locks the user out. The button appears on the host that `NEXTAUTH_URL` names and on every realm apex (see `docs/environment-variables.md`).
+
 ### 2. Onboarding-Integrated Sign-Up
 
 This flow allows a new, unauthenticated user to sign up while submitting their notification preferences or a petition.
@@ -30,6 +32,10 @@ This flow allows a new, unauthenticated user to sign up while submitting their n
 4. The API first checks if a user with the provided email already exists. If not, a new user account is created using the email and name. If the user already exists, their information is retrieved.
 5. The notification preferences or petition signature is then associated with the existing or newly created user account.
 6. This process creates a user record in the database but does not automatically sign the user in. The user can later sign in using the standard magic link flow, which will give them access to manage their preferences or petitions.
+
+**With Google:** the account fields of both forms offer "Continue with Google" when the provider is configured. The reader signs in with Google and returns to the same step. The draft in the browser puts the answers back, and the reader submits the form signed in. No account is created by the form in that case.
+
+**The QR join flow** (`/{cityId}/join`) offers the same button on its email step. The server mints the return path with a `confirmed` mark bound to a nonce that the browser holds as a cookie. The route `/api/join/{token}` claims the person for the signed-in user when the mark and the nonce match, and the page opens on the consent step. A return path copied into another browser claims nothing.
 
 ### 3. Admin-Initiated User Creation & Invitation
 

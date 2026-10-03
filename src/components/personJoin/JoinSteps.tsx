@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { suggestEmailFix } from '@/lib/personJoin/email';
 import type { JoinPersonView } from '@/lib/personJoin/stage';
 import { cn } from '@/lib/utils';
+import { OrDivider } from '@/components/ui/or-divider';
+import { GoogleSignInButton } from '@/components/user/GoogleSignInButton';
 
 /** Who the code is for: the face, the name, the title, the city. */
 export function PersonCard({ person, className }: { person: JoinPersonView; className?: string }) {
@@ -58,12 +60,17 @@ export function EmailStep({
     email,
     error,
     busy,
+    googleAvailable,
+    onGoogle,
     onChange,
     onSubmit,
 }: {
     email: string;
-    error: 'invalid' | 'sendFailed' | null;
+    error: 'invalid' | 'sendFailed' | 'googleFailed' | null;
     busy: boolean;
+    googleAvailable: boolean;
+    /** Builds the Google return path on the server; null when the code is spent or the server failed. */
+    onGoogle: () => Promise<string | null>;
     onChange: (email: string) => void;
     onSubmit: () => void;
 }) {
@@ -77,7 +84,13 @@ export function EmailStep({
                 if (!busy) onSubmit();
             }}
         >
-            <StepHeading title={t('email.title')} lead={t('email.lead')} />
+            <StepHeading title={t('email.title')} lead={googleAvailable ? t('email.leadGoogle') : t('email.lead')} />
+            {googleAvailable && (
+                <div className="mt-6 flex flex-col gap-4">
+                    <GoogleSignInButton redirectTo={onGoogle} label={t('email.google')} disabled={busy} className="h-14 text-lg" />
+                    <OrDivider label={t('email.or')} />
+                </div>
+            )}
             <div className="mt-6 flex flex-col gap-2">
                 <Label htmlFor="join-email" className="text-[15px] font-medium">
                     {t('email.label')}
@@ -108,7 +121,11 @@ export function EmailStep({
                     </Button>
                 </div>
             )}
-            {error && <ErrorLine size="md" className="mt-3">{error === 'invalid' ? t('email.invalid') : t('email.sendFailed')}</ErrorLine>}
+            {error && (
+                <ErrorLine size="md" className="mt-3">
+                    {error === 'invalid' ? t('email.invalid') : error === 'googleFailed' ? t('email.googleFailed') : t('email.sendFailed')}
+                </ErrorLine>
+            )}
         </form>
     );
 }

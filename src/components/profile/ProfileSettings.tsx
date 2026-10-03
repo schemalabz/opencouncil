@@ -47,6 +47,7 @@ export function ProfileSettings({
     highlightsAllowed,
     promo,
     aside,
+    connections,
 }: {
     user: ProfileAccount;
     persons: ConsentPerson[];
@@ -58,6 +59,8 @@ export function ProfileSettings({
     promo?: React.ReactNode;
     /** What this account administers, rendered by the server; absent when it administers nothing. */
     aside?: React.ReactNode;
+    /** The OAuth accounts card (ConnectedAccounts), rendered by the server; absent where no provider works. */
+    connections?: React.ReactNode;
 }) {
     const t = useTranslations("Profile");
     const tAccount = useTranslations("account");
@@ -103,7 +106,12 @@ export function ProfileSettings({
                         )}
                         {value === "notifications" && <NotificationPreferencesSection />}
                         {value === "communication" && <CommunicationPreferences user={user} />}
-                        {value === "account" && <AccountSection />}
+                        {value === "account" && (
+                            <div className="flex flex-col gap-4">
+                                {connections}
+                                <AccountSection />
+                            </div>
+                        )}
                     </TabsContent>
                 ))}
             </div>

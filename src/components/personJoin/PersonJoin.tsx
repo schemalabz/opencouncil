@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { SignupFooter, SignupProgress } from '@/components/signup/SignupChrome';
-import { claimWithToken, sendJoinEmail } from '@/lib/actions/personJoin';
+import { claimWithToken, sendJoinEmail, startJoinGoogle } from '@/lib/actions/personJoin';
 import { setVoicePrintConsent } from '@/lib/actions/personConsent';
 import { captureEvent } from '@/lib/analytics/capture';
 import { isLikelyEmail, normalizeEmail } from '@/lib/personJoin/email';
@@ -12,7 +12,7 @@ import { JoinComplete, JoinLayout, JoinProblem } from './JoinScreens';
 import { ConfirmStep, ConsentStep, EmailStep, NotMeStep, SentStep, type ConsentChoice } from './JoinSteps';
 
 type View = 'confirm' | 'notMe' | 'email' | 'sent' | 'consent' | 'done' | 'used' | 'invalid';
-type EmailError = 'invalid' | 'sendFailed';
+type EmailError = 'invalid' | 'sendFailed' | 'googleFailed';
 
 function initialView(stage: JoinStage, finished: boolean): View {
     if (stage.kind === 'confirm') return 'confirm';
@@ -49,12 +49,15 @@ export function PersonJoin({
     stage,
     totalSteps,
     finished = false,
+    googleAvailable = false,
 }: {
     token: string;
     stage: JoinStage;
     totalSteps: 2 | 3;
     /** The flow already finished in this tab, and the reader came back to it. */
     finished?: boolean;
+    /** Whether the email step offers "Continue with Google" (see googleSignInAvailable). */
+    googleAvailable?: boolean;
 }) {
     const t = useTranslations('personJoin');
     const ts = useTranslations('signup');
@@ -160,6 +163,29 @@ export function PersonJoin({
         return false;
     }
 
+    /**
+     * The Google way in: the server mints the return path (a signed mark,
+     * bound to this browser), and the button leaves for Google with it. Null
+     * keeps the reader here, with the reason shown.
+     */
+    async function startGoogle(): Promise<string | null> {
+        setEmailError(null);
+        try {
+            const result = await startJoinGoogle(token);
+            if (!result.ok) {
+                go('invalid');
+                return null;
+            }
+            captureEvent('person_join_google_started', { city_id: cityId });
+            return result.redirectTo;
+        } catch (error) {
+            console.error('Join Google start failed:', error);
+            setEmailError('googleFailed');
+            setFailures((n) => n + 1);
+            return null;
+        }
+    }
+
     async function finish() {
         if (!choice) return;
         setConsentError(false);
@@ -190,7 +216,15 @@ export function PersonJoin({
             {view === 'confirm' && <ConfirmStep person={person} error={confirmError} />}
             {view === 'notMe' && <NotMeStep person={person} />}
             {view === 'email' && (
-                <EmailStep email={email} error={emailError} busy={busy} onChange={(value) => { setEmail(value); setEmailError(null); }} onSubmit={() => sendEmail()} />
+                <EmailStep
+                    email={email}
+                    error={emailError}
+                    busy={busy}
+                    googleAvailable={googleAvailable}
+                    onGoogle={startGoogle}
+                    onChange={(value) => { setEmail(value); setEmailError(null); }}
+                    onSubmit={() => sendEmail()}
+                />
             )}
             {view === 'sent' && (
                 <SentStep email={email} busy={busy} error={emailError !== null} onResend={() => sendEmail(email)} onChange={() => go('email')} />

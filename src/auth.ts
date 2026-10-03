@@ -1,8 +1,9 @@
-import NextAuth, { DefaultSession } from "next-auth"
+import NextAuth, { DefaultSession, type NextAuthConfig } from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/db/prisma"
 import authConfig from "@/auth.config"
 import { isTrustedExternalRedirect } from "@/lib/auth/trustedRedirect"
+import { signInAllowed } from "@/lib/auth/signInGuard"
 
 declare module "next-auth" {
     interface Session {
@@ -19,9 +20,18 @@ declare module "next-auth" {
     }
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+/**
+ * The config both entry points share: next-auth's handlers, and the realm
+ * route in src/app/api/auth/[...nextauth]/route.ts, which calls Auth.js core
+ * with it directly. NextAuth fills in the secret and the base path on this
+ * object when it starts, so the core call gets the same, finished config.
+ */
+export const authOptions = {
     adapter: PrismaAdapter(prisma),
     callbacks: {
+        signIn({ account, profile }) {
+            return signInAllowed(account, profile);
+        },
         /**
          * Auth.js resolves redirect targets against `NEXTAUTH_URL`'s origin
          * (next-auth rewrites every request's URL to it — `reqWithEnvURL`), so
@@ -60,4 +70,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
     },
     ...authConfig,
-})
+} satisfies NextAuthConfig
+
+export const { handlers, signIn, signOut, auth } = NextAuth(authOptions)

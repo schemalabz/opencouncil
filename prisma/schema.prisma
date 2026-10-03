@@ -974,6 +974,9 @@ model User {
   name          String?
   email         String          @unique
   emailVerified DateTime?
+  /// The picture an OAuth provider (Google) supplied at sign-in. The magic
+  /// link sets nothing here.
+  image         String?
   /// One account per mobile number: Νότης is one conversation per number.
   phone         String?         @unique
   onboarded     Boolean         @default(false)

@@ -31,6 +31,8 @@ export function ChannelsStep({
     submitting,
     state,
     signedIn,
+    googleAvailable,
+    onGoogleStart,
     phoneChannelLocked,
     phoneChannelPending,
     issues,
@@ -47,6 +49,8 @@ export function ChannelsStep({
     submitting: boolean;
     state: SignupState;
     signedIn: boolean;
+    googleAvailable: boolean;
+    onGoogleStart: () => void;
     /**
      * Notis has not answered, so the card shows what it last knew and takes no
      * change: the signup neither activates nor releases a channel it cannot read.
@@ -132,7 +136,16 @@ export function ChannelsStep({
                 />
             </div>
 
-            {!signedIn && <AccountFields name={state.name} email={state.email} hint={t('accountHint')} onChange={onChange} />}
+            {!signedIn && (
+                <AccountFields
+                    name={state.name}
+                    email={state.email}
+                    hint={t('accountHint')}
+                    onChange={onChange}
+                    googleAvailable={googleAvailable}
+                    onGoogleStart={onGoogleStart}
+                />
+            )}
 
             <p className="mt-4 text-[11px] leading-[1.45] text-muted-foreground">
                 {t('consent')}{' '}

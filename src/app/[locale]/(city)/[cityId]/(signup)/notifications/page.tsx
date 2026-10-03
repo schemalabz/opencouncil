@@ -1,8 +1,10 @@
 import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { NotificationSignup } from "@/components/notifications/signup/NotificationSignup";
 import { getCurrentUser } from "@/lib/auth";
+import { googleSignInAvailable } from "@/lib/auth/googleSignIn";
 import { getCityCached } from "@/lib/cache";
 import { getCity } from "@/lib/db/cities";
 import { getSignupPreference } from "@/lib/db/signup";
@@ -46,10 +48,11 @@ interface PageProps {
  */
 export default async function NotificationSignupPage(props: PageProps) {
     const [{ cityId }, { step, q }] = await Promise.all([props.params, props.searchParams]);
-    const [city, realm, user] = await Promise.all([
+    const [city, realm, user, requestHeaders] = await Promise.all([
         getCity(cityId, { includeGeometry: true }),
         getRealm(),
         getCurrentUser(),
+        headers(),
     ]);
 
     if (!city) {
@@ -76,6 +79,7 @@ export default async function NotificationSignupPage(props: PageProps) {
                     ? { name: user.name ?? "", email: user.email, phone: user.phone ?? null, notifyByPhone: user.notifyByPhone }
                     : null
             }
+            googleAvailable={googleSignInAvailable(requestHeaders)}
         />
     );
 }

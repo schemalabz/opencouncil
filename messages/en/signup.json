@@ -17,7 +17,9 @@
     "namePlaceholder": "Your name",
     "emailLabel": "Email",
     "emailPlaceholder": "you@email.com",
-    "emailHint": "You sign in with a link in your email, no password."
+    "emailHint": "You sign in with a link in your email, no password.",
+    "google": "Continue with Google",
+    "or": "or fill in your details"
   },
   "phone": {
     "label": "Mobile",

@@ -3,24 +3,38 @@
 import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { OrDivider } from '@/components/ui/or-divider';
+import { GoogleSignInButton } from '@/components/user/GoogleSignInButton';
 import { Eyebrow } from './SignupChrome';
+
+/** Back to this very step, signed in: the draft in this browser puts the answers back. */
+async function returnHere(): Promise<string> {
+    return window.location.pathname + window.location.search;
+}
 
 /**
  * The account a signed-out reader makes on the way: a name and the email
  * that signs them in, magic link and no password. Both flows end with it;
- * each says in its own words why it wants it (the hint).
+ * each says in its own words why it wants it (the hint). With Google on
+ * offer, a button above the fields signs the reader in and brings them back
+ * here instead; the fields then belong to the session.
  */
 export function AccountFields({
     name,
     email,
     hint,
     onChange,
+    googleAvailable = false,
+    onGoogleStart,
     children,
 }: {
     name: string;
     email: string;
     hint: string;
     onChange: (patch: { name?: string; email?: string }) => void;
+    googleAvailable?: boolean;
+    /** The flow's own event for the Google button, fired before the page leaves. */
+    onGoogleStart?: () => void;
     /** Extra fields of the flow's own, after the email. */
     children?: React.ReactNode;
 }) {
@@ -29,6 +43,13 @@ export function AccountFields({
         <section className="mt-7 flex flex-col gap-1">
             <Eyebrow>{t('account.eyebrow')}</Eyebrow>
             <span className="text-xs text-muted-foreground">{hint}</span>
+
+            {googleAvailable && (
+                <div className="mt-3 flex flex-col gap-3">
+                    <GoogleSignInButton redirectTo={returnHere} label={t('account.google')} onStart={onGoogleStart} className="h-11" />
+                    <OrDivider label={t('account.or')} />
+                </div>
+            )}
 
             <div className="mt-3 flex flex-col gap-1.5">
                 <Label htmlFor="signup-name" className="text-[13px] font-medium">

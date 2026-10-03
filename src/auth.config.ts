@@ -1,4 +1,5 @@
 import Resend from "next-auth/providers/resend"
+import Google from "next-auth/providers/google"
 import type { NextAuthConfig } from "next-auth"
 import { AuthEmail, authEmailCopy } from "./lib/email/templates/AuthEmail"
 import { renderReactEmailToHtml } from "./lib/email/render"
@@ -7,6 +8,7 @@ import { isTestUserEmail } from "./lib/dev/test-users"
 import { signInUrlForRequest } from "./lib/auth/signInUrl"
 import { localeForRequest } from "./lib/auth/requestLocale"
 import { devSessionCookieName } from "./lib/auth/sessionMirror"
+import { googleSignInConfigured } from "./lib/auth/googleSignIn"
 
 // In development, use port-specific session cookie names to allow multiple
 // instances on different ports to have independent sessions. Without this,
@@ -65,5 +67,24 @@ export default {
             if (!res.ok)
                 throw new Error("Resend error: " + JSON.stringify(await res.json()))
         }
-    })],
+    }),
+    // Without a client the provider is absent, so the sign-in page hides the
+    // button (googleSignInAvailable) and Auth.js never advertises it.
+    ...(googleSignInConfigured() ? [Google({
+        clientId: env.AUTH_GOOGLE_ID,
+        clientSecret: env.AUTH_GOOGLE_SECRET,
+        // Every user so far signed in by magic link and has no Account row, so
+        // the first Google sign-in must link by email or it fails with
+        // OAuthAccountNotLinked. Safe because the signIn callback (src/auth.ts)
+        // admits only a verified Google email.
+        allowDangerousEmailAccountLinking: true,
+    })] : []),
+    ],
+    // Our own page for both, so an expired magic link or a refused Google
+    // sign-in shows a translated message instead of Auth.js's bare page.
+    // signInFailurePath knows this shape.
+    pages: {
+        signIn: '/sign-in',
+        error: '/sign-in',
+    },
 } satisfies NextAuthConfig
