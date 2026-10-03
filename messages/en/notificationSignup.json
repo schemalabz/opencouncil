@@ -52,7 +52,8 @@
     "eyebrow": "Recently nearby",
     "eyebrowOlder": "Earlier, nearby",
     "empty": "Nothing nearby in the latest meetings. Notis will write when something comes up.",
-    "emptySince": "Nothing discussed nearby in the meetings since {date}. Notis will write when something comes up."
+    "emptySince": "Nothing discussed nearby in the meetings since {date}. Notis will write when something comes up.",
+    "newTab": " (opens in a new tab)"
   },
   "topics": {
     "title": "Topics you care about",

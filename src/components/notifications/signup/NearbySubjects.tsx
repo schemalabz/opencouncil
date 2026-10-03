@@ -1,7 +1,9 @@
 'use client';
 
+import { ArrowUpRight } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Eyebrow } from '@/components/signup/SignupChrome';
+import { Link } from '@/i18n/routing';
 import { surfaceCardClass } from '@/components/ui/surface-card';
 import { formatDistance } from '@/lib/formatters/distance';
 import { getLocalizedName } from '@/lib/formatters/name';
@@ -11,8 +13,8 @@ import type { NearbyState } from './useNearbySubjects';
 
 /**
  * What the council discussed recently near the reader's latest place: the
- * moment the step pays off. The rows are text, not links: leaving the page
- * here would drop the reader's answers.
+ * moment the step pays off. Each row opens its subject in a new tab, so the
+ * signup and the reader's answers stay where they are.
  *
  * A failed request hides the card. It is a preview, and the step works
  * without it.
@@ -62,21 +64,44 @@ export function NearbySubjects({
                 ) : (
                     <ul>
                         {state.subjects.map((subject) => (
-                            <li key={subject.id} className="flex gap-3 border-t border-border px-3.5 py-2.5">
-                                <span className="min-w-0 flex-1">
-                                    <span className="block text-sm leading-snug">{subject.name}</span>
-                                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                                        {[
-                                            subject.topic ? getLocalizedName(subject.topic, locale) : null,
-                                            meetingDate(subject.meetingDate),
-                                        ]
-                                            .filter(Boolean)
-                                            .join(' · ')}
+                            <li key={subject.id} className="border-t border-border">
+                                <Link
+                                    href={subject.path}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="group flex items-start gap-3 px-3.5 py-3 hover:no-underline focus-visible:bg-muted/60 focus-visible:outline-none"
+                                >
+                                    <span className="min-w-0 flex-1">
+                                        <span className="line-clamp-2 text-sm leading-snug transition-colors group-hover:text-[hsl(var(--orange))]">
+                                            {subject.name}
+                                        </span>
+                                        <span className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                                            {subject.topic && (
+                                                <span
+                                                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                                    style={{ backgroundColor: subject.topic.colorHex }}
+                                                    aria-hidden
+                                                />
+                                            )}
+                                            {/* The topic gives way on a narrow screen; the date, which may carry the year, never does. */}
+                                            {subject.topic && (
+                                                <>
+                                                    <span className="min-w-0 truncate">{getLocalizedName(subject.topic, locale)}</span>
+                                                    <span aria-hidden>·</span>
+                                                </>
+                                            )}
+                                            <span className="shrink-0 whitespace-nowrap">{meetingDate(subject.meetingDate)}</span>
+                                        </span>
                                     </span>
-                                </span>
-                                <span className="shrink-0 whitespace-nowrap pt-0.5 text-xs text-muted-foreground">
-                                    {formatDistance(subject.distanceMeters, locale)}
-                                </span>
+                                    <span className="flex shrink-0 items-center gap-1 pt-px text-xs tabular-nums text-muted-foreground">
+                                        {formatDistance(subject.distanceMeters, locale)}
+                                        <ArrowUpRight
+                                            className="h-3.5 w-3.5 transition-colors group-hover:text-[hsl(var(--orange))]"
+                                            aria-hidden
+                                        />
+                                    </span>
+                                    <span className="sr-only">{t('nearby.newTab')}</span>
+                                </Link>
                             </li>
                         ))}
                     </ul>

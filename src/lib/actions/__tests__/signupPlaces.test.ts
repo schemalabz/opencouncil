@@ -30,7 +30,7 @@ const city = { id: 'thira', realm: 'greece', geometry: square };
 
 const hot = (id: string, distanceMeters: number | null) => ({
     subject: { id, name: `Θέμα ${id}`, topic: { name: 'Συγκοινωνίες', name_en: 'Transportation', colorHex: '#3b82f6', icon: null } },
-    meeting: { dateTime: '2026-09-30T15:00:00.000Z' },
+    meeting: { id: 'sep30_2026', cityId: 'thira', dateTime: '2026-09-30T15:00:00.000Z' },
     distanceMeters,
 });
 
@@ -64,6 +64,7 @@ describe('getNearbySubjects', () => {
         expect(nearby.subjects[0]).toEqual({
             id: 'a',
             name: 'Θέμα a',
+            path: '/thira/sep30_2026/subjects/a',
             topic: { name: 'Συγκοινωνίες', name_en: 'Transportation', colorHex: '#3b82f6' },
             meetingDate: '2026-09-30T15:00:00.000Z',
             distanceMeters: 1050,
@@ -73,7 +74,7 @@ describe('getNearbySubjects', () => {
 
     it('says when the subjects come from before the period, because the period held no meetings', async () => {
         const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-        const at = (id: string, dateTime: string) => ({ ...hot(id, 500), meeting: { dateTime } });
+        const at = (id: string, dateTime: string) => ({ ...hot(id, 500), meeting: { id: 'm', cityId: 'thira', dateTime } });
         mockNearPoint.mockResolvedValue({ subjects: [], meetingsScanned: 8, oldestMeetingDate: daysAgo(400) });
 
         mockWithDistances.mockResolvedValueOnce([at('old', daysAgo(200)), at('older', daysAgo(400))]);

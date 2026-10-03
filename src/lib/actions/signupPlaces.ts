@@ -5,6 +5,7 @@ import { env } from "@/env.mjs";
 import { createCache, getAllCitiesMinimalCached, getCityWithGeometryCached } from "@/lib/cache";
 import { isPointInGeometry } from "@/lib/geo";
 import { getHotSubjectsNearPoint, withDistances } from "@/lib/hotSubjects";
+import { subjectPath } from "@/lib/landing/landingData";
 import { getRealmGeocoding } from "@/lib/realm";
 import { getRealm } from "@/lib/realm.server";
 import type { Location } from "@/lib/types/onboarding";
@@ -47,6 +48,8 @@ async function isSignupCity(cityId: string): Promise<boolean> {
 export interface NearbySubject {
     id: string;
     name: string;
+    /** The subject's page, without the locale. */
+    path: string;
     topic: { name: string; name_en: string; colorHex: string } | null;
     /** ISO date of the meeting that discussed it. */
     meetingDate: string;
@@ -92,6 +95,7 @@ export async function getNearbySubjects(input: PointInput): Promise<NearbySubjec
                       {
                           id: subject.id,
                           name: subject.name,
+                          path: subjectPath(meeting.cityId, meeting.id, subject.id),
                           topic: subject.topic
                               ? { name: subject.topic.name, name_en: subject.topic.name_en, colorHex: subject.topic.colorHex }
                               : null,
