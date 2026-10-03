@@ -36,6 +36,8 @@ export const NotificationEmail = ({
         ? 'Ενημέρωση για επερχόμενη συνεδρίαση'
         : 'Ενημέρωση για πρόσφατη συνεδρίαση';
 
+    const isAnnouncementOnly = subjects.length === 0 && type === 'beforeMeeting';
+
     const meetingDateFormatted = formatDate(meetingDate);
 
     return (
@@ -72,17 +74,31 @@ export const NotificationEmail = ({
                     {cityName}
                 </Text>
 
-                <Heading
-                    style={{
-                        color: '#1f2937',
-                        fontSize: '18px',
-                        fontWeight: '600',
-                        margin: '32px 0 16px 0',
-                        textAlign: 'left',
-                    }}
-                >
-                    Θέματα που σας αφορούν:
-                </Heading>
+                {isAnnouncementOnly ? (
+                    <Text
+                        style={{
+                            color: '#4b5563',
+                            fontSize: '15px',
+                            margin: '24px 0',
+                            lineHeight: '22px',
+                        }}
+                    >
+                        Η ημερήσια διάταξη δεν περιλαμβάνει συγκεκριμένα θέματα. Δείτε
+                        περισσότερες πληροφορίες για τη συνεδρίαση παρακάτω.
+                    </Text>
+                ) : (
+                    <Heading
+                        style={{
+                            color: '#1f2937',
+                            fontSize: '18px',
+                            fontWeight: '600',
+                            margin: '32px 0 16px 0',
+                            textAlign: 'left',
+                        }}
+                    >
+                        Θέματα που σας αφορούν:
+                    </Heading>
+                )}
 
                 {subjects.map((subject) => (
                     <Container
