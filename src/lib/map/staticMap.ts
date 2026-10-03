@@ -54,10 +54,15 @@ function simplifyGeometry(geometry: StaticMapFeature['geometry'], maxPoints: num
     }
     if (geometry.type === 'MultiPolygon') {
         const polygons = geometry.coordinates as Ring[][];
-        const pointsPerPolygon = Math.max(4, Math.floor(maxPoints / polygons.length));
+        const total = polygons.reduce((sum, polygon) => sum + polygon.reduce((points, ring) => points + ring.length, 0), 0);
+        // The budget is shared by ring size. An even split starved the one large
+        // ring, such as a municipality's main island, to feed islets that need four
+        // points each. Under the budget, every ring keeps all its points.
         return {
             type: 'MultiPolygon',
-            coordinates: polygons.map(polygon => polygon.map(ring => simplifyRing(ring, pointsPerPolygon))),
+            coordinates: polygons.map(polygon =>
+                polygon.map(ring => simplifyRing(ring, Math.max(4, Math.floor((maxPoints * ring.length) / total)))),
+            ),
         };
     }
     return geometry;

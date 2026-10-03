@@ -45,6 +45,22 @@ describe('staticMapOverlayUrl', () => {
         expect(overlayOf(url).features[0].geometry.coordinates[0].length).toBeLessThan(ring.length);
     });
 
+    it('keeps a large ring detailed when the other polygons are small islets', () => {
+        const islet = (lng: number) => [[[lng, 36.3], [lng + 0.01, 36.3], [lng + 0.01, 36.31], [lng, 36.3]]];
+        const island = Array.from({ length: 91 }, (_, i) => {
+            const a = (i / 90) * 2 * Math.PI;
+            return [25.43 + 0.05 * Math.cos(a), 36.4 + 0.08 * Math.sin(a)];
+        });
+        const islands = { geometry: { type: 'MultiPolygon', coordinates: [...Array.from({ length: 19 }, (_, i) => islet(25 + i * 0.02)), [island]] } };
+
+        const url = staticMapOverlayUrl({ features: [islands], position: 'auto', width: 600, height: 280 })!;
+
+        const rings = overlayOf(url).features[0].geometry.coordinates.map((polygon: number[][][]) => polygon[0].length);
+        // 4 × 19 + 91 = 167 points fit the first budget of 200: nothing is thinned.
+        expect(rings[19]).toBe(91);
+        expect(rings.slice(0, 19).every((points: number) => points === 4)).toBe(true);
+    });
+
     it('answers null when there is nothing it can draw', () => {
         expect(staticMapOverlayUrl({ features: [], position: 'auto', width: 600, height: 280 })).toBeNull();
         expect(staticMapOverlayUrl({ features: [{ geometry: { type: 'LineString', coordinates: [] } }], position: 'auto', width: 600, height: 280 })).toBeNull();
