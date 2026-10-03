@@ -249,7 +249,9 @@ async function docxRuns(data: MinutesData): Promise<string[]> {
     const blob = await renderMinutesDocx(data);
     const zip = await JSZip.loadAsync(Buffer.from(await blob.arrayBuffer()));
     const xml = await zip.file('word/document.xml')!.async('string');
-    return [...xml.matchAll(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g)].map(m => m[1]);
+    // Match `<w:t>` and `<w:t attr>` only. A bare `<w:t` prefix also matches
+    // `<w:tbl>`, `<w:tblPr>` and `<w:tc>`, and pulls table and drawing XML into the runs.
+    return [...xml.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/g)].map(m => m[1]);
 }
 
 /**

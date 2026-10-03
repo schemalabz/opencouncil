@@ -1,7 +1,18 @@
+import type { estypes } from '@elastic/elasticsearch';
 import { AdministrativeBody, AdministrativeBodyType, City, CouncilMeeting } from "@prisma/client";
 import { MATCH_FIELDS } from "./constants";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
+
+/**
+ * One Elasticsearch query clause.
+ *
+ * From @elastic/elasticsearch 9.5, `estypes.QueryDslQueryContainer` is an
+ * `ExactlyOne<...>` union over optional keys, so the type also includes
+ * `undefined`. A clause that we build or read from a clause list is never
+ * undefined. Use this type for those clauses.
+ */
+export type QueryContainer = NonNullable<estypes.QueryDslQueryContainer>;
 
 // Search configuration
 export type SearchConfig = {
