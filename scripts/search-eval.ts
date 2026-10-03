@@ -20,7 +20,7 @@ import './search-eval-env';
 
 import { Client, estypes } from '@elastic/elasticsearch';
 import { buildSearchQuery, rankingMultiplierRatio, MAX_RANKING_MULTIPLIER_RATIO } from '../src/lib/search/query';
-import type { SearchRequest } from '../src/lib/search/types';
+import type { QueryContainer, SearchRequest } from '../src/lib/search/types';
 import { buildRelatedSubjectsQuery, type RelatedSubjectSeed } from '../src/lib/search/related';
 import type { RelatedScope } from '../src/lib/search/types';
 import { NO_EXTRACTED_FILTERS } from '../src/lib/search/filters';
@@ -147,8 +147,8 @@ interface EvalSource {
 // container type also allows a bare function array; buildSearchQuery always
 // emits the full query form.
 function rankedQueryOf(
-    query: estypes.QueryDslQueryContainer | undefined
-): estypes.QueryDslQueryContainer | undefined {
+    query: QueryContainer | undefined
+): QueryContainer | undefined {
     const functionScore = query?.function_score;
     return functionScore && !Array.isArray(functionScore) ? functionScore.query : undefined;
 }
@@ -157,9 +157,9 @@ function rankedQueryOf(
 // semantic search is off, and one level deeper when location boosts wrap the
 // text core.
 function textDisMaxOf(
-    query: estypes.QueryDslQueryContainer | undefined
+    query: QueryContainer | undefined
 ): estypes.QueryDslDisMaxQuery | undefined {
-    const must = (query?.bool?.must ?? []) as estypes.QueryDslQueryContainer[];
+    const must = (query?.bool?.must ?? []) as QueryContainer[];
     return must.find((c) => c.dis_max)?.dis_max;
 }
 
@@ -167,9 +167,9 @@ function textDisMaxOf(
 // emits: the first branch of the dis_max when the semantic arm is on, and the
 // text clause itself when it is off.
 function lexicalBoolOf(
-    query: estypes.QueryDslQueryContainer | undefined
+    query: QueryContainer | undefined
 ): estypes.QueryDslBoolQuery | undefined {
-    const must = (rankedQueryOf(query)?.bool?.must ?? []) as estypes.QueryDslQueryContainer[];
+    const must = (rankedQueryOf(query)?.bool?.must ?? []) as QueryContainer[];
     const textClause = must[0];
     return (textClause?.dis_max?.queries?.[0] ?? textClause)?.bool;
 }
@@ -206,7 +206,7 @@ async function runQuery(
     if (mode === 'semantic') {
         const textCore = rankedQueryOf(q.query);
         const disMax = textDisMaxOf(textCore);
-        const semantic = disMax?.queries.find((c) => c.function_score);
+        const semantic = disMax?.queries.find((c) => c?.function_score);
         if (!disMax || !textCore || !semantic) throw new Error('semantic fallback branch missing');
         disMax.queries = [semantic];
         // Lift the text core out of applyRanking. This mode exists to calibrate
@@ -360,7 +360,7 @@ const TIER_MARGIN_QUERIES = [
 // Which tier each scoring clause belongs to, recovered from the clause shape.
 // Used only to tell name clauses from the rest, but the full label makes the
 // printed failures readable.
-function tierLabel(inner: estypes.QueryDslQueryContainer): string {
+function tierLabel(inner: QueryContainer): string {
     if (inner.match) {
         const field = Object.keys(inner.match)[0];
         const match = inner.match[field];
@@ -382,7 +382,8 @@ function tierLabel(inner: estypes.QueryDslQueryContainer): string {
     if (inner.nested?.query) return tierLabel(inner.nested.query);
     // A field's alternate spellings share one dis_max and therefore one tier
     // (see anySpelling), so the first branch names the whole clause.
-    if (inner.dis_max?.queries.length) return tierLabel(inner.dis_max.queries[0]);
+    const firstSpelling = inner.dis_max?.queries[0];
+    if (firstSpelling) return tierLabel(firstSpelling);
     return 'unknown';
 }
 
@@ -396,8 +397,9 @@ type Nameable = { _name?: string };
 // spellings and the nested wrapper. It is what tells the two halves of a
 // coverage pair apart: the strict half takes LEXICAL_MINIMUM_SHOULD_MATCH, the
 // partial half takes 1.
-function coverageOf(inner: estypes.QueryDslQueryContainer): string | number | undefined {
-    if (inner.dis_max?.queries.length) return coverageOf(inner.dis_max.queries[0]);
+function coverageOf(inner: QueryContainer): string | number | undefined {
+    const firstSpelling = inner.dis_max?.queries[0];
+    if (firstSpelling) return coverageOf(firstSpelling);
     if (inner.nested?.query) return coverageOf(inner.nested.query);
     const options = Object.values(inner.match ?? {})[0];
     return typeof options === 'object' && options !== null
@@ -411,8 +413,8 @@ function coverageOf(inner: estypes.QueryDslQueryContainer): string | number | un
 // such rather than counted off as a repeat: a `#2` suffix reads as "the same
 // tier again", which is how a partial name match came to be scored as a title
 // match below.
-function stampTierNames(query: estypes.QueryDslQueryContainer | undefined): void {
-    const should = (lexicalBoolOf(query)?.should ?? []) as estypes.QueryDslQueryContainer[];
+function stampTierNames(query: QueryContainer | undefined): void {
+    const should = (lexicalBoolOf(query)?.should ?? []) as QueryContainer[];
     if (!should.length) throw new Error('lexical should-clauses missing');
 
     const counts: Record<string, number> = {};
@@ -428,9 +430,11 @@ function stampTierNames(query: estypes.QueryDslQueryContainer | undefined): void
 
 // One clause may be a dis_max over spellings, so every branch takes the same
 // name — matched_queries reports the tier, whichever spelling matched.
-function stampClause(inner: estypes.QueryDslQueryContainer, name: string): void {
+function stampClause(inner: QueryContainer, name: string): void {
     if (inner.dis_max) {
-        for (const branch of inner.dis_max.queries) stampClause(branch, name);
+        for (const branch of inner.dis_max.queries) {
+            if (branch) stampClause(branch, name);
+        }
         return;
     }
     if (inner.nested) {
