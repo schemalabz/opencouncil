@@ -100,7 +100,7 @@ Sign-in uses a magic link sent through [Resend](https://resend.com). Two things 
 
 If you want every sign-in email (for any address) redirected to a single inbox you own, set `DEV_EMAIL_OVERRIDE` (see [Development Configuration](#development-configuration)) — note this only redirects the [test users](#test-users).
 
-When a send fails, the cause (status code + Resend message + a hint) is logged with the `[Auth][Resend]` prefix in your dev server console.
+When a send fails, the dev server console shows `[auth][error] Error: Resend error (<status>): <Resend's response>`. Resend's message names the cause.
 
 #### NEXTAUTH_SECRET
 You can quickly create a good value on the command line via this openssl command:
