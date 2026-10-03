@@ -4,6 +4,7 @@ const mockFindFirst = jest.fn();
 const mockFindUnique = jest.fn();
 const mockCreate = jest.fn();
 const mockUpdate = jest.fn();
+const mockUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
 
 // Mock all transitive dependencies of tasks.ts before import
 const mockExecuteRaw = jest.fn().mockResolvedValue(0);
@@ -17,7 +18,7 @@ const prismaStub = {
     findUnique: (...args: unknown[]) => mockFindUnique(...args),
     create: (...args: unknown[]) => mockCreate(...args),
     update: (...args: unknown[]) => mockUpdate(...args),
-    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    updateMany: (...args: unknown[]) => mockUpdateMany(...args),
   },
 };
 jest.mock('../../db/prisma', () => ({ __esModule: true, default: prismaStub }));
@@ -529,6 +530,73 @@ describe('handleTaskUpdate — terminal hooks', () => {
     );
 
     expect(mockTerminalHook).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('handleTaskUpdate — duplicate terminal callbacks', () => {
+  const mockProcessResult = jest.fn().mockResolvedValue(undefined);
+
+  const task = {
+    id: 'task-1',
+    type: 'pollDecisions',
+    cityId: CITY_ID,
+    councilMeetingId: MEETING_ID,
+    createdAt: new Date('2026-03-06T10:00:00Z'),
+    councilMeeting: { city: { name_en: 'City' }, name_en: 'Meeting' },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProcessResult.mockResolvedValue(undefined);
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+  });
+
+  it('claims success only from a status other than succeeded', async () => {
+    mockFindUnique.mockResolvedValue({ ...task, type: 'summarize', status: 'pending' });
+
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'success', result: { data: 'test' }, stage: '', progressPercent: 100, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(mockUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'task-1', status: { not: 'succeeded' } },
+    }));
+    expect(mockProcessResult).toHaveBeenCalledTimes(1);
+    expect(sendTaskAdminAlert).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed' }));
+  });
+
+  it('ignores a retried success callback for a task that already succeeded', async () => {
+    mockFindUnique.mockResolvedValue({ ...task, type: 'summarize', status: 'succeeded' });
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'success', result: { data: 'test' }, stage: '', progressPercent: 100, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(mockProcessResult).not.toHaveBeenCalled();
+    expect(sendTaskAdminAlert).not.toHaveBeenCalled();
+    expect(mockTerminalHook).not.toHaveBeenCalled();
+  });
+
+  it('ignores an error callback for a task that already reached a terminal state', async () => {
+    mockFindUnique.mockResolvedValue({ ...task, status: 'succeeded' });
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+
+    await handleTaskUpdate(
+      'task-1',
+      { status: 'error', error: 'late error', stage: '', progressPercent: 0, version: 1 },
+      mockProcessResult,
+    );
+
+    expect(mockUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'task-1', status: { notIn: ['succeeded', 'failed'] } },
+    }));
+    expect(sendTaskAdminAlert).not.toHaveBeenCalled();
+    expect(mockTerminalHook).not.toHaveBeenCalled();
   });
 });
 

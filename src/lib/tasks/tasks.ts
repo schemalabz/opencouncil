@@ -236,10 +236,18 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     const sendGenericAlerts = getDiscordAlertMode(task.type) !== 'none';
 
     if (update.status === 'success') {
-        const updatedTask = await prisma.taskStatus.update({
-            where: { id: taskId },
+        // The task server retries a callback that times out, while the first
+        // request is still processing. A second run of the result handler is
+        // not safe (summarize replaces the non-agenda subjects), so only the
+        // first success callback for a task proceeds.
+        const claimed = await prisma.taskStatus.updateMany({
+            where: { id: taskId, status: { not: 'succeeded' } },
             data: { status: 'succeeded', responseBody: JSON.stringify(update.result), version: update.version }
         });
+        if (claimed.count === 0) {
+            console.warn(`Ignoring duplicate success callback for task ${taskId}`);
+            return;
+        }
 
         if (update.result) {
             try {
@@ -259,9 +267,9 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 }
 
                 // Revalidate cache only for successful tasks that affect meeting data
-                if (updatedTask.cityId && shouldRevalidateForTaskType(updatedTask.type as MeetingTaskType)) {
+                if (task.cityId && shouldRevalidateForTaskType(task.type as MeetingTaskType)) {
                     try {
-                        revalidateTag(`city:${updatedTask.cityId}:meetings`, 'max');
+                        revalidateTag(`city:${task.cityId}:meetings`, 'max');
                     } catch (revalidateError) {
                         console.error(`Error revalidating cache for task ${taskId}:`, revalidateError);
                     }
@@ -306,10 +314,14 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             }
         }
     } else if (update.status === 'error') {
-        await prisma.taskStatus.update({
-            where: { id: taskId },
+        const claimed = await prisma.taskStatus.updateMany({
+            where: { id: taskId, status: { notIn: ['succeeded', 'failed'] } },
             data: { status: 'failed', responseBody: update.error, version: update.version }
         });
+        if (claimed.count === 0) {
+            console.warn(`Ignoring error callback for task ${taskId}, which is already ${task.status}`);
+            return;
+        }
 
         // Send Discord admin alert for task failure
         if (sendGenericAlerts) {
