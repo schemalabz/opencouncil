@@ -5,6 +5,7 @@ import "server-only";
 import { AdministrativeBody } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { publicAdministrativeBodySelect, type PublicAdministrativeBody } from "./types/administrativeBody";
 
 export async function getAdministrativeBodiesForCity(cityId: string): Promise<AdministrativeBody[]> {
     try {
@@ -23,17 +24,41 @@ export async function getAdministrativeBodiesForCity(cityId: string): Promise<Ad
 }
 
 /**
+ * Every administrative body of a city, with the fields anyone may read. The
+ * public twin of {@link getAdministrativeBodiesForCity}.
+ */
+export async function getPublicAdministrativeBodiesForCity(cityId: string): Promise<PublicAdministrativeBody[]> {
+    try {
+        return await prisma.administrativeBody.findMany({
+            where: { cityId },
+            select: publicAdministrativeBodySelect,
+            orderBy: [
+                { type: 'asc' },
+                { name: 'asc' },
+            ],
+        });
+    } catch (error) {
+        console.error('Error fetching administrative bodies:', error);
+        throw new Error('Failed to fetch administrative bodies');
+    }
+}
+
+/**
  * Administrative bodies that have at least one released (public) meeting.
  * Used by public surfaces (e.g. the embed widget configurator) so the body
  * filter only offers bodies a visitor could actually see meetings for.
+ *
+ * Public fields only: a browser reaches this through a Server Action that takes
+ * any city id, and the meetings tab hands the result to a Client Component.
  */
-export async function getAdministrativeBodiesWithPublicMeetings(cityId: string): Promise<AdministrativeBody[]> {
+export async function getAdministrativeBodiesWithPublicMeetings(cityId: string): Promise<PublicAdministrativeBody[]> {
     try {
         return await prisma.administrativeBody.findMany({
             where: {
                 cityId,
                 meetings: { some: { released: true } },
             },
+            select: publicAdministrativeBodySelect,
             orderBy: [
                 { type: 'asc' },
                 { name: 'asc' },
