@@ -43,6 +43,12 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
      */
     showCount?: boolean;
     /**
+     * Reads the count aloud when it changes. For a source whose results arrive
+     * after a wait; a list that filters as the reader types would read a
+     * number for every letter.
+     */
+    announceCount?: boolean;
+    /**
      * Extra back-of-house controls for the strip that already holds "add item".
      * A render prop, because a tool usually acts on whatever the filters have
      * narrowed to — the elected order applies to the one body on screen.
@@ -74,6 +80,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     allText,
     showSearch = state.searchable,
     showCount,
+    announceCount = false,
     layout = 'grid',
     carouselItemWidth = 300,
     carouselGap = 16,
@@ -239,7 +246,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                         </button>
                     ))}
                     {countVisible && (
-                        <p className={cn('shrink-0 text-sm text-muted-foreground', searchOpen && 'max-sm:hidden')}>
+                        <p role={announceCount ? 'status' : undefined} className={cn('shrink-0 text-sm text-muted-foreground', searchOpen && 'max-sm:sr-only')}>
                             {t('items', { count: state.total })}
                         </p>
                     )}
@@ -265,7 +272,11 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
             </div>
             {typeof renderAfterFilters === 'function' ? renderAfterFilters(state.selectedFilters) : renderAfterFilters}
             {state.total > 0 ? (
-                <div className="relative">
+                <div
+                    className={cn('relative transition-opacity', state.pending && 'opacity-60')}
+                    aria-busy={state.pending}
+                    data-testid="collection-rows"
+                >
                     {layout === 'carousel' && (
                         <div className="flex items-center justify-between mb-3">
                             <p className="text-sm font-medium text-muted-foreground">
@@ -312,7 +323,8 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                     currentPage={state.page}
                     totalPages={state.totalPages}
                     onPageChange={handlePageChange}
-                    labels={{ previous: t('previous'), next: t('next') }}
+                    getHref={state.hrefForPage}
+                    labels={{ previous: t('previous'), next: t('next'), navigation: tCommon('pagination') }}
                 />
             )}
         </div>

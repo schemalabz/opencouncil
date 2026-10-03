@@ -82,6 +82,7 @@ export default function CityMeetings({
             FormComponent={AddMeetingForm}
             formProps={{ cityId, realm, allowedBodyIds: editableBodyIds }}
             t={t}
+            announceCount
             renderFilter={({ selectedValues, onChange }) => {
                 const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
                 return (

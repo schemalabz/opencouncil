@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import List from '../List';
 import { useLocalCollection } from '@/components/collection/useLocalCollection';
+import type { CollectionState } from '@/components/collection/types';
 
 let mockSearchParams = new URLSearchParams();
 
@@ -43,6 +44,7 @@ const t = (key: string, params?: { count?: number }) =>
 type RenderProps = {
     showSearch?: boolean;
     showCount?: boolean;
+    announceCount?: boolean;
     editable?: boolean;
     items?: Item[];
     searchKeys?: (item: Item) => (string | null | undefined)[];
@@ -50,10 +52,11 @@ type RenderProps = {
     filterAvailableValues?: { value: string | undefined; label: string }[];
     filter?: (selectedValues: (string | undefined)[], item: Item, selectedBody: string | null) => boolean;
     pageSize?: number;
+    pending?: boolean;
 };
 
 /** A page's wiring: the local source fills the state, and List draws it. */
-function LocalList({ editable = false, items: rows = items, showSearch, showCount, searchKeys, sortItems, filterAvailableValues, filter, pageSize }: RenderProps) {
+function LocalList({ editable = false, items: rows = items, showSearch, showCount, announceCount, searchKeys, sortItems, filterAvailableValues, filter, pageSize, pending }: RenderProps) {
     const state = useLocalCollection<Item, string | undefined>(rows, {
         searchable: showSearch ?? true,
         searchKeys,
@@ -64,7 +67,7 @@ function LocalList({ editable = false, items: rows = items, showSearch, showCoun
     });
     return (
         <List<Item>
-            state={state}
+            state={pending ? { ...state, pending } : state}
             editable={editable}
             ItemComponent={Card}
             FormComponent={() => null}
@@ -72,6 +75,7 @@ function LocalList({ editable = false, items: rows = items, showSearch, showCoun
             t={t}
             showSearch={showSearch}
             showCount={showCount}
+            announceCount={announceCount}
             filterOptions={filterAvailableValues}
         />
     );
@@ -244,7 +248,7 @@ describe('List — scrolling on a page change', () => {
     it('scrolls when the reader picks the page already on screen, and leaves no scroll for later', () => {
         mockSearchParams = new URLSearchParams('page=2');
         const { rerender } = renderList({ items: many, pageSize: 12 });
-        fireEvent.click(screen.getByRole('button', { name: '2' }));
+        fireEvent.click(screen.getByRole('link', { name: '2' }));
         expect(scrollIntoView).toHaveBeenCalledTimes(1);
 
         // A later page change the reader did not make through the pager: a
@@ -256,9 +260,87 @@ describe('List — scrolling on a page change', () => {
 
     it('scrolls once the page the reader picked is on screen', () => {
         const { rerender } = renderList({ items: many, pageSize: 12 });
-        fireEvent.click(screen.getByRole('button', { name: '3' }));
+        fireEvent.click(screen.getByRole('link', { name: '3' }));
         mockSearchParams = new URLSearchParams('page=3');
         rerender(<LocalList items={many} pageSize={12} />);
         expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('List — a server source', () => {
+    const scrollIntoView = jest.fn();
+
+    // What a server source hands the view: one page of rows, with the page
+    // changing only when the navigation lands.
+    const serverState = (overrides: Partial<CollectionState<Item, string>> = {}): CollectionState<Item, string> => ({
+        rows: [items[0]],
+        trailingRows: [],
+        total: 30,
+        page: 1,
+        totalPages: 3,
+        query: '',
+        selectedFilters: [],
+        selectedBody: null,
+        pending: false,
+        searchable: false,
+        setQuery: jest.fn(),
+        setFilters: jest.fn(),
+        setBody: jest.fn(),
+        setPage: jest.fn(),
+        hrefForPage: page => `?page=${page}`,
+        ...overrides,
+    });
+
+    const draw = (state: CollectionState<Item, string>) => (
+        <List<Item, {}, string> state={state} editable={false} ItemComponent={Card} FormComponent={() => null} formProps={{}} t={t} />
+    );
+
+    beforeEach(() => {
+        scrollIntoView.mockClear();
+        Element.prototype.scrollIntoView = scrollIntoView;
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { callback(0); return 0; });
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    it('scrolls only once the page the reader picked has landed', () => {
+        const { rerender } = render(draw(serverState()));
+        fireEvent.click(screen.getByRole('link', { name: '3' }));
+        rerender(draw(serverState({ pending: true })));
+        expect(scrollIntoView).not.toHaveBeenCalled();
+        rerender(draw(serverState({ page: 3 })));
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    });
+
+    it('names the pager navigation', () => {
+        render(draw(serverState()));
+        expect(screen.getByRole('navigation', { name: 'pagination' })).toBeInTheDocument();
+    });
+});
+
+describe('List — status for assistive technology', () => {
+    it('announces the count as a status message when asked', () => {
+        renderList({ showCount: true, announceCount: true });
+        expect(screen.getByRole('status')).toHaveTextContent('items:2');
+    });
+
+    it('keeps the count quiet by default, so filtering as the reader types reads no number per letter', () => {
+        renderList({ showCount: true });
+        expect(count()).toBeInTheDocument();
+        expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('renders the pager as links to each page', () => {
+        const many = Array.from({ length: 30 }, (_, i) => ({ id: `r${i}`, name: `Row ${i}` }));
+        renderList({ items: many, pageSize: 12 });
+        expect(screen.getByRole('link', { name: '2' })).toHaveAttribute('href', '?page=2');
+        expect(screen.getByRole('link', { name: '1' })).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('marks the rows busy while a page loads', () => {
+        renderList({ pending: true });
+        expect(screen.getByTestId('collection-rows')).toHaveAttribute('aria-busy', 'true');
     });
 });

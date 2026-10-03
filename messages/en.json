@@ -60,6 +60,7 @@
         "adminBodyType_community": "Communities",
         "allPeople": "All",
         "allBodies": "All",
+        "pagination": "Pages",
         "backToHome": "Back to home",
         "loadingError": "Loading error",
         "all": "All",
