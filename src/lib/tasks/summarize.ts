@@ -218,7 +218,8 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
                     meetingName: councilMeeting.name,
                     notificationCount: stats.notificationsCreated,
                     emailsSent: releaseResult.emailsSent,
-                    failed: releaseResult.failed
+                    failed: releaseResult.failed,
+                    leftPending: releaseResult.leftPending
                 });
             }
         } catch (error) {

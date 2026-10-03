@@ -25,7 +25,7 @@ interface EmailParams {
     tags?: EmailTag[];
 }
 
-interface BatchEmailItem {
+export interface BatchEmailItem {
     from: string;
     to: string;
     replyTo?: string | string[];
@@ -41,8 +41,14 @@ export interface BatchEmailResult {
     error?: string;
 }
 
-/** Resend's per-call batch cap. Anything bigger must be chunked by the caller. */
+/** Resend's per-call batch cap. `sendEmailInBatches` chunks to it. */
 const RESEND_BATCH_LIMIT = 100;
+
+/**
+ * Pause between successive batch calls. Resend's batch endpoint allows about
+ * two requests per second, and a fast round trip alone is not enough spacing.
+ */
+const RESEND_BATCH_INTERVAL_MS = 500;
 
 /**
  * Apply the dev-email override to a single batch item — same rewrite as
@@ -217,5 +223,33 @@ export async function sendEmailBatch(
             failedTos: items.map((i) => i.to),
             error: error instanceof Error ? error.message : 'Unknown error',
         };
+    }
+}
+
+/**
+ * Send any number of emails through `sendEmailBatch`: chunk to Resend's limit,
+ * send the chunks in order, and pause between calls.
+ *
+ * `onBatch` runs after each chunk, before the next one is sent, so a caller
+ * records each outcome before the next send starts. Each caller derives its own
+ * idempotency key and maps the result to its own records.
+ */
+export async function sendEmailInBatches<T>(
+    items: T[],
+    options: {
+        toEmail: (item: T) => BatchEmailItem;
+        idempotencyKey: (batch: T[]) => string;
+        onBatch: (batch: T[], result: BatchEmailResult) => Promise<void> | void;
+    },
+): Promise<void> {
+    for (let i = 0; i < items.length; i += RESEND_BATCH_LIMIT) {
+        if (i > 0) {
+            await new Promise((resolve) => setTimeout(resolve, RESEND_BATCH_INTERVAL_MS));
+        }
+        const batch = items.slice(i, i + RESEND_BATCH_LIMIT);
+        const result = await sendEmailBatch(batch.map(options.toEmail), {
+            idempotencyKey: options.idempotencyKey(batch),
+        });
+        await options.onBatch(batch, result);
     }
 }

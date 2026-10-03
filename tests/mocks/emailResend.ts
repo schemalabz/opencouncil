@@ -10,3 +10,12 @@ export async function sendEmail() {
 export async function sendEmailBatch() {
     return { success: true, failedTos: [] };
 }
+
+export async function sendEmailInBatches<T>(
+    items: T[],
+    options: { onBatch: (batch: T[], result: { success: boolean; failedTos: string[] }) => Promise<void> | void },
+) {
+    if (items.length > 0) {
+        await options.onBatch(items, { success: true, failedTos: [] });
+    }
+}

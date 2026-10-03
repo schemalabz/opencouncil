@@ -1,10 +1,24 @@
 import "server-only";
 
-import { sendEmail } from '@/lib/email/resend';
+import { createHash } from 'crypto';
+import { sendEmailInBatches, type BatchEmailItem } from '@/lib/email/resend';
 import { getPendingDeliveries, updateDeliveryStatus } from '@/lib/db/notifications';
+
+const FROM_ADDRESS = 'OpenCouncil <notifications@opencouncil.gr>';
+
+// Derive the delivery row shape from the DB function — keeps us honest if the
+// include shape ever changes, without redeclaring the type.
+type PendingDelivery = Awaited<ReturnType<typeof getPendingDeliveries>>[number];
+
 
 /**
  * Release notifications by sending all pending deliveries.
+ *
+ * Emails go through Resend's batch endpoint in chunks of 100, so a release of
+ * thousands of recipients consumes only a handful of API calls instead of
+ * thousands of sequential per-recipient sends with 500ms gaps. That sequential
+ * loop used to saturate the Resend rate limit for our shared API key, starving
+ * auth magic-link emails for minutes — see issue #380.
  *
  * Only email is sent from here. WhatsApp and SMS are Notis's for every
  * reader, so a `message` delivery can only be a row created before the
@@ -15,10 +29,12 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
     emailsSent: number;
     skipped: number;
     failed: number;
+    leftPending: number;
 }> {
     let emailsSent = 0;
     let skipped = 0;
     let failed = 0;
+    let leftPending = 0;
 
     try {
         // Get all pending deliveries for these notifications
@@ -26,40 +42,30 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
 
         console.log(`Releasing ${pendingDeliveries.length} pending deliveries for ${notificationIds.length} notifications`);
 
-        // Process each delivery
-        for (const delivery of pendingDeliveries) {
-            try {
-                if (delivery.medium === 'email') {
-                    const result = await sendEmailDelivery(delivery);
-                    if (result) {
-                        emailsSent++;
-                    } else {
-                        failed++;
-                    }
-                } else if (delivery.medium === 'message') {
-                    await updateDeliveryStatus(delivery.id, 'skipped');
-                    skipped++;
-                    continue;
-                }
+        // Partition by medium up front so emails can be batched.
+        const emailDeliveries = pendingDeliveries.filter((d) => d.medium === 'email');
+        const messageDeliveries = pendingDeliveries.filter((d) => d.medium === 'message');
 
-                // Add a small delay to avoid rate limiting
-                // 500ms delay allows for ~2 requests per second, which is a safe limit for most services
-                await new Promise(resolve => setTimeout(resolve, 500));
+        // ---- Emails: batch send via Resend ----
+        const emailResult = await sendEmailDeliveriesBatched(emailDeliveries);
+        emailsSent += emailResult.sent;
+        failed += emailResult.failed;
+        leftPending += emailResult.leftPending;
 
-            } catch (error) {
-                console.error(`Error sending delivery ${delivery.id}:`, error);
-                await updateDeliveryStatus(delivery.id, 'failed');
-                failed++;
-            }
+        // Messages are Notis's: a `message` row predates the switch and is never sent.
+        for (const delivery of messageDeliveries) {
+            await updateDeliveryStatus(delivery.id, 'skipped');
+            skipped++;
         }
 
-        console.log(`Release complete: ${emailsSent} emails, ${skipped} skipped, ${failed} failed`);
+        console.log(`Release complete: ${emailsSent} emails, ${skipped} skipped, ${failed} failed (${leftPending} left pending)`);
 
         return {
             success: true,
             emailsSent,
             skipped,
-            failed
+            failed,
+            leftPending
         };
     } catch (error) {
         console.error('Error releasing notifications:', error);
@@ -67,41 +73,112 @@ export async function releaseNotifications(notificationIds: string[]): Promise<{
             success: false,
             emailsSent,
             skipped,
-            failed
+            failed,
+            leftPending
         };
     }
 }
 
 /**
- * Send email delivery via Resend
+ * Build the Resend payload for a single email delivery, or return null if the
+ * delivery is missing required fields (in which case the delivery is marked
+ * failed as a side effect, matching the pre-batch behaviour).
  */
-async function sendEmailDelivery(delivery: any): Promise<boolean> {
-    try {
-        if (!delivery.email || !delivery.title || !delivery.body) {
-            console.error('Missing email, title, or body for delivery', delivery.id);
-            await updateDeliveryStatus(delivery.id, 'failed');
-            return false;
-        }
-
-        const result = await sendEmail({
-            from: 'OpenCouncil <notifications@opencouncil.gr>',
-            to: delivery.email,
-            subject: delivery.title,
-            html: delivery.body
-        });
-
-        if (result.success) {
-            await updateDeliveryStatus(delivery.id, 'sent');
-            console.log(`Email sent successfully to ${delivery.email}`);
-            return true;
-        } else {
-            await updateDeliveryStatus(delivery.id, 'failed');
-            console.error(`Failed to send email to ${delivery.email}`);
-            return false;
-        }
-    } catch (error) {
-        console.error('Error sending email delivery:', error);
+async function buildBatchEmailItem(delivery: PendingDelivery): Promise<BatchEmailItem | null> {
+    if (!delivery.email || !delivery.title || !delivery.body) {
+        console.error('Missing email, title, or body for delivery', delivery.id);
         await updateDeliveryStatus(delivery.id, 'failed');
-        return false;
+        return null;
     }
+    return {
+        from: FROM_ADDRESS,
+        to: delivery.email,
+        subject: delivery.title,
+        html: delivery.body,
+    };
+}
+
+/**
+ * Send email deliveries through Resend's batch endpoint. `sendEmailInBatches`
+ * owns the chunking and the pacing. Each delivery gets its own status: an address
+ * Resend rejects (permissive mode `errors[]`) is `failed`, the rest are `sent`,
+ * and a batch that fails as a whole leaves its deliveries `pending`.
+ */
+async function sendEmailDeliveriesBatched(deliveries: PendingDelivery[]): Promise<{
+    sent: number;
+    failed: number;
+    leftPending: number;
+}> {
+    let sent = 0;
+    let failed = 0;
+    let leftPending = 0;
+
+    // Pair each successfully-built payload with its delivery so we can map
+    // batch results back to delivery ids. Deliveries that fail validation
+    // here are already marked failed inside buildBatchEmailItem.
+    const prepared: Array<{ delivery: PendingDelivery; payload: BatchEmailItem }> = [];
+    for (const delivery of deliveries) {
+        const payload = await buildBatchEmailItem(delivery);
+        if (payload) {
+            prepared.push({ delivery, payload });
+        } else {
+            failed++;
+        }
+    }
+
+    await sendEmailInBatches(prepared, {
+        toEmail: (p) => p.payload,
+        idempotencyKey: (batch) => makeBatchIdempotencyKey(batch.map((p) => p.delivery.id)),
+        onBatch: async (batch, result) => {
+            // `error` marks a failure of the whole batch (429, 5xx, network): Resend
+            // rejected no recipient in particular. Keep these rows `pending` so a
+            // re-release retries them. `failed` is final, because getPendingDeliveries
+            // selects only `pending` rows. They still count as failed for this release.
+            if (result.error) {
+                console.error(`Notification email batch failed; ${batch.length} deliveries stay pending:`, result.error);
+                failed += batch.length;
+                leftPending += batch.length;
+                return;
+            }
+
+            // Resend reports failures as a list of `to` addresses (count == #fails).
+            // If two deliveries target the same address and only one fails, the
+            // address appears once. Consume the list as a multiset so we mark the
+            // right number of rows failed instead of every match.
+            const failureBudget = new Map<string, number>();
+            for (const to of result.failedTos) {
+                failureBudget.set(to, (failureBudget.get(to) ?? 0) + 1);
+            }
+
+            for (const { delivery, payload } of batch) {
+                const remaining = failureBudget.get(payload.to) ?? 0;
+                if (remaining > 0) {
+                    failureBudget.set(payload.to, remaining - 1);
+                    await updateDeliveryStatus(delivery.id, 'failed');
+                    console.error(`Failed to send email to ${payload.to}`);
+                    failed++;
+                } else {
+                    await updateDeliveryStatus(delivery.id, 'sent');
+                    sent++;
+                }
+            }
+
+            if (!result.success) {
+                console.error(`Notification email batch had per-recipient failures:`, result.failedTos);
+            }
+        },
+    });
+
+    return { sent, failed, leftPending };
+}
+
+/**
+ * Deterministic idempotency key from the set of delivery ids in the batch.
+ * A retried release with the same deliveries will dedupe inside Resend's 24h
+ * window — important because each delivery row is a single "send this once"
+ * commitment.
+ */
+function makeBatchIdempotencyKey(deliveryIds: string[]): string {
+    const data = JSON.stringify({ kind: 'notification-release', ids: [...deliveryIds].sort() });
+    return createHash('sha256').update(data).digest('hex');
 }

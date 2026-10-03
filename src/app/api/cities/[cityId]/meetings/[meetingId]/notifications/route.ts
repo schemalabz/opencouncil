@@ -86,7 +86,8 @@ export async function POST(
             meetingName: meeting?.name ?? params.meetingId,
             notificationCount: stats.notificationsCreated,
             emailsSent: releaseResult.emailsSent,
-            failed: releaseResult.failed
+            failed: releaseResult.failed,
+            leftPending: releaseResult.leftPending
         });
     }
 

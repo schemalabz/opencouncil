@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
             meetingName: notification.meeting.name,
             notificationCount: notificationIds.length,
             emailsSent: result.emailsSent,
-            failed: result.failed
+            failed: result.failed,
+            leftPending: result.leftPending
         });
     }
 

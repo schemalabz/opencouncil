@@ -142,7 +142,8 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
                     meetingName: task.councilMeeting.name,
                     notificationCount: stats.notificationsCreated,
                     emailsSent: releaseResult.emailsSent,
-                    failed: releaseResult.failed
+                    failed: releaseResult.failed,
+                    leftPending: releaseResult.leftPending
                 });
             }
         } catch (error) {

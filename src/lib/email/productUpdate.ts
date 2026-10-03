@@ -1,7 +1,7 @@
 "use server";
 
 import { createHash } from 'crypto';
-import { sendEmail, sendEmailBatch, type EmailTag } from '@/lib/email/resend';
+import { sendEmail, sendEmailInBatches, type EmailTag } from '@/lib/email/resend';
 import { renderReactEmailToHtml } from '@/lib/email/render';
 import { ProductUpdateEmail } from '@/lib/email/templates/ProductUpdateEmail';
 import { fillProductUpdatePlaceholders } from '@/lib/email/templates/productUpdateDefault';
@@ -10,18 +10,12 @@ import { getProductUpdateRecipients } from '@/lib/db/productUpdates';
 
 const FROM_ADDRESS = 'OpenCouncil <notifications@opencouncil.gr>';
 const REPLY_TO = 'hello@opencouncil.gr';
-const BATCH_SIZE = 100;
-const BATCH_INTERVAL_MS = 500;
 
 const CATEGORY_TAG = { name: 'category', value: 'product-update' } as const;
 
 function customLabelTags(labels: string[] | undefined): EmailTag[] {
     if (!labels?.length) return [];
     return labels.map((value) => ({ name: 'label', value }));
-}
-
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export interface SendProductUpdateResult {
@@ -37,14 +31,6 @@ async function renderForRecipient(
 ): Promise<string> {
     const filled = fillProductUpdatePlaceholders(bodyHtml, { userName, unsubscribeUrl });
     return renderReactEmailToHtml(ProductUpdateEmail({ bodyHtml: filled }));
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-    const out: T[][] = [];
-    for (let i = 0; i < items.length; i += size) {
-        out.push(items.slice(i, i + size));
-    }
-    return out;
 }
 
 /**
@@ -63,9 +49,9 @@ function makeIdempotencyKey(
 
 /**
  * Send a product-update email to every consenting recipient using Resend's
- * batch endpoint. Per-recipient HTML is rendered up front in parallel, then
- * chunked into batches of 100 and dispatched concurrently. Each batch carries
- * a content-derived idempotency key so a server-side retry is deduped.
+ * batch endpoint. Per-recipient HTML is rendered up front in parallel, then sent
+ * through `sendEmailInBatches`. Each batch carries a content-derived idempotency
+ * key so a server-side retry is deduped.
  *
  * `bodyHtml` is the editor-sanitized HTML with {{userName}}/{{unsubscribeUrl}}
  * placeholders intact; per-recipient substitution happens here.
@@ -102,29 +88,22 @@ export async function sendProductUpdateToAll(params: {
         }),
     );
 
-    const batches = chunk(prepared, BATCH_SIZE);
     let sent = 0;
     let failed = 0;
     const failedEmails: string[] = [];
 
-    // Sequential dispatch with a 500ms floor between calls — Resend's batch
-    // endpoint allows ~2 req/s, and a fast round-trip alone isn't enough
-    // spacing. 10 batches finish in ~5s in the steady state.
-    for (let i = 0; i < batches.length; i++) {
-        const batch = batches[i];
-        const result = await sendEmailBatch(batch, {
-            idempotencyKey: makeIdempotencyKey(subject, bodyHtml, batch.map((b) => b.to)),
-        });
-        sent += batch.length - result.failedTos.length;
-        failed += result.failedTos.length;
-        failedEmails.push(...result.failedTos);
-        if (!result.success) {
-            console.error(`Product update batch ${i + 1}/${batches.length} failed:`, result.error);
-        }
-        if (i < batches.length - 1) {
-            await sleep(BATCH_INTERVAL_MS);
-        }
-    }
+    await sendEmailInBatches(prepared, {
+        toEmail: (item) => item,
+        idempotencyKey: (batch) => makeIdempotencyKey(subject, bodyHtml, batch.map((b) => b.to)),
+        onBatch: (batch, result) => {
+            sent += batch.length - result.failedTos.length;
+            failed += result.failedTos.length;
+            failedEmails.push(...result.failedTos);
+            if (!result.success) {
+                console.error('Product update batch failed:', result.error);
+            }
+        },
+    });
 
     return { sent, failed, failedEmails };
 }
