@@ -45,7 +45,7 @@ export async function sendInviteEmail(email: string, name: string | null | undef
         verificationTokenKey = result.verificationTokenKey
         const emailHtml = await render(UserInviteEmail({ name: name || email, inviteUrl: result.signInUrl }))
         const sendResult = await sendEmail({
-            from: "OpenCouncil <auth@opencouncil.gr>",
+            from: 'auth',
             to: email,
             subject: "Πρόσκληση: Συνδεθείτε στο OpenCouncil",
             html: emailHtml,

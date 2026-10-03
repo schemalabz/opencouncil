@@ -23,7 +23,6 @@ export async function sendContactEmail(data: ContactFormData) {
   const subject = 'Ευχαριστούμε για το ενδιαφέρον σας στο OpenCouncil';
   const to = contactEmail;
   const cc = ['christos@opencouncil.gr', 'andreas@opencouncil.gr', 'eliza@opencouncil.gr'];
-  const from = 'noreply@opencouncil.gr';
 
   const priceInfo = calculatedPrice !== undefined && calculatedPrice !== null
     ? `\nΕκτιμώμενο ετήσιο κόστος: ${calculatedPrice}€ + ΦΠΑ`
@@ -45,7 +44,7 @@ export async function sendContactEmail(data: ContactFormData) {
   `;
 
   return sendEmail({
-    from,
+    from: 'noreply',
     to,
     cc,
     subject,

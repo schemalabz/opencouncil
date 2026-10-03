@@ -7,6 +7,7 @@ import { isTestUserEmail } from "./lib/dev/test-users"
 import { signInUrlForRequest } from "./lib/auth/signInUrl"
 import { localeForRequest } from "./lib/auth/requestLocale"
 import { devSessionCookieName } from "./lib/auth/sessionMirror"
+import { emailFrom } from "@/lib/email/senders"
 
 // In development, use port-specific session cookie names to allow multiple
 // instances on different ports to have independent sessions. Without this,
@@ -25,7 +26,7 @@ export default {
         },
     } : undefined,
     providers: [Resend({
-        from: 'OpenCouncil <auth@opencouncil.gr>',
+        from: emailFrom('auth'),
         apiKey: env.RESEND_API_KEY,
         sendVerificationRequest: async (params) => {
             const { identifier: to, provider, url, request } = params
@@ -62,8 +63,10 @@ export default {
                 }),
             })
 
+            // Resend's own message names the cause, and one status code covers several
+            // causes, so the body is passed on as it is. Auth.js logs the thrown error.
             if (!res.ok)
-                throw new Error("Resend error: " + JSON.stringify(await res.json()))
+                throw new Error(`Resend error (${res.status}): ${await res.text()} See docs/environment-variables.md#resend-setup-for-local-development`)
         }
     })],
 } satisfies NextAuthConfig

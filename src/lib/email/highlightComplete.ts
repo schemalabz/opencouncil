@@ -115,7 +115,7 @@ export async function sendHighlightCompleteEmail({
 
         // Send the email
         await sendEmail({
-            from: 'OpenCouncil <notifications@opencouncil.gr>',
+            from: 'notifications',
             to: user.email,
             subject,
             html
