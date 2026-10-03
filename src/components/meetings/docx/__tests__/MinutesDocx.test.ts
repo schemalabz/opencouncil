@@ -223,6 +223,27 @@ describe('MinutesDocx TOC order', () => {
     });
 });
 
+describe('MinutesDocx TOC page links', () => {
+    const decision = { decisionNumber: '425/2026', protocolNumber: null, excerpt: null, references: null, voteResultPhrase: null };
+
+    it('makes each TOC page number a link to its subject heading, which Word needs `\\h` for', async () => {
+        const xml = await docxText(makeMinutesData({ subjects: [makeSubject({ subjectId: 'cmabc123', decision })] }));
+        expect(xml).toContain('PAGEREF subject_cmabc123 \\h');
+        expect(xml).toContain('w:name="subject_cmabc123"');
+    });
+
+    it('gives no page number to a subject the body does not print, so Word shows no missing-bookmark error', async () => {
+        const xml = await docxText(makeMinutesData({ subjects: [
+            makeSubject({ subjectId: 'printed', decision }),
+            makeSubject({ subjectId: 'empty', agendaItemIndex: 2 }),
+            makeSubject({ subjectId: 'withdrawn', agendaItemIndex: 3, withdrawn: true, decision }),
+        ] }));
+        expect(xml).toContain('PAGEREF subject_printed');
+        expect(xml).not.toContain('PAGEREF subject_empty');
+        expect(xml).not.toContain('PAGEREF subject_withdrawn');
+    });
+});
+
 describe('MinutesDocx decision number', () => {
     it('renders decisionNumber, not protocolNumber', async () => {
         const text = await docxText(makeMinutesData({

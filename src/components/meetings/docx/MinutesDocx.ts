@@ -35,6 +35,16 @@ const FONT_SIZE = {
 const HEADER_FONT_SIZE = 16; // 8pt
 const HEADER_COLOR = '888888';
 
+/**
+ * Whether the body prints a section for the subject. A withdrawn subject and a
+ * subject with nothing to print appear in the TOC only, so their bookmark does
+ * not exist and a page reference to it would print an error in Word.
+ */
+function hasSubjectSection(subject: MinutesSubject): boolean {
+    if (subject.withdrawn) return false;
+    return subject.transcriptEntries.length > 0 || subject.preDiscussionEntries.length > 0 || Boolean(subject.decision) || Boolean(subject.voteResult);
+}
+
 /** Bookmark IDs must be alphanumeric + underscores */
 function subjectBookmarkId(subject: MinutesSubject): string {
     return `subject_${subject.subjectId.replace(/[^a-zA-Z0-9]/g, '_')}`;
@@ -522,15 +532,16 @@ function createTOCTable(subjects: MinutesSubject[], useSequentialNumbers: boolea
                 tocCell(seqNum, false),
                 tocCell(subject.name, false),
                 tocCell(decisionText, false),
-                // No page reference for withdrawn subjects (no subject block to link to)
-                subject.withdrawn
-                    ? tocCell('', false)
-                    : new TableCell({
+                hasSubjectSection(subject)
+                    ? new TableCell({
                         children: [new Paragraph({
                             spacing: { before: 40, after: 40 },
-                            children: [new PageReference(subjectBookmarkId(subject))],
+                            // `\h` makes the page number a link to the subject. LibreOffice
+                            // links every page reference; Word links only one with `\h`.
+                            children: [new PageReference(subjectBookmarkId(subject), { hyperlink: true })],
                         })],
-                    }),
+                    })
+                    : tocCell('', false),
             ],
         });
     });
@@ -788,11 +799,9 @@ export async function renderMinutesDocx(data: MinutesData): Promise<Blob> {
         children.push(...createTranscriptParagraphs(data.preambleEntries));
     }
 
-    // All subjects in discussion order (skip withdrawn and empty — they appear in TOC only)
+    // All subjects in discussion order
     for (const subject of data.subjects) {
-        if (subject.withdrawn) continue;
-        const hasContent = subject.transcriptEntries.length > 0 || subject.preDiscussionEntries.length > 0 || subject.decision || subject.voteResult;
-        if (!hasContent) continue;
+        if (!hasSubjectSection(subject)) continue;
         children.push(...createSubjectSection(subject));
     }
 
