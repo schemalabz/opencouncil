@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Check, Copy, Instagram, Link2, Loader2, Share2 } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Link2, Loader2, Share2 } from 'lucide-react';
+import { SiInstagram } from 'react-icons/si';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -106,7 +107,7 @@ export function ContentShareDialog({ open, onOpenChange, title, description, url
                         </DropdownMenuContent>
                     </DropdownMenu>}
                 </div>
-                {storyImageUrl && <Button variant="outline" className="min-h-11 w-full gap-2 rounded-full font-medium" onClick={() => setMode('story')}><Instagram className="size-4" />{t('storyTitle')}</Button>}
+                {storyImageUrl && <Button variant="outline" className="min-h-11 w-full gap-2 rounded-full font-medium" onClick={() => setMode('story')}><SiInstagram className="size-4" aria-hidden />{t('storyTitle')}</Button>}
                 <Button className="h-auto min-h-11 w-full gap-2 whitespace-normal rounded-full px-3 py-2.5 text-sm font-normal text-muted-foreground hover:text-foreground" variant="ghost" disabled={shareDisabled} onClick={() => copy('text')}>
                     {statusIcon('text')}{copied === 'text' ? t('copied') : copyTextLabel}
                 </Button>

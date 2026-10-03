@@ -2,7 +2,9 @@
 
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Github, Linkedin, Mail, MapPin, Rocket, Twitter } from 'lucide-react'
+import { Mail, MapPin, Rocket } from 'lucide-react'
+import { SiGithub, SiX } from 'react-icons/si'
+import { FaLinkedin } from 'react-icons/fa6'
 import { useTranslations } from 'next-intl'
 import type { Realm } from '@prisma/client'
 import type { GitHubStats } from '@/lib/github'
@@ -65,12 +67,12 @@ export default function TeamSection({ githubStats, realm }: TeamSectionProps) {
                             <span className="hidden gap-2.5 md:flex">
                                 {person.socials.twitter && (
                                     <a href={person.socials.twitter} target="_blank" rel="noopener noreferrer" aria-label="X" className="text-muted-foreground/50 transition-colors hover:text-foreground">
-                                        <Twitter className="h-3.5 w-3.5" />
+                                        <SiX className="h-3.5 w-3.5" aria-hidden />
                                     </a>
                                 )}
                                 {person.socials.linkedin && (
                                     <a href={person.socials.linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-muted-foreground/50 transition-colors hover:text-foreground">
-                                        <Linkedin className="h-3.5 w-3.5" />
+                                        <FaLinkedin className="h-3.5 w-3.5" aria-hidden />
                                     </a>
                                 )}
                                 {person.socials.email && (
@@ -87,7 +89,7 @@ export default function TeamSection({ githubStats, realm }: TeamSectionProps) {
                     <motion.div {...revealDelayed(0)} className={card}>
                         <div className="flex flex-1 flex-col gap-2 p-[22px]">
                             <h3 className={cardTitle}>
-                                <Github className={cardIcon} strokeWidth={1.9} aria-hidden />
+                                <SiGithub className={cardIcon} aria-hidden />
                                 {t('openSource.title')}
                             </h3>
                             <p className="text-sm leading-relaxed text-muted-foreground">{t('openSource.description')}</p>
