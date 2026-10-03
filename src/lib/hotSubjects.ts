@@ -57,6 +57,21 @@ async function meetingsFor(
 }
 
 /**
+ * A window's meetings off the uncached query, for callers that run inside
+ * createCache — unstable_cache must never nest.
+ */
+function uncachedWindowMeetings(
+    cityId: string,
+    { administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter,
+): Promise<Meeting[]> {
+    return meetingsFor({ months }, window =>
+        getCouncilMeetingsForCity(cityId, {
+            includeUnreleased: false, ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+        }),
+    );
+}
+
+/**
  * Every subject of the given meetings, minus the ones that cannot be "hot".
  *
  * A withdrawn subject was pulled before it could be discussed, so it never
@@ -132,14 +147,9 @@ export async function getRecentHotSubjects(
  */
 export async function computeRecentHotSubjects(
     cityId: string,
-    { limit, administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter & { limit: number }
+    { limit, ...filter }: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
-    const meetings = await meetingsFor({ months }, window =>
-        getCouncilMeetingsForCity(cityId, {
-            includeUnreleased: false, ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
-        }),
-    );
-    return rankSubjectsOf(meetings, limit);
+    return rankSubjectsOf(await uncachedWindowMeetings(cityId, filter), limit);
 }
 
 async function rankSubjectsNearPoint(
@@ -171,15 +181,10 @@ async function rankSubjectsNearPoint(
 async function computeHotSubjectsNearGeohash(
     cityId: string,
     geohash: string,
-    { limit, administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter & { limit: number }
+    { limit, ...filter }: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
-    // Called inside the cached wrapper below — use the uncached meetings query so
-    // we don't nest unstable_cache calls.
-    const meetings = await meetingsFor({ months }, window =>
-        getCouncilMeetingsForCity(cityId, {
-            includeUnreleased: false, ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
-        }),
-    );
+    // Called inside the cached wrapper below.
+    const meetings = await uncachedWindowMeetings(cityId, filter);
     try {
         return await rankSubjectsNearPoint(meetings, decodeGeohashToCenter(geohash), GEO_RADIUS_METERS, limit);
     } catch (error) {
