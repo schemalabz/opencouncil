@@ -279,6 +279,21 @@ function sanitizeSeedUser(
 }
 
 /**
+ * Delete the given Location rows that nothing points at any more.
+ *
+ * A preference's places are its own rows: saveNotificationPreferences creates
+ * fresh ones on every save. Once a preference lets go of one, by a save that
+ * drops it or by its own deletion, the reader's address must be gone, not
+ * just unlinked. A row that a subject or another preference still uses stays.
+ */
+async function deleteUnusedLocations(tx: Prisma.TransactionClient, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await tx.location.deleteMany({
+        where: { id: { in: ids }, subjects: { none: {} }, notificationPreferences: { none: {} } },
+    });
+}
+
+/**
  * Create or update notification preferences
  */
 export async function saveNotificationPreferences(data: OnboardingData & {
@@ -450,10 +465,18 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 await tx.user.update({ where: { id: userId }, data: { notifyByPhone } });
             }
 
-            const existing = await tx.notificationPreference.findUnique({
-                where: { userId_cityId: { userId, cityId } },
-                select: { id: true },
-            });
+            // Locked, as deleteNotificationPreference locks it: a save and a delete of
+            // the same preference run one after the other, so neither leaves the
+            // other's places behind.
+            const [locked] = await tx.$queryRaw<{ id: string }[]>`
+                SELECT id FROM "NotificationPreference" WHERE "userId" = ${userId} AND "cityId" = ${cityId} FOR UPDATE
+            `;
+            const existing = locked
+                ? await tx.notificationPreference.findUnique({
+                      where: { id: locked.id },
+                      select: { id: true, locations: { select: { id: true } } },
+                  })
+                : null;
 
             if (existing) {
                 // Replace the connections wholesale: clear, then reconnect.
@@ -466,6 +489,8 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                     data: { locations: locationConnect, interests: interestConnect, ...channels },
                     include: { city: true, locations: true, interests: true },
                 });
+                // The places this save replaced, removed ones included.
+                await deleteUnusedLocations(tx, existing.locations.map((location) => location.id));
                 return { preference: updated, wasNew: false };
             }
 
@@ -1406,18 +1431,27 @@ export async function setNotifyByPhoneForUser(userId: string, enabled: boolean):
 export async function deleteNotificationPreference(preferenceId: string, userId: string) {
     await requireSelfOrSuperadmin(userId);
     try {
-        // Verify this preference belongs to the user
-        const preference = await prisma.notificationPreference.findUnique({
-            where: { id: preferenceId }
-        });
+        // Delete the preference, and with it the reader's places. The row is
+        // locked before its places are read, as saveNotificationPreferences locks
+        // it, so a save in another tab cannot add places this delete misses.
+        await prisma.$transaction(async (tx) => {
+            const [locked] = await tx.$queryRaw<{ id: string }[]>`
+                SELECT id FROM "NotificationPreference" WHERE id = ${preferenceId} FOR UPDATE
+            `;
+            const preference = locked
+                ? await tx.notificationPreference.findUnique({
+                      where: { id: preferenceId },
+                      include: { locations: { select: { id: true } } },
+                  })
+                : null;
 
-        if (!preference || preference.userId !== userId) {
-            throw new NotFoundError('Notification preference not found');
-        }
+            // Verify this preference belongs to the user
+            if (!preference || preference.userId !== userId) {
+                throw new NotFoundError('Notification preference not found');
+            }
 
-        // Delete the preference
-        await prisma.notificationPreference.delete({
-            where: { id: preferenceId }
+            await tx.notificationPreference.delete({ where: { id: preferenceId } });
+            await deleteUnusedLocations(tx, preference.locations.map((location) => location.id));
         });
 
         return { success: true };
