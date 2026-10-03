@@ -57,6 +57,21 @@ async function meetingsFor(
 }
 
 /**
+ * A window's meetings off the uncached query, for callers that run inside
+ * createCache — unstable_cache must never nest.
+ */
+function uncachedWindowMeetings(
+    cityId: string,
+    { administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter,
+): Promise<Meeting[]> {
+    return meetingsFor({ months }, window =>
+        getCouncilMeetingsForCity(cityId, {
+            includeUnreleased: false, ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
+        }),
+    );
+}
+
+/**
  * Every subject of the given meetings, minus the ones that cannot be "hot".
  *
  * A withdrawn subject was pulled before it could be discussed, so it never
@@ -132,14 +147,9 @@ export async function getRecentHotSubjects(
  */
 export async function computeRecentHotSubjects(
     cityId: string,
-    { limit, administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter & { limit: number }
+    { limit, ...filter }: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
-    const meetings = await meetingsFor({ months }, window =>
-        getCouncilMeetingsForCity(cityId, {
-            includeUnreleased: false, ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
-        }),
-    );
-    return rankSubjectsOf(meetings, limit);
+    return rankSubjectsOf(await uncachedWindowMeetings(cityId, filter), limit);
 }
 
 async function rankSubjectsNearPoint(
@@ -171,15 +181,10 @@ async function rankSubjectsNearPoint(
 async function computeHotSubjectsNearGeohash(
     cityId: string,
     geohash: string,
-    { limit, administrativeBodyTypes, administrativeBodyIds, months }: BodyFilter & { limit: number }
+    { limit, ...filter }: BodyFilter & { limit: number }
 ): Promise<HotSubject[]> {
-    // Called inside the cached wrapper below — use the uncached meetings query so
-    // we don't nest unstable_cache calls.
-    const meetings = await meetingsFor({ months }, window =>
-        getCouncilMeetingsForCity(cityId, {
-            includeUnreleased: false, ...window, administrativeBodyTypes, administrativeBodyIds, timeFilter: 'past',
-        }),
-    );
+    // Called inside the cached wrapper below.
+    const meetings = await uncachedWindowMeetings(cityId, filter);
     try {
         return await rankSubjectsNearPoint(meetings, decodeGeohashToCenter(geohash), GEO_RADIUS_METERS, limit);
     } catch (error) {
@@ -199,29 +204,41 @@ async function computeHotSubjectsNearGeohash(
  * but with a caller-chosen center and radius.
  *
  * The result itself is not cached (the coordinate space is unbounded), but the
- * meetings come from the cached public query — unlike the geohash variant,
- * which must use the uncached one because it runs inside createCache.
+ * meetings are: the recent window off the cached public query, and a period
+ * under its own entry per city and period.
  *
- * Alongside the ranked subjects, reports the scan bound — how many recent
- * meetings were considered and the oldest one's date — because the window is a
- * meeting *count* (HOT_MEETING_WINDOW), which spans days for a busy council
- * and months for a quiet one. Consumers publishing an empty result must say
+ * The window is the last {@link HOT_MEETING_WINDOW} meetings, or, with
+ * `months`, the period the city page ranks over, with the same fallback to the
+ * most recent meetings when the period holds none.
+ *
+ * Alongside the ranked subjects, reports the scan bound — how many meetings
+ * were considered and the oldest one's date — because a meeting count spans
+ * days for a busy council and months for a quiet one, and a fallback reaches
+ * back past the period. Consumers publishing an empty result must say
  * "nothing since {oldestMeetingDate}", not "nothing". Query failures propagate.
  */
 export async function getHotSubjectsNearPoint(
     cityId: string,
     center: [number, number],
     radiusMeters: number,
-    limit: number
+    limit: number,
+    { months }: Pick<BodyFilter, 'months'> = {}
 ): Promise<{
     subjects: HotSubject[];
     meetingsScanned: number;
     /** A string rather than a Date when the meetings come off a cache hit. */
     oldestMeetingDate: Date | string | null;
 }> {
-    const meetings = await getCouncilMeetingsForCityPublicCached(cityId, {
-        limit: HOT_MEETING_WINDOW, timeFilter: 'past',
-    });
+    const meetings = months
+        ? await createCache(
+              () => uncachedWindowMeetings(cityId, { months }),
+              // `months`, not the date it resolves to: that date moves with `now`,
+              // so keying on it would give every lookup its own entry. The TTL
+              // bounds the drift, as it does for the city page's cards.
+              ['city', cityId, 'hotPeriodMeetings', `months:${months}`],
+              { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`], revalidate: 900 },
+          )()
+        : await getCouncilMeetingsForCityPublicCached(cityId, { limit: HOT_MEETING_WINDOW, timeFilter: 'past' });
     const subjects = await rankSubjectsNearPoint(meetings, center, radiusMeters, limit);
     return {
         subjects,

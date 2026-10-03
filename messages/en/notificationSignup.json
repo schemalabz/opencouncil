@@ -15,15 +15,56 @@
   "alreadySubscribedBody": "You are already on the list. The next steps change what concerns you and where he writes.",
   "ctaStart": "Send me updates",
   "ctaContinue": "Continue",
+  "ctaContinueWithoutPlace": "Continue without an area",
   "ctaSubmit": "Sign up",
   "ctaSubmitting": "Saving…",
-  "preferencesTitle": "What concerns you?",
-  "preferencesLead": "Pick places and topics. You can change them any time.",
-  "locationsEyebrow": "Places",
-  "locationsHint": "Your home, your work, a neighbourhood.",
-  "mapEmpty": "Your places will show here.",
-  "topicsEyebrow": "Topics",
-  "topicsHint": "Optional — they help Notis choose.",
+  "preferencesTitle": "Which areas matter to you?",
+  "preferencesLead": {
+    "municipality": "Home, work, or any other place in the municipality. Notis writes when something happens nearby.",
+    "region": "Home, work, or any other place in the region. Notis writes when something happens nearby."
+  },
+  "places": {
+    "searchLabel": {
+      "municipality": "Search for an area in {qualifier}",
+      "region": "Search for an area in {qualifier}"
+    },
+    "placeholder": "Street, square or area…",
+    "clear": "Clear search",
+    "privacy": "A street, an area or an address is enough. You can remove it any time.",
+    "locate": "My current location",
+    "locating": "Finding your location…",
+    "addAnother": "Another area — work, school, family",
+    "remove": "Remove {place}",
+    "mapHint": "Pick an area to see what was discussed nearby.",
+    "noResults": {
+      "municipality": "No match for “{query}” in {qualifier}. Try a street or a square.",
+      "region": "No match for “{query}” in {qualifier}. Try a street or a square."
+    },
+    "searchFailed": "Search is not responding right now. Try again in a moment.",
+    "locateDenied": "Location access was not allowed. Search for the area above.",
+    "locateFailed": "Your location could not be found. Search for the area above.",
+    "locateOutside": {
+      "municipality": "Your location is outside {qualifier}. Search for the area above.",
+      "region": "Your location is outside {qualifier}. Search for the area above."
+    }
+  },
+  "nearby": {
+    "eyebrow": "Recently nearby",
+    "eyebrowOlder": "Earlier, nearby",
+    "empty": "Nothing nearby in the latest meetings. Notis will write when something comes up.",
+    "emptySince": "Nothing discussed nearby in the meetings since {date}. Notis will write when something comes up.",
+    "newTab": " (opens in a new tab)"
+  },
+  "topics": {
+    "title": "Topics you care about",
+    "hint": "Optional — they help Notis choose",
+    "choose": "Choose",
+    "change": "Change",
+    "selected": "{count} chosen",
+    "clear": "Clear",
+    "close": "Close topics",
+    "footer": "Optional. With none chosen, Notis decides on his own."
+  },
   "channelsTitle": "Where should we write?",
   "channelsLead": "On your phone, by email, or both.",
   "phoneChannel": "WhatsApp or SMS",

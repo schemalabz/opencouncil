@@ -37,7 +37,6 @@
         "meetingNavigation": "Πλοήγηση συνεδρίασης",
         "searchAddressInMunicipality": "Αναζητήστε διεύθυνση στον δήμο {cityName}",
         "searchAddressPlaceholder": "Αναζητήστε διεύθυνση στον δήμο {cityName}...",
-        "addNewLocation": "Προσθέστε νέα τοποθεσία",
         "selectedLocationsCount": "Επιλεγμένες τοποθεσίες ({count})",
         "remove": "Αφαίρεση",
         "removeShort": "Αφαίρ.",

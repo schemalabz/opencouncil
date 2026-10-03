@@ -355,6 +355,54 @@ describe('getHotSubjectsNearPoint', () => {
     });
 });
 
+describe('getHotSubjectsNearPoint over a period', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockCacheKeys.length = 0;
+        mockGetDiscussionSecondsForSubjects.mockResolvedValue(new Map());
+        mockFilterLocationIdsWithinRadius.mockResolvedValue(['loc-in']);
+    });
+
+    it('keeps the recent-meetings window when no period is given', async () => {
+        mockGetCouncilMeetingsForCityPublicCached.mockResolvedValue([]);
+
+        await getHotSubjectsNearPoint('athens', CENTER, 1000, 10);
+
+        expect(mockGetCouncilMeetingsForCityPublicCached.mock.calls[0][1]).toEqual({ limit: 8, timeFilter: 'past' });
+        expect(mockGetCouncilMeetingsForCity).not.toHaveBeenCalled();
+    });
+
+    it('reads a period like the city page, cached per city and period rather than per date', async () => {
+        mockGetCouncilMeetingsForCity.mockResolvedValue([
+            meeting('m1', new Date('2026-08-01T18:00:00Z'), [{ id: 'inRadius', locationId: 'loc-in' }]),
+        ]);
+
+        const { subjects } = await getHotSubjectsNearPoint('athens', CENTER, 1000, 10, { months: 3 });
+
+        expect(mockCacheKeys).toEqual([['city', 'athens', 'hotPeriodMeetings', 'months:3']]);
+        expect(mockGetCouncilMeetingsForCityPublicCached).not.toHaveBeenCalled();
+        const [, options] = mockGetCouncilMeetingsForCity.mock.calls[0];
+        expect(options?.from).toBeInstanceOf(Date);
+        expect(options).toMatchObject({ includeUnreleased: false, timeFilter: 'past' });
+        expect(subjects.map(s => s.subject.id)).toEqual(['inRadius']);
+    });
+
+    it('falls back to the most recent meetings when the period holds none, and reports how far back it went', async () => {
+        mockGetCouncilMeetingsForCity
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([
+                meeting('old', new Date('2026-01-11T18:00:00Z'), [{ id: 'inRadius', locationId: 'loc-in' }]),
+            ]);
+
+        const { subjects, oldestMeetingDate } = await getHotSubjectsNearPoint('athens', CENTER, 1000, 10, { months: 3 });
+
+        expect(mockGetCouncilMeetingsForCity).toHaveBeenCalledTimes(2);
+        expect(mockGetCouncilMeetingsForCity.mock.calls[1][1]).toEqual({ includeUnreleased: false, limit: 8, timeFilter: 'past' });
+        expect(subjects.map(s => s.subject.id)).toEqual(['inRadius']);
+        expect(oldestMeetingDate).toEqual(new Date('2026-01-11T18:00:00Z'));
+    });
+});
+
 describe('withDistances', () => {
     beforeEach(() => {
         jest.clearAllMocks();

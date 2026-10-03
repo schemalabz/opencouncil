@@ -15,15 +15,56 @@
   "alreadySubscribedBody": "Vous êtes déjà inscrit. Les prochaines étapes modifient ce qui vous concerne et où il écrit.",
   "ctaStart": "Je veux des alertes",
   "ctaContinue": "Continuer",
+  "ctaContinueWithoutPlace": "Continuer sans lieu",
   "ctaSubmit": "S'inscrire",
   "ctaSubmitting": "Enregistrement…",
-  "preferencesTitle": "Qu'est-ce qui vous concerne ?",
-  "preferencesLead": "Choisissez des lieux et des thèmes. Vous pourrez les changer à tout moment.",
-  "locationsEyebrow": "Lieux",
-  "locationsHint": "Votre domicile, votre travail, un quartier.",
-  "mapEmpty": "Vos lieux apparaîtront ici.",
-  "topicsEyebrow": "Thèmes",
-  "topicsHint": "Facultatif — ils aident Notis à choisir.",
+  "preferencesTitle": "Quels lieux comptent pour vous ?",
+  "preferencesLead": {
+    "municipality": "Votre domicile, votre travail, ou tout autre lieu de la commune. Notis vous écrit quand quelque chose se passe tout près.",
+    "region": "Votre domicile, votre travail, ou tout autre lieu de la région. Notis vous écrit quand quelque chose se passe tout près."
+  },
+  "places": {
+    "searchLabel": {
+      "municipality": "Rechercher un lieu à {qualifier}",
+      "region": "Rechercher un lieu en {qualifier}"
+    },
+    "placeholder": "Rue, place ou lieu…",
+    "clear": "Effacer la recherche",
+    "privacy": "Une rue, un secteur ou une adresse suffit. Vous pouvez le retirer à tout moment.",
+    "locate": "Ma position actuelle",
+    "locating": "Localisation…",
+    "addAnother": "Un autre lieu — travail, école, famille",
+    "remove": "Retirer {place}",
+    "mapHint": "Choisissez un lieu pour voir ce qui a été discuté tout près.",
+    "noResults": {
+      "municipality": "Aucun résultat pour « {query} » à {qualifier}. Essayez une rue ou une place.",
+      "region": "Aucun résultat pour « {query} » en {qualifier}. Essayez une rue ou une place."
+    },
+    "searchFailed": "La recherche ne répond pas pour le moment. Réessayez dans un instant.",
+    "locateDenied": "L’accès à votre position n’a pas été autorisé. Recherchez le lieu ci-dessus.",
+    "locateFailed": "Votre position est introuvable. Recherchez le lieu ci-dessus.",
+    "locateOutside": {
+      "municipality": "Votre position est en dehors de {qualifier}. Recherchez le lieu ci-dessus.",
+      "region": "Votre position est en dehors de la région {qualifier}. Recherchez le lieu ci-dessus."
+    }
+  },
+  "nearby": {
+    "eyebrow": "Récemment tout près",
+    "eyebrowOlder": "Plus tôt, tout près",
+    "empty": "Rien tout près lors des dernières séances. Notis vous écrira quand quelque chose arrivera.",
+    "emptySince": "Rien de discuté tout près lors des séances depuis le {date}. Notis vous écrira quand quelque chose arrivera.",
+    "newTab": " (s’ouvre dans un nouvel onglet)"
+  },
+  "topics": {
+    "title": "Thèmes qui vous intéressent",
+    "hint": "Facultatif — ils aident Notis à choisir",
+    "choose": "Choisir",
+    "change": "Modifier",
+    "selected": "{count, plural, one {# choisi} other {# choisis}}",
+    "clear": "Effacer",
+    "close": "Fermer les thèmes",
+    "footer": "Facultatif. Sans choix, Notis décide lui-même."
+  },
   "channelsTitle": "Où vous écrire ?",
   "channelsLead": "Sur votre mobile, par e-mail, ou les deux.",
   "phoneChannel": "WhatsApp ou SMS",

@@ -1,17 +1,14 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, MapPin, AlertCircle, Loader2, Plus } from 'lucide-react';
+import { X, MapPin, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Location } from '@/lib/types/onboarding';
-import { getPlaceSuggestions, getPlaceDetails, PlaceSuggestion, PlaceSuggestionsResult } from '@/lib/google-maps';
-import { useDebounce } from '@/hooks/use-debounce';
+import { PlaceSuggestion } from '@/lib/google-maps';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
-import { calculateGeometryBounds } from '@/lib/geo';
-import { getRealmGeocoding } from '@/lib/realm';
 import { CityWithGeometry } from '@/lib/db/cities';
+import { useLocationSearch, type LocationSearchError } from './useLocationSearch';
 
 interface LocationSelectorProps {
     selectedLocations: Location[];
@@ -20,14 +17,6 @@ interface LocationSelectorProps {
     city: CityWithGeometry;
     onLocationClick?: (location: Location) => void;
     hideSelectedList?: boolean;
-    /**
-     * When true, once at least one location has been added the search input is
-     * collapsed into an "add a new location" button, making the
-     * "you can add more than one" affordance explicit. Opt-in so the shared
-     * consultations usages (LocationNavigator, LayerControlsPanel) keep their
-     * always-visible search input. Defaults to false.
-     */
-    collapseAfterAdd?: boolean;
 }
 
 export function LocationSelector({
@@ -37,176 +26,45 @@ export function LocationSelector({
     city,
     onLocationClick,
     hideSelectedList = false,
-    collapseAfterAdd = false
 }: LocationSelectorProps) {
     const t = useTranslations('Common');
-    const [inputValue, setInputValue] = useState('');
-    // When collapseAfterAdd is enabled, start collapsed if the user already has
-    // locations (e.g. re-entering the step via back navigation).
-    const [isSearchVisible, setIsSearchVisible] = useState(
-        () => !(collapseAfterAdd && selectedLocations.length > 0)
-    );
-    const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
-    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-    const [isSelectingLocation, setIsSelectingLocation] = useState(false);
-    const [isWaitingForDebounce, setIsWaitingForDebounce] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const search = useLocationSearch(city);
+    const { inputValue, suggestions, isSelecting: isSelectingLocation } = search;
 
-    // Debounce the input value to avoid making too many API calls
-    const debouncedInputValue = useDebounce(inputValue, 300);
-
-    // Helper function to get user-friendly error messages
-    const getErrorMessage = useCallback((result: PlaceSuggestionsResult, searchQuery: string): string => {
-        if (!result.error) {
-            // No API error, just empty results
-            return t('locationSearchNoResults', { query: searchQuery, cityName: city.name });
-        }
-
-        // Handle different types of API errors
-        if (result.error.type === 'API_ERROR') {
-            if (result.error.status === 'REQUEST_DENIED') {
+    const errorMessage = (error: LocationSearchError): string => {
+        switch (error.kind) {
+            case 'noResults':
+                return t('locationSearchNoResults', { query: error.query, cityName: city.name });
+            case 'unavailable':
                 return t('locationSearchUnavailable');
-            } else if (result.error.status === 'OVER_QUERY_LIMIT') {
+            case 'limitExceeded':
                 return t('locationSearchLimitExceeded');
-            } else {
-                return t('locationSearchApiError', { status: result.error.status ?? '' });
-            }
-        } else if (result.error.type === 'NETWORK_ERROR') {
-            return t('locationSearchNetworkError');
-        }
-
-        return t('locationSearchGenericError');
-    }, [city.name, t]);
-
-    // Fetch place suggestions from the Google API
-    useEffect(() => {
-        async function fetchSuggestions() {
-            // Reset error state
-            setError(null);
-
-            if (debouncedInputValue.trim().length > 2) {
-                setIsWaitingForDebounce(false); // No longer waiting, now actually fetching
-                setIsLoadingSuggestions(true);
-                try {
-                    // Extract city center coordinates from geometry if available
-                    let cityCoordinates: [number, number] | undefined;
-
-                    if (city.geometry) {
-                        // Calculate center from city geometry
-                        const { center } = calculateGeometryBounds(city.geometry);
-                        cityCoordinates = center;
-                    }
-
-                    // Pass the city name and coordinates to restrict suggestions to this
-                    // municipality, plus the realm's country/language so a French city
-                    // searches French addresses (not Greek ones).
-                    const result = await getPlaceSuggestions(
-                        debouncedInputValue,
-                        city.name,
-                        cityCoordinates,
-                        getRealmGeocoding(city.realm)
-                    );
-
-                    setSuggestions(result.data);
-
-                    // Show error if there's an API error or no results for longer queries
-                    if (result.error || (result.data.length === 0 && debouncedInputValue.trim().length > 3)) {
-                        setError(getErrorMessage(result, debouncedInputValue));
-                    }
-                } catch (error) {
-                    console.error('Unexpected error fetching place suggestions:', error);
-                    setError(t('locationSearchGenericError'));
-                } finally {
-                    setIsLoadingSuggestions(false);
-                    // Don't refocus on mobile - it causes the keyboard to dismiss
-                }
-            } else {
-                setIsWaitingForDebounce(false);
-                setSuggestions([]);
-            }
-        }
-
-        fetchSuggestions();
-    }, [debouncedInputValue, city.name, city.geometry, city.realm, getErrorMessage, t]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
-        setInputValue(newValue);
-        setError(null); // Clear any error when input changes
-
-        // Show loading immediately if input is long enough (will trigger search after debounce)
-        if (newValue.trim().length > 2) {
-            setIsWaitingForDebounce(true);
-        } else {
-            setIsWaitingForDebounce(false);
-            setSuggestions([]);
+            case 'apiError':
+                return t('locationSearchApiError', { status: error.status });
+            case 'network':
+                return t('locationSearchNetworkError');
+            case 'generic':
+                return t('locationSearchGenericError');
+            case 'detailsUnavailable':
+                return t('locationDetailsUnavailable');
+            case 'detailsError':
+                return t('locationDetailsError');
         }
     };
+    const error = search.error ? errorMessage(search.error) : null;
 
     const handleSelectLocation = async (suggestion: PlaceSuggestion) => {
-        if (isSelectingLocation) return;
-
-        setIsSelectingLocation(true);
-        setError(null);
-
-        try {
-            const placeDetails = await getPlaceDetails(suggestion.placeId, getRealmGeocoding(city.realm).language);
-
-            if (placeDetails) {
-                const location: Location = {
-                    text: placeDetails.text,
-                    coordinates: placeDetails.coordinates
-                };
-
-                onSelect(location);
-                setInputValue('');
-                setSuggestions([]);
-                setIsWaitingForDebounce(false);
-                // Collapse the search back into the "add new location" button
-                // after a successful add, so the affordance is explicit.
-                if (collapseAfterAdd) {
-                    setIsSearchVisible(false);
-                }
-            } else {
-                setError(t('locationDetailsUnavailable'));
-            }
-        } catch (error) {
-            console.error('Error fetching place details:', error);
-            setError(t('locationDetailsError'));
-        } finally {
-            setIsSelectingLocation(false);
-        }
+        const location = await search.select(suggestion);
+        if (location) onSelect(location);
     };
-
-    // When collapseAfterAdd is on and there is at least one location, hide the
-    // search input behind a button until the user opts to add another.
-    const showAddButton = collapseAfterAdd && selectedLocations.length > 0 && !isSearchVisible;
 
     return (
         <div className="space-y-5">
-            {showAddButton ? (
-                <Button
-                    variant="outline"
-                    onClick={() => {
-                        setIsSearchVisible(true);
-                        // Focus the input once React has rendered the search box,
-                        // so the user can type without an extra tap. Safe here
-                        // because revealing is a deliberate user action.
-                        setTimeout(() => inputRef.current?.focus(), 0);
-                    }}
-                    className="w-full justify-center py-5 text-base md:text-sm touch-manipulation"
-                >
-                    <Plus className="h-5 w-5 md:h-4 md:w-4 mr-2" />
-                    {t('addNewLocation')}
-                </Button>
-            ) : (
             <div className="relative">
                 <div className="flex items-center gap-2">
                     <div className="relative flex-1">
                         <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                         <Input
-                            ref={inputRef}
                             type="text"
                             inputMode="search"
                             autoComplete="off"
@@ -215,12 +73,12 @@ export function LocationSelector({
                             data-form-type="other"
                             placeholder={t('searchAddressPlaceholder', { cityName: city.name })}
                             aria-label={t('searchAddressInMunicipality', { cityName: city.name })}
-                            className={`pl-10 py-5 text-base md:text-sm ${(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) ? 'pr-10' : ''}`}
+                            className={`pl-10 py-5 text-base md:text-sm ${search.busy ? 'pr-10' : ''}`}
                             value={inputValue}
-                            onChange={handleInputChange}
+                            onChange={(e) => search.changeInput(e.target.value)}
                             disabled={isSelectingLocation}
                         />
-                        {(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) && (
+                        {search.busy && (
                             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
                                 <Loader2 className="h-5 w-5 md:h-4 md:w-4 animate-spin text-primary" />
                             </div>
@@ -229,12 +87,7 @@ export function LocationSelector({
                     <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => {
-                            setInputValue('');
-                            setError(null);
-                            setIsWaitingForDebounce(false);
-                            setSuggestions([]);
-                        }}
+                        onClick={search.clear}
                         className={cn(
                             "transition-opacity h-11 w-11 md:h-10 md:w-10 touch-manipulation",
                             inputValue ? "opacity-100" : "opacity-0"
@@ -272,7 +125,6 @@ export function LocationSelector({
                     </div>
                 )}
             </div>
-            )}
 
             {!hideSelectedList && (selectedLocations.length > 0 ? (
                 <div className="mt-4">

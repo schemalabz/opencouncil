@@ -97,11 +97,11 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         expect(nPhone.deliveries.some((d) => d.medium === 'email' && d.status === 'pending')).toBeTruthy()
         expect(nPhone.deliveries.some((d) => d.medium === 'message')).toBeFalsy()
 
-        // far user: only generalInterest for B
+        // far user: picked no topic, so A counts by topic even though it is not near; B by general interest
         const nFar = byUser('far@example.com')
-        expect(nFar.subjects.length).toBe(1)
-        expect(nFar.subjects[0].subjectId).toBe(subjectB.id)
-        expect(nFar.subjects[0].reason).toBe('generalInterest')
+        expect(nFar.subjects).toHaveLength(2)
+        expect(nFar.subjects.some((s) => s.subjectId === subjectA.id && s.reason === 'topic')).toBeTruthy()
+        expect(nFar.subjects.some((s) => s.subjectId === subjectB.id && s.reason === 'generalInterest')).toBeTruthy()
 
         // interested not near: topic for A + generalInterest for B
         const nInterested = byUser('interested@example.com')

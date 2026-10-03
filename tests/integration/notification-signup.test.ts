@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import prisma from '@/lib/db/prisma'
 import {
+    deleteNotificationPreference,
     disableAllNotificationPreferences,
     getPhoneChannelState,
     saveNotificationPreferences,
@@ -139,5 +140,43 @@ describe('notification signup channel consent', () => {
         const rows = await prisma.notificationPreference.findMany({ where: { userId: admin.id } })
         expect(rows.map((r) => r.notifyByEmail)).toEqual([false, false])
         expect((await prisma.user.findUniqueOrThrow({ where: { id: admin.id } })).notifyByPhone).toBe(false)
+    })
+
+    test('a place the reader removes is deleted, not only unlinked', async () => {
+        const admin = await signInAsSuperAdmin()
+        const city = await createCity({ id: 'ns_places', supportsNotifications: true })
+        const home = { text: 'Ευαγγελιστρίας 12, Φηρά 847 00, Ελλάδα', coordinates: [25.4318, 36.4166] as [number, number] }
+        const work = { text: 'Καρτεράδος 847 00, Ελλάδα', coordinates: [25.44, 36.41] as [number, number] }
+
+        await saveNotificationPreferences({ cityId: city.id, locations: [home, work], topicIds: [] })
+        const before = await prisma.location.findMany({ select: { id: true, text: true } })
+        expect(before.map((l) => l.text).sort()).toEqual([work.text, home.text].sort())
+
+        await saveNotificationPreferences({ cityId: city.id, locations: [work], topicIds: [] })
+
+        const after = await prisma.location.findMany({ select: { text: true } })
+        expect(after.map((l) => l.text)).toEqual([work.text])
+        const preference = await prisma.notificationPreference.findUniqueOrThrow({
+            where: { userId_cityId: { userId: admin.id, cityId: city.id } },
+            include: { locations: true },
+        })
+        expect(preference.locations.map((l) => l.text)).toEqual([work.text])
+    })
+
+    test('deleting a preference deletes its places', async () => {
+        const admin = await signInAsSuperAdmin()
+        const city = await createCity({ id: 'ns_delete', supportsNotifications: true })
+        await saveNotificationPreferences({
+            cityId: city.id,
+            locations: [{ text: 'Φηρά 847 00, Ελλάδα', coordinates: [25.4318, 36.4166] }],
+            topicIds: [],
+        })
+        const preference = await prisma.notificationPreference.findUniqueOrThrow({
+            where: { userId_cityId: { userId: admin.id, cityId: city.id } },
+        })
+
+        await deleteNotificationPreference(preference.id, admin.id)
+
+        expect(await prisma.location.count()).toBe(0)
     })
 })

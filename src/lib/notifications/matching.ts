@@ -85,7 +85,16 @@ export async function matchUsersToSubjects(
 
                 if (isNearby) {
                     matches.add({ subjectId: subject.id, reason: 'proximity' });
+                    continue;
                 }
+            }
+
+            // Rule 5: A reader who picked no topic left the choice open: the
+            // signup calls topics optional hints, and its summary says «Όλα τα
+            // θέματα». Every normal-importance topic counts. Checked after
+            // proximity, so a subject near the reader keeps that reason.
+            if (topicImportance === 'normal' && subject.topicId && userPref.interests.length === 0) {
+                matches.add({ subjectId: subject.id, reason: 'topic' });
             }
         }
     }
