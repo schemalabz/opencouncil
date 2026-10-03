@@ -108,5 +108,28 @@
         "segmentCount": "{count, plural, one {# segment} other {# segments}}",
         "onlyThisSegment": "Modifier uniquement ce segment",
         "onlyThisSegmentHint": "{others, plural, one {L'autre segment de cet intervenant reste inchangé.} other {Les # autres segments de cet intervenant restent inchangés.}}"
+    },
+    "findReplace": {
+        "searchPlaceholder": "Rechercher",
+        "replacePlaceholder": "Remplacer",
+        "caseSensitive": "Respecter la casse",
+        "previous": "Précédent (Shift+Enter)",
+        "next": "Suivant (Enter)",
+        "close": "Fermer (Esc)",
+        "replaceOne": "Remplacer",
+        "replaceAll": "Tout",
+        "noResults": "0 résultat",
+        "counter": "{current} / {total}",
+        "confirmTitle": "Tout remplacer ?",
+        "confirmDescription": "{count} occurrences de « {search} » seront remplacées par « {replacement} ». Cette action ne peut pas être annulée.",
+        "confirmCancel": "Annuler",
+        "confirmReplace": "Tout remplacer",
+        "toastTitleSingular": "{count} occurrence remplacée",
+        "toastTitlePlural": "{count} occurrences remplacées",
+        "toastDescriptionSingular": "Dans {count} segment",
+        "toastDescriptionPlural": "Dans {count} segments",
+        "errorTitle": "Erreur",
+        "errorReplaceFailed": "Le remplacement a échoué",
+        "errorReplaceOneFailed": "Remplacement impossible"
     }
 }
