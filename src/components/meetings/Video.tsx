@@ -7,6 +7,7 @@ import { motion, useAnimation } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
+import { CaptionOverlay } from './CaptionOverlay';
 
 // MuxErrorCode.NETWORK_NOT_READY. playback-core reaches us as a transitive
 // dependency, so importing the enum would mean pinning it directly.
@@ -174,6 +175,7 @@ export const Video: React.FC<{ className?: string, expandable?: boolean, /** a s
                     onMouseLeave={() => setIsHovered(false)}
                 >
                     {renderVideoElement()}
+                    <CaptionOverlay />
                     <button
                         onClick={toggleExpand}
                         className="absolute top-2 right-2 p-1 bg-black bg-opacity-50 rounded-full z-10"
