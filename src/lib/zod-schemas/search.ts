@@ -1,10 +1,15 @@
 import { z } from 'zod';
+import { AdministrativeBodyType } from '@prisma/client';
 
 export const searchRequestSchema = z.object({
     query: z.string().min(1),
     cityIds: z.array(z.string()).optional(),
     personIds: z.array(z.string()).optional(),
     partyIds: z.array(z.string()).optional(),
+    adminBodyIds: z.array(z.string()).optional()
+        .describe('Restrict to subjects from meetings of these administrative bodies'),
+    adminBodyTypes: z.array(z.nativeEnum(AdministrativeBodyType)).optional()
+        .describe('Restrict to subjects from meetings of any administrative body of these types'),
     topicIds: z.array(z.string()).optional(),
     dateRange: z.object({
         start: z.string().datetime(),
