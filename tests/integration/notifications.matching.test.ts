@@ -74,7 +74,7 @@ describe('notifications matching - proximity and topics', () => {
         expect(wideMatches.get(u2.id)?.size).toBe(1)
     })
 
-    test('topic rules: normal requires interest; high notifies all; reasons are correct', async () => {
+    test('topic rules: normal requires interest or no topics at all; high notifies all; reasons are correct', async () => {
         const city = await createCity({ id: 'c2' })
         const verifyCity = await prisma.city.findUnique({ where: { id: city.id } })
         if (!verifyCity) throw new Error(`City ${city.id} was not found after creation`)
@@ -82,13 +82,18 @@ describe('notifications matching - proximity and topics', () => {
         const meeting = await createMeeting(city.id, { id: 'm2', administrativeBodyId: body.id })
 
         const topic = await createTopic('t1', { name: 'Transport', name_en: 'Transport' })
+        const otherTopic = await createTopic('t2', { name: 'Culture', name_en: 'Culture' })
         const subject = await createSubject(meeting.id, city.id, { id: 's2', topicId: topic.id })
 
         const interested = await createUser('u3@example.com')
         await createNotificationPreference({ userId: interested.id, cityId: city.id, topicIds: [topic.id] })
 
         const notInterested = await createUser('u4@example.com')
-        await createNotificationPreference({ userId: notInterested.id, cityId: city.id })
+        await createNotificationPreference({ userId: notInterested.id, cityId: city.id, topicIds: [otherTopic.id] })
+
+        // No topic picked: the choice is open, so every topic counts.
+        const noTopics = await createUser('u5@example.com')
+        await createNotificationPreference({ userId: noTopics.id, cityId: city.id })
 
         const subjects = [{ id: subject.id, topicId: topic.id, locationId: null }]
         const prefs = await prisma.notificationPreference.findMany({ where: { cityId: city.id }, include: { locations: true, interests: true } })
@@ -98,11 +103,12 @@ describe('notifications matching - proximity and topics', () => {
             interests: np.interests.map((t) => ({ id: t.id })),
         }))
 
-        // normal: only interested user
+        // normal: the interested reader and the reader with no topics
         const normalOverrides = { [subject.id]: { topicImportance: 'normal' as const, proximityImportance: 'none' as const } } as Record<string, { topicImportance: 'doNotNotify' | 'normal' | 'high'; proximityImportance: 'none' | 'near' | 'wide' }>
         const normalMatches = await matchUsersToSubjects(subjects as any, usersWithPreferences as any, normalOverrides)
         expect(Array.from(normalMatches.get(interested.id) ?? []).find((m) => m.subjectId === subject.id && m.reason === 'topic')).toBeTruthy()
         expect((normalMatches.get(notInterested.id)?.size ?? 0)).toBe(0)
+        expect(Array.from(normalMatches.get(noTopics.id) ?? []).find((m) => m.subjectId === subject.id && m.reason === 'topic')).toBeTruthy()
 
         // high: everyone; reason generalInterest
         const highOverrides = { [subject.id]: { topicImportance: 'high' as const, proximityImportance: 'none' as const } } as Record<string, { topicImportance: 'doNotNotify' | 'normal' | 'high'; proximityImportance: 'none' | 'near' | 'wide' }>
