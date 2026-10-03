@@ -5,7 +5,7 @@
 import { ImageResponse } from '@vercel/og';
 import type { Realm } from '@prisma/client';
 import type { ReactElement, ReactNode } from 'react';
-import { icons } from 'lucide-react';
+import { icons } from 'lucide';
 import { getTranslations } from 'next-intl/server';
 import { getMeetingDataForOG } from '@/lib/db/meetings';
 import { getCity, getPetitionedMapCitiesCached } from '@/lib/db/cities';
@@ -40,7 +40,7 @@ import { getPortraitData } from '@/lib/og/portrait';
 import { allIllustrated, getStaticIllustrations, getSubjectIllustrations, ILLUSTRATION_BOX } from '@/lib/og/illustration';
 import { ogCacheControl } from '@/lib/og/render';
 import { subjectOgElement } from '@/lib/og/subjectImage';
-import { topicGlyph } from '@/lib/og/topicIcon';
+import { OgIcon, topicGlyph } from '@/lib/og/topicIcon';
 import {
     OG, OgAvatar, OgBody, OgChip, OgChips, OgContextChip, OgEyebrow, OgFacts, OgFrame, OgHeader, OgHeadline,
     OgRow, OgStack, OgTile, OgTileGrid, OgTitle, ogUppercase,
@@ -196,7 +196,7 @@ const CityOGImage = async (cityId: string, locale: string, t: Translator) => {
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={seal} width={96} height={96} alt="" style={{ objectFit: 'contain' }} />
                             ) : (
-                                <icons.Landmark size={48} color={OG.MUTED} />
+                                <OgIcon node={icons.Landmark} size={48} color={OG.MUTED} />
                             )}
                         </div>
                         <div style={{ display: 'flex', marginTop: 24 }}><OgTitle size={60} maxWidth={560}>{getLocalizedName(city, locale)}</OgTitle></div>
@@ -266,7 +266,7 @@ const ConsultationOGImage = async (cityId: string, consultationId: string, local
                         <OgEyebrow text={t('consultation.keyTopics')} locale={locale} size={14} color={OG.MUTED} />
                         {chapters.slice(0, 4).map((chapter, i) => (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 16, border: `1px solid ${OG.BORDER}`, background: '#ffffff', padding: '16px 20px', fontSize: 20, color: OG.INK }}>
-                                <icons.ScrollText size={22} color={OG.MUTED} />
+                                <OgIcon node={icons.ScrollText} size={22} color={OG.MUTED} />
                                 <span style={{ whiteSpace: 'nowrap' }}>{storyPreview(localizeText(chapter.title ?? '', locale) || t('consultation.untitledChapter'), 34)}</span>
                             </div>
                         ))}
@@ -544,10 +544,9 @@ const ExplainOGImage = () => (
                 <OgStack gap={10} style={{ width: 420 }}>
                     <OgEyebrow text="Κεφάλαια" locale="el" size={14} color={OG.MUTED} />
                     {EXPLAIN_CHAPTERS.map(([icon, label]) => {
-                        const Glyph = icons[icon];
                         return (
                             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12, borderRadius: 16, border: `1px solid ${OG.BORDER}`, background: '#ffffff', padding: '16px 20px', fontSize: 20, color: OG.INK }}>
-                                <Glyph size={22} color={OG.ORANGE} />
+                                <OgIcon node={icons[icon]} size={22} color={OG.ORANGE} />
                                 <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
                             </div>
                         );
@@ -564,7 +563,7 @@ const SearchOGImage = (t: Translator) => (
         <div style={{ display: 'flex', flex: 1, flexDirection: 'column', justifyContent: 'center', gap: 28, padding: `0 ${OG.PAD}px ${OG.PAD}px` }}>
             <OgHeadline top={t('search.title')} bottom={t('search.subtitle')} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, width: 760, borderRadius: 9999, border: `1px solid ${OG.BORDER}`, background: '#ffffff', padding: '20px 28px' }}>
-                <icons.Search size={26} color={OG.MUTED} />
+                <OgIcon node={icons.Search} size={26} color={OG.MUTED} />
                 <span style={{ fontSize: 24, color: OG.MUTED }}>{t('search.placeholder')}</span>
             </div>
             <OgChips>
