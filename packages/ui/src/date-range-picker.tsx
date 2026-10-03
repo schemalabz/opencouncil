@@ -6,6 +6,7 @@ import { el } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "./lib/utils";
+import { addDayToRange } from "./lib/dateRange";
 import { Button } from "./button";
 import { Calendar } from "./calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
@@ -64,7 +65,7 @@ export function DateRangePicker({
                     mode="range"
                     defaultMonth={value?.from}
                     selected={value}
-                    onSelect={onChange}
+                    onSelect={(_, day) => onChange(addDayToRange(day, value))}
                     numberOfMonths={numberOfMonths}
                     disabled={disabled}
                 />

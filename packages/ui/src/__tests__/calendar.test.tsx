@@ -112,4 +112,25 @@ describe("DateRangePicker", () => {
         expect(ymd(range.from)).toEqual([2026, 9, 15])
         expect(ymd(range.to)).toEqual([2026, 9, 20])
     })
+
+    it("sets only the start on the first click", () => {
+        const onChange = jest.fn()
+        render(<DateRangePicker value={undefined} onChange={onChange} numberOfMonths={1} />)
+
+        fireEvent.click(screen.getByRole("button", { name: /Επιλέξτε περίοδο/ }))
+        const today = new Date()
+        fireEvent.click(dayButton(document.body, 10))
+        const range = onChange.mock.calls[0][0]
+        expect(ymd(range.from)).toEqual([today.getFullYear(), today.getMonth() + 1, 10])
+        expect(range.to).toBeUndefined()
+    })
+
+    it("clears a complete range on a click on its start", () => {
+        const onChange = jest.fn()
+        render(<DateRangePicker value={{ from: new Date(2026, 8, 15), to: new Date(2026, 8, 20) }} onChange={onChange} numberOfMonths={1} />)
+
+        fireEvent.click(screen.getByRole("button", { name: /15 Σεπ 2026/ }))
+        fireEvent.click(dayButton(document.body, 15))
+        expect(onChange).toHaveBeenCalledWith(undefined)
+    })
 })
