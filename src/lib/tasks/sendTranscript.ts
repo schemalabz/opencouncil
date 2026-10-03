@@ -95,7 +95,7 @@ export async function sendTranscriptToMunicipality(
         // Send email with attachment (first email as 'to', rest as 'cc')
         const [primaryEmail, ...ccEmails] = contactEmails;
         const result = await sendEmail({
-            from: 'OpenCouncil <operations@opencouncil.gr>',
+            from: 'operations',
             to: primaryEmail,
             cc: ccEmails.length > 0 ? ccEmails : undefined,
             subject,

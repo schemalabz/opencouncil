@@ -71,7 +71,7 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `RESEND_API_KEY` | API key for Resend email service. | Yes | - |
-| `AUTH_EMAIL_FROM` | Sender ("from") address for sign-in magic-link emails. For local dev, use a Resend test sender (see below). | No | `OpenCouncil <auth@opencouncil.gr>` |
+| `EMAIL_FROM_OVERRIDE` | Sender ("from") address for every email. When it is not set, each email uses its own `opencouncil.gr` mailbox, as `src/lib/email/senders.ts` defines. For local development, use a Resend test sender (see below). | No | - |
 | `BASIC_AUTH_USERNAME` | Username for basic auth protection. | No | - |
 | `BASIC_AUTH_PASSWORD` | Password for basic auth protection. | No | - |
 | `NEXTAUTH_SECRET` | Secret used by NextAuth.js to hash tokens, sign/encrypt cookies, and generate cryptographic keys. | Yes | - |
@@ -90,10 +90,10 @@ Every WhatsApp and SMS message to a reader belongs to the Notis service, which h
 
 Sign-in uses a magic link sent through [Resend](https://resend.com). Two things commonly trip up new contributors and self-hosters:
 
-1. **The default `from` domain isn't yours.** The default `AUTH_EMAIL_FROM` is `OpenCouncil <auth@opencouncil.gr>`. Resend only lets you send from a domain you've verified on your own account, so on a fork every sign-in fails with **HTTP 403**. To avoid verifying a domain, set `AUTH_EMAIL_FROM` to Resend's test sender:
+1. **The default sender domain is not yours.** Every email is sent from an `opencouncil.gr` mailbox. Resend sends only from a domain that you verified on your own account. On a fork, every send therefore fails with **HTTP 403**, and sign-in is the first one you see. To avoid verifying a domain, set `EMAIL_FROM_OVERRIDE` to the Resend test sender:
 
    ```
-   AUTH_EMAIL_FROM="OpenCouncil <onboarding@resend.dev>"
+   EMAIL_FROM_OVERRIDE="OpenCouncil <onboarding@resend.dev>"
    ```
 
 2. **Test mode only delivers to the account owner.** While using `onboarding@resend.dev` (or any unverified setup), Resend will only deliver to the email address that owns your API key. So **sign in with that same email** — e.g. the address you registered your Resend account with. Sending to placeholder domains like `example@example.com` is blocked and returns **HTTP 422**.

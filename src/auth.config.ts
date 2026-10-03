@@ -7,6 +7,7 @@ import { isTestUserEmail } from "./lib/dev/test-users"
 import { signInUrlForRequest } from "./lib/auth/signInUrl"
 import { localeForRequest } from "./lib/auth/requestLocale"
 import { devSessionCookieName } from "./lib/auth/sessionMirror"
+import { emailFrom } from "@/lib/email/senders"
 
 // In development, use port-specific session cookie names to allow multiple
 // instances on different ports to have independent sessions. Without this,
@@ -25,7 +26,7 @@ export default {
         },
     } : undefined,
     providers: [Resend({
-        from: env.AUTH_EMAIL_FROM,
+        from: emailFrom('auth'),
         apiKey: env.RESEND_API_KEY,
         sendVerificationRequest: async (params) => {
             const { identifier: to, provider, url, request } = params

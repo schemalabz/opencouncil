@@ -4,8 +4,6 @@ import { createHash } from 'crypto';
 import { sendEmailInBatches, type BatchEmailItem } from '@/lib/email/resend';
 import { getPendingDeliveries, updateDeliveryStatus } from '@/lib/db/notifications';
 
-const FROM_ADDRESS = 'OpenCouncil <notifications@opencouncil.gr>';
-
 // Derive the delivery row shape from the DB function — keeps us honest if the
 // include shape ever changes, without redeclaring the type.
 type PendingDelivery = Awaited<ReturnType<typeof getPendingDeliveries>>[number];
@@ -91,7 +89,7 @@ async function buildBatchEmailItem(delivery: PendingDelivery): Promise<BatchEmai
         return null;
     }
     return {
-        from: FROM_ADDRESS,
+        from: 'notifications',
         to: delivery.email,
         subject: delivery.title,
         html: delivery.body,
