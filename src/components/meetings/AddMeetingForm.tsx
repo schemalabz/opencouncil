@@ -249,7 +249,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
                                     disabled={(date) =>
                                         date < new Date("2000-01-01")
                                     }
-                                    initialFocus
+                                    autoFocus
                                     className="mb-2"
                                 />
                                 <FormDescription>
