@@ -475,6 +475,8 @@
     "skipCacheHint": "Le serveur de tâches met en cache les résultats d'extraction des PDF — ceci contourne ce cache",
     "title": "Décisions",
     "voteAbstain": "abstention",
+    "votePresent": "présent",
+    "voteDidNotVote": "non votant",
     "voteAgainst": "contre",
     "voteFor": "pour",
     "votes": "Vote",

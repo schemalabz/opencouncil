@@ -475,6 +475,8 @@
     "skipCacheHint": "The task server caches PDF extraction results — this bypasses that cache",
     "title": "Decisions",
     "voteAbstain": "abstain",
+    "votePresent": "present",
+    "voteDidNotVote": "did not vote",
     "voteAgainst": "against",
     "voteFor": "for",
     "votes": "Voting",

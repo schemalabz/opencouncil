@@ -473,6 +473,8 @@
         "skipCacheHint": "Сервер задатака кешира резултате издвајања из PDF докумената — ово заобилази тај кеш",
         "title": "Одлуке",
         "voteAbstain": "уздржан",
+        "votePresent": "присутан",
+        "voteDidNotVote": "није гласао",
         "voteAgainst": "против",
         "voteFor": "за",
         "votes": "Гласање",

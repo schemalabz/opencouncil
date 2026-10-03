@@ -20,8 +20,13 @@ export type VoteOutcomeCounts = Pick<VoteResultSummary, 'forCount' | 'againstCou
  * helpers to one surface. */
 type VoteTranslator = (key: string, values?: Record<string, string | number>) => string;
 
+/** The counts {@link voteCountsPhrase} reads: the outcome counts and the two declarations that are not votes. */
+export type VoteCounts = VoteOutcomeCounts & Pick<VoteResultSummary, 'presentCount' | 'didNotVoteCount'>;
+
 /**
- * The counts alone: "6 for", "8 for, 1 against", with the abstentions appended.
+ * The counts alone: "6 for", "8 for, 1 against", with the abstentions, the
+ * ΠΑΡΩΝ and the ΑΠΟΧΗ declarations appended — every count the subject page
+ * and the minutes print.
  *
  * {@link voteResultSentence} bundles the outcome word and the counts into one
  * translated string. A surface that already prints the word — the Αποτέλεσμα
@@ -30,10 +35,12 @@ type VoteTranslator = (key: string, values?: Record<string, string | number>) =>
  *
  * A zero stays out: "6 for, 0 against" says nothing "6 for" does not.
  */
-export function voteCountsPhrase(t: VoteTranslator, outcome: VoteOutcomeCounts): string {
+export function voteCountsPhrase(t: VoteTranslator, outcome: VoteCounts): string {
     const parts = [`${outcome.forCount} ${t('voteFor')}`];
     if (outcome.againstCount > 0) parts.push(`${outcome.againstCount} ${t('voteAgainst')}`);
     if (outcome.abstainCount > 0) parts.push(`${outcome.abstainCount} ${t('voteAbstain')}`);
+    if (outcome.presentCount > 0) parts.push(`${outcome.presentCount} ${t('votePresent')}`);
+    if (outcome.didNotVoteCount > 0) parts.push(`${outcome.didNotVoteCount} ${t('voteDidNotVote')}`);
     return parts.join(', ');
 }
 

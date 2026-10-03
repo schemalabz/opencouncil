@@ -475,6 +475,8 @@
     "skipCacheHint": "Ο task server αποθηκεύει τα αποτελέσματα εξαγωγής κάθε PDF — αυτό παρακάμπτει αυτή τη cache",
     "title": "Αποφάσεις",
     "voteAbstain": "λευκό",
+    "votePresent": "παρών",
+    "voteDidNotVote": "αποχή",
     "voteAgainst": "κατά",
     "voteFor": "υπέρ",
     "votes": "Ψηφοφορία",

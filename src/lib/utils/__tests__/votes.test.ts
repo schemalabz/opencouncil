@@ -1,5 +1,5 @@
 import { VoteType } from '@prisma/client';
-import { calculateVoteResult, voteCountsPhrase, voteResultSentence, type VoteOutcomeCounts } from '../votes';
+import { calculateVoteResult, voteCountsPhrase, voteResultSentence, type VoteCounts, type VoteOutcomeCounts } from '../votes';
 
 function makeVotes(...types: VoteType[]) {
     return types.map(voteType => ({ voteType }));
@@ -137,7 +137,7 @@ describe('voteResultSentence', () => {
 
 describe('voteCountsPhrase', () => {
     const t = (key: string) => key;
-    const neutral: VoteOutcomeCounts = { forCount: 0, againstCount: 0, abstainCount: 0, passed: true, isUnanimous: true };
+    const neutral: VoteCounts = { forCount: 0, againstCount: 0, abstainCount: 0, presentCount: 0, didNotVoteCount: 0, passed: true, isUnanimous: true };
 
     it('is the for count alone when nobody voted against or abstained', () => {
         expect(voteCountsPhrase(t, { ...neutral, forCount: 6 })).toBe('6 voteFor');
@@ -150,5 +150,19 @@ describe('voteCountsPhrase', () => {
 
     it('names the abstentions, unanimous or not', () => {
         expect(voteCountsPhrase(t, { ...neutral, forCount: 5, abstainCount: 3 })).toBe('5 voteFor, 3 voteAbstain');
+    });
+
+    it('names the ΠΑΡΩΝ and ΑΠΟΧΗ declarations, which the subject page also prints', () => {
+        expect(voteCountsPhrase(t, { ...neutral, forCount: 7, presentCount: 2, didNotVoteCount: 1 }))
+            .toBe('7 voteFor, 2 votePresent, 1 voteDidNotVote');
+    });
+
+    it('prints the counts in the subject page order', () => {
+        const outcome = calculateVoteResult([
+            { voteType: 'DID_NOT_VOTE' }, { voteType: 'PRESENT' }, { voteType: 'ABSTAIN' },
+            { voteType: 'AGAINST' }, { voteType: 'FOR' }, { voteType: 'FOR' },
+        ]);
+        expect(voteCountsPhrase(t, outcome))
+            .toBe('2 voteFor, 1 voteAgainst, 1 voteAbstain, 1 votePresent, 1 voteDidNotVote');
     });
 });
