@@ -23,6 +23,15 @@ jest.mock('@/lib/db/decisions', () => ({
     getMeetingAttendance: () => mockGetMeetingAttendance(),
 }));
 jest.mock('@/lib/db/people', () => ({ getPeopleForCity: () => mockGetPeopleForCity() }));
+// The fixtures keep each page's stored reading on its subject's decision, as
+// the database does; the minutes load the readings on their own.
+jest.mock('@/lib/db/decisionFacts', () => ({
+    getDecisionReadingsForMeeting: async (...a: unknown[]) => {
+        const subjects = (await mockGetSubjectsForMeeting(...a)) as { id: string; decision?: { extraction?: unknown; extractorVersion?: string | null } | null }[];
+        return new Map(subjects.filter(s => s.decision).map(s => [s.id, { extraction: s.decision?.extraction ?? null, extractorVersion: s.decision?.extractorVersion ?? null }]));
+    },
+}));
+
 jest.mock('@/lib/sorting/people', () => ({ ...jest.requireActual('@/lib/sorting/people'), getElectedOrderForBody: () => null }));
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
