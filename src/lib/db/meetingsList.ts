@@ -91,6 +91,12 @@ export interface MeetingListOptions {
     timeFilter?: 'upcoming' | 'past';
     /** Only meetings that take place on their date: no postponed or cancelled one. */
     takesPlace?: boolean;
+    /**
+     * Only these meetings. The search on the meetings tab finds the ids, and
+     * this loads the card rows of one page of them in the list's own order.
+     * No cached wrapper accepts it: a cache key per id list is never reused.
+     */
+    meetingIds?: string[];
 }
 
 /**
@@ -111,7 +117,7 @@ export const DEFAULT_MEETING_PAGE_SIZE = 12;
  */
 function meetingListQuery(
     cityId: string,
-    { includeUnreleased, unreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter, takesPlace }: MeetingListOptions,
+    { includeUnreleased, unreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter, takesPlace, meetingIds }: MeetingListOptions,
 ) {
     // Calculate pagination
     const skip = page ? (page - 1) * pageSize : undefined;
@@ -146,6 +152,7 @@ function meetingListQuery(
         cityId,
         ...(Object.keys(dateTimeFilter).length > 0 && { dateTime: dateTimeFilter }),
         AND: [includeUnreleased ? {} : unreleasedMeetingWhere(unreleased), bodyFilter, takesPlace ? TAKES_PLACE_WHERE : {}],
+        ...(meetingIds && { id: { in: meetingIds } }),
     };
 
     return {
@@ -191,6 +198,16 @@ export async function getCouncilMeetingsWithSubjectPreview(cityId: string, optio
         console.error('Error fetching council meeting previews for city:', error);
         throw new Error('Failed to fetch council meetings for city');
     }
+}
+
+/**
+ * How many meetings the options select over every page. It reads the same
+ * `where` as the list, so the total that a pager shows and the rows on its
+ * pages cannot disagree.
+ */
+export async function countCouncilMeetings(cityId: string, options: MeetingListOptions = {}): Promise<number> {
+    const { where } = meetingListQuery(cityId, options);
+    return prisma.councilMeeting.count({ where });
 }
 
 /** Segments per listed meeting: one GROUP BY over those ids on the (meetingId, cityId) index. */

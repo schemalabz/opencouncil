@@ -6,7 +6,7 @@ import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
 import { getMeetingSummary } from "@/lib/db/meetingSummary";
-import { getCouncilMeetingsForCity, getCouncilMeetingsWithSubjectPreview, DEFAULT_MEETING_PAGE_SIZE, type MeetingListOptions } from "@/lib/db/meetingsList";
+import { countCouncilMeetings, getCouncilMeetingsForCity, getCouncilMeetingsWithSubjectPreview, DEFAULT_MEETING_PAGE_SIZE, type MeetingListOptions } from "@/lib/db/meetingsList";
 import { getAdjacentMeetings } from "@/lib/db/adjacentMeetings";
 import { countCityPetitions } from "@/lib/db/petitions";
 import { petitionBucket, type PetitionBucket } from "@/lib/landing/petitions";
@@ -38,8 +38,11 @@ const TIME_FILTERED_TTL = 900;
  * it — from the reader's authorization, or to false — and overrides whatever it
  * was handed. Leaving it in the signature let a caller ask for unreleased
  * meetings, type-check, and quietly get released ones.
+ *
+ * `meetingIds` is left out because no key below records it: two id lists
+ * would share one entry.
  */
-type CachedMeetingListOptions = Omit<MeetingListOptions, 'includeUnreleased' | 'unreleased'>;
+type CachedMeetingListOptions = Omit<MeetingListOptions, 'includeUnreleased' | 'unreleased' | 'meetingIds'>;
 
 /**
  * Cached list of all city ids (single shared cache key, tag `cities:all`).
@@ -125,6 +128,10 @@ export function bodyFilterKey({ administrativeBodyTypes, administrativeBodyIds }
 
 /** Cache-key fragments for the filters a meeting list query accepts. */
 function meetingListKey(options: MeetingListOptions): string[] {
+  // The type of every cached wrapper leaves meetingIds out, but a variable of
+  // the wider MeetingListOptions type still passes it. No key records the ids,
+  // so two id lists would share one entry: fail instead.
+  if (options.meetingIds) throw new Error('A cached meeting list cannot select meetings by id');
   const { limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, timeFilter, takesPlace } = options;
   return [
     page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all'),
@@ -153,6 +160,22 @@ export async function getCouncilMeetingsPreviewCached(cityId: string, options: C
       return unreleased.all ? meetings : meetings.map(hideLinks);
     },
     ['city', cityId, 'meetingPreviews', MEETING_PREVIEW_CACHE_VERSION, unreleasedCacheKey(unreleased), ...meetingListKey(options)],
+    {
+      tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
+      ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
+    }
+  )();
+}
+
+/**
+ * How many meetings the options select over every page. Keyed and tagged like
+ * the list it counts, so a new or released meeting clears both together.
+ */
+export async function countCouncilMeetingsCached(cityId: string, options: Omit<CachedMeetingListOptions, 'page' | 'pageSize' | 'limit'> = {}) {
+  const unreleased = await getUnreleasedScope(cityId);
+  return createCache(
+    () => countCouncilMeetings(cityId, { ...options, unreleased }),
+    ['city', cityId, 'meetingCount', unreleasedCacheKey(unreleased), ...meetingListKey(options)],
     {
       tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
       ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
