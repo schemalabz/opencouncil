@@ -4,7 +4,7 @@ import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import Icon from '@/components/icon';
 import { CalendarIcon, Building, ChevronRight } from 'lucide-react';
-import { Youtube } from '@/components/brandIcons';
+import { SiYoutube } from 'react-icons/si';
 import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 
 interface EmbedMeetingCardProps {
@@ -106,7 +106,7 @@ export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityT
                     rel="noopener noreferrer"
                     className="embed-card-live"
                 >
-                    <Youtube size={14} />
+                    <SiYoutube size={14} aria-hidden />
                     {t.watchLive}
                 </a>
             )}

@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Calendar, Building2, ChevronRight, Bell, Mail, MessageSquare, Clock } from 'lucide-react';
-import { Youtube } from '@/components/brandIcons';
+import { SiYoutube } from 'react-icons/si';
 import { formatDistanceToNow } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { formatDate } from '@/lib/formatters/time';
@@ -238,7 +238,7 @@ export default async function NotificationPage(props: { params: Promise<{ id: st
                                                 rel="noopener noreferrer"
                                                 className="inline-flex items-baseline gap-1 text-primary hover:text-primary/80 underline"
                                             >
-                                                <Youtube className="w-3.5 h-3.5 shrink-0 relative top-0.5" />
+                                                <SiYoutube className="w-3.5 h-3.5 shrink-0 relative top-0.5" aria-hidden />
                                                 <span>στο κανάλι του Δήμου στο YouTube</span>
                                             </a>
                                             , ή μερικές ώρες αργότερα στο OpenCouncil.

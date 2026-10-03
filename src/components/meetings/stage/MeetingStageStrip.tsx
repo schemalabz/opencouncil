@@ -1,7 +1,7 @@
 'use client';
 import type { ComponentType, ReactNode } from 'react';
 import { Bell, FileText, ScrollText } from 'lucide-react';
-import { Youtube } from '@/components/brandIcons';
+import { SiYoutube } from 'react-icons/si';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { captureEvent } from '@/lib/analytics/capture';
@@ -81,10 +81,10 @@ export function MeetingStageStrip({ stage, deadline }: { stage: PublicMeetingSta
         </Link>
     );
     const channelPill = channel
-        ? pill('channel', t('actions.channel'), 'youtube_channel', channel, Youtube, { external: true, iconClass: 'text-red-600' })
+        ? pill('channel', t('actions.channel'), 'youtube_channel', channel, SiYoutube, { external: true, iconClass: 'text-red-600' })
         : null;
     const videoPill = video
-        ? pill('video', t('actions.video'), 'youtube_video', video, Youtube, { external: true, iconClass: 'text-red-600' })
+        ? pill('video', t('actions.video'), 'youtube_video', video, SiYoutube, { external: true, iconClass: 'text-red-600' })
         : null;
     const agendaPill = meeting.agendaUrl
         ? pill('agenda', tMeeting('agendaDocument'), 'agenda_pdf', meeting.agendaUrl, FileText, { external: true })
@@ -109,7 +109,7 @@ export function MeetingStageStrip({ stage, deadline }: { stage: PublicMeetingSta
         case 'live':
             text = t('strip.live', { time: formatClockTime(date, timezone, locale) });
             actions = [
-                liveUrl ? pill('watchLive', t('actions.watchLive'), 'watch_live', liveUrl, Youtube, { variant: 'live', external: true }) : null,
+                liveUrl ? pill('watchLive', t('actions.watchLive'), 'watch_live', liveUrl, SiYoutube, { variant: 'live', external: true }) : null,
                 notifyPill,
             ];
             break;

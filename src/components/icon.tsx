@@ -1,18 +1,20 @@
 'use client';
 
 import { DynamicIcon, iconNames, type IconName } from 'lucide-react/dynamic';
-import type { LucideIcon } from 'lucide-react';
-import { Facebook, Github, Instagram, Linkedin, Twitter, Youtube } from '@/components/brandIcons';
+import type { IconType } from 'react-icons';
+import { SiFacebook, SiGithub, SiInstagram, SiX, SiYoutube } from 'react-icons/si';
+import { FaLinkedin } from 'react-icons/fa6';
 
 // lucide-react 1.0 removed its brand icons. A topic or a city message in the
 // database can still name one of these.
-const brandIcons = new Map<string, LucideIcon>([
-    ['facebook', Facebook],
-    ['github', Github],
-    ['instagram', Instagram],
-    ['linkedin', Linkedin],
-    ['twitter', Twitter],
-    ['youtube', Youtube],
+// Simple Icons has no LinkedIn logo, so that one comes from Font Awesome.
+const brandIcons = new Map<string, IconType>([
+    ['facebook', SiFacebook],
+    ['github', SiGithub],
+    ['instagram', SiInstagram],
+    ['linkedin', FaLinkedin],
+    ['twitter', SiX],
+    ['youtube', SiYoutube],
 ]);
 
 const lucideNames = new Set<string>(iconNames);
@@ -29,7 +31,7 @@ function isLucideName(name: string): name is IconName {
  */
 const Icon = ({ name, color, size }: { name: string; color: string; size: number }) => {
     const BrandIcon = brandIcons.get(name);
-    if (BrandIcon) return <BrandIcon color={color} size={size} />;
+    if (BrandIcon) return <BrandIcon color={color} size={size} aria-hidden />;
     if (!isLucideName(name)) return null;
 
     return <DynamicIcon name={name} color={color} size={size} />;

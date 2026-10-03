@@ -82,7 +82,7 @@
 
 ### Social Elements
 - Profile cards with image and social links
-- Social icons from `@/components/brandIcons` (lucide-react 1.x has no brand icons)
+- Brand logos from `react-icons/si` (Simple Icons), as in the footer. LinkedIn comes from `react-icons/fa6`, because Simple Icons has no LinkedIn logo. lucide-react 1.x has no brand icons.
 - Contact information with appropriate icons
 
 ## Accessibility
