@@ -22,6 +22,7 @@ export function SignupCityCard({
     pickerQuery,
     dirty = false,
     submitting = false,
+    variant,
     className,
 }: {
     city: CityIdentity & { status: CityStatus };
@@ -30,6 +31,8 @@ export function SignupCityCard({
     /** The reader has picked places or topics that leaving would discard. */
     dirty?: boolean;
     submitting?: boolean;
+    /** `line` on the places step, where the step's question leads; a card everywhere else. */
+    variant?: 'card' | 'line';
     className?: string;
 }) {
     const t = useTranslations('notificationSignup');
@@ -38,6 +41,7 @@ export function SignupCityCard({
     return (
         <CityCard
             city={city}
+            variant={variant}
             className={className}
             changeHref={pickerHref('notifications', pickerQuery)}
             changeLabel={ts('changeCity')}

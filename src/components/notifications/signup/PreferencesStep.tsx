@@ -2,23 +2,32 @@
 
 import type { Topic } from '@prisma/client';
 import { useTranslations } from 'next-intl';
-import { TopicFilter } from '@/components/filters/TopicFilter';
-import { LocationSelector } from '@/components/onboarding/selectors/LocationSelector';
+import { authorityKey } from '@/components/cities/overview/authorityKey';
 import { LocationPreview } from '@/components/signup/LocationPreview';
 import { MemberNote } from '@/components/signup/MemberNote';
-import { Eyebrow, StepHeading } from '@/components/signup/SignupChrome';
+import { StepHeading } from '@/components/signup/SignupChrome';
 import type { CityWithGeometry } from '@/lib/db/cities';
 import type { Location } from '@/lib/types/onboarding';
+import { NearbySubjects } from './NearbySubjects';
+import { PlacePicker } from './PlacePicker';
 import { SignupCityCard } from './SignupCityCard';
+import { TopicHints } from './TopicHints';
+import type { NearbyState } from './useNearbySubjects';
 
 /**
- * Step 2: the places and the topics. Both optional; both editable later.
- * The map is a strip under the search on a phone and a panel beside the
- * column on a desktop (PreferencesAside).
+ * Step 2: the places, then the topics as hints. Both are optional and both
+ * can change later.
  *
- * The card under the heading names the municipality, because the picker
- * links straight to this step and the copy here is the same for every one
- * of them.
+ * The places lead because they are what lets Νότης say «1,1 χλμ. από εκεί»:
+ * the title asks for them, the search is the largest control, and the map
+ * under it is the empty state. A place pays off at once with what the
+ * council discussed near it. The topics stay one row until the reader opens
+ * them.
+ *
+ * The municipality is a line above the title, not a card under it. The
+ * picker links straight here, so the step still names it, with a way back.
+ * On a desktop the map and the nearby subjects move to the aside
+ * (PreferencesAside).
  */
 export function PreferencesStep({
     city,
@@ -28,6 +37,7 @@ export function PreferencesStep({
     topics,
     locations,
     selectedTopics,
+    nearby,
     onLocationsChange,
     onTopicsChange,
 }: {
@@ -41,6 +51,8 @@ export function PreferencesStep({
     topics: Topic[];
     locations: Location[];
     selectedTopics: Topic[];
+    /** What the council discussed near the latest place; null while there is none. */
+    nearby: NearbyState | null;
     onLocationsChange: (locations: Location[]) => void;
     onTopicsChange: (topics: Topic[]) => void;
 }) {
@@ -49,41 +61,42 @@ export function PreferencesStep({
 
     return (
         <div>
-            <StepHeading title={t('preferencesTitle')} lead={t('preferencesLead')} />
+            <SignupCityCard city={city} pickerQuery={pickerQuery} dirty={dirty} variant="line" className="mt-5 lg:mt-7" />
 
-            <SignupCityCard city={city} pickerQuery={pickerQuery} dirty={dirty} className="mt-5 lg:mt-7" />
+            <StepHeading title={t('preferencesTitle')} lead={t(authorityKey('preferencesLead', city))} className="pt-5 lg:pt-6" />
 
             {existing && <MemberNote title={ts('picker.subscribed')} body={t('alreadySubscribedBody')} className="mt-3.5" />}
 
-            <section className="mt-6 flex flex-col gap-2.5 lg:mt-8">
-                <div className="flex items-baseline gap-2">
-                    <Eyebrow>{t('locationsEyebrow')}</Eyebrow>
-                    <span className="text-xs text-muted-foreground">{t('locationsHint')}</span>
-                </div>
-                <LocationSelector
-                    city={city}
-                    selectedLocations={locations}
-                    onSelect={(location) => onLocationsChange([...locations, location])}
-                    onRemove={(index) => onLocationsChange(locations.filter((_, i) => i !== index))}
-                    collapseAfterAdd
-                />
-                <LocationPreview city={city} locations={locations} className="lg:hidden" />
-            </section>
+            <PlacePicker
+                city={city}
+                locations={locations}
+                onAdd={(location) => onLocationsChange([...locations, location])}
+                onRemove={(index) => onLocationsChange(locations.filter((_, i) => i !== index))}
+                className="mt-5 lg:mt-7"
+            />
+            <LocationPreview city={city} locations={locations} emptyLabel={t('places.mapHint')} className="mt-3 lg:hidden" />
+            {nearby && <NearbySubjects state={nearby} timezone={city.timezone} className="mt-3 lg:hidden" />}
 
-            <section className="mt-6 flex flex-col gap-2.5 lg:mt-8">
-                <div className="flex items-baseline gap-2">
-                    <Eyebrow>{t('topicsEyebrow')}</Eyebrow>
-                    <span className="text-xs text-muted-foreground">{t('topicsHint')}</span>
-                </div>
-                <TopicFilter topics={topics} selectedTopics={selectedTopics} onChange={onTopicsChange} columns={2} />
-            </section>
+            <TopicHints topics={topics} selected={selectedTopics} onChange={onTopicsChange} className="mt-6 lg:mt-8" />
         </div>
     );
 }
 
-/** Beside step 2 on a desktop: the municipality's map, with the places as they are added. */
-export function PreferencesAside({ city, locations }: { city: CityWithGeometry; locations: Location[] }) {
+/** Beside step 2 on a desktop: the municipality's map with the places, and what was discussed near the latest one. */
+export function PreferencesAside({
+    city,
+    locations,
+    nearby,
+}: {
+    city: CityWithGeometry;
+    locations: Location[];
+    nearby: NearbyState | null;
+}) {
     const t = useTranslations('notificationSignup');
-    const ts = useTranslations('signup');
-    return <LocationPreview city={city} locations={locations} variant="panel" emptyLabel={t('mapEmpty')} />;
+    return (
+        <div className="flex flex-col gap-3.5">
+            <LocationPreview city={city} locations={locations} variant="panel" emptyLabel={t('places.mapHint')} />
+            {nearby && <NearbySubjects state={nearby} timezone={city.timezone} />}
+        </div>
+    );
 }

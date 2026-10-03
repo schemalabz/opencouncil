@@ -20,6 +20,10 @@ export interface CityIdentity {
 /**
  * The municipality a flow is about, already chosen: its seal, its name, one
  * line of status, and the way back to choosing another.
+ *
+ * The `line` variant is the same facts as context rather than content: a
+ * small seal, the name and a quiet «Αλλαγή», for a step whose own question
+ * must lead. It leaves the status out.
  */
 export function CityCard({
     city,
@@ -28,6 +32,7 @@ export function CityCard({
     changeLabel,
     changeDisabled = false,
     onChangeClick,
+    variant = 'card',
     className,
 }: {
     city: CityIdentity;
@@ -38,24 +43,35 @@ export function CityCard({
     changeDisabled?: boolean;
     /** Runs before the link navigates; call `preventDefault` to stop it. */
     onChangeClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
+    variant?: 'card' | 'line';
     className?: string;
 }) {
-    const changeClass =
-        '-my-3 inline-flex min-h-11 items-center whitespace-nowrap pl-3 text-[13px] text-[hsl(var(--orange-deep))]';
+    const line = variant === 'line';
+    const changeClass = cn(
+        '-my-3 inline-flex min-h-11 items-center whitespace-nowrap text-[13px]',
+        line
+            ? 'px-1 text-muted-foreground underline underline-offset-[3px] hover:text-foreground'
+            : 'pl-3 text-[hsl(var(--orange-deep))]',
+    );
     const locale = useLocale();
+    const name = getLocalizedMunicipalityName(city, locale);
     return (
-        <div className={cn(surfaceCardClass, 'flex items-center gap-3 px-3.5 py-3', className)}>
-            <CitySeal name={city.name} logoImage={city.logoImage} />
-            <span className="min-w-0 flex-1">
-                <span className="block text-[15px] leading-tight">{getLocalizedMunicipalityName(city, locale)}</span>
-                {status && <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">{status}</span>}
-            </span>
+        <div className={cn('flex items-center', line ? 'gap-2.5' : cn(surfaceCardClass, 'gap-3 px-3.5 py-3'), className)}>
+            <CitySeal name={city.name} logoImage={city.logoImage} size={line ? 26 : 40} />
+            {line ? (
+                <span className="min-w-0 truncate text-sm">{name}</span>
+            ) : (
+                <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] leading-tight">{name}</span>
+                    {status && <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">{status}</span>}
+                </span>
+            )}
             {changeDisabled ? (
                 <span className={cn(changeClass, 'opacity-50')} aria-disabled>
                     {changeLabel}
                 </span>
             ) : (
-                <Link href={changeHref} onClick={onChangeClick} className={cn(changeClass, 'hover:no-underline')}>
+                <Link href={changeHref} onClick={onChangeClick} className={cn(changeClass, !line && 'hover:no-underline')}>
                     {changeLabel}
                 </Link>
             )}

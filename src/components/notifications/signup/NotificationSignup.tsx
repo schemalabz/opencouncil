@@ -18,6 +18,7 @@ import { CompleteAside, CompleteScreen } from './CompleteScreen';
 import { IntroAside, IntroStep } from './IntroStep';
 import { PreferencesAside, PreferencesStep } from './PreferencesStep';
 import { SignupSummary } from './SignupSummary';
+import { useNearbySubjects } from './useNearbySubjects';
 import {
     type ExistingPreference,
     type NotisStatus,
@@ -139,6 +140,10 @@ export function NotificationSignup({
     const issues = attempted ? channelIssues(state, validity) : [];
     const failure = failureKind(issues, saveError);
 
+    // One request for the step and its aside, about the place added last.
+    const latestPlace = state.locations.length > 0 ? state.locations[state.locations.length - 1] : null;
+    const nearby = useNearbySubjects(city.id, state.step === 2 ? latestPlace : null);
+
     const submit = () =>
         flow.submit(async () => {
             if (notisPending) return 'blocked';
@@ -211,7 +216,7 @@ export function NotificationSignup({
         state.step === 1 ? (
             <IntroAside city={city} />
         ) : state.step === 2 ? (
-            <PreferencesAside city={city} locations={state.locations} />
+            <PreferencesAside city={city} locations={state.locations} nearby={nearby} />
         ) : (
             <SignupSummary city={city} state={state} onEdit={() => goTo(2)} />
         );
@@ -232,6 +237,7 @@ export function NotificationSignup({
                     topics={topics}
                     locations={state.locations}
                     selectedTopics={state.topics}
+                    nearby={nearby}
                     onLocationsChange={(locations: Location[]) => patch({ locations })}
                     onTopicsChange={(selected: Topic[]) => patch({ topics: selected })}
                 />
@@ -260,8 +266,16 @@ export function NotificationSignup({
             {state.step === 1 && <SignupFooter actionLabel={t('ctaStart')} onAction={() => goTo(2)} />}
             {state.step === 2 && (
                 <SignupFooter
-                    actionLabel={t('ctaContinue')}
-                    onAction={() => goTo(3)}
+                    // The label says what pressing it means: skipping the places is allowed, but it is a choice.
+                    actionLabel={state.locations.length > 0 ? t('ctaContinue') : t('ctaContinueWithoutPlace')}
+                    onAction={() => {
+                        captureEvent('notification_signup_preferences_continued', {
+                            city_id: city.id,
+                            location_count: state.locations.length,
+                            topic_count: state.topics.length,
+                        });
+                        goTo(3);
+                    }}
                     backLabel={ts('back')}
                     onBack={() => goTo(1)}
                 />

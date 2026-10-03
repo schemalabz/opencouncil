@@ -8,7 +8,7 @@ import { env } from '@/env.mjs';
 import type { MapFeature } from '@/components/map/map';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import type { CityWithGeometry } from '@/lib/db/cities';
-import { calculateMapView } from '@/lib/geo';
+import { calculateGeometryBounds, calculateMapView } from '@/lib/geo';
 import { getRealmDefaultMapView } from '@/lib/realm';
 import type { Location } from '@/lib/types/onboarding';
 import { cn } from '@/lib/utils';
@@ -32,10 +32,12 @@ const Map = dynamic(() => import('@/components/map/map'), {
  * places, and the full map only on request. The old signup was a map with
  * a form floating over it; the places matter, the map is context.
  *
- * The strip sits under the address search on a phone and shows nothing
- * until there is a place to show. The panel is the desktop's aside: it
- * shows the municipality from the start, and the places as they are added
- * — or, for the petition, the municipality alone.
+ * The strip sits under the address search on a phone. The panel is the
+ * desktop's aside. With an `emptyLabel`, both show the municipality before
+ * there is a place, with the label over it: the map is the empty state, an
+ * invitation rather than a blank. Without one, the strip shows nothing until
+ * there is a place, and the panel shows the municipality alone (the
+ * petition).
  */
 export function LocationPreview({
     city,
@@ -47,7 +49,7 @@ export function LocationPreview({
     city: CityWithGeometry;
     locations: Location[];
     variant?: 'strip' | 'panel';
-    /** What the panel says while there is no place yet; nothing when omitted. */
+    /** What the map says while there is no place yet; nothing when omitted. */
     emptyLabel?: string;
     className?: string;
 }) {
@@ -55,17 +57,27 @@ export function LocationPreview({
     const [open, setOpen] = useState(false);
     const panel = variant === 'panel';
 
-    const pins = locations
-        .filter((l) => Number.isFinite(l.coordinates[0]) && Number.isFinite(l.coordinates[1]))
-        .map((l) => `pin-s+ff6600(${l.coordinates[0]},${l.coordinates[1]})`)
-        .join(',');
-    const size = panel ? '720x840' : '600x240';
+    const points = locations.filter((l) => Number.isFinite(l.coordinates[0]) && Number.isFinite(l.coordinates[1]));
+    const pins = points.map((l) => `pin-s+ff6600(${l.coordinates[0]},${l.coordinates[1]})`).join(',');
+    const size = panel ? '720x840' : '600x280';
     let src: string | null = null;
-    if (pins) {
+    if (points.length === 1) {
+        // `auto` around a single pin zooms to the building; a neighbourhood around it is the context.
+        const [lng, lat] = points[0].coordinates;
+        src = `${STATIC_STYLE}/${pins}/${lng},${lat},${panel ? 13.5 : 14},0/${size}@2x?access_token=${env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}`;
+    } else if (pins) {
         src = `${STATIC_STYLE}/${pins}/auto/${size}@2x?padding=${panel ? 80 : 48}&access_token=${env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}`;
-    } else if (panel) {
-        const view = city.geometry ? calculateMapView(city.geometry) : getRealmDefaultMapView(city.realm);
-        src = `${STATIC_STYLE}/${view.center[0]},${view.center[1]},${view.zoom.toFixed(2)},0/${size}@2x?access_token=${env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}`;
+    } else if (panel || emptyLabel) {
+        // Framed on the municipality's own bounds: a centre and a zoom fit no
+        // single frame, and showed a whole region around a small δήμος.
+        const bounds = city.geometry ? calculateGeometryBounds(city.geometry).bounds : null;
+        if (bounds) {
+            const bbox = [bounds.minLng, bounds.minLat, bounds.maxLng, bounds.maxLat].map((n) => n.toFixed(5)).join(',');
+            src = `${STATIC_STYLE}/[${bbox}]/${size}@2x?padding=${panel ? 40 : 16}&access_token=${env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}`;
+        } else {
+            const view = getRealmDefaultMapView(city.realm);
+            src = `${STATIC_STYLE}/${view.center[0]},${view.center[1]},${view.zoom.toFixed(2)},0/${size}@2x?access_token=${env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}`;
+        }
     }
 
     if (!src) return null;
@@ -77,7 +89,7 @@ export function LocationPreview({
                 onClick={() => setOpen(true)}
                 className={cn(
                     'relative block w-full overflow-hidden border border-border bg-muted',
-                    panel ? 'h-[420px] rounded-[14px]' : 'h-[120px] rounded-[10px]',
+                    panel ? 'h-[420px] rounded-[14px]' : 'h-[140px] rounded-[10px]',
                     className,
                 )}
                 aria-label={t('map.open')}
@@ -85,8 +97,8 @@ export function LocationPreview({
                 {/* A static image, not a map: nothing to drag, nothing to load. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={src} alt="" className="h-full w-full object-cover" />
-                {panel && emptyLabel && locations.length === 0 && (
-                    <span className="absolute left-3 top-3 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+                {emptyLabel && !pins && (
+                    <span className="absolute left-2.5 top-2.5 max-w-[calc(100%-1.25rem)] rounded-[10px] border border-border bg-card/95 px-2.5 py-1.5 text-left text-xs leading-snug text-foreground shadow-sm">
                         {emptyLabel}
                     </span>
                 )}
