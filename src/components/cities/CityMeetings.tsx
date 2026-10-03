@@ -2,13 +2,13 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
+import { AdministrativeBodyType } from '@prisma/client';
 import List from '@/components/List';
 import MeetingCardV2 from '@/components/meetings/MeetingCardV2';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { getAdministrativeBodyTypes, filterMeetingByAdminBodyTypes, getBodiesOfType } from '@/lib/utils/administrativeBodies';
-import { PaginationParams } from '@/lib/db/types';
+import type { PaginationParams, PublicAdministrativeBody } from '@/lib/db/types';
 import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
 import { getLocalizedName } from '@/lib/formatters/name';
@@ -24,7 +24,7 @@ type CityMeetingsProps = {
      * the rows hid any body whose last meeting fell outside it: no chip, no
      * empty state, and its meetings unreachable through the filter.
      */
-    administrativeBodies: AdministrativeBody[],
+    administrativeBodies: PublicAdministrativeBody[],
     /** Fixed by the server page, so a card's stage survives hydration. */
     now: Date,
     /** The row cap the page fetched with, so the count can name its window. */

@@ -1,5 +1,6 @@
 import { PersonWithRelations } from '../db/people';
 import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
+import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { hasCityLevelRole, isRoleActive } from './roles';
 
 /** Minimal type for meetings - only what we need for extracting admin bodies */
@@ -47,7 +48,7 @@ export function toAdministrativeBodyType(value: string | undefined): Administrat
  * before it would offer no chip at all.
  */
 export function getAdministrativeBodyTypes(
-    bodies: (AdministrativeBody | null | undefined)[],
+    bodies: (PublicAdministrativeBody | null | undefined)[],
     t: (key: string) => string
 ): { value: AdministrativeBodyType; label: string }[] {
     const typesPresent = new Set<AdministrativeBodyType>();
@@ -67,7 +68,7 @@ export function getAdministrativeBodyTypes(
  */
 /** The bodies of one type, sorted. Same caveat as {@link getAdministrativeBodyTypes}. */
 export function getBodiesOfType(
-    bodies: (AdministrativeBody | null | undefined)[],
+    bodies: (PublicAdministrativeBody | null | undefined)[],
     type: AdministrativeBodyType
 ): { value: string; label: string }[] {
     const map = new Map<string, string>();
