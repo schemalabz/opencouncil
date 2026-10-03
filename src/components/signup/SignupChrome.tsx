@@ -33,7 +33,10 @@ export function SignupLayout({
     className?: string;
 }) {
     return (
-        <div className={cn('mx-auto w-full max-w-md px-4 pb-6 lg:max-w-5xl lg:px-6 lg:pb-16', className)}>
+        // data-stable-scrollbar-gutter: a step change, or opening the topics, can
+        // make the page start or stop scrolling; the classic scrollbar of Windows
+        // and Linux browsers would then shift this centred column. See globals.css.
+        <div data-stable-scrollbar-gutter className={cn('mx-auto w-full max-w-md px-4 pb-6 lg:max-w-5xl lg:px-6 lg:pb-16', className)}>
             <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-x-14">
                 <div className="min-w-0">{children}</div>
                 {aside ? <div className="hidden lg:sticky lg:top-24 lg:block">{aside}</div> : null}
