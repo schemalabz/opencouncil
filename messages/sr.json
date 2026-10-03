@@ -37,7 +37,6 @@
         "meetingNavigation": "Навигација кроз седницу",
         "searchAddressInMunicipality": "Претражите адресу у {cityName}",
         "searchAddressPlaceholder": "Претражите адресу у {cityName}…",
-        "addNewLocation": "Додајте нову локацију",
         "selectedLocationsCount": "Изабране локације ({count})",
         "remove": "Уклони",
         "removeShort": "Уклони",

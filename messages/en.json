@@ -37,7 +37,6 @@
         "meetingNavigation": "Meeting navigation",
         "searchAddressInMunicipality": "Search address in {cityName}",
         "searchAddressPlaceholder": "Search address in {cityName}…",
-        "addNewLocation": "Add a new location",
         "selectedLocationsCount": "Selected locations ({count})",
         "remove": "Remove",
         "removeShort": "Remove",

@@ -37,7 +37,6 @@
     "meetingNavigation": "Navigation dans la séance",
     "searchAddressInMunicipality": "Rechercher une adresse dans {cityName}",
     "searchAddressPlaceholder": "Rechercher une adresse dans {cityName}…",
-    "addNewLocation": "Ajouter un nouvel emplacement",
     "selectedLocationsCount": "Emplacements sélectionnés ({count})",
     "remove": "Supprimer",
     "removeShort": "Suppr.",
