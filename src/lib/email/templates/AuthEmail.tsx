@@ -64,19 +64,84 @@ const COPY: Record<AppLocale, {
     },
 };
 
+/**
+ * The same email when the link publishes a comment the reader wrote while signed out
+ * (submitPendingConsultationComment): they asked to comment, not to sign in.
+ */
+const CONFIRM_COMMENT_COPY: typeof COPY = {
+    el: {
+        subject: 'Επιβεβαιώστε το σχόλιό σας',
+        heading: 'Ένα βήμα ακόμη',
+        body: 'Πατήστε το κουμπί για να δημοσιευτεί το σχόλιό σας στη διαβούλευση και να σταλεί στον Δήμο.',
+        cta: 'Δημοσίευση σχολίου',
+        disclaimer: 'Αν δεν γράψατε εσείς σχόλιο, αγνοήστε αυτό το email. Τίποτα δεν θα δημοσιευτεί.',
+    },
+    en: {
+        subject: 'Confirm your comment',
+        heading: 'One more step',
+        body: 'Click the button to publish your comment on the consultation and send it to the municipality.',
+        cta: 'Publish comment',
+        disclaimer: "If you didn't write a comment, ignore this email. Nothing will be published.",
+    },
+    fr: {
+        subject: 'Confirmez votre commentaire',
+        heading: 'Encore une étape',
+        body: 'Cliquez sur le bouton pour publier votre commentaire dans la consultation et l’envoyer à la municipalité.',
+        cta: 'Publier le commentaire',
+        disclaimer: "Si vous n'avez pas écrit de commentaire, ignorez cet e-mail. Rien ne sera publié.",
+    },
+    sr: {
+        subject: 'Потврдите свој коментар',
+        heading: 'Још један корак',
+        body: 'Кликните на дугме да бисте објавили коментар у јавној расправи и послали га општини.',
+        cta: 'Објави коментар',
+        disclaimer: 'Ако нисте написали коментар, занемарите ову поруку. Ништа неће бити објављено.',
+    },
+    'sr-Latn': {
+        subject: 'Potvrdite svoj komentar',
+        heading: 'Još jedan korak',
+        body: 'Kliknite na dugme da biste objavili komentar u javnoj raspravi i poslali ga opštini.',
+        cta: 'Objavi komentar',
+        disclaimer: 'Ako niste napisali komentar, zanemarite ovu poruku. Ništa neće biti objavljeno.',
+    },
+};
+
+export type AuthEmailPurpose = 'signIn' | 'confirmComment';
+
+/**
+ * What a magic link is for, read from where it lands: a consultation comment view that names a
+ * `pending` comment is the link that publishes it. Anything else, or an unreadable link, is a sign-in.
+ */
+export function authEmailPurpose(magicLinkUrl: string): AuthEmailPurpose {
+    try {
+        const callbackUrl = new URL(magicLinkUrl).searchParams.get('callbackUrl');
+        if (!callbackUrl) return 'signIn';
+        const target = new URL(callbackUrl, 'https://opencouncil.invalid');
+        const isComment = target.pathname.includes('/consultation/')
+            && target.searchParams.get('view') === 'comment'
+            && !!target.searchParams.get('pending');
+        return isComment ? 'confirmComment' : 'signIn';
+    } catch {
+        return 'signIn';
+    }
+}
+
 /** The auth email's copy for a locale, falling back to the app default. */
-export function authEmailCopy(locale: string) {
-    return emailCopy(COPY, locale, DEFAULT_LOCALE);
+export function authEmailCopy(locale: string, purpose: AuthEmailPurpose = 'signIn') {
+    return emailCopy(purpose === 'confirmComment' ? CONFIRM_COMMENT_COPY : COPY, locale, DEFAULT_LOCALE);
 }
 
 interface AuthEmailProps {
     url: string;
     /** UI locale of the domain the sign-in was requested from. */
     locale: string;
+    purpose?: AuthEmailPurpose;
+    /** The comment a confirmation link publishes, as plain text, so the reader sees what they confirm. */
+    quote?: string | null;
 }
 
-export const AuthEmail = ({ url, locale }: AuthEmailProps): React.ReactElement => {
-    const copy = authEmailCopy(locale);
+export const AuthEmail = ({ url, locale, purpose = 'signIn', quote }: AuthEmailProps): React.ReactElement => {
+    const copy = authEmailCopy(locale, purpose);
 
     return (
         <BaseTemplate previewText={copy.subject} locale={locale}>
@@ -101,6 +166,24 @@ export const AuthEmail = ({ url, locale }: AuthEmailProps): React.ReactElement =
                 >
                     {copy.body}
                 </Text>
+
+                {quote && (
+                    <Text
+                        style={{
+                            backgroundColor: '#f3f4f6',
+                            borderRadius: '6px',
+                            color: '#1f2937',
+                            fontSize: '16px',
+                            lineHeight: '24px',
+                            margin: '16px 0',
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            whiteSpace: 'pre-wrap',
+                        }}
+                    >
+                        {quote}
+                    </Text>
+                )}
 
                 <Button
                     href={url}

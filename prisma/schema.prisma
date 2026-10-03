@@ -54,6 +54,7 @@ model City {
   // Consultations relation
   consultations Consultation[]
   consultationComments ConsultationComment[]
+  pendingConsultationComments PendingConsultationComment[]
 
   @@index([status])
   @@index([realm])
@@ -998,6 +999,7 @@ model User {
   // Add these relations for consultation comments
   consultationComments ConsultationComment[]
   consultationCommentUpvotes ConsultationCommentUpvote[]
+  pendingConsultationComments PendingConsultationComment[]
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1257,6 +1259,7 @@ model Consultation {
   cityId    String
 
   comments  ConsultationComment[]
+  pendingComments PendingConsultationComment[]
 
   @@index([cityId, isActive])
   @@index([isActive, endDate])
@@ -1290,6 +1293,30 @@ model ConsultationComment {
 
   @@index([consultationId, entityType, entityId])
   @@index([cityId])
+  @@index([userId])
+}
+
+/// A comment written by a reader who was not signed in. It stays hidden until the reader opens the
+/// magic link sent to their email; the sign-in then publishes it as a ConsultationComment. Kept apart
+/// from ConsultationComment so no query or count of published comments ever sees it.
+model PendingConsultationComment {
+  id            String   @id @default(cuid())
+  body          String   @db.Text
+  entityType    ConsultationCommentEntityType
+  entityId      String
+  /// The name the reader typed; set on the account at publication when it has none.
+  authorName    String?
+  createdAt     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+
+  consultation  Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  consultationId String
+
+  city          City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  cityId        String
+
   @@index([userId])
 }
 

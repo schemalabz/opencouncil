@@ -6,12 +6,12 @@ A regulation viewer and public feedback platform that enables municipalities to 
 
 ## Architectural Overview
 
-The consultation feature operates as a JSON-driven, dual-view interface:
+The consultation feature is a JSON-driven viewer with a few plain screens:
 
 1. **Regulation JSON**: Each consultation points to a remote JSON file (`jsonUrl`) that defines the entire regulation structure — chapters, articles, geographic areas, cross-references, and definitions. The schema is defined in [`json-schemas/regulation.schema.json`](../../json-schemas/regulation.schema.json).
 2. **Database Layer**: Prisma stores consultation metadata (name, end date, active status), comments, and upvotes. Comments are entity-scoped — tied to a specific chapter, article, geoset, or geometry by `entityType` + `entityId`.
-3. **Frontend Layer**: A `ConsultationViewer` client component orchestrates two views — a Document View (chapters/articles with markdown content) and a Map View (Mapbox-powered geographic visualization). A floating action button toggles between them. The map view features a community picker with address search, allowing citizens to find nearby collection points by searching their address. A welcome dialog shows the regulation summary on first load.
-4. **Comment System**: Authenticated users can leave HTML-rich comments on any entity. Comments support upvoting and trigger email notifications to the municipality's contact address.
+3. **Frontend Layer**: A `ConsultationViewer` client component shows one screen at a time. The screen is the `view` query parameter: `home` asks for the reader's address, `street` shows what changes at it, `map` shows every place, `comment` is the form for one entity, `plan` shows the summary cards, `comments` lists every comment, and `document` is the full text. On a phone each screen is a page. On a computer the map stays on screen and a side panel shows the screen.
+4. **Comment System**: Readers leave plain-text comments on any entity. A signed-in reader's comment goes live at once. A signed-out reader gives a name and an email, and the comment goes live when they open the confirmation link in the email. Comments support upvoting and trigger email notifications to the municipality's contact address.
 5. **Admin Geo-Editor**: Administrators can draw missing geometries directly on the map when regulation text defines areas textually but lacks GeoJSON coordinates. Edits are stored in localStorage and exported as a complete updated regulation JSON.
 
 The consultation feature is gated per-city via the `consultationsEnabled` flag on the City model.
@@ -25,9 +25,15 @@ The regulation JSON file is the core data source for each consultation. It follo
 - `contactEmail`, `ccEmails` — where citizen feedback emails are sent
 - `sources` — array of source documents (`{title, url, description?}`)
 - `definitions` — dictionary of terms that can be referenced via `{DEF:id}` in markdown
-- `defaultView` — initial view mode (`"map"` or `"document"`, defaults to `"document"`)
+- `defaultView` — the first screen (`"map"` or `"document"`) when the regulation has no `addressLookup` and no `overview`. With either of them the first screen is `home`
 - `defaultVisibleGeosets` — which geosets are visible on the map by default
-- `regulation` — array of `Chapter` and `GeoSet` items (the main content)
+- `addressLookup` — what the `street` screen shows for the reader's address ("Βρες τον δρόμο σου"). Without it the start screen has no address box:
+    - `zoneGeoSetId` — the area geoset that answers "which zone am I in"
+    - `streetGeoSetIds`, `streetRadiusMeters` (30), `streetMaxItems` (4) — the area geometries on the reader's street, nearest first. The default is every area geoset except the zone geoset
+    - `nearbyGeoSetIds`, `nearbyRadiusMeters` (400) — the nearest geometry of each of these geosets. The default is every point geoset
+    - `noZoneText` — markdown for an address outside every zone
+- `overview` — the cards of the `plan` screen ("the plan in two minutes"): `{id, title, body, commentOn?, commentLabel?, explains?, linkLabel?}`. `body` is markdown. `commentOn` is the entity that the card's comment link targets. `explains` lists the geosets that the card explains: a place of those geosets links to the card, with `linkLabel` as the link text. Without `overview` there is no `plan` screen
+- `regulation` — array of `Chapter` and `GeoSet` items (the main content). Order is draw order on the map: a later geoset draws on top and wins clicks, so put large areas (zones, communities) first and small clickable shapes after them
 
 **Chapter** (`type: "chapter"`):
 - `num`, `id`, `title`, `summary`, `preludeBody` (intro markdown before articles)
@@ -35,12 +41,16 @@ The regulation JSON file is the core data source for each consultation. It follo
 
 **GeoSet** (`type: "geoset"`):
 - `id`, `name`, `description`, `color` (hex)
+- `legend` — the short label of the geoset's filter chip on the map. A chip also controls the unlabelled geosets of its colour. When no geoset has a `legend`, the map shows one chip per geoset, labelled with its `name`
+- `mapStyle` — optional rendering hints: `fillOpacity` (default 0.4), `strokeWidth` (px; the circle radius for points), `showLabels` (false: no map labels for this geoset, e.g. hundreds of parking strips that would hide the street names), `hover` (false: no hover highlight for areas that sit under other clickable shapes)
 - `geometries[]` — individual geographic shapes
+
+**Geometry** text: every screen names a place the same way. The geoset's `name` says what it is ("Θέσεις κατοίκων"). The geometry's `name` says where it is ("Βουτσινά, δεξιά πλευρά, από Κύπρου προς Αναστάσεως"). `textualDefinition` gives one detail ("περίπου 12 θέσεις"). `description` gives one sentence of meaning.
 
 **Geometry** types:
 - `point` — single location with GeoJSON Point
 - `circle` — point with radius
-- `polygon` — area boundary with GeoJSON Polygon
+- `polygon` — area boundary with GeoJSON Polygon or MultiPolygon
 - `derived` — computed from other geosets via `buffer` (zone around source) or `difference` (subtract geosets from base) operations
 
 **Cross-Reference System:**
@@ -95,6 +105,7 @@ sequenceDiagram
     * `Consultation`: [`prisma/schema.prisma`](../../prisma/schema.prisma) (id, name, jsonUrl, endDate, isActive, cityId)
     * `ConsultationComment`: [`prisma/schema.prisma`](../../prisma/schema.prisma) (entity-scoped via entityType + entityId)
     * `ConsultationCommentUpvote`: [`prisma/schema.prisma`](../../prisma/schema.prisma) (unique constraint on userId + commentId)
+    * `PendingConsultationComment`: [`prisma/schema.prisma`](../../prisma/schema.prisma) (a signed-out reader's comment until they confirm their email)
     * `City.consultationsEnabled`: Feature flag gating the consultations tab
 
 * **JSON Schema**:
@@ -104,40 +115,40 @@ sequenceDiagram
     * `getConsultationsForCity()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (active consultations only, ordered by end date)
     * `getAllConsultationsForCity()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (all consultations including inactive, used on listing page)
     * `getConsultationById()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (single consultation with computed active status)
-    * `addConsultationComment()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (validates entity exists in regulation JSON, sends email)
+    * `addConsultationComment()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (signed-in reader: validates that the entity exists in the regulation JSON, stores the plain text as HTML, sends email)
+    * `submitPendingConsultationComment()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (signed-out reader: finds or creates the user by email, stores a pending comment, sends a magic link back to the comment screen with `pending=<id>`)
+    * `confirmPendingConsultationComment()`: [`src/lib/db/consultationComments.ts`](../../src/lib/db/consultationComments.ts) (called by the consultation page when a signed-in reader lands with `pending`; publishes that one comment if the reader wrote it)
+    * `pendingCommentQuote()`: [`src/lib/db/consultationComments.ts`](../../src/lib/db/consultationComments.ts) (the comment's text, which the confirmation email quotes; `src/auth.ts` passes it to `resendProvider`)
     * `toggleCommentUpvote()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (toggle on/off, returns new count)
     * `deleteConsultationComment()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (owner-only, cascades to upvotes)
     * `isConsultationActive()`: [`src/lib/db/consultations.ts`](../../src/lib/db/consultations.ts) (checks isActive flag AND end date with timezone awareness)
 
 * **API Endpoints**:
-    * `GET/POST /api/consultations/[id]/comments`: [`src/app/api/consultations/[id]/comments/route.ts`](../../src/app/api/consultations/%5Bid%5D/comments/route.ts) (list and create comments)
+    * `GET/POST /api/consultations/[id]/comments`: [`src/app/api/consultations/[id]/comments/route.ts`](../../src/app/api/consultations/%5Bid%5D/comments/route.ts) (list and create comments; a POST without a session but with `name` and `email` stores a pending comment and returns 202)
     * `POST /api/consultations/comments/[commentId]/upvote`: [`src/app/api/consultations/comments/[commentId]/upvote/route.ts`](../../src/app/api/consultations/comments/%5BcommentId%5D/upvote/route.ts) (toggle upvote)
     * `DELETE /api/consultations/comments/[commentId]/delete`: [`src/app/api/consultations/comments/[commentId]/delete/route.ts`](../../src/app/api/consultations/comments/%5BcommentId%5D/delete/route.ts) (owner-only deletion)
 
 * **Pages**:
     * Consultations listing: [`src/app/[locale]/(city)/[cityId]/(other)/(tabs)/consultations/page.tsx`](../../src/app/%5Blocale%5D/(city)/%5BcityId%5D/(other)/(tabs)/consultations/page.tsx) (all consultations for a city)
-    * Consultation detail: [`src/app/[locale]/(city)/[cityId]/consultation/[id]/page.tsx`](../../src/app/%5Blocale%5D/(city)/%5BcityId%5D/consultation/%5Bid%5D/page.tsx) (viewer with document + map)
+    * Consultation detail: [`src/app/[locale]/(city)/[cityId]/consultation/[id]/page.tsx`](../../src/app/%5Blocale%5D/(city)/%5BcityId%5D/consultation/%5Bid%5D/page.tsx) (renders the site header and passes it to the viewer)
     * Comments print view: [`src/app/[locale]/(city)/[cityId]/consultation/[id]/comments/page.tsx`](../../src/app/%5Blocale%5D/(city)/%5BcityId%5D/consultation/%5Bid%5D/comments/page.tsx) (print-friendly comment summary)
-    * Layout: [`src/app/[locale]/(city)/[cityId]/consultation/[id]/layout.tsx`](../../src/app/%5Blocale%5D/(city)/%5BcityId%5D/consultation/%5Bid%5D/layout.tsx) (header, footer, feature-flag check)
+    * Layout: [`src/app/[locale]/(city)/[cityId]/consultation/[id]/layout.tsx`](../../src/app/%5Blocale%5D/(city)/%5BcityId%5D/consultation/%5Bid%5D/layout.tsx) (feature-flag and existence checks only; the viewer places the site header, and the print page draws the header and footer itself)
 
 * **Frontend Components** (all under `src/components/consultations/`):
-    * `ConsultationViewer`: Master orchestrator — manages view state (document/map), URL hash navigation, chapter expansion, reference click handling, welcome dialog with regulation summary, and `defaultView` support
-    * `ConsultationHeader`: Title, status badge (Active/Inactive), end date, comment count
-    * `ConsultationDocument`: Renders chapters/articles with expand/collapse, AI summary cards, sources list
-    * `ChapterView` / `ArticleView`: Individual chapter and article renderers with comment counts, permalinks, collapsible content
+    * `ConsultationViewer`: Reads the screen from the URL, keeps the reader's address in session storage, computes the address lookup, and lays the screens out for a phone or a computer
+    * `consultationUrl.ts`: The URL model. `comment` and `plan` keep any entity; `home`, `street` and `comments` take none; for `map` and `document` the entity's type decides the screen
+    * `entityDisplay.ts`: `describeEntity()` gives every screen the same what, where, detail and meaning for an entity
+    * `addressLookup.ts`: `computeAddressLookup()` finds the zone, the street's geometries and the nearby points for an address
+    * `views/`: One component per screen — `HomeView`, `StreetView` (with `MiniMap` on a phone), `PlaceView` (the phone's card over the map, the computer's panel), `CommentView`, `PlanView`, `CommentsView` (with `CommentList`) and `StudyView`. `views/ui.tsx` holds the shared styles and `ViewLink`
+    * `ConsultationBar`: The computer's bar under the site header — title, deadline, and links to the plan, the comments and the study
+    * `ConsultationMap`: Mapbox map with geoset rendering, the address search bar (`views/AddressSearchBar`), filter chips, the address pin, selection and street outlines, derived geometry computation (buffer/difference), and the superadmin geo-editor
+    * `ConsultationDocument`: Renders chapters and articles with expand/collapse and the sources list
+    * `ChapterView` / `ArticleView`: Chapter and article renderers with comment counts, permalinks, and a link to the comment screen
     * `MarkdownContent`: Renders markdown with `{REF:id}` and `{DEF:id}` pattern handling as interactive links
-    * `ConsultationMap`: Mapbox map with geoset rendering, layer controls, detail panel, derived geometry computation (buffer/difference), address search with search location pins, initial fit-to-bounds, and `GeometryCollection` zoom support
-    * `LayerControlsPanel` / `LayerControlsButton`: Dual-mode sidebar — in normal mode shows a simplified community picker with address search (via `LocationSelector`); in editing mode shows the full layer controls with checkbox tree UI for toggling geoset/geometry visibility
-    * `DetailPanel`: Side sheet showing selected geoset/geometry/search-location info. For search locations, shows nearby points within 500m sorted by distance (Haversine). For geosets, lists point geometries with comment counts. For geometries, shows description, textual definition, and comments
-    * `GeoSetItem` / `GeometryItem`: Tree items in layer controls (editing mode) with checkboxes, color swatches, clickable names, and inline comment counts
-    * `CommentSection`: Rich text editor (ReactQuill), authentication check, comment display with upvotes and delete
-    * `CommentsOverviewSheet`: Modal listing all comments with sort options (recent/likes), entity type badges, navigation
-    * `AISummaryCard`: Collapsible card for AI-generated summaries on chapters/articles
+    * `LayerControlsPanel`, `GeoSetItem`, `GeometryItem`, `EditingToolsPanel`: The geo-editor (superadmins only)
     * `SourcesList`: Regulation source documents and contact information
     * `PermalinkButton`: Copy-to-clipboard link for any entity
-    * `DocumentNavigation`: Sticky sidebar with chapter/article outline
-    * `ViewToggleButton`: Floating button to switch between document and map views
-    * `EditingToolsPanel`: Admin drawing tools for map geometry editing
+    * `DocumentNavigation`: Fixed outline of the current chapter and article, on wide screens only
     * `PrintButton`: Triggers native print dialog on comments page
 
 * **City-Level Component**:
@@ -190,13 +201,19 @@ Generates the complete regulation JSON for the Athens cooking oil collection bin
 
 ### Typical Pipeline
 
-| Step | Scooter Regulation | Cooking Oil Regulation |
-|------|-------------------|----------------------|
-| 1. Extract structure | `convert-regulation-pdf.ts` (AI) | `generate-cooking-oil-regulation.ts` (manual) |
-| 2. Resolve coordinates | `transform-regulation-coordinates.ts` (GGRS87→WGS84) | `geocode-regulation-addresses.ts` (address→lat/lng) |
-| 3. Fix failures | Admin geo-editor | Admin geo-editor (4 addresses) |
-| 4. Upload JSON to S3 | Admin dashboard upload | Admin dashboard upload |
-| 5. Create DB record | Prisma seed | Admin consultations page |
+| Step | Scooter Regulation | Cooking Oil Regulation | Papagou Parking (ΣΕΣ) |
+|------|-------------------|----------------------|----------------------|
+| 1. Extract structure | `convert-regulation-pdf.ts` (AI) | `generate-cooking-oil-regulation.ts` (manual) | `python -m ses docx` (report .docx → chapters, tables, figures) |
+| 2. Resolve coordinates | `transform-regulation-coordinates.ts` (GGRS87→WGS84) | `geocode-regulation-addresses.ts` (address→lat/lng) | `python -m ses build` (CAD PDF vectors georeferenced against OSM) |
+| 3. Fix failures | Admin geo-editor | Admin geo-editor (4 addresses) | `config/street-aliases.json`, `config/id-aliases.json`, `out/diff-report.md` |
+| 4. Upload JSON to S3 | Admin dashboard upload | Admin dashboard upload | `generate-parking-regulation.ts` then admin dashboard upload |
+| 5. Create DB record | Prisma seed | Admin consultations page | Admin consultations page |
+
+### Parking Consultation Pipeline (Papagou-Cholargou)
+
+[`scripts/parking-consultation/`](../../scripts/parking-consultation/README.md) (Python) and [`scripts/generate-parking-regulation.ts`](../../scripts/generate-parking-regulation.ts)
+
+The source material is two AutoCAD PDF plots (zones, parking organisation per street side) and a technical report. The Python pipeline georeferences each plot from its street labels against OpenStreetMap, reads the filled shapes by colour, joins the triangles that AutoCAD plots for one strip, groups the parking strips into block-side units with stable transliterated ids, clusters the spot symbols, derives the zone areas from the street network's blocks, and converts the report to markdown. The TypeScript generator assembles the regulation JSON from those outputs, names and links every unit, and validates it with the shared [`scripts/lib/regulation-schema.ts`](../../scripts/lib/regulation-schema.ts) plus checks for duplicate ids and dangling `{REF:}` references. The README covers setup, the re-run procedure and the sanity numbers.
 
 ## Hosting Regulation JSON Files
 
@@ -245,14 +262,15 @@ For local development, you can place regulation JSON files in the `public/` dire
 3. Inactive consultations are visible on the listing page but comments are disabled
 
 ### Comments
-1. Only authenticated users can create comments
-2. Comments are entity-scoped: each comment targets a specific `entityType` (CHAPTER, ARTICLE, GEOSET, GEOMETRY) and `entityId`
-3. Before saving, the API fetches the regulation JSON and validates the target entity actually exists
-4. Comment body is validated: non-empty, max 5000 characters
-5. HTML in comments is sanitized to allow only safe tags (`p`, `strong`, `em`, `a`, `ul`, `ol`, `li`)
-6. Comments can only be deleted by their author
-7. Upvotes use a unique constraint (`userId`, `commentId`) for toggle behavior
-8. Each new comment triggers an email notification to the municipality (`contactEmail` from the regulation JSON, CC'd to `ccEmails`)
+1. A signed-in reader's comment goes live at once. A signed-out reader's comment waits in `PendingConsultationComment`. The confirmation email quotes it and links back to the comment screen with `pending=<id>`. Only that link publishes it: the page confirms it for the signed-in author, with its original time. A sign-in by any other route publishes nothing, so nobody can comment in someone else's name by typing their email. A pending comment lives 24 hours, as long as the link. After that, or on a consultation that is no longer active, it is not published
+2. The screens, the email to the municipality and the printout name a place the same way (`entityLabel`)
+3. Comments are entity-scoped: each comment targets a specific `entityType` (CHAPTER, ARTICLE, GEOSET, GEOMETRY) and `entityId`
+4. Before saving, the API fetches the regulation JSON and validates the target entity actually exists
+5. Comment body is validated: non-empty, max 5000 characters
+6. Readers write plain text. The server escapes it and stores it as paragraphs and line breaks. Rendering still sanitizes the HTML of older rich-text comments, allowing only safe tags (`p`, `strong`, `em`, `a`, `ul`, `ol`, `li`)
+7. Comments can only be deleted by their author
+8. Upvotes use a unique constraint (`userId`, `commentId`) for toggle behavior
+9. Each new comment triggers an email notification to the municipality (`contactEmail` from the regulation JSON, CC'd to `ccEmails`)
 
 ### Regulation JSON
 1. The regulation JSON is fetched from a remote URL stored in `Consultation.jsonUrl`
@@ -264,27 +282,27 @@ For local development, you can place regulation JSON files in the `public/` dire
 1. The map uses Mapbox GL with custom styling for different geosets (each has a `color`) and always-on street labels
 2. `defaultVisibleGeosets` in the regulation JSON controls initial map layer visibility
 3. The map auto-fits to all visible features on initial load (unless a hash navigation targets a specific entity)
-4. Citizens can search addresses via the community picker; searched locations appear as colored pins and open a detail panel showing nearby points within 500m
-5. Clicking a community boundary polygon opens the parent geoset detail; clicking a point opens the geometry detail
-6. Point labels (addresses) appear at higher zoom levels; polygon labels (community names) fade out at street level to avoid noise
-7. Derived geometries are computed client-side using buffer/difference operations
-8. The admin geo-editor stores drawn geometries in browser `localStorage` until exported
-9. Export produces a complete updated `regulation.json` merging local edits with original data
-10. Only super-administrators can access editing mode (via a small edit icon in the community picker header)
+4. The reader gives an address on the start screen or in the map's search bar. Both use the `usePlaceSearch` hook, the same Google Places search as the notifications signup. The `street` screen shows its zone, the geometries on its street (outlined on the map), and the nearest points. The address stays in the tab's session storage and never goes in the URL, so analytics do not record it
+5. Clicking any geometry (polygon or point) opens that geometry's card without moving the camera. A click tolerates a few pixels of miss. It prefers a point over a polygon, and an exact polygon hit over a near one, but a polygon within the tolerance beats an area under it (`mapStyle.hover: false`). Deep links and list clicks zoom to the geometry
+6. The filter chips show and hide geosets for the current visit
+7. Point labels (addresses) appear at higher zoom levels; polygon labels are always on unless the geoset sets `mapStyle.showLabels: false`
+8. Derived geometries are computed client-side using buffer/difference operations
+9. The admin geo-editor stores drawn geometries in browser `localStorage` until exported
+10. Export produces a complete updated `regulation.json` merging local edits with original data
+11. Only super-administrators can access editing mode (via the pencil button beside the map's search)
 
-### Mobile Experience
-1. On mobile (<768px), overlay panels render as bottom sheet drawers (via vaul) instead of side sheets / dialogs — providing a native iOS-style feel
-2. The welcome dialog uses Credenza (Dialog on desktop, Drawer on mobile) for automatic switching
-3. DetailPanel, CommentsOverviewSheet, and LayerControlsPanel use an inline `if (isMobile)` pattern: `Sheet` on desktop, `Drawer` on mobile
-4. Non-modal drawers (`DetailPanel`, `LayerControlsPanel`) keep the map interactive behind the sheet; modal drawers (`CommentsOverviewSheet`) block interaction
-5. Only one bottom sheet is open at a time — opening a detail panel auto-closes the layer controls
-6. Map zoom padding shifts content upward on mobile when a drawer is open so geometries aren't hidden behind the bottom sheet
-7. The `ViewToggleButton` FAB repositions above any open drawer to avoid overlap
+### Phone and Computer Layouts
+1. The layout switches at 1024px. Below it each screen is a page with a back link. From it the site header and the consultation bar stay at the top, the map fills the left, and a side panel shows the screen. The study (`document`) is a page on both
+2. The layout for the screen comes from CSS, so the server renders the panel. Only the map waits until the browser knows the screen size
+3. On a phone the map screen fills the screen without the site header. A tapped place opens a card at the bottom, and zooms keep clear of it
+4. Every screen but the phone's map shows the site header
 
 ### Navigation
-1. URL hash anchors (`#chapter-1`, `#article-3`, `#geoset-prohibited_areas`) enable deep linking to specific entities
-2. `{REF:id}` links in markdown content navigate to the referenced entity, switching between document and map views as needed
-3. The comments print page orders comments by document structure (chapters/articles first, then geosets/geometries)
+1. The URL holds the screen and the entity: `?view=map&entity=<id>`, `?view=comment&entity=<id>`, `?view=plan&entity=<card id>`. Old hash links (`#article-3`) and a view that does not match the entity are rewritten in place
+2. Links between screens change only the query string, through the history API. This avoids a server round trip, and with it a new download of the regulation, on every tap
+3. `{REF:id}` links in markdown content open the referenced entity on the map or in the study
+4. The comment screen's back link returns to the previous screen. Opened from the email link, it returns to the entity on the map or in the study
+5. The comments print page orders comments by document structure (chapters/articles first, then geosets/geometries)
 
 ### Multi-Tenancy
 1. All consultation data is city-scoped — queries always filter by `cityId`

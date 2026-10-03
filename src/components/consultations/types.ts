@@ -85,7 +85,39 @@ export interface RegulationItem {
     name?: string; // GeoSet name
     description?: string; // GeoSet description
     color?: string; // GeoSet color in hex format (e.g. #FF5733)
+    legend?: string; // short label for the map legend; a geoset without one gets no legend chip
+    mapStyle?: GeoSetMapStyle;
     geometries?: Geometry[];
+}
+
+/** Per-geoset rendering hints for the consultation map. Every field is optional. */
+export interface GeoSetMapStyle {
+    fillOpacity?: number; // 0..1, default 0.4 for static polygons
+    strokeWidth?: number; // px; polygons default 2, points (circle radius) default 4
+    showLabels?: boolean; // default true; false draws no map label for this geoset's geometries
+    hover?: boolean; // default true; false disables the hover highlight (still clickable)
+}
+
+/** Configures what a reader sees for their address ("Βρες τον δρόμο σου"). */
+export interface AddressLookupConfig {
+    zoneGeoSetId?: string; // area geoset that answers "which zone am I in"
+    streetGeoSetIds?: string[]; // area geosets shown as "on your street"; default: every polygon geoset except the zone geoset
+    streetRadiusMeters?: number; // default 30
+    streetMaxItems?: number; // default 4
+    nearbyGeoSetIds?: string[]; // geosets whose nearest geometry is shown as "near you"; default: every point geoset
+    nearbyRadiusMeters?: number; // default 400
+    noZoneText?: string; // markdown shown when no zone contains the address
+}
+
+/** One plain-language card of the "plan in two minutes" view. */
+export interface OverviewCard {
+    id: string; // Should match pattern: ^[a-zA-Z][a-zA-Z0-9_-]*$
+    title: string;
+    body: string; // markdown
+    commentOn?: string; // id of the chapter, article, geoset or geometry that comments on this card go to
+    commentLabel?: string; // default "Σχολιάστε"
+    explains?: string[]; // geoset ids this card explains; a place of those geosets links here
+    linkLabel?: string; // text of that link; default the card's title
 }
 
 export interface Definition {
@@ -102,6 +134,8 @@ export interface RegulationData {
     referenceFormat?: ReferenceFormat;
     defaultView?: 'map' | 'document'; // Default view mode (defaults to 'document')
     defaultVisibleGeosets?: string[]; // Array of geoset IDs that should be visible by default
+    addressLookup?: AddressLookupConfig; // What a reader sees for their address
+    overview?: OverviewCard[]; // "The plan in two minutes": plain-language cards shown before the full text
     definitions?: Record<string, Definition>; // Map from English IDs to term definitions
     regulation: RegulationItem[];
 }
@@ -120,8 +154,16 @@ export interface GeoSetData {
     name: string;
     description?: string;
     color?: string;
+    legend?: string;
+    mapStyle?: GeoSetMapStyle;
     geometries: Geometry[];
 }
 
 // Colors for search location pins on the map
-export const SEARCH_COLORS = ['#EF4444', '#8B5CF6', '#F59E0B', '#10B981', '#3B82F6']; 
+export const SEARCH_COLORS = ['#EF4444', '#8B5CF6', '#F59E0B', '#10B981', '#3B82F6'];
+
+/**
+ * What opening a comment's confirmation link did: published it, found it expired (the link lasts
+ * 24 hours) or on a closed consultation, found nothing to publish, or could not reach the regulation.
+ */
+export type PendingCommentConfirmation = 'published' | 'expired' | 'not-found' | 'unavailable';

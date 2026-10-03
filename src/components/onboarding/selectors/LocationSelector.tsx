@@ -1,16 +1,14 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { X, MapPin, AlertCircle, Loader2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Location } from '@/lib/types/onboarding';
-import { getPlaceSuggestions, getPlaceDetails, PlaceSuggestion, PlaceSuggestionsResult } from '@/lib/google-maps';
-import { useDebounce } from '@/hooks/use-debounce';
+import type { PlaceSuggestion } from '@/lib/google-maps';
+import { usePlaceSearch } from '@/hooks/usePlaceSearch';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
-import { calculateGeometryBounds } from '@/lib/geo';
-import { getRealmGeocoding } from '@/lib/realm';
 import { CityWithGeometry } from '@/lib/db/cities';
 
 interface LocationSelectorProps {
@@ -28,6 +26,10 @@ interface LocationSelectorProps {
      * always-visible search input. Defaults to false.
      */
     collapseAfterAdd?: boolean;
+    /** Lets a parent focus the search input, e.g. after a dialog that invited the search closes. */
+    inputRef?: React.RefObject<HTMLInputElement | null>;
+    /** Id of the search input, so a label outside the component can name it. */
+    inputId?: string;
 }
 
 export function LocationSelector({
@@ -37,145 +39,37 @@ export function LocationSelector({
     city,
     onLocationClick,
     hideSelectedList = false,
-    collapseAfterAdd = false
+    collapseAfterAdd = false,
+    inputRef: externalInputRef,
+    inputId
 }: LocationSelectorProps) {
     const t = useTranslations('Common');
-    const [inputValue, setInputValue] = useState('');
     // When collapseAfterAdd is enabled, start collapsed if the user already has
     // locations (e.g. re-entering the step via back navigation).
     const [isSearchVisible, setIsSearchVisible] = useState(
         () => !(collapseAfterAdd && selectedLocations.length > 0)
     );
-    const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
-    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-    const [isSelectingLocation, setIsSelectingLocation] = useState(false);
-    const [isWaitingForDebounce, setIsWaitingForDebounce] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    // Debounce the input value to avoid making too many API calls
-    const debouncedInputValue = useDebounce(inputValue, 300);
-
-    // Helper function to get user-friendly error messages
-    const getErrorMessage = useCallback((result: PlaceSuggestionsResult, searchQuery: string): string => {
-        if (!result.error) {
-            // No API error, just empty results
-            return t('locationSearchNoResults', { query: searchQuery, cityName: city.name });
-        }
-
-        // Handle different types of API errors
-        if (result.error.type === 'API_ERROR') {
-            if (result.error.status === 'REQUEST_DENIED') {
-                return t('locationSearchUnavailable');
-            } else if (result.error.status === 'OVER_QUERY_LIMIT') {
-                return t('locationSearchLimitExceeded');
-            } else {
-                return t('locationSearchApiError', { status: result.error.status ?? '' });
-            }
-        } else if (result.error.type === 'NETWORK_ERROR') {
-            return t('locationSearchNetworkError');
-        }
-
-        return t('locationSearchGenericError');
-    }, [city.name, t]);
-
-    // Fetch place suggestions from the Google API
-    useEffect(() => {
-        async function fetchSuggestions() {
-            // Reset error state
-            setError(null);
-
-            if (debouncedInputValue.trim().length > 2) {
-                setIsWaitingForDebounce(false); // No longer waiting, now actually fetching
-                setIsLoadingSuggestions(true);
-                try {
-                    // Extract city center coordinates from geometry if available
-                    let cityCoordinates: [number, number] | undefined;
-
-                    if (city.geometry) {
-                        // Calculate center from city geometry
-                        const { center } = calculateGeometryBounds(city.geometry);
-                        cityCoordinates = center;
-                    }
-
-                    // Pass the city name and coordinates to restrict suggestions to this
-                    // municipality, plus the realm's country/language so a French city
-                    // searches French addresses (not Greek ones).
-                    const result = await getPlaceSuggestions(
-                        debouncedInputValue,
-                        city.name,
-                        cityCoordinates,
-                        getRealmGeocoding(city.realm)
-                    );
-
-                    setSuggestions(result.data);
-
-                    // Show error if there's an API error or no results for longer queries
-                    if (result.error || (result.data.length === 0 && debouncedInputValue.trim().length > 3)) {
-                        setError(getErrorMessage(result, debouncedInputValue));
-                    }
-                } catch (error) {
-                    console.error('Unexpected error fetching place suggestions:', error);
-                    setError(t('locationSearchGenericError'));
-                } finally {
-                    setIsLoadingSuggestions(false);
-                    // Don't refocus on mobile - it causes the keyboard to dismiss
-                }
-            } else {
-                setIsWaitingForDebounce(false);
-                setSuggestions([]);
-            }
-        }
-
-        fetchSuggestions();
-    }, [debouncedInputValue, city.name, city.geometry, city.realm, getErrorMessage, t]);
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newValue = e.target.value;
-        setInputValue(newValue);
-        setError(null); // Clear any error when input changes
-
-        // Show loading immediately if input is long enough (will trigger search after debounce)
-        if (newValue.trim().length > 2) {
-            setIsWaitingForDebounce(true);
-        } else {
-            setIsWaitingForDebounce(false);
-            setSuggestions([]);
-        }
-    };
+    const ownInputRef = useRef<HTMLInputElement>(null);
+    const inputRef = externalInputRef ?? ownInputRef;
+    const {
+        inputValue,
+        changeInput,
+        suggestions,
+        isBusy,
+        isSelecting: isSelectingLocation,
+        error,
+        clear,
+        select,
+    } = usePlaceSearch(city);
 
     const handleSelectLocation = async (suggestion: PlaceSuggestion) => {
-        if (isSelectingLocation) return;
-
-        setIsSelectingLocation(true);
-        setError(null);
-
-        try {
-            const placeDetails = await getPlaceDetails(suggestion.placeId, getRealmGeocoding(city.realm).language);
-
-            if (placeDetails) {
-                const location: Location = {
-                    text: placeDetails.text,
-                    coordinates: placeDetails.coordinates
-                };
-
-                onSelect(location);
-                setInputValue('');
-                setSuggestions([]);
-                setIsWaitingForDebounce(false);
-                // Collapse the search back into the "add new location" button
-                // after a successful add, so the affordance is explicit.
-                if (collapseAfterAdd) {
-                    setIsSearchVisible(false);
-                }
-            } else {
-                setError(t('locationDetailsUnavailable'));
-            }
-        } catch (error) {
-            console.error('Error fetching place details:', error);
-            setError(t('locationDetailsError'));
-        } finally {
-            setIsSelectingLocation(false);
+        const location = await select(suggestion);
+        if (!location) return;
+        onSelect(location);
+        // Collapse the search back into the "add new location" button
+        // after a successful add, so the affordance is explicit.
+        if (collapseAfterAdd) {
+            setIsSearchVisible(false);
         }
     };
 
@@ -207,6 +101,7 @@ export function LocationSelector({
                         <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
                         <Input
                             ref={inputRef}
+                            id={inputId}
                             type="text"
                             inputMode="search"
                             autoComplete="off"
@@ -215,12 +110,12 @@ export function LocationSelector({
                             data-form-type="other"
                             placeholder={t('searchAddressPlaceholder', { cityName: city.name })}
                             aria-label={t('searchAddressInMunicipality', { cityName: city.name })}
-                            className={`pl-10 py-5 text-base md:text-sm ${(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) ? 'pr-10' : ''}`}
+                            className={`pl-10 py-5 text-base md:text-sm ${isBusy ? 'pr-10' : ''}`}
                             value={inputValue}
-                            onChange={handleInputChange}
+                            onChange={(e) => changeInput(e.target.value)}
                             disabled={isSelectingLocation}
                         />
-                        {(isLoadingSuggestions || isSelectingLocation || isWaitingForDebounce) && (
+                        {isBusy && (
                             <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
                                 <Loader2 className="h-5 w-5 md:h-4 md:w-4 animate-spin text-primary" />
                             </div>
@@ -229,12 +124,7 @@ export function LocationSelector({
                     <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => {
-                            setInputValue('');
-                            setError(null);
-                            setIsWaitingForDebounce(false);
-                            setSuggestions([]);
-                        }}
+                        onClick={clear}
                         className={cn(
                             "transition-opacity h-11 w-11 md:h-10 md:w-10 touch-manipulation",
                             inputValue ? "opacity-100" : "opacity-0"
