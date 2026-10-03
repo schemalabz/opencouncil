@@ -58,7 +58,8 @@ describe('getNearbySubjects', () => {
         const nearby = await getNearbySubjects({ cityId: 'thira', lng: 25.43, lat: 36.41 });
 
         expect(mockCities).toHaveBeenCalledWith('greece');
-        expect(mockNearPoint).toHaveBeenCalledWith('thira', [25.43, 36.41], 1500, 9);
+        // The city page's default period, not a fixed count of meetings.
+        expect(mockNearPoint).toHaveBeenCalledWith('thira', [25.43, 36.41], 1500, 9, { months: 3 });
         expect(nearby.subjects.map((s) => s.id)).toEqual(['a', 'c', 'd']);
         expect(nearby.subjects[0]).toEqual({
             id: 'a',
@@ -70,9 +71,22 @@ describe('getNearbySubjects', () => {
         expect(nearby.since).toBe('2026-06-02T15:00:00.000Z');
     });
 
+    it('says when the subjects come from before the period, because the period held no meetings', async () => {
+        const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+        const at = (id: string, dateTime: string) => ({ ...hot(id, 500), meeting: { dateTime } });
+        mockNearPoint.mockResolvedValue({ subjects: [], meetingsScanned: 8, oldestMeetingDate: daysAgo(400) });
+
+        mockWithDistances.mockResolvedValueOnce([at('old', daysAgo(200)), at('older', daysAgo(400))]);
+        expect((await getNearbySubjects({ cityId: 'thira', lng: 25.43, lat: 36.41 })).beyondPeriod).toBe(true);
+
+        mockWithDistances.mockResolvedValueOnce([at('recent', daysAgo(10)), at('older', daysAgo(400))]);
+        expect((await getNearbySubjects({ cityId: 'thira', lng: 25.43, lat: 36.41 })).beyondPeriod).toBe(false);
+    });
+
     it('answers nothing for a city outside the realm or without notifications, before any per-city cache', async () => {
-        expect(await getNearbySubjects({ cityId: 'made-up', lng: 25.43, lat: 36.41 })).toEqual({ subjects: [], since: null });
-        expect(await getNearbySubjects({ cityId: 'quiet', lng: 25.43, lat: 36.41 })).toEqual({ subjects: [], since: null });
+        const nothing = { subjects: [], since: null, beyondPeriod: false };
+        expect(await getNearbySubjects({ cityId: 'made-up', lng: 25.43, lat: 36.41 })).toEqual(nothing);
+        expect(await getNearbySubjects({ cityId: 'quiet', lng: 25.43, lat: 36.41 })).toEqual(nothing);
         expect(mockNearPoint).not.toHaveBeenCalled();
     });
 

@@ -50,6 +50,7 @@
   },
   "nearby": {
     "eyebrow": "Récemment tout près",
+    "eyebrowOlder": "Plus tôt, tout près",
     "empty": "Rien tout près lors des dernières séances. Notis vous écrira quand quelque chose arrivera.",
     "emptySince": "Rien de discuté tout près lors des séances depuis le {date}. Notis vous écrira quand quelque chose arrivera."
   },

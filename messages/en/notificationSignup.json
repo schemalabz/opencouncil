@@ -50,6 +50,7 @@
   },
   "nearby": {
     "eyebrow": "Recently nearby",
+    "eyebrowOlder": "Earlier, nearby",
     "empty": "Nothing nearby in the latest meetings. Notis will write when something comes up.",
     "emptySince": "Nothing discussed nearby in the meetings since {date}. Notis will write when something comes up."
   },

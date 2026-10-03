@@ -31,10 +31,17 @@ export function NearbySubjects({
 
     if (state.status === 'failed') return null;
 
+    // When the period held no meetings, the subjects are older: the heading
+    // stops calling them recent and the dates carry their year.
+    const older = state.status === 'ready' && state.beyondPeriod;
+    const heading = older ? t('nearby.eyebrowOlder') : t('nearby.eyebrow');
+    const meetingDate = (iso: string) =>
+        older ? formatDate(new Date(iso), timezone, locale) : formatDayMonth(new Date(iso), timezone, locale);
+
     return (
-        <section aria-label={t('nearby.eyebrow')} className={cn(surfaceCardClass, 'overflow-hidden', className)}>
+        <section aria-label={heading} className={cn(surfaceCardClass, 'overflow-hidden', className)}>
             <div className="px-3.5 pb-2 pt-3">
-                <Eyebrow>{t('nearby.eyebrow')}</Eyebrow>
+                <Eyebrow>{heading}</Eyebrow>
             </div>
             <div aria-live="polite" aria-busy={state.status === 'loading'}>
                 {state.status === 'loading' ? (
@@ -61,7 +68,7 @@ export function NearbySubjects({
                                     <span className="mt-0.5 block text-xs text-muted-foreground">
                                         {[
                                             subject.topic ? getLocalizedName(subject.topic, locale) : null,
-                                            formatDayMonth(new Date(subject.meetingDate), timezone, locale),
+                                            meetingDate(subject.meetingDate),
                                         ]
                                             .filter(Boolean)
                                             .join(' · ')}

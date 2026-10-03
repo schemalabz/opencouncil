@@ -39,6 +39,9 @@ export const HOT_PERIODS: Record<HotPeriod, {
     all: { label: 'periodAll', isDefault: false },
 };
 
+/** The period the city page ranks over unless the reader picks another. */
+export const DEFAULT_HOT_PERIOD: HotPeriod = '3m';
+
 /**
  * The instant a period reaches back to — the one definition of that arithmetic.
  *
@@ -65,6 +68,17 @@ export function periodStart(period: HotPeriod): Date | null {
 }
 
 /**
+ * Whether a ranking fell back past its period: the period held no meetings,
+ * so every meeting the ranking drew on predates its start. False for an empty
+ * ranking or an unbounded period. Surfaces that show such a ranking say so,
+ * rather than let old dates pass as recent.
+ */
+export function isBeyondPeriod(period: HotPeriod, meetingDates: (Date | string)[]): boolean {
+    const start = periodStart(period);
+    return start !== null && meetingDates.length > 0 && meetingDates.every((date) => new Date(date) < start);
+}
+
+/**
  * A URL value, or the default when it is absent or not one we recognise.
  *
  * Own keys only: `in` also answers true for `constructor`, `__proto__` and the
@@ -76,5 +90,5 @@ export function readScope(value: string | undefined): HotScope {
 }
 
 export function readPeriod(value: string | undefined): HotPeriod {
-    return value && Object.hasOwn(HOT_PERIODS, value) ? (value as HotPeriod) : '3m';
+    return value && Object.hasOwn(HOT_PERIODS, value) ? (value as HotPeriod) : DEFAULT_HOT_PERIOD;
 }

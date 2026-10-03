@@ -1,4 +1,4 @@
-import { HOT_PERIODS, HOT_SCOPES, monthsAgo, readPeriod, readScope } from '../hotTopicFilters';
+import { HOT_PERIODS, HOT_SCOPES, isBeyondPeriod, monthsAgo, readPeriod, readScope } from '../hotTopicFilters';
 
 describe('readScope / readPeriod', () => {
     it('keeps a value the picker writes', () => {
@@ -66,5 +66,23 @@ describe('monthsAgo', () => {
         const now = new Date(2026, 4, 31, 12, 0);
         const meeting = new Date(2026, 2, 1, 18, 0);
         expect(meeting >= monthsAgo(3, now)).toBe(true);
+    });
+});
+
+describe('isBeyondPeriod', () => {
+    const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    it('is true only when every meeting predates the period', () => {
+        expect(isBeyondPeriod('3m', [daysAgo(200), daysAgo(400)])).toBe(true);
+        expect(isBeyondPeriod('3m', [daysAgo(10), daysAgo(400)])).toBe(false);
+    });
+
+    it('accepts the ISO strings a cache hit hands back', () => {
+        expect(isBeyondPeriod('3m', [daysAgo(200).toISOString()])).toBe(true);
+    });
+
+    it('is false for an empty ranking or an unbounded period', () => {
+        expect(isBeyondPeriod('3m', [])).toBe(false);
+        expect(isBeyondPeriod('all', [daysAgo(4000)])).toBe(false);
     });
 });

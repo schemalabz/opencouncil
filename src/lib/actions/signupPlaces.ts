@@ -8,6 +8,7 @@ import { getHotSubjectsNearPoint, withDistances } from "@/lib/hotSubjects";
 import { getRealmGeocoding } from "@/lib/realm";
 import { getRealm } from "@/lib/realm.server";
 import type { Location } from "@/lib/types/onboarding";
+import { DEFAULT_HOT_PERIOD, HOT_PERIODS, isBeyondPeriod } from "@/lib/utils/hotTopicFilters";
 
 /**
  * The places step of the notifications signup: what the council discussed
@@ -56,45 +57,55 @@ export interface NearbySubjects {
     subjects: NearbySubject[];
     /**
      * ISO date of the oldest meeting the scan covered, or null when there was
-     * none. The scan is the last few meetings, which spans weeks for a busy
-     * council and months for a quiet one, so an empty answer must say since when.
+     * none. A period with no meetings falls back to the most recent ones, which
+     * reach further back, so an empty answer must say since when.
      */
     since: string | null;
+    /**
+     * The period held no meetings, so these subjects come from older ones.
+     * The card must not call them recent.
+     */
+    beyondPeriod: boolean;
 }
 
 /**
- * Up to three recent subjects pinned near the point, nearest-ranked the way
- * the city page ranks them. Subjects with no pinned location are left out:
- * the card answers "what happened near here", not "what happened".
+ * Up to three hot subjects pinned near the point, over the city page's default
+ * period and ranked the way the city page ranks them. Subjects with no pinned
+ * location are left out: the card answers "what happened near here", not
+ * "what happened".
  */
 export async function getNearbySubjects(input: PointInput): Promise<NearbySubjects> {
     const { cityId, lng, lat } = pointSchema.parse(input);
-    if (!(await isSignupCity(cityId))) return { subjects: [], since: null };
+    if (!(await isSignupCity(cityId))) return { subjects: [], since: null, beyondPeriod: false };
 
     const center: [number, number] = [lng, lat];
-    const { subjects, oldestMeetingDate } = await getHotSubjectsNearPoint(cityId, center, NEARBY_RADIUS_METERS, NEARBY_LIMIT * 3);
+    const { subjects, oldestMeetingDate } = await getHotSubjectsNearPoint(cityId, center, NEARBY_RADIUS_METERS, NEARBY_LIMIT * 3, {
+        months: HOT_PERIODS[DEFAULT_HOT_PERIOD].months,
+    });
     const ranked = await withDistances(subjects, center);
 
+    const nearby = ranked
+        .flatMap(({ subject, meeting, distanceMeters }) =>
+            distanceMeters === null
+                ? []
+                : [
+                      {
+                          id: subject.id,
+                          name: subject.name,
+                          topic: subject.topic
+                              ? { name: subject.topic.name, name_en: subject.topic.name_en, colorHex: subject.topic.colorHex }
+                              : null,
+                          // A string, not a Date, when the meetings come off a cache hit.
+                          meetingDate: new Date(meeting.dateTime).toISOString(),
+                          distanceMeters,
+                      },
+                  ],
+        )
+        .slice(0, NEARBY_LIMIT);
     return {
-        subjects: ranked
-            .flatMap(({ subject, meeting, distanceMeters }) =>
-                distanceMeters === null
-                    ? []
-                    : [
-                          {
-                              id: subject.id,
-                              name: subject.name,
-                              topic: subject.topic
-                                  ? { name: subject.topic.name, name_en: subject.topic.name_en, colorHex: subject.topic.colorHex }
-                                  : null,
-                              // A string, not a Date, when the meetings come off a cache hit.
-                              meetingDate: new Date(meeting.dateTime).toISOString(),
-                              distanceMeters,
-                          },
-                      ],
-            )
-            .slice(0, NEARBY_LIMIT),
+        subjects: nearby,
         since: oldestMeetingDate ? new Date(oldestMeetingDate).toISOString() : null,
+        beyondPeriod: isBeyondPeriod(DEFAULT_HOT_PERIOD, nearby.map((subject) => subject.meetingDate)),
     };
 }
 
