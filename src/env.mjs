@@ -46,6 +46,8 @@ export const env = createEnv({
 
     // Auth
     RESEND_API_KEY: z.string().min(1),
+    // Replaces every sender address; see src/lib/email/senders.ts.
+    EMAIL_FROM_OVERRIDE: z.string().min(1).optional(),
     NEXTAUTH_SECRET: z.string().min(1),
     NEXTAUTH_URL: z.string().url(),
     BASIC_AUTH_USERNAME: z.string().optional(),
@@ -149,6 +151,7 @@ export const env = createEnv({
     DATABASE_PASSWORD: process.env.DATABASE_PASSWORD,
     DATABASE_NAME: process.env.DATABASE_NAME,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM_OVERRIDE: process.env.EMAIL_FROM_OVERRIDE,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     BASIC_AUTH_USERNAME: process.env.BASIC_AUTH_USERNAME,
