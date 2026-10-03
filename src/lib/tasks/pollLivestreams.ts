@@ -7,6 +7,8 @@ import { getRecentTranscribeFailureErrors } from "@/lib/db/tasksInternal";
 import { cacheHas, cacheSetJSON } from "../cache/valkey";
 import { requestTranscribeInternal } from "./transcribeInternal";
 import { sendLivestreamMatchedAlert, sendLivestreamMultipleMeetingsAlert, sendLivestreamRetriesExhaustedAlert } from "../discord";
+import type { MeetingKind } from "@prisma/client";
+import { meetingNameInCity } from "@/lib/meetingName";
 
 /** ±12h around a meeting's scheduled time — the window in which its livestream appears. */
 const WINDOW_MS = 12 * 60 * 60 * 1000;
@@ -75,6 +77,8 @@ export async function matchMeetingToVideo(
         dateTime: Date;
         administrativeBodyName: string;
         subjectNames: string[];
+        kind?: MeetingKind | null;
+        sessionNumber?: number | null;
     },
     videos: YouTubeVideo[],
 ): Promise<LivestreamMatchDecision> {
@@ -86,6 +90,10 @@ export async function matchMeetingToVideo(
         meeting: {
             title: meeting.name,
             title_en: meeting.name_en,
+            // The video title often says «21η Τακτική Συνεδρίαση»; the kind and
+            // the number of the meeting help to match it.
+            kind: meeting.kind ?? undefined,
+            sessionNumber: meeting.sessionNumber ?? undefined,
             scheduledAt: meeting.dateTime.toISOString(),
             administrativeBody: meeting.administrativeBodyName,
             agendaSubjects: meeting.subjectNames.slice(0, 20),
@@ -182,10 +190,15 @@ export async function pollLivestreamsForRecentMeetings(
         where: {
             dateTime: { gte: windowStart, lte: windowEnd },
             administrativeBody: { youtubeChannelUrl: { not: null } },
+            // A postponed meeting in the window would take the stream of its
+            // new meeting. A meeting with no public recording has no stream.
+            scheduleStatus: 'scheduled',
+            closedToPublic: false,
+            format: { not: 'byCirculation' },
         },
         include: {
             administrativeBody: true,
-            city: { select: { name: true } },
+            city: { select: { name: true, timezone: true } },
             subjects: { select: { name: true }, orderBy: { agendaItemIndex: 'asc' } },
         },
         orderBy: { dateTime: 'desc' },
@@ -267,9 +280,11 @@ export async function pollLivestreamsForRecentMeetings(
             const videos = await getChannelVideos(channelUrl);
             const decision = await matchMeetingToVideo(
                 {
-                    name: meeting.name,
-                    name_en: meeting.name_en,
+                    name: meetingNameInCity(meeting, 'el'),
+                    name_en: meetingNameInCity(meeting, 'en'),
                     dateTime: meeting.dateTime,
+                    kind: meeting.kind,
+                    sessionNumber: meeting.sessionNumber,
                     administrativeBodyName: meeting.administrativeBody!.name,
                     subjectNames: meeting.subjects.map(s => s.name),
                 },
@@ -311,7 +326,7 @@ export async function pollLivestreamsForRecentMeetings(
                             cityId,
                             cityName: meeting.city.name,
                             meetingId,
-                            meetingName: meeting.name,
+                            meetingName: meetingNameInCity(meeting, 'el'),
                             videoUrl,
                             videoTitle: matchedVideo.title,
                             attempts,
@@ -353,7 +368,7 @@ export async function pollLivestreamsForRecentMeetings(
                         cityId,
                         cityName: meeting.city.name,
                         meetingId,
-                        meetingName: meeting.name,
+                        meetingName: meetingNameInCity(meeting, 'el'),
                         videoUrl,
                         videoTitle: matchedVideo.title,
                         confidence: decision.confidence,
@@ -378,7 +393,7 @@ export async function pollLivestreamsForRecentMeetings(
                         cityId,
                         cityName: meeting.city.name,
                         meetingId,
-                        meetingName: meeting.name,
+                        meetingName: meetingNameInCity(meeting, 'el'),
                         channelUrl,
                         videoUrl,
                         reasoning: decision.reasoning,

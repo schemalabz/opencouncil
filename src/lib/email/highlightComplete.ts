@@ -4,8 +4,9 @@ import { HighlightCompleteEmail, highlightCompleteCopy } from './templates/Highl
 import { emailLocaleForRealm } from './emailLocale';
 import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
 import prisma from '@/lib/db/prisma';
-import { formatDate, formatDuration } from '@/lib/formatters/time';
+import { formatDuration } from '@/lib/formatters/time';
 import { getLocalizedName } from '@/lib/formatters/name';
+import { meetingNameInCity } from '@/lib/meetingName';
 
 interface SendHighlightCompleteEmailParams {
     userId: string;
@@ -39,6 +40,7 @@ export async function sendHighlightCompleteEmail({
             include: {
                 meeting: {
                     include: {
+                        administrativeBody: { select: { name: true, name_en: true } },
                         city: {
                             select: {
                                 name: true,
@@ -91,9 +93,7 @@ export async function sendHighlightCompleteEmail({
         // Prepare email data
         const userName = user.name || user.email.split('@')[0];
         const highlightTitle = highlight.name || copy.untitled;
-        const meetingName =
-            getLocalizedName(highlight.meeting, locale) ||
-            copy.meetingOn(formatDate(new Date(highlight.meeting.dateTime), highlight.meeting.city.timezone, locale));
+        const meetingName = meetingNameInCity(highlight.meeting, locale);
         const cityName = getLocalizedName(highlight.meeting.city, locale);
 
         // Render the email template

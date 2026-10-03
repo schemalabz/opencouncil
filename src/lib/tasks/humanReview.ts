@@ -10,6 +10,7 @@ import { sendHumanReviewCompletedAdminAlert } from '@/lib/discord';
 import { sendTranscriptToMunicipality } from './sendTranscript';
 import { requestSummarize } from './summarize';
 import { autoTriggerTask, type AutoTriggerOutcome } from './autoTrigger';
+import { meetingNameInCity, type MeetingNameFields } from '@/lib/meetingName';
 
 /**
  * Whether the summarize task can start for a meeting.
@@ -130,7 +131,8 @@ export async function markHumanReviewComplete(
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },
         include: {
-            city: true
+            city: true,
+            administrativeBody: true,
         }
     });
 
@@ -157,7 +159,7 @@ export async function markHumanReviewComplete(
 async function createHumanReviewRecord(
     cityId: string,
     meetingId: string,
-    meeting: { name: string; city: { name_en: string } },
+    meeting: MeetingNameFields & { city: { name_en: string; timezone: string } },
     manualReviewTime?: string
 ) {
     // Get actual reviewer stats from the meeting's edit history
@@ -195,7 +197,7 @@ async function createHumanReviewRecord(
             cityId,
             cityName: meeting.city.name_en,
             meetingId,
-            meetingName: meeting.name,
+            meetingName: meetingNameInCity(meeting, 'el'),
             primaryReviewer: stats.primaryReviewer,
             secondaryReviewers: stats.secondaryReviewers,
             editCount: stats.editCount,
@@ -222,7 +224,7 @@ async function createHumanReviewRecord(
 async function runReviewFollowUps(
     cityId: string,
     meetingId: string,
-    meeting: { name_en: string; city: { name_en: string } },
+    meeting: MeetingNameFields & { city: { name_en: string; timezone: string } },
     reviewTaskId: string,
     { sendTranscript, runSummarize }: Required<Omit<MarkHumanReviewCompleteOptions, 'manualReviewTime'>>
 ): Promise<ReviewFollowUpOutcomes> {
@@ -235,7 +237,7 @@ async function runReviewFollowUps(
                     cityId,
                     meetingId,
                     cityName: meeting.city.name_en,
-                    meetingName: meeting.name_en,
+                    meetingName: meetingNameInCity(meeting, 'en'),
                     source: { taskType: 'humanReview', taskId: reviewTaskId },
                 },
                 () => requestSummarize(cityId, meetingId)

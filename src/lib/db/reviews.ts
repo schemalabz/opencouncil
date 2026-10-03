@@ -4,6 +4,7 @@ import prisma from './prisma';
 import { buildDateFilter } from './reviews/dateFilters';
 import { CUSTOMER_CITY_WHERE } from '../cityStatus';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 // ============================================================================
 // SHARED PRISMA PATTERNS
@@ -50,7 +51,7 @@ const selectPattern = {
   user: { id: true, name: true, email: true } as const,
 
   /** City name */
-  cityName: { name: true } as const,
+  cityName: { name: true, timezone: true } as const,
 };
 
 /**
@@ -60,7 +61,7 @@ const includePattern = {
   /** Basic meeting info with city and relevant task statuses */
   meetingWithReviewInfo: () => ({
     city: { select: selectPattern.cityName },
-    administrativeBody: { select: { id: true, name: true } },
+    administrativeBody: { select: { id: true, name: true, name_en: true } },
     taskStatuses: {
       where: whereClause.reviewTaskStatuses(),
       // Only the fields hasSucceededTask reads. The full rows carry the
@@ -997,7 +998,7 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
       cityId: m.cityId,
       cityName: m.city.name,
       administrativeBodyName: m.administrativeBody?.name ?? null,
-      meetingName: m.name,
+      meetingName: meetingDisplayName(m, 'el', m.city.timezone),
       meetingDate: m.dateTime,
       status,
       ...stats,
@@ -1139,7 +1140,7 @@ export async function getReviewProgressForMeeting(
     cityId: meetingRecord.cityId,
     cityName: meetingRecord.city.name,
     administrativeBodyName: meetingRecord.administrativeBody?.name ?? null,
-    meetingName: meetingRecord.name,
+    meetingName: meetingDisplayName(meetingRecord, 'el', meetingRecord.city.timezone),
     meetingDate: meetingRecord.dateTime,
     status,
     // Aggregated stats (all ReviewListItem fields)

@@ -21,6 +21,7 @@ import { Clock, Loader2, MapPin, ScrollText } from "lucide-react";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { meetingDisplayName } from '@/lib/meetingName';
 
 
 interface SubjectRowProps {
@@ -183,7 +184,7 @@ export function SubjectRow({ subject, city, meeting, showContext = true, pending
                             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                                 {/* The meeting name is context too: on the meeting's own page
                                     the h1 already says it, N rows repeating it said nothing. */}
-                                {showContext && <MetaItem icon={ScrollText}>{getLocalizedName(meeting, locale)}</MetaItem>}
+                                {showContext && <MetaItem icon={ScrollText}>{meetingDisplayName(meeting, locale, city.timezone)}</MetaItem>}
                                 <MetaItem icon={MapPin}>{locationText ?? t("noLocation")}</MetaItem>
                             </div>
                         </div>

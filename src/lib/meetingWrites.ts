@@ -1,22 +1,22 @@
 // Server-only: these writes take no identity and check no session. The caller
 // authorizes first — the meetings API routes and the MCP admin tools do.
+// Every write goes through the lifecycle module, so it runs the rules of the
+// record.
 import "server-only";
-import { CouncilMeeting, Prisma } from '@prisma/client';
-import { getCityNameEn } from '@/lib/db/citiesAdmin';
-import {
-    createCouncilMeetingDirect,
-    editCouncilMeetingDirect,
-    generateUniqueMeetingId,
-    type CouncilMeetingWithAdminBody,
-} from '@/lib/db/meetings';
+import { Prisma } from '@prisma/client';
+import { getCityNameEnAndTimezone } from '@/lib/db/citiesAdmin';
+import { generateUniqueMeetingId, getCouncilMeetingDirect, type CouncilMeetingWithAdminBody } from '@/lib/db/meetings';
+import { createMeetingRecord, updateMeetingRecord, type MeetingRecordFields } from '@/lib/db/meetingLifecycle';
 import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { syncMeetingToCalendar } from '@/lib/google-calendar';
 import { requestProcessAgendaInternal } from '@/lib/tasks/processAgendaInternal';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 export type NewMeetingInput = {
-    name: string;
-    name_en: string;
+    /** A name override. Omit or null to derive the name (see meetingDisplayName). */
+    name?: string | null;
+    name_en?: string | null;
     date: Date;
     youtubeUrl?: string | null;
     agendaUrl?: string | null;
@@ -25,7 +25,9 @@ export type NewMeetingInput = {
     administrativeBodyId?: string | null;
     /** Queue the processAgenda task when there is an agenda URL. */
     processAgenda?: boolean;
-};
+} & Partial<Pick<MeetingRecordFields,
+    | 'kind' | 'scheduleStatus' | 'scheduleStatusReason' | 'sessionNumber' | 'format'
+    | 'closedToPublic' | 'place' | 'postponedFromId' | 'continuationOfId'>>;
 
 export type ProcessAgendaOutcome = string | 'failed' | 'skipped_no_agenda';
 
@@ -38,13 +40,16 @@ export async function createMeetingWithEffects(
     cityId: string,
     input: NewMeetingInput
 ): Promise<{ meeting: CouncilMeetingWithAdminBody; processAgendaStatus?: ProcessAgendaOutcome }> {
-    const { name, name_en, date, youtubeUrl, agendaUrl, administrativeBodyId, processAgenda } = input;
+    const {
+        name, name_en, date, youtubeUrl, agendaUrl, administrativeBodyId, processAgenda,
+        kind, scheduleStatus, scheduleStatusReason, sessionNumber, format, closedToPublic, place, postponedFromId, continuationOfId,
+    } = input;
 
     let meetingId = input.meetingId || (await generateUniqueMeetingId(cityId, date));
 
     const buildMeetingData = (id: string) => ({
-        name,
-        name_en,
+        name: name ?? null,
+        name_en: name_en ?? null,
         id,
         dateTime: date,
         cityId,
@@ -53,17 +58,28 @@ export async function createMeetingWithEffects(
         released: false as const,
         muxPlaybackId: null,
         administrativeBodyId: administrativeBodyId || null,
+        // An unknown kind is for the archive only. A later part of a
+        // meeting has no kind of its own: its first part holds it.
+        kind: kind !== undefined ? kind : (continuationOfId ? null : 'regular' as const),
+        scheduleStatus,
+        scheduleStatusReason,
+        sessionNumber,
+        format,
+        closedToPublic,
+        place,
+        postponedFromId,
+        continuationOfId,
     });
 
     let meeting: CouncilMeetingWithAdminBody;
     try {
-        meeting = await createCouncilMeetingDirect(buildMeetingData(meetingId));
+        meeting = await createMeetingRecord(buildMeetingData(meetingId));
     } catch (error) {
         // Retry with a fresh ID on unique constraint violation (TOCTOU race).
         if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
         if (input.meetingId) throw error;
         meetingId = await generateUniqueMeetingId(cityId, date);
-        meeting = await createCouncilMeetingDirect(buildMeetingData(meetingId));
+        meeting = await createMeetingRecord(buildMeetingData(meetingId));
     }
 
     revalidateAfterResponse({
@@ -74,15 +90,15 @@ export async function createMeetingWithEffects(
     });
 
     // Fetch city data (should exist since meeting was created successfully)
-    const cityNameEn = await getCityNameEn(cityId);
+    const city = await getCityNameEnAndTimezone(cityId);
 
-    if (cityNameEn === null) {
+    if (city === null) {
         console.error(`City ${cityId} not found after meeting creation - this should not happen`);
         // Continue without city data - meeting was already created
     } else {
         sendMeetingCreatedAdminAlert({
-            cityName: cityNameEn,
-            meetingName: name_en,
+            cityName: city.name_en,
+            meetingName: meetingDisplayName(meeting, 'en', city.timezone),
             meetingDate: date,
             meetingId: meetingId,
             cityId: cityId,
@@ -105,30 +121,31 @@ export async function createMeetingWithEffects(
     }
 }
 
-export type MeetingDetailsEdit = Partial<Pick<
-    CouncilMeeting,
-    'name' | 'name_en' | 'dateTime' | 'youtubeUrl' | 'agendaUrl' | 'administrativeBodyId'
->>;
+export type MeetingDetailsEdit = Partial<MeetingRecordFields>;
 
 /**
- * Edit the details of a meeting, then invalidate the caches and update the
- * calendar event. An absent field stays as it is.
+ * Edit the details of a meeting through the lifecycle rules, then invalidate
+ * the caches and update the calendar event. An absent field stays as it is.
  */
 export async function updateMeetingWithEffects(
     cityId: string,
     meetingId: string,
     data: MeetingDetailsEdit
 ): Promise<CouncilMeetingWithAdminBody> {
-    const meeting = await editCouncilMeetingDirect(cityId, meetingId, data);
+    const before = await getCouncilMeetingDirect(cityId, meetingId);
+    const meeting = await updateMeetingRecord(cityId, meetingId, data);
 
     revalidateAfterResponse({
         tags: [`city:${cityId}:meetings`],
         paths: [{ path: `/${cityId}`, type: 'layout' }],
     });
 
-    // Propagate date, administrative body, and agenda changes to the
-    // Google Calendar event. The meeting name is not on the event.
-    await syncMeetingToCalendar(cityId, meetingId);
+    // Propagate date, administrative body, agenda and schedule status changes
+    // to the Google Calendar event. The meeting name is not on the event.
+    // A meeting that was created postponed or cancelled has no event yet;
+    // when it becomes scheduled, it gets one (a future meeting only).
+    const rescheduled = before?.scheduleStatus !== 'scheduled' && meeting.scheduleStatus === 'scheduled';
+    await syncMeetingToCalendar(cityId, meetingId, { allowCreate: rescheduled });
 
     return meeting;
 }

@@ -6,7 +6,10 @@
         "transcribing": "Transcribing",
         "review": "Under review",
         "complete": "Complete",
-        "archive": "Archive"
+        "archive": "Archive",
+        "postponed": "Postponed",
+        "cancelled": "Cancelled",
+        "noRecording": "No recording"
     },
     "detail": {
         "live": "since {time}",
@@ -24,7 +27,12 @@
         "reviewHidden": "The transcript was produced automatically and a person is reviewing it. It is published, with the summaries and the statements per speaker, after the review:",
         "reviewBy": "by {deadline}",
         "reviewSoon": "soon",
-        "archive": "There is no transcript for this meeting. The agenda and the decisions are available."
+        "archive": "There is no transcript for this meeting. The agenda and the decisions are available.",
+        "postponed": "The meeting of {date} was postponed. When the municipality sets the new meeting, you will find it in the list of meetings.",
+        "cancelled": "The meeting of {date} was cancelled and did not take place. The agenda stays here for reference.",
+        "reason": "Reason: {reason}",
+        "closedToPublic": "The meeting was held behind closed doors, with no public broadcast. The agenda and the decisions are available.",
+        "byCirculation": "The meeting was held by circulation, with a written vote. There is no video and no transcript; the agenda and the decisions are available."
     },
     "actions": {
         "channel": "YouTube channel",
@@ -51,5 +59,14 @@
             "before": "The statements per speaker are drawn from the transcript, after the meeting.",
             "review": "The statements per speaker are added after the transcript is reviewed."
         }
+    },
+    "facts": {
+        "postponedFrom": "Postponed · first set for {date}",
+        "sessionNumber": "{kind, select, regular {Regular meeting} urgent {Urgent meeting} other {Special meeting}} no. {number}",
+        "format": {
+            "teleconference": "Teleconference",
+            "mixed": "Mixed: in person and by teleconference"
+        },
+        "closedToPublic": "Closed to the public"
     }
 }

@@ -31,6 +31,8 @@ export const administrativeBodySchema = z.object({
     contactEmails: z.array(z.string().email()).optional(),
     notificationBehavior: notificationBehaviorSchema.optional(),
     showUnreviewedTranscript: z.boolean().optional(),
+    // The hall where the body meets as a rule. An empty string clears it.
+    place: z.string().trim().max(200).optional().transform(val => (val === '' ? null : val)),
     // Comma-separated in the request, an array in the database
     diavgeiaUnitIds: z.string().optional().transform(val => {
         if (!val || val.trim() === '') return [];
@@ -54,6 +56,7 @@ export const administrativeBodyFormSchema = z.object({
         return emails.every(email => emailSchema.safeParse(email).success);
     }, { message: "All entries must be valid email addresses" }),
     notificationBehavior: notificationBehaviorSchema,
+    place: z.string().max(200).optional(),
     showUnreviewedTranscript: z.boolean(),
     diavgeiaUnitIds: z.string().optional().transform(val => val === '' ? undefined : val),
     // Edited through its own fields and written by its own Confirm button, not

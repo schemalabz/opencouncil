@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getMeetingDataCore } from '@/lib/getMeetingData';
+import { LifecycleRuleError } from '@/lib/meetingLifecycleRules';
+import { toPublicApiMeeting } from '@/lib/meetingPublic';
 import { z } from 'zod';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
@@ -12,11 +14,17 @@ export async function GET(
     const params = await props.params;
     try {
         const data = await getMeetingDataCore(params.cityId, params.meetingId);
-        // Strip transcript data when hidden for review (no auth on this endpoint)
+        // No auth on this endpoint: the meeting carries its display names and
+        // never the id of the meeting that it replaced.
+        const meeting = toPublicApiMeeting(data.meeting, {
+            timezone: data.city.timezone,
+            postponedFromDate: data.meeting.postponedFromDate,
+        });
+        // Strip transcript data when hidden for review
         if (data.transcriptHiddenForReview) {
-            return NextResponse.json({ ...data, transcript: [], speakerTags: [] });
+            return NextResponse.json({ ...data, meeting, transcript: [], speakerTags: [] });
         }
-        return NextResponse.json({ ...data });
+        return NextResponse.json({ ...data, meeting });
     } catch (error) {
         // TODO: Brittle string match — refactor getMeetingData to return null instead of throwing
         if (error instanceof Error && error.message === 'Required data not found') {
@@ -33,6 +41,11 @@ export async function GET(
     }
 }
 
+/** An empty value clears the field; an omitted one leaves it as it is. */
+function emptyToNull(value: string | null | undefined): string | null | undefined {
+    return value === undefined ? undefined : value || null;
+}
+
 export async function PUT(
     request: Request,
     props: { params: Promise<{ cityId: string; meetingId: string }> }
@@ -41,15 +54,28 @@ export async function PUT(
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
-        const { name, name_en, date, youtubeUrl, agendaUrl, administrativeBodyId } = meetingSchema.parse(body);
+        const {
+            name, name_en, date, youtubeUrl, agendaUrl, administrativeBodyId,
+            kind, scheduleStatus, scheduleStatusReason, sessionNumber, format, closedToPublic, place, postponedFromId, continuationOfId,
+        } = meetingSchema.parse(body);
 
+        // A field that the request leaves out keeps its value.
         const meeting = await updateMeetingWithEffects(params.cityId, params.meetingId, {
             name,
             name_en,
             dateTime: date,
-            youtubeUrl: youtubeUrl || null,
-            agendaUrl: agendaUrl || null,
-            administrativeBodyId: administrativeBodyId || null,
+            youtubeUrl: emptyToNull(youtubeUrl),
+            agendaUrl: emptyToNull(agendaUrl),
+            administrativeBodyId: emptyToNull(administrativeBodyId),
+            kind,
+            scheduleStatus,
+            scheduleStatusReason,
+            sessionNumber,
+            format,
+            closedToPublic,
+            place,
+            postponedFromId,
+            continuationOfId,
         });
 
         return NextResponse.json(meeting);
@@ -57,6 +83,9 @@ export async function PUT(
         if (error instanceof z.ZodError) {
             console.error('Validation error:', error.errors);
             return NextResponse.json({ error: error.errors }, { status: 400 });
+        }
+        if (error instanceof LifecycleRuleError) {
+            return NextResponse.json({ error: error.message, code: error.code }, { status: 422 });
         }
         console.error('Failed to update meeting:', error);
         return NextResponse.json(

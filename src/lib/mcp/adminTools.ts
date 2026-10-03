@@ -48,8 +48,11 @@ function registerMeetingAdminTools(server: McpServer) {
                 + 'by default and hides a meeting that has no body. Confirm the details with the user before you call.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
-                name: z.string().min(2).describe('Meeting name in the language of the city'),
-                name_en: z.string().min(2).describe('Meeting name in English'),
+                name: z.string().min(2).optional()
+                    .describe('Omit it: the site derives the name from the body, the kind and the date. '
+                        + 'Set it only for a meeting that needs a special name, in the language of the city'),
+                name_en: z.string().min(2).optional()
+                    .describe('The English form of a special name. Omit it, as name'),
                 dateTime: isoDateTime,
                 youtubeUrl: z.url().optional().describe('URL of the meeting video'),
                 agendaUrl: z.url().optional().describe('URL of the agenda PDF'),
@@ -71,13 +74,14 @@ function registerMeetingAdminTools(server: McpServer) {
             description:
                 'Change the details of a meeting in a municipality that you administer: name, date, video URL, '
                 + 'agenda URL or administrative body. A field that you omit stays as it is. Pass null to clear '
-                + 'youtubeUrl, agendaUrl or administrativeBodyId. It cannot release a meeting and it cannot '
+                + 'youtubeUrl, agendaUrl or administrativeBodyId, and to clear a special name, so that the site '
+                + 'derives the name again. It cannot release a meeting and it cannot '
                 + 'delete one. Confirm the change with the user before you call.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 meetingId: z.string().min(1),
-                name: z.string().min(2).optional(),
-                name_en: z.string().min(2).optional(),
+                name: z.string().min(2).nullable().optional(),
+                name_en: z.string().min(2).nullable().optional(),
                 dateTime: isoDateTime.optional(),
                 youtubeUrl: z.url().nullable().optional(),
                 agendaUrl: z.url().nullable().optional(),

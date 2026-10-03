@@ -18,6 +18,7 @@ function summary(meetingId: string): MeetingSummary {
             cityId: 'vouli',
             name: meetingId,
             name_en: meetingId,
+            kind: null,
             dateTime: new Date('2026-04-06T10:00:00Z'),
             administrativeBody: null,
             subjects: [],

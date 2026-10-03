@@ -15,6 +15,8 @@ import { requireVisibleMeeting } from './gate';
 import { mcpTaskSummary } from './taskSummary';
 import { requireCityBodies, requireRealmCity } from './realmGuards';
 import { currentBaseUrl, currentRealm } from './realm-context';
+import { meetingDisplayName } from '@/lib/meetingName';
+import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 
 /**
  * The write side of the MCP server for administrators: meetings and their
@@ -25,14 +27,20 @@ import { currentBaseUrl, currentRealm } from './realm-context';
 
 const meetingUrl = (cityId: string, meetingId: string) => `${currentBaseUrl()}/${cityId}/${meetingId}`;
 
+/** The timezone that a derived meeting name prints its date in. */
+async function cityTimezone(cityId: string): Promise<string> {
+    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { timezone: true } });
+    return city?.timezone ?? DEFAULT_TIMEZONE;
+}
+
 // --- Meetings -------------------------------------------------------------
 
 export async function mcpCreateMeeting(
     identity: McpIdentity,
     args: {
         cityId: string;
-        name: string;
-        name_en: string;
+        name?: string;
+        name_en?: string;
         dateTime: string;
         youtubeUrl?: string;
         agendaUrl?: string;
@@ -59,7 +67,7 @@ export async function mcpCreateMeeting(
     return {
         id: meeting.id,
         cityId: meeting.cityId,
-        name: meeting.name,
+        name: meetingDisplayName(meeting, 'el', await cityTimezone(meeting.cityId)),
         dateTime: meeting.dateTime.toISOString(),
         administrativeBody: meeting.administrativeBody?.name ?? null,
         released: meeting.released,
@@ -75,8 +83,8 @@ export async function mcpUpdateMeeting(
     args: {
         cityId: string;
         meetingId: string;
-        name?: string;
-        name_en?: string;
+        name?: string | null;
+        name_en?: string | null;
         dateTime?: string;
         youtubeUrl?: string | null;
         agendaUrl?: string | null;
@@ -103,12 +111,13 @@ export async function mcpUpdateMeeting(
     }
 
     const meeting = await updateMeetingWithEffects(args.cityId, args.meetingId, edit);
+    const timezone = await cityTimezone(meeting.cityId);
 
     return {
         id: meeting.id,
         cityId: meeting.cityId,
-        name: meeting.name,
-        name_en: meeting.name_en,
+        name: meetingDisplayName(meeting, 'el', timezone),
+        name_en: meetingDisplayName(meeting, 'en', timezone),
         dateTime: meeting.dateTime.toISOString(),
         youtubeUrl: meeting.youtubeUrl,
         agendaUrl: meeting.agendaUrl,

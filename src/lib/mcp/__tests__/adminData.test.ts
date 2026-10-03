@@ -5,6 +5,7 @@ const mockUserFindMany = jest.fn();
 const mockUserCount = jest.fn();
 const mockPartyFindMany = jest.fn();
 const mockPersonFindMany = jest.fn();
+const mockCityFindUnique = jest.fn();
 
 jest.mock('../../db/prisma', () => ({
     __esModule: true,
@@ -16,6 +17,7 @@ jest.mock('../../db/prisma', () => ({
         },
         party: { findMany: (...args: unknown[]) => mockPartyFindMany(...args) },
         person: { findMany: (...args: unknown[]) => mockPersonFindMany(...args) },
+        city: { findUnique: (...args: unknown[]) => mockCityFindUnique(...args) },
     },
 }));
 
@@ -68,6 +70,7 @@ beforeEach(() => {
     mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [] });
     mockPartyFindMany.mockResolvedValue([]);
     mockPersonFindMany.mockResolvedValue([]);
+    mockCityFindUnique.mockResolvedValue({ timezone: 'Europe/Athens' });
 });
 
 describe('meeting tools authorize before they write', () => {
@@ -92,6 +95,31 @@ describe('meeting tools authorize before they write', () => {
         });
         await mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', agendaUrl: null });
         expect(updateMeetingWithEffects).toHaveBeenCalledWith('argos', 'm1', { agendaUrl: null });
+    });
+
+    it('creates a meeting with no name, and returns the derived name', async () => {
+        asCityAdmin('argos');
+        (createMeetingWithEffects as jest.Mock).mockResolvedValue({ meeting: {
+            id: 'oct05_2026', cityId: 'argos', name: null, name_en: null, kind: 'regular',
+            dateTime: new Date('2026-10-05T15:00:00Z'), released: false,
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' },
+        } });
+        const result = await mcpCreateMeeting(ADMIN_TOKEN, { cityId: 'argos', dateTime: '2026-10-05T18:00:00+03:00', processAgenda: false });
+        expect(createMeetingWithEffects).toHaveBeenCalledWith('argos', expect.objectContaining({ name: undefined, name_en: undefined }));
+        expect(result.name).toBe('Δημοτικό Συμβούλιο 05/10/2026');
+    });
+
+    it('clears the name override with null, and returns the derived names', async () => {
+        asCityAdmin('argos');
+        (updateMeetingWithEffects as jest.Mock).mockResolvedValue({
+            id: 'm1', cityId: 'argos', name: null, name_en: null, kind: 'urgent',
+            dateTime: new Date('2026-10-05T15:00:00Z'), youtubeUrl: null, agendaUrl: null, released: false,
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' },
+        });
+        const result = await mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', name: null, name_en: null });
+        expect(updateMeetingWithEffects).toHaveBeenCalledWith('argos', 'm1', { name: null, name_en: null });
+        expect(result.name).toBe('Δημοτικό Συμβούλιο — Έκτακτη Συνεδρίαση 05/10/2026');
+        expect(result.name_en).toMatch(/^Municipal Council .*05\/10\/2026$/);
     });
 
     it('rejects an update with no field to change', async () => {

@@ -43,4 +43,14 @@ describe('meetingSchema', () => {
     expect(() => meetingSchema.parse({ ...validBase, name: 'A' })).toThrow();
     expect(() => meetingSchema.parse({ ...validBase, name_en: 'A' })).toThrow();
   });
+
+  it('treats the names as an optional override', () => {
+    const { name: _name, name_en: _nameEn, ...noNames } = validBase;
+    const omitted = meetingSchema.parse(noNames);
+    expect(omitted.name).toBeUndefined();
+    expect(omitted.name_en).toBeUndefined();
+
+    expect(meetingSchema.parse({ ...validBase, name: '', name_en: '  ' })).toMatchObject({ name: null, name_en: null });
+    expect(meetingSchema.parse({ ...validBase, name: null })).toMatchObject({ name: null });
+  });
 });
