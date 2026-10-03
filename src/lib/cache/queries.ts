@@ -183,6 +183,19 @@ export async function countCouncilMeetingsCached(cityId: string, options: Omit<C
   )();
 }
 
+/**
+ * The card rows of these meetings, as the reader may see them, in the list's
+ * order. Not cached: the search on the meetings tab finds a different id list
+ * for every query, and no key records the ids. It resolves the reader and
+ * hides the links exactly as getCouncilMeetingsPreviewCached does, so the
+ * uncached path cannot show a reader more than the cached one.
+ */
+export async function getCouncilMeetingPreviewsByIds(cityId: string, meetingIds: string[]) {
+  const unreleased = await getUnreleasedScope(cityId);
+  const meetings = await getCouncilMeetingsWithSubjectPreview(cityId, { meetingIds, unreleased });
+  return unreleased.all ? meetings : meetings.map(hideLinks);
+}
+
 /** Public (no-auth) counterpart, safe for static pages. */
 export async function getCouncilMeetingsPreviewPublicCached(cityId: string, options: CachedMeetingListOptions = {}) {
   return createCache(

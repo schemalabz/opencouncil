@@ -120,10 +120,4 @@ describe('useLocalCollection', () => {
         expect(render('filters=Κοινότητες').result.current.hrefForPage(2)).toBe(`?${new URLSearchParams({ filters: 'Κοινότητες', page: '2' })}`);
         expect(render('page=2').result.current.hrefForPage(1)).toBe('?');
     });
-
-    it('marks a capped window only while nothing narrows it', () => {
-        expect(render('', { cappedAt: 30 }).result.current.capped).toBe(true);
-        expect(render('filters=Κοινότητες', { cappedAt: 30 }).result.current.capped).toBe(false);
-        expect(render('', { cappedAt: 60 }).result.current.capped).toBe(false);
-    });
 });

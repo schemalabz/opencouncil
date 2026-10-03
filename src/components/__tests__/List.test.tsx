@@ -45,7 +45,6 @@ type RenderProps = {
     showCount?: boolean;
     editable?: boolean;
     items?: Item[];
-    cappedAt?: number;
     searchKeys?: (item: Item) => (string | null | undefined)[];
     sortItems?: (items: Item[], selectedValues: (string | undefined)[], selectedBody: string | null) => Item[];
     filterAvailableValues?: { value: string | undefined; label: string }[];
@@ -54,11 +53,10 @@ type RenderProps = {
 };
 
 /** A page's wiring: the local source fills the state, and List draws it. */
-function LocalList({ editable = false, items: rows = items, showSearch, showCount, cappedAt, searchKeys, sortItems, filterAvailableValues, filter, pageSize }: RenderProps) {
+function LocalList({ editable = false, items: rows = items, showSearch, showCount, searchKeys, sortItems, filterAvailableValues, filter, pageSize }: RenderProps) {
     const state = useLocalCollection<Item, string | undefined>(rows, {
         searchable: showSearch ?? true,
         searchKeys,
-        cappedAt,
         sortItems,
         filterOptions: filterAvailableValues,
         filter,
@@ -200,43 +198,6 @@ describe('List — what a row is searchable by', () => {
         renderList({ items: people, searchKeys: item => [item.name, ...roleNames(item)] });
         expect(shownNames()).toEqual(['Μαρία Παπαδοπούλου']);
         expect(screen.getByText('items:1')).toBeInTheDocument();
-    });
-});
-
-/**
- * A page that caps its query must not report the cap as the collection's own
- * total: the city band a few lines above the meetings list prints the real
- * number, and the two contradicted each other — 125 there, 60 here.
- */
-describe('List count under a capped fetch', () => {
-    beforeEach(() => {
-        mockSearchParams = new URLSearchParams();
-    });
-
-    it('names the window when the cap binds and nothing is filtering', () => {
-        renderList({ showCount: true, cappedAt: 2 });
-        expect(screen.getByText('itemsCapped:2')).toBeInTheDocument();
-        expect(screen.queryByText('items:2')).not.toBeInTheDocument();
-    });
-
-    it('reports the rows on screen once a search narrows them', () => {
-        renderList({ showCount: true, showSearch: true, cappedAt: 2 });
-        search('Επιτροπή');
-        // One row matches, so the count describes what is visible rather than
-        // the window it came from.
-        expect(screen.getByText('items:1')).toBeInTheDocument();
-        expect(screen.queryByText('itemsCapped:2')).not.toBeInTheDocument();
-    });
-
-    it('says nothing about a window the fetch never filled', () => {
-        renderList({ showCount: true, cappedAt: 60 });
-        expect(screen.getByText('items:2')).toBeInTheDocument();
-        expect(screen.queryByText(/itemsCapped/)).not.toBeInTheDocument();
-    });
-
-    it('counts plainly when the page sets no cap', () => {
-        renderList({ showCount: true });
-        expect(screen.getByText('items:2')).toBeInTheDocument();
     });
 });
 

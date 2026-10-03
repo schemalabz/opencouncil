@@ -43,6 +43,16 @@ function parsePage(raw: string | null): number {
     return lenientPage.parse(raw ?? undefined) ?? 1;
 }
 
+/** A page's `searchParams` prop as URLSearchParams, for the shared parser. */
+export function toURLSearchParams(record: Record<string, string | string[] | undefined>): URLSearchParams {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(record)) {
+        if (value === undefined) continue;
+        for (const item of Array.isArray(value) ? value : [value]) params.append(key, item);
+    }
+    return params;
+}
+
 /**
  * Reads the view a collection URL names.
  *

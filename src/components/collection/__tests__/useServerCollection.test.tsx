@@ -50,7 +50,6 @@ describe('useServerCollection', () => {
         expect(result.current.totalPages).toBe(11);
         expect(result.current.trailingRows).toEqual([]);
         expect(result.current.searchable).toBe(true);
-        expect(result.current.capped).toBe(false);
     });
 
     it('reads the selection from the URL', () => {

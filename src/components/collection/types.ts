@@ -23,12 +23,6 @@ export interface CollectionState<T, F> {
     pending: boolean;
     /** Whether the source applies a search. The view hides the search box when it does not. */
     searchable: boolean;
-    /**
-     * The local source fetched a capped window and nothing narrows it, so the
-     * count names the window. Temporary: removed when the meetings tab pages
-     * on the server, which is the only capped list.
-     */
-    capped: boolean;
     setQuery(query: string): void;
     setFilters(values: F[]): void;
     setBody(bodyId: string | null): void;

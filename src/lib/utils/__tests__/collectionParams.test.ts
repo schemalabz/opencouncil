@@ -4,6 +4,7 @@ import {
     withFilterSelection,
     withPage,
     withSearchQuery,
+    toURLSearchParams,
     type CollectionFilterConfig,
     type FilterOption,
 } from '../filterURL';
@@ -105,5 +106,11 @@ describe('URL builders', () => {
         withPage(params, 2);
         withSearchQuery(params, '');
         expect(params.toString()).toBe(base().toString());
+    });
+});
+
+describe('toURLSearchParams', () => {
+    it('keeps every value and skips the missing ones', () => {
+        expect(toURLSearchParams({ filters: '*', page: '2', search: undefined, tag: ['a', 'b'] }).toString()).toBe('filters=*&page=2&tag=a&tag=b');
     });
 });

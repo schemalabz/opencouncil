@@ -41,12 +41,6 @@ export type LocalCollectionOptions<T, F> = Partial<CollectionFilterConfig<F>> & 
     trailing?: (item: T) => boolean;
     /** Rows per page. Without it, every row is on one page. */
     pageSize?: number;
-    /**
-     * The page fetched at most this many rows. When the cap actually binds and
-     * nothing is filtering, the count names the window instead of reporting the
-     * fetch limit as the collection's own total.
-     */
-    cappedAt?: number;
 };
 
 /** A collection loaded whole through props: filtered, searched and paged in the browser. */
@@ -63,7 +57,6 @@ export function useLocalCollection<T extends { id: string }, F = string | undefi
         sortItems,
         trailing,
         pageSize,
-        cappedAt,
     }: LocalCollectionOptions<T, F> = {},
 ): CollectionState<T, F> {
     const searchParams = useSearchParams();
@@ -103,11 +96,6 @@ export function useLocalCollection<T extends { id: string }, F = string | undefi
         return true;
     });
     const filteredItems = sortItems ? sortItems(matchingItems, view.selectedFilters, view.selectedBody) : matchingItems;
-
-    // Only while the cap binds and nothing narrows the list: under a filter the
-    // count describes the rows on screen, which is the useful number and not a
-    // claim about the collection.
-    const capped = cappedAt != null && items.length >= cappedAt && filteredItems.length === items.length;
 
     // A query the debounce below has not written yet already narrows the list,
     // so honouring the URL's page here would show page 4 of the old result set.
@@ -153,7 +141,6 @@ export function useLocalCollection<T extends { id: string }, F = string | undefi
         selectedBody: view.selectedBody,
         pending: false,
         searchable,
-        capped,
         setQuery,
         setFilters: values => pushParams(withFilterSelection(currentParams(), values, filterOptions, defaultFilterValues)),
         setBody: bodyId => pushParams(withBodySelection(currentParams(), bodyId, bodyOptionsForSelection(view.selectedFilters, bodyOptionsFor))),

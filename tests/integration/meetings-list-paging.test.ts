@@ -1,7 +1,10 @@
 /** @jest-environment node */
 import prisma from '@/lib/db/prisma'
 import { countCouncilMeetings, findMeetingIdsMatching, getCouncilMeetingsWithSubjectPreview, type MeetingListOptions } from '@/lib/db/meetingsList'
+import { getCouncilMeetingPreviewsByIds } from '@/lib/cache/queries'
+import { __setSessionEmail } from '../mocks/auth'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
+import { createUser, signInAsSuperAdmin } from '../helpers/factories'
 import { buildMeetingArchive, MeetingArchive } from '../helpers/meetingArchive'
 
 const PAGE_SIZE = 12
@@ -133,6 +136,45 @@ describe('meetings list paging - integration', () => {
             expect(await findMeetingIdsMatching(archive.cityId, '   ', reader, 'el', TZ)).toBeNull()
             // A lone combining accent normalizes to nothing.
             expect(await findMeetingIdsMatching(archive.cityId, '\u0301', reader, 'el', TZ)).toBeNull()
+        })
+    })
+
+    describe('getCouncilMeetingPreviewsByIds', () => {
+        afterEach(() => __setSessionEmail(null))
+
+        test('hides the link to another meeting from a reader, and shows it to an editor', async () => {
+            await prisma.councilMeeting.create({
+                data: { id: 'continuation-1', cityId: archive.cityId, name: 'Συνέχεια', name_en: 'Continuation', administrativeBodyId: archive.bodies.council, continuationOfId: 'council-1', dateTime: new Date('2024-05-02T15:00:00Z'), released: true },
+            })
+            try {
+                const [asReader] = await getCouncilMeetingPreviewsByIds(archive.cityId, ['continuation-1'])
+                expect(asReader.continuationOfId).toBeNull()
+
+                await signInAsSuperAdmin()
+                const [asEditor] = await getCouncilMeetingPreviewsByIds(archive.cityId, ['continuation-1'])
+                expect(asEditor.continuationOfId).toBe('council-1')
+            } finally {
+                await prisma.councilMeeting.delete({ where: { cityId_id: { cityId: archive.cityId, id: 'continuation-1' } } })
+                await prisma.user.deleteMany({ where: { email: 'superadmin@integration.test' } })
+            }
+        })
+
+        test('keeps unreleased meetings from a reader', async () => {
+            expect(await getCouncilMeetingPreviewsByIds(archive.cityId, [archive.unreleasedIds[0]])).toEqual([])
+        })
+
+        test('shows a body admin the unreleased meetings of their body only', async () => {
+            const ownDraft = archive.unreleasedIds.find(id => id.startsWith('committee-'))!
+            const otherDraft = archive.unreleasedIds.find(id => id.startsWith('council-'))!
+            const admin = await createUser('body-admin@integration.test')
+            await prisma.administers.create({ data: { userId: admin.id, administrativeBodyId: archive.bodies.committee } })
+            __setSessionEmail(admin.email)
+            try {
+                const rows = await getCouncilMeetingPreviewsByIds(archive.cityId, [ownDraft, otherDraft])
+                expect(rows.map(row => row.id)).toEqual([ownDraft])
+            } finally {
+                await prisma.user.delete({ where: { id: admin.id } })
+            }
         })
     })
 })

@@ -1170,7 +1170,6 @@
     },
     "CouncilMeeting": {
         "items": "{count, plural, =0 {No meetings} =1 {1 meeting} other {# meetings}}",
-        "itemsCapped": "The {count} most recent",
         "pages": {
             "overview": "Overview",
             "map": "Map",

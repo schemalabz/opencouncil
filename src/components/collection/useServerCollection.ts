@@ -123,7 +123,6 @@ export function useServerCollection<T, F>({
         selectedBody: view.selectedBody,
         pending,
         searchable: true,
-        capped: false,
         setQuery,
         setFilters: values => navigate(withFilterSelection(latestParams, values, filterOptions, defaultFilterValues), 'push'),
         setBody: bodyId => navigate(withBodySelection(latestParams, bodyId, bodyOptionsForSelection(view.selectedFilters, bodyOptionsFor)), 'push'),

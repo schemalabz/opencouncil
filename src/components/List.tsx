@@ -240,7 +240,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
                     ))}
                     {countVisible && (
                         <p className={cn('shrink-0 text-sm text-muted-foreground', searchOpen && 'max-sm:hidden')}>
-                            {state.capped ? t('itemsCapped', { count: state.total }) : t('items', { count: state.total })}
+                            {t('items', { count: state.total })}
                         </p>
                     )}
                     {/* Marked as back-of-house, the way the city page's own tools
