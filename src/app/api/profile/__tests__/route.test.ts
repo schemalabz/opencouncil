@@ -8,6 +8,11 @@ jest.mock('@/lib/db/users', () => ({
     deleteCurrentUser: jest.fn(),
 }));
 
+jest.mock('@/lib/db/phoneVerification', () => ({
+    clearPhone: jest.fn(),
+    setAccountPhone: jest.fn(),
+}));
+
 jest.mock('@/lib/discord', () => ({
     sendUserOnboardedAdminAlert: jest.fn(),
 }));

@@ -976,6 +976,12 @@ model User {
   emailVerified DateTime?
   /// One account per mobile number: Νότης is one conversation per number.
   phone         String?         @unique
+  /// When the reader proved `phone` with a code; null on a number nobody
+  /// proved. Verification is optional: Νότης writes to the number either
+  /// way. A proved number cannot be claimed by another account.
+  phoneVerifiedAt DateTime?
+  phoneVerification PhoneVerification?
+  phoneCodeSends    PhoneCodeSend[]
   onboarded     Boolean         @default(false)
   allowProductUpdates  Boolean  @default(true)
   allowPetitionUpdates Boolean  @default(false)
@@ -1051,6 +1057,40 @@ model VerificationToken {
   expires    DateTime
  
   @@id([identifier, token])
+}
+
+/// The number a reader is proving, with the code we sent to it. One per
+/// reader: a new number replaces the old attempt. When the code matches,
+/// the number is the account's and User.phoneVerifiedAt is set.
+model PhoneVerification {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  /// E.164, validated as a mobile number before it is stored.
+  phone     String
+  /// HMAC of the 6-digit code; null until the first code went out.
+  codeHash  String?
+  expiresAt DateTime?
+  /// Wrong codes typed against the current code.
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([phone])
+}
+
+/// One code that went out. The send limits count these rows, per account and
+/// per number, so neither switching numbers nor racing requests resets them.
+/// Rows older than the limit window are deleted as the limits are checked.
+model PhoneCodeSend {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  phone     String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([phone, createdAt])
 }
  
 // Optional for WebAuthn support

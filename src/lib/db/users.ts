@@ -233,6 +233,19 @@ export async function phoneBelongsToAnotherUser(phone: string, exceptUserId?: st
     return holder !== null;
 }
 
+/**
+ * Does another account hold this phone AND has proved it with a code? A
+ * proved number is never given to a second account. An unproved one gives
+ * way to the reader who proves it. `phone` must already be in E.164.
+ */
+export async function phoneVerifiedByAnotherUser(phone: string, exceptUserId?: string): Promise<boolean> {
+    const holder = await prisma.user.findFirst({
+        where: { phone, phoneVerifiedAt: { not: null }, ...(exceptUserId ? { NOT: { id: exceptUserId } } : {}) },
+        select: { id: true },
+    });
+    return holder !== null;
+}
+
 export type UserProfileUpdateData = Partial<Pick<User, 'name' | 'phone' | 'allowProductUpdates' | 'allowPetitionUpdates' | 'allowFeedbackCalls' | 'onboarded'>>;
 
 export async function updateUserProfile(id: string, data: UserProfileUpdateData): Promise<User> {

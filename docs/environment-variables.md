@@ -82,6 +82,7 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 |----------|-------------|----------|---------|
 | `NOTIS_API_URL` | Base URL of the Notis service (`https://notis.opencouncil.gr`; staging `https://notis.staging.opencouncil.gr`; `http://localhost:3001` in development). The profile's Νότης switch reads and flips the reader's subscription through it, server-side. Without it the switch shows as unavailable. | No | - |
 | `NOTIS_SERVICE_TOKEN` | Bearer token presented on `NOTIS_API_URL/api/subscriptions/*`. The same value as the Notis component's `NOTIS_SERVICE_TOKEN`, at least 32 characters (`openssl rand -hex 32`), different per environment. | No | - |
+| `BIRD_API_KEY`, `BIRD_WORKSPACE_ID`, `BIRD_SMS_CHANNEL_ID` | Bird access for the SMS that carries a phone verification code. The same values as the Notis component's. The main app uses Bird for nothing else. Without them, development and previews print the code to the server log, and production cannot send codes. | No | - |
 
 Every WhatsApp and SMS message to a reader belongs to the Notis service, which holds the Bird credentials and its own webhook subscription. Its variables are in [services/notis/README.md](../services/notis/README.md), and the Bird workspace setup in [bird-setup.md](./bird-setup.md).
 

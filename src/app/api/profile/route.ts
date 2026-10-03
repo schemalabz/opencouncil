@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { updateUserProfile, deleteCurrentUser, phoneBelongsToAnotherUser, UserProfileUpdateData } from "@/lib/db/users";
+import { updateUserProfile, deleteCurrentUser } from "@/lib/db/users";
+import { clearPhone, setAccountPhone } from "@/lib/db/phoneVerification";
 import { sendUserOnboardedAdminAlert } from "@/lib/discord";
 import { PHONE_IN_USE_CODE } from "@/lib/utils/phone";
 import { updateProfileSchema } from "@/lib/zod-schemas/user";
@@ -17,9 +18,21 @@ export async function POST(request: Request) {
         if (!parsed.success) {
             return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
         }
-        const updateData = parsed.data;
-        if (updateData.phone && (await phoneBelongsToAnotherUser(updateData.phone, user.id))) {
-            return NextResponse.json({ error: { code: PHONE_IN_USE_CODE } }, { status: 409 });
+        const { phone, ...updateData } = parsed.data;
+
+        // The number is saved at once, unproved; the reader may prove it
+        // with a code later (issue #813). One exception: a number another
+        // account typed is not taken without proof, so the rest is saved and
+        // the form asks for the code.
+        let phoneNeedsCode = false;
+        if (phone === null) {
+            await clearPhone(user.id);
+        } else if (phone !== undefined) {
+            const outcome = await setAccountPhone(user.id, phone);
+            if (outcome === PHONE_IN_USE_CODE) {
+                return NextResponse.json({ error: { code: PHONE_IN_USE_CODE } }, { status: 409 });
+            }
+            phoneNeedsCode = outcome === "needs_code";
         }
 
         // Track if this is the user completing onboarding for the first time
@@ -36,7 +49,7 @@ export async function POST(request: Request) {
             });
         }
 
-        return NextResponse.json(updatedUser);
+        return NextResponse.json({ ...updatedUser, ...(phoneNeedsCode ? { phoneNeedsCode: true } : {}) });
     } catch (error) {
         console.error("Failed to update profile:", error);
         return new NextResponse("Internal Server Error", { status: 500 });

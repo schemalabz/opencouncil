@@ -1,6 +1,6 @@
 # Bird Messaging Setup (WhatsApp + SMS)
 
-This guide walks you through configuring [Bird](https://bird.com) for OpenCouncil's messaging. The Notis service (`services/notis`) sends every WhatsApp and SMS message to readers and answers every reply; it is the only component with Bird credentials. The main app has none — it sends nothing over WhatsApp or SMS and has no Bird webhook. By the end you'll have Notis's `BIRD_*` variables filled in and a local ngrok tunnel that lets Bird POST inbound events to your machine.
+This guide walks you through configuring [Bird](https://bird.com) for OpenCouncil's messaging. The Notis service (`services/notis`) sends every WhatsApp and SMS message to readers and answers every reply. It has the Bird webhook and the templates. The main app uses Bird for one thing only: the SMS that carries a phone verification code. For that it needs `BIRD_API_KEY`, `BIRD_WORKSPACE_ID` and `BIRD_SMS_CHANNEL_ID`. It sends nothing else and has no Bird webhook. By the end you'll have Notis's `BIRD_*` variables filled in and a local ngrok tunnel that lets Bird POST inbound events to your machine.
 
 For Notis's own variables and how it uses each template, see [`services/notis/README.md`](../services/notis/README.md).
 
@@ -49,6 +49,8 @@ Copy the channel ID into `BIRD_SMS_CHANNEL_ID`.
 ## Step 4: The WhatsApp templates
 
 WhatsApp Business restricts outbound messages outside a 24-hour reply window to **pre-approved templates**. They belong to Notis: [`services/notis/README.md`](../services/notis/README.md) lists the shells, their variables and the `BIRD_WHATSAPP_TEMPLATE_*` variables that hold their Bird project ids.
+
+The phone verification codes need no template. The main app sends them as SMS on the SMS channel (Step 3), not through Notis.
 
 ## Step 5: Generate an API key
 

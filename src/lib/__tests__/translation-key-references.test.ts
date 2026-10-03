@@ -294,6 +294,10 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
         why: "saveErrorKey maps the save actions' string codes; no type states the set, and the group also holds the literal signIn leaf",
     },
     {
+        group: 'phoneVerification.errors.',
+        why: 'KNOWN_ERRORS in PhoneCodeForm names the codes with copy of their own and folds every other code into generic',
+    },
+    {
         group: 'reviews.completeDialog.runSummarize.unavailable.',
         why: "SummarizeAvailability has three members, but the branch runs only when it is not 'available', so the catalog holds two on purpose",
     },
