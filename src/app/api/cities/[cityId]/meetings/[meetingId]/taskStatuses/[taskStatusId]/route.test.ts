@@ -1,22 +1,16 @@
 /** @jest-environment node */
-// The task server posts results to this route with no session — possession of
-// the unguessable taskStatusId plus a valid HMAC callback token is the
-// authorization. These tests pin that the route keeps working for anonymous
-// callers (the auth mock throws, as the real withUserAuthorizedToEdit does
-// without a session), and that every lookup is scoped to the tenant in the
-// path so a task from another city/meeting 404s.
+// The task server posts results to this route with no session: a valid HMAC
+// callback token is the authorization. These tests pin that the route keeps
+// working for anonymous callers, and that every verb only reaches a task inside
+// the city and meeting named by the path.
 jest.mock('@/lib/auth', () => ({
-    isUserAuthorizedToEdit: jest.fn().mockResolvedValue(false),
+    isUserAuthorizedToEdit: jest.fn(),
     withUserAuthorizedToEdit: jest.fn().mockRejectedValue(new Error('Not authorized')),
 }));
 
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
-    default: { taskStatus: { findUnique: jest.fn(), findFirst: jest.fn() } },
-}));
-
-jest.mock('@/lib/db/tasks', () => ({
-    deleteTaskStatus: jest.fn(),
+    default: { taskStatus: { findFirst: jest.fn(), deleteMany: jest.fn() } },
 }));
 
 jest.mock('@/lib/tasks/tasks', () => ({
@@ -35,20 +29,22 @@ jest.mock('@/env.mjs', () => ({
     env: { NEXTAUTH_SECRET: 'test-secret' },
 }));
 
-import { GET, POST, DELETE } from './route';
+import { GET, POST, PUT, DELETE } from './route';
+import { revalidateTag } from 'next/cache';
 import prisma from '@/lib/db/prisma';
-import { deleteTaskStatus } from '@/lib/db/tasks';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import { mintCallbackToken } from '@/lib/tasks/callbackToken';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 
 const mockFindFirst = prisma.taskStatus.findFirst as jest.MockedFunction<typeof prisma.taskStatus.findFirst>;
+const mockDeleteMany = prisma.taskStatus.deleteMany as jest.MockedFunction<typeof prisma.taskStatus.deleteMany>;
 const mockHandleTaskUpdate = handleTaskUpdate as jest.MockedFunction<typeof handleTaskUpdate>;
-const mockDeleteTaskStatus = deleteTaskStatus as jest.MockedFunction<typeof deleteTaskStatus>;
 const mockIsUserAuthorizedToEdit = isUserAuthorizedToEdit as jest.MockedFunction<typeof isUserAuthorizedToEdit>;
+const mockRevalidateTag = revalidateTag as jest.MockedFunction<typeof revalidateTag>;
 
 const CITY = 'chania';
 const MEETING = 'aug24_2026';
+const TEN_MINUTES_MS = 10 * 60 * 1000;
 
 const TASK = {
     id: 'task1',
@@ -65,151 +61,159 @@ const TASK = {
     updatedAt: new Date('2000-01-01'),
 };
 
+// A table holding one row: a lookup finds it only when every field in the where
+// clause matches, so a test cannot pass with the tenant scope dropped or swapped.
+// As in Prisma, a field the where clause omits matches any value.
+type Where = Partial<Record<'id' | 'cityId' | 'councilMeetingId', string>>;
+function tableWith(row: typeof TASK) {
+    const matches = (where: Where) =>
+        (['id', 'cityId', 'councilMeetingId'] as const).every((k) => where[k] === undefined || where[k] === row[k]);
+    mockFindFirst.mockImplementation((async ({ where }: { where: Where }) => (matches(where) ? row : null)) as never);
+}
+
 const propsFor = (overrides?: Partial<{ cityId: string; meetingId: string; taskStatusId: string }>) => ({
     params: Promise.resolve({ cityId: CITY, meetingId: MEETING, taskStatusId: 'task1', ...overrides }),
 });
 
 const props = propsFor();
 
-function postRequest(body: unknown, token?: string) {
+function callbackRequest(body: unknown, token?: string) {
     const url = new URL('http://localhost/api/x' + (token !== undefined ? `?token=${token}` : ''));
     return { json: async () => body, nextUrl: url } as never;
 }
 
-describe('anonymous task-server callback (POST)', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-        jest.spyOn(console, 'error').mockImplementation(() => { });
-        jest.spyOn(console, 'warn').mockImplementation(() => { });
+const tokenized = (taskId = 'task1') => callbackRequest({ status: 'success', result: {}, version: 1 }, mintCallbackToken(taskId));
+
+beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation(() => { });
+    jest.spyOn(console, 'warn').mockImplementation(() => { });
+    tableWith(TASK);
+    mockDeleteMany.mockResolvedValue({ count: 1 } as never);
+    mockHandleTaskUpdate.mockResolvedValue(undefined as never);
+    mockIsUserAuthorizedToEdit.mockResolvedValue(false as never);
+});
+
+describe('tenant scoping', () => {
+    it.each([
+        ['GET', () => GET({} as never, props), 200],
+        ['GET, other city', () => GET({} as never, propsFor({ cityId: 'other-city' })), 404],
+        ['GET, other meeting', () => GET({} as never, propsFor({ meetingId: 'other-meeting' })), 404],
+        ['POST', () => POST(tokenized(), props), 200],
+        ['POST, other city', () => POST(tokenized(), propsFor({ cityId: 'other-city' })), 404],
+        ['POST, other meeting', () => POST(tokenized(), propsFor({ meetingId: 'other-meeting' })), 404],
+        ['PUT', () => PUT(tokenized(), props), 200],
+        ['PUT, other city', () => PUT(tokenized(), propsFor({ cityId: 'other-city' })), 404],
+        ['PUT, other meeting', () => PUT(tokenized(), propsFor({ meetingId: 'other-meeting' })), 404],
+        ['DELETE', () => DELETE({} as never, props), 200],
+        ['DELETE, other city', () => DELETE({} as never, propsFor({ cityId: 'other-city' })), 404],
+        ['DELETE, other meeting', () => DELETE({} as never, propsFor({ meetingId: 'other-meeting' })), 404],
+    ])('%s answers %s', async (_label, call, status) => {
+        mockIsUserAuthorizedToEdit.mockResolvedValue(true as never);
+
+        const res = await call();
+
+        expect(res.status).toBe(status);
+        if (status === 404) {
+            expect(mockHandleTaskUpdate).not.toHaveBeenCalled();
+            expect(mockDeleteMany).not.toHaveBeenCalled();
+        }
     });
+});
 
+describe('task-server callback (POST and PUT)', () => {
     it('accepts a tokenized update with no session', async () => {
-        mockFindFirst.mockResolvedValue(TASK as never);
-        mockHandleTaskUpdate.mockResolvedValue(undefined as never);
-
-        const res = await POST(postRequest({ status: 'success', result: {}, version: 1 }, mintCallbackToken('task1')), props);
+        const res = await POST(tokenized(), props);
 
         expect(res.status).toBe(200);
         expect(mockHandleTaskUpdate).toHaveBeenCalledWith('task1', expect.anything(), expect.anything(), { force: false });
     });
 
     it('hands the result handler the force flag that the request was started with', async () => {
-        mockFindFirst.mockResolvedValue({ ...TASK, requestBody: JSON.stringify({ youtubeUrl: 'https://youtu.be/x', force: true }) } as never);
-        mockHandleTaskUpdate.mockResolvedValue(undefined as never);
+        tableWith({ ...TASK, requestBody: JSON.stringify({ youtubeUrl: 'https://youtu.be/x', force: true }) });
 
-        await POST(postRequest({ status: 'success', result: {}, version: 1 }, mintCallbackToken('task1')), props);
+        await POST(tokenized(), props);
 
         expect(mockHandleTaskUpdate).toHaveBeenCalledWith('task1', expect.anything(), expect.anything(), { force: true });
     });
 
     it('treats an unreadable request body as not forced', async () => {
-        mockFindFirst.mockResolvedValue({ ...TASK, requestBody: 'not json' } as never);
-        mockHandleTaskUpdate.mockResolvedValue(undefined as never);
+        tableWith({ ...TASK, requestBody: 'not json' });
 
-        await POST(postRequest({ status: 'success', result: {}, version: 1 }, mintCallbackToken('task1')), props);
+        await POST(tokenized(), props);
 
         expect(mockHandleTaskUpdate).toHaveBeenCalledWith('task1', expect.anything(), expect.anything(), { force: false });
     });
 
-    it('scopes the lookup to the city/meeting in the path', async () => {
-        mockFindFirst.mockResolvedValue(TASK as never);
-        mockHandleTaskUpdate.mockResolvedValue(undefined as never);
-
-        await POST(postRequest({ status: 'success', result: {}, version: 1 }, mintCallbackToken('task1')), props);
-
-        expect(mockFindFirst).toHaveBeenCalledWith({
-            where: { id: 'task1', cityId: CITY, councilMeetingId: MEETING },
-        });
-    });
-
-    it('returns 404 when the task belongs to a different tenant', async () => {
-        // A token minted for this task id is still valid, but the scoped lookup misses.
-        mockFindFirst.mockResolvedValue(null as never);
-
-        const res = await POST(
-            postRequest({ status: 'success' }, mintCallbackToken('task1')),
-            propsFor({ cityId: 'other-city' })
-        );
-
-        expect(res.status).toBe(404);
-        expect(mockHandleTaskUpdate).not.toHaveBeenCalled();
-    });
-
     it('returns 404 for an unknown task id', async () => {
-        mockFindFirst.mockResolvedValue(null as never);
-
-        const res = await POST(postRequest({ status: 'success' }, mintCallbackToken('task1')), props);
+        const res = await POST(tokenized('unknown'), propsFor({ taskStatusId: 'unknown' }));
 
         expect(res.status).toBe(404);
         expect(mockHandleTaskUpdate).not.toHaveBeenCalled();
     });
 
     it('rejects a callback with no token at all', async () => {
-        mockFindFirst.mockResolvedValue(TASK as never);
-
-        const res = await POST(postRequest({ status: 'success' }), props);
+        const res = await POST(callbackRequest({ status: 'success' }), props);
 
         expect(res.status).toBe(401);
         expect(mockHandleTaskUpdate).not.toHaveBeenCalled();
     });
 
     it('rejects a token minted for a different task', async () => {
-        mockFindFirst.mockResolvedValue(TASK as never);
-
-        const res = await POST(postRequest({ status: 'success' }, mintCallbackToken('other-task')), props);
+        const res = await PUT(tokenized('other-task'), props);
 
         expect(res.status).toBe(401);
         expect(mockHandleTaskUpdate).not.toHaveBeenCalled();
     });
 });
 
-describe('DELETE tenant scoping', () => {
+describe('DELETE', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
-        jest.spyOn(console, 'error').mockImplementation(() => { });
-        jest.spyOn(console, 'warn').mockImplementation(() => { });
         mockIsUserAuthorizedToEdit.mockResolvedValue(true as never);
     });
 
-    it('returns 404 without attempting a delete when the task is in another tenant', async () => {
-        mockFindFirst.mockResolvedValue(null as never);
-
-        const res = await DELETE({} as never, propsFor({ cityId: 'other-city' }));
-
-        expect(res.status).toBe(404);
-        expect(mockDeleteTaskStatus).not.toHaveBeenCalled();
-    });
-
-    it('returns 404 when the scoped delete removes no rows (already gone / race)', async () => {
-        mockFindFirst.mockResolvedValue(TASK as never);
-        mockDeleteTaskStatus.mockResolvedValue(0 as never);
-
-        const res = await DELETE({} as never, props);
-
-        expect(res.status).toBe(404);
-        expect(mockDeleteTaskStatus).toHaveBeenCalledWith('task1', { cityId: CITY, councilMeetingId: MEETING });
-    });
-
-    it('deletes the scoped task', async () => {
-        mockFindFirst.mockResolvedValue(TASK as never);
-        mockDeleteTaskStatus.mockResolvedValue(1 as never);
-
+    it('deletes only a task that is still idle, and revalidates the meeting', async () => {
         const res = await DELETE({} as never, props);
 
         expect(res.status).toBe(200);
-        expect(mockDeleteTaskStatus).toHaveBeenCalledWith('task1', { cityId: CITY, councilMeetingId: MEETING });
+        const { where } = mockDeleteMany.mock.calls[0][0] as { where: { updatedAt: { lte: Date } } };
+        expect(where).toEqual({ id: 'task1', cityId: CITY, councilMeetingId: MEETING, updatedAt: { lte: expect.any(Date) } });
+        expect(Math.abs(Date.now() - TEN_MINUTES_MS - where.updatedAt.lte.getTime())).toBeLessThan(1000);
+        expect(mockRevalidateTag).toHaveBeenCalledWith(`city:${CITY}:meeting:${MEETING}:derived`, 'max');
+    });
+
+    it('returns 409 and does not revalidate when the task changed after the check', async () => {
+        // A concurrent delete, or a callback that updated the task, leaves nothing to delete.
+        mockDeleteMany.mockResolvedValue({ count: 0 } as never);
+
+        const res = await DELETE({} as never, props);
+
+        expect(res.status).toBe(409);
+        expect(mockRevalidateTag).not.toHaveBeenCalled();
+    });
+
+    it('returns 401 and deletes nothing for a caller who cannot edit the city', async () => {
+        mockIsUserAuthorizedToEdit.mockResolvedValue(false as never);
+
+        const res = await DELETE({} as never, props);
+
+        expect(res.status).toBe(401);
+        expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY });
+        expect(mockDeleteMany).not.toHaveBeenCalled();
+    });
+
+    it('returns 403 and deletes nothing for a task updated within the last 10 minutes', async () => {
+        tableWith({ ...TASK, updatedAt: new Date(Date.now() - 9 * 60 * 1000) });
+
+        const res = await DELETE({} as never, props);
+
+        expect(res.status).toBe(403);
+        expect(mockDeleteMany).not.toHaveBeenCalled();
     });
 });
 
-describe('anonymous progress polling (GET)', () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-        mockIsUserAuthorizedToEdit.mockResolvedValue(false as never);
-    });
-
-    it('returns progress fields only', async () => {
-        mockFindFirst.mockResolvedValue(TASK as never);
-
+describe('progress polling (GET)', () => {
+    it('returns progress fields only to an anonymous caller', async () => {
         const res = await GET({} as never, props);
 
         expect(res.status).toBe(200);
@@ -220,11 +224,12 @@ describe('anonymous progress polling (GET)', () => {
         expect(body.responseBody).toBeUndefined();
     });
 
-    it('returns 404 when the task belongs to a different tenant', async () => {
-        mockFindFirst.mockResolvedValue(null as never);
+    it('returns the full row to an editor of the city', async () => {
+        mockIsUserAuthorizedToEdit.mockResolvedValue(true as never);
 
-        const res = await GET({} as never, propsFor({ meetingId: 'other-meeting' }));
+        const body = await (await GET({} as never, props)).json();
 
-        expect(res.status).toBe(404);
+        expect(body.requestBody).toBe('{}');
+        expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: CITY });
     });
 });

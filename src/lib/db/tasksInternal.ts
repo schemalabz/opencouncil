@@ -1,34 +1,45 @@
-// Server-only (NOT a "use server" action). getTaskStatusDirect skips the user
-// gate on purpose — its sole caller, the taskStatuses callback route, is hit by
-// the task server with no session: the callback is authenticated by its HMAC
-// token (POST/PUT) or by isUserAuthorizedToEdit (GET/DELETE) at the route, so a
-// user-session gate cannot live inside the function. Keeping it off the Server
-// Action surface is what prevents a client from invoking it directly to probe
-// task ids.
+// Server-only (NOT a "use server" action). getTaskStatusDirect and
+// deleteTaskStatusDirect skip the user gate on purpose. Their only caller is the
+// taskStatuses route, which settles access itself: POST/PUT come from the task
+// server with no session and carry an HMAC token, DELETE checks
+// isUserAuthorizedToEdit before it deletes, and GET is public but redacts task
+// bodies for non-editors. Keeping them off the Server Action surface is what
+// prevents a client from invoking them directly to probe or delete task ids.
 import "server-only";
 import type { Prisma, TaskStatus } from '@prisma/client';
 import prisma from "./prisma";
 import { TASK_CONFIG } from '@/lib/tasks/types';
 
+/** The meeting a task belongs to, as named by the callback route's path. */
+export type TaskStatusScope = Pick<TaskStatus, 'cityId' | 'councilMeetingId'>;
+
 /**
- * Read a task status by id, scoped to a (cityId, councilMeetingId) tenant.
- *
- * The lookup also matches on cityId/councilMeetingId, so a task that exists but
- * belongs to another tenant resolves to `null` — the callback route maps that to a
- * 404, with no cross-tenant existence leak. The scope is required: the route is the
- * only caller and always knows its path tenant, so there is no unscoped escape hatch.
+ * A task in another city or meeting matches nothing, so the route answers 404 and
+ * does not reveal that the task exists. The fields are copied, not spread, so a
+ * wider object cannot add filters to the query.
  */
-export async function getTaskStatusDirect(
+function scopedTaskStatus(taskStatusId: string, scope: TaskStatusScope): Prisma.TaskStatusWhereInput {
+    return { id: taskStatusId, cityId: scope.cityId, councilMeetingId: scope.councilMeetingId };
+}
+
+export async function getTaskStatusDirect(taskStatusId: string, scope: TaskStatusScope): Promise<TaskStatus | null> {
+    return prisma.taskStatus.findFirst({ where: scopedTaskStatus(taskStatusId, scope) });
+}
+
+/**
+ * Delete a task inside its tenant, unless it was updated after `notUpdatedAfter`.
+ * Returns the number of rows removed: 0 means a concurrent delete removed the task,
+ * or a callback updated it after the caller's own check.
+ */
+export async function deleteTaskStatusDirect(
     taskStatusId: string,
-    scope: { cityId: string; councilMeetingId: string }
-): Promise<TaskStatus | null> {
-    return prisma.taskStatus.findFirst({
-        where: {
-            id: taskStatusId,
-            cityId: scope.cityId,
-            councilMeetingId: scope.councilMeetingId,
-        },
+    scope: TaskStatusScope,
+    notUpdatedAfter: Date
+): Promise<number> {
+    const { count } = await prisma.taskStatus.deleteMany({
+        where: { ...scopedTaskStatus(taskStatusId, scope), updatedAt: { lte: notUpdatedAfter } },
     });
+    return count;
 }
 
 /**

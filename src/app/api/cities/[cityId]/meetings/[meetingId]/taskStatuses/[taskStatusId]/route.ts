@@ -3,20 +3,25 @@ import { revalidateTag } from 'next/cache';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import { taskHandlers } from '@/lib/tasks/registry';
 import { TaskUpdate } from '@/lib/apiTypes';
-import { deleteTaskStatus } from '@/lib/db/tasks';
-import { getTaskStatusDirect } from '@/lib/db/tasksInternal';
+import { deleteTaskStatusDirect, getTaskStatusDirect, type TaskStatusScope } from '@/lib/db/tasksInternal';
 import { verifyCallbackToken } from '@/lib/tasks/callbackToken';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 
 type RouteParams = { cityId: string; meetingId: string; taskStatusId: string };
 
+function scopeOf({ cityId, meetingId }: RouteParams): TaskStatusScope {
+    return { cityId, councilMeetingId: meetingId };
+}
+
+function taskStatusNotFound() {
+    return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+}
+
 export async function GET(request: NextRequest, props: { params: Promise<RouteParams> }) {
-    const { cityId, meetingId, taskStatusId } = await props.params;
-    // Scope the lookup to the tenant in the path: a task that exists but belongs to
-    // another city/meeting resolves to null, so it 404s instead of leaking existence.
-    const taskStatus = await getTaskStatusDirect(taskStatusId, { cityId, councilMeetingId: meetingId });
+    const params = await props.params;
+    const taskStatus = await getTaskStatusDirect(params.taskStatusId, scopeOf(params));
     if (!taskStatus) {
-        return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+        return taskStatusNotFound();
     }
 
     const authorized = await isUserAuthorizedToEdit({ cityId: taskStatus.cityId });
@@ -31,22 +36,22 @@ export async function GET(request: NextRequest, props: { params: Promise<RoutePa
 }
 
 export async function POST(request: NextRequest, props: { params: Promise<RouteParams> }) {
-    const { cityId, meetingId, taskStatusId } = await props.params;
-    return handleUpdateRequest(request, taskStatusId, { cityId, councilMeetingId: meetingId });
+    const params = await props.params;
+    return handleUpdateRequest(request, params.taskStatusId, scopeOf(params));
 }
 
 export async function PUT(request: NextRequest, props: { params: Promise<RouteParams> }) {
-    const { cityId, meetingId, taskStatusId } = await props.params;
-    return handleUpdateRequest(request, taskStatusId, { cityId, councilMeetingId: meetingId });
+    const params = await props.params;
+    return handleUpdateRequest(request, params.taskStatusId, scopeOf(params));
 }
 
 export async function DELETE(request: NextRequest, props: { params: Promise<RouteParams> }) {
-    const { cityId, meetingId, taskStatusId } = await props.params;
-    const scope = { cityId, councilMeetingId: meetingId };
-    const taskStatus = await getTaskStatusDirect(taskStatusId, scope);
+    const params = await props.params;
+    const scope = scopeOf(params);
+    const taskStatus = await getTaskStatusDirect(params.taskStatusId, scope);
 
     if (!taskStatus) {
-        return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+        return taskStatusNotFound();
     }
 
     const authorized = await isUserAuthorizedToEdit({ cityId: taskStatus.cityId });
@@ -59,11 +64,9 @@ export async function DELETE(request: NextRequest, props: { params: Promise<Rout
         return NextResponse.json({ error: 'Cannot delete task that has been updated within the last 10 minutes' }, { status: 403 });
     }
 
-    // Scoped delete: 0 rows means the task moved or was already removed between the
-    // read and the delete, which is a 404 rather than a silent success.
-    const deleted = await deleteTaskStatus(taskStatusId, scope);
-    if (deleted === 0) {
-        return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+    // A callback can update the task after the check above, so the delete repeats it.
+    if (await deleteTaskStatusDirect(params.taskStatusId, scope, tenMinutesAgo) === 0) {
+        return NextResponse.json({ error: 'Task status changed during the delete. Reload and try again.' }, { status: 409 });
     }
 
     revalidateTag(`city:${taskStatus.cityId}:meeting:${taskStatus.councilMeetingId}:derived`, 'max');
@@ -87,7 +90,7 @@ function wasForced(requestBody: string): boolean {
 async function handleUpdateRequest(
     request: NextRequest,
     taskStatusId: string,
-    scope: { cityId: string; councilMeetingId: string }
+    scope: TaskStatusScope
 ) {
     // The task server is the only caller of this path, and startTask always
     // hands it a tokenized URL. Accepting an untokenized callback would leave
@@ -103,7 +106,7 @@ async function handleUpdateRequest(
     const taskStatus = await getTaskStatusDirect(taskStatusId, scope);
 
     if (!taskStatus) {
-        return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+        return taskStatusNotFound();
     }
 
     const update: TaskUpdate<any> = await request.json();
