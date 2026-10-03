@@ -1,4 +1,5 @@
 import type { estypes } from '@elastic/elasticsearch';
+import type { QueryContainer } from '../types';
 
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 
@@ -12,7 +13,7 @@ function boolOf(query: estypes.SearchRequest): estypes.QueryDslBoolQuery {
 }
 
 function cityTerms(query: estypes.SearchRequest): string[] {
-    const filters = boolOf(query).filter as estypes.QueryDslQueryContainer[];
+    const filters = boolOf(query).filter as QueryContainer[];
     const terms = filters.find(f => f.terms)?.terms as Record<string, string[]>;
     return terms.city_id;
 }
@@ -27,12 +28,12 @@ describe('buildRelatedSubjectsQuery', () => {
 
     it('asks the semantic fields with the subject name and nothing else', () => {
         const query = buildRelatedSubjectsQuery(SEED, 'city', REALM_CITIES);
-        const must = boolOf(query).must as estypes.QueryDslQueryContainer[];
+        const must = boolOf(query).must as QueryContainer[];
         const disMax = must[0].dis_max as estypes.QueryDslDisMaxQuery;
 
         expect(must).toHaveLength(1);
         expect(disMax.tie_breaker).toBe(0);
-        expect(disMax.queries.map(q => q.semantic)).toEqual([
+        expect(disMax.queries.map(q => q?.semantic)).toEqual([
             { field: 'name.semantic', query: SEED.name },
             { field: 'description.semantic', query: SEED.name },
         ]);

@@ -1,5 +1,5 @@
 import { estypes } from '@elastic/elasticsearch';
-import { SearchRequest, ExtractedFilters, Location } from './types';
+import { SearchRequest, ExtractedFilters, Location, type QueryContainer } from './types';
 import { env } from '@/env.mjs';
 import { MATCH_START, MATCH_END, MATCH_FIELDS } from './constants';
 import type { AdministrativeBodyType } from '@prisma/client';
@@ -360,9 +360,9 @@ const FIELD_TIER = {
 // replace discards the raw BM25 magnitude; the log term keeps its ordering as
 // a within-tier tiebreak.
 function flattenToTier(
-    query: estypes.QueryDslQueryContainer,
+    query: QueryContainer,
     tier: { base: number; k: number }
-): estypes.QueryDslQueryContainer {
+): QueryContainer {
     return {
         function_score: {
             query,
@@ -400,7 +400,7 @@ function scaleTier(tier: { base: number; k: number }, factor: number): { base: n
 // acronym at all — scored 28, the whole introducer tier, for half a match.
 // dis_max with tie_breaker 0 keeps whichever spelling the index holds and
 // discards the rest, so the field totals its tier exactly, as FIELD_TIER says.
-function anySpelling(clauses: estypes.QueryDslQueryContainer[]): estypes.QueryDslQueryContainer {
+function anySpelling(clauses: QueryContainer[]): QueryContainer {
     return clauses.length === 1
         ? clauses[0]
         : { dis_max: { queries: clauses, tie_breaker: 0 } };
@@ -410,9 +410,9 @@ function anySpelling(clauses: estypes.QueryDslQueryContainer[]): estypes.QueryDs
 // `build` takes the minimum_should_match to apply, so each caller keeps its own
 // clause shape (plain match, nested, alternate spelling).
 function coverageClauses(
-    build: (minimumShouldMatch: string | number) => estypes.QueryDslQueryContainer,
+    build: (minimumShouldMatch: string | number) => QueryContainer,
     tier: { base: number; k: number }
-): estypes.QueryDslQueryContainer[] {
+): QueryContainer[] {
     return [
         flattenToTier(
             build(LEXICAL_MINIMUM_SHOULD_MATCH),
@@ -569,8 +569,8 @@ function buildRankingFunction(): estypes.QueryDslFunctionScoreContainer {
 // among text matches, never a sort key of its own. The filter-only browse path
 // therefore does not use it at all (see buildSearchQuery).
 function applyRanking(
-    query: estypes.QueryDslQueryContainer
-): estypes.QueryDslQueryContainer {
+    query: QueryContainer
+): QueryContainer {
     return {
         function_score: {
             query,
@@ -581,8 +581,8 @@ function applyRanking(
 }
 
 // Build filters for the search query
-export function buildFilters(request: SearchRequest): estypes.QueryDslQueryContainer[] {
-    const filters: estypes.QueryDslQueryContainer[] = [];
+export function buildFilters(request: SearchRequest): QueryContainer[] {
+    const filters: QueryContainer[] = [];
 
     // Always filter for released meetings only
     filters.push({
@@ -716,7 +716,7 @@ export function buildFilters(request: SearchRequest): estypes.QueryDslQueryConta
 // no proximity signal left in it.
 function buildLocationClause(
     locations: Location[] | undefined
-): estypes.QueryDslQueryContainer | undefined {
+): QueryContainer | undefined {
     if (!locations || locations.length === 0) return undefined;
     return {
         bool: {
@@ -744,7 +744,7 @@ function buildTranscriptMatch(
     field: string,
     queryText: string,
     minimumShouldMatch: string | number = LEXICAL_MINIMUM_SHOULD_MATCH
-): estypes.QueryDslQueryContainer {
+): QueryContainer {
     return {
         match: {
             [field]: {
@@ -810,7 +810,7 @@ function spellingsOf(text: string): string[] {
 // The name field's typo-tolerant match. Shared so the coverage gate and the
 // scoring clause cannot drift apart: the gate is exact-only without it, and a
 // typo query would be rejected before the clause built to recover it can score.
-function buildFuzzyNameMatch(text: string): estypes.QueryDslQueryContainer {
+function buildFuzzyNameMatch(text: string): QueryContainer {
     return {
         match: {
             'name': {
@@ -848,7 +848,7 @@ function buildFuzzyNameMatch(text: string): estypes.QueryDslQueryContainer {
  * reject a query whose only index spelling is a variant (Δ.Ε.Υ.Α.Χ. is indexed
  * plain) before its variant clauses could score it.
  */
-function buildCoverageGate(queryText: string): estypes.QueryDslQueryContainer {
+function buildCoverageGate(queryText: string): QueryContainer {
     const spellings = spellingsOf(queryText);
     return {
         bool: {
@@ -892,7 +892,7 @@ function buildCoverageGate(queryText: string): estypes.QueryDslQueryContainer {
 function buildLexicalShouldClauses(
     queryText: string,
     extractedFilters: ExtractedFilters
-): estypes.QueryDslQueryContainer[] {
+): QueryContainer[] {
     // Name and description sit in different tiers, so each field gets its own
     // clause (a shared best_fields multi_match could not carry two bases).
     // Matching several fields sums their tiers — more evidence, higher score —
@@ -915,11 +915,11 @@ function buildLexicalShouldClauses(
     // punctuation, which both mis-ranks and drops documents (see spellingsOf).
     const spellings = spellingsOf(queryText);
     const perSpelling = (
-        build: (text: string) => estypes.QueryDslQueryContainer
-    ): estypes.QueryDslQueryContainer => anySpelling(spellings.map(build));
+        build: (text: string) => QueryContainer
+    ): QueryContainer => anySpelling(spellings.map(build));
 
     const termClause = (field: string, texts: string[]) =>
-        (minimumShouldMatch: string | number): estypes.QueryDslQueryContainer =>
+        (minimumShouldMatch: string | number): QueryContainer =>
             anySpelling(texts.map(text => ({
                 match: {
                     [field]: {
@@ -1063,8 +1063,8 @@ function buildLexicalShouldClauses(
 function buildSemanticFallbackQuery(
     queryText: string,
     semanticMinScore: number
-): estypes.QueryDslQueryContainer {
-    const semanticQuery: estypes.QueryDslQueryContainer = {
+): QueryContainer {
+    const semanticQuery: QueryContainer = {
         dis_max: {
             queries: [
                 {
@@ -1176,14 +1176,14 @@ export function buildSearchQuery(
     // the tiered should-clauses carry all of the scoring. minimum_should_match
     // stays 1 so a document that somehow clears the gate without any scoring
     // clause cannot enter at score 0.
-    const lexicalBool: estypes.QueryDslQueryContainer = {
+    const lexicalBool: QueryContainer = {
         bool: {
             filter: [buildCoverageGate(queryText)],
             should: buildLexicalShouldClauses(queryText, extractedFilters),
             minimum_should_match: 1
         }
     };
-    const textCore: estypes.QueryDslQueryContainer = {
+    const textCore: QueryContainer = {
         bool: {
             must: [
                 request.config?.enableSemanticSearch
@@ -1213,7 +1213,7 @@ export function buildSearchQuery(
     // place: the geo clauses sit in ITS filter context, where the number of
     // points the geocoder returned for one place cannot reach the score.
     const locationClause = buildLocationClause(request.locations);
-    const scoredQuery: estypes.QueryDslQueryContainer = locationClause
+    const scoredQuery: QueryContainer = locationClause
         ? {
             bool: {
                 must: [textCore],
