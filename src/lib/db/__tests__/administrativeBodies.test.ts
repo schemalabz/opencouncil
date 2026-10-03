@@ -5,6 +5,7 @@
  */
 const mockFindUniqueOrThrow = jest.fn();
 const mockUpdate = jest.fn();
+const mockFindMany = jest.fn();
 const mockWithUserAuthorizedToEdit = jest.fn();
 const mockGetCurrentUser = jest.fn();
 
@@ -16,6 +17,7 @@ jest.mock('@/lib/db/prisma', () => ({
             findUnique: (...a: unknown[]) => mockFindUniqueOrThrow(...a),
             update: (...a: unknown[]) => mockUpdate(...a),
             create: (...a: unknown[]) => mockUpdate(...a),
+            findMany: (...a: unknown[]) => mockFindMany(...a),
         },
     },
 }));
@@ -25,7 +27,13 @@ jest.mock('@/lib/auth', () => ({
 }));
 
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
-import { createAdministrativeBody, editAdministrativeBody } from '@/lib/db/administrativeBodies';
+import {
+    createAdministrativeBody,
+    editAdministrativeBody,
+    getAdministrativeBodiesWithPublicMeetings,
+    getPublicAdministrativeBodiesForCity,
+} from '@/lib/db/administrativeBodies';
+import { publicAdministrativeBodySelect } from '@/lib/db/types';
 import type { DecisionConventions } from '@/lib/decisionConventions';
 
 const PROFILED: DecisionConventions = {
@@ -120,5 +128,33 @@ describe('the body writers never write the conventions column', () => {
         await editAdministrativeBody('b1', sent);
         const data = (mockUpdate as jest.Mock).mock.calls.at(-1)[0].data;
         expect(data).toEqual({ name: 'Νέο όνομα' });
+    });
+});
+
+/**
+ * The public reads reach a browser: the bodies route for a reader who cannot
+ * edit the city, the search filters' Server Action, the meetings tab. The key
+ * set of the select is the whole privacy surface, so it is pinned here.
+ */
+describe('the public body reads select only the public fields', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockFindMany.mockResolvedValue([]);
+    });
+
+    it('the public select names the identity of a body and nothing of its settings', () => {
+        expect(Object.keys(publicAdministrativeBodySelect).sort()).toEqual(['cityId', 'id', 'name', 'name_en', 'type']);
+    });
+
+    it.each([
+        ['getPublicAdministrativeBodiesForCity', getPublicAdministrativeBodiesForCity],
+        ['getAdministrativeBodiesWithPublicMeetings', getAdministrativeBodiesWithPublicMeetings],
+    ])('%s queries with the public select', async (_name, read) => {
+        await read('zografou');
+        expect(mockFindMany).toHaveBeenCalledTimes(1);
+        expect(mockFindMany.mock.calls[0][0]).toMatchObject({
+            where: { cityId: 'zografou' },
+            select: publicAdministrativeBodySelect,
+        });
     });
 });
