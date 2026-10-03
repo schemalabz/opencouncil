@@ -17,11 +17,12 @@ export const searchRequestSchema = z.object({
     }).optional(),
     location: z.object({
         point: z.object({
-            lat: z.number(),
-            lon: z.number()
+            lat: z.number().min(-90).max(90),
+            lon: z.number().min(-180).max(180)
         }),
-        radius: z.number().min(0).max(100).default(5)
-    }).optional(),
+        radius: z.number().positive().max(100).default(5).describe('Radius in kilometres')
+    }).optional()
+        .describe('Restrict to subjects pinned within `radius` of `point`. A subject without a location pin does not match'),
     page: z.number().int().min(1).default(1),
     pageSize: z.number().int().min(1).max(100).default(10),
     detailed: z.boolean().default(false)
