@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { motion, useAnimation, useInView, useScroll, useTransform } from 'framer-motion'
-import { BotMessageSquare, Globe, Github, Database, Zap, Rocket, Shield, Smartphone, Recycle, ScrollText, Mail, Vote, Scroll, MapIcon } from 'lucide-react'
+import { BotMessageSquare, Globe, Database, Zap, Rocket, Shield, Smartphone, Recycle, ScrollText, Mail, Vote, Scroll, MapIcon } from 'lucide-react'
 
 const features = [
     {

@@ -16,7 +16,8 @@ import {
     DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Check, Link2, Loader2, Share2, Instagram, Code2, ChevronRight } from 'lucide-react';
+import { Check, Link2, Loader2, Share2, Code2, ChevronRight } from 'lucide-react';
+import { SiInstagram } from 'react-icons/si';
 import { useVideo } from './VideoProvider';
 import { usePathname, useParams } from 'next/navigation';
 import { useShare } from '@/contexts/ShareContext';
@@ -267,7 +268,7 @@ export default function ShareDropdown({ meetingId, cityId, className }: ShareDro
                         </DropdownMenuSubContent>
                     </DropdownMenuSub>}
                     {(subject || !subjectPage) && <DropdownMenuItem className={itemClass} onSelect={() => openDialog(subject ? setSubjectStoryOpen : setStoryPickerOpen)}>
-                        <Instagram className="size-4 text-muted-foreground" />{tSharing('storyTitle')}<ChevronRight className="ml-auto size-4 text-muted-foreground/60" />
+                        <SiInstagram className="size-4 text-muted-foreground" aria-hidden />{tSharing('storyTitle')}<ChevronRight className="ml-auto size-4 text-muted-foreground/60" />
                     </DropdownMenuItem>}
                     {subjectId && <>
                         <DropdownMenuSeparator className="mx-3 my-1" />
