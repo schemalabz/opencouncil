@@ -47,3 +47,5 @@ export interface SeedData {
 }
 export * from './meeting';
 export * from './adaLookups';
+
+export type { VoiceprintCandidateSegment } from "./voiceprint";
