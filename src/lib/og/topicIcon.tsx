@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from 'react';
+import { createElement, type CSSProperties, type ReactNode } from 'react';
 import { icons, type IconNode } from 'lucide';
 
 /** `building-2` -> `Building2`, the key lucide's icon map uses. */
@@ -12,7 +12,7 @@ function pascal(name: string): string {
  * reads a React context, so the image renderer takes the icon data of the
  * framework-free `lucide` package instead.
  */
-export function OgIcon({ node, size, color, strokeWidth = 2 }: { node: IconNode; size: number; color: string; strokeWidth?: number }) {
+export function OgIcon({ node, size, color, strokeWidth = 2, style }: { node: IconNode; size: number; color: string; strokeWidth?: number; style?: CSSProperties }) {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -24,6 +24,7 @@ export function OgIcon({ node, size, color, strokeWidth = 2 }: { node: IconNode;
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
+            style={style}
         >
             {node.map(([tag, attrs], i) => createElement(tag, { key: i, ...attrs }))}
         </svg>

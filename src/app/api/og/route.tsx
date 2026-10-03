@@ -5,7 +5,7 @@
 import { ImageResponse } from '@vercel/og';
 import type { Realm } from '@prisma/client';
 import type { ReactElement, ReactNode } from 'react';
-import { icons } from 'lucide';
+import { icons, type IconNode } from 'lucide';
 import { getTranslations } from 'next-intl/server';
 import { getMeetingDataForOG } from '@/lib/db/meetings';
 import { getCity, getPetitionedMapCitiesCached } from '@/lib/db/cities';
@@ -35,7 +35,7 @@ import { LOGO_BLACK_DATA_URI, OG_FONTS } from '@/lib/og/serverAssets';
 import { getImageData, getPublicImageData, SEAL_BOX, type ImageBox } from '@/lib/og/remoteImage';
 import { boundaryPath } from '@/lib/og/boundary';
 import { getAboutPageStatsCached, getAllCitiesMinimalCached, getCityPetitionBucketCached } from '@/lib/cache/queries';
-import { HERO_AUDIENCES, shotsForRealm } from '@/components/about/config';
+import { HERO_AUDIENCES, shotsForRealm, type HeroAudienceId } from '@/components/about/config';
 import { getPortraitData } from '@/lib/og/portrait';
 import { allIllustrated, getStaticIllustrations, getSubjectIllustrations, ILLUSTRATION_BOX } from '@/lib/og/illustration';
 import { ogCacheControl } from '@/lib/og/render';
@@ -482,6 +482,9 @@ function browserTile(src: string, width: number, height: number): ReactNode {
 
 // About: the sales page's own words beside the product they describe, with the
 // counts the page shows. The screenshot is the realm's own, as on the page.
+// The page draws HERO_AUDIENCES' lucide-react icons, which satori cannot call (see OgIcon).
+const HERO_AUDIENCE_ICONS: Record<HeroAudienceId, IconNode> = { residents: icons.Users, services: icons.Landmark };
+
 const AboutOGImage = async (locale: string, t: Translator, realm: Realm) => {
     const tHero = await getTranslations({ locale, namespace: 'about.hero' });
     const [stats, shot] = await Promise.all([
@@ -502,9 +505,9 @@ const AboutOGImage = async (locale: string, t: Translator, realm: Realm) => {
                     <OgStack gap={22}>
                         <OgHeadline top={tHero('title')} bottom={tHero('titleHighlight')} size={44} />
                         <OgStack gap={12}>
-                            {HERO_AUDIENCES.map(({ id, icon: Icon }) => (
+                            {HERO_AUDIENCES.map(({ id }) => (
                                 <OgRow key={id} gap={10} style={{ alignItems: 'flex-start' }}>
-                                    <Icon size={22} color={OG.ORANGE_INK} style={{ marginTop: 2 }} />
+                                    <OgIcon node={HERO_AUDIENCE_ICONS[id]} size={22} color={OG.ORANGE_INK} style={{ marginTop: 2 }} />
                                     <OgStack gap={2}>
                                         <span style={{ fontSize: 20, lineHeight: 1.3, color: OG.INK }}>{tHero(`audiences.${id}.lead`)}</span>
                                         <span style={{ maxWidth: 500, fontSize: 19, lineHeight: 1.35, color: OG.MUTED }}>{tHero(`audiences.${id}.text`)}</span>
