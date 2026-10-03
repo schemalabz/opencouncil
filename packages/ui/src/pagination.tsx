@@ -6,7 +6,8 @@ import { Button } from './button';
 import { PaginationParams } from './lib/pagination';
 import { calculatePageNumbers } from './lib/pagination';
 
-interface PaginationProps extends PaginationParams {
+interface PaginationProps extends Omit<PaginationParams, 'pageSize'> {
+    pageSize?: number;
     onPageChange: (page: number) => void;
     labels?: {
         previous: string;

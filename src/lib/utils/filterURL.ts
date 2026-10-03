@@ -1,4 +1,3 @@
-import { ReadonlyURLSearchParams } from 'next/navigation';
 import { pageQueryFields } from '@/lib/zod-schemas/listQuery';
 
 export interface FilterOption<T = string | null> {
@@ -162,44 +161,4 @@ export function withPage(params: URLSearchParams, page: number): URLSearchParams
         next.delete('page');
     }
     return next;
-}
-
-/**
- * Updates URL with filter parameters based on selected values.
- * Uses window.history.pushState for client-side URL updates with browser history,
- * without triggering a Next.js server component re-render.
- */
-export function updateFilterURL<T>(
-    selectedValues: T[],
-    filterOptions: FilterOption<T>[],
-    defaultFilterValues: T[] | undefined,
-    searchParams: ReadonlyURLSearchParams
-): void {
-    const params = withFilterSelection(new URLSearchParams(searchParams.toString()), selectedValues, filterOptions, defaultFilterValues);
-    window.history.pushState(null, '', `?${params.toString()}`);
-}
-
-/**
- * Updates URL with body filter parameter.
- * Stores the body name (label) in the URL for readability and shareability.
- */
-export function updateBodyFilterURL(
-    bodyId: string | null,
-    bodyOptions: FilterOption<string>[],
-    searchParams: ReadonlyURLSearchParams
-): void {
-    const params = withBodySelection(new URLSearchParams(searchParams.toString()), bodyId, bodyOptions);
-    window.history.pushState(null, '', `?${params.toString()}`);
-}
-
-/**
- * Resolves the 'body' URL param (a label) to a body ID using the available options.
- */
-export function resolveBodyFromURL(
-    searchParams: ReadonlyURLSearchParams,
-    bodyOptions: FilterOption<string>[]
-): string | null {
-    const bodyLabel = searchParams.get('body');
-    if (!bodyLabel) return null;
-    return bodyOptions.find(o => o.label === bodyLabel)?.value ?? null;
 }

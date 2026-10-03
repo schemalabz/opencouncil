@@ -1,6 +1,7 @@
 "use client";
 import { useLocale, useTranslations } from 'next-intl';
 import List from '@/components/List';
+import { useLocalCollection } from '@/components/collection/useLocalCollection';
 import PartyCard from '@/components/parties/PartyCard';
 import PartyForm from '@/components/parties/PartyForm';
 import { PartyWithPersons } from '@/lib/db/parties';
@@ -41,19 +42,20 @@ export default function CityParties({
         ...party.people.flatMap(person => [person.name, person.name_en]),
     ], [locale]);
 
+    // A quiet filter over the loaded rows. The identity band's field
+    // is the page's search, and it searches transcripts instead.
+    const state = useLocalCollection(orderedParties, { searchKeys });
+
     return (
         <div>
             <List
-                items={orderedParties}
+                state={state}
                 editable={canEdit}
                 ItemComponent={PartyCard}
                 itemProps={{ columns }}
                 FormComponent={PartyForm}
                 formProps={{ cityId }}
                 t={t}
-                // A quiet filter over the loaded rows. The identity band's field
-                // is the page's search, and it searches transcripts instead.
-                searchKeys={searchKeys}
                 showCount
                 smColumns={1}
                 mdColumns={2}

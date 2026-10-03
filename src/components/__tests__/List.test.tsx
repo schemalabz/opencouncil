@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import List from '../List';
+import { useLocalCollection } from '@/components/collection/useLocalCollection';
 
 let mockSearchParams = new URLSearchParams();
 
@@ -46,24 +47,40 @@ type RenderProps = {
     items?: Item[];
     cappedAt?: number;
     searchKeys?: (item: Item) => (string | null | undefined)[];
-    sortItems?: (items: Item[], selectedValues: (string | undefined)[]) => Item[];
+    sortItems?: (items: Item[], selectedValues: (string | undefined)[], selectedBody: string | null) => Item[];
     filterAvailableValues?: { value: string | undefined; label: string }[];
-    filter?: (selectedValues: (string | undefined)[], item: Item) => boolean;
+    filter?: (selectedValues: (string | undefined)[], item: Item, selectedBody: string | null) => boolean;
+    pageSize?: number;
 };
 
-function renderList(props: RenderProps = {}) {
-    const { editable = false, items: rows = items, ...flags } = props;
-    return render(
+/** A page's wiring: the local source fills the state, and List draws it. */
+function LocalList({ editable = false, items: rows = items, showSearch, showCount, cappedAt, searchKeys, sortItems, filterAvailableValues, filter, pageSize }: RenderProps) {
+    const state = useLocalCollection<Item, string | undefined>(rows, {
+        searchable: showSearch ?? true,
+        searchKeys,
+        cappedAt,
+        sortItems,
+        filterOptions: filterAvailableValues,
+        filter,
+        pageSize,
+    });
+    return (
         <List<Item>
-            items={rows}
+            state={state}
             editable={editable}
             ItemComponent={Card}
             FormComponent={() => null}
             formProps={{}}
             t={t}
-            {...flags}
-        />,
+            showSearch={showSearch}
+            showCount={showCount}
+            filterOptions={filterAvailableValues}
+        />
     );
+}
+
+function renderList(props: RenderProps = {}) {
+    return render(<LocalList {...props} />);
 }
 
 const count = () => screen.queryByText('items:2');
@@ -238,7 +255,7 @@ describe('List — ordering the rows', () => {
     });
 
     it('hands the hook the current selection, not an empty one', () => {
-        const sortItems = jest.fn((rows: Item[], _selected: (string | undefined)[]) => rows);
+        const sortItems = jest.fn((rows: Item[], _selected: (string | undefined)[], _body: string | null) => rows);
         renderList({
             items: people,
             sortItems,
@@ -246,5 +263,41 @@ describe('List — ordering the rows', () => {
         });
         const [, selected] = sortItems.mock.calls[sortItems.mock.calls.length - 1];
         expect(selected).toEqual(['council']);
+    });
+});
+
+describe('List — scrolling on a page change', () => {
+    const many: Item[] = Array.from({ length: 30 }, (_, i) => ({ id: `r${i}`, name: `Row ${i}` }));
+    const scrollIntoView = jest.fn();
+
+    beforeEach(() => {
+        scrollIntoView.mockClear();
+        Element.prototype.scrollIntoView = scrollIntoView;
+        jest.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { callback(0); return 0; });
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    it('scrolls when the reader picks the page already on screen, and leaves no scroll for later', () => {
+        mockSearchParams = new URLSearchParams('page=2');
+        const { rerender } = renderList({ items: many, pageSize: 12 });
+        fireEvent.click(screen.getByRole('button', { name: '2' }));
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+        // A later page change the reader did not make through the pager: a
+        // filter or a search sends the list back to page 1.
+        mockSearchParams = new URLSearchParams('');
+        rerender(<LocalList items={many} pageSize={12} />);
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    });
+
+    it('scrolls once the page the reader picked is on screen', () => {
+        const { rerender } = renderList({ items: many, pageSize: 12 });
+        fireEvent.click(screen.getByRole('button', { name: '3' }));
+        mockSearchParams = new URLSearchParams('page=3');
+        rerender(<LocalList items={many} pageSize={12} />);
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
     });
 });

@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { getBatchStatisticsForSubjects, type Statistics } from '@/lib/statistics';
 import List, { BaseListProps } from '@/components/List';
+import { useLocalCollection } from '@/components/collection/useLocalCollection';
 import { SubjectCard } from '@/components/subject-card';
 import { SubjectRow } from './SubjectRow';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -163,6 +164,9 @@ export function SubjectListContainer({
     );
   }, [cityData, statistics, showContext, openInNewTab, variant, onSubjectOpen, subjects]);
 
+  // The search page pages and filters its own results; this list only draws them.
+  const collection = useLocalCollection(subjects, { searchable: false });
+
   if (isDataLoading || isStatsLoading) {
     return variant === 'row' ? (
       // As many placeholders as there are results, so the block doesn't visibly
@@ -198,13 +202,12 @@ export function SubjectListContainer({
 
   return (
     <List<SearchResultLight>
-      items={subjects}
+      state={collection}
       ItemComponent={ItemComponent}
       t={t}
       FormComponent={() => null}
       formProps={{}}
       editable={false}
-      showSearch={false}
       layout="carousel"
       carouselItemWidth={320}
       carouselGap={16}

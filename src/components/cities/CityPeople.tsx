@@ -1,10 +1,10 @@
 "use client";
 import { useCallback, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useSearchParams } from 'next/navigation';
 import { AdministrativeBodyType } from '@prisma/client'
 import type { PublicAdministrativeBody } from '@/lib/db/types'
 import List from '@/components/List';
+import { useLocalCollection } from '@/components/collection/useLocalCollection';
 import PersonCard from '@/components/persons/PersonCard';
 import PersonForm from '@/components/persons/PersonForm';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -12,7 +12,6 @@ import { sortBodyMembers, sortPeople } from '@/lib/sorting/people';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes, getBodiesOfTypeFromPeople } from '@/lib/utils/administrativeBodies';
 import { BadgePicker } from '@/components/ui/badge-picker';
-import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
 import { filterActiveRoles, getRoleText, isRoleActive } from '@/lib/utils/roles';
 import { useRoleTitles } from '@/hooks/useRoleTitles';
 import { getLocalizedName } from '@/lib/formatters/name';
@@ -47,7 +46,6 @@ export default function CityPeople({
     const tCommon = useTranslations('Common');
     const locale = useLocale();
     const roleTitles = useRoleTitles();
-    const searchParams = useSearchParams();
 
     // Both name columns, not just the localized one: a reader on the Greek page
     // may well type a councillor's name in Latin script. `getRoleText` adds the
@@ -82,35 +80,35 @@ export default function CityPeople({
         [allPeople, tCommon]
     );
 
-    // Pre-resolve body ID from URL once, instead of per-item in the filter callback
-    const resolvedBodyId = useMemo(() => {
-        const bodyLabel = searchParams.get('body');
-        if (!bodyLabel) return null;
-        for (const option of typeOptions) {
-            if (option.value === 'council') continue;
-            const subBodies = getBodiesOfTypeFromPeople(allPeople, option.value);
-            const match = subBodies.find(o => o.label === bodyLabel);
-            if (match) return match.value;
-        }
-        return null;
-    }, [searchParams, allPeople, typeOptions]);
-
-    // The one body the selection names, or null. The council carries no
-    // sub-bodies, so only a narrower type can name one. Both the filter and the
-    // order read the selection through here: written twice, they could disagree
-    // about which rows are on screen and which body orders them.
-    const selectedBodyId = useCallback((selectedValues: AdministrativeBodyType[]): string | null => {
-        const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
-        return selectedType && selectedType !== 'council' ? resolvedBodyId : null;
-    }, [resolvedBodyId]);
+    // The council carries no sub-bodies, so only a narrower type offers a body.
+    const bodyOptionsFor = useCallback((type: AdministrativeBodyType) =>
+        type === 'council' ? [] : getBodiesOfTypeFromPeople(allPeople, type),
+        [allPeople]
+    );
 
     // One body named: that body's order. One type: the bodies of that type in
     // turn. Otherwise the city order.
-    const sortItems = useCallback((items: PersonWithRelations[], selectedValues: AdministrativeBodyType[]) => {
-        const bodyId = selectedBodyId(selectedValues);
+    const sortItems = useCallback((items: PersonWithRelations[], selectedValues: AdministrativeBodyType[], bodyId: string | null) => {
         if (bodyId) return sortBodyMembers(items, bodyId);
         return sortPeople(items, selectedValues.length === 1 ? selectedValues[0] : undefined);
-    }, [selectedBodyId]);
+    }, []);
+
+    const state = useLocalCollection<PersonWithRelations, AdministrativeBodyType>(allPeople, {
+        filterOptions: typeOptions,
+        unsetMeansEveryValue: false,
+        bodyOptionsFor,
+        filter: (selectedValues, person, bodyId) => {
+            if (!filterPersonByAdminBodyTypes(person, selectedValues)) return false;
+            return bodyId ? person.roles.some(r => r.administrativeBodyId === bodyId) : true;
+        },
+        sortItems,
+        // Whoever holds no role any more closes the list under their own
+        // heading, instead of sitting between today's members by surname.
+        trailing: person => !person.roles.some(isRoleActive),
+        // A quiet filter over the loaded rows. The identity band's field is
+        // the page's search, and it searches transcripts instead.
+        searchKeys,
+    });
 
     // Kept apart from `open` so the sheet still has a body while it animates out.
     const [electedOrderBodyId, setElectedOrderBodyId] = useState<string | null>(null);
@@ -123,15 +121,15 @@ export default function CityPeople({
     // city has one type, so neither ever names it. Two bodies of the type is
     // ambiguous, and an order is one body's.
     const bodyOnScreen = useCallback((selectedValues: AdministrativeBodyType[]): string | null => {
-        const named = selectedBodyId(selectedValues);
-        if (named) return named;
+        // The parsed view names a body only while one non-council type is selected.
+        if (state.selectedBody) return state.selectedBody;
         const typeInView = selectedValues.length === 1 ? selectedValues[0]
             : selectedValues.length === 0 && typeOptions.length === 1 ? typeOptions[0].value
             : null;
         if (!typeInView) return null;
         const bodies = getBodiesOfTypeFromPeople(allPeople, typeInView);
         return bodies.length === 1 ? bodies[0].value : null;
-    }, [selectedBodyId, typeOptions, allPeople]);
+    }, [state.selectedBody, typeOptions, allPeople]);
 
     const adminTools = useCallback((selectedValues: AdministrativeBodyType[]) => {
         if (!isSuperAdmin) return null;
@@ -147,8 +145,7 @@ export default function CityPeople({
     return (
         <>
         <List<PersonWithRelations, Record<string, never>, AdministrativeBodyType>
-            items={allPeople}
-            sortItems={sortItems}
+            state={state}
             editable={canEdit}
             adminTools={adminTools}
             ItemComponent={PersonCard}
@@ -157,12 +154,6 @@ export default function CityPeople({
                 ? { cityId, parties: [], administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)), roleTypes: ['administrativeBody' as const] }
                 : { cityId, parties, administrativeBodies }}
             t={t}
-            filterAvailableValues={typeOptions}
-            filter={(selectedValues, person) => {
-                if (!filterPersonByAdminBodyTypes(person, selectedValues)) return false;
-                const bodyId = selectedBodyId(selectedValues);
-                return bodyId ? person.roles.some(r => r.administrativeBodyId === bodyId) : true;
-            }}
             renderFilter={({ selectedValues, onChange }) => {
                 if (typeOptions.length <= 1) return null;
                 return (
@@ -181,22 +172,16 @@ export default function CityPeople({
                 if (!selectedType || selectedType === 'council') return null;
                 const subBodies = getBodiesOfTypeFromPeople(allPeople, selectedType);
                 if (subBodies.length <= 1) return null;
-                const selectedBodyId = resolveBodyFromURL(searchParams, subBodies);
                 return (
                     <BadgePicker
                         options={subBodies}
-                        selectedValues={selectedBodyId ? [selectedBodyId] : []}
-                        onSelectionChange={(values) => updateBodyFilterURL(values.length > 0 ? values[0] : null, subBodies, searchParams)}
+                        selectedValues={state.selectedBody ? [state.selectedBody] : []}
+                        onSelectionChange={(values) => state.setBody(values.length > 0 ? values[0] : null)}
                         allLabel={tCommon('allBodies')}
                     />
                 );
             }}
-            // Whoever holds no role any more closes the list under their own
-            // heading, instead of sitting between today's members by surname.
-            trailing={{ title: t('formerMembers'), matches: person => !person.roles.some(isRoleActive) }}
-            // A quiet filter over the loaded rows. The identity band's field is
-            // the page's search, and it searches transcripts instead.
-            searchKeys={searchKeys}
+            trailingTitle={t('formerMembers')}
             showCount
             smColumns={1}
             mdColumns={2}

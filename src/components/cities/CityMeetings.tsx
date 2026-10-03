@@ -1,7 +1,6 @@
 "use client";
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { AdministrativeBodyType, Realm } from '@prisma/client';
 import List from '@/components/List';
 import MeetingCardV2 from '@/components/meetings/MeetingCardV2';
@@ -10,7 +9,7 @@ import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { getAdministrativeBodyTypes, filterMeetingByAdminBodyTypes, getBodiesOfType } from '@/lib/utils/administrativeBodies';
 import type { PaginationParams, PublicAdministrativeBody } from '@/lib/db/types';
 import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
-import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
+import { useLocalCollection } from '@/components/collection/useLocalCollection';
 import { meetingLabel } from '@/lib/meetingName';
 
 type CityMeetingsProps = {
@@ -50,7 +49,6 @@ export default function CityMeetings({
     const t = useTranslations('CouncilMeeting');
     const tCommon = useTranslations('Common');
     const locale = useLocale();
-    const searchParams = useSearchParams();
 
     // The subject titles are already on the card's preview, and they are what a
     // reader remembers a meeting by far more often than its number.
@@ -68,15 +66,21 @@ export default function CityMeetings({
         [administrativeBodies, tCommon]
     );
 
-    // Two-level picker groups. Council stays a single body in practice, so keep its
-    // instance picker hidden (legacy behavior) by giving it no bodies.
+    // Council stays a single body in practice, so it offers no body picker
+    // (legacy behavior).
+    const bodyOptionsFor = useCallback((type: AdministrativeBodyType) =>
+        type === 'council' ? [] : getBodiesOfType(administrativeBodies, type),
+        [administrativeBodies]
+    );
+
+    // Two-level picker groups.
     const bodyGroups = useMemo<AdminBodyGroup[]>(() =>
         typeOptions.map(o => ({
             type: o.value,
             typeLabel: o.label,
-            bodies: o.value === 'council' ? [] : getBodiesOfType(administrativeBodies, o.value),
+            bodies: bodyOptionsFor(o.value),
         })),
-        [typeOptions, administrativeBodies]
+        [typeOptions, bodyOptionsFor]
     );
 
     const defaultFilterValues = useMemo(() => {
@@ -84,67 +88,50 @@ export default function CityMeetings({
         return hasCouncil ? ['council' as AdministrativeBodyType] : undefined;
     }, [typeOptions]);
 
-    // Pre-resolve body ID from URL once, instead of per-item in the filter callback
-    const resolvedBodyId = useMemo(() => {
-        const bodyLabel = searchParams.get('body');
-        if (!bodyLabel) return null;
-        for (const option of typeOptions) {
-            if (option.value === 'council') continue;
-            const subBodies = getBodiesOfType(administrativeBodies, option.value);
-            const match = subBodies.find(o => o.label === bodyLabel);
-            if (match) return match.value;
-        }
-        return null;
-    }, [searchParams, administrativeBodies, typeOptions]);
+    const state = useLocalCollection<CouncilMeetingWithSubjectPreview, AdministrativeBodyType>(councilMeetings, {
+        filterOptions: typeOptions,
+        defaultFilterValues,
+        unsetMeansEveryValue: false,
+        bodyOptionsFor,
+        filter: (selectedValues, meeting, bodyId) => {
+            if (!filterMeetingByAdminBodyTypes(meeting, selectedValues)) return false;
+            return bodyId ? meeting.administrativeBody?.id === bodyId : true;
+        },
+        // A quiet filter over the loaded rows. The identity band's field is
+        // the page's search, and it searches transcripts instead.
+        searchKeys,
+        pageSize,
+        cappedAt,
+    });
 
     return (
         <List<CouncilMeetingWithSubjectPreview, { cityTimezone: string; now: Date }, AdministrativeBodyType>
-            items={councilMeetings}
+            state={state}
             editable={canEdit}
             ItemComponent={MeetingCardV2}
             itemProps={{ cityTimezone: timezone, now }}
-            cappedAt={cappedAt}
             FormComponent={AddMeetingForm}
             formProps={{ cityId, realm, allowedBodyIds: editableBodyIds }}
             t={t}
-            filterAvailableValues={typeOptions}
-            filter={(selectedValues, meeting) => {
-                if (!filterMeetingByAdminBodyTypes(meeting, selectedValues)) return false;
-                if (resolvedBodyId) {
-                    const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
-                    if (selectedType && selectedType !== 'council') {
-                        return meeting.administrativeBody?.id === resolvedBodyId;
-                    }
-                }
-                return true;
-            }}
-            defaultFilterValues={defaultFilterValues}
             renderFilter={({ selectedValues, onChange }) => {
                 const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
-                const subBodies = selectedType
-                    ? (bodyGroups.find(g => g.type === selectedType)?.bodies ?? [])
-                    : [];
                 return (
                     <AdminBodyPicker
                         groups={bodyGroups}
                         selectedType={selectedType}
                         onTypeChange={(type) => onChange(type ? [type] : [])}
-                        selectedBodyId={resolveBodyFromURL(searchParams, subBodies)}
-                        onBodyChange={(bodyId) => updateBodyFilterURL(bodyId, subBodies, searchParams)}
+                        selectedBodyId={state.selectedBody}
+                        onBodyChange={state.setBody}
                         allTypesLabel={tCommon('allMeetings')}
                         allBodiesLabel={tCommon('allBodies')}
                     />
                 );
             }}
-            // A quiet filter over the loaded rows. The identity band's field is
-            // the page's search, and it searches transcripts instead.
-            searchKeys={searchKeys}
             showCount
             smColumns={1}
             mdColumns={2}
             // Two at the widest as well: the same card truncates at a third of this column.
             lgColumns={2}
-            pagination={{ pageSize }}
         />
     );
 }
