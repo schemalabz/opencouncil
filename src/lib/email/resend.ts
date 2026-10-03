@@ -1,6 +1,7 @@
 "use server";
 import { Resend } from 'resend';
 import { env } from '@/env.mjs';
+import { emailFrom, type EmailSender } from '@/lib/email/senders';
 
 interface Attachment {
     filename: string;
@@ -14,7 +15,7 @@ export interface EmailTag {
 }
 
 interface EmailParams {
-    from: string;
+    from: EmailSender;
     to: string;
     cc?: string | string[];
     replyTo?: string | string[];
@@ -26,7 +27,7 @@ interface EmailParams {
 }
 
 export interface BatchEmailItem {
-    from: string;
+    from: EmailSender;
     to: string;
     replyTo?: string | string[];
     subject: string;
@@ -108,7 +109,7 @@ export async function sendEmail(params: EmailParams) {
 
     try {
         const result = await resend.emails.send({
-            from,
+            from: emailFrom(from),
             to,
             cc,
             replyTo,
@@ -166,8 +167,9 @@ export async function sendEmailBatch(
     // Resend's HTTP API uses snake_case (`reply_to`); the SDK exposes camelCase
     // (`replyTo`). We use the SDK for one-shot sends and direct fetch here, so
     // translate just before serializing.
-    const payload = rewritten.map(({ replyTo, ...rest }) => ({
+    const payload = rewritten.map(({ from, replyTo, ...rest }) => ({
         ...rest,
+        from: emailFrom(from),
         ...(replyTo !== undefined ? { reply_to: replyTo } : {}),
     }));
 

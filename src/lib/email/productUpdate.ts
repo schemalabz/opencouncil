@@ -1,14 +1,13 @@
 "use server";
 
 import { createHash } from 'crypto';
-import { sendEmail, sendEmailInBatches, type EmailTag } from '@/lib/email/resend';
+import { sendEmail, sendEmailInBatches, type BatchEmailItem, type EmailTag } from '@/lib/email/resend';
 import { renderReactEmailToHtml } from '@/lib/email/render';
 import { ProductUpdateEmail } from '@/lib/email/templates/ProductUpdateEmail';
 import { fillProductUpdatePlaceholders } from '@/lib/email/templates/productUpdateDefault';
 import { buildUnsubscribeUrl } from '@/lib/notifications/tokens';
 import { getProductUpdateRecipients } from '@/lib/db/productUpdates';
 
-const FROM_ADDRESS = 'OpenCouncil <notifications@opencouncil.gr>';
 const REPLY_TO = 'hello@opencouncil.gr';
 
 const CATEGORY_TAG = { name: 'category', value: 'product-update' } as const;
@@ -69,11 +68,11 @@ export async function sendProductUpdateToAll(params: {
 
     const extraTags = customLabelTags(customTags);
     const prepared = await Promise.all(
-        recipients.map(async (r) => {
+        recipients.map(async (r): Promise<BatchEmailItem> => {
             const unsubscribeUrl = await buildUnsubscribeUrl(r.userId, { locale: 'el' });
             const html = await renderForRecipient(bodyHtml, r.name, unsubscribeUrl);
             return {
-                from: FROM_ADDRESS,
+                from: 'notifications',
                 to: r.email,
                 replyTo: REPLY_TO,
                 subject,
@@ -126,7 +125,7 @@ export async function sendProductUpdateTest(params: {
         const unsubscribeUrl = await buildUnsubscribeUrl(adminUserId, { locale: 'el' });
         const html = await renderForRecipient(bodyHtml, testName ?? '', unsubscribeUrl);
         const result = await sendEmail({
-            from: FROM_ADDRESS,
+            from: 'notifications',
             to: testEmail,
             replyTo: REPLY_TO,
             subject: `[TEST] ${subject}`,

@@ -34,7 +34,7 @@ export async function sendWelcomeEmail(userId: string, city: City) {
         );
 
         await sendEmail({
-            from: 'OpenCouncil <notifications@opencouncil.gr>',
+            from: 'notifications',
             to: user.email,
             subject: `Καλώς ήρθατε στο OpenCouncil - ${city.name}`,
             html: welcomeEmailHtml

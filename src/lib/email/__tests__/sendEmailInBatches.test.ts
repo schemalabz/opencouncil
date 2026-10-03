@@ -23,7 +23,7 @@ afterEach(() => {
     jest.useRealTimers();
 });
 
-const email = (i: number): BatchEmailItem => ({ from: 'a@x.gr', to: `u${i}@x.gr`, subject: 's', html: '<p/>' });
+const email = (i: number): BatchEmailItem => ({ from: 'notifications', to: `u${i}@x.gr`, subject: 's', html: '<p/>' });
 
 async function run<T>(items: T[], toEmail: (item: T) => BatchEmailItem, onBatch = jest.fn()) {
     const done = sendEmailInBatches(items, {

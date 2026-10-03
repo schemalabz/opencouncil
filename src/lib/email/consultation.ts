@@ -77,7 +77,7 @@ export async function sendConsultationCommentEmail(data: ConsultationCommentEmai
     }
 
     const result = await sendEmail({
-        from: 'OpenCouncil <noreply@opencouncil.gr>',
+        from: 'noreply',
         to: municipalityEmail,
         cc: allCcEmails,
         subject,
