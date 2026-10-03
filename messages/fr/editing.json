@@ -137,6 +137,15 @@
     "invalidOperationTitle": "Opération non valide",
     "invalidOperationExtractAll": "Impossible d'extraire tous les énoncés. Utilisez plutôt « Changer d'intervenant ».",
     "reviewCompleted": "Révision terminée",
-    "reviewCompletedDescription": "La révision de la transcription a été marquée comme terminée."
+    "reviewCompletedDescription": "La révision de la transcription a été marquée comme terminée.",
+    "deletionSuccess": "{count, plural, one {# énoncé supprimé} other {# énoncés supprimés}}",
+    "deletionError": "Échec de la suppression des énoncés sélectionnés",
+    "bulkDeleteConfirmTitle": "Supprimer la sélection ?",
+    "bulkDeleteConfirmDesc": "Voulez-vous vraiment supprimer {count, plural, one {# énoncé} other {# énoncés}} ? Cette action est irréversible.",
+    "common": {
+      "cancel": "Annuler",
+      "deleting": "Suppression...",
+      "delete": "Supprimer"
+    }
   }
 }
