@@ -48,6 +48,9 @@ export function PlacePicker({
     const search = useLocationSearch(city);
     const inputId = useId();
     const errorId = useId();
+    const listId = useId();
+    // The suggestion the arrow keys are on; -1 while none is.
+    const [active, setActive] = useState(-1);
     const inputRef = useRef<HTMLInputElement>(null);
     const [searchOpen, setSearchOpen] = useState(false);
     const [canLocate, setCanLocate] = useState(false);
@@ -88,6 +91,30 @@ export function PlacePicker({
         setSearchOpen(false);
         setLocate('idle');
         captureEvent('notification_signup_place_added', { city_id: city.id, source, place_count: locations.length + 1 });
+    };
+
+    // A new list starts with nothing highlighted, so Enter never picks a row the reader did not choose.
+    useEffect(() => {
+        setActive(-1);
+    }, [search.suggestions]);
+
+    const onSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        const count = search.suggestions.length;
+        if (event.key === 'Escape') {
+            search.clear();
+            return;
+        }
+        if (count === 0) return;
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setActive((index) => (index + 1) % count);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setActive((index) => (index <= 0 ? count - 1 : index - 1));
+        } else if (event.key === 'Enter' && active >= 0) {
+            event.preventDefault();
+            void pick(search.suggestions[active]);
+        }
     };
 
     const pick = async (suggestion: PlaceSuggestion) => {
@@ -189,6 +216,12 @@ export function PlacePicker({
                             placeholder={t('places.placeholder')}
                             value={search.inputValue}
                             onChange={(event) => search.changeInput(event.target.value)}
+                            onKeyDown={onSearchKeyDown}
+                            role="combobox"
+                            aria-autocomplete="list"
+                            aria-expanded={search.suggestions.length > 0}
+                            aria-controls={listId}
+                            aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
                             disabled={search.isSelecting}
                             aria-describedby={searchError ? errorId : undefined}
                             className="h-[52px] w-full rounded-xl border border-foreground/20 bg-card pl-11 pr-12 text-base outline-none placeholder:text-muted-foreground focus-visible:border-foreground/40 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
@@ -211,25 +244,37 @@ export function PlacePicker({
                         </span>
 
                         {search.suggestions.length > 0 && (
-                            <ul className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-border bg-card shadow-lg">
-                                {search.suggestions.map((suggestion) => {
+                            <ul
+                                id={listId}
+                                role="listbox"
+                                className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-border bg-card shadow-lg"
+                            >
+                                {search.suggestions.map((suggestion, index) => {
                                     const { primary, secondary } = splitPlaceText(suggestion.text);
                                     return (
-                                        <li key={suggestion.id} className="border-b border-border last:border-b-0">
-                                            <button
-                                                type="button"
-                                                onClick={() => pick(suggestion)}
-                                                disabled={search.isSelecting}
-                                                className="flex min-h-12 w-full items-center gap-3 px-3.5 py-2.5 text-left hover:bg-muted disabled:opacity-50"
-                                            >
-                                                <MapPin className="h-4 w-4 shrink-0 text-[hsl(var(--orange))]" aria-hidden />
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="block truncate text-[15px] leading-tight">{primary}</span>
-                                                    {secondary && (
-                                                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{secondary}</span>
-                                                    )}
-                                                </span>
-                                            </button>
+                                        // The input keeps the focus (mousedown is prevented), as a combobox's
+                                        // options take none; the arrow keys and Enter pick from the input.
+                                        <li
+                                            key={suggestion.id}
+                                            id={`${listId}-${index}`}
+                                            role="option"
+                                            aria-selected={index === active}
+                                            onMouseDown={(event) => event.preventDefault()}
+                                            onMouseEnter={() => setActive(index)}
+                                            onClick={() => !search.isSelecting && pick(suggestion)}
+                                            className={cn(
+                                                'flex min-h-12 cursor-pointer items-center gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0',
+                                                index === active && 'bg-muted',
+                                                search.isSelecting && 'cursor-not-allowed opacity-50',
+                                            )}
+                                        >
+                                            <MapPin className="h-4 w-4 shrink-0 text-[hsl(var(--orange))]" aria-hidden />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-[15px] leading-tight">{primary}</span>
+                                                {secondary && (
+                                                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">{secondary}</span>
+                                                )}
+                                            </span>
                                         </li>
                                     );
                                 })}

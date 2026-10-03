@@ -15,13 +15,21 @@ jest.mock('@/lib/actions/signupPlaces', () => ({
 }));
 
 const searchPlace = { text: 'Φηρά, Θήρα, Ελλάδα', coordinates: [25.43, 36.41] as [number, number] };
+// Stable across renders, as the hook's state is: a new array each render would read as a new list.
+const mockSuggestions = [
+    { id: 'p1', placeId: 'p1', text: 'Φηρά, Θήρα, Ελλάδα' },
+    { id: 'p2', placeId: 'p2', text: 'Οία, Θήρα, Ελλάδα' },
+    { id: 'p3', placeId: 'p3', text: 'Πύργος, Θήρα, Ελλάδα' },
+];
+const mockSelect = jest.fn(async (suggestion: { text: string }) => ({ ...searchPlace, text: suggestion.text }));
+const mockClear = jest.fn();
 jest.mock('@/components/onboarding/selectors/useLocationSearch', () => ({
     useLocationSearch: () => ({
-        inputValue: 'Φηρά',
+        inputValue: 'Θήρα',
         changeInput: jest.fn(),
-        clear: jest.fn(),
-        suggestions: [{ id: 'p1', placeId: 'p1', text: 'Φηρά, Θήρα, Ελλάδα' }],
-        select: async () => searchPlace,
+        clear: mockClear,
+        suggestions: mockSuggestions,
+        select: mockSelect,
         error: null,
         isSelecting: false,
         busy: false,
@@ -55,7 +63,7 @@ describe('PlacePicker', () => {
 
         fireEvent.click(await screen.findByRole('button', { name: 'places.locate' }));
         await act(async () => {
-            fireEvent.click(screen.getByRole('button', { name: /Φηρά/ }));
+            fireEvent.click(screen.getByRole('option', { name: /Φηρά/ }));
         });
         expect(onAdd).toHaveBeenCalledWith(searchPlace);
 
@@ -87,5 +95,47 @@ describe('PlacePicker', () => {
             resolveGeocode({ ok: true, location: located });
         });
         expect(onAdd).toHaveBeenCalledWith(located);
+    });
+
+    it('moves through the suggestions with the arrow keys, wrapping at both ends, and picks with Enter', async () => {
+        const onAdd = jest.fn();
+        render(<PlacePicker city={city} locations={[]} onAdd={onAdd} onRemove={jest.fn()} />);
+        const input = screen.getByRole('combobox');
+        const activeText = () => document.getElementById(input.getAttribute('aria-activedescendant') ?? '')?.textContent;
+
+        expect(input).toHaveAttribute('aria-expanded', 'true');
+        expect(input).not.toHaveAttribute('aria-activedescendant');
+
+        fireEvent.keyDown(input, { key: 'ArrowDown' });
+        expect(activeText()).toContain('Φηρά');
+        fireEvent.keyDown(input, { key: 'ArrowDown' });
+        expect(activeText()).toContain('Οία');
+        expect(screen.getByRole('option', { name: /Οία/ })).toHaveAttribute('aria-selected', 'true');
+        fireEvent.keyDown(input, { key: 'ArrowUp' });
+        fireEvent.keyDown(input, { key: 'ArrowUp' });
+        expect(activeText()).toContain('Πύργος');
+        fireEvent.keyDown(input, { key: 'ArrowDown' });
+        expect(activeText()).toContain('Φηρά');
+
+        // Each key press is its own event, as in a browser, so React renders between them.
+        fireEvent.keyDown(input, { key: 'ArrowDown' });
+        await act(async () => {
+            fireEvent.keyDown(input, { key: 'Enter' });
+        });
+        expect(onAdd).toHaveBeenCalledWith({ ...searchPlace, text: 'Οία, Θήρα, Ελλάδα' });
+    });
+
+    it('does not pick anything on Enter before an arrow key, and clears on Escape', async () => {
+        const onAdd = jest.fn();
+        render(<PlacePicker city={city} locations={[]} onAdd={onAdd} onRemove={jest.fn()} />);
+        const input = screen.getByRole('combobox');
+
+        await act(async () => {
+            fireEvent.keyDown(input, { key: 'Enter' });
+        });
+        expect(onAdd).not.toHaveBeenCalled();
+
+        fireEvent.keyDown(input, { key: 'Escape' });
+        expect(mockClear).toHaveBeenCalled();
     });
 });
