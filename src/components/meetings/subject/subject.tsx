@@ -1,5 +1,5 @@
 "use client";
-import Map from "@/components/map/map";
+import Map from "@/components/map/DynamicMap";
 import { useBarData } from '@/components/meetings/bar/BarDataContext';
 import { useBarHighlightActions } from '@/components/meetings/bar/BarHighlightContext';
 import { useBarMode } from '@/components/meetings/bar/PlaybackBar';
