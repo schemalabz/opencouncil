@@ -1,6 +1,7 @@
 'use client';
 import type { ComponentType, ReactNode } from 'react';
-import { Bell, FileText, ScrollText, Youtube } from 'lucide-react';
+import { Bell, FileText, ScrollText } from 'lucide-react';
+import { Youtube } from '@/components/brandIcons';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { captureEvent } from '@/lib/analytics/capture';

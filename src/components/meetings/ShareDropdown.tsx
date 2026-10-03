@@ -16,7 +16,8 @@ import {
     DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Check, Link2, Loader2, Share2, Instagram, Code2, ChevronRight } from 'lucide-react';
+import { Check, Link2, Loader2, Share2, Code2, ChevronRight } from 'lucide-react';
+import { Instagram } from '@/components/brandIcons';
 import { useVideo } from './VideoProvider';
 import { usePathname, useParams } from 'next/navigation';
 import { useShare } from '@/contexts/ShareContext';

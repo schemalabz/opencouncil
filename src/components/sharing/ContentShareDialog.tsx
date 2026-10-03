@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Check, Copy, Instagram, Link2, Loader2, Share2 } from 'lucide-react';
+import { ArrowLeft, Check, Copy, Link2, Loader2, Share2 } from 'lucide-react';
+import { Instagram } from '@/components/brandIcons';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

@@ -82,7 +82,7 @@
 
 ### Social Elements
 - Profile cards with image and social links
-- Social icons from `lucide-react`
+- Social icons from `@/components/brandIcons` (lucide-react 1.x has no brand icons)
 - Contact information with appropriate icons
 
 ## Accessibility

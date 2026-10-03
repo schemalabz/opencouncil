@@ -2,7 +2,8 @@
 
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Github, Linkedin, Mail, MapPin, Rocket, Twitter } from 'lucide-react'
+import { Mail, MapPin, Rocket } from 'lucide-react'
+import { Github, Linkedin, Twitter } from '@/components/brandIcons'
 import { useTranslations } from 'next-intl'
 import type { Realm } from '@prisma/client'
 import type { GitHubStats } from '@/lib/github'

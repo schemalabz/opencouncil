@@ -1,7 +1,8 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Calendar, Building2, ChevronRight, Bell, Mail, MessageSquare, Clock, Youtube } from 'lucide-react';
+import { MapPin, Calendar, Building2, ChevronRight, Bell, Mail, MessageSquare, Clock } from 'lucide-react';
+import { Youtube } from '@/components/brandIcons';
 import { formatDistanceToNow } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { formatDate } from '@/lib/formatters/time';

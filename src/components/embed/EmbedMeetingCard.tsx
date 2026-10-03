@@ -3,7 +3,8 @@ import { formatDate } from '@/lib/formatters/time';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import Icon from '@/components/icon';
-import { CalendarIcon, Building, ChevronRight, Youtube } from 'lucide-react';
+import { CalendarIcon, Building, ChevronRight } from 'lucide-react';
+import { Youtube } from '@/components/brandIcons';
 import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 
 interface EmbedMeetingCardProps {
