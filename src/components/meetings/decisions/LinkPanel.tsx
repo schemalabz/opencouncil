@@ -48,11 +48,10 @@ export interface LinkPanelProps {
      * produces ungrammatical Greek.
      */
     subjectLabel: string;
-    /** `hasAgendaNumber` picks the copy for every button that would otherwise
-     * interpolate `subjectLabel`: a numbered subject fits "Σύνδεση με το θέμα
-     * 30" on one line, a named one does not, so those buttons fall back to a
-     * plain outcome word instead (see the row list, the confirm strip's move
-     * action). */
+    /** `hasAgendaNumber` picks the copy for the confirm strip's move action,
+     * which would otherwise interpolate `subjectLabel`: a numbered subject
+     * fits "Μεταφορά στο θέμα 30" on one line, a named one does not, so it
+     * falls back to a plain outcome word instead. */
     hasAgendaNumber: boolean;
     current: {
         /** The linked decision's own id, which `onOpenDocument` takes as well
@@ -266,7 +265,7 @@ export function LinkPanel({
                         className="max-w-xs"
                     />
                     <div className="space-y-1.5">
-                        {(showAll ? rows : rows.slice(0, LIST_LIMIT)).map((row, index) => {
+                        {(showAll ? rows : rows.slice(0, LIST_LIMIT)).map(row => {
                             const date = row.candidate.publishDate ? formatCalendarDate(row.candidate.publishDate, locale) : null;
                             const elsewhereLabel = row.elsewhere?.label ?? '';
                             // Every row's controls read alike — "Άνοιγμα", "Σύνδεση" —
@@ -290,7 +289,7 @@ export function LinkPanel({
                                         </>
                                     )
                                     : null;
-                                label = index === 0 && hasAgendaNumber ? t('panel.linkTo', { subject: subjectLabel }) : t('panel.link');
+                                label = t('panel.link');
                                 ariaLabel = t('panel.linkNumberTo', { number, subject: subjectLabel });
                                 variant = row.likely ? 'default' : 'outline';
                                 onClick = () => handleLink(row.candidate.id);

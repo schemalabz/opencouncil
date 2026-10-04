@@ -102,23 +102,11 @@ describe('LinkPanel', () => {
         ).toBeInTheDocument();
     });
 
-    it('names the primary row button with the subject when it has an agenda number', () => {
+    it('labels every row button with the plain outcome word', () => {
+        // The panel sits under the subject's row, so the visible text need not
+        // repeat the subject; the aria-label still names both.
         renderPanel();
-        // The aria-label always names the decision, so the visible text —
-        // what would actually overflow the button — is asserted separately.
         const button = screen.getByRole('button', { name: 'Σύνδεση της απόφασης 670/2026 με το θέμα 30' });
-        expect(button).toHaveTextContent('Σύνδεση με το θέμα 30');
-    });
-
-    it('falls back to a plain button label when the subject has no agenda number', () => {
-        // A named subject's full label ("το θέμα «Ανάθεση υπηρεσιών
-        // καθαριότητας σε ιδιώτη»") does not fit a button — see
-        // QuestionsCard's `hasAgendaNumber` for the established pattern.
-        const subjectLabel = 'το θέμα «Ανάθεση υπηρεσιών καθαριότητας σε ιδιώτη»';
-        renderPanel({ subjectLabel, hasAgendaNumber: false });
-        const button = screen.getByRole('button', {
-            name: `Σύνδεση της απόφασης 670/2026 με ${subjectLabel}`,
-        });
         expect(button.textContent).toBe('Σύνδεση');
     });
 
