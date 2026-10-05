@@ -30,6 +30,17 @@ export function getOfferState(offer: Offer, now: Date = new Date()): OfferState 
     return 'active';
 }
 
+/**
+ * The contract a report for a city is about: the in-effect offer, else the
+ * most recently created one. The report page and the report API both select
+ * the contract with this function, so the form's period and ΑΔΑΜ prefill and
+ * the API's prices come from the same offer.
+ */
+export function getReportContract(cityOffers: Offer[], now: Date = new Date()): Offer | undefined {
+    const sorted = [...cityOffers].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return sorted.find((o) => getOfferState(o, now) === 'active') ?? sorted[0];
+}
+
 /** True iff the two offers' coverage periods overlap. */
 export function periodsOverlap(a: Offer, b: Offer): boolean {
     return a.startDate <= b.endDate && a.endDate >= b.startDate;

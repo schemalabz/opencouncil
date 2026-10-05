@@ -3,6 +3,7 @@ import { withUserAuthorizedToEdit } from '@/lib/auth';
 import prisma from '@/lib/db/prisma';
 import { calculateMeetingDurationMs } from '@/lib/db/utils/meetingDuration';
 import { renderReportDocx, ReportMeeting } from '@/lib/export/report-docx';
+import { getReportContract } from '@/lib/offers/state';
 
 export async function POST(request: NextRequest) {
     await withUserAuthorizedToEdit({});
@@ -41,10 +42,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'City not found' }, { status: 404 });
     }
 
-    const offer = await prisma.offer.findFirst({
-        where: { cityId },
-        orderBy: { createdAt: 'desc' },
-    });
+    // The same contract the report form was prefilled from, so the prices
+    // match the period and the contract reference the form sent.
+    const offer = getReportContract(await prisma.offer.findMany({ where: { cityId } }));
 
     if (!offer) {
         return NextResponse.json({ error: 'No offer found for this city' }, { status: 404 });
