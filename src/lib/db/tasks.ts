@@ -56,10 +56,9 @@ export async function getTasksForMeeting(cityId: string, meetingId: string): Pro
     }
 }
 
-// Reading a single task status lives in tasksInternal.ts (server-only): its
-// sole caller is the task-server callback route, which authorizes by
-// possession of the unguessable id, so the read cannot carry a user gate and
-// must stay off the Server Action surface instead.
+// The taskStatuses route reads and deletes a single task through
+// tasksInternal.ts (server-only), because it settles access itself and those
+// functions must stay off the Server Action surface.
 
 export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
     // Called directly from client components (admin tasks + voiceprint actions),

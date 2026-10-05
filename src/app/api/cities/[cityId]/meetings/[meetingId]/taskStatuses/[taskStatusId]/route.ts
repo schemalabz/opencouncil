@@ -3,16 +3,25 @@ import { revalidateTag } from 'next/cache';
 import { handleTaskUpdate } from '@/lib/tasks/tasks';
 import { taskHandlers } from '@/lib/tasks/registry';
 import { TaskUpdate } from '@/lib/apiTypes';
-import { deleteTaskStatus } from '@/lib/db/tasks';
-import { getTaskStatusDirect } from '@/lib/db/tasksInternal';
+import { deleteTaskStatusDirect, getTaskStatusDirect, type TaskStatusScope } from '@/lib/db/tasksInternal';
 import { verifyCallbackToken } from '@/lib/tasks/callbackToken';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 
-export async function GET(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
+type RouteParams = { cityId: string; meetingId: string; taskStatusId: string };
+
+function scopeOf({ cityId, meetingId }: RouteParams): TaskStatusScope {
+    return { cityId, councilMeetingId: meetingId };
+}
+
+function taskStatusNotFound() {
+    return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+}
+
+export async function GET(request: NextRequest, props: { params: Promise<RouteParams> }) {
     const params = await props.params;
-    const taskStatus = await getTaskStatusDirect(params.taskStatusId);
+    const taskStatus = await getTaskStatusDirect(params.taskStatusId, scopeOf(params));
     if (!taskStatus) {
-        return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+        return taskStatusNotFound();
     }
 
     const authorized = await isUserAuthorizedToEdit({ cityId: taskStatus.cityId });
@@ -26,22 +35,23 @@ export async function GET(request: NextRequest, props: { params: Promise<{ taskS
     return NextResponse.json(taskStatus);
 }
 
-export async function POST(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
+export async function POST(request: NextRequest, props: { params: Promise<RouteParams> }) {
     const params = await props.params;
-    return handleUpdateRequest(request, params.taskStatusId);
+    return handleUpdateRequest(request, params.taskStatusId, scopeOf(params));
 }
 
-export async function PUT(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
+export async function PUT(request: NextRequest, props: { params: Promise<RouteParams> }) {
     const params = await props.params;
-    return handleUpdateRequest(request, params.taskStatusId);
+    return handleUpdateRequest(request, params.taskStatusId, scopeOf(params));
 }
 
-export async function DELETE(request: NextRequest, props: { params: Promise<{ taskStatusId: string }> }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<RouteParams> }) {
     const params = await props.params;
-    const taskStatus = await getTaskStatusDirect(params.taskStatusId);
+    const scope = scopeOf(params);
+    const taskStatus = await getTaskStatusDirect(params.taskStatusId, scope);
 
     if (!taskStatus) {
-        return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+        return taskStatusNotFound();
     }
 
     const authorized = await isUserAuthorizedToEdit({ cityId: taskStatus.cityId });
@@ -54,7 +64,10 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ ta
         return NextResponse.json({ error: 'Cannot delete task that has been updated within the last 10 minutes' }, { status: 403 });
     }
 
-    await deleteTaskStatus(params.taskStatusId);
+    // A callback can update the task after the check above, so the delete repeats it.
+    if (await deleteTaskStatusDirect(params.taskStatusId, scope, tenMinutesAgo) === 0) {
+        return NextResponse.json({ error: 'Task status changed during the delete. Reload and try again.' }, { status: 409 });
+    }
 
     revalidateTag(`city:${taskStatus.cityId}:meeting:${taskStatus.councilMeetingId}:derived`, 'max');
 
@@ -74,7 +87,11 @@ function wasForced(requestBody: string): boolean {
     }
 }
 
-async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
+async function handleUpdateRequest(
+    request: NextRequest,
+    taskStatusId: string,
+    scope: TaskStatusScope
+) {
     // The task server is the only caller of this path, and startTask always
     // hands it a tokenized URL. Accepting an untokenized callback would leave
     // a forger the option of simply omitting the token.
@@ -84,10 +101,12 @@ async function handleUpdateRequest(request: NextRequest, taskStatusId: string) {
         return NextResponse.json({ error: 'Invalid callback token' }, { status: 401 });
     }
 
-    const taskStatus = await getTaskStatusDirect(taskStatusId);
+    // The token is keyed on the task id alone, so the path tenant is still checked
+    // here: a valid token replayed against another city/meeting resolves to null.
+    const taskStatus = await getTaskStatusDirect(taskStatusId, scope);
 
     if (!taskStatus) {
-        return NextResponse.json({ error: 'Task status not found' }, { status: 404 });
+        return taskStatusNotFound();
     }
 
     const update: TaskUpdate<any> = await request.json();
