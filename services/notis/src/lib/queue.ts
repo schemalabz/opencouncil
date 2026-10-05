@@ -746,6 +746,47 @@ async function applySendResult(
  * the channels API has none — so every caller must guarantee single-fire
  * (the fallback's unique fallbackForId, the held release's claim fence).
  */
+/**
+ * A fallback SMS can carry the text of the wake's earlier WhatsApp cards (see
+ * maybeSendSmsFallback). Once the SMS is confirmed out, those cards are
+ * closed, so a late status event cannot send them a second time and the
+ * conversation does not count them as delivered over WhatsApp. Done here,
+ * after the send, so both the immediate path and the quiet-hours release
+ * close them — and never before the send: a card closed while the SMS still
+ * waits would hide the whole wake from the model if the SMS never left.
+ */
+async function closeCardsFoldedInto(db: PrismaClient, smsId: string): Promise<void> {
+  const sms = await db.notisMessage.findUnique({
+    where: { id: smsId },
+    select: { fallbackForId: true, body: true },
+  });
+  if (!sms?.fallbackForId) return;
+  const failed = await db.notisMessage.findUnique({
+    where: { id: sms.fallbackForId },
+    select: {
+      id: true,
+      subscriptionId: true,
+      wakeId: true,
+      body: true,
+      failureReason: true,
+      createdAt: true,
+    },
+  });
+  if (!failed) return;
+  // The same selection the fold made, by id: a card that was delivered in
+  // the meantime has left the set, and a single-card fallback (any other
+  // failure) selects nothing. The text check is a guard on top — a card
+  // whose words the SMS does not carry is never closed.
+  for (const card of await selectFoldedCards(db, failed)) {
+    if (!sms.body.includes(card.body)) continue;
+    // Fenced on «sent»: a delivery status that landed meanwhile wins.
+    await db.notisMessage.updateMany({
+      where: { id: card.id, status: "sent" },
+      data: { status: "failed", failureReason: `folded into SMS ${smsId}` },
+    });
+  }
+}
+
 export async function sendSmsAndRecord(
   db: PrismaClient,
   bird: BirdLike,
@@ -761,6 +802,7 @@ export async function sendSmsAndRecord(
       where: { id: messageId },
       data: { status: "sent", birdMessageId: result.messageId },
     });
+    await closeCardsFoldedInto(db, messageId);
     return true;
   }
   await db.notisMessage.update({
@@ -769,6 +811,67 @@ export async function sendSmsAndRecord(
   });
   await alert(`${context}: ${result.error ?? "unknown error"}`);
   return false;
+}
+
+/** Meta's code for a number that cannot receive WhatsApp messages — not a
+ *  WhatsApp user, or messaging blocked. The number refuses every card of a
+ *  wake, not only the one Bird happened to report. */
+export function isUndeliverableNumber(reason: string | null | undefined): boolean {
+  return /\b131026\b/.test(reason ?? "");
+}
+
+/** The longest story one SMS fallback carries. An SMS bills per 67-character
+ *  segment in Greek, so a fold stops where the next card would run past
+ *  this; a card left out stays «sent», as before. */
+export const SMS_FOLD_MAX_CHARS = 1000;
+
+interface FoldCard {
+  id: string;
+  body: string;
+  at: number;
+}
+
+type FoldSource = Pick<
+  NotisMessage,
+  "id" | "subscriptionId" | "wakeId" | "body" | "failureReason" | "createdAt"
+>;
+
+/**
+ * The wake's earlier cards that ride along in the SMS fallback for `failed`,
+ * oldest first, inside SMS_FOLD_MAX_CHARS. Only when the NUMBER is the
+ * problem (131026): then every card of the wake was refused, not only the
+ * one Bird reported. Deterministic over the rows' status, so the close after
+ * a quiet-hours release recomputes the same set the fold used, by id.
+ */
+async function selectFoldedCards(db: PrismaClient, failed: FoldSource): Promise<FoldCard[]> {
+  if (!failed.wakeId || !isUndeliverableNumber(failed.failureReason)) return [];
+  const siblings = await db.notisMessage.findMany({
+    where: {
+      subscriptionId: failed.subscriptionId,
+      wakeId: failed.wakeId,
+      direction: "outbound",
+      channel: "whatsapp",
+      status: "sent",
+    },
+    select: { id: true, body: true, createdAt: true },
+  });
+  const cards: FoldCard[] = [
+    ...siblings.filter((m) => m.id !== failed.id),
+    { id: failed.id, body: failed.body, createdAt: failed.createdAt },
+  ]
+    .map((m) => ({ id: m.id, body: m.body, at: m.createdAt.getTime() }))
+    .sort((a, b) => a.at - b.at);
+  const folded: FoldCard[] = [];
+  let length = failed.body.length;
+  for (const card of cards) {
+    if (card.id === failed.id) continue;
+    // Stop at the first card that does not fit, so no card is skipped in the
+    // middle of the story.
+    if (length + card.body.length + 2 > SMS_FOLD_MAX_CHARS) break;
+    folded.push(card);
+    length += card.body.length + 2;
+  }
+  return folded;
 }
 
 /**
@@ -798,6 +901,8 @@ export async function maybeSendSmsFallback(
     | "proactive"
     | "railed"
     | "body"
+    | "failureReason"
+    | "createdAt"
   >,
   alert: (message: string) => Promise<void>,
 ): Promise<"sent" | "held" | "failed" | "skipped"> {
@@ -811,13 +916,26 @@ export async function maybeSendSmsFallback(
     if (settings.paused) return "skipped";
   }
 
+  // Bird's conversation.updated event names the conversation's LAST message
+  // only, so when a number refuses WhatsApp (131026) only the last card of a
+  // multi-card wake is ever marked failed; the earlier cards stay «sent» for
+  // good and no fallback fires for them. Readers without WhatsApp received
+  // the second half of 180 stories in six weeks. When the number is the
+  // problem, every card of the wake travels in this one SMS, and the folded
+  // siblings are closed so a late status event cannot send them again.
+  const folded = await selectFoldedCards(db, failed);
+  // Oldest first, the failed card in its place.
+  const body = [...folded, { id: failed.id, body: failed.body, at: failed.createdAt.getTime() }]
+    .sort((a, b) => a.at - b.at)
+    .map((c) => c.body)
+    .join("\n\n");
   const text =
     failed.deliveryMode === "template" && failed.template
       ? (() => {
-          const rendered = renderTemplate(failed.template as TemplateName, failed.body);
+          const rendered = renderTemplate(failed.template as TemplateName, body);
           return `${rendered.body}\n\n${rendered.footer}`;
         })()
-      : failed.body;
+      : body;
   const held = failed.railed && isQuietHour(new Date());
 
   let smsId: string;
@@ -843,7 +961,9 @@ export async function maybeSendSmsFallback(
     throw error;
   }
 
-  // Held rows leave here pending; the sweeper sends them at the release.
+  // Held rows leave here pending; the sweeper sends them at the release. On
+  // either path, sendSmsAndRecord closes the folded cards once the SMS is
+  // confirmed out.
   if (held) return "held";
 
   const ok = await sendSmsAndRecord(
@@ -1203,7 +1323,12 @@ export async function sendPendingMessages(
     // The conversation's second leg applies to the deterministic replies
     // too (the ΣΤΟΠ confirmation rides this path).
     if (outcome.status === "failed" && message.channel === "whatsapp") {
-      await maybeSendSmsFallback(db, bird, message, alert);
+      await maybeSendSmsFallback(
+        db,
+        bird,
+        { ...message, failureReason: outcome.failureReason ?? message.failureReason },
+        alert,
+      );
     }
   }
 }
@@ -1275,7 +1400,12 @@ export async function deliverPendingMessage(
   // conversation's second leg for free.
   const finish = async (outcome: SendOutcome): Promise<SendOutcome> => {
     if (outcome.status !== "failed" || message.channel !== "whatsapp") return outcome;
-    const smsFallback = await maybeSendSmsFallback(db, bird, message, alert);
+    const smsFallback = await maybeSendSmsFallback(
+      db,
+      bird,
+      { ...message, failureReason: outcome.failureReason ?? message.failureReason },
+      alert,
+    );
     return { ...outcome, smsFallback };
   };
 

@@ -177,7 +177,12 @@ export async function handleOutboundStatus(
       } else {
         // Any terminal WhatsApp failure — template news OR a freeform reply
         // — continues over SMS: the conversation's second leg.
-        await maybeSendSmsFallback(deps.db, deps.bird, existing, webhookAlert(deps.alert));
+        await maybeSendSmsFallback(
+          deps.db,
+          deps.bird,
+          { ...existing, failureReason: failureReason ?? existing.failureReason },
+          webhookAlert(deps.alert),
+        );
       }
     }
     return { action: "status-updated" };
