@@ -259,6 +259,46 @@ describe('administrative-body filtering', () => {
         );
     });
 
+    it('accepts both body filters on search, with the same type list as list_meetings', () => {
+        const { meta } = advertised(USER);
+        const parsed = meta.search.inputSchema!.parse({
+            query: 'πάρκα',
+            administrativeBodyIds: ['body-1'],
+            administrativeBodyTypes: ['community'],
+        });
+
+        expect(parsed).toMatchObject({ administrativeBodyIds: ['body-1'], administrativeBodyTypes: ['community'] });
+        expect(() => meta.search.inputSchema!.parse({ administrativeBodyTypes: ['κοινότητα'] })).toThrow();
+    });
+
+    it('rejects an empty body filter on search rather than searching every body', () => {
+        const schema = advertised(USER).meta.search.inputSchema!;
+        expect(() => schema.parse({ administrativeBodyIds: [] })).toThrow();
+        expect(() => schema.parse({ administrativeBodyTypes: [] })).toThrow();
+    });
+
+    it('forwards both body filters of search to the data layer', async () => {
+        const { handlers } = advertised(USER);
+        await handlers.search(
+            {
+                query: 'πάρκα',
+                page: 1,
+                pageSize: 10,
+                administrativeBodyIds: ['body-1'],
+                administrativeBodyTypes: ['community'],
+            } as never,
+            ctxFor(USER)
+        );
+
+        expect(data.mcpSearch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                administrativeBodyIds: ['body-1'],
+                administrativeBodyTypes: ['community'],
+            }),
+            USER
+        );
+    });
+
     it('passes the caller identity to get_city', async () => {
         // get_city only lists draft-only bodies to a caller who can see
         // drafts, so dropping the identity would silently hide them.

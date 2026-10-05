@@ -19,7 +19,7 @@ import { upsertHighlightCore, canUserEditCity, canActorManageHighlight, getUserC
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
 import { canSeeUnreleased, requireVisibleMeeting } from './gate';
-import { assertCitiesInRealm, requireCityBodies, requireRealmCity } from './realmGuards';
+import { assertCitiesInRealm, requireCityBodies, requireRealmBodies, requireRealmCity } from './realmGuards';
 import { getRoleLabelAt, RoleTextTranslator } from '@/lib/utils/roles';
 import { roleWithRelationsInclude } from '@/lib/db/types';
 import { getTranslations } from 'next-intl/server';
@@ -752,6 +752,8 @@ export async function mcpSearch(
         cityIds?: string[];
         personIds?: string[];
         partyIds?: string[];
+        administrativeBodyIds?: string[];
+        administrativeBodyTypes?: AdministrativeBodyType[];
         topics?: string[];
         dateFrom?: string;
         dateTo?: string;
@@ -769,12 +771,17 @@ export async function mcpSearch(
     // here. The check below only turns a city id from another realm into a
     // clear error instead of an empty page.
     await assertCitiesInRealm(args.cityIds ?? []);
+    if (args.administrativeBodyIds?.length) {
+        await requireRealmBodies(args.administrativeBodyIds, args.cityIds);
+    }
 
     const response = await searchInRealm({
         query: args.query,
         cityIds: args.cityIds,
         personIds: args.personIds,
         partyIds: args.partyIds,
+        administrativeBodyIds: args.administrativeBodyIds,
+        administrativeBodyTypes: args.administrativeBodyTypes,
         topicIds,
         dateRange: args.dateFrom || args.dateTo
             ? {
