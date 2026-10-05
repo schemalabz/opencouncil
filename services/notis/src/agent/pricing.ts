@@ -21,19 +21,20 @@ function ratesFrom(inputPerMTok: number, outputPerMTok: number): Rates {
 }
 
 /**
- * List prices, USD per million tokens, by model-id prefix. (Sonnet 5 has an
- * intro rate of $2/$10 through 2026-08-31, so real spend runs lower until
- * then.) The playground can override the model per wake — costs must follow
- * the model that actually ran, not the default.
+ * List prices, USD per million tokens, by model-id prefix. Sonnet 5 lists at
+ * $2/$10 (the model table as of 2026-09); the $3/$15 this file carried was
+ * Sonnet 4.6's rate, and every cost the panel showed was 1.5× too high. The
+ * playground can override the model per wake — costs must follow the model
+ * that actually ran, not the default.
  */
 const RATES_BY_MODEL_PREFIX: Array<[prefix: string, rates: Rates]> = [
-  ["claude-sonnet-5", ratesFrom(3, 15)],
+  ["claude-sonnet-5", ratesFrom(2, 10)],
   ["claude-sonnet-4", ratesFrom(3, 15)],
   ["claude-opus", ratesFrom(5, 25)],
   ["claude-haiku", ratesFrom(1, 5)],
 ];
 
-export const SONNET_5_RATES = ratesFrom(3, 15);
+export const SONNET_5_RATES = ratesFrom(2, 10);
 
 /** Web search bills per request, not per token: $10 per 1,000 searches. */
 export const WEB_SEARCH_PER_REQUEST = 0.01;

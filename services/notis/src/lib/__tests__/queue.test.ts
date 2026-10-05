@@ -111,7 +111,7 @@ describe("processItem", () => {
 
     expect(alerts).toEqual([expect.stringContaining("ran 2 web search(es)")]);
     // The cost of those searches is on the wake row either way.
-    expect(db.store.wakes[0].costUsd).toBeCloseTo(0.02 + 1000 * 3e-6 + 100 * 15e-6, 10);
+    expect(db.store.wakes[0].costUsd).toBeCloseTo(0.02 + 1000 * 2e-6 + 100 * 10e-6, 10);
   });
 
   it("stays quiet when a reactive wake searches", async () => {

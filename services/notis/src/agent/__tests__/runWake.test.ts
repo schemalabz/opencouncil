@@ -838,15 +838,15 @@ describe("runWake", () => {
     expect(outcome.rationale.length).toBeGreaterThan(0);
   });
 
-  it("usage sums across turns and prices at opus-5 rates", async () => {
+  it("usage sums across turns and prices at sonnet-5 rates", async () => {
     const fake = new FakeAnthropic([
       { content: [toolUse("t1", "send_message", { text: "μήνυμα" })], stop_reason: "tool_use" },
       { content: [text("done")], stop_reason: "end_turn" },
     ]);
     const { trace } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
     expect(trace.usageTotal).toEqual({ input: 2000, output: 200, cacheWrite: 0, cacheRead: 0 });
-    // 2000/1M * $3 + 200/1M * $15 = 0.006 + 0.003
-    expect(trace.costUsd).toBeCloseTo(0.009, 10);
+    // 2000/1M * $2 + 200/1M * $10 = 0.004 + 0.002
+    expect(trace.costUsd).toBeCloseTo(0.006, 10);
   });
 
   it("purity: the input state is never mutated", async () => {
