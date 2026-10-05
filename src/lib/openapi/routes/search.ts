@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { registry, ErrorResponseSchema } from '../registry';
-import { searchRequestSchema } from '@/lib/zod-schemas/search';
+import { searchLocationSchema, searchRequestSchema } from '@/lib/zod-schemas/search';
 import type { DerivedFilters } from '@/lib/search/types';
 
 // --- Schemas ---
@@ -27,10 +27,7 @@ const SearchResultSchema = z.object({
     derivedFilters: z.object({
         cityIds: z.array(z.string()).optional(),
         dateRange: z.object({ start: z.string(), end: z.string() }).optional(),
-        locations: z.array(z.object({
-            point: z.object({ lat: z.number(), lng: z.number() }),
-            radiusMeters: z.number(),
-        })).optional().openapi({
+        locations: z.array(searchLocationSchema).optional().openapi({
             description:
                 'Places the query text named. These raise the rank of subjects pinned within '
                 + '`radiusMeters` (metres) of a point, and do not remove other results.',

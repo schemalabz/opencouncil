@@ -3,6 +3,7 @@
 import { SearchRequest, SearchResponse } from './types';
 import { searchInRealm } from './core';
 import { getRealm } from '@/lib/realm.server';
+import { searchLocationSchema } from '@/lib/zod-schemas/search';
 
 // Re-export types
 export type {
@@ -31,5 +32,8 @@ export async function search(
     request: SearchRequest,
     options?: { skipQueryLog?: boolean }
 ): Promise<SearchResponse> {
-    return searchInRealm(request, getRealm, options);
+    // The location goes into a geo query as written, and Elasticsearch rejects
+    // a bad point: a search failure and an alert for anyone who sends one.
+    const location = request.location && searchLocationSchema.parse(request.location);
+    return searchInRealm({ ...request, location }, getRealm, options);
 }

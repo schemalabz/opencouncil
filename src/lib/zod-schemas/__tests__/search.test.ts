@@ -52,8 +52,20 @@ describe('searchRequestSchema', () => {
         expect(searchRequestSchema.safeParse({ query: 'πάρκα', [key]: ['committee'] }).success).toBe(false);
     });
 
+    // A point with both spellings must fail on the extra key, not pass because
+    // `lng` happens to be there too.
+    it('rejects a point with an extra key', () => {
+        const point = { lat: 38, lng: 23.7, lon: 23.7 };
+        expect(searchRequestSchema.safeParse({ query: 'πάρκα', location: { point } }).success).toBe(false);
+    });
+
     it('rejects an unknown key inside the date range', () => {
         const dateRange = { start: '2026-01-01T00:00:00Z', end: '2026-02-01T00:00:00Z', timeZone: 'Europe/Athens' };
         expect(searchRequestSchema.safeParse({ query: 'πάρκα', dateRange }).success).toBe(false);
+    });
+
+    it('applies a 5000 metre radius when the location names none', () => {
+        const parsed = searchRequestSchema.parse({ query: 'πάρκα', location: { point: { lat: 38, lng: 23.7 } } });
+        expect(parsed.location?.radiusMeters).toBe(5000);
     });
 });
