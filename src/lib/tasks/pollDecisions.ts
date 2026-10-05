@@ -168,13 +168,20 @@ export async function pollDecisionsForMeeting(
     const windowToDate = localCalendarDate(new Date(councilMeeting.dateTime.getTime() + windowDays * 86400_000), cityTz);
 
     // Everything the city has already read whose publishDate falls in this
-    // window — mostly neighbouring meetings' decisions, which is the point.
+    // window — mostly neighbouring meetings' decisions, which is the point —
+    // plus this meeting's own open candidates. The window misses those whose
+    // issue date precedes the meeting or whose publication came late; the task
+    // fetches them by their ΑΔΑ.
+    const ownOpen = { councilMeetingId, decisionId: null, dismissedAt: null };
     const known = await prisma.decisionCandidate.findMany({
         where: {
             cityId,
-            publishDate: { gte: new Date(windowFromDate), lte: new Date(`${windowToDate}T23:59:59Z`) },
+            OR: [
+                { publishDate: { gte: new Date(windowFromDate), lte: new Date(`${windowToDate}T23:59:59Z`) } },
+                ownOpen,
+            ],
         },
-        select: { ada: true, meetingDate: true, readStatus: true },
+        select: { ada: true, meetingDate: true, readStatus: true, councilMeetingId: true, decisionId: true, dismissedAt: true },
     });
 
     // The extractor is told the body's conventions as sentences; the glossary lives in messages/en/admin.json.
@@ -208,6 +215,7 @@ export async function pollDecisionsForMeeting(
             ada: k.ada,
             meetingDate: k.meetingDate ? k.meetingDate.toISOString().split('T')[0] : null,
             readStatus: k.readStatus,
+            ...(k.councilMeetingId === councilMeetingId && !k.decisionId && !k.dismissedAt ? { own: true } : {}),
         })),
         lookupAdas: options?.lookupAdas?.length ? options.lookupAdas : undefined,
         subjects: sortedSubjects.map(s => ({

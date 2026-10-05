@@ -576,10 +576,12 @@ export interface PollDecisionsRequest extends TaskRequest {
     /**
      * Reading-cache handshake, scoped by the WINDOW, not the meeting: every
      * DecisionCandidate the city holds whose publishDate falls inside the poll
-     * window. Presence + readStatus decide whether tasks reads again;
-     * meetingDate decides which partition the decision belongs to.
+     * window, plus this meeting's own open candidates (`own`). Presence +
+     * readStatus decide whether tasks reads again; meetingDate decides which
+     * partition the decision belongs to. Tasks fetches an `own` candidate that
+     * its window does not return.
      */
-    knownDecisions?: Array<{ ada: string; meetingDate: string | null; readStatus: string }>;
+    knownDecisions?: Array<{ ada: string; meetingDate: string | null; readStatus: string; own?: boolean }>;
     /** The body's conventions rendered as sentences for the prompt; opencouncil owns the glossary. */
     conventionsText?: string | null;
     /**

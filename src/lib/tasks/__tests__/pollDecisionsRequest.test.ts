@@ -195,3 +195,53 @@ describe('pollDecisionsForMeeting — extraction waits for a conventions record'
         expect(body.extract).toBe(true);
     });
 });
+
+describe('pollDecisionsForMeeting — stored candidates sent to the task', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockUtteranceGroupBy.mockResolvedValue([]);
+        mockDecisionFindMany.mockResolvedValue([]);
+        mockStartTask.mockResolvedValue({ id: 'task-1' });
+        mockGetPeopleForMeeting.mockResolvedValue([]);
+        mockCouncilMeetingFindUnique.mockResolvedValue(meetingWith([
+            { id: 's1', name: 'Θέμα', agendaItemTitle: null, agendaItemIndex: 1, nonAgendaReason: null },
+        ]));
+    });
+
+    const row = (ada: string, over: Record<string, unknown> = {}) => ({
+        ada, meetingDate: new Date('2026-03-04T00:00:00Z'), readStatus: 'ok',
+        councilMeetingId: null, decisionId: null, dismissedAt: null, ...over,
+    });
+
+    async function knownDecisions() {
+        await pollDecisionsForMeeting(CITY_ID, MEETING_ID);
+        return (mockStartTask.mock.calls[0][1] as Omit<PollDecisionsRequest, 'callbackUrl'>).knownDecisions;
+    }
+
+    it('asks for the window and for the meeting\'s own open candidates', async () => {
+        mockDecisionCandidateFindMany.mockResolvedValue([]);
+        await knownDecisions();
+        const where = mockDecisionCandidateFindMany.mock.calls[0][0].where;
+        expect(where.cityId).toBe(CITY_ID);
+        expect(where.OR).toEqual(expect.arrayContaining([
+            expect.objectContaining({ publishDate: expect.any(Object) }),
+            { councilMeetingId: MEETING_ID, decisionId: null, dismissedAt: null },
+        ]));
+    });
+
+    it('marks only an open candidate of this meeting as own', async () => {
+        mockDecisionCandidateFindMany.mockResolvedValue([
+            row('ΑΔΑ-OPEN', { councilMeetingId: MEETING_ID }),
+            row('ΑΔΑ-LINKED', { councilMeetingId: MEETING_ID, decisionId: 'dec-1' }),
+            row('ΑΔΑ-DISMISSED', { councilMeetingId: MEETING_ID, dismissedAt: new Date() }),
+            row('ΑΔΑ-OTHER', { councilMeetingId: 'meeting-2' }),
+        ]);
+        const known = await knownDecisions();
+        expect(known).toEqual([
+            { ada: 'ΑΔΑ-OPEN', meetingDate: '2026-03-04', readStatus: 'ok', own: true },
+            { ada: 'ΑΔΑ-LINKED', meetingDate: '2026-03-04', readStatus: 'ok' },
+            { ada: 'ΑΔΑ-DISMISSED', meetingDate: '2026-03-04', readStatus: 'ok' },
+            { ada: 'ΑΔΑ-OTHER', meetingDate: '2026-03-04', readStatus: 'ok' },
+        ]);
+    });
+});
