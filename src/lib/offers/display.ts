@@ -10,7 +10,7 @@ import type { Offer } from '@prisma/client';
 import {
     calculateOfferTotals,
     getCorrectnessPricing,
-    PHYSICAL_PRESENCE,
+    getPhysicalPresencePricing,
     type OfferTotals,
 } from '@/lib/pricing';
 import { formatCurrency } from '@/lib/utils';
@@ -137,7 +137,7 @@ export function getOfferProcurementLines(offer: Offer): ProcurementLine[] {
     const lines: ProcurementLine[] = [];
 
     if (offerHasPhysicalPresence(offer)) {
-        const unitPrice = round2(PHYSICAL_PRESENCE.pricePerHour * factor);
+        const unitPrice = round2(getPhysicalPresencePricing(offer.version || 1).pricePerHour * factor);
         lines.push({
             key: 'presence',
             unitLabel: 'Ώρες',
@@ -236,7 +236,7 @@ export function getOfferCostBreakdown(offer: Offer): OfferCostBreakdown {
             key: 'presence',
             label: 'Φυσική παρουσία σε συνεδριάσεις',
             qty: `${offer.physicalPresenceHours} ώρες`,
-            rate: `${formatCurrency(PHYSICAL_PRESENCE.pricePerHour)}/ώρα`,
+            rate: `${formatCurrency(getPhysicalPresencePricing(offer.version || 1).pricePerHour)}/ώρα`,
             amount: formatCurrency(totals.physicalPresenceTotal),
         });
     }

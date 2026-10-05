@@ -858,6 +858,38 @@ describe('calculateOfferTotals', () => {
     expect(result.discount).toBe(0); // 0% discount
     expect(result.total).toBe(3700); // 3700 - 0
   });
+
+  it('should price physical presence by offer version', () => {
+    const offer = {
+      id: '4',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      type: 'STANDARD',
+      startDate: new Date('2024-01-01'),
+      endDate: new Date('2024-12-31'),
+      recipientName: 'Test Municipality',
+      platformPrice: 100,
+      ingestionPerHourPrice: 50,
+      hoursToIngest: 10,
+      correctnessGuarantee: false,
+      meetingsToIngest: null,
+      hoursToGuarantee: null,
+      equipmentRentalPrice: null,
+      equipmentRentalName: null,
+      equipmentRentalDescription: null,
+      physicalPresenceHours: 8,
+      discountPercentage: 0,
+      respondToEmail: 'test@example.com',
+      respondToName: 'Test Person',
+      cityId: '1',
+      respondToPhone: '+30123456789',
+      agreed: false,
+      adam: null,
+    } as const;
+
+    expect(calculateOfferTotals({ ...offer, version: 3 }).physicalPresenceTotal).toBe(200); // 8 * 25
+    expect(calculateOfferTotals({ ...offer, version: 4 }).physicalPresenceTotal).toBe(400); // 8 * 50
+  });
 });
 
 describe('compareAgendaPosition', () => {

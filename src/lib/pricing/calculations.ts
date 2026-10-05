@@ -9,8 +9,8 @@ import { Offer } from '@prisma/client';
 import {
     getPlatformPricingTier,
     getCorrectnessPricing,
+    getPhysicalPresencePricing,
     SESSION_PROCESSING,
-    PHYSICAL_PRESENCE,
     PRICING_CONSTANTS,
     CURRENT_OFFER_VERSION
 } from './config';
@@ -62,6 +62,7 @@ export interface PricingEstimate {
  */
 export function calculateOfferTotals(offer: OfferPricingInput): OfferTotals {
     const months = monthsBetween(offer.startDate, offer.endDate);
+    const offerVersion = offer.version || 1; // Default to version 1 for legacy offers
     const platformTotal = offer.platformPrice * months;
     const ingestionTotal = offer.ingestionPerHourPrice * offer.hoursToIngest;
 
@@ -69,14 +70,13 @@ export function calculateOfferTotals(offer: OfferPricingInput): OfferTotals {
     const equipmentRentalTotal = (offer.equipmentRentalPrice || 0) * months;
 
     // Calculate physical presence cost
-    const physicalPresenceTotal = (offer.physicalPresenceHours || 0) * PHYSICAL_PRESENCE.pricePerHour;
+    const physicalPresenceTotal = (offer.physicalPresenceHours || 0) * getPhysicalPresencePricing(offerVersion).pricePerHour;
 
     // Calculate correctness guarantee cost based on version
     let correctnessGuaranteeCost = 0;
     let hoursToGuarantee = 0;
 
     if (offer.correctnessGuarantee) {
-        const offerVersion = offer.version || 1; // Default to version 1 for legacy offers
         const correctnessPricing = getCorrectnessPricing(offerVersion);
 
         if (correctnessPricing.unit === 'hour') {

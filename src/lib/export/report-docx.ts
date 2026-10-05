@@ -17,7 +17,7 @@ import { Offer } from '@prisma/client';
 import { format } from 'date-fns';
 import { el } from 'date-fns/locale';
 import { monthsBetween, formatCurrency } from '@/lib/utils';
-import { getCorrectnessPricing, PHYSICAL_PRESENCE } from '@/lib/pricing/config';
+import { getCorrectnessPricing, getPhysicalPresencePricing } from '@/lib/pricing/config';
 import { formatTimestamp } from '@/lib/formatters/time';
 
 export interface ReportMeeting {
@@ -61,13 +61,13 @@ function calculateOperatorHours(meetings: ReportMeeting[]): number {
 
 function calculateReportPricing(offer: Offer, startDate: Date, endDate: Date, actualHoursProcessed: number, meetingCount: number, operatorHours: number) {
     const months = monthsBetween(startDate, endDate);
+    const offerVersion = offer.version || 1;
 
     const platformCost = offer.platformPrice * months;
     const ingestionCost = offer.ingestionPerHourPrice * actualHoursProcessed;
 
     let correctnessCost = 0;
     if (offer.correctnessGuarantee) {
-        const offerVersion = offer.version || 1;
         const correctnessPricing = getCorrectnessPricing(offerVersion);
         correctnessCost = correctnessPricing.pricePerUnit * (
             correctnessPricing.unit === 'hour' ? actualHoursProcessed :
@@ -80,7 +80,7 @@ function calculateReportPricing(offer: Offer, startDate: Date, endDate: Date, ac
     // Physical presence: billed on the hours actually covered by an operator,
     // for contracts that include physical presence.
     const physicalPresenceCost = getOfferPhysicalPresenceHours(offer) > 0
-        ? operatorHours * PHYSICAL_PRESENCE.pricePerHour
+        ? operatorHours * getPhysicalPresencePricing(offerVersion).pricePerHour
         : 0;
 
     const subtotal = platformCost + ingestionCost + correctnessCost + equipmentRentalCost + physicalPresenceCost;
@@ -184,7 +184,7 @@ function createPricingTable(pricing: PricingBreakdown, offer: Offer, actualHours
     }
 
     if (pricing.physicalPresenceCost > 0) {
-        addRow('Φυσική παρουσία', `${formatCurrency(PHYSICAL_PRESENCE.pricePerHour)}/ώρα × ${roundToOneDecimal(operatorHours)} ώρες με χειριστή`, pricing.physicalPresenceCost);
+        addRow('Φυσική παρουσία', `${formatCurrency(getPhysicalPresencePricing(offer.version || 1).pricePerHour)}/ώρα × ${roundToOneDecimal(operatorHours)} ώρες με χειριστή`, pricing.physicalPresenceCost);
     }
 
     // Subtotal
