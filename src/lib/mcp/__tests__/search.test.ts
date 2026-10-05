@@ -66,3 +66,16 @@ describe('mcpSearch body filters', () => {
     });
 });
 
+
+describe('mcpSearch open date range', () => {
+    // MCP ends a range without an end at today's date, which Elasticsearch
+    // reads as the end of that day; the map ends at the current moment.
+    beforeEach(() => jest.useFakeTimers().setSystemTime(new Date('2026-10-05T14:03:12Z')));
+    afterEach(() => jest.useRealTimers());
+
+    it('ends a range with only a start at the end of today', async () => {
+        await mcpSearch({ query: 'πάρκα', dateFrom: '2026-01-01', page: 1, pageSize: 10 }, ANONYMOUS);
+
+        expect(searchInRealmMock.mock.calls[0][0].dateRange).toEqual({ start: '2026-01-01', end: '2026-10-05' });
+    });
+});

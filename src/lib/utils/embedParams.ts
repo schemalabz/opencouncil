@@ -1,5 +1,6 @@
 import { AdministrativeBodyType } from '@prisma/client';
 import { localePathPrefix } from '@/i18n/config';
+import { isAdministrativeBodyType } from '@/lib/utils/administrativeBodies';
 import {
     generateThemeVars,
     generateAppThemeShim,
@@ -9,8 +10,6 @@ import {
     type EmbedThemeVars,
     type AppThemeShim,
 } from '@/lib/utils/embedTheme';
-
-const VALID_BODY_TYPES = new Set<string>(['council', 'committee', 'community']);
 
 export interface BoundedIntSpec {
     default: number;
@@ -83,7 +82,7 @@ export function parseEmbedConfig(searchParams: EmbedSearchParams, options: { lim
             ? searchParams.radius
             : 'rounded';
     const bodyTypeFilter = (searchParams.bodies?.split(',').filter(Boolean) || [])
-        .filter((v): v is AdministrativeBodyType => VALID_BODY_TYPES.has(v));
+        .filter(isAdministrativeBodyType);
     const administrativeBodyTypes = bodyTypeFilter.length > 0 ? bodyTypeFilter : undefined;
 
     const bodyIdFilter = (searchParams.bodyIds?.split(',').map(s => s.trim()).filter(Boolean)) || [];

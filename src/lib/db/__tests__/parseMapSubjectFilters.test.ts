@@ -34,6 +34,24 @@ describe('parseMapSubjectFilters', () => {
         expect(f.dateTo).toBe('2026-02-01');
     });
 
+    // The guard for dates: a malformed bound reached Prisma as an Invalid Date
+    // and Elasticsearch as a range it rejects, so an edited URL was a 500 and a
+    // search failure alert. It is dropped instead, like an unknown bodyType.
+    it.each(['abc', '2026-13-01', '2026-02-31', '2026-01-01T00:00:00Z', '01/02/2026', ''])(
+        'drops the malformed date bound %p',
+        (bad) => {
+            const f = parse(`dateFrom=${encodeURIComponent(bad)}&dateTo=${encodeURIComponent(bad)}`);
+            expect(f.dateFrom).toBeNull();
+            expect(f.dateTo).toBeNull();
+        }
+    );
+
+    it('keeps a valid bound beside a malformed one', () => {
+        const f = parse('dateFrom=abc&dateTo=2026-02-28');
+        expect(f.dateFrom).toBeNull();
+        expect(f.dateTo).toBe('2026-02-28');
+    });
+
     it('defaults sensibly for an empty query', () => {
         const f = parse('');
         expect(f.bodyTypes).toEqual([]);

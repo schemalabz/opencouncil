@@ -1,6 +1,7 @@
 import prisma from '@/lib/db/prisma';
 import { Prisma, DiscussionStatus, type AdministrativeBodyType } from '@prisma/client';
 import { searchInRealm } from '@/lib/search/core';
+import { openDateRange } from '@/lib/search/dateRange';
 import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
 import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
 import { getCouncilMeetingsWithSubjectPreview } from '@/lib/db/meetingsList';
@@ -783,12 +784,7 @@ export async function mcpSearch(
         administrativeBodyIds: args.administrativeBodyIds,
         administrativeBodyTypes: args.administrativeBodyTypes,
         topicIds,
-        dateRange: args.dateFrom || args.dateTo
-            ? {
-                start: args.dateFrom ?? '1970-01-01',
-                end: args.dateTo ?? isoDate(new Date()),
-            }
-            : undefined,
+        dateRange: openDateRange(args.dateFrom, args.dateTo, isoDate(new Date())),
         config: {
             size: args.pageSize,
             from: (args.page - 1) * args.pageSize,

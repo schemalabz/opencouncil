@@ -33,6 +33,18 @@ describe('subjectListQuerySchema', () => {
         expect(() => subjectListQuerySchema.parse({ from: 'yesterday' })).toThrow(/Invalid 'from' date/);
     });
 
+    // `new Date('2026-02-31')` rolls over to 3 March. Accepted, the upper bound
+    // searched the wrong day, and without its end-of-day extension it dropped
+    // that day's meetings too.
+    it.each(['2026-02-31', '2026-04-31', '2026-02-29'])('rejects the impossible day %s in either bound', (day) => {
+        expect(subjectListQuerySchema.safeParse({ from: day }).success).toBe(false);
+        expect(subjectListQuerySchema.safeParse({ to: day }).success).toBe(false);
+    });
+
+    it('extends a real last day of the month to its end', () => {
+        expect(subjectListQuerySchema.parse({ to: '2026-02-28' }).to?.toISOString()).toBe('2026-02-28T23:59:59.999Z');
+    });
+
     it('rejects a limit outside the allowed range', () => {
         expect(() => subjectListQuerySchema.parse({ limit: '0' })).toThrow();
         expect(() => subjectListQuerySchema.parse({ limit: String(MAX_SUBJECT_LIMIT + 1) })).toThrow();
