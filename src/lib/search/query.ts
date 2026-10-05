@@ -643,21 +643,22 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
     }
 
     // Add administrative body filter if specified. The two clauses are
-    // independent: `adminBodyIds` selects named bodies, `adminBodyTypes` selects
-    // every body of a type. The UI sets both when the user picks a named body,
-    // and they agree — a body has exactly one type.
-    if (request.adminBodyIds && request.adminBodyIds.length > 0) {
+    // independent: `administrativeBodyIds` selects named bodies,
+    // `administrativeBodyTypes` selects every body of a type. The UI sets both
+    // when the user picks a named body, and they agree — a body has exactly
+    // one type.
+    if (request.administrativeBodyIds && request.administrativeBodyIds.length > 0) {
         filters.push({
             terms: {
-                'administrative_body_id': request.adminBodyIds
+                'administrative_body_id': request.administrativeBodyIds
             }
         });
     }
 
-    if (request.adminBodyTypes && request.adminBodyTypes.length > 0) {
+    if (request.administrativeBodyTypes && request.administrativeBodyTypes.length > 0) {
         filters.push({
             terms: {
-                'administrative_body_type': request.adminBodyTypes
+                'administrative_body_type': request.administrativeBodyTypes
             }
         });
     }
@@ -684,7 +685,7 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
     }
 
     // The caller asked for this place, so a subject without a pin is dropped.
-    const locationFilter = buildLocationClause(request.locationFilter && [request.locationFilter]);
+    const locationFilter = buildLocationClause(request.location && [request.location]);
     if (locationFilter) {
         filters.push(locationFilter);
     }
@@ -696,7 +697,7 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
 // It has two callers. The scored path uses it as a proximity boost for the
 // locations the AI filter extraction read out of the query text, which never
 // reach the caller's SearchRequest. buildFilters uses it as a hard filter for
-// `locationFilter`, a place the caller asked for explicitly.
+// `location`, a place the caller asked for explicitly.
 //
 // The collapse is not cosmetic. processFilters geocodes the extracted name in
 // EVERY municipality (it calls getCities() with no realm argument), and adjacent
@@ -734,7 +735,9 @@ function buildLocationClause(
                     distance: `${loc.radiusMeters}m`,
                     'location_geojson': {
                         lat: loc.point.lat,
-                        lon: loc.point.lon
+                        // Elasticsearch's geo_point object names the
+                        // longitude `lon`; the app names it `lng`.
+                        lon: loc.point.lng
                     }
                 }
             })),
@@ -1148,7 +1151,7 @@ export function buildSearchQuery(
     if (!queryText) {
         // An extracted location only boosts, and with no text there is nothing
         // to extract from. A caller's place reaches this path as the
-        // `locationFilter` in `filters`.
+        // `location` in `filters`.
         return {
             index: env.ELASTICSEARCH_INDEX,
             size: request.config?.size || 10,

@@ -226,13 +226,13 @@ describe('searchInRealm — reporting what the query text supplied', () => {
     // An extracted place only boosts, so it reaches the query builder beside
     // the request, never inside it, and the response still reports it.
     it('boosts by a derived location and reports it, without filtering by it', async () => {
-        const derived = [{ point: { lat: 37.5, lon: 22.7 }, radiusMeters: 2000 }];
+        const derived = [{ point: { lat: 37.5, lng: 22.7 }, radiusMeters: 2000 }];
         processFiltersMock.mockResolvedValue({ cityIds: undefined, dateRange: undefined, locations: derived });
 
         const response = await searchInRealm({ query: 'πάρκα Άργους' }, 'greece');
 
         expect(buildSearchQueryMock.mock.calls[0][2]).toEqual(derived);
-        expect(requestSentToElasticsearch().locationFilter).toBeUndefined();
+        expect(requestSentToElasticsearch().location).toBeUndefined();
         expect(response.derivedFilters).toEqual({ locations: derived });
     });
 
@@ -378,15 +378,15 @@ describe('searchSubjectsInRealm — failure alert', () => {
 
         await expect(searchSubjectsInRealm({
             query: 'πάρκα',
-            adminBodyIds: ['body1'],
-            adminBodyTypes: ['committee', 'community'],
-            locationFilter: { point: { lat: 38, lon: 23.7 }, radiusMeters: 2000 },
+            administrativeBodyIds: ['body1'],
+            administrativeBodyTypes: ['committee', 'community'],
+            location: { point: { lat: 38, lng: 23.7 }, radiusMeters: 2000 },
         }, 'greece')).rejects.toThrow('Failed to execute search');
 
         expect(sendErrorAdminAlertMock.mock.calls[0][0].context).toMatchObject({
-            adminBodyIds: 'body1',
-            adminBodyTypes: 'committee, community',
-            locationFilter: '38,23.7 within 2000m',
+            administrativeBodyIds: 'body1',
+            administrativeBodyTypes: 'committee, community',
+            location: '38,23.7 within 2000m',
         });
     });
 });

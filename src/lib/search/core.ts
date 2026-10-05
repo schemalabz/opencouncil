@@ -100,12 +100,12 @@ function searchFailureContext(request: SearchRequest): SearchFailureContext {
         cityIds: request.cityIds?.join(', '),
         personIds: request.personIds?.join(', '),
         partyIds: request.partyIds?.join(', '),
-        adminBodyIds: request.adminBodyIds?.join(', '),
-        adminBodyTypes: request.adminBodyTypes?.join(', '),
+        administrativeBodyIds: request.administrativeBodyIds?.join(', '),
+        administrativeBodyTypes: request.administrativeBodyTypes?.join(', '),
         topicIds: request.topicIds?.join(', '),
         dateRange: request.dateRange ? `${request.dateRange.start}..${request.dateRange.end}` : undefined,
-        locationFilter: request.locationFilter
-            ? `${request.locationFilter.point.lat},${request.locationFilter.point.lon} within ${request.locationFilter.radiusMeters}m`
+        location: request.location
+            ? `${request.location.point.lat},${request.location.point.lng} within ${request.location.radiusMeters}m`
             : undefined,
     };
 }
@@ -245,11 +245,11 @@ export async function searchSubjectsInRealm(
                 cityIds,
                 personIds: request.personIds,
                 partyIds: request.partyIds,
-                adminBodyIds: request.adminBodyIds,
-                adminBodyTypes: request.adminBodyTypes,
+                administrativeBodyIds: request.administrativeBodyIds,
+                administrativeBodyTypes: request.administrativeBodyTypes,
                 topicIds: request.topicIds,
                 dateRange: request.dateRange,
-                locationFilter: request.locationFilter
+                location: request.location
             }
         });
 

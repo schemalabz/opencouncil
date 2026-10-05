@@ -39,7 +39,7 @@ export type SearchConfig = {
 export type Location = {
     point: {
         lat: number;
-        lon: number;
+        lng: number;
     };
     /** Radius in METRES. The name carries the unit because the producers
      *  (the API, resolveLocationCoordinates) and the consumer
@@ -66,9 +66,9 @@ export type SearchRequest = {
     personIds?: string[];
     partyIds?: string[];
     /** Named administrative bodies of the meeting a subject belongs to. */
-    adminBodyIds?: string[];
+    administrativeBodyIds?: string[];
     /** Every administrative body of these types (every committee, for example). */
-    adminBodyTypes?: AdministrativeBodyType[];
+    administrativeBodyTypes?: AdministrativeBodyType[];
     topicIds?: string[];
     dateRange?: {
         start: string;
@@ -78,7 +78,7 @@ export type SearchRequest = {
      *  and a subject without a location pin never matches. Places read out of
      *  the query text are not set here: the search keeps those to itself and
      *  uses them only as a proximity boost. */
-    locationFilter?: Location;
+    location?: Location;
     config?: SearchConfig;
 };
 

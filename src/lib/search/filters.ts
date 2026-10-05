@@ -176,7 +176,7 @@ export async function resolveLocationCoordinates(locationName: string, cityId: s
         return {
             point: {
                 lat: details.coordinates[1],
-                lon: details.coordinates[0]
+                lng: details.coordinates[0]
             },
             radiusMeters: LOCATION_BOOST_RADIUS_METERS
         };

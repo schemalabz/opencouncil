@@ -55,7 +55,7 @@ export async function GET(request: Request) {
             query,
             cityIds: list(searchParams.get('cityIds')),
             topicIds: list(searchParams.get('topicIds')),
-            adminBodyTypes: list(searchParams.get('bodyType')).filter(isBodyType),
+            administrativeBodyTypes: list(searchParams.get('bodyType')).filter(isBodyType),
             // Either bound alone is a real filter — the map's own endpoints
             // honour one, so a search over them must too, or committing would
             // widen the window the reader just set. The missing bound stays
