@@ -357,6 +357,27 @@ describe('search matches cross the retrieval/hydration seam', () => {
     });
 });
 
+describe('searchSubjectsInRealm — failure alert', () => {
+    // A filter the alert leaves out is a filter the person on call cannot see
+    // when that filter is what Elasticsearch rejected.
+    it('names the body and location filters of the failed search', async () => {
+        esSearchMock.mockRejectedValue(new Error('index down'));
+
+        await expect(searchSubjectsInRealm({
+            query: 'πάρκα',
+            adminBodyIds: ['body1'],
+            adminBodyTypes: ['committee', 'community'],
+            locationFilter: { point: { lat: 38, lon: 23.7 }, radiusMeters: 2000 },
+        }, 'greece')).rejects.toThrow('Failed to execute search');
+
+        expect(sendErrorAdminAlertMock.mock.calls[0][0].context).toMatchObject({
+            adminBodyIds: 'body1',
+            adminBodyTypes: 'committee, community',
+            locationFilter: '38,23.7 within 2000m',
+        });
+    });
+});
+
 describe('searchRelatedSubjectsInRealm', () => {
     const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1' };
 
