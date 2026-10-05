@@ -120,6 +120,13 @@ export const wakeStateSchema = z.object({
    * to compact.
    */
   memory: z.string().optional(),
+  /**
+   * How this wake's sends will leave, judged by the shell from the 24h reply
+   * window at assembly time: inside it the words go out as written, outside
+   * it each send_message becomes its own template card. The model is told,
+   * so a cold push is written as one message. Absent on simulation surfaces.
+   */
+  deliveryMode: z.enum(["freeform", "template"]).optional(),
 });
 
 export const editorialSubjectSchema = z.object({

@@ -168,6 +168,9 @@ const WEEK_MS = 7 * 24 * 60 * 60_000;
  *  counted: the window is the reader's chance to show that push landed, and
  *  it does not reopen. */
 const REPLY_WINDOW_MS = 24 * 60 * 60_000;
+/** How far ahead the prompt's delivery mode is judged: the send itself is
+ *  decided when the wake ends, minutes after the state is assembled. */
+const DELIVERY_MODE_MARGIN_MS = 10 * 60_000;
 /** Delivery states that mean the row reached the reader, or still will.
  *  `failed` and `suppressed` never arrived, so they never count. */
 const REACHED_STATUSES = ["pending", "sent", "delivered", "read"];
@@ -278,6 +281,14 @@ async function runOneWake(
     profile: sub.profileText,
     conversation,
     decisions,
+    // The real send decision below is made when the wake ends, so this one
+    // is judged DELIVERY_MODE_MARGIN_MS ahead: a window about to close counts
+    // as closed, and the model writes one card instead of three.
+    deliveryMode: decideDelivery(
+      primary,
+      windowOpenedAt,
+      new Date(Date.now() + DELIVERY_MODE_MARGIN_MS),
+    ).mode,
     commitments: openCommitments.map((c) => ({
       slug: c.slug,
       what: c.what,

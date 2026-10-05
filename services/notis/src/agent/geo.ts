@@ -13,6 +13,18 @@ export function locationText(location: PreferenceLocation): string {
   return typeof location === "string" ? location : location.text;
 }
 
+/**
+ * The place as the model should read it: the text, then its coordinates when
+ * the preference carries them — «Κυψέλη (lat 37.9951, lng 23.7385)». Without
+ * them the model guessed coordinates for list_nearby_subjects, 0.4–1.5 km off,
+ * and told a reader an item was «41 μέτρα από σένα».
+ */
+export function locationLabel(location: PreferenceLocation): string {
+  const coords = locationCoords(location);
+  if (!coords) return locationText(location);
+  return `${locationText(location)} (lat ${coords.lat.toFixed(4)}, lng ${coords.lng.toFixed(4)})`;
+}
+
 export function locationCoords(
   location: PreferenceLocation,
 ): { lng: number; lat: number } | null {

@@ -1,4 +1,4 @@
-import { distanceLine, formatDistance, haversineMeters, locationCoords, locationText } from "../geo";
+import { distanceLine, formatDistance, haversineMeters, locationCoords, locationLabel, locationText } from "../geo";
 
 describe("locationText / locationCoords", () => {
   test("bare strings (PR 1 shape) have text and no coordinates", () => {
@@ -49,5 +49,15 @@ describe("distanceLine", () => {
 
   test("null without reader places", () => {
     expect(distanceLine({ lng: 23.7, lat: 37.9 }, [])).toBeNull();
+  });
+});
+
+describe("locationLabel", () => {
+  it("appends the coordinates when the preference carries them", () => {
+    expect(locationLabel({ text: "Κυψέλη", lat: 37.99512, lng: 23.73848 })).toBe(
+      "Κυψέλη (lat 37.9951, lng 23.7385)",
+    );
+    expect(locationLabel("Παγκράτι")).toBe("Παγκράτι");
+    expect(locationLabel({ text: "Άγνωστο", lat: 0, lng: 0 })).toBe("Άγνωστο");
   });
 });
