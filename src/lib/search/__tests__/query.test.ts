@@ -789,8 +789,9 @@ describe('buildSearchQuery location handling', () => {
     // though subjects carry it in the title.
     it('keeps AI-extracted locations out of the hard filters', () => {
         const q = buildSearchQuery(
-            { query: 'παλαιστίνη', locations: LOCATIONS },
-            NO_EXTRACTED_FILTERS
+            { query: 'παλαιστίνη' },
+            NO_EXTRACTED_FILTERS,
+            LOCATIONS
         );
 
         expect(JSON.stringify(hardFiltersOf(q))).not.toContain('geo_distance');
@@ -798,8 +799,9 @@ describe('buildSearchQuery location handling', () => {
 
     it('applies locations as a proximity boost that cannot match on its own', () => {
         const q = buildSearchQuery(
-            { query: 'παλαιστίνη', locations: LOCATIONS },
-            NO_EXTRACTED_FILTERS
+            { query: 'παλαιστίνη' },
+            NO_EXTRACTED_FILTERS,
+            LOCATIONS
         );
         const lexical = lexicalQueryOf(q);
 
@@ -819,12 +821,14 @@ describe('buildSearchQuery location handling', () => {
     // among text matches; it must not outrank a better text match.
     it('awards the proximity boost once, however many points one place geocoded to', () => {
         const one = buildSearchQuery(
-            { query: 'πάρκα', locations: LOCATIONS },
-            NO_EXTRACTED_FILTERS
+            { query: 'πάρκα' },
+            NO_EXTRACTED_FILTERS,
+            LOCATIONS
         );
         const many = buildSearchQuery(
-            { query: 'πάρκα', locations: SAME_PLACE_GEOCODED_TWICE },
-            NO_EXTRACTED_FILTERS
+            { query: 'πάρκα' },
+            NO_EXTRACTED_FILTERS,
+            SAME_PLACE_GEOCODED_TWICE
         );
 
         // Both points are searched...
@@ -843,8 +847,9 @@ describe('buildSearchQuery location handling', () => {
     // school maintenance for "σχολεία Άργους".
     it('keeps the proximity boost below the weakest content tier', () => {
         const q = buildSearchQuery(
-            { query: 'πάρκα', locations: LOCATIONS },
-            NO_EXTRACTED_FILTERS
+            { query: 'πάρκα' },
+            NO_EXTRACTED_FILTERS,
+            LOCATIONS
         );
         const bases = tierBaseByField(scoredShouldClauses('πάρκα'));
 
@@ -859,8 +864,9 @@ describe('buildSearchQuery location handling', () => {
     // flat bonus for carrying a pin. Assert the unit, not just the number.
     it('emits the radius in metres, not kilometres', () => {
         const q = buildSearchQuery(
-            { query: 'παλαιστίνη', locations: LOCATIONS },
-            NO_EXTRACTED_FILTERS
+            { query: 'παλαιστίνη' },
+            NO_EXTRACTED_FILTERS,
+            LOCATIONS
         );
         const distance = geoClausesOf(q)[0]?.geo_distance?.distance as string;
 
@@ -876,13 +882,6 @@ describe('buildSearchQuery location handling', () => {
         expect(JSON.stringify(lexical)).not.toContain('geo_distance');
     });
 
-    it('keeps locations as a hard filter in the filter-only browse path', () => {
-        const q = buildSearchQuery({ locations: LOCATIONS }, NO_EXTRACTED_FILTERS);
-        const filter = (q.query?.bool?.filter ?? []) as QueryContainer[];
-
-        expect(JSON.stringify(filter)).toContain('geo_distance');
-    });
-
     // The public API's `location` is a place the caller asked for, so unlike an
     // extracted location it narrows a text search.
     it('applies an explicit location filter as a hard filter on a text search', () => {
@@ -894,6 +893,23 @@ describe('buildSearchQuery location handling', () => {
 
         expect(geo).toHaveLength(1);
         expect(JSON.stringify(geo[0])).toContain('"distance":"2000m"');
+    });
+
+    // The two inputs stay apart: the caller's place filters, the place read
+    // out of the text only boosts. Neither may turn into the other.
+    it('filters by the caller location and boosts by the extracted one', () => {
+        const extracted = [{ point: { lat: 37.0, lon: 22.0 }, radiusMeters: 2000 }];
+        const q = buildSearchQuery(
+            { query: 'πάρκα', locationFilter: LOCATIONS[0] },
+            NO_EXTRACTED_FILTERS,
+            extracted
+        );
+        const hardGeo = hardFiltersOf(q).filter((f) => JSON.stringify(f).includes('geo_distance'));
+
+        expect(hardGeo).toHaveLength(1);
+        expect(JSON.stringify(hardGeo[0])).toContain('"lat":38');
+        expect(geoClausesOf(q)).toHaveLength(1);
+        expect(JSON.stringify(geoClausesOf(q)[0])).toContain('"lat":37');
     });
 
     it('applies an explicit location filter on the filter-only browse path', () => {
@@ -1376,10 +1392,11 @@ describe('buildSearchQuery agreement with the index mapping', () => {
             partyIds: ['party1'],
             topicIds: ['t1'],
             dateRange: { start: '2026-01-01', end: '2026-02-01' },
-            locations: [{ point: { lat: 38.0, lon: 23.7 }, radiusMeters: 2000 }],
+            locationFilter: { point: { lat: 38.0, lon: 23.7 }, radiusMeters: 2000 },
             config: { enableSemanticSearch: true },
         },
-        { ...NO_EXTRACTED_FILTERS, locationName: 'Άργος' }
+        { ...NO_EXTRACTED_FILTERS, locationName: 'Άργος' },
+        [{ point: { lat: 38.0, lon: 23.7 }, radiusMeters: 2000 }]
     );
 
     it('names only fields the index mapping defines', () => {

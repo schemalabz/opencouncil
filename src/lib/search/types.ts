@@ -41,10 +41,10 @@ export type Location = {
         lat: number;
         lon: number;
     };
-    /** Proximity-boost radius in METRES. The name carries the unit because the
-     *  only producer (resolveLocationCoordinates) and the only consumer
-     *  (buildLocationClauses) sit in different files; an unlabelled
-     *  `radius` let the consumer read metres as kilometres. */
+    /** Radius in METRES. The name carries the unit because the producers
+     *  (the API, resolveLocationCoordinates) and the consumer
+     *  (buildLocationClause) sit in different files; an unlabelled `radius`
+     *  once let the consumer read metres as kilometres. */
     radiusMeters: number;
 };
 
@@ -74,11 +74,10 @@ export type SearchRequest = {
         start: string;
         end: string;
     };
-    locations?: Location[];
     /** A hard geographic filter: only subjects pinned within the radius match,
-     *  and a subject without a location pin never matches. Only a caller that
-     *  asks for a place explicitly sets it (the public search API). It is not
-     *  `locations`, which is a proximity boost read out of the query text. */
+     *  and a subject without a location pin never matches. Places read out of
+     *  the query text are not set here: the search keeps those to itself and
+     *  uses them only as a proximity boost. */
     locationFilter?: Location;
     config?: SearchConfig;
 };

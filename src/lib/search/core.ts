@@ -104,7 +104,6 @@ function searchFailureContext(request: SearchRequest): SearchFailureContext {
         adminBodyTypes: request.adminBodyTypes?.join(', '),
         topicIds: request.topicIds?.join(', '),
         dateRange: request.dateRange ? `${request.dateRange.start}..${request.dateRange.end}` : undefined,
-        hasLocations: request.locations?.length ? 'true' : undefined,
         locationFilter: request.locationFilter
             ? `${request.locationFilter.point.lat},${request.locationFilter.point.lon} within ${request.locationFilter.radiusMeters}m`
             : undefined,
@@ -250,7 +249,6 @@ export async function searchSubjectsInRealm(
                 adminBodyTypes: request.adminBodyTypes,
                 topicIds: request.topicIds,
                 dateRange: request.dateRange,
-                hasLocations: request.locations ? request.locations.length > 0 : false,
                 locationFilter: request.locationFilter
             }
         });
@@ -300,8 +298,7 @@ export async function searchSubjectsInRealm(
         const mergedRequest: SearchRequest = {
             ...request,
             cityIds: extractedCityIds.length > 0 ? extractedCityIds : cityIds,
-            dateRange: request.dateRange ?? processedFilters.dateRange,
-            locations: request.locations ?? processedFilters.locations
+            dateRange: request.dateRange ?? processedFilters.dateRange
         };
 
         // Report back the filters the query text supplied, so a caller showing
@@ -311,11 +308,11 @@ export async function searchSubjectsInRealm(
         const derivedFilters: DerivedFilters = {
             ...(extractedCityIds.length > 0 && { cityIds: extractedCityIds }),
             ...(!request.dateRange && processedFilters.dateRange && { dateRange: processedFilters.dateRange }),
-            ...(!request.locations && processedFilters.locations && { locations: processedFilters.locations }),
+            ...(processedFilters.locations && { locations: processedFilters.locations }),
         };
 
         // Build and execute the search query with retry logic
-        const searchQuery = buildSearchQuery(mergedRequest, extractedFilters);
+        const searchQuery = buildSearchQuery(mergedRequest, extractedFilters, processedFilters.locations);
         
         logEssential('Executing search query', { 
             hasSemanticSearch: request.config?.enableSemanticSearch 

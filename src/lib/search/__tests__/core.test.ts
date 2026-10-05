@@ -223,6 +223,19 @@ describe('searchInRealm — reporting what the query text supplied', () => {
         expect(response.derivedFilters).toEqual({});
     });
 
+    // An extracted place only boosts, so it reaches the query builder beside
+    // the request, never inside it, and the response still reports it.
+    it('boosts by a derived location and reports it, without filtering by it', async () => {
+        const derived = [{ point: { lat: 37.5, lon: 22.7 }, radiusMeters: 2000 }];
+        processFiltersMock.mockResolvedValue({ cityIds: undefined, dateRange: undefined, locations: derived });
+
+        const response = await searchInRealm({ query: 'πάρκα Άργους' }, 'greece');
+
+        expect(buildSearchQueryMock.mock.calls[0][2]).toEqual(derived);
+        expect(requestSentToElasticsearch().locationFilter).toBeUndefined();
+        expect(response.derivedFilters).toEqual({ locations: derived });
+    });
+
     it('reports nothing when the realm default supplied the cities', async () => {
         const response = await searchInRealm({ query: 'ανακύκλωση' }, 'greece');
 
