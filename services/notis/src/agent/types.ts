@@ -214,9 +214,12 @@ export interface Deps {
 }
 
 export const DEFAULT_CONFIG: DepsConfig = {
-  // Sonnet 5: near-Opus quality on agentic work at ~40% of the cost and
-  // noticeably lower latency — the right default for per-resident wakes.
-  model: "claude-sonnet-5",
+  // Sonnet 5.5: the current Sonnet, same price as Sonnet 5 ($2/$10 per
+  // million tokens), near-Opus quality on agentic work at a fraction of the
+  // cost — the right default for per-resident wakes. Effort stays at low
+  // until the live eval (npm run eval:prompt) says otherwise: 5.5
+  // recalibrated the effort levels.
+  model: "claude-sonnet-5-5",
   maxTurns: 8,
   mcpUrl: "https://opencouncil.gr/mcp",
   effort: "low",
