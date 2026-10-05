@@ -25,7 +25,8 @@ describe("seedProfileFromPreferences", () => {
     const profile = seedProfileFromPreferences([
       { cityId: "patras", cityName: "Πάτρα", topics: [], locations: [] },
     ]);
-    expect(profile).toContain("Χωρίς συγκεκριμένα θέματα ή περιοχές.");
+    expect(profile).toContain("Δεν περιόρισε θέματα: όλα τα θέματα του δήμου τον αφορούν.");
+    expect(profile).toContain("Χωρίς συγκεκριμένες περιοχές.");
   });
 
   test("multiple cities produce one line each", () => {
