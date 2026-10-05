@@ -1,5 +1,5 @@
 import type { EditorialBrief } from "../../agent/types";
-import { MAX_EVENTS_PER_TICK, classifyEvent, runPollerTick } from "../poller";
+import { MAX_EVENTS_PER_TICK, MEETING_SETTLE_MS, classifyEvent, runPollerTick } from "../poller";
 import { PROACTIVE_PAUSED_KEY, futureSummaryAlertKey } from "../settings";
 import { type FakeDb, type Row, eventIdentity, makeFakeDb } from "./fake-db";
 import { FakeBird } from "./fake-bird";
@@ -1164,5 +1164,71 @@ describe("meeting events", () => {
     });
     expect(again.wakesEnqueued).toBe(0);
     expect(alerts).toHaveLength(0);
+  });
+});
+
+describe("meeting events settle before the wake", () => {
+  it("schedules the wake MEETING_SETTLE_MS after the tick, so sibling meetings coalesce", async () => {
+    // Two sessions of one council day are summarized minutes apart. Woken at
+    // once, each produced its own push; delayed, the second event merges
+    // into the first event's pending batch row.
+    const db = makeFakeDb({ subscriptions: [activeSub("sub1", "user1")] });
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [meetingRow("task-1")],
+    });
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async () => {},
+      now,
+      editorial: editorialOk,
+    });
+
+    expect(result.wakesEnqueued).toBe(1);
+    const row = [...db.store.queue.values()][0];
+    expect((row.runAfter as Date).toISOString()).toBe(
+      new Date(NOW.getTime() + MEETING_SETTLE_MS).toISOString(),
+    );
+  });
+});
+
+describe("meeting events settle — limits", () => {
+  it("does not settle across 23:00: an evening summary goes out now instead of next morning", async () => {
+    const evening = () => new Date("2026-08-18T19:30:00.000Z"); // 22:30 Athens
+    const db = makeFakeDb({ subscriptions: [activeSub("sub1", "user1")] });
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [meetingRow("task-1", { completedAt: new Date("2026-08-18T18:30:00.000Z") })],
+    });
+
+    await runPollerTick({ db, main, bird: new FakeBird(), alert: async () => {}, now: evening, editorial: editorialOk });
+
+    const row = [...db.store.queue.values()][0];
+    expect((row.runAfter as Date).toISOString()).toBe("2026-08-18T19:30:00.000Z");
+  });
+
+  it("does not settle an agenda whose meeting starts inside the settle window", async () => {
+    const db = makeFakeDb({ subscriptions: [activeSub("sub1", "user1")] });
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [
+        meetingRow("task-agenda", {
+          type: "processAgenda",
+          meetingId: "m-soon",
+          meetingDate: new Date(NOW.getTime() + 20 * 60_000),
+        }),
+      ],
+    });
+
+    await runPollerTick({ db, main, bird: new FakeBird(), alert: async () => {}, now, editorial: editorialOk });
+
+    const row = [...db.store.queue.values()][0];
+    expect((row.runAfter as Date).toISOString()).toBe(NOW.toISOString());
   });
 });

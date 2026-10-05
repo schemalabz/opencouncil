@@ -415,3 +415,36 @@ describe("maybeCompact", () => {
     expect(input).not.toContain("ΠΑΥΜΕΝΟ ΚΕΙΜΕΝΟ");
   });
 });
+
+describe("maybeCompact — production fixes (2026-10)", () => {
+  it("the corrective retry shows the model its own previous answer", async () => {
+    const long = "Ρώτησε για την Κυψέλη. ".repeat(250); // > MEMORY_MAX_CHARS
+    const fake = new FakeAnthropic([
+      { content: [text(long)], stop_reason: "end_turn" },
+      { content: [text("Ρώτησε για την Κυψέλη.")], stop_reason: "end_turn" },
+    ]);
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seed(db, COMPACT_WAKES_AT + 20, 0);
+
+    const result = await maybeCompact(db, SUB_ARG, { deps: makeDeps(fake), now: () => NOW });
+
+    expect(result.ran).toBe(true);
+    const retry = JSON.stringify(fake.requests[1].messages);
+    expect(retry).toContain("<previous_answer>");
+    expect(retry).toContain("never a fact, a place, a stated preference or an open thread");
+    expect(retry).toContain(long.slice(0, 200));
+  });
+
+  it("strips the <memory_so_far> fence the model sometimes answers inside", async () => {
+    const db = makeFakeDb({ subscriptions: [{ ...SUB }] });
+    seed(db, COMPACT_WAKES_AT + 20, 0);
+
+    await maybeCompact(db, SUB_ARG, {
+      deps: summariser("<memory_so_far>\nΡώτησε για την Κυψέλη.\n</memory_so_far>"),
+      now: () => NOW,
+    });
+
+    expect(db.store.subscriptions.get("sub1")?.memory).toBe("Ρώτησε για την Κυψέλη.");
+  });
+
+});

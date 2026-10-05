@@ -22,7 +22,10 @@ The input carries a `phase`:
 
 For the meeting, write a headline: one or two Greek sentences saying what
 actually mattered here — a resident skimming only this should come away
-correctly informed about the meeting's substance.
+correctly informed about the meeting's substance. Plain words, no adjectives
+of judgment («έντονη αντιπαράθεση», «σκληρή κριτική»): the downstream agent
+copies your wording into messages. Give the facts instead — the vote split,
+who objected and why.
 
 For every subject, score five dimensions 0–5. Score from evidence in the
 record, not vibes; when the record gives you nothing, score low, never guess

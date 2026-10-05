@@ -81,6 +81,16 @@ export interface StreamBound {
   edge?: Date;
 }
 
+/** The model sometimes answers inside the input's own <memory_so_far> fence —
+ *  three of five production memories carried it. The fence is not memory. */
+export function stripMemoryFence(text: string): string {
+  return text
+    .trim()
+    .replace(/^<memory_so_far>\s*/i, "")
+    .replace(/\s*<\/memory_so_far>$/i, "")
+    .trim();
+}
+
 /**
  * The instant everything at or before is folded, or null when nothing can be.
  *
@@ -269,11 +279,12 @@ export async function maybeCompact(
         output_config: { effort: deps.config.effort },
       });
       costUsd += usageToCost(normalizeUsage(response.usage), deps.config.model);
-      return (response.content as Array<{ type?: string; text?: string }>)
-        .filter((b) => b?.type === "text")
-        .map((b) => b.text ?? "")
-        .join("\n")
-        .trim();
+      return stripMemoryFence(
+        (response.content as Array<{ type?: string; text?: string }>)
+          .filter((b) => b?.type === "text")
+          .map((b) => b.text ?? "")
+          .join("\n"),
+      );
     };
 
     let text = await summarise();
@@ -282,10 +293,16 @@ export async function maybeCompact(
       // leaving the watermark means the next wake assembles the identical
       // input, gets the identical answer and bills for it — on every wake,
       // for as long as the reader keeps talking.
+      // The request is stateless: without the previous answer in front of it
+      // the model wrote a new, far shorter memory from the raw input — two
+      // production memories lost 60-75% of their text this way, a reader's
+      // workplace among the losses.
       text = await summarise(
         text
           ? `(system) Your previous answer was ${text.length} characters. The hard limit ` +
-            `is ${MEMORY_MAX_CHARS}. Return the same memory, materially shorter.`
+            `is ${MEMORY_MAX_CHARS}. Return the same memory, materially shorter: drop ` +
+            `detail, never a fact, a place, a stated preference or an open thread. ` +
+            `Your previous answer:\n<previous_answer>\n${text}\n</previous_answer>`
           : "(system) Your previous answer was empty. Return the memory text alone.",
       );
     }

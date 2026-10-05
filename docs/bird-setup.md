@@ -134,6 +134,8 @@ Bird needs a publicly reachable URL to POST inbound events to. In production tha
 
 > The two events together cover the inbound path: `conversation.created` fires when a contact replies to one of your messages for the first time, `conversation.updated` fires for every subsequent message in that thread.
 
+> Delivery status has a gap. The `conversation.updated` event names the last message of the conversation only. When Notis sends several messages within one second, only the last message receives a status. The earlier messages stay `sent`. For a number without WhatsApp, Notis folds the whole wake into the SMS fallback of the last message. If Bird offers a per-message status event for the Channels service in your workspace, add that event to this subscription. Then every message gets its own status.
+
 There is one subscription, and it is Notis's. The main app had a second one until 2026-09; it only reconciled the delivery status of messages it had sent itself, and both the sender and the webhook are gone. If that subscription still exists in your workspace, delete it — it POSTs to a route that no longer answers.
 
 ## Step 10: Verify the inbound path

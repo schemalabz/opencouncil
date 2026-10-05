@@ -79,7 +79,7 @@ describe("runWake over several events", () => {
     );
 
     expect(trace.userTurn).toContain("2 events arrived together");
-    expect(trace.userTurn).toContain(`<current_time>${T2}</current_time>`);
+    expect(trace.userTurn).toContain(`<current_time>${T2} — `);
     expect(trace.userTurn.indexOf("τι έγινε;")).toBeLessThan(
       trace.userTurn.indexOf("Editorial brief"),
     );

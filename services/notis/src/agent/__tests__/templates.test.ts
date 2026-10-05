@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { WakeEvent } from "../types";
 
 const BRIEF = {
@@ -246,5 +248,20 @@ describe("link path hardening", () => {
         brief: BRIEF,
       }),
     ).toBe("a%20city/jul%2F29");
+  });
+});
+
+describe("quick-reply buttons and the system prompt", () => {
+  it("names every quick-reply label the shells can send, so each tap has guidance", () => {
+    // The prompt described a button «Τι είναι αυτό;» that no shell carried,
+    // while the real «Τι θα λαμβάνω;» tap — the most common first message —
+    // had none.
+    const prompt = fs.readFileSync(path.join(__dirname, "../../../prompts/system.md"), "utf8");
+    for (const def of Object.values(TEMPLATES)) {
+      for (const button of def.buttons ?? []) {
+        if (button.kind !== "quick_reply") continue;
+        expect(prompt).toContain(`«${button.label}»`);
+      }
+    }
   });
 });

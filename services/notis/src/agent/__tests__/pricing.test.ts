@@ -2,18 +2,18 @@ import { addUsage, emptyUsage, normalizeUsage, usageToCost } from "../pricing";
 
 describe("pricing", () => {
   it("prices each token class at sonnet-5 rates", () => {
-    expect(usageToCost({ input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 })).toBe(3);
-    expect(usageToCost({ input: 0, output: 1_000_000, cacheWrite: 0, cacheRead: 0 })).toBe(15);
-    expect(usageToCost({ input: 0, output: 0, cacheWrite: 1_000_000, cacheRead: 0 })).toBe(6);
-    expect(usageToCost({ input: 0, output: 0, cacheWrite: 0, cacheRead: 1_000_000 })).toBe(0.3);
+    expect(usageToCost({ input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 })).toBe(2);
+    expect(usageToCost({ input: 0, output: 1_000_000, cacheWrite: 0, cacheRead: 0 })).toBe(10);
+    expect(usageToCost({ input: 0, output: 0, cacheWrite: 1_000_000, cacheRead: 0 })).toBe(4);
+    expect(usageToCost({ input: 0, output: 0, cacheWrite: 0, cacheRead: 1_000_000 })).toBe(0.2);
   });
 
   it("prices by the model that ran, defaulting to sonnet-5", () => {
     const oneMTokIn = { input: 1_000_000, output: 0, cacheWrite: 0, cacheRead: 0 };
     expect(usageToCost(oneMTokIn, "claude-opus-5")).toBe(5);
     expect(usageToCost(oneMTokIn, "claude-haiku-4-5-20251001")).toBe(1);
-    expect(usageToCost(oneMTokIn, "claude-sonnet-5")).toBe(3);
-    expect(usageToCost(oneMTokIn, "some-unknown-model")).toBe(3);
+    expect(usageToCost(oneMTokIn, "claude-sonnet-5")).toBe(2);
+    expect(usageToCost(oneMTokIn, "some-unknown-model")).toBe(2);
     expect(usageToCost({ input: 0, output: 1_000_000, cacheWrite: 0, cacheRead: 0 }, "claude-opus-5")).toBe(25);
   });
 

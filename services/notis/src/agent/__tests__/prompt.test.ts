@@ -114,7 +114,7 @@ describe("assembleUserTurn", () => {
     expect(turn).not.toContain("από «Κυψέλη»");
     // Distances stay within the meeting's city.
     expect(turn).not.toContain("από «Πανεπιστημιούπολη»");
-    expect(turn).toContain("places [Σπίτι; Κυψέλη]");
+    expect(turn).toContain("places [Σπίτι (lat 37.9700, lng 23.7120); Κυψέλη]");
   });
 
   it("renders no distance line when the reader has no coordinates", () => {
@@ -225,5 +225,46 @@ describe("assembleUserTurn", () => {
     const turn = assembleUserTurn(state, [meetingEvent()], FIXED_NOW);
     expect(turn).toContain("they wrote: «Πότε φτιάχνεται ο δρόμος μας;»");
     expect(turn).toContain("you sent: «Η απάντηση.»");
+  });
+});
+
+describe("assembleUserTurn — dates, places and delivery mode", () => {
+  it("writes the clock and the meeting date the Athens way, with weekday and distance from now", () => {
+    // FIXED_NOW is Tuesday 2026-03-10 10:00Z; the fixture meeting is dated 2026-03-09.
+    const turn = assembleUserTurn(makeState(), [meetingEvent()], FIXED_NOW);
+    expect(turn).toContain("<current_time>2026-03-10T10:00:00.000Z — Τρίτη 10/03/2026 12:00 ώρα Αθήνας</current_time>");
+    // A date-only meeting value carries no clock.
+    expect(turn).toContain("(Δευτέρα 09/03/2026, χθες)");
+    expect(turn).toContain("never work out a weekday or a relative day yourself");
+  });
+
+  it("gives the model the coordinates of a pinned place", () => {
+    const turn = assembleUserTurn(
+      makeState({
+        user: {
+          name: "Μαρία",
+          cities: [
+            {
+              cityId: "athens",
+              cityName: "Αθήνα",
+              topics: [],
+              locations: [{ text: "Κυψέλη", lat: 37.99512, lng: 23.73848 }, "Παγκράτι"],
+            },
+          ],
+        },
+      }),
+      [meetingEvent()],
+      FIXED_NOW,
+    );
+    expect(turn).toContain("places [Κυψέλη (lat 37.9951, lng 23.7385); Παγκράτι]");
+  });
+
+  it("names the delivery mode when the shell knows it, and says nothing otherwise", () => {
+    const cold = assembleUserTurn(makeState({ deliveryMode: "template" }), [meetingEvent()], FIXED_NOW);
+    expect(cold).toContain("Delivery for this wake: TEMPLATE");
+    expect(cold).toContain("one message per story");
+    const warm = assembleUserTurn(makeState({ deliveryMode: "freeform" }), [meetingEvent()], FIXED_NOW);
+    expect(warm).toContain("Delivery for this wake: FREEFORM");
+    expect(assembleUserTurn(makeState(), [meetingEvent()], FIXED_NOW)).not.toContain("Delivery for this wake");
   });
 });

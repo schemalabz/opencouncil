@@ -35,6 +35,10 @@ import {
   putSetting,
 } from "./settings";
 
+/** How long a meeting event waits before its wake, so that sibling meetings
+ *  of the same city (summarized minutes apart) coalesce into one wake. */
+export const MEETING_SETTLE_MS = 45 * 60_000;
+
 /**
  * The poller — every link between OpenCouncil and notis is a pull from
  * here (PRD §4): enrollments, subscription reconciliation, scheduled-wake
@@ -768,7 +772,19 @@ async function processMeetingEvents(
       adminBody: row.adminBodyName,
       brief,
     };
-    const runAfter = clampToActiveHours(now(), rng);
+    // Let sibling events settle before the wake runs: two sessions of one
+    // council day are summarized minutes apart, and each woke the reader on
+    // its own — 215 second pushes within an hour in six weeks, 142 of them
+    // on one Athens evening. Delayed, the second event merges into the
+    // first event's pending batch row and the reader gets one wake. Not
+    // across 23:00, though: a settle that lands in quiet hours would become
+    // an eleven-hour hold. And an agenda whose meeting starts inside the
+    // settle window goes out now, or it previews a session already running.
+    const tick = now();
+    const settled = new Date(tick.getTime() + MEETING_SETTLE_MS);
+    const startsSoon =
+      phase === "agenda" && row.meetingDate.getTime() - tick.getTime() < MEETING_SETTLE_MS;
+    const runAfter = clampToActiveHours(isQuietHour(settled) || startsSoon ? tick : settled, rng);
 
     try {
       // This transaction scales with the audience: one processed-event row plus
