@@ -580,16 +580,19 @@ function applyRanking(
     };
 }
 
+/**
+ * What a reader may see, as filters. Every query that returns subjects to a
+ * reader starts from these: the search (buildFilters) and the related
+ * subjects (buildRelatedSubjectsQuery). A rule about visibility belongs here,
+ * so that neither query can show what the other hides.
+ */
+export function subjectVisibilityFilters(): QueryContainer[] {
+    return [{ term: { 'meeting_released': true } }];
+}
+
 // Build filters for the search query
 export function buildFilters(request: SearchRequest): QueryContainer[] {
-    const filters: QueryContainer[] = [];
-
-    // Always filter for released meetings only
-    filters.push({
-        term: {
-            'meeting_released': true
-        }
-    });
+    const filters: QueryContainer[] = subjectVisibilityFilters();
 
     // Add city filter if specified
     if (request.cityIds && request.cityIds.length > 0) {

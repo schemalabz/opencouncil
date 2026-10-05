@@ -5,7 +5,7 @@ import type { QueryContainer, SearchRequest } from '../types';
 // itself does not read env, only the module-level import does.
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 
-import { buildFilters, buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO } from '../query';
+import { buildFilters, buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO, subjectVisibilityFilters } from '../query';
 import { MATCH_START, MATCH_END, MATCH_FIELDS } from '../constants';
 import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
 import schema from '../../../../elasticsearch/schema.json';
@@ -1506,6 +1506,15 @@ describe('buildSearchQuery city filter', () => {
         );
 
         expect(cityIdsOf(q)).toEqual(['athens']);
+    });
+});
+
+describe('buildFilters visibility', () => {
+    it('applies every visibility filter, whatever the request', () => {
+        const filters = buildFilters({ query: 'roads' });
+        for (const visibility of subjectVisibilityFilters()) {
+            expect(filters).toContainEqual(visibility);
+        }
     });
 });
 

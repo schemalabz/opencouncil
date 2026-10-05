@@ -4,6 +4,7 @@ import type { QueryContainer } from '../types';
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 
 import { buildRelatedSubjectsQuery, RELATED_MIN_SIMILARITY, RELATED_SUBJECTS_SIZE } from '../related';
+import { subjectVisibilityFilters } from '../query';
 
 const SEED = { id: 'subject-1', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1' };
 const REALM_CITIES = ['athens', 'chania', 'argos'];
@@ -55,6 +56,16 @@ describe('buildRelatedSubjectsQuery', () => {
     it('only returns released subjects', () => {
         const query = buildRelatedSubjectsQuery(SEED, 'city', REALM_CITIES);
         expect(boolOf(query).filter).toContainEqual({ term: { meeting_released: true } });
+    });
+
+    // Related subjects show beside every subject page. A visibility rule the
+    // search applies and this query does not would show here what the search
+    // hides.
+    it('applies every visibility filter the search applies', () => {
+        const filter = boolOf(buildRelatedSubjectsQuery(SEED, 'other', REALM_CITIES)).filter;
+        for (const visibility of subjectVisibilityFilters()) {
+            expect(filter).toContainEqual(visibility);
+        }
     });
 
     it('the city scope stays inside the subject municipality', () => {
