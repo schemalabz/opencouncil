@@ -2,7 +2,7 @@
 // doesn't pull in the real client (→ env.mjs, which the jest transform doesn't handle).
 jest.mock('../prisma', () => ({ __esModule: true, default: {} }));
 
-import { parseMapSubjectFilters } from '../subject';
+import { buildMapSubjectWhere, parseMapSubjectFilters } from '../subject';
 
 const parse = (qs: string) => parseMapSubjectFilters(new URLSearchParams(qs));
 
@@ -60,5 +60,16 @@ describe('parseMapSubjectFilters', () => {
         expect(f.allTime).toBe(false);
         expect(f.daysBack).toBeNull();
         expect(f.monthsBack).toBeUndefined();
+    });
+});
+
+describe('buildMapSubjectWhere body types', () => {
+    // The map list must read a meeting with no body as the council's, as
+    // list_meetings and the map search do.
+    it('admits a meeting with no body when the council is asked for', () => {
+        const where = buildMapSubjectWhere(null, { bodyTypes: ['council'] });
+        expect(where.councilMeeting).toMatchObject({
+            OR: [{ administrativeBody: { type: { in: ['council'] } } }, { administrativeBodyId: null }],
+        });
     });
 });

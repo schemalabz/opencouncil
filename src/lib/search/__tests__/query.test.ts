@@ -1541,6 +1541,24 @@ describe('buildFilters administrative body filter', () => {
         expect(termsOf(filters, 'administrative_body_type')).toEqual(['committee']);
     });
 
+    // A meeting with no body is indexed with no type, and the rest of the app
+    // reads it as the council's (list_meetings, the timeline). A plain terms
+    // filter on 'council' dropped its subjects.
+    it('admits subjects of a meeting with no body when the types include the council', () => {
+        const [clause] = buildFilters({ query: 'roads', administrativeBodyTypes: ['council'] })
+            .filter((f) => JSON.stringify(f).includes('administrative_body_type'));
+
+        expect(clause).toEqual({
+            bool: {
+                should: [
+                    { terms: { administrative_body_type: ['council'] } },
+                    { bool: { must_not: { exists: { field: 'administrative_body_type' } } } },
+                ],
+                minimum_should_match: 1,
+            },
+        });
+    });
+
     it('keeps the id and the type as independent top-level (AND) clauses', () => {
         const filters = buildFilters({
             query: 'roads',

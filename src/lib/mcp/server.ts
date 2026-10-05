@@ -37,7 +37,7 @@ const paginationShape = {
  * opposite of what passing it means.
  */
 const administrativeBodyTypesFilter = z.array(z.enum(AdministrativeBodyType)).min(1).optional()
-    .describe('Restrict to bodies of these kinds: council (Δημοτικό or Περιφερειακό Συμβούλιο), committee (Δημοτική or Περιφερειακή Επιτροπή), community (Δημοτική Κοινότητα; municipalities only)');
+    .describe('Restrict to bodies of these kinds: council (Δημοτικό or Περιφερειακό Συμβούλιο; also matches meetings with no body, from cities imported before bodies existed), committee (Δημοτική or Περιφερειακή Επιτροπή), community (Δημοτική Κοινότητα; municipalities only)');
 
 /**
  * The render settings both highlight write tools accept. Shared so the two

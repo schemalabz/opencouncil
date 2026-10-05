@@ -658,12 +658,22 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
         });
     }
 
+    // A meeting with no body is indexed with no type and reads as the council's,
+    // as in meetingBodyTypeWhere, so asking for the council admits it too.
     if (request.administrativeBodyTypes && request.administrativeBodyTypes.length > 0) {
-        filters.push({
+        const ofTypes: QueryContainer = {
             terms: {
                 'administrative_body_type': request.administrativeBodyTypes
             }
-        });
+        };
+        filters.push(request.administrativeBodyTypes.includes('council')
+            ? {
+                bool: {
+                    should: [ofTypes, { bool: { must_not: { exists: { field: 'administrative_body_type' } } } }],
+                    minimum_should_match: 1
+                }
+            }
+            : ofTypes);
     }
 
     // Add topic filter if specified

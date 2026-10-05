@@ -19,6 +19,7 @@ import { isCalendarDay } from '@/lib/utils/date';
 import { getContributionCount } from '@/lib/utils';
 import { roleWithRelationsInclude } from './types/roles';
 import { subjectDecisionSelect, type SubjectDecision } from './types/decision';
+import { meetingBodyTypeWhere } from './meetingBodyFilter';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
@@ -371,7 +372,7 @@ export function buildMapSubjectWhere(realm: Realm | null, f: MapSubjectFilters):
             released: true,
             dateTime,
             city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
-            ...(f.bodyTypes?.length ? { administrativeBody: { type: { in: f.bodyTypes } } } : {}),
+            ...(f.bodyTypes?.length ? meetingBodyTypeWhere(f.bodyTypes) : {}),
         },
     };
 }
