@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client';
 import { decisionConventionsSchema } from '@/lib/decisionConventions';
 import { parseChannelRef } from '@/lib/utils/youtube';
 
-export const administrativeBodyTypeSchema = z.enum(['council', 'committee', 'community']);
-export const notificationBehaviorSchema = z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']);
+export const administrativeBodyTypeSchema = z.nativeEnum(AdministrativeBodyType);
+export const notificationBehaviorSchema = z.nativeEnum(NotificationBehavior);
 
 // Field rules of an administrative body — validation only, no defaults.
 // Shared by the body form, the body routes, and the city import
