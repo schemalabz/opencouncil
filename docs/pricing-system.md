@@ -64,15 +64,16 @@ export const SESSION_PROCESSING = {
 
 ### 3. Physical Presence
 
-Hourly pricing for personnel presence at council meetings:
+Hourly pricing for personnel presence at council meetings. The price is versioned by offer version:
 
 ```typescript
-export const PHYSICAL_PRESENCE = {
-  pricePerHour: 25, // EUR per hour
-  label: "Φυσική παρουσία σε συνεδριάσεις",
-  description: "Παρουσία προσωπικού στις συνεδριάσεις του δημοτικού συμβουλίου"
-} as const;
+export const PHYSICAL_PRESENCE_PRICING: readonly PhysicalPresencePricingVersion[] = [
+  { version: 1, pricePerHour: 25 },
+  { version: 4, pricePerHour: 50 },
+];
 ```
+
+An entry applies from its version until the next entry's version. `getPhysicalPresencePricing(offer.version || 1)` returns the entry for an offer. `PHYSICAL_PRESENCE` holds the labels only.
 
 ### 4. Equipment Rental
 
@@ -92,7 +93,7 @@ Equipment rental pricing is configurable per offer and includes:
 
 ### 5. Correctness Guarantee
 
-Version-based pricing for human transcription verification:
+Version-based pricing for human transcription verification. An entry applies from its version until the next entry's version, so version 4 uses the version 3 entry:
 
 ```typescript
 export const CORRECTNESS_GUARANTEE_PRICING: readonly CorrectnessPricingVersion[] = [
@@ -129,16 +130,17 @@ export const CORRECTNESS_GUARANTEE_PRICING: readonly CorrectnessPricingVersion[]
 
 ### Version History
 
-- **Version 1** (Legacy): Correctness guarantee priced per meeting (€80/meeting)
+- **Version 1** (Legacy): Correctness guarantee priced per meeting (€80/meeting). Physical presence €25/hour.
 - **Version 2**: Correctness guarantee priced per hour (€20/hour)
-- **Version 3** (Current): Reduced correctness guarantee pricing (€11/hour)
+- **Version 3**: Reduced correctness guarantee pricing (€11/hour)
+- **Version 4** (Current): Physical presence €50/hour
 
 ### Current Version
 
 The current version for new offers is defined in:
 
 ```typescript
-export const CURRENT_OFFER_VERSION = 3 as const;
+export const CURRENT_OFFER_VERSION = 4 as const;
 ```
 
 ## Usage
@@ -229,7 +231,7 @@ import {
 
 const defaultValues = {
   ingestionPerHourPrice: getSessionProcessingPrice(), // 9
-  version: CURRENT_OFFER_VERSION, // 3
+  version: CURRENT_OFFER_VERSION, // 4
   // ... other defaults
 };
 ```
@@ -239,8 +241,8 @@ const defaultValues = {
 ### Configuration (`config.ts`)
 
 - **Pricing tiers and constants**: All static pricing data
-- **Helper functions**: `getPlatformPricingTier()`, `getCorrectnessPricing()`
-- **Type definitions**: `PlatformPricingTier`, `CorrectnessPricingVersion`
+- **Helper functions**: `getPlatformPricingTier()`, `getCorrectnessPricing()`, `getPhysicalPresencePricing()`
+- **Type definitions**: `PlatformPricingTier`, `CorrectnessPricingVersion`, `PhysicalPresencePricingVersion`
 
 ### Calculations (`calculations.ts`)
 
@@ -283,16 +285,20 @@ The pricing system maintains backward compatibility by:
 1. Modify `SESSION_PROCESSING.pricePerHour`
 2. Existing offers will continue using their stored `ingestionPerHourPrice`
 
-### Adding New Correctness Guarantee Version
+### Adding a Pricing Version
 
-1. Add new version to `CORRECTNESS_GUARANTEE_PRICING` array
-2. Update `CURRENT_OFFER_VERSION` to the new version number
-3. Test calculation logic with new version
+Use a new offer version to change the correctness guarantee price or the physical presence price.
+
+1. Increment `CURRENT_OFFER_VERSION`.
+2. Add an entry with the new version number to each price list that changes: `CORRECTNESS_GUARANTEE_PRICING` or `PHYSICAL_PRESENCE_PRICING`. A price list without an entry for the new version keeps its latest entry.
+3. Add a test for the new version to `src/lib/pricing/__tests__/config.test.ts`.
+
+Existing offers keep their stored `version`. The admin form sets `CURRENT_OFFER_VERSION` on a new offer only. An edit of an existing offer does not change its version.
 
 ### Important Rules
 
 ❌ **NEVER** modify existing pricing tier values in a way that would change existing offer calculations
-❌ **NEVER** remove or reorder existing correctness guarantee versions
+❌ **NEVER** remove or reorder existing correctness guarantee or physical presence versions
 ✅ **ALWAYS** add new versions rather than modifying existing ones
 ✅ **ALWAYS** test pricing calculations after changes
 ✅ **ALWAYS** update documentation when adding new features
@@ -372,7 +378,7 @@ console.log('Final total:', totals.total);
 
 When significant pricing changes are needed:
 
-1. **Create new version**: Add to `CORRECTNESS_GUARANTEE_PRICING`
+1. **Create new version**: Add to `CORRECTNESS_GUARANTEE_PRICING` or `PHYSICAL_PRESENCE_PRICING`
 2. **Update current version**: Change `CURRENT_OFFER_VERSION`
 3. **Gradual rollout**: New offers use new pricing, existing offers unchanged
 4. **Communication**: Notify clients of pricing changes for future contracts 

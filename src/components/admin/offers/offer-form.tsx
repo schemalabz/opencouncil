@@ -29,6 +29,7 @@ import { formatCurrency } from '@/lib/utils'
 import {
     calculateOfferTotals,
     CURRENT_OFFER_VERSION,
+    getPhysicalPresencePricing,
     getPlatformMonthlyPrice,
     SESSION_PROCESSING,
 } from '@/lib/pricing'
@@ -185,6 +186,11 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
     // Source for pre-filling: existing offer (edit) or renewFrom (renewal create) or empty (fresh create)
     const source: Partial<Offer> | undefined = offer || renewFrom
 
+    // An existing offer keeps the pricing version it was priced with — editing
+    // it (e.g. to record the ΑΔΑΜ) must not re-price it. Only a new offer,
+    // including a renewal, gets the current version.
+    const offerVersion = offer ? offer.version || 1 : CURRENT_OFFER_VERSION
+
     // Renewal default dates: start = max(today, prev.endDate + 1 day),
     // end = day before the first anniversary — a 12-month inclusive term,
     // consistent with fresh-offer defaults (e.g. 2027-02-28 → 2028-02-27).
@@ -271,7 +277,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
         hoursToIngest: watchedValues.hoursToIngest,
         discountPercentage: watchedValues.discountPercentage,
         correctnessGuarantee: watchedValues.correctnessGuarantee,
-        version: CURRENT_OFFER_VERSION,
+        version: offerVersion,
         hoursToGuarantee: watchedValues.hoursToGuarantee ?? null,
         meetingsToIngest: watchedValues.meetingsToIngest ?? null,
         equipmentRentalPrice: watchedValues.includeEquipmentRental
@@ -303,7 +309,6 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
                 equipmentRentalName: values.includeEquipmentRental ? values.equipmentRentalName || null : null,
                 equipmentRentalDescription: values.includeEquipmentRental ? values.equipmentRentalDescription || null : null,
                 physicalPresenceHours: values.includePhysicalPresence ? values.physicalPresenceHours || null : null,
-                version: CURRENT_OFFER_VERSION
             };
 
             if (offer) {
@@ -317,6 +322,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
             } else {
                 await createOffer({
                     ...commonData,
+                    version: CURRENT_OFFER_VERSION,
                     meetingsToIngest: null,
                     hoursToGuarantee: values.correctnessGuarantee ? values.hoursToGuarantee! : null,
                     agreed: values.agreed,
@@ -724,7 +730,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
                                             />
                                         </FormControl>
                                         <FormDescription>
-                                            Number of hours for personnel to be physically present at meetings (€25/hour)
+                                            Number of hours for personnel to be physically present at meetings ({formatCurrency(getPhysicalPresencePricing(offerVersion).pricePerHour)}/hour)
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>

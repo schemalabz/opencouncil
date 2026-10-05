@@ -25,9 +25,11 @@ export {
     getPlatformPricingTier,
     getCorrectnessPricing,
     getCurrentCorrectnessPricing,
+    getPhysicalPresencePricing,
     PLATFORM_PRICING_TIERS,
     SESSION_PROCESSING,
     CORRECTNESS_GUARANTEE_PRICING,
+    PHYSICAL_PRESENCE_PRICING,
     CURRENT_OFFER_VERSION,
     PRICING_CONSTANTS
 } from './config'; 

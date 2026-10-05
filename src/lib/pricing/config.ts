@@ -22,6 +22,11 @@ export interface CorrectnessPricingVersion {
     readonly description: string;
 }
 
+export interface PhysicalPresencePricingVersion {
+    readonly version: number;
+    readonly pricePerHour: number; // in EUR
+}
+
 /**
  * Platform pricing tiers based on municipality population
  */
@@ -77,11 +82,9 @@ export const SESSION_PROCESSING = {
 } as const;
 
 /**
- * Physical presence pricing
+ * Physical presence labels. The price is versioned: see PHYSICAL_PRESENCE_PRICING.
  */
 export const PHYSICAL_PRESENCE = {
-    /** Price per hour for personnel presence in meetings in EUR */
-    pricePerHour: 25,
     label: "Φυσική παρουσία σε συνεδριάσεις",
     labelEn: "Physical presence in meetings",
     description: "Παρουσία προσωπικού στις συνεδριάσεις του δημοτικού συμβουλίου",
@@ -99,8 +102,17 @@ export const EQUIPMENT_RENTAL = {
 } as const;
 
 /**
- * Correctness guarantee pricing by offer version
- * Newer versions should have higher version numbers
+ * Physical presence price per hour by offer version.
+ * An entry applies from its version until the next entry's version.
+ */
+export const PHYSICAL_PRESENCE_PRICING: readonly PhysicalPresencePricingVersion[] = [
+    { version: 1, pricePerHour: 25 },
+    { version: 4, pricePerHour: 50 },
+] as const;
+
+/**
+ * Correctness guarantee pricing by offer version.
+ * An entry applies from its version until the next entry's version.
  */
 export const CORRECTNESS_GUARANTEE_PRICING: readonly CorrectnessPricingVersion[] = [
     {
@@ -126,7 +138,7 @@ export const CORRECTNESS_GUARANTEE_PRICING: readonly CorrectnessPricingVersion[]
 /**
  * Current pricing version for new offers
  */
-export const CURRENT_OFFER_VERSION = 3 as const;
+export const CURRENT_OFFER_VERSION = 4 as const;
 
 /**
  * Additional pricing constants
@@ -156,13 +168,41 @@ export function getPlatformPricingTier(population: number): PlatformPricingTier 
 }
 
 /**
+ * The entry that applies to an offer version: the latest entry whose version
+ * is not above it. A new offer version inherits every price it does not change.
+ */
+function findPricingVersion<T extends { readonly version: number }>(
+    versions: readonly T[],
+    version: number
+): T | undefined {
+    return versions.reduce<T | undefined>(
+        (best, candidate) =>
+            candidate.version <= version && (!best || candidate.version > best.version) ? candidate : best,
+        undefined
+    );
+}
+
+/**
  * Get correctness guarantee pricing for a specific version
  */
 export function getCorrectnessPricing(version: number): CorrectnessPricingVersion {
-    const pricing = CORRECTNESS_GUARANTEE_PRICING.find(p => p.version === version);
+    const pricing = findPricingVersion(CORRECTNESS_GUARANTEE_PRICING, version);
 
     if (!pricing) {
         throw new Error(`No correctness guarantee pricing found for version: ${version}`);
+    }
+
+    return pricing;
+}
+
+/**
+ * Get physical presence pricing for a specific version
+ */
+export function getPhysicalPresencePricing(version: number): PhysicalPresencePricingVersion {
+    const pricing = findPricingVersion(PHYSICAL_PRESENCE_PRICING, version);
+
+    if (!pricing) {
+        throw new Error(`No physical presence pricing found for version: ${version}`);
     }
 
     return pricing;
