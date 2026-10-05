@@ -34,8 +34,11 @@ export async function getLightTranscript(meetingId: string, cityId: string): Pro
 
 export async function getTranscript(meetingId: string, cityId: string, {
   joinAdjacentSameSpeakerSegments = false,
+  joinSameSpeakerTagOnly = false,
 }: {
   joinAdjacentSameSpeakerSegments?: boolean;
+  /** Narrows the join to segments that also share a speaker tag (see joinTranscriptSegments). */
+  joinSameSpeakerTagOnly?: boolean;
 } = {}): Promise<Transcript> {
 
   const speakerSegments = await prisma.speakerSegment.findMany({
@@ -59,7 +62,7 @@ export async function getTranscript(meetingId: string, cityId: string, {
   });
 
   if (joinAdjacentSameSpeakerSegments) {
-    return joinTranscriptSegments(speakerSegments);
+    return joinTranscriptSegments(speakerSegments, { sameSpeakerTagOnly: joinSameSpeakerTagOnly });
   }
 
   return speakerSegments;

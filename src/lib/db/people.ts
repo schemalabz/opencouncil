@@ -189,11 +189,58 @@ export async function getPeopleWithVoicePrintsForCity(cityId: string): Promise<P
 }
 
 /**
+ * Whether a person may speak at a meeting of the given administrative body.
+ * One rule for every kind of body:
+ * - the members of the body that is meeting;
+ * - the municipal council;
+ * - the holders of a city-level role (mayor, deputy mayors, general secretary);
+ * - the heads of the communities;
+ * - people with no administrative body.
+ *
+ * Officials and councillors from outside the body attend and speak, at a
+ * committee as much as at the council. The rest of the city does not: most of
+ * it is ordinary members of community councils.
+ *
+ * Only city-level roles are read on the meeting date. Membership counts
+ * whenever it was held: people go on speaking after the role's recorded end,
+ * and on 53 reviewed meetings a date check would have dropped about one person
+ * from a list and left out two who spoke.
+ */
+function maySpeakAtMeeting(person: PersonWithRelations, administrativeBodyId: string, date?: Date): boolean {
+    if (hasCityLevelRole(person.roles, date)) {
+        return true;
+    }
+    const isInMeetingBody = person.roles.some(role => role.administrativeBodyId === administrativeBodyId);
+    const isInCouncil = person.roles.some(role => role.administrativeBody?.type === 'council');
+    const isCommunityHead = person.roles.some(role => role.administrativeBody?.type === 'community' && role.isHead);
+    const hasNoAdminBody = !person.roles.some(role => role.administrativeBody);
+
+    return isInMeetingBody || isInCouncil || isCommunityHead || hasNoAdminBody;
+}
+
+/**
+ * The people who may speak at a meeting (see maySpeakAtMeeting): whose
+ * voiceprints transcribe matches against, and who the transcript tasks are told
+ * about. A meeting with no administrative body gets all people in the city.
+ *
+ * `date` is the day city-level roles are read on; today when left out.
+ */
+export async function getPeopleWhoMaySpeak(cityId: string, administrativeBodyId: string | null, date?: Date): Promise<PersonWithRelations[]> {
+    const allPeople = await getPeopleForCity(cityId);
+    if (!administrativeBodyId) {
+        return allPeople;
+    }
+    return allPeople.filter(person => maySpeakAtMeeting(person, administrativeBodyId, date));
+}
+
+/**
  * Get relevant people for a meeting based on its administrative body type.
  * This filters people to avoid AI confusion by only including relevant members.
+ * It serves the tasks that read documents (the agenda, the decisions). The tasks
+ * that hear the meeting use getPeopleWhoMaySpeak.
  *
  * Rules:
- * - Council meetings (type=council): All council members + people with no admin body + community heads + mayors
+ * - Council meetings (type=council): everyone who may speak there (see maySpeakAtMeeting)
  * - Committee meetings (type=committee): Only members of that specific committee
  * - Community meetings (type=community): Only members of that specific community
  * - No admin body: All people in the city
@@ -220,25 +267,8 @@ export async function getPeopleForMeeting(cityId: string, administrativeBodyId: 
     // Filter based on administrative body type
     if (adminBody.type === 'council') {
         // Council meetings: Include council members, people with no admin body, community heads, and mayors
-        // Sort by role priority so the most important members come first (used for voiceprint prioritization)
-        const filtered = allPeople.filter(person => {
-            // Always include mayors (people with city-level roles)
-            if (hasCityLevelRole(person.roles)) {
-                return true;
-            }
-
-            const hasCouncilRole = person.roles.some(
-                role => role.administrativeBodyId === administrativeBodyId
-            );
-            const hasNoAdminBody = !person.roles.some(
-                role => role.administrativeBody
-            );
-            const isCommunityHead = person.roles.some(
-                role => role.administrativeBody?.type === 'community' && role.isHead
-            );
-
-            return hasCouncilRole || hasNoAdminBody || isCommunityHead;
-        });
+        // Sort by role priority so the most important members come first
+        const filtered = allPeople.filter(person => maySpeakAtMeeting(person, administrativeBodyId));
 
         return filtered.sort((a, b) => {
             const bestRoleA = Math.min(...a.roles.map(getRoleTypePriority));

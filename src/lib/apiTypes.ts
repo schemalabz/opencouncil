@@ -274,6 +274,9 @@ export interface RequestOnTranscript extends TaskRequest {
         speakerRole: string | null;
         speakerId: string | null;  // personId from voiceprint matching
         speakerSegmentId: string;
+        // The diarization speaker this segment belongs to. Every segment of one
+        // voice shares it, whether or not that voice has been matched to a person.
+        speakerTagId?: string;
         text: string;
         utterances: {
             text: string;
@@ -287,6 +290,17 @@ export interface RequestOnTranscript extends TaskRequest {
     cityLanguage: CityLanguage;
     country: Country;
     administrativeBodyName: string | null;
+    /**
+     * The people who may speak at the meeting: the one list of people the
+     * transcript tasks get. fixTranscript corrects names against it, and
+     * identifies speakers from it when segments carry speakerTagId.
+     */
+    people: RosterPerson[];
+    /**
+     * @deprecated The same people grouped by party, without the ones who have
+     * no party. A task server that predates `people` reads this. Remove it once
+     * every task server reads `people`.
+     */
     partiesWithPeople: {
         name: string;
         people: {
@@ -301,7 +315,56 @@ export interface RequestOnTranscript extends TaskRequest {
  * Fix Transcript
  */
 
-export interface FixTranscriptRequest extends RequestOnTranscript { }
+/** One of a meeting's people: someone who may speak at it, and so someone a speaker can be identified as. */
+export interface RosterPerson {
+    id: string;
+    name: string;
+    /** Roles held on the meeting date, the ones in the meeting's body first. */
+    role: string | null;
+    /** The party's name on the meeting date. */
+    party: string | null;
+    /** Leads that party: "the head of the party" is a common way to give the floor. */
+    partyHead?: boolean;
+    /** Holds an active role in the administrative body that is meeting. */
+    memberOfMeetingBody?: boolean;
+}
+
+/**
+ * The kind of cue a transcript identification rests on, strongest first.
+ * - named:          the speaker is given the floor by name, right before they speak
+ * - rollCall:       a name is read out and the speaker answers
+ * - selfIntroduced: the speaker states their own name or role
+ * - addressed:      others address the speaker by name or role title
+ * - roleBehaviour:  only what the speaker does (chairs, answers as the
+ *                   executive); no name or title is spoken
+ */
+export type SpeakerEvidenceKind = "named" | "rollCall" | "selfIntroduced" | "addressed" | "roleBehaviour";
+
+/**
+ * Who a diarization speaker is, judged from the transcript text alone (the
+ * chair giving the floor by name, roll calls, self-introductions). Independent
+ * of voiceprint matching: the caller reconciles the two.
+ */
+export interface SpeakerHint {
+    speakerTagId: string;
+    personId: string;
+    /**
+     * Whether the task would act on this identification by itself. The task
+     * decides, next to the prompt that produces the evidence, as it decides
+     * whether a voiceprint matched: the caller compares identities and never
+     * thresholds a number. A hint that is not actionable is a suggestion for a
+     * reviewer and nothing more.
+     */
+    actionable: boolean;
+    /** The strongest kind of evidence behind the identification; null when the model named none. */
+    evidenceKind: SpeakerEvidenceKind | null;
+    /** 0–100, the model's own number. For a reviewer to read, not a contract. */
+    confidence: number;
+    /** The decisive transcript line(s) with their timestamp, for a reviewer to check the name. */
+    evidence: string;
+}
+
+export type FixTranscriptRequest = RequestOnTranscript;
 
 export interface FixTranscriptResult {
     updateUtterances: {
@@ -309,6 +372,8 @@ export interface FixTranscriptResult {
         markUncertain: boolean;
         text: string;
     }[];
+    /** One entry per speaker the transcript identifies. Absent when the task did not run the identification. */
+    speakerHints?: SpeakerHint[];
 }
 
 /*
