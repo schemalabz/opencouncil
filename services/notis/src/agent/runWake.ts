@@ -46,6 +46,44 @@ function normalizeSlug(input: unknown): string {
     .slice(0, SLUG_MAX_CHARS);
 }
 
+/**
+ * Markup that must never reach a reader: web_fetch citation tags that the
+ * model copies from a fetched page (seen in three production messages). The
+ * cited words stay; only the tags go.
+ */
+export function sanitizeMessageText(text: string): string {
+  return text.replace(/<\/?cite\b[^>]*>/gi, "").trim();
+}
+
+/**
+ * A promise to come back, in the model's own Greek. finish_wake asks the
+ * model whether it promised anything, but in production 30 messages made a
+ * promise while the answer said no — the text itself is the better witness.
+ */
+export const PROMISE_PATTERN =
+  /(?<!δεν )(θα (σε|σας) (ενημερώσω|κρατ(ήσω|άω) ενήμερ)|θα επανέλθω|θα (σου|σας) (πω|γράψω|ξαναγράψω) (μόλις|όταν|αν|αφού|τι|πώς|πότε|ποι)|θα το κρατήσω|το κρατάω)/iu;
+
+/**
+ * Does prose written next to tool calls read like a message to the reader?
+ * In production, 1,548 of 1,654 "stranded prose" nudges answered «that was
+ * internal reasoning»: at low effort the model sometimes writes its reasoning
+ * as text instead of a thinking block. Reasoning is English; a message to a
+ * Greek reader is Greek — and a draft that was then sent is not stranded.
+ */
+export function proseLooksLikeAMessage(prose: string, sent: string[]): boolean {
+  // A link is Latin letters that say nothing about the language of the prose.
+  const words = prose.replace(/https?:\/\/\S+/g, "");
+  const greek = (words.match(/\p{Script=Greek}/gu) ?? []).length;
+  const latin = (words.match(/\p{Script=Latin}/gu) ?? []).length;
+  if (greek <= latin) return false;
+  // Only a sent message of some length can vouch that the prose went out:
+  // «Ναι.» inside a 200-character paragraph proves nothing.
+  const head = prose.slice(0, 80);
+  return !sent.some(
+    (s) => s.length >= 40 && (s.includes(head) || prose.includes(s.slice(0, 80))),
+  );
+}
+
 function textOf(content: unknown[]): string {
   return content
     .filter(isTextBlock)
@@ -122,6 +160,10 @@ export async function runWake(
   const commitmentsRecorded: Array<{ slug: string; what: string }> = [];
   const commitmentsResolved: string[] = [];
   let declaredPromise = false;
+  // finish_wake's own account of the decision. The shell derives the real
+  // decision from the sends; this is what the model BELIEVED it did, and a
+  // «send» with nothing sent is a lost message the shell can catch.
+  let declaredDecision: "send" | "silence" | undefined;
   // Reader messages that arrived mid-run and were absorbed into this wake —
   // their own queued wakes are consumed by deps.absorb, so answering them
   // here is not optional: nobody else will.
@@ -187,6 +229,9 @@ export async function runWake(
   let deliveryRepaired = false;
   let bookkeepingRepaired = false;
   let finished = false;
+  // finish_wake was called at least once. `finished` is reset when a nudge
+  // asks for a second call; a wake whose nudge went unanswered still finished.
+  let everFinished = false;
   // Instrument-panel truth: repairs that fired, and terminal anomalies. A
   // rescued or cut wake must never be indistinguishable from a healthy one —
   // the silence rate and the review queue read these records.
@@ -211,6 +256,16 @@ export async function runWake(
   // "rationale" is reliably meta chatter about the check itself.
   let preNudgeRationale: string | undefined;
   let sentAtNudge = -1;
+  const saveRationaleBeforeNudge = () => {
+    // A second nudge must not replace the genuine rationale with the model's
+    // answer to the first one («that prose was internal reasoning») — which
+    // is what the decision log kept whenever two nudges fired. The current
+    // rationale is genuine only if a send happened since the last nudge.
+    if (preNudgeRationale === undefined || sent.length !== sentAtNudge) {
+      preNudgeRationale = rationale;
+    }
+    sentAtNudge = sent.length;
+  };
 
   // Fail-forward fence: once a delivery attempt has been made, an error can
   // no longer roll this wake back — a retry would re-run the model after the
@@ -234,8 +289,8 @@ export async function runWake(
    * A nudge asks the model to do something, so it needs a turn to be
    * answered in. Fired on the last allowed turn it gets none: the loop
    * exits with the nudge unanswered, the repair never happens, and the wake
-   * records finishWakeMissing — a contract breach the model did not commit,
-   * on a turn it was never given. Each repair kind is one-shot, so the
+   * records «nudge/unanswered» among its repairs — the model was asked on a
+   * turn it was never given. Each repair kind is one-shot, so the
    * repair paths ask at most twice, and only for a wake already at the
    * ceiling. The pause path asks again for a nudge it left outstanding, so
    * MAX_REPAIR_TURNS bounds the total.
@@ -347,7 +402,17 @@ export async function runWake(
     // all, but the nudge has had its turn.
     nudgeOutstanding = false;
 
-    if (response.stop_reason === "tool_use" || response.stop_reason === "pause_turn") {
+    // Dispatch on the content, not only on the stop reason: the model sometimes
+    // ends a turn that carries finish_wake (or a send) with stop_reason
+    // end_turn, and skipping those calls lost the rationale of 25 production
+    // wakes. A max_tokens turn is the one exception — its last tool_use block
+    // can be cut mid-JSON.
+    const hasClientToolCalls = response.content.some(isToolUseBlock);
+    if (
+      response.stop_reason === "tool_use" ||
+      response.stop_reason === "pause_turn" ||
+      (hasClientToolCalls && response.stop_reason !== "max_tokens")
+    ) {
       // Last look before bytes leave: if the reader wrote again while this
       // turn was streaming, hold its sends — the model re-decides with the
       // new message in hand instead of delivering a superseded answer.
@@ -372,7 +437,7 @@ export async function runWake(
         let ack = "noted";
         switch (block.name) {
           case "send_message": {
-            const t = String(block.input.text ?? "");
+            const t = sanitizeMessageText(String(block.input.text ?? ""));
             if (holdNote) {
               ack =
                 "held: the reader sent a new message before delivery (see the reader " +
@@ -479,7 +544,12 @@ export async function runWake(
             rationale = String(block.input.rationale ?? "") || rationale;
             declaredLearning = block.input.learnedSomethingLasting === true;
             declaredPromise = block.input.promisedFollowUp === true;
+            declaredDecision =
+              block.input.decision === "send" || block.input.decision === "silence"
+                ? block.input.decision
+                : undefined;
             finished = true;
+            everFinished = true;
             ack = "wake recorded";
             break;
           default:
@@ -501,32 +571,44 @@ export async function runWake(
       // missing commitment. A spent delivery budget falls through to the
       // bookkeeping checks, which still have theirs.
       if (finished) {
-        if (!deliveryRepaired && hasUserMessage && sent.length === 0 && !unsubscribe) {
+        // An answer is owed when the model's own finish_wake says «send» and
+        // nothing went out — a proactive wake that decided to write and never
+        // called send_message was recorded as silence in 14+ production wakes
+        // — and when the reader wrote, unless the model declared «silence» and
+        // left no prose behind (a «thanks» correctly earns no reply).
+        const draft = strandedProse !== undefined && proseLooksLikeAMessage(strandedProse, sent);
+        const answerOwed =
+          sent.length === 0 &&
+          (declaredDecision === "send" ||
+            (hasUserMessage && (declaredDecision !== "silence" || draft)));
+        if (!deliveryRepaired && answerOwed && !unsubscribe) {
           // When the answer sits stranded as prose, quote it back. Without the
           // quote the model rereads its own text above and concludes it already
           // answered ("message already sent") — observed failure.
+          const waiting = hasUserMessage
+            ? "The person asked you something directly and NOTHING has been delivered " +
+              "to them — they are still waiting."
+            : "Your finish_wake says the decision is «send», but NOTHING has been " +
+              "delivered to the reader.";
           nudge = {
             kind: "delivery",
             tag: strandedProse ? "stranded-prose/finish" : "zero-send/finish",
             text: strandedProse
-              ? "(system check) The person asked you something directly and NOTHING has " +
-                "been delivered to them — they are still waiting. The text you wrote next " +
-                "to your tool calls was NOT delivered; nothing reaches the person except " +
-                "send_message content. The undelivered text was:\n«" +
+              ? `(system check) ${waiting} The text you wrote next to your tool calls ` +
+                "was NOT delivered; nothing reaches the person except send_message " +
+                "content. The undelivered text was:\n«" +
                 strandedProse.slice(0, 1200) +
                 "»\nIf it was meant for them, send it now with send_message, then " +
                 "finish_wake again with the wake's own rationale — about the reader and " +
                 "this wake's decision, never about this check. If you truly intend to stay " +
-                "silent, call finish_wake again to confirm."
-              : "(system check) You finished the wake without sending anything, but the " +
-                "person asked you something directly. Nothing has been delivered to them — " +
-                "they are still waiting. If you meant to answer them, call send_message " +
-                "with the message now, then finish_wake again with the wake's own " +
-                "rationale — about the reader and this wake's decision, never about this " +
-                "check. If you truly intend to stay silent, call finish_wake again to " +
-                "confirm.",
+                "silent, call finish_wake again with decision «silence» to confirm."
+              : `(system check) ${waiting} If you meant to write to them, call ` +
+                "send_message with the message now, then finish_wake again with the " +
+                "wake's own rationale — about the reader and this wake's decision, never " +
+                "about this check. If you truly intend to stay silent, call finish_wake " +
+                "again with decision «silence» to confirm.",
           };
-        } else if (!deliveryRepaired && strandedProse) {
+        } else if (!deliveryRepaired && strandedProse && draft) {
           nudge = {
             kind: "delivery",
             tag: "stranded-prose/finish",
@@ -542,7 +624,7 @@ export async function runWake(
           };
         } else if (
           !bookkeepingRepaired &&
-          declaredPromise &&
+          (declaredPromise || sent.some((s) => PROMISE_PATTERN.test(s))) &&
           commitmentsRecorded.length === 0 &&
           !unsubscribe
         ) {
@@ -550,14 +632,20 @@ export async function runWake(
             kind: "bookkeeping",
             tag: "promised/no-commitment",
             text:
-              "(system check) You answered that you promised the reader a follow-up, but " +
-              "you never called record_commitment — so nothing will remind you: the " +
-              "decision log rolls, and by the time the thing happens this exchange is out " +
-              "of view. Record it now with a short slug, then call finish_wake again. If " +
-              "you promised nothing after all, finish with promisedFollowUp false.",
+              "(system check) You promised the reader a follow-up — your finish_wake said " +
+              "so, or your message did («θα σε ενημερώσω», «θα σου πω») — but you never " +
+              "called record_commitment, so nothing will remind you: the decision log " +
+              "rolls, and by the time the thing happens this exchange is out of view. " +
+              "Record it now with a short slug, then call finish_wake again. If an open " +
+              "commitment already covers it, or you promised nothing after all, finish " +
+              "with promisedFollowUp false.",
           };
         } else if (
           !bookkeepingRepaired &&
+          // Only the reader's own words teach something lasting. On a
+          // proactive wake this nudge forced guesses into the profile — twelve
+          // readers became «the councillor» because a speaker shared their name.
+          hasUserMessage &&
           declaredLearning &&
           profileRewrite === undefined &&
           !unsubscribe
@@ -575,8 +663,7 @@ export async function runWake(
           };
         }
         if (nudge) {
-          preNudgeRationale = rationale;
-          sentAtNudge = sent.length;
+          saveRationaleBeforeNudge();
           finished = false;
           nudgeOutstanding = true;
           grantTurnForNudge(turn);
@@ -622,8 +709,7 @@ export async function runWake(
         // Same rationale protection as the other three repair paths: if the
         // nudged turn adds no sends, post-nudge check-chatter must not become
         // the decision-log rationale the next thirty wakes read as memory.
-        preNudgeRationale = rationale;
-        sentAtNudge = sent.length;
+        saveRationaleBeforeNudge();
         deliveryRepaired = true;
         nudgeOutstanding = true;
         grantTurnForNudge(turn);
@@ -643,8 +729,7 @@ export async function runWake(
       // calls: that prose was never delivered, and is often the missing half
       // of a multi-message answer.
       if (strandedProse) {
-        preNudgeRationale = rationale;
-        sentAtNudge = sent.length;
+        saveRationaleBeforeNudge();
         deliveryRepaired = true;
         nudgeOutstanding = true;
         grantTurnForNudge(turn);
@@ -682,6 +767,11 @@ export async function runWake(
     partialDeliveryError = error instanceof Error ? error.message : String(error);
   }
 
+  // A nudge still outstanding here was never answered: the turn budget ran
+  // out under it. The panel must be able to tell that wake from one whose
+  // nudge was answered with a confirmed silence.
+  if (nudgeOutstanding) repairs.push("nudge/unanswered");
+
   if (preNudgeRationale && sent.length === sentAtNudge) {
     rationale = preNudgeRationale;
   }
@@ -706,7 +796,7 @@ export async function runWake(
 
   // finish_wake is REQUIRED by the prompt; when the loop ends without it (and
   // without a terminal anomaly explaining why), record the contract breach.
-  const finishWakeMissing = !finished && !refused && !truncated && !partialDeliveryError;
+  const finishWakeMissing = !everFinished && !refused && !truncated && !partialDeliveryError;
 
   const outcome: WakeOutcome = {
     decision,

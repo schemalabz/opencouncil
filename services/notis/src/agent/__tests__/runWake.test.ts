@@ -530,12 +530,12 @@ describe("runWake", () => {
     expect(trace.turns).toHaveLength(3);
   });
 
-  it("the dangling-tool-call backstop still fires when a reader update lands the same turn", async () => {
-    // An end_turn that carries a tool_use block: the repair path appends the
-    // assistant turn verbatim, so the call sits unanswered in the MIDDLE of
-    // the message list. A message absorbed at the next turn's start must not
-    // hide it — the request would 400 with «`tool_use` ids were found without
-    // `tool_result` blocks», and every retry reproduces that.
+  it("an end_turn that carries a tool_use block is dispatched like a tool turn, and no call is left dangling", async () => {
+    // The model sometimes ends a turn that carries tool calls with end_turn.
+    // Those calls run like any other — the send below reaches the reader —
+    // and every request stays well-formed even when a reader update lands at
+    // the next turn's start (the request would 400 with «`tool_use` ids were
+    // found without `tool_result` blocks», and every retry reproduces that).
     const fake = new FakeAnthropic([
       { content: [text("σκέψη"), toolUse("d1", "send_message", { text: "x" })], stop_reason: "end_turn" },
       { content: [toolUse("t1", "send_message", { text: "Η απάντηση." })], stop_reason: "tool_use" },
@@ -554,7 +554,10 @@ describe("runWake", () => {
       }),
     );
 
-    expect(outcome.repairs).toContain("dangling-tool-calls");
+    // The reader update lands right before «x» leaves, so that send is held
+    // and re-decided; the second turn's answer goes out.
+    expect(outcome.messages).toEqual(["Η απάντηση."]);
+    expect(outcome.repairs).toEqual(["reader-update/held-sends"]);
     for (const req of fake.requests) {
       const msgs = req.messages as Array<{ role?: string; content?: unknown }>;
       msgs.forEach((m, i) => {
@@ -719,8 +722,10 @@ describe("runWake", () => {
     );
 
     expect(trace.turns.filter((t) => t.role !== "injected")).toHaveLength(5);
-    // The wake really did run out without finishing, and it says so.
-    expect(outcome.finishWakeMissing).toBe(true);
+    // The nudge went unanswered, which the repairs record — but finish_wake
+    // WAS called, so the wake is not a finish_wake breach.
+    expect(outcome.repairs).toEqual(["zero-send/finish", "nudge/unanswered"]);
+    expect(outcome.finishWakeMissing).toBeUndefined();
     expect(outcome.rationale).toBe("Της απάντησα ήδη νοερά.");
   });
 
@@ -1214,5 +1219,307 @@ describe("runWake incremental delivery (deps.deliver)", () => {
         deliver: async () => ({ ok: true }),
       }),
     ).rejects.toThrow("exhausted");
+  });
+});
+
+describe("runWake — production repairs (2026-10)", () => {
+  const userEvent = { type: "user_message" as const, at: FIXED_NOW.toISOString(), text: "τι έγινε;" };
+
+  it("runs the client tool calls of an end_turn response (finish_wake is not dropped)", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          text("Routine items only."),
+          toolUse("t1", "finish_wake", { decision: "silence", rationale: "Τίποτα για εκείνη." }),
+        ],
+        stop_reason: "end_turn",
+      },
+    ]);
+    const { outcome, trace } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
+    expect(outcome.rationale).toBe("Τίποτα για εκείνη.");
+    expect(outcome.finishWakeMissing).toBeUndefined();
+    expect(outcome.repairs).toBeUndefined();
+    expect(trace.turns).toHaveLength(1);
+  });
+
+  it("does not run the tool calls of a max_tokens turn", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [toolUse("t1", "send_message", { text: "Κομμένο μήνυμ" })],
+        stop_reason: "max_tokens",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
+    expect(outcome.messages).toEqual([]);
+    expect(outcome.truncated).toBe(true);
+  });
+
+  it("a proactive wake that declares «send» without sending gets the delivery nudge", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "finish_wake", {
+            decision: "send",
+            rationale: "Αξίζει σύντομη ειδοποίηση για την πλατεία.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: false,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t2", "send_message", { text: "Η πλατεία Κυψέλης παίρνει 2,3 εκατ." }),
+          toolUse("t3", "finish_wake", {
+            decision: "send",
+            rationale: "Την αφορά άμεσα.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: false,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
+    expect(outcome.repairs).toEqual(["zero-send/finish"]);
+    expect(outcome.decision).toBe("send");
+    expect(outcome.messages).toEqual(["Η πλατεία Κυψέλης παίρνει 2,3 εκατ."]);
+    expect(outcome.rationale).toBe("Την αφορά άμεσα.");
+  });
+
+  it("a reply wake that declares «silence» with no prose gets no nudge (a «thanks» earns none)", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "finish_wake", {
+            decision: "silence",
+            rationale: "Απλώς ευχαρίστησε.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: false,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome, trace } = await runWake(
+      makeState(),
+      [{ ...userEvent, text: "Ευχαριστώ!" }],
+      makeDeps(fake),
+    );
+    expect(outcome.repairs).toBeUndefined();
+    expect(outcome.decision).toBe("silence");
+    expect(trace.turns).toHaveLength(1);
+  });
+
+  it("English reasoning written as text next to finish_wake earns no nudge", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          text(
+            "The brief shows only routine committee items. Nothing here touches Kypseli or " +
+            "the reader's topics, so silence is the right call for this wake.",
+          ),
+          toolUse("t1", "finish_wake", { decision: "silence", rationale: "Ρουτίνα." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome, trace } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
+    expect(outcome.repairs).toBeUndefined();
+    expect(outcome.rationale).toBe("Ρουτίνα.");
+    expect(trace.turns).toHaveLength(1);
+  });
+
+  it("Greek prose that reads like an unsent message still earns the nudge", async () => {
+    const draft =
+      "Μικρή ενημέρωση και για το δεύτερο θέμα: το πάρκινγκ στην Πατησίων αναβλήθηκε για τον " +
+      "Οκτώβριο, όπως ζήτησε η αντιπολίτευση.";
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Η πλατεία Κυψέλης παίρνει 2,3 εκατ." }),
+          text(draft),
+          toolUse("t2", "finish_wake", { decision: "send", rationale: "Την αφορά." }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t3", "send_message", { text: draft }),
+          toolUse("t4", "finish_wake", { decision: "send", rationale: "Την αφορά." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
+    expect(outcome.repairs).toEqual(["stranded-prose/finish"]);
+    expect(outcome.messages).toHaveLength(2);
+  });
+
+  it("a promise in the sent text triggers the commitment nudge even when finish_wake denies it", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", { text: "Θα σε ενημερώσω μόλις βγει η απόφαση." }),
+          toolUse("t2", "finish_wake", {
+            decision: "send",
+            rationale: "Ρώτησε για την απόφαση.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: false,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t3", "record_commitment", { slug: "apofasi", what: "Να της πω την απόφαση." }),
+          toolUse("t4", "finish_wake", {
+            decision: "send",
+            rationale: "Ρώτησε για την απόφαση· το κατέγραψα.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [userEvent], makeDeps(fake));
+    expect(outcome.repairs).toEqual(["promised/no-commitment"]);
+    expect(outcome.commitments?.record).toEqual([{ slug: "apofasi", what: "Να της πω την απόφαση." }]);
+  });
+
+  it("the learning nudge never fires on a wake without a reader message", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "finish_wake", {
+            decision: "silence",
+            rationale: "Ο αναγνώστης μάλλον είναι ο σύμβουλος που μίλησε.",
+            learnedSomethingLasting: true,
+            promisedFollowUp: false,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome, trace } = await runWake(makeState(), [meetingEvent()], makeDeps(fake));
+    expect(outcome.repairs).toBeUndefined();
+    expect(outcome.profileRewrite).toBeUndefined();
+    expect(trace.turns).toHaveLength(1);
+  });
+
+  it("two nudges keep the first genuine rationale, not the answer to the first nudge", async () => {
+    const fake = new FakeAnthropic([
+      {
+        // Reply wake, nothing sent, promise declared: delivery nudge first.
+        content: [
+          toolUse("t1", "finish_wake", {
+            decision: "send",
+            rationale: "Της απάντησα για το πάρκινγκ.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        // Still nothing sent; meta rationale about the check. Bookkeeping nudge follows.
+        content: [
+          toolUse("t2", "finish_wake", {
+            decision: "silence",
+            rationale: "That text was my own reasoning, nothing to send.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+      {
+        content: [
+          toolUse("t3", "record_commitment", { slug: "parking", what: "Να της πω για το πάρκινγκ." }),
+          toolUse("t4", "finish_wake", {
+            decision: "silence",
+            rationale: "Recorded the commitment as asked by the check.",
+            learnedSomethingLasting: false,
+            promisedFollowUp: true,
+          }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [userEvent], makeDeps(fake));
+    expect(outcome.repairs).toEqual(["zero-send/finish", "promised/no-commitment"]);
+    expect(outcome.rationale).toBe("Της απάντησα για το πάρκινγκ.");
+    expect(outcome.finishWakeMissing).toBeUndefined();
+  });
+
+  it("strips citation markup from a sent message", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          toolUse("t1", "send_message", {
+            text: 'Ο δήμος <cite index="3-1">ανακοίνωσε την παράταση</cite> έως τον Νοέμβριο.',
+          }),
+          toolUse("t2", "finish_wake", { decision: "send", rationale: "Ρώτησε." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome } = await runWake(makeState(), [userEvent], makeDeps(fake));
+    expect(outcome.messages).toEqual(["Ο δήμος ανακοίνωσε την παράταση έως τον Νοέμβριο."]);
+  });
+});
+
+describe("runWake helpers", () => {
+  const { PROMISE_PATTERN, proseLooksLikeAMessage, sanitizeMessageText } = jest.requireActual<
+    typeof import("../runWake")
+  >("../runWake");
+
+  it("PROMISE_PATTERN catches follow-up promises, not immediate sends or negations", () => {
+    expect(PROMISE_PATTERN.test("Θα σε ενημερώσω μόλις βγει η απόφαση.")).toBe(true);
+    expect(PROMISE_PATTERN.test("Θα σου πω τι αποφασίστηκε την Τρίτη.")).toBe(true);
+    expect(PROMISE_PATTERN.test("Το κρατάω και επανέρχομαι.")).toBe(true);
+    expect(PROMISE_PATTERN.test("Θα σου στείλω το link τώρα: https://opencouncil.gr/athens")).toBe(false);
+    expect(PROMISE_PATTERN.test("Δεν θα σε ενημερώσω για κάθε συνεδρίαση.")).toBe(false);
+  });
+
+  it("proseLooksLikeAMessage ignores links and tiny sends when judging the prose", () => {
+    const draft =
+      "Η πλατεία Κυψέλης παίρνει 2,3 εκατ. για ανάπλαση, ομόφωνα. " +
+      "https://opencouncil.gr/athens/meetings/abc123/subjects/xyz789abcdef";
+    expect(proseLooksLikeAMessage(draft, [])).toBe(true);
+    expect(proseLooksLikeAMessage(draft, ["Ναι."])).toBe(true);
+    expect(proseLooksLikeAMessage(draft, [draft])).toBe(false);
+    expect(
+      proseLooksLikeAMessage("The brief shows routine items only; silence is right for this wake.", []),
+    ).toBe(false);
+  });
+
+  it("sanitizeMessageText drops citation tags and keeps the words", () => {
+    expect(sanitizeMessageText('Ο δήμος <cite index="3-1">ανακοίνωσε</cite> παράταση.')).toBe(
+      "Ο δήμος ανακοίνωσε παράταση.",
+    );
+  });
+
+  it("English reasoning next to a declared silence on a reply wake earns no nudge", async () => {
+    const fake = new FakeAnthropic([
+      {
+        content: [
+          text(
+            "The reader is just thanking me for the earlier answer. There is nothing new to " +
+            "research or to send, so I will stay silent on this wake.",
+          ),
+          toolUse("t1", "finish_wake", { decision: "silence", rationale: "Ευχαρίστησε." }),
+        ],
+        stop_reason: "tool_use",
+      },
+    ]);
+    const { outcome, trace } = await runWake(
+      makeState(),
+      [{ type: "user_message", at: FIXED_NOW.toISOString(), text: "Ευχαριστώ!" }],
+      makeDeps(fake),
+    );
+    expect(outcome.repairs).toBeUndefined();
+    expect(trace.turns).toHaveLength(1);
   });
 });

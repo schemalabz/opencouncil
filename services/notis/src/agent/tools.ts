@@ -8,13 +8,27 @@ export const CLIENT_TOOLS = [
   {
     name: "finish_wake",
     description:
-      "End the wake, carrying your operator rationale (2-4 honest sentences; 1-2 for " +
-      "silence) about why this was, or was not, worth the reader's attention. REQUIRED " +
-      "on every wake, and call it in the SAME turn as your final send_message calls — " +
-      "one turn: sends plus finish_wake, nothing after.",
+      "End the wake, carrying your decision and your operator rationale (2-4 honest " +
+      "sentences; 1-2 for silence) about why this was, or was not, worth the reader's " +
+      "attention. REQUIRED on every wake, and call it in the SAME turn as your final " +
+      "send_message calls — one turn: sends plus finish_wake, nothing after. Write " +
+      "nothing outside your tool calls: text next to them is never delivered and never " +
+      "read.",
     input_schema: {
       type: "object" as const,
       properties: {
+        // The model's own account of the decision. The shell derives the real
+        // one from the sends; a declared «send» with nothing sent is a lost
+        // message, and the only way to catch it on a proactive wake — in
+        // production the model regularly decided to write, called only
+        // finish_wake, and the wake went down as silence.
+        decision: {
+          type: "string",
+          enum: ["send", "silence"],
+          description:
+            "What you did this wake: «send» if you called send_message, «silence» if " +
+            "you sent nothing. The shell checks this against your actual sends.",
+        },
         rationale: {
           type: "string",
           description:
@@ -47,7 +61,7 @@ export const CLIENT_TOOLS = [
             "call record_commitment before finishing, or the promise is forgotten.",
         },
       },
-      required: ["rationale", "learnedSomethingLasting", "promisedFollowUp"],
+      required: ["decision", "rationale", "learnedSomethingLasting", "promisedFollowUp"],
     },
   },
   {
