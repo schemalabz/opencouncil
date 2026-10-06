@@ -7,6 +7,7 @@ import { env } from '@/env.mjs'
 import { withServiceOrUserAuth } from '@/lib/auth'
 import { ApiError } from '@/lib/api/errors'
 import { UploadConfig, uploadAuthorizationScope } from '@/types/upload'
+import { mintUploadAclToken } from '@/lib/uploadAclToken'
 
 /**
  * Generate a meaningful filename based on upload config
@@ -133,6 +134,8 @@ export async function POST(request: NextRequest) {
             key,
             publicUrl,
             expiresIn,
+            // set-acl makes this key, and no other, public
+            aclToken: mintUploadAclToken(key),
         })
     } catch (error) {
         console.error('Error generating pre-signed URL:', error)
