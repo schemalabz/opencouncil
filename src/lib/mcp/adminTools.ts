@@ -111,7 +111,7 @@ function registerMeetingAdminTools(server: McpServer) {
                 + 'you omit stays as it is. Pass null to clear youtubeUrl, agendaUrl or administrativeBodyId. The name '
                 + 'is not a field: the site derives it from the kind and the session number. Mark a '
                 + 'meeting postponed or cancelled with scheduleStatus. An administrator of a body cannot move a meeting '
-                + 'to another body. It cannot link a meeting to a postponed '
+                + 'to a body that they do not administer. It cannot link a meeting to a postponed '
                 + 'meeting, it cannot release a meeting and it cannot delete one. Confirm the change with the '
                 + 'user before you call.',
             inputSchema: z.object({

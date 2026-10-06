@@ -57,6 +57,12 @@ describe('processTaskResponse', () => {
     expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'other-city', councilMeetingId: 'other-meeting' });
   });
 
+  it("authorizes against the task's city for a task that is the city's", async () => {
+    mockTaskFindUnique.mockResolvedValue({ id: 'task-1', type: 'pollDecisions', cityId: 'other-city', councilMeetingId: 'other-meeting', responseBody: '{}' });
+    await processTaskResponse('pollDecisions', 'task-1').catch(() => undefined);
+    expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'other-city' });
+  });
+
   it("authorizes against the task's city when the task has no meeting", async () => {
     mockTaskFindUnique.mockResolvedValue({ id: 'task-1', type: 'transcribe', status: 'failed', cityId: 'other-city', councilMeetingId: null, responseBody: '{}' });
     await processTaskResponse('transcribe', 'task-1');
