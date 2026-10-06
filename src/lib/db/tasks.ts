@@ -66,7 +66,7 @@ export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
     // requires superadmin so a bare delete cannot be fired against any id.
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskStatusId },
-        select: { cityId: true, councilMeetingId: true },
+        select: { type: true, cityId: true, councilMeetingId: true },
     });
     await withUserAuthorizedToEdit(task ? taskScope(task) : {});
     try {

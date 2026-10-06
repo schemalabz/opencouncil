@@ -30,7 +30,9 @@ export async function sendTranscriptToMunicipality(
     meetingId: string
 ): Promise<SendTranscriptResult> {
     try {
-        await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId });
+        // The city's, not the body admin's: sending the transcript is part of
+        // the human review, which a body admin does not complete (#828).
+        await withUserAuthorizedToEdit({ cityId });
 
         const idempotency = await checkTaskIdempotency('transcriptSent', cityId, meetingId);
         if (!idempotency.proceed) {

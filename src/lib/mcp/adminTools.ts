@@ -74,7 +74,7 @@ function registerMeetingAdminTools(server: McpServer) {
                 'Change the details of a meeting in a municipality, or of an administrative body, that you administer: '
                 + 'name, date, video URL, agenda URL or administrative body. A field that you omit stays as it is. '
                 + 'Pass null to clear youtubeUrl, agendaUrl or administrativeBodyId. An administrator of a body '
-                + 'cannot move a meeting to another body. It cannot release a meeting and it cannot '
+                + 'cannot move a meeting to a body that they do not administer. It cannot release a meeting and it cannot '
                 + 'delete one. Confirm the change with the user before you call.',
             inputSchema: z.object({
                 cityId: z.string().min(1),

@@ -67,9 +67,17 @@ the payload must be on a body they hold (`getRoleLimitForCity`,
 emails. They invite and remove admins of the same body through
 `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
 
+A body admin runs the tasks `processAgenda`, `transcribe`, `fixTranscript`,
+`summarize` and `generateHighlight` of their meetings, and may replay or delete
+those rows (`taskScope` in `src/lib/tasks/types.ts`). Human review, the
+transcript it sends, decision polling and voiceprints stay with the city.
+
+A body admin may move a meeting between two bodies they administer, and to no
+other body.
+
 A body admin cannot: open the city form, delete a meeting, complete a human
-review, send notifications, poll decisions, edit parties, or edit a person with
-a seat elsewhere. A person who claimed their own page edits name and photo
+review, send the transcript, send notifications, poll decisions, edit parties,
+or edit a person with a seat elsewhere. A person who claimed their own page edits name and photo
 only; their form sends no roles.
 
 The MCP admin tools (`create_meeting`, `update_meeting`, `start_task`) apply the
