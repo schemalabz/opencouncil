@@ -97,6 +97,20 @@ const taskStatusWithMeetingInclude = {
     }
 } satisfies Prisma.TaskStatusInclude;
 
+type TaskStatusWithMeeting = Prisma.TaskStatusGetPayload<{ include: typeof taskStatusWithMeetingInclude }>;
+
+/** The task fields that every task admin alert carries. */
+function taskAlertTarget(task: TaskStatusWithMeeting) {
+    return {
+        taskType: task.type,
+        cityName: task.councilMeeting.city.name_en,
+        meetingName: task.councilMeeting.name_en,
+        taskId: task.id,
+        cityId: task.cityId,
+        meetingId: task.councilMeetingId,
+    };
+}
+
 export const startTask = async (taskType: MeetingTaskType, requestBody: any, councilMeetingId: string, cityId: string, options: { force?: boolean; silent?: boolean } = {}) => {
     const config: TaskConfig = TASK_CONFIG[taskType];
 
@@ -256,15 +270,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
 
                 // Send Discord admin alert for successful completion AFTER processing succeeds
                 if (sendGenericAlerts) {
-                    sendTaskAdminAlert({
-                        status: 'completed',
-                        taskType: task.type,
-                        cityName: task.councilMeeting.city.name_en,
-                        meetingName: task.councilMeeting.name_en,
-                        taskId: task.id,
-                        cityId: task.cityId,
-                        meetingId: task.councilMeetingId,
-                    });
+                    sendTaskAdminAlert({ status: 'completed', ...taskAlertTarget(task) });
                 }
 
                 // Revalidate cache only for successful tasks that affect meeting data
@@ -286,16 +292,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
 
                 // Send Discord admin alert for processing failure
                 if (sendGenericAlerts) {
-                    sendTaskAdminAlert({
-                        status: 'failed',
-                        taskType: task.type,
-                        cityName: task.councilMeeting.city.name_en,
-                        meetingName: task.councilMeeting.name_en,
-                        taskId: task.id,
-                        cityId: task.cityId,
-                        meetingId: task.councilMeetingId,
-                        error: errorMessage(error),
-                    });
+                    sendTaskAdminAlert({ status: 'failed', ...taskAlertTarget(task), error: errorMessage(error) });
                 }
             }
         } else {
@@ -303,15 +300,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
 
             // Task succeeded but has no result to process - still send completion admin alert
             if (sendGenericAlerts) {
-                sendTaskAdminAlert({
-                    status: 'completed',
-                    taskType: task.type,
-                    cityName: task.councilMeeting.city.name_en,
-                    meetingName: task.councilMeeting.name_en,
-                    taskId: task.id,
-                    cityId: task.cityId,
-                    meetingId: task.councilMeetingId,
-                });
+                sendTaskAdminAlert({ status: 'completed', ...taskAlertTarget(task) });
             }
         }
     } else if (update.status === 'error') {
@@ -326,16 +315,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
 
         // Send Discord admin alert for task failure
         if (sendGenericAlerts) {
-            sendTaskAdminAlert({
-                status: 'failed',
-                taskType: task.type,
-                cityName: task.councilMeeting.city.name_en,
-                meetingName: task.councilMeeting.name_en,
-                taskId: task.id,
-                cityId: task.cityId,
-                meetingId: task.councilMeetingId,
-                error: update.error,
-            });
+            sendTaskAdminAlert({ status: 'failed', ...taskAlertTarget(task), error: update.error });
         }
     } else if (update.status === 'processing') {
         // Use updateMany with WHERE clause to atomically prevent overwriting terminal states
