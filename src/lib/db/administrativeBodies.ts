@@ -24,6 +24,15 @@ export async function getAdministrativeBodiesForCity(cityId: string): Promise<Ad
 }
 
 /**
+ * Whether a body belongs to a city. Ungated: the meeting writes call it to
+ * keep a meeting and its body in one city, whoever the caller is.
+ */
+export async function isBodyOfCity(bodyId: string, cityId: string): Promise<boolean> {
+    const body = await prisma.administrativeBody.findUnique({ where: { id: bodyId }, select: { cityId: true } });
+    return body?.cityId === cityId;
+}
+
+/**
  * Every administrative body of a city, with the fields anyone may read. The
  * public twin of {@link getAdministrativeBodiesForCity}.
  */
