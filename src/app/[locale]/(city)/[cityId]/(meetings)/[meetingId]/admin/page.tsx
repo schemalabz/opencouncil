@@ -1,5 +1,5 @@
 import Admin from "@/components/meetings/admin/Admin";
-import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 
@@ -18,13 +18,19 @@ export default async function AdminPage(props: {
     // anyway. Gate here, at city-admin scope (not superadmin), so the check
     // fires on every render path. `notFound()` hides the page's existence.
     const { cityId, meetingId } = await props.params;
-    if (!(await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId }))) {
+    const [editable, scope] = await Promise.all([
+        isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId }),
+        // Which bodies the edit form offers: all of them to a city admin, the
+        // admin's own bodies to a body admin.
+        getUnreleasedScope(cityId),
+    ]);
+    if (!editable) {
         notFound();
     }
 
     return (
         <div className="container py-8">
-            <Admin />
+            <Admin editableBodyIds={scope.all ? undefined : scope.bodyIds} />
         </div>
     );
 }

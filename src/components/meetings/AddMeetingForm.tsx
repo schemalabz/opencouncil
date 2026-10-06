@@ -93,7 +93,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess, allowedBody
             youtubeUrl: meeting?.youtubeUrl || "",
             agendaUrl: meeting?.agendaUrl || "",
             meetingId: meeting?.id || formatDateAsMeetingId(meeting ? new Date(meeting.dateTime) : new Date()),
-            administrativeBodyId: meeting?.administrativeBodyId || (allowedBodyIds?.length === 1 ? allowedBodyIds[0] : "none"),
+            administrativeBodyId: meeting?.administrativeBodyId || allowedBodyIds?.[0] || "none",
             processAgenda: true,
         },
     })
@@ -312,6 +312,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess, allowedBody
                                             config={meetingId ? {
                                                 cityId,
                                                 identifier: meetingId,
+                                                councilMeetingId: meeting?.id,
                                                 suffix: 'recording',
                                                 administrativeBodyId,
                                             } : undefined}
@@ -344,6 +345,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess, allowedBody
                                             config={meetingId ? {
                                                 cityId,
                                                 identifier: meetingId,
+                                                councilMeetingId: meeting?.id,
                                                 suffix: 'agenda',
                                                 administrativeBodyId,
                                             } : undefined}
