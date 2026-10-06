@@ -47,8 +47,8 @@ const rolesJson = z.string().transform((value, ctx) => {
     }
 }).pipe(z.array(personRoleSchema));
 
-// FormData body of POST /people and PUT /people/{personId}. The roles replace
-// all roles of the person, so the field is required.
+// FormData body of POST /people. The roles replace all roles of the person,
+// so the field is required.
 export const personFormDataSchema = z.object({
     ...basePersonFields,
     profileUrl: z.string().url().optional().or(z.literal('')),
@@ -57,5 +57,14 @@ export const personFormDataSchema = z.object({
     removeImage: z.string().optional().transform(val => val === 'true'),
     roles: rolesJson,
 });
+
+// FormData body of PUT /people/{personId}. A form that may not change the
+// roles (a person who claimed their own page) leaves the field out, and the
+// roles stay as they are.
+export const personUpdateFormDataSchema = personFormDataSchema.extend({
+    roles: rolesJson.optional(),
+});
+
+export type PersonUpdateFormData = z.output<typeof personUpdateFormDataSchema>;
 
 export type PersonFormData = z.infer<typeof personFormDataSchema>;

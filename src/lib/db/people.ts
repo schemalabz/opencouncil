@@ -2,7 +2,7 @@
 import { Person, VoicePrint } from '@prisma/client';
 import type { PersonRoleData } from '@/lib/zod-schemas/person';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
+import { withUserAuthorizedToEdit, getRoleLimitForCity, personIsOwnedByBodyAdmin } from "../auth";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
@@ -40,7 +40,7 @@ export async function createPerson(data: {
     profileUrl: string | null;
     roles: PersonRoleData[];
 }): Promise<Person> {
-    await withUserAuthorizedToEdit({ cityId: data.cityId });
+    await withRolesAuthorized(data.cityId, data.roles);
     try {
         const newPerson = await prisma.person.create({
             data: {
@@ -76,6 +76,19 @@ export async function createPerson(data: {
     }
 }
 
+/**
+ * The gate on a person's roles. A city admin or a superadmin gives any role.
+ * A body admin gives roles on their bodies only, and at least one (see
+ * personIsOwnedByBodyAdmin). Anyone else, a person who claimed their own page
+ * among them, changes no roles.
+ */
+async function withRolesAuthorized(cityId: string, roles: PersonRoleData[]): Promise<void> {
+    const limit = await getRoleLimitForCity(cityId);
+    if (limit && !personIsOwnedByBodyAdmin(roles, limit)) {
+        throw new Error("Not authorized");
+    }
+}
+
 export async function editPerson(id: string, data: {
     name: string;
     name_en: string;
@@ -83,17 +96,25 @@ export async function editPerson(id: string, data: {
     name_short_en: string;
     image?: string | null;
     profileUrl: string | null;
-    roles: PersonRoleData[];
+    /** Replaces every role of the person. Absent, the roles stay as they are. */
+    roles?: PersonRoleData[];
 }): Promise<Person> {
     await withUserAuthorizedToEdit({ personId: id });
+    if (data.roles) {
+        const person = await prisma.person.findUnique({ where: { id }, select: { cityId: true } });
+        if (!person) throw new Error('Person not found');
+        await withRolesAuthorized(person.cityId, data.roles);
+    }
+    const roles = data.roles;
     try {
         const updatedPerson = await prisma.$transaction(async (tx) => {
-            // First delete all existing roles
-            await tx.role.deleteMany({
-                where: { personId: id }
-            });
+            // The roles are replaced as a set: delete them all, then create the new ones.
+            if (roles) {
+                await tx.role.deleteMany({
+                    where: { personId: id }
+                });
+            }
 
-            // Then update the person and create new roles
             return await tx.person.update({
                 where: { id },
                 data: {
@@ -103,19 +124,21 @@ export async function editPerson(id: string, data: {
                     name_short_en: data.name_short_en,
                     ...(data.image !== undefined && { image: data.image }),
                     profileUrl: data.profileUrl,
-                    roles: {
-                        create: data.roles.map(role => ({
-                            cityId: role.cityId,
-                            partyId: role.partyId,
-                            administrativeBodyId: role.administrativeBodyId,
-                            name: role.name,
-                            name_en: role.name_en,
-                            isHead: role.isHead,
-                            startDate: role.startDate,
-                            endDate: role.endDate,
-                            electedOrder: role.electedOrder
-                        }))
-                    }
+                    ...(roles && {
+                        roles: {
+                            create: roles.map(role => ({
+                                cityId: role.cityId,
+                                partyId: role.partyId,
+                                administrativeBodyId: role.administrativeBodyId,
+                                name: role.name,
+                                name_en: role.name_en,
+                                isHead: role.isHead,
+                                startDate: role.startDate,
+                                endDate: role.endDate,
+                                electedOrder: role.electedOrder
+                            }))
+                        }
+                    }),
                 },
                 include: {
                     roles: roleWithRelationsInclude

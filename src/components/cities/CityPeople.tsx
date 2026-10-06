@@ -26,6 +26,11 @@ type CityPeopleProps = {
     canEdit: boolean,
     /** Superadmin-only tools. `canEdit` is true for a city admin too, who must not get these. */
     isSuperAdmin: boolean,
+    /**
+     * The bodies a body admin may give roles on. Absent for a city admin, who
+     * may give any role. The form then offers these bodies and no party.
+     */
+    editableBodyIds?: string[],
 };
 
 export default function CityPeople({
@@ -35,6 +40,7 @@ export default function CityPeople({
     cityId,
     canEdit,
     isSuperAdmin,
+    editableBodyIds,
 }: CityPeopleProps) {
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
@@ -146,7 +152,9 @@ export default function CityPeople({
             adminTools={adminTools}
             ItemComponent={PersonCard}
             FormComponent={PersonForm}
-            formProps={{ cityId, parties, administrativeBodies }}
+            formProps={editableBodyIds
+                ? { cityId, parties: [], administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)) }
+                : { cityId, parties, administrativeBodies }}
             t={t}
             filterAvailableValues={typeOptions}
             filter={(selectedValues, person) => {

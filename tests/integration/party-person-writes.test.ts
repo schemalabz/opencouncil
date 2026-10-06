@@ -164,13 +164,15 @@ describe('party and person writes validate their input', () => {
             ])
         })
 
+        // A person who claimed their own page sends no roles (#828); the
+        // update goes through and the roles stay as they are.
         it('keeps the roles when an update omits them', async () => {
             const existing = await prisma.person.create({ data: { ...person, cityId, roles: { create: [{ cityId, name: 'Kept' }] } } })
             const response = await updatePerson(
                 formRequest(`people/${existing.id}`, { ...person }, 'PUT'),
                 { params: Promise.resolve({ cityId, personId: existing.id }) },
             )
-            expect(response.status).toBe(400)
+            expect(response.status).toBe(200)
             expect(await prisma.role.count({ where: { personId: existing.id, name: 'Kept' } })).toBe(1)
         })
 
