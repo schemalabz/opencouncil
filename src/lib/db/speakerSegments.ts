@@ -92,7 +92,7 @@ export async function createEmptySpeakerSegmentAfter(
         throw new Error('Segment not found');
     }
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
 
     // Find the next segment to ensure we place the new segment correctly
     const nextSegment = await prisma.speakerSegment.findFirst({
@@ -155,7 +155,7 @@ export async function createEmptySpeakerSegmentBefore(
         throw new Error('Segment not found');
     }
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
 
     // Calculate timestamps for the new segment
     // We want to create a small segment before the first segment
@@ -225,7 +225,7 @@ export async function addUtteranceToSegment(
         throw new Error('City ID mismatch');
     }
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: segment.meetingId });
 
     let startTimestamp: number;
     let endTimestamp: number;
@@ -300,7 +300,7 @@ async function moveUtterancesToSegment(
         throw new Error('Current segment not found');
     }
 
-    await withUserAuthorizedToEdit({ cityId: currentSegment.cityId });
+    await withUserAuthorizedToEdit({ cityId: currentSegment.cityId, councilMeetingId: currentSegment.meetingId });
 
     // Find the target segment (previous or next)
     const targetSegment = await prisma.speakerSegment.findFirst({
@@ -400,7 +400,7 @@ export async function updateSegmentTimestamps(segmentId: string) {
         throw new Error('Segment not found');
     }
 
-    await withUserAuthorizedToEdit({ cityId: segment.cityId });
+    await withUserAuthorizedToEdit({ cityId: segment.cityId, councilMeetingId: segment.meetingId });
 
     const earliestStart = Math.min(...segment.utterances.map(u => u.startTimestamp));
     const latestEnd = Math.max(...segment.utterances.map(u => u.endTimestamp));
@@ -453,7 +453,7 @@ export async function deleteEmptySpeakerSegment(
         throw new Error('City ID mismatch');
     }
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: segment.meetingId });
 
     const text = segment.utterances.map((u) => u.text).join(" ");
     const isOnlyWhitespace = text.trim().length === 0;
@@ -740,7 +740,7 @@ export async function updateSpeakerSegmentData(
         throw new Error('City ID mismatch');
     }
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: currentSegment.meetingId });
 
     // Validate the input data
     if (data.utterances.length === 0) {
@@ -904,7 +904,7 @@ export async function extractSpeakerSegment(
     if (!originalSegment) throw new Error('Segment not found');
     if (originalSegment.cityId !== cityId) throw new Error('City mismatch');
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
 
     // 2. Find utterance indices
     const utterances = originalSegment.utterances;

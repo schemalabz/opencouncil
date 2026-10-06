@@ -7,7 +7,7 @@ import "server-only";
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
 import { lockKey } from '@/lib/db/advisoryLock';
-import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, type TaskConfig } from '@/lib/tasks/types';
+import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, taskScope, type TaskConfig } from '@/lib/tasks/types';
 import { PipelineBusyError } from '@/lib/tasks/types';
 import { findConflictingTask } from './pipelineRules';
 import { withUserAuthorizedToEdit } from '../auth';
@@ -371,7 +371,7 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
 
     // The caller supplies the task id, so the gate is what stops one city's
     // admin from replaying a result onto another city's meeting.
-    await withUserAuthorizedToEdit({ cityId: task.cityId });
+    await withUserAuthorizedToEdit(taskScope(task));
 
     const handler = taskHandlers[taskType];
     if (!handler) {

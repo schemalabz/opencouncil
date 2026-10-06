@@ -17,8 +17,8 @@ export default async function AdminPage(props: {
     // for anyone — and a layout guard would not re-run on an RSC navigation
     // anyway. Gate here, at city-admin scope (not superadmin), so the check
     // fires on every render path. `notFound()` hides the page's existence.
-    const { cityId } = await props.params;
-    if (!(await isUserAuthorizedToEdit({ cityId }))) {
+    const { cityId, meetingId } = await props.params;
+    if (!(await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId }))) {
         notFound();
     }
 

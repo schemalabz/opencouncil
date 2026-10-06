@@ -18,6 +18,8 @@ type CityMeetingsProps = {
     cityId: string,
     timezone: string,
     canEdit: boolean,
+    /** The bodies a body admin may create meetings for; absent for a city admin. */
+    editableBodyIds?: string[],
     /**
      * Every body the city has released a meeting for — not only the bodies
      * inside the loaded window. The list is capped, so deriving the picker from
@@ -36,6 +38,7 @@ export default function CityMeetings({
     cityId,
     timezone,
     canEdit,
+    editableBodyIds,
     administrativeBodies,
     now,
     cappedAt,
@@ -99,7 +102,7 @@ export default function CityMeetings({
             itemProps={{ cityTimezone: timezone, now }}
             cappedAt={cappedAt}
             FormComponent={AddMeetingForm}
-            formProps={{ cityId }}
+            formProps={{ cityId, allowedBodyIds: editableBodyIds }}
             t={t}
             filterAvailableValues={typeOptions}
             filter={(selectedValues, meeting) => {

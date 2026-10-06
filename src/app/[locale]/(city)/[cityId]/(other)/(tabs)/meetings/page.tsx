@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
-import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { getUnreleasedScope } from "@/lib/auth";
 import { DEFAULT_MEETING_PAGE_SIZE } from "@/lib/db/meetingsList";
 import CityMeetings from "@/components/cities/CityMeetings";
-import { getCityCached, getCouncilMeetingsPreviewCached, getAdministrativeBodiesWithPublicMeetingsCached } from "@/lib/cache";
+import { getCityCached, getCouncilMeetingsPreviewCached, getAdministrativeBodiesWithPublicMeetingsCached, getAdministrativeBodiesForCityCached } from "@/lib/cache";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
 import { getLocalizedName } from "@/lib/formatters/name";
 import { getOgLocale } from '@/i18n/config';
@@ -95,14 +95,27 @@ export default async function MeetingsPage(
         cityId
     } = params;
 
-    const [city, councilMeetings, administrativeBodies, canEdit] = await Promise.all([
+    const [city, councilMeetings, publicBodies, unreleased] = await Promise.all([
         getCityCached(cityId),
         getCouncilMeetingsPreviewCached(cityId, { limit: MEETINGS_TAB_LIMIT }),
         // The picker's own source. Deriving it from the capped rows above hid
         // every body whose last meeting fell outside the window.
         getAdministrativeBodiesWithPublicMeetingsCached(cityId),
-        isUserAuthorizedToEdit({ cityId }),
+        // A city admin edits every meeting; a body admin adds meetings of their bodies.
+        getUnreleasedScope(cityId),
     ]);
+    const canEdit = unreleased.all || unreleased.bodyIds.length > 0;
+    // The picker offers the bodies with a released meeting. A body admin's own
+    // bodies join it, or the drafts of a body with no released meeting yet
+    // would hide behind the default chip with no chip to reach them.
+    const administrativeBodies = unreleased.all || unreleased.bodyIds.length === 0
+        ? publicBodies
+        : [
+            ...publicBodies,
+            ...(await getAdministrativeBodiesForCityCached(cityId))
+                .filter(body => unreleased.bodyIds.includes(body.id) && !publicBodies.some(known => known.id === body.id))
+                .map(({ id, name, name_en, type, cityId: bodyCityId }) => ({ id, name, name_en, type, cityId: bodyCityId })),
+        ];
 
     if (!city) {
         notFound();
@@ -114,6 +127,7 @@ export default async function MeetingsPage(
             cityId={cityId}
             timezone={city.timezone}
             canEdit={canEdit}
+            editableBodyIds={unreleased.all ? undefined : unreleased.bodyIds}
             administrativeBodies={administrativeBodies}
             now={new Date()}
             cappedAt={MEETINGS_TAB_LIMIT}

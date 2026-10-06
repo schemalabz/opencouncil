@@ -62,6 +62,14 @@ export const TASK_CONFIG = {
 export type MeetingTaskType = keyof typeof TASK_CONFIG;
 
 /**
+ * The authorization scope of a task: its meeting when it has one, so that an
+ * admin of the meeting's body passes, and its city otherwise (voiceprints).
+ */
+export function taskScope(task: { cityId: string; councilMeetingId: string | null }): { cityId: string; councilMeetingId?: string } {
+    return task.councilMeetingId ? { cityId: task.cityId, councilMeetingId: task.councilMeetingId } : { cityId: task.cityId };
+}
+
+/**
  * startTask throws this when the idempotency guard blocks a pipeline task.
  * A caller that chains one task after another treats it as a skip, not as a failure:
  * the meeting already has the task that the caller wanted to start.

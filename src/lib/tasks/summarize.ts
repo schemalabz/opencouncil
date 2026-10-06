@@ -22,7 +22,7 @@ export async function requestSummarize(cityId: string, councilMeetingId: string,
 }: {
     force?: boolean;
 } = {}) {
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId });
     return requestSummarizeInternal(cityId, councilMeetingId, requestedSubjects, additionalInstructions, { force });
 }
 

@@ -64,7 +64,7 @@ export async function getUtteranceContext(
 
     if (!meeting.released) {
         const bearer = await validateBearerAuth(request);
-        if (!bearer && !(await isUserAuthorizedToEdit({ cityId }))) {
+        if (!bearer && !(await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId }))) {
             return null;
         }
     }

@@ -34,14 +34,14 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockWithUserAuthorizedToEdit.mockResolvedValue(true);
   mockTaskFindUnique.mockResolvedValue({
-    id: 'task-1', type: 'transcribe', status: 'failed', cityId: 'other-city', responseBody: '{}',
+    id: 'task-1', type: 'transcribe', status: 'failed', cityId: 'other-city', councilMeetingId: 'other-meeting', responseBody: '{}',
   });
 });
 
 describe('requestFixTranscript', () => {
-  it('authorizes the caller for the city it was handed', async () => {
+  it('authorizes the caller for the meeting it was handed', async () => {
     await requestFixTranscript('meeting-1', 'city-1');
-    expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'city-1' });
+    expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'city-1', councilMeetingId: 'meeting-1' });
   });
 
   it('starts no task when the caller is not authorized', async () => {
@@ -52,7 +52,13 @@ describe('requestFixTranscript', () => {
 });
 
 describe('processTaskResponse', () => {
-  it("authorizes against the task's own city, not one the caller supplies", async () => {
+  it("authorizes against the task's own meeting, not one the caller supplies", async () => {
+    await processTaskResponse('transcribe', 'task-1');
+    expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'other-city', councilMeetingId: 'other-meeting' });
+  });
+
+  it("authorizes against the task's city when the task has no meeting", async () => {
+    mockTaskFindUnique.mockResolvedValue({ id: 'task-1', type: 'transcribe', status: 'failed', cityId: 'other-city', councilMeetingId: null, responseBody: '{}' });
     await processTaskResponse('transcribe', 'task-1');
     expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'other-city' });
   });
