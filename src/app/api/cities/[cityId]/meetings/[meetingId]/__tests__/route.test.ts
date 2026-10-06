@@ -76,6 +76,16 @@ describe('PUT /api/cities/{cityId}/meetings/{meetingId}', () => {
         }
     });
 
+    it('returns 404 for a meeting that does not exist, with or without a body', async () => {
+        mockGetCouncilMeetingDirect.mockResolvedValue(null);
+
+        for (const body of [EDIT, { ...EDIT, administrativeBodyId: 'youth' }]) {
+            const res = await PUT(request(body), props);
+            expect(res.status).toBe(404);
+        }
+        expect(mockUpdateMeetingWithEffects).not.toHaveBeenCalled();
+    });
+
     it('writes nothing when the caller may not take the meeting to the destination', async () => {
         mockWithUserAuthorizedToEdit
             .mockResolvedValueOnce(true)
