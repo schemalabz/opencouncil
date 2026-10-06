@@ -86,7 +86,7 @@ export async function getHighlightsForMeeting(
     cityId: City["id"],
     meetingId: CouncilMeeting["id"]
 ): Promise<HighlightWithUtterances[]> {
-    const permissions = await getHighlightPermissions(cityId);
+    const permissions = await getHighlightPermissions(cityId, meetingId);
     
     // Not logged in = no highlights
     if (!permissions) {
@@ -99,7 +99,7 @@ export async function getHighlightsForMeeting(
         meetingId
     };
 
-    // City editors (including super admins) see all highlights
+    // Editors of the meeting (a body admin among them) see all highlights
     // Regular users only see their own
     if (!permissions.canEdit) {
         where.createdById = permissions.userId;
