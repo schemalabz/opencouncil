@@ -278,7 +278,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
             } catch (error) {
                 console.error(`Error processing result for task ${taskId}:`, error);
                 const originalResponse = JSON.stringify(update.result);
-                const errorDetail = `Processing error: ${(error as Error).message}\n\n--- Original task server response ---\n${originalResponse}`;
+                const errorDetail = `Processing error: ${errorMessage(error)}\n\n--- Original task server response ---\n${originalResponse}`;
                 await prisma.taskStatus.update({
                     where: { id: taskId },
                     data: { status: 'failed', responseBody: errorDetail, version: update.version }
@@ -294,7 +294,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                         taskId: task.id,
                         cityId: task.cityId,
                         meetingId: task.councilMeetingId,
-                        error: (error as Error).message,
+                        error: errorMessage(error),
                     });
                 }
             }
