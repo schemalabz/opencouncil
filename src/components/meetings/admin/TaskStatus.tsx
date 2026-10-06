@@ -189,6 +189,7 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                                             size="sm"
                                             className="h-5 w-5 p-0"
                                             onClick={onReprocessClick}
+                                            disabled={task.responseBody === null}
                                         >
                                             <RefreshCw className="h-3 w-3" />
                                         </Button>

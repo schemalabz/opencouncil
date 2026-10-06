@@ -379,7 +379,38 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
         throw new Error(`Unsupported task type: ${taskType}`);
     }
 
-    await handler(taskId, JSON.parse(task.responseBody!), options);
+    // Only a finished task has a result to replay. A pending task can still
+    // receive its callback, and a failed task without a payload has nothing to
+    // replay (the task server reported an error, or the task did not start).
+    if ((task.status !== 'succeeded' && task.status !== 'failed') || task.responseBody === null) {
+        throw new Error(`Task ${taskId} has no result to replay (status ${task.status})`);
+    }
+
+    // A row from before the failureReason column can hold failure text here
+    // instead of a payload. Parse before the handler runs, so that a replay of
+    // such a row does not record a parse error as the failure of the task.
+    let payload: unknown;
+    try {
+        payload = JSON.parse(task.responseBody);
+    } catch {
+        throw new Error(`Task ${taskId} has no result to replay: responseBody is not a task payload`);
+    }
+
+    // The handler runs on a succeeded task too (a forced re-run), but only a
+    // failed task changes: a replay never demotes a succeeded task.
+    try {
+        await handler(taskId, payload, options);
+    } catch (error) {
+        await prisma.taskStatus.updateMany({
+            where: { id: taskId, status: 'failed' },
+            data: { failureReason: errorDetail(error) },
+        });
+        throw error;
+    }
+    await prisma.taskStatus.updateMany({
+        where: { id: taskId, status: 'failed' },
+        data: { status: 'succeeded', failureReason: null },
+    });
 }
 
 export const getHighestVersionsForTasks = async (taskTypes: MeetingTaskType[]): Promise<Record<string, number | null>> => {

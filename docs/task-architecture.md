@@ -269,26 +269,13 @@ The `failureReason` column starts with migration `20261006120000_task_status_fai
 
 ### Basic Reprocessing
 
-The `processTaskResponse` function in `src/lib/tasks/tasks.ts` uses the task handler registry to reprocess stored results:
+The `processTaskResponse` function in `src/lib/tasks/tasks.ts` uses the task handler registry to reprocess stored results. It calls the handler of the task type with the stored `responseBody` directly. The rules:
 
-```typescript
-import { taskHandlers } from './registry';
+-   The task must be terminal (`succeeded` or `failed`) and `responseBody` must not be null. Otherwise `processTaskResponse` throws before the handler runs and writes nothing. A pending task can still receive its callback. A failed task without a payload has nothing to replay.
+-   Only a failed task changes. If the handler succeeds, the task becomes `succeeded` and `failureReason` becomes null. If the handler throws, `failureReason` gets the new error and `processTaskResponse` rethrows the error.
+-   A replay never changes a `succeeded` task. Both writes use `updateMany` with `status: 'failed'` in the `where` clause.
 
-export const processTaskResponse = async (taskType: string, taskId: string, options?: { force?: boolean }) => {
-    const task = await prisma.taskStatus.findUnique({ where: { id: taskId } });
-    if (!task) {
-        console.error(`Task ${taskId} not found`);
-        return;
-    }
-
-    const handler = taskHandlers[taskType];
-    if (!handler) {
-        throw new Error(`Unsupported task type: ${taskType}`);
-    }
-
-    await handler(taskId, JSON.parse(task.responseBody!), options);
-}
-```
+Two concurrent replays of the same task can both run the handler. This race is known and accepted.
 
 ### Force Mode for Data Cleanup
 
