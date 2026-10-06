@@ -39,7 +39,8 @@ export type CouncilMeetingWithAdminBody = Prisma.CouncilMeetingGetPayload<{
 
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
-    await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
+    // The city's, not the body admin's: deletion is not among their rights (#828).
+    await withUserAuthorizedToEdit({ cityId });
     await deleteMeetingRecord(cityId, id);
 }
 
@@ -91,7 +92,7 @@ export async function getCouncilMeeting(cityId: string, id: string): Promise<Cou
     try {
         const meeting = await getCouncilMeetingDirect(cityId, id);
 
-        if (meeting && !meeting.released && !(await isUserAuthorizedToEdit({ cityId }))) {
+        if (meeting && !meeting.released && !(await isUserAuthorizedToEdit({ cityId, councilMeetingId: id }))) {
             return null;
         }
         return meeting;

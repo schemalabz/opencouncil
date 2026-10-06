@@ -33,9 +33,13 @@ const getMeetingsQuerySchema = z.object({
 export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
     try {
-        await withServiceOrUserAuth(request, { cityId: params.cityId });
         const body = await request.json();
         const { processAgenda, ...input } = meetingSchema.parse(body);
+        // A body admin creates meetings of their body only, so the check
+        // carries the body; a meeting with no body is the city's.
+        await withServiceOrUserAuth(request, input.administrativeBodyId
+            ? { cityId: params.cityId, administrativeBodyId: input.administrativeBodyId }
+            : { cityId: params.cityId });
 
         // Auth was already verified by withServiceOrUserAuth above. The shared
         // write runs the lifecycle rules and does no auth of its own.

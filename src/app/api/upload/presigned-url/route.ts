@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { env } from '@/env.mjs'
 import { withServiceOrUserAuth } from '@/lib/auth'
 import { ApiError } from '@/lib/api/errors'
-import { UploadConfig } from '@/types/upload'
+import { UploadConfig, uploadAuthorizationScope } from '@/types/upload'
 
 /**
  * Generate a meaningful filename based on upload config
@@ -94,9 +94,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Check authorization via service API key or user session
-        const cityId = config?.cityId
         try {
-            await withServiceOrUserAuth(request, cityId ? { cityId } : {})
+            await withServiceOrUserAuth(request, uploadAuthorizationScope(config))
         } catch (error) {
             if (error instanceof ApiError) {
                 return NextResponse.json({ error: error.message }, { status: error.statusCode })

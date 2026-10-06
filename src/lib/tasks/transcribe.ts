@@ -25,7 +25,7 @@ const round4 = (v: number | null | undefined) => (v == null ? null : Number(v.to
 export async function requestTranscribe(youtubeUrl: string, councilMeetingId: string, cityId: string, options: {
     force?: boolean;
 } = {}): Promise<{ ok: true } | { ok: false; message: string }> {
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId });
 
     try {
         await requestTranscribeInternal(youtubeUrl, councilMeetingId, cityId, options);

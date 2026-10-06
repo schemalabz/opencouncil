@@ -12,6 +12,6 @@ import { requestFixTranscriptInternal } from './fixTranscriptInternal';
  * requestFixTranscriptInternal.
  */
 export const requestFixTranscript = async (councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId });
     return requestFixTranscriptInternal(councilMeetingId, cityId, options);
 };

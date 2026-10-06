@@ -2,7 +2,7 @@
 import { withUserAuthorizedToEdit } from "../auth";
 import prisma from "./prisma";
 import { TaskStatus } from '@prisma/client';
-import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG } from "../tasks/types";
+import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG, taskScope } from "../tasks/types";
 import { getHighlightPermissions } from "./highlights";
 
 // Derived type for meeting task completion status
@@ -66,9 +66,9 @@ export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
     // requires superadmin so a bare delete cannot be fired against any id.
     const task = await prisma.taskStatus.findUnique({
         where: { id: taskStatusId },
-        select: { cityId: true },
+        select: { cityId: true, councilMeetingId: true },
     });
-    await withUserAuthorizedToEdit(task ? { cityId: task.cityId } : {});
+    await withUserAuthorizedToEdit(task ? taskScope(task) : {});
     try {
         await prisma.taskStatus.delete({
             where: { id: taskStatusId },
@@ -84,12 +84,12 @@ export async function deleteTaskStatus(taskStatusId: string): Promise<void> {
  */
 export async function getGenerateHighlightTasksForHighlight(cityId: string, meetingId: string, highlightId: string): Promise<TaskStatus[]> {
     // Check authorization: city editors can view any highlight's tasks, regular users only their own
-    const permissions = await getHighlightPermissions(cityId);
+    const permissions = await getHighlightPermissions(cityId, meetingId);
     if (!permissions) {
         throw new Error('Authentication required');
     }
 
-    if (!permissions.canEditCity) {
+    if (!permissions.canEdit) {
         // Regular users can only view tasks for their own highlights
         const highlight = await prisma.highlight.findUnique({
             where: { id: highlightId },
