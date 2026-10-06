@@ -2,8 +2,8 @@ import type { MeetingTaskRow } from '@/lib/db/tasksInternal';
 
 /**
  * A task row as the tools report it. Terminal tasks carry `finishedAt`; a
- * failed one carries the answer of the task server, cut so a stack trace
- * cannot fill the payload.
+ * failed one carries its failure reason, cut so a stack trace cannot fill
+ * the payload.
  */
 export function mcpTaskSummary(task: MeetingTaskRow) {
     const finished = task.status === 'succeeded' || task.status === 'failed';

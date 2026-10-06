@@ -93,7 +93,8 @@ graph TD;
     -   `type`: The type of the task (e.g., "transcribe", "summarize").
     -   `status`: The current status of the task ("pending", "processing", "succeeded", "failed").
     -   `requestBody`: The JSON payload sent to the task server.
-    -   `responseBody`: The JSON result received from the task server.
+    -   `responseBody`: The JSON result received from the task server. It holds only a task-server payload, or null.
+    -   `failureReason`: The failure text of a failed task. It is set for every failure: the task server reports an error, the result handler throws (the stack of the error), or the task does not start (`Failed to start task: …`). A success callback sets it to null.
     -   `councilMeetingId`: Foreign key to the `CouncilMeeting` table.
     -   `version`: A version number for the task, allowing for reprocessing.
     -   ...and other relevant fields.
@@ -261,6 +262,10 @@ The optional `options` parameter allows handlers to accept flags like `force` fo
 ## 6. Task Reprocessing
 
 A key feature of the task architecture is the ability to reprocess the results of a task without having to re-run the entire task on the backend server. This is made possible by storing the complete `responseBody` from the task server in the `TaskStatus` table.
+
+When the result handler throws, the task becomes `failed`. `responseBody` keeps the payload and `failureReason` holds the error. After a fix to the handler, a reprocess of the task uses the stored payload.
+
+The `failureReason` column starts with migration `20261006120000_task_status_failure_reason`. A failed row from before that migration has no `failureReason`, and its `responseBody` can hold failure text instead of a payload. A reprocess refuses such a row when the text is not JSON.
 
 ### Basic Reprocessing
 

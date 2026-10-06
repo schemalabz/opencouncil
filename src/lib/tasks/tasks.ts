@@ -16,7 +16,7 @@ import { Prisma, TaskStatus } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { taskHandlers, taskTerminalHooks } from './registry';
 import { mintCallbackToken } from './callbackToken';
-import { errorMessage } from '@/lib/utils/errors';
+import { errorDetail, errorMessage } from '@/lib/utils/errors';
 
 export interface TaskIdempotencyResult {
     proceed: boolean;
@@ -207,7 +207,7 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
         // Update task status to failed with error details
         await prisma.taskStatus.update({
             where: { id: newTask.id },
-            data: { status: 'failed', responseBody: fullError }
+            data: { status: 'failed', failureReason: fullError }
         });
 
         throw new Error(fullError);
@@ -235,6 +235,18 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     return newTask;
 }
 
+/**
+ * Record that a result handler threw. `responseBody` stays as it is: it holds the
+ * task-server payload, which `processTaskResponse` replays once the handler is
+ * fixed.
+ */
+async function recordProcessingFailure(taskId: string, error: unknown, version?: number) {
+    await prisma.taskStatus.update({
+        where: { id: taskId },
+        data: { status: 'failed', failureReason: errorDetail(error), version },
+    });
+}
+
 export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>, processResult: (taskId: string, result: T, options?: { force?: boolean }) => Promise<void>, options?: { force?: boolean }) => {
     // Get task details for Discord admin alerts
     const task = await prisma.taskStatus.findUnique({
@@ -257,7 +269,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
         // first success callback for a task proceeds.
         const claimed = await prisma.taskStatus.updateMany({
             where: { id: taskId, status: { not: 'succeeded' } },
-            data: { status: 'succeeded', responseBody: JSON.stringify(update.result), version: update.version }
+            data: { status: 'succeeded', responseBody: JSON.stringify(update.result), failureReason: null, version: update.version }
         });
         if (claimed.count === 0) {
             console.warn(`Ignoring duplicate success callback for task ${taskId}`);
@@ -283,12 +295,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
                 }
             } catch (error) {
                 console.error(`Error processing result for task ${taskId}:`, error);
-                const originalResponse = JSON.stringify(update.result);
-                const errorDetail = `Processing error: ${errorMessage(error)}\n\n--- Original task server response ---\n${originalResponse}`;
-                await prisma.taskStatus.update({
-                    where: { id: taskId },
-                    data: { status: 'failed', responseBody: errorDetail, version: update.version }
-                });
+                await recordProcessingFailure(taskId, error, update.version);
 
                 // Send Discord admin alert for processing failure
                 if (sendGenericAlerts) {
@@ -306,7 +313,7 @@ export const handleTaskUpdate = async <T>(taskId: string, update: TaskUpdate<T>,
     } else if (update.status === 'error') {
         const claimed = await prisma.taskStatus.updateMany({
             where: { id: taskId, status: { notIn: ['succeeded', 'failed'] } },
-            data: { status: 'failed', responseBody: update.error, version: update.version }
+            data: { status: 'failed', failureReason: update.error, version: update.version }
         });
         if (claimed.count === 0) {
             console.warn(`Ignoring error callback for task ${taskId}, which is already ${task.status}`);

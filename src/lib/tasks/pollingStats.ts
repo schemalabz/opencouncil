@@ -250,6 +250,7 @@ export async function getPollingStats() {
             cityId: true,
             requestBody: true,
             responseBody: true,
+            failureReason: true,
         },
     });
 
@@ -289,6 +290,7 @@ export async function getPollingStats() {
             ambiguousCount,
             requestBody: task.requestBody,
             responseBody: task.responseBody,
+            failureReason: task.failureReason,
         };
     });
 

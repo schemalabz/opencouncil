@@ -105,7 +105,7 @@ function taskRows(bulk: unknown[], failureErrors: string[] = []) {
     mockTaskFindMany.mockImplementation((args: { where?: { status?: string } } = {}) =>
         Promise.resolve(
             args.where?.status === 'failed'
-                ? failureErrors.map(responseBody => ({ responseBody }))
+                ? failureErrors.map(failureReason => ({ failureReason }))
                 : bulk,
         ),
     );

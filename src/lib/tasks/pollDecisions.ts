@@ -617,6 +617,7 @@ export async function checkBatchCompletionAndAlert(
             cityId: true,
             councilMeetingId: true,
             responseBody: true,
+            failureReason: true,
         },
     });
 
@@ -660,7 +661,7 @@ export async function checkBatchCompletionAndAlert(
                 unmatchedSubjects: 0,
                 readIssues: 0,
                 status: 'failed',
-                error: sibling.responseBody?.substring(0, ERROR_PREVIEW_LENGTH) ?? undefined,
+                error: sibling.failureReason?.substring(0, ERROR_PREVIEW_LENGTH) ?? undefined,
             });
             continue;
         }
