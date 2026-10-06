@@ -144,7 +144,8 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess, allowedBody
                     // "none" is a UI sentinel (Radix Select can't have an empty-string
                     // item) — it must not reach the API, where any truthy value is
                     // stored as a foreign key and "none" violates the FK constraint.
-                    administrativeBodyId: values.administrativeBodyId === 'none' ? undefined : values.administrativeBodyId,
+                    // null, not undefined: on an edit, an absent body means "unchanged".
+                    administrativeBodyId: values.administrativeBodyId === 'none' ? null : values.administrativeBodyId,
                     date: dateTime.toISOString(),
                 }),
             })
