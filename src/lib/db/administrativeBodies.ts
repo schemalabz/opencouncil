@@ -116,7 +116,7 @@ export async function editAdministrativeBody(
  */
 export async function editAdministrativeBodyContacts(
     id: string,
-    { youtubeChannelUrl, contactEmails }: Pick<AdministrativeBody, 'youtubeChannelUrl' | 'contactEmails'>
+    { youtubeChannelUrl, contactEmails }: Partial<Pick<AdministrativeBody, 'youtubeChannelUrl' | 'contactEmails'>>
 ): Promise<AdministrativeBody> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
