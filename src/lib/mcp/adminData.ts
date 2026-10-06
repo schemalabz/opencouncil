@@ -13,7 +13,7 @@ import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { CITY_DEFAULTS } from '@/lib/zod-schemas/city';
 import { REALMS } from '@/lib/realm';
 import type { McpIdentity } from './auth';
-import { requireCityAdmin, requireSuperadmin } from './adminAccess';
+import { requireBodyAdmin, requireCityAdmin, requireMeetingAdmin, requireSuperadmin } from './adminAccess';
 import { requireVisibleMeeting } from './gate';
 import { mcpTaskSummary } from './taskSummary';
 import { requireCityBodies, requireRealmCity } from './realmGuards';
@@ -21,9 +21,10 @@ import { currentBaseUrl, currentRealm } from './realm-context';
 
 /**
  * The write side of the MCP server for administrators: meetings and their
- * tasks for a city administrator, cities for a superadmin. Every function
- * authorizes first, with requireCityAdmin or requireSuperadmin, and only then
- * looks at its arguments. The shared writes below them check nothing.
+ * tasks for a city administrator or for the administrator of the body that
+ * meets, cities for a superadmin. Every function authorizes first, with a
+ * guard from adminAccess, and only then looks at its arguments. The shared
+ * writes below them check nothing.
  */
 
 const meetingUrl = (cityId: string, meetingId: string) => `${currentBaseUrl()}/${cityId}/${meetingId}`;
@@ -43,7 +44,13 @@ export async function mcpCreateMeeting(
         processAgenda: boolean;
     }
 ) {
-    await requireCityAdmin(identity, args.cityId);
+    // A body admin creates meetings of their body only; a meeting with no
+    // body is the city admin's.
+    if (args.administrativeBodyId) {
+        await requireBodyAdmin(identity, args.cityId, args.administrativeBodyId);
+    } else {
+        await requireCityAdmin(identity, args.cityId);
+    }
     await requireRealmCity(args.cityId);
     if (args.administrativeBodyId) {
         await requireCityBodies(args.cityId, [args.administrativeBodyId]);
@@ -86,9 +93,18 @@ export async function mcpUpdateMeeting(
         administrativeBodyId?: string | null;
     }
 ) {
-    await requireCityAdmin(identity, args.cityId);
-    // Realm-scoped, and an administrator of the city passes it for a draft.
-    await requireVisibleMeeting(args.cityId, args.meetingId, identity);
+    await requireMeetingAdmin(identity, args.cityId, args.meetingId);
+    // Realm-scoped, and an administrator of the meeting passes it for a draft.
+    const current = await requireVisibleMeeting(args.cityId, args.meetingId, identity);
+    // A body admin may not move a meeting away from their body, nor take the
+    // meeting of another body: the new body needs its own right.
+    if (args.administrativeBodyId !== undefined && args.administrativeBodyId !== current.administrativeBodyId) {
+        if (args.administrativeBodyId === null) {
+            await requireCityAdmin(identity, args.cityId);
+        } else {
+            await requireBodyAdmin(identity, args.cityId, args.administrativeBodyId);
+        }
+    }
     if (args.administrativeBodyId) {
         await requireCityBodies(args.cityId, [args.administrativeBodyId]);
     }
@@ -126,7 +142,7 @@ export async function mcpStartTask(
     args: { cityId: string; meetingId: string } & MeetingTaskRequest
 ) {
     const { cityId, meetingId, ...request } = args;
-    await requireCityAdmin(identity, cityId);
+    await requireMeetingAdmin(identity, cityId, meetingId);
     await requireVisibleMeeting(cityId, meetingId, identity);
 
     const task = await startMeetingTask(cityId, meetingId, request);
