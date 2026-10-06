@@ -84,6 +84,37 @@ describe('requireVisibleMeeting', () => {
         await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
     });
 
+    it('shows a body administrator the unreleased meetings of their body, and no other', async () => {
+        const asBodyAdmin = (bodyId: string, cityId: string) => mockUserFindUnique.mockResolvedValue({
+            isSuperAdmin: false,
+            administers: [{ cityId: null, administrativeBodyId: bodyId, administrativeBody: { cityId } }],
+        });
+        const draft = { ...row(false), administrativeBodyId: 'council' };
+        mockMeetingFindFirst.mockResolvedValue(draft);
+
+        asBodyAdmin('council', 'athens');
+        await expect(requireVisibleMeeting('athens', 'm1', USER))
+            .resolves.toEqual({ ...payload(false, true), administrativeBodyId: 'council' });
+
+        asBodyAdmin('committee', 'athens');
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
+
+        // The same body id, administered under another city.
+        asBodyAdmin('council', 'argos');
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
+
+        // A draft with no body is the city admin's.
+        mockMeetingFindFirst.mockResolvedValue({ ...draft, administrativeBodyId: null });
+        asBodyAdmin('council', 'athens');
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
+    });
+
+    it('reads the body of the meeting in the same query', async () => {
+        mockMeetingFindFirst.mockResolvedValue(row(true));
+        await requireVisibleMeeting('athens', 'm1', null);
+        expect(mockMeetingFindFirst.mock.calls[0][0].select).toMatchObject({ administrativeBodyId: true });
+    });
+
     it('404s missing meetings for everyone', async () => {
         mockMeetingFindFirst.mockResolvedValue(null);
         await expect(requireVisibleMeeting('athens', 'nope', SERVICE)).rejects.toThrow(NotFoundError);
@@ -130,13 +161,24 @@ describe('requirePublicTranscript', () => {
     });
 
     it('lets everyone read a public transcript', async () => {
-        await expect(requirePublicTranscript({ publicTranscript: true }, 'athens', null)).resolves.toBeUndefined();
+        await expect(requirePublicTranscript({ publicTranscript: true, administrativeBodyId: null }, 'athens', null)).resolves.toBeUndefined();
     });
 
     it('withholds a transcript that is not public from readers, not from editors', async () => {
-        await expect(requirePublicTranscript({ publicTranscript: false }, 'athens', null)).rejects.toThrow(ForbiddenError);
-        await expect(requirePublicTranscript({ publicTranscript: false }, 'athens', USER)).rejects.toThrow(ForbiddenError);
+        await expect(requirePublicTranscript({ publicTranscript: false, administrativeBodyId: 'council' }, 'athens', null)).rejects.toThrow(ForbiddenError);
+        await expect(requirePublicTranscript({ publicTranscript: false, administrativeBodyId: 'council' }, 'athens', USER)).rejects.toThrow(ForbiddenError);
         mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [{ cityId: 'athens' }] });
-        await expect(requirePublicTranscript({ publicTranscript: false }, 'athens', USER)).resolves.toBeUndefined();
+        await expect(requirePublicTranscript({ publicTranscript: false, administrativeBodyId: 'council' }, 'athens', USER)).resolves.toBeUndefined();
+    });
+
+    it('lets the admin of the body of the meeting read a transcript that is not public', async () => {
+        const unreviewed = { publicTranscript: false, administrativeBodyId: 'council' };
+        mockUserFindUnique.mockResolvedValue({
+            isSuperAdmin: false,
+            administers: [{ cityId: null, administrativeBodyId: 'council', administrativeBody: { cityId: 'athens' } }],
+        });
+        await expect(requirePublicTranscript(unreviewed, 'athens', USER)).resolves.toBeUndefined();
+        await expect(requirePublicTranscript({ ...unreviewed, administrativeBodyId: 'committee' }, 'athens', USER))
+            .rejects.toThrow(ForbiddenError);
     });
 });
