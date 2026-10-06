@@ -91,6 +91,11 @@ export async function createEmptySpeakerSegmentAfter(
     if (!currentSegment) {
         throw new Error('Segment not found');
     }
+    // The gate below reads the meeting the caller named, so the segment must be
+    // in it: a body admin could otherwise name their meeting and another's segment.
+    if (currentSegment.cityId !== cityId || currentSegment.meetingId !== meetingId) {
+        throw new Error('Segment does not belong to the meeting');
+    }
 
     await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
 
@@ -153,6 +158,9 @@ export async function createEmptySpeakerSegmentBefore(
 
     if (!firstSegment) {
         throw new Error('Segment not found');
+    }
+    if (firstSegment.cityId !== cityId || firstSegment.meetingId !== meetingId) {
+        throw new Error('Segment does not belong to the meeting');
     }
 
     await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
@@ -903,6 +911,7 @@ export async function extractSpeakerSegment(
 
     if (!originalSegment) throw new Error('Segment not found');
     if (originalSegment.cityId !== cityId) throw new Error('City mismatch');
+    if (originalSegment.meetingId !== meetingId) throw new Error('Meeting mismatch');
 
     await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
 
