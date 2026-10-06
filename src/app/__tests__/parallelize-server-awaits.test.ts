@@ -46,6 +46,8 @@ jest.mock('@/lib/cache', () => ({
 
 jest.mock('@/lib/auth', () => ({
     isUserAuthorizedToEdit: jest.fn(),
+    getRoleLimitForCity: jest.fn(),
+    getUnreleasedScope: jest.fn(),
     getCurrentUser: jest.fn(),
 }));
 
@@ -375,19 +377,19 @@ describe('PR1: server-side awaits run concurrently', () => {
         await pending;
     });
 
-    it('people/page.tsx folds isUserAuthorizedToEdit into the Promise.all batch', async () => {
+    it('people/page.tsx folds getRoleLimitForCity into the Promise.all batch', async () => {
         const cache = require('@/lib/cache');
         const auth = require('@/lib/auth');
 
         const partiesD = deferred<unknown[]>();
         const adminD = deferred<unknown[]>();
         const peopleD = deferred<unknown[]>();
-        const authD = deferred<boolean>();
+        const authD = deferred<ReadonlySet<string> | null>();
 
         cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
         cache.getAdministrativeBodiesForCityCached.mockReturnValue(adminD.promise);
         cache.getPeopleForCityCached.mockReturnValue(peopleD.promise);
-        auth.isUserAuthorizedToEdit.mockReturnValue(authD.promise);
+        auth.getRoleLimitForCity.mockReturnValue(authD.promise);
 
         const { default: PeoplePage } = require('@/app/[locale]/(city)/[cityId]/(other)/(tabs)/people/page');
 
@@ -396,7 +398,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         await flushMicrotasks();
 
         // The crucial assertion: auth must be invoked BEFORE the Promise.all batch resolves.
-        expect(auth.isUserAuthorizedToEdit).toHaveBeenCalledTimes(1);
+        expect(auth.getRoleLimitForCity).toHaveBeenCalledTimes(1);
         expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);
         expect(cache.getAdministrativeBodiesForCityCached).toHaveBeenCalledTimes(1);
         expect(cache.getPeopleForCityCached).toHaveBeenCalledTimes(1);
@@ -404,7 +406,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         partiesD.resolve([{ id: 'p', people: [] }]);
         adminD.resolve([]);
         peopleD.resolve([]);
-        authD.resolve(false);
+        authD.resolve(null);
 
         await pending;
     });

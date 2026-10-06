@@ -40,13 +40,19 @@ import { topicSurfaceStyle } from '@/components/TopicPill';
 // the rows below. One line still measures 24px: 2px border, 8px padding, 14px line.
 const headerChipClass = 'inline-flex items-start gap-1.5 rounded-[12px] border px-2.5 py-1 text-[11.5px] font-bold leading-[14px]';
 
-export default function PersonC({ city, person, parties, administrativeBodies, statistics, contributionTopics }: {
+export default function PersonC({ city, person, parties, administrativeBodies, statistics, contributionTopics, editableBodyIds }: {
     city: City,
     person: PersonWithRelations,
     parties: Party[],
     administrativeBodies: AdministrativeBody[],
     statistics: Statistics,
     contributionTopics: Topic[],
+    /**
+     * The bodies the viewer may give roles on: absent for a city admin, the
+     * admin's bodies for a body admin, empty for a person who claimed their
+     * own page and edits name and photo only.
+     */
+    editableBodyIds?: string[],
 }) {
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
@@ -303,7 +309,15 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                 <>
                                     <FormSheet
                                         FormComponent={PersonForm}
-                                        formProps={{ person, cityId: person.cityId, parties, administrativeBodies }}
+                                        formProps={editableBodyIds
+                                            ? {
+                                                person,
+                                                cityId: person.cityId,
+                                                parties: [],
+                                                administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)),
+                                                canEditRoles: editableBodyIds.length > 0,
+                                            }
+                                            : { person, cityId: person.cityId, parties, administrativeBodies }}
                                         title={t('editPerson')}
                                         type="edit"
                                         triggerVariant="ghost"

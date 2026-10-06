@@ -21,6 +21,11 @@ type CityPeopleProps = {
     administrativeBodies: AdministrativeBody[],
     cityId: string,
     canEdit: boolean,
+    /**
+     * The bodies a body admin may give roles on. Absent for a city admin, who
+     * may give any role. The form then offers these bodies and no party.
+     */
+    editableBodyIds?: string[],
 };
 
 export default function CityPeople({
@@ -29,6 +34,7 @@ export default function CityPeople({
     administrativeBodies,
     cityId,
     canEdit,
+    editableBodyIds,
 }: CityPeopleProps) {
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
@@ -105,7 +111,9 @@ export default function CityPeople({
             editable={canEdit}
             ItemComponent={PersonCard}
             FormComponent={PersonForm}
-            formProps={{ cityId, parties, administrativeBodies }}
+            formProps={editableBodyIds
+                ? { cityId, parties: [], administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)) }
+                : { cityId, parties, administrativeBodies }}
             t={t}
             filterAvailableValues={typeOptions}
             filter={(selectedValues, person) => {
