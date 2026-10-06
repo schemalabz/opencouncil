@@ -11,6 +11,7 @@ const TEST_USER_EMAILS = {
   CITY_ADMIN: 'city@test.com',
   PARTY_ADMIN: 'party@test.com',
   PERSON_ADMIN: 'person@test.com',
+  BODY_ADMIN: 'body@test.com',
   READ_ONLY: 'readonly@test.com'
 } as const
 
@@ -54,6 +55,14 @@ export const TEST_USERS = [
     description: `Admin of specific person in city`
   },
   {
+    email: TEST_USER_EMAILS.BODY_ADMIN,
+    phone: '+306990000006',
+    name: 'Body Admin', // Will be updated with actual body name during seeding
+    isSuperAdmin: false,
+    adminType: 'body' as const,
+    description: `Admin of one administrative body in city`
+  },
+  {
     email: TEST_USER_EMAILS.READ_ONLY,
     phone: '+306990000005',
     name: 'Read Only User',
@@ -87,6 +96,7 @@ function getTestUserIcon(adminType: TestUserAdminType): string {
     case 'city': return '🏛️'
     case 'party': return '🎭'
     case 'person': return '👤'
+    case 'body': return '🏢'
     case 'readonly': return '👁️'
     default: return '❓'
   }

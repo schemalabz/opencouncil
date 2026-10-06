@@ -38,3 +38,39 @@ then they are "onboarded", but /profile still lets them edit these things.
 
 
 Importantly, src/lib/auth.js needs to be updated!
+## Admins of one administrative body (#828)
+
+`Administers` has a fourth scope: `administrativeBodyId`. A body admin runs one
+body, for example the secretary of a youth council. They manage the body's
+meetings and members and nothing else in the city.
+
+The check in `src/lib/auth.ts` accepts these shapes:
+
+- `{}`: superadmin only.
+- `{ cityId }`: an admin of the city. A body admin never passes this shape, so a
+  mutation that nobody converts stays closed to them.
+- `{ cityId, councilMeetingId }`: an admin of the city, or an admin of the body
+  that holds the meeting.
+- `{ cityId, administrativeBodyId }`: an admin of the city, or an admin of that
+  body. The body must belong to the city.
+- `{ partyId }`: an admin of the party, or of its city.
+- `{ personId }`: an admin of the person, of its city, or a body admin who owns
+  the person. A body admin owns a person when the person has at least one role
+  and every role is on a body they hold.
+
+A body admin can: create, edit and release a meeting of their body, upload its
+recording and agenda, start its tasks, edit its transcript and speakers, and
+make highlights. They see the unreleased meetings of their bodies
+(`getUnreleasedScope`). They add and edit members of their bodies; every role in
+the payload must be on a body they hold (`getRoleLimitForCity`,
+`validateRolesForBodyAdmin`). They change the body's YouTube channel and contact
+emails. They invite and remove admins of the same body through
+`/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
+
+A body admin cannot: open the city form, delete a meeting, complete a human
+review, send notifications, poll decisions, edit parties, or edit a person with
+a seat elsewhere. A person who claimed their own page edits name and photo
+only; their form sends no roles.
+
+The MCP admin tools (`create_meeting`, `update_meeting`, `start_task`) apply the
+same scope.

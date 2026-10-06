@@ -38,6 +38,14 @@ export async function POST(request: NextRequest) {
       select: { id: true, name: true }
     })
 
+    // A body other than the council when there is one: the council is the
+    // body that a city admin's rights already cover.
+    const testBody = await prisma.administrativeBody.findFirst({
+      where: { cityId: DEV_TEST_CITY_ID },
+      orderBy: [{ type: 'desc' }, { name: 'asc' }],
+      select: { id: true, name: true }
+    })
+
     // A couple of topics make the test users show up with interests in the
     // notis fanout view and the playground's real-user picker.
     const testTopics = await prisma.topic.findMany({ take: 2, select: { id: true } })
@@ -156,6 +164,14 @@ export async function POST(request: NextRequest) {
             finalName = 'Person Admin (No person available)'
           }
           break
+        case 'body':
+          if (testBody) {
+            finalName = `Body Admin (${testBody.name})`
+            administers = [{ administrativeBodyId: testBody.id }]
+          } else {
+            finalName = 'Body Admin (No body available)'
+          }
+          break
         case 'readonly':
           // Read-only user has no administers
           break
@@ -176,9 +192,9 @@ export async function POST(request: NextRequest) {
         email: newUser.email,
         name: newUser.name,
         permissions: newUser.administers.map(a => ({
-          type: a.cityId ? 'city' : a.partyId ? 'party' : 'person',
-          name: a.city?.name || a.party?.name || a.person?.name,
-          id: a.cityId || a.partyId || a.personId
+          type: a.cityId ? 'city' : a.partyId ? 'party' : a.personId ? 'person' : 'body',
+          name: a.city?.name || a.party?.name || a.person?.name || a.administrativeBody?.name,
+          id: a.cityId || a.partyId || a.personId || a.administrativeBodyId
         }))
       })
     }
@@ -191,7 +207,8 @@ export async function POST(request: NextRequest) {
       message: `Created ${createdUsers.length} test users for ${testCity.name}, skipped ${skippedUsers.length} existing users`,
       entities: {
         party: testParty?.name || 'No party available',
-        person: testPerson?.name || 'No person available'
+        person: testPerson?.name || 'No person available',
+        body: testBody?.name || 'No body available'
       }
     })
 
