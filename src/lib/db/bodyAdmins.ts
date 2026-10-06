@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import prisma from "./prisma";
-import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "@/lib/auth";
 import { BadRequestError, NotFoundError } from "@/lib/api/errors";
 import { sendInviteEmail } from "@/lib/auth/invite";
 
