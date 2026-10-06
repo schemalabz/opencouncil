@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import prisma from "./prisma";
 import { getCurrentUser, isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
 import { BadRequestError, NotFoundError } from "@/lib/api/errors";
@@ -69,14 +70,26 @@ export async function addBodyAdmin(
     });
 
     // Not an upsert: the other columns of the unique key are NULL here, and
-    // Postgres never matches a NULL, so an upsert would add a second row.
-    const row = await prisma.administers.findFirst({
+    // Postgres never matches a NULL. A partial unique index on (userId,
+    // administrativeBodyId) rejects the second of two concurrent invites,
+    // which then reads the row the first one wrote.
+    const findRow = () => prisma.administers.findFirst({
         where: { userId: user.id, administrativeBodyId: bodyId },
         select: bodyAdminSelect,
-    }) ?? await prisma.administers.create({
-        data: { userId: user.id, administrativeBodyId: bodyId },
-        select: bodyAdminSelect,
     });
+    let row = await findRow();
+    if (!row) {
+        try {
+            row = await prisma.administers.create({
+                data: { userId: user.id, administrativeBodyId: bodyId },
+                select: bodyAdminSelect,
+            });
+        } catch (error) {
+            if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
+            row = await findRow();
+            if (!row) throw error;
+        }
+    }
 
     const inviteEmailSent = existing ? false : await sendInviteEmail(normalizedEmail, name, request);
 
@@ -94,18 +107,25 @@ export async function addBodyAdmin(
  */
 export async function removeBodyAdmin(cityId: string, bodyId: string, userId: string): Promise<void> {
     await requireBody(cityId, bodyId);
-    const rows = await prisma.administers.findMany({
-        where: { administrativeBodyId: bodyId },
-        select: { id: true, userId: true },
+    const mayRemoveLast = await isUserAuthorizedToEdit({ cityId });
+
+    await prisma.$transaction(async (tx) => {
+        // Lock the body row: two admins who remove each other at once must not
+        // both read two admins and leave none.
+        await tx.$queryRaw`SELECT id FROM "AdministrativeBody" WHERE id = ${bodyId} FOR UPDATE`;
+        const rows = await tx.administers.findMany({
+            where: { administrativeBodyId: bodyId },
+            select: { id: true, userId: true },
+        });
+        const target = rows.find(row => row.userId === userId);
+        if (!target) throw new NotFoundError("This account does not administer the body");
+
+        if (rows.length === 1 && !mayRemoveLast) {
+            throw new BadRequestError("The body needs at least one admin");
+        }
+
+        await tx.administers.delete({ where: { id: target.id } });
     });
-    const target = rows.find(row => row.userId === userId);
-    if (!target) throw new NotFoundError("This account does not administer the body");
-
-    if (rows.length === 1 && !(await isUserAuthorizedToEdit({ cityId }))) {
-        throw new BadRequestError("The body needs at least one admin");
-    }
-
-    await prisma.administers.delete({ where: { id: target.id } });
 }
 
 /** Whether the viewer is an admin of this body themselves, for the UI. */

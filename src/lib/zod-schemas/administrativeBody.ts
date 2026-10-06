@@ -46,8 +46,11 @@ export const administrativeBodySchema = z.object({
 
 // JSON body of PUT /administrative-bodies/{bodyId} from an admin of the body,
 // who may change these two fields and no other.
+// An absent field stays as it is. An empty string or null clears the channel.
 export const administrativeBodyContactsSchema = z.object({
-    youtubeChannelUrl,
+    youtubeChannelUrl: z.union([z.string().url({ message: "Must be a valid URL." }), z.literal(''), z.null()])
+        .optional()
+        .transform(val => val === '' ? null : val),
     contactEmails: z.array(z.string().email()).optional(),
 });
 

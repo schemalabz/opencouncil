@@ -22,10 +22,7 @@ export async function PUT(
         if (!(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
             await withUserAuthorizedToEdit({ cityId: params.cityId, administrativeBodyId: params.bodyId });
             const { youtubeChannelUrl, contactEmails } = administrativeBodyContactsSchema.parse(body);
-            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, {
-                youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
-                contactEmails: contactEmails || [],
-            });
+            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl, contactEmails });
             revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
             return NextResponse.json(updatedBody);
         }

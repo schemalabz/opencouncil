@@ -9,3 +9,7 @@ DROP INDEX "Administers_userId_cityId_partyId_personId_key";
 
 -- The name is what Prisma expects: Postgres truncates identifiers to 63 characters.
 CREATE UNIQUE INDEX "Administers_userId_cityId_partyId_personId_administrativeBo_key" ON "Administers"("userId", "cityId", "partyId", "personId", "administrativeBodyId");
+
+-- The key above never rejects a duplicate body row, because its other columns
+-- are NULL and Postgres treats NULLs as distinct. One row per account and body.
+CREATE UNIQUE INDEX "Administers_user_body_key" ON "Administers"("userId", "administrativeBodyId") WHERE "administrativeBodyId" IS NOT NULL;
