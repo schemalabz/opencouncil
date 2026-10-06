@@ -60,18 +60,20 @@ export async function PUT(
         const input = meetingSchema.parse(body);
         const { date, youtubeUrl, agendaUrl, administrativeBodyId, postponedFromId, continuationOfId } = input;
 
-        // Moving the meeting to another body, or to no body, needs rights on
-        // the destination too: a body admin may not hand their meeting over or
-        // take a meeting of another body.
-        const current = await getCouncilMeetingDirect(params.cityId, params.meetingId);
-        if (!current) {
-            return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
-        }
-        const nextBodyId = administrativeBodyId || null;
-        if (nextBodyId !== current.administrativeBodyId) {
-            await withUserAuthorizedToEdit(nextBodyId
-                ? { cityId: params.cityId, administrativeBodyId: nextBodyId }
-                : { cityId: params.cityId });
+        // An absent body leaves the meeting where it is. Moving it to another
+        // body, or to no body, needs rights on the destination too: a body
+        // admin may not hand their meeting over or take one of another body.
+        const nextBodyId = administrativeBodyId === undefined ? undefined : administrativeBodyId || null;
+        if (nextBodyId !== undefined) {
+            const current = await getCouncilMeetingDirect(params.cityId, params.meetingId);
+            if (!current) {
+                return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
+            }
+            if (nextBodyId !== current.administrativeBodyId) {
+                await withUserAuthorizedToEdit(nextBodyId
+                    ? { cityId: params.cityId, administrativeBodyId: nextBodyId }
+                    : { cityId: params.cityId });
+            }
         }
 
         // A field that the request leaves out keeps its value.
@@ -82,7 +84,7 @@ export async function PUT(
             dateTime: date,
             youtubeUrl: emptyToNull(youtubeUrl),
             agendaUrl: emptyToNull(agendaUrl),
-            administrativeBodyId: emptyToNull(administrativeBodyId),
+            ...(nextBodyId !== undefined && { administrativeBodyId: nextBodyId }),
         });
 
         return NextResponse.json(meeting);

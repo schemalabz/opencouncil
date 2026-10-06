@@ -31,6 +31,8 @@ export const meetingSchema = z.object({
     meetingId: z.string().min(1, {
         message: "Meeting ID must not be empty.",
     }).optional(),
+    // On PUT, an absent body leaves the meeting's body as it is, and null or
+    // an empty string clears it. On POST, absent and null both mean no body.
     administrativeBodyId: z.string().nullable().optional(),
     processAgenda: z.boolean().optional().default(false),
 
