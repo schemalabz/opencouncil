@@ -68,49 +68,45 @@ export async function addBodyAdmin(
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) throw new BadRequestError("Email cannot be empty");
 
-    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } });
-    if (!existing && await prisma.administers.count({ where: { administrativeBodyId: bodyId } }) >= MAX_ADMINS_PER_BODY) {
-        throw new BadRequestError(`A body has at most ${MAX_ADMINS_PER_BODY} admins`);
-    }
-    // Two invites of one new email at once: the second create fails on the
-    // unique email, and that request reads the account the first one made.
-    const user = existing ?? await prisma.user.create({
-        data: { email: normalizedEmail, name: name?.trim() || null },
-        select: { id: true },
-    }).catch(async (error: unknown) => {
-        if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
-        const raced = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } });
-        if (!raced) throw error;
-        return raced;
-    });
+    // One transaction per invite, holding the body row: the count, the
+    // account and the admin row are read and written under the same lock, so
+    // concurrent invites to one body run one after the other and the cap holds.
+    const grant = () => prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "AdministrativeBody" WHERE id = ${bodyId} FOR UPDATE`;
+        const existing = await tx.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } });
+        const held = existing && await tx.administers.findFirst({
+            where: { userId: existing.id, administrativeBodyId: bodyId },
+            select: bodyAdminSelect,
+        });
+        if (held) return { row: held, created: false };
 
-    // Not an upsert: the other columns of the unique key are NULL here, and
-    // Postgres never matches a NULL. A partial unique index on (userId,
-    // administrativeBodyId) rejects the second of two concurrent invites,
-    // which then reads the row the first one wrote.
-    const findRow = () => prisma.administers.findFirst({
-        where: { userId: user.id, administrativeBodyId: bodyId },
-        select: bodyAdminSelect,
-    });
-    let row = await findRow();
-    if (!row) {
-        try {
-            row = await prisma.administers.create({
-                data: { userId: user.id, administrativeBodyId: bodyId },
-                select: bodyAdminSelect,
-            });
-        } catch (error) {
-            if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
-            row = await findRow();
-            if (!row) throw error;
+        if (await tx.administers.count({ where: { administrativeBodyId: bodyId } }) >= MAX_ADMINS_PER_BODY) {
+            throw new BadRequestError(`A body has at most ${MAX_ADMINS_PER_BODY} admins`);
         }
-    }
+        const user = existing ?? await tx.user.create({
+            data: { email: normalizedEmail, name: name?.trim() || null },
+            select: { id: true },
+        });
+        const row = await tx.administers.create({
+            data: { userId: user.id, administrativeBodyId: bodyId },
+            select: bodyAdminSelect,
+        });
+        return { row, created: !existing };
+    });
 
-    const inviteEmailSent = existing ? false : await sendInviteEmail(normalizedEmail, name, request);
+    // The lock serializes invites to one body only. The same new email invited
+    // to two bodies at once fails one account create on the unique email,
+    // which aborts that transaction; run it again, and it finds the account.
+    const { row, created } = await grant().catch((error: unknown) => {
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
+        return grant();
+    });
+
+    const inviteEmailSent = created ? await sendInviteEmail(normalizedEmail, name, request) : false;
 
     return {
         admin: toBodyAdmin(row),
-        created: !existing,
+        created,
         inviteEmailSent,
     };
 }
