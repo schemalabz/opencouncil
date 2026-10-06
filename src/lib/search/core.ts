@@ -290,7 +290,11 @@ export async function searchSubjectsInRealm(
         // win would search a municipality or period that contradicts the pills
         // on screen. An extracted city id outside the realm is dropped too —
         // the model reads a realm-scoped list but can still name anything.
-        const extractedCityIds = !hasExplicitCityFilter && processedFilters.cityIds?.length
+        // A caller's point names the place as well: a city read from the text
+        // ("πάρκα στο Χαλάνδρι" with a point in Athens) would lie outside it and
+        // leave nothing, so it is ignored. A period read from the text still
+        // applies.
+        const extractedCityIds = !hasExplicitCityFilter && !request.location && processedFilters.cityIds?.length
             ? await filterCityIdsByRealm(processedFilters.cityIds, realm)
             : [];
 

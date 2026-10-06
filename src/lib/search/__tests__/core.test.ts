@@ -213,6 +213,23 @@ describe('searchInRealm — reporting what the query text supplied', () => {
         expect(response.derivedFilters).toEqual({ dateRange: derived });
     });
 
+    // A point names the place. A city read from the text could lie outside it,
+    // and the two together matched nothing: "ανάπλαση πάρκων στο Χαλάνδρι" with
+    // a point in Athens returned 0, against 6 without the city word.
+    it('ignores a derived city when the caller sends a point, and keeps a derived period', async () => {
+        const derived = { start: '2025-01-01T00:00:00.000Z', end: '2025-12-31T23:59:59.999Z' };
+        processFiltersMock.mockResolvedValue({ cityIds: ['chania'], dateRange: derived, locations: undefined });
+
+        const response = await searchInRealm({
+            query: 'πάρκα στα Χανιά πέρσι',
+            location: { point: { lat: 37.98, lng: 23.73 }, radiusMeters: 3000 },
+        }, 'greece');
+
+        expect(requestSentToElasticsearch().cityIds).toEqual(REALM_CITIES);
+        expect(requestSentToElasticsearch().dateRange).toEqual(derived);
+        expect(response.derivedFilters).toEqual({ dateRange: derived });
+    });
+
     // A filter the caller set is not derived, even when the query text names
     // one too — the merge kept the caller's, so that is what the pills show.
     it('reports nothing for a filter the caller set', async () => {
