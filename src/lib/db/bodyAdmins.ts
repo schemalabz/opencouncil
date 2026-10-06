@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import prisma from "./prisma";
-import { getCurrentUser, isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
 import { BadRequestError, NotFoundError } from "@/lib/api/errors";
 import { sendInviteEmail } from "@/lib/auth/invite";
 
@@ -13,18 +13,29 @@ import { sendInviteEmail } from "@/lib/auth/invite";
  */
 
 const bodyAdminSelect = {
-    id: true,
     createdAt: true,
     user: { select: { id: true, email: true, name: true, onboarded: true } },
-} as const;
+} satisfies Prisma.AdministersSelect;
 
-export type BodyAdmin = {
-    userId: string;
-    email: string;
-    name: string | null;
-    onboarded: boolean;
-    since: Date;
-};
+type BodyAdminRow = Prisma.AdministersGetPayload<{ select: typeof bodyAdminSelect }>;
+
+function toBodyAdmin(row: BodyAdminRow) {
+    return {
+        userId: row.user.id,
+        email: row.user.email,
+        name: row.user.name,
+        onboarded: row.user.onboarded,
+        since: row.createdAt,
+    };
+}
+
+export type BodyAdmin = ReturnType<typeof toBodyAdmin>;
+
+/**
+ * How many admins one body may have. Each invite of an unknown email creates
+ * an account and sends an email, so a body admin cannot fan that out.
+ */
+const MAX_ADMINS_PER_BODY = 20;
 
 async function requireBody(cityId: string, bodyId: string): Promise<void> {
     await withUserAuthorizedToEdit({ cityId, administrativeBodyId: bodyId });
@@ -39,13 +50,7 @@ export async function listBodyAdmins(cityId: string, bodyId: string): Promise<Bo
         select: bodyAdminSelect,
         orderBy: { createdAt: 'asc' },
     });
-    return rows.map(row => ({
-        userId: row.user.id,
-        email: row.user.email,
-        name: row.user.name,
-        onboarded: row.user.onboarded,
-        since: row.createdAt,
-    }));
+    return rows.map(toBodyAdmin);
 }
 
 /**
@@ -64,9 +69,19 @@ export async function addBodyAdmin(
     if (!normalizedEmail) throw new BadRequestError("Email cannot be empty");
 
     const existing = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } });
+    if (!existing && await prisma.administers.count({ where: { administrativeBodyId: bodyId } }) >= MAX_ADMINS_PER_BODY) {
+        throw new BadRequestError(`A body has at most ${MAX_ADMINS_PER_BODY} admins`);
+    }
+    // Two invites of one new email at once: the second create fails on the
+    // unique email, and that request reads the account the first one made.
     const user = existing ?? await prisma.user.create({
         data: { email: normalizedEmail, name: name?.trim() || null },
         select: { id: true },
+    }).catch(async (error: unknown) => {
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) throw error;
+        const raced = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } });
+        if (!raced) throw error;
+        return raced;
     });
 
     // Not an upsert: the other columns of the unique key are NULL here, and
@@ -94,7 +109,7 @@ export async function addBodyAdmin(
     const inviteEmailSent = existing ? false : await sendInviteEmail(normalizedEmail, name, request);
 
     return {
-        admin: { userId: row.user.id, email: row.user.email, name: row.user.name, onboarded: row.user.onboarded, since: row.createdAt },
+        admin: toBodyAdmin(row),
         created: !existing,
         inviteEmailSent,
     };
@@ -126,10 +141,4 @@ export async function removeBodyAdmin(cityId: string, bodyId: string, userId: st
 
         await tx.administers.delete({ where: { id: target.id } });
     });
-}
-
-/** Whether the viewer is an admin of this body themselves, for the UI. */
-export async function isCurrentUserBodyAdmin(bodyId: string): Promise<boolean> {
-    const user = await getCurrentUser();
-    return !!user?.administers.some(a => a.administrativeBodyId === bodyId);
 }

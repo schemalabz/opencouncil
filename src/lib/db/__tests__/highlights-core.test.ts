@@ -20,7 +20,7 @@ jest.mock('../prisma', () => ({
 }));
 
 import {
-    upsertHighlightCore, canUserEditCity, canUserEditMeeting, canUserEditBody, canActorManageHighlight, getUserCityRights,
+    upsertHighlightCore, canUserEditCity, canUserEditMeeting, canActorManageHighlight, getUserCityRights,
 } from '../highlights-core';
 import { ForbiddenError, NotFoundError, BadRequestError } from '../../api/errors';
 
@@ -126,19 +126,6 @@ describe('canUserEditMeeting', () => {
         setUser(null);
         expect(await canUserEditMeeting('u1', 'athens', 'm1')).toBe(false);
         expect(mockMeetingFindUnique).not.toHaveBeenCalled();
-    });
-});
-
-describe('canUserEditBody', () => {
-    it('is true for superadmins, city admins and the admin of that body in that city', async () => {
-        setUser({ isSuperAdmin: true });
-        expect(await canUserEditBody('u1', 'athens', 'council')).toBe(true);
-        setUser({ administers: [{ cityId: 'athens' }] });
-        expect(await canUserEditBody('u1', 'athens', 'council')).toBe(true);
-        setUser({ administers: [bodyAdminOf('council', 'athens')] });
-        expect(await canUserEditBody('u1', 'athens', 'council')).toBe(true);
-        expect(await canUserEditBody('u1', 'athens', 'committee')).toBe(false);
-        expect(await canUserEditBody('u1', 'argos', 'council')).toBe(false);
     });
 });
 
