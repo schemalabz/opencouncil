@@ -16,6 +16,7 @@ import { Prisma, TaskStatus } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { taskHandlers, taskTerminalHooks } from './registry';
 import { mintCallbackToken } from './callbackToken';
+import { errorMessage } from '@/lib/utils/errors';
 
 export interface TaskIdempotencyResult {
     proceed: boolean;
@@ -173,21 +174,21 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
 
 
     if (error || !response || !response.ok) {
-        let errorMessage = 'no response body';
+        let reason = 'no response body';
         if (response) {
             console.log(`Status: ${response.status}`);
             const responseText = await response.text();
             try {
                 const body = JSON.parse(responseText);
-                errorMessage = body.error || responseText;
+                reason = body.error || responseText;
             } catch (e) {
-                errorMessage = responseText;
+                reason = responseText;
             }
         } else if (error) {
-            errorMessage = (error as Error).message;
+            reason = errorMessage(error);
         }
 
-        const fullError = `Failed to start task: ${response?.statusText} (${errorMessage})`;
+        const fullError = `Failed to start task: ${response?.statusText} (${reason})`;
 
         // Update task status to failed with error details
         await prisma.taskStatus.update({
