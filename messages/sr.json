@@ -732,7 +732,8 @@
         "contactForAccess": "Да бисте добили администраторски приступ, контактирајте нас:",
         "adminCity": "Управљај градом",
         "adminParty": "Управљај одборничком групом",
-        "adminPerson": "Управљај чланом"
+        "adminPerson": "Управљај чланом",
+        "adminBody": "Body administrator"
     },
     "OfferForm": {
         "recipientName": "Прималац",

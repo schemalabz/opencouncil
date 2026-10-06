@@ -44,6 +44,13 @@ export const administrativeBodySchema = z.object({
     }),
 });
 
+// JSON body of PUT /administrative-bodies/{bodyId} from an admin of the body,
+// who may change these two fields and no other.
+export const administrativeBodyContactsSchema = z.object({
+    youtubeChannelUrl,
+    contactEmails: z.array(z.string().email()).optional(),
+});
+
 // Frontend form schema (React Hook Form). The form edits the contact emails as
 // a primary address plus a comma-separated CC list, and joins them on submit.
 export const administrativeBodyFormSchema = z.object({

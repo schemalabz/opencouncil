@@ -1,4 +1,4 @@
-import { Building, ChevronRight, Flag, ShieldCheck, User, type LucideIcon } from "lucide-react";
+import { Building, ChevronRight, Flag, Landmark, ShieldCheck, User, type LucideIcon } from "lucide-react";
 // The locale-aware Link: next/link would drop the locale prefix.
 import { Link } from "@/i18n/routing";
 import { RailCard } from "@/components/ui/rail-card";
@@ -11,6 +11,7 @@ type AdminSectionProps = {
             city?: { id: string; name: string } | null;
             party?: { id: string; cityId: string; name: string } | null;
             person?: { id: string; cityId: string; name: string } | null;
+            administrativeBody?: { id: string; cityId: string; name: string } | null;
         }>;
     };
     /** @translationNamespace Profile */
@@ -27,7 +28,7 @@ interface AdminEntry {
 
 /**
  * What this account can edit, as a rail card of links: the admin panel for
- * a superadmin, and one row per city, party or person it administers. The
+ * a superadmin, and one row per city, party, person or body it administers. The
  * label says the kind, the name says which, and the whole row is the link.
  */
 export function AdminSection({ user, t }: AdminSectionProps) {
@@ -42,6 +43,8 @@ export function AdminSection({ user, t }: AdminSectionProps) {
             entries.push({ key: admin.id, href: `/${admin.party.cityId}/parties/${admin.party.id}`, icon: Flag, label: t("adminParty"), name: admin.party.name });
         } else if (admin.person) {
             entries.push({ key: admin.id, href: `/${admin.person.cityId}/people/${admin.person.id}`, icon: User, label: t("adminPerson"), name: admin.person.name });
+        } else if (admin.administrativeBody) {
+            entries.push({ key: admin.id, href: `/${admin.administrativeBody.cityId}/meetings`, icon: Landmark, label: t("adminBody"), name: admin.administrativeBody.name });
         }
     }
     if (entries.length === 0) return null;

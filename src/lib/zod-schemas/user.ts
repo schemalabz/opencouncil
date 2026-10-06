@@ -42,9 +42,10 @@ const administersEntrySchema = z.object({
     cityId: z.string().nullable().optional(),
     partyId: z.string().nullable().optional(),
     personId: z.string().nullable().optional(),
+    administrativeBodyId: z.string().nullable().optional(),
 }).refine(
-    data => [data.cityId, data.partyId, data.personId].filter(Boolean).length === 1,
-    { message: "Exactly one of cityId, partyId, or personId must be provided" }
+    data => [data.cityId, data.partyId, data.personId, data.administrativeBodyId].filter(Boolean).length === 1,
+    { message: "Exactly one of cityId, partyId, personId, or administrativeBodyId must be provided" }
 );
 
 const adminUserFields = {

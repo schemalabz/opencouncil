@@ -54,6 +54,23 @@ export async function GET() {
             }
         })
 
+        // Fetch administrative bodies with their cities
+        const bodies = await prisma.administrativeBody.findMany({
+            select: {
+                id: true,
+                name: true,
+                city: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
+            },
+            orderBy: {
+                name: 'asc'
+            }
+        })
+
         // Format the response
         const entities = [
             ...cities.map(city => ({
@@ -70,6 +87,11 @@ export async function GET() {
                 ...person,
                 type: 'person' as const,
                 displayName: `${person.city.name} / ${person.name}`
+            })),
+            ...bodies.map(body => ({
+                ...body,
+                type: 'body' as const,
+                displayName: `${body.city.name} / ${body.name}`
             }))
         ]
 

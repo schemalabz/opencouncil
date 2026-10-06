@@ -1,0 +1,115 @@
+import "server-only";
+import prisma from "./prisma";
+import { getCurrentUser, isUserAuthorizedToEdit, withUserAuthorizedToEdit } from "../auth";
+import { BadRequestError, NotFoundError } from "@/lib/api/errors";
+import { sendInviteEmail } from "@/lib/auth/invite";
+
+/**
+ * The admins of one administrative body (#828): the accounts that hold an
+ * `Administers` row on the body. An admin of the body manages this list, so a
+ * secretary adds a colleague without a superadmin. A superadmin or a city
+ * admin creates the first one.
+ */
+
+const bodyAdminSelect = {
+    id: true,
+    createdAt: true,
+    user: { select: { id: true, email: true, name: true, onboarded: true } },
+} as const;
+
+export type BodyAdmin = {
+    userId: string;
+    email: string;
+    name: string | null;
+    onboarded: boolean;
+    since: Date;
+};
+
+async function requireBody(cityId: string, bodyId: string): Promise<void> {
+    await withUserAuthorizedToEdit({ cityId, administrativeBodyId: bodyId });
+    const body = await prisma.administrativeBody.findUnique({ where: { id: bodyId }, select: { cityId: true } });
+    if (!body || body.cityId !== cityId) throw new NotFoundError("Administrative body not found");
+}
+
+export async function listBodyAdmins(cityId: string, bodyId: string): Promise<BodyAdmin[]> {
+    await requireBody(cityId, bodyId);
+    const rows = await prisma.administers.findMany({
+        where: { administrativeBodyId: bodyId },
+        select: bodyAdminSelect,
+        orderBy: { createdAt: 'asc' },
+    });
+    return rows.map(row => ({
+        userId: row.user.id,
+        email: row.user.email,
+        name: row.user.name,
+        onboarded: row.user.onboarded,
+        since: row.createdAt,
+    }));
+}
+
+/**
+ * Give an account admin rights on the body. An unknown email gets a new
+ * account and an invite email with a sign-in link, like the superadmin's
+ * user tool sends. A known account only gets the row; it signs in as before.
+ */
+export async function addBodyAdmin(
+    cityId: string,
+    bodyId: string,
+    { email, name }: { email: string; name?: string | null },
+    request?: Request,
+): Promise<{ admin: BodyAdmin; created: boolean; inviteEmailSent: boolean }> {
+    await requireBody(cityId, bodyId);
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) throw new BadRequestError("Email cannot be empty");
+
+    const existing = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } });
+    const user = existing ?? await prisma.user.create({
+        data: { email: normalizedEmail, name: name?.trim() || null },
+        select: { id: true },
+    });
+
+    // Not an upsert: the other columns of the unique key are NULL here, and
+    // Postgres never matches a NULL, so an upsert would add a second row.
+    const row = await prisma.administers.findFirst({
+        where: { userId: user.id, administrativeBodyId: bodyId },
+        select: bodyAdminSelect,
+    }) ?? await prisma.administers.create({
+        data: { userId: user.id, administrativeBodyId: bodyId },
+        select: bodyAdminSelect,
+    });
+
+    const inviteEmailSent = existing ? false : await sendInviteEmail(normalizedEmail, name, request);
+
+    return {
+        admin: { userId: row.user.id, email: row.user.email, name: row.user.name, onboarded: row.user.onboarded, since: row.createdAt },
+        created: !existing,
+        inviteEmailSent,
+    };
+}
+
+/**
+ * Take the body away from an account. The account stays, with whatever else
+ * it administers. The last admin of a body can be removed only by a city
+ * admin or a superadmin: a body admin cannot lock the body's own door.
+ */
+export async function removeBodyAdmin(cityId: string, bodyId: string, userId: string): Promise<void> {
+    await requireBody(cityId, bodyId);
+    const rows = await prisma.administers.findMany({
+        where: { administrativeBodyId: bodyId },
+        select: { id: true, userId: true },
+    });
+    const target = rows.find(row => row.userId === userId);
+    if (!target) throw new NotFoundError("This account does not administer the body");
+
+    if (rows.length === 1 && !(await isUserAuthorizedToEdit({ cityId }))) {
+        throw new BadRequestError("The body needs at least one admin");
+    }
+
+    await prisma.administers.delete({ where: { id: target.id } });
+}
+
+/** Whether the viewer is an admin of this body themselves, for the UI. */
+export async function isCurrentUserBodyAdmin(bodyId: string): Promise<boolean> {
+    const user = await getCurrentUser();
+    return !!user?.administers.some(a => a.administrativeBodyId === bodyId);
+}

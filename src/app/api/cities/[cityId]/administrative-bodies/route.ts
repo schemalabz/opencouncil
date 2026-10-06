@@ -13,7 +13,8 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
 
         // The route has no auth of its own (the proxy skips /api), so the
         // body's settings go only to an editor of the city: the body form in
-        // the city form edits them.
+        // the city form edits them. Everyone else, a body admin included,
+        // gets the public fields of every body.
         const administrativeBodies = await isUserAuthorizedToEdit({ cityId })
             ? await getAdministrativeBodiesForCity(cityId)
             : await getPublicAdministrativeBodiesForCity(cityId);

@@ -109,6 +109,28 @@ export async function editAdministrativeBody(
     }
 }
 
+/**
+ * The two settings a body admin may change (#828): where the body's
+ * recordings live and who receives its transcripts. The name, the type, the
+ * notification behaviour and the Diavgeia scopes stay with the city admin.
+ */
+export async function editAdministrativeBodyContacts(
+    id: string,
+    { youtubeChannelUrl, contactEmails }: Pick<AdministrativeBody, 'youtubeChannelUrl' | 'contactEmails'>
+): Promise<AdministrativeBody> {
+    const existingBody = await prisma.administrativeBody.findUnique({
+        where: { id },
+        select: { cityId: true },
+    });
+    if (!existingBody) throw new Error('Administrative body not found');
+
+    await withUserAuthorizedToEdit({ cityId: existingBody.cityId, administrativeBodyId: id });
+    return prisma.administrativeBody.update({
+        where: { id },
+        data: { youtubeChannelUrl, contactEmails },
+    });
+}
+
 export async function deleteAdministrativeBody(id: string): Promise<void> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
