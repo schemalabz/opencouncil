@@ -57,9 +57,11 @@ export type AuthorizationScope = {
 
 type CurrentUser = NonNullable<Awaited<ReturnType<typeof currentUser>>>;
 
-/** The bodies an account administers directly, with the city of each. */
-function administeredBodies(user: CurrentUser): { id: string; cityId: string }[] {
-    return user.administers.flatMap(a => a.administrativeBody ? [{ id: a.administrativeBody.id, cityId: a.administrativeBody.cityId }] : []);
+/** The bodies of one city that an account administers directly, sorted. */
+function heldBodyIdsInCity(user: CurrentUser, cityId: string): string[] {
+    return user.administers
+        .flatMap(a => a.administrativeBody?.cityId === cityId ? [a.administrativeBody.id] : [])
+        .sort();
 }
 
 function administersCity(user: CurrentUser, cityId: string): boolean {
@@ -178,7 +180,7 @@ async function checkUserAuthorization({
         const person = await personRoles(personId);
         if (!person) return false;
         if (administersCity(user, person.cityId)) return true;
-        const held = new Set(administeredBodies(user).filter(b => b.cityId === person.cityId).map(b => b.id));
+        const held = new Set(heldBodyIdsInCity(user, person.cityId));
         return held.size > 0 && personIsOwnedByBodyAdmin(person.roles, held);
     }
 
@@ -211,8 +213,7 @@ export async function getUnreleasedScope(cityId: City["id"]): Promise<Unreleased
     const user = await getCurrentUser();
     if (!user) return NO_UNRELEASED;
     if (user.isSuperAdmin || administersCity(user, cityId)) return ALL_UNRELEASED;
-    const bodyIds = administeredBodies(user).filter(b => b.cityId === cityId).map(b => b.id).sort();
-    return { all: false, bodyIds };
+    return { all: false, bodyIds: heldBodyIdsInCity(user, cityId) };
 }
 
 /**
@@ -225,7 +226,7 @@ export async function getRoleLimitForCity(cityId: City["id"]): Promise<ReadonlyS
     const user = await getCurrentUser();
     if (!user) return new Set();
     if (user.isSuperAdmin || administersCity(user, cityId)) return null;
-    return new Set(administeredBodies(user).filter(b => b.cityId === cityId).map(b => b.id));
+    return new Set(heldBodyIdsInCity(user, cityId));
 }
 
 export type ServiceAuthResult =

@@ -221,20 +221,6 @@ export async function canUserEditMeeting(
 }
 
 /**
- * Session-free check of whether a user may edit one body: a superadmin, an
- * admin of the city, or an admin of that body in that city.
- */
-export async function canUserEditBody(
-    userId: string,
-    cityId: City["id"],
-    bodyId: AdministrativeBody["id"]
-): Promise<boolean> {
-    const rights = await getUserCityRights(userId);
-    if (rights.all || rights.cityIds.has(cityId)) return true;
-    return rights.bodies.get(bodyId) === cityId;
-}
-
-/**
  * Whether an actor may manage (view status of / render) a highlight: service
  * actors always, users when they own it or may edit its meeting. Mirrors
  * canViewHighlight in highlights.ts, without the session.
