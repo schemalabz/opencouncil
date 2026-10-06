@@ -2,7 +2,7 @@
 import { withUserAuthorizedToEdit } from "../auth";
 import prisma from "./prisma";
 import { TaskStatus } from '@prisma/client';
-import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG, taskScope } from "../tasks/types";
+import { CORE_PROCESSING_TASKS, MeetingTaskType, TASK_CONFIG, taskScope } from "@/lib/tasks/types";
 import { getHighlightPermissions } from "./highlights";
 
 // Derived type for meeting task completion status

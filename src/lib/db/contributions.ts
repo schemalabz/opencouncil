@@ -1,8 +1,8 @@
 "use server";
 import prisma from './prisma';
 import { AdministrativeBodyType, Prisma, Topic } from '@prisma/client';
-import { getUnreleasedScope } from '../auth';
-import { unreleasedMeetingWhere, type UnreleasedScope } from '../unreleased';
+import { getUnreleasedScope } from '@/lib/auth';
+import { unreleasedMeetingWhere, type UnreleasedScope } from '@/lib/unreleased';
 import { ContributionForPerson, contributionSubjectSelect, roleWithRelationsInclude } from './types';
 
 async function unreleasedScopeForPerson(personId: string): Promise<UnreleasedScope | undefined> {

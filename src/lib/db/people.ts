@@ -2,7 +2,7 @@
 import { Person, VoicePrint } from '@prisma/client';
 import type { PersonRoleData } from '@/lib/zod-schemas/person';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit, getRoleLimitForCity, personIsOwnedByBodyAdmin } from "../auth";
+import { withUserAuthorizedToEdit, getRoleLimitForCity, personIsOwnedByBodyAdmin } from "@/lib/auth";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
