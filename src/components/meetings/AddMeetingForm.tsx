@@ -126,7 +126,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
             youtubeUrl: meeting?.youtubeUrl || "",
             agendaUrl: meeting?.agendaUrl || "",
             meetingId: meeting?.id ?? "",
-            administrativeBodyId: meeting?.administrativeBodyId || (allowedBodyIds?.length === 1 ? allowedBodyIds[0] : "none"),
+            administrativeBodyId: meeting?.administrativeBodyId || allowedBodyIds?.[0] || "none",
             processAgenda: true,
             kind: meeting?.kind ?? null,
             urgent: meeting?.urgent ?? false,
@@ -490,6 +490,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                             config={meetingId ? {
                                                 cityId,
                                                 identifier: meetingId,
+                                                councilMeetingId: meeting?.id,
                                                 suffix: 'recording',
                                                 administrativeBodyId,
                                             } : undefined}
@@ -522,6 +523,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                             config={meetingId ? {
                                                 cityId,
                                                 identifier: meetingId,
+                                                councilMeetingId: meeting?.id,
                                                 suffix: 'agenda',
                                                 administrativeBodyId,
                                             } : undefined}

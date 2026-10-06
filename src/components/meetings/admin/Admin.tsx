@@ -29,8 +29,11 @@ import MeetingOperator from './MeetingOperator';
 import { transcriptionRefusal } from '@/lib/meetingLifecycleRules';
 
 export default function AdminActions({
+    editableBodyIds,
 }: {
-    }) {
+    /** The bodies a body admin may move the meeting to; absent for a city admin. */
+    editableBodyIds?: string[],
+}) {
     const { toast } = useToast();
     const t = useTranslations('admin.adminActions');
     const { meeting, transcript, people, city, subjects } = useCouncilMeetingData();
@@ -307,6 +310,7 @@ export default function AdminActions({
                                 cityId={meeting.cityId}
                                 realm={city.realm}
                                 meeting={meeting}
+                                allowedBodyIds={editableBodyIds}
                                 onSuccess={() => {
                                     // Refresh the page to show updated data
                                     window.location.reload();
@@ -342,6 +346,7 @@ export default function AdminActions({
                                 value={mediaUrl}
                                 onChange={(e) => setMediaUrl(e.target.value)}
                                 onUrlChange={(url) => setMediaUrl(url)}
+                                config={{ cityId: meeting.cityId, identifier: meeting.id, suffix: 'recording', councilMeetingId: meeting.id }}
                             />
                             <div className="flex items-center justify-between space-x-2 w-full">
                                 <div className="flex items-center space-x-2">
@@ -374,6 +379,7 @@ export default function AdminActions({
                                 value={agendaUrl}
                                 onChange={(e) => setAgendaUrl(e.target.value)}
                                 onUrlChange={(url) => setAgendaUrl(url)}
+                                config={{ cityId: meeting.cityId, identifier: meeting.id, suffix: 'agenda', councilMeetingId: meeting.id }}
                             />
                             <div className="flex items-center justify-between space-x-2 w-full">
                                 <div className="flex items-center space-x-2">

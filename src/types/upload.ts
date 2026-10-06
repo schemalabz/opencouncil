@@ -27,15 +27,22 @@ export interface UploadConfig {
      * may upload before the meeting row exists.
      */
     administrativeBodyId?: string
+    /**
+     * The existing meeting the file is for. It takes precedence over the body:
+     * the editors of the meeting may upload, an admin of its body among them.
+     */
+    councilMeetingId?: string
 }
 
 
 /**
  * Who may upload under a config: a superadmin with no city, a city admin with
- * a city, and also the admins of the body when the config names one.
+ * a city, the editors of the meeting when the config names one, and the
+ * admins of the body when it names a body for a meeting not yet created.
  */
 export function uploadAuthorizationScope(config: UploadConfig | undefined): AuthorizationScope {
     if (!config?.cityId) return {}
+    if (config.councilMeetingId) return { cityId: config.cityId, councilMeetingId: config.councilMeetingId }
     if (config.administrativeBodyId) return { cityId: config.cityId, administrativeBodyId: config.administrativeBodyId }
     return { cityId: config.cityId }
 }
