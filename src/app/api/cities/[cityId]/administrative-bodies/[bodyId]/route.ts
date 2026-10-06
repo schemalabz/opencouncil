@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { editAdministrativeBody, deleteAdministrativeBody } from '@/lib/db/administrativeBodies';
+import { editAdministrativeBody, editAdministrativeBodyContacts, deleteAdministrativeBody } from '@/lib/db/administrativeBodies';
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
 import { rederiveMeetingsOfBody } from '@/lib/derivation/rederive';
 import { z } from 'zod';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
-import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
+import { ApiError } from '@/lib/api/errors';
+import { administrativeBodySchema, administrativeBodyContactsSchema } from '@/lib/zod-schemas/administrativeBody';
 
 
 export async function PUT(
@@ -14,8 +15,20 @@ export async function PUT(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
+
+        // An admin of the body, not of the city, changes the YouTube channel
+        // and the contact emails and nothing else (#828).
+        if (!(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
+            await withUserAuthorizedToEdit({ cityId: params.cityId, administrativeBodyId: params.bodyId });
+            const { youtubeChannelUrl, contactEmails } = administrativeBodyContactsSchema.parse(body);
+            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, {
+                youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
+                contactEmails: contactEmails || [],
+            });
+            revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
+            return NextResponse.json(updatedBody);
+        }
 
         // Confirming the conventions is its own write: it carries only the
         // conventions, and the writer parses them and stamps who confirmed them.
@@ -51,6 +64,9 @@ export async function PUT(
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: error.errors }, { status: 400 });
+        }
+        if (error instanceof ApiError) {
+            return NextResponse.json({ error: error.message }, { status: error.statusCode });
         }
         console.error('Failed to update administrative body:', error);
         return NextResponse.json(

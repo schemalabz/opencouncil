@@ -770,7 +770,8 @@
         "contactForAccess": "To gain administration access, contact us:",
         "adminCity": "Manage City",
         "adminParty": "Manage Party",
-        "adminPerson": "Manage Member"
+        "adminPerson": "Manage Member",
+        "adminBody": "Body administrator"
     },
     "OfferForm": {
         "recipientName": "Recipient",

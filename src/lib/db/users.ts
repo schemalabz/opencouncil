@@ -20,6 +20,11 @@ const userWithAdministersInclude = {
                 include: {
                     city: true
                 }
+            },
+            administrativeBody: {
+                include: {
+                    city: true
+                }
             }
         }
     }
