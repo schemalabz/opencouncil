@@ -212,21 +212,29 @@ describe('upsertHighlightCore authorization', () => {
     it('EVERYONE: non-admins cannot edit highlights they do not own', async () => {
         setCityPermission('EVERYONE');
         setUser({ administers: [] });
-        mockHighlightFindUnique.mockResolvedValue({ cityId: 'athens', createdById: 'u1' });
+        mockHighlightFindUnique.mockResolvedValue({ cityId: 'athens', meetingId: 'm1', createdById: 'u1' });
         await expect(upsertHighlightCore(OTHER_USER, { ...DATA, id: 'h1' })).rejects.toThrow(ForbiddenError);
     });
 
     it('EVERYONE: owners can edit their own highlights', async () => {
         setCityPermission('EVERYONE');
         setUser({ administers: [] });
-        mockHighlightFindUnique.mockResolvedValue({ cityId: 'athens', createdById: 'u1' });
+        mockHighlightFindUnique.mockResolvedValue({ cityId: 'athens', meetingId: 'm1', createdById: 'u1' });
         await expect(upsertHighlightCore(USER, { ...DATA, id: 'h1' })).resolves.toMatchObject({ id: 'h1' });
     });
 
     it('rejects edits to highlights of another city', async () => {
         setCityPermission('EVERYONE');
         setUser({ administers: [] });
-        mockHighlightFindUnique.mockResolvedValue({ cityId: 'argos', createdById: 'u1' });
+        mockHighlightFindUnique.mockResolvedValue({ cityId: 'argos', meetingId: 'm1', createdById: 'u1' });
+        await expect(upsertHighlightCore(USER, { ...DATA, id: 'h1' })).rejects.toThrow(BadRequestError);
+    });
+
+    it("rejects an edit that names one meeting and a highlight of another, even for the named meeting's body admin", async () => {
+        setCityPermission('ADMINS_ONLY');
+        setUser({ administers: [bodyAdminOf('council', 'athens')] });
+        setMeetingBody('council');
+        mockHighlightFindUnique.mockResolvedValue({ cityId: 'athens', meetingId: 'm2', createdById: 'someone-else' });
         await expect(upsertHighlightCore(USER, { ...DATA, id: 'h1' })).rejects.toThrow(BadRequestError);
     });
 

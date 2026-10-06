@@ -288,7 +288,7 @@ export async function upsertHighlightCore(
         actor.type === 'service' ? Promise.resolve(true) : canUserEditMeeting(actor.userId, cityId, meetingId),
         id ? prisma.highlight.findUnique({
             where: { id },
-            select: { cityId: true, createdById: true }
+            select: { cityId: true, meetingId: true, createdById: true }
         }) : Promise.resolve(null)
     ]);
 
@@ -298,6 +298,12 @@ export async function upsertHighlightCore(
     }
     if (existingHighlight && existingHighlight.cityId !== cityId) {
         throw new BadRequestError('Highlight does not belong to the specified city');
+    }
+    // The rights above are on the meeting the caller named, so the highlight
+    // must be in it: an admin of one body could otherwise rewrite a highlight
+    // of another body's meeting by naming their own.
+    if (existingHighlight && existingHighlight.meetingId !== meetingId) {
+        throw new BadRequestError('Highlight does not belong to the specified meeting');
     }
 
     // Authorization checks
