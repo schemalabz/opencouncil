@@ -4,6 +4,7 @@ import { ArrowRight, Bell, CalendarDays, MapPin, Search, X } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
+import { isOutOfNetwork } from '@/lib/cityStatus';
 import { formatDateTime } from '@/lib/formatters/time';
 import type { LandingListCity, LandingPetitionedCity, UpcomingMeeting } from '@/lib/landing/landingData';
 import { PETITION_DISPLAY_THRESHOLD, petitionFill } from '@/lib/landing/petitions';
@@ -197,11 +198,15 @@ export function MunicipalityCard({
     variant?: 'panel' | 'strip';
 }) {
     const t = useTranslations('landingV2');
+    const tCity = useTranslations('City');
     const locale = useLocale();
     const strip = variant === 'strip';
     const nextLine = next
         ? formatDateTime(new Date(next.dateTime), next.city.timezone, strip ? 'medium' : 'long', locale)
         : null;
+    // This list holds public cities only, so one that is not public by status
+    // is public through a secondary body alone (#829): say so under its name.
+    const secondaryOnly = isOutOfNetwork(city.status);
     return (
         <div
             data-city-id={city.id}
@@ -232,7 +237,9 @@ export function MunicipalityCard({
             {/* the numbers — one line of their own at full width, so the avatar and the arrow do not
                 truncate it */}
             <div className={cn('truncate text-muted-foreground', strip ? 'mt-2 text-[11px]' : 'mt-2.5 text-xs')}>
-                <MunicipalityStats subjects={subjectCount} meetings={city._count.councilMeetings} persons={city._count.persons} />
+                {secondaryOnly ? tCity('supportBadgeShortYouthOnly') : (
+                    <MunicipalityStats subjects={subjectCount} meetings={city._count.councilMeetings} persons={city._count.persons} />
+                )}
             </div>
 
             {nextLine && (
