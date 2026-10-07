@@ -1,3 +1,4 @@
+import { AdministrativeBodyType } from "@prisma/client";
 /*
  * Generic task types
  */
@@ -132,7 +133,7 @@ export interface ProcessAgendaRequest extends TaskRequest {
     country: Country;
     date: string;
     /** The body that holds the meeting, so its meeting can be told from another one in the same agenda. */
-    administrativeBody?: { name?: string; type: 'council' | 'committee' | 'community' };
+    administrativeBody?: { name?: string; type: AdministrativeBodyType };
     /** The meeting's start in the city's time (HH:MM): two meetings of one body on one day differ by the hour. */
     time?: string;
 }

@@ -100,6 +100,7 @@ export function bodySeatTotals(roles: (SeatRole & { personId: string })[]): Body
         council: new Set(),
         committee: new Set(),
         community: new Set(),
+        youthCouncil: new Set(),
     };
     for (const role of roles) {
         if (isActiveSeat(role)) holders[role.administrativeBody!.type].add(role.personId);
@@ -108,6 +109,7 @@ export function bodySeatTotals(roles: (SeatRole & { personId: string })[]): Body
         council: holders.council.size,
         committee: holders.committee.size,
         community: holders.community.size,
+        youthCouncil: holders.youthCouncil.size,
     };
 }
 

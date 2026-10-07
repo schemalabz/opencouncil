@@ -151,7 +151,8 @@
   "bodyType": {
     "council": "Council",
     "committee": "Committee",
-    "community": "Community"
+    "community": "Community",
+    "youthCouncil": "Youth council"
   },
   "duration": {
     "5": "5′+",
