@@ -1,9 +1,10 @@
-import type { MeetingKind, MeetingScheduleStatus } from "@prisma/client";
+import type { AdministrativeBodyType, MeetingKind, MeetingScheduleStatus } from "@prisma/client";
 import { takesPlace } from "@/lib/meetingLifecycleRules";
 import { takesNoDecisions, pollDueAt } from "./pollDecisionsBackoff";
 import { MeetingDecisionCounts } from "../db/decisions";
+import { isSecondaryBody } from "@/lib/utils/bodyTier";
 
-export type PollSkipReason = "notTakingPlace" | "noDecisions" | "noEligibleSubjects";
+export type PollSkipReason = "notTakingPlace" | "noDecisions" | "noEligibleSubjects" | "secondaryBody";
 
 export interface MeetingPollEligibility {
     meetingId: string;
@@ -28,14 +29,14 @@ export interface PollPartition {
  * separately by the caller (the action is disabled when the city has none).
  *
  * - `skipped`: postponed or cancelled meetings, meetings that take no decisions
- *   (λογοδοσία, απολογισμός), or meetings
- *   with no decision-eligible subjects.
+ *   (λογοδοσία, απολογισμός), meetings of a secondary body (which publishes
+ *   no decisions, #829), or meetings with no decision-eligible subjects.
  * - `pollable`: everything else. `alreadyComplete` is true when every eligible
  *   subject already has a linked decision (still pollable for a deliberate
  *   re-poll, but surfaced so the admin knows).
  */
 export function partitionMeetingsForPolling(
-    meetings: { id: string; name: string; kind: MeetingKind | null; continuationOf: { kind: MeetingKind | null } | null; scheduleStatus: MeetingScheduleStatus }[],
+    meetings: { id: string; name: string; kind: MeetingKind | null; continuationOf: { kind: MeetingKind | null } | null; scheduleStatus: MeetingScheduleStatus; administrativeBody?: { type: AdministrativeBodyType } | null }[],
     decisionCounts: MeetingDecisionCounts,
 ): PollPartition {
     const pollable: MeetingPollEligibility[] = [];
@@ -55,6 +56,8 @@ export function partitionMeetingsForPolling(
             skipReason = "notTakingPlace";
         } else if (takesNoDecisions(meeting)) {
             skipReason = "noDecisions";
+        } else if (isSecondaryBody(meeting.administrativeBody)) {
+            skipReason = "secondaryBody";
         } else if (counts.eligible === 0) {
             skipReason = "noEligibleSubjects";
         }

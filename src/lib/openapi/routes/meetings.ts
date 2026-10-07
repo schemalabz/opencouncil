@@ -58,6 +58,7 @@ const MeetingCreatedSchema = MeetingSchema.extend({
 const MeetingDataSchema = z.object({
     meeting: MeetingSchema,
     transcriptHiddenForReview: z.boolean(),
+    notificationsDisabled: z.boolean().meta({ description: 'The body of the meeting sends no notifications.' }),
     transcript: z.array(z.unknown()),
     speakerTags: z.array(z.unknown()),
     people: z.array(PersonWithRolesSchema),
