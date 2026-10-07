@@ -41,8 +41,8 @@ export async function POST(request: NextRequest) {
     // A body other than the council when there is one: the council is the
     // body that a city admin's rights already cover.
     const testBody = await prisma.administrativeBody.findFirst({
-      where: { cityId: DEV_TEST_CITY_ID },
-      orderBy: [{ type: 'desc' }, { name: 'asc' }],
+      where: { cityId: DEV_TEST_CITY_ID, type: { not: 'council' } },
+      orderBy: [{ type: 'asc' }, { name: 'asc' }],
       select: { id: true, name: true }
     })
 

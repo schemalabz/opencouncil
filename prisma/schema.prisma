@@ -113,6 +113,9 @@ enum AdministrativeBodyType {
   council      // Συμβούλιο (π.χ. Δημοτικό Συμβούλιο)
   committee    // Επιτροπή (π.χ. Δημοτική Επιτροπή)
   community    // Κοινότητα (π.χ. 5η Δημοτική Κοινότητα)
+  /// Δημοτικό Συμβούλιο Νέων. The one secondary-tier type: its content stays out
+  /// of every default scope (see bodyTier in src/lib/utils/administrativeBodies.ts).
+  youthCouncil
 }
 
 /// Whether the announced meeting is still expected. Whether it was held stays

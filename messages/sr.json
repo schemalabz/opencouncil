@@ -57,6 +57,7 @@
         "adminBodyType_council": "Скупштина",
         "adminBodyType_committee": "Одбор",
         "adminBodyType_community": "Заједнице",
+        "adminBodyType_youthCouncil": "Савет младих",
         "allPeople": "Сви",
         "allBodies": "Сва",
         "backToHome": "Назад на почетну",
@@ -392,7 +393,8 @@
         "administrativeBodyType": {
             "council": "Скупштина града",
             "committee": "Општинска комисија",
-            "community": "Општинска заједница"
+            "community": "Општинска заједница",
+            "youthCouncil": "Градски савет младих"
         },
         "meetingAgenda": "Дневни ред седнице",
         "meetingAgendaPlaceholder": "URL или датотека дневног реда",
@@ -965,7 +967,8 @@
         "types": {
             "council": "Скупштина града",
             "committee": "Општинска комисија",
-            "community": "Месна заједница"
+            "community": "Месна заједница",
+            "youthCouncil": "Градски савет младих"
         },
         "youtubeChannelUrl": "URL YouTube канала",
         "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",

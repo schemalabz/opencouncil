@@ -8,8 +8,8 @@ type MeetingWithAdminBody = {
     administrativeBody: AdministrativeBody | null;
 };
 
-/** Canonical ordering for admin body types */
-export const ADMIN_BODY_TYPE_ORDER: AdministrativeBodyType[] = ['council', 'committee', 'community'];
+/** Canonical ordering for admin body types. The secondary tier (see bodyTier.ts) closes the list. */
+export const ADMIN_BODY_TYPE_ORDER: AdministrativeBodyType[] = ['council', 'committee', 'community', 'youthCouncil'];
 
 /**
  * Where a body type sits in {@link ADMIN_BODY_TYPE_ORDER}. A type that is absent

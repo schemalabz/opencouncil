@@ -459,11 +459,13 @@ const ADMIN_BODY_BOOST_SHARE: Record<AdministrativeBodyType, number> = {
     council: 1,
     committee: 0.5,
     community: 0,
+    youthCouncil: 0,
 };
 const ADMIN_BODY_WEIGHT: Record<AdministrativeBodyType, number> = {
     council: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.council,
     committee: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.committee,
     community: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.community,
+    youthCouncil: 1 + ADMIN_BODY_BOOST_WEIGHT * ADMIN_BODY_BOOST_SHARE.youthCouncil,
 };
 // No administrative body assigned ranks like the lowest tier (community), not the
 // best one — never below the floor of 1.0 (no penalty), just no boost.
@@ -527,6 +529,7 @@ const RANKING_SCRIPT = `
     double adminWeight = bodyType == 'council' ? params.councilWeight
         : bodyType == 'committee' ? params.committeeWeight
         : bodyType == 'community' ? params.communityWeight
+        : bodyType == 'youthCouncil' ? params.youthCouncilWeight
         : params.defaultAdminBodyWeight;
 
     double discussionMinutes = doc['discussion_speaking_seconds'].size() == 0 ? 0 : doc['discussion_speaking_seconds'].value / 60.0;
@@ -553,6 +556,7 @@ function buildRankingFunction(): estypes.QueryDslFunctionScoreContainer {
                     councilWeight: ADMIN_BODY_WEIGHT.council,
                     committeeWeight: ADMIN_BODY_WEIGHT.committee,
                     communityWeight: ADMIN_BODY_WEIGHT.community,
+                    youthCouncilWeight: ADMIN_BODY_WEIGHT.youthCouncil,
                     defaultAdminBodyWeight: DEFAULT_ADMIN_BODY_WEIGHT,
                     discussionWeight: DISCUSSION_LENGTH_BOOST_WEIGHT,
                     recencyWeight: RECENCY_BOOST_WEIGHT,

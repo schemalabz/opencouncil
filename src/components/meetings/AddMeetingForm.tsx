@@ -299,7 +299,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess, allowedBody
                                         )}
                                         {administrativeBodies.map((body) => (
                                             <SelectItem key={body.id} value={body.id}>
-                                                {body.name} ({t(`administrativeBodyType.${body.type.toLowerCase()}`)})
+                                                {body.name} ({t(`administrativeBodyType.${body.type}`)})
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

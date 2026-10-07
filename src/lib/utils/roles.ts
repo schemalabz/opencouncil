@@ -1,5 +1,6 @@
 import { AdministrativeBodyType, Party, Role } from "@prisma/client";
 import { RoleWithRelations } from "@/lib/db/types";
+import { bodyTier } from "./bodyTier";
 
 /**
  * Validation error type for role validation
@@ -354,11 +355,19 @@ export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], 
  * (e.g. a council member role should rank above a party role when viewing a council meeting).
  * This will require passing context (e.g. administrativeBodyId) to the sorting function.
  */
-export function getRoleTypePriority(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): number {
+export function getRoleTypePriority(role: {
+  isHead: boolean;
+  cityId?: string | null;
+  partyId?: string | null;
+  administrativeBodyId?: string | null;
+  administrativeBody?: { type: AdministrativeBodyType } | null;
+}): number {
   if (isMayorRole(role)) return 0;             // mayor
   const isCityLevel = role.cityId && !role.partyId && !role.administrativeBodyId;
   if (isCityLevel) return 1;                 // deputy mayor
-  if (role.administrativeBodyId && role.isHead) return 2; // council president, committee chair
+  // The chair of a secondary body ranks as a member: that title must not stand
+  // above the council president's on a person who holds both.
+  if (role.administrativeBodyId && role.isHead && bodyTier(role.administrativeBody?.type) === 'primary') return 2; // council president, committee chair
   if (role.partyId && role.isHead) return 3;  // party leader
   if (role.partyId) return 4;                 // party member
   if (role.administrativeBodyId) return 5;    // regular admin body member

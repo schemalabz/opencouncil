@@ -86,7 +86,7 @@ function registerMeetingAdminTools(server: McpServer) {
                 youtubeUrl: z.url().optional().describe('URL of the meeting video'),
                 agendaUrl: z.url().optional().describe('URL of the agenda PDF'),
                 administrativeBodyId: z.string().min(1).optional()
-                    .describe('The body that meets (council, committee, community). See get_city'),
+                    .describe('The body that meets (council, committee, community, youthCouncil). See get_city'),
                 processAgenda: z.boolean().default(false)
                     .describe('Also queue the task that extracts the subjects from the agenda PDF. Needs agendaUrl'),
                 ...meetingRecordInput,

@@ -57,6 +57,7 @@
         "adminBodyType_council": "City Council",
         "adminBodyType_committee": "Municipal Committee",
         "adminBodyType_community": "Communities",
+        "adminBodyType_youthCouncil": "Youth Council",
         "allPeople": "All",
         "allBodies": "All",
         "backToHome": "Back to home",
@@ -392,7 +393,8 @@
         "administrativeBodyType": {
             "council": "City Council",
             "committee": "Municipal Committee",
-            "community": "Municipal Community"
+            "community": "Municipal Community",
+            "youthCouncil": "Municipal Youth Council"
         },
         "meetingAgenda": "Meeting Agenda",
         "meetingAgendaPlaceholder": "Agenda URL or file",
@@ -965,7 +967,8 @@
         "types": {
             "council": "City Council",
             "committee": "Municipal Committee",
-            "community": "Municipal Community"
+            "community": "Municipal Community",
+            "youthCouncil": "Municipal Youth Council"
         },
         "youtubeChannelUrl": "YouTube Channel URL",
         "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",

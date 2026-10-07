@@ -5,6 +5,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit, getRoleLimitForCity } from "@/lib/auth";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
 import { validateRolesForBodyAdmin } from "@/lib/utils/roles";
+import { isSecondaryBody } from "@/lib/utils/bodyTier";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
 export type PersonWithRelations = Person & {
@@ -237,18 +238,24 @@ function maySpeakAtMeeting(person: PersonWithRelations, administrativeBodyId: st
     if (hasCityLevelRole(person.roles, date)) {
         return true;
     }
-    const isInMeetingBody = person.roles.some(role => role.administrativeBodyId === administrativeBodyId);
     const isInCouncil = person.roles.some(role => role.administrativeBody?.type === 'council');
     const isCommunityHead = person.roles.some(role => role.administrativeBody?.type === 'community' && role.isHead);
     const hasNoAdminBody = !person.roles.some(role => role.administrativeBody);
 
-    return isInMeetingBody || isInCouncil || isCommunityHead || hasNoAdminBody;
+    return isMemberOf(person, administrativeBodyId) || isInCouncil || isCommunityHead || hasNoAdminBody;
+}
+
+/** Whether a person has held a role on a body, whenever that was (see maySpeakAtMeeting on dates). */
+function isMemberOf(person: PersonWithRelations, administrativeBodyId: string): boolean {
+    return person.roles.some(role => role.administrativeBodyId === administrativeBodyId);
 }
 
 /**
  * The people who may speak at a meeting (see maySpeakAtMeeting): whose
  * voiceprints transcribe matches against, and who the transcript tasks are told
- * about. A meeting with no administrative body gets all people in the city.
+ * about. A meeting with no administrative body gets all people in the city. A
+ * meeting of a secondary body gets that body's members and nobody else: the
+ * municipality's roster does not sit there.
  *
  * `date` is the day city-level roles are read on; today when left out.
  */
@@ -256,6 +263,10 @@ export async function getPeopleWhoMaySpeak(cityId: string, administrativeBodyId:
     const allPeople = await getPeopleForCity(cityId);
     if (!administrativeBodyId) {
         return allPeople;
+    }
+    const body = await prisma.administrativeBody.findUnique({ where: { id: administrativeBodyId }, select: { type: true } });
+    if (isSecondaryBody(body)) {
+        return allPeople.filter(person => isMemberOf(person, administrativeBodyId));
     }
     return allPeople.filter(person => maySpeakAtMeeting(person, administrativeBodyId, date));
 }
@@ -268,8 +279,7 @@ export async function getPeopleWhoMaySpeak(cityId: string, administrativeBodyId:
  *
  * Rules:
  * - Council meetings (type=council): everyone who may speak there (see maySpeakAtMeeting)
- * - Committee meetings (type=committee): Only members of that specific committee
- * - Community meetings (type=community): Only members of that specific community
+ * - Every other body, primary or secondary: only the members of that body
  * - No admin body: All people in the city
  */
 export async function getPeopleForMeeting(cityId: string, administrativeBodyId: string | null): Promise<PersonWithRelations[]> {
@@ -302,18 +312,8 @@ export async function getPeopleForMeeting(cityId: string, administrativeBodyId: 
             const bestRoleB = Math.min(...b.roles.map(getRoleTypePriority));
             return bestRoleA - bestRoleB;
         });
-    } else if (adminBody.type === 'committee') {
-        // Committee meetings: Only members of this specific committee
-        return allPeople.filter(person =>
-            person.roles.some(role => role.administrativeBodyId === administrativeBodyId)
-        );
-    } else if (adminBody.type === 'community') {
-        // Community meetings: Only members of this specific community
-        return allPeople.filter(person =>
-            person.roles.some(role => role.administrativeBodyId === administrativeBodyId)
-        );
     }
 
-    // Fallback: return all people
-    return allPeople;
-} 
+    // A committee, a κοινότητα, a youth council: only the members of that body.
+    return allPeople.filter(person => isMemberOf(person, administrativeBodyId));
+}

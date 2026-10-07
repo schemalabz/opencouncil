@@ -1,10 +1,14 @@
 /** @jest-environment node */
 
 const mockPersonFindMany = jest.fn();
+const mockBodyFindUnique = jest.fn();
 
 jest.mock('../prisma', () => ({
   __esModule: true,
-  default: { person: { findMany: (...args: unknown[]) => mockPersonFindMany(...args) } },
+  default: {
+    person: { findMany: (...args: unknown[]) => mockPersonFindMany(...args) },
+    administrativeBody: { findUnique: (...args: unknown[]) => mockBodyFindUnique(...args) },
+  },
 }));
 jest.mock('../../auth', () => ({ withUserAuthorizedToEdit: jest.fn() }));
 
@@ -41,13 +45,22 @@ const CITY = [
   person('community-b-member', [inBody('community-b', 'community')]),
   person('party-only', [inParty()]),
   person('no-roles', []),
+  person('youth-chair', [inBody('youth', 'youthCouncil', { isHead: true })]),
+  person('youth-member', [inBody('youth', 'youthCouncil')]),
 ];
+
+// The type of each body the roster above names, as the body lookup answers it.
+const BODY_TYPES: Record<string, BodyType> = {
+  council: 'council', committee: 'committee', 'community-a': 'community', 'community-b': 'community', youth: 'youthCouncil',
+};
 
 const idsOf = (people: PersonWithRelations[]) => people.map(p => p.id).sort();
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockPersonFindMany.mockResolvedValue(CITY);
+  mockBodyFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+    Promise.resolve(where.id in BODY_TYPES ? { id: where.id, type: BODY_TYPES[where.id] } : null));
 });
 
 describe('getPeopleWhoMaySpeak', () => {
@@ -75,13 +88,25 @@ describe('getPeopleWhoMaySpeak', () => {
 
   it('returns the whole city for a meeting with no body', async () => {
     expect(idsOf(await getPeopleWhoMaySpeak('city-1', null, MEETING_DATE))).toEqual(idsOf(CITY));
+    expect(mockBodyFindUnique).not.toHaveBeenCalled();
+  });
+
+  // A secondary body speaks for itself: the municipality's roster does not sit
+  // there, and its members hold a body, so they are not on the council's list.
+  it('at a youth council meeting: that body\'s members and nobody else', async () => {
+    expect(idsOf(await getPeopleWhoMaySpeak('city-1', 'youth', MEETING_DATE))).toEqual(['youth-chair', 'youth-member']);
   });
 
   it('is wider than the document tasks\' list at a committee, which holds the committee\'s members only', async () => {
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const prisma = jest.requireMock('../prisma').default;
-    prisma.administrativeBody = { findUnique: jest.fn().mockResolvedValue({ id: 'committee', type: 'committee' }) };
-
     expect(idsOf(await getPeopleForMeeting('city-1', 'committee'))).toEqual(['committee-only-member', 'councillor-on-committee']);
+  });
+
+  it('gives the document tasks a youth council\'s members only, too', async () => {
+    expect(idsOf(await getPeopleForMeeting('city-1', 'youth'))).toEqual(['youth-chair', 'youth-member']);
+  });
+
+  it('gives the document tasks the whole city when the body is unknown', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(idsOf(await getPeopleForMeeting('city-1', 'missing'))).toEqual(idsOf(CITY));
   });
 });

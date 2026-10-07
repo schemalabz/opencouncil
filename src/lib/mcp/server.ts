@@ -37,7 +37,7 @@ const paginationShape = {
  * opposite of what passing it means.
  */
 const administrativeBodyTypesFilter = z.array(z.enum(AdministrativeBodyType)).min(1).optional()
-    .describe('Restrict to bodies of these kinds: council (Δημοτικό or Περιφερειακό Συμβούλιο; also matches meetings with no body, from cities imported before bodies existed), committee (Δημοτική or Περιφερειακή Επιτροπή), community (Δημοτική Κοινότητα; municipalities only)');
+    .describe('Restrict to bodies of these kinds: council (Δημοτικό or Περιφερειακό Συμβούλιο; also matches meetings with no body, from cities imported before bodies existed), committee (Δημοτική or Περιφερειακή Επιτροπή), community (Δημοτική Κοινότητα; municipalities only), youthCouncil (Δημοτικό Συμβούλιο Νέων; left out unless asked for)');
 
 /**
  * The render settings both highlight write tools accept. Shared so the two
@@ -182,8 +182,9 @@ export function registerOpenCouncilServer(server: McpServer) {
             _meta: category('directory'),
             description:
                 'Get a municipality profile: its political parties, and its administrative ' +
-                'bodies — the council, committees and κοινότητες that hold meetings. Each body ' +
-                'carries the id that list_meetings and search filter by.',
+                'bodies — the council, committees, κοινότητες and youth councils that hold meetings. ' +
+                'Each body carries the id that list_meetings and search filter by. A youth council ' +
+                '(youthCouncil) is secondary: its meetings show only when a body id or body type asks for them.',
             inputSchema: z.object({ cityId: z.string().min(1) }),
         },
         (args, ctx: ServerContext) => run(() => mcpGetCity(args.cityId, identityFromContext(ctx)))

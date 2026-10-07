@@ -66,6 +66,7 @@
   "notisExampleLabel": "пример",
   "scopeCommittee": "Одбор",
   "scopeCommunity": "МЗ",
+  "scopeYouthCouncil": "СМ",
   "period3m": "3 месеца",
   "period6m": "6 месеци",
   "period12m": "12 месеци",
@@ -77,6 +78,7 @@
   "scopeCouncilFull": "Градска скупштина",
   "scopeCommitteeFull": "Градски одбор",
   "scopeCommunityFull": "Месне заједнице",
+  "scopeYouthCouncilFull": "Савет младих",
   "scopeAllFull": "Сва тела",
   "petitionTeaser": {
     "municipality": "Желите OpenCouncil у својој општини?",

@@ -57,6 +57,7 @@
         "adminBodyType_council": "Δημοτικό Συμβούλιο",
         "adminBodyType_committee": "Δημοτική Επιτροπή",
         "adminBodyType_community": "Κοινότητες",
+        "adminBodyType_youthCouncil": "Δημοτικό Συμβούλιο Νέων",
         "allPeople": "Όλα",
         "allBodies": "Όλες",
         "backToHome": "Πίσω στην αρχική σελίδα",
@@ -411,7 +412,8 @@
         "administrativeBodyType": {
             "council": "Δημοτικό Συμβούλιο",
             "committee": "Δημοτική Επιτροπή",
-            "community": "Δημοτική Κοινότητα"
+            "community": "Δημοτική Κοινότητα",
+            "youthCouncil": "Δημοτικό Συμβούλιο Νέων"
         },
         "formErrors": "Παρακαλώ διορθώστε τα παρακάτω σφάλματα:"
     },
@@ -960,7 +962,8 @@
         "types": {
             "council": "Δημοτικό Συμβούλιο",
             "committee": "Δημοτική Επιτροπή",
-            "community": "Δημοτική Κοινότητα"
+            "community": "Δημοτική Κοινότητα",
+            "youthCouncil": "Δημοτικό Συμβούλιο Νέων"
         },
         "youtubeChannelUrl": "URL Κανάλι YouTube",
         "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",
