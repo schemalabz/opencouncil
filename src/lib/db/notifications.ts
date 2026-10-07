@@ -1733,7 +1733,9 @@ export async function getNotificationImpactPreviewData(
         interests: { id: string }[];
     }>;
 }> {
-    await withUserAuthorizedToEdit({ cityId });
+    // The scope of the meeting, as on the send: the admin of its body
+    // previews the audience of their own meetings (#828).
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
     // Fetch meeting with subjects
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },
