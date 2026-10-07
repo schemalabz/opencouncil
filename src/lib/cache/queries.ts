@@ -1,7 +1,7 @@
 import { AdministrativeBodyType, Realm } from "@prisma/client";
 import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
 import { unreleasedCacheKey } from "@/lib/unreleased";
-import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint } from "@/lib/db/cities";
+import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint, isCityPublicThroughSecondary } from "@/lib/db/cities";
 import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
 import { getCityMessage } from "@/lib/db/cityMessages";
@@ -52,6 +52,19 @@ export async function getAllCityIdsCached(realm: Realm) {
     () => getAllCityIds(realm),
     ['cities', 'ids', realm],
     { tags: ['cities:all', `realm:${realm}:cities:all`] }
+  )();
+}
+
+/**
+ * Whether a city is public through a secondary body (#829). Keyed per city
+ * under its meetings tag, which a release busts — the one event that changes
+ * the answer.
+ */
+export async function getCityPublicThroughSecondaryCached(cityId: string): Promise<boolean> {
+  return createCache(
+    () => isCityPublicThroughSecondary(cityId),
+    ['city', cityId, 'publicThroughSecondary'],
+    { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`] }
   )();
 }
 
