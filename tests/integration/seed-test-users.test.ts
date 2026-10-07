@@ -40,7 +40,7 @@ describe('ensureTestUsers', () => {
         quiet = await createPerson('alpha', { name: 'Quiet' })
         busy = await createPerson('alpha', { name: 'Busy' })
         // The council of alpha has more meetings, but the body admin gets the committee:
-        // the city admin already covers the council. beta has only a council.
+        // the city admin already covers the council. beta has only a council, so no body-admin grant.
         await createAdministrativeBody('alpha', { id: 'alpha-council', type: 'council' })
         await createAdministrativeBody('alpha', { id: 'alpha-committee', type: 'committee' })
         await createAdministrativeBody('beta', { id: 'beta-council', type: 'council' })
@@ -81,7 +81,7 @@ describe('ensureTestUsers', () => {
         expect(byType.party.administers.map((a) => a.partyId).sort()).toEqual(['big', 'lonely'])
         expect(byType.person.administers.map((a) => a.personId).sort()).toEqual([busy.id, other.id].sort())
         expect((await rightsOf('person@test.com')).every((a) => a.claimedAt !== null)).toBe(true)
-        expect(byType.body.administers.map((a) => a.administrativeBodyId)).toEqual(['alpha-committee', 'beta-council'])
+        expect(byType.body.administers.map((a) => a.administrativeBodyId)).toEqual(['alpha-committee'])
         expect(byType.readonly.administers).toEqual([])
         // The superadmin follows two cities; the others follow the first.
         expect(byType.superadmin.notificationPreferences.map((p) => p.cityId)).toEqual(['alpha', 'beta'])

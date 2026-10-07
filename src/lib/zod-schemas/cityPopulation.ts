@@ -52,7 +52,7 @@ export const cityPopulationSchema = z.object({
             .describe('The YouTube channel that streams this body\'s meetings, for example https://www.youtube.com/@handle, or null'),
     }))
         .min(1, { error: 'Add at least one administrative body, e.g. the council.' })
-        .describe('Administrative bodies like council, committees, communities. At least one, e.g. the council itself'),
+        .describe('Administrative bodies like council, committees, communities, youth councils. At least one, e.g. the council itself'),
     people: z.array(z.object({
         ...basePersonFields,
         image: optionalLink.describe("Absolute http(s) URL of the person's photo, or null"),

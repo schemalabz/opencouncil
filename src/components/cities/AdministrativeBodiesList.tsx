@@ -30,6 +30,7 @@ import {
 import { DOCUMENT_KINDS, MINUTES_THRESHOLD_DAYS } from '@/lib/documents/settings'
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import type { AdministrativeBodyWithSendSettings, AdministrativeBodyWithSettings } from '@/lib/db/types'
+import { ADMIN_BODY_TYPE_ORDER } from '@/lib/utils/administrativeBodies'
 import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -236,9 +237,9 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="council">{t('types.council')}</SelectItem>
-                                                <SelectItem value="committee">{t('types.committee')}</SelectItem>
-                                                <SelectItem value="community">{t('types.community')}</SelectItem>
+                                                {ADMIN_BODY_TYPE_ORDER.map((type) => (
+                                                    <SelectItem key={type} value={type}>{t(`types.${type}`)}</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                         <FormDescription>
@@ -485,7 +486,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                             <span className="min-w-0 flex-1">
                                 <span className="block truncate text-sm">{body.name}</span>
                                 <span className="block truncate text-xs text-muted-foreground">
-                                    {t(`types.${body.type.toLowerCase()}`)} · {body.name_en}
+                                    {t(`types.${body.type}`)} · {body.name_en}
                                 </span>
                             </span>
                             <Button

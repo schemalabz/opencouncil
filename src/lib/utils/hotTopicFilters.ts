@@ -6,7 +6,7 @@ import type { AdministrativeBodyType } from '@prisma/client';
  * what a value means or which one is the default.
  */
 
-export type HotScope = 'council' | 'committee' | 'community' | 'all';
+export type HotScope = 'council' | 'committee' | 'community' | 'youthCouncil' | 'all';
 export type HotPeriod = '3m' | '6m' | '12m' | 'all';
 
 export const HOT_SCOPES: Record<HotScope, {
@@ -24,6 +24,7 @@ export const HOT_SCOPES: Record<HotScope, {
     council: { label: 'scopeCouncil', fullLabel: 'scopeCouncilFull', types: ['council'], isDefault: true },
     committee: { label: 'scopeCommittee', fullLabel: 'scopeCommitteeFull', types: ['committee'], isDefault: false },
     community: { label: 'scopeCommunity', fullLabel: 'scopeCommunityFull', types: ['community'], isDefault: false },
+    youthCouncil: { label: 'scopeYouthCouncil', fullLabel: 'scopeYouthCouncilFull', types: ['youthCouncil'], isDefault: false },
     all: { label: 'scopeAll', fullLabel: 'scopeAllFull', isDefault: false },
 };
 
