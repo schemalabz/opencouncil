@@ -7,8 +7,8 @@ import { CityRail } from "@/components/cities/CityRail";
 import { CityNavigation } from "@/components/cities/CityNavigation";
 import type { DatedMeeting, MeetingBookends } from "@/components/cities/overview/CityMeetingsModule";
 import { stageChipDetail } from "@/components/meetings/stage/stageDetail";
-import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached, getCityMessageCached, getCityPetitionBucketCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
-import { isPetitionable } from "@/lib/cityStatus";
+import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached, getCityMessageCached, getCityPetitionBucketCached, getCityPublicThroughSecondaryCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
+import { isOutOfNetwork, isPetitionable } from "@/lib/cityStatus";
 import { SECONDARY_BODY_TYPES, isSecondaryBody } from "@/lib/utils/bodyTier";
 import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
@@ -48,7 +48,7 @@ export default async function TabsLayout(
     const currentUserPromise = getCurrentUser();
     // The secondary tier (#829) gets its own pair and its own card: the two
     // scopes above never include it.
-    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, secondaryUpcoming, secondaryPast, publicBodies, subjectCount, petitionBucket, tStage, notificationPreference] = await Promise.all([
+    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, secondaryUpcoming, secondaryPast, publicBodies, subjectCount, petitionBucket, publicThroughSecondary, tStage, notificationPreference] = await Promise.all([
         cityPromise,
         getCityMessageCached(cityId),
         currentUserPromise,
@@ -62,6 +62,9 @@ export default async function TabsLayout(
         getAdministrativeBodiesWithPublicMeetingsCached(cityId),
         getSubjectCountForCityCached(cityId),
         cityPromise.then(found => found && isPetitionable(found.status) ? getCityPetitionBucketCached(cityId) : null),
+        // Only a city that is not public by status can be public through a
+        // secondary body alone (#829); the others need no lookup.
+        cityPromise.then(found => found && isOutOfNetwork(found.status) ? getCityPublicThroughSecondaryCached(cityId) : false),
         getTranslations({ locale, namespace: 'meetingStage' }),
         // The whole preference, not just whether one exists: the notification
         // card shows the reader which topics and places they signed up for.
@@ -133,6 +136,7 @@ export default async function TabsLayout(
                     cityMessage={cityMessage}
                     showMessage={showMessage}
                     subjectCount={subjectCount}
+                    publicThroughSecondary={publicThroughSecondary}
                     locale={locale}
                 />
 

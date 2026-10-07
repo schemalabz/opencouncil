@@ -266,6 +266,8 @@
         "supportBadgeUnofficialRegion": "Без званичне подршке округа",
         "supportBadgeShortOfficial": "Званична подршка",
         "supportBadgeShortUnofficial": "Без званичне подршке",
+        "supportBadgeShortYouthOnly": "Само Савет младих",
+        "supportBadgeYouthOnly": "Без званичне подршке општине. Само њен Савет младих објављује овде своје седнице.",
         "supportBadgeLearnMore": "Ко плаћа OpenCouncil?"
     },
     "EmbedConfigurator": {

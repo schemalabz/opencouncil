@@ -92,6 +92,7 @@ export default async function HomePage() {
                     name_en: c.name_en,
                     name_municipality: c.name_municipality,
                     logoImage: c.logoImage,
+                    status: c.status,
                     _count: c._count,
                 })),
                 // Serialize the meeting rows to the client wire shape. `new Date(...)` because

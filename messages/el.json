@@ -280,6 +280,8 @@
         "supportBadgeUnofficialRegion": "Χωρίς επίσημη υποστήριξη της περιφέρειας",
         "supportBadgeShortOfficial": "Επίσημη υποστήριξη",
         "supportBadgeShortUnofficial": "Χωρίς επίσημη υποστήριξη",
+        "supportBadgeShortYouthOnly": "Μόνο Συμβούλιο Νέων",
+        "supportBadgeYouthOnly": "Χωρίς επίσημη υποστήριξη του δήμου. Μόνο το Δημοτικό Συμβούλιο Νέων δημοσιεύει εδώ τις συνεδριάσεις του.",
         "supportBadgeLearnMore": "Ποιος πληρώνει για το OpenCouncil;"
     },
     "EmbedConfigurator": {

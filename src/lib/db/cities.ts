@@ -7,8 +7,8 @@ import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from
 import { UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
 import { createCityDirect } from "./citiesAdmin";
-import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
-import { primaryMeetingWhere } from "@/lib/utils/bodyTier";
+import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE, PUBLIC_THROUGH_SECONDARY_WHERE } from "../cityStatus";
+import { SECONDARY_BODY_TYPES, primaryMeetingWhere } from "@/lib/utils/bodyTier";
 import { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
 import {
     PETITION_DISPLAY_THRESHOLD,
@@ -151,18 +151,33 @@ function cityCoversPoint(lng: number, lat: number): Prisma.Sql {
     return Prisma.sql`geometry IS NOT NULL AND ST_Covers(geometry::geometry, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326))`;
 }
 
-/** SQL counterparts of isPublic/isOutOfNetwork, for the raw queries below — the
- *  compiler cannot see enum values inside a template literal, so these keep the
- *  raw SQL from drifting away from src/lib/cityStatus.ts. `alias` qualifies the
- *  column when the query joins (e.g. `c.status`). */
+/** The City table as the raw predicates below name it: the alias of a join, or the table itself. */
+function cityTableSql(alias?: string): Prisma.Sql {
+    return Prisma.raw(alias ? `"${alias}"` : '"City"');
+}
+
+/** SQL twin of PUBLIC_THROUGH_SECONDARY_WHERE (src/lib/cityStatus.ts). */
+function publicThroughSecondarySql(table: Prisma.Sql): Prisma.Sql {
+    return Prisma.sql`EXISTS (
+        SELECT 1 FROM "CouncilMeeting" cm
+        JOIN "AdministrativeBody" ab ON ab.id = cm."administrativeBodyId"
+        WHERE cm."cityId" = ${table}.id AND cm.released = true
+          AND ab.type::text IN (${Prisma.join([...SECONDARY_BODY_TYPES])})
+    )`;
+}
+
+/** SQL counterparts of PUBLIC_CITY_WHERE/OUT_OF_NETWORK_CITY_WHERE, for the raw
+ *  queries below — the compiler cannot see enum values inside a template
+ *  literal, so these keep the raw SQL from drifting away from
+ *  src/lib/cityStatus.ts. `alias` qualifies the columns when the query joins. */
 function publicCityStatusSql(alias?: string): Prisma.Sql {
-    const column = alias ? Prisma.raw(`"${alias}".status`) : Prisma.raw('status');
-    return Prisma.sql`${column} IN ('demo', 'supported')`;
+    const table = cityTableSql(alias);
+    return Prisma.sql`(${table}.status IN ('demo', 'supported') OR ${publicThroughSecondarySql(table)})`;
 }
 
 function outOfNetworkCityStatusSql(alias?: string): Prisma.Sql {
-    const column = alias ? Prisma.raw(`"${alias}".status`) : Prisma.raw('status');
-    return Prisma.sql`${column} = 'pending'`;
+    const table = cityTableSql(alias);
+    return Prisma.sql`(${table}.status = 'pending' AND NOT ${publicThroughSecondarySql(table)})`;
 }
 
 export type CityAtPoint = {
@@ -257,6 +272,15 @@ export async function getCityCentroid(cityId: string): Promise<{ lng: number; la
     `;
     const row = rows[0];
     return row?.lng != null && row?.lat != null ? { lng: row.lng, lat: row.lat } : null;
+}
+
+/**
+ * Whether a city is public through a secondary body (see
+ * PUBLIC_THROUGH_SECONDARY_WHERE): the one fact of a city's publicness that
+ * its own row does not carry. The cached twin is in lib/cache/queries.ts.
+ */
+export async function isCityPublicThroughSecondary(cityId: string): Promise<boolean> {
+    return (await prisma.city.count({ where: { id: cityId, ...PUBLIC_THROUGH_SECONDARY_WHERE } })) > 0;
 }
 
 /** Publicly covered municipalities for the landing map — centroid, logo, simplified

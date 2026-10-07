@@ -772,11 +772,13 @@ export async function getLatestSubjectsForSpeaker(personId: string, take: number
 export async function subjectIsPublic(subjectId: string): Promise<{ cityId: string; councilMeetingId: string; public: boolean } | null> {
     const row = await prisma.subject.findUnique({
         where: { id: subjectId },
-        select: { cityId: true, councilMeetingId: true, councilMeeting: { select: { released: true, city: { select: { status: true } } } } },
+        select: { cityId: true, councilMeetingId: true, councilMeeting: { select: { released: true } } },
     });
     if (!row) return null;
-    const publicStatuses: readonly CityStatus[] = PUBLIC_CITY_WHERE.status.in;
-    return { cityId: row.cityId, councilMeetingId: row.councilMeetingId, public: row.councilMeeting.released && publicStatuses.includes(row.councilMeeting.city.status) };
+    // The city's publicness is a where clause, not a status alone (see PUBLIC_CITY_WHERE).
+    const cityIsPublic = row.councilMeeting.released
+        && (await prisma.city.count({ where: { id: row.cityId, ...PUBLIC_CITY_WHERE } })) > 0;
+    return { cityId: row.cityId, councilMeetingId: row.councilMeetingId, public: cityIsPublic };
 }
 
 export async function subjectExists(subjectId: string): Promise<boolean> {

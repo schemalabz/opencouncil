@@ -280,6 +280,8 @@
     "supportBadgeUnofficialRegion": "Sans soutien officiel de la région",
     "supportBadgeShortOfficial": "Soutien officiel",
     "supportBadgeShortUnofficial": "Sans soutien officiel",
+    "supportBadgeShortYouthOnly": "Conseil des jeunes seulement",
+    "supportBadgeYouthOnly": "Sans soutien officiel de la commune. Seul son conseil des jeunes publie ici ses séances.",
     "supportBadgeLearnMore": "Qui paie pour OpenCouncil ?"
   },
   "EmbedConfigurator": {

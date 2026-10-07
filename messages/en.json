@@ -266,6 +266,8 @@
         "supportBadgeUnofficialRegion": "No official region support",
         "supportBadgeShortOfficial": "Official support",
         "supportBadgeShortUnofficial": "No official support",
+        "supportBadgeShortYouthOnly": "Youth council only",
+        "supportBadgeYouthOnly": "No official support from the municipality. Only its youth council publishes its meetings here.",
         "supportBadgeLearnMore": "Who pays for OpenCouncil?"
     },
     "EmbedConfigurator": {
