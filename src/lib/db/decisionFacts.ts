@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import type { ExtractedDecisionData } from '@/lib/apiTypes';
+import prisma from './prisma';
 
 /**
  * Keep what the document states, as the extractor read it, on the Decision row.
@@ -26,4 +27,23 @@ export async function storeDecisionFacts(
             extraction: d as unknown as Prisma.InputJsonValue,
         },
     });
+}
+
+const decisionReadingSelect = { subjectId: true, extraction: true, extractorVersion: true } satisfies Prisma.DecisionSelect;
+export type DecisionReading = Omit<Prisma.DecisionGetPayload<{ select: typeof decisionReadingSelect }>, 'subjectId'>;
+
+/**
+ * The stored reading of each decision of a meeting, by subject id. The subject
+ * payloads leave the reading out (`subjectDecisionSelect`), so server code that
+ * needs it reads it here.
+ */
+export async function getDecisionReadingsForMeeting(
+    cityId: string,
+    meetingId: string,
+): Promise<Map<string, DecisionReading>> {
+    const rows = await prisma.decision.findMany({
+        where: { subject: { cityId, councilMeetingId: meetingId } },
+        select: decisionReadingSelect,
+    });
+    return new Map(rows.map(r => [r.subjectId, { extraction: r.extraction, extractorVersion: r.extractorVersion }]));
 }

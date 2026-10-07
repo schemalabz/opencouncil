@@ -4,7 +4,6 @@ import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import {
     Subject,
     SpeakerContribution,
-    Decision,
     Highlight,
     Location,
     Topic,
@@ -17,6 +16,7 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { extractUtteranceIds } from '@/lib/utils/references';
 import { getContributionCount } from '@/lib/utils';
 import { roleWithRelationsInclude } from './types/roles';
+import { subjectDecisionSelect, type SubjectDecision } from './types/decision';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
@@ -108,7 +108,7 @@ export type SubjectWithRelations = Subject & {
     topic: Topic | null;
     introducedBy: PersonWithRelations | null;
     discussedIn: (Subject & { topic: Topic | null }) | null;
-    decision: Decision | null;
+    decision: SubjectDecision | null;
     votes: { voteType: VoteType; person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }[];
     attendance: { status: 'PRESENT' | 'ABSENT'; person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }[];
 };
@@ -532,7 +532,7 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
                 location: true,
                 topic: true,
                 introducedBy: introducedByInclude,
-                decision: true,
+                decision: { select: subjectDecisionSelect },
                 discussedIn: {
                     include: {
                         topic: true,
@@ -563,7 +563,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 highlights: true,
                 location: true,
                 topic: true,
-                decision: true,
+                decision: { select: subjectDecisionSelect },
                 discussedIn: {
                     include: {
                         topic: true,
@@ -620,7 +620,7 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                 highlights: true,
                 location: true,
                 topic: true,
-                decision: true,
+                decision: { select: subjectDecisionSelect },
                 discussedIn: {
                     include: {
                         topic: true,
