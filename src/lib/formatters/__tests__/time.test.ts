@@ -1,4 +1,13 @@
-import { formatWeekdayDateTime, formatCalendarDate, localCalendarDate } from '../time';
+import { formatWeekdayDateTime, formatCalendarDate, formatNumericDate, localCalendarDate } from '@/lib/formatters/time';
+
+describe('formatNumericDate', () => {
+    it('uses the meeting city timezone at a calendar-day boundary', () => {
+        const date = new Date('2026-10-03T00:30:00Z');
+
+        expect(formatNumericDate(date, 'America/New_York', 'en')).toBe('02/10/2026');
+        expect(formatNumericDate(date, 'Europe/Athens', 'en')).toBe('03/10/2026');
+    });
+});
 
 describe('formatWeekdayDateTime', () => {
     const tz = 'Europe/Athens';

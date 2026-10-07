@@ -1,14 +1,12 @@
 "use server";
 
 import prisma from "@/lib/db/prisma";
-import { getCouncilMeeting } from "@/lib/db/meetings";
+import { dispatchVoiceprintTaskForSegment } from "@/lib/tasks/voiceprintRequests";
 import { withUserAuthorizedToEdit } from "../auth";
-import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "../apiTypes";
 import { Prisma, SpeakerSegment } from "@prisma/client";
 import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
-
-const VOICEPRINT_DURATION = 30;
+import { VOICEPRINT_DURATION } from "@/lib/tasks/voiceprintWindow";
 
 /**
  * A person's speaker tags, with what decides whether their audio may become the
@@ -142,7 +140,8 @@ export async function requestGenerateVoiceprintsForCity(cityId: string) {
 }
 
 /**
- * Request to generate a voiceprint for a person
+ * Request to generate a voiceprint for a person, automatically selecting the
+ * longest available speaker segment.
  */
 export async function requestGenerateVoiceprint(personId: string) {
     // Find the longest speaker segment for this person
@@ -152,47 +151,7 @@ export async function requestGenerateVoiceprint(personId: string) {
         throw new Error("No speaker segments found for this person");
     }
 
-    // Check if the segment is long enough for a voiceprint
-    const segmentDuration = segment.endTimestamp - segment.startTimestamp;
-    if (segmentDuration < VOICEPRINT_DURATION) {
-        throw new Error(
-            `Speaker segment is too short (${segmentDuration.toFixed(1)}s). At least ${VOICEPRINT_DURATION}s of audio is required for a voiceprint.`,
-        );
-    }
-
-    // Get meeting details
-    const meeting = await getCouncilMeeting(segment.cityId, segment.meetingId);
-
-    if (!meeting) {
-        throw new Error("Meeting not found");
-    }
-
-    await withUserAuthorizedToEdit({ cityId: segment.cityId });
-
-    const mediaUrl = meeting.audioUrl || meeting.videoUrl;
-    if (!mediaUrl) {
-        throw new Error("Meeting media URL not found");
-    }
-
-    // Calculate a segment centered on the midpoint
-    const segmentMidpoint = segment.startTimestamp + segmentDuration / 2;
-
-    // Take VOICEPRINT_DURATION seconds centered on the midpoint, ensuring we stay within segment bounds
-    const halfDuration = VOICEPRINT_DURATION / 2;
-    const startTimestamp = Math.max(segment.startTimestamp, segmentMidpoint - halfDuration);
-    const endTimestamp = Math.min(segment.endTimestamp, startTimestamp + VOICEPRINT_DURATION);
-
-    // Create the request
-    const request: Omit<GenerateVoiceprintRequest, "callbackUrl"> = {
-        mediaUrl,
-        personId,
-        segmentId: segment.id,
-        startTimestamp,
-        endTimestamp,
-        cityId: segment.cityId,
-    };
-
-    return startTask("generateVoiceprint", request, segment.meetingId, segment.cityId);
+    return dispatchVoiceprintTaskForSegment(personId, segment);
 }
 
 /**
@@ -234,6 +193,10 @@ export async function findLongestSpeakerSegmentForPerson(personId: string): Prom
     }
 }
 
+/**
+ * A speaker segment that is eligible to be used as the source for a voiceprint,
+ * enriched with the metadata an admin needs to choose between candidates.
+ */
 /**
  * Handle the result of a generate voiceprint task
  */
