@@ -1,8 +1,10 @@
 import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { PetitionSignup } from "@/components/petition/PetitionSignup";
 import { getCurrentUser } from "@/lib/auth";
+import { googleSignInAvailable } from "@/lib/auth/googleSignIn";
 import { getCityPetitionBucketCached } from "@/lib/cache/queries";
 import { getCity } from "@/lib/db/cities";
 import { getUserPetition } from "@/lib/db/signup";
@@ -38,7 +40,11 @@ interface PageProps {
  */
 export default async function PetitionSignupPage(props: PageProps) {
     const [{ cityId }, { step, q }] = await Promise.all([props.params, props.searchParams]);
-    const [city, user] = await Promise.all([getCity(cityId, { includeGeometry: true }), getCurrentUser()]);
+    const [city, user, requestHeaders] = await Promise.all([
+        getCity(cityId, { includeGeometry: true }),
+        getCurrentUser(),
+        headers(),
+    ]);
 
     if (!city) {
         notFound();
@@ -68,6 +74,7 @@ export default async function PetitionSignupPage(props: PageProps) {
                     ? { name: user.name ?? "", email: user.email, phone: user.phone ?? null, notifyByPhone: user.notifyByPhone }
                     : null
             }
+            googleAvailable={googleSignInAvailable(requestHeaders)}
         />
     );
 }

@@ -1,8 +1,10 @@
 "use server";
 
 import { VoicePrintConsentSource } from "@prisma/client";
+import { cookies } from "next/headers";
+import { usesSecureCookies } from "@/lib/auth/sessionMirror";
 import { getCurrentUser } from "@/lib/auth";
-import { signJoinConfirmation, verifyPersonClaimToken } from "@/lib/auth/personClaim";
+import { JOIN_NONCE_COOKIE, JOIN_NONCE_MAX_AGE_S, newJoinNonce, signJoinConfirmation, verifyPersonClaimToken } from "@/lib/auth/personClaim";
 import { claimPerson, type PersonClaimStatus } from "@/lib/db/personClaim";
 import { getVoicePrintConsents } from "@/lib/db/personConsent";
 import { sendPersonClaimedAdminAlert } from "@/lib/discord";
@@ -57,4 +59,29 @@ export async function sendJoinEmail(token: string, email: string): Promise<SendJ
         console.error("Join email failed:", error);
         return { ok: false, error: "send_failed" };
     }
+}
+
+export type StartJoinGoogleResult = { ok: true; redirectTo: string } | { ok: false; error: "invalid_code" };
+
+/**
+ * Step 2 for a signed-out scanner who picks Google: where the sign-in must
+ * land. The path is the email link's, through /api/join with a `confirmed`
+ * mark, so the route claims the person and the page opens on the consent
+ * step. The mark is bound to a nonce that this browser gets as a cookie,
+ * because the address is not known before Google answers: a return path
+ * copied into another browser carries the mark but not the cookie, and
+ * claims nothing. Built here from a verified code, never taken from the
+ * browser.
+ */
+export async function startJoinGoogle(token: string): Promise<StartJoinGoogleResult> {
+    if (!verifyPersonClaimToken(token)) return { ok: false, error: "invalid_code" };
+    const nonce = newJoinNonce();
+    (await cookies()).set(JOIN_NONCE_COOKIE, nonce, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: usesSecureCookies(),
+        path: "/api/join",
+        maxAge: JOIN_NONCE_MAX_AGE_S,
+    });
+    return { ok: true, redirectTo: `/api/join/${token}?confirmed=${signJoinConfirmation(token, nonce)}` };
 }

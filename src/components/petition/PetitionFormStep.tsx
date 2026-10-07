@@ -17,6 +17,7 @@ import type { CityWithGeometry } from '@/lib/db/cities';
 import type { PetitionBucket } from '@/lib/landing/petitions';
 import { PetitionCityCard } from './PetitionCityCard';
 import type { PetitionState } from './petition-state';
+import { cn } from '@/lib/utils';
 
 /**
  * Step 2: the reader's relation to the municipality — resident, registered
@@ -37,6 +38,9 @@ export function PetitionFormStep({
     existing,
     state,
     signedIn,
+    phoneKnown,
+    googleAvailable,
+    onGoogleStart,
     issues,
     saveError,
     failures,
@@ -55,6 +59,10 @@ export function PetitionFormStep({
     existing: boolean;
     state: PetitionState;
     signedIn: boolean;
+    /** The account has a mobile number, so the form does not ask for one. */
+    phoneKnown: boolean;
+    googleAvailable: boolean;
+    onGoogleStart: () => void;
     /** Shown once the reader has tried to submit. */
     issues: SignupIssue[];
     /** The save action's answer, as a key under `signup.errors`. */
@@ -140,23 +148,20 @@ export function PetitionFormStep({
             </section>
 
             {!signedIn && (
-                <AccountFields name={state.name} email={state.email} hint={t('accountHint')} onChange={onChange}>
-                    <div className="mt-3.5 flex flex-col gap-1.5">
-                        <Label htmlFor="signup-phone" className="text-[13px] font-medium">
-                            {ts('phone.label')} <span className="font-normal text-muted-foreground">· {t('phoneHint')}</span>
-                        </Label>
-                        <PhoneField
-                            id="signup-phone"
-                            value={state.phone}
-                            onChange={(phone) => onChange({ phone })}
-                            onValidityChange={onPhoneValidity}
-                            placeholder={ts('phone.placeholder')}
-                            activePlaceholder={ts('phone.placeholder')}
-                            invalidMessage={ts('errors.phoneInvalid')}
-                            notMobileMessage={ts('errors.phoneNotMobile')}
-                        />
-                    </div>
+                <AccountFields
+                    name={state.name}
+                    email={state.email}
+                    hint={t('accountHint')}
+                    onChange={onChange}
+                    googleAvailable={googleAvailable}
+                    onGoogleStart={onGoogleStart}
+                >
+                    <PhoneBlock phone={state.phone} onChange={onChange} onPhoneValidity={onPhoneValidity} className="mt-3.5" />
                 </AccountFields>
+            )}
+            {/* A signed-in reader whose account has no number is asked as the signed-out one is: the field carries the number a draft brought back. */}
+            {signedIn && !phoneKnown && (
+                <PhoneBlock phone={state.phone} onChange={onChange} onPhoneValidity={onPhoneValidity} className="mt-7" />
             )}
 
             <p className="mt-4 text-[11px] leading-[1.45] text-muted-foreground">
@@ -165,6 +170,39 @@ export function PetitionFormStep({
                     {ts('privacy')}
                 </Link>
             </p>
+        </div>
+    );
+}
+
+/** The optional mobile number, with its label and hint; the signup's phone field. */
+function PhoneBlock({
+    phone,
+    onChange,
+    onPhoneValidity,
+    className,
+}: {
+    phone: string;
+    onChange: (patch: { phone: string }) => void;
+    onPhoneValidity: (validity: PhoneFieldValidity) => void;
+    className?: string;
+}) {
+    const t = useTranslations('petition');
+    const ts = useTranslations('signup');
+    return (
+        <div className={cn('flex flex-col gap-1.5', className)}>
+            <Label htmlFor="signup-phone" className="text-[13px] font-medium">
+                {ts('phone.label')} <span className="font-normal text-muted-foreground">· {t('phoneHint')}</span>
+            </Label>
+            <PhoneField
+                id="signup-phone"
+                value={phone}
+                onChange={(value) => onChange({ phone: value })}
+                onValidityChange={onPhoneValidity}
+                placeholder={ts('phone.placeholder')}
+                activePlaceholder={ts('phone.placeholder')}
+                invalidMessage={ts('errors.phoneInvalid')}
+                notMobileMessage={ts('errors.phoneNotMobile')}
+            />
         </div>
     );
 }

@@ -17,6 +17,7 @@
     "emptyMessage": "Aucune commune trouvée avec ce nom."
   },
   "Common": {
+    "continueWithGoogle": "Continuer avec Google",
     "aiGenerated": "Texte généré par IA",
     "aiDisclosure": {
         "label": "Contenu généré par IA",
@@ -793,8 +794,20 @@
     "personalLead": "Le nom sous lequel nous vous connaissons, et le numéro de mobile auquel Notis peut vous écrire.",
     "notificationsLead": "Les communes que vous suivez, et la façon dont nous vous tenons au courant.",
     "communicationLead": "Comment OpenCouncil peut vous contacter, au-delà des notifications que vous avez configurées.",
-    "accountLead": "Votre connexion, vos données, et la suppression du compte.",
-    "signOutDescription": "Vous vous déconnectez sur cet appareil. Pour vous reconnecter, nous vous envoyons un nouveau lien par e-mail.",
+    "accountLead": "Votre mode de connexion, vos données, et la suppression du compte.",
+    "signOutDescription": "Vous vous déconnectez sur cet appareil. Vous pouvez vous reconnecter à tout moment depuis la page de connexion.",
+    "connectedAccounts": "Comptes connectés",
+    "connectedAccountsDescription": "Connectez-vous en un clic, sans attendre un lien par e-mail. Le lien par e-mail fonctionne toujours.",
+    "googleLinked": "Connecté. Vous pouvez vous connecter avec ce compte Google.",
+    "googleNotLinked": "Non connecté. Le lien par e-mail vous connecte toujours, et une connexion avec un compte Google le reconnecte.",
+    "connect": "Connecter",
+    "disconnect": "Déconnecter",
+    "disconnectError": "La déconnexion n'a pas abouti. Veuillez réessayer.",
+    "connectErrors": {
+        "alreadyLinked": "Ce compte Google est déjà connecté à un autre compte OpenCouncil.",
+        "accessDenied": "Nous ne pouvons connecter qu'un compte Google dont l'e-mail est vérifié.",
+        "generic": "La connexion n'a pas abouti. Veuillez réessayer."
+    },
     "saved": "Enregistré",
     "saveError": "Les modifications n'ont pas pu être enregistrées. Réessayez.",
     "voicePrintTitle": "Reconnaissance vocale",
@@ -1148,6 +1161,12 @@
     "emailPlaceholder": "Saisissez votre e-mail",
     "submit": "Continuer avec l'e-mail",
     "loading": "Veuillez patienter...",
+    "or": "ou",
+    "errors": {
+        "verification": "Ce lien de connexion a expiré ou a déjà été utilisé. Saisissez votre e-mail pour en recevoir un nouveau.",
+        "accessDenied": "Nous ne pouvons vous connecter qu'avec un compte Google dont l'e-mail est vérifié.",
+        "generic": "La connexion n'a pas abouti. Veuillez réessayer."
+    },
     "error": "Un problème est survenu lors de l'envoi de l'e-mail. Veuillez réessayer plus tard.",
     "checkEmail": {
       "title": "Vérifiez vos e-mails",

@@ -17,7 +17,8 @@
     "namePlaceholder": "Το όνομά σου",
     "emailLabel": "Email",
     "emailPlaceholder": "to@email.gr",
-    "emailHint": "Συνδέεσαι με έναν σύνδεσμο στο email, χωρίς κωδικό."
+    "emailHint": "Συνδέεσαι με έναν σύνδεσμο στο email, χωρίς κωδικό.",
+    "or": "ή συμπληρώστε τα στοιχεία σας"
   },
   "phone": {
     "label": "Κινητό",

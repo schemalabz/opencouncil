@@ -1,5 +1,6 @@
 import { isKnownRealmHost } from '@/lib/realm';
 import { firstHeaderValue, hostFromRequest } from './requestHeaders';
+import { retargetUrl } from './requestUrl';
 
 /**
  * Repoints a magic-link URL at the host the sign-in request actually arrived on.
@@ -24,19 +25,15 @@ import { firstHeaderValue, hostFromRequest } from './requestHeaders';
 export function signInUrlForRequest(url: string, request: Request): string {
     const host = hostFromRequest(request);
 
-    if (!isKnownRealmHost(host)) return url;
+    if (!host || !isKnownRealmHost(host)) return url;
 
     const target = new URL(url);
-    // Only an explicit `https` is taken from the forwarded header; anything else
-    // keeps the original link's scheme. The header is as attacker-controllable as
-    // the Host we allowlist above, and it decides whether a sign-in token travels
-    // in cleartext — so it may upgrade the link, never downgrade it. Absent or
-    // http (local dev) leaves the link exactly as Auth.js built it.
-    const forwardedProto = firstHeaderValue(request.headers.get('x-forwarded-proto'));
-    const proto = forwardedProto === 'https' ? 'https' : target.protocol.replace(/:$/, '');
     const originalOrigin = target.origin;
-    target.protocol = `${proto}:`;
-    target.host = host as string;
+    // Only an explicit `https` is taken from the forwarded header (see
+    // retargetUrl). Absent or http (local dev) leaves the scheme exactly as
+    // Auth.js built it.
+    const forwardedProto = firstHeaderValue(request.headers.get('x-forwarded-proto'));
+    retargetUrl(target, host, forwardedProto);
 
     // The post-verification destination rides along in the link as an absolute
     // URL: Auth.js resolves our relative `redirectTo` ("/profile") against
@@ -53,9 +50,7 @@ export function signInUrlForRequest(url: string, request: Request): string {
         try {
             const callback = new URL(rawCallbackUrl);
             if (callback.origin === originalOrigin) {
-                callback.protocol = target.protocol;
-                callback.host = target.host;
-                target.searchParams.set('callbackUrl', callback.toString());
+                target.searchParams.set('callbackUrl', retargetUrl(callback, host, forwardedProto).toString());
             }
         } catch {
             // relative (the pre-Auth.js form) or malformed — nothing to repoint

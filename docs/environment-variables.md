@@ -75,6 +75,8 @@ These variables are used by the flake runner (`nix run .#dev`) to configure **lo
 | `BASIC_AUTH_USERNAME` | Username for basic auth protection. | No | - |
 | `BASIC_AUTH_PASSWORD` | Password for basic auth protection. | No | - |
 | `NEXTAUTH_SECRET` | Secret used by NextAuth.js to hash tokens, sign/encrypt cookies, and generate cryptographic keys. | Yes | - |
+| `AUTH_GOOGLE_ID` | OAuth client id for "Sign in with Google". Unset hides the Google button. The magic link keeps working. | No | - |
+| `AUTH_GOOGLE_SECRET` | OAuth client secret for "Sign in with Google". Set it together with `AUTH_GOOGLE_ID`. | No | - |
 | `SESSION_COOKIE_DOMAIN` | Domain for the session-mirror cookie that authenticates the Notis admin. Derived from `DEPLOYMENT_ENV` + `NEXTAUTH_URL` (`.opencouncil.gr` on production, `.staging.opencouncil.gr` on staging; none in development or previews). Set only to override. | No | derived |
 | `SESSION_COOKIE_SUFFIX` | Per-environment suffix for the mirror cookie name, so the production mirror never authenticates a staging service. Derived from `DEPLOYMENT_ENV` (`-staging` on staging, empty on production). Set only to override — and if you do, set Notis's `MAIN_SESSION_COOKIE_NAME` to match. | No | derived |
 
@@ -102,6 +104,11 @@ With a domain that you verified on Resend, set `EMAIL_FROM_OVERRIDE` to an addre
 In development, the QuickLogin tool signs you in as a seeded [test user](#test-users) without an email.
 
 When a send fails, the dev server console shows `[auth][error] Error: Resend error (<status>): <Resend's response>`. Resend's message names the cause.
+
+#### Sign in with Google
+Create an OAuth 2.0 client of type "Web application" in the Google Cloud Console. The client needs two settings for each realm in `REALMS` (`src/lib/realm.ts`), because the button shows on every realm apex: an authorized redirect URI, `https://<realm domain>/api/auth/callback/google`, and the realm domain in the authorized domains of the OAuth consent screen. Today that is `opencouncil.gr`, `opencouncil.fr`, `opencouncil.cy` and `opencouncil.rs`. A new realm needs its two entries before its readers see the button. For development add `http://localhost:3000/api/auth/callback/google`.
+
+The button appears on the host that `NEXTAUTH_URL` names and on every realm apex. One deployment serves every realm, and next-auth rewrites each request to the origin of `NEXTAUTH_URL`. The auth route therefore sends the Google sign-in and its callback on another realm apex through Auth.js core with the request's own host (`realmOAuthUrl`), so the sign-in finishes on the domain it started on. A preview names its own host in `NEXTAUTH_URL`, so it works once `https://pr-<N>.opencouncil.dev/api/auth/callback/google` is in the client's redirect URIs.
 
 #### NEXTAUTH_SECRET
 You can quickly create a good value on the command line via this openssl command:

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { CLAIM_EMAIL_GRACE_MS, verifyJoinConfirmation, verifyPersonClaimToken } from '@/lib/auth/personClaim';
+import { CLAIM_EMAIL_GRACE_MS, JOIN_NONCE_COOKIE, verifyJoinConfirmation, verifyPersonClaimToken } from '@/lib/auth/personClaim';
 import { claimPerson, getJoinPerson } from '@/lib/db/personClaim';
 import { sendPersonClaimedAdminAlert } from '@/lib/discord';
 import { relativeRedirect } from '@/lib/utils/relativeRedirect';
@@ -14,7 +14,9 @@ import { relativeRedirect } from '@/lib/utils/relativeRedirect';
  * `confirmed` marks the link in the email: the scanner said "yes, this is
  * me" before asking for it. Signed in as the address the email went to, with
  * that mark, the route claims the person, so the page opens on the consent
- * step. Without it nothing is claimed, and the page asks first.
+ * step. Without it nothing is claimed, and the page asks first. The Google
+ * way in carries the same mark over a nonce, which the browser that pressed
+ * the button holds as a cookie (see `startJoinGoogle`).
  *
  * Under /api because the path holds the code, the code holds a dot, and the
  * proxy skips every dotted path. Redirects are relative, so the reader
@@ -23,14 +25,17 @@ import { relativeRedirect } from '@/lib/utils/relativeRedirect';
 export async function GET(req: NextRequest, props: { params: Promise<{ token: string }> }) {
     const { token } = await props.params;
     const params = new URLSearchParams(req.nextUrl.searchParams);
-    // Only the link in the sign-in email carries a mark the server signed,
-    // and it names the address of that email. A hand-typed `confirmed`, or a
-    // link copied into another account's browser, claims nothing and extends
-    // nothing.
+    // Only the link in the sign-in email and the Google return path carry a
+    // mark the server signed: over the address of that email, or over the
+    // nonce this browser holds. A hand-typed `confirmed`, or a link copied
+    // into another account's browser, claims nothing and extends nothing.
     // A scan carries no mark, and does not read the session.
     const marker = params.get('confirmed');
     const user = marker ? await getCurrentUser() : null;
-    const confirmed = user !== null && verifyJoinConfirmation(token, marker, user.email);
+    const nonce = req.cookies.get(JOIN_NONCE_COOKIE)?.value ?? null;
+    const confirmedByEmail = user !== null && verifyJoinConfirmation(token, marker, user.email);
+    const confirmedByNonce = !confirmedByEmail && user !== null && nonce !== null && verifyJoinConfirmation(token, marker, nonce);
+    const confirmed = confirmedByEmail || confirmedByNonce;
     params.delete('confirmed');
 
     // The email link may arrive after the code expired: the reader confirmed
@@ -51,5 +56,10 @@ export async function GET(req: NextRequest, props: { params: Promise<{ token: st
     }
 
     params.set('c', token);
-    return relativeRedirect(`/${person.cityId}/join`, params);
+    const response = relativeRedirect(`/${person.cityId}/join`, params);
+    // The nonce is for one return, and only that return spends it. A scan
+    // or an email link opened in another tab while Google is still pending
+    // passes through here too, and must leave the pending return its nonce.
+    if (confirmedByNonce) response.cookies.set(JOIN_NONCE_COOKIE, '', { path: '/api/join', maxAge: 0 });
+    return response;
 }

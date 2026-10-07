@@ -1,5 +1,5 @@
 /** @jest-environment jsdom */
-import { clearDraft, draftKey, readDraft, writeDraft } from '../signup-draft';
+import { clearDraft, draftKey, readDraft, stashPhoneForGoogleReturn, takePhoneFromGoogleReturn, writeDraft } from '../signup-draft';
 
 const KEY = draftKey('notifications', 'athens');
 
@@ -37,5 +37,28 @@ describe('the signup draft', () => {
         writeDraft(KEY, { name: 'Μαρία' });
         clearDraft(KEY);
         expect(readDraft(KEY)).toBeNull();
+    });
+});
+
+describe('the phone a tab takes to Google', () => {
+    it('comes back once, in this tab, and not from the draft', () => {
+        const key = draftKey('petition', 'argos');
+        stashPhoneForGoogleReturn(key, '+30 694 3472297');
+        expect(takePhoneFromGoogleReturn(key)).toBe('+30 694 3472297');
+        expect(takePhoneFromGoogleReturn(key)).toBeNull();
+        expect(window.localStorage.length).toBe(0);
+    });
+
+    it('keeps nothing for an empty field', () => {
+        const key = draftKey('petition', 'argos');
+        stashPhoneForGoogleReturn(key, '  ');
+        expect(takePhoneFromGoogleReturn(key)).toBeNull();
+    });
+
+    it('drops an earlier trip\'s number when the next trip starts with an empty field', () => {
+        const key = draftKey('petition', 'argos');
+        stashPhoneForGoogleReturn(key, '+30 694 3472297');
+        stashPhoneForGoogleReturn(key, '');
+        expect(takePhoneFromGoogleReturn(key)).toBeNull();
     });
 });

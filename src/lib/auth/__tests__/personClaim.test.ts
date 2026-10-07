@@ -6,7 +6,7 @@ jest.mock('@/env.mjs', () => ({
     },
 }));
 
-import { claimExpiry, claimLastValidDay, generatePersonClaimToken, verifyPersonClaimToken, personJoinUrl } from '../personClaim';
+import { claimExpiry, claimLastValidDay, generatePersonClaimToken, newJoinNonce, personJoinUrl, signJoinConfirmation, verifyJoinConfirmation, verifyPersonClaimToken } from '../personClaim';
 import { generateUnsubscribeToken, verifyUnsubscribeToken } from '@/lib/notifications/tokens';
 
 const PERSON = 'cm3glsk9t04ihckl367xtm18c';
@@ -82,5 +82,22 @@ describe('personJoinUrl', () => {
         expect([...parsed.searchParams.keys()]).toEqual(['c']);
         expect(verifyPersonClaimToken(parsed.searchParams.get('c') as string)).toBe(PERSON);
         expect(url.length).toBeLessThan(100);
+    });
+});
+
+describe('join confirmation over a nonce', () => {
+    it('verifies with the nonce it was minted over, and with nothing else', () => {
+        const token = generatePersonClaimToken(PERSON);
+        const nonce = newJoinNonce();
+        const mark = signJoinConfirmation(token, nonce);
+        expect(verifyJoinConfirmation(token, mark, nonce)).toBe(true);
+        expect(verifyJoinConfirmation(token, mark, newJoinNonce())).toBe(false);
+        expect(verifyJoinConfirmation(token, mark, 'reader@example.com')).toBe(false);
+        expect(verifyJoinConfirmation(generatePersonClaimToken('cm3glsk9t04ihckl367xtm18d'), mark, nonce)).toBe(false);
+    });
+
+    it('mints a nonce that normalizeEmail leaves unchanged', () => {
+        const nonce = newJoinNonce();
+        expect(nonce).toMatch(/^[0-9a-f]{32}$/);
     });
 });
