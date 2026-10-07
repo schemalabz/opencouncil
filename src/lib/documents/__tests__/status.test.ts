@@ -79,20 +79,20 @@ describe('documentState', () => {
     });
 
     it('reads a document the body does not send as not enabled', () => {
-        const off = facts({ administrativeBody: { documentSendSettings: [setting('minutes', { enabled: false })] } });
+        const off = facts({ administrativeBody: { type: 'council' as const, documentSendSettings: [setting('minutes', { enabled: false })] } });
         expect(documentState(off, 'minutes', daysAfter(20))).toMatchObject({ state: 'notEnabled', recipientEmails: [] });
         expect(documentState(facts({ administrativeBody: null, administrativeBodyId: null }), 'minutes', daysAfter(1)).state).toBe('notEnabled');
     });
 
     it('offers the minutes of a meeting held before the switch-on by hand only', () => {
-        const older = facts({ administrativeBody: { documentSendSettings: [setting('transcript'), setting('minutes', { enabledAt: daysAfter(5) })] } });
+        const older = facts({ administrativeBody: { type: 'council' as const, documentSendSettings: [setting('transcript'), setting('minutes', { enabledAt: daysAfter(5) })] } });
         expect(documentState(older, 'minutes', daysAfter(20)).state).toBe('byHandOnly');
     });
 });
 
 describe('shownDocumentState', () => {
     it('is null for a document the body does not send, and the state otherwise', () => {
-        const off = facts({ administrativeBody: { documentSendSettings: [setting('minutes', { enabled: false })] } });
+        const off = facts({ administrativeBody: { type: 'council' as const, documentSendSettings: [setting('minutes', { enabled: false })] } });
         expect(shownDocumentState(off, 'minutes', daysAfter(3))).toBeNull();
         expect(shownDocumentState(facts(), 'minutes', daysAfter(3))).toMatchObject({ state: 'waiting', waitReason: 'decisions' });
         expect(shownDocumentState(facts({ documentSends: [send()] }), 'minutes', daysAfter(3))).toMatchObject({ state: 'sent' });

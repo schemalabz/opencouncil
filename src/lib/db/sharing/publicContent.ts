@@ -51,6 +51,19 @@ export async function meetingTranscriptIsPublic(cityId: string, meetingId: strin
     return meeting !== null && transcriptIsPublic(meeting);
 }
 
+/**
+ * Does the body that holds the meeting send no notifications (#829)? The
+ * meeting page reads this one fact of the body's settings, so that it does
+ * not promise a reader an update. False when the meeting has no body.
+ */
+export async function meetingNotificationsDisabled(cityId: string, meetingId: string): Promise<boolean> {
+    const meeting = await prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId, id: meetingId } },
+        select: { administrativeBody: { select: { notificationBehavior: true } } },
+    });
+    return meeting?.administrativeBody?.notificationBehavior === 'NOTIFICATIONS_DISABLED';
+}
+
 /** `transcriptIsPublic` as a database filter, for a released meeting. */
 export const TRANSCRIPT_PUBLIC_WHERE = {
     released: true,

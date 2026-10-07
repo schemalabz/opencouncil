@@ -263,7 +263,7 @@ describe('readinessInputFor', () => {
 
     it('reads the setting of the kind, the review, the subjects and the agenda from the facts', () => {
         const minutesSetting = settingOf('minutes', { recipientEmails: ['m@example.org'] });
-        const facts = readinessFacts({ administrativeBody: { documentSendSettings: [settingOf('transcript'), minutesSetting] } });
+        const facts = readinessFacts({ administrativeBody: { type: 'council' as const, documentSendSettings: [settingOf('transcript'), minutesSetting] } });
         const result = readinessInputFor(facts, 'minutes', daysAfter(3));
         expect(result).toMatchObject({
             setting: minutesSetting,

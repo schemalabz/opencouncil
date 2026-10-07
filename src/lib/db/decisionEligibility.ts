@@ -1,7 +1,8 @@
-import { Prisma, type CityStatus, type MeetingKind, type MeetingScheduleStatus } from '@prisma/client';
+import { Prisma, type AdministrativeBodyType, type CityStatus, type MeetingKind, type MeetingScheduleStatus } from '@prisma/client';
 import { CUSTOMER_CITY_WHERE, isCustomer } from '@/lib/cityStatus';
 import { TAKES_PLACE_WHERE, takesPlace } from '@/lib/meetingLifecycleRules';
 import { getPollableMeetingDateRange, takesNoDecisions, TAKES_DECISIONS_WHERE } from '@/lib/tasks/pollDecisionsBackoff';
+import { isSecondaryBody, primaryMeetingWhere } from '@/lib/utils/bodyTier';
 
 /**
  * Which subjects can carry a decision — the single definition, shared by every
@@ -43,6 +44,8 @@ export const AWAITING_DECISIONS_MEETING_WHERE = {
     ...TAKES_DECISIONS_WHERE,
     ...TAKES_PLACE_WHERE,
     subjects: { some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null } },
+    // A secondary body publishes no decisions (#829).
+    ...primaryMeetingWhere,
 } satisfies Prisma.CouncilMeetingWhereInput;
 
 /**
@@ -72,10 +75,13 @@ export function isPolledOnItsOwn(meeting: {
     kind: MeetingKind | null;
     continuationOf: { kind: MeetingKind | null } | null;
     city: { diavgeiaUid: string | null; status: CityStatus };
+    administrativeBody: { type: AdministrativeBodyType } | null;
 }, now: Date = new Date()): boolean {
     const window = getPollableMeetingDateRange(now);
     return takesPlace(meeting)
         && !takesNoDecisions(meeting)
+        // The twin of primaryMeetingWhere in AWAITING_DECISIONS_MEETING_WHERE (#829).
+        && !isSecondaryBody(meeting.administrativeBody)
         && meeting.dateTime >= window.gte && meeting.dateTime <= window.lte
         && meeting.city.diavgeiaUid !== null
         && isCustomer(meeting.city.status);

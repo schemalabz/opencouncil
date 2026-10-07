@@ -1,6 +1,7 @@
 // Server-only: populateCity takes no identity and checks no session. The
 // caller authorizes first — the MCP admin tool populate_city does.
 import "server-only";
+import { defaultNotificationBehavior } from '@/lib/utils/bodyTier';
 import prisma from './prisma';
 import { BadRequestError, NotFoundError } from '@/lib/api/errors';
 import type { CityPopulationData } from '@/lib/zod-schemas/cityPopulation';
@@ -42,6 +43,7 @@ export async function populateCity(validatedData: CityPopulationData): Promise<C
                         name: adminBody.name,
                         name_en: adminBody.name_en,
                         type: adminBody.type,
+                        notificationBehavior: defaultNotificationBehavior(adminBody.type),
                         diavgeiaUnitIds: adminBody.diavgeiaUnitIds ?? [],
                         youtubeChannelUrl: adminBody.youtubeChannelUrl ?? null,
                         cityId: cityId,

@@ -25,7 +25,7 @@ const settings = [setting('transcript', { recipientEmails: ['t@example.org'] }),
 function facts(id: string, overrides: Partial<ReadinessFacts> = {}): ReadinessFacts {
     return readinessFacts({
         id,
-        administrativeBody: { documentSendSettings: settings },
+        administrativeBody: { type: 'council' as const, documentSendSettings: settings },
         subjects: [{ id: 's1', decision: { id: 'd1' } }],
         _count: { subjects: 1 },
         ...overrides,
@@ -119,7 +119,7 @@ describe('sendDueDocuments', () => {
 
     it('counts a candidate the setting does not cover apart from one that waits, and sends neither', async () => {
         mockFindCandidates.mockResolvedValueOnce([
-            facts('before-switch', { administrativeBody: { documentSendSettings: [setting('minutes', { enabledAt: daysAfter(1) })] } }),
+            facts('before-switch', { administrativeBody: { type: 'council' as const, documentSendSettings: [setting('minutes', { enabledAt: daysAfter(1) })] } }),
             facts('later-part', { continuationOfId: 'first', kind: null, continuationOf: { kind: 'ordinary' } }),
             waiting('decisions'),
         ]).mockResolvedValueOnce([facts('not-summarized', { taskStatuses: [] })]);
@@ -199,7 +199,7 @@ describe('documentsAfterReview', () => {
         expect(await documentsAfterReview('c1', 'm1', now)).toEqual([]);
         mockGetFacts.mockResolvedValue(facts('m1', { documentSends: failedAutomatic(MAX_AUTOMATIC_ATTEMPTS) }));
         expect(await documentsAfterReview('c1', 'm1', now)).toEqual([]);
-        mockGetFacts.mockResolvedValue(facts('m1', { administrativeBody: { documentSendSettings: [setting('minutes', { enabledAt: daysAfter(1) })] } }));
+        mockGetFacts.mockResolvedValue(facts('m1', { administrativeBody: { type: 'council' as const, documentSendSettings: [setting('minutes', { enabledAt: daysAfter(1) })] } }));
         expect(await documentsAfterReview('c1', 'm1', now)).toEqual([]);
     });
 

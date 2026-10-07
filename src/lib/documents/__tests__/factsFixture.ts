@@ -54,7 +54,7 @@ export function readinessFacts(overrides: Partial<ReadinessFacts> = {}): Readine
         continuationOf: null,
         city: { timezone: 'Europe/Athens', status: 'supported', diavgeiaUid: null },
         administrativeBodyId: 'b1',
-        administrativeBody: { documentSendSettings: [setting('transcript'), setting('minutes')] },
+        administrativeBody: { type: 'council' as const, documentSendSettings: [setting('transcript'), setting('minutes')] },
         taskStatuses: [summarizeTask, reviewTask],
         subjects: [{ id: 's1', decision: { id: 'd1' } }, { id: 's2', decision: null }],
         _count: { subjects: 2 },

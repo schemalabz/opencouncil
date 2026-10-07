@@ -1733,7 +1733,8 @@ export async function getNotificationImpactPreviewData(
         interests: { id: string }[];
     }>;
 }> {
-    await withUserAuthorizedToEdit({ cityId });
+    // A superadmin only, as on the send.
+    await withUserAuthorizedToEdit({});
     // Fetch meeting with subjects
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },

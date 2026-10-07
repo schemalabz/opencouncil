@@ -3,7 +3,7 @@ import { getTranscript, Transcript } from '@/lib/db/transcript';
 import { CityWithGeometry, getCity } from '@/lib/db/cities';
 import { PersonWithRelations } from '@/lib/db/people';
 import { getHighlightsForMeeting, HighlightWithUtterances } from '@/lib/db/highlights';
-import { meetingTranscriptIsPublic } from '@/lib/db/sharing/publicContent';
+import { meetingNotificationsDisabled, meetingTranscriptIsPublic } from '@/lib/db/sharing/publicContent';
 import { cache } from 'react';
 import { getAllCityIdsCached, getPeopleForCityCached, getPartiesForCityCached, getSubjectsForMeetingCached, getSubjectStatisticsCached } from '@/lib/cache/queries';
 import { SubjectWithRelations } from '@/lib/db/subject';
@@ -41,6 +41,8 @@ export type MeetingDataCore = {
     speakerTags: SpeakerTag[];
     taskStatus: MeetingTaskStatus;
     transcriptHiddenForReview: boolean;
+    /** The meeting's body sends no notifications (#829). */
+    notificationsDisabled: boolean;
 }
 
 export type MeetingData = MeetingDataCore & {
@@ -121,7 +123,7 @@ async function fetchMeetingDataCore(cityId: string, meetingId: string, realm: Re
     const meetingTags = { tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`, `city:${cityId}:meeting:${meetingId}`] };
     const cityTags = { tags: ['city', `city:${cityId}`, `city:${cityId}:basic`] };
 
-    const [meeting, transcript, city, people, parties, subjects, taskStatus, transcriptIsPublic] = await Promise.all([
+    const [meeting, transcript, city, people, parties, subjects, taskStatus, transcriptIsPublic, notificationsDisabled] = await Promise.all([
         // Meeting query is NOT cached — it calls isUserAuthorizedToEdit (uses headers())
         // to allow admins to view unreleased meetings. It's a fast PK lookup anyway.
         getCouncilMeeting(cityId, meetingId),
@@ -143,6 +145,8 @@ async function fetchMeetingDataCore(cityId: string, meetingId: string, realm: Re
         // The review rule reads a setting of the body, which the public body
         // on the page does not carry. Read here so the page waits for no extra query.
         meetingTranscriptIsPublic(cityId, meetingId),
+        // The notification setting of the body stays off the page too.
+        meetingNotificationsDisabled(cityId, meetingId),
     ]);
 
     if (!meeting || !city || !transcript || !subjects) {
@@ -178,6 +182,7 @@ async function fetchMeetingDataCore(cityId: string, meetingId: string, realm: Re
         speakerTags,
         taskStatus,
         transcriptHiddenForReview: !transcriptIsPublic,
+        notificationsDisabled,
     };
 }
 
