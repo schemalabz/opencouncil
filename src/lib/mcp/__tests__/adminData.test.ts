@@ -32,10 +32,16 @@ jest.mock('../realmGuards', () => ({
 }));
 jest.mock('../gate', () => ({ requireVisibleMeeting: jest.fn() }));
 jest.mock('../../tasks/startMeetingTask', () => ({ startMeetingTask: jest.fn() }));
+// s3.ts builds its client from env.mjs at import time.
+jest.mock('../../s3', () => ({
+    generatePresignedUrl: jest.fn(),
+    constructPublicUrl: jest.fn((bucket: string, key: string) => `https://${bucket}.test/${key}`),
+}));
+jest.mock('@/env.mjs', () => ({ env: { DO_SPACES_BUCKET: 'bucket' } }));
 
 import { Prisma, Realm } from '@prisma/client';
 import {
-    mcpCreateCity, mcpCreateMeeting, mcpPopulateCity, mcpStartTask, mcpUpdateMeeting,
+    mcpCreateAgendaUploadUrl, mcpCreateCity, mcpCreateMeeting, mcpPopulateCity, mcpStartTask, mcpUpdateMeeting,
 } from '../adminData';
 import type { McpAdminAccess } from '../adminAccess';
 import { mcpRealmStore, requestContext } from '../realm-context';
@@ -46,6 +52,7 @@ import { populateCity } from '../../db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects } from '../../meetingWrites';
 import { requireRealmCity } from '../realmGuards';
 import { startMeetingTask } from '../../tasks/startMeetingTask';
+import { generatePresignedUrl } from '../../s3';
 import * as cityPopulate from '../../db/cityPopulate';
 
 const ADMIN_TOKEN = { type: 'user', userId: 'u1' } as const;
@@ -185,6 +192,47 @@ describe('start_task', () => {
     });
 });
 
+describe('create_agenda_upload_url', () => {
+    it('signs a readable key under uploads/ and answers with the public URL and the PUT headers', async () => {
+        asCityAdmin('argos');
+        (generatePresignedUrl as jest.Mock).mockResolvedValue('https://bucket.test/signed');
+        const result = await mcpCreateAgendaUploadUrl(ADMIN_TOKEN, { cityId: 'argos', identifier: '2026-10-15', format: 'pdf' });
+
+        const key = (generatePresignedUrl as jest.Mock).mock.calls[0][0];
+        expect(key).toMatch(/^uploads\/argos_2026-10-15_agenda_[0-9a-f]{8}\.pdf$/);
+        expect(generatePresignedUrl).toHaveBeenCalledWith(key, 'application/pdf', 300);
+        expect(result).toMatchObject({
+            uploadUrl: 'https://bucket.test/signed',
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/pdf', 'x-amz-acl': 'public-read' },
+            expiresIn: 300,
+            publicUrl: `https://bucket.test/${key}`,
+        });
+        expect(result.next).toMatch(/create_meeting/);
+    });
+
+    it('gives each call its own key', async () => {
+        asCityAdmin('argos');
+        (generatePresignedUrl as jest.Mock).mockResolvedValue('https://bucket.test/signed');
+        const args = { cityId: 'argos', identifier: '2026-10-15', format: 'pdf' as const };
+        const first = await mcpCreateAgendaUploadUrl(ADMIN_TOKEN, args);
+        const second = await mcpCreateAgendaUploadUrl(ADMIN_TOKEN, args);
+        expect(first.publicUrl).not.toBe(second.publicUrl);
+    });
+
+    it('names a .docx file by its extension and signs its content type', async () => {
+        asCityAdmin('argos');
+        (generatePresignedUrl as jest.Mock).mockResolvedValue('https://bucket.test/signed');
+        const result = await mcpCreateAgendaUploadUrl(ADMIN_TOKEN, { cityId: 'argos', identifier: '2026-10-15', format: 'docx' });
+
+        const key = (generatePresignedUrl as jest.Mock).mock.calls[0][0];
+        expect(key).toMatch(/^uploads\/argos_2026-10-15_agenda_[0-9a-f]{8}\.docx$/);
+        const docx = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        expect(generatePresignedUrl).toHaveBeenCalledWith(key, docx, 300);
+        expect(result.headers['Content-Type']).toBe(docx);
+    });
+});
+
 /**
  * The permission matrix, in one place: which caller each admin function
  * refuses before it touches anything. The write collaborators are mocked, so
@@ -203,6 +251,7 @@ describe('permission matrix', () => {
         create_meeting: (id: McpIdentityArg) => mcpCreateMeeting(id, MEETING),
         update_meeting: (id: McpIdentityArg) => mcpUpdateMeeting(id, { cityId: 'argos', meetingId: 'm1', name: 'Νέο' }),
         start_task: (id: McpIdentityArg) => mcpStartTask(id, { cityId: 'argos', meetingId: 'm1', type: 'transcribe' }),
+        create_agenda_upload_url: (id: McpIdentityArg) => mcpCreateAgendaUploadUrl(id, { cityId: 'argos', identifier: '2026-10-15', format: 'pdf' }),
     };
     const superadminOnly = {
         create_city: (id: McpIdentityArg) => mcpCreateCity(id, CITY),
@@ -210,7 +259,7 @@ describe('permission matrix', () => {
     };
     type McpIdentityArg = Parameters<typeof mcpCreateMeeting>[0];
     const writes = () => [
-        createMeetingWithEffects, updateMeetingWithEffects, startMeetingTask, createCityDirect, populateCity,
+        createMeetingWithEffects, updateMeetingWithEffects, startMeetingTask, createCityDirect, populateCity, generatePresignedUrl,
     ].map(fn => (fn as jest.Mock).mock.calls.length).reduce((a, b) => a + b, 0);
 
     const all = { ...cityScoped, ...superadminOnly };

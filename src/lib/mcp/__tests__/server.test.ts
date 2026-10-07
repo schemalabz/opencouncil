@@ -41,7 +41,7 @@ const SERVICE: McpIdentity = { type: 'service', keyName: 'bot' };
 
 const CATEGORIES = ['discovery', 'directory', 'meetings', 'highlights', 'admin'];
 
-const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'start_task'];
+const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_agenda_upload_url', 'start_task'];
 const SUPERADMIN_TOOLS = ['create_city', 'populate_city'];
 const CITY_ADMIN: McpAdminAccess = { superadmin: false, cityIds: new Set(['athens']) };
 const SUPERADMIN: McpAdminAccess = { superadmin: true, cityIds: new Set() };

@@ -3,6 +3,7 @@
 // The handlers are stubs: this file tests what the SDK hands to them, after
 // it validates a call with the input schema of the tool.
 jest.mock('../adminData', () => ({
+    mcpCreateAgendaUploadUrl: jest.fn().mockResolvedValue({}),
     mcpCreateCity: jest.fn().mockResolvedValue({}),
     mcpCreateMeeting: jest.fn(),
     mcpPopulateCity: jest.fn().mockResolvedValue({}),
@@ -14,7 +15,7 @@ jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
 
 import { InMemoryTransport, LATEST_PROTOCOL_VERSION, McpServer, type JSONRPCMessage } from '@modelcontextprotocol/server';
 import { registerAdminTools } from '../adminTools';
-import { mcpCreateCity, mcpPopulateCity } from '../adminData';
+import { mcpCreateAgendaUploadUrl, mcpCreateCity, mcpPopulateCity } from '../adminData';
 
 type Response = { id: number; result?: Record<string, unknown>; error?: { message: string } };
 type CallResult = { isError?: boolean; content: { text: string }[] };
@@ -138,5 +139,30 @@ describe('create_city through the SDK', () => {
         const result = await mcp.call('create_city', CITY);
         expect(result.isError).toBeFalsy();
         expect(mcpCreateCity).toHaveBeenCalledWith(null, { ...CITY, authorityType: 'municipality' });
+    });
+});
+
+describe('create_agenda_upload_url through the SDK', () => {
+    it('refuses an identifier that is not a file name slug', async () => {
+        const result = await mcp.call('create_agenda_upload_url', { cityId: 'chania', identifier: '15/10/2026' });
+        expect(result.isError).toBe(true);
+        expect(mcpCreateAgendaUploadUrl).not.toHaveBeenCalled();
+    });
+
+    it('refuses a format other than pdf and docx', async () => {
+        const result = await mcp.call('create_agenda_upload_url', { cityId: 'chania', identifier: '2026-10-15', format: 'doc' });
+        expect(result.isError).toBe(true);
+        expect(mcpCreateAgendaUploadUrl).not.toHaveBeenCalled();
+    });
+
+    it('fills in the pdf format and hands the city and the identifier to the handler', async () => {
+        const result = await mcp.call('create_agenda_upload_url', { cityId: 'chania', identifier: '2026-10-15' });
+        expect(result.isError).toBeFalsy();
+        expect(mcpCreateAgendaUploadUrl).toHaveBeenCalledWith(null, { cityId: 'chania', identifier: '2026-10-15', format: 'pdf' });
+    });
+
+    it('forwards a docx format', async () => {
+        await mcp.call('create_agenda_upload_url', { cityId: 'chania', identifier: '2026-10-15', format: 'docx' });
+        expect(mcpCreateAgendaUploadUrl).toHaveBeenCalledWith(null, expect.objectContaining({ format: 'docx' }));
     });
 });
