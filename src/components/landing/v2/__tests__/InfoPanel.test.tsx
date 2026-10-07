@@ -52,6 +52,7 @@ const city = (id: string, name: string, councilMeetings = 3): LandingListCity =>
     name_en: name,
     name_municipality: `Δήμος ${name}`,
     logoImage: null,
+    status: 'supported',
     _count: { persons: 0, parties: 0, councilMeetings },
 });
 

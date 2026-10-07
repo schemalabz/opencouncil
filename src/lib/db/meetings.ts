@@ -17,7 +17,7 @@ import { formatDateAsMeetingId } from '../utils/meetingId';
 import { parseVideoId } from '@/lib/utils/youtube';
 import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, publicMeetingWhere } from '../cityStatus';
-import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
+import { isSecondaryBody, primaryMeetingWhere } from '@/lib/utils/bodyTier';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
