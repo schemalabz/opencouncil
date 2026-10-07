@@ -99,6 +99,7 @@ export const BODY_TYPES = [
     { key: 'council', label: 'Συμβούλιο' },
     { key: 'committee', label: 'Επιτροπή' },
     { key: 'community', label: 'Κοινότητα' },
+    { key: 'youthCouncil', label: 'Συμβούλιο Νέων' },
 ] as const;
 
 /** Quick "minimum discussion time" presets for the search-dropdown filter. */

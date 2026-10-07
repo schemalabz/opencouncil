@@ -749,6 +749,7 @@ describe('buildSearchQuery ranking function', () => {
             council: params.councilWeight,
             committee: params.committeeWeight,
             community: params.communityWeight,
+            youthCouncil: params.youthCouncilWeight,
         })).toEqual(byDescending(ADMIN_BODY_TIER));
     });
 
@@ -761,7 +762,7 @@ describe('buildSearchQuery ranking function', () => {
         const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS);
         const params = rankingScriptParams(q.query);
 
-        for (const key of ['councilWeight', 'committeeWeight', 'communityWeight', 'defaultAdminBodyWeight']) {
+        for (const key of ['councilWeight', 'committeeWeight', 'communityWeight', 'youthCouncilWeight', 'defaultAdminBodyWeight']) {
             expect(params[key]).toBeGreaterThanOrEqual(1);
         }
     });
