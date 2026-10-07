@@ -5,6 +5,7 @@ import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { identityFromContext } from './auth';
 import type { McpAdminAccess } from './adminAccess';
 import {
+    mcpCreateAgendaUploadUrl,
     mcpCreateCity,
     mcpCreateMeeting,
     mcpPopulateCity,
@@ -85,6 +86,31 @@ function registerMeetingAdminTools(server: McpServer) {
             }),
         },
         (args, ctx: ServerContext) => run(() => mcpUpdateMeeting(identityFromContext(ctx), args))
+    );
+
+    server.registerTool(
+        'create_agenda_upload_url',
+        {
+            title: 'Create agenda upload URL',
+            annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+            _meta: category('admin'),
+            description:
+                'Get a short-lived URL to upload the agenda of a meeting to the file storage of OpenCouncil, '
+                + 'in a municipality that you administer. Use it when the file has no stable public URL: an email '
+                + 'attachment, a chat attachment, a download link that expires. Send the file with a PUT to '
+                + '`uploadUrl`, with the returned `headers`, within `expiresIn` seconds. The file is then public '
+                + 'at `publicUrl`: pass it as agendaUrl to create_meeting or update_meeting. A PDF or a .docx '
+                + 'file: the agenda processing reads these two formats only.',
+            inputSchema: z.object({
+                cityId: z.string().min(1),
+                identifier: z.string().regex(/^[a-z0-9-]{1,40}$/)
+                    .describe('Names the file: the date of the meeting, e.g. "2026-10-15", or the date and the '
+                        + 'body, e.g. "2026-10-15-oikonomiki". Lowercase letters a-z, digits and dashes only'),
+                format: z.enum(['pdf', 'docx']).default('pdf')
+                    .describe('The format of the file that you will upload. The answer carries the matching Content-Type'),
+            }),
+        },
+        (args, ctx: ServerContext) => run(() => mcpCreateAgendaUploadUrl(identityFromContext(ctx), args))
     );
 }
 
