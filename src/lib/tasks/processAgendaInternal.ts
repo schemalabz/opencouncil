@@ -87,6 +87,15 @@ export async function requestProcessAgendaInternal(agendaUrl: string, councilMee
         country: getRealmCountry(councilMeeting.city.realm)
     }
 
+    // As transcribe stores its video: the meeting then names the agenda that
+    // its subjects came from.
+    if (councilMeeting.agendaUrl !== agendaUrl) {
+        await prisma.councilMeeting.update({
+            where: { cityId_id: { id: councilMeetingId, cityId } },
+            data: { agendaUrl }
+        });
+    }
+
     console.log(`Process agenda body: ${JSON.stringify(body)}`);
     return startTask('processAgenda', body, councilMeetingId, cityId, { force });
 }
