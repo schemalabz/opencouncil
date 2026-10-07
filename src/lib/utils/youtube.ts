@@ -30,13 +30,15 @@ export function parseVideoId(url: string | null | undefined): string | null {
  * - `id`:     /channel/UC… — the canonical channel id, usable directly with the Data API
  * - `handle`: /@handle      — needs resolution via channels?forHandle
  * - `user`:   /user/name    — legacy username, needs resolution via channels?forUsername
- * - `custom`: /c/name       — vanity URL, only resolvable via search
+ *
+ * /c/ vanity URLs are not supported: the Data API can resolve them only through a
+ * full-text search, which can return the wrong channel. Every such channel also
+ * has a handle.
  */
 export type ChannelRef =
   | { kind: 'id'; value: string }
   | { kind: 'handle'; value: string }
   | { kind: 'user'; value: string }
-  | { kind: 'custom'; value: string }
 
 /**
  * Parses a YouTube channel URL into a typed reference the Data API can resolve.
@@ -83,10 +85,6 @@ export function parseChannelRef(channelUrl: string): ChannelRef | null {
   // /user/name (legacy)
   const userMatch = pathname.match(/^\/user\/([^/]+)/)
   if (userMatch) return { kind: 'user', value: decodeURIComponent(userMatch[1]) }
-
-  // /c/name (vanity)
-  const customMatch = pathname.match(/^\/c\/([^/]+)/)
-  if (customMatch) return { kind: 'custom', value: decodeURIComponent(customMatch[1]) }
 
   return null
 }

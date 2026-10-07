@@ -7,7 +7,7 @@ import { cacheGetJSON, cacheSetJSON } from '@/lib/cache/valkey';
  * a meeting's livestream on an administrative body's channel.
  *
  * Quota notes (default 10k units/day): channels.list / playlistItems.list /
- * videos.list = 1 unit each, search.list = 100 units. Channel-id resolution is
+ * videos.list = 1 unit each. Channel-id resolution is
  * cached long-term (ids are stable) and the recent videos listing is cached
  * briefly so multiple meetings sharing a channel cost a single lookup per run.
  */
@@ -52,13 +52,6 @@ interface ChannelListResponse {
     items?: Array<{ id: string }>;
 }
 
-interface SearchListResponse {
-    items?: Array<{
-        id?: { channelId?: string; videoId?: string };
-        snippet?: { title?: string; publishedAt?: string; description?: string };
-    }>;
-}
-
 interface ChannelContentDetailsResponse {
     items?: Array<{ contentDetails?: { relatedPlaylists?: { uploads?: string } } }>;
 }
@@ -88,7 +81,7 @@ interface VideosListResponse {
 }
 
 /**
- * Resolves a stored channel URL (handle, /channel/UC…, /user, or /c vanity) to a
+ * Resolves a stored channel URL (handle, /channel/UC…, or /user) to a
  * canonical channel id. Cached in Valkey keyed by the input URL. Returns null when
  * the channel can't be resolved.
  */
@@ -111,21 +104,12 @@ export async function resolveChannelId(channelUrl: string): Promise<string | nul
             forHandle: `@${ref.value}`,
         });
         channelId = data.items?.[0]?.id ?? null;
-    } else if (ref.kind === 'user') {
+    } else {
         const data = await ytFetch<ChannelListResponse>('channels', {
             part: 'id',
             forUsername: ref.value,
         });
         channelId = data.items?.[0]?.id ?? null;
-    } else {
-        // Vanity /c/ URLs aren't directly resolvable — fall back to channel search.
-        const data = await ytFetch<SearchListResponse>('search', {
-            part: 'id',
-            type: 'channel',
-            q: ref.value,
-            maxResults: '1',
-        });
-        channelId = data.items?.[0]?.id?.channelId ?? null;
     }
 
     if (channelId) {

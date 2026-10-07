@@ -30,11 +30,8 @@ describe('parseChannelRef', () => {
         });
     });
 
-    it('extracts a vanity name from /c/ URLs', () => {
-        expect(parseChannelRef('https://www.youtube.com/c/CityOfAthens')).toEqual({
-            kind: 'custom',
-            value: 'CityOfAthens',
-        });
+    it('rejects /c/ vanity URLs', () => {
+        expect(parseChannelRef('https://www.youtube.com/c/CityOfAthens')).toBeNull();
     });
 
     it('treats a bare handle (with @) as a handle', () => {
