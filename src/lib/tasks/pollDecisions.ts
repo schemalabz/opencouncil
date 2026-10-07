@@ -24,6 +24,7 @@ import { applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } f
 import { isRoleActiveAt, isMayorRole } from "@/lib/utils/roles";
 import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, TAKES_DECISIONS_WHERE, pendingPollTaskId, type BackoffTier } from "./pollDecisionsBackoff";
 import { orderForPolling } from "./pollableMeetings";
+import { isSecondaryBody, primaryMeetingWhere } from "@/lib/utils/bodyTier";
 import { sendPollDecisionsBatchStartedAlert, sendPollDecisionsBatchCompletedAlert } from "@/lib/discord";
 import { agendaItemTitleOrName, isRecordSubject } from "@/lib/utils/subjects";
 
@@ -93,6 +94,7 @@ export async function pollDecisionsForMeeting(
                 select: {
                     id: true,
                     name: true,
+                    type: true,
                     diavgeiaUnitIds: true,
                     decisionConventions: true,
                 },
@@ -119,6 +121,13 @@ export async function pollDecisionsForMeeting(
 
     if (!councilMeeting.city.diavgeiaUid) {
         throw new Error("City does not have a Diavgeia UID configured");
+    }
+
+    // A secondary body publishes no decisions on Diavgeia (#829). The guard
+    // sits here, where every poll arrives: the cron, the follow-ups, the admin
+    // batch and the subject page.
+    if (isSecondaryBody(councilMeeting.administrativeBody)) {
+        throw new Error("Decisions are not polled for this administrative body");
     }
 
     if (councilMeeting.subjects.length === 0) {
@@ -250,6 +259,8 @@ const AWAITING_DECISIONS_MEETING_WHERE = {
     ...TAKES_DECISIONS_WHERE,
     ...TAKES_PLACE_WHERE,
     subjects: { some: { ...DECISION_ELIGIBLE_SUBJECT_WHERE, decision: null } },
+    // A secondary body publishes no decisions (#829).
+    ...primaryMeetingWhere,
 } satisfies Prisma.CouncilMeetingWhereInput;
 
 /**
@@ -414,6 +425,7 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
             withdrawn: true,
             cityId: true,
             councilMeetingId: true,
+            councilMeeting: { select: { administrativeBody: { select: { type: true } } } },
         },
     });
 
@@ -426,6 +438,9 @@ export async function requestPollDecisionForSubject(subjectId: string): Promise<
             `Subject not eligible for decisions (agendaItemIndex=${subject?.agendaItemIndex ?? 'null'}, ` +
             `nonAgendaReason=${subject?.nonAgendaReason ?? 'null'}, withdrawn=${subject?.withdrawn ?? 'n/a'})`,
         );
+    }
+    if (isSecondaryBody(subject.councilMeeting.administrativeBody)) {
+        throw new Error('Decisions are not polled for this administrative body');
     }
 
     // One poll per meeting at a time. Bounded by the task's own lifecycle rather
@@ -969,9 +984,10 @@ export async function handlePollDecisionsResult(taskId: string, result: PollDeci
             // it, midnight-stored meetings would shift a day.
             const cityMeetings = polledMeeting ? (await tx.councilMeeting.findMany({
                 // A decision never belongs to a meeting that did not take place,
-                // or to one that takes no decisions. Such a meeting must neither
-                // receive a decision nor block an otherwise unambiguous heal.
-                where: { cityId: task.cityId, ...TAKES_PLACE_WHERE, ...TAKES_DECISIONS_WHERE },
+                // to one that takes no decisions, or to a meeting of a secondary
+                // body, which publishes no decisions (#829). Such a meeting must
+                // neither receive a decision nor block an otherwise unambiguous heal.
+                where: { cityId: task.cityId, ...TAKES_PLACE_WHERE, ...TAKES_DECISIONS_WHERE, ...primaryMeetingWhere },
                 select: { id: true, dateTime: true, administrativeBodyId: true },
                 orderBy: { dateTime: 'asc' },
             })).map(m => ({

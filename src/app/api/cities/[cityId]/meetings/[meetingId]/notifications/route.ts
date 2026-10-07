@@ -23,6 +23,22 @@ export async function POST(
         );
     }
 
+    // The body's setting binds the manual path as it binds the automatic one:
+    // a body with its notifications off sends none, whoever asks.
+    const held = await prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId: params.cityId, id: params.meetingId } },
+        select: { administrativeBody: { select: { notificationBehavior: true } } },
+    });
+    if (!held) {
+        return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
+    }
+    if (held.administrativeBody?.notificationBehavior === 'NOTIFICATIONS_DISABLED') {
+        return NextResponse.json(
+            { error: 'Notifications are disabled for the administrative body of this meeting' },
+            { status: 409 }
+        );
+    }
+
     // Transform subjectImportances to the format expected by createNotificationsForMeeting
     const subjectImportanceOverrides: Record<string, {
         topicImportance: 'doNotNotify' | 'normal' | 'high';

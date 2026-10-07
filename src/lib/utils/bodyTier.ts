@@ -1,4 +1,4 @@
-import type { AdministrativeBodyType, Prisma } from '@prisma/client';
+import type { AdministrativeBodyType, NotificationBehavior, Prisma } from '@prisma/client';
 
 /**
  * The two tiers of administrative body (#829). Logic reads the tier; labels and
@@ -35,6 +35,16 @@ export function bodyTier(type: AdministrativeBodyType | null | undefined): BodyT
 
 export function isSecondaryBody(body: { type: AdministrativeBodyType } | null | undefined): boolean {
     return bodyTier(body?.type) === 'secondary';
+}
+
+/**
+ * What a new body's notifications do until an admin says otherwise. A
+ * secondary body starts with them off: its meetings are not what the
+ * municipality's subscribers signed up for. Every path that creates a body
+ * reads this, so the three defaults that existed before cannot disagree.
+ */
+export function defaultNotificationBehavior(type: AdministrativeBodyType): NotificationBehavior {
+    return bodyTier(type) === 'secondary' ? 'NOTIFICATIONS_DISABLED' : 'NOTIFICATIONS_APPROVAL';
 }
 
 /**

@@ -4,6 +4,7 @@ import { getAdministrativeBodiesForCity, getPublicAdministrativeBodiesForCity, c
 import { z } from 'zod';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
+import { defaultNotificationBehavior } from '@/lib/utils/bodyTier';
 
 
 export async function GET(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             cityId,
             youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
             contactEmails: contactEmails || [],
-            notificationBehavior: notificationBehavior || 'NOTIFICATIONS_APPROVAL',
+            notificationBehavior: notificationBehavior ?? defaultNotificationBehavior(type),
             showUnreviewedTranscript: showUnreviewedTranscript ?? true,
             diavgeiaUnitIds: diavgeiaUnitIds || [],
             place,

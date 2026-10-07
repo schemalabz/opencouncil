@@ -3,6 +3,7 @@ import {
     PRIMARY_BODY_TYPES,
     SECONDARY_BODY_TYPES,
     bodyTier,
+    defaultNotificationBehavior,
     hasPrimaryPresence,
     isSecondaryBody,
     primaryMeetingWhere,
@@ -33,6 +34,11 @@ describe('bodyTier', () => {
     it('keeps a meeting with no body inside the primary where clause', () => {
         expect(primaryMeetingWhere.OR).toContainEqual({ administrativeBodyId: null });
         expect(primaryMeetingWhere.OR).toContainEqual({ administrativeBody: { type: { in: ['council', 'committee', 'community'] } } });
+    });
+
+    it('starts a secondary body with its notifications off, and a primary one on approval', () => {
+        expect(defaultNotificationBehavior('youthCouncil')).toBe('NOTIFICATIONS_DISABLED');
+        for (const type of PRIMARY_BODY_TYPES) expect(defaultNotificationBehavior(type)).toBe('NOTIFICATIONS_APPROVAL');
     });
 
     it('counts a person on the municipality\'s roster unless every role is on a secondary body', () => {

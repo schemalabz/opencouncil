@@ -1,5 +1,5 @@
 "use client"
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -19,6 +19,7 @@ import { administrativeBodyFormSchema, type AdministrativeBodyFormValues } from 
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client'
 import { ADMIN_BODY_TYPE_ORDER } from '@/lib/utils/administrativeBodies'
+import { defaultNotificationBehavior } from '@/lib/utils/bodyTier'
 import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -63,7 +64,7 @@ function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFo
         place: body?.place || "",
         contactEmailPrimary: body?.contactEmails?.[0] || "",
         contactEmailsCC: body?.contactEmails?.slice(1).join(', ') || "",
-        notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
+        notificationBehavior: body?.notificationBehavior || defaultNotificationBehavior(body?.type ?? "council"),
         showUnreviewedTranscript: body?.showUnreviewedTranscript ?? true,
         diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
         decisionConventions: storedConventions(body?.decisionConventions),
@@ -82,6 +83,15 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
         resolver: zodResolver(administrativeBodyFormSchema),
         defaultValues: getFormDefaults(editingBody),
     })
+
+    // A new body's notification default follows its type (see
+    // defaultNotificationBehavior): the toggle moves with the type select
+    // until the admin touches it.
+    const selectedType = form.watch('type')
+    useEffect(() => {
+        if (editingBody || form.getFieldState('notificationBehavior').isDirty) return
+        form.setValue('notificationBehavior', defaultNotificationBehavior(selectedType))
+    }, [selectedType, editingBody, form])
 
     async function onSubmit(values: AdministrativeBodyFormValues) {
         setIsSubmitting(true)

@@ -45,6 +45,20 @@ describe("partitionMeetingsForPolling", () => {
         expect(result.skipped[0].skipReason).toBe("noEligibleSubjects");
     });
 
+    // A secondary body publishes no decisions (#829), whatever its subjects look like.
+    it("skips the meetings of a secondary body even when they have eligible subjects", () => {
+        const result = partitionMeetingsForPolling(
+            [
+                { id: "m1", name: "Συνεδρίαση 1", kind: "regular", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: { type: "youthCouncil" } },
+                { id: "m2", name: "Συνεδρίαση 2", kind: "regular", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: { type: "committee" } },
+                { id: "m3", name: "Συνεδρίαση 3", kind: "regular", continuationOf: null, scheduleStatus: "scheduled" as const, administrativeBody: null },
+            ],
+            { m1: { linked: 0, eligible: 2 }, m2: { linked: 0, eligible: 2 }, m3: { linked: 0, eligible: 2 } },
+        );
+        expect(result.skipped.map(m => [m.meetingId, m.skipReason])).toEqual([["m1", "secondaryBody"]]);
+        expect(result.pollable.map(m => m.meetingId)).toEqual(["m2", "m3"]);
+    });
+
     it("skips Λογοδοσία meetings even when they have eligible subjects", () => {
         const result = partitionMeetingsForPolling(
             [{ id: "m1", name: "Δημοτικό Συμβούλιο 25/06/2026", kind: "accountability", continuationOf: null, scheduleStatus: "scheduled" as const }],
