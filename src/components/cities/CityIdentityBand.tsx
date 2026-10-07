@@ -7,12 +7,15 @@ import { CityMessage } from '@/components/cities/CityMessage';
 import { CitySearchForm } from '@/components/cities/CitySearchForm';
 import { OfficialSupportBadge } from '@/components/cities/OfficialSupportBadge';
 import { FactDot } from '@/components/ui/fact-dot';
+import { isPublicThroughSecondaryOnly } from '@/lib/cityStatus';
 
 type CityIdentityBandProps = {
     city: CityWithCounts;
     cityMessage: CityMessageType | null;
     showMessage: boolean;
     subjectCount: number;
+    /** Whether a secondary body of the city has released a meeting (#829). */
+    publicThroughSecondary: boolean;
     locale: string;
 };
 
@@ -34,6 +37,7 @@ export function CityIdentityBand({
     cityMessage,
     showMessage,
     subjectCount,
+    publicThroughSecondary,
     locale,
 }: CityIdentityBandProps) {
     const t = useTranslations('cityOverview');
@@ -64,6 +68,7 @@ export function CityIdentityBand({
                         authorityType={city.authorityType}
                         cityId={city.id}
                         realm={city.realm}
+                        publicThroughSecondaryOnly={isPublicThroughSecondaryOnly({ status: city.status, publicThroughSecondary })}
                         size="sm"
                     />
                     <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
