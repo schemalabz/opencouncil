@@ -1,74 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { s3Client, fileExists, constructPublicUrl } from '@/lib/s3'
+import { s3Client, constructPublicUrl } from '@/lib/s3'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { v4 as uuidv4 } from 'uuid'
 import { env } from '@/env.mjs'
 import { withServiceOrUserAuth } from '@/lib/auth'
 import { ApiError } from '@/lib/api/errors'
-import { UploadConfig } from '@/types/upload'
-
-/**
- * Generate a meaningful filename based on upload config
- * Pattern: {cityId}_{identifier}_{suffix}.{ext}
- * Examples:
- *   - chania_aug15_2025_recording.mp4
- *   - chania_aug15_2025_agenda.pdf
- *   - chania_democrats_logo.png
- */
-function generateBaseFilename(config: UploadConfig | undefined, extension: string): string {
-    const parts = [
-        config?.cityId,
-        config?.identifier,
-        config?.suffix
-    ].filter(Boolean)
-    
-    return parts.length > 0 
-        ? `${parts.join('_')}.${extension}`
-        : `${uuidv4()}.${extension}`
-}
-
-/**
- * Check if a file exists in S3
- */
-async function fileExistsInBucket(key: string): Promise<boolean> {
-    return await fileExists(env.DO_SPACES_BUCKET, key)
-}
-
-/**
- * Find an available filename by adding numeric suffixes if needed
- * e.g., file.pdf -> file.pdf, file_2.pdf, file_3.pdf, etc.
- */
-async function findAvailableFilename(baseFilename: string, prefix: string = 'uploads'): Promise<string> {
-    const key = `${prefix}/${baseFilename}`
-    
-    // Check if base filename is available
-    if (!await fileExistsInBucket(key)) {
-        return baseFilename
-    }
-    
-    // Extract name and extension
-    const lastDotIndex = baseFilename.lastIndexOf('.')
-    const nameWithoutExt = lastDotIndex > 0 ? baseFilename.substring(0, lastDotIndex) : baseFilename
-    const extension = lastDotIndex > 0 ? baseFilename.substring(lastDotIndex) : ''
-    
-    // Try with numeric suffixes
-    let counter = 2
-    while (counter <= 10) { // Limit to 10 attempts
-        const newFilename = `${nameWithoutExt}_${counter}${extension}`
-        const newKey = `${prefix}/${newFilename}`
-        
-        if (!await fileExistsInBucket(newKey)) {
-            return newFilename
-        }
-        
-        counter++
-    }
-    
-    // If we've exhausted all numeric attempts, fall back to clean UUID-based name
-    const cleanUuidName = `${uuidv4()}${extension}`
-    return cleanUuidName
-}
+import { availableUploadKey } from '@/lib/uploads/naming'
 
 /**
  * Generate a pre-signed URL for direct upload to DigitalOcean Spaces
@@ -107,12 +44,8 @@ export async function POST(request: NextRequest) {
         // Extract file extension
         const fileExtension = filename.split('.').pop() || 'bin'
         
-        // Generate filename based on config
-        const baseFilename = generateBaseFilename(config, fileExtension)
-        
-        // Find an available filename (handles collisions)
-        const uniqueFilename = await findAvailableFilename(baseFilename, 'uploads')
-        const key = `uploads/${uniqueFilename}`
+        // Generate filename based on config, made unique (handles collisions)
+        const key = await availableUploadKey(config, fileExtension)
 
         // Create S3 PutObject command (without ACL for now)
         const command = new PutObjectCommand({
