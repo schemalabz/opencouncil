@@ -5,7 +5,7 @@ import type { QueryContainer, SearchRequest } from '../types';
 // itself does not read env, only the module-level import does.
 jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 
-import { buildFilters, buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO } from '../query';
+import { buildFilters, buildSearchQuery, MAX_RANKING_MULTIPLIER_RATIO, subjectVisibilityFilters } from '../query';
 import { MATCH_START, MATCH_END, MATCH_FIELDS } from '../constants';
 import { ADMIN_BODY_TIER } from '@/lib/ranking/subjects';
 import schema from '../../../../elasticsearch/schema.json';
@@ -741,14 +741,14 @@ describe('buildSearchQuery location handling', () => {
     // actually produces. The earlier fixture used `radius: 40` and asserted
     // "40km", which agreed with the consumer's `km` suffix but not with any
     // value the app ever passes, so it hid the unit bug.
-    const LOCATIONS = [{ point: { lat: 38.0, lon: 23.7 }, radiusMeters: 2000 }];
+    const LOCATIONS = [{ point: { lat: 38.0, lng: 23.7 }, radiusMeters: 2000 }];
     // What one extracted place name actually resolves to: processFilters
     // geocodes it in every municipality, and adjacent Attica cities bias Google
     // Places towards the same landmark, so about ten near-identical points for
     // one place is the normal case, not an edge case.
     const SAME_PLACE_GEOCODED_TWICE = [
-        { point: { lat: 38.0, lon: 23.7 }, radiusMeters: 2000 },
-        { point: { lat: 38.0001, lon: 23.7001 }, radiusMeters: 2000 },
+        { point: { lat: 38.0, lng: 23.7 }, radiusMeters: 2000 },
+        { point: { lat: 38.0001, lng: 23.7001 }, radiusMeters: 2000 },
     ];
 
     // The proximity clause on the scored path: one constant_score whose filter
@@ -789,8 +789,9 @@ describe('buildSearchQuery location handling', () => {
     // though subjects carry it in the title.
     it('keeps AI-extracted locations out of the hard filters', () => {
         const q = buildSearchQuery(
-            { query: 'παλαιστίνη', locations: LOCATIONS },
-            NO_EXTRACTED_FILTERS
+            { query: 'παλαιστίνη' },
+            NO_EXTRACTED_FILTERS,
+            LOCATIONS
         );
 
         expect(JSON.stringify(hardFiltersOf(q))).not.toContain('geo_distance');
@@ -798,8 +799,9 @@ describe('buildSearchQuery location handling', () => {
 
     it('applies locations as a proximity boost that cannot match on its own', () => {
         const q = buildSearchQuery(
-            { query: 'παλαιστίνη', locations: LOCATIONS },
-            NO_EXTRACTED_FILTERS
+            { query: 'παλαιστίνη' },
+            NO_EXTRACTED_FILTERS,
+            LOCATIONS
         );
         const lexical = lexicalQueryOf(q);
 
@@ -819,12 +821,14 @@ describe('buildSearchQuery location handling', () => {
     // among text matches; it must not outrank a better text match.
     it('awards the proximity boost once, however many points one place geocoded to', () => {
         const one = buildSearchQuery(
-            { query: 'πάρκα', locations: LOCATIONS },
-            NO_EXTRACTED_FILTERS
+            { query: 'πάρκα' },
+            NO_EXTRACTED_FILTERS,
+            LOCATIONS
         );
         const many = buildSearchQuery(
-            { query: 'πάρκα', locations: SAME_PLACE_GEOCODED_TWICE },
-            NO_EXTRACTED_FILTERS
+            { query: 'πάρκα' },
+            NO_EXTRACTED_FILTERS,
+            SAME_PLACE_GEOCODED_TWICE
         );
 
         // Both points are searched...
@@ -843,8 +847,9 @@ describe('buildSearchQuery location handling', () => {
     // school maintenance for "σχολεία Άργους".
     it('keeps the proximity boost below the weakest content tier', () => {
         const q = buildSearchQuery(
-            { query: 'πάρκα', locations: LOCATIONS },
-            NO_EXTRACTED_FILTERS
+            { query: 'πάρκα' },
+            NO_EXTRACTED_FILTERS,
+            LOCATIONS
         );
         const bases = tierBaseByField(scoredShouldClauses('πάρκα'));
 
@@ -857,10 +862,22 @@ describe('buildSearchQuery location handling', () => {
     // furthest two points on Earth can be apart, so every pinned subject
     // matched and the boost stopped expressing proximity at all. It became a
     // flat bonus for carrying a pin. Assert the unit, not just the number.
+    // The app spells longitude `lng`, Elasticsearch's geo_point object `lon`.
+    // A clause that passed the point through would name a key the geo query
+    // rejects.
+    it('names the point the way Elasticsearch reads it', () => {
+        const q = buildSearchQuery({ query: 'πάρκα' }, NO_EXTRACTED_FILTERS, LOCATIONS);
+
+        expect(geoClausesOf(q)[0]?.geo_distance).toMatchObject({
+            location_geojson: { lat: 38.0, lon: 23.7 },
+        });
+    });
+
     it('emits the radius in metres, not kilometres', () => {
         const q = buildSearchQuery(
-            { query: 'παλαιστίνη', locations: LOCATIONS },
-            NO_EXTRACTED_FILTERS
+            { query: 'παλαιστίνη' },
+            NO_EXTRACTED_FILTERS,
+            LOCATIONS
         );
         const distance = geoClausesOf(q)[0]?.geo_distance?.distance as string;
 
@@ -876,18 +893,11 @@ describe('buildSearchQuery location handling', () => {
         expect(JSON.stringify(lexical)).not.toContain('geo_distance');
     });
 
-    it('keeps locations as a hard filter in the filter-only browse path', () => {
-        const q = buildSearchQuery({ locations: LOCATIONS }, NO_EXTRACTED_FILTERS);
-        const filter = (q.query?.bool?.filter ?? []) as QueryContainer[];
-
-        expect(JSON.stringify(filter)).toContain('geo_distance');
-    });
-
     // The public API's `location` is a place the caller asked for, so unlike an
     // extracted location it narrows a text search.
     it('applies an explicit location filter as a hard filter on a text search', () => {
         const q = buildSearchQuery(
-            { query: 'πάρκα', locationFilter: LOCATIONS[0] },
+            { query: 'πάρκα', location: LOCATIONS[0] },
             NO_EXTRACTED_FILTERS
         );
         const geo = hardFiltersOf(q).filter((f) => JSON.stringify(f).includes('geo_distance'));
@@ -896,8 +906,25 @@ describe('buildSearchQuery location handling', () => {
         expect(JSON.stringify(geo[0])).toContain('"distance":"2000m"');
     });
 
+    // The two inputs stay apart: the caller's place filters, the place read
+    // out of the text only boosts. Neither may turn into the other.
+    it('filters by the caller location and boosts by the extracted one', () => {
+        const extracted = [{ point: { lat: 37.0, lng: 22.0 }, radiusMeters: 2000 }];
+        const q = buildSearchQuery(
+            { query: 'πάρκα', location: LOCATIONS[0] },
+            NO_EXTRACTED_FILTERS,
+            extracted
+        );
+        const hardGeo = hardFiltersOf(q).filter((f) => JSON.stringify(f).includes('geo_distance'));
+
+        expect(hardGeo).toHaveLength(1);
+        expect(JSON.stringify(hardGeo[0])).toContain('"lat":38');
+        expect(geoClausesOf(q)).toHaveLength(1);
+        expect(JSON.stringify(geoClausesOf(q)[0])).toContain('"lat":37');
+    });
+
     it('applies an explicit location filter on the filter-only browse path', () => {
-        const q = buildSearchQuery({ locationFilter: LOCATIONS[0] }, NO_EXTRACTED_FILTERS);
+        const q = buildSearchQuery({ location: LOCATIONS[0] }, NO_EXTRACTED_FILTERS);
         const filter = (q.query?.bool?.filter ?? []) as QueryContainer[];
 
         expect(JSON.stringify(filter)).toContain('geo_distance');
@@ -1376,10 +1403,11 @@ describe('buildSearchQuery agreement with the index mapping', () => {
             partyIds: ['party1'],
             topicIds: ['t1'],
             dateRange: { start: '2026-01-01', end: '2026-02-01' },
-            locations: [{ point: { lat: 38.0, lon: 23.7 }, radiusMeters: 2000 }],
+            location: { point: { lat: 38.0, lng: 23.7 }, radiusMeters: 2000 },
             config: { enableSemanticSearch: true },
         },
-        { ...NO_EXTRACTED_FILTERS, locationName: 'Άργος' }
+        { ...NO_EXTRACTED_FILTERS, locationName: 'Άργος' },
+        [{ point: { lat: 38.0, lng: 23.7 }, radiusMeters: 2000 }]
     );
 
     it('names only fields the index mapping defines', () => {
@@ -1481,6 +1509,15 @@ describe('buildSearchQuery city filter', () => {
     });
 });
 
+describe('buildFilters visibility', () => {
+    it('applies every visibility filter, whatever the request', () => {
+        const filters = buildFilters({ query: 'roads' });
+        for (const visibility of subjectVisibilityFilters()) {
+            expect(filters).toContainEqual(visibility);
+        }
+    });
+});
+
 describe('buildFilters administrative body filter', () => {
     // The two fields reached the URL and the filter bar before buildFilters had
     // a clause for either, so every administrative body selection returned the
@@ -1493,22 +1530,40 @@ describe('buildFilters administrative body filter', () => {
     }
 
     it('filters on the ids of named administrative bodies', () => {
-        const filters = buildFilters({ query: 'roads', adminBodyIds: ['body1'] });
+        const filters = buildFilters({ query: 'roads', administrativeBodyIds: ['body1'] });
 
         expect(termsOf(filters, 'administrative_body_id')).toEqual(['body1']);
     });
 
     it('filters on the administrative body type', () => {
-        const filters = buildFilters({ query: 'roads', adminBodyTypes: ['committee'] });
+        const filters = buildFilters({ query: 'roads', administrativeBodyTypes: ['committee'] });
 
         expect(termsOf(filters, 'administrative_body_type')).toEqual(['committee']);
+    });
+
+    // A meeting with no body is indexed with no type, and the rest of the app
+    // reads it as the council's (list_meetings, the timeline). A plain terms
+    // filter on 'council' dropped its subjects.
+    it('admits subjects of a meeting with no body when the types include the council', () => {
+        const [clause] = buildFilters({ query: 'roads', administrativeBodyTypes: ['council'] })
+            .filter((f) => JSON.stringify(f).includes('administrative_body_type'));
+
+        expect(clause).toEqual({
+            bool: {
+                should: [
+                    { terms: { administrative_body_type: ['council'] } },
+                    { bool: { must_not: { exists: { field: 'administrative_body_type' } } } },
+                ],
+                minimum_should_match: 1,
+            },
+        });
     });
 
     it('keeps the id and the type as independent top-level (AND) clauses', () => {
         const filters = buildFilters({
             query: 'roads',
-            adminBodyIds: ['body1'],
-            adminBodyTypes: ['committee'],
+            administrativeBodyIds: ['body1'],
+            administrativeBodyTypes: ['committee'],
         });
 
         expect(termsOf(filters, 'administrative_body_id')).toEqual(['body1']);
@@ -1523,7 +1578,7 @@ describe('buildFilters administrative body filter', () => {
     });
 
     it('omits both clauses for empty arrays', () => {
-        const filters = buildFilters({ query: 'roads', adminBodyIds: [], adminBodyTypes: [] });
+        const filters = buildFilters({ query: 'roads', administrativeBodyIds: [], administrativeBodyTypes: [] });
 
         expect(termsOf(filters, 'administrative_body_id')).toBeUndefined();
         expect(termsOf(filters, 'administrative_body_type')).toBeUndefined();

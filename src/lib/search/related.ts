@@ -1,6 +1,7 @@
 import { estypes } from '@elastic/elasticsearch';
 import { env } from '@/env.mjs';
 import type { RelatedScope } from './types';
+import { subjectVisibilityFilters } from './query';
 
 /** What the related-subjects query needs to know about the subject on screen. */
 export interface RelatedSubjectSeed {
@@ -79,7 +80,7 @@ export function buildRelatedSubjectsQuery(
                     },
                 }],
                 filter: [
-                    { term: { meeting_released: true } },
+                    ...subjectVisibilityFilters(),
                     { terms: { city_id: scopeCityIds } },
                 ],
                 // The subject itself, and its siblings from the same meeting:

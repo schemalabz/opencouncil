@@ -294,8 +294,8 @@ export default function SearchPage() {
                 cityIds: requestedCityIds,
                 personIds: personId ? [personId] : undefined,
                 partyIds: partyId ? [partyId] : undefined,
-                adminBodyIds: adminBodyId ? [adminBodyId] : undefined,
-                adminBodyTypes: adminBodyTypeFilter ? [adminBodyTypeFilter] : undefined,
+                administrativeBodyIds: adminBodyId ? [adminBodyId] : undefined,
+                administrativeBodyTypes: adminBodyTypeFilter ? [adminBodyTypeFilter] : undefined,
                 topicIds: topicIds ? topicIds.split(',').filter(Boolean) : undefined,
                 dateRange: requestedDateRange,
                 config: {

@@ -1,16 +1,14 @@
 import { notFound } from 'next/navigation';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import { getCityCached, getAdministrativeBodiesWithPublicMeetingsCached, getCouncilMeetingsForCityPublicCached } from '@/lib/cache';
-import { AdministrativeBodyType } from '@prisma/client';
 import { EmbedConfigurator, type EmbedBodyGroup, type EmbedRecentMeeting } from '@/components/embed/EmbedConfigurator';
 import { Metadata } from 'next';
+import { ADMIN_BODY_TYPE_ORDER } from '@/lib/utils/administrativeBodies';
 
 // Embed configurator for city admins — nothing to index.
 export const metadata: Metadata = {
     robots: { index: false, follow: false },
 };
-
-const ADMIN_BODY_TYPE_ORDER: AdministrativeBodyType[] = ['council', 'committee', 'community'];
 
 /** Choices offered by the summary widget's meeting picker. */
 const RECENT_MEETINGS_LIMIT = 20;

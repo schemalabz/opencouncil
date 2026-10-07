@@ -32,6 +32,14 @@ const paginationShape = {
 };
 
 /**
+ * The body-type filter list_meetings and search share. min(1): the data layer
+ * skips an empty filter, so `[]` would widen the query to every body — the
+ * opposite of what passing it means.
+ */
+const administrativeBodyTypesFilter = z.array(z.enum(AdministrativeBodyType)).min(1).optional()
+    .describe('Restrict to bodies of these kinds: council (Δημοτικό or Περιφερειακό Συμβούλιο; also matches meetings with no body, from cities imported before bodies existed), committee (Δημοτική or Περιφερειακή Επιτροπή), community (Δημοτική Κοινότητα; municipalities only)');
+
+/**
  * The render settings both highlight write tools accept. Shared so the two
  * never advertise different capabilities for the one renderer.
  */
@@ -52,11 +60,11 @@ export function registerOpenCouncilServer(server: McpServer) {
             _meta: category('discovery'),
             description:
                 'Full-text and semantic search over council meeting subjects (agenda items). ' +
-                'Filter by city, person, party, topic or date range. With a query, results are ' +
+                'Filter by city, person, party, administrative body, topic or date range. With a query, results are ' +
                 'ranked by relevance, not by date: the top hit is not the most recent match, and ' +
                 'absence from the first page is not absence from the record — page on, or widen ' +
                 'the filters, before concluding something does not exist. It ranks subjects, not ' +
-                'meetings, and cannot filter by administrative body — use list_meetings for that. ' +
+                'meetings — to find when a body last met, use list_meetings. ' +
                 'Omit the query to list everything matching the filters, newest first — e.g. all ' +
                 'subjects a person spoke about, or all subjects in a date range. ' +
                 'Returns compact results with URLs; ' +
@@ -70,6 +78,9 @@ export function registerOpenCouncilServer(server: McpServer) {
                 cityIds: z.array(z.string()).optional().describe('Restrict to these city IDs (see list_cities)'),
                 personIds: z.array(z.string()).optional().describe('Restrict to subjects a person spoke about'),
                 partyIds: z.array(z.string()).optional().describe('Restrict to subjects a party spoke about'),
+                administrativeBodyIds: z.array(z.string().min(1)).min(1).optional()
+                    .describe('Restrict to subjects of meetings of these administrative bodies (see get_city). An unknown id is an error, not an empty list. With administrativeBodyTypes also set, a subject must match both'),
+                administrativeBodyTypes: administrativeBodyTypesFilter,
                 topics: z.array(z.string()).optional()
                     .describe('Restrict to these topic labels, as returned in results (e.g. "Παιδεία", "Συγκοινωνίες"). An unknown label answers with the full list'),
                 dateFrom: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
@@ -172,7 +183,7 @@ export function registerOpenCouncilServer(server: McpServer) {
             description:
                 'Get a municipality profile: its political parties, and its administrative ' +
                 'bodies — the council, committees and κοινότητες that hold meetings. Each body ' +
-                'carries the id that list_meetings filters by.',
+                'carries the id that list_meetings and search filter by.',
             inputSchema: z.object({ cityId: z.string().min(1) }),
         },
         (args, ctx: ServerContext) => run(() => mcpGetCity(args.cityId, identityFromContext(ctx)))
@@ -240,8 +251,7 @@ export function registerOpenCouncilServer(server: McpServer) {
                     .describe('Keep only meetings already held ("past") or still to come ("upcoming"). Omitted, the list holds both'),
                 administrativeBodyIds: z.array(z.string().min(1)).min(1).optional()
                     .describe('Restrict to these administrative body ids (see get_city). An unknown id is an error, not an empty list. Takes precedence over administrativeBodyTypes'),
-                administrativeBodyTypes: z.array(z.enum(AdministrativeBodyType)).min(1).optional()
-                    .describe('Restrict to bodies of these kinds: council (Δημοτικό or Περιφερειακό Συμβούλιο), committee (Δημοτική or Περιφερειακή Επιτροπή), community (Δημοτική Κοινότητα; municipalities only)'),
+                administrativeBodyTypes: administrativeBodyTypesFilter,
                 pageSize: z.number().int().min(1).max(50).default(10),
                 ...paginationShape,
             }),

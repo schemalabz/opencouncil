@@ -580,16 +580,19 @@ function applyRanking(
     };
 }
 
+/**
+ * What a reader may see, as filters. Every query that returns subjects to a
+ * reader starts from these: the search (buildFilters) and the related
+ * subjects (buildRelatedSubjectsQuery). A rule about visibility belongs here,
+ * so that neither query can show what the other hides.
+ */
+export function subjectVisibilityFilters(): QueryContainer[] {
+    return [{ term: { 'meeting_released': true } }];
+}
+
 // Build filters for the search query
 export function buildFilters(request: SearchRequest): QueryContainer[] {
-    const filters: QueryContainer[] = [];
-
-    // Always filter for released meetings only
-    filters.push({
-        term: {
-            'meeting_released': true
-        }
-    });
+    const filters: QueryContainer[] = subjectVisibilityFilters();
 
     // Add city filter if specified
     if (request.cityIds && request.cityIds.length > 0) {
@@ -643,23 +646,34 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
     }
 
     // Add administrative body filter if specified. The two clauses are
-    // independent: `adminBodyIds` selects named bodies, `adminBodyTypes` selects
-    // every body of a type. The UI sets both when the user picks a named body,
-    // and they agree — a body has exactly one type.
-    if (request.adminBodyIds && request.adminBodyIds.length > 0) {
+    // independent: `administrativeBodyIds` selects named bodies,
+    // `administrativeBodyTypes` selects every body of a type. The UI sets both
+    // when the user picks a named body, and they agree — a body has exactly
+    // one type.
+    if (request.administrativeBodyIds && request.administrativeBodyIds.length > 0) {
         filters.push({
             terms: {
-                'administrative_body_id': request.adminBodyIds
+                'administrative_body_id': request.administrativeBodyIds
             }
         });
     }
 
-    if (request.adminBodyTypes && request.adminBodyTypes.length > 0) {
-        filters.push({
+    // A meeting with no body is indexed with no type and reads as the council's,
+    // as in meetingBodyTypeWhere, so asking for the council admits it too.
+    if (request.administrativeBodyTypes && request.administrativeBodyTypes.length > 0) {
+        const ofTypes: QueryContainer = {
             terms: {
-                'administrative_body_type': request.adminBodyTypes
+                'administrative_body_type': request.administrativeBodyTypes
             }
-        });
+        };
+        filters.push(request.administrativeBodyTypes.includes('council')
+            ? {
+                bool: {
+                    should: [ofTypes, { bool: { must_not: { exists: { field: 'administrative_body_type' } } } }],
+                    minimum_should_match: 1
+                }
+            }
+            : ofTypes);
     }
 
     // Add topic filter if specified
@@ -684,8 +698,7 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
     }
 
     // The caller asked for this place, so a subject without a pin is dropped.
-    // An extracted location must never get here: see buildLocationClause.
-    const locationFilter = buildLocationClause(request.locationFilter && [request.locationFilter]);
+    const locationFilter = buildLocationClause(request.location && [request.location]);
     if (locationFilter) {
         filters.push(locationFilter);
     }
@@ -693,9 +706,11 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
     return filters;
 }
 
-// Location proximity, as ONE clause: "pinned near any of the extracted
-// locations". Only the AI filter-extraction path produces `locations` (no UI,
-// API or MCP caller passes them).
+// Location proximity, as ONE clause: "pinned near any of these locations".
+// It has two callers. The scored path uses it as a proximity boost for the
+// locations the AI filter extraction read out of the query text, which never
+// reach the caller's SearchRequest. buildFilters uses it as a hard filter for
+// `location`, a place the caller asked for explicitly.
 //
 // The collapse is not cosmetic. processFilters geocodes the extracted name in
 // EVERY municipality (it calls getCities() with no realm argument), and adjacent
@@ -708,12 +723,13 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
 // awarded once for being near the place — however many points the geocoder
 // returned for it.
 //
-// It must NOT become a hard filter on a text search: only ~45% of subjects carry
-// a location pin, and a geo_distance filter drops every pin-less document. A
-// query like "παλαιστίνη" — extracted as a location and geocoded somewhere —
-// would then return zero results even though subjects carry it in the title. The
-// scored path wraps this clause in a constant_score under `should`, so nearby
-// pinned subjects rank higher and everything else still matches on text alone.
+// An EXTRACTED location must NOT become a hard filter on a text search: only
+// ~45% of subjects carry a location pin, and a geo_distance filter drops every
+// pin-less document. A query like "παλαιστίνη" — extracted as a location and
+// geocoded somewhere — would then return zero results even though subjects
+// carry it in the title. The scored path wraps this clause in a constant_score
+// under `should`, so nearby pinned subjects rank higher and everything else
+// still matches on text alone.
 //
 // The radius is in METRES (Location.radiusMeters), so the geo_distance unit
 // suffix must be `m`. Reading it as `km` made the clause useless without
@@ -732,7 +748,9 @@ function buildLocationClause(
                     distance: `${loc.radiusMeters}m`,
                     'location_geojson': {
                         lat: loc.point.lat,
-                        lon: loc.point.lon
+                        // Elasticsearch's geo_point object names the
+                        // longitude `lon`; the app names it `lng`.
+                        lon: loc.point.lng
                     }
                 }
             })),
@@ -1128,13 +1146,15 @@ function buildSemanticFallbackQuery(
 // Build the search query
 export function buildSearchQuery(
     request: SearchRequest,
-    extractedFilters: ExtractedFilters
+    extractedFilters: ExtractedFilters,
+    extractedLocations?: Location[]
 ): estypes.SearchRequest {
     // `request` already carries the AI-extracted city ids and date range: the
     // caller merges them (search() in ./index.ts). Merging them again here
     // would put the raw extracted city ids back, past the realm cap the caller
     // applies to them, and let a query name a municipality of another realm.
-    // `extractedFilters` is still read below for the location-name clause.
+    // `extractedFilters` is still read below for the location-name clause, and
+    // `extractedLocations` (the geocoded places) only for the proximity boost.
     //
     // Filter-only search: no query text to rank on, so skip the text clauses
     // (they require a query) and return the filtered set newest-first. Used e.g.
@@ -1142,19 +1162,15 @@ export function buildSearchQuery(
     const queryText = request.query?.trim().replace(APOSTROPHE_VARIANTS, "'");
     const filters = buildFilters(request);
     if (!queryText) {
-        // With no text to score, a location can only act as a filter — so the
-        // clause enters in filter context, where it contributes no score.
-        // Unreachable today (locations only come from AI extraction, which
-        // requires query text), but kept so an explicit filter-only location
-        // request stays a location browse rather than being ignored.
-        const locationClause = buildLocationClause(request.locations);
-        const browseFilters = locationClause ? [...filters, locationClause] : filters;
+        // An extracted location only boosts, and with no text there is nothing
+        // to extract from. A caller's place reaches this path as the
+        // `location` in `filters`.
         return {
             index: env.ELASTICSEARCH_INDEX,
             size: request.config?.size || 10,
             from: request.config?.from || 0,
             track_total_hits: true,
-            query: { bool: { filter: browseFilters } },
+            query: { bool: { filter: filters } },
             // Newest first, NOT the ranking function. That function is calibrated as
             // a tiebreak between text matches (see RANKING_SCRIPT), so it cannot
             // order a browse listing: its administrative-body span (up to 1.15)
@@ -1219,7 +1235,7 @@ export function buildSearchQuery(
     // surface. constant_score awards LOCATION_BOOST once for being near the
     // place: the geo clauses sit in ITS filter context, where the number of
     // points the geocoder returned for one place cannot reach the score.
-    const locationClause = buildLocationClause(request.locations);
+    const locationClause = buildLocationClause(extractedLocations);
     const scoredQuery: QueryContainer = locationClause
         ? {
             bool: {

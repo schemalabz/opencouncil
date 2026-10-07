@@ -213,6 +213,23 @@ describe('searchInRealm — reporting what the query text supplied', () => {
         expect(response.derivedFilters).toEqual({ dateRange: derived });
     });
 
+    // A point names the place. A city read from the text could lie outside it,
+    // and the two together matched nothing: "ανάπλαση πάρκων στο Χαλάνδρι" with
+    // a point in Athens returned 0, against 6 without the city word.
+    it('ignores a derived city when the caller sends a point, and keeps a derived period', async () => {
+        const derived = { start: '2025-01-01T00:00:00.000Z', end: '2025-12-31T23:59:59.999Z' };
+        processFiltersMock.mockResolvedValue({ cityIds: ['chania'], dateRange: derived, locations: undefined });
+
+        const response = await searchInRealm({
+            query: 'πάρκα στα Χανιά πέρσι',
+            location: { point: { lat: 37.98, lng: 23.73 }, radiusMeters: 3000 },
+        }, 'greece');
+
+        expect(requestSentToElasticsearch().cityIds).toEqual(REALM_CITIES);
+        expect(requestSentToElasticsearch().dateRange).toEqual(derived);
+        expect(response.derivedFilters).toEqual({ dateRange: derived });
+    });
+
     // A filter the caller set is not derived, even when the query text names
     // one too — the merge kept the caller's, so that is what the pills show.
     it('reports nothing for a filter the caller set', async () => {
@@ -221,6 +238,19 @@ describe('searchInRealm — reporting what the query text supplied', () => {
         const response = await searchInRealm({ query: 'πάρκα Χανίων', cityIds: ['athens'] }, 'greece');
 
         expect(response.derivedFilters).toEqual({});
+    });
+
+    // An extracted place only boosts, so it reaches the query builder beside
+    // the request, never inside it, and the response still reports it.
+    it('boosts by a derived location and reports it, without filtering by it', async () => {
+        const derived = [{ point: { lat: 37.5, lng: 22.7 }, radiusMeters: 2000 }];
+        processFiltersMock.mockResolvedValue({ cityIds: undefined, dateRange: undefined, locations: derived });
+
+        const response = await searchInRealm({ query: 'πάρκα Άργους' }, 'greece');
+
+        expect(buildSearchQueryMock.mock.calls[0][2]).toEqual(derived);
+        expect(requestSentToElasticsearch().location).toBeUndefined();
+        expect(response.derivedFilters).toEqual({ locations: derived });
     });
 
     it('reports nothing when the realm default supplied the cities', async () => {
@@ -354,6 +384,27 @@ describe('search matches cross the retrieval/hydration seam', () => {
             { name: NAME_FRAGMENT, description: DESCRIPTION_FRAGMENT },
             undefined,
         ]);
+    });
+});
+
+describe('searchSubjectsInRealm — failure alert', () => {
+    // A filter the alert leaves out is a filter the person on call cannot see
+    // when that filter is what Elasticsearch rejected.
+    it('names the body and location filters of the failed search', async () => {
+        esSearchMock.mockRejectedValue(new Error('index down'));
+
+        await expect(searchSubjectsInRealm({
+            query: 'πάρκα',
+            administrativeBodyIds: ['body1'],
+            administrativeBodyTypes: ['committee', 'community'],
+            location: { point: { lat: 38, lng: 23.7 }, radiusMeters: 2000 },
+        }, 'greece')).rejects.toThrow('Failed to execute search');
+
+        expect(sendErrorAdminAlertMock.mock.calls[0][0].context).toMatchObject({
+            administrativeBodyIds: 'body1',
+            administrativeBodyTypes: 'committee, community',
+            location: '38,23.7 within 2000m',
+        });
     });
 });
 

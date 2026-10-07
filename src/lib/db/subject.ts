@@ -14,9 +14,12 @@ import {
 } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
 import { extractUtteranceIds } from '@/lib/utils/references';
+import { isAdministrativeBodyType } from '@/lib/utils/administrativeBodies';
+import { isCalendarDay } from '@/lib/utils/date';
 import { getContributionCount } from '@/lib/utils';
 import { roleWithRelationsInclude } from './types/roles';
 import { subjectDecisionSelect, type SubjectDecision } from './types/decision';
+import { meetingBodyTypeWhere } from './meetingBodyFilter';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
@@ -245,23 +248,27 @@ export type MapSubjectFilters = {
     subjectIds?: string[];
 };
 
+/** A date bound of the map's URL: a calendar day, as the map writes it, or nothing. */
+function calendarDayParam(value: string | null): string | null {
+    return isCalendarDay(value) ? value : null;
+}
+
 /**
- * Parse the landing map's query params into MapSubjectFilters. Validates the enum/numbers so junk
- * (`?bodyType=foo`, `?daysBack=abc`) is dropped rather than reaching Prisma and 500-ing.
+ * Parse the landing map's query params into MapSubjectFilters. Validates the enum/numbers/dates so
+ * junk (`?bodyType=foo`, `?daysBack=abc`, `?dateFrom=abc`) is dropped rather than reaching Prisma
+ * and 500-ing.
  */
 export function parseMapSubjectFilters(searchParams: URLSearchParams): MapSubjectFilters {
     const num = (v: string | null) => (v && Number.isFinite(Number(v)) ? Number(v) : undefined);
-    const isBodyType = (b: string): b is AdministrativeBodyType =>
-        (Object.values(AdministrativeBodyType) as string[]).includes(b);
     return {
         monthsBack: num(searchParams.get('monthsBack')),
         daysBack: num(searchParams.get('daysBack')) ?? null,
         allTime: searchParams.get('allTime') === 'true',
         topicIds: (searchParams.get('topicIds') || '').split(',').filter(Boolean),
         cityIds: (searchParams.get('cityIds') || '').split(',').filter(Boolean),
-        bodyTypes: (searchParams.get('bodyType') || '').split(',').filter(isBodyType),
-        dateFrom: searchParams.get('dateFrom'),
-        dateTo: searchParams.get('dateTo'),
+        bodyTypes: (searchParams.get('bodyType') || '').split(',').filter(isAdministrativeBodyType),
+        dateFrom: calendarDayParam(searchParams.get('dateFrom')),
+        dateTo: calendarDayParam(searchParams.get('dateTo')),
     };
 }
 
@@ -365,7 +372,7 @@ export function buildMapSubjectWhere(realm: Realm | null, f: MapSubjectFilters):
             released: true,
             dateTime,
             city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
-            ...(f.bodyTypes?.length ? { administrativeBody: { type: { in: f.bodyTypes } } } : {}),
+            ...(f.bodyTypes?.length ? meetingBodyTypeWhere(f.bodyTypes) : {}),
         },
     };
 }
