@@ -45,7 +45,7 @@ const person = { by: 'person', userId: 'u1' } as const;
 /** A reviewed, summarized meeting, long past its threshold, whose minutes are complete. */
 function facts(overrides: Parameters<typeof readinessFacts>[0] = {}) {
     return readinessFacts({
-        administrativeBody: { documentSendSettings: [setting('transcript', { recipientEmails: recipients }), setting('minutes', { recipientEmails: recipients })] },
+        administrativeBody: { type: 'council' as const, documentSendSettings: [setting('transcript', { recipientEmails: recipients }), setting('minutes', { recipientEmails: recipients })] },
         subjects: decided,
         ...overrides,
     });
@@ -83,7 +83,7 @@ describe('sendDocument', () => {
         });
 
         it('skips without a claim when the document is switched off for the body', async () => {
-            mockGetFacts.mockResolvedValue(facts({ administrativeBody: { documentSendSettings: [setting('minutes', { enabled: false })] } }));
+            mockGetFacts.mockResolvedValue(facts({ administrativeBody: { type: 'council' as const, documentSendSettings: [setting('minutes', { enabled: false })] } }));
             expect(await sendDocument('c1', 'm1', 'minutes', automatic))
                 .toEqual({ success: true, skipped: true, readiness: { state: 'none', reason: 'disabled' } });
             expect(mockClaim).not.toHaveBeenCalled();
@@ -91,7 +91,7 @@ describe('sendDocument', () => {
         });
 
         it('skips an automatic minutes send for a meeting older than the switch-on, and lets a person send it', async () => {
-            mockGetFacts.mockResolvedValue(facts({ administrativeBody: { documentSendSettings: [setting('minutes', { enabledAt: new Date('2026-04-01T00:00:00Z'), recipientEmails: ['to@x.org'] })] } }));
+            mockGetFacts.mockResolvedValue(facts({ administrativeBody: { type: 'council' as const, documentSendSettings: [setting('minutes', { enabledAt: new Date('2026-04-01T00:00:00Z'), recipientEmails: ['to@x.org'] })] } }));
 
             expect(await sendDocument('c1', 'm1', 'minutes', automatic)).toMatchObject({ success: true, skipped: true, readiness: { state: 'none', reason: 'beforeSwitch' } });
             expect(mockClaim).not.toHaveBeenCalled();
@@ -110,7 +110,7 @@ describe('sendDocument', () => {
 
     describe('a send by a person', () => {
         it('refuses a send to a setting with no recipient, and claims nothing', async () => {
-            mockGetFacts.mockResolvedValue(facts({ administrativeBody: { documentSendSettings: [setting('minutes', { recipientEmails: [] })] } }));
+            mockGetFacts.mockResolvedValue(facts({ administrativeBody: { type: 'council' as const, documentSendSettings: [setting('minutes', { recipientEmails: [] })] } }));
             const result = await sendDocument('c1', 'm1', 'minutes', person);
             expect(result).toMatchObject({ success: false, refusal: 'disabled' });
             expect(mockClaim).not.toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe('sendDocument', () => {
     });
 
     it('skips an automatic send when the setting has no recipient', async () => {
-        mockGetFacts.mockResolvedValue(facts({ administrativeBody: { documentSendSettings: [setting('minutes', { recipientEmails: [] })] } }));
+        mockGetFacts.mockResolvedValue(facts({ administrativeBody: { type: 'council' as const, documentSendSettings: [setting('minutes', { recipientEmails: [] })] } }));
         expect(await sendDocument('c1', 'm1', 'minutes', automatic)).toMatchObject({ success: true, skipped: true });
         expect(mockClaim).not.toHaveBeenCalled();
     });
@@ -296,7 +296,7 @@ describe('sendDocument', () => {
     });
 
     it('sends no CC field for a single recipient', async () => {
-        mockGetFacts.mockResolvedValue(facts({ administrativeBody: { documentSendSettings: [setting('minutes', { recipientEmails: ['to@x.org'] })] } }));
+        mockGetFacts.mockResolvedValue(facts({ administrativeBody: { type: 'council' as const, documentSendSettings: [setting('minutes', { recipientEmails: ['to@x.org'] })] } }));
         await sendDocument('c1', 'm1', 'minutes', automatic);
         expect(mockSendEmail.mock.calls[0][0].cc).toBeUndefined();
     });

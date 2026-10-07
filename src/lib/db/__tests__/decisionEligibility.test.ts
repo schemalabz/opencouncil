@@ -14,6 +14,7 @@ function meeting(overrides: Partial<Meeting> = {}): Meeting {
         kind: 'ordinary',
         continuationOf: null,
         city: { diavgeiaUid: '6104', status: 'supported' },
+        administrativeBody: { type: 'council' },
         ...overrides,
     };
 }
@@ -46,5 +47,10 @@ describe('isPolledOnItsOwn', () => {
 
     it.each(['cancelled', 'postponed'] as const)('is false for a %s meeting', (scheduleStatus) => {
         expect(isPolledOnItsOwn(meeting({ scheduleStatus }), now)).toBe(false);
+    });
+
+    it('is false for a meeting of a secondary body, which publishes no decisions (#829)', () => {
+        expect(isPolledOnItsOwn(meeting({ administrativeBody: { type: 'youthCouncil' } }), now)).toBe(false);
+        expect(isPolledOnItsOwn(meeting({ administrativeBody: null }), now)).toBe(true);
     });
 });

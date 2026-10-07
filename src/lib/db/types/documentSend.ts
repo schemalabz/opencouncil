@@ -94,7 +94,7 @@ export const readinessMeetingSelect = {
     continuationOf: { select: { kind: true } },
     city: { select: { timezone: true, status: true, diavgeiaUid: true } },
     administrativeBodyId: true,
-    administrativeBody: { select: { documentSendSettings: { select: documentSendSettingSelect } } },
+    administrativeBody: { select: { type: true, documentSendSettings: { select: documentSendSettingSelect } } },
     taskStatuses: {
         where: readinessTaskWhere,
         select: { type: true, status: true, createdAt: true, updatedAt: true },
