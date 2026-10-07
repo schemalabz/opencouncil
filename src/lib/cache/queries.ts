@@ -117,8 +117,9 @@ export function bodyFilterKey({ administrativeBodyTypes, administrativeBodyIds }
   administrativeBodyTypes?: AdministrativeBodyType[];
   administrativeBodyIds?: string[];
 }): string[] {
+  // No type means the primary tier, not every body (see meetingListQuery).
   return [
-    administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:all',
+    administrativeBodyTypes?.length ? `types:${[...administrativeBodyTypes].sort().join(',')}` : 'types:primary',
     administrativeBodyIds?.length ? `ids:${[...administrativeBodyIds].sort().join(',')}` : 'ids:all',
   ];
 }
