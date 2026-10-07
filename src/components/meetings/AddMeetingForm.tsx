@@ -277,7 +277,7 @@ export default function AddMeetingForm({ cityId, realm, timezone, meeting, onSuc
                                         )}
                                         {administrativeBodies.map((body) => (
                                             <SelectItem key={body.id} value={body.id}>
-                                                {body.name} ({t(`administrativeBodyType.${body.type.toLowerCase()}`)})
+                                                {body.name} ({t(`administrativeBodyType.${body.type}`)})
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

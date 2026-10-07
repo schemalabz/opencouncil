@@ -220,7 +220,7 @@ export function accumulateMeeting(into: CoverageMeasures, meeting: MeasuredMeeti
 export const bodyKey = (cityId: string, bodyId: string | null): string =>
     `${cityId}\u0000${bodyId ?? ''}`;
 
-const BODY_TYPE_ORDER: Record<AdministrativeBodyType, number> = { council: 0, committee: 1, community: 2 };
+const BODY_TYPE_ORDER: Record<AdministrativeBodyType, number> = { council: 0, committee: 1, community: 2, youthCouncil: 3 };
 
 /**
  * Councils, then committees, then communities, by Greek name within a type;
