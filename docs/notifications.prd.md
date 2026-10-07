@@ -124,6 +124,16 @@ Each administrative body will now have a property which configures notification 
 2. **NOTIFICATIONS_AUTO**: Create notifications and immediately send them
 3. **NOTIFICATIONS_APPROVAL**: Create notifications with delivery records in `pending` status. The notifications then require admin approval.
 
+#### The setting binds every path (#829)
+
+Three paths create or send notifications for a meeting. All three read the setting of the meeting's body:
+
+- The automatic path, after `processAgenda` and `summarize`.
+- The manual path, `POST /api/cities/{cityId}/meetings/{meetingId}/notifications`. It answers 409 for a disabled body.
+- The Notis path. The view `notis_meeting_events` skips the meetings of a disabled body. A meeting with no body stays in the view.
+
+The default of a new body comes from `defaultNotificationBehavior` in `src/lib/utils/bodyTier.ts`. A primary body starts on `NOTIFICATIONS_APPROVAL`. A secondary body, such as a youth council, starts on `NOTIFICATIONS_DISABLED`. The meeting page does not promise a subscriber an update for a disabled body.
+
 ## Implementation Requirements
 
 ### 1. Database Schema Implementation
