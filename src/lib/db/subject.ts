@@ -26,7 +26,7 @@ import { meetingBodyTypeWhere } from './meetingBodyFilter';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
-import { isPublic, publicMeetingWhere } from '../cityStatus';
+import { publicMeetingWhere } from '../cityStatus';
 import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
 import { meetingLabelInCity } from '@/lib/meetingName';
 
@@ -785,31 +785,14 @@ export async function getLatestSubjectsForSpeaker(personId: string, take: number
     return [...subjects.values()].slice(0, take);
 }
 
-/** What the public-visibility rule reads off a subject's meeting. */
-const subjectVisibilitySelect = {
-    released: true,
-    city: { select: { status: true } },
-} satisfies Prisma.CouncilMeetingSelect;
-type SubjectVisibility = Prisma.CouncilMeetingGetPayload<{ select: typeof subjectVisibilitySelect }>;
-
-/** Whether the public may see a subject: its meeting released and its city public. The image
- *  route reads it; the queries apply the same rule as a where clause, scoped to the realm (see
- *  publicMeetingWhere). */
-function isPublicSubject(meeting: SubjectVisibility): boolean {
-    return meeting.released && isPublic(meeting.city.status);
-}
-
-const subjectIsPublicSelect = {
-    cityId: true,
-    councilMeetingId: true,
-    councilMeeting: { select: subjectVisibilitySelect },
-} satisfies Prisma.SubjectSelect;
-
-/** Whether a subject is public (see isPublicSubject). `null` when the subject does not exist. */
+/** Whether the public may see a subject: its meeting released and its city public, by its status
+ *  or through a secondary body (#829). The image route reads it; the rule is publicMeetingWhere,
+ *  the one the queries apply. `null` when the subject does not exist. */
 export async function subjectIsPublic(subjectId: string): Promise<{ cityId: string; councilMeetingId: string; public: boolean } | null> {
-    const row = await prisma.subject.findUnique({ where: { id: subjectId }, select: subjectIsPublicSelect });
+    const row = await prisma.subject.findUnique({ where: { id: subjectId }, select: { cityId: true, councilMeetingId: true } });
     if (!row) return null;
-    return { cityId: row.cityId, councilMeetingId: row.councilMeetingId, public: isPublicSubject(row.councilMeeting) };
+    const isPublicRow = (await prisma.subject.count({ where: { id: subjectId, councilMeeting: publicMeetingWhere(null) } })) > 0;
+    return { cityId: row.cityId, councilMeetingId: row.councilMeetingId, public: isPublicRow };
 }
 
 const publicSubjectDescriptionSelect = { description: true } satisfies Prisma.SubjectSelect;
