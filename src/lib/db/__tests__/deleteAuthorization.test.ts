@@ -41,7 +41,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     mockPrisma.person.findUnique.mockResolvedValue({ cityId: CITY });
     mockPrisma.party.findUnique.mockResolvedValue({ cityId: CITY });
-    mockPrisma.administrativeBody.findUnique.mockResolvedValue({ cityId: CITY });
+    mockPrisma.administrativeBody.findUnique.mockResolvedValue({ cityId: CITY, _count: { meetings: 0, roles: 0 } });
 });
 
 describe.each(admins)('a %s', (_label, scope) => {

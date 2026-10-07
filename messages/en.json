@@ -59,6 +59,7 @@
         "adminBodyType_committee": "Municipal Committee",
         "adminBodyType_community": "Communities",
         "adminBodyType_youthCouncil": "Youth Council",
+        "showYouthCouncils": "Youth councils",
         "allPeople": "All",
         "allBodies": "All",
         "pagination": "Pages",
@@ -1024,7 +1025,7 @@
         "failedToSave": "Failed to save",
         "unexpectedError": "An unexpected error occurred",
         "deleteBody": "Delete Body",
-        "confirmDelete": "The body will be deleted together with its members' roles. Its meetings will be left without a body. This cannot be undone.",
+        "confirmDelete": "You can delete only a body with no meetings and no members. First delete its meetings and its members (the people). This cannot be undone.",
         "failedToDelete": "Failed to delete",
         "delete": "Delete"
     },

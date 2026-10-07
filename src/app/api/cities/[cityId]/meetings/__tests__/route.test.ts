@@ -39,6 +39,14 @@ describe('GET /api/cities/[cityId]/meetings includeUnreleased', () => {
         expect(withUserAuthorizedToEdit).toHaveBeenCalledTimes(expected ? 1 : 0);
     });
 
+    it('lists every tier for an editor, and the primary tier for the public (#829)', async () => {
+        await get('?includeUnreleased=true');
+        expect(mockList.mock.calls[0][1]).toMatchObject({ tier: 'all' });
+        jest.clearAllMocks();
+        await get('');
+        expect(mockList.mock.calls[0][1]).not.toHaveProperty('tier');
+    });
+
     it('refuses a value outside the stringbool lists', async () => {
         const response = await get('?includeUnreleased=maybe');
         expect(response.status).toBe(400);

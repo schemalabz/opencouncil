@@ -59,6 +59,7 @@
     "adminBodyType_committee": "Commission municipale",
     "adminBodyType_community": "Communautés",
     "adminBodyType_youthCouncil": "Conseil municipal des jeunes",
+    "showYouthCouncils": "Conseils des jeunes",
     "allPeople": "Tous",
     "allBodies": "Tous",
     "pagination": "Pages",
@@ -1018,7 +1019,7 @@
     "failedToSave": "Échec de l'enregistrement",
     "unexpectedError": "Une erreur inattendue s'est produite",
     "deleteBody": "Supprimer l'organe",
-    "confirmDelete": "L'organe sera supprimé avec les rôles de ses membres. Ses séances resteront sans organe. Cette action est irréversible.",
+    "confirmDelete": "Seul un organe sans séances ni membres peut être supprimé. Supprimez d'abord ses séances et ses membres (les personnes). Cette action est irréversible.",
     "failedToDelete": "Échec de la suppression",
     "delete": "Supprimer"
   },

@@ -5,7 +5,7 @@ import "server-only";
 import { AdministrativeBody, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { NotFoundError } from "@/lib/api/errors";
+import { ConflictError, NotFoundError } from "@/lib/api/errors";
 import { parseDecisionConventions } from "@/lib/decisionConventions";
 import {
     administrativeBodySettingsSelect,
@@ -197,13 +197,28 @@ export async function editAdministrativeBodyContacts(
     return withParsedConventions(updatedBody);
 }
 
+/**
+ * Deletes a body that holds no meetings and no roles. The schema sets the
+ * body of its meetings to null and deletes its roles, and the visibility
+ * rules read a meeting with no body and a person with no role as primary.
+ * Deleting a secondary body that is not empty would therefore show its
+ * meetings and its members (for example the minors of a youth council) in
+ * every default list. Deleting only the roles of the members has the same
+ * effect, so the message asks for the people.
+ */
 export async function deleteAdministrativeBody(id: string): Promise<void> {
     await withUserAuthorizedToEdit({});
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
-        select: { id: true },
+        select: { id: true, _count: { select: { meetings: true, roles: true } } },
     });
     if (!existingBody) throw new NotFoundError('Administrative body not found');
+    const { meetings, roles } = existingBody._count;
+    if (meetings > 0 || roles > 0) {
+        throw new ConflictError(
+            `The body still has ${meetings} meeting(s) and ${roles} member role(s). Delete its meetings and its members (the people) first. For a member who holds another role, delete only the role on this body.`
+        );
+    }
 
     try {
         await prisma.administrativeBody.delete({

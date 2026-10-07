@@ -77,6 +77,7 @@ export const administrativeBodiesPaths: Paths = {
                 204: { description: 'Administrative body deleted' },
                 ...editAuthResponses,
                 404: errorResponseOf('Administrative body not found'),
+                409: errorResponseOf('The body still holds meetings or member roles. Delete its meetings and its members (the people) first.'),
                 500: errorResponseOf('Server error'),
             },
             'x-access-level': 'superadmin',

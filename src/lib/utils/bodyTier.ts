@@ -54,6 +54,18 @@ export const secondaryMeetingWhere = {
 } satisfies Prisma.CouncilMeetingWhereInput;
 
 /**
+ * The URL parameter a city tab reads for its tier: `?tier=all` widens the
+ * tab to the secondary tier, `?tier=primary` keeps it to the primary tier
+ * where the tab would widen by itself (a body admin, a city with secondary
+ * content alone). Absent or anything else, the tab decides.
+ */
+export const TIER_PARAM = 'tier';
+
+export function readTier(value: string | string[] | undefined): BodyTier | 'all' | null {
+    return value === 'all' || value === 'primary' ? value : null;
+}
+
+/**
  * Whether a person belongs on the municipality's own roster: at least one role
  * that is not on a secondary body (a party, a city office, a primary body), or
  * no role at all. A person whose every role is on a secondary body shows only
@@ -64,3 +76,15 @@ export function hasPrimaryPresence(
 ): boolean {
     return roles.length === 0 || roles.some(role => bodyTier(role.administrativeBody?.type) === 'primary');
 }
+
+/**
+ * `hasPrimaryPresence` as a Prisma filter on Person: the people of the
+ * municipality's own roster. The city counts read it (#829), so a listing
+ * counts the same people its roster shows.
+ */
+export const primaryPresenceWhere = {
+    OR: [
+        { roles: { none: {} } },
+        { roles: { some: { OR: [{ administrativeBodyId: null }, { administrativeBody: { type: { in: [...PRIMARY_BODY_TYPES] } } }] } } },
+    ],
+} satisfies Prisma.PersonWhereInput;
