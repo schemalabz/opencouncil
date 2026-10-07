@@ -2,13 +2,14 @@
 import { City, CityStatus, CouncilMeeting, Prisma, Realm } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import prisma from "./prisma";
-import { CITY_COUNT_SELECT, CITY_ORDER_BY } from './citiesAdmin';
 import { createCache } from "../cache";
 import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
 import { UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
 import { createCityDirect, updateCityGeometryDirect, getCityWithCountsDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
+import { primaryMeetingWhere } from "@/lib/utils/bodyTier";
+import { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
 import {
     PETITION_DISPLAY_THRESHOLD,
     buildPetitionedCities,

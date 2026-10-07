@@ -4,6 +4,8 @@ import prisma from "./prisma";
 import { NotFoundError } from '@/lib/api/errors';
 import type { CityBoundarySummary } from '@/lib/zod-schemas/city';
 import type { CityWithCounts } from './cities';
+import { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
+export { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
 
 /** Shared city-row read; callers own authorization, geometry and presentation. */
 export async function getCityWithCountsDirect(cityId: string, db: Prisma.TransactionClient = prisma): Promise<CityWithCounts | null> {
@@ -97,26 +99,6 @@ export async function applyCityUpdateDirect(cityId: string, update: CityUpdate):
 export async function getCityNameEnAndTimezone(cityId: string): Promise<{ name_en: string; timezone: string } | null> {
     return prisma.city.findUnique({ where: { id: cityId }, select: { name_en: true, timezone: true } });
 }
-
-// Shared by the site's city lists (cities.ts) and the MCP. They live here, not
-// in the "use server" cities.ts, which may export async functions only.
-export const CITY_COUNT_SELECT = {
-    select: {
-        persons: true,
-        parties: true,
-        councilMeetings: {
-            where: {
-                released: true
-            }
-        }
-    }
-};
-
-export const CITY_ORDER_BY = [
-    // supported > demo > pending, by CityStatus declaration order
-    { status: 'desc' as const },
-    { name: 'asc' as const }
-];
 
 /**
  * Cities that match `where`, with their counts, in the order of the site's
