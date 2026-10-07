@@ -6,6 +6,7 @@ import {
     hasPrimaryPresence,
     isSecondaryBody,
     primaryMeetingWhere,
+    primaryPresenceWhere,
 } from '../bodyTier';
 
 describe('bodyTier', () => {
@@ -43,5 +44,16 @@ describe('bodyTier', () => {
         expect(hasPrimaryPresence([youth, council])).toBe(true);
         expect(hasPrimaryPresence([youth])).toBe(false);
         expect(hasPrimaryPresence([youth, youth])).toBe(false);
+    });
+});
+
+describe('primaryPresenceWhere', () => {
+    it('is the database twin of hasPrimaryPresence: no role, or a role off the secondary tier', () => {
+        expect(primaryPresenceWhere).toEqual({
+            OR: [
+                { roles: { none: {} } },
+                { roles: { some: { OR: [{ administrativeBodyId: null }, { administrativeBody: { type: { in: ['council', 'committee', 'community'] } } }] } } },
+            ],
+        });
     });
 });

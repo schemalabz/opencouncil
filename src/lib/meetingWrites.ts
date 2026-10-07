@@ -5,7 +5,7 @@
 import "server-only";
 import { Prisma } from '@prisma/client';
 import { getCityNameEnAndTimezone } from '@/lib/db/citiesAdmin';
-import { generateUniqueMeetingId, getCouncilMeetingDirect, upcomingMeetingsTag, type CouncilMeetingWithAdminBody } from '@/lib/db/meetings';
+import { cityListTags, generateUniqueMeetingId, getCouncilMeetingDirect, upcomingMeetingsTag, type CouncilMeetingWithAdminBody } from '@/lib/db/meetings';
 import { getCityRealm } from '@/lib/db/cityRealm';
 import { landingSubjectsTag } from '@/lib/db/subject';
 import { createMeetingRecord, updateMeetingRecord, type MeetingRecordFields } from '@/lib/db/meetingLifecycle';
@@ -16,6 +16,7 @@ import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { isDerivedName, meetingLabel } from '@/lib/meetingName';
 import { pickRecordInput, takesPlace, type MeetingRecordInput } from '@/lib/meetingLifecycleRules';
 import { isBodyOfCity } from '@/lib/db/administrativeBodies';
+import { isSecondaryBody } from '@/lib/utils/bodyTier';
 import { BadRequestError } from '@/lib/api/errors';
 
 /**
@@ -96,13 +97,17 @@ export async function createMeetingWithEffects(
         paths: [{ path: `/${cityId}`, type: 'layout' }],
     });
 
+    // A secondary body runs its own meetings (#829): no alert to the operators'
+    // channel and no event on the municipal calendar.
+    const secondary = isSecondaryBody(meeting.administrativeBody);
+
     // Fetch city data (should exist since meeting was created successfully)
     const city = await getCityNameEnAndTimezone(cityId);
 
     if (city === null) {
         console.error(`City ${cityId} not found after meeting creation - this should not happen`);
         // Continue without city data - meeting was already created
-    } else {
+    } else if (!secondary) {
         sendMeetingCreatedAdminAlert({
             cityName: city.name_en,
             meetingName: meetingLabel(meeting, 'en', city.timezone),
@@ -113,7 +118,7 @@ export async function createMeetingWithEffects(
     }
 
     // Runs outside the city check above, because the sync loads the city itself.
-    await syncMeetingToCalendar(cityId, meetingId, { allowCreate: true });
+    if (!secondary) await syncMeetingToCalendar(cityId, meetingId, { allowCreate: true });
 
     if (!processAgenda) return { meeting };
     if (!agendaUrl) return { meeting, processAgendaStatus: 'skipped_no_agenda' };
@@ -166,12 +171,17 @@ export async function updateMeetingWithEffects(
     const meeting = await updateMeetingRecord(cityId, meetingId, before ? await withoutDerivedNames(cityId, before, data) : data);
 
     // The landing lists the upcoming meetings that take place, so a change of
-    // status, date or body can move a meeting in or out of that list.
+    // status, date or body can move a meeting in or out of that list. A public
+    // meeting that changes tier (#829) can give a city its only public route,
+    // or take it away, so the city lists follow too.
     const realm = await getCityRealm(cityId);
+    const secondary = isSecondaryBody(meeting.administrativeBody);
+    const tierChanged = !!before && isSecondaryBody(before.administrativeBody) !== secondary;
     revalidateAfterResponse({
         tags: [
             `city:${cityId}:meetings`,
             ...(realm ? [upcomingMeetingsTag(realm), landingSubjectsTag(realm)] : []),
+            ...(realm && tierChanged && (meeting.released || before.released) ? cityListTags(realm) : []),
         ],
         paths: [{ path: `/${cityId}`, type: 'layout' }],
     });
@@ -179,9 +189,13 @@ export async function updateMeetingWithEffects(
     // Propagate date, administrative body, agenda and schedule status changes
     // to the Google Calendar event, whose title is the label.
     // A meeting that was created postponed or cancelled has no event yet;
-    // when it becomes scheduled, it gets one (a future meeting only).
+    // when it becomes scheduled, it gets one (a future meeting only). A
+    // secondary body's meeting gets no event (see createMeetingWithEffects);
+    // a meeting that moves to a primary body gets one now, and a meeting that
+    // moves the other way keeps the event it has, kept in step with its date.
     const rescheduled = !!before && !takesPlace(before) && takesPlace(meeting);
-    await syncMeetingToCalendar(cityId, meetingId, { allowCreate: rescheduled });
+    const becamePrimary = tierChanged && !secondary;
+    await syncMeetingToCalendar(cityId, meetingId, { allowCreate: !secondary && (rescheduled || becamePrimary) });
 
     return meeting;
 }

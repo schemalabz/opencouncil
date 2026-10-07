@@ -24,6 +24,7 @@ import { meetingBodyTypeWhere } from './meetingBodyFilter';
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
 import { PUBLIC_CITY_WHERE } from '../cityStatus';
+import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
 import { meetingLabelInCity } from '@/lib/meetingName';
 
 // The landing subject finders are realm + filter keyed in the data cache. Releasing/unreleasing
@@ -41,7 +42,8 @@ function subjectFilterKey(f: MapSubjectFilters): string {
         f.allTime ? '1' : '',
         (f.topicIds ?? []).slice().sort().join('.'),
         (f.cityIds ?? []).slice().sort().join('.'),
-        (f.bodyTypes ?? []).slice().sort().join('.'),
+        // No type means the primary tier, not every body (see buildMapSubjectWhere).
+        (f.bodyTypes ?? []).slice().sort().join('.') || 'primary',
         f.dateFrom ?? '',
         f.dateTo ?? '',
         // Prefixed so that "no id restriction" and "restrict to no ids" — which
@@ -167,6 +169,7 @@ export async function getSubjectCountForCity(cityId: string): Promise<number> {
             councilMeeting: {
                 released: true,
                 dateTime: { lte: new Date() },
+                ...primaryMeetingWhere,
             },
         },
     });
@@ -190,6 +193,7 @@ export async function getSubjectCountsByCityCached(realm: Realm): Promise<Record
                         released: true,
                         dateTime: { lte: new Date() },
                         city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
+                        ...primaryMeetingWhere,
                     },
                 },
                 _count: { _all: true },
@@ -376,7 +380,10 @@ export function buildMapSubjectWhere(realm: Realm | null, f: MapSubjectFilters):
             released: true,
             dateTime,
             city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
-            ...(f.bodyTypes?.length ? meetingBodyTypeWhere(f.bodyTypes) : {}),
+            // A named type widens or narrows the scope; no type means the
+            // primary tier, so a secondary body's subjects never reach the map
+            // or the hot list unasked (see bodyTier.ts).
+            ...(f.bodyTypes?.length ? meetingBodyTypeWhere(f.bodyTypes) : primaryMeetingWhere),
         },
     };
 }

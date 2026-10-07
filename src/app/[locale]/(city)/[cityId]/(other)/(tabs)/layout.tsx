@@ -7,8 +7,9 @@ import { CityRail } from "@/components/cities/CityRail";
 import { CityNavigation } from "@/components/cities/CityNavigation";
 import type { DatedMeeting, MeetingBookends } from "@/components/cities/overview/CityMeetingsModule";
 import { stageChipDetail } from "@/components/meetings/stage/stageDetail";
-import { getCityCached, getCityMessageCached, getCityPetitionBucketCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
+import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached, getCityMessageCached, getCityPetitionBucketCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
 import { isPetitionable } from "@/lib/cityStatus";
+import { SECONDARY_BODY_TYPES, isSecondaryBody } from "@/lib/utils/bodyTier";
 import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
@@ -45,7 +46,9 @@ export default async function TabsLayout(
     // on a city we do not cover yet, and a supported city has no card to read it.
     const cityPromise = getCityCached(cityId);
     const currentUserPromise = getCurrentUser();
-    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount, petitionBucket, tStage, notificationPreference] = await Promise.all([
+    // The secondary tier (#829) gets its own pair and its own card: the two
+    // scopes above never include it.
+    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, secondaryUpcoming, secondaryPast, publicBodies, subjectCount, petitionBucket, tStage, notificationPreference] = await Promise.all([
         cityPromise,
         getCityMessageCached(cityId),
         currentUserPromise,
@@ -54,6 +57,9 @@ export default async function TabsLayout(
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1 }),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: ['council'], takesPlace: true }),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'] }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: [...SECONDARY_BODY_TYPES] }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: [...SECONDARY_BODY_TYPES] }),
+        getAdministrativeBodiesWithPublicMeetingsCached(cityId),
         getSubjectCountForCityCached(cityId),
         cityPromise.then(found => found && isPetitionable(found.status) ? getCityPetitionBucketCached(cityId) : null),
         getTranslations({ locale, namespace: 'meetingStage' }),
@@ -146,6 +152,8 @@ export default async function TabsLayout(
                         petitionBucket={petitionBucket}
                         allMeetings={bookends(upcoming[0], past[0])}
                         councilMeetings={bookends(councilUpcoming[0], councilPast[0])}
+                        secondaryBodies={publicBodies.filter(isSecondaryBody)}
+                        secondaryMeetings={bookends(secondaryUpcoming[0], secondaryPast[0])}
                         locale={locale}
                     />
                 </div>

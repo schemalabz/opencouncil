@@ -4,6 +4,7 @@
 // concern: the list queries, their payload types and the page size.
 import "server-only";
 import { unreleasedMeetingWhere, type UnreleasedScope } from '@/lib/unreleased';
+import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
 import { AdministrativeBodyType, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { meetingBodyTypeWhere } from "./meetingBodyFilter";
@@ -85,6 +86,11 @@ export interface MeetingListOptions {
     pageSize?: number;
     from?: Date;
     to?: Date;
+    /**
+     * Which bodies. Ids win over types. With neither, the list holds the
+     * primary tier (see bodyTier.ts): a secondary body's meetings show only
+     * when a caller names its type or its id.
+     */
     administrativeBodyTypes?: AdministrativeBodyType[];
     administrativeBodyIds?: string[];
     timeFilter?: 'upcoming' | 'past';
@@ -129,8 +135,9 @@ function meetingListQuery(
         ...(upperBound && { lte: upperBound }),
     };
 
-    // Specific bodies (ids) take precedence over the broader type filter.
-    let bodyFilter: Prisma.CouncilMeetingWhereInput = {};
+    // Specific bodies (ids) take precedence over the broader type filter, and
+    // no filter at all means the primary tier.
+    let bodyFilter: Prisma.CouncilMeetingWhereInput = primaryMeetingWhere;
     if (administrativeBodyIds && administrativeBodyIds.length > 0) {
         bodyFilter = { administrativeBodyId: { in: administrativeBodyIds } };
     } else if (administrativeBodyTypes && administrativeBodyTypes.length > 0) {

@@ -146,6 +146,7 @@ export default async function SubjectPage(
         name: subject.name,
         cityId: subject.cityId,
         councilMeetingId: subject.councilMeetingId,
+        administrativeBodyType: meetingData.meeting.administrativeBody?.type ?? null,
     };
     const meetingDate = new Date(meetingData.meeting.dateTime).toISOString();
 

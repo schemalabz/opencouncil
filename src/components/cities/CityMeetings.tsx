@@ -10,6 +10,7 @@ import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { getAdministrativeBodyTypes, filterMeetingByAdminBodyTypes, getBodiesOfType } from '@/lib/utils/administrativeBodies';
 import type { PaginationParams, PublicAdministrativeBody } from '@/lib/db/types';
 import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
+import { SecondaryTierToggle } from '@/components/cities/SecondaryTierToggle';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
 import { meetingLabel } from '@/lib/meetingName';
 
@@ -27,6 +28,12 @@ type CityMeetingsProps = {
      * empty state, and its meetings unreachable through the filter.
      */
     administrativeBodies: PublicAdministrativeBody[],
+    /**
+     * Whether the city has a secondary body to offer, and whether the page
+     * loaded that tier (#829). The toggle shows for the first; the rows and
+     * the picker already reflect the second.
+     */
+    secondaryTier?: { available: boolean; shown: boolean },
     /** Fixed by the server page, so a card's stage survives hydration. */
     now: Date,
     /** The row cap the page fetched with, so the count can name its window. */
@@ -40,6 +47,7 @@ export default function CityMeetings({
     canEdit,
     editableBodyIds,
     administrativeBodies,
+    secondaryTier,
     now,
     cappedAt,
     pageSize
@@ -122,15 +130,18 @@ export default function CityMeetings({
                     ? (bodyGroups.find(g => g.type === selectedType)?.bodies ?? [])
                     : [];
                 return (
-                    <AdminBodyPicker
-                        groups={bodyGroups}
-                        selectedType={selectedType}
-                        onTypeChange={(type) => onChange(type ? [type] : [])}
-                        selectedBodyId={resolveBodyFromURL(searchParams, subBodies)}
-                        onBodyChange={(bodyId) => updateBodyFilterURL(bodyId, subBodies, searchParams)}
-                        allTypesLabel={tCommon('allMeetings')}
-                        allBodiesLabel={tCommon('allBodies')}
-                    />
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <AdminBodyPicker
+                            groups={bodyGroups}
+                            selectedType={selectedType}
+                            onTypeChange={(type) => onChange(type ? [type] : [])}
+                            selectedBodyId={resolveBodyFromURL(searchParams, subBodies)}
+                            onBodyChange={(bodyId) => updateBodyFilterURL(bodyId, subBodies, searchParams)}
+                            allTypesLabel={tCommon('allMeetings')}
+                            allBodiesLabel={tCommon('allBodies')}
+                        />
+                        {secondaryTier?.available && <SecondaryTierToggle shown={secondaryTier.shown} />}
+                    </div>
                 );
             }}
             // A quiet filter over the loaded rows. The identity band's field is

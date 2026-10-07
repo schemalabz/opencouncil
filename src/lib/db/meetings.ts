@@ -16,6 +16,7 @@ import { formatDateAsMeetingId } from '../utils/meetingId';
 import { parseVideoId } from '@/lib/utils/youtube';
 import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
+import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
@@ -38,10 +39,25 @@ export type CouncilMeetingWithAdminBody = Prisma.CouncilMeetingGetPayload<{
 
 
 
+/**
+ * The tags of the city lists. A released meeting of a secondary body can
+ * make its city public, or take that away (see PUBLIC_THROUGH_SECONDARY_WHERE,
+ * #829): the lists must learn it now, not at their TTL — the map's has none.
+ */
+export function cityListTags(realm: Realm): string[] {
+    return ['cities:all', `realm:${realm}:cities:all`];
+}
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
     // The city's, not the body admin's: deletion is not among their rights (#828).
     await withUserAuthorizedToEdit({ cityId });
+    const meeting = await getCouncilMeetingDirect(cityId, id);
     await deleteMeetingRecord(cityId, id);
+    // The last public meeting of a secondary body can be the city's only route
+    // to the public lists.
+    if (meeting?.released && isSecondaryBody(meeting.administrativeBody)) {
+        const realm = await getCityRealm(cityId);
+        if (realm) cityListTags(realm).forEach(tag => revalidateTag(tag, 'max'));
+    }
 }
 
 /**
@@ -159,6 +175,7 @@ export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?
                 // A postponed or cancelled meeting is not coming up.
                 ...TAKES_PLACE_WHERE,
                 city: { ...PUBLIC_CITY_WHERE, realm },
+                ...primaryMeetingWhere,
             },
             orderBy: [{ dateTime: 'asc' }, { createdAt: 'asc' }],
             take: limit,
@@ -201,6 +218,9 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
             revalidateTag(landingSubjectsTag(realm), 'max');
             // a newly (un)released meeting can enter/leave the landing's upcoming list
             revalidateTag(upcomingMeetingsTag(realm), 'max');
+            if (isSecondaryBody(updatedMeeting.administrativeBody)) {
+                cityListTags(realm).forEach(tag => revalidateTag(tag, 'max'));
+            }
         }
         return updatedMeeting;
     } catch (error) {
@@ -275,7 +295,7 @@ export async function getLatestReleasedMeetingIdForCity(cityId: string): Promise
     const now = new Date();
 
     const upcoming = await prisma.councilMeeting.findFirst({
-        where: { cityId, released: true, dateTime: { gt: now }, ...TAKES_PLACE_WHERE },
+        where: { cityId, released: true, dateTime: { gt: now }, ...TAKES_PLACE_WHERE, ...primaryMeetingWhere },
         orderBy: { dateTime: 'asc' },
         select: { id: true },
     });
@@ -283,7 +303,7 @@ export async function getLatestReleasedMeetingIdForCity(cityId: string): Promise
     if (upcoming) return upcoming.id;
 
     const latest = await prisma.councilMeeting.findFirst({
-        where: { cityId, released: true, ...TAKES_PLACE_WHERE },
+        where: { cityId, released: true, ...TAKES_PLACE_WHERE, ...primaryMeetingWhere },
         orderBy: { dateTime: 'desc' },
         select: { id: true },
     });
@@ -328,7 +348,8 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
 
     const [needsUpload, scheduled] = await Promise.all([
         // Needs upload: past meetings without transcribe succeeded
-        // (date filter reuses the shared last-30-days utility)
+        // (date filter reuses the shared last-30-days utility). A secondary
+        // body uploads its own recordings, so its meetings are not ours to chase.
         prisma.councilMeeting.findMany({
             where: {
                 AND: [
@@ -337,6 +358,7 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
                     // a meeting by circulation takes no transcription.
                     TAKES_PLACE_WHERE,
                     PUBLIC_RECORDING_WHERE,
+                    primaryMeetingWhere,
                     {
                         NOT: {
                             taskStatuses: {
@@ -359,6 +381,7 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
                 dateTime: { gt: now },
                 city: CUSTOMER_CITY_WHERE,
                 ...TAKES_PLACE_WHERE,
+                ...primaryMeetingWhere,
             },
             select: meetingListItemSelect,
             orderBy: { dateTime: 'asc' }

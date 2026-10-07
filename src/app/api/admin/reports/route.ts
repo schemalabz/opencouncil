@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import prisma from '@/lib/db/prisma';
+import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
 import { calculateMeetingDurationMs } from '@/lib/db/utils/meetingDuration';
 import { renderReportDocx, ReportMeeting } from '@/lib/export/report-docx';
 import { getReportContract } from '@/lib/offers/state';
@@ -56,6 +57,8 @@ export async function POST(request: NextRequest) {
     const startDateUTC = new Date(startDate + 'T00:00:00.000Z');
     const endDateUTC = new Date(endDate + 'T23:59:59.999Z');
 
+    // The contract covers the municipality's own bodies. A secondary body's
+    // meetings are free (#829), so they stay off the report.
     const meetings = await prisma.councilMeeting.findMany({
         where: {
             cityId,
@@ -63,6 +66,7 @@ export async function POST(request: NextRequest) {
                 gte: startDateUTC,
                 lte: endDateUTC,
             },
+            ...primaryMeetingWhere,
         },
         include: {
             administrativeBody: { select: { name: true, name_en: true } },

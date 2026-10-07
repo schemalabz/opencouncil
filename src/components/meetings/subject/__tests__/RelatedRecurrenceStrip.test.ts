@@ -11,7 +11,7 @@ import { RECURRENCE_WINDOW_DAYS, RelatedRecurrenceStrip, recurringNeighbours } f
 
 const searchMock = searchRelatedSubjectsInRealm as jest.MockedFunction<typeof searchRelatedSubjectsInRealm>;
 
-const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1' };
+const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1', administrativeBodyType: null };
 const MEETING = '2026-06-15T00:00:00.000Z';
 
 const daysFrom = (iso: string, days: number) => new Date(new Date(iso).getTime() + days * 86_400_000);

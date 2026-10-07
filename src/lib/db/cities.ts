@@ -8,6 +8,8 @@ import { UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
 import { createCityDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
+import { primaryMeetingWhere } from "@/lib/utils/bodyTier";
+import { CITY_COUNT_SELECT, CITY_ORDER_BY } from "./cityListing";
 import {
     PETITION_DISPLAY_THRESHOLD,
     buildPetitionedCities,
@@ -38,23 +40,9 @@ export type CityWithCounts = City & {
 };
 
 // Common configurations for database queries
-const CITY_COUNT_SELECT = {
-    select: {
-        persons: true,
-        parties: true,
-        councilMeetings: {
-            where: {
-                released: true
-            }
-        }
-    }
-};
-
-const CITY_ORDER_BY = [
-    // supported > demo > pending, by CityStatus declaration order
-    { status: 'desc' as const },
-    { name: 'asc' as const }
-];
+// The meeting count is the municipality's own record: released meetings of
+// the primary tier (see bodyTier.ts). A secondary body's meetings count where
+// that body shows, not here.
 
 export async function deleteCity(id: string): Promise<void> {
     await withUserAuthorizedToEdit({ cityId: id });

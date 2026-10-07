@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { getUnreleasedScope } from "@/lib/auth";
 import { DEFAULT_MEETING_PAGE_SIZE } from "@/lib/db/meetingsList";
+import { SECONDARY_BODY_TYPES, isSecondaryBody, readTier } from "@/lib/utils/bodyTier";
 import CityMeetings from "@/components/cities/CityMeetings";
 import { getCityCached, getCouncilMeetingsPreviewCached, getAdministrativeBodiesWithPublicMeetingsCached, getAdministrativeBodiesForCityCached } from "@/lib/cache";
 import { buildCanonicalAlternates } from "@/lib/utils/hreflang";
@@ -87,16 +88,18 @@ const MEETINGS_TAB_LIMIT = DEFAULT_MEETING_PAGE_SIZE * 5;
 export default async function MeetingsPage(
     props: {
         params: Promise<{ cityId: string }>;
+        searchParams: Promise<{ tier?: string }>;
     }
 ) {
-    const params = await props.params;
+    const [params, search] = await Promise.all([props.params, props.searchParams]);
 
     const {
         cityId
     } = params;
 
-    const [city, councilMeetings, publicBodies, unreleased] = await Promise.all([
+    const [city, primaryMeetings, publicBodies, unreleased] = await Promise.all([
         getCityCached(cityId),
+        // The primary tier: the list's default (see meetingListQuery).
         getCouncilMeetingsPreviewCached(cityId, { limit: MEETINGS_TAB_LIMIT }),
         // The picker's own source. Deriving it from the capped rows above hid
         // every body whose last meeting fell outside the window.
@@ -108,14 +111,27 @@ export default async function MeetingsPage(
     // The picker offers the bodies with a released meeting. A body admin's own
     // bodies join it, or the drafts of a body with no released meeting yet
     // would hide behind the default chip with no chip to reach them.
-    const administrativeBodies = unreleased.all || unreleased.bodyIds.length === 0
-        ? publicBodies
-        : [
-            ...publicBodies,
-            ...(await getAdministrativeBodiesForCityCached(cityId))
-                .filter(body => unreleased.bodyIds.includes(body.id) && !publicBodies.some(known => known.id === body.id))
-                .map(({ id, name, name_en, type, cityId: bodyCityId }) => ({ id, name, name_en, type, cityId: bodyCityId })),
-        ];
+    const ownBodies = unreleased.all || unreleased.bodyIds.length === 0
+        ? []
+        : (await getAdministrativeBodiesForCityCached(cityId))
+            .filter(body => unreleased.bodyIds.includes(body.id))
+            .map(({ id, name, name_en, type, cityId: bodyCityId }) => ({ id, name, name_en, type, cityId: bodyCityId }));
+    const everyBody = [...publicBodies, ...ownBodies.filter(body => !publicBodies.some(known => known.id === body.id))];
+
+    // The secondary tier (#829) loads on request, or for whoever administers a
+    // body of it: their drafts must be reachable without a click they cannot
+    // know to make. A city whose meetings are all of the secondary tier shows
+    // them at once: an empty tab would be its only page. Its own query, so it
+    // never spends the primary window's slots.
+    const secondaryAvailable = everyBody.some(isSecondaryBody);
+    const showSecondary = secondaryAvailable
+        && (readTier(search.tier) === 'all' || ownBodies.some(isSecondaryBody) || primaryMeetings.length === 0);
+    const secondaryMeetings = showSecondary
+        ? await getCouncilMeetingsPreviewCached(cityId, { limit: MEETINGS_TAB_LIMIT, administrativeBodyTypes: [...SECONDARY_BODY_TYPES] })
+        : [];
+    const councilMeetings = [...primaryMeetings, ...secondaryMeetings]
+        .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+    const administrativeBodies = showSecondary ? everyBody : everyBody.filter(body => !isSecondaryBody(body));
 
     if (!city) {
         notFound();
@@ -129,6 +145,7 @@ export default async function MeetingsPage(
             canEdit={canEdit}
             editableBodyIds={unreleased.all ? undefined : unreleased.bodyIds}
             administrativeBodies={administrativeBodies}
+            secondaryTier={{ available: secondaryAvailable, shown: showSecondary }}
             now={new Date()}
             cappedAt={MEETINGS_TAB_LIMIT}
             pageSize={DEFAULT_MEETING_PAGE_SIZE}

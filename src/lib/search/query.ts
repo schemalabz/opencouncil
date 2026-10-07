@@ -3,6 +3,7 @@ import { SearchRequest, ExtractedFilters, Location, type QueryContainer } from '
 import { env } from '@/env.mjs';
 import { MATCH_START, MATCH_END, MATCH_FIELDS } from './constants';
 import type { AdministrativeBodyType } from '@prisma/client';
+import { SECONDARY_BODY_TYPES } from '@/lib/utils/bodyTier';
 
 // Score added ONCE to a subject pinned within an AI-extracted location's radius
 // (see buildLocationClause). Small next to the lexical field tiers (FIELD_TIER):
@@ -678,6 +679,16 @@ export function buildFilters(request: SearchRequest): QueryContainer[] {
                 }
             }
             : ofTypes);
+    }
+
+    // No body filter means the primary tier (see bodyTier.ts). A must_not keeps
+    // the documents with no body, which a `terms` on the primary types would drop.
+    if (!request.administrativeBodyIds?.length && !request.administrativeBodyTypes?.length) {
+        filters.push({
+            bool: {
+                must_not: [{ terms: { 'administrative_body_type': [...SECONDARY_BODY_TYPES] } }]
+            }
+        });
     }
 
     // Add topic filter if specified
