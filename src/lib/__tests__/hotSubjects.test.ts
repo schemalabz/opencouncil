@@ -40,7 +40,7 @@ jest.mock('../cache', () => ({
     },
     // The real helper sits in a module that reaches prisma, so the key
     // assertions below cover the fragments this file builds around it.
-    bodyFilterKey: () => ['types:all', 'ids:all'],
+    bodyFilterKey: () => ['types:primary', 'ids:all'],
     getCouncilMeetingsForCityPublicCached: (...args: Parameters<typeof getCouncilMeetingsForCityPublicCached>) =>
         mockGetCouncilMeetingsForCityPublicCached(...args),
 }));

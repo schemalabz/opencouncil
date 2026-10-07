@@ -8,11 +8,24 @@ import type { FilterOption } from '@/lib/utils/filterURL';
  * parses the URL with it) and by CityMeetings (which draws it). Built twice
  * from the same bodies, the two cannot disagree about which view a URL names.
  */
-export function meetingsTabFilters(bodies: PublicAdministrativeBody[], t: (key: string) => string) {
+export function meetingsTabFilters(
+    bodies: PublicAdministrativeBody[],
+    t: (key: string) => string,
+    { widened = false }: {
+        /**
+         * The tab widened to the secondary tier by itself (#829), for a body
+         * admin or a city with no primary meeting. The default is then every
+         * meeting: the rows it loaded for them would otherwise hide behind the
+         * council chip, and the picker names one type or all, so a default of
+         * two types would read as «all» and still hide the rest.
+         */
+        widened?: boolean;
+    } = {},
+) {
     const filterOptions: FilterOption<AdministrativeBodyType>[] = getAdministrativeBodyTypes(bodies, t);
-    const defaultFilterValues: AdministrativeBodyType[] | undefined = filterOptions.some(o => o.value === 'council')
-        ? ['council']
-        : undefined;
+    const defaultFilterValues: AdministrativeBodyType[] | undefined = widened
+        ? []
+        : filterOptions.some(o => o.value === 'council') ? ['council'] : undefined;
     // Council stays a single body in practice, so it offers no body picker
     // (legacy behavior).
     const bodyOptionsFor = (type: AdministrativeBodyType): FilterOption<string>[] =>

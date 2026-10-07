@@ -14,7 +14,7 @@ export const HOT_SCOPES: Record<HotScope, {
     label: string;
     /** What the body is called, for the open menu where there is room to say it. */
     fullLabel: string;
-    /** Undefined means every body — the meetings query reads it as no filter. */
+    /** Undefined means every primary body — the meetings query's default (see bodyTier.ts). */
     types?: AdministrativeBodyType[];
     isDefault: boolean;
 }> = {
