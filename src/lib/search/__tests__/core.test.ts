@@ -440,7 +440,7 @@ describe('searchSubjectsInRealm — failure alert', () => {
 });
 
 describe('searchRelatedSubjectsInRealm', () => {
-    const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1' };
+    const SEED = { id: 'seed', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1', administrativeBodyType: null };
 
     it('caps the query to the realm and passes the scope through', async () => {
         await searchRelatedSubjectsInRealm(SEED, 'other', 'greece');
@@ -459,7 +459,7 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'city', 'greece', '0.75', '5', 'subjects-test'],
+            ['subject', 'seed', 'related', 'city', 'greece', 'primary', '0.75', '5', 'subjects-test'],
             { tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:athens:meetings'], revalidate: 86400 },
         );
     });
@@ -474,7 +474,7 @@ describe('searchRelatedSubjectsInRealm', () => {
         await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
 
         expect(buildRelatedSubjectsQueryMock).toHaveBeenCalledWith(SEED, 'city', REALM_CITIES, expect.objectContaining({ index: 'subjects-2026-08', relatedMinSimilarity: 0.93 }));
-        expect(createCacheMock.mock.calls[0][1]).toEqual(['subject', 'seed', 'related', 'city', 'greece', '0.93', '5', 'subjects-2026-08']);
+        expect(createCacheMock.mock.calls[0][1]).toEqual(['subject', 'seed', 'related', 'city', 'greece', 'primary', '0.93', '5', 'subjects-2026-08']);
     });
 
     // The index a profile names can be deleted before the next refresh. The
@@ -491,7 +491,7 @@ describe('searchRelatedSubjectsInRealm', () => {
         await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
 
         expect(buildRelatedSubjectsQueryMock.mock.calls.map(call => call[3]?.index)).toEqual(['subjects-2026-08', 'subjects-2026-10']);
-        expect(createCacheMock.mock.calls.map(call => call[1][7])).toEqual(['subjects-2026-08', 'subjects-2026-10']);
+        expect(createCacheMock.mock.calls.map(call => call[1][8])).toEqual(['subjects-2026-08', 'subjects-2026-10']);
         expect(sendErrorAdminAlertMock).not.toHaveBeenCalled();
     });
 
@@ -500,7 +500,7 @@ describe('searchRelatedSubjectsInRealm', () => {
 
         expect(createCacheMock).toHaveBeenCalledWith(
             expect.any(Function),
-            ['subject', 'seed', 'related', 'other', 'greece', '0.75', '5', 'subjects-test'],
+            ['subject', 'seed', 'related', 'other', 'greece', 'primary', '0.75', '5', 'subjects-test'],
             {
                 tags: ['cities:all', 'city:athens:meeting:meeting-1', 'city:chania:meetings', 'city:argos:meetings'],
                 revalidate: 86400,
