@@ -167,7 +167,8 @@ describe('checkBatchCompletionAndAlert', () => {
         status: 'failed',
         cityId: 'city-2',
         councilMeetingId: 'meeting-2',
-        responseBody: 'Connection timeout to Diavgeia',
+        responseBody: null,
+        failureReason: 'Connection timeout to Diavgeia',
       },
     ]);
 
@@ -297,7 +298,8 @@ describe('checkBatchCompletionAndAlert', () => {
         status: 'failed',
         cityId: 'city-2',
         councilMeetingId: 'meeting-2',
-        responseBody: 'Server error: worker timeout',
+        responseBody: null,
+        failureReason: 'Server error: worker timeout',
       },
     ]);
 
@@ -322,14 +324,17 @@ describe('checkBatchCompletionAndAlert', () => {
         status: 'failed',
         cityId: CITY_ID,
         councilMeetingId: MEETING_ID,
-        responseBody: 'Processing error: DB timeout',
+        // A result handler that threw keeps the task-server payload.
+        responseBody: JSON.stringify({ matches: [] }),
+        failureReason: 'Error: DB timeout',
       },
       {
         id: 'task-2',
         status: 'failed',
         cityId: 'city-2',
         councilMeetingId: 'meeting-2',
-        responseBody: 'Server error: OOM',
+        responseBody: null,
+        failureReason: 'Server error: OOM',
       },
     ]);
 
@@ -342,6 +347,7 @@ describe('checkBatchCompletionAndAlert', () => {
     expect(callArg.totalMatches).toBe(0);
     expect(callArg.meetingBreakdown).toHaveLength(2);
     expect(callArg.meetingBreakdown.every((m: { status: string }) => m.status === 'failed')).toBe(true);
+    expect(callArg.meetingBreakdown.map((m: { error?: string }) => m.error)).toEqual(['Error: DB timeout', 'Server error: OOM']);
   });
 
   it('truncates long error messages in breakdown', async () => {
@@ -352,7 +358,8 @@ describe('checkBatchCompletionAndAlert', () => {
         status: 'failed',
         cityId: CITY_ID,
         councilMeetingId: MEETING_ID,
-        responseBody: longError,
+        responseBody: null,
+        failureReason: longError,
       },
     ]);
 

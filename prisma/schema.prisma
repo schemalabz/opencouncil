@@ -275,6 +275,7 @@ model TaskStatus {
   type      String
   requestBody String
   responseBody String?
+  failureReason String?
 
   version Int?
 
