@@ -1612,3 +1612,19 @@ describe('buildSearchQuery — the highlight block', () => {
         expect(Object.keys(query.highlight!.fields!)).toContain('location_text');
     });
 });
+
+// The tier rule of #829: with no body filter, search spans the primary tier.
+// A must_not, not a terms on the primary types: a document with no body is
+// the council's and must stay in.
+describe('buildFilters secondary tier', () => {
+    const noSecondary = { bool: { must_not: [{ terms: { 'administrative_body_type': ['youthCouncil'] } }] } };
+
+    it('keeps the secondary tier out when no body filter is given', () => {
+        expect(buildFilters({ query: 'πάρκα' })).toContainEqual(noSecondary);
+    });
+
+    it('lets a body type or a body id widen the scope', () => {
+        expect(buildFilters({ query: 'πάρκα', administrativeBodyTypes: ['youthCouncil'] })).not.toContainEqual(noSecondary);
+        expect(buildFilters({ query: 'πάρκα', administrativeBodyIds: ['body-1'] })).not.toContainEqual(noSecondary);
+    });
+});

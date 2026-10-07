@@ -11,9 +11,11 @@ import { sortBodyMembers, sortPeople } from '@/lib/sorting/people';
 import { PartyWithPersons } from '@/lib/db/parties';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes, getBodiesOfTypeFromPeople } from '@/lib/utils/administrativeBodies';
 import { BadgePicker } from '@/components/ui/badge-picker';
+import { SecondaryTierToggle } from '@/components/cities/SecondaryTierToggle';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
 import { filterActiveRoles, getRoleText, isRoleActive } from '@/lib/utils/roles';
 import { useRoleTitles } from '@/hooks/useRoleTitles';
+import { hasPrimaryPresence } from '@/lib/utils/bodyTier';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { AdminToolButton } from '@/components/admin/AdminStrip';
 import ElectedOrderSheet from '@/components/admin/people/ElectedOrderSheet';
@@ -31,6 +33,8 @@ type CityPeopleProps = {
      * may give any role. The form then offers these bodies and no party.
      */
     editableBodyIds?: string[],
+    /** Whether the members of a secondary body are on the page (#829). */
+    showSecondary: boolean,
 };
 
 export default function CityPeople({
@@ -41,6 +45,7 @@ export default function CityPeople({
     canEdit,
     isSuperAdmin,
     editableBodyIds,
+    showSecondary,
 }: CityPeopleProps) {
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
@@ -76,9 +81,21 @@ export default function CityPeople({
         [partiesWithPersons]
     );
 
+    // The municipality's own roster, unless the reader widened the page to the
+    // secondary tier. Whoever sits only on such a body shows then, with the
+    // chip of that body's type.
+    const people = useMemo(() =>
+        showSecondary ? allPeople : allPeople.filter(person => hasPrimaryPresence(person.roles)),
+        [allPeople, showSecondary]
+    );
+    const secondaryAvailable = useMemo(() =>
+        allPeople.some(person => !hasPrimaryPresence(person.roles)),
+        [allPeople]
+    );
+
     const typeOptions = useMemo(() =>
-        getAdministrativeBodyTypesForPeople(allPeople, tCommon),
-        [allPeople, tCommon]
+        getAdministrativeBodyTypesForPeople(people, tCommon),
+        [people, tCommon]
     );
 
     // Pre-resolve body ID from URL once, instead of per-item in the filter callback
@@ -87,12 +104,12 @@ export default function CityPeople({
         if (!bodyLabel) return null;
         for (const option of typeOptions) {
             if (option.value === 'council') continue;
-            const subBodies = getBodiesOfTypeFromPeople(allPeople, option.value);
+            const subBodies = getBodiesOfTypeFromPeople(people, option.value);
             const match = subBodies.find(o => o.label === bodyLabel);
             if (match) return match.value;
         }
         return null;
-    }, [searchParams, allPeople, typeOptions]);
+    }, [searchParams, people, typeOptions]);
 
     // The one body the selection names, or null. The council carries no
     // sub-bodies, so only a narrower type can name one. Both the filter and the
@@ -146,7 +163,7 @@ export default function CityPeople({
     return (
         <>
         <List<PersonWithRelations, Record<string, never>, AdministrativeBodyType>
-            items={allPeople}
+            items={people}
             sortItems={sortItems}
             editable={canEdit}
             adminTools={adminTools}
@@ -163,22 +180,27 @@ export default function CityPeople({
                 return bodyId ? person.roles.some(r => r.administrativeBodyId === bodyId) : true;
             }}
             renderFilter={({ selectedValues, onChange }) => {
-                if (typeOptions.length <= 1) return null;
+                if (typeOptions.length <= 1 && !secondaryAvailable) return null;
                 return (
-                    <BadgePicker
-                        options={typeOptions}
-                        selectedValues={selectedValues}
-                        onSelectionChange={onChange}
-                        allLabel={tCommon('allPeople')}
-                        collapsible={false}
-                        inline
-                    />
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        {typeOptions.length > 1 && (
+                            <BadgePicker
+                                options={typeOptions}
+                                selectedValues={selectedValues}
+                                onSelectionChange={onChange}
+                                allLabel={tCommon('allPeople')}
+                                collapsible={false}
+                                inline
+                            />
+                        )}
+                        {secondaryAvailable && <SecondaryTierToggle shown={showSecondary} />}
+                    </div>
                 );
             }}
             renderAfterFilters={(selectedValues) => {
                 const selectedType = selectedValues.length === 1 ? selectedValues[0] : null;
                 if (!selectedType || selectedType === 'council') return null;
-                const subBodies = getBodiesOfTypeFromPeople(allPeople, selectedType);
+                const subBodies = getBodiesOfTypeFromPeople(people, selectedType);
                 if (subBodies.length <= 1) return null;
                 const selectedBodyId = resolveBodyFromURL(searchParams, subBodies);
                 return (
