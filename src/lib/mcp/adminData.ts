@@ -6,6 +6,8 @@ import { createCityDirect } from '@/lib/db/citiesAdmin';
 import { populateCity, type CityPopulationData } from '@/lib/db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects, type MeetingDetailsEdit } from '@/lib/meetingWrites';
 import { startMeetingTask, type MeetingTaskRequest } from '@/lib/tasks/startMeetingTask';
+import { generateUniqueMeetingId } from '@/lib/db/meetings';
+import { copyAgendaToStorage } from '@/lib/uploads/agenda';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { CITY_DEFAULTS } from '@/lib/zod-schemas/city';
 import { REALMS } from '@/lib/realm';
@@ -46,12 +48,25 @@ export async function mcpCreateMeeting(
         await requireCityBodies(args.cityId, [args.administrativeBodyId]);
     }
 
+    const date = new Date(args.dateTime);
+    // The agenda is copied into our bucket, as an upload on the admin page
+    // puts it there: a municipality can remove its file later. The copy is
+    // named after the meeting, so the id comes first. A failed copy then
+    // refuses the call before anything is created.
+    let meetingId: string | undefined;
+    let agendaUrl = args.agendaUrl;
+    if (agendaUrl) {
+        meetingId = await generateUniqueMeetingId(args.cityId, date);
+        agendaUrl = await copyAgendaToStorage(args.cityId, meetingId, agendaUrl);
+    }
+
     const { meeting, processAgendaStatus } = await createMeetingWithEffects(args.cityId, {
         name: args.name,
         name_en: args.name_en,
-        date: new Date(args.dateTime),
+        date,
+        meetingId,
         youtubeUrl: args.youtubeUrl,
-        agendaUrl: args.agendaUrl,
+        agendaUrl,
         administrativeBodyId: args.administrativeBodyId,
         processAgenda: args.processAgenda,
     });
@@ -95,7 +110,9 @@ export async function mcpUpdateMeeting(
         ...(args.name_en !== undefined && { name_en: args.name_en }),
         ...(args.dateTime !== undefined && { dateTime: new Date(args.dateTime) }),
         ...(args.youtubeUrl !== undefined && { youtubeUrl: args.youtubeUrl }),
-        ...(args.agendaUrl !== undefined && { agendaUrl: args.agendaUrl }),
+        ...(args.agendaUrl !== undefined && {
+            agendaUrl: args.agendaUrl && await copyAgendaToStorage(args.cityId, args.meetingId, args.agendaUrl),
+        }),
         ...(args.administrativeBodyId !== undefined && { administrativeBodyId: args.administrativeBodyId }),
     };
     if (Object.keys(edit).length === 0) {
@@ -126,14 +143,19 @@ export async function mcpStartTask(
     await requireCityAdmin(identity, cityId);
     await requireVisibleMeeting(cityId, meetingId, identity);
 
+    if (request.type === 'processAgenda' && request.agendaUrl) {
+        request.agendaUrl = await copyAgendaToStorage(cityId, meetingId, request.agendaUrl);
+    }
+
     const task = await startMeetingTask(cityId, meetingId, request);
 
     return {
         ...mcpTaskSummary({ ...task, error: null }),
         cityId,
         meetingId,
-        // The transcribe core stores the video it was given on the meeting.
+        // The transcribe and processAgenda cores store the URL they were given on the meeting.
         ...(request.type === 'transcribe' && request.videoUrl && { youtubeUrl: request.videoUrl }),
+        ...(request.type === 'processAgenda' && request.agendaUrl && { agendaUrl: request.agendaUrl }),
         url: meetingUrl(cityId, meetingId),
         next: 'The task runs on the task server and takes minutes. Poll get_meeting: its `tasks` list '
             + 'carries the status, and a failed task carries the error.',

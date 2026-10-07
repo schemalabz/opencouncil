@@ -16,6 +16,9 @@ import { STARTABLE_MEETING_TASKS } from '@/lib/tasks/startableTasks';
 import { baseCityFields, cityIdSchema } from '@/lib/zod-schemas/city';
 import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 
+const AGENDA_URL_DESCRIPTION = 'URL of the agenda, a PDF or a .docx file. The server first copies the file into the '
+    + 'storage of OpenCouncil and stores the URL of the copy; a web page that is not a PDF or a .docx is refused.';
+
 const isoDateTime = z.iso.datetime({ offset: true })
     .describe('ISO 8601 date and time with a UTC offset, e.g. "2026-10-05T18:00:00+03:00"');
 
@@ -52,7 +55,7 @@ function registerMeetingAdminTools(server: McpServer) {
                 name_en: z.string().min(2).describe('Meeting name in English'),
                 dateTime: isoDateTime,
                 youtubeUrl: z.url().optional().describe('URL of the meeting video'),
-                agendaUrl: z.url().optional().describe('URL of the agenda PDF'),
+                agendaUrl: z.url().optional().describe(AGENDA_URL_DESCRIPTION),
                 administrativeBodyId: z.string().min(1).optional()
                     .describe('The body that meets (council, committee, community). See get_city'),
                 processAgenda: z.boolean().default(false)
@@ -80,7 +83,7 @@ function registerMeetingAdminTools(server: McpServer) {
                 name_en: z.string().min(2).optional(),
                 dateTime: isoDateTime.optional(),
                 youtubeUrl: z.url().nullable().optional(),
-                agendaUrl: z.url().nullable().optional(),
+                agendaUrl: z.url().nullable().optional().describe(AGENDA_URL_DESCRIPTION),
                 administrativeBodyId: z.string().min(1).nullable().optional(),
             }),
         },
@@ -116,7 +119,8 @@ function registerTaskAdminTools(server: McpServer) {
                     .describe('transcribe only: the video to transcribe. Defaults to the youtubeUrl of the meeting. '
                         + 'A URL passed here is STORED as the youtubeUrl of the meeting, which the public page embeds'),
                 agendaUrl: z.url().optional()
-                    .describe('processAgenda only: the agenda PDF. Defaults to the agendaUrl of the meeting'),
+                    .describe(`processAgenda only: ${AGENDA_URL_DESCRIPTION} Defaults to the agendaUrl of the meeting. `
+                        + 'A URL passed here is STORED as the agendaUrl of the meeting'),
                 additionalInstructions: z.string().min(1).optional()
                     .describe('summarize only: free-text guidance for the summary, e.g. what to pay attention to'),
             }).superRefine((args, ctx) => {

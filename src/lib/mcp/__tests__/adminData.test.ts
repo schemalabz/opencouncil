@@ -32,6 +32,8 @@ jest.mock('../realmGuards', () => ({
 }));
 jest.mock('../gate', () => ({ requireVisibleMeeting: jest.fn() }));
 jest.mock('../../tasks/startMeetingTask', () => ({ startMeetingTask: jest.fn() }));
+jest.mock('../../uploads/agenda', () => ({ copyAgendaToStorage: jest.fn() }));
+jest.mock('../../db/meetings', () => ({ generateUniqueMeetingId: jest.fn() }));
 
 import { Prisma, Realm } from '@prisma/client';
 import {
@@ -47,6 +49,8 @@ import { createMeetingWithEffects, updateMeetingWithEffects } from '../../meetin
 import { requireRealmCity } from '../realmGuards';
 import { startMeetingTask } from '../../tasks/startMeetingTask';
 import * as cityPopulate from '../../db/cityPopulate';
+import { copyAgendaToStorage } from '../../uploads/agenda';
+import { generateUniqueMeetingId } from '../../db/meetings';
 
 const ADMIN_TOKEN = { type: 'user', userId: 'u1' } as const;
 const SERVICE = { type: 'service', keyName: 'bot' } as const;
@@ -97,6 +101,65 @@ describe('meeting tools authorize before they write', () => {
     it('rejects an update with no field to change', async () => {
         asCityAdmin('argos');
         await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1' })).rejects.toThrow(BadRequestError);
+    });
+});
+
+describe('agenda copy', () => {
+    const SOURCE = 'https://skiathos.gr/agenda.pdf';
+    const COPY = 'https://bucket.fra1.digitaloceanspaces.com/uploads/skiathos_oct2_2026_agenda.pdf';
+    const SAVED = {
+        id: 'oct2_2026', cityId: 'skiathos', name: 'n', name_en: 'n', dateTime: new Date(), youtubeUrl: null,
+        agendaUrl: COPY, administrativeBody: null, released: false,
+    };
+
+    beforeEach(() => {
+        (copyAgendaToStorage as jest.Mock).mockResolvedValue(COPY);
+        (generateUniqueMeetingId as jest.Mock).mockResolvedValue('oct2_2026');
+    });
+
+    it('copies the agenda of a new meeting under the id of the meeting', async () => {
+        (createMeetingWithEffects as jest.Mock).mockResolvedValue({ meeting: SAVED });
+        await mcpCreateMeeting(SERVICE, { ...MEETING, cityId: 'skiathos', agendaUrl: SOURCE, processAgenda: true });
+        expect(copyAgendaToStorage).toHaveBeenCalledWith('skiathos', 'oct2_2026', SOURCE);
+        expect(createMeetingWithEffects).toHaveBeenCalledWith('skiathos', expect.objectContaining({
+            meetingId: 'oct2_2026', agendaUrl: COPY, processAgenda: true,
+        }));
+    });
+
+    it('creates nothing when the copy fails', async () => {
+        (copyAgendaToStorage as jest.Mock).mockRejectedValue(new BadRequestError('not a PDF'));
+        await expect(mcpCreateMeeting(SERVICE, { ...MEETING, agendaUrl: SOURCE })).rejects.toThrow('not a PDF');
+        expect(createMeetingWithEffects).not.toHaveBeenCalled();
+    });
+
+    it('copies the agenda of a city administrator as well', async () => {
+        asCityAdmin('argos');
+        (createMeetingWithEffects as jest.Mock).mockResolvedValue({ meeting: SAVED });
+        await mcpCreateMeeting(ADMIN_TOKEN, { ...MEETING, agendaUrl: SOURCE });
+        expect(copyAgendaToStorage).toHaveBeenCalledWith('argos', 'oct2_2026', SOURCE);
+        expect(createMeetingWithEffects).toHaveBeenCalledWith('argos', expect.objectContaining({ agendaUrl: COPY }));
+    });
+
+    it('fetches nothing for a caller who does not administer the city', async () => {
+        asCityAdmin('athens');
+        await expect(mcpCreateMeeting(ADMIN_TOKEN, { ...MEETING, agendaUrl: SOURCE })).rejects.toThrow(ForbiddenError);
+        expect(copyAgendaToStorage).not.toHaveBeenCalled();
+    });
+
+    it('copies the agenda of update_meeting', async () => {
+        (updateMeetingWithEffects as jest.Mock).mockResolvedValue(SAVED);
+        await mcpUpdateMeeting(SERVICE, { cityId: 'skiathos', meetingId: 'oct2_2026', agendaUrl: SOURCE });
+        expect(updateMeetingWithEffects).toHaveBeenCalledWith('skiathos', 'oct2_2026', { agendaUrl: COPY });
+    });
+
+    it('starts processAgenda on the copy, and answers with the stored URL', async () => {
+        (startMeetingTask as jest.Mock).mockResolvedValue({
+            id: 't1', type: 'processAgenda', status: 'pending', stage: null, percentComplete: null,
+            createdAt: new Date(), updatedAt: new Date(), version: null,
+        });
+        const result = await mcpStartTask(SERVICE, { cityId: 'skiathos', meetingId: 'oct2_2026', type: 'processAgenda', agendaUrl: SOURCE });
+        expect(startMeetingTask).toHaveBeenCalledWith('skiathos', 'oct2_2026', { type: 'processAgenda', agendaUrl: COPY });
+        expect(result).toMatchObject({ agendaUrl: COPY });
     });
 });
 
