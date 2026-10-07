@@ -334,6 +334,36 @@ describe('handlePollDecisionsResult — orphan councilMeetingId healing', () => 
         expect(lg2!.councilMeetingId).toBe(real.id)
     })
 
+    test('a youth council meeting neither receives a heal nor makes the date ambiguous (#829)', async () => {
+        const youth = await createAdministrativeBody(cityId, { name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil' })
+        const task1 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        await handlePollDecisionsResult(task1.id, makePollDecisionsResult({
+            decisions: [
+                makeReadDecision({ ada: 'ADA-Y', meetingDate: '2025-06-10' }),
+                makeReadDecision({ ada: 'ADA-Y2', meetingDate: '2025-07-15' }),
+            ],
+        }))
+
+        // 2025-06-10 holds only a youth council meeting: no heal.
+        await createMeeting(cityId, { id: 'm-youth', administrativeBodyId: youth.id, dateTime: new Date('2025-06-10T10:00:00Z') })
+        // 2025-07-15 holds a council session plus a youth one: unambiguous.
+        const real = await createMeeting(cityId, { id: 'm-real-2', administrativeBodyId: bodyId, dateTime: new Date('2025-07-15T10:00:00Z') })
+        await createMeeting(cityId, { id: 'm-youth-2', administrativeBodyId: youth.id, dateTime: new Date('2025-07-15T12:00:00Z') })
+
+        const task2 = await createTaskStatus(meetingId, cityId, { type: 'pollDecisions' })
+        await handlePollDecisionsResult(task2.id, makePollDecisionsResult({
+            decisions: [
+                makeReadDecision({ ada: 'ADA-Y', fromKnown: true, meetingDate: null }),
+                makeReadDecision({ ada: 'ADA-Y2', fromKnown: true, meetingDate: null }),
+            ],
+        }))
+
+        const y = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-Y' } } })
+        expect(y!.councilMeetingId).toBeNull()
+        const y2 = await prisma.decisionCandidate.findUnique({ where: { cityId_ada: { cityId, ada: 'ADA-Y2' } } })
+        expect(y2!.councilMeetingId).toBe(real.id)
+    })
+
     test('a dismissed orphan is left alone by the heal', async () => {
         await prisma.decisionCandidate.create({
             data: {

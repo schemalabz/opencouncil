@@ -68,6 +68,7 @@ function meetingData(postponedFromId: string | null) {
         transcript: [{ id: 'seg1' }],
         speakerTags: [{ id: 'tag1' }],
         transcriptHiddenForReview: false,
+        notificationsDisabled: false,
     } as unknown as Awaited<ReturnType<typeof getMeetingDataCore>>;
 }
 
