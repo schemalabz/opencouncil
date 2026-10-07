@@ -63,7 +63,7 @@ export const createMeetingToolInput = z.object({
     youtubeUrl: baseMeetingFields.youtubeUrl.optional().meta({ description: 'URL of the meeting video' }),
     agendaUrl: baseMeetingFields.agendaUrl.optional().meta({ description: 'URL of the agenda PDF' }),
     administrativeBodyId: baseMeetingFields.administrativeBodyId.optional()
-        .meta({ description: 'The body that meets (council, committee, community). See get_city' }),
+        .meta({ description: 'The body that meets (council, committee, community, youthCouncil). See get_city' }),
     processAgenda: z.boolean().default(false)
         .meta({ description: 'Also queue the task that extracts the subjects from the agenda PDF. Needs agendaUrl' }),
     ...meetingRecordInput,

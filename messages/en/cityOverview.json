@@ -66,6 +66,7 @@
   "notisExampleLabel": "example",
   "scopeCommittee": "Committee",
   "scopeCommunity": "Communities",
+  "scopeYouthCouncil": "Youth",
   "period3m": "3 months",
   "period6m": "6 months",
   "period12m": "12 months",
@@ -77,6 +78,7 @@
   "scopeCouncilFull": "City council",
   "scopeCommitteeFull": "City committee",
   "scopeCommunityFull": "Communities",
+  "scopeYouthCouncilFull": "Youth council",
   "scopeAllFull": "All bodies",
   "petitionTeaser": {
     "municipality": "Want OpenCouncil in your municipality?",

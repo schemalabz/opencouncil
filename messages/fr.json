@@ -58,6 +58,7 @@
     "adminBodyType_council": "Conseil municipal",
     "adminBodyType_committee": "Commission municipale",
     "adminBodyType_community": "Communautés",
+    "adminBodyType_youthCouncil": "Conseil municipal des jeunes",
     "allPeople": "Tous",
     "allBodies": "Tous",
     "pagination": "Pages",
@@ -412,7 +413,8 @@
     "administrativeBodyType": {
       "council": "Conseil municipal",
       "committee": "Commission municipale",
-      "community": "Communauté municipale"
+      "community": "Communauté municipale",
+      "youthCouncil": "Conseil municipal des jeunes"
     },
     "formErrors": "Veuillez corriger les erreurs suivantes :"
   },
@@ -980,7 +982,8 @@
     "types": {
       "council": "Conseil municipal",
       "committee": "Commission municipale",
-      "community": "Communauté municipale"
+      "community": "Communauté municipale",
+      "youthCouncil": "Conseil municipal des jeunes"
     },
     "youtubeChannelUrl": "URL de la chaîne YouTube",
     "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",
