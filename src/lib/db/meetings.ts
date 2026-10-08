@@ -13,6 +13,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
 import { buildDateFilter } from './reviews/dateFilters';
 import { formatDateAsMeetingId } from '../utils/meetingId';
+import { parseVideoId } from '@/lib/utils/youtube';
 import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
@@ -160,6 +161,29 @@ export async function getCouncilMeetingDirect(cityId: string, id: string): Promi
         where: { cityId_id: { cityId, id } },
         include: meetingWithAdminBodyInclude,
     });
+}
+
+const meetingByYouTubeVideoSelect = {
+    cityId: true,
+    id: true,
+    youtubeUrl: true,
+    city: { select: { realm: true } },
+} satisfies Prisma.CouncilMeetingSelect;
+
+/**
+ * The released council meeting whose stored youtubeUrl is the given YouTube
+ * video, or null. The SQL `contains` only narrows the candidates; each stored
+ * URL is parsed, so an id inside a playlist parameter or at the start of a
+ * longer path segment never counts. When several meetings share the video
+ * (e.g. re-uploads), the most recent one wins.
+ */
+export async function findCouncilMeetingByYouTubeVideoId(videoId: string) {
+    const candidates = await prisma.councilMeeting.findMany({
+        where: { released: true, youtubeUrl: { contains: videoId } },
+        orderBy: [{ dateTime: 'desc' }, { createdAt: 'desc' }],
+        select: meetingByYouTubeVideoSelect,
+    });
+    return candidates.find(candidate => parseVideoId(candidate.youtubeUrl) === videoId) ?? null;
 }
 
 const upcomingMeetingInclude = {

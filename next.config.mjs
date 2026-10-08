@@ -2,6 +2,7 @@ import './src/env.mjs';
 import createNextIntlPlugin from 'next-intl/plugin';
 import { withPostHogConfig } from "@posthog/nextjs-config";
 import { lanIPv4Addresses } from './src/lib/dev/lan-ips.mjs';
+import { videoLinkRewrites } from './src/lib/utils/videoLinkRewrites.mjs';
 
 // Log which DB the build will use (host + db name only, no credentials)
 try {
@@ -160,6 +161,7 @@ const nextConfig = {
     },
     async rewrites() {
         return [
+            ...videoLinkRewrites(),
             {
                 source: "/ingest/static/:path*",
                 destination: "https://eu-assets.i.posthog.com/static/:path*",
