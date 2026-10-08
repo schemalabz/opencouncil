@@ -136,7 +136,7 @@
     "re-resizable": "^6.11.2",
     "react": "^19.3.0",
     "react-colorful": "^5.8.1",
-    "react-day-picker": "^8.10.1",
+    "react-day-picker": "^10.0.1",
     "react-dom": "^19.3.0",
     "react-easy-crop": "^6.0.2",
     "react-hook-form": "^7.89.0",

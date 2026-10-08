@@ -350,7 +350,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                             field.onChange(date);
                                                             setStartDateOpen(false);
                                                         }}
-                                                        initialFocus
+                                                        autoFocus
                                                         className="rounded-md border"
                                                     />
                                                 </DialogContent>
@@ -396,7 +396,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                                 field.onChange(date);
                                                                 setEndDateOpen(false);
                                                             }}
-                                                            initialFocus
+                                                            autoFocus
                                                             className="rounded-md border"
                                                         />
                                                     </DialogContent>
