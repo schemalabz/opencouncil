@@ -584,7 +584,10 @@ EOF
               if [ "''${OC_LAN:-1}" = "1" ]; then
                 lan_flag="-H 0.0.0.0"
               else
-                lan_flag="-H 127.0.0.1"
+                # localhost, not 127.0.0.1: Next normalizes 127.0.0.1 to localhost in
+                # NextURL only, so on a 127.0.0.1 bind every proxy rewrite counts as
+                # external and next-intl answers it with a 307 to the same URL.
+                lan_flag="-H localhost"
               fi
               # shellcheck disable=SC2086
               exec npm run dev -- -p "$app_port" $lan_flag
@@ -1071,7 +1074,10 @@ USAGE
               if [ "$lan_enabled" = "1" ]; then
                 lan_host_flag="-H 0.0.0.0"
               else
-                lan_host_flag="-H 127.0.0.1"
+                # localhost, not 127.0.0.1: Next normalizes 127.0.0.1 to localhost in
+                # NextURL only, so on a 127.0.0.1 bind every proxy rewrite counts as
+                # external and next-intl answers it with a 307 to the same URL.
+                lan_host_flag="-H localhost"
               fi
 
               # NEXTAUTH_URL must match the actual app port so callback URLs are correct.
