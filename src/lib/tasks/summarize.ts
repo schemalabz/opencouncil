@@ -1,5 +1,5 @@
 "use server";
-import { CouncilMeeting, Prisma, SpeakerSegment } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "../apiTypes";
 import { getTranscript } from "../db/transcript";
 import { getPartiesForCity } from "../db/parties";
@@ -79,20 +79,12 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     });
     const topicByName = new Map(topics.map(t => [t.name, t]));
 
-    // Prepare all operations for batch execution.
-    // Stale-data cleanup is PREPENDED so it runs in the SAME transaction as the
-    // repopulation below: if repopulation fails, the cleanup rolls back too and the
-    // meeting keeps its old data instead of being left empty. This runs on every
-    // successful callback (not just force) — summaries upsert by speakerSegmentId, but
-    // TopicLabels and utterance discussion statuses need explicit cleanup because old
-    // rows for segments/topics no longer in the new response would otherwise persist.
+    // The upserts below keep a label for a topic that is no longer assigned to its
+    // segment, so the old labels are deleted first. The delete is in the same
+    // transaction, so that a failure keeps the old labels.
     const operations: Prisma.PrismaPromise<unknown>[] = [
         prisma.topicLabel.deleteMany({
-            where: { speakerSegmentId: { in: availableSpeakerSegmentIds } }
-        }),
-        prisma.utterance.updateMany({
-            where: { speakerSegmentId: { in: availableSpeakerSegmentIds } },
-            data: { discussionStatus: null, discussionSubjectId: null }
+            where: { speakerSegment: { meetingId: councilMeeting.id, cityId: councilMeeting.cityId } }
         }),
     ];
 
@@ -151,14 +143,15 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     await prisma.$transaction(operations);
 
     // Save subjects: matches by the id the task hands back, then name, then agenda
-    // position, so existing IDs survive (avoids ES orphans)
-    // The discussion tags go in with the subjects: they must commit together, or the search
-    // index keeps the pre-tagging discussion metrics (elasticsearch/README.md).
+    // position, so existing IDs survive (avoids ES orphans). The discussion tags go in
+    // with the subjects: they must commit together, or the search index keeps the
+    // pre-tagging discussion metrics (elasticsearch/README.md). A response without
+    // tags passes an empty list, so that the tags of the previous run are still removed.
     await saveSubjectsForMeeting(
         response.subjects,
         councilMeeting.cityId,
         councilMeeting.id,
-        response.utteranceDiscussionStatuses
+        response.utteranceDiscussionStatuses ?? []
     );
 
     console.log(`Saved summaries and topic labels for meeting ${councilMeeting.id}`);

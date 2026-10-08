@@ -10,10 +10,12 @@ import { SummarizeResult } from '../../apiTypes';
  * the task is allowed to run again if it already succeeded. It does NOT
  * control cleanup.
  *
- * Cleanup of stale data (topic labels, utterance discussion statuses) always
- * happens in handleSummarizeResult when a successful callback is received.
- * This ensures the DB stays consistent: old data is only removed when we
- * have new data to replace it with. If the task fails, old data is preserved.
+ * Stale topic labels and discussion statuses are removed when a successful
+ * callback arrives, never when the task is requested. handleSummarizeResult
+ * deletes the labels in its summaries transaction. It hands the statuses to
+ * saveSubjectsForMeeting, which these tests mock, so only that hand-over is
+ * checked here. tests/integration/task-handlers.test.ts fails each
+ * transaction against a real database and checks that nothing is lost.
  */
 
 const CITY_ID = 'city-1';
@@ -34,8 +36,6 @@ const mockTaskStatusFindUnique = jest.fn().mockResolvedValue({
   },
 });
 const mockTopicFindMany = jest.fn().mockResolvedValue([]);
-const mockUtteranceFindMany = jest.fn().mockResolvedValue([]);
-const mockUtteranceUpdate = jest.fn().mockResolvedValue({});
 
 jest.mock('../../db/prisma', () => ({
   __esModule: true,
@@ -48,8 +48,6 @@ jest.mock('../../db/prisma', () => ({
     },
     utterance: {
       updateMany: (...args: unknown[]) => mockUtteranceUpdateMany(...args),
-      findMany: (...args: unknown[]) => mockUtteranceFindMany(...args),
-      update: (...args: unknown[]) => mockUtteranceUpdate(...args),
     },
     topic: {
       findMany: (...args: unknown[]) => mockTopicFindMany(...args),
@@ -130,7 +128,7 @@ describe('requestSummarize — force controls idempotency only', () => {
   });
 });
 
-describe('handleSummarizeResult — always cleans up stale data on success', () => {
+describe('handleSummarizeResult — replaces stale data on success', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -147,60 +145,40 @@ describe('handleSummarizeResult — always cleans up stale data on success', () 
     expect(mockGenerateImagesForMeeting).toHaveBeenCalledWith(CITY_ID, MEETING_ID);
   });
 
-  it('deletes topic labels scoped to the meeting segments', async () => {
+  it('deletes the topic labels of the meeting', async () => {
     await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
 
     expect(mockTopicLabelDeleteMany).toHaveBeenCalledWith({
       where: {
-        speakerSegmentId: { in: [] },
+        speakerSegment: { meetingId: MEETING_ID, cityId: CITY_ID },
       },
     });
   });
 
-  it('resets utterance discussion statuses scoped to the meeting segments', async () => {
+  it('hands the response statuses to saveSubjectsForMeeting and does not reset them itself', async () => {
     await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
 
-    expect(mockUtteranceUpdateMany).toHaveBeenCalledWith({
-      where: {
-        speakerSegmentId: { in: [] },
-      },
-      data: {
-        discussionStatus: null,
-        discussionSubjectId: null,
-      },
-    });
+    expect(mockSaveSubjectsForMeeting).toHaveBeenCalledWith([], CITY_ID, MEETING_ID, []);
+    expect(mockUtteranceUpdateMany).not.toHaveBeenCalled();
   });
 
-  it('passes the cleanup ops into the same $transaction array (atomicity)', async () => {
-    // Sentinel return values so we can assert by identity that the cleanup ops are
-    // ELEMENTS of the array handed to $transaction — not awaited separately before it.
-    // A sequential-await version would still call all three mocks, so asserting only
-    // "was called" wouldn't actually guard the atomicity invariant this PR introduces.
+  it('hands an empty list, not undefined, for a response without statuses', async () => {
+    const legacyResponse: SummarizeResult = { speakerSegmentSummaries: [], subjects: [] };
+
+    await handleSummarizeResult(TASK_ID, legacyResponse);
+
+    expect(mockSaveSubjectsForMeeting).toHaveBeenCalledWith([], CITY_ID, MEETING_ID, []);
+  });
+
+  it('passes the topic-label cleanup into the same $transaction array (atomicity)', async () => {
+    // Identity check: the delete must be an element of the array, not awaited before it.
     const deleteOp = Symbol('deleteTopicLabels');
-    const resetOp = Symbol('resetUtterances');
     mockTopicLabelDeleteMany.mockReturnValueOnce(deleteOp);
-    mockUtteranceUpdateMany.mockReturnValueOnce(resetOp);
 
     await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
 
     expect(mockTransaction).toHaveBeenCalled();
     const [transactionArg] = mockTransaction.mock.calls[0];
     expect(transactionArg).toContain(deleteOp);
-    expect(transactionArg).toContain(resetOp);
-  });
-
-  it('builds cleanup before saving new data', async () => {
-    const callOrder: string[] = [];
-    mockTopicLabelDeleteMany.mockImplementation(() => { callOrder.push('deleteTopicLabels'); return Promise.resolve({ count: 0 }); });
-    mockUtteranceUpdateMany.mockImplementation(() => { callOrder.push('resetUtterances'); return Promise.resolve({ count: 0 }); });
-    mockTransaction.mockImplementation(() => { callOrder.push('saveTransaction'); return Promise.resolve([]); });
-    mockSaveSubjectsForMeeting.mockImplementation(() => { callOrder.push('saveSubjects'); return Promise.resolve(new Map()); });
-
-    await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
-
-    expect(callOrder.indexOf('deleteTopicLabels')).toBeLessThan(callOrder.indexOf('saveTransaction'));
-    expect(callOrder.indexOf('resetUtterances')).toBeLessThan(callOrder.indexOf('saveTransaction'));
-    expect(callOrder.indexOf('deleteTopicLabels')).toBeLessThan(callOrder.indexOf('saveSubjects'));
-    expect(callOrder.indexOf('resetUtterances')).toBeLessThan(callOrder.indexOf('saveSubjects'));
   });
 });

@@ -345,12 +345,12 @@ async function linkDiscussedInReferences(
  */
 async function applyUtteranceDiscussionStatusesInTx(
     tx: PrismaTxClient,
-    statuses: SummarizeResult['utteranceDiscussionStatuses'],
+    statuses: NonNullable<SummarizeResult['utteranceDiscussionStatuses']>,
     subjectIdMap: Map<string, string>
 ): Promise<number> {
     // Keep the last entry per utterance; the response can repeat one. Entries carrying a
     // status outside the enum are dropped here rather than allowed to abort the transaction.
-    const deduped = new Map<string, SummarizeResult['utteranceDiscussionStatuses'][number]>();
+    const deduped = new Map<string, NonNullable<SummarizeResult['utteranceDiscussionStatuses']>[number]>();
     let unknownStatuses = 0;
     for (const status of statuses) {
         if (!VALID_DISCUSSION_STATUSES.has(status.status)) {
@@ -410,6 +410,8 @@ export async function saveSubjectsForMeeting(
     subjects: Subject[],
     cityId: string,
     councilMeetingId: string,
+    /** When given, these replace every discussion tag in the meeting, even
+     *  when empty. `undefined` leaves the existing tags alone. */
     utteranceDiscussionStatuses?: SummarizeResult['utteranceDiscussionStatuses'],
     /** `pruneUnmatched` deletes existing agenda subjects that the incoming set
      *  does not account for. The agenda is authoritative, so processAgenda
@@ -631,8 +633,16 @@ export async function saveSubjectsForMeeting(
 
         // Inside the transaction on purpose: the tags must commit with their subjects, or the
         // search index never learns about them. See applyUtteranceDiscussionStatusesInTx.
-        if (utteranceDiscussionStatuses && utteranceDiscussionStatuses.length > 0) {
-            await applyUtteranceDiscussionStatusesInTx(tx, utteranceDiscussionStatuses, subjectIdMap);
+        // The response tags only some utterances, so the others must lose the tags of the
+        // previous run. The reset is in this transaction so that a failure keeps the old tags.
+        if (utteranceDiscussionStatuses) {
+            await tx.utterance.updateMany({
+                where: { speakerSegment: { meetingId: councilMeetingId, cityId } },
+                data: { discussionStatus: null, discussionSubjectId: null }
+            });
+            if (utteranceDiscussionStatuses.length > 0) {
+                await applyUtteranceDiscussionStatusesInTx(tx, utteranceDiscussionStatuses, subjectIdMap);
+            }
         }
     }, { timeout: 60000 });
 
