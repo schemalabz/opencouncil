@@ -2,6 +2,7 @@ import 'server-only';
 import { buildPrompt, generate, listStoredSubjectIds, resolve, store, toWebp, type ResolvedImage } from '@opencouncil/subject-images';
 import { env } from '@/env.mjs';
 import { cacheAcquire, cacheDelete, cacheGetJSON, cacheSetJSON, isCacheConfigured } from '@/lib/cache/valkey';
+import { claimAlertWindow } from '@/lib/cache/alertWindow';
 import { getSubjectIdsForMeeting, getSubjectPromptInput } from '@/lib/db/subject';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { getRealmDisplayName } from '@/lib/realm';
@@ -48,8 +49,6 @@ const QUOTA_PAUSE_S = 60 * 60;
 
 /** This process's runs; the Valkey claim is what the other containers see. */
 const inFlight = new Map<string, Promise<GenerateOutcome>>();
-/** When this process last alerted on a lookup failure: the marker's stand-in without CACHE_URL. */
-let lookupAlertedAt = 0;
 /** Until when this process pauses after a quota 429: the marker's stand-in without CACHE_URL. */
 let quotaPausedUntil = 0;
 
@@ -128,10 +127,7 @@ export function listSubjectsWithImages(): Promise<Set<string>> {
  * it — once per window, not once per card per page view.
  */
 export async function reportLookupFailure(subjectId: string, error: unknown): Promise<void> {
-    const claim = await cacheAcquire(LOOKUP_ALERT_KEY, LOOKUP_ALERT_TTL_S);
-    const windowOpen = Date.now() - lookupAlertedAt >= LOOKUP_ALERT_TTL_S * 1000;
-    if (claim === 'acquired' || (claim === 'unavailable' && windowOpen)) {
-        lookupAlertedAt = Date.now();
+    if (await claimAlertWindow(LOOKUP_ALERT_KEY, LOOKUP_ALERT_TTL_S)) {
         reportFailure(`Subject image lookup failed for ${subjectId}`, error, { subjectId });
     } else {
         console.error(`Subject image lookup failed for ${subjectId}:`, error);

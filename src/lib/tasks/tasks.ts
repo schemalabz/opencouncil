@@ -6,6 +6,7 @@ import "server-only";
 
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
+import { lockKey } from '@/lib/db/advisoryLock';
 import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, type TaskConfig } from '@/lib/tasks/types';
 import { PipelineBusyError } from '@/lib/tasks/types';
 import { findConflictingTask } from './pipelineRules';
@@ -120,9 +121,7 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
     // and the second one reads the row the first one committed. Checks
     // outside this transaction would let both pass and both pay.
     const newTask = await prisma.$transaction(async (tx) => {
-        // $executeRaw, not $queryRaw: the lock function returns void, which
-        // the query client cannot deserialize.
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${cityId}:${councilMeetingId}`}))`;
+        await lockKey(tx, `${cityId}:${councilMeetingId}`);
 
         // A step that would work on rows another running step is about to
         // replace is refused, force or not. The automatic fixTranscript after a
