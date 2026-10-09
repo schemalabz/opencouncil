@@ -92,6 +92,17 @@ A body admin can also do these things:
   the minutes of the old term. A claim link claims the whole person, so it
   goes only to a member whose every role is on the body. A member with a seat
   elsewhere in the municipality gets their link from the city admin.
+
+A person whose every role is on a secondary body consents to a voiceprint from
+their own account only (#829). `voiceprintNeedsOwnConsent` in
+`src/lib/utils/bodyTier.ts` names the rule. A superadmin cannot record a
+consent for them, and no voiceprint task starts for them without that consent.
+The consent counts only from the account that claimed their page: a delegate
+that a superadmin added cannot give it, and a consent from any other account
+does not start a voiceprint. The same account alone adds their photo.
+`withPersonImageAuthorized` in `src/lib/db/personImage.ts` refuses a photo from
+any other account, and the member form of a secondary body offers no photo
+field.
 - Change the YouTube channel and the contact emails of their body.
 - Invite and remove the admins of their body through
   `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
