@@ -84,6 +84,14 @@ A body admin can also do these things:
 - Add and edit the members of their bodies. Every role in the payload must be
   on a body that they hold. `getRoleLimitForCity` and
   `validateRolesForBodyAdmin` apply this rule.
+- Run the roster tools of their bodies (#829): import a pasted list of
+  members, end a membership, start a new term, and make the claim links of the
+  members who have no account. `src/lib/db/bodyMembers.ts` gates each one on
+  the body. An import with no start date starts the memberships where the
+  last membership of the body ended, so the members of a new term stay out of
+  the minutes of the old term. A claim link claims the whole person, so it
+  goes only to a member whose every role is on the body. A member with a seat
+  elsewhere in the municipality gets their link from the city admin.
 - Change the YouTube channel and the contact emails of their body.
 - Invite and remove the admins of their body through
   `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.

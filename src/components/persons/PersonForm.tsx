@@ -48,9 +48,11 @@ interface PersonFormProps {
     canEditRoles?: boolean
     /** The kinds of role the editor offers; see RolesList. */
     roleTypes?: RoleType[]
+    /** The start date of a new role before the editor touches it; see RolesList. */
+    defaultRoleStart?: Date | null
 }
 
-export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId, canEditRoles = true, roleTypes }: PersonFormProps) {
+export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId, canEditRoles = true, roleTypes, defaultRoleStart }: PersonFormProps) {
     const router = useRouter()
     const [removeImage, setRemoveImage] = useState(false)
     const [cropFile, setCropFile] = useState<File | null>(null)
@@ -311,6 +313,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                             administrativeBodies={administrativeBodies}
                             onUpdate={setRoles}
                             roleTypes={roleTypes}
+                            defaultStartDate={defaultRoleStart}
                         />
                     </div>
                 )}

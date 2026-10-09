@@ -70,9 +70,15 @@ interface RolesListProps {
      * offers no city role and no party role.
      */
     roleTypes?: RoleType[];
+    /**
+     * The start date a new role gets before the editor touches it. The body
+     * page passes where the last membership of the body ended (#829), so a
+     * member added after a new term does not count at the old term's meetings.
+     */
+    defaultStartDate?: Date | null;
 }
 
-export default function RolesList({ personId, cityId, roles, parties, administrativeBodies, onUpdate, roleTypes = ALL_ROLE_TYPES }: RolesListProps) {
+export default function RolesList({ personId, cityId, roles, parties, administrativeBodies, onUpdate, roleTypes = ALL_ROLE_TYPES, defaultStartDate = null }: RolesListProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [startDateOpen, setStartDateOpen] = useState(false)
     const [endDateOpen, setEndDateOpen] = useState(false)
@@ -87,7 +93,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             name: editingRole?.name || "",
             name_en: editingRole?.name_en || "",
             isHead: editingRole?.isHead || false,
-            startDate: editingRole?.startDate || null,
+            startDate: editingRole ? editingRole.startDate || null : defaultStartDate,
             endDate: editingRole?.endDate || null,
             type: editingRole?.partyId ? 'party' : editingRole?.administrativeBodyId ? 'administrativeBody' : roleTypes[0],
             partyId: editingRole?.partyId || undefined,
@@ -140,7 +146,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             name: "",
             name_en: "",
             isHead: false,
-            startDate: null,
+            startDate: defaultStartDate,
             endDate: null,
             type: roleTypes[0],
             partyId: undefined,
@@ -174,7 +180,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                 name: "",
                                 name_en: "",
                                 isHead: false,
-                                startDate: null,
+                                startDate: defaultStartDate,
                                 endDate: null,
                                 type: roleTypes[0],
                                 partyId: undefined,
