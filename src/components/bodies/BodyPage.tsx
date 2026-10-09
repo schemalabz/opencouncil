@@ -177,6 +177,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                         </TabsContent>
                         <TabsContent value="members" className="mt-6">
                             <BodyMembersTab
+                                canEditImage={!isSecondaryBody(body)}
                                 cityId={city.id}
                                 bodyId={body.id}
                                 people={people}

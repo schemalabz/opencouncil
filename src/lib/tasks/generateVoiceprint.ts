@@ -7,8 +7,28 @@ import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest, GenerateVoiceprintResult } from "../apiTypes";
 import { Prisma, SpeakerSegment } from "@prisma/client";
 import { createVoicePrintDirect } from "@/lib/db/voiceprintsCreate";
+import { voiceprintNeedsOwnConsent } from "@/lib/utils/bodyTier";
 
 const VOICEPRINT_DURATION = 30;
+
+/**
+ * What decides whether an admin may start the voiceprint of a person at
+ * all: a member of a secondary body alone needs a consent from their own
+ * account (#829), the one that claimed their page; a consent that a delegate
+ * gave, or one from before the member's roles changed, does not count.
+ * Anyone else is under the rules of today.
+ */
+const voiceprintConsentSelect = {
+    roles: { select: { administrativeBody: { select: { type: true } } } },
+    voicePrintConsents: { where: { withdrawnAt: null, source: 'PERSON' as const }, select: { userId: true } },
+    administrators: { where: { claimedAt: { not: null } }, select: { userId: true } },
+} satisfies Prisma.PersonSelect;
+
+function mayStartVoiceprint(person: Prisma.PersonGetPayload<{ select: typeof voiceprintConsentSelect }>): boolean {
+    if (!voiceprintNeedsOwnConsent(person.roles)) return true;
+    const own = new Set(person.administrators.map(row => row.userId));
+    return person.voicePrintConsents.some(consent => consent.userId !== null && own.has(consent.userId));
+}
 
 /**
  * A person's speaker tags, with what decides whether their audio may become the
@@ -79,14 +99,17 @@ export async function findEligiblePeopleForVoiceprintGeneration(cityId: string):
         select: {
             id: true,
             name: true,
+            ...voiceprintConsentSelect,
             speakerTags: {
                 include: voiceprintCandidateTagInclude
             }
         }
     });
 
-    // Filter to only those with a usable segment longer than VOICEPRINT_DURATION
+    // Filter to only those with a usable segment longer than VOICEPRINT_DURATION,
+    // and leave out a person whose own consent is missing.
     const eligiblePeople = peopleWithoutVoiceprints.filter(person =>
+        mayStartVoiceprint(person) &&
         voiceprintSourceSegments(person.speakerTags).some(segment =>
             segment.endTimestamp - segment.startTimestamp >= VOICEPRINT_DURATION
         )
@@ -145,6 +168,14 @@ export async function requestGenerateVoiceprintsForCity(cityId: string) {
  * Request to generate a voiceprint for a person
  */
 export async function requestGenerateVoiceprint(personId: string) {
+    const consent = await prisma.person.findUnique({ where: { id: personId }, select: voiceprintConsentSelect });
+    if (!consent) {
+        throw new Error("Person not found");
+    }
+    if (!mayStartVoiceprint(consent)) {
+        throw new Error("This person has not consented to a voiceprint from their own account; no voiceprint can be made for them.");
+    }
+
     // Find the longest speaker segment for this person
     const segment = await findLongestSpeakerSegmentForPerson(personId);
 

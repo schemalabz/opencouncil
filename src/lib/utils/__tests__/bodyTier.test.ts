@@ -2,6 +2,7 @@ import { AdministrativeBodyType } from '@prisma/client';
 import {
     PRIMARY_BODY_TYPES,
     pipelineRunsUnattended,
+    voiceprintNeedsOwnConsent,
     SECONDARY_BODY_TYPES,
     bodyTier,
     defaultNotificationBehavior,
@@ -46,6 +47,14 @@ describe('bodyTier', () => {
         expect(pipelineRunsUnattended({ type: 'youthCouncil' })).toBe(true);
         expect(pipelineRunsUnattended({ type: 'council' })).toBe(false);
         expect(pipelineRunsUnattended(null)).toBe(false);
+    });
+
+    it('asks the own consent of a person whose every role is on a secondary body before a voiceprint', () => {
+        const youth = { administrativeBody: { type: 'youthCouncil' as const } };
+        const council = { administrativeBody: { type: 'council' as const } };
+        expect(voiceprintNeedsOwnConsent([youth])).toBe(true);
+        expect(voiceprintNeedsOwnConsent([youth, council])).toBe(false);
+        expect(voiceprintNeedsOwnConsent([])).toBe(false);
     });
 
     it('counts a person on the municipality\'s roster unless every role is on a secondary body', () => {

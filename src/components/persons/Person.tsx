@@ -41,7 +41,7 @@ import { meetingLabel } from '@/lib/meetingName';
 // the rows below. One line still measures 24px: 2px border, 8px padding, 14px line.
 const headerChipClass = 'inline-flex items-start gap-1.5 rounded-[12px] border px-2.5 py-1 text-[11.5px] font-bold leading-[14px]';
 
-export default function PersonC({ city, person, parties, administrativeBodies, statistics, contributionTopics, editableBodyIds }: {
+export default function PersonC({ city, person, parties, administrativeBodies, statistics, contributionTopics, editableBodyIds, canEditImage }: {
     city: City,
     person: PersonWithRelations,
     parties: Party[],
@@ -54,6 +54,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
      * own page and edits name and photo only.
      */
     editableBodyIds?: string[],
+    /** Whether the viewer may set the photo (see lib/db/personImage.ts). */
+    canEditImage: boolean,
 }) {
     const t = useTranslations('Person');
     const tCommon = useTranslations('Common');
@@ -317,8 +319,9 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                                 parties: [],
                                                 administrativeBodies: administrativeBodies.filter(body => editableBodyIds.includes(body.id)),
                                                 canEditRoles: editableBodyIds.length > 0,
+                                                canEditImage,
                                             }
-                                            : { person, cityId: person.cityId, parties, administrativeBodies }}
+                                            : { person, cityId: person.cityId, parties, administrativeBodies, canEditImage }}
                                         title={t('editPerson')}
                                         type="edit"
                                         triggerVariant="ghost"

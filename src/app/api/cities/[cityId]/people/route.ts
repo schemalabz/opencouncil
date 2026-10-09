@@ -9,6 +9,8 @@ import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import { getRoleLimitForCity } from '@/lib/auth'
 import { validateRoles, validateRolesForBodyAdmin } from '@/lib/utils/roles'
+import { rolesWithBodyType, withPersonImageAuthorized } from '@/lib/db/personImage'
+import { handleApiError } from '@/lib/api/errors'
 
 export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -57,6 +59,15 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
     } catch (error) {
         console.error('Error validating roles:', error);
         return NextResponse.json({ error: 'Failed to validate roles' }, { status: 500 });
+    }
+
+    // Before the upload, so a refused photo leaves no file behind (#829).
+    if (image) {
+        try {
+            await withPersonImageAuthorized(await rolesWithBodyType(roles), null)
+        } catch (error) {
+            return handleApiError(error, 'Failed to create person')
+        }
     }
 
     let imageUrl: string | undefined = undefined

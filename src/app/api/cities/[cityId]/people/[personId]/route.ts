@@ -9,6 +9,8 @@ import { parseFormData } from '@/lib/api/form-data-parser'
 import { personUpdateFormDataSchema, type PersonUpdateFormData } from '@/lib/zod-schemas/person'
 import { isUserAuthorizedToEdit, getRoleLimitForCity } from '@/lib/auth'
 import { validateRoles, validateRolesForBodyAdmin } from '@/lib/utils/roles'
+import { rolesOfPerson, rolesWithBodyType, withPersonImageAuthorized } from '@/lib/db/personImage'
+import { handleApiError } from '@/lib/api/errors'
 
 export async function GET(
     request: Request,
@@ -68,6 +70,15 @@ export async function PUT(
     } catch (error) {
         console.error('Error validating roles:', error);
         return NextResponse.json({ error: 'Failed to validate roles' }, { status: 500 });
+    }
+
+    // Before the upload, so a refused photo leaves no file behind (#829).
+    if (image) {
+        try {
+            await withPersonImageAuthorized(roles ? await rolesWithBodyType(roles) : await rolesOfPerson(params.personId), params.personId)
+        } catch (error) {
+            return handleApiError(error, 'Failed to update person')
+        }
     }
 
     let imageUrl: string | undefined = undefined

@@ -5,6 +5,7 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit, getRoleLimitForCity } from "@/lib/auth";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
 import { validateRolesForBodyAdmin } from "@/lib/utils/roles";
+import { rolesOfPerson, rolesWithBodyType, withPersonImageAuthorized } from "@/lib/db/personImage";
 import { isSecondaryBody } from "@/lib/utils/bodyTier";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
@@ -43,6 +44,7 @@ export async function createPerson(data: {
     roles: PersonRoleData[];
 }): Promise<Person> {
     await withRolesAuthorized(data.cityId, data.roles);
+    if (data.image) await withPersonImageAuthorized(await rolesWithBodyType(data.roles), null);
     try {
         const newPerson = await prisma.person.create({
             data: {
@@ -110,6 +112,8 @@ export async function editPerson(id: string, data: {
         if (!person) throw new Error('Person not found');
         await withRolesAuthorized(person.cityId, data.roles);
     }
+    // The roles after the write decide whose photo it is.
+    if (data.image) await withPersonImageAuthorized(data.roles ? await rolesWithBodyType(data.roles) : await rolesOfPerson(id), id);
     const roles = data.roles;
     try {
         const updatedPerson = await prisma.$transaction(async (tx) => {

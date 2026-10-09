@@ -23,6 +23,8 @@ interface BodyMembersTabProps {
     canEdit: boolean;
     formBodies: AdministrativeBody[];
     parties: Party[];
+    /** Whether the member form offers a photo: not for a secondary body, whose members add their own (#829). */
+    canEditImage: boolean;
 }
 
 /**
@@ -31,7 +33,7 @@ interface BodyMembersTabProps {
  * which offers this body alone, imports a pasted list, ends a membership, or
  * starts a new term (#829).
  */
-export function BodyMembersTab({ cityId, bodyId, people, members, canEdit, formBodies, parties }: BodyMembersTabProps) {
+export function BodyMembersTab({ cityId, bodyId, people, members, canEdit, formBodies, parties, canEditImage }: BodyMembersTabProps) {
     const t = useTranslations('body');
     const router = useRouter();
     const { toast } = useToast();
@@ -84,7 +86,7 @@ export function BodyMembersTab({ cityId, bodyId, people, members, canEdit, formB
                         <div className="flex flex-wrap items-center gap-2">
                             <FormSheet
                                 FormComponent={PersonForm}
-                                formProps={{ cityId, parties, administrativeBodies: formBodies }}
+                                formProps={{ cityId, parties, administrativeBodies: formBodies, canEditImage }}
                                 title={t('addMember')}
                                 type="add"
                                 triggerVariant="outline"
