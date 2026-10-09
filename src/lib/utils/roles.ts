@@ -660,3 +660,26 @@ export function getRoleLabelAt(
   const primary = getPrimaryRole(filterActiveRoles(roles ?? [], at));
   return primary ? getRoleText(primary, titles) : null;
 }
+
+/**
+ * Where the last membership of a body ended (#829): the latest end date of a
+ * role on the body that has passed, or null when none has. The member form
+ * starts a new membership there, as the roster import does
+ * (lastMembershipEnd in db/bodyMembers.ts): a membership with an open start
+ * would count at every past meeting of the body.
+ */
+export function lastMembershipEndOf(
+    people: { roles: { administrativeBodyId: string | null; endDate: Date | null }[] }[],
+    bodyId: string,
+    now: Date = new Date(),
+): Date | null {
+    let last: Date | null = null;
+    for (const person of people) {
+        for (const role of person.roles) {
+            if (role.administrativeBodyId !== bodyId || !role.endDate) continue;
+            const end = new Date(role.endDate);
+            if (end.getTime() <= now.getTime() && (!last || end.getTime() > last.getTime())) last = end;
+        }
+    }
+    return last;
+}
