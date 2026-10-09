@@ -9,6 +9,7 @@ import { requestTranscribeInternal } from "./transcribeInternal";
 import { sendLivestreamMatchedAlert, sendLivestreamMultipleMeetingsAlert, sendLivestreamRetriesExhaustedAlert } from "../discord";
 import type { MeetingKind } from "@prisma/client";
 import { meetingLabelInCity } from "@/lib/meetingName";
+import { PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 
 /** ±12h around a meeting's scheduled time — the window in which its livestream appears. */
 const WINDOW_MS = 12 * 60 * 60 * 1000;
@@ -190,6 +191,10 @@ export async function pollLivestreamsForRecentMeetings(
         where: {
             dateTime: { gte: windowStart, lte: windowEnd },
             administrativeBody: { youtubeChannelUrl: { not: null } },
+            // A postponed meeting in the window would take the stream of its
+            // new meeting. A meeting by circulation has no stream.
+            ...TAKES_PLACE_WHERE,
+            ...PUBLIC_RECORDING_WHERE,
         },
         include: {
             administrativeBody: true,

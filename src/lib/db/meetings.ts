@@ -20,7 +20,7 @@ import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
 import { deleteMeetingRecord, setMeetingReleased } from "./meetingLifecycle";
-import { LifecycleRuleError, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
+import { LifecycleRuleError, PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { hideLinks } from "@/lib/meetingPublic";
 import { DECISION_KIND_SELECT } from "@/lib/tasks/pollDecisionsBackoff";
 // List reads and their payload types live in meetingsList.ts. Re-exported here
@@ -332,6 +332,10 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
             where: {
                 AND: [
                     { city: CUSTOMER_CITY_WHERE },
+                    // A postponed or cancelled meeting has nothing to upload, and
+                    // a meeting by circulation takes no transcription.
+                    TAKES_PLACE_WHERE,
+                    PUBLIC_RECORDING_WHERE,
                     {
                         NOT: {
                             taskStatuses: {
@@ -352,7 +356,8 @@ export async function getMeetingUploadLists(last30Days: boolean = false): Promis
         prisma.councilMeeting.findMany({
             where: {
                 dateTime: { gt: now },
-                city: CUSTOMER_CITY_WHERE
+                city: CUSTOMER_CITY_WHERE,
+                ...TAKES_PLACE_WHERE,
             },
             select: meetingListItemSelect,
             orderBy: { dateTime: 'asc' }

@@ -9,6 +9,8 @@ import { requestTranscribeInternal, deleteExistingSpeakerData } from "./transcri
 import { requestFixTranscriptInternal } from "./fixTranscriptInternal";
 import { autoTriggerTask } from "./autoTrigger";
 import { meetingLabelInCity } from '@/lib/meetingName';
+import { ConflictError, NotFoundError } from '@/lib/api/errors';
+import { PipelineBusyError, TaskAlreadyExistsError } from './types';
 
 // Full-precision doubles are near-incompressible and inflate the meeting page
 // payload; 4 significant figures is far finer than the ASR signal warrants.
@@ -17,13 +19,26 @@ const round4 = (v: number | null | undefined) => (v == null ? null : Number(v.to
 /**
  * Public entry point for transcription. Authorizes the caller, then delegates to
  * requestTranscribeInternal (which the unauthenticated poll-livestreams cron also calls).
+ * A refusal comes back as a value: production Next hides the message of an
+ * error that a Server Action throws.
  */
 export async function requestTranscribe(youtubeUrl: string, councilMeetingId: string, cityId: string, options: {
     force?: boolean;
-} = {}) {
+} = {}): Promise<{ ok: true } | { ok: false; message: string }> {
     await withUserAuthorizedToEdit({ cityId });
 
-    return requestTranscribeInternal(youtubeUrl, councilMeetingId, cityId, options);
+    try {
+        await requestTranscribeInternal(youtubeUrl, councilMeetingId, cityId, options);
+        return { ok: true };
+    } catch (error) {
+        // Every refusal that an admin can act on comes back as a value:
+        // production Next hides the message of an error that a Server Action throws.
+        if (error instanceof ConflictError || error instanceof NotFoundError
+            || error instanceof PipelineBusyError || error instanceof TaskAlreadyExistsError) {
+            return { ok: false, message: error.message };
+        }
+        throw error;
+    }
 }
 
 export async function handleTranscribeResult(taskId: string, response: TranscribeResult, options?: { force?: boolean }) {
