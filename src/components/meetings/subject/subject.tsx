@@ -54,7 +54,7 @@ import { SubjectImage } from '@/components/subject/SubjectImage';
 import { SubjectImageAdminControls } from '@/components/subject/SubjectImageAdminControls';
 import { adminToolClass } from '@/components/admin/AdminStrip';
 import { AIDisclosure } from '@/components/AIDisclosure';
-import { hasPublicRecording } from '@/lib/meetingLifecycleRules';
+import { noRecordingReason } from '@/lib/meetingLifecycleRules';
 
 /**
  * `related` is the related-subjects section, rendered by the page on the
@@ -431,7 +431,11 @@ export default function Subject({ subjectId, highlightedContributionId, related,
                             {(!contributions || contributions.length === 0) ? (
                                 pending
                                     ? <PendingNote what="statements" kind={pending} deadline={deadline} className="mt-4" />
-                                    : <p className="mt-4 text-sm text-muted-foreground">{t(hasPublicRecording(meeting) ? "noStatements" : "noStatementsByCirculation")}</p>
+                                    : <p className="mt-4 text-sm text-muted-foreground">{t(
+                                        noRecordingReason(meeting) === null ? "noStatements"
+                                            : noRecordingReason(meeting) === 'byCirculation' ? "noStatementsByCirculation"
+                                                : "noStatementsNotRecorded",
+                                    )}</p>
                             ) : (
                                 <div className="divide-y divide-border">
                                     {contributions.map(contribution => (
