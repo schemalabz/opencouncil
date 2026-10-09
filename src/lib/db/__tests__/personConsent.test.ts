@@ -6,6 +6,8 @@ const txFindFirst = jest.fn();
 const txCreate = jest.fn();
 const txUpdate = jest.fn();
 const txAdministers = jest.fn();
+const txPersonFindUnique = jest.fn();
+const mockPersonFindUnique = jest.fn();
 jest.mock('@/lib/db/prisma', () => ({
     __esModule: true,
     default: {
@@ -13,6 +15,7 @@ jest.mock('@/lib/db/prisma', () => ({
             findMany: (...args: unknown[]) => mockFindMany(...args),
             findFirst: (...args: unknown[]) => mockFindFirst(...args),
         },
+        person: { findUnique: (...args: unknown[]) => mockPersonFindUnique(...args) },
         $transaction: (...args: unknown[]) => mockTransaction(...args),
     },
 }));
@@ -30,7 +33,10 @@ import {
 const tx = {
     voicePrintConsent: { findFirst: txFindFirst, create: txCreate, update: txUpdate },
     administers: { findFirst: txAdministers },
+    person: { findUnique: (...args: unknown[]) => txPersonFindUnique(...args) },
 };
+const councillorRoles = { roles: [{ administrativeBody: { type: 'council' } }] };
+const youthOnlyRoles = { roles: [{ administrativeBody: { type: 'youthCouncil' } }] };
 const claimedAt = new Date('2026-09-16T10:00:00Z');
 // The person's own account, by a QR claim.
 const owner = { id: 'user-1', isSuperAdmin: false, administers: [{ personId: 'person-1', claimedAt }] };
@@ -42,7 +48,8 @@ const closed = { where: { id: 'consent-1' }, data: { withdrawnAt: expect.any(Dat
 const created = (userId: string, source?: 'ADMIN') => ({ data: { personId: 'person-1', userId, ...(source ? { source } : {}) } });
 
 beforeEach(() => {
-    for (const m of [mockFindMany, mockFindFirst, mockTransaction, txFindFirst, txCreate, txUpdate, txAdministers, mockGetCurrentUser]) m.mockReset();
+    for (const m of [mockFindMany, mockFindFirst, mockTransaction, txFindFirst, txCreate, txUpdate, txAdministers, txPersonFindUnique, mockGetCurrentUser]) m.mockReset();
+    txPersonFindUnique.mockResolvedValue(councillorRoles);
     mockTransaction.mockImplementation(async (fn: (client: typeof tx) => unknown) => fn(tx));
     txAdministers.mockResolvedValue({ id: 'row-1' });
     txFindFirst.mockResolvedValue(null);
@@ -60,6 +67,24 @@ describe('setVoicePrintConsent', () => {
         mockGetCurrentUser.mockResolvedValue(delegate);
         await setVoicePrintConsent('person-1', true);
         expect(txCreate).toHaveBeenCalledWith(created('assistant'));
+    });
+
+    // A youth council has members under 18: only the member, from the account
+    // that claimed their page, says yes. A delegate a superadmin added cannot.
+    it('refuses a delegate for a member of a secondary body alone, and accepts the claimed account (#829)', async () => {
+        txPersonFindUnique.mockResolvedValue(youthOnlyRoles);
+        mockGetCurrentUser.mockResolvedValue(delegate);
+        txAdministers.mockResolvedValue({ id: 'row-1', claimedAt: null });
+        await expect(setVoicePrintConsent('person-1', true)).rejects.toThrow('claimed their page');
+        expect(txCreate).not.toHaveBeenCalled();
+
+        mockGetCurrentUser.mockResolvedValue(owner);
+        txAdministers.mockResolvedValue({ id: 'row-1', claimedAt });
+        txPersonFindUnique.mockClear();
+        await setVoicePrintConsent('person-1', true);
+        expect(txCreate).toHaveBeenCalledWith(created('user-1'));
+        // The claimed account asks nothing of the roles.
+        expect(txPersonFindUnique).not.toHaveBeenCalled();
     });
 
     it('keeps the open period on a repeat tick, whoever opened it, so the original time stands', async () => {
@@ -117,7 +142,7 @@ describe('setVoicePrintConsent', () => {
         await expect(setVoicePrintConsent('person-1', false)).rejects.toThrow(/administers the person/);
         expect(txCreate).not.toHaveBeenCalled();
         expect(txUpdate).not.toHaveBeenCalled();
-        expect(txAdministers).toHaveBeenCalledWith({ where: { userId: 'user-1', personId: 'person-1' }, select: { id: true } });
+        expect(txAdministers).toHaveBeenCalledWith({ where: { userId: 'user-1', personId: 'person-1' }, select: { id: true, claimedAt: true } });
     });
 
     it('runs serializable, and retries once when a grant and a withdrawal collide', async () => {
@@ -153,6 +178,26 @@ describe('setVoicePrintConsent', () => {
 });
 
 describe('recordVoicePrintConsent', () => {
+    beforeEach(() => {
+        // A person of the municipality's own roster: a council seat.
+        mockPersonFindUnique.mockResolvedValue({ roles: [{ administrativeBody: { type: 'council' } }] });
+    });
+
+    it('refuses to record a consent for a person whose every role is on a secondary body (#829)', async () => {
+        mockGetCurrentUser.mockResolvedValue(superadmin);
+        mockPersonFindUnique.mockResolvedValue({ roles: [{ administrativeBody: { type: 'youthCouncil' } }] });
+        await expect(recordVoicePrintConsent('person-1', true)).rejects.toThrow('own account');
+        expect(mockTransaction).not.toHaveBeenCalled();
+    });
+
+    it('still withdraws the consent of such a person on their request', async () => {
+        mockGetCurrentUser.mockResolvedValue(superadmin);
+        mockPersonFindUnique.mockResolvedValue({ roles: [{ administrativeBody: { type: 'youthCouncil' } }] });
+        txFindFirst.mockResolvedValue(open('PERSON'));
+        await recordVoicePrintConsent('person-1', false);
+        expect(txUpdate).toHaveBeenCalledWith(closed);
+    });
+
     it('opens an ADMIN period under the superadmin, for a person with no consent', async () => {
         mockGetCurrentUser.mockResolvedValue(superadmin);
         await recordVoicePrintConsent('person-1', true);
