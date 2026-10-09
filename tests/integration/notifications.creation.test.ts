@@ -109,6 +109,41 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         expect(nInterested.subjects.some((s) => s.subjectId === subjectB.id && s.reason === 'generalInterest')).toBeTruthy()
     })
 
+    test('a meeting of a secondary body reaches the readers who follow the body, and nobody else (#829)', async () => {
+        const city = await createCity({ id: 'c5', name_municipality: 'Y', name_municipality_en: 'Y' })
+        const youth = await createAdministrativeBody(city.id, { name: 'ΔΣΝ', name_en: 'Youth', type: 'youthCouncil' })
+        const council = await createAdministrativeBody(city.id)
+        const youthMeeting = await createMeeting(city.id, { id: 'm_youth', administrativeBodyId: youth.id })
+        const councilMeeting = await createMeeting(city.id, { id: 'm_council', administrativeBodyId: council.id })
+        await createSubject(youthMeeting.id, city.id, { id: 'sy', topicId: null, locationId: null, name: 'Youth high' })
+        await createSubject(councilMeeting.id, city.id, { id: 'sc', topicId: null, locationId: null, name: 'Council high' })
+
+        // A subscriber of the city who also follows the youth council, a
+        // subscriber of the city alone, and a reader who signed up for the
+        // youth council alone, in a municipality without notifications.
+        // The follower picked a topic the youth agenda does not carry: the
+        // follow, not the topic, decides for the youth meeting.
+        const culture = await createTopic('t_culture', { name: 'Πολιτισμός', name_en: 'Culture' })
+        const follower = await createUser('follower@example.com')
+        await createNotificationPreference({ userId: follower.id, cityId: city.id, bodyIds: [youth.id], topicIds: [culture.id] })
+        const resident = await createUser('resident@example.com')
+        await createNotificationPreference({ userId: resident.id, cityId: city.id })
+        const youthOnly = await createUser('youth-only@example.com')
+        await createNotificationPreference({ userId: youthOnly.id, cityId: city.id, bodyIds: [youth.id], bodiesOnly: true })
+
+        const high = { topicImportance: 'high' as const, proximityImportance: 'none' as const }
+        // The youth subject keeps a pasted agenda's importance: normal, with no topic.
+        const youthResult = await createNotificationsForMeeting(city.id, youthMeeting.id, 'beforeMeeting')
+        const councilResult = await createNotificationsForMeeting(city.id, councilMeeting.id, 'beforeMeeting', { sc: high })
+
+        expect(youthResult.notificationsCreated).toBe(2)
+        expect(councilResult.notificationsCreated).toBe(2)
+        const notified = async (meetingId: string) =>
+            (await prisma.notification.findMany({ where: { meetingId }, include: { user: true } })).map((n) => n.user.email).sort()
+        expect(await notified(youthMeeting.id)).toEqual(['follower@example.com', 'youth-only@example.com'])
+        expect(await notified(councilMeeting.id)).toEqual(['follower@example.com', 'resident@example.com'])
+    })
+
     test("respects the preference's notifyByEmail and the person's notifyByPhone", async () => {
         const city = await createCity({ id: 'c4', name_municipality: 'X', name_municipality_en: 'X' })
         const body = await createAdministrativeBody(city.id)

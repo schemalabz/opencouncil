@@ -16,13 +16,18 @@ export interface FanoutLocation {
   lat: number | null;
 }
 
-export function topicNames(value: unknown): string[] {
+/** The non-empty strings under `key` in a JSON array of objects, as the views' columns hold them. */
+function stringsOf(value: unknown, key: string): string[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((entry) =>
-      typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>).name : null,
+      typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>)[key] : null,
     )
     .filter((v): v is string => typeof v === "string" && v.length > 0);
+}
+
+export function topicNames(value: unknown): string[] {
+  return stringsOf(value, "name");
 }
 
 export function locationPoints(value: unknown): FanoutLocation[] {
@@ -41,6 +46,16 @@ export function locationPoints(value: unknown): FanoutLocation[] {
     .filter((v): v is FanoutLocation => v !== null);
 }
 
+/** The ids of the bodies a target follows on their own (#829), from the view's loosely-typed column. */
+export function followedBodyIds(value: unknown): string[] {
+  return stringsOf(value, "id");
+}
+
+/** The names of those bodies, as the prompt and the seeded profile say them. */
+export function followedBodyNames(value: unknown): string[] {
+  return stringsOf(value, "name");
+}
+
 export function toCityPreferences(rows: FanoutTargetRow[]): CityPreference[] {
   return rows.map((row) => ({
     cityId: row.cityId,
@@ -50,6 +65,10 @@ export function toCityPreferences(rows: FanoutTargetRow[]): CityPreference[] {
       text,
       ...(lng !== null && lat !== null ? { lng, lat } : {}),
     })),
+    // The follow travels with the preference: the poller woke this reader
+    // for the body, and the agent must know they asked for it.
+    bodies: followedBodyNames(row.bodies),
+    bodiesOnly: row.bodiesOnly,
   }));
 }
 

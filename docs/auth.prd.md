@@ -92,7 +92,8 @@ A body admin can also do these things:
   the minutes of the old term. A claim link claims the whole person, so it
   goes only to a member whose every role is on the body. A member with a seat
   elsewhere in the municipality gets their link from the city admin.
-- Change the YouTube channel and the contact emails of their body.
+- Change the YouTube channel and the contact emails of their body. On a
+  secondary body, switch the updates to its followers on and off (#829).
 - Invite and remove the admins of their body through
   `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
 - Open the embed configurator of their body, at `/{cityId}/widget?body={bodyId}`

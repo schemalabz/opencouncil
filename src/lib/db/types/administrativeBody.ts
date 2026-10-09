@@ -64,3 +64,11 @@ export type AdministrativeBodySettings = Omit<
 export type AdministrativeBodyWithSettings = Omit<AdministrativeBody, 'decisionConventions'> & {
     decisionConventions: DecisionConventions | null;
 };
+
+/**
+ * A public body with the one fact of its settings that a reader acts on:
+ * whether its meetings send updates (#829). The signup reads it. It carries
+ * the fact, not the notification behaviour: whether a notification waits for
+ * an approval is the municipality's own setting.
+ */
+export type PublicAdministrativeBodyWithUpdates = PublicAdministrativeBody & { sendsUpdates: boolean };

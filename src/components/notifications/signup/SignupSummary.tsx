@@ -19,10 +19,13 @@ import type { SignupState } from './signup-state';
  */
 export function SignupSummary({
     city,
+    scope = 'city',
     state,
     onEdit,
 }: {
     city: CityWithGeometry;
+    /** A signup for bodies alone (#829) has no places and no topics to show. */
+    scope?: 'city' | 'bodies';
     state: SignupState;
     onEdit: () => void;
 }) {
@@ -41,6 +44,7 @@ export function SignupSummary({
             </div>
 
             <dl className="mt-4 flex flex-col gap-3.5">
+                {scope === 'city' && (<>
                 <SummaryRow label={t('summaryPlaces')}>
                     {state.locations.length > 0 ? (
                         <ul className="flex flex-col gap-1">
@@ -66,6 +70,12 @@ export function SignupSummary({
                         <span className="text-sm text-muted-foreground">{t('summaryAllTopics')}</span>
                     )}
                 </SummaryRow>
+                </>)}
+                {state.bodies.length > 0 && (
+                    <SummaryRow label={t('summaryBodies')}>
+                        <span className="text-sm">{state.bodies.map((body) => getLocalizedName(body, locale)).join(' · ')}</span>
+                    </SummaryRow>
+                )}
                 <SummaryRow label={t('summaryChannels')}>
                     <span className={cn('text-sm', channels.length === 0 && 'text-muted-foreground')}>
                         {channels.length > 0 ? channels.join(' · ') : t('summaryNoChannel')}

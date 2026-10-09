@@ -65,6 +65,16 @@
     "close": "Close topics",
     "footer": "Optional. With none chosen, Notis decides on his own."
   },
+  "bodies": {
+    "title": "Other bodies of the municipality",
+    "hint": "You get their updates only if you tick them."
+  },
+  "bodiesOnly": {
+    "title": "Which body do you want to follow?",
+    "lead": "The municipality does not send updates about its council yet. You get the updates of the bodies you pick, and nothing else.",
+    "choicesTitle": "Bodies you follow",
+    "choicesHint": "Every published meeting of theirs sends you an update."
+  },
   "channelsTitle": "Where should we write?",
   "channelsLead": "On your phone, by email, or both.",
   "phoneChannel": "WhatsApp or SMS",
@@ -113,5 +123,6 @@
   "pickerPreview": "See what it looks like",
   "noCityTitle": "Don't see your municipality here?",
   "noCityCta": "Ask for your municipality to be supported",
-  "pickerChannels": "Notifications arrive by WhatsApp or SMS — and by email, if you like."
+  "pickerChannels": "Notifications arrive by WhatsApp or SMS — and by email, if you like.",
+  "summaryBodies": "Other bodies"
 }
