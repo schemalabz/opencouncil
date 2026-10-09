@@ -64,10 +64,15 @@ export function relativeDayLabel(date: Date, now: Date): string {
   return `σε ${diff} ημέρες`;
 }
 
+/** «23/09/2026», the Athens calendar day. */
+export function athensNumericDate(date: Date): string {
+  const p = athensParts(date);
+  return `${p.day}/${p.month}/${p.year}`;
+}
+
 /** «Τετάρτη 23/09/2026». */
 export function athensDate(date: Date): string {
-  const p = athensParts(date);
-  return `${WEEKDAYS_EL[p.weekday]} ${p.day}/${p.month}/${p.year}`;
+  return `${WEEKDAYS_EL[athensParts(date).weekday]} ${athensNumericDate(date)}`;
 }
 
 /** «Τετάρτη 23/09/2026 19:00 ώρα Αθήνας». */

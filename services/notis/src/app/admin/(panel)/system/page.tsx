@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { env } from "@/env.mjs";
 import { WEEKLY_TEMPLATE_CAP } from "@/lib/queue";
+import { meetingLabel } from "../_lib/meetingLabel";
 import { EVENT_LABELS } from "../_lib/records";
 import { DigestedMeetingView, SubjectFanout, getSystemSnapshot } from "../_lib/system";
 import { parsePage } from "../_lib/paging";
@@ -39,15 +40,6 @@ export const dynamic = "force-dynamic";
 
 function fmtUsd(n: number): string {
   return `$${n.toFixed(2)}`;
-}
-
-function fmtMeetingDate(iso: string): string {
-  return new Intl.DateTimeFormat("el-GR", {
-    weekday: "short",
-    day: "numeric",
-    month: "numeric",
-    timeZone: "Europe/Athens",
-  }).format(new Date(iso));
 }
 
 function timeAgo(iso: string, now: Date): string {
@@ -498,13 +490,7 @@ export default async function SystemPage(props: {
                           </span>
                           {(item.adminBodyName || item.meetingDate || item.meetingName) && (
                             <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
-                              {[
-                                item.adminBodyName,
-                                item.meetingDate ? fmtMeetingDate(item.meetingDate) : null,
-                                item.meetingName,
-                              ]
-                                .filter(Boolean)
-                                .join(" · ")}
+                              {meetingLabel({ ...item, adminBody: item.adminBodyName })}
                             </span>
                           )}
                         </span>

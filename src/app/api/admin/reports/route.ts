@@ -4,6 +4,7 @@ import prisma from '@/lib/db/prisma';
 import { calculateMeetingDurationMs } from '@/lib/db/utils/meetingDuration';
 import { renderReportDocx, ReportMeeting } from '@/lib/export/report-docx';
 import { getReportContract } from '@/lib/offers/state';
+import { meetingLabel } from '@/lib/meetingName';
 
 export async function POST(request: NextRequest) {
     await withUserAuthorizedToEdit({});
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     const city = await prisma.city.findUnique({
         where: { id: cityId },
-        select: { id: true, name: true, name_municipality: true },
+        select: { id: true, name: true, name_municipality: true, timezone: true },
     });
 
     if (!city) {
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
             },
         },
         include: {
+            administrativeBody: { select: { name: true, name_en: true } },
             speakerSegments: {
                 select: {
                     utterances: {
@@ -88,7 +90,8 @@ export async function POST(request: NextRequest) {
         return {
             id: m.id,
             cityId: m.cityId,
-            name: m.name,
+            // The report prints the date in its own column.
+            name: meetingLabel(m, 'el', city.timezone, { date: false }),
             dateTime: m.dateTime,
             durationMs,
             operatorName: m.meetingOperator?.user.name || null,

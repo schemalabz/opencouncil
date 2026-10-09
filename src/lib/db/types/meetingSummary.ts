@@ -10,6 +10,9 @@ export const meetingSummarySelect = {
     cityId: true,
     name: true,
     name_en: true,
+    kind: true,
+    sessionNumber: true,
+    urgent: true,
     dateTime: true,
     administrativeBody: { select: { name: true, name_en: true } },
     subjects: {

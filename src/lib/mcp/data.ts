@@ -34,6 +34,8 @@ import {
 } from './render';
 import { isSuperIdentity, type McpIdentity } from './auth';
 import { isCustomer } from "@/lib/cityStatus";
+import { meetingDisplayName, meetingLabel, meetingLabelInCity } from '@/lib/meetingName';
+import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 
 /** Built per request: the hint must point at the host the caller is using. */
 function authHint(): string {
@@ -152,6 +154,12 @@ export async function mcpListCities() {
             url: urls.city(city.id),
         })),
     };
+}
+
+/** The timezone that a derived meeting name prints its date in. */
+async function cityTimezone(cityId: string): Promise<string> {
+    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { timezone: true } });
+    return city?.timezone ?? DEFAULT_TIMEZONE;
 }
 
 export async function mcpGetCity(cityId: string, identity: McpIdentity) {
@@ -303,10 +311,12 @@ export async function mcpListMeetings(
         administrativeBodyTypes: options.administrativeBodyTypes,
     });
 
+    const timezone = await cityTimezone(cityId);
     return {
         meetings: meetings.map(meeting => ({
             id: meeting.id,
-            name: meeting.name,
+            name: meetingLabel(meeting, 'el', timezone),
+            title: meetingDisplayName(meeting, 'el', timezone),
             dateTime: meeting.dateTime.toISOString(),
             administrativeBody: meeting.administrativeBody?.name ?? null,
             released: meeting.released,
@@ -325,6 +335,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         where: { cityId_id: { cityId, id: meetingId } },
         include: {
             administrativeBody: true,
+            city: { select: { timezone: true } },
             subjects: {
                 orderBy: [{ agendaSectionIndex: { sort: 'asc', nulls: 'first' } }, { agendaItemIndex: 'asc' }, { name: 'asc' }],
                 include: { topic: true, location: true },
@@ -359,7 +370,8 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
     return {
         id: meeting.id,
         cityId,
-        name: meeting.name,
+        name: meetingLabelInCity(meeting, 'el'),
+        title: meetingDisplayName(meeting, 'el', meeting.city.timezone),
         dateTime: meeting.dateTime.toISOString(),
         administrativeBody: meeting.administrativeBody?.name ?? null,
         youtubeUrl: meeting.youtubeUrl,
@@ -721,6 +733,7 @@ export async function mcpListNearbySubjects(args: {
         args.limit
     );
     const ranked = await withDistances(subjects, center);
+    const timezone = await cityTimezone(city.id);
 
     return {
         cityId: city.id,
@@ -740,7 +753,7 @@ export async function mcpListNearbySubjects(args: {
                 cityName: city.name,
                 meetingId: meeting.id,
                 meetingDate: meeting.dateTime,
-                meetingName: meeting.name,
+                meetingName: meetingLabel(meeting, 'el', timezone),
                 administrativeBody: meeting.administrativeBody?.name ?? null,
                 topic: subject.topic?.name ?? null,
             }),
@@ -816,7 +829,7 @@ export async function mcpSearch(
                 cityName: result.councilMeeting.city.name,
                 meetingId: result.councilMeetingId,
                 meetingDate: result.councilMeeting.dateTime,
-                meetingName: result.councilMeeting.name,
+                meetingName: meetingLabelInCity(result.councilMeeting, 'el'),
                 administrativeBody: result.councilMeeting.administrativeBody?.name ?? null,
                 topic: result.topic?.name ?? null,
             }),

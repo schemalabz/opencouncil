@@ -25,6 +25,7 @@ import { RenderedTemplate, introTemplateFor, renderTemplate } from "@/agent/temp
 import { Countdown } from "./Countdown";
 import type { CommitmentNote, UpcomingWake } from "../_lib/conversations";
 import { fmtDateChip, fmtTime } from "../_lib/format";
+import { meetingLabel } from "../_lib/meetingLabel";
 import { MessageDelivery, Origin, WakeRecord } from "../_lib/records";
 import { WA } from "../_lib/whatsapp";
 
@@ -66,13 +67,13 @@ function eventCaption(item: WakeRecord): string {
   let caption: string;
   switch (e.type) {
     case "agenda_processed":
-      caption = `πριν τη συνεδρίαση · ${e.meetingName}`;
+      caption = `πριν τη συνεδρίαση · ${meetingLabel(e)}`;
       break;
     case "meeting_summarized":
       // Labeled like the agenda wake: without the prefix, a silence chip for
       // a published record reads identically to any other meeting mention
       // and the thread looks all pre-meeting.
-      caption = `απολογισμός · ${e.meetingName}`;
+      caption = `απολογισμός · ${meetingLabel(e)}`;
       break;
     case "scheduled":
       // A promised answer to the reader is a follow-up; the agent's own

@@ -47,10 +47,10 @@ describe('findDecisionPollCandidates', () => {
         const { gte } = getPollableMeetingDateRange()
         const day = 24 * 60 * 60 * 1000
 
-        await pollableMeeting('apologismos', { kind: 'activityReport', administrativeBodyId })
-        await pollableMeeting('budget', { kind: 'budget', administrativeBodyId })
-        await pollableMeeting('special', { kind: 'special', administrativeBodyId })
-        await pollableMeeting('financial', { kind: 'financialAccounts', administrativeBodyId })
+        await pollableMeeting('apologismos', { name: null, kind: 'activityReport', administrativeBodyId })
+        await pollableMeeting('budget', { name: null, kind: 'budget', administrativeBodyId })
+        await pollableMeeting('special', { name: null, kind: 'special', administrativeBodyId })
+        await pollableMeeting('financial', { name: null, kind: 'financialAccounts', administrativeBodyId })
         const first = await createMeeting('c1', { id: 'logodosia-1', dateTime: new Date(gte.getTime() + day), kind: 'accountability', administrativeBodyId })
         const part = await createMeeting('c1', { id: 'logodosia-2', dateTime: new Date(gte.getTime() + 2 * day), kind: null, continuationOfId: first.id, administrativeBodyId })
         await createSubject(part.id, 'c1', { agendaItemIndex: 1 })
@@ -60,5 +60,20 @@ describe('findDecisionPollCandidates', () => {
 
         const ids = (await findDecisionPollCandidates()).map((m) => m.id).sort()
         expect(ids).toEqual(['budget', 'financial', 'regular-2', 'special'])
+    })
+
+    test('keeps a meeting whose name is null', async () => {
+        await createCity({ id: 'c1', diavgeiaUid: 'DIAV-1' })
+        const council = await createAdministrativeBody('c1', { type: 'council' })
+        const administrativeBodyId = council.id
+
+        // The SQL null trap: `NOT (name LIKE …)` is not true for a null name,
+        // so a filter on the name would drop both derived-name meetings.
+        await pollableMeeting('derived-unknown', { name: null, name_en: null, kind: null, administrativeBodyId })
+        await pollableMeeting('derived-regular', { name: null, name_en: null, kind: 'ordinary', administrativeBodyId })
+        await pollableMeeting('derived-logodosia', { name: null, name_en: null, kind: 'accountability', administrativeBodyId })
+
+        const ids = (await findDecisionPollCandidates()).map((m) => m.id).sort()
+        expect(ids).toEqual(['derived-regular', 'derived-unknown'])
     })
 })

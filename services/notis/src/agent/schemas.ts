@@ -177,7 +177,18 @@ const meetingEventFields = {
   at: z.string(),
   cityId: z.string(),
   meetingId: z.string(),
-  meetingName: z.string(),
+  /**
+   * The legacy stored name of the meeting, or null. A meeting without a kind
+   * falls back to it; otherwise its title is derived from meetingKind,
+   * urgent and sessionNumber. An event queued before the view carried the
+   * facts holds the stored name here and has none of the facts.
+   */
+  meetingName: z.string().nullish(),
+  /** The MeetingKind value, e.g. "ordinary"; null when the kind is not stated. */
+  meetingKind: z.string().nullish(),
+  /** The invitation convenes the meeting urgently («Έκτακτη»). */
+  urgent: z.boolean().nullish(),
+  sessionNumber: z.number().int().nullish(),
   meetingDate: z.string(),
   /** Which body is meeting (Δημοτικό Συμβούλιο, Επιτροπή, Κοινότητα...). */
   adminBody: z.string().nullable().optional(),

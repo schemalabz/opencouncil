@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { MinutesData } from '@/lib/minutes/types';
 import { MinutesPreviewContent } from '@/components/meetings/admin/MinutesPreviewContent';
 import { AdminOnly } from '@/components/admin/AdminStrip';
+import { meetingLabel } from '@/lib/meetingName';
 
 /** The rendered minutes, as the DOCX will print them. The page owns the data; this only shows it.
  * A superadmin also gets the transcript classification overlay, framed as theirs alone. */
@@ -17,7 +18,7 @@ export function MinutesPreviewDialog({ open, onOpenChange, data, isSuperAdmin }:
     /** Required: a default is what once let a superadmin-only control reach no one. */
     isSuperAdmin: boolean;
 }) {
-    const { meeting } = useCouncilMeetingData();
+    const { meeting, city } = useCouncilMeetingData();
     const t = useTranslations('admin.adminActions');
     const tPage = useTranslations('admin.decisionsPage');
     const tCommon = useTranslations('Common');
@@ -29,7 +30,7 @@ export function MinutesPreviewDialog({ open, onOpenChange, data, isSuperAdmin }:
                 <DialogHeader>
                     <DialogTitle>{t('minutes.title')}</DialogTitle>
                     <div className="flex items-center justify-between">
-                        <DialogDescription>{meeting.name}</DialogDescription>
+                        <DialogDescription>{meetingLabel(meeting, 'el', city.timezone)}</DialogDescription>
                         {isSuperAdmin && (
                             <AdminOnly label={tCommon('adminOnly')} className="shrink-0 ml-4">
                                 <label className="flex items-center gap-2 rounded-lg bg-background px-2 py-1 text-xs text-muted-foreground cursor-pointer">

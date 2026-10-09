@@ -22,6 +22,8 @@ import { HighlightCards } from "@/components/meetings/highlight-cards";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, useMemo } from "react";
 import type { Topic } from "@prisma/client";
+import { meetingDisplayName } from '@/lib/meetingName';
+import { getLocalizedName } from '@/lib/formatters/name';
 
 export default function MeetingPage() {
     const { meeting, subjects, city } = useCouncilMeetingData();
@@ -164,7 +166,13 @@ function MeetingInfo({ stage, now }: { stage: PublicMeetingStage; now: Date }) {
     return (
         <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
             <div className="max-w-4xl mx-auto space-y-3 sm:space-y-4">
-                <h1 className="text-xl sm:text-2xl font-bold">{meeting.name}</h1>
+                {/* The title «3η Τακτική» names no body, so the body sits above it. */}
+                <div>
+                    {meeting.administrativeBody && (
+                        <p className="text-xs sm:text-sm font-medium text-gray-600">{getLocalizedName(meeting.administrativeBody, locale)}</p>
+                    )}
+                    <h1 className="text-xl sm:text-2xl font-bold">{meetingDisplayName(meeting, locale, city.timezone)}</h1>
+                </div>
                 {/* The stage opens the facts row; on a phone the row wraps and the chip takes
                     the first slot. A complete meeting has no chip: the full ring is its absence. */}
                 <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs sm:text-sm text-gray-600">

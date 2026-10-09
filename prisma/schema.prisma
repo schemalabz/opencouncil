@@ -126,7 +126,7 @@ enum MeetingScheduleStatus {
 
 /// The kind of meeting that the invitation names. A null kind means that the
 /// record states no single kind: its invitation is not read yet, or it holds
-/// several meetings (its name override says which). Urgency is not a kind:
+/// several meetings (its legacy stored name says which). Urgency is not a kind:
 /// see `urgent`. See MEETING_KINDS.
 enum MeetingKind {
   ordinary           // Τακτική
@@ -240,8 +240,8 @@ model Person {
 
 model CouncilMeeting {
   id        String   @default(cuid())
-  name      String
-  name_en   String
+  name      String?  // legacy, written by nothing; read only when kind is null (lib/meetingName.ts)
+  name_en   String?
   dateTime  DateTime
   youtubeUrl String?
   agendaUrl String?

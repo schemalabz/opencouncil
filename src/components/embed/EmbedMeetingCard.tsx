@@ -1,11 +1,12 @@
 import { sortSubjectsByImportance } from '@/lib/utils';
-import { formatDate } from '@/lib/formatters/time';
+import { DEFAULT_TIMEZONE, formatDate } from '@/lib/formatters/time';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { localizeText } from '@/lib/serbian';
 import Icon from '@/components/icon';
 import { CalendarIcon, Building, ChevronRight } from 'lucide-react';
 import { SiYoutube } from 'react-icons/si';
 import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 interface EmbedMeetingCardProps {
     /**
@@ -50,7 +51,7 @@ export function EmbedMeetingCard({ meeting, locale, showSubjects, baseUrl, cityT
                 className="embed-card-link"
             >
                 <div className="embed-card-title">
-                    {getLocalizedName(meeting, locale)}
+                    {meetingDisplayName(meeting, locale, cityTimezone ?? DEFAULT_TIMEZONE)}
                 </div>
 
                 <div className="embed-card-meta">

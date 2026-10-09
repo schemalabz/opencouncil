@@ -11,6 +11,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { getMeetingForCalendarSync, setMeetingCalendarEventId, MeetingForCalendarSync } from '@/lib/db/meetingsCalendarSync';
 import { sendTaskAdminAlert } from '@/lib/discord';
 import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
+import { meetingLabel, meetingLabelInCity } from '@/lib/meetingName';
 
 // Bounds each Google API call so a hung request cannot stall the admin
 // routes that await the sync (googleapis sets no timeout by default).
@@ -61,9 +62,7 @@ function calculateMeetingEndTime(startTime: Date, durationHours: number = 2): Da
  * (title, description, times, attendees).
  */
 function buildMeetingEventPayload(meeting: MeetingForCalendarSync) {
-    const title = meeting.administrativeBody?.name
-        ? `${meeting.city.name}: ${meeting.administrativeBody.name}`
-        : meeting.city.name;
+    const title = `${meeting.city.name}: ${meetingLabel(meeting, 'el', meeting.city.timezone, { date: false })}`;
 
     const meetingUrl = `${realmBaseUrl(meeting.city.realm)}/${meeting.cityId}/${meeting.id}`;
     const descriptionParts: string[] = [];
@@ -196,7 +195,7 @@ export async function syncMeetingToCalendar(
             status: 'failed',
             taskType: 'calendarSync',
             cityName: meeting?.city.name ?? cityId,
-            meetingName: meeting?.name ?? meetingId,
+            meetingName: meeting ? meetingLabelInCity(meeting, 'el') : meetingId,
             // This alert has no task record. The field carries the calendar
             // event instead, because that is what an admin needs to inspect
             // or delete when a sync fails.

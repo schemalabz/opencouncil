@@ -58,8 +58,12 @@ export function meetingEvent(overrides: Partial<Extract<WakeEvent, { type: "meet
     at: FIXED_NOW.toISOString(),
     cityId: "athens",
     meetingId: "m1",
-    meetingName: "Συνεδρίαση ΔΣ Αθήνας",
+    meetingName: null,
+    meetingKind: "ordinary",
+    urgent: false,
+    sessionNumber: 3,
     meetingDate: "2026-03-09",
+    adminBody: "Δημοτικό Συμβούλιο",
     brief: makeBrief(),
     ...overrides,
   };

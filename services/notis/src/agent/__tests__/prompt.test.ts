@@ -1,4 +1,5 @@
-import { assembleSystem, assembleUserTurn } from "../prompt";
+import { type MeetingWakeEvent, assembleSystem, assembleUserTurn, meetingLine } from "../prompt";
+import { wakeEventSchema } from "../schemas";
 import { DECISION_WINDOW, DecisionEntry } from "../types";
 import { FIXED_NOW, makeState, meetingEvent } from "./helpers";
 
@@ -234,7 +235,7 @@ describe("assembleUserTurn — dates, places and delivery mode", () => {
     const turn = assembleUserTurn(makeState(), [meetingEvent()], FIXED_NOW);
     expect(turn).toContain("<current_time>2026-03-10T10:00:00.000Z — Τρίτη 10/03/2026 12:00 ώρα Αθήνας</current_time>");
     // A date-only meeting value carries no clock.
-    expect(turn).toContain("(Δευτέρα 09/03/2026, χθες)");
+    expect(turn).toContain("— Δευτέρα 09/03/2026, χθες, city athens");
     expect(turn).toContain("never work out a weekday or a relative day yourself");
   });
 
@@ -266,5 +267,75 @@ describe("assembleUserTurn — dates, places and delivery mode", () => {
     const warm = assembleUserTurn(makeState({ deliveryMode: "freeform" }), [meetingEvent()], FIXED_NOW);
     expect(warm).toContain("Delivery for this wake: FREEFORM");
     expect(assembleUserTurn(makeState(), [meetingEvent()], FIXED_NOW)).not.toContain("Delivery for this wake");
+  });
+});
+
+describe("meetingLine", () => {
+  const event = (overrides: Parameters<typeof meetingEvent>[0] = {}) => meetingEvent(overrides) as MeetingWakeEvent;
+  const line = (overrides: Parameters<typeof meetingEvent>[0]) => meetingLine(event(overrides), FIXED_NOW);
+
+  it("states the label that the kind and the number give, and the facts", () => {
+    expect(line({})).toBe(
+      "Meeting: Δημοτικό Συμβούλιο, 3η Τακτική (kind: ordinary, urgent: no, session number 3) — Δευτέρα 09/03/2026, χθες, city athens, id m1.\n",
+    );
+    expect(line({ sessionNumber: null, adminBody: null })).toBe(
+      "Meeting: Τακτική Συνεδρίαση (kind: ordinary, urgent: no, no session number) — Δευτέρα 09/03/2026, χθες, city athens, id m1.\n",
+    );
+  });
+
+  it("names the urgency in the label and in the facts", () => {
+    expect(line({ urgent: true, sessionNumber: 2 })).toBe(
+      "Meeting: Δημοτικό Συμβούλιο, 2η Έκτακτη (kind: ordinary, urgent: yes, session number 2) — Δευτέρα 09/03/2026, χθες, city athens, id m1.\n",
+    );
+    expect(line({ urgent: true, meetingKind: "budget", sessionNumber: null })).toBe(
+      "Meeting: Δημοτικό Συμβούλιο, Έκτακτη Ειδική Προϋπολογισμού (kind: budget, urgent: yes, no session number) — Δευτέρα 09/03/2026, χθες, city athens, id m1.\n",
+    );
+  });
+
+  it("ignores the stored name of a meeting with a kind", () => {
+    const text = line({ meetingName: "Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26", meetingKind: "accountability", sessionNumber: 4 });
+    expect(text).toBe(
+      "Meeting: Δημοτικό Συμβούλιο, 4η Ειδική Λογοδοσίας (kind: accountability, urgent: no, session number 4) — Δευτέρα 09/03/2026, χθες, city athens, id m1.\n",
+    );
+    expect(text).not.toContain("own name");
+  });
+
+  it("states the stored name as the whole label of a meeting without a kind", () => {
+    const text = line({ meetingName: "Δημοτικό Συμβούλιο 09/03/26", meetingKind: null, sessionNumber: null });
+    expect(text).toBe(
+      "Meeting: Δημοτικό Συμβούλιο 09/03/26 (kind not stated, urgent: no, no session number) — Δευτέρα 09/03/2026, χθες, city athens, id m1.\n",
+    );
+    expect(text).not.toContain("own name");
+  });
+
+  it("names the meeting by its date without a kind and without a stored name", () => {
+    expect(line({ meetingKind: null, sessionNumber: null })).toBe(
+      "Meeting: Δημοτικό Συμβούλιο, Συνεδρίαση 09/03/2026 (kind not stated, urgent: no, no session number) — Δευτέρα 09/03/2026, χθες, city athens, id m1.\n",
+    );
+  });
+
+  it("parses the urgency of a meeting event, also when it is null", () => {
+    const base = { ...event(), at: FIXED_NOW.toISOString() };
+    expect(wakeEventSchema.parse({ ...base, urgent: true })).toMatchObject({ urgent: true });
+    expect(wakeEventSchema.parse({ ...base, urgent: null })).toMatchObject({ urgent: null });
+    expect(() => wakeEventSchema.parse({ ...base, urgent: "yes" })).toThrow();
+  });
+
+  it("renders an event queued before the facts as it did then", () => {
+    const legacy = wakeEventSchema.parse({
+      type: "meeting_summarized",
+      at: FIXED_NOW.toISOString(),
+      cityId: "athens",
+      meetingId: "m1",
+      meetingName: "Συνεδρίαση ΔΣ Αθήνας",
+      meetingDate: "2026-03-09",
+      adminBody: "Δημοτικό Συμβούλιο",
+      brief: event().brief,
+    }) as MeetingWakeEvent;
+    expect(legacy).not.toHaveProperty("meetingKind");
+    expect(legacy).not.toHaveProperty("urgent");
+    expect(meetingLine(legacy, FIXED_NOW)).toBe(
+      "Meeting: Συνεδρίαση ΔΣ Αθήνας (Δευτέρα 09/03/2026, χθες) — Δημοτικό Συμβούλιο, city athens, id m1.\n",
+    );
   });
 });

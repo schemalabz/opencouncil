@@ -26,6 +26,11 @@ const MIGRATION_PATHS = [
     '20260913120200_unique_user_phone',
 ].map((name) => path.join(__dirname, `../../prisma/migrations/${name}/migration.sql`))
 
+const TITLE_MIGRATION_PATH = path.join(
+    __dirname,
+    '../../prisma/migrations/20261014120100_meeting_title/migration.sql',
+)
+
 /** The consumer's half of the contract: the Prisma models Notis reads the
  *  views through. Kept in a separate file from the SQL that defines them,
  *  which is exactly why the drift below is worth a test. */
@@ -72,6 +77,14 @@ async function applyNotisMigration() {
             await prisma.$executeRawUnsafe(statement)
         }
     }
+    // The title migration redefines notis_meeting_events. The rest of that
+    // migration changes columns that `db push` already made, so only the view
+    // is replayed.
+    for (const statement of splitSqlStatements(fs.readFileSync(TITLE_MIGRATION_PATH, 'utf8'))) {
+        if (statement.includes('CREATE OR REPLACE VIEW "notis_meeting_events"')) {
+            await prisma.$executeRawUnsafe(statement)
+        }
+    }
 }
 
 describe('notis views migration', () => {
@@ -114,6 +127,33 @@ describe('notis views migration', () => {
                 columns: [...fields].sort(),
             })
         }
+    })
+
+    test('notis_meeting_events keeps its column order and appends the facts', async () => {
+        // CREATE OR REPLACE VIEW can only append columns, and a running Notis
+        // reads the older ones by name. A new fact goes after the last one.
+        const columns = await prisma.$queryRawUnsafe<Array<{ column_name: string }>>(
+            `SELECT column_name FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = 'notis_meeting_events'
+             ORDER BY ordinal_position`,
+        )
+        expect(columns.map((c) => c.column_name)).toEqual([
+            'taskId',
+            'type',
+            'completedAt',
+            'cityId',
+            'meetingId',
+            'meetingName',
+            'meetingDate',
+            'released',
+            'adminBodyName',
+            'realm',
+            'language',
+            'timezone',
+            'meetingKind',
+            'sessionNumber',
+            'urgent',
+        ])
     })
 
     test('notis_fanout_targets aggregates topics and locations per preference', async () => {
@@ -209,6 +249,57 @@ describe('notis views migration', () => {
         expect(row.released).toBe(true)
         expect(row.adminBodyName).toEqual(expect.any(String))
         expect(row.realm).toBe('greece')
+    })
+
+    test('notis_meeting_events carries the stored name, the kind, the urgency and the number of a meeting', async () => {
+        const city = await createCity({ id: 'nv_city' })
+        const body = await createAdministrativeBody(city.id, { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' })
+        const derived = await createMeeting(city.id, {
+            id: 'nv_derived',
+            name: null,
+            name_en: null,
+            kind: 'accountability',
+            urgent: true,
+            sessionNumber: 4,
+            dateTime: new Date('2026-06-25T22:30:00Z'),
+            administrativeBodyId: body.id,
+            released: true,
+        })
+        const legacy = await createMeeting(city.id, {
+            id: 'nv_legacy',
+            name: 'Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26',
+            kind: null,
+            sessionNumber: null,
+            administrativeBodyId: body.id,
+            released: true,
+        })
+        const derivedTask = await createTaskStatus(derived.id, city.id, { type: 'summarize', status: 'succeeded' })
+        const legacyTask = await createTaskStatus(legacy.id, city.id, { type: 'summarize', status: 'succeeded' })
+
+        const rows = await prisma.$queryRawUnsafe<
+            Array<{
+                taskId: string
+                meetingName: string | null
+                meetingKind: string | null
+                urgent: boolean
+                sessionNumber: number | null
+            }>
+        >('SELECT "taskId", "meetingName", "meetingKind", "urgent", "sessionNumber" FROM notis_meeting_events')
+        const byTask = new Map(rows.map(({ taskId, ...facts }) => [taskId, facts]))
+        // Notis derives the title from these facts with the shared code. A
+        // meeting without a kind falls back to its legacy stored name.
+        expect(byTask.get(derivedTask.id)).toEqual({
+            meetingName: null,
+            meetingKind: 'accountability',
+            urgent: true,
+            sessionNumber: 4,
+        })
+        expect(byTask.get(legacyTask.id)).toEqual({
+            meetingName: 'Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26',
+            meetingKind: null,
+            urgent: false,
+            sessionNumber: null,
+        })
     })
 
     test('notis_admin_sessions exposes hashed superadmin sessions only', async () => {

@@ -5,6 +5,7 @@ import { AlarmClock, FileText, ListTodo, MessageCircle, Moon, OctagonAlert } fro
 import { MeetingDetails, fetchMeetingDetails } from "../_lib/meetings";
 import { CityMeta, WakeRecord } from "../_lib/records";
 import { fmtLongDate } from "../_lib/format";
+import { meetingLabel } from "../_lib/meetingLabel";
 import { WA } from "../_lib/whatsapp";
 
 interface Props {
@@ -49,7 +50,7 @@ const normalize = (s: string) =>
 /** Δημοτικό Συμβούλιο / Επιτροπή / Κοινότητα → two-letter tag for the badge. */
 function adminBodyTag(item: WakeRecord): "ΔΣ" | "ΔΕ" | "ΔΚ" | null {
   if (!isMeetingEvent(item)) return null;
-  const text = normalize(item.event.adminBody || item.event.meetingName);
+  const text = normalize(item.event.adminBody || item.event.meetingName || "");
   if (text.includes("συμβουλιο")) return "ΔΣ";
   if (text.includes("επιτροπη")) return "ΔΕ";
   if (text.includes("κοινοτητ")) return "ΔΚ";
@@ -275,7 +276,7 @@ function HoverCard({
               </span>
             )}
             <div className="min-w-0">
-              <p className="truncate font-medium leading-tight">{meeting.meetingName}</p>
+              <p className="truncate font-medium leading-tight">{meetingLabel(meeting, { date: false })}</p>
               <p className="text-xs text-muted-foreground">
                 {city?.name} · {when}
               </p>

@@ -56,13 +56,20 @@ model MeetingEventRow {
   completedAt   DateTime
   cityId        String
   meetingId     String
-  meetingName   String
+  // The legacy stored name, written by nothing and null for new meetings. A
+  // meeting without a kind falls back to it; otherwise Notis derives the
+  // title from meetingKind, urgent and sessionNumber
+  // (@opencouncil/ui/lib/meeting-title).
+  meetingName   String?
   meetingDate   DateTime
   released      Boolean
   adminBodyName String?
   realm         String
   language      String
   timezone      String
+  meetingKind   String?
+  sessionNumber Int?
+  urgent        Boolean
 
   @@map("notis_meeting_events")
 }
