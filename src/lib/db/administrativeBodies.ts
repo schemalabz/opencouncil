@@ -2,9 +2,10 @@
 // src/lib/actions/administrativeBodies.ts, and the API routes check their
 // input with zod.
 import "server-only";
-import { AdministrativeBody, Prisma } from '@prisma/client';
+import { AdministrativeBody, AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { PUBLIC_CITY_WHERE } from "../cityStatus";
 import { publicAdministrativeBodySelect, type PublicAdministrativeBody } from "./types/administrativeBody";
 
 export async function getAdministrativeBodiesForCity(cityId: string): Promise<AdministrativeBody[]> {
@@ -219,3 +220,59 @@ export async function updateNotificationBehavior(
         throw new Error('Failed to update notification behavior');
     }
 } 
+/**
+ * A body on the directory of its type (#829): its public fields, its city,
+ * and what a card draws: the active members, the released meetings, the
+ * last of them. `now` is the instant a membership counts as active at.
+ */
+function bodyDirectorySelect(now: Date) {
+    return {
+        ...publicAdministrativeBodySelect,
+        place: true,
+        city: {
+            select: { id: true, name: true, name_en: true, name_municipality: true, name_municipality_en: true, logoImage: true, timezone: true },
+        },
+        _count: {
+            select: {
+                meetings: { where: { released: true } },
+                roles: {
+                    where: {
+                        AND: [
+                            { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+                            { OR: [{ endDate: null }, { endDate: { gt: now } }] },
+                        ],
+                    },
+                },
+            },
+        },
+        meetings: { where: { released: true }, orderBy: { dateTime: 'desc' }, take: 1, select: { id: true, dateTime: true } },
+    } satisfies Prisma.AdministrativeBodySelect;
+}
+
+export type BodyDirectoryRow = Prisma.AdministrativeBodyGetPayload<{ select: ReturnType<typeof bodyDirectorySelect> }>;
+
+/** The public cities of a realm: by status, or through a secondary body (#829), as PUBLIC_CITY_WHERE reads it. */
+const publicCityOfRealmWhere = (realm: Realm): Prisma.CityWhereInput => ({ realm, ...PUBLIC_CITY_WHERE });
+
+/**
+ * The bodies of one type across a realm that have released a meeting, in
+ * public cities, by city and then by name: the directory of the type (#829).
+ */
+export async function getBodyDirectory(realm: Realm, type: AdministrativeBodyType): Promise<BodyDirectoryRow[]> {
+    return prisma.administrativeBody.findMany({
+        where: {
+            type,
+            meetings: { some: { released: true } },
+            city: publicCityOfRealmWhere(realm),
+        },
+        select: bodyDirectorySelect(new Date()),
+        orderBy: [{ city: { name: 'asc' } }, { name: 'asc' }],
+    });
+}
+
+/** How many bodies the directory of a type lists in a realm: the sitemap advertises a directory that has one. */
+export async function countBodyDirectory(realm: Realm, type: AdministrativeBodyType): Promise<number> {
+    return prisma.administrativeBody.count({
+        where: { type, meetings: { some: { released: true } }, city: publicCityOfRealmWhere(realm) },
+    });
+}

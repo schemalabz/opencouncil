@@ -6,6 +6,7 @@
 const mockFindUniqueOrThrow = jest.fn();
 const mockUpdate = jest.fn();
 const mockFindMany = jest.fn();
+const mockCount = jest.fn();
 const mockWithUserAuthorizedToEdit = jest.fn();
 const mockGetCurrentUser = jest.fn();
 
@@ -18,6 +19,7 @@ jest.mock('@/lib/db/prisma', () => ({
             update: (...a: unknown[]) => mockUpdate(...a),
             create: (...a: unknown[]) => mockUpdate(...a),
             findMany: (...a: unknown[]) => mockFindMany(...a),
+            count: (...a: unknown[]) => mockCount(...a),
         },
     },
 }));
@@ -28,12 +30,15 @@ jest.mock('@/lib/auth', () => ({
 
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
 import {
+    countBodyDirectory,
     createAdministrativeBody,
     editAdministrativeBody,
     getAdministrativeBodiesWithPublicMeetings,
+    getBodyDirectory,
     getPublicAdministrativeBodiesForCity,
 } from '@/lib/db/administrativeBodies';
 import { publicAdministrativeBodySelect } from '@/lib/db/types';
+import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
 import type { DecisionConventions } from '@/lib/decisionConventions';
 
 const PROFILED: DecisionConventions = {
@@ -156,5 +161,39 @@ describe('the public body reads select only the public fields', () => {
             where: { cityId: 'zografou' },
             select: publicAdministrativeBodySelect,
         });
+    });
+});
+
+/**
+ * The directory of a body type (#829) is a public page: it lists the bodies
+ * of the type that released a meeting, in the public cities of the realm,
+ * public by status or through a secondary body.
+ */
+describe('the directory of a body type', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockFindMany.mockResolvedValue([]);
+        mockCount.mockResolvedValue(0);
+    });
+
+    it('lists released bodies of the type in the public cities of the realm, by city then by name', async () => {
+        await getBodyDirectory('greece', 'youthCouncil');
+        expect(mockFindMany).toHaveBeenCalledTimes(1);
+        const query = mockFindMany.mock.calls[0][0];
+        expect(query.where).toEqual({
+            type: 'youthCouncil',
+            meetings: { some: { released: true } },
+            city: { realm: 'greece', ...PUBLIC_CITY_WHERE },
+        });
+        expect(query.orderBy).toEqual([{ city: { name: 'asc' } }, { name: 'asc' }]);
+        // The public fields, the city, the counts and the last released meeting: nothing of the settings.
+        expect(Object.keys(query.select).sort()).toEqual(['_count', 'city', 'cityId', 'id', 'meetings', 'name', 'name_en', 'place', 'type']);
+        expect(query.select.meetings).toMatchObject({ where: { released: true }, orderBy: { dateTime: 'desc' }, take: 1 });
+    });
+
+    it('counts the same rows for the sitemap', async () => {
+        mockCount.mockResolvedValue(2);
+        await expect(countBodyDirectory('greece', 'youthCouncil')).resolves.toBe(2);
+        expect(mockCount.mock.calls[0][0].where).toMatchObject({ type: 'youthCouncil', meetings: { some: { released: true } }, city: { realm: 'greece' } });
     });
 });

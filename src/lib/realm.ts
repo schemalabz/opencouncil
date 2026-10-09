@@ -1,4 +1,5 @@
 import { Realm } from '@prisma/client';
+import type { AdministrativeBodyType } from '@prisma/client';
 import type { Country } from '@/lib/apiTypes';
 
 /**
@@ -334,4 +335,40 @@ export function getRealmStage(realm: Realm): RealmStage {
  */
 export function telHref(phone: string): string {
     return `tel:${phone.replace(/[^\d+]/g, '')}`;
+}
+
+/**
+ * Hosts that open on the directory of one body type instead of the landing
+ * of their realm (#829). `youth.opencouncil.gr` is the entry point of the youth
+ * councils. It is a subdomain of `opencouncil.gr`, so it resolves to the greece
+ * realm, and every other path serves there as it does on the apex. The
+ * directory itself lives at `bodyDirectoryPath(type)` on every realm.
+ */
+export const BODY_TYPE_HOSTS: Record<string, AdministrativeBodyType> = {
+    'youth.opencouncil.gr': 'youthCouncil',
+};
+
+/** The body type whose directory a host opens on, or null for every other host. */
+export function bodyTypeForHost(host: string | null | undefined): AdministrativeBodyType | null {
+    const normalized = (host ?? '').split(':')[0].toLowerCase();
+    return Object.prototype.hasOwnProperty.call(BODY_TYPE_HOSTS, normalized) ? BODY_TYPE_HOSTS[normalized] : null;
+}
+
+/** Where the directory of a body type lives, under the locale prefix of the page. */
+export function bodyDirectoryPath(type: AdministrativeBodyType): string {
+    return `/bodies/${type}`;
+}
+
+/**
+ * The path a request to a body-type host serves in place of its root: the
+ * directory of that type, under the locale prefix the request carried, or
+ * null for a request that is not the root of such a host. `/` and `/en` open
+ * the directory; `/chania` is a city page and stays what it is.
+ */
+export function bodyTypeHostEntryPath(host: string | null | undefined, pathname: string, localePrefixes: readonly string[]): string | null {
+    const type = bodyTypeForHost(host);
+    if (!type) return null;
+    if (pathname === '/') return bodyDirectoryPath(type);
+    const prefix = pathname.slice(1);
+    return localePrefixes.includes(prefix) ? `/${prefix}${bodyDirectoryPath(type)}` : null;
 }

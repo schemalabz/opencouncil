@@ -1,0 +1,22 @@
+{
+  "youthCouncil": {
+    "title": "Youth Councils",
+    "lead": "The youth councils that publish their meetings on OpenCouncil: what they discussed, who takes part and when they meet next.",
+    "metaDescription": "The meetings and the subjects of the Municipal Youth Councils on OpenCouncil.",
+    "joinTitle": "Is your municipality's youth council missing?",
+    "joinBody": "OpenCouncil is free for every Municipal Youth Council. The secretary of the council uploads the meetings and the roster on their own."
+  },
+  "counts": "{bodies, plural, =1 {1 body} other {# bodies}} · {meetings, plural, =1 {1 published meeting} other {# published meetings}}",
+  "bodiesTitle": "The bodies",
+  "noBodies": "No body has published a meeting yet.",
+  "members": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
+  "meetings": "{count, plural, =1 {1 meeting} other {# meetings}}",
+  "latestMeeting": "Latest {date}",
+  "hotTitle": "Most discussed subjects",
+  "hotLead": "The subjects with the most discussion time in the last 12 months, across every body.",
+  "noHot": "Nothing has been discussed yet.",
+  "discussionMinutes": "{minutes, number}′ of discussion",
+  "upcomingTitle": "Upcoming meetings",
+  "noUpcoming": "No meeting is scheduled.",
+  "joinCta": "Learn more"
+}
