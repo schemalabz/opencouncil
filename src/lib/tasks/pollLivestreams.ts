@@ -1,4 +1,5 @@
 import prisma from "../db/prisma";
+import { pipelineRunsUnattended } from '@/lib/utils/bodyTier';
 import { env } from "@/env.mjs";
 import { aiChat } from "../ai";
 import { resolveChannelId, listRecentChannelVideos, watchUrl, type YouTubeVideo } from "../youtube";
@@ -159,9 +160,10 @@ async function distinctFailureErrors(cityId: string, councilMeetingId: string): 
  * Finds meetings whose livestream should now exist, matches each to a YouTube video
  * via the LLM, and triggers transcription for confident single-meeting matches.
  *
- * Candidate = processAgenda succeeded, scheduled within ±12h of now, the administrative body
- * has a youtubeChannelUrl, and no transcribe is succeeded or in flight (a failed-only meeting
- * is retried, up to MAX_AUTO_TRANSCRIBE_ATTEMPTS attempts on the same video).
+ * Candidate = processAgenda succeeded (or the body's pipeline runs unattended, #829), scheduled
+ * within ±12h of now, the administrative body has a youtubeChannelUrl, and no transcribe is
+ * succeeded or in flight (a failed-only meeting is retried, up to MAX_AUTO_TRANSCRIBE_ATTEMPTS
+ * attempts on the same video).
  *
  * Called by the poll-livestreams cron. Pass { dryRun: true } to log decisions without
  * triggering transcription or posting alerts.
@@ -235,9 +237,11 @@ export async function pollLivestreamsForRecentMeetings(
 
     // Candidate = processAgenda succeeded AND no transcribe that is succeeded or in flight.
     // A meeting whose only prior transcribe attempts failed is eligible again (auto-retry).
+    // A body whose pipeline runs unattended (#829) rarely has an agenda PDF, so
+    // its meetings are candidates without the agenda task.
     const candidates = meetings.filter(m => {
         const key = meetingKey(m.cityId, m.id);
-        return processAgendaSucceeded.has(key) && !transcribeActive.has(key);
+        return (processAgendaSucceeded.has(key) || pipelineRunsUnattended(m.administrativeBody)) && !transcribeActive.has(key);
     });
 
     if (candidates.length === 0) {

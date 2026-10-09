@@ -1,4 +1,5 @@
 import { getCouncilMeeting, CouncilMeetingWithAdminBody } from '@/lib/db/meetings';
+import { pipelineRunsUnattended } from '@/lib/utils/bodyTier';
 import { getTranscript, Transcript } from '@/lib/db/transcript';
 import { CityWithGeometry, getCity } from '@/lib/db/cities';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -155,8 +156,11 @@ async function fetchMeetingDataCore(cityId: string, meetingId: string, realm: Re
     }
     const speakerTags = Array.from(speakerTagsMap.values());
 
+    // A body whose pipeline runs unattended (#829) has no review step: its
+    // transcript shows as it is, whatever the setting says.
     const transcriptHiddenForReview = !taskStatus.humanReview
-        && meeting.administrativeBody?.showUnreviewedTranscript === false;
+        && meeting.administrativeBody?.showUnreviewedTranscript === false
+        && !pipelineRunsUnattended(meeting.administrativeBody);
 
     const postponedFromDate = meeting.postponedFromId
         ? await originalScheduledDate(cityId, meetingId)

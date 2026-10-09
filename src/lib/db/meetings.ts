@@ -228,6 +228,16 @@ export async function getUpcomingMeetingsCached(realm: Realm, { limit = 10 }: { 
 
 export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
+    return setMeetingReleasedWithEffects(cityId, id, released);
+}
+
+/**
+ * Release or unrelease a meeting with no auth check, and bust the caches
+ * that read its visibility. For a caller that has authorized the write, or
+ * that runs with no session: the summarize callback releases the meeting of
+ * a body whose pipeline runs unattended (#829).
+ */
+export async function setMeetingReleasedWithEffects(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
     try {
         // The module also releases or hides the other meetings of a postponement.
         const updatedMeeting = await setMeetingReleased(cityId, id, released);

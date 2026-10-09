@@ -66,6 +66,14 @@ export const SCHEDULE_STATUS_REASON_MAX_LENGTH = 500;
 export const AGENDA_TEXT_MAX_LENGTH = 40_000;
 
 /**
+ * How long after its start a meeting counts as over, for a pipeline that runs
+ * with no operator (#829): a stream saved before then may still be running,
+ * and a running stream cannot be transcribed. The cron pass and the meeting
+ * write read the same figure.
+ */
+export const UNATTENDED_START_DELAY_MS = 3 * 60 * 60 * 1000;
+
+/**
  * The facts of the record that a write sets besides the links, in one list:
  * the meeting writes and the MCP tools read it, so a new fact reaches both.
  */

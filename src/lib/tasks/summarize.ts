@@ -4,7 +4,8 @@ import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "..
 import { getTranscript } from "../db/transcript";
 import { getPartiesForCity } from "../db/parties";
 import { getCity } from "../db/cities";
-import { getCouncilMeeting } from "../db/meetings";
+import { getCouncilMeeting, setMeetingReleasedWithEffects } from "../db/meetings";
+import { pipelineRunsUnattended } from "@/lib/utils/bodyTier";
 import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
 import { getAvailableSpeakerSegmentIds, saveSubjectsForMeeting } from "../db/utils";
@@ -174,4 +175,17 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     after(() => generateImagesForMeeting(councilMeeting.cityId, councilMeeting.id));
 
     await notifyMeetingSubjects(councilMeeting, 'afterMeeting');
+
+    // The last step of a pipeline that runs with no operator (#829): the
+    // summary is in, so the meeting goes public. A primary body's meeting
+    // waits for an admin. A failure here must not fail the task: the summary
+    // is saved, and an admin can release the meeting by hand.
+    if (pipelineRunsUnattended(councilMeeting.administrativeBody) && !councilMeeting.released) {
+        try {
+            await setMeetingReleasedWithEffects(councilMeeting.cityId, councilMeeting.id, true);
+            console.log(`Released ${councilMeeting.cityId}/${councilMeeting.id} after its summary (unattended pipeline)`);
+        } catch (error) {
+            console.error(`Failed to release ${councilMeeting.cityId}/${councilMeeting.id} after its summary:`, error);
+        }
+    }
 }

@@ -14,12 +14,37 @@ import { syncMeetingToCalendar } from '@/lib/google-calendar';
 import { requestProcessAgendaInternal } from '@/lib/tasks/processAgendaInternal';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { isDerivedName, meetingLabel } from '@/lib/meetingName';
-import { pickRecordInput, takesPlace, type MeetingRecordInput } from '@/lib/meetingLifecycleRules';
+import { UNATTENDED_START_DELAY_MS, hasPublicRecording, pickRecordInput, takesPlace, type MeetingRecordInput } from '@/lib/meetingLifecycleRules';
+import { parseVideoId } from '@/lib/utils/youtube';
 import { after } from 'next/server';
 import { processAgendaText } from '@/lib/agendaText';
 import { isBodyOfCity } from '@/lib/db/administrativeBodies';
-import { isSecondaryBody } from '@/lib/utils/bodyTier';
+import { isSecondaryBody, pipelineRunsUnattended } from '@/lib/utils/bodyTier';
+import { requestTranscribeInternal } from '@/lib/tasks/transcribeInternal';
 import { BadRequestError } from '@/lib/api/errors';
+
+/**
+ * A recording of a meeting whose pipeline runs unattended (#829) starts its
+ * own transcription, when the meeting has started: nobody presses the button
+ * for a secondary body. A link saved before the meeting waits for the cron
+ * (lib/tasks/unattendedTranscription.ts), which starts it once the meeting is
+ * over; so does a YouTube link saved while the meeting may still run, which
+ * can be the stream itself. An uploaded file is complete and starts now. The
+ * request runs after the response and refuses a meeting that has a
+ * transcript already; a refusal is logged, not raised.
+ */
+function unattendedTranscriptionStart(meeting: CouncilMeetingWithAdminBody, now: Date = new Date()): (() => Promise<void>) | null {
+    if (!meeting.youtubeUrl || !pipelineRunsUnattended(meeting.administrativeBody)) return null;
+    if (!takesPlace(meeting) || !hasPublicRecording(meeting) || meeting.dateTime.getTime() > now.getTime()) return null;
+    const url = meeting.youtubeUrl;
+    const streamMayRun = parseVideoId(url) !== null && now.getTime() - meeting.dateTime.getTime() < UNATTENDED_START_DELAY_MS;
+    if (streamMayRun) return null;
+    return async () => {
+        await requestTranscribeInternal(url, meeting.id, meeting.cityId).catch((error: unknown) => {
+            console.error(`Did not start the transcription of ${meeting.cityId}/${meeting.id}:`, error instanceof Error ? error.message : error);
+        });
+    };
+}
 
 /**
  * A meeting and its body are in one city. The authorization of a superadmin
@@ -202,7 +227,9 @@ export async function updateMeetingWithEffects(
     await requireBodyOfCity(cityId, data.administrativeBodyId);
     const before = await getCouncilMeetingDirect(cityId, meetingId);
     const meeting = await updateMeetingRecord(cityId, meetingId, before ? await withoutDerivedNames(cityId, before, data) : data);
-    if (agendaText) extractAgendaTextAfterResponse(cityId, meetingId, agendaText);
+    // A new recording, not a repeated save of the same one.
+    const newRecording = !!meeting.youtubeUrl && meeting.youtubeUrl !== before?.youtubeUrl;
+    runAfterResponse(cityId, meetingId, agendaText, newRecording ? unattendedTranscriptionStart(meeting) : null);
 
     // The landing lists the upcoming meetings that take place, so a change of
     // status, date or body can move a meeting in or out of that list. A public
