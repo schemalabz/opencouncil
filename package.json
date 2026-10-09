@@ -91,7 +91,7 @@
     "@tailwindcss/typography": "^0.5.20",
     "@types/mapbox__mapbox-gl-draw": "^1.4.9",
     "@types/react-timeago": "^4.1.7",
-    "@vercel/og": "^0.11.1",
+    "@vercel/og": "^1.0.3",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
     "axios": "^1.20.0",
