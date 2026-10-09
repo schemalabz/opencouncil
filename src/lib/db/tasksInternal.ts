@@ -167,3 +167,28 @@ export async function getLastSucceededTaskTimes<T extends string>(
     }
     return times;
 }
+
+/** Whether a task of the type succeeded for the meeting, in any version. */
+export async function meetingHasSucceededTask(cityId: string, councilMeetingId: string, type: keyof typeof TASK_CONFIG): Promise<boolean> {
+    const count = await prisma.taskStatus.count({ where: { cityId, councilMeetingId, type, status: 'succeeded' } });
+    return count > 0;
+}
+
+/**
+ * The task row of an agenda that was pasted as text (#829, lib/agendaText.ts):
+ * a succeeded processAgenda task, so the task list, a re-run, the Notis view
+ * and the release notifications see the agenda as they see the task's. The
+ * request keeps the text; the response holds the subjects, in the shape a
+ * re-run replays.
+ */
+export async function recordAgendaTextTask(cityId: string, councilMeetingId: string, agendaText: string, subjects: unknown[]): Promise<TaskStatus> {
+    return prisma.taskStatus.create({
+        data: {
+            type: 'processAgenda',
+            status: 'succeeded',
+            requestBody: JSON.stringify({ source: 'agendaText', agendaText }),
+            responseBody: JSON.stringify({ subjects }),
+            councilMeeting: { connect: { cityId_id: { cityId, id: councilMeetingId } } },
+        },
+    });
+}
