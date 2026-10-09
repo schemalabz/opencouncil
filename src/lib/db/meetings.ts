@@ -45,7 +45,7 @@ export async function deleteCouncilMeeting(cityId: string, id: string): Promise<
     }
 }
 
-export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string, videoUrl?: string }): Promise<CouncilMeetingWithAdminBody> {
+export async function createCouncilMeeting(meetingData: Prisma.CouncilMeetingUncheckedCreateInput): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ cityId: meetingData.cityId });
     return createCouncilMeetingDirect(meetingData);
 }
@@ -57,7 +57,7 @@ export async function createCouncilMeeting(meetingData: Omit<CouncilMeeting, 'cr
  * service keys.
  */
 export async function createCouncilMeetingDirect(
-    meetingData: Omit<CouncilMeeting, 'createdAt' | 'updatedAt' | 'audioUrl' | 'videoUrl' | 'calendarEventId'> & { audioUrl?: string; videoUrl?: string },
+    meetingData: Prisma.CouncilMeetingUncheckedCreateInput,
 ): Promise<CouncilMeetingWithAdminBody> {
     return prisma.councilMeeting.create({
         data: meetingData,
