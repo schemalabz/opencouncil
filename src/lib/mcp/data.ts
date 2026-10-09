@@ -1,5 +1,6 @@
 import prisma from '@/lib/db/prisma';
-import { Prisma, DiscussionStatus, type AdministrativeBodyType } from '@prisma/client';
+import { Prisma, DiscussionStatus, type AdministrativeBodyType, type CouncilMeeting, type MeetingScheduleStatus } from '@prisma/client';
+import { takesPlace } from '@/lib/meetingLifecycleRules';
 import { searchInRealm } from '@/lib/search/core';
 import { openDateRange } from '@/lib/search/dateRange';
 import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
@@ -35,6 +36,8 @@ import { isSuperIdentity, type McpIdentity } from './auth';
 import { isCustomer } from "@/lib/cityStatus";
 import { meetingDisplayName, meetingLabel, meetingLabelInCity } from '@/lib/meetingName';
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
+import { originalScheduledDate, originalScheduledDates } from '@/lib/db/meetingLifecycle';
+import { publicRecordFields } from '@/lib/meetingPublic';
 
 /** Built per request: the hint must point at the host the caller is using. */
 function authHint(): string {
@@ -153,6 +156,14 @@ export async function mcpListCities() {
         })),
     };
 }
+
+/** What an assistant must know about a meeting that does not take place on its date. */
+const SCHEDULE_STATUS_NOTES = {
+    scheduled: null,
+    cancelled: 'This meeting was cancelled: it did not take place. Its agenda is the whole record.',
+    postponed: 'This meeting was postponed: it did not take place on this date. The new meeting, once published, '
+        + 'carries postponedFromDate.',
+} as const satisfies Record<MeetingScheduleStatus, string | null>;
 
 /** The timezone that a derived meeting name prints its date in. */
 async function cityTimezone(cityId: string): Promise<string> {
@@ -310,6 +321,7 @@ export async function mcpListMeetings(
     });
 
     const timezone = await cityTimezone(cityId);
+    const postponedFromDates = await originalScheduledDates(cityId, meetings);
     return {
         meetings: meetings.map(meeting => ({
             id: meeting.id,
@@ -317,6 +329,7 @@ export async function mcpListMeetings(
             title: meetingDisplayName(meeting, 'el', timezone),
             dateTime: meeting.dateTime.toISOString(),
             administrativeBody: meeting.administrativeBody?.name ?? null,
+            ...publicRecordFields(meeting, postponedFromDates.get(meeting.id) ?? null),
             released: meeting.released,
             subjectCount: meeting.subjects.length,
             hasTranscript: meeting._count.speakerSegments > 0,
@@ -372,6 +385,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         title: meetingDisplayName(meeting, 'el', meeting.city.timezone),
         dateTime: meeting.dateTime.toISOString(),
         administrativeBody: meeting.administrativeBody?.name ?? null,
+        ...publicRecordFields(meeting, await originalScheduledDate(cityId, meetingId)),
         youtubeUrl: meeting.youtubeUrl,
         agendaUrl: meeting.agendaUrl,
         hasTranscript: transcribed,
@@ -379,7 +393,9 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         // An empty agenda is the one shape an agent reads wrongly: it looks
         // like an empty meeting, when in fact the transcript is usually there
         // and only the summarization step has not run. Say so in the payload.
-        ...(meeting.subjects.length === 0 && {
+        ...(!takesPlace(meeting) ? {
+            note: SCHEDULE_STATUS_NOTES[meeting.scheduleStatus],
+        } : meeting.subjects.length === 0 && {
             note: transcribed
                 ? 'This meeting has no subjects because it has not been summarized yet — not because nothing was said. '
                 + 'The full verbatim transcript is available: read it with get_transcript (add includeUtteranceIds to '
