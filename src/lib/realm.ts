@@ -1,4 +1,5 @@
 import { Realm } from '@prisma/client';
+import type { AdministrativeBodyType } from '@prisma/client';
 import type { Country } from '@/lib/apiTypes';
 
 /**
@@ -434,4 +435,40 @@ export function getRealmStage(realm: Realm): RealmStage {
  */
 export function telHref(phone: string): string {
     return `tel:${phone.replace(/[^\d+]/g, '')}`;
+}
+
+/**
+ * The body types that have a directory, at `bodyDirectoryPath(type)` on every
+ * realm (#829). The directory reads the type: where the content of its bodies
+ * shows elsewhere is the tier's job (bodyTier.ts). The content of the primary
+ * tier is the realm's landing, which needs no second directory.
+ */
+export const DIRECTORY_BODY_TYPES = ['youthCouncil'] as const satisfies readonly AdministrativeBodyType[];
+
+export type DirectoryBodyType = (typeof DIRECTORY_BODY_TYPES)[number];
+
+/** The directory type that the `[type]` segment of `/bodies/[type]` names, or null. */
+export function toDirectoryBodyType(param: string): DirectoryBodyType | null {
+    return DIRECTORY_BODY_TYPES.find(type => type === param) ?? null;
+}
+
+/** Where the directory of a body type lives, under the locale prefix of the page. */
+export function bodyDirectoryPath(type: DirectoryBodyType): string {
+    return `/bodies/${type}`;
+}
+
+/**
+ * Hosts that redirect to the directory of one body type on the apex of their
+ * realm (#829). `youth.opencouncil.gr` is the address of the youth councils.
+ * It is a subdomain of `opencouncil.gr`, so it resolves to the greece realm.
+ * The host serves no page itself: see `bodyTypeHostRedirectTarget`.
+ */
+export const BODY_TYPE_HOSTS: Record<string, DirectoryBodyType> = {
+    'youth.opencouncil.gr': 'youthCouncil',
+};
+
+/** The body type whose directory a host redirects to, or null for every other host. */
+export function bodyTypeForHost(host: string | null | undefined): DirectoryBodyType | null {
+    const normalized = (host ?? '').split(':')[0].toLowerCase();
+    return Object.prototype.hasOwnProperty.call(BODY_TYPE_HOSTS, normalized) ? BODY_TYPE_HOSTS[normalized] : null;
 }

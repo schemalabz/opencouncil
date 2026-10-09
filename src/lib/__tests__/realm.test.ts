@@ -16,6 +16,8 @@ import {
     getRealmStage,
     telHref,
     ALL_REALMS,
+    bodyTypeForHost,
+    toDirectoryBodyType,
 } from '../realm';
 
 
@@ -342,5 +344,34 @@ describe('Realm coverage', () => {
     it('does not trust arbitrary EU subdomains', () => {
         expect(isKnownRealmHost('unknown.opencouncil.eu')).toBe(false);
         expect(isKnownRealmHost('opencouncil.eu')).toBe(false);
+    });
+});
+
+describe('bodyTypeForHost', () => {
+    it('names the body type a host redirects to, port and case aside', () => {
+        expect(bodyTypeForHost('youth.opencouncil.gr')).toBe('youthCouncil');
+        expect(bodyTypeForHost('YOUTH.opencouncil.gr:443')).toBe('youthCouncil');
+    });
+
+    it('is null for the apex, a city host, a preview and nothing', () => {
+        expect(bodyTypeForHost('opencouncil.gr')).toBeNull();
+        expect(bodyTypeForHost('www.youth.opencouncil.gr')).toBeNull();
+        expect(bodyTypeForHost('pr-7.opencouncil.dev')).toBeNull();
+        expect(bodyTypeForHost(null)).toBeNull();
+        // A prototype key is not a host.
+        expect(bodyTypeForHost('constructor')).toBeNull();
+    });
+});
+
+describe('toDirectoryBodyType', () => {
+    it('names a body type that has a directory', () => {
+        expect(toDirectoryBodyType('youthCouncil')).toBe('youthCouncil');
+    });
+
+    it('is null for a body type without a directory, and for anything else', () => {
+        // The content of the primary tier is the landing: no directory.
+        expect(toDirectoryBodyType('council')).toBeNull();
+        expect(toDirectoryBodyType('youth')).toBeNull();
+        expect(toDirectoryBodyType('constructor')).toBeNull();
     });
 });

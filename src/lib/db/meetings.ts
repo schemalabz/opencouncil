@@ -17,7 +17,7 @@ import { formatDateAsMeetingId } from '../utils/meetingId';
 import { parseVideoId } from '@/lib/utils/youtube';
 import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, publicMeetingWhere } from '../cityStatus';
-import { isSecondaryBody, type TierScope } from '@/lib/utils/bodyTier';
+import { isSecondaryBody, type BodyScope, type TierScope } from '@/lib/utils/bodyTier';
 import { unattendedMeetingWhere } from '@/lib/utils/youthCouncil';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
@@ -181,11 +181,18 @@ export type UpcomingMeetingWithCity = Prisma.CouncilMeetingGetPayload<{
     include: typeof upcomingMeetingInclude
 }>;
 
-export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?: number } = {}): Promise<UpcomingMeetingWithCity[]> {
+/**
+ * The options of the realm-wide upcoming list. `scope` names the bodies (see
+ * BodyScope); absent, the list is the primary tier's, as every default scope
+ * is (#829).
+ */
+type UpcomingMeetingsOptions = { limit?: number; scope?: BodyScope };
+
+export async function getUpcomingMeetings(realm: Realm, { limit = 10, scope }: UpcomingMeetingsOptions = {}): Promise<UpcomingMeetingWithCity[]> {
     try {
         const meetings = await prisma.councilMeeting.findMany({
             where: {
-                ...publicMeetingWhere(realm),
+                ...publicMeetingWhere(realm, scope),
                 dateTime: { gt: new Date() },
                 // A postponed or cancelled meeting is not coming up.
                 ...TAKES_PLACE_WHERE,
@@ -201,6 +208,11 @@ export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?
     }
 }
 
+/** The cache key of a named scope. No tier means the primary tier, as in bodyScopeWhere. */
+function upcomingScopeKey({ tier, types, ids }: BodyScope): string {
+    return [`tier:${tier ?? 'primary'}`, `types:${[...(types ?? [])].sort().join(',')}`, `ids:${[...(ids ?? [])].sort().join(',')}`].join('|');
+}
+
 // Cache tag for a realm's upcoming-meetings list — revalidated when a meeting's release toggles.
 // Not exported: a "use server" module may only export async functions, and it's used only here.
 export const upcomingMeetingsTag = (realm: Realm) => `realm:${realm}:upcoming-meetings`;
@@ -210,10 +222,11 @@ export const upcomingMeetingsTag = (realm: Realm) => `realm:${realm}:upcoming-me
  * Short TTL because "upcoming" shrinks as meetings pass and the query is `dateTime > now()`, which
  * a cache key can't reflect; release toggles bust the tag for correctness in between.
  */
-export async function getUpcomingMeetingsCached(realm: Realm, { limit = 10 }: { limit?: number } = {}): Promise<UpcomingMeetingWithCity[]> {
+export async function getUpcomingMeetingsCached(realm: Realm, { limit = 10, scope }: UpcomingMeetingsOptions = {}): Promise<UpcomingMeetingWithCity[]> {
     return createCache(
-        () => getUpcomingMeetings(realm, { limit }),
-        ['upcoming-meetings', realm, String(limit)],
+        () => getUpcomingMeetings(realm, { limit, scope }),
+        // The default scope keeps the key it always had; a named scope gets its own.
+        ['upcoming-meetings', realm, String(limit), ...(scope ? [upcomingScopeKey(scope)] : [])],
         { revalidate: 300, tags: [upcomingMeetingsTag(realm)] },
     )();
 }

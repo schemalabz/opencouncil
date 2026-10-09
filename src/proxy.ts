@@ -4,7 +4,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
 import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, realmOverride } from './lib/realm';
-import { LOCALE_PREFIX_RE, SERBIAN_SCRIPT_COOKIE, foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
+import { LOCALE_PREFIX_RE, SERBIAN_SCRIPT_COOKIE, bodyTypeHostRedirectTarget, foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
 import { isSerbianScript } from './lib/serbian/transliterate';
 import { mcpRewriteTarget } from './lib/mcp/rewrite';
 import { isHeaderlessMultipartPost } from './lib/multipartPostGuard';
@@ -78,6 +78,17 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
     // Handle the specific case for opencouncil.chania.gr
     const chaniaResponse = handleChaniaSubdomain(req);
     if (chaniaResponse) return chaniaResponse;
+
+    // A body-type host (#829, youth.opencouncil.gr) 301s to the directory of
+    // its type on the realm's apex.
+    const bodyTypeHostTarget = bodyTypeHostRedirectTarget(
+        req.headers.get('host'),
+        req.nextUrl.pathname,
+        req.nextUrl.search,
+    );
+    if (bodyTypeHostTarget) {
+        return NextResponse.redirect(bodyTypeHostTarget, 301);
+    }
 
     // Next's automatic trailing-slash redirect is disabled app-wide
     // (skipTrailingSlashRedirect in next.config.mjs) because PostHog calls

@@ -8,6 +8,9 @@ import { createCache } from "../cache/index";
 import { cityListTags } from "./cityListing";
 import { withUserAuthorizedToEdit } from "../auth";
 import { ConflictError, NotFoundError } from "@/lib/api/errors";
+import { PUBLIC_CITY_WHERE } from "@/lib/cityStatus";
+import { getActiveRoleCondition } from "@/lib/utils/roles";
+import type { DirectoryBodyType } from "@/lib/realm";
 import { parseDecisionConventions } from "@/lib/decisionConventions";
 import {
     administrativeBodySettingsSelect,
@@ -279,4 +282,53 @@ export async function deleteAdministrativeBody(id: string): Promise<void> {
         console.error('Error deleting administrative body:', error);
         throw new Error('Failed to delete administrative body');
     }
+}
+
+/**
+ * A body on the directory of its type (#829): its public fields, its city,
+ * and what a card draws: the active members, the released meetings, the
+ * last of them. `now` is the instant a membership counts as active at.
+ */
+function bodyDirectorySelect(now: Date) {
+    return {
+        ...publicAdministrativeBodySelect,
+        city: {
+            select: { id: true, name: true, name_en: true, name_municipality: true, name_municipality_en: true, logoImage: true, timezone: true },
+        },
+        _count: { select: { meetings: { where: { released: true } } } },
+        // The holders of the active roles: one person can hold two roles on a body.
+        roles: { where: { OR: getActiveRoleCondition(now) }, select: { personId: true } },
+        // The last meeting held: a published next meeting is not it.
+        meetings: { where: { released: true, dateTime: { lte: now } }, orderBy: { dateTime: 'desc' }, take: 1, select: { id: true, dateTime: true } },
+    } satisfies Prisma.AdministrativeBodySelect;
+}
+
+/**
+ * The bodies of one type on the directory of a realm (#829): the bodies that
+ * released a meeting, in the public cities of the realm. A city is public by
+ * status or through a secondary body, as PUBLIC_CITY_WHERE reads it.
+ */
+function bodyDirectoryWhere(realm: Realm, type: DirectoryBodyType): Prisma.AdministrativeBodyWhereInput {
+    return { type, meetings: { some: { released: true } }, city: { realm, ...PUBLIC_CITY_WHERE } };
+}
+
+/**
+ * The bodies of one type across a realm that have released a meeting, in
+ * public cities, by city and then by name: the directory of the type (#829).
+ * `memberCount` counts the people with an active role on the body.
+ */
+export async function getBodyDirectory(realm: Realm, type: DirectoryBodyType) {
+    const bodies = await prisma.administrativeBody.findMany({
+        where: bodyDirectoryWhere(realm, type),
+        select: bodyDirectorySelect(new Date()),
+        orderBy: [{ city: { name: 'asc' } }, { name: 'asc' }],
+    });
+    return bodies.map(({ roles, ...body }) => ({ ...body, memberCount: new Set(roles.map(role => role.personId)).size }));
+}
+
+export type BodyDirectoryRow = Awaited<ReturnType<typeof getBodyDirectory>>[number];
+
+/** How many bodies the directory of a type lists in a realm: the sitemap advertises a directory that has one. */
+export async function countBodyDirectory(realm: Realm, type: DirectoryBodyType): Promise<number> {
+    return prisma.administrativeBody.count({ where: bodyDirectoryWhere(realm, type) });
 }

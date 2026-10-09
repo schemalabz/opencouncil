@@ -1,6 +1,6 @@
 import { Realm } from '@prisma/client';
-import { REALMS, foreignLocalesForRealm, isKnownRealmHost, realmForHost } from '@/lib/realm';
-import { localePrefixPattern, urlPrefixForLocale } from '@/i18n/config';
+import { REALMS, bodyDirectoryPath, bodyTypeForHost, foreignLocalesForRealm, getRealmBaseUrl, isKnownRealmHost, realmForHost } from '@/lib/realm';
+import { LOCALES, localePrefixPattern, urlPrefixForLocale } from '@/i18n/config';
 import { type SerbianScript } from '@/lib/serbian/transliterate';
 import { EMBED_PATH } from '@/lib/utils/embed';
 
@@ -31,6 +31,32 @@ export function wwwRedirectTarget(host: string | null | undefined, pathname: str
         }
     }
     return null;
+}
+
+/**
+ * Absolute redirect target when the request arrived on a body-type host
+ * (#829, `BODY_TYPE_HOSTS`), else null. The host serves no page itself, so
+ * a reader never signs in or browses on a host that is not a realm apex:
+ *
+ * - `/` and a locale prefix of the host's realm (`/en`) open the directory of
+ *   the type on the realm's apex, in that locale. The prefix of the realm's
+ *   default locale opens the unprefixed directory, in one hop.
+ * - Every other path goes to the same path and query on the apex.
+ *
+ * Trailing slashes are stripped, as in `wwwRedirectTarget`.
+ */
+export function bodyTypeHostRedirectTarget(host: string | null | undefined, pathname: string, search: string): string | null {
+    const type = bodyTypeForHost(host);
+    if (!type) return null;
+    const realm = realmForHost(host);
+    const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
+    const locale = LOCALES.find(l => `/${urlPrefixForLocale(l)}` === path);
+    const target = path === '/' || locale === REALMS[realm].defaultLocale
+        ? bodyDirectoryPath(type)
+        : locale && !foreignLocalesForRealm(realm).includes(locale)
+            ? `${path}${bodyDirectoryPath(type)}`
+            : path;
+    return `${getRealmBaseUrl(realm)}${target}${search}`;
 }
 
 /**
