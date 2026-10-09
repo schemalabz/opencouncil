@@ -15,7 +15,8 @@
     "stale": "the meeting is more than 15 days old.",
     "future-summary": "the meeting has a future date. Check the date of the meeting.",
     "old-task": "the last processing was more than 7 days ago.",
-    "noTasks": "the agenda and the summary are not processed yet. When they are processed, the subscribers are notified, if the meeting is still news then."
+    "noTasks": "the agenda and the summary are not processed yet. When they are processed, the subscribers are notified, if the meeting is still news then.",
+    "cityUnsupported": "the municipality does not support notifications yet for its council, committees and communities."
   },
   "manual": "To notify the subscribers anyway, use the Notifications section of the meeting admin page."
 }

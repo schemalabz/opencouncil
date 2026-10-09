@@ -63,6 +63,17 @@ stateless playground-only mode:
 
   The role can `SELECT` the five views and nothing else.
 
+  Two of the views carry the follow rule of #829. `notis_fanout_targets.bodies`
+  lists the bodies a preference follows, as `[{id, name, name_en}]`.
+  `notis_meeting_events.followersOnly` is true for the event of a body that
+  readers follow on their own, with the body in `adminBodyId`. The poller then
+  wakes the followers of that body and nobody else of the city. Every other
+  event wakes every reader of the city. The view leaves out such an event in
+  a municipality without notifications, so its readers get the events of the
+  bodies they follow and nothing else. Deploy order:
+  the main database migration first, the Notis build second. A new column of
+  a view is required by the client that reads it, and an old client ignores it.
+
 ### Bird (WhatsApp)
 
 Notis has its OWN Bird webhook subscription and signing key, separate from

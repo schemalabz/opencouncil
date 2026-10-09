@@ -148,6 +148,24 @@ Three paths create or send notifications for a meeting. All three read the setti
 
 The default of a new body comes from `defaultNotificationBehavior` in `src/lib/utils/bodyTier.ts`, which reads the tier of the body. A primary body starts on `NOTIFICATIONS_APPROVAL`. A secondary body, such as a youth council, starts on `NOTIFICATIONS_DISABLED`. The meeting page does not promise a subscriber an update for a disabled body.
 
+#### A secondary body has its own followers (#829)
+
+A subscriber of a municipality signed up for the meetings of its own bodies. The meetings of a secondary body reach the readers who follow that body, and nobody else.
+
+One rule decides the audience of a meeting. A preference receives a meeting in two cases. The body is secondary and the preference follows it. Or the body is primary or absent and the city has `supportsNotifications`. In a city without `supportsNotifications`, the meetings of its own bodies reach nobody, older rows included. When a city starts to support notifications, every reader of the city gets its meetings, the readers who signed up for a secondary body alone included. `preferenceCoversBody` in `src/lib/utils/bodyTier.ts` states the rule and names its other forms.
+
+- The signup offers each secondary body of the city with a public meeting and its updates on behind a tick, under the topics. Nothing is ticked by default. A body that the reader follows stays on offer after its updates go off, so the reader can untick it. The save keeps the ticked bodies in `NotificationPreference.bodies`. A body of another city or of the primary tier is dropped, as an unknown topic is.
+- `createNotificationsForMeeting` reads the audience of a meeting through `meetingAudienceWhere`. The release preview (`countEmailRecipientsForMeeting`) and the impact preview of a manual send (`previewNotificationImpact`) count the recipients of the same function, `matchMeetingRecipients`. So a preview and the send share the audience and the matching. The send also skips a reader with no channel and a reader who already has a notification of the type. The impact preview refuses a meeting that the send refuses (`requireManualNotificationsAllowed`): a missing meeting (404) and a body with its notifications off (409).
+- The Notis views carry the same rule. `notis_fanout_targets.bodies` lists the bodies a preference follows. `notis_meeting_events.followersOnly` is true for the events of a secondary body, with the body in `adminBodyId`. The view leaves out the event of a primary body, or of no body, in a city without `supportsNotifications`. The poller wakes the followers of the body for an event with `followersOnly`, and every reader of the city for every other event.
+- The admin of a secondary body switches its updates on and off from the page of the body. On is `NOTIFICATIONS_AUTO`: nobody approves a pending notification for a body that runs its own pipeline. The switch is not offered on a primary body.
+- A municipality that does not support notifications still offers the signup for a secondary body whose updates are on. The page then shows the bodies alone, ticked from the start, and asks for the channels: no intro, no places, no topics. The save writes an ordinary row with the ticked bodies. With no such body, the reader is sent to the petition page, as before. When the reader unticks every body, `preferencesAction` in `src/components/notifications/signup/signup-state.ts` decides what the action does, and it never deletes more than follows:
+  - A new reader cannot continue.
+  - A row with topics or places continues: the save keeps them, with no body.
+  - A row that follows a body and holds nothing else gets «Διακοπή παρακολούθησης», which deletes the row through the delete of the profile.
+  - A row that follows no body starts with the offered bodies ticked, as a new reader does.
+- `bodyOffersFollow` in `src/lib/utils/bodyTier.ts` decides which bodies a reader may follow: a secondary body with its updates on and a released meeting. The signup offers the tick of such a body, and the page of the body links to the signup by the same rule. `bodyOffersUpdates` is the rule at the level of a meeting: the meeting strip reads it, and `notificationOutcome` and the release dialog use it to say when a meeting sends nothing.
+- The profile lists the bodies a preference follows beside its topics and places.
+
 ## Implementation Requirements
 
 ### 1. Database Schema Implementation

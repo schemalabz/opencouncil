@@ -71,6 +71,45 @@ export function defaultNotificationBehavior(tier: BodyTier): NotificationBehavio
 }
 
 /**
+ * Whether a body sends notifications at all: the one fact of its notification
+ * behaviour that a reader may know (#829). Whether a notification waits for an
+ * approval stays the municipality's own setting.
+ */
+export function bodySendsUpdates(notificationBehavior: NotificationBehavior): boolean {
+    return notificationBehavior !== 'NOTIFICATIONS_DISABLED';
+}
+
+/**
+ * Whether the meetings of a body send updates that a reader can sign up for
+ * (#829). A body with its notifications off sends none. A primary body, or a
+ * meeting with no body, sends only in a municipality that supports
+ * notifications. A secondary body sends to its followers wherever it is: its
+ * admin switches its updates on without the municipality, and the signup is
+ * the readers' only way to them.
+ */
+export function bodyOffersUpdates(
+    city: { supportsNotifications: boolean },
+    body: { tier: BodyTier; sendsUpdates: boolean } | null | undefined,
+): boolean {
+    if (body && !body.sendsUpdates) return false;
+    return city.supportsNotifications || isSecondaryBody(body);
+}
+
+/**
+ * Whether a reader may follow a body (#829): a secondary body that sends
+ * updates and has released a meeting. A secondary body sends to its
+ * followers whatever the city (bodyOffersUpdates), so the city plays no part.
+ * The signup offers the tick of such a body, and the page of the body links
+ * to that tick.
+ */
+export function bodyOffersFollow(
+    body: { tier: BodyTier; sendsUpdates: boolean },
+    { hasReleasedMeeting }: { hasReleasedMeeting: boolean },
+): boolean {
+    return hasReleasedMeeting && isSecondaryBody(body) && body.sendsUpdates;
+}
+
+/**
  * The meetings of a city's primary bodies, as a Prisma where clause. It keeps
  * a meeting with no body: cities imported before bodies existed have many, and
  * they are the council's. A relation filter alone would drop them.
@@ -190,4 +229,55 @@ const secondaryPresenceWhere = {
 export function personTierWhere(tier: TierScope = 'primary'): Prisma.PersonWhereInput {
     if (tier === 'all') return {};
     return tier === 'primary' ? primaryPresenceWhere : secondaryPresenceWhere;
+}
+
+/**
+ * The audience rule of a meeting (#829), defined once here: a preference of
+ * the city receives a meeting when the body is secondary and the preference
+ * follows it, or when the body is primary or absent and the city supports
+ * notifications. In a city without notifications the meetings of its own
+ * bodies reach nobody.
+ *
+ * The rule has four forms, and an integration test
+ * (tests/integration/notis-views.test.ts) holds them to the same answers:
+ * - preferenceCoversBody: one row, for a page that holds the reader's preference.
+ * - meetingAudienceWhere: the Prisma where of the send and of every preview.
+ * - The notis_meeting_events view (migration 20261120120000): it leaves out the
+ *   event of a primary body in a city without notifications.
+ * - processMeetingEvents in services/notis/src/lib/poller.ts: it wakes the
+ *   followers of a secondary body, and every reader of the city otherwise.
+ *
+ * The four forms do not read the notification behaviour of the body. A body
+ * with its notifications off (NOTIFICATIONS_DISABLED) sends to nobody, and
+ * other places check that: the DISABLED clause of the notis_meeting_events
+ * view, notificationOutcome (src/lib/notifications/freshness.ts) for the
+ * automatic send, requireManualNotificationsAllowed (src/lib/db/notifications.ts)
+ * for the manual send and its preview, and bodyOffersUpdates for the strip.
+ * A new send path must run one of these checks before it reads the audience.
+ *
+ * Two places describe the rule to an admin before anything is sent, through
+ * bodyOffersUpdates (the meeting-level form of the rule and of the DISABLED
+ * check together): notificationOutcome says that an email of a primary body
+ * in a city without notifications goes to nobody (`cityUnsupported`), and
+ * releaseNews (src/lib/notifications/meetingNotifications.ts) says when Notis
+ * has no event. The same integration test holds bodyOffersUpdates to the view.
+ */
+export function preferenceCoversBody(
+    preference: { bodies: { id: string }[] },
+    body: { id: string; tier: BodyTier } | null | undefined,
+    city: { supportsNotifications: boolean },
+): boolean {
+    return body && isSecondaryBody(body)
+        ? preference.bodies.some(followed => followed.id === body.id)
+        : city.supportsNotifications;
+}
+
+/** The preferences that receive a meeting of `body` in `cityId`: preferenceCoversBody as a Prisma where. */
+export function meetingAudienceWhere(
+    cityId: string,
+    body: { id: string; tier: BodyTier } | null | undefined,
+): Prisma.NotificationPreferenceWhereInput {
+    return body && isSecondaryBody(body)
+        ? { cityId, bodies: { some: { id: body.id } } }
+        : { cityId, city: { supportsNotifications: true } };
 }

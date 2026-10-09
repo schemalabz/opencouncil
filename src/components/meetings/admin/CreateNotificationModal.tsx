@@ -14,7 +14,10 @@ import { TripleToggle } from '@/components/ui/triple-toggle';
 import { stripMarkdown } from '@/lib/formatters/markdown';
 import { SubjectWithRelations } from '@/lib/db/subject';
 import type { SubjectImportance } from '@/lib/zod-schemas/notification';
+import { apiErrorMessage } from '@/lib/utils/validationIssues';
+import { useValidationMessage } from '@/hooks/useLocalizedValidation';
 
+const IMPACT_FAILED = 'Could not calculate the impact of the notifications';
 
 interface CreateNotificationModalProps {
     open: boolean;
@@ -50,6 +53,10 @@ export function CreateNotificationModal({
     });
     const [impactPreview, setImpactPreview] = useState<{ totalUsers: number; subjectImpact: Record<string, number> } | null>(null);
     const [isLoadingImpact, setIsLoadingImpact] = useState(false);
+    // Why the preview has no count: the route refuses a meeting whose body has
+    // its notifications off (409) or that does not exist (404), as the send does.
+    const [impactError, setImpactError] = useState<string | null>(null);
+    const validationMessage = useValidationMessage();
     const [existingNotifications, setExistingNotifications] = useState<{
         total: number;
         sent: number;
@@ -135,11 +142,16 @@ export function CreateNotificationModal({
                 });
 
                 if (response.ok) {
-                    const data = await response.json();
-                    setImpactPreview(data);
+                    setImpactPreview(await response.json());
+                    setImpactError(null);
+                } else {
+                    setImpactPreview(null);
+                    setImpactError(apiErrorMessage(await response.json().catch(() => null), response.status, IMPACT_FAILED, validationMessage));
                 }
             } catch (error) {
                 console.error('Error calculating impact:', error);
+                setImpactPreview(null);
+                setImpactError(IMPACT_FAILED);
             } finally {
                 setIsLoadingImpact(false);
             }
@@ -148,7 +160,7 @@ export function CreateNotificationModal({
         // Debounce the calculation
         const timeoutId = setTimeout(calculateImpact, 500);
         return () => clearTimeout(timeoutId);
-    }, [subjectImportances, city.id, meeting.id]);
+    }, [subjectImportances, city.id, meeting.id, validationMessage]);
 
     const handleCreate = async () => {
         setIsCreating(true);
@@ -324,6 +336,10 @@ export function CreateNotificationModal({
                                     Across {activeSubjects.length} subjects
                                 </p>
                             </div>
+                        ) : impactError && !isLoadingImpact ? (
+                            <p className="text-sm text-destructive" role="alert">
+                                {impactError}
+                            </p>
                         ) : (
                             <p className="text-sm text-blue-700">
                                 Calculating...

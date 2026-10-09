@@ -9,6 +9,7 @@ import {
 import { getLastSucceededTaskTimes } from '@/lib/db/tasksInternal';
 import { sendNotificationsCreatedAdminAlert, sendNotificationsFailedAdminAlert, sendNotificationsSentAdminAlert } from '@/lib/discord';
 import { meetingLabelInCity } from '@/lib/meetingName';
+import { bodyOffersUpdates, bodySendsUpdates } from '@/lib/utils/bodyTier';
 import { releaseNotifications } from './deliver';
 import {
     classifyMeetingNews,
@@ -48,7 +49,7 @@ export async function notifySubscribersOfTask(cityId: string, meetingId: string,
 
 export interface ReleaseOutlook {
     /** The phase that Notis treats as news once the meeting is released, or why none is. */
-    notis: { phase: NewsPhase; reason?: never } | { phase: null; reason: Exclude<NewsDisposition, 'fanout'> | 'noTasks' };
+    notis: { phase: NewsPhase; reason?: never } | { phase: null; reason: Exclude<NewsDisposition, 'fanout'> | 'noTasks' | 'disabled' | 'cityUnsupported' };
     /** What the release does with email for that phase, and how many readers it emails. */
     email: { phase: NewsPhase | null; outcome: NotificationOutcome; recipients: number };
 }
@@ -99,16 +100,23 @@ async function releaseNews(meeting: MeetingForNotifications, at: Date): Promise<
 
     const news = judged.find((j) => j.disposition === 'fanout');
     const latest = judged.at(-1);
-    const notis: ReleaseOutlook['notis'] = news
-        ? { phase: news.phase }
-        : { phase: null, reason: (latest?.disposition ?? 'noTasks') as Exclude<NewsDisposition, 'fanout'> | 'noTasks' };
+    // The last two conditions of the notis_meeting_events view, for this
+    // meeting: the view leaves out the event of a body whose updates are off,
+    // and of a primary body or no body in a city without notifications (#829).
+    const body = meeting.administrativeBody;
+    const notisSends = bodyOffersUpdates(meeting.city, body && { tier: body.tier, sendsUpdates: bodySendsUpdates(body.notificationBehavior) });
+    const notis: ReleaseOutlook['notis'] = !notisSends
+        ? { phase: null, reason: body && !bodySendsUpdates(body.notificationBehavior) ? 'disabled' : 'cityUnsupported' }
+        : news
+            ? { phase: news.phase }
+            : { phase: null, reason: (latest?.disposition ?? 'noTasks') as Exclude<NewsDisposition, 'fanout'> | 'noTasks' };
 
     const released = { ...meetingFacts(meeting), released: true };
     const chosen = news ?? latest;
     if (!chosen) {
         // Nothing processed yet. The body's setting, when it rules email out, is still the first thing to say.
         const outcome = notificationOutcome(released, 'processAgenda', at, at);
-        const bodyReason = outcome.kind === 'none' && (outcome.reason === 'noBody' || outcome.reason === 'disabled');
+        const bodyReason = outcome.kind === 'none' && (outcome.reason === 'noBody' || outcome.reason === 'disabled' || outcome.reason === 'cityUnsupported');
         return { notis, email: { phase: null, outcome: bodyReason ? outcome : { kind: 'none', reason: 'noTasks' } } };
     }
     return { notis, email: { phase: chosen.phase, outcome: notificationOutcome(released, chosen.phase, chosen.taskCompletedAt, at) } };
@@ -120,6 +128,8 @@ function meetingFacts(meeting: MeetingForNotifications): Parameters<typeof notif
         dateTime: meeting.dateTime,
         scheduleStatus: meeting.scheduleStatus,
         notificationBehavior: meeting.administrativeBody?.notificationBehavior,
+        bodyTier: meeting.administrativeBody?.tier,
+        supportsNotifications: meeting.city.supportsNotifications,
     };
 }
 

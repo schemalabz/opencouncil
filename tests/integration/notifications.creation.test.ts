@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import prisma from '@/lib/db/prisma'
-import { createNotificationsForMeeting } from '@/lib/db/notifications'
+import { countEmailRecipientsForMeeting, createNotificationsForMeeting, previewNotificationImpact } from '@/lib/db/notifications'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import {
     createAdministrativeBody,
@@ -12,6 +12,7 @@ import {
     createTopic,
     createUser,
     metersToLatLngOffset,
+    signInAsSuperAdmin,
 } from '../helpers/factories'
 
 describe('createNotificationsForMeeting - end-to-end', () => {
@@ -26,7 +27,7 @@ describe('createNotificationsForMeeting - end-to-end', () => {
     })
 
     test('creates notifications, subjects and deliveries with correct reasons and stats', async () => {
-        const city = await createCity({ id: 'c3', name_municipality: 'Municipality Test', name_municipality_en: 'Municipality Test' })
+        const city = await createCity({ id: 'c3', name_municipality: 'Municipality Test', name_municipality_en: 'Municipality Test', supportsNotifications: true })
         // Verify city exists
         const verifyCity = await prisma.city.findUnique({ where: { id: city.id } })
         if (!verifyCity) throw new Error(`City ${city.id} was not found after creation`)
@@ -109,8 +110,85 @@ describe('createNotificationsForMeeting - end-to-end', () => {
         expect(nInterested.subjects.some((s) => s.subjectId === subjectB.id && s.reason === 'generalInterest')).toBeTruthy()
     })
 
+    /**
+     * Two councils and one youth council in a city, with a subscriber of the
+     * city who also follows the youth council, a subscriber of the city
+     * alone, and a reader who follows the youth council and picked nothing
+     * else. The follower picked a topic the youth agenda does not carry: the
+     * follow, not the topic, decides for the youth meeting.
+     */
+    async function audienceFixture(cityId: string, supportsNotifications: boolean) {
+        const city = await createCity({ id: cityId, name_municipality: cityId, name_municipality_en: cityId, supportsNotifications })
+        const youth = await createAdministrativeBody(city.id, { name: 'ΔΣΝ', name_en: 'Youth', type: 'youthCouncil' })
+        const council = await createAdministrativeBody(city.id)
+        const youthMeeting = await createMeeting(city.id, { id: `${cityId}_youth`, administrativeBodyId: youth.id })
+        const councilMeeting = await createMeeting(city.id, { id: `${cityId}_council`, administrativeBodyId: council.id })
+        await createSubject(youthMeeting.id, city.id, { id: `${cityId}_sy`, topicId: null, locationId: null, name: 'Youth item' })
+        await createSubject(councilMeeting.id, city.id, { id: `${cityId}_sc`, topicId: null, locationId: null, name: 'Council high' })
+
+        const culture = await createTopic(`${cityId}_culture`, { name: 'Πολιτισμός', name_en: 'Culture' })
+        const follower = await createUser(`follower@${cityId}.example.com`)
+        await createNotificationPreference({ userId: follower.id, cityId: city.id, bodyIds: [youth.id], topicIds: [culture.id] })
+        const resident = await createUser(`resident@${cityId}.example.com`)
+        await createNotificationPreference({ userId: resident.id, cityId: city.id })
+        const youthOnly = await createUser(`youth-only@${cityId}.example.com`)
+        await createNotificationPreference({ userId: youthOnly.id, cityId: city.id, bodyIds: [youth.id] })
+
+        const high = { [`${cityId}_sc`]: { topicImportance: 'high' as const, proximityImportance: 'none' as const } }
+        const notified = async (meetingId: string) =>
+            (await prisma.notification.findMany({ where: { meetingId }, include: { user: true } })).map((n) => n.user.email.split('@')[0]).sort()
+        return { city, youthMeeting, councilMeeting, high, notified }
+    }
+
+    test('a meeting of a secondary body reaches its followers alone; a council meeting reaches every reader of a city that supports notifications (#829)', async () => {
+        const { city, youthMeeting, councilMeeting, high, notified } = await audienceFixture('c5', true)
+
+        // The youth subject keeps a pasted agenda's importance: normal, with no topic.
+        expect((await createNotificationsForMeeting(city.id, youthMeeting.id, 'beforeMeeting')).notificationsCreated).toBe(2)
+        expect((await createNotificationsForMeeting(city.id, councilMeeting.id, 'beforeMeeting', high)).notificationsCreated).toBe(3)
+
+        expect(await notified(youthMeeting.id)).toEqual(['follower', 'youth-only'])
+        // The accepted flip: a reader who follows the youth council alone gets the council's meetings too.
+        expect(await notified(councilMeeting.id)).toEqual(['follower', 'resident', 'youth-only'])
+    })
+
+    test('a council meeting of a city without notifications reaches nobody, old rows included; its youth council still reaches its followers (#829)', async () => {
+        const { city, youthMeeting, councilMeeting, high, notified } = await audienceFixture('c7', false)
+
+        expect((await createNotificationsForMeeting(city.id, councilMeeting.id, 'beforeMeeting', high)).notificationsCreated).toBe(0)
+        expect(await countEmailRecipientsForMeeting(city.id, councilMeeting.id, 'beforeMeeting')).toBe(0)
+        expect((await createNotificationsForMeeting(city.id, youthMeeting.id, 'beforeMeeting')).notificationsCreated).toBe(2)
+        expect(await notified(youthMeeting.id)).toEqual(['follower', 'youth-only'])
+    })
+
+    test('the impact preview of a manual send counts the readers the send notifies, a follower whose topic is not on the agenda included (#829)', async () => {
+        await signInAsSuperAdmin()
+        const { city, youthMeeting, councilMeeting, high } = await audienceFixture('c6', true)
+        const normal = { c6_sy: { topicImportance: 'normal' as const, proximityImportance: 'none' as const } }
+
+        for (const [meeting, importances] of [[youthMeeting, normal], [councilMeeting, high]] as const) {
+            const preview = await previewNotificationImpact(city.id, meeting.id, importances)
+            const sent = await createNotificationsForMeeting(city.id, meeting.id, 'beforeMeeting', importances)
+            expect({ meeting: meeting.id, total: preview.totalUsers }).toEqual({ meeting: meeting.id, total: sent.notificationsCreated })
+        }
+        expect((await previewNotificationImpact(city.id, youthMeeting.id, normal)).subjectImpact).toEqual({ c6_sy: 2 })
+    })
+
+    test('the impact preview counts a reader once, however many subjects they match (#829)', async () => {
+        await signInAsSuperAdmin()
+        const { city, councilMeeting } = await audienceFixture('c8', true)
+        await createSubject(councilMeeting.id, city.id, { id: 'c8_sc2', topicId: null, locationId: null, name: 'Council high 2' })
+        const high = { topicImportance: 'high' as const, proximityImportance: 'none' as const }
+        const importances = { c8_sc: high, c8_sc2: high }
+
+        const preview = await previewNotificationImpact(city.id, councilMeeting.id, importances)
+        const sent = await createNotificationsForMeeting(city.id, councilMeeting.id, 'beforeMeeting', importances)
+        expect(preview).toEqual({ totalUsers: sent.notificationsCreated, subjectImpact: { c8_sc: 3, c8_sc2: 3 } })
+        expect(sent.notificationsCreated).toBe(3)
+    })
+
     test("respects the preference's notifyByEmail and the person's notifyByPhone", async () => {
-        const city = await createCity({ id: 'c4', name_municipality: 'X', name_municipality_en: 'X' })
+        const city = await createCity({ id: 'c4', name_municipality: 'X', name_municipality_en: 'X', supportsNotifications: true })
         const body = await createAdministrativeBody(city.id)
         const meeting = await createMeeting(city.id, { id: 'm2', administrativeBodyId: body.id })
         await createSubject(meeting.id, city.id, { id: 'sh', topicId: null, locationId: null, name: 'High' })

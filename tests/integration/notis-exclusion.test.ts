@@ -29,7 +29,7 @@ describe('message deliveries are Notis\'s, never this app\'s', () => {
     })
 
     async function setupMatchingMeeting() {
-        const city = await createCity({ id: 'nx_city' })
+        const city = await createCity({ id: 'nx_city', supportsNotifications: true })
         const meeting = await createMeeting(city.id, { id: 'nx_meeting' })
         const topic = await createTopic('nx_topic')
         await createSubject(meeting.id, city.id, { id: 'nx_subject', topicId: topic.id })

@@ -270,10 +270,12 @@ function renderDeliveryMode(mode: NonNullable<WakeState["deliveryMode"]>): strin
 }
 
 export function assembleUserTurn(state: WakeState, events: WakeEvent[], now: Date): string {
+  // The bodies the reader follows by name come last, after the topics and the places.
   const cities = state.user.cities
     .map(
       (c) =>
-        `- ${c.cityName} (${c.cityId}): topics [${c.topics.join(", ") || "—"}], places [${c.locations.map(locationLabel).join("; ") || "—"}]`,
+        `- ${c.cityName} (${c.cityId}): topics [${c.topics.join(", ") || "—"}], places [${c.locations.map(locationLabel).join("; ") || "—"}]` +
+        (c.bodies?.length ? `, follows [${c.bodies.join(", ")}]` : ""),
     )
     .join("\n");
 

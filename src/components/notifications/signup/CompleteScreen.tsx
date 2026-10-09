@@ -120,6 +120,20 @@ export function CompleteScreen({
     );
 }
 
+/**
+ * After a reader stopped following the bodies of a municipality (#829): what
+ * happened, and where to go next, as the completion screen gives it.
+ */
+export function UnfollowedScreen({ city, signedIn }: { city: CityWithGeometry; signedIn: boolean }) {
+    const t = useTranslations('notificationSignup');
+    return (
+        <div>
+            <StepHeading title={t('bodiesScope.unfollowedTitle')} lead={t('bodiesScope.unfollowedLead')} className="pt-5 lg:pt-6" />
+            <MeanwhileLinks className="mt-7 lg:hidden" eyebrow={t('meanwhileEyebrow')} items={useMeanwhile(city, signedIn)} />
+        </div>
+    );
+}
+
 /** The green check a completion screen opens with. */
 export function DoneCheck() {
     return (

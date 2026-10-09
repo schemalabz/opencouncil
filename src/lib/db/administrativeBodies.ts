@@ -7,7 +7,7 @@ import prisma from "./prisma";
 import { createCache } from "../cache/index";
 import { cityListTags } from "./cityListing";
 import { withUserAuthorizedToEdit } from "../auth";
-import { ConflictError, NotFoundError } from "@/lib/api/errors";
+import { BadRequestError, ConflictError, NotFoundError } from "@/lib/api/errors";
 import { PUBLIC_CITY_WHERE } from "@/lib/cityStatus";
 import { getActiveRoleCondition } from "@/lib/utils/roles";
 import type { DirectoryBodyType } from "@/lib/realm";
@@ -18,10 +18,11 @@ import {
     type AdministrativeBodySettings,
     type AdministrativeBodyWithSettings,
     type PublicAdministrativeBody,
+    type PublicAdministrativeBodyWithUpdates,
 } from "./types/administrativeBody";
 import { replaceDocumentSendSettings } from "./documentSends";
 import type { DocumentSendSettingInput } from "@/lib/zod-schemas/administrativeBody";
-import { tierNeedsSuperadmin } from "@/lib/utils/bodyTier";
+import { bodySendsUpdates, isSecondaryBody, tierNeedsSuperadmin } from "@/lib/utils/bodyTier";
 import {
     administrativeBodyWithSendSettingsInclude,
     bodyContactsSelect,
@@ -69,17 +70,29 @@ export async function getAdministrativeBodiesForCity(cityId: string): Promise<Ad
  */
 export const bodyPageSelect = {
     ...publicAdministrativeBodySelect,
+    // Read on the server only: getBodyPageRow turns it into sendsUpdates.
+    notificationBehavior: true,
     _count: { select: { meetings: { where: { released: true } } } },
 } satisfies Prisma.AdministrativeBodySelect;
 
-export type BodyPageRow = Prisma.AdministrativeBodyGetPayload<{ select: typeof bodyPageSelect }>;
+/**
+ * The body as its page shows it to everyone. Of the notification behaviour it
+ * carries only whether the body sends updates (#829): the page offers the
+ * follow of a secondary body by it.
+ */
+export type BodyPageRow = Omit<Prisma.AdministrativeBodyGetPayload<{ select: typeof bodyPageSelect }>, 'notificationBehavior'> & {
+    sendsUpdates: boolean;
+};
 
 /** The body for its page. Null when the body does not exist or belongs to another city. */
 export async function getBodyPageRow(cityId: string, bodyId: string): Promise<BodyPageRow | null> {
-    return prisma.administrativeBody.findFirst({ where: { id: bodyId, cityId }, select: bodyPageSelect });
+    const row = await prisma.administrativeBody.findFirst({ where: { id: bodyId, cityId }, select: bodyPageSelect });
+    if (!row) return null;
+    const { notificationBehavior, ...body } = row;
+    return { ...body, sendsUpdates: bodySendsUpdates(notificationBehavior) };
 }
 
-/** The settings that an admin of the body may change (#828, #874). Gated on the body. */
+/** The settings that an admin of the body may change (#828, #874, #829). Gated on the body. */
 export async function getAdministrativeBodyContacts(cityId: string, bodyId: string): Promise<BodyContacts | null> {
     await withUserAuthorizedToEdit({ cityId, administrativeBodyId: bodyId });
     return prisma.administrativeBody.findFirst({
@@ -114,21 +127,24 @@ export async function getPublicAdministrativeBodiesForCity(cityId: string): Prom
  * filter only offers bodies a visitor could actually see meetings for.
  *
  * Public fields only: a browser reaches this through a Server Action that takes
- * any city id, and the meetings tab hands the result to a Client Component.
+ * any city id, and the meetings tab hands the result to a Client Component. Of
+ * the notification behaviour, a row carries only whether the body sends
+ * updates, which the signup reads (#829).
  */
-export async function getAdministrativeBodiesWithPublicMeetings(cityId: string): Promise<PublicAdministrativeBody[]> {
+export async function getAdministrativeBodiesWithPublicMeetings(cityId: string): Promise<PublicAdministrativeBodyWithUpdates[]> {
     try {
-        return await prisma.administrativeBody.findMany({
+        const bodies = await prisma.administrativeBody.findMany({
             where: {
                 cityId,
                 meetings: { some: { released: true } },
             },
-            select: publicAdministrativeBodySelect,
+            select: { ...publicAdministrativeBodySelect, notificationBehavior: true },
             orderBy: [
                 { type: 'asc' },
                 { name: 'asc' },
             ],
         });
+        return bodies.map(({ notificationBehavior, ...body }) => ({ ...body, sendsUpdates: bodySendsUpdates(notificationBehavior) }));
     } catch (error) {
         console.error('Error fetching administrative bodies with public meetings:', error);
         throw new Error('Failed to fetch administrative bodies');
@@ -224,26 +240,30 @@ export async function editAdministrativeBody(
 
 /**
  * The settings a body admin may change (#828): where the body's recordings
- * live, and which documents its back office receives (#874). The name, the
- * type, the notification behaviour and the Diavgeia scopes stay with the
- * city admin.
+ * live, and which documents its back office receives (#874). On a secondary
+ * body (#829), whether its meetings send updates to the readers who follow it.
+ * A primary body's notification behaviour stays with the city admin, as do the
+ * name, the type, the tier and the Diavgeia scopes.
  */
 export async function editAdministrativeBodyContacts(
     id: string,
-    { youtubeChannelUrl }: Partial<Pick<AdministrativeBody, 'youtubeChannelUrl'>>,
+    { youtubeChannelUrl, notificationBehavior }: Partial<Pick<AdministrativeBody, 'youtubeChannelUrl' | 'notificationBehavior'>>,
     documentSendSettings?: DocumentSendSettingInput[],
 ): Promise<AdministrativeBodyWithSettings> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
-        select: { cityId: true },
+        select: { cityId: true, tier: true },
     });
     if (!existingBody) throw new NotFoundError('Administrative body not found');
 
     await withUserAuthorizedToEdit({ cityId: existingBody.cityId, administrativeBodyId: id });
+    if (notificationBehavior !== undefined && !isSecondaryBody(existingBody)) {
+        throw new BadRequestError('The notification behaviour of this body is set by the city admin');
+    }
     const updatedBody = await prisma.$transaction(async (tx) => {
         const updated = await tx.administrativeBody.update({
             where: { id },
-            data: { youtubeChannelUrl },
+            data: { youtubeChannelUrl, notificationBehavior },
         });
         if (documentSendSettings) await replaceDocumentSendSettings(tx, id, documentSendSettings);
         return updated;

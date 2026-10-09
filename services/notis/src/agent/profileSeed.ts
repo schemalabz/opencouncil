@@ -30,6 +30,10 @@ export function seedProfileFromPreferences(cities: CityPreference[]): string {
       if (city.locations.length === 0) {
         parts.push("Χωρίς συγκεκριμένες περιοχές.");
       }
+      // A body followed by name (#829) is asked for on its own, whatever the topics say.
+      if (city.bodies?.length) {
+        parts.push(`Παρακολουθεί ονομαστικά: ${city.bodies.join(", ")}.`);
+      }
       return parts.join(" ");
     })
     .join("\n");

@@ -20,16 +20,17 @@ export async function PUT(
     try {
         const body = await request.json();
 
-        // An admin of the body, not of the city, changes the YouTube channel
-        // and the document send settings, and nothing else (#828, #874). The page
-        // of the body sends those fields alone, for an admin of the city as well.
+        // An admin of the body, not of the city, changes the YouTube channel,
+        // the document send settings and, on a secondary body, the updates
+        // switch, and nothing else (#828, #874, #829). The page of the body
+        // sends those fields alone, for an admin of the city as well.
         // A request with any other field is a full update, which answers 400
         // without the required fields rather than 200 with nothing written.
         const contactsOnly = !!body && typeof body === 'object' && Object.keys(body).every(key => key in administrativeBodyContactsSchema.shape);
         if (contactsOnly || !(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
             await withUserAuthorizedToEdit({ cityId: params.cityId, administrativeBodyId: params.bodyId });
-            const { youtubeChannelUrl, documentSendSettings } = administrativeBodyContactsSchema.parse(body);
-            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl }, documentSendSettings);
+            const { youtubeChannelUrl, documentSendSettings, notificationBehavior } = administrativeBodyContactsSchema.parse(body);
+            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl, notificationBehavior }, documentSendSettings);
             revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
             return NextResponse.json(updatedBody);
         }

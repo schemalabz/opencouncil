@@ -21,6 +21,13 @@ describe("seedProfileFromPreferences", () => {
     );
   });
 
+  test("a followed body is named (#829)", () => {
+    const profile = seedProfileFromPreferences([
+      { cityId: "chania", cityName: "Χανιά", topics: [], locations: [], bodies: ["Δημοτικό Συμβούλιο Νέων"] },
+    ]);
+    expect(profile).toContain("Παρακολουθεί ονομαστικά: Δημοτικό Συμβούλιο Νέων.");
+  });
+
   test("city without topics or locations says so explicitly", () => {
     const profile = seedProfileFromPreferences([
       { cityId: "patras", cityName: "Πάτρα", topics: [], locations: [] },
