@@ -32,6 +32,7 @@ const MeetingSchema = z.object({
     sessionNumber: baseMeetingFields.sessionNumber.nullable(),
     format: baseMeetingFields.format.nullable().meta({ description: 'Null: not stated yet. The meeting is expected as usual, with a recording, in the hall of its body.' }),
     closedToPublic: baseMeetingFields.closedToPublic,
+    noRecording: baseMeetingFields.noRecording,
     place: baseMeetingFields.place.nullable().meta({ description: 'In public responses, the place of the meeting or else of its body.' }),
     continuationOfId: z.string().nullable().optional().meta({ description: 'Admin responses only.' }),
     postponedFromId: baseMeetingFields.postponedFromId.nullable().optional().meta({ description: 'Admin responses only. Public responses carry postponedFromDate instead.' }),

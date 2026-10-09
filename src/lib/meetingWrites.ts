@@ -16,7 +16,11 @@ import { requestProcessAgendaInternal } from '@/lib/tasks/processAgendaInternal'
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { meetingLabel } from '@/lib/meetingName';
 import { pickRecordInput, takesPlace, type MeetingRecordInput } from '@/lib/meetingLifecycleRules';
+import { after } from 'next/server';
+import { processAgendaText } from '@/lib/agendaText';
 import { isSecondaryBody } from '@/lib/utils/bodyTier';
+import { meetingHasSucceededTask } from '@/lib/db/tasksInternal';
+import { ConflictError } from '@/lib/api/errors';
 
 /** The name of a meeting is derived (see meetingName.ts), so the input has no name. */
 export type NewMeetingInput = {
@@ -28,9 +32,32 @@ export type NewMeetingInput = {
     administrativeBodyId?: string | null;
     /** Queue the processAgenda task when there is an agenda URL. */
     processAgenda?: boolean;
+    /** The agenda as pasted text, when there is no agenda URL (lib/agendaText.ts). */
+    agendaText?: string | null;
 } & MeetingRecordInput & Partial<Pick<MeetingRecordFields, 'postponedFromId' | 'continuationOfId'>>;
 
-export type ProcessAgendaOutcome = string | 'failed' | 'skipped_no_agenda';
+export type ProcessAgendaOutcome = string | 'failed' | 'skipped_no_agenda' | 'from_text';
+
+/**
+ * The work of a write that runs after the response: the extraction of a
+ * pasted agenda, then the start of the transcription, when the write brings
+ * both. The order matters: the summary that follows the transcription writes
+ * the statements of the subjects, and an agenda saved after it would replace
+ * them. The model takes a while, and the admin waits for none of it. A failed
+ * extraction is logged; the admin sees a meeting without subjects and pastes
+ * the text again.
+ */
+function runAfterResponse(cityId: string, meetingId: string, agendaText: string | null | undefined, startTranscription: (() => Promise<void>) | null): void {
+    if (!agendaText && !startTranscription) return;
+    after(async () => {
+        if (agendaText) {
+            await processAgendaText(cityId, meetingId, agendaText).catch((error: unknown) => {
+                console.error(`Failed to extract the pasted agenda of ${cityId}/${meetingId}:`, error);
+            });
+        }
+        if (startTranscription) await startTranscription();
+    });
+}
 
 /**
  * Create an unreleased meeting and run everything a new meeting needs: cache
@@ -41,7 +68,7 @@ export async function createMeetingWithEffects(
     cityId: string,
     input: NewMeetingInput
 ): Promise<{ meeting: CouncilMeetingWithAdminBody; processAgendaStatus?: ProcessAgendaOutcome }> {
-    const { date, youtubeUrl, agendaUrl, administrativeBodyId, processAgenda, postponedFromId, continuationOfId } = input;
+    const { date, youtubeUrl, agendaUrl, administrativeBodyId, processAgenda, postponedFromId, continuationOfId, agendaText } = input;
     const record = pickRecordInput(input);
 
     let meetingId = input.meetingId || (await generateUniqueMeetingId(cityId, date));
@@ -104,6 +131,11 @@ export async function createMeetingWithEffects(
     // Runs outside the city check above, because the sync loads the city itself.
     if (!secondary) await syncMeetingToCalendar(cityId, meetingId, { allowCreate: true });
 
+    // A pasted agenda takes the place of the PDF when there is no URL.
+    const pastedAgenda = !agendaUrl && agendaText ? agendaText : null;
+    runAfterResponse(cityId, meetingId, pastedAgenda, unattendedTranscriptionStart(meeting));
+    if (pastedAgenda) return { meeting, processAgendaStatus: 'from_text' };
+
     if (!processAgenda) return { meeting };
     if (!agendaUrl) return { meeting, processAgendaStatus: 'skipped_no_agenda' };
 
@@ -117,7 +149,10 @@ export async function createMeetingWithEffects(
     }
 }
 
-export type MeetingDetailsEdit = Partial<MeetingRecordFields>;
+export type MeetingDetailsEdit = Partial<MeetingRecordFields> & {
+    /** The agenda as pasted text: its items replace the subjects of the meeting (lib/agendaText.ts). */
+    agendaText?: string | null;
+};
 
 /**
  * Edit the details of a meeting through the lifecycle rules, then invalidate
@@ -126,10 +161,18 @@ export type MeetingDetailsEdit = Partial<MeetingRecordFields>;
 export async function updateMeetingWithEffects(
     cityId: string,
     meetingId: string,
-    data: MeetingDetailsEdit
+    { agendaText, ...data }: MeetingDetailsEdit
 ): Promise<CouncilMeetingWithAdminBody> {
+    // A pasted agenda belongs before the meeting: after the summary, the
+    // subjects hold the discussion, and processAgendaText refuses the text.
+    // The refusal comes before the write, so the form learns it and the
+    // agenda link stays as it is.
+    if (agendaText && await meetingHasSucceededTask(cityId, meetingId, 'summarize')) {
+        throw new ConflictError('The meeting has a summary; a pasted agenda does not replace it');
+    }
     const before = await getCouncilMeetingDirect(cityId, meetingId);
     const meeting = await updateMeetingRecord(cityId, meetingId, data);
+    if (agendaText) extractAgendaTextAfterResponse(cityId, meetingId, agendaText);
 
     // The landing lists the upcoming meetings that take place, so a change of
     // status, date or body can move a meeting in or out of that list. A public

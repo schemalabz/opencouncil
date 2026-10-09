@@ -10,7 +10,7 @@ import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataC
 import { useNotificationPreference } from '@/contexts/NotificationPreferenceContext';
 import { formatClockTime, formatDate, formatWeekdayDateTime } from '@/lib/formatters/time';
 import { presentationExplainHref, type PresentationKey, type PublicMeetingPresentation } from '@/lib/meetingPresentation';
-import { hasPublicRecording } from '@/lib/meetingLifecycleRules';
+import { hasPublicRecording, noRecordingReason } from '@/lib/meetingLifecycleRules';
 import { cn } from '@/lib/utils';
 import { StageRing } from './StageRing';
 
@@ -109,7 +109,9 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
         case 'upcoming':
             text = t.rich(
                 subjects.length === 0 ? 'strip.upcomingNoAgenda'
-                    : hasPublicRecording(meeting) ? 'strip.upcoming' : 'strip.upcomingByCirculation',
+                    : noRecordingReason(meeting) === null ? 'strip.upcoming'
+                        : noRecordingReason(meeting) === 'byCirculation' ? 'strip.upcomingByCirculation'
+                            : 'strip.upcomingNotRecorded',
                 {
                     when: formatWeekdayDateTime(date, timezone, locale),
                     b: (chunks: ReactNode) => <strong className="font-semibold">{chunks}</strong>,
@@ -165,7 +167,7 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
             break;
         }
         case 'noRecording':
-            text = t('strip.byCirculation');
+            text = t(`strip.${presentation.type === 'noRecording' ? presentation.reason : 'byCirculation'}`);
             actions = [agendaPill];
             break;
     }

@@ -98,6 +98,7 @@
     },
     "notAvailable": "La transcription n'est pas encore disponible.",
     "byCirculation": "Lors d’une séance par consultation écrite, les membres votent par écrit. Il n’y a pas de transcription.",
+    "notRecorded": "La séance s’est tenue sans enregistrement. Il n’y a pas de transcription.",
     "procedural": "Procédural",
     "currentTimeButton": {
         "jumpToCurrent": "Aller au moment actuel"
