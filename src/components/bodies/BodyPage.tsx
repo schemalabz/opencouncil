@@ -14,6 +14,7 @@ import { BodyMembersTab } from '@/components/bodies/BodyMembersTab';
 import { BodyContactsForm } from '@/components/bodies/BodyContactsForm';
 import { BodyAdminsCard } from '@/components/bodies/BodyAdminsCard';
 import { BodyClaimLinksCard } from '@/components/bodies/BodyClaimLinksCard';
+import { BodyEmbedCard } from '@/components/bodies/BodyEmbedCard';
 import type { BodyPageRow } from '@/lib/db/administrativeBodies';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import type { PersonWithRelations } from '@/lib/db/people';
@@ -53,8 +54,8 @@ export interface BodyPageProps {
 /**
  * The page of one administrative body (#829). The meetings and the members
  * are public. The third tab exists for the admins of the body: it holds the
- * contact settings and the list of admins, the two things a secretary runs
- * without us (#828).
+ * contact settings, the list of admins, the claim links of the members and
+ * the way to the embed widget, the things a secretary runs without us (#828).
  */
 export default function BodyPage({ city, body, meetings, people, formBodies, parties, contacts, canEdit, canEditCity, now, cappedAt }: BodyPageProps) {
     const t = useTranslations('body');
@@ -192,6 +193,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                                 {contacts && <BodyContactsForm cityId={city.id} bodyId={body.id} contacts={contacts} />}
                                 <BodyAdminsCard cityId={city.id} bodyId={body.id} canRemoveLast={canEditCity} />
                                 <BodyClaimLinksCard cityId={city.id} bodyId={body.id} />
+                                <BodyEmbedCard cityId={city.id} bodyId={body.id} />
                             </TabsContent>
                         )}
                     </Tabs>
