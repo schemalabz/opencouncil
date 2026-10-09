@@ -13,6 +13,7 @@ import AddMeetingForm from '@/components/meetings/AddMeetingForm';
 import { BodyMembersTab } from '@/components/bodies/BodyMembersTab';
 import { BodyContactsForm } from '@/components/bodies/BodyContactsForm';
 import { BodyAdminsCard } from '@/components/bodies/BodyAdminsCard';
+import { BodyClaimLinksCard } from '@/components/bodies/BodyClaimLinksCard';
 import type { BodyPageRow } from '@/lib/db/administrativeBodies';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import type { PersonWithRelations } from '@/lib/db/people';
@@ -189,6 +190,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                             <TabsContent value="admin" className="mt-6 space-y-8">
                                 {contacts && <BodyContactsForm cityId={city.id} bodyId={body.id} contacts={contacts} />}
                                 <BodyAdminsCard cityId={city.id} bodyId={body.id} canRemoveLast={canEditCity} />
+                                <BodyClaimLinksCard cityId={city.id} bodyId={body.id} />
                             </TabsContent>
                         )}
                     </Tabs>
