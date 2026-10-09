@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { MinutesPreviewContent } from '../MinutesPreviewContent';
-import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
+import { committeeWithSubstitute, councilWithAbsentPresident, youthCouncilWithAbsentMember } from '@/lib/minutes/__tests__/rollCallFixtures';
 import type { MinutesMember } from '@/lib/minutes/types';
 
 /** The on-screen minutes draw the same roll call as the DOCX; pinned markup for both body types. */
@@ -13,6 +13,15 @@ describe('MinutesPreviewContent roll call', () => {
     it('draws a council with the mayor apart and the president absent', () => {
         const { container } = render(<MinutesPreviewContent data={councilWithAbsentPresident()} />);
         expect(container.innerHTML).toMatchSnapshot();
+    });
+
+    it('draws a secondary body with «ΜΕΛΗ» over its list and no ΔΗΜΑΡΧΟΣ line', () => {
+        const { container } = render(<MinutesPreviewContent data={youthCouncilWithAbsentMember()} />);
+        expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('ΜΕΛΗ (3)');
+        expect(container.textContent).not.toContain('ΔΗΜΑΡΧΟΣ');
+        expect(screen.getByText('ΠΡΟΕΔΡΟΣ:').parentElement!.textContent).toBe('ΠΡΟΕΔΡΟΣ: Νεανίδη Μαρία');
+        expect(screen.getByText(/απουσίαζαν οι/).textContent)
+            .toBe('Κατά την έναρξη της συνεδρίασης απουσίαζαν οι Παιδάκη Ελένη (1)');
     });
 
     it('draws the lines the DOCX prints when the president was absent and someone else presided', () => {

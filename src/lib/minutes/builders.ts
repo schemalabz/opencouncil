@@ -1,4 +1,6 @@
-import { AttendanceStatus, DiscussionStatus, VoteType } from '@prisma/client';
+import { AttendanceStatus, DiscussionStatus, VoteType, type AdministrativeBodyType } from '@prisma/client';
+import { bodyTier } from '@/lib/utils/bodyTier';
+import { toAdministrativeBodyType } from '@/lib/utils/administrativeBodies';
 import { compareRanks } from '@/lib/sorting/people';
 import { extractFirstName, formatSurnameFirst, getAbsentLabel, isFemaleName } from '@/lib/formatters/name';
 import { calculateVoteResult, getAbsentNonVoterIds } from '@/lib/utils/votes';
@@ -288,16 +290,36 @@ export function presidentStandIn(
  * subject's (`MinutesSubject.presidedBy`), since a meeting's documents can name
  * different people.
  */
+/**
+ * The heading over a body's flat member list. A label, so it reads the type
+ * (#829): the council and the community council by name, «ΜΕΛΗ» for a body
+ * outside the municipality's own tiers. A committee prints no flat list. A
+ * meeting with no body is the council's, as every list reads it.
+ */
+const COMPOSITION_HEADING: Record<AdministrativeBodyType, string | null> = {
+    council: 'ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ',
+    committee: null,
+    community: 'ΣΥΝΘΕΣΗ ΣΥΜΒΟΥΛΙΟΥ ΔΗΜΟΤΙΚΗΣ ΚΟΙΝΟΤΗΤΑΣ',
+    youthCouncil: 'ΜΕΛΗ',
+};
+
+export function compositionHeading(bodyType: string | null): string | null {
+    return COMPOSITION_HEADING[toAdministrativeBodyType(bodyType ?? undefined) ?? 'council'];
+}
+
 export function buildRollCall(
     composition: MinutesCouncilComposition,
     absentIds: ReadonlySet<string>,
     bodyType: string | null,
     presidedBy: { name: string; personId: string | null } | null = composition.presidedBy ?? null,
 ): MinutesRollCall {
-    const isCommittee = bodyType === 'committee';
+    const type = toAdministrativeBodyType(bodyType ?? undefined) ?? null;
+    const isCommittee = type === 'committee';
     const absentLabel = (name: string) => getAbsentLabel(extractFirstName(name, 'surnameFirst'));
 
-    const mayor: MinutesRollCall['mayor'] = !isCommittee && composition.mayor
+    // The ΔΗΜΑΡΧΟΣ line belongs to the municipality's own bodies. The mayor is
+    // not part of a secondary body (#829) and gets no line on its minutes.
+    const mayor: MinutesRollCall['mayor'] = !isCommittee && bodyTier(type) === 'primary' && composition.mayor
         ? (() => {
             const { name, personId, note } = composition.mayor;
             const absent = absentIds.has(personId);
@@ -340,7 +362,7 @@ export function buildRollCall(
             && (isCommittee || m.member.personId !== president?.personId || president.presidedBy !== null))
         .map(m => m.member.personId === president?.personId ? { ...m, office: presidentOffice } : m);
 
-    return { isCommittee, mayor, president, present, absent };
+    return { isCommittee, compositionHeading: compositionHeading(bodyType), mayor, president, present, absent };
 }
 
 /**
@@ -364,7 +386,10 @@ export function buildSubjectRollCall(
     const absentIds = new Set(attendance.absent.map(m => m.personId));
     if (!composition) {
         const entry = (member: MinutesMember): MinutesRollCallMember => ({ member, isSubstitute: false, office: null });
-        return { isCommittee: bodyType === 'committee', mayor: null, president: null, present: attendance.present.map(entry), absent: attendance.absent.map(entry) };
+        return {
+            isCommittee: bodyType === 'committee', compositionHeading: compositionHeading(bodyType),
+            mayor: null, president: null, present: attendance.present.map(entry), absent: attendance.absent.map(entry),
+        };
     }
     const held = new Set([
         ...composition.members.map(m => m.personId), ...composition.substituteMembers.map(m => m.personId),

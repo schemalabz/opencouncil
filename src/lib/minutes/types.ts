@@ -62,9 +62,18 @@ export interface MinutesRollCallMember {
 export interface MinutesRollCall {
     isCommittee: boolean;
     /**
+     * The heading over the flat member list (`compositionHeading`): the
+     * council's by name, «ΜΕΛΗ» for a body outside the municipality's own
+     * tiers. Null for a committee, which prints its present and absent lists
+     * instead of a composition.
+     */
+    compositionHeading: string | null;
+    /**
      * The ΔΗΜΑΡΧΟΣ line. Councils only: a committee counts a member mayor in its
      * lists and names the mayor on the president's line, when the mayor presides.
-     * `feminine` picks the gendered word for absent.
+     * A body of the secondary tier (#829) has no line either: the mayor is not
+     * part of it, and attends as a guest. `feminine` picks the gendered word
+     * for absent.
      */
     mayor: { name: string; personId: string; absent: boolean; feminine: boolean; note: string | null; printedNote: string | null } | null;
     /**

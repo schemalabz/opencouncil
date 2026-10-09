@@ -10,6 +10,7 @@ import { getPeopleForCity } from '@/lib/db/people';
 import { getCity } from '@/lib/db/cities';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
 import { getSpeakerDisplayInfo, isRoleActiveAt, isMayorRole, mayorIsMemberOf, simplifyRoleName } from '@/lib/utils/roles';
+import { isSecondaryBody } from '@/lib/utils/bodyTier';
 import { agendaItemTitleOrName, isRecordSubject } from '@/lib/utils/subjects';
 import { PersonWithRelations } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
@@ -126,7 +127,9 @@ export async function getMinutesData(
 
     // Identify mayor once. A mayor who is not a member of the body is left out of
     // the rows, the composition and the changes list: the ΔΗΜΑΡΧΟΣ line names them.
-    const mayorPersonRow = people.find(p =>
+    // A secondary body (#829) has no such line: the mayor is not part of it and
+    // attends as a guest, listed and tracked like anyone else the documents name.
+    const mayorPersonRow = isSecondaryBody(meeting.administrativeBody) ? null : people.find(p =>
         p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
     ) ?? null;
     const mayorPersonId = mayorPersonRow?.id ?? null;
