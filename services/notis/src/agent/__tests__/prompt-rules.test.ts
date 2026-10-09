@@ -36,6 +36,11 @@ describe("system prompt rules from the 2026-10 conversation review", () => {
     expect(system).toContain("is news to them even when it is thin");
   });
 
+  it("a body the reader follows by name is news, whatever their topics (#829)", () => {
+    expect(system).toContain("listed under «follows» in <user_profile>");
+    expect(system).toContain("«follows these bodies only»");
+  });
+
   it("an unpublished record is an agenda, and is worded as one", () => {
     expect(system).toContain("η απομαγνητοφώνηση δεν έχει βγει ακόμα");
     expect(system).toContain("never «ασχολήθηκε με»");

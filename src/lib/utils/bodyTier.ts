@@ -48,6 +48,31 @@ export function defaultNotificationBehavior(type: AdministrativeBodyType): Notif
 }
 
 /**
+ * Whether a body sends notifications at all: the one fact of its notification
+ * behaviour that a reader may know (#829). Whether a notification waits for an
+ * approval stays the municipality's own setting.
+ */
+export function bodySendsUpdates(notificationBehavior: NotificationBehavior): boolean {
+    return notificationBehavior !== 'NOTIFICATIONS_DISABLED';
+}
+
+/**
+ * Whether the meetings of a body send updates that a reader can sign up for
+ * (#829). A body with its notifications off sends none. A primary body, or a
+ * meeting with no body, sends only in a municipality that supports
+ * notifications. A secondary body sends to its followers wherever it is: its
+ * admin switches its updates on without the municipality, and the signup is
+ * the readers' only way to them.
+ */
+export function bodyOffersUpdates(
+    city: { supportsNotifications: boolean },
+    body: { type: AdministrativeBodyType; sendsUpdates: boolean } | null | undefined,
+): boolean {
+    if (body && !body.sendsUpdates) return false;
+    return city.supportsNotifications || isSecondaryBody(body);
+}
+
+/**
  * Whether the pipeline of a body's meetings runs with no operator (#829). A
  * secondary body runs its own meetings: a recording starts the transcription,
  * the summary follows the corrected transcript, and the meeting is released
@@ -121,4 +146,19 @@ export function voiceprintNeedsOwnConsent(
     roles: { administrativeBody?: { type: AdministrativeBodyType } | null }[],
 ): boolean {
     return !hasPrimaryPresence(roles);
+}
+
+/**
+ * Whether a preference of the city receives the meetings of a body (#829): a
+ * secondary body reaches the preferences that follow it; a primary body, or a
+ * meeting with no body, reaches every preference except one that follows its
+ * bodies alone. The audience query in db/notifications.ts and the Notis
+ * poller apply the same rule.
+ */
+export function preferenceCoversBody(
+    preference: { bodies: { id: string }[]; bodiesOnly: boolean },
+    body: { id: string; type: AdministrativeBodyType } | null | undefined,
+): boolean {
+    if (isSecondaryBody(body)) return preference.bodies.some(followed => followed.id === body?.id);
+    return !preference.bodiesOnly;
 }

@@ -10,6 +10,7 @@ import { saveNotificationPreferences } from '@/lib/actions/notifications';
 import { getNotisChannelState, setNotisEnabled } from '@/lib/actions/notis';
 import { captureEvent } from '@/lib/analytics/capture';
 import type { CityWithGeometry } from '@/lib/db/cities';
+import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { notisStatusFromChannelState } from '@/lib/notis/phone-channel';
 import type { Location } from '@/lib/types/onboarding';
 import { ChannelsStep } from './ChannelsStep';
@@ -44,6 +45,7 @@ function applyNotificationsDraft(state: SignupState, stored: Partial<SignupState
         ...state,
         locations: stored.locations ?? state.locations,
         topics: stored.topics ?? state.topics,
+        bodies: stored.bodies ?? state.bodies,
         emailChannel: stored.emailChannel ?? state.emailChannel,
     };
 }
@@ -62,7 +64,9 @@ function applyNotificationsDraft(state: SignupState, stored: Partial<SignupState
  */
 export function NotificationSignup({
     city,
+    scope,
     topics,
+    secondaryBodies,
     initialStep,
     pickerQuery,
     existing,
@@ -70,7 +74,17 @@ export function NotificationSignup({
     googleAvailable,
 }: {
     city: CityWithGeometry;
+    /**
+     * What the signup is about (#829). `city`: the municipality's own
+     * meetings, with the secondary bodies behind a tick. `bodies`: the
+     * secondary bodies alone, in a municipality that does not support
+     * notifications; the intro, the places and the topics are left out, and
+     * the bodies start ticked.
+     */
+    scope: 'city' | 'bodies';
     topics: Topic[];
+    /** The secondary bodies of the municipality a reader may follow (#829). */
+    secondaryBodies: PublicAdministrativeBody[];
     initialStep: 1 | 2;
     /** The search the picker row carried here, so «Αλλαγή» returns to that list. */
     pickerQuery: string;
@@ -82,8 +96,16 @@ export function NotificationSignup({
     const t = useTranslations('notificationSignup');
     const ts = useTranslations('signup');
     const signedIn = account !== null;
+    const bodiesOnly = scope === 'bodies';
+    // A signup for bodies alone has no intro step: its progress counts from the preferences.
+    const stepOffset = bodiesOnly ? 1 : 0;
     const flow = useSignupFlow<SignupState>({
-        initial: () => initialSignupState({ initialStep, existing, account }),
+        initial: () => initialSignupState({
+            initialStep: bodiesOnly ? 2 : initialStep,
+            existing,
+            account,
+            preselectedBodies: bodiesOnly ? secondaryBodies : undefined,
+        }),
         cityId: city.id,
         signedIn,
         events: { stepViewed: 'notification_signup_step_viewed', failed: 'notification_signup_failed' },
@@ -179,6 +201,7 @@ export function NotificationSignup({
                 city_id: city.id,
                 location_count: state.locations.length,
                 topic_count: state.topics.length,
+                body_count: state.bodies.length,
                 has_phone: Boolean(state.phone),
                 notify_by_phone: state.phoneChannel,
                 notify_by_email: state.emailChannel,
@@ -208,14 +231,18 @@ export function NotificationSignup({
         state.step === 1 ? (
             <IntroAside city={city} />
         ) : state.step === 2 ? (
-            <PreferencesAside city={city} locations={state.locations} nearby={nearby} />
+            bodiesOnly ? null : <PreferencesAside city={city} locations={state.locations} nearby={nearby} />
         ) : (
-            <SignupSummary city={city} state={state} onEdit={() => goTo(2)} />
+            <SignupSummary city={city} scope={scope} state={state} onEdit={() => goTo(2)} />
         );
 
     return (
         <SignupLayout aside={aside}>
-            <SignupProgress step={state.step} total={TOTAL_STEPS} label={ts('stepOf', { step: state.step, total: TOTAL_STEPS })} />
+            <SignupProgress
+                step={state.step - stepOffset}
+                total={TOTAL_STEPS - stepOffset}
+                label={ts('stepOf', { step: state.step - stepOffset, total: TOTAL_STEPS - stepOffset })}
+            />
 
             {state.step === 1 && (
                 <IntroStep city={city} pickerQuery={pickerQuery} dirty={edited} existing={existing !== null} />
@@ -223,15 +250,19 @@ export function NotificationSignup({
             {state.step === 2 && (
                 <PreferencesStep
                     city={city}
+                    scope={scope}
                     pickerQuery={pickerQuery}
                     dirty={edited}
                     existing={existing !== null}
                     topics={topics}
+                    bodies={secondaryBodies}
                     locations={state.locations}
                     selectedTopics={state.topics}
+                    selectedBodies={state.bodies}
                     nearby={nearby}
                     onLocationsChange={(locations: Location[]) => patch({ locations })}
                     onTopicsChange={(selected: Topic[]) => patch({ topics: selected })}
+                    onBodiesChange={(selected: PublicAdministrativeBody[]) => patch({ bodies: selected })}
                 />
             )}
             {state.step === 3 && (
@@ -264,17 +295,18 @@ export function NotificationSignup({
             {state.step === 2 && (
                 <SignupFooter
                     // The label says what pressing it means: skipping the places is allowed, but it is a choice.
-                    actionLabel={state.locations.length > 0 ? t('ctaContinue') : t('ctaContinueWithoutPlace')}
+                    actionLabel={bodiesOnly || state.locations.length > 0 ? t('ctaContinue') : t('ctaContinueWithoutPlace')}
                     onAction={() => {
                         captureEvent('notification_signup_preferences_continued', {
                             city_id: city.id,
                             location_count: state.locations.length,
                             topic_count: state.topics.length,
+                            body_count: state.bodies.length,
                         });
                         goTo(3);
                     }}
-                    backLabel={ts('back')}
-                    onBack={() => goTo(1)}
+                    // There is no intro step to go back to in a signup for bodies alone.
+                    {...(!bodiesOnly && { backLabel: ts('back'), onBack: () => goTo(1) })}
                 />
             )}
             {state.step === 3 && (
