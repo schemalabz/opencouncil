@@ -3,6 +3,9 @@ jest.mock('@/env.mjs', () => ({ env: { CRON_SECRET: 'secret' } }));
 jest.mock('@/lib/tasks/pollLivestreams', () => ({
     pollLivestreamsForRecentMeetings: jest.fn().mockResolvedValue({ polled: 0 }),
 }));
+jest.mock('@/lib/tasks/unattendedTranscription', () => ({
+    transcribeUnattendedMeetings: jest.fn().mockResolvedValue({ started: 0 }),
+}));
 
 import { NextRequest } from 'next/server';
 import { GET } from '@/app/api/cron/poll-livestreams/route';
