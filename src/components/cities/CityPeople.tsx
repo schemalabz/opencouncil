@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo, useState } from 'react';
+import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { AdministrativeBodyType } from '@prisma/client'
 import type { PublicAdministrativeBody } from '@/lib/db/types'
@@ -158,7 +158,7 @@ export default function CityPeople({
 
     return (
         <>
-        <List<PersonWithRelations, { cityLanguage?: string }, AdministrativeBodyType>
+        <List<PersonWithRelations, { cityLanguage?: string }, AdministrativeBodyType, ComponentProps<typeof PersonForm>>
             state={state}
             editable={canEdit}
             adminTools={adminTools}

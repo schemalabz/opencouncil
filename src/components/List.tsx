@@ -19,12 +19,18 @@ export interface BaseListProps {
     carouselGap?: number;
 }
 
-interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
+interface ListProps<T, P = {}, F = string | undefined, FP = {}> extends BaseListProps {
     /** What to draw. A source hook fills it: useLocalCollection or useServerCollection. */
     state: CollectionState<T, F>;
     ItemComponent: React.ComponentType<{ item: T, editable: boolean } & P>;
-    FormComponent: React.ComponentType<any>;
-    formProps: any;
+    /**
+     * The "add item" form and its props, typed against each other as in
+     * FormSheet: a prop the form requires and the caller forgets does not
+     * compile. Untyped, the body page once opened the meeting form without
+     * its realm, and the people tab lost the role kinds of the person form.
+     */
+    FormComponent: React.ComponentType<FP & { onSuccess: () => void }>;
+    formProps: FP;
     editable: boolean;
     t: (key: string, params?: any) => string;
     itemProps?: P;
@@ -56,7 +62,7 @@ interface ListProps<T, P = {}, F = string | undefined> extends BaseListProps {
     trailing?: { title: string; matches: (item: T) => boolean };
 }
 
-export default function List<T extends { id: string }, P = {}, F = string | undefined>({
+export default function List<T extends { id: string }, P = {}, F = string | undefined, FP = {}>({
     state,
     editable,
     adminTools,
@@ -76,7 +82,7 @@ export default function List<T extends { id: string }, P = {}, F = string | unde
     renderFilter,
     renderAfterFilters,
     trailing,
-}: ListProps<T, P, F>) {
+}: ListProps<T, P, F, FP>) {
     const tCommon = useTranslations('Common');
     const listRef = useRef<HTMLDivElement>(null);
     const carouselRef = useRef<HTMLDivElement>(null);

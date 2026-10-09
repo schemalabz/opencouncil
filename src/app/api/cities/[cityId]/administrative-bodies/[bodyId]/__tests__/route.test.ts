@@ -15,7 +15,14 @@ jest.mock('@/lib/db/administrativeBodies', () => ({
     editAdministrativeBody: jest.fn().mockResolvedValue({ id: 'b1' }),
     editAdministrativeBodyContacts: jest.fn().mockResolvedValue({ id: 'b1' }),
     deleteAdministrativeBody: jest.fn(),
+    getBodyPageRow: jest.fn(),
 }));
+jest.mock('@/lib/db/cityRealm', () => ({ getCityRealm: jest.fn().mockResolvedValue('greece') }));
+jest.mock('@/lib/db/meetings', () => ({
+    cityListTags: (realm: string) => ['cities:all', `realm:${realm}:cities:all`],
+    upcomingMeetingsTag: (realm: string) => `realm:${realm}:upcoming-meetings`,
+}));
+jest.mock('@/lib/db/subject', () => ({ landingSubjectsTag: (realm: string) => `realm:${realm}:landing-subjects` }));
 jest.mock('@/lib/db/administrativeBodiesInternal', () => ({
     confirmDecisionConventions: jest.fn().mockResolvedValue({ id: 'b1' }),
 }));
@@ -23,7 +30,8 @@ jest.mock('@/lib/derivation/rederive', () => ({ rederiveMeetingsOfBody: jest.fn(
 
 import { PUT } from '@/app/api/cities/[cityId]/administrative-bodies/[bodyId]/route';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
-import { editAdministrativeBody, editAdministrativeBodyContacts } from '@/lib/db/administrativeBodies';
+import { revalidateTag } from 'next/cache';
+import { editAdministrativeBody, editAdministrativeBodyContacts, getBodyPageRow } from '@/lib/db/administrativeBodies';
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
 import { ForbiddenError, UnauthorizedError, validationErrorSchema } from '@/lib/api/errors';
 
@@ -140,5 +148,96 @@ describe('PUT /api/cities/[cityId]/administrative-bodies/[bodyId] by an admin of
         expect(response.status).toBe(status);
         expect(await response.json()).toEqual({ error: error.message });
         expect(editAdministrativeBodyContacts).not.toHaveBeenCalled();
+    });
+});
+
+const mockIsCityAdmin = isUserAuthorizedToEdit as jest.MockedFunction<typeof isUserAuthorizedToEdit>;
+const mockRequire = withUserAuthorizedToEdit as jest.MockedFunction<typeof withUserAuthorizedToEdit>;
+const mockEditContacts = editAdministrativeBodyContacts as jest.MockedFunction<typeof editAdministrativeBodyContacts>;
+const mockEditBody = editAdministrativeBody as jest.MockedFunction<typeof editAdministrativeBody>;
+const mockGetBodyPageRow = getBodyPageRow as jest.MockedFunction<typeof getBodyPageRow>;
+const mockRevalidateTag = revalidateTag as jest.MockedFunction<typeof revalidateTag>;
+
+const CITY = 'chania';
+const BODY = 'youth';
+const props = { params: Promise.resolve({ cityId: CITY, bodyId: BODY }) };
+const CONTACTS = { youtubeChannelUrl: 'https://www.youtube.com/@youth', contactEmails: ['secretary@example.org'] };
+
+function putAs(body: unknown) {
+    return PUT({ json: async () => body } as unknown as NextRequest, props);
+}
+
+/**
+ * PUT of a body: a payload with the two contact fields alone reaches the
+ * contacts write, whoever sends it. The page of the body sends that payload
+ * for an admin of the body and for an admin of the city (#828, #829).
+ */
+function resetBodyPageMocks() {
+    jest.clearAllMocks();
+    mockRequire.mockResolvedValue(true);
+    mockEditContacts.mockResolvedValue({ id: BODY } as never);
+    mockEditBody.mockResolvedValue({ id: BODY, type: 'youthCouncil' } as never);
+    mockGetBodyPageRow.mockResolvedValue({ id: BODY, type: 'youthCouncil' } as never);
+}
+
+describe('PUT /api/cities/{cityId}/administrative-bodies/{bodyId} from the page of the body', () => {
+    beforeEach(resetBodyPageMocks);
+    afterAll(() => mockIsCityAdmin.mockResolvedValue(true));
+
+    it('writes the contacts for an admin of the body', async () => {
+        mockIsCityAdmin.mockResolvedValue(false);
+
+        const res = await putAs(CONTACTS);
+
+        expect(res.status).toBe(200);
+        expect(mockRequire).toHaveBeenCalledWith({ cityId: CITY, administrativeBodyId: BODY });
+        expect(mockEditContacts).toHaveBeenCalledWith(BODY, CONTACTS);
+        expect(mockEditBody).not.toHaveBeenCalled();
+    });
+
+    it('writes the contacts for an admin of the city when the payload holds the contacts alone', async () => {
+        mockIsCityAdmin.mockResolvedValue(true);
+
+        const res = await putAs(CONTACTS);
+
+        expect(res.status).toBe(200);
+        expect(mockEditContacts).toHaveBeenCalledWith(BODY, CONTACTS);
+        expect(mockEditBody).not.toHaveBeenCalled();
+    });
+
+    it('keeps the full write for an admin of the city who sends the whole body', async () => {
+        mockIsCityAdmin.mockResolvedValue(true);
+
+        const res = await putAs({ name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil', notificationBehavior: 'NOTIFICATIONS_DISABLED' });
+
+        expect(res.status).toBe(200);
+        expect(mockEditBody).toHaveBeenCalledTimes(1);
+        expect(mockEditContacts).not.toHaveBeenCalled();
+    });
+
+    it('busts the lists that read the tier when the type of the body changes, and not otherwise', async () => {
+        mockIsCityAdmin.mockResolvedValue(true);
+        const whole = { name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil', notificationBehavior: 'NOTIFICATIONS_DISABLED' };
+
+        await putAs(whole);
+        expect(mockRevalidateTag).not.toHaveBeenCalledWith('cities:all', 'max');
+        expect(mockRevalidateTag).not.toHaveBeenCalledWith(`city:${CITY}:people`, 'max');
+
+        mockGetBodyPageRow.mockResolvedValue({ id: BODY, type: 'committee' } as never);
+        await putAs(whole);
+        expect(mockRevalidateTag).toHaveBeenCalledWith(`city:${CITY}:meetings`, 'max');
+        expect(mockRevalidateTag).toHaveBeenCalledWith(`city:${CITY}:people`, 'max');
+        expect(mockRevalidateTag).toHaveBeenCalledWith('cities:all', 'max');
+        expect(mockRevalidateTag).toHaveBeenCalledWith('realm:greece:landing-subjects', 'max');
+    });
+
+    it('answers 403 when the caller administers neither the body nor the city', async () => {
+        mockIsCityAdmin.mockResolvedValue(false);
+        mockRequire.mockRejectedValue(new ForbiddenError('Not authorized'));
+
+        const res = await putAs(CONTACTS);
+
+        expect(res.status).toBe(403);
+        expect(mockEditContacts).not.toHaveBeenCalled();
     });
 });
