@@ -226,9 +226,9 @@ function CouncilCompositionSection({ composition, absentMembers, adminBody }: {
                 </p>
             )}
 
-            {!rollCall.isCommittee && (
+            {rollCall.compositionHeading && (
                 <h2 className="text-base font-bold mb-3">
-                    ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ ({composition.members.length})
+                    {rollCall.compositionHeading} ({composition.members.length})
                 </h2>
             )}
 

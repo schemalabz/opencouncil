@@ -11,6 +11,7 @@ import { getCity } from '@/lib/db/cities';
 import { getRoleTitles } from '@/i18n/roleTitles';
 import { getElectedOrderForBody } from '@/lib/sorting/people';
 import { getSpeakerLabels, isRoleActiveAt, isMayorRole, mayorIsMemberOf } from '@/lib/utils/roles';
+import { isYouthCouncil } from '@/lib/utils/youthCouncil';
 import { agendaItemTitleOrName, isRecordSubject } from '@/lib/utils/subjects';
 import { PersonWithRelations } from '@/lib/db/people';
 import prisma from '@/lib/db/prisma';
@@ -130,6 +131,10 @@ export async function getMinutesData(
     const mayorPersonRow = people.find(p =>
         p.roles.some(r => isRoleActiveAt(r, meetingDate) && isMayorRole(r))
     ) ?? null;
+    // A youth council (#829) has no ΔΗΜΑΡΧΟΣ line: the mayor is not part of it.
+    // A mayor who visits is a guest. The guest stays out of the rows, as above,
+    // and their arrivals and departures stay in the changes list.
+    const mayorHasLine = !isYouthCouncil(meeting.administrativeBody);
     const mayorPersonId = mayorPersonRow?.id ?? null;
     // On a body the mayor sits on (the Δημοτική Επιτροπή) they vote like a member and stay in the rows.
     const mayorExcludedFromRows = mayorPersonRow && !mayorIsMemberOf(mayorPersonRow, meeting.administrativeBody ? { id: meeting.administrativeBody.id, type: meeting.administrativeBody.type } : null, meetingDate) ? mayorPersonId : null;
@@ -295,7 +300,7 @@ export async function getMinutesData(
     // plus mayor and president of the administrative body.
     // Built from roles — no attendance dependency.
     const mayorPerson = mayorPersonId ? people.find(p => p.id === mayorPersonId) : null;
-    const mayor = mayorPerson ? { personId: mayorPerson.id, name: mayorPerson.name } : null;
+    const mayor = mayorPerson && mayorHasLine ? { personId: mayorPerson.id, name: mayorPerson.name } : null;
 
     let president: { personId: string; name: string } | null = null;
     if (adminBodyId) {
@@ -381,7 +386,7 @@ export async function getMinutesData(
     // preside has no line, so their changes stay in the list. So do the changes
     // of an absent presiding mayor whose line names who presided instead.
     const mayorPresides = mayorPersonId !== null && presidentPersonId === mayorPersonId && !someoneElsePresided;
-    const mayorWithNoteChanges = mayorExcludedFromRows ?? (mayorPresides ? mayorPersonId : null);
+    const mayorWithNoteChanges = mayorHasLine ? mayorExcludedFromRows ?? (mayorPresides ? mayorPersonId : null) : null;
     let attendanceChanges: MinutesAttendanceChange[];
     let mayorChanges: MayorChange[];
     if (attendanceChangesSource === 'events') {
