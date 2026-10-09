@@ -91,6 +91,9 @@ const meetingListSchema = z.object({
       z.object({
         id: z.string(),
         name: z.string(),
+        title: z.string().nullish(),
+        kind: z.string().nullish(),
+        sessionNumber: z.number().int().nullish(),
         dateTime: z.string(),
         administrativeBody: z.string().nullish(),
       }),

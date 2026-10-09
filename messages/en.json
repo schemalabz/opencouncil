@@ -961,7 +961,7 @@
     "RSS": {
         "title": "Latest Updates - {city}",
         "description": "Updates for {municipality}",
-        "meetingTitle": "{meetingName} — {cityName} ({date})",
+        "meetingTitle": "{meetingName} — {cityName}",
         "subjects": "Subjects",
         "noSubjects": "No subjects listed",
         "cityNotFound": "City not found"

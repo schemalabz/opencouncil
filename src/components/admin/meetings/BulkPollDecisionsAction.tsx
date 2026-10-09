@@ -23,6 +23,8 @@ import { partitionMeetingsForPolling, MeetingPollEligibility, type PollSkipReaso
 import { requestPollDecisions } from '@/lib/tasks/pollDecisions';
 import { useSequentialDispatch } from '@/hooks/useSequentialDispatch';
 import { BatchProgressView } from '@/components/admin/BatchProgressView';
+import { meetingLabel } from '@/lib/meetingName';
+import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 
 const SKIP_REASON_LABELS = {
     notTakingPlace: 'postponed or cancelled',
@@ -52,7 +54,7 @@ export function BulkPollDecisionsAction({
         const selected = meetings
             .filter(m => selectedMeetingIds.has(m.id))
             .map(m => ({
-                id: m.id, name: m.name, kind: m.kind,
+                id: m.id, name: meetingLabel(m, 'el', DEFAULT_TIMEZONE), kind: m.kind,
                 continuationOf: m.continuationOf, scheduleStatus: m.scheduleStatus,
             }));
         return partitionMeetingsForPolling(selected, decisionCounts);

@@ -58,7 +58,6 @@ export async function createCityDirect(cityData: Omit<City, 'createdAt' | 'updat
 }
 
 /** The English name of a city, for an alert that needs nothing else of it. */
-export async function getCityNameEn(cityId: string): Promise<string | null> {
-    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { name_en: true } });
-    return city?.name_en ?? null;
+export async function getCityNameEnAndTimezone(cityId: string): Promise<{ name_en: string; timezone: string } | null> {
+    return prisma.city.findUnique({ where: { id: cityId }, select: { name_en: true, timezone: true } });
 }

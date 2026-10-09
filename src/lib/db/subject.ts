@@ -24,6 +24,7 @@ import { meetingBodyTypeWhere } from './meetingBodyFilter';
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
 import { PUBLIC_CITY_WHERE } from '../cityStatus';
+import { meetingLabelInCity } from '@/lib/meetingName';
 
 // The landing subject finders are realm + filter keyed in the data cache. Releasing/unreleasing
 // a meeting busts the tag (see toggleMeetingRelease); the TTL is a safety net for other changes
@@ -321,7 +322,10 @@ const mapSubjectInclude = {
         select: {
             dateTime: true,
             name: true,
-            administrativeBody: { select: { name: true, type: true } },
+            name_en: true,
+            kind: true,
+            sessionNumber: true,
+            administrativeBody: { select: { name: true, name_en: true, type: true } },
             // City display fields travel on every row so the client needn't reconcile against
             // the loaded city list (Subject reaches City only through councilMeeting).
             city: { select: { name: true, name_municipality: true, logoImage: true, timezone: true } },
@@ -390,7 +394,7 @@ function toGeneralSubjectRow(s: MapSubjectPayload, discussionSeconds: Map<string
         cityTimezone: s.councilMeeting.city.timezone,
         councilMeetingId: s.councilMeetingId,
         meetingDate: s.councilMeeting?.dateTime?.toISOString(),
-        meetingName: s.councilMeeting?.name,
+        meetingName: meetingLabelInCity(s.councilMeeting, 'el'),
         bodyName: s.councilMeeting?.administrativeBody?.name ?? null,
         adminBodyType: s.councilMeeting?.administrativeBody?.type ?? null,
         topicId: s.topicId,

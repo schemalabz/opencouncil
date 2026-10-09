@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Feed } from 'feed';
 import { getTranslations } from 'next-intl/server';
-import { formatInTimeZone } from 'date-fns-tz';
 import sanitizeHtml from 'sanitize-html';
 import { getCityCached, getCouncilMeetingsForCityPublicCached } from '@/lib/cache/queries';
 import { stripMarkdown } from '@/lib/formatters/markdown';
@@ -10,6 +9,7 @@ import { localizeText } from '@/lib/serbian';
 import { REALMS } from '@/lib/realm';
 import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server';
 import { urlPrefixForLocale } from '@/i18n/config';
+import { meetingDatedLabel } from '@/lib/meetingName';
 
 export async function GET(
     request: NextRequest,
@@ -77,11 +77,9 @@ export async function GET(
             : `${baseUrl}/${localePrefix}/${cityId}/${meeting.id}`;
 
         const cityName = getLocalizedName(city, locale);
-        const dateStr = formatInTimeZone(meetingDate, city.timezone, 'yyyy-MM-dd');
         const meetingTitle = t('meetingTitle', {
-            meetingName: getLocalizedName(meeting, locale),
+            meetingName: meetingDatedLabel(meeting, locale, city.timezone),
             cityName,
-            date: dateStr,
         });
 
         // Build description (short summary)

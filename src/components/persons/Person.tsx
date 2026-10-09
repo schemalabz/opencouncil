@@ -34,6 +34,7 @@ import Icon from '@/components/icon';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { topicStyle } from '@/lib/topicStyle';
 import { topicSurfaceStyle } from '@/components/TopicPill';
+import { meetingLabel } from '@/lib/meetingName';
 
 // A role name can be a full sentence (a deputy mayor's portfolio), so the chip
 // grows with the text instead of a fixed height that lets the text spill over
@@ -370,7 +371,8 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
                                             }}
                                             speaker={contribution.speaker}
                                             contextHeader={{
-                                                meetingName: contribution.subject.councilMeeting.name,
+                                                // The card prints the date next to it.
+                                                meetingName: meetingLabel(contribution.subject.councilMeeting, locale, city.timezone, { date: false }),
                                                 adminBodyName: contribution.subject.councilMeeting.administrativeBody?.name ?? null,
                                                 meetingDate: contribution.subject.councilMeeting.dateTime,
                                                 subjectName: contribution.subject.name,

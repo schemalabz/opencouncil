@@ -956,7 +956,7 @@
   "RSS": {
     "title": "Dernières mises à jour - {city}",
     "description": "Mises à jour pour {municipality}",
-    "meetingTitle": "{meetingName} — {cityName} ({date})",
+    "meetingTitle": "{meetingName} — {cityName}",
     "subjects": "Points",
     "noSubjects": "Aucun point à l'ordre du jour",
     "cityNotFound": "Ville introuvable"

@@ -32,6 +32,7 @@ import { EntityHeader, FactDot } from '@/components/EntityHeader';
 import { ContributionsHead } from '@/components/ContributionsHead';
 import { GoverningPartyChip } from '@/components/parties/GoverningPartyChip';
 import { partyComposition, type BodySeatTotals } from '@/lib/party/composition';
+import { meetingLabel } from '@/lib/meetingName';
 
 type RoleWithPerson = Role & {
     person: Person;
@@ -216,7 +217,8 @@ function SegmentsTab({
     searchQuery,
     setSearchQuery,
     handleSearch,
-    allLabel
+    allLabel,
+    timezone
 }: {
     typeOptions: { value: AdministrativeBodyType; label: string }[],
     selectedType: AdministrativeBodyType | null,
@@ -228,7 +230,8 @@ function SegmentsTab({
     searchQuery: string,
     setSearchQuery: (query: string) => void,
     handleSearch: (e: React.FormEvent) => void,
-    allLabel: string
+    allLabel: string,
+    timezone: string
 }) {
     const t = useTranslations('Party');
     const tCommon = useTranslations('Common');
@@ -293,7 +296,8 @@ function SegmentsTab({
                                     }}
                                     speaker={contribution.speaker}
                                     contextHeader={{
-                                        meetingName: contribution.subject.councilMeeting.name,
+                                        // The card prints the date next to it.
+                                        meetingName: meetingLabel(contribution.subject.councilMeeting, 'el', timezone, { date: false }),
                                         adminBodyName: contribution.subject.councilMeeting.administrativeBody?.name ?? null,
                                         meetingDate: contribution.subject.councilMeeting.dateTime,
                                         subjectName: contribution.subject.name,
@@ -653,6 +657,7 @@ export default function PartyC({ city, party, administrativeBodies, seatTotals }
                                     setSearchQuery={setSearchQuery}
                                     handleSearch={handleSearch}
                                     allLabel={tCommon('allMeetings')}
+                                    timezone={city.timezone}
                                 />
                             </TabsContent>
                         </Tabs>

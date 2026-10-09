@@ -156,15 +156,19 @@ describe('syncMeetingToCalendar', () => {
         expect(mockSetEventId).not.toHaveBeenCalled();
     });
 
-    it('builds the title from city and administrative body, and the description from agenda and meeting URL', async () => {
+    it('builds the title from the city, the body and the meeting title, and the description from agenda and meeting URL', async () => {
         mockGetMeeting.mockResolvedValue(makeMeeting({
             calendarEventId: 'evt-1',
             agendaUrl: 'https://example.com/agenda.pdf',
-            administrativeBody: { name: 'Δημοτικό Συμβούλιο' },
-        } as Partial<MeetingForCalendarSync>));
+            name: null,
+            name_en: null,
+            sessionNumber: 3,
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' },
+        }));
         await syncMeetingToCalendar('athens', 'jun5_2026');
         const body = mockPatch.mock.calls[0][0].requestBody;
-        expect(body.summary).toBe('Αθήνα: Δημοτικό Συμβούλιο');
+        // The event carries its own date, so the title leaves it out.
+        expect(body.summary).toBe('Αθήνα: Δημοτικό Συμβούλιο · 3η Τακτική');
         expect(body.description).toBe('Ημερήσια Διάταξη: https://example.com/agenda.pdf\n\nhttps://opencouncil.gr/athens/jun5_2026');
         expect(body.visibility).toBe('public');
         expect(body.start.timeZone).toBe('Europe/Athens');
@@ -181,11 +185,14 @@ describe('syncMeetingToCalendar', () => {
             .toBe('https://opencouncil.fr/rennes/jun5_2026');
     });
 
-    it('uses the city name alone when there is no administrative body', async () => {
-        mockGetMeeting.mockResolvedValue(makeMeeting({ calendarEventId: 'evt-1' }));
+    it('names the city and the meeting when there is no administrative body, and keeps an override', async () => {
+        mockGetMeeting.mockResolvedValue(makeMeeting({ calendarEventId: 'evt-1', name: null, name_en: null }));
         await syncMeetingToCalendar('athens', 'jun5_2026');
         const body = mockPatch.mock.calls[0][0].requestBody;
-        expect(body.summary).toBe('Αθήνα');
+        expect(body.summary).toBe('Αθήνα: Τακτική Συνεδρίαση');
+        mockGetMeeting.mockResolvedValue(makeMeeting({ calendarEventId: 'evt-1', name: 'Κοινή Συνεδρίαση' }));
+        await syncMeetingToCalendar('athens', 'jun5_2026');
+        expect(mockPatch.mock.calls[1][0].requestBody.summary).toBe('Αθήνα: Κοινή Συνεδρίαση');
         expect(body.description).toBe('https://opencouncil.gr/athens/jun5_2026');
     });
 

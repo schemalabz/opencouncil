@@ -3,6 +3,7 @@ import { NotFoundError } from '@/lib/api/errors';
 import { canUserEditCity } from '@/lib/db/highlights-core';
 import { isSuperIdentity, type McpIdentity } from './auth';
 import { currentRealm } from './realm-context';
+import { meetingLabelInCity } from '@/lib/meetingName';
 
 /**
  * Whether the identity may see a city's unreleased (draft) meetings: service
@@ -55,8 +56,12 @@ export async function requireVisibleMeeting(
             released: true,
             dateTime: true,
             name: true,
+            name_en: true,
+            kind: true,
+            sessionNumber: true,
             videoUrl: true,
-            administrativeBody: { select: { name: true } },
+            administrativeBody: { select: { name: true, name_en: true } },
+            city: { select: { timezone: true } },
         },
     });
 
@@ -65,5 +70,13 @@ export async function requireVisibleMeeting(
     const editor = meeting.released ? null : await canSeeUnreleased(identity, cityId);
     if (editor === false) throw new NotFoundError('Meeting not found');
 
-    return { ...meeting, editor };
+    return {
+        released: meeting.released,
+        dateTime: meeting.dateTime,
+        name: meetingLabelInCity(meeting, 'el'),
+        videoUrl: meeting.videoUrl,
+        administrativeBody: meeting.administrativeBody && { name: meeting.administrativeBody.name },
+        editor,
+    };
 }
+
