@@ -1,0 +1,22 @@
+{
+  "youthCouncil": {
+    "title": "Conseils municipaux des jeunes",
+    "lead": "Les conseils des jeunes qui publient leurs séances sur OpenCouncil : ce qu’ils ont débattu, qui y participe et quand ils se réunissent à nouveau.",
+    "metaDescription": "Les séances et les sujets des conseils municipaux des jeunes sur OpenCouncil.",
+    "joinTitle": "Le conseil des jeunes de votre commune n’y est pas ?",
+    "joinBody": "OpenCouncil est gratuit pour chaque conseil municipal des jeunes. Le secrétariat du conseil publie lui-même les séances et la composition."
+  },
+  "counts": "{bodies, plural, =1 {1 organe} other {# organes}} · {meetings, plural, =1 {1 séance publiée} other {# séances publiées}}",
+  "bodiesTitle": "Les organes",
+  "noBodies": "Aucun organe n’a encore publié de séance.",
+  "members": "{count, plural, =0 {Aucun membre} =1 {1 membre} other {# membres}}",
+  "meetings": "{count, plural, =1 {1 séance} other {# séances}}",
+  "latestMeeting": "Dernière le {date}",
+  "hotTitle": "Sujets les plus débattus",
+  "hotLead": "Les sujets au temps de débat le plus long des 12 derniers mois, tous organes confondus.",
+  "noHot": "Rien n’a encore été débattu.",
+  "discussionMinutes": "{minutes, number}′ de débat",
+  "upcomingTitle": "Prochaines séances",
+  "noUpcoming": "Aucune séance n’est programmée.",
+  "joinCta": "En savoir plus"
+}

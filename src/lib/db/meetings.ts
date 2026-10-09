@@ -17,6 +17,7 @@ import { parseVideoId } from '@/lib/utils/youtube';
 import { landingSubjectsTag } from './subject';
 import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 import { isSecondaryBody, primaryMeetingWhere } from '@/lib/utils/bodyTier';
+import { meetingBodyTypeWhere } from './meetingBodyFilter';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
@@ -186,7 +187,14 @@ export type UpcomingMeetingWithCity = Prisma.CouncilMeetingGetPayload<{
     include: typeof upcomingMeetingInclude
 }>;
 
-export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?: number } = {}): Promise<UpcomingMeetingWithCity[]> {
+/**
+ * The options of the realm-wide upcoming list. `bodyTypes` widens or narrows
+ * the scope to the named types; absent, the list is the primary tier's, as
+ * every default scope is (#829).
+ */
+type UpcomingMeetingsOptions = { limit?: number; bodyTypes?: AdministrativeBodyType[] };
+
+export async function getUpcomingMeetings(realm: Realm, { limit = 10, bodyTypes }: UpcomingMeetingsOptions = {}): Promise<UpcomingMeetingWithCity[]> {
     try {
         const meetings = await prisma.councilMeeting.findMany({
             where: {
@@ -196,7 +204,7 @@ export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?
                 // A postponed or cancelled meeting is not coming up.
                 ...TAKES_PLACE_WHERE,
                 city: { ...PUBLIC_CITY_WHERE, realm },
-                ...primaryMeetingWhere,
+                ...(bodyTypes?.length ? meetingBodyTypeWhere(bodyTypes) : primaryMeetingWhere),
             },
             orderBy: [{ dateTime: 'asc' }, { createdAt: 'asc' }],
             take: limit,
@@ -218,10 +226,11 @@ export const upcomingMeetingsTag = (realm: Realm) => `realm:${realm}:upcoming-me
  * Short TTL because "upcoming" shrinks as meetings pass and the query is `dateTime > now()`, which
  * a cache key can't reflect; release toggles bust the tag for correctness in between.
  */
-export async function getUpcomingMeetingsCached(realm: Realm, { limit = 10 }: { limit?: number } = {}): Promise<UpcomingMeetingWithCity[]> {
+export async function getUpcomingMeetingsCached(realm: Realm, { limit = 10, bodyTypes }: UpcomingMeetingsOptions = {}): Promise<UpcomingMeetingWithCity[]> {
     return createCache(
-        () => getUpcomingMeetings(realm, { limit }),
-        ['upcoming-meetings', realm, String(limit)],
+        () => getUpcomingMeetings(realm, { limit, bodyTypes }),
+        // The primary tier keeps the key it always had; a named scope gets its own.
+        ['upcoming-meetings', realm, String(limit), ...(bodyTypes?.length ? [`types:${[...bodyTypes].sort().join(',')}`] : [])],
         { revalidate: 300, tags: [upcomingMeetingsTag(realm)] },
     )();
 }
