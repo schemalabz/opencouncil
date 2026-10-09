@@ -124,11 +124,12 @@ export function bodyFilterKey({ administrativeBodyTypes, administrativeBodyIds }
 
 /** Cache-key fragments for the filters a meeting list query accepts. */
 function meetingListKey(options: MeetingListOptions): string[] {
-  const { limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, timeFilter } = options;
+  const { limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, timeFilter, takesPlace } = options;
   return [
     page ? `page:${page}:${pageSize}` : (limit ? `limit:${limit}` : 'all'),
     ...bodyFilterKey(options),
     timeFilter ?? 'all',
+    takesPlace ? 'takesPlace' : 'anyStatus',
     // from/to go into the where, so they have to go into the key — without them
     // two different date ranges are one cache entry.
     `range:${from?.toISOString() ?? ''}:${to?.toISOString() ?? ''}`,

@@ -6,6 +6,7 @@ import "server-only";
 import { AdministrativeBodyType, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { meetingBodyTypeWhere } from "./meetingBodyFilter";
+import { TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { DECISION_KIND_SELECT } from "@/lib/tasks/pollDecisionsBackoff";
 
 const meetingWithSubjectsInclude = {
@@ -83,6 +84,8 @@ export interface MeetingListOptions {
     administrativeBodyTypes?: AdministrativeBodyType[];
     administrativeBodyIds?: string[];
     timeFilter?: 'upcoming' | 'past';
+    /** Only meetings that take place on their date: no postponed or cancelled one. */
+    takesPlace?: boolean;
 }
 
 /**
@@ -103,7 +106,7 @@ export const DEFAULT_MEETING_PAGE_SIZE = 12;
  */
 function meetingListQuery(
     cityId: string,
-    { includeUnreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter }: MeetingListOptions,
+    { includeUnreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter, takesPlace }: MeetingListOptions,
 ) {
     // Calculate pagination
     const skip = page ? (page - 1) * pageSize : undefined;
@@ -137,6 +140,7 @@ function meetingListQuery(
         released: includeUnreleased ? undefined : true,
         ...(Object.keys(dateTimeFilter).length > 0 && { dateTime: dateTimeFilter }),
         ...bodyFilter,
+        ...(takesPlace && TAKES_PLACE_WHERE),
     };
 
     return {

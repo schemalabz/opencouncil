@@ -13,7 +13,8 @@ import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
 import { countOpenConsultationsForCity } from "@/lib/db/consultations";
-import { publicMeetingStage, stageSignalsFromPreview } from "@/lib/meetingStage";
+import { stageSignalsFromPreview } from "@/lib/meetingStage";
+import { presentationKey, publicMeetingPresentation } from "@/lib/meetingPresentation";
 import { readerPhoneChannel } from "@/lib/notis/reader";
 
 export default async function TabsLayout(
@@ -40,6 +41,8 @@ export default async function TabsLayout(
     // Both scopes are fetched up front so the band's scope switch is instant. All
     // four are cached and narrow (limit 1), and the council-only pair is what the
     // page shows for cities whose committees meet far more often than the council.
+    // Both bookends take place: a postponed or cancelled meeting is neither the
+    // next nor the latest one, as /latest also skips it.
     // The petition bucket chains on the city: the rail's petition card reads it
     // on a city we do not cover yet, and a supported city has no card to read it.
     const cityPromise = getCityCached(cityId);
@@ -49,10 +52,10 @@ export default async function TabsLayout(
         getCityMessageCached(cityId),
         currentUserPromise,
         isUserAuthorizedToEdit({ cityId }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1 }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1 }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: ['council'] }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'] }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, takesPlace: true }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, takesPlace: true }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: ['council'], takesPlace: true }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'], takesPlace: true }),
         getSubjectCountForCityCached(cityId),
         cityPromise.then(found => found && isPetitionable(found.status) ? getCityPetitionBucketCached(cityId) : null),
         getTranslations({ locale, namespace: 'meetingStage' }),
@@ -84,7 +87,7 @@ export default async function TabsLayout(
     const now = new Date();
     const dated = (meeting: CouncilMeetingWithSubjectPreview | undefined): DatedMeeting | null => {
         if (!meeting) return null;
-        const stage = publicMeetingStage(stageSignalsFromPreview(meeting), now);
+        const stage = presentationKey(publicMeetingPresentation(meeting, stageSignalsFromPreview(meeting), now));
         return { meeting, stage, detail: stageChipDetail(tStage, stage, meeting.dateTime, city.timezone, locale, now) };
     };
 

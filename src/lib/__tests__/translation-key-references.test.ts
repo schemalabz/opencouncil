@@ -270,7 +270,9 @@ const COMPUTED_GROUPS: { group: string; members?: MemberSource; why?: string }[]
     { group: 'editing.speakerHints.status.', members: { file: 'src/lib/speakerIdentifications.ts', type: 'SpeakerIdentificationsStatus' } },
     { group: 'AddMeetingForm.administrativeBodyType.', members: { prismaEnum: 'AdministrativeBodyType' } },
     { group: 'AdministrativeBodiesList.types.', members: { prismaEnum: 'AdministrativeBodyType' } },
-    { group: 'meetingStage.label.', members: { file: 'src/lib/meetingStage.ts', type: 'PublicMeetingStage' } },
+    { group: 'meetingStage.label.', members: { file: 'src/lib/meetingPresentation.ts', constArray: 'PRESENTATION_KEYS' } },
+    { group: 'meetingStage.strip.', why: 'computed only for postponed and cancelled (MeetingStageStrip); the other strip keys are literal' },
+    { group: 'meetingStage.facts.format.', why: 'only remote and hybrid: the formats that the facts row names (meeting page)' },
     { group: 'meetingStage.rows.', why: 'the leaf is a PendingKind with processing folded into review (SubjectRow)' },
     { group: 'meetingStage.subject.', why: 'two leaves: the piece (summary, statements) and a PendingKind with processing folded into before (PendingNote)' },
 
