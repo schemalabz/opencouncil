@@ -56,6 +56,14 @@ export const cityPreferenceSchema = z.object({
   topics: z.array(z.string()),
   /** Pinned streets/neighbourhoods. */
   locations: z.array(preferenceLocationSchema),
+  /**
+   * The bodies of the city the reader follows by name (#829), as the signup
+   * offers them (a youth council). Their meetings are asked for, whatever
+   * the topics and the places say. Absent on a state stored before the field.
+   */
+  bodies: z.array(z.string()).optional(),
+  /** The reader follows those bodies alone: nothing else of the city is their choice. */
+  bodiesOnly: z.boolean().optional(),
 });
 
 /** One thing the agent owes the reader, as the prompt sees it. */

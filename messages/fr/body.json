@@ -2,6 +2,7 @@
   "breadcrumbHome": "Accueil",
   "metaDescription": "{body} de {city} sur OpenCouncil : ses séances et ses membres.",
   "channel": "Chaîne YouTube",
+  "follow": "Mises à jour sur les séances",
   "membersCount": "{count, plural, =0 {Aucun membre} =1 {1 membre} other {# membres}}",
   "meetingsCount": "{count, plural, =0 {Aucune séance publiée} =1 {1 séance publiée} other {# séances publiées}}",
   "tabMeetings": "Séances",
@@ -74,5 +75,7 @@
   "claimLinkMember": "Membre",
   "embedTitle": "Intégrer sur votre site",
   "embedIntro": "Un widget avec les séances ou les sujets du moment de l’organe, pour son site ou son blog. Réglez l’apparence et copiez le code.",
-  "embedOpen": "Réglages du widget"
+  "embedOpen": "Réglages du widget",
+  "updatesTitle": "Mises à jour aux abonnés",
+  "updatesHint": "Si activé, chaque séance publiée envoie une mise à jour aux lecteurs qui suivent l’organe, par e-mail, WhatsApp ou SMS."
 }
