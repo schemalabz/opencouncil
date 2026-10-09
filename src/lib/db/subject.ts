@@ -318,8 +318,9 @@ export type GeneralSubjectRow = Omit<MapSubjectRow, 'geometry' | 'locationText' 
 /** The fields every subject row shares; a caller adds what it shows of the description. */
 type SubjectRowBase = Omit<GeneralSubjectRow, 'descriptionPreview' | 'descriptionTruncated'>;
 
-/** A much-discussed subject for the MCP's hot-subjects tool: the shared fields plus the
- *  description in full, which the tool quotes. No preview: nothing there shows one. */
+/** A much-discussed subject for the MCP's hot-subjects tool and the directory of a body type:
+ *  the shared fields plus the description in full, which the tool quotes. No preview: neither
+ *  shows one. */
 export type HotSubjectRow = SubjectRowBase & { description: string };
 
 /** A municipality's non-located subjects + its centroid, for the "general subjects" marker.
