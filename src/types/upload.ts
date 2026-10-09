@@ -36,6 +36,28 @@ export interface UploadConfig {
 
 
 /**
+ * The base of the object key of an upload, before the collision suffix:
+ * `{cityId}_{identifier}_{suffix}.{ext}`. Null when the config names nothing,
+ * so the route falls back to a random name.
+ *
+ * The key follows the scope that authorized the upload (#828). A file for an
+ * existing meeting is named after that meeting, whatever identifier the
+ * caller sent: an admin of one body must not get a key that names a meeting
+ * of another body. A file for a meeting that does not exist yet carries the
+ * id of its body, so two bodies never share a key for the same date.
+ */
+export function uploadBaseFilename(config: UploadConfig | undefined, extension: string): string | null {
+    const identifier = config?.councilMeetingId ?? config?.identifier;
+    const parts = [
+        config?.cityId,
+        !config?.councilMeetingId && config?.administrativeBodyId ? config.administrativeBodyId : undefined,
+        identifier,
+        config?.suffix,
+    ].filter(Boolean)
+    return parts.length > 0 ? `${parts.join('_')}.${extension}` : null
+}
+
+/**
  * Who may upload under a config: a superadmin with no city, a city admin with
  * a city, the editors of the meeting when the config names one, and the
  * admins of the body when it names a body for a meeting not yet created.

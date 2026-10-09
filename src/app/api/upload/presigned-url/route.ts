@@ -6,27 +6,19 @@ import { v4 as uuidv4 } from 'uuid'
 import { env } from '@/env.mjs'
 import { withServiceOrUserAuth } from '@/lib/auth'
 import { ApiError } from '@/lib/api/errors'
-import { UploadConfig, uploadAuthorizationScope } from '@/types/upload'
+import { UploadConfig, uploadAuthorizationScope, uploadBaseFilename } from '@/types/upload'
 import { mintUploadAclToken } from '@/lib/uploadAclToken'
 
 /**
- * Generate a meaningful filename based on upload config
- * Pattern: {cityId}_{identifier}_{suffix}.{ext}
+ * A meaningful filename from the upload config (see uploadBaseFilename), or a
+ * random one when the config names nothing.
  * Examples:
  *   - chania_aug15_2025_recording.mp4
  *   - chania_aug15_2025_agenda.pdf
  *   - chania_democrats_logo.png
  */
 function generateBaseFilename(config: UploadConfig | undefined, extension: string): string {
-    const parts = [
-        config?.cityId,
-        config?.identifier,
-        config?.suffix
-    ].filter(Boolean)
-    
-    return parts.length > 0 
-        ? `${parts.join('_')}.${extension}`
-        : `${uuidv4()}.${extension}`
+    return uploadBaseFilename(config, extension) ?? `${uuidv4()}.${extension}`
 }
 
 /**
