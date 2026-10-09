@@ -71,5 +71,8 @@
   "claimLinksFailed": "Could not make the links",
   "claimLinkCopy": "Copy",
   "claimLinkCopied": "Link copied",
-  "claimLinkMember": "Member"
+  "claimLinkMember": "Member",
+  "embedTitle": "Embed on your website",
+  "embedIntro": "A widget with the meetings or the hot subjects of the body, for its website or blog. Set the look and copy the code.",
+  "embedOpen": "Widget settings"
 }

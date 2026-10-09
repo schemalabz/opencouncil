@@ -280,6 +280,7 @@
         "locationHint": "Show subjects discussed within ~500m of an address. Only an approximate area (not the exact address) is saved in the embed code.",
         "addressPlaceholder": "Search for an address…",
         "description": "Embed council meetings on your municipality website. Customize the appearance, copy the iframe code and paste it into your CMS (WordPress, Joomla, etc.).",
+        "descriptionBody": "Embed the meetings of “{body}” on your website. Customize the look, copy the iframe code and paste it into your CMS (WordPress, Joomla, etc.).",
         "accentColor": "Color",
         "accentColorHint": "The main widget color — used for titles, links and badges. Match it to your site's brand color.",
         "darkMode": "Dark background",

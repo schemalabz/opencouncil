@@ -71,5 +71,8 @@
   "claimLinksFailed": "Impossible de créer les liens",
   "claimLinkCopy": "Copier",
   "claimLinkCopied": "Lien copié",
-  "claimLinkMember": "Membre"
+  "claimLinkMember": "Membre",
+  "embedTitle": "Intégrer sur votre site",
+  "embedIntro": "Un widget avec les séances ou les sujets du moment de l’organe, pour son site ou son blog. Réglez l’apparence et copiez le code.",
+  "embedOpen": "Réglages du widget"
 }
