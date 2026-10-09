@@ -159,3 +159,6 @@ export const administrativeBodyFormSchema = z.object({
 
 export type AdministrativeBodyFormOutput = z.output<typeof administrativeBodyFormSchema>;
 export type AdministrativeBodyFormInput = z.input<typeof administrativeBodyFormSchema>;
+
+// Frontend form of the page of the body: the fields that an admin of the body changes (#828, #874).
+export const bodyContactsFormSchema = administrativeBodyFormSchema.pick({ youtubeChannelUrl: true, documentSendSettings: true });
