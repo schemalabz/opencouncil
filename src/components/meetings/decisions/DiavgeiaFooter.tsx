@@ -41,6 +41,8 @@ export interface DiavgeiaFooterProps {
  * the button, because no check can run. It needs no sentence of its own:
  * {@link DiavgeiaSourceLink} already marks the broken part of the line in
  * amber, and it names which part, which one blanket sentence could not.
+ * `noDecisions` drops the button too, and says why: a meeting that takes no
+ * decisions has none on Diavgeia.
  */
 export function DiavgeiaFooter({
     diavgeiaUid,
@@ -75,6 +77,8 @@ export function DiavgeiaFooter({
                     <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
                     {t('poll.running')}
                 </span>
+            ) : pollState.kind === 'noDecisions' ? (
+                <span className="w-full">{t('poll.noDecisions')}</span>
             ) : pollState.kind === 'blocked' ? null : (
                 <Button variant="outline" size="sm" className="shrink-0" disabled={polling} onClick={onPoll}>
                     {polling
