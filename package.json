@@ -127,7 +127,7 @@
     "next-auth": "^5.0.0-beta.31",
     "next-intl": "^4.14.8",
     "next-plausible": "^3.12.2",
-    "pdf-parse": "^1.1.1",
+    "pdf-parse": "^2.4.5",
     "pg": "^8.23.0",
     "posthog-js": "^1.435.1",
     "posthog-node": "^5.54.1",
