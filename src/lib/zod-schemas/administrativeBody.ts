@@ -47,13 +47,16 @@ export const administrativeBodySchema = z.object({
 });
 
 // JSON body of PUT /administrative-bodies/{bodyId} from an admin of the body,
-// who may change these two fields and no other.
+// who may change these fields and no other.
 // An absent field stays as it is. An empty string or null clears the channel.
+// The updates switch (#829) is on or off: a secondary body has nobody to
+// approve a pending notification, so NOTIFICATIONS_APPROVAL is not offered.
 export const administrativeBodyContactsSchema = z.object({
     youtubeChannelUrl: z.union([z.string().url({ message: "Must be a valid URL." }), z.literal(''), z.null()])
         .optional()
         .transform(val => val === '' ? null : val),
     contactEmails: z.array(z.string().email()).optional(),
+    notificationBehavior: z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO']).optional(),
 });
 
 // Frontend form schema (React Hook Form). The form edits the contact emails as

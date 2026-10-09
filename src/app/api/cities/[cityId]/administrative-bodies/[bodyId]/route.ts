@@ -20,14 +20,15 @@ export async function PUT(
     try {
         const body = await request.json();
 
-        // An admin of the body, not of the city, changes the YouTube channel
-        // and the contact emails and nothing else (#828). The page of the body
-        // sends those two fields alone, for an admin of the city as well.
+        // An admin of the body, not of the city, changes the YouTube channel,
+        // the contact emails and, on a secondary body, the updates switch, and
+        // nothing else (#828, #829). The page of the body sends those fields
+        // alone, for an admin of the city as well.
         const contactsOnly = body && typeof body === 'object' && !('name' in body) && !body.confirmConventions;
         if (contactsOnly || !(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
             await withUserAuthorizedToEdit({ cityId: params.cityId, administrativeBodyId: params.bodyId });
-            const { youtubeChannelUrl, contactEmails } = administrativeBodyContactsSchema.parse(body);
-            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl, contactEmails });
+            const { youtubeChannelUrl, contactEmails, notificationBehavior } = administrativeBodyContactsSchema.parse(body);
+            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl, contactEmails, notificationBehavior });
             revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
             return NextResponse.json(updatedBody);
         }

@@ -134,6 +134,17 @@ Three paths create or send notifications for a meeting. All three read the setti
 
 The default of a new body comes from `defaultNotificationBehavior` in `src/lib/utils/bodyTier.ts`. A primary body starts on `NOTIFICATIONS_APPROVAL`. A secondary body, such as a youth council, starts on `NOTIFICATIONS_DISABLED`. The meeting page does not promise a subscriber an update for a disabled body.
 
+#### A secondary body has its own followers (#829)
+
+A subscriber of a municipality signed up for the meetings of its own bodies. The meetings of a secondary body reach the readers who follow that body, and nobody else.
+
+- The signup offers each secondary body of the city with a public meeting behind a tick, under the topics. Nothing is ticked by default. The save keeps the ticked bodies in `NotificationPreference.bodies`. A body of another city or of the primary tier is dropped, as an unknown topic is.
+- `createNotificationsForMeeting` reads the audience of a meeting from the body: every preference of the city for a primary body or no body, the preferences that follow the body for a secondary body.
+- The Notis views carry the same rule. `notis_fanout_targets.bodies` lists the bodies a preference follows. `notis_meeting_events.followersOnly` is true for the events of a secondary body, with the body in `adminBodyId`. The poller wakes the followers of that body alone for such an event.
+- The admin of a secondary body switches its updates on and off from the page of the body. On is `NOTIFICATIONS_AUTO`: nobody approves a pending notification for a body that runs its own pipeline. The switch is not offered on a primary body.
+- A municipality that does not support notifications still offers the signup for a secondary body whose updates are on. The page then shows the bodies alone, ticked from the start, and asks for the channels: no intro, no places, no topics. With no such body, the reader is sent to the petition page, as before. `bodyOffersUpdates` in `src/lib/utils/bodyTier.ts` names the rule. The meeting strip and the page of the body read it too: the page of a secondary body whose updates are on links to the signup.
+- The profile lists the bodies a preference follows beside its topics and places.
+
 ## Implementation Requirements
 
 ### 1. Database Schema Implementation

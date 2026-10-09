@@ -138,6 +138,7 @@ function target(userId: string, cityId: string, overrides: Row = {}): Row {
     timezone: "Europe/Athens",
     topics: [],
     locations: [],
+    bodies: [],
     phone: "+306900000001",
     userName: "Μαρία",
     notifyByPhone: true,
@@ -162,6 +163,8 @@ function meetingRow(taskId: string, overrides: Row = {}): Row {
     timezone: "Europe/Athens",
     meetingKind: "regular",
     sessionNumber: 3,
+    adminBodyId: null,
+    followersOnly: false,
     ...overrides,
   };
 }
@@ -649,6 +652,48 @@ describe("meeting events", () => {
     expect(result.eventsProcessed).toBe(1); // consumed: nobody to wake
     expect(editorialOk).not.toHaveBeenCalled();
     expect(db.store.queue.size).toBe(0);
+  });
+
+  it("wakes the followers of a body alone for an event that is theirs, and everyone else for the city's", async () => {
+    // A youth council's summary (#829) reaches the reader who follows the
+    // council, not the reader who only subscribed to the municipality. The
+    // council's own summary still reaches both.
+    const db = seededDb();
+    db.store.subscriptions.set("sub2", activeSub("sub2", "user2"));
+    const main = makeFakeMain({
+      users: [
+        { id: "user1", name: "Μαρία", phone: "+306900000001" },
+        { id: "user2", name: "Νίκος", phone: "+306900000002" },
+      ],
+      targets: [
+        target("user1", "athens", { bodies: [{ id: "youth", name: "Δημοτικό Συμβούλιο Νέων", name_en: "Youth Council" }] }),
+        target("user2", "athens", { phone: "+306900000002", userName: "Νίκος" }),
+      ],
+      events: [
+        meetingRow("task-youth", { meetingId: "m-youth", adminBodyId: "youth", adminBodyName: "Δημοτικό Συμβούλιο Νέων", followersOnly: true }),
+        meetingRow("task-council", { meetingId: "m-council", adminBodyId: "council", adminBodyName: "Δημοτικό Συμβούλιο" }),
+      ],
+    });
+
+    const result = await runPollerTick({
+      db,
+      main,
+      bird: new FakeBird(),
+      alert: async () => {},
+      now,
+      editorial: editorialOk,
+    });
+
+    expect(result.eventsProcessed).toBe(2);
+    // One wake for the youth event (user1), two for the council's: three in all.
+    expect(result.wakesEnqueued).toBe(3);
+    const wokeFor = (meetingId: string) =>
+      [...db.store.queue.values()]
+        .filter((row) => (row.events as Array<{ meetingId: string }>).some((e) => e.meetingId === meetingId))
+        .map((row) => row.subscriptionId)
+        .sort();
+    expect(wokeFor("m-youth")).toEqual(["sub1"]);
+    expect(wokeFor("m-council")).toEqual(["sub1", "sub2"]);
   });
 
   it("consumes a late agenda without editorial spend or a wake", async () => {

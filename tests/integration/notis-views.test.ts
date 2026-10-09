@@ -34,6 +34,10 @@ const DISABLED_BODIES_MIGRATION_PATH = path.join(
     __dirname,
     '../../prisma/migrations/20261011120000_notis_meeting_events_skip_disabled_bodies/migration.sql',
 )
+const FOLLOWED_BODIES_MIGRATION_PATH = path.join(
+    __dirname,
+    '../../prisma/migrations/20261011120200_notification_preference_bodies/migration.sql',
+)
 
 /** The consumer's half of the contract: the Prisma models Notis reads the
  *  views through. Kept in a separate file from the SQL that defines them,
@@ -92,6 +96,14 @@ async function applyNotisMigration() {
     // The disabled-bodies migration (#829) keeps that SELECT list and adds a WHERE condition.
     for (const statement of splitSqlStatements(fs.readFileSync(DISABLED_BODIES_MIGRATION_PATH, 'utf8'))) {
         await prisma.$executeRawUnsafe(statement)
+    }
+    // The followed-bodies migration (#829) replaces both views with a column
+    // more each. Its join table `db push` already created, so only the views
+    // are replayed.
+    for (const statement of splitSqlStatements(fs.readFileSync(FOLLOWED_BODIES_MIGRATION_PATH, 'utf8'))) {
+        if (/CREATE OR REPLACE VIEW/.test(statement)) {
+            await prisma.$executeRawUnsafe(statement)
+        }
     }
 }
 
@@ -187,6 +199,44 @@ describe('notis views migration', () => {
         // both consumer converters turn a non-array into [] and say nothing.
         expect(rows[0].topics).toEqual([])
         expect(rows[0].locations).toEqual([])
+    })
+
+    test('notis_fanout_targets names the bodies a preference follows (#829)', async () => {
+        const city = await createCity({ id: 'nv_city' })
+        const youth = await createAdministrativeBody(city.id, { name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil' })
+        const follower = await createUser('follower@example.com', { phone: '+306900000003' })
+        const resident = await createUser('resident@example.com', { phone: '+306900000004' })
+        await createNotificationPreference({ userId: follower.id, cityId: city.id, bodyIds: [youth.id] })
+        await createNotificationPreference({ userId: resident.id, cityId: city.id })
+
+        const rows = await prisma.$queryRawUnsafe<Array<{ userId: string; bodies: unknown }>>(
+            'SELECT "userId", bodies FROM notis_fanout_targets',
+        )
+        const bodiesOf = new Map(rows.map((r) => [r.userId, r.bodies]))
+        expect(bodiesOf.get(follower.id)).toEqual([{ id: youth.id, name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council' }])
+        expect(bodiesOf.get(resident.id)).toEqual([])
+    })
+
+    test('notis_meeting_events marks the events of a secondary body as its followers\' alone (#829)', async () => {
+        const city = await createCity({ id: 'nv_city' })
+        const council = await createAdministrativeBody(city.id)
+        const youth = await createAdministrativeBody(city.id, {
+            name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council', type: 'youthCouncil', notificationBehavior: 'NOTIFICATIONS_AUTO',
+        })
+        const councilMeeting = await createMeeting(city.id, { id: 'nv_council', administrativeBodyId: council.id, released: true })
+        const youthMeeting = await createMeeting(city.id, { id: 'nv_youth', administrativeBodyId: youth.id, released: true })
+        const noBody = await createMeeting(city.id, { id: 'nv_nobody', released: true })
+        const councilTask = await createTaskStatus(councilMeeting.id, city.id, { type: 'summarize', status: 'succeeded' })
+        const youthTask = await createTaskStatus(youthMeeting.id, city.id, { type: 'summarize', status: 'succeeded' })
+        const noBodyTask = await createTaskStatus(noBody.id, city.id, { type: 'summarize', status: 'succeeded' })
+
+        const rows = await prisma.$queryRawUnsafe<Array<{ taskId: string; adminBodyId: string | null; followersOnly: boolean }>>(
+            'SELECT "taskId", "adminBodyId", "followersOnly" FROM notis_meeting_events',
+        )
+        const byTask = new Map(rows.map((r) => [r.taskId, r]))
+        expect(byTask.get(councilTask.id)).toMatchObject({ adminBodyId: council.id, followersOnly: false })
+        expect(byTask.get(youthTask.id)).toMatchObject({ adminBodyId: youth.id, followersOnly: true })
+        expect(byTask.get(noBodyTask.id)).toMatchObject({ adminBodyId: null, followersOnly: false })
     })
 
     test('notis_meeting_events lists only succeeded processAgenda/summarize tasks', async () => {

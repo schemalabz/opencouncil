@@ -33,6 +33,7 @@ import {
     countBodyDirectory,
     createAdministrativeBody,
     editAdministrativeBody,
+    editAdministrativeBodyContacts,
     getAdministrativeBodiesWithPublicMeetings,
     getBodyDirectory,
     getPublicAdministrativeBodiesForCity,
@@ -162,6 +163,13 @@ describe('the public body reads select only the public fields', () => {
             select: publicAdministrativeBodySelect,
         });
     });
+
+    it('the bodies with a public meeting carry whether they send updates, which the signup reads (#829)', async () => {
+        await getAdministrativeBodiesWithPublicMeetings('zografou');
+        expect(mockFindMany.mock.calls[0][0].select).toEqual({ ...publicAdministrativeBodySelect, notificationBehavior: true });
+        await getPublicAdministrativeBodiesForCity('zografou');
+        expect(mockFindMany.mock.calls[1][0].select).toEqual(publicAdministrativeBodySelect);
+    });
 });
 
 /**
@@ -195,5 +203,32 @@ describe('the directory of a body type', () => {
         mockCount.mockResolvedValue(2);
         await expect(countBodyDirectory('greece', 'youthCouncil')).resolves.toBe(2);
         expect(mockCount.mock.calls[0][0].where).toMatchObject({ type: 'youthCouncil', meetings: { some: { released: true } }, city: { realm: 'greece' } });
+    });
+});
+
+/**
+ * The updates switch of the contacts write (#829) belongs to a secondary
+ * body. A primary body's notification behaviour stays with the city admin.
+ */
+describe('the contacts write and the updates switch', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockWithUserAuthorizedToEdit.mockResolvedValue(true);
+        mockUpdate.mockImplementation(async (args: { data: unknown }) => ({ id: 'body', ...(args.data as object) }));
+    });
+
+    it('writes the switch of a secondary body, gated on the body', async () => {
+        mockFindUniqueOrThrow.mockResolvedValue({ cityId: 'chania', type: 'youthCouncil' });
+        await editAdministrativeBodyContacts('youth', { contactEmails: ['a@example.org'], notificationBehavior: 'NOTIFICATIONS_AUTO' });
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'chania', administrativeBodyId: 'youth' });
+        expect(mockUpdate.mock.calls[0][0].data).toEqual({ youtubeChannelUrl: undefined, contactEmails: ['a@example.org'], notificationBehavior: 'NOTIFICATIONS_AUTO' });
+    });
+
+    it('refuses the switch on a primary body, and leaves the contacts write of that body as it was', async () => {
+        mockFindUniqueOrThrow.mockResolvedValue({ cityId: 'chania', type: 'committee' });
+        await expect(editAdministrativeBodyContacts('committee', { notificationBehavior: 'NOTIFICATIONS_AUTO' })).rejects.toMatchObject({ statusCode: 400 });
+        expect(mockUpdate).not.toHaveBeenCalled();
+        await editAdministrativeBodyContacts('committee', { contactEmails: [] });
+        expect(mockUpdate).toHaveBeenCalledTimes(1);
     });
 });

@@ -8,6 +8,7 @@ import { captureEvent } from '@/lib/analytics/capture';
 import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
 import { useCouncilMeetingData } from '@/components/meetings/CouncilMeetingDataContext';
 import { useNotificationPreference } from '@/contexts/NotificationPreferenceContext';
+import { bodyOffersUpdates, preferenceCoversBody } from '@/lib/utils/bodyTier';
 import { formatClockTime, formatDate, formatWeekdayDateTime } from '@/lib/formatters/time';
 import { presentationExplainHref, type PresentationKey, type PublicMeetingPresentation } from '@/lib/meetingPresentation';
 import { hasPublicRecording } from '@/lib/meetingLifecycleRules';
@@ -95,10 +96,13 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
         ? pill('agenda', tMeeting('agendaDocument'), 'agenda_pdf', meeting.agendaUrl, FileText, { external: true })
         : null;
     // A body with its notifications off sends none, so the strip must not
-    // promise a subscriber an update, nor invite a reader to wait for one.
-    const notifyPill = !city.supportsNotifications || meeting.administrativeBody?.notificationBehavior === 'NOTIFICATIONS_DISABLED'
+    // promise a subscriber an update, nor invite a reader to wait for one. A
+    // secondary body sends to its followers alone (#829): a subscriber of the
+    // city who does not follow it is offered the signup, where the tick is.
+    // Its followers sign up also in a municipality with no notifications.
+    const notifyPill = !bodyOffersUpdates(city, meeting.administrativeBody)
         ? null
-        : preference
+        : preference && preferenceCoversBody(preference, meeting.administrativeBody)
             ? <span key="notified" className="text-xs text-muted-foreground">{tMeeting('notificationComing')}</span>
             : pill('notifications', t('actions.notifications'), 'notifications', `/${city.id}/notifications`, Bell);
     const liveUrl = video ?? channel;

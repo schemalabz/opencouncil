@@ -2,6 +2,7 @@
   "breadcrumbHome": "Home",
   "metaDescription": "{body} of {city} on OpenCouncil: its meetings and its members.",
   "channel": "YouTube channel",
+  "follow": "Updates about the meetings",
   "membersCount": "{count, plural, =0 {No members} =1 {1 member} other {# members}}",
   "meetingsCount": "{count, plural, =0 {No published meetings} =1 {1 published meeting} other {# published meetings}}",
   "tabMeetings": "Meetings",
@@ -74,5 +75,7 @@
   "claimLinkMember": "Member",
   "embedTitle": "Embed on your website",
   "embedIntro": "A widget with the meetings or the hot subjects of the body, for its website or blog. Set the look and copy the code.",
-  "embedOpen": "Widget settings"
+  "embedOpen": "Widget settings",
+  "updatesTitle": "Updates to subscribers",
+  "updatesHint": "When on, every published meeting sends an update to the readers who follow the body, by email, WhatsApp or SMS."
 }

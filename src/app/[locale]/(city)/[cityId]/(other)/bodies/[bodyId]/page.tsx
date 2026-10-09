@@ -62,7 +62,7 @@ export default async function AdministrativeBodyPage(props: Params) {
 
     return (
         <BodyPage
-            city={{ id: city.id, name: city.name, name_en: city.name_en, timezone: city.timezone }}
+            city={{ id: city.id, name: city.name, name_en: city.name_en, timezone: city.timezone, supportsNotifications: city.supportsNotifications }}
             body={body}
             meetings={meetings}
             people={people}

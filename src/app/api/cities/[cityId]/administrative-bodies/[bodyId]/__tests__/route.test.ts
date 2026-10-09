@@ -84,6 +84,25 @@ describe('PUT /api/cities/{cityId}/administrative-bodies/{bodyId}', () => {
         expect(mockEditBody).not.toHaveBeenCalled();
     });
 
+    it('passes the updates switch of a secondary body through the contacts write', async () => {
+        mockIsCityAdmin.mockResolvedValue(false);
+
+        const res = await put({ ...CONTACTS, notificationBehavior: 'NOTIFICATIONS_AUTO' });
+
+        expect(res.status).toBe(200);
+        expect(mockEditContacts).toHaveBeenCalledWith(BODY, { ...CONTACTS, notificationBehavior: 'NOTIFICATIONS_AUTO' });
+        expect(mockEditBody).not.toHaveBeenCalled();
+    });
+
+    it('refuses an approval mode on the contacts write: nobody approves for a secondary body', async () => {
+        mockIsCityAdmin.mockResolvedValue(false);
+
+        const res = await put({ ...CONTACTS, notificationBehavior: 'NOTIFICATIONS_APPROVAL' });
+
+        expect(res.status).toBe(400);
+        expect(mockEditContacts).not.toHaveBeenCalled();
+    });
+
     it('keeps the full write for an admin of the city who sends the whole body', async () => {
         mockIsCityAdmin.mockResolvedValue(true);
 

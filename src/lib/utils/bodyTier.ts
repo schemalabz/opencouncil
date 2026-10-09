@@ -48,6 +48,22 @@ export function defaultNotificationBehavior(type: AdministrativeBodyType): Notif
 }
 
 /**
+ * Whether the meetings of a body send updates that a reader can sign up for
+ * (#829). A body with its notifications off sends none. A primary body, or a
+ * meeting with no body, sends only in a municipality that supports
+ * notifications. A secondary body sends to its followers wherever it is: its
+ * admin switches its updates on without the municipality, and the signup is
+ * the readers' only way to them.
+ */
+export function bodyOffersUpdates(
+    city: { supportsNotifications: boolean },
+    body: { type: AdministrativeBodyType; notificationBehavior: NotificationBehavior } | null | undefined,
+): boolean {
+    if (body?.notificationBehavior === 'NOTIFICATIONS_DISABLED') return false;
+    return city.supportsNotifications || isSecondaryBody(body);
+}
+
+/**
  * Whether the pipeline of a body's meetings runs with no operator (#829). A
  * secondary body runs its own meetings: a recording starts the transcription,
  * the summary follows the corrected transcript, and the meeting is released
@@ -119,4 +135,17 @@ export function voiceprintNeedsOwnConsent(
     roles: { administrativeBody?: { type: AdministrativeBodyType } | null }[],
 ): boolean {
     return !hasPrimaryPresence(roles);
+}
+
+/**
+ * Whether a preference of the city receives the meetings of a body (#829):
+ * every preference does for a primary body or a meeting with no body; a
+ * secondary body reaches the preferences that follow it. The audience query
+ * in db/notifications.ts and the Notis poller apply the same rule.
+ */
+export function preferenceCoversBody(
+    preference: { bodies: { id: string }[] },
+    body: { id: string; type: AdministrativeBodyType } | null | undefined,
+): boolean {
+    return !isSecondaryBody(body) || preference.bodies.some(followed => followed.id === body?.id);
 }

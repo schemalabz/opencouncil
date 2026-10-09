@@ -65,6 +65,16 @@
     "close": "Fermer les thèmes",
     "footer": "Facultatif. Sans choix, Notis décide lui-même."
   },
+  "bodies": {
+    "title": "Autres organes de la commune",
+    "hint": "Vous ne recevez leurs mises à jour que si vous les cochez."
+  },
+  "bodiesOnly": {
+    "title": "Quel organe voulez-vous suivre ?",
+    "lead": "La commune n’envoie pas encore de mises à jour sur son conseil. Vous recevez les mises à jour des organes que vous choisissez, et rien d’autre.",
+    "choicesTitle": "Organes que vous suivez",
+    "choicesHint": "Chaque séance publiée vous envoie une mise à jour."
+  },
   "channelsTitle": "Où vous écrire ?",
   "channelsLead": "Sur votre mobile, par e-mail, ou les deux.",
   "phoneChannel": "WhatsApp ou SMS",
@@ -113,5 +123,6 @@
   "pickerPreview": "Voyez à quoi ça ressemble",
   "noCityTitle": "Vous ne voyez pas votre commune ?",
   "noCityCta": "Demandez le soutien de votre commune",
-  "pickerChannels": "Les notifications arrivent par WhatsApp ou SMS — et par e-mail, si vous voulez."
+  "pickerChannels": "Les notifications arrivent par WhatsApp ou SMS — et par e-mail, si vous voulez.",
+  "summaryBodies": "Autres organes"
 }
