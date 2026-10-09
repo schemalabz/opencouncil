@@ -106,7 +106,7 @@ export default function CityMeetings({
     }, [searchParams, administrativeBodies, typeOptions]);
 
     return (
-        <List<CouncilMeetingWithSubjectPreview, { cityTimezone: string; now: Date }, AdministrativeBodyType>
+        <List
             items={councilMeetings}
             editable={canEdit}
             ItemComponent={MeetingCardV2}

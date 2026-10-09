@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo, useState } from 'react';
+import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { AdministrativeBodyType } from '@prisma/client'
@@ -163,7 +163,7 @@ export default function CityPeople({
 
     return (
         <>
-        <List<PersonWithRelations, Record<string, never>, AdministrativeBodyType>
+        <List<PersonWithRelations, Record<string, never>, AdministrativeBodyType, ComponentProps<typeof PersonForm>>
             items={allPeople}
             sortItems={sortItems}
             editable={canEdit}
