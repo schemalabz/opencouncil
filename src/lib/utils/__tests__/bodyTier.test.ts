@@ -1,6 +1,7 @@
 import { AdministrativeBodyType } from '@prisma/client';
 import {
     PRIMARY_BODY_TYPES,
+    pipelineRunsUnattended,
     SECONDARY_BODY_TYPES,
     bodyTier,
     defaultNotificationBehavior,
@@ -39,6 +40,12 @@ describe('bodyTier', () => {
     it('starts a secondary body with its notifications off, and a primary one on approval', () => {
         expect(defaultNotificationBehavior('youthCouncil')).toBe('NOTIFICATIONS_DISABLED');
         for (const type of PRIMARY_BODY_TYPES) expect(defaultNotificationBehavior(type)).toBe('NOTIFICATIONS_APPROVAL');
+    });
+
+    it('runs the pipeline of a secondary body with no operator, and keeps the review step for a primary one', () => {
+        expect(pipelineRunsUnattended({ type: 'youthCouncil' })).toBe(true);
+        expect(pipelineRunsUnattended({ type: 'council' })).toBe(false);
+        expect(pipelineRunsUnattended(null)).toBe(false);
     });
 
     it('counts a person on the municipality\'s roster unless every role is on a secondary body', () => {

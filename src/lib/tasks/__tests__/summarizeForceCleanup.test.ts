@@ -61,6 +61,11 @@ jest.mock('../../db/prisma', () => ({
 const mockGetAvailableSpeakerSegmentIds = jest.fn().mockResolvedValue([]);
 const mockSaveSubjectsForMeeting = jest.fn().mockResolvedValue(new Map());
 const mockGetSummarizeRequestBody = jest.fn().mockResolvedValue({ transcript: [] });
+const mockSetMeetingReleasedWithEffects = jest.fn().mockResolvedValue({});
+jest.mock('../../db/meetings', () => ({
+  getCouncilMeeting: jest.fn(),
+  setMeetingReleasedWithEffects: (...args: unknown[]) => mockSetMeetingReleasedWithEffects(...args),
+}));
 jest.mock('../../db/utils', () => ({
   getAvailableSpeakerSegmentIds: (...args: unknown[]) => mockGetAvailableSpeakerSegmentIds(...args),
   saveSubjectsForMeeting: (...args: unknown[]) => mockSaveSubjectsForMeeting(...args),
@@ -185,5 +190,39 @@ describe('handleSummarizeResult — always cleans up stale data on success', () 
     expect(callOrder.indexOf('resetUtterances')).toBeLessThan(callOrder.indexOf('saveTransaction'));
     expect(callOrder.indexOf('deleteTopicLabels')).toBeLessThan(callOrder.indexOf('saveSubjects'));
     expect(callOrder.indexOf('resetUtterances')).toBeLessThan(callOrder.indexOf('saveSubjects'));
+  });
+});
+
+describe('handleSummarizeResult — releases the meeting of a body with no operator (#829)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('releases an unreleased meeting of a secondary body once the summary is saved', async () => {
+    mockTaskStatusFindUnique.mockResolvedValueOnce({
+      id: TASK_ID,
+      councilMeeting: {
+        id: MEETING_ID, cityId: CITY_ID, city: { name_en: 'TestCity' }, name: 'Test Meeting', released: false,
+        administrativeBody: { type: 'youthCouncil', notificationBehavior: 'NOTIFICATIONS_DISABLED' },
+      },
+    });
+
+    await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
+
+    expect(mockSetMeetingReleasedWithEffects).toHaveBeenCalledWith(CITY_ID, MEETING_ID, true);
+  });
+
+  it('leaves the meeting of a primary body, and a meeting that is public already, as they are', async () => {
+    await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
+    mockTaskStatusFindUnique.mockResolvedValueOnce({
+      id: TASK_ID,
+      councilMeeting: {
+        id: MEETING_ID, cityId: CITY_ID, city: { name_en: 'TestCity' }, name: 'Test Meeting', released: true,
+        administrativeBody: { type: 'youthCouncil', notificationBehavior: 'NOTIFICATIONS_DISABLED' },
+      },
+    });
+    await handleSummarizeResult(TASK_ID, EMPTY_RESPONSE);
+
+    expect(mockSetMeetingReleasedWithEffects).not.toHaveBeenCalled();
   });
 });
