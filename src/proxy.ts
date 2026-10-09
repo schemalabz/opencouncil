@@ -3,7 +3,8 @@ import { routing, LOCALE_OVERRIDE_HEADER } from './i18n/routing';
 import { NextResponse, NextRequest } from 'next/server';
 import { auth } from './auth'
 import { env } from '@/env.mjs';
-import { REALMS, REALM_OVERRIDE_COOKIE, isRealm, isRealmApexHost, realmForHost, realmOverride } from './lib/realm';
+import { REALMS, REALM_OVERRIDE_COOKIE, bodyTypeForHost, bodyTypeHostEntryPath, foreignLocalesForRealm, isRealm, isRealmApexHost, realmForHost, realmOverride } from './lib/realm';
+import { LOCALES, urlPrefixForLocale } from './i18n/config';
 import { LOCALE_PREFIX_RE, SERBIAN_SCRIPT_COOKIE, foreignLocaleRedirectPath, serbianScriptAdoption, serbianScriptParamTarget, serbianScriptRedirectPath, wwwRedirectTarget } from './lib/seo-redirects';
 import { isSerbianScript } from './lib/serbian/transliterate';
 import { mcpRewriteTarget } from './lib/mcp/rewrite';
@@ -78,6 +79,11 @@ async function proxyInner(req: NextRequest): Promise<Response | undefined> {
     // Handle the specific case for opencouncil.chania.gr
     const chaniaResponse = handleChaniaSubdomain(req);
     if (chaniaResponse) return chaniaResponse;
+
+    // A host that opens on the directory of one body type (#829,
+    // youth.opencouncil.gr) serves that directory at its root.
+    const directoryResponse = await handleBodyTypeHost(req);
+    if (directoryResponse) return directoryResponse;
 
     // Next's automatic trailing-slash redirect is disabled app-wide
     // (skipTrailingSlashRedirect in next.config.mjs) because PostHog calls
@@ -308,6 +314,38 @@ function isHttpBasicAuthAuthenticated(req: Request) {
 /**
  * Handles opencouncil.chania.gr by redirecting all requests to opencouncil.gr/chania
  */
+/**
+ * The root of a body-type host is the directory of that type: `/` and `/en`
+ * on youth.opencouncil.gr serve `/bodies/youthCouncil` in the locale the
+ * path names, or the realm's default. A rewrite, not a redirect, so the
+ * address stays the host the reader typed; every other path on the host
+ * serves as on the realm's apex. The locale handling mirrors the realm-locale
+ * rewrite below: next-intl resolves the directory's path, its request headers
+ * come along, and the response rewrites to the locale segment it chose, or
+ * to the path itself when the prefix was already the locale segment.
+ */
+async function handleBodyTypeHost(req: NextRequest): Promise<Response | null> {
+    const host = req.headers.get('host');
+    // One lookup for every other host: the proxy is the hot path.
+    if (bodyTypeForHost(host) === null) return null;
+    const foreign = foreignLocalesForRealm(realmForHost(host));
+    const ownPrefixes = LOCALES.filter(locale => !foreign.includes(locale)).map(urlPrefixForLocale);
+    const entryPath = bodyTypeHostEntryPath(host, req.nextUrl.pathname, ownPrefixes);
+    if (entryPath === null) return null;
+
+    const entryUrl = req.nextUrl.clone();
+    entryUrl.pathname = entryPath;
+    const requestHeaders = new Headers(req.headers);
+    const entryRequest = new NextRequest(entryUrl, { headers: req.headers, method: req.method });
+    const intlResponse = await i18nMiddleware(entryRequest);
+    intlResponse?.headers.forEach((value, key) => {
+        const forwarded = /^x-middleware-request-(.+)$/i.exec(key);
+        if (forwarded) requestHeaders.set(forwarded[1], value);
+    });
+    const rewriteTarget = intlResponse?.headers.get('x-middleware-rewrite') ?? entryUrl;
+    return NextResponse.rewrite(rewriteTarget, { request: { headers: requestHeaders } });
+}
+
 function handleChaniaSubdomain(req: NextRequest) {
     const hostname = req.headers.get('host');
 
