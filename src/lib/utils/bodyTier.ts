@@ -107,3 +107,16 @@ export const primaryPresenceWhere = {
         { roles: { some: { OR: [{ administrativeBodyId: null }, { administrativeBody: { type: { in: [...PRIMARY_BODY_TYPES] } } }] } } },
     ],
 } satisfies Prisma.PersonWhereInput;
+
+/**
+ * Whether a voiceprint of the person needs the person's own consent, given
+ * from their account (#829). True for a person whose every role is on a
+ * secondary body: a youth council has members under 18, so nobody records a
+ * consent for them, and no admin starts a voiceprint without one. A person
+ * with a seat on the municipality's own roster keeps the rules of today.
+ */
+export function voiceprintNeedsOwnConsent(
+    roles: { administrativeBody?: { type: AdministrativeBodyType } | null }[],
+): boolean {
+    return !hasPrimaryPresence(roles);
+}
