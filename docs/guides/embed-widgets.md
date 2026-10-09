@@ -6,7 +6,7 @@ Iframe widgets that show OpenCouncil content on an external website: the meeting
 
 **Architectural Overview**
 
-A site owner opens the configurator at `/{cityId}/widget`, chooses a widget type and its appearance, and copies an `<iframe>` snippet. The iframe loads a page under `/embed/`. Each embed page:
+A site owner opens the configurator at `/{cityId}/widget`, chooses a widget type and its appearance, and copies an `<iframe>` snippet. An admin of one body opens it at `/{cityId}/widget?body={bodyId}` from the page of the body. The configurator is then locked to that body (#829). The iframe loads a page under `/embed/`. Each embed page:
 
 1. Reads its configuration from the query string. `parseEmbedConfig` handles the params that every widget shares (accent color, dark mode, corner radius, card limit, administrative-body filter). Widget-specific params stay in the route.
 2. Loads data through the public cached queries in `src/lib/cache/queries.ts`. These queries return released meetings only and never call `headers()`, so a page can be served from the CDN.
@@ -89,6 +89,6 @@ Components:
 - A meeting's duration is the span from its first to its last speaker segment. The speaker count is the number of distinct people with a speaker segment. Both stats are hidden before transcription.
 - The subject timestamp is the first utterance tagged `SUBJECT_DISCUSSION` for that subject. Subjects without tagged utterances show no timestamp.
 - Every widget page revalidates every 5 minutes. `revalidateMeeting` busts the per-meeting cache as soon as summarization writes new subjects.
-- The configurator is visible to city editors only. Its meeting picker offers released past meetings only, because the widget is public.
+- The configurator is visible to city editors, and to the admins of one body with `?body=` set to their body. Its meeting picker offers released past meetings only, because the widget is public. With `?body=`, the picker offers the meetings of that body only.
 
 See also: [meeting-lifecycle.md](./meeting-lifecycle.md) for how subjects and summaries are produced, and [../infrastructure.md](../infrastructure.md) for the CDN in front of the app.
