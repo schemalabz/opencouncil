@@ -19,10 +19,16 @@ import { Gavel, ExternalLink } from 'lucide-react';
 import { Link } from '@/i18n/routing';
 import { CouncilMeetingWithAdminBodyAndSubjects } from '@/lib/db/meetings';
 import { MeetingDecisionCounts } from '@/lib/db/decisions';
-import { partitionMeetingsForPolling, MeetingPollEligibility } from '@/lib/tasks/pollableMeetings';
+import { partitionMeetingsForPolling, MeetingPollEligibility, type PollSkipReason } from '@/lib/tasks/pollableMeetings';
 import { requestPollDecisions } from '@/lib/tasks/pollDecisions';
 import { useSequentialDispatch } from '@/hooks/useSequentialDispatch';
 import { BatchProgressView } from '@/components/admin/BatchProgressView';
+
+const SKIP_REASON_LABELS = {
+    notTakingPlace: 'postponed or cancelled',
+    noDecisions: 'takes no decisions',
+    noEligibleSubjects: 'no eligible subjects',
+} as const satisfies Record<PollSkipReason, string>;
 
 interface BulkPollDecisionsActionProps {
     selectedMeetingIds: Set<string>;
@@ -45,7 +51,10 @@ export function BulkPollDecisionsAction({
     const partition = useMemo(() => {
         const selected = meetings
             .filter(m => selectedMeetingIds.has(m.id))
-            .map(m => ({ id: m.id, name: m.name }));
+            .map(m => ({
+                id: m.id, name: m.name, kind: m.kind,
+                continuationOf: m.continuationOf, scheduleStatus: m.scheduleStatus,
+            }));
         return partitionMeetingsForPolling(selected, decisionCounts);
     }, [meetings, selectedMeetingIds, decisionCounts]);
 
@@ -163,7 +172,7 @@ export function BulkPollDecisionsAction({
                                                     </Badge>
                                                 </td>
                                                 <td className="p-2">
-                                                    Skip — {m.skipReason === 'logodosia' ? 'Λογοδοσία' : 'no eligible subjects'}
+                                                    Skip — {m.skipReason && SKIP_REASON_LABELS[m.skipReason]}
                                                 </td>
                                             </tr>
                                         ))}

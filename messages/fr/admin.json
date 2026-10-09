@@ -422,7 +422,8 @@
     "poll": {
       "action": "Vérifier maintenant",
       "running": "Nous vérifions Diavgeia pour les décisions de cette séance. Cela prend généralement une à deux minutes. La page se mettra à jour toute seule, vous pouvez continuer.",
-      "alreadyRunning": "Une recherche Diavgeia est déjà en cours pour cette séance."
+      "alreadyRunning": "Une recherche Diavgeia est déjà en cours pour cette séance.",
+      "noDecisions": "Cette séance ne prend pas de décisions : elle n'en a aucune sur Diavgeia."
     },
     "status": {
       "loadFailed": "Les décisions n'ont pas été chargées. Le tableau affiche ce que nous savions la dernière fois.",
