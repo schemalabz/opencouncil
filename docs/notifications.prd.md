@@ -304,14 +304,10 @@ A reader can prove that they own their mobile number with a code ([issue #813](h
 
 #### Core API Routes:
 ```typescript
-// Public endpoints
-GET /api/notifications/[id] - Get notification for public view
-
 // Admin endpoints  
 POST /api/cities/[cityId]/meetings/[meetingId]/notifications - Create notifications manually
 GET /api/admin/notifications - List all notifications with filters
 POST /api/admin/notifications/release - Release pending notifications
-GET /api/notifications/[id]/preview - Admin preview notification content
 
 // Administrative body management
 GET /api/admin/administrative-bodies - List with notification behavior
