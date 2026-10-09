@@ -5,6 +5,7 @@ const mockUserFindMany = jest.fn();
 const mockUserCount = jest.fn();
 const mockPartyFindMany = jest.fn();
 const mockPersonFindMany = jest.fn();
+const mockCityFindUnique = jest.fn();
 
 jest.mock('../../db/prisma', () => ({
     __esModule: true,
@@ -16,6 +17,7 @@ jest.mock('../../db/prisma', () => ({
         },
         party: { findMany: (...args: unknown[]) => mockPartyFindMany(...args) },
         person: { findMany: (...args: unknown[]) => mockPersonFindMany(...args) },
+        city: { findUnique: (...args: unknown[]) => mockCityFindUnique(...args) },
     },
 }));
 
@@ -68,13 +70,14 @@ const inRealm = <T>(realm: Realm, fn: () => Promise<T>, adminAccess: McpAdminAcc
     mcpRealmStore.run(requestContext(realm, null, SERVICE, { adminAccess }), fn);
 
 
-const MEETING = { cityId: 'argos', name: 'Συνεδρίαση', name_en: 'Meeting', dateTime: '2026-10-05T18:00:00+03:00', processAgenda: false };
+const MEETING = { cityId: 'argos', dateTime: '2026-10-05T18:00:00+03:00', processAgenda: false };
 
 beforeEach(() => {
     jest.clearAllMocks();
     mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [] });
     mockPartyFindMany.mockResolvedValue([]);
     mockPersonFindMany.mockResolvedValue([]);
+    mockCityFindUnique.mockResolvedValue({ timezone: 'Europe/Athens' });
 });
 
 describe('meeting tools authorize before they write', () => {
@@ -86,7 +89,7 @@ describe('meeting tools authorize before they write', () => {
 
     it('refuses to update one as well', async () => {
         asCityAdmin('athens');
-        await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', name: 'Νέο όνομα' }))
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', sessionNumber: 4 }))
             .rejects.toThrow(ForbiddenError);
         expect(updateMeetingWithEffects).not.toHaveBeenCalled();
     });
@@ -99,6 +102,33 @@ describe('meeting tools authorize before they write', () => {
         });
         await mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', agendaUrl: null });
         expect(updateMeetingWithEffects).toHaveBeenCalledWith('argos', 'm1', { agendaUrl: null });
+    });
+
+    it('creates a meeting with no name, and returns the derived name', async () => {
+        asCityAdmin('argos');
+        (createMeetingWithEffects as jest.Mock).mockResolvedValue({ meeting: {
+            id: 'oct05_2026', cityId: 'argos', name: null, name_en: null, kind: 'ordinary', urgent: false,
+            dateTime: new Date('2026-10-05T15:00:00Z'), released: false,
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' },
+        } });
+        const result = await mcpCreateMeeting(ADMIN_TOKEN, { cityId: 'argos', dateTime: '2026-10-05T18:00:00+03:00', processAgenda: false });
+        expect((createMeetingWithEffects as jest.Mock).mock.calls[0][1]).not.toHaveProperty('name');
+        expect((createMeetingWithEffects as jest.Mock).mock.calls[0][1]).not.toHaveProperty('name_en');
+        expect(result.name).toBe('Δημοτικό Συμβούλιο · Τακτική Συνεδρίαση · 05/10/2026');
+        expect(result.title).toBe('Τακτική Συνεδρίαση');
+    });
+
+    it('returns the derived names after an update', async () => {
+        asCityAdmin('argos');
+        (updateMeetingWithEffects as jest.Mock).mockResolvedValue({
+            id: 'm1', cityId: 'argos', name: null, name_en: null, kind: 'ordinary', urgent: true,
+            dateTime: new Date('2026-10-05T15:00:00Z'), youtubeUrl: null, agendaUrl: null, released: false,
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' },
+        });
+        const result = await mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', urgent: true });
+        expect(updateMeetingWithEffects).toHaveBeenCalledWith('argos', 'm1', { urgent: true });
+        expect(result.name).toBe('Δημοτικό Συμβούλιο · Έκτακτη Συνεδρίαση · 05/10/2026');
+        expect(result.name_en).toBe('Municipal Council · Urgent Meeting · 05/10/2026');
     });
 
     it('rejects an update with no field to change', async () => {
@@ -249,7 +279,7 @@ describe('permission matrix', () => {
 
     const cityScoped = {
         create_meeting: (id: McpIdentityArg) => mcpCreateMeeting(id, MEETING),
-        update_meeting: (id: McpIdentityArg) => mcpUpdateMeeting(id, { cityId: 'argos', meetingId: 'm1', name: 'Νέο' }),
+        update_meeting: (id: McpIdentityArg) => mcpUpdateMeeting(id, { cityId: 'argos', meetingId: 'm1', sessionNumber: 4 }),
         start_task: (id: McpIdentityArg) => mcpStartTask(id, { cityId: 'argos', meetingId: 'm1', type: 'transcribe' }),
         create_agenda_upload_url: (id: McpIdentityArg) => mcpCreateAgendaUploadUrl(id, { cityId: 'argos', identifier: '2026-10-15', format: 'pdf' }),
     };

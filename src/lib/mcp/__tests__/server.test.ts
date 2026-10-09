@@ -173,9 +173,20 @@ describe('admin tools are advertised by admin access', () => {
 
     it('rejects a meeting date without a UTC offset', () => {
         const { meta } = advertised(USER, { adminAccess: CITY_ADMIN });
-        const base = { cityId: 'athens', name: 'Συνεδρίαση', name_en: 'Meeting' };
+        const base = { cityId: 'athens' };
         expect(() => meta.create_meeting.inputSchema?.parse({ ...base, dateTime: '2026-10-05T18:00:00' })).toThrow();
         expect(() => meta.create_meeting.inputSchema?.parse({ ...base, dateTime: '2026-10-05T18:00:00+03:00' })).not.toThrow();
+    });
+
+    it('drops a name from the meeting tools, because the site derives it', () => {
+        const { meta } = advertised(USER, { adminAccess: CITY_ADMIN });
+        const names = { name: 'Ειδική Συνεδρίαση για το Λιμάνι', name_en: 'Special Meeting on the Port' };
+        const created = meta.create_meeting.inputSchema?.parse({ cityId: 'athens', dateTime: '2026-10-05T18:00:00+03:00', ...names });
+        const updated = meta.update_meeting.inputSchema?.parse({ cityId: 'athens', meetingId: 'm1', ...names });
+        for (const parsed of [created, updated]) {
+            expect(parsed).not.toHaveProperty('name');
+            expect(parsed).not.toHaveProperty('name_en');
+        }
     });
 });
 
