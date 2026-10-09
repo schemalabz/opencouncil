@@ -1,0 +1,57 @@
+{
+  "schemas": {
+    "main": {
+      "prisma": "prisma/schema.prisma",
+      "content": [
+        "City", "Topic", "Location", "Party", "AdministrativeBody", "Person", "Role",
+        "CouncilMeeting", "SpeakerTag", "Subject", "Decision", "DecisionCandidate",
+        "SubjectAttendance", "SubjectVote", "MeetingAttendance", "SpeakerSegment",
+        "SpeakerContribution", "Utterance", "Word", "TopicLabel", "Summary", "Highlight",
+        "HighlightedUtterance", "CityMessage", "Consultation", "TaskStatus",
+        "AttendanceEvent", "SpeakerIdentification"
+      ],
+      "private": [
+        "User", "Account", "Session", "VerificationToken", "Authenticator", "Administers",
+        "ServiceApiKey", "UserMcpToken", "UtteranceEdit", "Petition", "NotificationPreference",
+        "Notification", "NotificationSubject", "NotificationDelivery", "Message", "SearchQuery",
+        "ConsultationComment", "ConsultationCommentUpvote", "MeetingOperator", "Offer",
+        "VoicePrint", "VoicePrintConsent", "QrCampaign", "PhoneVerification", "PhoneCodeSend"
+      ]
+    },
+    "notis": {
+      "prisma": "services/notis/prisma/schema.prisma",
+      "content": ["NotisProcessedEvent", "NotisSetting"],
+      "private": [
+        "NotisSubscription", "NotisCommitment", "NotisWake", "NotisMessage",
+        "NotisScheduledWake", "NotisWakeQueue"
+      ]
+    }
+  },
+  "explicitQuery": ["DecisionCandidate"],
+  "beforeNulling": [
+    { "table": "Highlight", "action": "delete-when", "when": "\"createdById\" IS NOT NULL AND NOT \"isShowcased\"" }
+  ],
+  "masking": [
+    { "table": "CouncilMeeting", "action": "delete-when", "when": "NOT released" },
+    { "table": "SpeakerTag", "action": "delete-when", "when": "NOT EXISTS (SELECT 1 FROM public.\"SpeakerSegment\" g WHERE g.\"speakerTagId\" = \"SpeakerTag\".id)" },
+    { "table": "DecisionCandidate", "action": "delete-when", "when": "(\"councilMeetingId\" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.\"CouncilMeeting\" m WHERE (m.\"cityId\", m.id) = (\"DecisionCandidate\".\"cityId\", \"DecisionCandidate\".\"councilMeetingId\"))) OR (\"subjectId\" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.\"Subject\" s WHERE s.id = \"DecisionCandidate\".\"subjectId\")) OR (\"decisionId\" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM public.\"Decision\" d WHERE d.id = \"DecisionCandidate\".\"decisionId\"))" },
+    { "table": "TaskStatus", "action": "delete-when", "when": "type = 'generateHighlight' AND pg_input_is_valid(\"requestBody\", 'jsonb') AND NOT EXISTS (SELECT 1 FROM public.\"Highlight\" h WHERE h.id = \"requestBody\"::jsonb #>> '{parts,0,id}')" },
+    { "table": "Location", "action": "delete-when", "when": "NOT EXISTS (SELECT 1 FROM public.\"Subject\" s WHERE s.\"locationId\" = \"Location\".id)" },
+    { "table": "AdministrativeBody", "column": "contactEmails", "action": "empty-array" },
+    { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "callbackUrl" },
+    { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "recipientEmails" },
+    { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-key", "key": "voiceprint" },
+    { "table": "TaskStatus", "column": "requestBody", "action": "json-remove-key", "key": "voiceprints" }
+  ],
+  "subsetOnly": [
+    { "table": "City", "column": "geometry", "action": "null-when", "when": "status <> 'supported'" },
+    { "table": "TaskStatus", "column": "responseBody", "action": "json-remove-path", "path": ["transcript", "transcription", "utterances"] },
+    { "table": "Decision", "column": "taskId", "action": "null-when", "when": "EXISTS (SELECT 1 FROM public.\"Subject\" s JOIN public.\"TaskStatus\" t ON t.id = \"Decision\".\"taskId\" WHERE s.id = \"Decision\".\"subjectId\" AND (t.\"cityId\", t.\"councilMeetingId\") <> (s.\"cityId\", s.\"councilMeetingId\"))" },
+    { "table": "AttendanceEvent", "column": "taskId", "action": "null-when", "when": "EXISTS (SELECT 1 FROM public.\"TaskStatus\" t WHERE t.id = \"AttendanceEvent\".\"taskId\" AND (t.\"cityId\", t.\"councilMeetingId\") <> (\"AttendanceEvent\".\"cityId\", \"AttendanceEvent\".\"councilMeetingId\"))" }
+  ],
+  "publicText": [
+    "Utterance", "Word", "Summary", "Subject", "SpeakerContribution", "Decision",
+    "DecisionCandidate", "Highlight", "Consultation", "CityMessage", "Topic", "TaskStatus", "SpeakerIdentification"
+  ],
+  "ignoreTables": ["spatial_ref_sys"]
+}

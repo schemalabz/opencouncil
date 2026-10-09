@@ -64,6 +64,7 @@ scripts/clear_advisory_locks.sh
 *.csv
 *.txt
 !public/llms.txt
+!scripts/seed-pipeline/pinned-meetings.txt
 *.swp
 
 # Logs

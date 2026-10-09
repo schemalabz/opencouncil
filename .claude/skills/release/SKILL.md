@@ -114,6 +114,46 @@ If this is non-empty, tell the user this release carries Elasticsearch infrastru
 
 So the release is the middle of the sequence, not before or after it. Run `/es-deploy` first to get the split for this specific change; resume the release once its before-steps (if any) are done; hand back to `/es-deploy` after the deployment is ACTIVE.
 
+### Seed classification check
+
+The seed pipeline ships content tables to developers and previews, and never ships private tables. `scripts/seed-pipeline/tables.json` holds that classification. Its test proves only that every model has a class. It cannot tell whether the class is right, and it does not look at new columns. The release therefore classifies every schema addition again, independently of the author.
+
+1. Get the schema additions that this release deploys:
+
+   ```bash
+   git diff $MERGE_RANGE -- prisma/schema.prisma services/notis/prisma/schema.prisma
+   ```
+
+   If the diff is empty, skip to step 5.
+
+2. List every added model, and every column added to an existing model. Skip relation fields that add no column, such as `attendanceEvents AttendanceEvent[]`.
+
+3. Classify each item yourself. Do this before you read `tables.json` or anything else under `scripts/seed-pipeline/`, so that the author's classification does not steer your judgement. You may read the schema and the code that writes each item.
+   - **A model** is `private` when a row describes or comes from a private person: an account, a contact detail, a preference, a search, a message, free text that a reader wrote, a consent record, a voice or other biometric data, or a token or secret. A model is `content` when it is public record: municipal bodies, meetings, transcripts, decisions, and council members and officials in their public role.
+   - **A column on a content model** needs a masking rule when it holds personal data, for example an email address, a phone number, or a token inside a JSON body. This covers the columns of a new content model too: check each of them. A column that only references a private table, such as `createdById` to `User`, needs no rule: the pipeline nulls it.
+   - **A `Json` or free-text column** does not show its contents in the schema. Find the code that writes it (`grep -rn '<column>' src/`) and read what it stores. If you cannot tell, mark the item as a disagreement, so that the user decides.
+   - Write one sentence of reason for each item.
+
+4. Compare with the classification on the tip that this release deploys:
+
+   ```bash
+   git show $REMOTE/$SOURCE_BRANCH:scripts/seed-pipeline/tables.json
+   ```
+
+   Show the user a table with these columns: item, your class, your reason, the class in `tables.json` (and the masking rule, for a field), and agree or disagree.
+
+5. Run the test on that tip. CI runs only on pull requests, so a commit pushed straight to the source branch skips it:
+
+   ```bash
+   CHECK_DIR=$(mktemp -d)
+   git worktree add --detach "$CHECK_DIR" $REMOTE/$SOURCE_BRANCH
+   ln -s "$PWD/node_modules" "$CHECK_DIR/node_modules"
+   (cd "$CHECK_DIR" && npx jest src/lib/seed-pipeline/tables.test.ts)
+   git worktree remove --force "$CHECK_DIR"
+   ```
+
+Stop the release when the test fails or when any row of the table disagrees. The user decides each disagreement. The fix lands through a pull request before the release continues. Do not change `tables.json` inside the release.
+
 ### Create backup branches
 
 Back up only what a release can actually lose, and clear the previous release's backups first — nothing in this workflow ever reads a backup older than one cycle.
