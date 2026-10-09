@@ -2,7 +2,7 @@
 // caller authorizes first — the populate API route and the MCP admin tools do.
 import "server-only";
 import { AdministrativeBodyType } from '@prisma/client';
-import { defaultNotificationBehavior } from '@/lib/utils/bodyTier';
+import { defaultNotificationBehavior, hasPrimaryPresence } from '@/lib/utils/bodyTier';
 import prisma from './prisma';
 import { canUseCityCreator, getCity } from './cities';
 import { BadRequestError, NotFoundError } from '@/lib/api/errors';
@@ -84,7 +84,17 @@ export async function populateCity(cityId: string, validatedData: CityPopulation
             )
         );
 
-        // Create people
+        // The roles of a person as the photo rule reads them (db/personImage.ts).
+        const presenceRoles = (person: CityPopulationData['people'][number]) =>
+            (person.roles ?? []).map(role => {
+                const body = role.type === 'adminBody' && role.administrativeBodyName
+                    ? adminBodies.find(ab => ab.name === role.administrativeBodyName)
+                    : null;
+                return { administrativeBody: body ? { type: body.type } : null };
+            });
+
+        // Create people. A person on a secondary body alone adds their own
+        // photo from their account (#829); the City Creator saves none for them.
         const people = await Promise.all(
             validatedData.people.map(person =>
                 tx.person.create({
@@ -93,7 +103,7 @@ export async function populateCity(cityId: string, validatedData: CityPopulation
                         name_en: person.name_en,
                         name_short: person.name_short,
                         name_short_en: person.name_short_en,
-                        image: person.image,
+                        image: hasPrimaryPresence(presenceRoles(person)) ? person.image : null,
                         activeFrom: person.activeFrom ? new Date(person.activeFrom) : null,
                         activeTo: person.activeTo ? new Date(person.activeTo) : null,
                         profileUrl: person.profileUrl,
