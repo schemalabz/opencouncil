@@ -188,7 +188,16 @@ export default function AdminActions({
 
     const handleReleaseToggle = async () => {
         try {
-            const updatedMeeting = await toggleMeetingRelease(meeting.cityId, meeting.id, !isReleased);
+            const result = await toggleMeetingRelease(meeting.cityId, meeting.id, !isReleased);
+            if (!result.ok) {
+                toast({
+                    title: t('toasts.errorTogglingRelease.title'),
+                    description: result.message,
+                    variant: 'destructive'
+                });
+                return;
+            }
+            const updatedMeeting = result.meeting;
             setIsReleased(updatedMeeting.released);
             toast({
                 title: updatedMeeting.released ? t('toasts.meetingReleased.title') : t('toasts.meetingUnreleased.title'),

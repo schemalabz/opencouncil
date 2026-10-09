@@ -3,11 +3,11 @@
 // wrapped in lib/actions/meetings.ts.
 //
 // Keep a gated wrapper and its ungated core next to each other in this file
-// (createCouncilMeeting/createCouncilMeetingDirect,
-// getCouncilMeeting/getCouncilMeetingDirect). Choosing between them is choosing
-// whether the viewer's session applies.
+// (getCouncilMeeting/getCouncilMeetingDirect). Choosing between them is
+// choosing whether the viewer's session applies. A meeting is created through
+// the lifecycle module (meetingLifecycle.ts), which meetingWrites.ts calls.
 import "server-only";
-import { CouncilMeeting, AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
+import { AdministrativeBodyType, Prisma, Realm } from '@prisma/client';
 import { revalidateTag, revalidatePath } from 'next/cache';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, isUserAuthorizedToEdit } from '../auth';
@@ -19,12 +19,17 @@ import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 // Import from the cache leaf (see the note in subject.ts) to keep the barrel's heavy chain out.
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
+import { deleteMeetingRecord, setMeetingReleased } from "./meetingLifecycle";
+import { LifecycleRuleError } from "@/lib/meetingLifecycleRules";
+import { hideLinks } from "@/lib/meetingPublic";
+import { DECISION_KIND_SELECT } from "@/lib/tasks/pollDecisionsBackoff";
 // List reads and their payload types live in meetingsList.ts. Re-exported here
 // as types only, so callers of this module keep one import.
 export type { CouncilMeetingWithAdminBodyAndSubjects, CouncilMeetingWithSubjectPreview, MeetingListOptions } from './meetingsList';
 
 const meetingWithAdminBodyInclude = {
     administrativeBody: true,
+    continuationOf: DECISION_KIND_SELECT.continuationOf,
 } satisfies Prisma.CouncilMeetingInclude;
 
 export type CouncilMeetingWithAdminBody = Prisma.CouncilMeetingGetPayload<{
@@ -35,34 +40,7 @@ export type CouncilMeetingWithAdminBody = Prisma.CouncilMeetingGetPayload<{
 
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
-    try {
-        await prisma.councilMeeting.delete({
-            where: { cityId_id: { cityId, id } },
-        });
-    } catch (error) {
-        console.error('Error deleting council meeting:', error);
-        throw new Error('Failed to delete council meeting');
-    }
-}
-
-export async function createCouncilMeeting(meetingData: Prisma.CouncilMeetingUncheckedCreateInput): Promise<CouncilMeetingWithAdminBody> {
-    await withUserAuthorizedToEdit({ cityId: meetingData.cityId });
-    return createCouncilMeetingDirect(meetingData);
-}
-
-/**
- * Create a council meeting with no auth check, for a caller that has already
- * authorized the write: the meetings API route, which admits service keys as
- * well as user sessions. A session gate inside this function would reject the
- * service keys.
- */
-export async function createCouncilMeetingDirect(
-    meetingData: Prisma.CouncilMeetingUncheckedCreateInput,
-): Promise<CouncilMeetingWithAdminBody> {
-    return prisma.councilMeeting.create({
-        data: meetingData,
-        include: meetingWithAdminBodyInclude,
-    });
+    await deleteMeetingRecord(cityId, id);
 }
 
 /**
@@ -95,31 +73,6 @@ export async function generateUniqueMeetingId(cityId: string, date: Date): Promi
     }
 
     throw new Error(`Could not generate unique meeting ID for ${cityId} on ${baseId} — too many meetings on this date`);
-}
-
-type CouncilMeetingEdit = Partial<Omit<CouncilMeeting, 'id' | 'cityId' | 'createdAt' | 'updatedAt'>>;
-
-export async function editCouncilMeeting(cityId: string, id: string, meetingData: CouncilMeetingEdit): Promise<CouncilMeetingWithAdminBody> {
-    await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
-    return editCouncilMeetingDirect(cityId, id, meetingData);
-}
-
-/**
- * Edit a council meeting with no auth check, for a caller that has already
- * authorized the write (see createCouncilMeetingDirect).
- */
-export async function editCouncilMeetingDirect(cityId: string, id: string, meetingData: CouncilMeetingEdit): Promise<CouncilMeetingWithAdminBody> {
-    try {
-        const updatedMeeting = await prisma.councilMeeting.update({
-            where: { cityId_id: { cityId, id } },
-            data: meetingData,
-            include: meetingWithAdminBodyInclude,
-        });
-        return updatedMeeting;
-    } catch (error) {
-        console.error('Error editing council meeting:', error);
-        throw new Error('Failed to edit council meeting');
-    }
 }
 
 /**
@@ -197,7 +150,7 @@ export type UpcomingMeetingWithCity = Prisma.CouncilMeetingGetPayload<{
 
 export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?: number } = {}): Promise<UpcomingMeetingWithCity[]> {
     try {
-        return await prisma.councilMeeting.findMany({
+        const meetings = await prisma.councilMeeting.findMany({
             where: {
                 // public visibility guard: never expose unreleased (draft) meetings
                 released: true,
@@ -208,6 +161,7 @@ export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?
             take: limit,
             include: upcomingMeetingInclude,
         });
+        return meetings.map(hideLinks);
     } catch (error) {
         console.error('Error fetching upcoming meetings:', error);
         throw new Error('Failed to fetch upcoming meetings');
@@ -216,7 +170,7 @@ export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?
 
 // Cache tag for a realm's upcoming-meetings list — revalidated when a meeting's release toggles.
 // Not exported: a "use server" module may only export async functions, and it's used only here.
-const upcomingMeetingsTag = (realm: Realm) => `realm:${realm}:upcoming-meetings`;
+export const upcomingMeetingsTag = (realm: Realm) => `realm:${realm}:upcoming-meetings`;
 
 /**
  * Realm-scoped, cached wrapper around getUpcomingMeetings for the landing (read on every render).
@@ -234,11 +188,8 @@ export async function getUpcomingMeetingsCached(realm: Realm, { limit = 10 }: { 
 export async function toggleMeetingRelease(cityId: string, id: string, released: boolean): Promise<CouncilMeetingWithAdminBody> {
     await withUserAuthorizedToEdit({ councilMeetingId: id, cityId: cityId });
     try {
-        const updatedMeeting = await prisma.councilMeeting.update({
-            where: { cityId_id: { cityId, id } },
-            data: { released },
-            include: meetingWithAdminBodyInclude,
-        });
+        // The module also releases or hides the other meetings of a postponement.
+        const updatedMeeting = await setMeetingReleased(cityId, id, released);
         // TODO: utilize api/cities/[cityId]/meetings/[meetingId] to edit the meeting
         revalidateTag(`city:${cityId}:meetings`, 'max');
         revalidatePath(`/${cityId}`, "layout");
@@ -250,6 +201,8 @@ export async function toggleMeetingRelease(cityId: string, id: string, released:
         }
         return updatedMeeting;
     } catch (error) {
+        // A lifecycle rule explains itself to the admin (lib/actions/meetings.ts).
+        if (error instanceof LifecycleRuleError) throw error;
         console.error('Error toggling council meeting release:', error);
         throw new Error('Failed to toggle council meeting release');
     }
