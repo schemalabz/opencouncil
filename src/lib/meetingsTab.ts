@@ -1,7 +1,8 @@
 import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
 import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { getAdministrativeBodyTypes, getBodiesOfType } from '@/lib/utils/administrativeBodies';
-import type { FilterOption } from '@/lib/utils/filterURL';
+import { isSecondaryBody, TIER_PARAM } from '@/lib/utils/bodyTier';
+import { withBodySelection, type FilterOption } from '@/lib/utils/filterURL';
 
 /**
  * The meetings tab's filter, built the same way by the server page (which
@@ -55,4 +56,18 @@ export function meetingBodyFilter(
     if (view.selectedFilters.length === 0) return {};
     const ids = [...new Set(bodies.filter(body => view.selectedFilters.includes(body.type)).map(body => body.id))];
     return ids.length > 0 ? { administrativeBodyIds: ids } : null;
+}
+
+/**
+ * The meetings tab narrowed to one body: where the page of a body sends a
+ * reader for the meetings beyond the ones it loaded (#829). The tab stores a
+ * selection by label, so the href carries the type's label in the reader's
+ * locale and the body's name, through the same options the tab offers: the
+ * council gets its type alone. A secondary body also widens the tab's tier.
+ */
+export function meetingsTabHrefForBody(cityId: string, body: PublicAdministrativeBody, t: (key: string) => string): string {
+    const { filterOptions, bodyOptionsFor } = meetingsTabFilters([body], t);
+    const params = withBodySelection(new URLSearchParams({ filters: filterOptions[0].label }), body.id, bodyOptionsFor(body.type));
+    if (isSecondaryBody(body)) params.set(TIER_PARAM, 'all');
+    return `/${cityId}/meetings?${params.toString()}`;
 }

@@ -27,7 +27,6 @@ import {
     type AdministrativeBodyFormInput,
     type AdministrativeBodyFormOutput,
 } from "@/lib/zod-schemas/administrativeBody"
-import { DOCUMENT_KINDS, MINUTES_THRESHOLD_DAYS } from '@/lib/documents/settings'
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import type { AdministrativeBodyWithSendSettings, AdministrativeBodyWithSettings } from '@/lib/db/types'
 import { ADMIN_BODY_TYPE_ORDER } from '@/lib/utils/administrativeBodies'
@@ -39,6 +38,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 import DecisionConventionsFields from './DecisionConventionsFields'
+import { DocumentSendFields } from './DocumentSendFields'
 import type { DecisionConventions } from '@/lib/decisionConventions'
 import { apiErrorMessage, formatValidationIssues, type FormattableIssue } from '@/lib/utils/validationIssues'
 
@@ -295,71 +295,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                     </FormItem>
                                 )}
                             />
-                            <div className="space-y-3">
-                                <div>
-                                    <h3 className="text-sm font-medium">{t('documentSends.title')}</h3>
-                                    <p className="text-sm text-muted-foreground">{t('documentSends.description')}</p>
-                                </div>
-                                {DOCUMENT_KINDS.map((document) => {
-                                    const enabled = form.watch(`documentSendSettings.${document}.enabled`)
-                                    // An address typed and then switched off still fails its check, so its field stays in view
-                                    const addressError = form.formState.errors.documentSendSettings?.[document]
-                                    return (
-                                        <div key={document} className="space-y-3 rounded-lg border p-3">
-                                            <FormField
-                                                control={form.control}
-                                                name={`documentSendSettings.${document}.enabled`}
-                                                render={({ field }) => (
-                                                    <FormItem className="space-y-1">
-                                                        {/* The name and the switch share the first line; the description sits under the name */}
-                                                        <div className="flex items-center justify-between gap-4">
-                                                            <FormLabel className="text-sm font-medium">{t(`documentSends.documents.${document}.name`)}</FormLabel>
-                                                            <FormControl>
-                                                                <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                                            </FormControl>
-                                                        </div>
-                                                        <FormDescription>
-                                                            {t(`documentSends.documents.${document}.description`, { days: MINUTES_THRESHOLD_DAYS })}
-                                                        </FormDescription>
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            {/* The addresses show for a document that is on, where the schema requires a To address, and for one whose addresses fail their check */}
-                                            {(enabled || addressError) && (
-                                                <>
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`documentSendSettings.${document}.to`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>{t('documentSends.to')}</FormLabel>
-                                                                <FormControl>
-                                                                    <Input {...field} type="email" placeholder={t('documentSends.toPlaceholder')} />
-                                                                </FormControl>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`documentSendSettings.${document}.cc`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormLabel>{t('documentSends.cc')}</FormLabel>
-                                                                <FormControl>
-                                                                    <Input {...field} type="text" placeholder={t('documentSends.ccPlaceholder')} />
-                                                                </FormControl>
-                                                                <FormDescription>{t('documentSends.ccDescription')}</FormDescription>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </>
-                                            )}
-                                        </div>
-                                    )
-                                })}
-                            </div>
+                            <DocumentSendFields form={form} />
                             <FormField
                                 control={form.control}
                                 name="notificationBehavior"

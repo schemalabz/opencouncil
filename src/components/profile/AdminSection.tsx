@@ -44,7 +44,7 @@ export function AdminSection({ user, t }: AdminSectionProps) {
         } else if (admin.person) {
             entries.push({ key: admin.id, href: `/${admin.person.cityId}/people/${admin.person.id}`, icon: User, label: t("adminPerson"), name: admin.person.name });
         } else if (admin.administrativeBody) {
-            entries.push({ key: admin.id, href: `/${admin.administrativeBody.cityId}/meetings`, icon: Landmark, label: t("adminBody"), name: admin.administrativeBody.name });
+            entries.push({ key: admin.id, href: `/${admin.administrativeBody.cityId}/bodies/${admin.administrativeBody.id}`, icon: Landmark, label: t("adminBody"), name: admin.administrativeBody.name });
         }
     }
     if (entries.length === 0) return null;

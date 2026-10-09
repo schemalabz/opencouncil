@@ -16,19 +16,7 @@ import { requestProcessAgendaInternal } from '@/lib/tasks/processAgendaInternal'
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { meetingLabel } from '@/lib/meetingName';
 import { pickRecordInput, takesPlace, type MeetingRecordInput } from '@/lib/meetingLifecycleRules';
-import { isBodyOfCity } from '@/lib/db/administrativeBodies';
 import { isSecondaryBody } from '@/lib/utils/bodyTier';
-import { BadRequestError } from '@/lib/api/errors';
-
-/**
- * A meeting and its body are in one city. The authorization of a superadmin
- * or a service key does not look at the body, so the write checks it.
- */
-async function requireBodyOfCity(cityId: string, administrativeBodyId: string | null | undefined): Promise<void> {
-    if (administrativeBodyId && !(await isBodyOfCity(administrativeBodyId, cityId))) {
-        throw new BadRequestError(`Administrative body ${administrativeBodyId} is not a body of ${cityId}`);
-    }
-}
 
 /** The name of a meeting is derived (see meetingName.ts), so the input has no name. */
 export type NewMeetingInput = {
