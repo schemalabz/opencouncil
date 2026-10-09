@@ -15,8 +15,8 @@ jest.mock('../../db/prisma', () => ({
     },
 }));
 
-import { requireVisibleMeeting } from '../gate';
-import { NotFoundError } from '../../api/errors';
+import { requirePublicTranscript, requireVisibleMeeting } from '../gate';
+import { ForbiddenError, NotFoundError } from '../../api/errors';
 
 const USER = { type: 'user', userId: 'u1' } as const;
 const SERVICE = { type: 'service', keyName: 'bot' } as const;
@@ -30,7 +30,8 @@ function row(released: boolean) {
         name_en: null,
         kind: 'regular',
         videoUrl: null,
-        administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' },
+        administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', showUnreviewedTranscript: true },
+        taskStatuses: [],
         city: { timezone: 'Europe/Athens' },
     };
 }
@@ -41,6 +42,7 @@ function payload(released: boolean, editor: boolean | null) {
         name: 'Δημοτικό Συμβούλιο · Τακτική Συνεδρίαση · 12/05/2026',
         videoUrl: null,
         administrativeBody: { name: 'Δημοτικό Συμβούλιο' },
+        publicTranscript: true,
         editor,
     };
 }
@@ -102,5 +104,38 @@ describe('realm scoping', () => {
         // realm predicate is always present, so one realm can't read another's.
         const where = mockMeetingFindFirst.mock.calls[0][0].where;
         expect(where).toMatchObject({ cityId: 'athens', id: 'm1', city: { realm: 'greece' } });
+    });
+});
+
+describe('the transcript of a visible meeting', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [] });
+    });
+
+    it('is not public when its body waits for the review', async () => {
+        const unreviewed = { ...row(true), administrativeBody: { ...row(true).administrativeBody, showUnreviewedTranscript: false } };
+        mockMeetingFindFirst.mockResolvedValue(unreviewed);
+        expect((await requireVisibleMeeting('athens', 'm1', null)).publicTranscript).toBe(false);
+        mockMeetingFindFirst.mockResolvedValue({ ...unreviewed, taskStatuses: [{ id: 't1' }] });
+        expect((await requireVisibleMeeting('athens', 'm1', null)).publicTranscript).toBe(true);
+    });
+});
+
+describe('requirePublicTranscript', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [] });
+    });
+
+    it('lets everyone read a public transcript', async () => {
+        await expect(requirePublicTranscript({ publicTranscript: true }, 'athens', null)).resolves.toBeUndefined();
+    });
+
+    it('withholds a transcript that is not public from readers, not from editors', async () => {
+        await expect(requirePublicTranscript({ publicTranscript: false }, 'athens', null)).rejects.toThrow(ForbiddenError);
+        await expect(requirePublicTranscript({ publicTranscript: false }, 'athens', USER)).rejects.toThrow(ForbiddenError);
+        mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [{ cityId: 'athens' }] });
+        await expect(requirePublicTranscript({ publicTranscript: false }, 'athens', USER)).resolves.toBeUndefined();
     });
 });

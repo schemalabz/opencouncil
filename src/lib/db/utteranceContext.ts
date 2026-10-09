@@ -4,6 +4,7 @@ import prisma from './prisma';
 import { isUserAuthorizedToEdit, validateBearerAuth } from '../auth';
 import { meetingLabelInCity } from '@/lib/meetingName';
 import { meetingNameSelect } from '@/lib/db/types';
+import { transcriptGateSelect, transcriptIsPublic } from '@/lib/db/sharing/publicContent';
 
 const neighborSelect = {
     id: true,
@@ -55,6 +56,8 @@ export async function getUtteranceContext(
                     meeting: {
                         select: {
                             ...meetingNameSelect,
+                            ...transcriptGateSelect,
+                            administrativeBody: { select: { ...meetingNameSelect.administrativeBody.select, ...transcriptGateSelect.administrativeBody.select } },
                             released: true,
                             city: { select: { timezone: true } },
                         },
@@ -68,7 +71,9 @@ export async function getUtteranceContext(
 
     const { meetingId, cityId, meeting } = target.speakerSegment;
 
-    if (!meeting.released) {
+    // A reader gets the context of a public transcript only. An editor of the
+    // city, or a service with a bearer token, also gets a draft or a closed one.
+    if (!meeting.released || !transcriptIsPublic(meeting)) {
         const bearer = await validateBearerAuth(request);
         if (!bearer && !(await isUserAuthorizedToEdit({ cityId }))) {
             return null;

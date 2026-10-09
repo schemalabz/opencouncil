@@ -19,7 +19,7 @@ import { mcpTaskSummary } from './taskSummary';
 import { upsertHighlightCore, canUserEditCity, canActorManageHighlight, getUserCityRights, type UserCityRights } from '@/lib/db/highlights-core';
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
-import { canSeeUnreleased, requireVisibleMeeting } from './gate';
+import { canSeeUnreleased, requirePublicTranscript, requireVisibleMeeting } from './gate';
 import { assertCitiesInRealm, requireCityBodies, requireRealmBodies, requireRealmCity } from './realmGuards';
 import { getRoleLabelAt, RoleTextTranslator } from '@/lib/utils/roles';
 import { roleWithRelationsInclude } from '@/lib/db/types';
@@ -473,11 +473,13 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
         select: { id: true, name: true, cityId: true, councilMeetingId: true },
     });
     if (!subject) throw new NotFoundError('Subject not found');
-    const { dateTime: meetingDate } = await requireVisibleMeeting(
+    const visibleMeeting = await requireVisibleMeeting(
         subject.cityId,
         subject.councilMeetingId,
         identity
     );
+    await requirePublicTranscript(visibleMeeting, subject.cityId, identity);
+    const meetingDate = visibleMeeting.dateTime;
     const t = await getRoleTranslations();
 
     const where: Prisma.UtteranceWhereInput = {
@@ -547,7 +549,9 @@ export async function mcpGetTranscript(
     options: { page: number; segmentsPerPage: number; includeUtteranceIds: boolean; personId?: string },
     identity: McpIdentity
 ) {
-    const { dateTime: meetingDate } = await requireVisibleMeeting(cityId, meetingId, identity);
+    const visibleMeeting = await requireVisibleMeeting(cityId, meetingId, identity);
+    await requirePublicTranscript(visibleMeeting, cityId, identity);
+    const meetingDate = visibleMeeting.dateTime;
     const t = await getRoleTranslations();
 
     const allSegments = await getTranscript(meetingId, cityId);
