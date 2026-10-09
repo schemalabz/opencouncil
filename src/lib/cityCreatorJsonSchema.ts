@@ -3,7 +3,8 @@ import { stripSafeIntBounds } from '@/lib/openapi/jsonSchemaBounds';
 
 /**
  * The JSON Schema of a zod schema, for a reader that is not zod: the prompt
- * of the City Creator. It describes the input, so a field that a transform
+ * of the City Creator, and the prompt that reads a pasted list of the members
+ * of a body (src/lib/bodyRosterText.ts). It describes the input, so a field that a transform
  * turns into a Date shows as the string that the caller sends. The MCP SDK
  * does not use it: it converts a zod schema itself, also with io 'input'.
  *
