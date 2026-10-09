@@ -1,7 +1,7 @@
 "use client";
 import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ExternalLink, Landmark } from 'lucide-react';
+import { Bell, ExternalLink, Landmark } from 'lucide-react';
 import type { Party, Realm } from '@prisma/client';
 import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { Link } from '@/i18n/routing';
@@ -21,7 +21,7 @@ import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import type { PersonWithRelations } from '@/lib/db/people';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { meetingLabel } from '@/lib/meetingName';
-import { isSecondaryBody } from '@/lib/utils/bodyTier';
+import { bodyOffersUpdates, isSecondaryBody } from '@/lib/utils/bodyTier';
 import { isRoleActive } from '@/lib/utils/roles';
 import { cn } from '@/lib/utils';
 import { TWO_COLUMN_GRID_NARROW_RAIL } from '@/components/ui/surface-card';
@@ -33,7 +33,7 @@ export const underlineTabClass =
 
 export interface BodyPageProps {
     /** The realm decides the fields of the meeting form: a Greek city records a kind, an urgency and a session number. */
-    city: { id: string; name: string; name_en: string; timezone: string; realm: Realm };
+    city: { id: string; name: string; name_en: string; timezone: string; realm: Realm; supportsNotifications: boolean };
     body: BodyPageRow;
     meetings: CouncilMeetingWithSubjectPreview[];
     /** Everyone who holds, or held, a role on the body. */
@@ -42,8 +42,8 @@ export interface BodyPageProps {
     formBodies: PublicAdministrativeBody[];
     /** The parties the member form may offer. Empty for an admin of the body alone. */
     parties: Party[];
-    /** The contact settings of the body. Null for a reader. */
-    contacts: { youtubeChannelUrl: string | null; contactEmails: string[] } | null;
+    /** The settings of the body its admin changes. Null for a reader. */
+    contacts: { youtubeChannelUrl: string | null; contactEmails: string[]; notificationBehavior: string } | null;
     /** An admin of the body, of its city, or a superadmin. */
     canEdit: boolean;
     /** An admin of the city or a superadmin: they may also remove the last admin of the body. */
@@ -139,6 +139,16 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                                     </a>
                                 </>
                             )}
+                            {/* The way to the follow of a secondary body (#829): the signup, where its tick is. The municipality's own card covers a primary body. */}
+                            {isSecondaryBody(body) && bodyOffersUpdates(city, body) && (
+                                <>
+                                    <FactDot />
+                                    <Link href={`/${city.id}/notifications?step=2`} className="inline-flex items-center gap-1 hover:underline">
+                                        <Bell className="h-3.5 w-3.5" aria-hidden />
+                                        {t('follow')}
+                                    </Link>
+                                </>
+                            )}
                         </>
                     )}
                 />
@@ -192,7 +202,7 @@ export default function BodyPage({ city, body, meetings, people, formBodies, par
                         </TabsContent>
                         {canEdit && (
                             <TabsContent value="admin" className="mt-6 space-y-8">
-                                {contacts && <BodyContactsForm cityId={city.id} bodyId={body.id} contacts={contacts} />}
+                                {contacts && <BodyContactsForm cityId={city.id} bodyId={body.id} contacts={contacts} secondary={isSecondaryBody(body)} />}
                                 <BodyAdminsCard cityId={city.id} bodyId={body.id} canRemoveLast={canEditCity} />
                                 <BodyClaimLinksCard cityId={city.id} bodyId={body.id} />
                                 <BodyEmbedCard cityId={city.id} bodyId={body.id} />

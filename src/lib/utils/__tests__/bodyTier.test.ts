@@ -4,10 +4,13 @@ import {
     pipelineRunsUnattended,
     voiceprintNeedsOwnConsent,
     SECONDARY_BODY_TYPES,
+    bodyOffersUpdates,
+    bodySendsUpdates,
     bodyTier,
     defaultNotificationBehavior,
     hasPrimaryPresence,
     isSecondaryBody,
+    preferenceCoversBody,
     primaryMeetingWhere,
     primaryPresenceWhere,
     readTier,
@@ -88,5 +91,51 @@ describe('readTier', () => {
         expect(readTier(undefined)).toBeNull();
         expect(readTier('x')).toBeNull();
         expect(readTier(['all'])).toBeNull();
+    });
+});
+
+describe('preferenceCoversBody', () => {
+    const follows = { bodies: [{ id: 'youth' }], bodiesOnly: false };
+    const nobody = { bodies: [], bodiesOnly: false };
+    const followsAlone = { bodies: [{ id: 'youth' }], bodiesOnly: true };
+
+    it('reaches every preference of the city for a primary body or no body', () => {
+        expect(preferenceCoversBody(nobody, { id: 'council', type: 'council' })).toBe(true);
+        expect(preferenceCoversBody(nobody, null)).toBe(true);
+    });
+
+    it('reaches the followers of a secondary body alone', () => {
+        expect(preferenceCoversBody(follows, { id: 'youth', type: 'youthCouncil' })).toBe(true);
+        expect(preferenceCoversBody(nobody, { id: 'youth', type: 'youthCouncil' })).toBe(false);
+        expect(preferenceCoversBody(follows, { id: 'other', type: 'youthCouncil' })).toBe(false);
+    });
+
+    it('keeps the city\'s own bodies away from a preference that follows bodies alone', () => {
+        expect(preferenceCoversBody(followsAlone, { id: 'youth', type: 'youthCouncil' })).toBe(true);
+        expect(preferenceCoversBody(followsAlone, { id: 'council', type: 'council' })).toBe(false);
+        expect(preferenceCoversBody(followsAlone, null)).toBe(false);
+    });
+});
+
+describe('bodyOffersUpdates', () => {
+    const supported = { supportsNotifications: true };
+    const unsupported = { supportsNotifications: false };
+    const council = (notificationBehavior: 'NOTIFICATIONS_AUTO' | 'NOTIFICATIONS_DISABLED') => ({ type: 'council' as const, sendsUpdates: bodySendsUpdates(notificationBehavior) });
+    const youth = (notificationBehavior: 'NOTIFICATIONS_AUTO' | 'NOTIFICATIONS_DISABLED') => ({ type: 'youthCouncil' as const, sendsUpdates: bodySendsUpdates(notificationBehavior) });
+
+    it('sends nothing for a body with its notifications off', () => {
+        expect(bodyOffersUpdates(supported, council('NOTIFICATIONS_DISABLED'))).toBe(false);
+        expect(bodyOffersUpdates(supported, youth('NOTIFICATIONS_DISABLED'))).toBe(false);
+    });
+
+    it('sends for a primary body, or no body, only in a municipality that supports notifications', () => {
+        expect(bodyOffersUpdates(supported, council('NOTIFICATIONS_AUTO'))).toBe(true);
+        expect(bodyOffersUpdates(supported, null)).toBe(true);
+        expect(bodyOffersUpdates(unsupported, council('NOTIFICATIONS_AUTO'))).toBe(false);
+        expect(bodyOffersUpdates(unsupported, null)).toBe(false);
+    });
+
+    it('sends for a secondary body wherever it is: its admin switched its updates on', () => {
+        expect(bodyOffersUpdates(unsupported, youth('NOTIFICATIONS_AUTO'))).toBe(true);
     });
 });
