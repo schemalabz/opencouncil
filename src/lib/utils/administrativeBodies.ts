@@ -165,3 +165,13 @@ export function filterPersonByAdminBodyTypes(
         selectedTypes.includes(role.administrativeBody.type)
     );
 }
+
+/**
+ * Whether the page of a body offers «Νέα θητεία», which ends every active
+ * membership of the body at once (#829). A council is elected with its
+ * parties and its elected order, and OpenCouncil loads the new council after
+ * an election, so the page of a council does not end all its seats.
+ */
+export function mayStartNewTerm(body: { type: AdministrativeBodyType }): boolean {
+    return body.type !== 'council';
+}

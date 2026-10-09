@@ -43,6 +43,13 @@ describe('apiErrorMessage', () => {
         }, 400, 'Failed', message => `localized:${message}`)).toBe('name: localized:nameRequired');
     });
 
+    it('turns the text of an ErrorResponse through formatMessage, and not the fallback', () => {
+        const localize = (message: string) => `localized:${message}`;
+        expect(apiErrorMessage({ error: 'The end date must not be before the start date.' }, 400, 'Failed', localize))
+            .toBe('localized:The end date must not be before the start date.');
+        expect(apiErrorMessage({ error: 'Not authorized' }, 403, 'Αποτυχία', localize)).toBe('Αποτυχία');
+    });
+
     it('falls back for a body without an error message', () => {
         expect(apiErrorMessage(null, 400, 'Failed')).toBe('Failed');
         expect(apiErrorMessage({ error: { code: 'phone_in_use' } }, 400, 'Failed')).toBe('Failed');

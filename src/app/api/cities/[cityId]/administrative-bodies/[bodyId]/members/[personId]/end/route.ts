@@ -1,0 +1,23 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath, revalidateTag } from 'next/cache';
+import { endBodyMembership, requireBody } from '@/lib/db/bodyMembers';
+import { handleApiError } from '@/lib/api/errors';
+import { membershipEndSchema } from '@/lib/zod-schemas/bodyMembers';
+
+type Params = { params: Promise<{ cityId: string; bodyId: string; personId: string }> };
+
+/** End the membership of one person on the body (#829). The role stays, with an end date. */
+export async function POST(request: NextRequest, props: Params) {
+    const { cityId, bodyId, personId } = await props.params;
+    try {
+        const body = await requireBody(cityId, bodyId);
+        const { endDate } = membershipEndSchema.parse(await request.json().catch(() => ({})));
+        const result = await endBodyMembership(body, personId, endDate ?? undefined);
+        // The cached roster feeds the meeting pages and the overview too.
+        revalidateTag(`city:${cityId}:people`, 'max');
+        revalidatePath(`/${cityId}/people`);
+        return NextResponse.json(result);
+    } catch (error) {
+        return handleApiError(error, 'Failed to end the membership');
+    }
+}

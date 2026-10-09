@@ -16,7 +16,8 @@ import { filterSpecByAccessLevel, type OpenApiSpec } from '@/lib/utils/openapi';
 // that only the admin pages call: the /api/admin routes other than the ones
 // below, the notifications of a meeting, and the admins of an administrative
 // body (/api/cities/{cityId}/administrative-bodies/{bodyId}/admins), which
-// invite people by email.
+// invite people by email. The roster tools of a body (its /members and
+// /claim-links routes), which only the page of the body calls, stay out too.
 const EXPECTED_OPERATIONS = [
     'GET /api/cities',
     'POST /api/cities',

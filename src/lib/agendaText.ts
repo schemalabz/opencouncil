@@ -8,6 +8,7 @@ import "server-only";
 import * as z from 'zod';
 import type { Subject } from '@/lib/apiTypes';
 import { aiChat } from '@/lib/ai';
+import { jsonSchemaOf } from '@/lib/promptJsonSchema';
 import { revalidateMeeting } from '@/lib/cache';
 import { getMeetingForAgendaText } from '@/lib/db/meetings';
 import { getPeopleForMeeting } from '@/lib/db/people';
@@ -19,7 +20,7 @@ import { generateImagesForMeeting } from '@/lib/subjectImages';
 import { buildAgendaRoster } from '@/lib/tasks/speakerRoster';
 import { getRoleTitles } from '@/i18n/roleTitles';
 
-/** The model's answer: one entry per item of the agenda. */
+/** The model's answer: one entry per item of the agenda. The prompt gives the model this schema. */
 export const agendaExtractionSchema = z.object({
     subjects: z.array(z.object({
         // Nullish, so that one item without a name drops alone and does not refuse the whole answer.
@@ -40,7 +41,7 @@ export type AgendaTextExtraction = z.output<typeof agendaExtractionSchema>;
 const SYSTEM_PROMPT = `You read the agenda (ημερήσια διάταξη) of a meeting of a local government body and return its items as JSON.
 
 Rules:
-- Return ONLY a JSON object of the shape {"subjects": [...]}. No prose, no markdown.
+- Return ONLY a JSON object that matches the schema below. No prose, no markdown.
 - One entry per agenda item, in the order of the agenda. Keep the numbering of the agenda through that order; do not merge or split items.
 - "name": a short title of the item, in the language of the agenda, at most 120 characters, in sentence case.
 - "description": one or two sentences that say what the item is about, from the text alone. Do not invent facts.
@@ -49,7 +50,10 @@ Rules:
 - "topicLabel": the one label from the given list that fits best, or null.
 - "introducedByPersonId": the id of the person from the given roster who brings the item, when the agenda names one, otherwise null. Never an id that is not in the roster.
 - "withdrawn": true only when the agenda says the item is withdrawn.
-- Skip lines that are not items: the header, the date, the place, the signature, procedural notes.`;
+- Skip lines that are not items: the header, the date, the place, the signature, procedural notes.
+
+JSON SCHEMA:
+${JSON.stringify(jsonSchemaOf(agendaExtractionSchema), null, 2)}`;
 
 /**
  * The checked extraction as the save path wants it. Pure, so a test covers
