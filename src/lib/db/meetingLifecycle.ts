@@ -23,7 +23,7 @@ type Client = Prisma.TransactionClient | PrismaClient;
 export type MeetingRecordFields = Pick<CouncilMeeting,
     | 'dateTime' | 'youtubeUrl' | 'agendaUrl' | 'administrativeBodyId'
     | 'scheduleStatus' | 'scheduleStatusReason' | 'kind' | 'urgent' | 'sessionNumber' | 'format'
-    | 'closedToPublic' | 'place' | 'postponedFromId' | 'continuationOfId'>;
+    | 'closedToPublic' | 'noRecording' | 'place' | 'postponedFromId' | 'continuationOfId'>;
 
 export type NewMeetingRecord = Partial<MeetingRecordFields>
     & Pick<CouncilMeeting, 'cityId' | 'id' | 'dateTime'>
@@ -170,6 +170,8 @@ function newRecordState(data: NewMeetingRecord): MeetingRecordState {
         urgent: data.urgent ?? false,
         sessionNumber: data.sessionNumber ?? null,
         format: data.format ?? null,
+        noRecording: data.noRecording ?? false,
+        youtubeUrl: data.youtubeUrl ?? null,
         postponedFromId: data.postponedFromId ?? null,
         continuationOfId: data.continuationOfId ?? null,
     };

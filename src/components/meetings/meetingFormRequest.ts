@@ -22,7 +22,7 @@ export function meetingIdForRequest(typedId: string | undefined, editing: boolea
  */
 export type MeetingFormLifecycleValues = Pick<
     z.output<typeof meetingFormSchema>,
-    'kind' | 'urgent' | 'scheduleStatus' | 'scheduleStatusReason' | 'sessionNumber' | 'format' | 'closedToPublic' | 'place' | 'postponedFromId'
+    'kind' | 'urgent' | 'scheduleStatus' | 'scheduleStatusReason' | 'sessionNumber' | 'format' | 'closedToPublic' | 'noRecording' | 'place' | 'postponedFromId'
 >;
 
 /**
@@ -47,11 +47,27 @@ export function meetingRequestFields(
         sessionNumber: !greekCodeFacts ? undefined : number ? Number(number) : null,
         format: values.format,
         closedToPublic: values.closedToPublic,
+        noRecording: values.noRecording,
         place: values.place ?? null,
         postponedFromId: !linkChanged
             ? undefined
             : !values.postponedFromId || values.postponedFromId === 'none' ? null : values.postponedFromId,
     };
+}
+
+/**
+ * The agenda fields of the request. The agenda mode is the form's own: the
+ * text mode sends the pasted text, and the server stores no link beside it
+ * (meetingWrites.ts). An empty text sends nothing, so a save keeps the agenda
+ * the meeting has. The link mode sends the link, and queues the agenda task
+ * when the admin asks.
+ */
+export function agendaRequestFields(
+    values: Pick<z.output<typeof meetingFormSchema>, 'agendaMode' | 'agendaUrl' | 'agendaText' | 'processAgenda'>,
+) {
+    return values.agendaMode === 'text'
+        ? { agendaText: values.agendaText?.trim() || undefined, processAgenda: false }
+        : { agendaUrl: values.agendaUrl, processAgenda: values.processAgenda };
 }
 
 /** How far the postponed-meeting picker looks before and after the meeting. */

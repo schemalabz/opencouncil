@@ -31,6 +31,7 @@ jest.mock('@/lib/tasks/processAgendaInternal', () => ({ requestProcessAgendaInte
 jest.mock('@/lib/cache/afterResponse', () => ({ revalidateAfterResponse: (...args: unknown[]) => mockRevalidateAfterResponse(...args) }));
 jest.mock('@/lib/agendaText', () => ({ processAgendaText: jest.fn() }));
 jest.mock('@/lib/db/tasksInternal', () => ({ meetingHasSucceededTask: jest.fn().mockResolvedValue(false) }));
+jest.mock('@/lib/reportFailure', () => ({ reportFailure: jest.fn() }));
 jest.mock('@/lib/tasks/transcribeInternal', () => ({ requestTranscribeInternal: jest.fn() }));
 
 import { updateMeetingWithEffects } from '../meetingWrites';

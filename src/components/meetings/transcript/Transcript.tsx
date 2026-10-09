@@ -15,7 +15,7 @@ import { getScrollContainer } from "@/lib/utils/scrollAnchor";
 import { ExcerptSelectionToolbar, useExcerptSources } from '@/components/sharing/ExcerptSelectionToolbar';
 import { ExcerptRangeHighlight } from '@/components/sharing/ExcerptRangeHighlight';
 import { parseExcerptSelector } from '@/lib/sharing/excerptSelector';
-import { hasPublicRecording } from "@/lib/meetingLifecycleRules";
+import { noRecordingReason } from "@/lib/meetingLifecycleRules";
 
 // Helper functions for speaker segment identification and parsing
 const SPEAKER_SEGMENT_PREFIX = 'speaker-segment-';
@@ -175,7 +175,11 @@ export default function Transcript() {
         return <div className="container py-8">
             <ScrollText className="w-12 h-12 mx-auto text-muted-foreground" />
             <div className="text-center text-base text-muted-foreground py-8">
-                {tTranscript(hasPublicRecording(meeting) ? 'notAvailable' : 'byCirculation')}
+                {tTranscript(
+                    noRecordingReason(meeting) === null ? 'notAvailable'
+                        : noRecordingReason(meeting) === 'byCirculation' ? 'byCirculation'
+                            : 'notRecorded',
+                )}
             </div>
         </div>
     }

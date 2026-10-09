@@ -15,6 +15,9 @@ const valid = {
     sessionNumber: '',
     format: null,
     closedToPublic: false,
+    noRecording: false,
+    agendaMode: 'link',
+    agendaText: '',
     place: '',
     postponedFromId: 'none',
 };
