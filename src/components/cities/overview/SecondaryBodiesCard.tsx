@@ -22,8 +22,8 @@ interface SecondaryBodiesCardProps {
 /**
  * The rail card of a city's secondary bodies (#829). The meetings module
  * beside it never lists them, so this card is where a reader learns that the
- * body exists and when it met. The link opens the meetings tab with the tier
- * widened to it.
+ * body exists and when it met. The link opens the page of the body, or, when
+ * the city has several, the meetings tab with the tier widened to them.
  */
 export function SecondaryBodiesCard({ bodies, meetings, cityId, timezone, locale }: SecondaryBodiesCardProps) {
     const t = useTranslations('cityOverview');
@@ -34,7 +34,9 @@ export function SecondaryBodiesCard({ bodies, meetings, cityId, timezone, locale
     // One secondary type exists, so the first body's type names them all. The
     // filter value is the type's label: the tab's picker keys its chips by it.
     const typeLabel = tCommon(`adminBodyType_${bodies[0].type}`);
-    const href = `/${cityId}/meetings?${TIER_PARAM}=all&filters=${encodeURIComponent(typeLabel)}`;
+    const href = bodies.length === 1
+        ? `/${cityId}/bodies/${bodies[0].id}`
+        : `/${cityId}/meetings?${TIER_PARAM}=all&filters=${encodeURIComponent(typeLabel)}`;
 
     return (
         <div className={cn(surfaceCardClass, 'overflow-hidden')}>

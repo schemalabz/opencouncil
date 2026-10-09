@@ -193,6 +193,18 @@ export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean 
     }
 }
 
+/**
+ * Everyone who holds, or held, a role on the body, with all their roles. The
+ * page of the body splits them into members and former members by the dates
+ * of the role on that body.
+ */
+export async function getPeopleOfBody(cityId: string, administrativeBodyId: string): Promise<PersonWithRelations[]> {
+    return prisma.person.findMany({
+        where: { cityId, roles: { some: { administrativeBodyId } } },
+        include: { roles: roleWithRelationsInclude },
+    });
+}
+
 export async function getPeopleWithVoicePrintsForCity(cityId: string): Promise<PersonWithVoicePrints[]> {
     await withUserAuthorizedToEdit({ cityId });
     try {

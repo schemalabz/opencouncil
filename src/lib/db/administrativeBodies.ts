@@ -2,7 +2,7 @@
 // src/lib/actions/administrativeBodies.ts, and the API routes check their
 // input with zod.
 import "server-only";
-import { AdministrativeBody } from '@prisma/client';
+import { AdministrativeBody, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { publicAdministrativeBodySelect, type PublicAdministrativeBody } from "./types/administrativeBody";
@@ -21,6 +21,36 @@ export async function getAdministrativeBodiesForCity(cityId: string): Promise<Ad
         console.error('Error fetching administrative bodies:', error);
         throw new Error('Failed to fetch administrative bodies');
     }
+}
+
+/**
+ * What the page of a body shows everyone: the public fields, the hall it
+ * sits in, its channel, and how many public meetings it has held.
+ */
+export const bodyPageSelect = {
+    ...publicAdministrativeBodySelect,
+    place: true,
+    youtubeChannelUrl: true,
+    _count: { select: { meetings: { where: { released: true } } } },
+} satisfies Prisma.AdministrativeBodySelect;
+
+export type BodyPageRow = Prisma.AdministrativeBodyGetPayload<{ select: typeof bodyPageSelect }>;
+
+/** The body for its page. Null when the body does not exist or belongs to another city. */
+export async function getBodyPageRow(cityId: string, bodyId: string): Promise<BodyPageRow | null> {
+    return prisma.administrativeBody.findFirst({ where: { id: bodyId, cityId }, select: bodyPageSelect });
+}
+
+/** The contact settings that an admin of the body may change (#828). Gated on the body. */
+export async function getAdministrativeBodyContacts(
+    cityId: string,
+    bodyId: string,
+): Promise<{ youtubeChannelUrl: string | null; contactEmails: string[] } | null> {
+    await withUserAuthorizedToEdit({ cityId, administrativeBodyId: bodyId });
+    return prisma.administrativeBody.findFirst({
+        where: { id: bodyId, cityId },
+        select: { youtubeChannelUrl: true, contactEmails: true },
+    });
 }
 
 /**

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { editAdministrativeBody, editAdministrativeBodyContacts, deleteAdministrativeBody } from '@/lib/db/administrativeBodies';
+import { editAdministrativeBody, editAdministrativeBodyContacts, deleteAdministrativeBody, getBodyPageRow } from '@/lib/db/administrativeBodies';
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
+import { getCityRealm } from '@/lib/db/cityRealm';
+import { cityListTags, upcomingMeetingsTag } from '@/lib/db/meetings';
+import { landingSubjectsTag } from '@/lib/db/subject';
 import { rederiveMeetingsOfBody } from '@/lib/derivation/rederive';
 import { z } from 'zod';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
@@ -18,8 +21,10 @@ export async function PUT(
         const body = await request.json();
 
         // An admin of the body, not of the city, changes the YouTube channel
-        // and the contact emails and nothing else (#828).
-        if (!(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
+        // and the contact emails and nothing else (#828). The page of the body
+        // sends those two fields alone, for an admin of the city as well.
+        const contactsOnly = body && typeof body === 'object' && !('name' in body) && !body.confirmConventions;
+        if (contactsOnly || !(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
             await withUserAuthorizedToEdit({ cityId: params.cityId, administrativeBodyId: params.bodyId });
             const { youtubeChannelUrl, contactEmails } = administrativeBodyContactsSchema.parse(body);
             const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl, contactEmails });
@@ -42,6 +47,7 @@ export async function PUT(
         const parsed = administrativeBodySchema.parse(body);
         const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
 
+        const previous = await getBodyPageRow(params.cityId, params.bodyId);
         const updatedBody = await editAdministrativeBody(params.bodyId, {
             name,
             name_en,
@@ -56,6 +62,17 @@ export async function PUT(
 
         revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${params.cityId}/people`);
+        // A new type can move the meetings of the body to the other tier
+        // (#829): every list that reads the tier learns it now, the city's
+        // route to the public lists with them.
+        if (previous && previous.type !== updatedBody.type) {
+            revalidateTag(`city:${params.cityId}:meetings`, 'max');
+            revalidatePath(`/${params.cityId}`, 'layout');
+            const realm = await getCityRealm(params.cityId);
+            if (realm) {
+                [...cityListTags(realm), landingSubjectsTag(realm), upcomingMeetingsTag(realm)].forEach(tag => revalidateTag(tag, 'max'));
+            }
+        }
 
         return NextResponse.json(updatedBody);
     } catch (error) {

@@ -88,6 +88,10 @@ A body admin can also do these things:
 - Invite and remove the admins of their body through
   `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
 
+The page of the body, at `/{cityId}/bodies/{bodyId}`, holds these forms: the
+meeting form, the member form, the contact settings and the list of admins.
+The profile of a body admin links to it.
+
 A body has a maximum of 20 admins. Only a city admin or a superadmin can remove
 the last admin of a body.
 
