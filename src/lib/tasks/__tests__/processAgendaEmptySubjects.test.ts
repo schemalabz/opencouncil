@@ -52,6 +52,7 @@ jest.mock('../../db/utils', () => ({
   saveSubjectsForMeeting: (...args: unknown[]) => mockSaveSubjectsForMeeting(...args),
 }));
 
+jest.mock('../../notifications/meetingTask', () => ({ notifyMeetingSubjects: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../../auth', () => ({
   withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
 }));

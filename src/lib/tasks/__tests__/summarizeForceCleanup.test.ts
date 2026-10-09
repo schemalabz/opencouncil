@@ -83,6 +83,7 @@ jest.mock('../tasks', () => ({
   startTask: (...args: unknown[]) => mockStartTask(...args),
 }));
 
+jest.mock('../../notifications/meetingTask', () => ({ notifyMeetingSubjects: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../../auth', () => ({
   withUserAuthorizedToEdit: jest.fn().mockResolvedValue(undefined),
 }));

@@ -24,6 +24,7 @@ import { deleteMeetingRecord, setMeetingReleased } from "./meetingLifecycle";
 import { LifecycleRuleError, PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { hideLinks } from "@/lib/meetingPublic";
 import { DECISION_KIND_SELECT } from "@/lib/tasks/pollDecisionsBackoff";
+import { meetingNameSelect } from './types/meeting';
 // List reads and their payload types live in meetingsList.ts. Re-exported here
 // as types only, so callers of this module keep one import.
 export type { CouncilMeetingWithAdminBodyAndSubjects, CouncilMeetingWithSubjectPreview, MeetingListOptions } from './meetingsList';
@@ -46,6 +47,26 @@ export type CouncilMeetingWithAdminBody = Prisma.CouncilMeetingGetPayload<{
  */
 export function cityListTags(realm: Realm): string[] {
     return ['cities:all', `realm:${realm}:cities:all`];
+}
+
+/**
+ * What the extraction of a pasted agenda needs to know about the meeting
+ * (lib/agendaText.ts): its date and body for the roster, its city for the
+ * language and the topics, and what the notifications that follow the
+ * agenda read (lib/notifications/meetingTask.ts).
+ */
+export async function getMeetingForAgendaText(cityId: string, id: string) {
+    return prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId, id } },
+        select: {
+            ...meetingNameSelect,
+            id: true,
+            cityId: true,
+            administrativeBodyId: true,
+            administrativeBody: { select: { name: true, name_en: true, notificationBehavior: true } },
+            city: { select: { name: true, name_en: true, language: true, realm: true, timezone: true } },
+        },
+    });
 }
 export async function deleteCouncilMeeting(cityId: string, id: string): Promise<void> {
     // The city's, not the body admin's: deletion is not among their rights (#828).
