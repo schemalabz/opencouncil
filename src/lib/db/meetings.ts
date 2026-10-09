@@ -20,7 +20,7 @@ import { CUSTOMER_CITY_WHERE, PUBLIC_CITY_WHERE } from '../cityStatus';
 import { createCache } from '../cache/index';
 import { getCityRealm } from "./cityRealm";
 import { deleteMeetingRecord, setMeetingReleased } from "./meetingLifecycle";
-import { LifecycleRuleError } from "@/lib/meetingLifecycleRules";
+import { LifecycleRuleError, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { hideLinks } from "@/lib/meetingPublic";
 import { DECISION_KIND_SELECT } from "@/lib/tasks/pollDecisionsBackoff";
 // List reads and their payload types live in meetingsList.ts. Re-exported here
@@ -155,6 +155,8 @@ export async function getUpcomingMeetings(realm: Realm, { limit = 10 }: { limit?
                 // public visibility guard: never expose unreleased (draft) meetings
                 released: true,
                 dateTime: { gt: new Date() },
+                // A postponed or cancelled meeting is not coming up.
+                ...TAKES_PLACE_WHERE,
                 city: { ...PUBLIC_CITY_WHERE, realm },
             },
             orderBy: [{ dateTime: 'asc' }, { createdAt: 'asc' }],
@@ -272,7 +274,7 @@ export async function getLatestReleasedMeetingIdForCity(cityId: string): Promise
     const now = new Date();
 
     const upcoming = await prisma.councilMeeting.findFirst({
-        where: { cityId, released: true, dateTime: { gt: now } },
+        where: { cityId, released: true, dateTime: { gt: now }, ...TAKES_PLACE_WHERE },
         orderBy: { dateTime: 'asc' },
         select: { id: true },
     });
@@ -280,7 +282,7 @@ export async function getLatestReleasedMeetingIdForCity(cityId: string): Promise
     if (upcoming) return upcoming.id;
 
     const latest = await prisma.councilMeeting.findFirst({
-        where: { cityId, released: true },
+        where: { cityId, released: true, ...TAKES_PLACE_WHERE },
         orderBy: { dateTime: 'desc' },
         select: { id: true },
     });
