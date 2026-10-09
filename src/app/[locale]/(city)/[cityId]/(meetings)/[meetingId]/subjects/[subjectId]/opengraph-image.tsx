@@ -1,5 +1,4 @@
-// See src/app/api/og/route.tsx for why we use @vercel/og directly instead of next/og.
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 import { OG_FONTS } from "@/lib/og/serverAssets";
 import { ogCacheControl } from "@/lib/og/render";
 import { subjectOgElement, SUBJECT_OG_SIZE } from "@/lib/og/subjectImage";
