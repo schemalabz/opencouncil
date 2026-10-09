@@ -92,6 +92,11 @@ A body admin can also do these things:
   the minutes of the old term. A claim link claims the whole person, so it
   goes only to a member whose every role is on the body. A member with a seat
   elsewhere in the municipality gets their link from the city admin.
+- Change the YouTube channel and the contact emails of their body.
+- Invite and remove the admins of their body through
+  `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
+- Open the embed configurator of their body, at `/{cityId}/widget?body={bodyId}`
+  (#829). The configurator is locked to the body.
 
 A person whose every role is on a secondary body consents to a voiceprint from
 their own account only (#829). `voiceprintNeedsOwnConsent` in
@@ -103,13 +108,11 @@ does not start a voiceprint. The same account alone adds their photo.
 `withPersonImageAuthorized` in `src/lib/db/personImage.ts` refuses a photo from
 any other account, and the member form of a secondary body offers no photo
 field.
-- Change the YouTube channel and the contact emails of their body.
-- Invite and remove the admins of their body through
-  `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
 
 The page of the body, at `/{cityId}/bodies/{bodyId}`, holds these forms: the
-meeting form, the member form, the contact settings and the list of admins.
-The profile of a body admin links to it.
+meeting form, the member form, the contact settings, the list of admins, the
+claim links and the way to the embed configurator. The profile of a body admin
+links to it.
 
 A body has a maximum of 20 admins. Only a city admin or a superadmin can remove
 the last admin of a body.
