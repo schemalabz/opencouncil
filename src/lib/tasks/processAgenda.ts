@@ -8,7 +8,7 @@ import { withUserAuthorizedToEdit } from "../auth";
 import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
 import { requestProcessAgendaInternal } from "./processAgendaInternal";
-import { meetingLabelInCity } from '@/lib/meetingName';
+import { notifyMeetingSubjects } from '@/lib/notifications/meetingTask';
 
 /**
  * User-facing Server Action that checks authorization before processing.
@@ -97,59 +97,5 @@ export async function handleProcessAgendaResult(taskId: string, response: Proces
     // alerts on its own.
     after(() => generateImagesForMeeting(task.councilMeeting.cityId, task.councilMeeting.id));
 
-    // Create notifications if administrative body allows it
-    const adminBody = task.councilMeeting.administrativeBody;
-    if (adminBody && adminBody.notificationBehavior !== 'NOTIFICATIONS_DISABLED') {
-        const { createNotificationsForMeeting } = await import('../db/notifications');
-        const { releaseNotifications } = await import('../notifications/deliver');
-        const { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } = await import('../discord');
-
-        try {
-            const stats = await createNotificationsForMeeting(
-                task.councilMeeting.cityId,
-                task.councilMeeting.id,
-                'beforeMeeting'
-            );
-
-            console.log(`Created ${stats.notificationsCreated} beforeMeeting notifications for ${stats.subjectsTotal} subjects`);
-
-            const autoSend = adminBody.notificationBehavior === 'NOTIFICATIONS_AUTO';
-
-            // Send Discord admin alert about notification creation
-            if (stats.notificationsCreated > 0) {
-                sendNotificationsCreatedAdminAlert({
-                    cityName: task.councilMeeting.city.name_en,
-                    meetingName: meetingLabelInCity(task.councilMeeting, 'el'),
-                    notificationType: 'beforeMeeting',
-                    notificationsCreated: stats.notificationsCreated,
-                    subjectsTotal: stats.subjectsTotal,
-                    cityId: task.councilMeeting.cityId,
-                    meetingId: task.councilMeeting.id,
-                    autoSend
-                });
-            }
-
-            // If auto-send is enabled, release notifications immediately
-            if (autoSend) {
-                console.log('Auto-sending notifications...');
-                const releaseResult = await releaseNotifications(stats.notificationIds);
-                console.log(`Released notifications: ${releaseResult.emailsSent} emails`);
-
-                // Send Discord admin alert about sending
-                sendNotificationsSentAdminAlert({
-                    cityId: task.councilMeeting.cityId,
-                    meetingId: task.councilMeeting.id,
-                    cityName: task.councilMeeting.city.name_en,
-                    meetingName: meetingLabelInCity(task.councilMeeting, 'el'),
-                    notificationCount: stats.notificationsCreated,
-                    emailsSent: releaseResult.emailsSent,
-                    failed: releaseResult.failed,
-                    leftPending: releaseResult.leftPending
-                });
-            }
-        } catch (error) {
-            console.error('Error creating notifications after processAgenda:', error);
-            // Don't throw - we don't want to fail the entire task if notifications fail
-        }
-    }
+    await notifyMeetingSubjects(task.councilMeeting, 'beforeMeeting');
 }

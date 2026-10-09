@@ -24,6 +24,7 @@ export interface MeetingFormLifecycleValues {
     /** Null: «Από την πρόσκληση», nobody has stated the format. */
     format: MeetingFormat | null;
     closedToPublic: boolean;
+    noRecording: boolean;
     place?: string;
     /** `none` is the Select's sentinel for "not the new meeting of a postponement". */
     postponedFromId?: string;
@@ -50,6 +51,7 @@ export function meetingRequestFields(values: MeetingFormLifecycleValues, { linkC
         sessionNumber: number ? Number(number) : null,
         format: values.format === null || OFFERED_FORMATS.includes(values.format) ? values.format : undefined,
         closedToPublic: values.closedToPublic,
+        noRecording: values.noRecording,
         place: text(values.place),
         postponedFromId: !linkChanged
             ? undefined

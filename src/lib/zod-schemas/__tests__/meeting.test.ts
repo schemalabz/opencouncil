@@ -61,7 +61,7 @@ describe('the fields of meetingSchema', () => {
     // MEETING_RECORD_INPUT_KEYS. A field that the schema gains must be one of
     // them, or one of the other fields that both routes pass on by name.
     const OTHER_FIELDS = [
-        'name', 'name_en', 'date', 'youtubeUrl', 'agendaUrl', 'meetingId', 'administrativeBodyId',
+        'name', 'name_en', 'date', 'youtubeUrl', 'agendaUrl', 'agendaText', 'meetingId', 'administrativeBodyId',
         'processAgenda', 'postponedFromId', 'continuationOfId',
     ];
 

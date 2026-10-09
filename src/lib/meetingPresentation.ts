@@ -1,6 +1,6 @@
-import type { MeetingFormat, MeetingScheduleStatus, Realm } from '@prisma/client';
+import type { MeetingScheduleStatus, Realm } from '@prisma/client';
 import { hasExplainPage } from '@/lib/explain/availability';
-import { hasPublicRecording } from '@/lib/meetingLifecycleRules';
+import { hasPublicRecording, type RecordingFields } from '@/lib/meetingLifecycleRules';
 import {
     msUntilStageChange,
     pendingKind,
@@ -14,20 +14,19 @@ import {
  * What a reader sees for a meeting: its stage (lib/meetingStage.ts), or a
  * fact that replaces the stage. A postponed or cancelled meeting shows that at
  * every age, so it never reads as waiting or as held without material. A
- * meeting held by circulation has no recording, so it never promises a video
- * or a transcript.
+ * meeting held by circulation, or one that the body marked as not recorded
+ * (#829), has no recording, so it never promises a video or a transcript.
  */
 export type PublicMeetingPresentation =
     | { type: 'postponed'; reason: string | null }
     | { type: 'cancelled'; reason: string | null }
-    | { type: 'noRecording' }
+    | { type: 'noRecording'; reason: 'byCirculation' | 'notRecorded' }
     | { type: 'stage'; stage: PublicMeetingStage };
 
 /** The meeting columns that the presentation reads besides the stage signals. */
-export interface MeetingPresentationFields {
+export interface MeetingPresentationFields extends RecordingFields {
     scheduleStatus: MeetingScheduleStatus;
     scheduleStatusReason: string | null;
-    format: MeetingFormat | null;
 }
 
 export function publicMeetingPresentation(
@@ -48,7 +47,9 @@ export function publicMeetingPresentation(
     const stage = publicMeetingStage(signals, now);
     // A meeting that has not started reads as upcoming; the strip offers it no
     // channel. Once it starts, it never promises a video or a transcript.
-    if (!hasPublicRecording(fields) && stage !== 'upcoming') return { type: 'noRecording' };
+    if (!hasPublicRecording(fields) && stage !== 'upcoming') {
+        return { type: 'noRecording', reason: fields.noRecording ? 'notRecorded' : 'byCirculation' };
+    }
     return { type: 'stage', stage };
 }
 

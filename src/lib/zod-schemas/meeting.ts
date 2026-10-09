@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
-import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
+import { AGENDA_TEXT_MAX_LENGTH, OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
 
 /**
  * A name override. The name of a meeting is derived (src/lib/meetingName.ts),
@@ -59,7 +59,11 @@ export const meetingSchema = z.object({
         .refine((format) => OFFERED_FORMATS.includes(format), { message: 'A meeting by circulation cannot be set yet.' })
         .nullable().optional(),
     closedToPublic: z.boolean().optional(),
+    noRecording: z.boolean().optional(),
     place: optionalText(200),
+    // The agenda as pasted text, for a body that has no PDF (#829). The app
+    // extracts the subjects from it after the write; see lib/agendaText.ts.
+    agendaText: z.string().trim().max(AGENDA_TEXT_MAX_LENGTH).nullable().optional().transform(val => (val === '' ? null : val)),
     postponedFromId: z.string().min(1).nullable().optional(),
     continuationOfId: z.string().min(1).nullable().optional(),
 });

@@ -13,6 +13,7 @@ const row = {
     scheduleStatusReason: null,
     format: 'inPerson' as const,
     closedToPublic: false,
+    noRecording: false,
     place: null,
     postponedFromId: 'mar12_2026',
     continuationOfId: 'mar5_2026',

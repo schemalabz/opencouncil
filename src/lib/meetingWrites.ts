@@ -15,6 +15,8 @@ import { requestProcessAgendaInternal } from '@/lib/tasks/processAgendaInternal'
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { isDerivedName, meetingLabel } from '@/lib/meetingName';
 import { pickRecordInput, takesPlace, type MeetingRecordInput } from '@/lib/meetingLifecycleRules';
+import { after } from 'next/server';
+import { processAgendaText } from '@/lib/agendaText';
 import { isBodyOfCity } from '@/lib/db/administrativeBodies';
 import { isSecondaryBody } from '@/lib/utils/bodyTier';
 import { BadRequestError } from '@/lib/api/errors';
@@ -41,9 +43,32 @@ export type NewMeetingInput = {
     administrativeBodyId?: string | null;
     /** Queue the processAgenda task when there is an agenda URL. */
     processAgenda?: boolean;
+    /** The agenda as pasted text, when there is no agenda URL (lib/agendaText.ts). */
+    agendaText?: string | null;
 } & MeetingRecordInput & Partial<Pick<MeetingRecordFields, 'postponedFromId' | 'continuationOfId'>>;
 
-export type ProcessAgendaOutcome = string | 'failed' | 'skipped_no_agenda';
+export type ProcessAgendaOutcome = string | 'failed' | 'skipped_no_agenda' | 'from_text';
+
+/**
+ * The work of a write that runs after the response: the extraction of a
+ * pasted agenda, then the start of the transcription, when the write brings
+ * both. The order matters: the summary that follows the transcription writes
+ * the statements of the subjects, and an agenda saved after it would replace
+ * them. The model takes a while, and the admin waits for none of it. A failed
+ * extraction is logged; the admin sees a meeting without subjects and pastes
+ * the text again.
+ */
+function runAfterResponse(cityId: string, meetingId: string, agendaText: string | null | undefined, startTranscription: (() => Promise<void>) | null): void {
+    if (!agendaText && !startTranscription) return;
+    after(async () => {
+        if (agendaText) {
+            await processAgendaText(cityId, meetingId, agendaText).catch((error: unknown) => {
+                console.error(`Failed to extract the pasted agenda of ${cityId}/${meetingId}:`, error);
+            });
+        }
+        if (startTranscription) await startTranscription();
+    });
+}
 
 /**
  * Create an unreleased meeting and run everything a new meeting needs: cache
@@ -54,7 +79,7 @@ export async function createMeetingWithEffects(
     cityId: string,
     input: NewMeetingInput
 ): Promise<{ meeting: CouncilMeetingWithAdminBody; processAgendaStatus?: ProcessAgendaOutcome }> {
-    const { name, name_en, date, youtubeUrl, agendaUrl, administrativeBodyId, processAgenda, postponedFromId, continuationOfId } = input;
+    const { name, name_en, date, youtubeUrl, agendaUrl, administrativeBodyId, processAgenda, postponedFromId, continuationOfId, agendaText } = input;
     const record = pickRecordInput(input);
     await requireBodyOfCity(cityId, administrativeBodyId);
 
@@ -120,6 +145,11 @@ export async function createMeetingWithEffects(
     // Runs outside the city check above, because the sync loads the city itself.
     if (!secondary) await syncMeetingToCalendar(cityId, meetingId, { allowCreate: true });
 
+    // A pasted agenda takes the place of the PDF when there is no URL.
+    const pastedAgenda = !agendaUrl && agendaText ? agendaText : null;
+    runAfterResponse(cityId, meetingId, pastedAgenda, unattendedTranscriptionStart(meeting));
+    if (pastedAgenda) return { meeting, processAgendaStatus: 'from_text' };
+
     if (!processAgenda) return { meeting };
     if (!agendaUrl) return { meeting, processAgendaStatus: 'skipped_no_agenda' };
 
@@ -133,7 +163,10 @@ export async function createMeetingWithEffects(
     }
 }
 
-export type MeetingDetailsEdit = Partial<MeetingRecordFields>;
+export type MeetingDetailsEdit = Partial<MeetingRecordFields> & {
+    /** The agenda as pasted text: its items replace the subjects of the meeting (lib/agendaText.ts). */
+    agendaText?: string | null;
+};
 
 /**
  * A name in the edit that the platform derives for the meeting as it is now
@@ -164,11 +197,12 @@ async function withoutDerivedNames(
 export async function updateMeetingWithEffects(
     cityId: string,
     meetingId: string,
-    data: MeetingDetailsEdit
+    { agendaText, ...data }: MeetingDetailsEdit
 ): Promise<CouncilMeetingWithAdminBody> {
     await requireBodyOfCity(cityId, data.administrativeBodyId);
     const before = await getCouncilMeetingDirect(cityId, meetingId);
     const meeting = await updateMeetingRecord(cityId, meetingId, before ? await withoutDerivedNames(cityId, before, data) : data);
+    if (agendaText) extractAgendaTextAfterResponse(cityId, meetingId, agendaText);
 
     // The landing lists the upcoming meetings that take place, so a change of
     // status, date or body can move a meeting in or out of that list. A public

@@ -73,6 +73,7 @@ The stages above describe the processing pipeline. The meeting record also holds
 * **Kind** (`kind`): `regular`, `urgent`, `accountability`, `activityReport`, `budget` or `presidencyElection`. A null kind means that the record states no single kind. There are three cases. The invitation is not read yet. The record holds several meetings, and its name override says which. The meeting is none of these kinds, such as the financial accounts. The form offers «Από την πρόσκληση» for null and has no default. The four special kinds belong to a council.
 * **Session number** (`sessionNumber`): the number that the municipality prints. It is not unique. A cancelled meeting keeps its number, and the new meeting after a postponement takes the same number. The platform never computes it.
 * **Format and place** (`format`, `closedToPublic`, `place`): `format` is null until somebody states it or reads it from the invitation, like the kind. A meeting of unstated format is expected as usual: it can have a stream and a transcript. A meeting without its own `place` shows the `place` of its administrative body. A format that has no place, such as a remote meeting, shows no place. `closedToPublic` is a fact that the meeting page shows to readers. A closed meeting is still recorded and transcribed, and readers get it like any other meeting. To keep the material of a meeting private, an admin unreleases the meeting.
+* **No recording** (`noRecording`): the body states that no recording of the meeting exists (#829). The page then promises no video and no transcript, and the pipelines skip the meeting, as for a meeting held by circulation. It differs from `closedToPublic`: a closed meeting is still recorded. A body that records only some of its meetings sets it in the meeting form.
 * **Links**: the new meeting after a postponement points to the postponed meeting (`postponedFromId`). A later part of a meeting points to its first part (`continuationOfId`). The continuation has its column and its checks only; the form and the page for it are a follow-up.
 
 ### The name
@@ -87,6 +88,12 @@ An override wins in both forms, as the admin wrote it. The kind words exist in G
 The kind words, the ordinals and the title rule live in the shared module `packages/ui/src/lib/meeting-title.ts`. `meetingName.ts` adds the date in the timezone of the city and the Serbian script. The shared module declares the kinds without Prisma, and `meetingName.ts` asserts that the list equals `MeetingKind`, so a new kind does not compile until it has words.
 
 Notis does not receive a title. The view `notis_meeting_events` gives the facts: `meetingName` holds the override (null when the title is derived), and `meetingKind` and `sessionNumber` follow. Notis derives the title from these facts with the shared module. Its agent prompt states the title and the raw facts, and the admin pages show «body · title · date». An event or a ledger row from before this change has only the stored name, and Notis shows that name. The Elasticsearch field `meeting_name` still reads the column, and no query reads that field.
+
+### The agenda as pasted text
+
+A body with no PDF of its agenda pastes the text into the meeting form (#829). The form sends `agendaText` in place of `agendaUrl`. After the response, `src/lib/agendaText.ts` asks the model for the items and saves them as the subjects of the meeting, with the same pruning rule as the processAgenda task. The extraction is lighter than the task: it names the items, their topic and who brings them, and pins no location. A failure is logged, and the admin pastes the text again.
+
+The saved agenda has the effects of the task. The extraction writes a succeeded `processAgenda` task row, with the pasted text in its request and the subjects in its response. The task list shows the row. A re-run replays the subjects from it. The Notis view `notis_meeting_events` reads the row as the agenda event of the meeting. The extraction then creates the before-meeting notifications of the body, as the task callback does, through `notifyMeetingSubjects` in `src/lib/notifications/meetingTask.ts`.
 
 ### The write path and the visibility rules
 

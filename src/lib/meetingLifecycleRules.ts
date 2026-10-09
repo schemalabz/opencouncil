@@ -62,12 +62,15 @@ export class LifecycleRuleError extends Error {
 
 export const SCHEDULE_STATUS_REASON_MAX_LENGTH = 500;
 
+/** How long a pasted agenda may be. A long agenda of a council runs to a few thousand characters. */
+export const AGENDA_TEXT_MAX_LENGTH = 40_000;
+
 /**
  * The facts of the record that a write sets besides the links, in one list:
  * the meeting writes and the MCP tools read it, so a new fact reaches both.
  */
 export const MEETING_RECORD_INPUT_KEYS = [
-    'kind', 'sessionNumber', 'scheduleStatus', 'scheduleStatusReason', 'format', 'closedToPublic', 'place',
+    'kind', 'sessionNumber', 'scheduleStatus', 'scheduleStatusReason', 'format', 'closedToPublic', 'noRecording', 'place',
 ] as const satisfies ReadonlyArray<keyof CouncilMeeting>;
 
 export type MeetingRecordInput = Partial<Pick<CouncilMeeting, (typeof MEETING_RECORD_INPUT_KEYS)[number]>>;
@@ -160,13 +163,17 @@ export const TAKES_PLACE_WHERE = {
     scheduleStatus: { in: TAKES_PLACE_STATUSES },
 } satisfies Prisma.CouncilMeetingWhereInput;
 
+/** The columns that say whether a meeting has a recording the public can watch. */
+export type RecordingFields = { format: MeetingFormat | null; noRecording: boolean };
+
 /**
  * The format of the meeting has a recording: no stream or transcript
  * otherwise. A meeting of unstated format can have one. A meeting closed to
- * the public is still recorded: that fact gates nothing.
+ * the public is still recorded: that fact gates nothing. A meeting that the
+ * body marked as not recorded has none (#829).
  */
-export function hasPublicRecording(meeting: { format: MeetingFormat | null }): boolean {
-    return formatRules(meeting.format).publicRecording;
+export function hasPublicRecording(meeting: RecordingFields): boolean {
+    return formatRules(meeting.format).publicRecording && !meeting.noRecording;
 }
 
 /**
@@ -174,6 +181,7 @@ export function hasPublicRecording(meeting: { format: MeetingFormat | null }): b
  * true for a null format, so the null case is explicit.
  */
 export const PUBLIC_RECORDING_WHERE = {
+    noRecording: false,
     OR: [
         ...(UNSTATED_FORMAT.publicRecording ? [{ format: null }] : []),
         { format: { in: keysWhere(MEETING_FORMATS, (format) => format.publicRecording) } },
@@ -263,10 +271,11 @@ export function validateMeetingRecord(next: MeetingRecordState, ctx: LifecycleCo
 /**
  * Why a meeting takes no transcription, or null when it does. A postponed or
  * cancelled meeting did not take place on its date, and a meeting held by
- * circulation has no recording.
+ * circulation or marked as not recorded has no recording.
  */
-export function transcriptionRefusal(meeting: Pick<CouncilMeeting, 'scheduleStatus' | 'format'>): string | null {
+export function transcriptionRefusal(meeting: Pick<CouncilMeeting, 'scheduleStatus' | 'noRecording' | 'format'>): string | null {
     if (!takesPlace(meeting)) return `Meeting is ${meeting.scheduleStatus}`;
+    if (meeting.noRecording) return 'Meeting was not recorded: it has no recording to transcribe';
     if (!hasPublicRecording(meeting)) return `Meeting is held as ${meeting.format}: it has no recording to transcribe`;
     return null;
 }

@@ -65,6 +65,7 @@ function makeMeeting(overrides: Partial<MeetingForCalendarSync> = {}): MeetingFo
         sessionNumber: null,
         format: 'inPerson',
         closedToPublic: false,
+        noRecording: false,
         place: null,
         postponedFromId: null,
         continuationOfId: null,

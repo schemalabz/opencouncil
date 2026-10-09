@@ -154,7 +154,7 @@ describe('validateMeetingRecord', () => {
 });
 
 describe('transcriptionRefusal', () => {
-    const held = { scheduleStatus: 'scheduled' as const, format: 'inPerson' as const };
+    const held = { scheduleStatus: 'scheduled' as const, noRecording: false, format: 'inPerson' as const };
 
     it('accepts a scheduled meeting with a public recording', () => {
         expect(transcriptionRefusal(held)).toBeNull();
@@ -165,6 +165,7 @@ describe('transcriptionRefusal', () => {
     it.each([
         [{ ...held, scheduleStatus: 'postponed' as const }, 'Meeting is postponed'],
         [{ ...held, scheduleStatus: 'cancelled' as const }, 'Meeting is cancelled'],
+        [{ ...held, noRecording: true }, 'not recorded'],
         [{ ...held, format: 'byCirculation' as const }, 'byCirculation'],
     ])('refuses %o', (meeting, reason) => {
         expect(transcriptionRefusal(meeting)).toContain(reason);

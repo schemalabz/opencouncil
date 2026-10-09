@@ -33,6 +33,7 @@ type RecordSource = {
     sessionNumber: number | null;
     format: MeetingFormat | null;
     closedToPublic: boolean;
+    noRecording: boolean;
     place: string | null;
     administrativeBody?: { place?: string | null } | null;
 };
@@ -50,6 +51,7 @@ export function publicRecordFields(meeting: RecordSource, postponedFromDate: Dat
         sessionNumber: meeting.sessionNumber,
         format: meeting.format,
         closedToPublic: meeting.closedToPublic,
+        noRecording: meeting.noRecording,
         place: effectivePlace(meeting),
         postponedFromDate: postponedFromDate?.toISOString() ?? null,
     };

@@ -161,7 +161,7 @@ export function MeetingStageStrip({ presentation, stage, deadline }: { presentat
             break;
         }
         case 'noRecording':
-            text = t('strip.byCirculation');
+            text = t(`strip.${presentation.type === 'noRecording' ? presentation.reason : 'byCirculation'}`);
             actions = [agendaPill];
             break;
     }

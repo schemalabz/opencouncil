@@ -128,7 +128,7 @@ Each administrative body will now have a property which configures notification 
 
 Three paths create or send notifications for a meeting. All three read the setting of the meeting's body:
 
-- The automatic path, after `processAgenda` and `summarize`.
+- The automatic path, after `processAgenda` and `summarize`, and after a pasted agenda (`src/lib/agendaText.ts`). The three call `notifyMeetingSubjects` in `src/lib/notifications/meetingTask.ts`.
 - The manual path, `POST /api/cities/{cityId}/meetings/{meetingId}/notifications`. It answers 409 for a disabled body.
 - The Notis path. The view `notis_meeting_events` skips the meetings of a disabled body. A meeting with no body stays in the view.
 
