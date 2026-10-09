@@ -78,6 +78,8 @@ export default function RolesList({ personId, cityId, roles, parties, administra
     const [endDateOpen, setEndDateOpen] = useState(false)
     const [editingRole, setEditingRole] = useState<RoleWithRelations | null>(null)
     const t = useTranslations('RolesList')
+    // Static keys, so the catalog check sees them.
+    const typeLabels: Record<RoleType, string> = { city: t('types.city'), party: t('types.party'), administrativeBody: t('types.administrativeBody') }
 
     const form = useForm({
         resolver: useZodResolver(formSchema),
@@ -140,7 +142,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
             isHead: false,
             startDate: null,
             endDate: null,
-            type: 'city',
+            type: roleTypes[0],
             partyId: undefined,
             administrativeBodyId: undefined,
         })
@@ -174,7 +176,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                 isHead: false,
                                 startDate: null,
                                 endDate: null,
-                                type: 'city',
+                                type: roleTypes[0],
                                 partyId: undefined,
                                 administrativeBodyId: undefined,
                             })
@@ -210,9 +212,9 @@ export default function RolesList({ personId, cityId, roles, parties, administra
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <SelectItem value="city">{t('types.city')}</SelectItem>
-                                                <SelectItem value="party">{t('types.party')}</SelectItem>
-                                                <SelectItem value="administrativeBody">{t('types.administrativeBody')}</SelectItem>
+                                                {roleTypes.map(type => (
+                                                    <SelectItem key={type} value={type}>{typeLabels[type]}</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
