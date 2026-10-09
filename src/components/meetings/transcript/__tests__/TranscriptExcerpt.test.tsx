@@ -14,6 +14,7 @@ const mockSources: ExcerptSource[] = [0, 100, 0, 100].map((drift, index) => ({
 const mockSegments = [{ id: 'segment', startTimestamp: 0, endTimestamp: 4, utterances: [] }];
 const mockSetScroll = jest.fn();
 
+jest.mock('@/components/meetings/transcript/FindReplacePanel', () => ({ FindReplacePanel: () => null }));
 jest.mock('next/navigation', () => ({ useSearchParams: () => mockQuery }));
 jest.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
 jest.mock('@/components/meetings/VideoProvider', () => ({ useVideo: () => ({ setCurrentScrollInterval: mockSetScroll }), useVideoActions: () => ({ seekToWithoutScroll: jest.fn() }) }));
