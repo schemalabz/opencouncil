@@ -24,10 +24,12 @@ type Action = "record" | "withdraw";
  * does: the blue border means a consent is in force. The label stays a
  * plain noun, and the tooltip says which of the two ways gave it.
  */
-export function VoicePrintConsentControl({ personId, personName, status }: {
+export function VoicePrintConsentControl({ personId, personName, status, ownConsentOnly = false }: {
     personId: string;
     personName: string;
     status: VoicePrintConsentStatus | null;
+    /** The person consents from their own account only (#829): no consent is recorded for them. */
+    ownConsentOnly?: boolean;
 }) {
     const t = useTranslations("Person.voicePrintConsent");
     const locale = useLocale();
@@ -82,7 +84,7 @@ export function VoicePrintConsentControl({ personId, personName, status }: {
                         {status?.source === "ADMIN" && t("byAdmin", { date, recorder })}
                     </DialogDescription>
                 </DialogHeader>
-                {!onPaper && <p className="text-sm text-muted-foreground">{t("recordHint")}</p>}
+                {!onPaper && <p className="text-sm text-muted-foreground">{ownConsentOnly ? t("ownOnlyHint") : t("recordHint")}</p>}
                 {given && <p className="text-sm text-muted-foreground">{t("withdrawHint")}</p>}
                 <DialogFooter className="gap-3">
                     {failed && <p className="text-sm text-destructive w-full">{t("error")}</p>}
@@ -91,7 +93,7 @@ export function VoicePrintConsentControl({ personId, personName, status }: {
                             {label("withdraw")}
                         </Button>
                     )}
-                    {!onPaper && (
+                    {!onPaper && !ownConsentOnly && (
                         <Button disabled={saving !== null} onClick={() => save("record")}>
                             {label("record")}
                         </Button>

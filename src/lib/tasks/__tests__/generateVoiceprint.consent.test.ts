@@ -57,7 +57,7 @@ describe('the voiceprint actions are a superadmin\'s', () => {
 
 describe('requestGenerateVoiceprint', () => {
     it('refuses, as a value, a person whose voiceprint consent is not in force, before any segment search', async () => {
-        mockPersonFindUnique.mockResolvedValueOnce({ id: 'p1' });
+        mockPersonFindUnique.mockResolvedValueOnce({ id: 'p1', roles: [], voicePrintConsents: [], administrators: [] });
         mockHasVoicePrintConsent.mockResolvedValue(false);
 
         await expect(requestGenerateVoiceprint('p1', 's1')).resolves.toEqual({
@@ -80,7 +80,7 @@ describe('requestGenerateVoiceprint', () => {
         mockHasVoicePrintConsent.mockResolvedValue(true);
         // The second lookup is the segment search; no tags means the next refusal, which proves the gates passed.
         mockPersonFindUnique
-            .mockResolvedValueOnce({ id: 'p1' })
+            .mockResolvedValueOnce({ id: 'p1', roles: [], voicePrintConsents: [], administrators: [] })
             .mockResolvedValueOnce({ speakerTags: [] });
 
         await expect(requestGenerateVoiceprint('p1', 's1')).resolves.toEqual({

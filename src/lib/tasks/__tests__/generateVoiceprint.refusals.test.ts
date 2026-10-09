@@ -24,7 +24,7 @@ import { requestGenerateVoiceprint } from '../generateVoiceprint';
 it('refuses, as a value, a chosen segment whose meeting has no media to cut it from, before any task starts', async () => {
     mockHasVoicePrintConsent.mockResolvedValue(true);
     mockPersonFindUnique
-        .mockResolvedValueOnce({ id: 'p1' })
+        .mockResolvedValueOnce({ id: 'p1', roles: [], voicePrintConsents: [], administrators: [] })
         .mockResolvedValueOnce({
             speakerTags: [{ personSetBy: 'user', createdAt: new Date(), speakerSegments: [{ id: 's1', cityId: 'chania', meetingId: 'm1', startTimestamp: 0, endTimestamp: 60, meeting: { taskStatuses: [] } }] }],
         });
