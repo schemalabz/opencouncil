@@ -23,7 +23,7 @@ const mockIsUserAuthorizedToEdit = isUserAuthorizedToEdit as jest.MockedFunction
 const mockGetFull = getAdministrativeBodiesForCity as jest.MockedFunction<typeof getAdministrativeBodiesForCity>;
 const mockGetPublic = getPublicAdministrativeBodiesForCity as jest.MockedFunction<typeof getPublicAdministrativeBodiesForCity>;
 
-const PUBLIC_BODY = { id: 'b1', name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council' as const, cityId: 'zografou' };
+const PUBLIC_BODY = { id: 'b1', name: 'Δημοτικό Συμβούλιο', name_en: 'City Council', type: 'council' as const, cityId: 'zografou', place: null };
 const FULL_BODY = {
     ...PUBLIC_BODY,
     notificationBehavior: 'NOTIFICATIONS_APPROVAL' as const,
