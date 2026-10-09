@@ -305,6 +305,7 @@ export default function AdminActions({
                         <div className="mt-4 pb-8">
                             <AddMeetingForm
                                 cityId={meeting.cityId}
+                                realm={city.realm}
                                 meeting={meeting}
                                 onSuccess={() => {
                                     // Refresh the page to show updated data

@@ -112,6 +112,7 @@ export default async function MeetingsPage(
         <CityMeetings
             councilMeetings={councilMeetings}
             cityId={cityId}
+            realm={city.realm}
             timezone={city.timezone}
             canEdit={canEdit}
             administrativeBodies={administrativeBodies}

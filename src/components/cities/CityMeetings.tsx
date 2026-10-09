@@ -2,7 +2,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { AdministrativeBodyType } from '@prisma/client';
+import { AdministrativeBodyType, Realm } from '@prisma/client';
 import List from '@/components/List';
 import MeetingCardV2 from '@/components/meetings/MeetingCardV2';
 import AddMeetingForm from '@/components/meetings/AddMeetingForm';
@@ -16,6 +16,8 @@ import { meetingLabel } from '@/lib/meetingName';
 type CityMeetingsProps = {
     councilMeetings: CouncilMeetingWithSubjectPreview[],
     cityId: string,
+    /** The form offers the kind, the urgency and the session number in a Greek city only. */
+    realm: Realm,
     timezone: string,
     canEdit: boolean,
     /**
@@ -34,6 +36,7 @@ type CityMeetingsProps = {
 export default function CityMeetings({
     councilMeetings,
     cityId,
+    realm,
     timezone,
     canEdit,
     administrativeBodies,
@@ -99,7 +102,7 @@ export default function CityMeetings({
             itemProps={{ cityTimezone: timezone, now }}
             cappedAt={cappedAt}
             FormComponent={AddMeetingForm}
-            formProps={{ cityId }}
+            formProps={{ cityId, realm }}
             t={t}
             filterAvailableValues={typeOptions}
             filter={(selectedValues, meeting) => {
