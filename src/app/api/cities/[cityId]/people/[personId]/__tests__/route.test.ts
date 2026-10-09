@@ -8,6 +8,7 @@ jest.mock('@/lib/auth', () => ({
 }));
 jest.mock('@/lib/db/people', () => ({ getPerson: jest.fn(), editPerson: jest.fn(), deletePerson: jest.fn() }));
 jest.mock('@/lib/db/personRoles', () => ({ validatePersonRoles: jest.fn() }));
+jest.mock('@/lib/db/personImage', () => ({ rolesOfPerson: jest.fn(), rolesWithBodyType: jest.fn(), withPersonImageAuthorized: jest.fn() }));
 jest.mock('@/lib/s3', () => ({ uploadFile: jest.fn() }));
 const order: string[] = [];
 jest.mock('@/lib/db/voiceprintsDelete', () => ({

@@ -54,4 +54,22 @@ describe('populateCity', () => {
         mockQueryRaw.mockResolvedValue([]);
         await expect(populateCity({ ...DATA, cityId: 'nope' })).rejects.toThrow(NotFoundError);
     });
+
+    it('saves no photo for a person whose every role is on a secondary body (#829)', async () => {
+        const youthRole = { type: 'adminBody' as const, administrativeBodyName: 'Νέων', name: 'Μέλος', name_en: 'Member', isHead: false, startDate: null, endDate: null };
+        const councilRole = { ...youthRole, administrativeBodyName: 'Conseil' };
+        await populateCity({
+            ...DATA,
+            administrativeBodies: [...DATA.administrativeBodies, { name: 'Νέων', name_en: 'Youth', type: 'youthCouncil' as const }],
+            people: [
+                { name: 'Youth only', name_en: 'Youth only', name_short: 'Y', name_short_en: 'Y', image: 'https://img/y.jpg', profileUrl: null, roles: [youthRole] },
+                { name: 'Both', name_en: 'Both', name_short: 'B', name_short_en: 'B', image: 'https://img/b.jpg', profileUrl: null, roles: [youthRole, councilRole] },
+                { name: 'No role', name_en: 'No role', name_short: 'N', name_short_en: 'N', image: 'https://img/n.jpg', profileUrl: null, roles: [] },
+            ],
+        });
+        const imageOf = (name: string) => mockCreate.mock.calls.map(([arg]) => arg.data).find((data) => data.name === name)?.image;
+        expect(imageOf('Youth only')).toBeNull();
+        expect(imageOf('Both')).toBe('https://img/b.jpg');
+        expect(imageOf('No role')).toBe('https://img/n.jpg');
+    });
 });

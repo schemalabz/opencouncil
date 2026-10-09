@@ -50,9 +50,15 @@ interface PersonFormProps {
     roleTypes?: RoleType[]
     /** The start date of a new role before the editor touches it; see RolesList. */
     defaultRoleStart?: Date | null
+    /**
+     * Whether the viewer may set the photo. A member of a secondary body
+     * alone adds their photo from their own account only (#829); the form of
+     * anyone else offers no photo field for them.
+     */
+    canEditImage?: boolean
 }
 
-export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId, canEditRoles = true, roleTypes, defaultRoleStart }: PersonFormProps) {
+export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId, canEditRoles = true, roleTypes, defaultRoleStart, canEditImage = true }: PersonFormProps) {
     const router = useRouter()
     const [removeImage, setRemoveImage] = useState(false)
     const [cropFile, setCropFile] = useState<File | null>(null)
@@ -230,7 +236,8 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                     form={form}
                 />
 
-                <FormField
+                {!canEditImage && <p className="text-sm text-muted-foreground">{t('imageOwnersOnly')}</p>}
+                {canEditImage && <FormField
                     control={form.control}
                     name="image"
                     render={({ field }) => (
@@ -269,7 +276,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                             <FormMessage />
                         </FormItem>
                     )}
-                />
+                />}
 
                 <ImageCropDialog
                     file={cropFile}

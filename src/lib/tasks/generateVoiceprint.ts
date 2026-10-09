@@ -5,12 +5,32 @@ import { withUserAuthorizedToEdit } from "../auth";
 import { startTask } from "./tasks";
 import { GenerateVoiceprintRequest } from "../apiTypes";
 import { Prisma, SpeakerSegment, TaskStatus } from "@prisma/client";
-import { hasVoicePrintConsent, voicePrintConsentInForce } from "@/lib/db/voicePrintConsentRule";
+import { hasVoicePrintConsent, openPeriodWhere, voicePrintConsentInForce } from "@/lib/db/voicePrintConsentRule";
 import { meetingNameSelect } from "@/lib/db/types";
 import { meetingLabelInCity } from "@/lib/meetingName";
 import { interleaveBy } from "@/lib/utils/interleave";
+import { voiceprintNeedsOwnConsent } from "@/lib/utils/bodyTier";
 
 const VOICEPRINT_DURATION = 30;
+
+/**
+ * What decides whether an admin may start the voiceprint of a person at
+ * all: a member of a secondary body alone needs a consent from their own
+ * account (#829), the one that claimed their page; a consent that a delegate
+ * gave, or one from before the member's roles changed, does not count.
+ * Anyone else is under the rules of today.
+ */
+const voiceprintConsentSelect = {
+    roles: { select: { administrativeBody: { select: { type: true } } } },
+    voicePrintConsents: { where: { ...openPeriodWhere, source: 'PERSON' as const }, select: { userId: true } },
+    administrators: { where: { claimedAt: { not: null } }, select: { userId: true } },
+} satisfies Prisma.PersonSelect;
+
+function mayStartVoiceprint(person: Prisma.PersonGetPayload<{ select: typeof voiceprintConsentSelect }>): boolean {
+    if (!voiceprintNeedsOwnConsent(person.roles)) return true;
+    const own = new Set(person.administrators.map(row => row.userId));
+    return person.voicePrintConsents.some(consent => consent.userId !== null && own.has(consent.userId));
+}
 
 /**
  * A person's speaker tags, with what decides whether their audio may become the
@@ -102,13 +122,16 @@ export async function findEligiblePeopleForVoiceprintGeneration(cityId: string, 
         select: {
             id: true,
             name: true,
+            ...voiceprintConsentSelect,
             speakerTags: {
                 include: voiceprintCandidateTagInclude
             }
         }
     });
 
+    // Leave out a person whose own consent is missing (#829).
     const eligiblePeople = peopleWithoutVoiceprints.filter(person =>
+        mayStartVoiceprint(person) &&
         voiceprintSourceSegments(person.speakerTags).some(isLongEnoughForVoiceprint)
     );
 
@@ -170,11 +193,15 @@ export async function requestGenerateVoiceprintsForCity(cityId: string, personId
 export async function requestGenerateVoiceprint(personId: string, segmentId: string): Promise<{ ok: true; task: TaskStatus } | { ok: false; message: string }> {
     await withUserAuthorizedToEdit({});
 
-    if (!await prisma.person.findUnique({ where: { id: personId }, select: { id: true } })) {
+    const person = await prisma.person.findUnique({ where: { id: personId }, select: voiceprintConsentSelect });
+    if (!person) {
         return { ok: false, message: "Person not found" };
     }
     if (!await hasVoicePrintConsent(personId)) {
         return { ok: false, message: "This person has no voiceprint consent in force. No voiceprint is generated or used without one." };
+    }
+    if (!mayStartVoiceprint(person)) {
+        return { ok: false, message: "This person has not consented to a voiceprint from their own account; no voiceprint can be made for them." };
     }
 
     // The same list the dialog shows, so a page that went stale cannot choose
