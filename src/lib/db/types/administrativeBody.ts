@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { AdministrativeBody, Prisma } from '@prisma/client';
 
 /**
  * The fields of an administrative body that anyone may read.
@@ -19,3 +19,9 @@ export const publicAdministrativeBodySelect = {
 export type PublicAdministrativeBody = Prisma.AdministrativeBodyGetPayload<{
     select: typeof publicAdministrativeBodySelect;
 }>;
+
+/**
+ * A public body with the one setting a reader acts on: whether its meetings
+ * send updates (#829). The meeting strip and the signup read it.
+ */
+export type PublicAdministrativeBodyWithUpdates = PublicAdministrativeBody & Pick<AdministrativeBody, 'notificationBehavior'>;
