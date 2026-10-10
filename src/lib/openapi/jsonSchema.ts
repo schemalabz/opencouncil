@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 /**
  * The JSON Schema of a zod schema, for a reader that is not zod: the prompt

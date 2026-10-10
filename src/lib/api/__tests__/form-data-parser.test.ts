@@ -1,5 +1,5 @@
 import { parseFormData } from '../form-data-parser';
-import { z } from 'zod';
+import * as z from 'zod';
 
 describe('parseFormData', () => {
   it('should parse FormData with string values', async () => {

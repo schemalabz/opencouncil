@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
 
@@ -9,7 +9,7 @@ import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetin
  */
 const nameOverride = (message: string) => z.string()
     .trim()
-    .refine(val => val === '' || val.length >= 2, { message })
+    .refine(val => val === '' || val.length >= 2, { error: message })
     .nullable()
     .optional()
     .transform(val => (val === '' ? null : val));
@@ -27,20 +27,20 @@ export const meetingSchema = z.object({
     name_en: nameOverride("Meeting name (English) must be at least 2 characters."),
     date: z.string()
         .refine(val => !isNaN(new Date(val).getTime()), {
-            message: "Invalid date/time format"
+            error: "Invalid date/time format"
         })
         .transform((str) => new Date(str)),
-    youtubeUrl: z.string().url({
-        message: "Invalid YouTube URL.",
+    youtubeUrl: z.url({
+        error: "Invalid YouTube URL.",
     }).optional().or(z.literal("")),
-    agendaUrl: z.string().url({
-        message: "Invalid Agenda URL.",
+    agendaUrl: z.url({
+        error: "Invalid Agenda URL.",
     }).optional().or(z.literal("")),
     // Optional on create: when omitted, the POST handler auto-generates a
     // unique ID from the meeting date. The PUT handler identifies the meeting
     // by the URL path param and ignores this field.
     meetingId: z.string().min(1, {
-        message: "Meeting ID must not be empty.",
+        error: "Meeting ID must not be empty.",
     }).optional(),
     administrativeBodyId: z.string().nullable().optional(),
     processAgenda: z.boolean().optional().default(false),
@@ -48,13 +48,13 @@ export const meetingSchema = z.object({
     // The lifecycle of the meeting. An omitted field keeps its value on
     // update. On create the database defaults apply: the kind and the format
     // stay null until somebody states them or reads them from the invitation.
-    kind: z.nativeEnum(MeetingKind).nullable().optional(),
-    scheduleStatus: z.nativeEnum(MeetingScheduleStatus).optional(),
+    kind: z.enum(MeetingKind).nullable().optional(),
+    scheduleStatus: z.enum(MeetingScheduleStatus).optional(),
     scheduleStatusReason: optionalText(SCHEDULE_STATUS_REASON_MAX_LENGTH),
     sessionNumber: z.number().int().positive().nullable().optional(),
     // By circulation waits for its page, as in the form and MCP.
-    format: z.nativeEnum(MeetingFormat)
-        .refine((format) => OFFERED_FORMATS.includes(format), { message: 'A meeting by circulation cannot be set yet.' })
+    format: z.enum(MeetingFormat)
+        .refine((format) => OFFERED_FORMATS.includes(format), { error: 'A meeting by circulation cannot be set yet.' })
         .nullable().optional(),
     closedToPublic: z.boolean().optional(),
     place: optionalText(200),

@@ -1,5 +1,5 @@
 import { createEnv } from "@t3-oss/env-nextjs";
-import { z } from "zod";
+import * as z from "zod";
 
 export const env = createEnv({
   server: {
@@ -7,16 +7,16 @@ export const env = createEnv({
     // The MCP endpoint the agent researches against. Must be publicly
     // reachable (the MCP connector calls it from Anthropic's side); override
     // to point wakes at a preview deployment.
-    NOTIS_MCP_URL: z.string().url().default("https://opencouncil.gr/mcp"),
+    NOTIS_MCP_URL: z.url().default("https://opencouncil.gr/mcp"),
     // Base URL of the main OpenCouncil app, for the REST proxies (cities, topics).
-    OPENCOUNCIL_BASE_URL: z.string().url().default("https://opencouncil.gr"),
+    OPENCOUNCIL_BASE_URL: z.url().default("https://opencouncil.gr"),
     // Notis's own database. Optional: without it the service runs in the
     // stateless playground-only mode (admin panel shows honest zeros).
-    NOTIS_DATABASE_URL: z.string().url().optional(),
+    NOTIS_DATABASE_URL: z.url().optional(),
     // Main-database connection for the notis_* views, as a login user in the
     // notis_reader role. Optional: without it cookie auth fails closed and
     // the playground hides the real-user picker.
-    MAIN_DATABASE_URL: z.string().url().optional(),
+    MAIN_DATABASE_URL: z.url().optional(),
     // Override for the main app's session cookie name. Defaults per
     // environment; see src/lib/session-cookie.ts.
     MAIN_SESSION_COOKIE_NAME: z.string().optional(),
@@ -26,7 +26,7 @@ export const env = createEnv({
     NOTIS_SERVICE_TOKEN: z.string().min(32).optional(),
     // Webhook (e.g. Discord) for operational alarms — janitor refusals and
     // failures. Optional: without it alarms only reach the logs.
-    NOTIS_ALERT_WEBHOOK_URL: z.string().url().optional(),
+    NOTIS_ALERT_WEBHOOK_URL: z.url().optional(),
     // Bird (WhatsApp). Notis has its OWN webhook subscription and signing
     // key, separate from the main app's — both subscriptions receive all
     // conversation events during rollout and each service filters to the

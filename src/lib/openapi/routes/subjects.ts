@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { LocationType, NonAgendaReason } from '@prisma/client';
 import { registry, sessionAuth, ValidationErrorSchema, ErrorResponseSchema, cityIdParam } from '@/lib/openapi/registry';
 import { MAX_SUBJECT_LIMIT, DEFAULT_SUBJECT_LIMIT } from '@/lib/zod-schemas/subject';

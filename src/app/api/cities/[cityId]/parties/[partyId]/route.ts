@@ -3,7 +3,7 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
 import { getParty, editParty, deleteParty } from '@/lib/db/parties'
 import { withUserAuthorizedToEdit } from '@/lib/auth'
-import { z } from 'zod'
+import * as z from 'zod'
 import { parseFormData } from '@/lib/api/form-data-parser'
 import { partyFormDataSchema } from '@/lib/zod-schemas/party'
 

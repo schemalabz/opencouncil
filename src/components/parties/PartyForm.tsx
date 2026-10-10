@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { partyFormSchema, type PartyFormValues } from "@/lib/zod-schemas/party"
+import { partyFormSchema, type PartyFormInput, type PartyFormValues } from "@/lib/zod-schemas/party"
 import { Button } from "../../components/ui/button"
 import {
     Form,
@@ -43,7 +43,7 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
     const [logoPreview, setLogoPreview] = useState<string | null>(party?.logo || null)
     const t = useTranslations('PartyForm')
 
-    const form = useForm<PartyFormValues>({
+    const form = useForm<PartyFormInput, unknown, PartyFormValues>({
         resolver: zodResolver(partyFormSchema),
         defaultValues: {
             name: party?.name || "",

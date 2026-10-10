@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { decideDelivery } from "@/agent/delivery";
 import { toDecisionEntry } from "@/agent/prompt";
 import { runWake } from "@/agent/runWake";

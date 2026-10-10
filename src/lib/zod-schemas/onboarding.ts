@@ -1,11 +1,11 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 // Input validation for the public onboarding Server Actions
 // (saveNotificationPreferences / savePetition in src/lib/db/notifications.ts).
 //
 // These actions are reachable directly as Server Actions from the onboarding
 // client, so their arguments are untrusted. The schemas below validate the
-// shape of the known public fields. `.passthrough()` is deliberate: the
+// shape of the known public fields. `z.looseObject` is deliberate: the
 // dev-only `seedUser` field is carried through and neutralized separately by
 // sanitizeSeedUser() — it must not be stripped here, or the dev seed route
 // would lose its seed fields. Privilege escalation via `seedUser` is closed in
@@ -23,31 +23,27 @@ const onboardingBaseFields = {
     returnTo: z.string().max(512).optional(),
 };
 
-export const saveNotificationPreferencesSchema = z
-    .object({
-        ...onboardingBaseFields,
-        // Locations are created server-side inside saveNotificationPreferences
-        // (in the preference's transaction), so the client sends their raw
-        // data — text + [lng, lat] — not pre-created ids.
-        locations: z.array(z.object({
-            text: z.string(),
-            coordinates: z.tuple([z.number(), z.number()]),
-        })),
-        topicIds: z.array(z.string()),
-        // Channel consent, as the signup's delivery step records it. Optional
-        // so older callers (the dev seed route) keep the schema defaults; the
-        // signup flow always sends both.
-        notifyByPhone: z.boolean().optional(),
-        notifyByEmail: z.boolean().optional(),
-    })
-    .passthrough();
+export const saveNotificationPreferencesSchema = z.looseObject({
+    ...onboardingBaseFields,
+    // Locations are created server-side inside saveNotificationPreferences
+    // (in the preference's transaction), so the client sends their raw
+    // data — text + [lng, lat] — not pre-created ids.
+    locations: z.array(z.object({
+        text: z.string(),
+        coordinates: z.tuple([z.number(), z.number()]),
+    })),
+    topicIds: z.array(z.string()),
+    // Channel consent, as the signup's delivery step records it. Optional
+    // so older callers (the dev seed route) keep the schema defaults; the
+    // signup flow always sends both.
+    notifyByPhone: z.boolean().optional(),
+    notifyByEmail: z.boolean().optional(),
+});
 
-export const savePetitionSchema = z
-    .object({
-        ...onboardingBaseFields,
-        isResident: z.boolean(),
-        isCitizen: z.boolean(),
-        // The reader's own words for a third relation; null clears it.
-        otherRelation: z.string().trim().max(120).nullable().optional(),
-    })
-    .passthrough();
+export const savePetitionSchema = z.looseObject({
+    ...onboardingBaseFields,
+    isResident: z.boolean(),
+    isCitizen: z.boolean(),
+    // The reader's own words for a third relation; null clears it.
+    otherRelation: z.string().trim().max(120).nullable().optional(),
+});

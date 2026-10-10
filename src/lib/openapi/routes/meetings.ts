@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { AdministrativeBodyType, MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 import { registry, sessionAuth, ValidationErrorSchema, ErrorResponseSchema, cityIdParam } from '../registry';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';

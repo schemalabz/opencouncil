@@ -1,6 +1,6 @@
 import { CityLanguage } from '@prisma/client';
 import { aiChat, AIConfig } from './ai';
-import { z } from 'zod';
+import * as z from 'zod';
 import { jsonSchemaOf } from '@/lib/openapi/jsonSchema';
 import { cityPopulationSchema, type CityPopulationInput } from '@/lib/zod-schemas/cityPopulation';
 import { formatValidationIssues } from '@/lib/utils/validationIssues';
@@ -28,7 +28,7 @@ export interface CityCreatorResult {
 // issue means the answer does not have the shape of the payload.
 const EDITABLE_FIELDS = new Set(['name', 'name_en', 'name_short', 'name_short_en', 'colorHex']);
 
-function isEditableFieldIssue(issue: z.ZodIssue): boolean {
+function isEditableFieldIssue(issue: z.core.$ZodIssue): boolean {
     const [list, , field] = issue.path;
     return issue.path.length === 3
         && (list === 'parties' || list === 'people' || list === 'administrativeBodies')

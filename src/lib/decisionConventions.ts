@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 /**
  * What an administrative body's decision documents state, and how. Extraction
  * reads it to know what the page will look like; the minutes read it to know

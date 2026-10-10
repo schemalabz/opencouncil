@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { registry, sessionAuth, ValidationErrorSchema, ErrorResponseSchema, MessageSchema, cityIdParam } from '../registry';
 import { baseCityFields, createCityFormDataSchema, updateCityFormDataSchema, authorityTypeSchema, cityStatusSchema } from '@/lib/zod-schemas/city';
 

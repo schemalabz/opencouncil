@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
+import * as z from 'zod';
 import { getApiSubjects } from '@/lib/db/subjectsApi';
 import { getRealm } from '@/lib/realm.server';
 import { meetingSubjectListQuerySchema } from '@/lib/zod-schemas/subject';

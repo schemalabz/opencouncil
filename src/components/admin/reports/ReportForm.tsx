@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
+import * as z from 'zod';
 import { startOfMonth, subMonths, endOfMonth, addMonths, subDays, isSameDay, format } from 'date-fns';
 import { monthsBetween } from '@/lib/utils';
 import { Loader2, Download } from 'lucide-react';
@@ -74,7 +74,7 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             cityId: '',
@@ -98,7 +98,7 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
         form.setValue('contractReference', contract?.adam ?? '');
     }
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: z.output<typeof formSchema>) {
         setIsGenerating(true);
         try {
             const response = await fetch('/api/admin/reports', {

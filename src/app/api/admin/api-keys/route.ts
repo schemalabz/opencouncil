@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { createServiceApiKey, getServiceApiKeys } from "@/lib/db/apiKeys";
 import { handleApiError } from "@/lib/api/errors";
-import { z } from "zod";
+import * as z from "zod";
 
 const createKeySchema = z.object({
     name: z.string().min(1).max(100).trim(),

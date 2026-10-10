@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
-import { z } from 'zod';
+import * as z from 'zod';
 
 const revalidateSchema = z.object({
     tags: z.array(z.string()).optional(),

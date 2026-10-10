@@ -1,7 +1,7 @@
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { formatDistanceToNow } from 'date-fns';
 import { el } from 'date-fns/locale';
-import { z } from 'zod';
+import * as z from 'zod';
 
 export function formatConsultationEndDate(endDate: Date, cityTimezone: string, locale: string = 'el-GR'): string {
     // The endDate from database should be interpreted as city timezone, but JavaScript treats it as UTC
@@ -32,7 +32,7 @@ export function formatConsultationEndDate(endDate: Date, cityTimezone: string, l
     return `${formattedDateTime} (${relativeTime})`;
 }
 
-const calendarDaySchema = z.string().date();
+const calendarDaySchema = z.iso.date();
 
 /**
  * Whether a value is a real calendar day written as `2025-12-31`, with no time

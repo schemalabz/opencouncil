@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import * as z from "zod"
 import { cityFormSchema, CITY_DEFAULTS } from "@/lib/zod-schemas/city"
 import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm"
 import { Button } from "@/components/ui/button"
@@ -101,7 +101,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
             .replace(/^-|-$/g, '')  // Remove leading/trailing dashes
     }
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: city?.name || "",
@@ -131,7 +131,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         return () => subscription.unsubscribe()
     }, [form, city?.id])
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: z.output<typeof formSchema>) {
         setIsSubmitting(true)
         setFormError(null)
         const url = city ? `/api/cities/${city.id}` : '/api/cities'

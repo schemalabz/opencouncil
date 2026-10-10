@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { isCalendarDay } from '@/lib/utils/date';
 
 /** Page size of the subject listings when the caller names none. */
@@ -19,7 +19,7 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
  */
 const dateParam = (label: string, endOfDay = false) => z.string()
     .refine(val => DATE_ONLY.test(val) ? isCalendarDay(val) : !isNaN(new Date(val).getTime()),
-        { message: `Invalid '${label}' date` })
+        { error: `Invalid '${label}' date` })
     .transform(val => new Date(endOfDay && isCalendarDay(val) ? `${val}T23:59:59.999Z` : val));
 
 /**
@@ -34,11 +34,11 @@ export const subjectListQuerySchema = z.object({
     // `1.5` as 1, so malformed input would silently return a page of data
     // instead of the documented validation error.
     limit: z.string()
-        .regex(/^\d+$/, { message: `Limit must be a whole number between 1 and ${MAX_SUBJECT_LIMIT}` })
+        .regex(/^\d+$/, { error: `Limit must be a whole number between 1 and ${MAX_SUBJECT_LIMIT}` })
         .optional()
         .transform(val => val ? parseInt(val, 10) : DEFAULT_SUBJECT_LIMIT)
         .refine(val => val >= 1 && val <= MAX_SUBJECT_LIMIT, {
-            message: `Limit must be a whole number between 1 and ${MAX_SUBJECT_LIMIT}`,
+            error: `Limit must be a whole number between 1 and ${MAX_SUBJECT_LIMIT}`,
         }),
     includeUnreleased: z.string()
         .optional()

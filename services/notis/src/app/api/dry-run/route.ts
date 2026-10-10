@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import * as z from "zod";
 import { applyOutcome, runWake } from "@/agent/runWake";
 import { effortSchema, wakeEventSchema, wakeStateSchema } from "@/agent/schemas";
 import { errorResponse, parseJsonBody } from "@/lib/api";
