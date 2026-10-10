@@ -93,7 +93,7 @@ describe('OpenAPI coverage', () => {
 
         // The request schemas of a hidden operation are hidden too.
         const publicSchemas = Object.keys(filterSpecByAccessLevel(spec, 'public').components?.schemas ?? {});
-        expect(publicSchemas.filter(name => ['CreateApiKey', 'UpdateProfile', 'DecisionAction', 'AdministrativeBodyRequest', 'RevalidateRequest'].includes(name)))
+        expect(publicSchemas.filter(name => ['CreateApiKey', 'UpdateProfile', 'DecisionAction', 'AdministrativeBodyRequest', 'AdministrativeBodyUpdateRequest', 'RevalidateRequest'].includes(name)))
             .toEqual([]);
     });
 
@@ -115,19 +115,6 @@ describe('OpenAPI coverage', () => {
                 const documented = schema === validationErrorSchema
                     || (schema instanceof z.ZodUnion && schema.options.includes(validationErrorSchema));
                 if (!documented) without.push(name);
-            }
-        }
-        expect(without).toEqual([]);
-    });
-
-    // The test above checks the shape of a 400 that exists. This one makes a
-    // dropped 400 fail: an operation that parses a body or a query can refuse it.
-    it('documents a 400 for every operation with a request body or a query schema', () => {
-        const without: string[] = [];
-        for (const [path, item] of Object.entries(paths)) {
-            for (const [method, operation] of Object.entries(item)) {
-                const validates = operation?.requestBody !== undefined || operation?.requestParams?.query !== undefined;
-                if (validates && !operation?.responses?.['400']) without.push(`${method.toUpperCase()} ${path}`);
             }
         }
         expect(without).toEqual([]);

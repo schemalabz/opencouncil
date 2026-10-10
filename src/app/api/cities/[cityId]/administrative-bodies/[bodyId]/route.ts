@@ -4,7 +4,7 @@ import { editAdministrativeBody, deleteAdministrativeBody } from '@/lib/db/admin
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
 import { rederiveMeetingsOfBody } from '@/lib/derivation/rederive';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
-import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
+import { updateAdministrativeBodyRequestSchema } from '@/lib/zod-schemas/administrativeBody';
 import { handleApiError } from '@/lib/api/errors';
 
 
@@ -15,13 +15,13 @@ export async function PUT(
     const params = await props.params;
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId });
-        const body = await request.json();
+        // A malformed body throws a ZodError, which the handler below answers 400.
+        const parsed = updateAdministrativeBodyRequestSchema.parse(await request.json());
 
         // Confirming the conventions is its own write: it carries only the
-        // conventions, and the writer parses them and stamps who confirmed them.
-        // A malformed record throws a ZodError, which the handler below answers 400.
-        if (body?.confirmConventions) {
-            const confirmed = await confirmDecisionConventions(params.bodyId, body.decisionConventions);
+        // conventions, and the writer stamps who confirmed them.
+        if (parsed.confirmConventions === true) {
+            const confirmed = await confirmDecisionConventions(params.bodyId, parsed.decisionConventions);
             revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
             // Through after(): a body can hold hundreds of meetings, and the
             // person waits for none of them.
@@ -29,7 +29,6 @@ export async function PUT(
             return NextResponse.json(confirmed);
         }
 
-        const parsed = administrativeBodySchema.parse(body);
         const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
 
         const updatedBody = await editAdministrativeBody(params.bodyId, {

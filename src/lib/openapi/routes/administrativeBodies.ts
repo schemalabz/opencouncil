@@ -1,11 +1,12 @@
 import * as z from 'zod';
 import { sessionAuthRequirement, cityIdParam, editAuthResponses, errorResponseOf, invalidRequestResponse, type Paths } from '@/lib/openapi/registry';
 import { AdministrativeBodyWithSettingsSchema } from '@/lib/openapi/entities';
-import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
+import { administrativeBodySchema, updateAdministrativeBodyRequestSchema } from '@/lib/zod-schemas/administrativeBody';
 
-// The validation schema of both handlers. diavgeiaUnitIds is the
+// The validation schemas of the handlers. diavgeiaUnitIds is the
 // comma-separated text that the handlers split.
 const AdministrativeBodyRequestSchema = administrativeBodySchema.meta({ id: 'AdministrativeBodyRequest' });
+const AdministrativeBodyUpdateRequestSchema = updateAdministrativeBodyRequestSchema.meta({ id: 'AdministrativeBodyUpdateRequest' });
 
 const bodyIdParam = cityIdParam.extend({
     bodyId: z.string().meta({ description: 'Administrative body ID' }),
@@ -50,7 +51,7 @@ export const administrativeBodiesPaths: Paths = {
             requestParams: { path: bodyIdParam },
             requestBody: {
                 required: true,
-                content: { 'application/json': { schema: AdministrativeBodyRequestSchema } },
+                content: { 'application/json': { schema: AdministrativeBodyUpdateRequestSchema } },
             },
             responses: {
                 200: {
