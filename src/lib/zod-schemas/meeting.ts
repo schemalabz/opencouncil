@@ -19,49 +19,75 @@ const nameOverride = (message: string) => z.string()
     .optional()
     .transform(val => (val === '' ? null : val));
 
-/** Free text that an empty string clears. */
-const optionalText = (max: number) => z.string()
-    .trim()
-    .max(max)
+/** Optional free text that an empty string clears. */
+const blankToNull = (field: z.ZodString) => field
     .nullable()
     .optional()
     .transform(val => (val === '' ? null : val));
 
+/**
+ * Field rules of a meeting, shared by the REST routes and the MCP meeting
+ * tools. Each caller decides how a field is optional and how a blank clears
+ * it: REST takes `""`, MCP takes null.
+ */
+export const baseMeetingFields = {
+    name: z.string().min(2, {
+        error: vmsg('meetingNameMin2'),
+    }),
+    name_en: z.string().min(2, {
+        error: vmsg('meetingNameEnMin2'),
+    }),
+    date: isoDateOrDateTime({ error: vmsg('invalidDateTime') })
+        .meta({ description: `Date and time of the meeting. ${ISO_DATE_OR_DATE_TIME_RULE}`, example: '2026-10-05T18:00:00+03:00' }),
+    youtubeUrl: webUrl({
+        error: vmsg('invalidYoutubeUrl'),
+    }),
+    agendaUrl: webUrl({
+        error: vmsg('invalidAgendaUrl'),
+    }),
+    administrativeBodyId: z.string().min(1),
+
+    // The facts of the record (MEETING_RECORD_INPUT_KEYS) and the link to the
+    // postponed meeting that a new meeting replaces.
+    kind: z.enum(MeetingKind),
+    sessionNumber: z.number().int().positive(),
+    scheduleStatus: z.enum(MeetingScheduleStatus),
+    scheduleStatusReason: z.string().trim().max(SCHEDULE_STATUS_REASON_MAX_LENGTH),
+    // By circulation waits for its page, as in the form.
+    format: z.enum(OFFERED_FORMATS, {
+        error: `The format is one of ${OFFERED_FORMATS.join(', ')}. A meeting by circulation cannot be set yet.`,
+    }),
+    closedToPublic: z.boolean(),
+    place: z.string().trim().max(200),
+    postponedFromId: z.string().min(1),
+};
+
 export const meetingSchema = z.object({
     name: nameOverride(vmsg('meetingNameMin2')),
     name_en: nameOverride(vmsg('meetingNameEnMin2')),
-    date: isoDateOrDateTime({ error: vmsg('invalidDateTime') })
-        .meta({ description: `Date and time of the meeting. ${ISO_DATE_OR_DATE_TIME_RULE}`, example: '2026-10-05T18:00:00+03:00' })
-        .transform((str) => new Date(str)),
-    youtubeUrl: webUrl({
-        error: vmsg('invalidYoutubeUrl'),
-    }).optional().or(z.literal("")),
-    agendaUrl: webUrl({
-        error: vmsg('invalidAgendaUrl'),
-    }).optional().or(z.literal("")),
+    date: baseMeetingFields.date.transform((str) => new Date(str)),
+    youtubeUrl: baseMeetingFields.youtubeUrl.optional().or(z.literal("")),
+    agendaUrl: baseMeetingFields.agendaUrl.optional().or(z.literal("")),
     // Optional on create: when omitted, the POST handler auto-generates a
     // unique ID from the meeting date. The PUT handler identifies the meeting
     // by the URL path param and ignores this field.
     meetingId: z.string().min(1, {
         error: vmsg('meetingIdNotEmpty'),
     }).optional(),
-    administrativeBodyId: z.string().nullable().optional(),
+    administrativeBodyId: baseMeetingFields.administrativeBodyId.nullable().optional().or(z.literal("")),
     processAgenda: z.boolean().optional().default(false),
 
     // The lifecycle of the meeting. An omitted field keeps its value on
     // update. On create the database defaults apply: the kind and the format
     // stay null until somebody states them or reads them from the invitation.
-    kind: z.enum(MeetingKind).nullable().optional(),
-    scheduleStatus: z.enum(MeetingScheduleStatus).optional(),
-    scheduleStatusReason: optionalText(SCHEDULE_STATUS_REASON_MAX_LENGTH),
-    sessionNumber: z.number().int().positive().nullable().optional(),
-    // By circulation waits for its page, as in the form and MCP.
-    format: z.enum(MeetingFormat)
-        .refine((format) => OFFERED_FORMATS.includes(format), { error: 'A meeting by circulation cannot be set yet.' })
-        .nullable().optional(),
-    closedToPublic: z.boolean().optional(),
-    place: optionalText(200),
-    postponedFromId: z.string().min(1).nullable().optional(),
+    kind: baseMeetingFields.kind.nullable().optional(),
+    scheduleStatus: baseMeetingFields.scheduleStatus.optional(),
+    scheduleStatusReason: blankToNull(baseMeetingFields.scheduleStatusReason),
+    sessionNumber: baseMeetingFields.sessionNumber.nullable().optional(),
+    format: baseMeetingFields.format.nullable().optional(),
+    closedToPublic: baseMeetingFields.closedToPublic.optional(),
+    place: blankToNull(baseMeetingFields.place),
+    postponedFromId: baseMeetingFields.postponedFromId.nullable().optional(),
     continuationOfId: z.string().min(1).nullable().optional(),
 });
 
@@ -102,9 +128,9 @@ export const meetingFormSchema = meetingSchema.extend({
     // the day already has a meeting. A typed id is sent as it is.
     meetingId: z.string().optional(),
     // The form always holds these. Null is «Από την πρόσκληση».
-    kind: meetingSchema.shape.kind.unwrap(),
-    scheduleStatus: meetingSchema.shape.scheduleStatus.unwrap(),
-    closedToPublic: meetingSchema.shape.closedToPublic.unwrap(),
+    kind: baseMeetingFields.kind.nullable(),
+    scheduleStatus: baseMeetingFields.scheduleStatus,
+    closedToPublic: baseMeetingFields.closedToPublic,
     // The form holds the stored format, by circulation too, and does not send
     // back a format that no form offers.
     format: z.enum(MeetingFormat).nullable(),

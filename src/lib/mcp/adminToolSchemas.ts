@@ -1,19 +1,29 @@
 import * as z from 'zod';
-import { AuthorityType, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
-import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH, type MEETING_RECORD_INPUT_KEYS } from '@/lib/meetingLifecycleRules';
+import { AuthorityType } from '@prisma/client';
+import type { MEETING_RECORD_INPUT_KEYS } from '@/lib/meetingLifecycleRules';
 import { STARTABLE_MEETING_TASKS } from '@/lib/tasks/startableTasks';
 import { baseCityFields, cityIdSchema } from '@/lib/zod-schemas/city';
+import { baseMeetingFields } from '@/lib/zod-schemas/meeting';
+import { isoZonedDateTime } from '@/lib/zod-schemas/dates';
 import { webUrl } from '@/lib/zod-schemas/primitives';
 
 /**
  * The input schemas of the admin tools. adminTools.ts registers them, and
  * adminData.ts takes their output types as its arguments, so a field exists in
- * one place only. They are in their own module because the tests stub
- * adminData.ts as a whole, and adminTools.ts imports adminData.ts.
+ * one place only. They are in their own module so that they load without the
+ * write layer: adminData.ts and adminTools.ts pull in server-only, Prisma and
+ * env.mjs, and a test of the field rules needs none of them.
+ *
+ * The meeting tools build on baseMeetingFields, so a meeting that the REST
+ * API takes, the tools take too, with the same link and body rules. The date
+ * is stricter: REST also takes a date-only value, which the write reads as
+ * UTC midnight. An agent must give the start time of the meeting.
  */
 
-const isoDateTime = z.iso.datetime({ offset: true })
-    .describe('ISO 8601 date and time with a UTC offset, e.g. "2026-10-05T18:00:00+03:00"');
+const meetingDateTime = isoZonedDateTime({
+    error: 'dateTime needs a date, a time and a UTC offset, e.g. 2026-11-05T18:00+02:00',
+}).describe('Date and start time of the meeting with a UTC offset, e.g. "2026-11-05T18:00+02:00". '
+    + 'Seconds are optional. A date without a time, or a time without an offset, is refused');
 
 /**
  * The record of a meeting, as the municipality announces it. Both meeting
@@ -23,40 +33,40 @@ const isoDateTime = z.iso.datetime({ offset: true })
  * the public sees.
  */
 const meetingRecordInput = {
-    kind: z.enum(MeetingKind).nullable().optional()
+    kind: baseMeetingFields.kind.nullable().optional()
         .describe('The kind that the invitation prints: regular (Τακτική), urgent (Έκτακτη), accountability '
             + '(Ειδική Λογοδοσίας), activityReport, budget, presidencyElection. Null (the default on create): the record states no single kind, e.g. the invitation is not read yet. '
             + 'The four special kinds (accountability, activityReport, budget, presidencyElection) belong to a council only'),
-    sessionNumber: z.number().int().positive().nullable().optional()
+    sessionNumber: baseMeetingFields.sessionNumber.nullable().optional()
         .describe('The session number that the invitation prints, e.g. 3 for «3η Τακτική». Never compute it'),
-    scheduleStatus: z.enum(MeetingScheduleStatus).optional()
+    scheduleStatus: baseMeetingFields.scheduleStatus.optional()
         .describe('scheduled, postponed or cancelled. A postponed or cancelled meeting stays public with its status'),
-    scheduleStatusReason: z.string().max(SCHEDULE_STATUS_REASON_MAX_LENGTH).nullable().optional()
+    scheduleStatusReason: baseMeetingFields.scheduleStatusReason.nullable().optional()
         .describe('Why the meeting was postponed or cancelled, as the municipality says it'),
-    format: z.enum(OFFERED_FORMATS).nullable().optional().describe('How the meeting takes place. Null (the default on create): not stated yet, the meeting is expected as usual'),
-    closedToPublic: z.boolean().optional()
+    format: baseMeetingFields.format.nullable().optional().describe('How the meeting takes place. Null (the default on create): not stated yet, the meeting is expected as usual'),
+    closedToPublic: baseMeetingFields.closedToPublic.optional()
         .describe('The council decided to meet behind closed doors. Readers see this fact. The meeting is still recorded and transcribed'),
-    place: z.string().max(200).nullable().optional()
+    place: baseMeetingFields.place.nullable().optional()
         .describe('Where the meeting takes place, when it is not the usual hall of the body'),
 } satisfies Record<(typeof MEETING_RECORD_INPUT_KEYS)[number], z.ZodType>;
 
 export const createMeetingToolInput = z.object({
     cityId: z.string().min(1),
-    name: z.string().min(2).optional()
+    name: baseMeetingFields.name.optional()
         .describe('Omit it: the site derives the title from the kind and the session number, '
             + 'and shows the body and the date next to it. Set it only for a meeting that needs '
             + 'a special name, in the language of the city'),
-    name_en: z.string().min(2).optional()
+    name_en: baseMeetingFields.name_en.optional()
         .describe('The English form of a special name. Omit it, as name'),
-    dateTime: isoDateTime,
-    youtubeUrl: webUrl().optional().describe('URL of the meeting video'),
-    agendaUrl: webUrl().optional().describe('URL of the agenda PDF'),
-    administrativeBodyId: z.string().min(1).optional()
+    dateTime: meetingDateTime,
+    youtubeUrl: baseMeetingFields.youtubeUrl.optional().describe('URL of the meeting video'),
+    agendaUrl: baseMeetingFields.agendaUrl.optional().describe('URL of the agenda PDF'),
+    administrativeBodyId: baseMeetingFields.administrativeBodyId.optional()
         .describe('The body that meets (council, committee, community). See get_city'),
     processAgenda: z.boolean().default(false)
         .describe('Also queue the task that extracts the subjects from the agenda PDF. Needs agendaUrl'),
     ...meetingRecordInput,
-    postponedFromId: z.string().min(1).optional()
+    postponedFromId: baseMeetingFields.postponedFromId.optional()
         .describe('The id of the postponed meeting that this new meeting replaces. When this meeting '
             + 'is released, the postponed meeting is no longer public'),
 });
@@ -65,16 +75,16 @@ export type CreateMeetingToolArgs = z.output<typeof createMeetingToolInput>;
 export const updateMeetingToolInput = z.object({
     cityId: z.string().min(1),
     meetingId: z.string().min(1),
-    name: z.string().min(2).nullable().optional()
+    name: baseMeetingFields.name.nullable().optional()
         .describe('A special name that replaces the derived title, in the language of the city. '
             + 'Omit it to keep the name as it is. Never send back the name that get_meeting returns: '
             + 'that is the derived label, and the site ignores it here'),
-    name_en: z.string().min(2).nullable().optional()
+    name_en: baseMeetingFields.name_en.nullable().optional()
         .describe('The English form of a special name. Omit it, as name'),
-    dateTime: isoDateTime.optional(),
-    youtubeUrl: webUrl().nullable().optional(),
-    agendaUrl: webUrl().nullable().optional(),
-    administrativeBodyId: z.string().min(1).nullable().optional(),
+    dateTime: meetingDateTime.optional(),
+    youtubeUrl: baseMeetingFields.youtubeUrl.nullable().optional(),
+    agendaUrl: baseMeetingFields.agendaUrl.nullable().optional(),
+    administrativeBodyId: baseMeetingFields.administrativeBodyId.nullable().optional(),
     ...meetingRecordInput,
 });
 export type UpdateMeetingToolArgs = z.output<typeof updateMeetingToolInput>;
