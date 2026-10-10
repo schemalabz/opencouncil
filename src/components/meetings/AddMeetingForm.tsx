@@ -36,7 +36,7 @@ import { meetingIdForRequest, meetingRequestFields, postponementCandidatesUrl } 
 import { useToast } from "@/hooks/use-toast"
 
 // The form has no name fields: the name of a meeting is derived (src/lib/meetingName.ts).
-const formSchema = z.object({
+export const formSchema = z.object({
     date: z.date({
         error: "Meeting date is required.",
     }),
