@@ -22,6 +22,7 @@ const DIR = path.join(__dirname);
 const STAGE_OF_FILE: Record<string, DerivationStage> = {
     'deriveMeetingFacts.ts': 'read',
     'resolveSession.ts': 'resolve',
+    'rankSources.ts': 'resolve',
     'placeEvents.ts': 'place',
     'replayAttendance.ts': 'presence',
     'deriveVotes.ts': 'votes',

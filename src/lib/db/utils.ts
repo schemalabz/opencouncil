@@ -10,6 +10,7 @@ import { getPartiesForCity } from "./parties";
 import { getTopics } from "./topics";
 import { getCity } from "./cities";
 import { getCouncilMeetingDirect } from "./meetings";
+import { getMeetingAgendaItems } from "./meetingFactSources";
 import { FixTranscriptRequest, RequestOnTranscript, RosterPerson, SummarizeRequest, SummarizeResult, TranscribeRequest, Subject } from "../apiTypes";
 import { buildSpeakerRoster } from "@/lib/tasks/speakerRoster";
 import prisma from "./prisma";
@@ -122,9 +123,14 @@ export async function getRequestOnTranscriptRequestBody(
  * every segment, the task returns speaker hints alongside the text corrections.
  */
 export async function getFixTranscriptRequestBody(councilMeetingId: string, cityId: string): Promise<Omit<FixTranscriptRequest, 'callbackUrl'>> {
-    // Speaker hints judge each diarization speaker on its own, so two tags the
-    // voiceprint matched to one person must not reach the task as one speaker.
-    return getRequestOnTranscriptRequestBody(councilMeetingId, cityId, { keepSpeakerTagsApart: true });
+    const [baseRequest, agendaItems] = await Promise.all([
+        // Speaker hints judge each diarization speaker on its own, so two tags the
+        // voiceprint matched to one person must not reach the task as one speaker.
+        getRequestOnTranscriptRequestBody(councilMeetingId, cityId, { keepSpeakerTagsApart: true }),
+        // The items the meeting-facts pass anchors its statements to; empty before the agenda is processed.
+        getMeetingAgendaItems(cityId, councilMeetingId),
+    ]);
+    return { ...baseRequest, agendaItems };
 }
 
 let getAgendaItemIndex = (subject: DbSubject): number | "BEFORE_AGENDA" | "OUT_OF_AGENDA" | null => {

@@ -1,10 +1,11 @@
-import { readDerivationRows } from '@/lib/db/derivationFacts';
+import { readDerivationRows, readUtteranceSpeakers } from '@/lib/db/derivationFacts';
 import { outForOwnVote, pageStatementsOf } from './anchors';
+import { isMeetingFactsReading, sourceFactsFromReading, utteranceIdsOfReading } from './sources';
 import { CONVENTION_FIELDS, isDecisionConventions, type RollCallLayout } from '@/lib/decisionConventions';
 import { discussionOrderKeys, orderedMinutesSubjects } from '@/lib/minutes/builders';
 import { isMayorRole, isRoleActiveAt, mayorIsMemberOf } from '@/lib/utils/roles';
 import type { VoteType } from '@prisma/client';
-import type { DerivationInput, DocumentFacts, NameMatch, VoteTally } from './types';
+import type { DerivationInput, DocumentFacts, NameMatch, SourceFacts, VoteTally } from './types';
 
 const VOTE_TYPES: VoteType[] = ['FOR', 'AGAINST', 'ABSTAIN', 'PRESENT', 'DID_NOT_VOTE'];
 /** «ΑΠΟΦΑΣΙΖΕΙ»: a body deciding, also printed with spaced letters («Α π ο φ α σ ί ζ ε ι»). A mayor's own decision says «ΑΠΟΦΑΣΙΖΟΥΜΕ», which does not match. */
@@ -137,9 +138,18 @@ export function documentFactsFromDecision(d: {
     };
 }
 
+/**
+ * Which stored readings the derivation reads: a reading counts as soon as it is
+ * stored. One definition, so the loader and the page agree on what counts.
+ */
+export function readingCounts(row: { source: string; status: string; reading: unknown }): boolean {
+    if (!isMeetingFactsReading(row.reading)) return false;
+    return row.status !== 'uploaded';
+}
+
 /** Everything the derivation reads, in the shape it reads it. The only Prisma reads of the module. */
 export async function loadDerivationInput(cityId: string, meetingId: string): Promise<DerivationInput> {
-    const { meeting, linkedUtterances, rollCall, events, people, subjectIdsWithStoredVotes } = await readDerivationRows(cityId, meetingId);
+    const { meeting, linkedUtterances, rollCall, events, people, factSources, parties, subjectIdsWithStoredVotes } = await readDerivationRows(cityId, meetingId);
     // The same walk the minutes make: record subjects, discussion order, withdrawn
     // dropped. An event anchored «after item 3» is placed by position, so a set or
     // an order of its own would put rows on subjects other than the ones printed.
@@ -150,10 +160,29 @@ export async function loadDerivationInput(cityId: string, meetingId: string): Pr
     // The office has no flag of its own in the roster; it is the role's title on the body.
     const secretary = people.find(p => p.roles.some(r => r.name === 'Γραμματέας' && !!r.administrativeBodyId && r.administrativeBodyId === meeting.administrativeBodyId && isRoleActiveAt(r, meeting.dateTime)));
     const rosterPersonIds = new Set(people.map(p => p.id));
+    const subjects = ordered.map(s => ({ id: s.id, name: s.name, agendaItemIndex: s.agendaItemIndex, nonAgendaReason: s.nonAgendaReason, decisionNumber: s.decision?.decisionNumber ?? null }));
+
+    // Each person's party on the meeting date, both ways: for a party's answer on
+    // a vote («Εμείς κατά» is the speaker's party's members in the room).
+    const partyByPerson = new Map<string, string | null>();
+    const partyMembers = new Map<string, string[]>();
+    for (const p of people) {
+        const partyId = p.roles.find(r => r.partyId && isRoleActiveAt(r, meeting.dateTime))?.partyId ?? null;
+        partyByPerson.set(p.id, partyId);
+        if (partyId) partyMembers.set(partyId, [...(partyMembers.get(partyId) ?? []), p.id]);
+    }
+    const partyIdByName = new Map<string, string>();
+    for (const party of parties) { partyIdByName.set(party.name, party.id); partyIdByName.set(party.name_short, party.id); }
+    const counted = factSources.filter(readingCounts);
+    const speakerPersonByUtterance = await readUtteranceSpeakers([...new Set(counted.flatMap(f => utteranceIdsOfReading(f.reading)))]);
+    const sourceCtx = { subjects, rosterPersonIds, speakerPersonByUtterance, partyByPerson, partyIdByName };
+    const sources: SourceFacts[] = counted.map(f => sourceFactsFromReading(f.source, f.reading, sourceCtx));
+
     return {
         cityId, meetingId,
-        subjects: ordered.map(s => ({ id: s.id, name: s.name, agendaItemIndex: s.agendaItemIndex, nonAgendaReason: s.nonAgendaReason, decisionNumber: s.decision?.decisionNumber ?? null })),
+        subjects,
         rollCall, events, subjectIdsWithStoredVotes,
+        sources, partyMembers,
         documents: ordered.filter(s => s.decision).map(s => documentFactsFromDecision(s.decision!, rosterPersonIds)),
         conventions: isDecisionConventions(conventions) ? conventions : null,
         bodyType: meeting.administrativeBody?.type ?? null,

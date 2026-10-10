@@ -1,5 +1,6 @@
-import { S3Client, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand, ObjectCannedACL } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand, ObjectCannedACL } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { v4 as uuidv4 } from 'uuid'
 import { env } from '@/env.mjs'
 import { isS3NotFound } from '@opencouncil/subject-images/store'
@@ -84,6 +85,33 @@ export async function uploadFile(
     }
 }
 
+/**
+ * Store a file nobody may read without asking the app: the object is private,
+ * and the app serves it through a route that checks who asks, or hands the
+ * task server a short-lived signed URL. For the attendance sheets, which carry
+ * councillors' signatures.
+ */
+export async function uploadPrivateFile(
+    file: File,
+    prefix: string,
+): Promise<UploadResult> {
+    return uploadFile(file, { prefix, acl: 'private' as ObjectCannedACL })
+}
+
+/** A URL that reads one private object for `expiresIn` seconds. */
+export async function presignedGetUrl(key: string, expiresIn: number = 900): Promise<string> {
+    const command = new GetObjectCommand({ Bucket: env.DO_SPACES_BUCKET, Key: key })
+    return await getSignedUrl(s3Client, command, { expiresIn })
+}
+
+/** One private object's bytes and media type, for a route that serves it to an authorized reader. */
+export async function readPrivateFile(key: string): Promise<{ body: Uint8Array; contentType: string | null }> {
+    const object = await s3Client.send(new GetObjectCommand({ Bucket: env.DO_SPACES_BUCKET, Key: key }))
+    const body = await object.Body?.transformToByteArray()
+    if (!body) throw new Error(`Empty object: ${key}`)
+    return { body, contentType: object.ContentType ?? null }
+}
+
 // Check if file exists
 export async function fileExists(bucket: string, key: string): Promise<boolean> {
     try {
@@ -122,6 +150,5 @@ export async function generatePresignedUrl(
         ACL: 'public-read',
     })
 
-    const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner')
-    return await getSignedUrl(s3Client as any, command as any, { expiresIn })
+    return await getSignedUrl(s3Client, command, { expiresIn })
 }

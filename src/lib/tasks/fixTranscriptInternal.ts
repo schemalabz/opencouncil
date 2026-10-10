@@ -14,6 +14,7 @@ import { FixTranscriptResult } from '@/lib/apiTypes';
 import { getFixTranscriptRequestBody } from '@/lib/db/utils';
 import { startTask } from '@/lib/tasks/tasks';
 import { applySpeakerHints } from './speakerHints';
+import { storeTranscriptFacts } from './meetingFacts';
 
 export const requestFixTranscriptInternal = async (councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
     const requestBody = await getFixTranscriptRequestBody(councilMeetingId, cityId);
@@ -111,6 +112,18 @@ export const handleFixTranscriptResult = async (taskId: string, result: FixTrans
             await applySpeakerHints(taskId, result.speakerHints);
         } catch (error) {
             console.error(`Failed to apply speaker hints of task ${taskId}; the text corrections stand:`, error);
+        }
+    }
+
+    // What the transcript states about the meeting, read in the same run. The
+    // same rule as the hints: absent from an older task server or a failed pass,
+    // and never a reason to fail the task.
+    if (result.meetingFacts) {
+        try {
+            const task = await prisma.taskStatus.findUnique({ where: { id: taskId }, select: { cityId: true, councilMeetingId: true, version: true } });
+            if (task) await storeTranscriptFacts(task.cityId, task.councilMeetingId, result.meetingFacts, { taskId, readerVersion: task.version != null ? String(task.version) : null });
+        } catch (error) {
+            console.error(`Failed to store the meeting facts of task ${taskId}; the text corrections stand:`, error);
         }
     }
 };
