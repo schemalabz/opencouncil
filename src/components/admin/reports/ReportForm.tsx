@@ -21,7 +21,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { CityCombobox } from '@/components/cities/CityCombobox';
 import { useToast } from '@/hooks/use-toast';
 
-const formSchema = z.object({
+export const formSchema = z.object({
     cityId: z.string().min(1, 'Επιλέξτε δήμο'),
     dateRange: z.object({
         from: z.date(),

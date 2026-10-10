@@ -42,7 +42,7 @@ function uploadBodyId(value: string | undefined): string | undefined {
     return value && value !== 'none' ? value : undefined
 }
 
-const formSchema = z.object({
+export const formSchema = z.object({
     date: z.date({
         error: "Meeting date is required.",
     }),
