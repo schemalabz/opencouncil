@@ -3,7 +3,7 @@
 import { MapPin, Clock, Users, Filter } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { Realm } from '@prisma/client'
-import { env } from '@/env.mjs'
+import { publicEnv } from '@/lib/publicEnv'
 import { getRealmDomain } from '@/lib/realm'
 import BrowserFrame from './BrowserFrame'
 import { DEMO_MAP_VIEWS, DEMO_SCENARIO_BY_REALM } from './config'
@@ -17,7 +17,7 @@ const SUBJECT_POSITIONS = [
 ]
 
 function getStaticMapUrl(scenario: DemoScenario, width: number, height: number): string {
-    const token = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
+    const token = publicEnv.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
     const { lng, lat, zoom } = DEMO_MAP_VIEWS[scenario]
     return `https://api.mapbox.com/styles/v1/mapbox/light-v11/static/${lng},${lat},${zoom},0/${width}x${height}@2x?access_token=${token}`
 }

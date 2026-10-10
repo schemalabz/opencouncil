@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import { env } from '@/env.mjs'
+import { publicEnv } from '@/lib/publicEnv'
 import { AlertTriangle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { STATIC_MAP_STYLE, staticMapOverlayUrl, type StaticMapFeature } from '@/lib/map/staticMap'
@@ -21,7 +21,7 @@ function getStaticMapUrl(
 
     // Fallback: center-based static image without overlay
     const [lng, lat] = center
-    return `https://api.mapbox.com/styles/v1/${STATIC_MAP_STYLE}/static/${lng},${lat},6,0/${width}x${height}@2x?access_token=${env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}`
+    return `https://api.mapbox.com/styles/v1/${STATIC_MAP_STYLE}/static/${lng},${lat},6,0/${width}x${height}@2x?access_token=${publicEnv.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}`
 }
 
 interface MapFallbackProps {
