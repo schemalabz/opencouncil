@@ -11,9 +11,8 @@ interface ConsultationCommentEmailData {
     consultationTitle: string;
     entityType: 'chapter' | 'article' | 'geoset' | 'geometry';
     entityId: string;
-    entityTitle: string;
-    entityNumber?: string;
-    parentGeosetName?: string;
+    /** The place or section, named as the screens name it (entityLabel). */
+    entityLabel: string;
     commentBody: string;
     consultationUrl: string;
     municipalityEmail: string;
@@ -27,32 +26,14 @@ export async function sendConsultationCommentEmail(data: ConsultationCommentEmai
         consultationTitle,
         entityType,
         entityId,
-        entityTitle,
-        entityNumber,
-        parentGeosetName,
+        entityLabel,
         commentBody,
         consultationUrl,
         municipalityEmail,
         ccEmails
     } = data;
 
-    // Get the entity reference for the subject line
-    const getEntityReference = () => {
-        switch (entityType) {
-            case 'chapter':
-                return `το κεφάλαιο ${entityNumber ? `${entityNumber} ` : ''}${entityTitle}`;
-            case 'article':
-                return `το άρθρο ${entityNumber ? `${entityNumber} ` : ''}${entityTitle}`;
-            case 'geoset':
-            case 'geometry':
-                return `την τοποθεσία "${entityTitle}"`;
-            default:
-                return `το στοιχείο ${entityTitle}`;
-        }
-    };
-
-    const entityReference = getEntityReference();
-    const subject = `Διαβούλευση "${consultationTitle}" (${entityReference})`;
+    const subject = `Διαβούλευση "${consultationTitle}" (${entityLabel})`;
 
     // Render the email HTML
     const emailHtml = await render(
@@ -62,9 +43,7 @@ export async function sendConsultationCommentEmail(data: ConsultationCommentEmai
             consultationTitle,
             entityType,
             entityId,
-            entityTitle,
-            entityNumber,
-            parentGeosetName,
+            entityLabel,
             commentBody,
             consultationUrl
         })

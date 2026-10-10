@@ -1,515 +1,544 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
-import { usePathname, useRouter } from "@/i18n/routing";
-import { stripLocalePrefix } from "@/i18n/config";
-import { MapPin, Map, FileText, MessageSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Credenza, CredenzaContent, CredenzaHeader, CredenzaTitle, CredenzaDescription, CredenzaBody } from "@/components/ui/credenza";
-import ConsultationHeader from "./ConsultationHeader";
-import ConsultationMap from "./ConsultationMap";
-import ConsultationDocument from "./ConsultationDocument";
-import ViewToggleButton from "./ViewToggleButton";
-import CommentsOverviewSheet from "./CommentsOverviewSheet";
-import MarkdownContent from "./MarkdownContent";
-
+import { ChevronLeft } from "lucide-react";
 import type { Realm } from "@prisma/client";
-import { RegulationData, CurrentUser } from "./types";
-import { ConsultationCommentWithUpvotes, ConsultationWithStatus } from "@/lib/db/consultations";
+import type { CityWithGeometry } from "@/lib/db/cities";
+import type { ConsultationCommentWithUpvotes, ConsultationWithStatus } from "@/lib/db/consultations";
+import { formatClockTime, formatDate } from "@/lib/formatters/time";
+import type { Location } from "@/lib/types/onboarding";
+import ConsultationBar from "./ConsultationBar";
+import ConsultationMap from "./ConsultationMap";
+import { computeAddressLookup } from "./addressLookup";
+import { captureConsultationAddressSearched, captureConsultationEntityOpened, type ConsultationEntityOpenSource } from "./analytics";
 import {
     buildConsultationUrl,
-    ConsultationEntityType,
-    ConsultationUrlState,
-    ConsultationView,
     getConsultationViewForEntityType,
-    isConsultationEntityCompatibleWithView,
     resolveConsultationEntityType,
     resolveConsultationUrlState,
+    type ConsultationView,
 } from "./consultationUrl";
-
-interface Consultation {
-    id: string;
-    name: string;
-    jsonUrl: string;
-    endDate: Date;
-    isActive: boolean;
-    isActiveComputed: boolean;
-}
+import { describeEntity, extractGeoSets, findExplainingCard } from "./entityDisplay";
+import type { ConfirmedPendingComment, CurrentUser, RegulationData } from "./types";
+import CommentsView from "./views/CommentsView";
+import CommentView from "./views/CommentView";
+import HomeView from "./views/HomeView";
+import MiniMap from "./views/MiniMap";
+import PlaceView from "./views/PlaceView";
+import PlanView from "./views/PlanView";
+import StreetView from "./views/StreetView";
+import StudyView from "./views/StudyView";
+import { navigateTo, ViewLink } from "./views/ui";
 
 interface ConsultationViewerProps {
+    /** The site's header. It tops every screen but the phone's full-screen map. */
+    header?: ReactNode;
+    /** What opening a comment's confirmation link did, when the page was opened from one. */
+    pendingConfirmation?: ConfirmedPendingComment | null;
     consultation: ConsultationWithStatus;
     regulationData: RegulationData | null;
-    baseUrl: string; // Base URL for the consultation page (for permalinks)
     comments: ConsultationCommentWithUpvotes[];
     currentUser?: CurrentUser;
     consultationId: string;
     cityId: string;
     /** the request's realm, resolved server-side — picks the support phone number */
     realm: Realm;
-    cityName?: string;
+    /** "Δήμος Χ" as written by the city */
+    municipalityName?: string;
     cityLogoUrl?: string | null;
 }
 
+interface Place {
+    view: ConsultationView;
+    entityId: string | null;
+}
+
+/** The computer layout (map beside a panel) starts where the side panel leaves the map enough room. */
+const DESKTOP_QUERY = '(min-width: 1024px)';
+
+/** `null` until mounted: the server cannot know the screen, and the map must mount only once. */
+function useIsDesktop(): boolean | null {
+    const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+    useEffect(() => {
+        const media = window.matchMedia(DESKTOP_QUERY);
+        const update = () => setIsDesktop(media.matches);
+        update();
+        media.addEventListener('change', update);
+        return () => media.removeEventListener('change', update);
+    }, []);
+    return isDesktop;
+}
+
+/** The height of an element, kept current; the phone's map keeps its zooms clear of the place card. */
+function useElementHeight(): [(element: HTMLElement | null) => void, number] {
+    const [height, setHeight] = useState(0);
+    const observer = useRef<ResizeObserver | null>(null);
+    const ref = useCallback((element: HTMLElement | null) => {
+        observer.current?.disconnect();
+        if (!element) {
+            setHeight(0);
+            return;
+        }
+        observer.current = new ResizeObserver(([entry]) => setHeight(entry.contentRect.height));
+        observer.current.observe(element);
+    }, []);
+    return [ref, height];
+}
+
+function isLocation(value: unknown): value is Location {
+    if (!value || typeof value !== 'object') return false;
+    const { text, coordinates } = value as Partial<Location>;
+    return typeof text === 'string'
+        && Array.isArray(coordinates) && coordinates.length === 2
+        && coordinates.every(n => typeof n === 'number' && Number.isFinite(n));
+}
+
+function isFailedConfirmation(value: unknown): value is ConfirmedPendingComment {
+    if (!value || typeof value !== 'object') return false;
+    const { pendingId, entityId, result } = value as Partial<ConfirmedPendingComment>;
+    return typeof pendingId === 'string' && typeof entityId === 'string' && result === 'unavailable';
+}
+
+const href = (view: ConsultationView, entityId?: string | null) => buildConsultationUrl('', { view, entityId });
+
+/**
+ * A consultation as a few plain screens: where do you live, what changes on your street, the map,
+ * the comment form, the plan in two minutes, what others said, and the full study. The screen is
+ * the URL's `view` (with `entity` for a place or a section); the reader's address stays in this tab.
+ */
 export default function ConsultationViewer({
+    header,
+    pendingConfirmation = null,
     consultation,
     regulationData,
-    baseUrl,
     comments,
     currentUser,
     consultationId,
     cityId,
     realm,
-    cityName,
-    cityLogoUrl
+    municipalityName,
+    cityLogoUrl,
 }: ConsultationViewerProps) {
-    const router = useRouter();
-    const pathname = usePathname();
     const searchParams = useSearchParams();
+    const isDesktop = useIsDesktop();
 
-    const defaultView: ConsultationView = regulationData?.defaultView || "document";
+    const hasGuide = !!(regulationData?.addressLookup || regulationData?.overview?.length);
+    const defaultView: ConsultationView = hasGuide ? 'home' : (regulationData?.defaultView ?? 'document');
+    const urlState = useMemo(
+        () => resolveConsultationUrlState({ pathname: '', defaultView, regulationData, searchParams }),
+        [defaultView, regulationData, searchParams]
+    );
 
-    // `pathname` from the i18n helpers carries no locale prefix, and the i18n
-    // router adds the prefix back on each navigation. `window.location.pathname`
-    // does carry the prefix, so strip it. Without this step the router builds
-    // `/lat/lat/...`, which is a 404 on every locale but the default one.
-    const getLivePathname = useCallback(() => {
-        if (typeof window !== "undefined" && window.location.pathname) {
-            return stripLocalePrefix(window.location.pathname);
-        }
-
-        return pathname;
-    }, [pathname]);
-
-    const getResolvedUrlState = useCallback((): ConsultationUrlState => {
-        return resolveConsultationUrlState({
-            pathname: getLivePathname(),
+    // Old links name a place in the hash, or a place with the wrong view: rewrite them in place.
+    useEffect(() => {
+        const live = resolveConsultationUrlState({
+            pathname: '',
             defaultView,
             regulationData,
             searchParams,
-            liveSearch: typeof window !== "undefined" ? window.location.search : undefined,
-            liveHash: typeof window !== "undefined" ? window.location.hash : undefined,
+            liveSearch: window.location.search,
+            liveHash: window.location.hash,
         });
-    }, [defaultView, getLivePathname, regulationData, searchParams]);
+        if (live.needsCanonicalUrl) navigateTo(live.canonicalUrl, { replace: true });
+    }, [defaultView, regulationData, searchParams]);
 
-    const [currentView, setCurrentView] = useState<ConsultationView>(() => getResolvedUrlState().view);
-    const [currentEntityId, setCurrentEntityId] = useState<string | null>(() => getResolvedUrlState().entityId);
+    // The screen before this one, for back links that return where the reader came from.
+    const [trail, setTrail] = useState<{ current: Place; previous: Place | null }>({
+        current: { view: urlState.view, entityId: urlState.entityId },
+        previous: null,
+    });
+    if (trail.current.view !== urlState.view || trail.current.entityId !== urlState.entityId) {
+        setTrail({
+            current: { view: urlState.view, entityId: urlState.entityId },
+            previous: trail.current.view !== urlState.view ? trail.current : trail.previous,
+        });
+    }
+    const previous = trail.previous;
 
-    // Track which chapters and articles are expanded
-    const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
-    const [expandedArticles, setExpandedArticles] = useState<Set<string>>(new Set());
-
-    // Track comments overview sheet state
-    const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
-
-    // Track whether the map summary card has been dismissed.
-    const [showMapSummary, setShowMapSummary] = useState(() => !getResolvedUrlState().entityId);
-
-    // Track whether any drawer is open in the map view (for ViewToggleButton positioning on mobile)
-    const [mapDrawerOpen, setMapDrawerOpen] = useState(false);
-
-    // Keep local state aligned with the committed URL and normalize old hash links.
+    // A confirmation link's result shows on its comment's screen only, and only until the reader leaves it.
+    // A link that could not publish is kept in this tab instead, so that the reader can try it again later.
+    const retryKey = `oc:consultation:${consultationId}:pending-retry`;
+    const [confirmation, setConfirmation] = useState(pendingConfirmation);
     useEffect(() => {
-        if (typeof window === "undefined") {
-            return;
-        }
-
-        const resolvedUrlState = getResolvedUrlState();
-
-        setCurrentView(resolvedUrlState.view);
-        setCurrentEntityId(resolvedUrlState.entityId);
-
-        if (resolvedUrlState.entityId) {
-            setShowMapSummary(false);
-        }
-
-        if (resolvedUrlState.needsCanonicalUrl) {
-            const currentUrl = `${stripLocalePrefix(window.location.pathname)}${window.location.search}`;
-            if (currentUrl !== resolvedUrlState.canonicalUrl) {
-                router.replace(resolvedUrlState.canonicalUrl, { scroll: false });
-            }
-        }
-    }, [getResolvedUrlState, router]);
-
-    // Helper functions for managing expansion state
-    const expandChapter = (chapterId: string) => {
-        setExpandedChapters(prev => new Set(prev).add(chapterId));
-    };
-
-    const toggleChapter = (chapterId: string) => {
-        setExpandedChapters(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(chapterId)) {
-                newSet.delete(chapterId);
+        if (pendingConfirmation) setConfirmation(pendingConfirmation);
+        try {
+            if (pendingConfirmation?.result === 'unavailable') {
+                sessionStorage.setItem(retryKey, JSON.stringify(pendingConfirmation));
+            } else if (pendingConfirmation) {
+                sessionStorage.removeItem(retryKey);
             } else {
-                newSet.add(chapterId);
+                const saved: unknown = JSON.parse(sessionStorage.getItem(retryKey) ?? 'null');
+                if (isFailedConfirmation(saved)) setConfirmation(saved);
             }
-            return newSet;
-        });
-    };
-
-    const expandArticle = (articleId: string) => {
-        setExpandedArticles(prev => new Set(prev).add(articleId));
-    };
-
-    const toggleArticle = (articleId: string) => {
-        setExpandedArticles(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(articleId)) {
-                newSet.delete(articleId);
-            } else {
-                newSet.add(articleId);
-            }
-            return newSet;
-        });
-    };
-
-    // Find which chapter contains an article
-    const findChapterForArticle = useCallback((articleId: string): string | null => {
-        if (!regulationData) return null;
-
-        for (const chapter of regulationData.regulation) {
-            if (chapter.type === 'chapter' && chapter.articles) {
-                for (const article of chapter.articles) {
-                    if (article.id === articleId) {
-                        return chapter.id;
-                    }
-                }
-            }
+        } catch {
+            // Storage can be unavailable (private mode, blocked site data): the retry lasts until a reload.
         }
-        return null;
-    }, [regulationData]);
+    }, [retryKey, pendingConfirmation]);
+    const onConfirmedScreen = urlState.view === 'comment' && urlState.entityId === confirmation?.entityId;
+    if (confirmation && confirmation.result !== 'unavailable' && !onConfirmedScreen) {
+        setConfirmation(null);
+    }
 
-    const scrollToDocumentEntity = useCallback((entityId: string) => {
-        let attempts = 0;
-        let frameId = 0;
+    // The reader's address lives in this tab only: never in the URL, so analytics never see it.
+    const addressKey = `oc:consultation:${consultationId}:address`;
+    const [address, setAddress] = useState<Location | null>(null);
+    const [addressLoaded, setAddressLoaded] = useState(false);
+    useEffect(() => {
+        try {
+            const saved: unknown = JSON.parse(sessionStorage.getItem(addressKey) ?? 'null');
+            if (isLocation(saved)) setAddress(saved);
+        } catch {
+            // Storage can be unavailable (private mode, blocked site data): the reader types it again.
+        }
+        setAddressLoaded(true);
+    }, [addressKey]);
 
-        const tryScroll = () => {
-            const element = document.getElementById(entityId);
-            if (element) {
-                element.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                });
-                return;
-            }
+    const [cityData, setCityData] = useState<CityWithGeometry | null>(null);
+    useEffect(() => {
+        fetch(`/api/cities/${cityId}`)
+            .then(response => response.ok ? response.json() : null)
+            .then(data => setCityData(data))
+            .catch(error => console.error('Error fetching city data:', error));
+    }, [cityId]);
 
-            if (attempts < 60) {
-                attempts += 1;
-                frameId = window.requestAnimationFrame(tryScroll);
-            }
-        };
+    const geoSets = useMemo(() => extractGeoSets(regulationData), [regulationData]);
+    const lookupConfig = regulationData?.addressLookup;
+    const lookup = useMemo(
+        () => address && lookupConfig ? computeAddressLookup(address.coordinates, geoSets, lookupConfig) : null,
+        [address, geoSets, lookupConfig]
+    );
+    const highlightIds = useMemo(() => new Set(lookup?.street.map(item => item.geometry.id) ?? []), [lookup]);
 
-        frameId = window.requestAnimationFrame(tryScroll);
-
-        return () => {
-            window.cancelAnimationFrame(frameId);
-        };
+    // The server's comments, with the reader's agreements and deletions applied since they arrived.
+    // A refresh (after a new comment) brings a new server copy, which replaces this one.
+    const [serverComments, setServerComments] = useState(comments);
+    const [liveComments, setLiveComments] = useState(comments);
+    if (comments !== serverComments) {
+        setServerComments(comments);
+        setLiveComments(comments);
+    }
+    const onUpvoted = useCallback((commentId: string, change: { upvoteCount: number; hasUserUpvoted: boolean }) => {
+        setLiveComments(list => list.map(comment => comment.id === commentId ? { ...comment, ...change } : comment));
+    }, []);
+    const onDeleted = useCallback((commentId: string) => {
+        setLiveComments(list => list.filter(comment => comment.id !== commentId));
     }, []);
 
-    useEffect(() => {
-        if (currentView !== "document" || !currentEntityId) {
-            return;
+    const commentCounts = useMemo(() => {
+        const counts = new Map<string, number>();
+        for (const comment of liveComments) counts.set(comment.entityId, (counts.get(comment.entityId) ?? 0) + 1);
+        return counts;
+    }, [liveComments]);
+
+    // Where an opened place came from, for analytics; a map tap or a reference link says so first.
+    const openSource = useRef<ConsultationEntityOpenSource | null>(null);
+
+    const selectPlace = useCallback((id: string) => {
+        openSource.current = 'map';
+        navigateTo(href('map', id));
+    }, []);
+
+    const openReference = useCallback((id: string) => {
+        const type = resolveConsultationEntityType(regulationData, id);
+        if (!type) return;
+        openSource.current = 'reference';
+        navigateTo(href(getConsultationViewForEntityType(type), id));
+    }, [regulationData]);
+
+    const handleAddress = (location: Location) => {
+        const next: Location = { text: location.text, coordinates: location.coordinates };
+        setAddress(next);
+        try {
+            sessionStorage.setItem(addressKey, JSON.stringify(next));
+        } catch {
+            // As above: the address is simply not remembered.
         }
-
-        const entityType = resolveConsultationEntityType(regulationData, currentEntityId);
-
-        if (entityType === "chapter") {
-            expandChapter(currentEntityId);
-            return scrollToDocumentEntity(currentEntityId);
-        }
-
-        if (entityType === "article") {
-            const parentChapterId = findChapterForArticle(currentEntityId);
-            if (parentChapterId) {
-                expandChapter(parentChapterId);
-            }
-            expandArticle(currentEntityId);
-            return scrollToDocumentEntity(currentEntityId);
-        }
-    }, [currentEntityId, currentView, findChapterForArticle, regulationData, scrollToDocumentEntity]);
-
-    const navigateToConsultationState = useCallback((
-        view: ConsultationView,
-        entityId: string | null,
-        {
-            replace = false,
-            scrollToTop = false,
-        }: { replace?: boolean; scrollToTop?: boolean } = {},
-    ) => {
-        const entityType = resolveConsultationEntityType(regulationData, entityId);
-        const nextEntityId = isConsultationEntityCompatibleWithView(entityType, view) ? entityId : null;
-        const nextUrl = buildConsultationUrl(getLivePathname(), {
-            view,
-            entityId: nextEntityId,
-        });
-
-        setCurrentView(view);
-        setCurrentEntityId(nextEntityId);
-
-        if (nextEntityId) {
-            setShowMapSummary(false);
-        }
-
-        const navigate = replace ? router.replace : router.push;
-        navigate(nextUrl, { scroll: false });
-
-        if (scrollToTop && typeof window !== "undefined") {
-            window.scrollTo(0, 0);
-        }
-    }, [getLivePathname, regulationData, router]);
-
-    const toggleView = () => {
-        const newView: ConsultationView = currentView === "map" ? "document" : "map";
-        const currentEntityType = resolveConsultationEntityType(regulationData, currentEntityId);
-        const nextEntityId = isConsultationEntityCompatibleWithView(currentEntityType, newView)
-            ? currentEntityId
-            : null;
-
-        navigateToConsultationState(newView, nextEntityId, {
-            scrollToTop: newView === "map",
-        });
-    };
-
-    // Handle comment navigation from comments overview sheet
-    const handleCommentClick = (comment: ConsultationCommentWithUpvotes) => {
-        const targetView = comment.entityType === "CHAPTER" || comment.entityType === "ARTICLE"
-            ? "document"
-            : "map";
-
-        navigateToConsultationState(targetView, comment.entityId, {
-            scrollToTop: targetView === "map",
-        });
-    };
-
-    // Handle reference navigation
-    const handleReferenceClick = (referenceId: string) => {
-        if (!regulationData) return;
-
-        // Determine the type of reference
-        let referenceType: 'chapter' | 'article' | 'geoset' | 'geometry' | null = null;
-
-        for (const item of regulationData.regulation) {
-            // Check if it's a chapter or geoset (direct match)
-            if (item.id === referenceId) {
-                referenceType = item.type === 'chapter' ? 'chapter' : 'geoset';
-                break;
-            }
-
-            // Check articles within chapters
-            if (item.type === 'chapter' && item.articles) {
-                const article = item.articles.find(a => a.id === referenceId);
-                if (article) {
-                    referenceType = 'article';
-                    break;
-                }
-            }
-
-            // Check geometries within geosets
-            if (item.type === 'geoset' && item.geometries) {
-                const geometry = item.geometries.find(g => g.id === referenceId);
-                if (geometry) {
-                    referenceType = 'geometry';
-                    break;
-                }
-            }
-        }
-
-        // Navigate based on reference type
-        if (referenceType === "chapter" || referenceType === "article") {
-            navigateToConsultationState("document", referenceId);
-        } else if (referenceType === "geoset" || referenceType === "geometry") {
-            navigateToConsultationState("map", referenceId, {
-                scrollToTop: true,
+        if (lookupConfig) {
+            const result = computeAddressLookup(next.coordinates, geoSets, lookupConfig);
+            captureConsultationAddressSearched({
+                consultation_id: consultationId,
+                city_id: cityId,
+                in_zone: !!result.zone,
+                zone_id: result.zone?.geometry.id ?? null,
+                street_count: result.street.length,
+                nearby_count: result.nearby.length,
             });
         }
+        navigateTo(href('street'));
     };
 
-    const title = regulationData?.title || consultation.name;
-    const description = "Διαβούλευση για κανονισμό";
+    // Resolve what each screen needs; a screen without its data falls back to the start.
+    const hasOverview = !!regulationData?.overview?.length;
+    const entityDisplay = describeEntity(regulationData, geoSets, urlState.entityId);
+    let view = urlState.view;
+    if (view === 'street' && addressLoaded && !lookup) view = 'home';
+    if (view === 'plan' && !hasOverview) view = 'home';
+    if (view === 'comment' && !entityDisplay) view = 'home';
 
-    // Render the current view content
-    const renderCurrentView = () => {
-        if (currentView === 'map') {
-            // Full-screen map view
-            return (
-                <div className="h-screen relative">
-                    {/* Full-screen map */}
-                    <div className="absolute inset-0">
-                        <ConsultationMap
-                            baseUrl={baseUrl}
-                            className="w-full h-full"
-                            regulationData={regulationData}
-                            comments={comments}
-                            currentUser={currentUser}
-                            consultationId={consultationId}
-                            cityId={cityId}
-                            onShowInfo={() => setShowMapSummary(true)}
-                            onDrawerStateChange={setMapDrawerOpen}
-                        />
-                    </div>
+    useEffect(() => {
+        if (view !== 'map' || !entityDisplay) return;
+        captureConsultationEntityOpened({
+            consultation_id: consultationId,
+            city_id: cityId,
+            entity_type: entityDisplay.type,
+            entity_id: entityDisplay.id,
+            geoset_id: entityDisplay.geoSetId,
+            source: openSource.current ?? (previous?.view === 'street' ? 'address_lookup' : previous ? 'list' : 'url'),
+        });
+        openSource.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one event per opened place
+    }, [view, entityDisplay?.id]);
 
-                    {/* Welcome dialog */}
-                    <Credenza open={showMapSummary && !!regulationData?.summary} onOpenChange={setShowMapSummary}>
-                        <CredenzaContent className="max-w-xl">
-                            {/* Logos */}
-                            <CredenzaBody>
-                                <div className="flex items-center justify-center gap-4 pt-1">
-                                    {cityLogoUrl && (
-                                        <div className="relative h-12 w-12 shrink-0">
-                                            <Image
-                                                src={cityLogoUrl}
-                                                alt={cityName ? `Λογότυπο ${cityName}` : 'Λογότυπο Δήμου'}
-                                                fill
-                                                className="object-contain"
-                                            />
-                                        </div>
-                                    )}
-                                    <div className="relative h-10 w-10 shrink-0">
-                                        <Image
-                                            src="/logo.png"
-                                            alt="OpenCouncil"
-                                            fill
-                                            className="object-contain"
-                                        />
-                                    </div>
-                                </div>
+    // A new screen starts at its top, unless it scrolls to a card or a section of its own.
+    const panelRef = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+        if ((view === 'plan' || view === 'document') && urlState.entityId) return;
+        window.scrollTo(0, 0);
+        panelRef.current?.scrollTo(0, 0);
+    }, [view, urlState.entityId]);
 
-                                <CredenzaHeader className="text-center sm:text-center">
-                                    <div className="text-lg font-bold tracking-wide">
-                                        ΔΙΑΒΟΥΛΕΥΣΗ
-                                    </div>
-                                    <CredenzaTitle className="text-sm font-normal text-muted-foreground leading-tight">
-                                        {regulationData?.title}
-                                    </CredenzaTitle>
-                                    <CredenzaDescription className="sr-only">
-                                        Περίληψη διαβούλευσης
-                                    </CredenzaDescription>
-                                </CredenzaHeader>
-                                {regulationData?.summary && (
-                                    <div className="max-h-52 overflow-y-auto -mx-1 px-1">
-                                        <MarkdownContent
-                                            content={regulationData.summary}
-                                            variant="muted"
-                                            className="text-sm"
-                                            referenceFormat={regulationData.referenceFormat}
-                                            onReferenceClick={(id) => {
-                                                setShowMapSummary(false);
-                                                handleReferenceClick(id);
-                                            }}
-                                            regulationData={regulationData}
-                                        />
-                                    </div>
-                                )}
-                                <div className="flex flex-col gap-2 pt-1">
-                                    <Button
-                                        onClick={() => setShowMapSummary(false)}
-                                        className="w-full"
-                                    >
-                                        <MapPin className="h-4 w-4 mr-2" />
-                                        Βρείτε την περιοχή σας
-                                    </Button>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            onClick={() => {
-                                                setShowMapSummary(false);
-                                                toggleView();
-                                            }}
-                                            variant="outline"
-                                            className="flex-1"
-                                        >
-                                            <FileText className="h-4 w-4 mr-1.5" />
-                                            Κείμενο
-                                        </Button>
-                                        {comments.length > 0 && (
-                                            <Button
-                                                onClick={() => {
-                                                    setShowMapSummary(false);
-                                                    setCommentsSheetOpen(true);
-                                                }}
-                                                variant="outline"
-                                                className="flex-1 text-muted-foreground"
-                                            >
-                                                <MessageSquare className="h-4 w-4 mr-1.5" />
-                                                {comments.length} σχόλια
-                                            </Button>
-                                        )}
-                                    </div>
-                                </div>
-                                <p className="text-xs text-muted-foreground text-center pt-1 border-t">
-                                    Σχολιάστε και εκφράστε τη γνώμη σας -- τα σχόλια αποστέλλονται απευθείας στον Δήμο ως επίσημες παρατηρήσεις.
-                                </p>
-                            </CredenzaBody>
-                        </CredenzaContent>
-                    </Credenza>
+    const [sheetRef, sheetHeight] = useElementHeight();
 
-                    {/* Floating action button for view toggle */}
-                    <ViewToggleButton
-                        currentView={currentView}
-                        onToggle={toggleView}
-                        drawerOpen={mapDrawerOpen}
-                    />
-                </div>
-            );
-        }
-
-        // Normal page layout for document view
+    if (!regulationData) {
         return (
-            <div className="min-h-screen">
-                {/* Normal header */}
-                <ConsultationHeader
-                    title={title}
-                    description={description}
-                    endDate={consultation.endDate}
-                    cityTimezone={consultation.city.timezone}
-                    isActive={consultation.isActive}
-                    isActiveComputed={consultation.isActiveComputed}
-                    commentCount={comments.length}
-                    currentView={currentView}
-                    onCommentsClick={() => setCommentsSheetOpen(true)}
-                />
-
-                {/* Scrollable document content */}
-                <ConsultationDocument
-                    realm={realm}
-                    regulationData={regulationData}
-                    baseUrl={baseUrl}
-                    className=""
-                    expandedChapters={expandedChapters}
-                    expandedArticles={expandedArticles}
-                    onToggleChapter={toggleChapter}
-                    onToggleArticle={toggleArticle}
-                    onReferenceClick={handleReferenceClick}
-                    comments={comments}
-                    currentUser={currentUser}
-                    consultationId={consultationId}
-                    cityId={cityId}
-                    consultationIsActive={consultation.isActiveComputed}
-                />
-
-                {/* Floating action button for view toggle */}
-                <ViewToggleButton
-                    currentView={currentView}
-                    onToggle={toggleView}
-                />
+            <div className="min-h-dvh bg-stone-100 text-stone-700">
+                {header}
+                <div className="mx-auto max-w-xl px-5 py-16">
+                    <h1 className="mb-2 text-xl font-bold text-stone-900">Δεν ήταν δυνατή η φόρτωση της διαβούλευσης</h1>
+                    <p>Δοκιμάστε ξανά σε λίγο.</p>
+                </div>
             </div>
         );
+    }
+
+    const active = consultation.isActiveComputed;
+    // The end date is stored as the city's wall time in the UTC fields, so read it back in UTC.
+    const endsAt = new Date(consultation.endDate);
+    const endDate = `${formatDate(endsAt, 'UTC')}, ${formatClockTime(endsAt, 'UTC')}`;
+    const deadlineLabel = active ? `Σχόλια έως ${endDate}` : `Η διαβούλευση έληξε στις ${endDate}`;
+    const title = regulationData.title || consultation.name;
+    const cityHref = `/${cityId}`;
+    const planHref = hasOverview ? href('plan') : undefined;
+    const homeOrStreet = lookup ? href('street') : href('home');
+    const selectedId = entityDisplay && (entityDisplay.type === 'geometry' || entityDisplay.type === 'geoset') && (view === 'map' || view === 'comment')
+        ? entityDisplay.id
+        : null;
+    const placeBackHref = previous && ['home', 'street', 'plan', 'comments'].includes(previous.view)
+        ? href(previous.view, previous.entityId)
+        : homeOrStreet;
+
+    const homeView = (
+        <HomeView
+            title={title}
+            intro={regulationData.summary}
+            regulationData={regulationData}
+            onReferenceClick={openReference}
+            municipalityName={municipalityName}
+            cityLogoUrl={cityLogoUrl}
+            cityHref={cityHref}
+            deadline={{ active, label: deadlineLabel }}
+            canLookUpAddress={!!lookupConfig}
+            cityData={cityData}
+            onAddress={handleAddress}
+            planHref={planHref}
+            mapHref={href('map')}
+            commentsHref={href('comments')}
+            commentCount={liveComments.length}
+            studyHref={href('document')}
+            savedAddress={lookup && address ? { text: address.text, href: href('street') } : undefined}
+        />
+    );
+
+    const renderPanel = (panelView: ConsultationView): ReactNode => {
+        switch (panelView) {
+            case 'street':
+                if (!lookup || !address) return null; // the saved address is still loading
+                return (
+                    <StreetView
+                        address={address}
+                        lookup={lookup}
+                        overview={regulationData.overview}
+                        href={href}
+                        commentCounts={commentCounts}
+                        miniMap={isDesktop === false ? <MiniMap address={address} items={lookup.street} zone={lookup.zone} /> : undefined}
+                        regulationData={regulationData}
+                        onReferenceClick={openReference}
+                    />
+                );
+            case 'comment':
+                if (!entityDisplay) return homeView;
+                return (
+                    <CommentView
+                        display={entityDisplay}
+                        backHref={previous && previous.view !== 'comment'
+                            ? href(previous.view, previous.entityId)
+                            : href(getConsultationViewForEntityType(entityDisplay.type), entityDisplay.id)}
+                        consultationId={consultationId}
+                        cityId={cityId}
+                        active={active}
+                        confirmation={confirmation?.entityId === entityDisplay.id ? confirmation : null}
+                        comments={liveComments.filter(comment => comment.entityId === entityDisplay.id)}
+                        onUpvoted={onUpvoted}
+                        onDeleted={onDeleted}
+                    />
+                );
+            case 'plan':
+                return (
+                    <PlanView
+                        overview={regulationData.overview ?? []}
+                        regulationData={regulationData}
+                        focusId={urlState.entityId}
+                        href={href}
+                        backHref={href('home')}
+                        commentCounts={commentCounts}
+                        active={active}
+                        onReferenceClick={openReference}
+                    />
+                );
+            case 'comments':
+                return (
+                    <CommentsView
+                        comments={liveComments}
+                        regulationData={regulationData}
+                        geoSets={geoSets}
+                        href={href}
+                        backHref={href('home')}
+                        printHref={`/${cityId}/consultation/${consultationId}/comments`}
+                        currentUserId={currentUser?.id}
+                        onUpvoted={onUpvoted}
+                        onDeleted={onDeleted}
+                    />
+                );
+            case 'map':
+                // On a computer the map is beside the panel: the panel shows the open place, or the start.
+                if (entityDisplay) {
+                    return (
+                        <PlaceView
+                            display={entityDisplay}
+                            commentCount={commentCounts.get(entityDisplay.id) ?? 0}
+                            explainingCard={findExplainingCard(regulationData.overview, entityDisplay.geoSetId)}
+                            href={href}
+                            closeHref={placeBackHref}
+                            active={active}
+                            variant="panel"
+                            regulationData={regulationData}
+                            onReferenceClick={openReference}
+                        />
+                    );
+                }
+                return lookup ? renderPanel('street') : homeView;
+            default:
+                return homeView;
+        }
     };
 
-    return (
-        <>
-            {renderCurrentView()}
-
-            {/* Comments overview sheet - always available regardless of view */}
-            <CommentsOverviewSheet
-                isOpen={commentsSheetOpen}
-                onClose={() => setCommentsSheetOpen(false)}
-                comments={comments}
-                totalCount={comments.length}
-                regulationData={regulationData || undefined}
-                onCommentClick={handleCommentClick}
-            />
-        </>
+    const studyView = (
+        <StudyView
+            regulationData={regulationData}
+            entityId={urlState.entityId}
+            href={href}
+            backHref={href('home')}
+            commentCounts={commentCounts}
+            active={active}
+            onReferenceClick={openReference}
+            consultationId={consultationId}
+            cityId={cityId}
+            realm={realm}
+            municipalityName={municipalityName}
+        />
     );
-} 
+
+    const map = (props: { className: string; bottomInset?: number; leading?: ReactNode; children?: ReactNode }) => (
+        <ConsultationMap
+            regulationData={regulationData}
+            geoSets={geoSets}
+            selectedId={selectedId}
+            onSelect={selectPlace}
+            address={address}
+            highlightIds={highlightIds}
+            onAddressClick={lookup ? () => navigateTo(href('street')) : undefined}
+            onAddress={lookupConfig ? handleAddress : undefined}
+            currentUser={currentUser}
+            cityData={cityData}
+            {...props}
+        />
+    );
+
+    // Until the screen size is known the map screen shows an empty ground, not the panel layout:
+    // on a phone that would flash the start screen before the full-screen map replaces it.
+    if (view === 'map' && isDesktop === null) {
+        return <div className="h-dvh w-full bg-stone-200" />;
+    }
+
+    // The phone's map fills the screen; a tapped place opens as a card over it.
+    if (view === 'map' && isDesktop === false) {
+        return (
+            <div className="relative h-dvh w-full overflow-hidden bg-stone-200">
+                {map({
+                    className: "absolute inset-0",
+                    bottomInset: entityDisplay ? sheetHeight : 0,
+                    leading: (
+                        <ViewLink href={homeOrStreet} aria-label="Πίσω" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-stone-900 shadow-md">
+                            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                        </ViewLink>
+                    ),
+                    children: entityDisplay ? (
+                        <div ref={sheetRef} className="absolute inset-x-0 bottom-0 z-20">
+                            <PlaceView
+                                display={entityDisplay}
+                                commentCount={commentCounts.get(entityDisplay.id) ?? 0}
+                                explainingCard={findExplainingCard(regulationData.overview, entityDisplay.geoSetId)}
+                                href={href}
+                                closeHref={href('map')}
+                                active={active}
+                                variant="sheet"
+                                regulationData={regulationData}
+                                onReferenceClick={openReference}
+                            />
+                        </div>
+                    ) : undefined,
+                })}
+            </div>
+        );
+    }
+
+    const bar = (
+        <ConsultationBar
+            className="hidden lg:flex"
+            title={title}
+            municipalityName={municipalityName}
+            deadlineLabel={deadlineLabel}
+            homeHref={href('home')}
+            planHref={planHref}
+            commentsHref={href('comments')}
+            commentCount={liveComments.length}
+            studyHref={href('document')}
+        />
+    );
+
+    if (view === 'document') {
+        return (
+            <div className="min-h-dvh bg-white">
+                {header}
+                {bar}
+                {studyView}
+            </div>
+        );
+    }
+
+    // Every other screen: a page of its own on a phone; on a computer, a panel beside the map.
+    // The layout comes from CSS so the server renders the panel; only the map waits for the screen size.
+    return (
+        <div className="min-h-dvh bg-stone-100 lg:flex lg:h-dvh lg:flex-col">
+            {header}
+            {bar}
+            <div className="lg:flex lg:min-h-0 lg:flex-1">
+                {isDesktop && map({ className: "min-w-0 flex-1" })}
+                <div ref={panelRef} className="lg:ml-auto lg:w-[460px] lg:shrink-0 xl:w-[520px] lg:overflow-y-auto lg:border-l lg:border-stone-200">
+                    {renderPanel(view)}
+                </div>
+            </div>
+        </div>
+    );
+}

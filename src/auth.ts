@@ -1,10 +1,11 @@
 import NextAuth, { DefaultSession, type NextAuthConfig } from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/db/prisma"
-import authConfig from "@/auth.config"
+import authConfig, { authProviders } from "@/auth.config"
 import { isTrustedExternalRedirect } from "@/lib/auth/trustedRedirect"
 import { signInAllowed } from "@/lib/auth/signInGuard"
 import { usesSecureCookies } from "@/lib/auth/sessionMirror"
+import { pendingCommentQuote } from "@/lib/db/consultationComments"
 
 declare module "next-auth" {
     interface Session {
@@ -75,6 +76,8 @@ export const authOptions = {
         }
     },
     ...authConfig,
+    // The same providers as the proxy's, plus the quote of the comment a confirmation link publishes.
+    providers: authProviders(pendingCommentQuote),
 } satisfies NextAuthConfig
 
 export const { handlers, signIn, signOut, auth } = NextAuth(authOptions)
