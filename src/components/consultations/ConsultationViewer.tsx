@@ -332,6 +332,8 @@ export default function ConsultationViewer({
                         href={href}
                         commentCounts={commentCounts}
                         miniMap={isDesktop === false ? <MiniMap address={address} items={lookup.street} zone={lookup.zone} /> : undefined}
+                        regulationData={regulationData}
+                        onReferenceClick={openReference}
                     />
                 );
             case 'comment':
@@ -390,6 +392,8 @@ export default function ConsultationViewer({
                             closeHref={placeBackHref}
                             active={active}
                             variant="panel"
+                            regulationData={regulationData}
+                            onReferenceClick={openReference}
                         />
                     );
                 }
@@ -459,6 +463,8 @@ export default function ConsultationViewer({
                                 closeHref={href('map')}
                                 active={active}
                                 variant="sheet"
+                                regulationData={regulationData}
+                                onReferenceClick={openReference}
                             />
                         </div>
                     ) : undefined,
