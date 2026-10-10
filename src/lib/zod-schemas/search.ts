@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { latitude, longitude } from './primitives';
+import { isoUtcDateTime } from './dates';
 import { administrativeBodyTypeSchema } from './administrativeBody';
 import type { Location } from '@/lib/search/types';
 
@@ -30,8 +31,8 @@ export const searchRequestSchema = z.strictObject({
         .describe('Keep subjects from meetings of administrative bodies of these types'),
     topicIds: z.array(z.string()).optional(),
     dateRange: z.strictObject({
-        start: z.iso.datetime(),
-        end: z.iso.datetime()
+        start: isoUtcDateTime(),
+        end: isoUtcDateTime(),
     }).optional(),
     location: searchLocationSchema
         .extend({ radiusMeters: searchLocationSchema.shape.radiusMeters.default(5_000) })

@@ -27,6 +27,12 @@ describe('searchRequestSchema', () => {
         expect(dateRange('2024-01-01', '2024-02-01T00:00:00Z')).toBe(false);
     });
 
+    // zod 3's datetime() took a time without seconds; zod 4's needs them.
+    it('takes a UTC date range to the minute', () => {
+        expect(dateRange('2026-01-01T00:00Z', '2026-01-31T23:59Z')).toBe(true);
+        expect(dateRange('2026-01-01T00:00+02:00', '2026-01-31T23:59Z')).toBe(false);
+    });
+
     it('refuses an unknown key at every level', () => {
         expect(searchRequestSchema.safeParse({ query: 'x', adminBodyTypes: [] }).success).toBe(false);
         expect(searchRequestSchema.safeParse({ query: 'x', dateRange: { start: '2024-01-01T00:00:00Z', end: '2024-01-01T00:00:00Z', tz: 'x' } }).success).toBe(false);

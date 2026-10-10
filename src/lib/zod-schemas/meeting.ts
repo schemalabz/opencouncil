@@ -2,6 +2,7 @@ import * as z from 'zod';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
 import { webUrl } from './primitives';
+import { isoDateOrDateTime } from './dates';
 
 /** Free text that an empty string clears. */
 const optionalText = (max: number) => z.string()
@@ -15,10 +16,7 @@ const optionalText = (max: number) => z.string()
 // has no name fields. z.object strips a `name` or `name_en` that a client
 // still sends: the request succeeds and writes no name.
 export const meetingSchema = z.object({
-    date: z.string()
-        .refine(val => !isNaN(new Date(val).getTime()), {
-            error: "Invalid date/time format"
-        })
+    date: isoDateOrDateTime({ error: "Invalid date/time format" })
         .transform((str) => new Date(str)),
     youtubeUrl: webUrl({
         error: "Invalid YouTube URL.",
