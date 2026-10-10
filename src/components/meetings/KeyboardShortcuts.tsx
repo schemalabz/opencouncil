@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from 'react';
 import { useVideoActions } from './VideoProvider';
 import { useTranscriptOptions, usePlaybackSpeed } from './options/OptionsContext';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
@@ -11,6 +12,13 @@ export function KeyboardShortcuts() {
     const { options } = useTranscriptOptions();
     const { playbackSpeed, setPlaybackSpeed } = usePlaybackSpeed();
     const { transcript, meeting } = useCouncilMeetingData();
+
+    // Sorted once per transcript, not once per key press: flattening and
+    // sorting every utterance of a long meeting is too much work for a keystroke.
+    const sortedUtterances = useMemo(
+        () => transcript.flatMap(segment => segment.utterances || []).sort((a, b) => a.startTimestamp - b.startTimestamp),
+        [transcript],
+    );
 
     // The same media test the meeting layout uses to decide whether to render a
     // PlaybackBar at all. A registered shortcut gets its key preventDefault-ed,
@@ -34,11 +42,6 @@ export function KeyboardShortcuts() {
 
     // Edit Next Utterance (Enter)
     useKeyboardShortcut(ACTIONS.EDIT_NEXT_UTTERANCE.id, () => {
-        // Get all utterances
-        const allUtterances = transcript.flatMap(segment => segment.utterances || []);
-        const sortedUtterances = allUtterances.sort((a, b) => a.startTimestamp - b.startTimestamp);
-        
-        // Find current utterance
         const currentUtterance = sortedUtterances.find(u =>
             currentTimeRef.current >= u.startTimestamp && currentTimeRef.current <= u.endTimestamp
         );
@@ -51,14 +54,10 @@ export function KeyboardShortcuts() {
 
     // Seek Previous (ArrowLeft)
     useKeyboardShortcut(ACTIONS.SEEK_PREVIOUS.id, () => {
-        const allUtterances = transcript.flatMap(segment => segment.utterances || []);
-        const sortedUtterances = allUtterances.sort((a, b) => a.startTimestamp - b.startTimestamp);
-        
-        // Find utterances before current time
-        const prevUtterances = [...sortedUtterances]
-            .reverse()
+        const prevUtterances = sortedUtterances
             .filter(u => u.startTimestamp < currentTimeRef.current)
-            .slice(0, 2);
+            .slice(-2)
+            .reverse();
 
         const currentUtterance = sortedUtterances.find(u =>
             currentTimeRef.current >= u.startTimestamp && currentTimeRef.current <= u.endTimestamp
@@ -72,9 +71,6 @@ export function KeyboardShortcuts() {
 
     // Seek Next (ArrowRight)
     useKeyboardShortcut(ACTIONS.SEEK_NEXT.id, () => {
-        const allUtterances = transcript.flatMap(segment => segment.utterances || []);
-        const sortedUtterances = allUtterances.sort((a, b) => a.startTimestamp - b.startTimestamp);
-        
         const nextUtterance = sortedUtterances
             .find(u => u.startTimestamp > currentTimeRef.current);
         if (nextUtterance) {
