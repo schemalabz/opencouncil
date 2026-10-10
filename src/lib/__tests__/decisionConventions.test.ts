@@ -5,7 +5,7 @@
  * which guards the dereference. The schema is what keeps a half-shaped record
  * out of the column, so what it accepts and refuses is the contract.
  */
-import { decisionConventionsSchema, isDecisionConventions, normalizeAnchors, type DecisionConventions } from '@/lib/decisionConventions';
+import { decisionConventionsSchema, normalizeAnchors, parseDecisionConventions, type DecisionConventions } from '@/lib/decisionConventions';
 
 const VALID: DecisionConventions = {
     version: 1,
@@ -26,18 +26,18 @@ describe('decisionConventionsSchema', () => {
         const parsed = decisionConventionsSchema.safeParse(VALID);
         expect(parsed.success).toBe(true);
         expect(parsed.success && parsed.data).toEqual(VALID);
-        expect(isDecisionConventions(VALID)).toBe(true);
+        expect(parseDecisionConventions(VALID)).toEqual(VALID);
     });
 
     it('accepts a body that names every voter only on a split vote', () => {
-        expect(isDecisionConventions({ ...VALID, namedVoters: 'all_when_split' })).toBe(true);
+        expect(parseDecisionConventions({ ...VALID, namedVoters: 'all_when_split' })?.namedVoters).toBe('all_when_split');
     });
 
     it('refuses a value outside an enum', () => {
         const parsed = decisionConventionsSchema.safeParse({ ...VALID, namedVoters: 'everyone' });
         expect(parsed.success).toBe(false);
         expect(parsed.success === false && parsed.error.issues[0].path).toEqual(['namedVoters']);
-        expect(isDecisionConventions({ ...VALID, rollCallLayout: 'whatever' })).toBe(false);
+        expect(parseDecisionConventions({ ...VALID, rollCallLayout: 'whatever' })).toBeNull();
     });
 
     it('accepts a legacy row whose anchors use the pre-2026-09-14 vocabulary', () => {
@@ -47,12 +47,14 @@ describe('decisionConventionsSchema', () => {
         expect(parsed.success).toBe(true);
         expect(parsed.success && parsed.data.attendanceChangeAnchors).toEqual(normalizeAnchors(legacy.attendanceChangeAnchors));
         expect(parsed.success && parsed.data.attendanceChangeAnchors).toEqual(['phase', 'subject']);
+        // The parse returns the record in the current vocabulary, not the stored value.
+        expect(parseDecisionConventions(legacy)?.attendanceChangeAnchors).toEqual(['phase', 'subject']);
     });
 
     it('refuses the shapes the old one-field guard let through, and drops unknown keys', () => {
-        expect(isDecisionConventions({ version: 1 })).toBe(false);
-        expect(isDecisionConventions({ ...VALID, provenance: undefined })).toBe(false);
-        expect(isDecisionConventions({ ...VALID, attendanceChangeAnchors: undefined })).toBe(false);
+        expect(parseDecisionConventions({ version: 1 })).toBeNull();
+        expect(parseDecisionConventions({ ...VALID, provenance: undefined })).toBeNull();
+        expect(parseDecisionConventions({ ...VALID, attendanceChangeAnchors: undefined })).toBeNull();
         const parsed = decisionConventionsSchema.safeParse({ ...VALID, injected: 'x' });
         expect(parsed.success && 'injected' in parsed.data).toBe(false);
     });

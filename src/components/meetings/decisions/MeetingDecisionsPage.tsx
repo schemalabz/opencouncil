@@ -17,7 +17,7 @@ import { pollCadence, takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff'
 import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib/utils/votes';
 import { formatCalendarDate, formatDate, localCalendarDate } from '@/lib/formatters/time';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
-import { isDecisionConventions } from '@/lib/decisionConventions';
+import { parseDecisionConventions } from '@/lib/decisionConventions';
 import type { decisionActionSchema, decisionUpsertSchema } from '@/lib/zod-schemas/decision';
 import { isRecordSubject, recordSection } from '@/lib/utils/subjects';
 import { hasRecordedVote, resultKey } from '@/lib/utils/decisionResult';
@@ -188,9 +188,8 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
     const conventionsPanel = useMemo<ConventionsPanel | null>(() => {
         const body = meeting.administrativeBody;
         if (!body) return null;
-        const conventions = bodySettings?.decisionConventions;
         return {
-            rules: isDecisionConventions(conventions) ? conventions : null,
+            rules: parseDecisionConventions(bodySettings?.decisionConventions),
             bodyName: getLocalizedName(body, locale),
             cityName: getLocalizedMunicipalityName(city, locale),
             editHref: `/${city.id}`,

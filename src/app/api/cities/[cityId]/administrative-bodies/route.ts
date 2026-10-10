@@ -43,11 +43,11 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             name_en,
             type,
             cityId,
-            youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
+            youtubeChannelUrl: youtubeChannelUrl ?? null,
             contactEmails: contactEmails || [],
             notificationBehavior: notificationBehavior || 'NOTIFICATIONS_APPROVAL',
             showUnreviewedTranscript: showUnreviewedTranscript ?? true,
-            diavgeiaUnitIds: diavgeiaUnitIds || [],
+            diavgeiaUnitIds: diavgeiaUnitIds ?? [],
             place,
         });
 

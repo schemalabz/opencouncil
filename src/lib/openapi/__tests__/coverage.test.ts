@@ -93,7 +93,7 @@ describe('OpenAPI coverage', () => {
 
         // The request schemas of a hidden operation are hidden too.
         const publicSchemas = Object.keys(filterSpecByAccessLevel(spec, 'public').components?.schemas ?? {});
-        expect(publicSchemas.filter(name => ['CreateApiKey', 'UpdateProfile', 'DecisionAction', 'AdministrativeBodyRequest', 'RevalidateRequest'].includes(name)))
+        expect(publicSchemas.filter(name => ['CreateApiKey', 'UpdateProfile', 'DecisionAction', 'AdministrativeBodyRequest', 'AdministrativeBodyUpdateRequest', 'RevalidateRequest'].includes(name)))
             .toEqual([]);
     });
 

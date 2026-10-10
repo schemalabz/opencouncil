@@ -4,7 +4,7 @@ import { editAdministrativeBody, editAdministrativeBodyContacts, deleteAdministr
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
 import { rederiveMeetingsOfBody } from '@/lib/derivation/rederive';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
-import { administrativeBodySchema, administrativeBodyContactsSchema } from '@/lib/zod-schemas/administrativeBody';
+import { administrativeBodyContactsSchema, updateAdministrativeBodyRequestSchema } from '@/lib/zod-schemas/administrativeBody';
 import { handleApiError } from '@/lib/api/errors';
 
 
@@ -26,11 +26,13 @@ export async function PUT(
             return NextResponse.json(updatedBody);
         }
 
+        // A malformed body throws a ZodError, which the handler below answers 400.
+        const parsed = updateAdministrativeBodyRequestSchema.parse(body);
+
         // Confirming the conventions is its own write: it carries only the
-        // conventions, and the writer parses them and stamps who confirmed them.
-        // A malformed record throws a ZodError, which the handler below answers 400.
-        if (body?.confirmConventions) {
-            const confirmed = await confirmDecisionConventions(params.bodyId, body.decisionConventions);
+        // conventions, and the writer stamps who confirmed them.
+        if (parsed.confirmConventions === true) {
+            const confirmed = await confirmDecisionConventions(params.bodyId, parsed.decisionConventions);
             revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
             // Through after(): a body can hold hundreds of meetings, and the
             // person waits for none of them.
@@ -38,18 +40,18 @@ export async function PUT(
             return NextResponse.json(confirmed);
         }
 
-        const parsed = administrativeBodySchema.parse(body);
         const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
 
+        // A field that the request leaves out keeps its value.
         const updatedBody = await editAdministrativeBody(params.bodyId, {
             name,
             name_en,
             type,
-            youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
-            contactEmails: contactEmails || [],
-            notificationBehavior: notificationBehavior,
-            ...(showUnreviewedTranscript !== undefined && { showUnreviewedTranscript }),
-            diavgeiaUnitIds: diavgeiaUnitIds || [],
+            youtubeChannelUrl,
+            contactEmails,
+            notificationBehavior,
+            showUnreviewedTranscript,
+            diavgeiaUnitIds,
             place,
         });
 

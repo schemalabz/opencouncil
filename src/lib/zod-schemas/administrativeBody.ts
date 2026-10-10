@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client';
-import { decisionConventionsSchema } from '@/lib/decisionConventions';
+import { decisionConventionsRecordSchema, decisionConventionsSchema } from '@/lib/decisionConventions';
 import { parseChannelRef } from '@/lib/utils/youtube';
 import { webUrl } from './primitives';
 import { vmsg } from './messages';
@@ -29,40 +29,53 @@ const youtubeChannelUrlValue = webUrl({
 }).refine(val => parseChannelRef(val) !== null, {
     error: vmsg('youtubeChannelUrl'),
 });
-const youtubeChannelUrl = z.union([youtubeChannelUrlValue, z.literal('')])
-    .optional().transform(val => val === '' ? undefined : val);
+// In a request, an absent channel stays as it is. An empty string or null clears it.
+const youtubeChannelUrlRequest = z.union([youtubeChannelUrlValue, z.literal(''), z.null()])
+    .optional()
+    .transform(val => val === '' ? null : val);
 
-// JSON body of POST /administrative-bodies and PUT /administrative-bodies/{bodyId}
+// JSON body of POST /administrative-bodies and PUT /administrative-bodies/{bodyId}.
+// On PUT, an absent field stays as it is.
 export const administrativeBodySchema = z.object({
     ...baseAdministrativeBodyFields,
-    youtubeChannelUrl,
+    youtubeChannelUrl: youtubeChannelUrlRequest,
     contactEmails: z.array(z.email()).optional(),
     notificationBehavior: notificationBehaviorSchema.optional(),
     showUnreviewedTranscript: z.boolean().optional(),
     // The hall where the body meets as a rule. An empty string clears it.
     place: z.string().trim().max(200).optional().transform(val => (val === '' ? null : val)),
-    // Comma-separated in the request, an array in the database
-    diavgeiaUnitIds: z.string().optional().transform(val => {
-        if (!val || val.trim() === '') return [];
-        return val.split(',').map(s => s.trim()).filter(Boolean);
-    }),
+    // Comma-separated in the request, an array in the database. An empty string clears it.
+    diavgeiaUnitIds: z.string().optional().transform(val => val?.split(',').map(s => s.trim()).filter(Boolean)),
 });
 
 // JSON body of PUT /administrative-bodies/{bodyId} from an admin of the body,
 // who may change these two fields and no other.
-// An absent field stays as it is. An empty string or null clears the channel.
 export const administrativeBodyContactsSchema = z.object({
-    youtubeChannelUrl: z.union([youtubeChannelUrlValue, z.literal(''), z.null()])
-        .optional()
-        .transform(val => val === '' ? null : val),
+    youtubeChannelUrl: youtubeChannelUrlRequest,
     contactEmails: z.array(z.email()).optional(),
 });
+
+// JSON body of PUT /administrative-bodies/{bodyId} that confirms the decision
+// conventions of the body. It carries only the conventions.
+export const confirmConventionsRequestSchema = z.object({
+    confirmConventions: z.literal(true),
+    decisionConventions: decisionConventionsSchema,
+});
+
+// JSON body of PUT /administrative-bodies/{bodyId} from an admin of the city:
+// an update of the body, or a confirmation of its conventions. confirmConventions selects the variant,
+// so the issues of a failed confirmation have paths under decisionConventions.
+export const updateAdministrativeBodyRequestSchema = z.discriminatedUnion('confirmConventions', [
+    confirmConventionsRequestSchema,
+    administrativeBodySchema.extend({ confirmConventions: z.literal(false).optional() }),
+]);
 
 // Frontend form schema (React Hook Form). The form edits the contact emails as
 // a primary address plus a comma-separated CC list, and joins them on submit.
 export const administrativeBodyFormSchema = z.object({
     ...baseAdministrativeBodyFields,
-    youtubeChannelUrl,
+    // Sent as it is: the request reads an empty field as a clear.
+    youtubeChannelUrl: z.union([youtubeChannelUrlValue, z.literal('')]).optional(),
     contactEmailPrimary: z.union([
         z.email({ error: vmsg('invalidEmail') }),
         z.literal('')
@@ -76,11 +89,11 @@ export const administrativeBodyFormSchema = z.object({
     notificationBehavior: notificationBehaviorSchema,
     place: z.string().max(200).optional(),
     showUnreviewedTranscript: z.boolean(),
-    diavgeiaUnitIds: z.string().optional().transform(val => val === '' ? undefined : val),
+    diavgeiaUnitIds: z.string().optional(),
     // Edited through its own fields and written by its own Confirm button, not
     // by this form's submit. Held as the parsed record, so the fields and the
     // Confirm handler take a typed value rather than an unchecked one.
-    decisionConventions: decisionConventionsSchema.nullable(),
+    decisionConventions: decisionConventionsRecordSchema.nullable(),
 });
 
 export type AdministrativeBodyFormOutput = z.output<typeof administrativeBodyFormSchema>;
