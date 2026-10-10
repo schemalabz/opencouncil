@@ -1,4 +1,4 @@
-jest.mock('@/env.mjs', () => ({ env: { NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: 'pk.test' } }));
+jest.mock('@/lib/publicEnv', () => ({ publicEnv: { NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: 'pk.test' } }));
 
 import { staticMapOverlayUrl } from '../staticMap';
 

@@ -5,7 +5,7 @@ import { LocationPreview } from '../LocationPreview';
 
 jest.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
 jest.mock('next/dynamic', () => () => () => null);
-jest.mock('@/env.mjs', () => ({ env: { NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: 'pk.test' } }));
+jest.mock('@/lib/publicEnv', () => ({ publicEnv: { NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: 'pk.test' } }));
 
 const mockOverlay = jest.fn();
 jest.mock('@/lib/map/staticMap', () => ({

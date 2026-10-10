@@ -8,12 +8,12 @@ import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { calculateGeometryBounds } from '@/lib/geo'
 import { createRoot } from 'react-dom/client'
-import { env } from '@/env.mjs'
+import { publicEnv } from '@/lib/publicEnv'
 import { isWebGLSupported } from '@/lib/webgl'
 import MapFallback from './MapFallback'
 import MapErrorBoundary from './MapErrorBoundary'
 
-mapboxgl.accessToken = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+mapboxgl.accessToken = publicEnv.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
 export interface MapFeature {
     id: string
