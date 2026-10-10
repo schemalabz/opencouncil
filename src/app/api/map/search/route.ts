@@ -3,6 +3,7 @@ import { getRealm } from '@/lib/realm.server'
 import { getGeneralSubjects, getMapSubjects, parseMapSubjectFilters } from '@/lib/db/subject'
 import { searchSubjectsInRealm } from '@/lib/search/core'
 import { openDateRange } from '@/lib/search/dateRange'
+import { queryFlag } from '@/lib/zod-schemas/primitives'
 import { SUBJECT_DOT_THRESHOLD } from '@/lib/landing/landingCore'
 
 // Per-query, and every query is different. Nothing to cache.
@@ -60,7 +61,7 @@ export async function GET(request: Request) {
                 // Reading the query text for filters is worth a model call once,
                 // when the reader commits the search. A caller re-running the
                 // same text after changing a filter already holds what it gave.
-                extractFilters: searchParams.get('extract') !== 'false',
+                extractFilters: queryFlag.catch(true).parse(searchParams.get('extract') ?? undefined),
             },
         }, realm);
 

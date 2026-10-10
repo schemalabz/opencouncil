@@ -4,7 +4,7 @@ import { captureEvent } from '@/lib/analytics/capture';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import FormSheet from '../FormSheet';
 import PartyForm from './PartyForm';
-import { City, Person, Role, AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
+import { City, Person, Role, AdministrativeBodyType } from '@prisma/client';
 import { ImageOrInitials } from '../ImageOrInitials';
 import { Button } from '../ui/button';
 import { PartyWithPersons } from '@/lib/db/parties';
@@ -13,7 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 import { Link } from '@/i18n/routing';
 import { getLatestContributionsForParty } from '@/lib/db/contributions';
-import { ContributionForPerson } from '@/lib/db/types';
+import { ContributionForPerson, type PublicAdministrativeBody } from '@/lib/db/types';
 import { ContributionCard, ContributionCardSkeleton } from '@/components/meetings/subject/ContributionCard';
 import { isUserAuthorizedToEdit } from '@/lib/actions/auth';
 import { getAdministrativeBodyTypesForPeople, filterPersonByAdminBodyTypes } from '@/lib/utils/administrativeBodies';
@@ -58,7 +58,7 @@ function PartyMembersTab({
     party: PartyWithPersons,
     people: PersonWithRelations[],
     canEdit: boolean,
-    administrativeBodies: AdministrativeBody[]
+    administrativeBodies: PublicAdministrativeBody[]
 }) {
     const t = useTranslations('Party');
     const tCommon = useTranslations('Common');
@@ -358,7 +358,7 @@ function SegmentsTab({
 export default function PartyC({ city, party, administrativeBodies, seatTotals }: {
     city: City,
     party: PartyWithPersons,
-    administrativeBodies: AdministrativeBody[],
+    administrativeBodies: PublicAdministrativeBody[],
     /** Every active seat in the city, per type of body — the whole each composition bar measures against. */
     seatTotals: BodySeatTotals,
 }) {

@@ -22,6 +22,8 @@ import {
 } from './ProductUpdateEmailEditor';
 import { DEFAULT_PRODUCT_UPDATE_TEMPLATE_MARKDOWN } from '@/lib/email/templates/productUpdateDefault';
 import { loadDraft, saveDraft, clearDraft } from './draftStorage';
+import { useValidationMessage } from '@/hooks/useLocalizedValidation';
+import { apiErrorMessage } from '@/lib/utils/validationIssues';
 
 interface SendResult {
     sent: number;
@@ -41,6 +43,7 @@ const DEFAULT_TAG = 'product-updates';
 
 export function SendProductUpdateDialog() {
     const t = useTranslations('ProductUpdates');
+    const validationMessage = useValidationMessage();
     const editorRef = useRef<ProductUpdateEmailEditorHandle>(null);
     const [open, setOpen] = useState(false);
     const [subject, setSubject] = useState('');
@@ -191,7 +194,7 @@ export function SendProductUpdateDialog() {
             });
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                setErrorMessage(data?.error ?? `HTTP ${res.status}`);
+                setErrorMessage(apiErrorMessage(data, `HTTP ${res.status}`, validationMessage));
                 setStatus('error');
                 return;
             }

@@ -1,19 +1,8 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { handleApiError } from "@/lib/api/errors";
 import { sendProductUpdateToAll, sendProductUpdateTest } from "@/lib/email/productUpdate";
-
-// Resend tag-value rules: ASCII letters/digits/underscores/dashes, ≤ 256 chars.
-const tagValue = z.string().regex(/^[A-Za-z0-9_-]+$/).max(256);
-
-const sendSchema = z.object({
-    subject: z.string().trim().min(1).max(200),
-    bodyHtml: z.string().trim().min(1),
-    testEmail: z.string().email().optional(),
-    testName: z.string().max(120).optional(),
-    tags: z.array(tagValue).max(70).optional(),
-});
+import { productUpdateSendSchema } from "@/lib/zod-schemas/productUpdate";
 
 export async function POST(request: Request) {
     const user = await getCurrentUser();
@@ -26,7 +15,7 @@ export async function POST(request: Request) {
 
     let payload;
     try {
-        payload = sendSchema.parse(await request.json());
+        payload = productUpdateSendSchema.parse(await request.json());
     } catch (error) {
         return handleApiError(error, "Invalid request body");
     }

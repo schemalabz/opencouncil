@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { canUseCityCreator, getCity } from '@/lib/db/cities';
 import { generateCityDataWithAI } from '@/lib/cityCreatorAI';
+import { handleApiError } from '@/lib/api/errors';
+import { cityPopulationAiRequestSchema } from '@/lib/zod-schemas/cityPopulation';
 
 // POST: AI-powered city data population with streaming
 export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
@@ -23,13 +25,10 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             return NextResponse.json({ error: 'City already has data' }, { status: 400 });
         }
 
-        let userProvidedText: string | undefined;
-        try {
-            const body = await request.json();
-            userProvidedText = body.userProvidedText?.trim() || undefined;
-        } catch (error) {
-            userProvidedText = undefined;
-        }
+        // Before the stream opens, so an invalid body answers 400 and the model is not called.
+        // A body that is not JSON parses as null, which the schema refuses.
+        const body = cityPopulationAiRequestSchema.parse(await request.json().catch(() => null));
+        const userProvidedText = body.userProvidedText || undefined;
 
         const encoder = new TextEncoder();
 
@@ -115,7 +114,6 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
 
         return streamResponse;
     } catch (error) {
-        console.error('Error in AI data generation route:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return handleApiError(error, 'Internal server error');
     }
 } 

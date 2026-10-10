@@ -1,48 +1,43 @@
-import { z } from 'zod';
-import { isCalendarDay } from '@/lib/utils/date';
+import * as z from 'zod';
+import { NonAgendaReason } from '@prisma/client';
+import { DATE_BOUND_RULE, listQueryFields, MAX_LIST_LIMIT } from './listQuery';
+import { queryFlag } from './primitives';
 
 /** Page size of the subject listings when the caller names none. */
 export const DEFAULT_SUBJECT_LIMIT = 50;
 /** Largest page the subject listings serve. */
-export const MAX_SUBJECT_LIMIT = 100;
-
-/** `2025-12-31`: the shape of a calendar day, whether or not the day exists. */
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+export const MAX_SUBJECT_LIMIT = MAX_LIST_LIMIT;
 
 /**
- * A bound of the date range. Both bounds are inclusive, which a date-only
- * upper bound only is if it covers the whole day: `new Date('2025-12-31')` is
- * midnight UTC at the *start* of the 31st, so `lte` against it would drop
- * every meeting held that day. A full timestamp passes through as written.
- * A date-only value must be a real day: `new Date('2026-02-31')` rolls over to
- * 3 March, so a parse check alone would accept it and search the wrong day.
+ * Whether a listing includes unreleased content. The routes that take it
+ * authorize the caller before they read with it.
  */
-const dateParam = (label: string, endOfDay = false) => z.string()
-    .refine(val => DATE_ONLY.test(val) ? isCalendarDay(val) : !isNaN(new Date(val).getTime()),
-        { message: `Invalid '${label}' date` })
-    .transform(val => new Date(endOfDay && isCalendarDay(val) ? `${val}T23:59:59.999Z` : val));
+export const includeUnreleasedQuery = queryFlag.default(false).meta({
+    description: 'Include unreleased meetings and their subjects, and a city that is not published. '
+        + 'Requires an authorized session for the city, or a service key.',
+    example: 'true',
+});
 
 /**
  * Query parameters of the subject listings. The routes parse
  * `searchParams`, so every field arrives as a string.
  */
 export const subjectListQuerySchema = z.object({
-    introducerId: z.string().min(1).optional(),
-    from: dateParam('from').optional(),
-    to: dateParam('to', true).optional(),
-    // The whole string must be digits: parseInt alone reads `10abc` as 10 and
-    // `1.5` as 1, so malformed input would silently return a page of data
-    // instead of the documented validation error.
-    limit: z.string()
-        .regex(/^\d+$/, { message: `Limit must be a whole number between 1 and ${MAX_SUBJECT_LIMIT}` })
-        .optional()
-        .transform(val => val ? parseInt(val, 10) : DEFAULT_SUBJECT_LIMIT)
-        .refine(val => val >= 1 && val <= MAX_SUBJECT_LIMIT, {
-            message: `Limit must be a whole number between 1 and ${MAX_SUBJECT_LIMIT}`,
-        }),
-    includeUnreleased: z.string()
-        .optional()
-        .transform(val => val === 'true'),
+    introducerId: z.string().min(1).optional().meta({ description: 'Return only subjects introduced by this person.' }),
+    from: listQueryFields.from.meta({
+        description: `Earliest meeting date, inclusive. ${DATE_BOUND_RULE}`,
+        example: '2025-01-01',
+    }),
+    to: listQueryFields.to.meta({
+        description: `Latest meeting date, inclusive. ${DATE_BOUND_RULE}`,
+        example: '2025-12-31',
+    }),
+    // No zod default: getApiSubjects applies it, also to an empty `?limit=`.
+    limit: listQueryFields.limit.meta({
+        description: `Maximum number of subjects to return (1-${MAX_SUBJECT_LIMIT}). Defaults to ${DEFAULT_SUBJECT_LIMIT}.`,
+        example: '20',
+    }),
+    includeUnreleased: includeUnreleasedQuery,
 });
 
 /**
@@ -50,3 +45,15 @@ export const subjectListQuerySchema = z.object({
  * date range.
  */
 export const meetingSubjectListQuerySchema = subjectListQuerySchema.omit({ from: true, to: true });
+
+/** Query parameters of a single subject. */
+export const subjectQuerySchema = subjectListQuerySchema.pick({ includeUnreleased: true });
+
+/**
+ * JSON body of PATCH /subjects/{subjectId}: the agenda flags of a subject.
+ * Strict, so a misspelt flag is a 400 rather than a write that does nothing.
+ */
+export const subjectAgendaFlagsSchema = z.strictObject({
+    nonAgendaReason: z.enum(NonAgendaReason).nullable().optional(),
+    withdrawn: z.boolean().optional(),
+});

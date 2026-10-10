@@ -13,47 +13,16 @@ jest.mock('../adminData', () => ({
 // auth.ts reaches Prisma, and through it env.mjs, which jest does not transform.
 jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
 
-import { InMemoryTransport, LATEST_PROTOCOL_VERSION, McpServer, type JSONRPCMessage } from '@modelcontextprotocol/server';
+import { McpServer } from '@modelcontextprotocol/server';
 import { registerAdminTools } from '../adminTools';
-import { mcpCreateAgendaUploadUrl, mcpCreateCity, mcpPopulateCity } from '../adminData';
+import { mcpCreateAgendaUploadUrl, mcpCreateCity, mcpCreateMeeting, mcpPopulateCity, mcpStartTask, mcpUpdateMeeting } from '@/lib/mcp/adminData';
+import { connectInMemory } from './inMemoryClient';
 
-type Response = { id: number; result?: Record<string, unknown>; error?: { message: string } };
-type CallResult = { isError?: boolean; content: { text: string }[] };
-
-/**
- * A real McpServer with the tools of a superadmin, and a client end that
- * sends raw JSON-RPC. Only the handlers are stubs.
- */
-async function connect() {
+/** A real McpServer with the tools of a superadmin. Only the handlers are stubs. */
+function connect() {
     const server = new McpServer({ name: 'test', version: '0.0.0' });
     registerAdminTools(server, { superadmin: true, cityIds: new Set() });
-    const [client, serverEnd] = InMemoryTransport.createLinkedPair();
-    const pending = new Map<number, (response: Response) => void>();
-    client.onmessage = (message: JSONRPCMessage) => {
-        const response = message as unknown as Response;
-        pending.get(response.id)?.(response);
-    };
-    await server.connect(serverEnd);
-    await client.start();
-
-    let nextId = 1;
-    const request = (method: string, params: Record<string, unknown>) => new Promise<Response>(resolve => {
-        const id = nextId++;
-        pending.set(id, resolve);
-        void client.send({ jsonrpc: '2.0', id, method, params });
-    });
-    await request('initialize', {
-        protocolVersion: LATEST_PROTOCOL_VERSION,
-        capabilities: {},
-        clientInfo: { name: 'jest', version: '0.0.0' },
-    });
-    await client.send({ jsonrpc: '2.0', method: 'notifications/initialized' });
-
-    const call = async (name: string, args: Record<string, unknown>) =>
-        (await request('tools/call', { name, arguments: args })).result as CallResult;
-    const listTools = async () =>
-        (await request('tools/list', {})).result?.tools as { name: string; inputSchema: Record<string, unknown> }[];
-    return { call, listTools, close: () => server.close() };
+    return connectInMemory(server);
 }
 
 const COUNCIL = {
@@ -164,5 +133,30 @@ describe('create_agenda_upload_url through the SDK', () => {
     it('forwards a docx format', async () => {
         await mcp.call('create_agenda_upload_url', { cityId: 'chania', identifier: '2026-10-15', format: 'docx' });
         expect(mcpCreateAgendaUploadUrl).toHaveBeenCalledWith(null, expect.objectContaining({ format: 'docx' }));
+    });
+});
+
+describe('link inputs take http(s) only', () => {
+    const MEETING = { cityId: 'chania', name: 'Συνεδρίαση', name_en: 'Meeting', dateTime: '2026-10-05T18:00:00+03:00' };
+    const cases: [string, string, Record<string, unknown>, jest.Mock][] = [
+        ['create_meeting', 'youtubeUrl', MEETING, mcpCreateMeeting as jest.Mock],
+        ['create_meeting', 'agendaUrl', MEETING, mcpCreateMeeting as jest.Mock],
+        ['update_meeting', 'youtubeUrl', { cityId: 'chania', meetingId: 'm1' }, mcpUpdateMeeting as jest.Mock],
+        ['update_meeting', 'agendaUrl', { cityId: 'chania', meetingId: 'm1' }, mcpUpdateMeeting as jest.Mock],
+        ['start_task', 'videoUrl', { cityId: 'chania', meetingId: 'm1', type: 'transcribe' }, mcpStartTask as jest.Mock],
+        ['start_task', 'agendaUrl', { cityId: 'chania', meetingId: 'm1', type: 'processAgenda' }, mcpStartTask as jest.Mock],
+    ];
+
+    it.each(cases)('%s refuses a javascript: %s', async (tool, field, args, handler) => {
+        const result = await mcp.call(tool, { ...args, [field]: 'javascript:alert(1)' });
+        expect(result.isError).toBe(true);
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it.each(cases)('%s takes an https %s', async (tool, field, args, handler) => {
+        handler.mockResolvedValue({});
+        const result = await mcp.call(tool, { ...args, [field]: 'https://example.com/file' });
+        expect(result.isError).toBeFalsy();
+        expect(handler).toHaveBeenCalledWith(null, expect.objectContaining({ [field]: 'https://example.com/file' }));
     });
 });

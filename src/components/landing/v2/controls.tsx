@@ -29,7 +29,7 @@ import {
 import type { Topic } from '@prisma/client';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
-import { env } from '@/env.mjs';
+import { publicEnv } from '@/lib/publicEnv';
 import { captureLandingAction } from '@/lib/landing/analytics';
 import {
     DropdownMenu,
@@ -227,7 +227,7 @@ export function MapStyleToggle({
     const t = useTranslations('landingV2');
     // Offering satellite → satellite-imagery backdrop (dark overlay for legibility); in
     // satellite mode → plain card style.
-    const satBg = `linear-gradient(rgba(12,18,32,0.45), rgba(12,18,32,0.55)), url("https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/23.74,37.99,9.5/200x44@2x?attribution=false&logo=false&access_token=${env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}")`;
+    const satBg = `linear-gradient(rgba(12,18,32,0.45), rgba(12,18,32,0.55)), url("https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/23.74,37.99,9.5/200x44@2x?attribution=false&logo=false&access_token=${publicEnv.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}")`;
     return (
         <button
             type="button"

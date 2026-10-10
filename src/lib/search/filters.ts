@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { Realm } from '@prisma/client';
 import { ExtractedFilters } from './types';
 import { aiChat } from '@/lib/ai';
@@ -7,6 +7,7 @@ import { getCity } from '@/lib/db/cities';
 import { getPlaceSuggestions, getPlaceDetails } from '@/lib/google-maps';
 import { calculateGeometryBounds } from '@/lib/geo';
 import { Location } from './types';
+import { isoDateOrDateTime } from '@/lib/zod-schemas/dates';
 
 // Radius of the proximity boost applied to subjects pinned near an AI-extracted
 // location (see buildLocationClauses).
@@ -85,8 +86,13 @@ export const NO_EXTRACTED_FILTERS: ExtractedFilters = {
  * rest of the extraction survives. The outer catch covers a response that is
  * not an object at all.
  */
-/** A date Elasticsearch and the filter pills can both read back. */
-const parsableDate = z.string().refine(value => !Number.isNaN(Date.parse(value)));
+/**
+ * A date Elasticsearch and the filter pills can both read back. The
+ * `meeting_date` mapping has the default format, which reads ISO 8601 only.
+ * Elasticsearch reads a date-time without a zone as UTC, so such a value is
+ * not ambiguous here.
+ */
+const parsableDate = isoDateOrDateTime({ zoneless: true });
 
 const extractedFiltersSchema = z.object({
     cityIds: z.array(z.string()).nullable().catch(null),

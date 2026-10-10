@@ -3,20 +3,22 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, RotateCcw, Search } from 'lucide-react';
+import type * as z from 'zod';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { AdminStrip, AdminToolButton } from '@/components/admin/AdminStrip';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { DecisionWithSource, SubjectExtractedData } from '@/lib/db/decisions';
 import { MeetingCandidate } from '@/lib/db/decisionCandidateShape';
-import type { AdaLookupOutcome } from '@/lib/db/types';
+import type { AdaLookupOutcome, AdministrativeBodySettings } from '@/lib/db/types';
 import { ADA_LOOKUP_SETTLE_MS } from '@/lib/db/types/adaLookups';
 import { getPollingHistoryForMeeting, requestPollDecisions, resolveCandidateConflict } from '@/lib/tasks/pollDecisions';
 import { pollCadence, takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff';
 import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib/utils/votes';
 import { formatCalendarDate, formatDate, localCalendarDate } from '@/lib/formatters/time';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
-import { isDecisionConventions } from '@/lib/decisionConventions';
+import { parseDecisionConventions } from '@/lib/decisionConventions';
+import type { decisionActionSchema, decisionUpsertSchema } from '@/lib/zod-schemas/decision';
 import { isRecordSubject, recordSection } from '@/lib/utils/subjects';
 import { hasRecordedVote, resultKey } from '@/lib/utils/decisionResult';
 import { causeFromPayload, decisionWriteCause, DecisionWriteError } from '@/lib/utils/decisionWriteCause';
@@ -68,12 +70,7 @@ interface DecisionsPayload {
 }
 
 /** Every write the page can POST to the decisions route. */
-type DecisionsAction =
-    | { action: 'assignCandidate'; candidateId: string; subjectId: string }
-    | { action: 'dismissCandidate'; candidateId: string }
-    | { action: 'undismissCandidate'; candidateId: string }
-    | { action: 'resetExtraction'; subjectId: string }
-    | { action: 'clearExtractedData' };
+type DecisionsAction = z.input<typeof decisionActionSchema>;
 
 /** The row panel: which row it belongs to, what it is doing, what it is asking. */
 interface PanelState {
@@ -158,7 +155,11 @@ const writeFailure = async (response: Response): Promise<DecisionWriteError> => 
     return new DecisionWriteError(causeFromPayload(payload), `HTTP ${response.status}`);
 };
 
-export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }) {
+export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
+    isSuperAdmin: boolean;
+    /** The settings of the meeting's body. The page reads them for an editor; the public meeting does not carry them. */
+    bodySettings: Pick<AdministrativeBodySettings, 'diavgeiaUnitIds' | 'decisionConventions'> | null;
+}) {
     // The mode lives here rather than in the rail that toggles it, because the
     // table and the sheet read it too, and a superadmin's choice must never
     // reach a page rendered for anyone else.
@@ -176,8 +177,8 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     // helper the task uses, so a malformed entry surfaces here — in the admin
     // page, before it fails a poll — rather than only in the task log.
     const pollScope = useMemo(
-        () => readDiavgeiaUnitEntries(meeting.administrativeBody?.diavgeiaUnitIds),
-        [meeting.administrativeBody?.diavgeiaUnitIds],
+        () => readDiavgeiaUnitEntries(bodySettings?.diavgeiaUnitIds),
+        [bodySettings?.diavgeiaUnitIds],
     );
     // The rules the derivation read this body's documents by, for the rail.
     // Parsed rather than asserted: an unparseable record is as good as none, and
@@ -188,12 +189,12 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
         const body = meeting.administrativeBody;
         if (!body) return null;
         return {
-            rules: isDecisionConventions(body.decisionConventions) ? body.decisionConventions : null,
+            rules: parseDecisionConventions(bodySettings?.decisionConventions),
             bodyName: getLocalizedName(body, locale),
             cityName: getLocalizedMunicipalityName(city, locale),
             editHref: `/${city.id}`,
         };
-    }, [meeting.administrativeBody, city, locale]);
+    }, [meeting.administrativeBody, bodySettings?.decisionConventions, city, locale]);
 
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
     const [candidates, setCandidates] = useState<CandidateView[]>([]);
@@ -686,7 +687,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 ...(body.decisionNumber ? { decisionNumber: body.decisionNumber } : {}),
                 ...(body.title ? { title: body.title } : {}),
                 ...(body.protocolNumber ? { protocolNumber: body.protocolNumber } : {}),
-            }),
+            } satisfies z.input<typeof decisionUpsertSchema>),
         });
         if (!response.ok) throw await writeFailure(response);
     };

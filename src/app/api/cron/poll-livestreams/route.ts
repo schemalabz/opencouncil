@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/env.mjs";
+import { handleApiError } from "@/lib/api/errors";
+import { queryFlag } from "@/lib/zod-schemas/primitives";
 import { pollLivestreamsForRecentMeetings } from "@/lib/tasks/pollLivestreams";
 
 export async function GET(request: NextRequest) {
@@ -19,10 +21,15 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    // ?dryRun=1 logs decisions without triggering transcription or posting alerts.
-    const dryRun = request.nextUrl.searchParams.get("dryRun") === "1";
+    try {
+        // ?dryRun=true logs decisions without triggering transcription or posting alerts.
+        // A value that is not a boolean is a 400, so a typo never runs the real poll.
+        const dryRun = queryFlag.default(false).parse(request.nextUrl.searchParams.get("dryRun") ?? undefined);
 
-    const result = await pollLivestreamsForRecentMeetings({ dryRun });
+        const result = await pollLivestreamsForRecentMeetings({ dryRun });
 
-    return NextResponse.json(result);
+        return NextResponse.json(result);
+    } catch (error) {
+        return handleApiError(error, "Failed to poll livestreams");
+    }
 }

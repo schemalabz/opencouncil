@@ -1,4 +1,4 @@
-import { isCalendarDay } from '../date';
+import { isCalendarDay } from '@/lib/zod-schemas/dates';
 
 describe('isCalendarDay', () => {
     it.each(['2026-01-01', '2024-02-29', '1970-01-01'])('accepts %p', (value) => {

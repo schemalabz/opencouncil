@@ -13,6 +13,7 @@ import {
 } from '@/lib/meetingLifecycleRules';
 import type { CouncilMeetingWithAdminBody } from './meetings';
 import { DECISION_KIND_SELECT } from '@/lib/tasks/pollDecisionsBackoff';
+import { publicAdministrativeBodyRelation } from './types/administrativeBody';
 
 type Client = Prisma.TransactionClient | PrismaClient;
 
@@ -41,7 +42,7 @@ const chainSelect = {
 type ChainRow = Prisma.CouncilMeetingGetPayload<{ select: typeof chainSelect }>;
 
 const withAdminBody = {
-    administrativeBody: true,
+    administrativeBody: publicAdministrativeBodyRelation,
     continuationOf: DECISION_KIND_SELECT.continuationOf,
 } satisfies Prisma.CouncilMeetingInclude;
 

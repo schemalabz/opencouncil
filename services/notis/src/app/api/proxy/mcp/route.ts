@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import * as z from "zod";
 import { env } from "@/env.mjs";
 import { errorResponse, parseJsonBody } from "@/lib/api";
 import { McpClient } from "@/lib/mcp-client";

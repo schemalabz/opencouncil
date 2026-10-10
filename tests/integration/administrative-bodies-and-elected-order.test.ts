@@ -1,10 +1,14 @@
 /** @jest-environment node */
+import * as z from 'zod'
 import prisma from '@/lib/db/prisma'
-import { POST as createBody } from '@/app/api/cities/[cityId]/administrative-bodies/route'
+import { paths } from '@/lib/openapi'
+import { AdministrativeBodyWithSettingsSchema } from '@/lib/openapi/entities'
+import { GET as listBodies, POST as createBody } from '@/app/api/cities/[cityId]/administrative-bodies/route'
 import { PUT as updateBody } from '@/app/api/cities/[cityId]/administrative-bodies/[bodyId]/route'
 import { POST as updateElectedOrder } from '@/app/api/cities/[cityId]/roles/elected-order/route'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
 import { createAdministrativeBody, createCity, createMeeting, createPerson, createSubject, signInAsSuperAdmin } from '../helpers/factories'
+import { strictSchema } from '../helpers/strictSchema'
 
 // revalidateTag needs a request scope that a route test does not have.
 jest.mock('next/cache', () => ({ revalidateTag: jest.fn(), revalidatePath: jest.fn() }))
@@ -67,6 +71,49 @@ describe('administrative body and elected order routes', () => {
         }, 'PUT') as never, params)
         expect(bad.status).toBe(400)
         expect((await prisma.administrativeBody.findUniqueOrThrow({ where: { id: body.id } })).name).toBe('Council')
+    })
+
+    it('answers a body stored with legacy anchor names in the documented shape', async () => {
+        const body = await createAdministrativeBody(cityId, {
+            decisionConventions: {
+                version: 1,
+                rollCallLayout: 'present_and_absent',
+                presentListMeaning: 'opening',
+                attendanceChangeAnchors: ['session_phase', 'this_document', 'clock_time'],
+                statesPerDecisionAttendance: false,
+                statesPerVoteAbsence: false,
+                usesSubstitutes: false,
+                namedVoters: 'dissenters_only',
+                mayorStatedSeparately: true,
+                provenance: { source: 'profile', profiledAt: '2026-09-13', documentsSampled: 8 },
+            },
+        })
+        const put = paths['/api/cities/{cityId}/administrative-bodies/{bodyId}']?.put?.responses['200']
+        const documented = put && 'content' in put ? put.content?.['application/json']?.schema : undefined
+        if (!(documented instanceof z.ZodType)) throw new Error('PUT documents no zod 200 schema')
+        // The editor GET is not in the spec; the form reads it as the same entity.
+        expect(documented).toBe(AdministrativeBodyWithSettingsSchema)
+        const expectDocumented = (value: unknown, schema: z.core.$ZodType) => {
+            const result = z.safeParse(strictSchema(schema), value)
+            expect(result.success ? [] : result.error.issues).toEqual([])
+        }
+
+        const updated = await updateBody(jsonRequest(`administrative-bodies/${body.id}`, {
+            name: 'Council', name_en: 'Council', type: 'council',
+        }, 'PUT') as never, { params: Promise.resolve({ cityId, bodyId: body.id }) })
+        expect(updated.status).toBe(200)
+        const updatedBody = await updated.json()
+        expectDocumented(updatedBody, documented)
+        expect(updatedBody.decisionConventions.attendanceChangeAnchors).toEqual(['phase', 'subject'])
+
+        const listed = await listBodies(new Request(`http://localhost/api/cities/${cityId}/administrative-bodies`) as never, { params: Promise.resolve({ cityId }) })
+        expect(listed.status).toBe(200)
+        expectDocumented(await listed.json(), z.array(AdministrativeBodyWithSettingsSchema))
+
+        // The answer is normalized; the stored row is not rewritten.
+        const stored = await prisma.administrativeBody.findUniqueOrThrow({ where: { id: body.id } })
+        expect((stored.decisionConventions as { attendanceChangeAnchors: string[] }).attendanceChangeAnchors)
+            .toEqual(['session_phase', 'this_document', 'clock_time'])
     })
 
     it('saves an elected order and rejects a negative one', async () => {

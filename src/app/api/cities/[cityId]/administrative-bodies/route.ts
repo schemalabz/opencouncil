@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { getAdministrativeBodiesForCity, getPublicAdministrativeBodiesForCity, createAdministrativeBody } from '@/lib/db/administrativeBodies';
-import { z } from 'zod';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
+import { handleApiError } from '@/lib/api/errors';
 
 
 export async function GET(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
@@ -55,13 +55,6 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
 
         return NextResponse.json(newBody, { status: 201 });
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
-        }
-        console.error('Failed to create administrative body:', error);
-        return NextResponse.json(
-            { error: 'Failed to create administrative body' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'Failed to create administrative body');
     }
 } 

@@ -2,6 +2,7 @@ import { Consultation, User, ConsultationComment, ConsultationCommentEntityType 
 import { Session } from 'next-auth';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { BadRequestError, NotFoundError } from "@/lib/api/errors";
 import { sendConsultationCommentEmail } from "../email/consultation";
 import { RegulationData } from "@/components/consultations/types";
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
@@ -44,11 +45,11 @@ export async function createConsultation(data: {
     });
 
     if (!city) {
-        throw new Error('City not found');
+        throw new NotFoundError('City not found');
     }
 
     if (!city.consultationsEnabled) {
-        throw new Error('Consultations are not enabled for this city. Enable them first in city settings.');
+        throw new BadRequestError('Consultations are not enabled for this city. Enable them first in city settings.');
     }
 
     return prisma.consultation.create({

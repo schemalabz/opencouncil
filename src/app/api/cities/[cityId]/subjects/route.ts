@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { getApiSubjects } from '@/lib/db/subjectsApi';
 import { getRealm } from '@/lib/realm.server';
 import { subjectListQuerySchema } from '@/lib/zod-schemas/subject';
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { handleApiError } from '@/lib/api/errors';
+import { resolveCityDateRange } from '@/lib/dates/cityDateRange';
 
 export async function GET(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -19,17 +19,13 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
 
         const subjects = await getApiSubjects(await getRealm(), params.cityId, {
             introducerId,
-            from,
-            to,
+            ...await resolveCityDateRange(params.cityId, { from, to }),
             limit,
             includeUnreleased,
         });
 
         return NextResponse.json(subjects);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
-        }
         return handleApiError(error, 'Failed to fetch subjects');
     }
 }

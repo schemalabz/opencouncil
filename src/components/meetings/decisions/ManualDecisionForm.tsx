@@ -1,15 +1,15 @@
 "use client";
 
 import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useZodResolver } from '@/hooks/useLocalizedValidation';
 import { useTranslations } from 'next-intl';
-import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LinkOrDrop } from '@/components/ui/link-or-drop';
 import { QuietButton } from '@/components/meetings/decisions/controls';
 import { adaFromDiavgeiaUrl } from '@/lib/utils/ada';
+import { manualDecisionFormSchema } from '@/lib/zod-schemas/decision';
 import type { UploadConfig } from '@/types/upload';
 
 export interface ManualDecisionEntry {
@@ -18,13 +18,6 @@ export interface ManualDecisionEntry {
     title: string | null;
     protocolNumber: string | null;
 }
-
-const schema = z.object({
-    pdfUrl: z.string().trim().regex(/^https?:\/\/\S+$/),
-    decisionNumber: z.string().trim().min(1),
-    title: z.string().trim(),
-    protocolNumber: z.string().trim(),
-});
 
 /**
  * A decision that is not on Diavgeia: the clerk gives the PDF and the number
@@ -44,8 +37,8 @@ export function ManualDecisionForm({ subjectLabel, uploadConfig, initial, onCont
     onClose: () => void;
 }) {
     const t = useTranslations('admin.decisionsPage');
-    const { control, register, handleSubmit, watch, formState: { errors } } = useForm<z.infer<typeof schema>>({
-        resolver: zodResolver(schema),
+    const { control, register, handleSubmit, watch, formState: { errors } } = useForm({
+        resolver: useZodResolver(manualDecisionFormSchema),
         defaultValues: {
             pdfUrl: initial?.pdfUrl ?? '',
             decisionNumber: initial?.decisionNumber ?? '',

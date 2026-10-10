@@ -13,12 +13,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTranslations } from 'next-intl'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import * as z from "zod"
 import { roleDatesInOrder, roleDatesInOrderIssue } from "@/lib/zod-schemas/role"
 import { Loader2, Pencil, Trash2 } from "lucide-react"
-import { Party, AdministrativeBody } from '@prisma/client'
+import { Party } from '@prisma/client'
+import type { PublicAdministrativeBody } from '@/lib/db/types'
 import { RoleWithRelations } from '@/lib/db/types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -58,7 +59,7 @@ interface RolesListProps {
     cityId: string;
     roles: RoleWithRelations[];
     parties: Party[];
-    administrativeBodies: AdministrativeBody[];
+    administrativeBodies: PublicAdministrativeBody[];
     onUpdate: (roles: RoleWithRelations[]) => void;
 }
 
@@ -69,8 +70,8 @@ export default function RolesList({ personId, cityId, roles, parties, administra
     const [editingRole, setEditingRole] = useState<RoleWithRelations | null>(null)
     const t = useTranslations('RolesList')
 
-    const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+    const form = useForm({
+        resolver: useZodResolver(formSchema),
         defaultValues: {
             name: editingRole?.name || "",
             name_en: editingRole?.name_en || "",
@@ -83,7 +84,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
         },
     })
 
-    const handleSubmit = (values: z.infer<typeof formSchema>, e: React.FormEvent) => {
+    const handleSubmit = (values: z.output<typeof formSchema>, e: React.FormEvent) => {
         e.preventDefault(); // Prevent form submission
 
         const administrativeBodyId = values.type === 'administrativeBody' ? values.administrativeBodyId || null : null;

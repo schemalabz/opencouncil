@@ -6,6 +6,9 @@ import { BatchRerunActions, type BatchMeeting } from "@/components/admin/tasks/B
 import { ActiveTasks } from "@/components/admin/tasks/ActiveTasks";
 import { MeetingTaskType } from "@/lib/tasks/types";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { dayBounds } from "@/lib/dates/dayBounds";
+import { DEFAULT_TIMEZONE } from "@/lib/formatters/time";
+import { isCalendarDay } from "@/lib/zod-schemas/dates";
 
 const DEFAULT_TASK_TYPES: MeetingTaskType[] = ['transcribe', 'processAgenda', 'summarize'];
 
@@ -27,8 +30,10 @@ export default async function TasksPage(props: PageProps) {
     const currentYear = new Date().getFullYear();
     const defaultDateFrom = `${currentYear}-01-01`;
     const dateFromParam = searchParams.dateFrom === "all" ? "" : (searchParams.dateFrom ?? defaultDateFrom);
-    const dateFrom = dateFromParam ? new Date(dateFromParam) : undefined;
-    const dateTo = searchParams.dateTo ? new Date(searchParams.dateTo + "T23:59:59.999Z") : undefined;
+    // The page lists meetings of every city, and one query reads a day in one
+    // zone: DEFAULT_TIMEZONE, the zone of the Greek cities.
+    const dateFrom = isCalendarDay(dateFromParam) ? dayBounds(dateFromParam, DEFAULT_TIMEZONE).start : undefined;
+    const dateTo = isCalendarDay(searchParams.dateTo) ? dayBounds(searchParams.dateTo, DEFAULT_TIMEZONE).end : undefined;
 
     // Parse city filter
     const cityIds = searchParams.cityId ? [searchParams.cityId] : undefined;

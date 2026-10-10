@@ -875,6 +875,23 @@
         "adminParty": "Διαχείριση Παράταξης",
         "adminPerson": "Διαχείριση Μέλους"
     },
+    "ReportForm": {
+        "title": "Δημιουργία Αναφοράς Προόδου",
+        "city": "Δήμος",
+        "selectCity": "Επιλέξτε δήμο",
+        "searchCity": "Αναζήτηση δήμου...",
+        "noCityFound": "Δεν βρέθηκε δήμος.",
+        "contractReference": "Αριθμός Σύμβασης",
+        "contractReferencePlaceholder": "π.χ. 25SYMV01234567",
+        "period": "Περίοδος",
+        "halfYear": "{number}ο εξάμηνο",
+        "months": "{count} μήνες",
+        "generating": "Δημιουργία...",
+        "generate": "Δημιουργία Αναφοράς (.docx)",
+        "success": "Η αναφορά δημιουργήθηκε επιτυχώς",
+        "error": "Σφάλμα",
+        "failed": "Αποτυχία δημιουργίας αναφοράς"
+    },
     "OfferForm": {
         "success": "Επιτυχία",
         "offerUpdated": "Η προσφορά ενημερώθηκε",

@@ -3,6 +3,7 @@ import React from 'react';
 import { Slider } from '@/components/ui/slider';
 import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
 import { TaskStatus } from '@prisma/client';
+import type { AdministrativeBodySettings } from '@/lib/db/types';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,8 +30,11 @@ import MeetingOperator from './MeetingOperator';
 import { transcriptionRefusal } from '@/lib/meetingLifecycleRules';
 
 export default function AdminActions({
+    bodySettings,
 }: {
-    }) {
+    /** The settings of the meeting's body. The page reads them for an editor; the public meeting does not carry them. */
+    bodySettings: Pick<AdministrativeBodySettings, 'notificationBehavior'> | null;
+}) {
     const { toast } = useToast();
     const t = useTranslations('admin.adminActions');
     const { meeting, transcript, people, city, subjects } = useCouncilMeetingData();
@@ -57,7 +61,7 @@ export default function AdminActions({
         setMediaUrl(meeting.youtubeUrl || '');
     }, [meeting.youtubeUrl]);
 
-    const notificationBehavior = meeting.administrativeBody?.notificationBehavior;
+    const notificationBehavior = bodySettings?.notificationBehavior;
 
     const notificationsEnabled = notificationBehavior && notificationBehavior !== 'NOTIFICATIONS_DISABLED';
     const fetchTaskStatuses = React.useCallback(async () => {

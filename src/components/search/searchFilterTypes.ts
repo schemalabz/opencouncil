@@ -1,4 +1,4 @@
-import { endOfDay, format, isValid, parseISO, startOfDay } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 
 /** Filter state, exactly as it is carried in the URL. */
 export type SearchFilterParams = {
@@ -112,20 +112,20 @@ export function formatFilterDate(date: Date): string {
 }
 
 /**
- * The UTC instants that bound the local calendar days `[dateFrom, dateTo]`, for
- * the Elasticsearch `meeting_date` range. An open end repeats the start, so a
- * half-picked range means that single day.
+ * The calendar days `[dateFrom, dateTo]` as the search's date range. An open
+ * end repeats the start, so a half-picked range means that single day.
  *
- * Bounding on local day edges matters: a meeting held at 21:00 local on the
- * last day of the range is already the next day in UTC, and a range built from
- * naive `${day}T00:00:00Z` / `${day}T23:59:59Z` strings would drop it.
+ * The range stays two days. The search reads them in the time zone of the
+ * searched city (resolveSearchDayRange), not in the zone of the browser: a
+ * meeting held at 21:00 Athens time on the last day of the range is already
+ * the next day in UTC, and in a browser west of Athens too.
  *
  * The two days are ordered before use. The picker cannot produce an end before
  * a start, but a hand-edited URL can, and passing that straight through built a
  * reversed range that matched nothing while the pill still read as a period —
  * zero results with nothing on screen to explain them.
  */
-export function filterDateRangeToInstants(
+export function filterDateRange(
     dateFrom: string | undefined,
     dateTo: string | undefined
 ): { start: string; end: string } | undefined {
@@ -134,7 +134,7 @@ export function filterDateRangeToInstants(
     const to = parseFilterDate(dateTo) ?? from;
     const [earlier, later] = from <= to ? [from, to] : [to, from];
     return {
-        start: startOfDay(earlier).toISOString(),
-        end: endOfDay(later).toISOString(),
+        start: formatFilterDate(earlier),
+        end: formatFilterDate(later),
     };
 }

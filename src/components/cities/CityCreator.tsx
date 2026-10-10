@@ -16,7 +16,8 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { CityPopulationInput } from '@/lib/zod-schemas/cityPopulation';
-import { formatValidationIssues } from '@/lib/utils/validationIssues';
+import { useValidationMessage } from '@/hooks/useLocalizedValidation';
+import { apiErrorMessage } from '@/lib/utils/validationIssues';
 
 interface CityCreatorProps {
     cityId: string;
@@ -37,6 +38,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
     const [showAiDialog, setShowAiDialog] = useState(false);
     const [aiStatusMessage, setAiStatusMessage] = useState<string>('');
     const { toast } = useToast();
+    const validationMessage = useValidationMessage();
 
     // Load initial data
     useEffect(() => {
@@ -208,10 +210,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
             if (!response.ok) {
                 const errorData = await response.json();
                 // A 400 lists each invalid field, e.g. `people.3.name_short: ...`
-                const message = Array.isArray(errorData.error)
-                    ? formatValidationIssues(errorData.error).join('\n')
-                    : errorData.error;
-                throw new Error(message || 'Failed to save city data');
+                throw new Error(apiErrorMessage(errorData, 'Failed to save city data', validationMessage));
             }
 
             const result = await response.json();

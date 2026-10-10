@@ -6,10 +6,11 @@ import { openDateRange } from '@/lib/search/dateRange';
 import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
 import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
 import { getCouncilMeetingsWithSubjectPreview } from '@/lib/db/meetingsList';
+import { resolveCityDateRange } from '@/lib/dates/cityDateRange';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
 import {
-    getAdministrativeBodiesForCity,
+    getPublicAdministrativeBodiesForCity,
     getAdministrativeBodiesWithPublicMeetings,
 } from '@/lib/db/administrativeBodies';
 import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } from '@/lib/db/subject';
@@ -23,7 +24,7 @@ import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } fro
 import { canSeeUnreleased, requirePublicTranscript, requireVisibleMeeting } from './gate';
 import { assertCitiesInRealm, requireCityBodies, requireRealmBodies, requireRealmCity } from './realmGuards';
 import { getRoleLabelAt, RoleTextTranslator } from '@/lib/utils/roles';
-import { roleWithRelationsInclude } from '@/lib/db/types';
+import { publicAdministrativeBodyRelation, roleWithRelationsInclude } from '@/lib/db/types';
 import { getTranslations } from 'next-intl/server';
 import {
     renderOptionsFromRequestBody,
@@ -36,6 +37,7 @@ import { isSuperIdentity, type McpIdentity } from './auth';
 import { isCustomer } from "@/lib/cityStatus";
 import { meetingDisplayName, meetingLabel, meetingLabelInCity } from '@/lib/meetingName';
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
+import { getCityTimezone } from '@/lib/db/cityTimezone';
 import { originalScheduledDate, originalScheduledDates } from '@/lib/db/meetingLifecycle';
 import { publicRecordFields } from '@/lib/meetingPublic';
 
@@ -165,12 +167,6 @@ const SCHEDULE_STATUS_NOTES = {
         + 'carries postponedFromDate.',
 } as const satisfies Record<MeetingScheduleStatus, string | null>;
 
-/** The timezone that a derived meeting name prints its date in. */
-async function cityTimezone(cityId: string): Promise<string> {
-    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { timezone: true } });
-    return city?.timezone ?? DEFAULT_TIMEZONE;
-}
-
 export async function mcpGetCity(cityId: string, identity: McpIdentity) {
     await requireRealmCity(cityId);
     const [city, parties, includeUnreleased] = await Promise.all([
@@ -184,7 +180,7 @@ export async function mcpGetCity(cityId: string, identity: McpIdentity) {
     // meetings are all drafts would be a dead filter option for anyone who
     // cannot see drafts — offer it only to the callers who can.
     const administrativeBodies = includeUnreleased
-        ? await getAdministrativeBodiesForCity(cityId)
+        ? await getPublicAdministrativeBodiesForCity(cityId)
         : await getAdministrativeBodiesWithPublicMeetings(cityId);
 
     return {
@@ -305,22 +301,23 @@ export async function mcpListMeetings(
     // subject's description and context to answer that. The projection counts
     // segments per listed meeting anyway, so hasTranscript reads that count
     // instead of the semi-join it used to run for itself.
+    // The tool takes calendar days, inclusive, as the REST list does.
+    const { from, to } = await resolveCityDateRange(cityId, {
+        from: options.from ? { kind: 'day', day: options.from } : undefined,
+        to: options.to ? { kind: 'day', day: options.to } : undefined,
+    });
     const meetings = await getCouncilMeetingsWithSubjectPreview(cityId, {
         includeUnreleased: await canSeeUnreleased(identity, cityId),
         page: options.page,
         pageSize: options.pageSize,
-        from: options.from ? new Date(`${options.from}T00:00:00.000Z`) : undefined,
-        // `to` is documented as inclusive, and the underlying filter is `lte`
-        // against a timestamp — so the bound has to be the end of that day.
-        // Parsed as a bare date it lands on midnight and drops every meeting
-        // held later that day.
-        to: options.to ? new Date(`${options.to}T23:59:59.999Z`) : undefined,
+        from,
+        to,
         timeFilter: options.timeFilter,
         administrativeBodyIds: options.administrativeBodyIds,
         administrativeBodyTypes: options.administrativeBodyTypes,
     });
 
-    const timezone = await cityTimezone(cityId);
+    const timezone = (await getCityTimezone(cityId)) ?? DEFAULT_TIMEZONE;
     const postponedFromDates = await originalScheduledDates(cityId, meetings);
     return {
         meetings: meetings.map(meeting => ({
@@ -345,7 +342,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },
         include: {
-            administrativeBody: true,
+            administrativeBody: publicAdministrativeBodyRelation,
             city: { select: { timezone: true } },
             subjects: {
                 orderBy: [{ agendaSectionIndex: { sort: 'asc', nulls: 'first' } }, { agendaItemIndex: 'asc' }, { name: 'asc' }],
@@ -751,7 +748,7 @@ export async function mcpListNearbySubjects(args: {
         args.limit
     );
     const ranked = await withDistances(subjects, center);
-    const timezone = await cityTimezone(city.id);
+    const timezone = (await getCityTimezone(city.id)) ?? DEFAULT_TIMEZONE;
 
     return {
         cityId: city.id,

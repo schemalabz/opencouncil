@@ -5,107 +5,101 @@ import { getDecisionsForMeeting, getExtractedDataForMeeting, upsertDecision, del
 import { getUnresolvedCandidatesForMeeting, assignCandidate, dismissCandidate, undismissCandidate, getBackedDecisionIds } from '@/lib/db/decisionCandidates';
 import { deriveAndPersist, explainMeeting } from '@/lib/derivation/persist';
 import prisma from '@/lib/db/prisma';
-import { decisionWriteCause } from '@/lib/utils/decisionWriteCause';
+import { DecisionWriteError } from '@/lib/utils/decisionWriteCause';
 import { revalidateTag } from 'next/cache';
-import { z } from 'zod';
+import { decisionActionSchema, decisionUpsertSchema } from '@/lib/zod-schemas/decision';
+import { handleApiError } from '@/lib/api/errors';
 
 export async function GET(
     request: Request,
     props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
     const params = await props.params;
-    await withUserAuthorizedToEdit({ cityId: params.cityId });
+    try {
+        await withUserAuthorizedToEdit({ cityId: params.cityId });
 
-    // The derivation is read-only and pure over rows already fetched for it, so
-    // the page gets the issues and the per-row origins with the decisions
-    // themselves rather than on a second round trip.
-    const [decisions, extractedData, candidates, derivation] = await Promise.all([
-        getDecisionsForMeeting(params.cityId, params.meetingId),
-        getExtractedDataForMeeting(params.cityId, params.meetingId),
-        getUnresolvedCandidatesForMeeting(params.cityId, params.meetingId),
-        explainMeeting(params.cityId, params.meetingId),
-    ]);
+        // The derivation is read-only and pure over rows already fetched for it, so
+        // the page gets the issues and the per-row origins with the decisions
+        // themselves rather than on a second round trip.
+        const [decisions, extractedData, candidates, derivation] = await Promise.all([
+            getDecisionsForMeeting(params.cityId, params.meetingId),
+            getExtractedDataForMeeting(params.cityId, params.meetingId),
+            getUnresolvedCandidatesForMeeting(params.cityId, params.meetingId),
+            explainMeeting(params.cityId, params.meetingId),
+        ]);
 
-    // Unlink is only reversible when a candidate row backs the decision
-    // (onDelete: SetNull returns it to the unplaced pool). The UI warns
-    // before unlinking the unbacked rest (legacy ADA-less decisions).
-    const backedIds = await getBackedDecisionIds(decisions.map((d) => d.id));
-    const decisionsWithBacking = decisions.map((d) => ({ ...d, candidateBacked: backedIds.has(d.id) }));
+        // Unlink is only reversible when a candidate row backs the decision
+        // (onDelete: SetNull returns it to the unplaced pool). The UI warns
+        // before unlinking the unbacked rest (legacy ADA-less decisions).
+        const backedIds = await getBackedDecisionIds(decisions.map((d) => d.id));
+        const decisionsWithBacking = decisions.map((d) => ({ ...d, candidateBacked: backedIds.has(d.id) }));
 
-    return NextResponse.json({ decisions: decisionsWithBacking, extractedData, candidates, derivation });
+        return NextResponse.json({ decisions: decisionsWithBacking, extractedData, candidates, derivation });
+    } catch (error) {
+        return handleApiError(error, 'Failed to fetch decisions');
+    }
 }
-
-const upsertSchema = z.object({
-    subjectId: z.string().min(1),
-    pdfUrl: z.string().url().refine(u => /^https?:\/\//.test(u), 'pdfUrl must be http(s)'),
-    decisionNumber: z.string().optional(),
-    protocolNumber: z.string().optional(),
-    ada: z.string().optional(),
-    title: z.string().optional(),
-    publishDate: z.string().datetime().optional(),
-});
 
 export async function PUT(
     request: Request,
     props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
     const params = await props.params;
-    await withUserAuthorizedToEdit({ cityId: params.cityId });
+    try {
+        await withUserAuthorizedToEdit({ cityId: params.cityId });
 
-    const session = await auth();
-    const userId = session?.user?.id;
+        const session = await auth();
+        const userId = session?.user?.id;
 
-    const body = await request.json().catch(() => null);
-    const result = upsertSchema.safeParse(body);
-    if (!result.success) {
-        return NextResponse.json({ error: 'Invalid decision', details: result.error.errors }, { status: 400 });
-    }
-    const parsed = result.data;
+        const parsed = decisionUpsertSchema.parse(await request.json().catch(() => null));
 
-    // Decision.ada is unique: an ADA already linked to another subject must
-    // surface as a readable conflict, not a Prisma P2002 500.
-    if (parsed.ada) {
-        const holder = await prisma.decision.findUnique({ where: { ada: parsed.ada }, select: { subjectId: true } });
-        if (holder && holder.subjectId !== parsed.subjectId) {
+        // Decision.ada is unique: an ADA already linked to another subject must
+        // surface as a readable conflict, not a Prisma P2002 500.
+        if (parsed.ada) {
+            const holder = await prisma.decision.findUnique({ where: { ada: parsed.ada }, select: { subjectId: true } });
+            if (holder && holder.subjectId !== parsed.subjectId) {
+                return NextResponse.json(
+                    {
+                        error: 'This decision is already linked to another subject',
+                        code: 'adaLinkedElsewhere',
+                        subjectId: holder.subjectId,
+                    },
+                    { status: 409 },
+                );
+            }
+        }
+
+        // Verify the subject belongs to this city and meeting
+        const subject = await prisma.subject.findFirst({
+            where: {
+                id: parsed.subjectId,
+                cityId: params.cityId,
+                councilMeetingId: params.meetingId,
+            },
+        });
+
+        if (!subject) {
             return NextResponse.json(
-                {
-                    error: 'This decision is already linked to another subject',
-                    code: 'adaLinkedElsewhere',
-                    subjectId: holder.subjectId,
-                },
-                { status: 409 },
+                { error: 'Subject not found in this meeting' },
+                { status: 404 }
             );
         }
+
+        const decision = await upsertDecision({
+            subjectId: parsed.subjectId,
+            pdfUrl: parsed.pdfUrl,
+            decisionNumber: parsed.decisionNumber,
+            protocolNumber: parsed.protocolNumber,
+            ada: parsed.ada,
+            title: parsed.title,
+            publishDate: parsed.publishDate ? new Date(parsed.publishDate) : undefined,
+            createdById: userId, // Track who manually added this decision
+        });
+        revalidateTag(`city:${params.cityId}:meetings`, 'max');
+        return NextResponse.json(decision);
+    } catch (error) {
+        return handleApiError(error, 'Failed to save decision');
     }
-
-    // Verify the subject belongs to this city and meeting
-    const subject = await prisma.subject.findFirst({
-        where: {
-            id: parsed.subjectId,
-            cityId: params.cityId,
-            councilMeetingId: params.meetingId,
-        },
-    });
-
-    if (!subject) {
-        return NextResponse.json(
-            { error: 'Subject not found in this meeting' },
-            { status: 404 }
-        );
-    }
-
-    const decision = await upsertDecision({
-        subjectId: parsed.subjectId,
-        pdfUrl: parsed.pdfUrl,
-        decisionNumber: parsed.decisionNumber,
-        protocolNumber: parsed.protocolNumber,
-        ada: parsed.ada,
-        title: parsed.title,
-        publishDate: parsed.publishDate ? new Date(parsed.publishDate) : undefined,
-        createdById: userId, // Track who manually added this decision
-    });
-    revalidateTag(`city:${params.cityId}:meetings`, 'max');
-    return NextResponse.json(decision);
 }
 
 export async function DELETE(
@@ -113,141 +107,137 @@ export async function DELETE(
     props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
     const params = await props.params;
-    await withUserAuthorizedToEdit({ cityId: params.cityId });
+    try {
+        await withUserAuthorizedToEdit({ cityId: params.cityId });
 
-    const { searchParams } = new URL(request.url);
-    const subjectId = searchParams.get('subjectId');
+        const { searchParams } = new URL(request.url);
+        const subjectId = searchParams.get('subjectId');
 
-    if (!subjectId) {
-        return NextResponse.json({ error: 'subjectId is required' }, { status: 400 });
+        if (!subjectId) {
+            return NextResponse.json({ error: 'subjectId is required' }, { status: 400 });
+        }
+
+        // Verify the subject belongs to this city and meeting
+        const subject = await prisma.subject.findFirst({
+            where: {
+                id: subjectId,
+                cityId: params.cityId,
+                councilMeetingId: params.meetingId,
+            },
+        });
+
+        if (!subject) {
+            return NextResponse.json(
+                { error: 'Subject not found in this meeting' },
+                { status: 404 }
+            );
+        }
+
+        await deleteDecision(subjectId);
+        revalidateTag(`city:${params.cityId}:meetings`, 'max');
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        return handleApiError(error, 'Failed to delete decision');
     }
-
-    // Verify the subject belongs to this city and meeting
-    const subject = await prisma.subject.findFirst({
-        where: {
-            id: subjectId,
-            cityId: params.cityId,
-            councilMeetingId: params.meetingId,
-        },
-    });
-
-    if (!subject) {
-        return NextResponse.json(
-            { error: 'Subject not found in this meeting' },
-            { status: 404 }
-        );
-    }
-
-    await deleteDecision(subjectId);
-    revalidateTag(`city:${params.cityId}:meetings`, 'max');
-    return NextResponse.json({ success: true });
 }
 
-/** A failed write answers with its cause, so the page never has to read the sentence. */
-function writeFailure(error: unknown, fallback: string) {
-    return NextResponse.json(
-        { error: error instanceof Error ? error.message : fallback, ...decisionWriteCause(error) },
-        { status: 409 },
-    );
+/**
+ * A refused write answers 409 with its cause, so the page never has to read
+ * the sentence. Any other error goes on to `handleApiError`, which logs it and
+ * answers 500 without its message.
+ */
+function writeFailure(error: unknown) {
+    if (!(error instanceof DecisionWriteError)) throw error;
+    return NextResponse.json({ error: error.message, ...error.writeCause }, { status: 409 });
 }
-
-const postSchema = z.discriminatedUnion('action', [
-    z.object({ action: z.literal('clearExtractedData') }),
-    z.object({ action: z.literal('resetExtraction'), subjectId: z.string().min(1) }),
-    z.object({ action: z.literal('assignCandidate'), candidateId: z.string().min(1), subjectId: z.string().min(1) }),
-    z.object({ action: z.literal('dismissCandidate'), candidateId: z.string().min(1) }),
-    z.object({ action: z.literal('undismissCandidate'), candidateId: z.string().min(1) }),
-    z.object({ action: z.literal('rederive') }),
-]);
 
 export async function POST(
     request: Request,
     props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
     const params = await props.params;
-    await withUserAuthorizedToEdit({ cityId: params.cityId });
+    try {
+        await withUserAuthorizedToEdit({ cityId: params.cityId });
 
-    const body = await request.json().catch(() => null);
-    const parsed = postSchema.safeParse(body);
+        const body = decisionActionSchema.parse(await request.json().catch(() => null));
 
-    if (!parsed.success) {
-        return NextResponse.json({ error: 'Invalid action', details: parsed.error.errors }, { status: 400 });
-    }
-
-    // Destructive extraction operations are superadmin-only; the city-admin
-    // tier only manages links (assign/dismiss, and PUT/DELETE above).
-    if (parsed.data.action === 'clearExtractedData' || parsed.data.action === 'resetExtraction') {
-        const user = await getCurrentUser();
-        if (!user?.isSuperAdmin) {
-            return NextResponse.json({ error: 'Superadmin required' }, { status: 403 });
+        // Destructive extraction operations are superadmin-only; the city-admin
+        // tier only manages links (assign/dismiss, and PUT/DELETE above).
+        if (body.action === 'clearExtractedData' || body.action === 'resetExtraction') {
+            const user = await getCurrentUser();
+            if (!user?.isSuperAdmin) {
+                return NextResponse.json({ error: 'Superadmin required' }, { status: 403 });
+            }
         }
-    }
 
-    if (parsed.data.action === 'clearExtractedData') {
-        const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
-        revalidateTag(`city:${params.cityId}:meetings`, 'max');
-        return NextResponse.json(result);
-    }
+        if (body.action === 'clearExtractedData') {
+            const result = await clearExtractedDataForMeeting(params.cityId, params.meetingId);
+            revalidateTag(`city:${params.cityId}:meetings`, 'max');
+            return NextResponse.json(result);
+        }
 
-    if (parsed.data.action === 'rederive') {
-        // Replaces the meeting's derived attendance and vote rows from the
-        // facts already stored: no poll, no extraction, nothing fetched.
-        return NextResponse.json(await deriveAndPersist(params.cityId, params.meetingId));
-    }
+        if (body.action === 'rederive') {
+            // Replaces the meeting's derived attendance and vote rows from the
+            // facts already stored: no poll, no extraction, nothing fetched.
+            return NextResponse.json(await deriveAndPersist(params.cityId, params.meetingId));
+        }
 
-    if (parsed.data.action === 'assignCandidate') {
-        // Verify the target subject belongs to this city and meeting
+        if (body.action === 'assignCandidate') {
+            // Verify the target subject belongs to this city and meeting
+            const subject = await prisma.subject.findFirst({
+                where: { id: body.subjectId, cityId: params.cityId, councilMeetingId: params.meetingId },
+            });
+            if (!subject) {
+                return NextResponse.json({ error: 'Subject not found in this meeting' }, { status: 404 });
+            }
+            const session = await auth();
+            try {
+                await assignCandidate(params.cityId, params.meetingId, body.candidateId, body.subjectId, session?.user?.id);
+            } catch (e) {
+                return writeFailure(e);
+            }
+            revalidateTag(`city:${params.cityId}:meetings`, 'max');
+            return NextResponse.json({ success: true });
+        }
+
+        if (body.action === 'dismissCandidate') {
+            try {
+                await dismissCandidate(params.cityId, params.meetingId, body.candidateId);
+            } catch (e) {
+                return writeFailure(e);
+            }
+            return NextResponse.json({ success: true });
+        }
+
+        if (body.action === 'undismissCandidate') {
+            try {
+                await undismissCandidate(params.cityId, params.meetingId, body.candidateId);
+            } catch (e) {
+                return writeFailure(e);
+            }
+            return NextResponse.json({ success: true });
+        }
+
+        // action === 'resetExtraction'
         const subject = await prisma.subject.findFirst({
-            where: { id: parsed.data.subjectId, cityId: params.cityId, councilMeetingId: params.meetingId },
+            where: {
+                id: body.subjectId,
+                cityId: params.cityId,
+                councilMeetingId: params.meetingId,
+            },
         });
+
         if (!subject) {
-            return NextResponse.json({ error: 'Subject not found in this meeting' }, { status: 404 });
+            return NextResponse.json(
+                { error: 'Subject not found in this meeting' },
+                { status: 404 }
+            );
         }
-        const session = await auth();
-        try {
-            await assignCandidate(params.cityId, params.meetingId, parsed.data.candidateId, parsed.data.subjectId, session?.user?.id);
-        } catch (e) {
-            return writeFailure(e, 'Assignment failed');
-        }
+
+        await resetExtractionForSubject(body.subjectId);
         revalidateTag(`city:${params.cityId}:meetings`, 'max');
         return NextResponse.json({ success: true });
+    } catch (error) {
+        return handleApiError(error, 'Failed to run the decision action');
     }
-
-    if (parsed.data.action === 'dismissCandidate') {
-        try {
-            await dismissCandidate(params.cityId, params.meetingId, parsed.data.candidateId);
-        } catch (e) {
-            return writeFailure(e, 'Dismiss failed');
-        }
-        return NextResponse.json({ success: true });
-    }
-
-    if (parsed.data.action === 'undismissCandidate') {
-        try {
-            await undismissCandidate(params.cityId, params.meetingId, parsed.data.candidateId);
-        } catch (e) {
-            return writeFailure(e, 'Undismiss failed');
-        }
-        return NextResponse.json({ success: true });
-    }
-
-    // action === 'resetExtraction'
-    const subject = await prisma.subject.findFirst({
-        where: {
-            id: parsed.data.subjectId,
-            cityId: params.cityId,
-            councilMeetingId: params.meetingId,
-        },
-    });
-
-    if (!subject) {
-        return NextResponse.json(
-            { error: 'Subject not found in this meeting' },
-            { status: 404 }
-        );
-    }
-
-    await resetExtractionForSubject(parsed.data.subjectId);
-    revalidateTag(`city:${params.cityId}:meetings`, 'max');
-    return NextResponse.json({ success: true });
 }

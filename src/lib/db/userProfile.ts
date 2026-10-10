@@ -3,6 +3,7 @@ import "server-only";
 import type { User } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { notAuthorizedError } from "@/lib/api/errors";
 
 /**
  * The fields a reader edits on their own profile. The number is not among
@@ -21,7 +22,7 @@ export async function updateUserProfile(id: string, data: UserProfileUpdateData)
     // dedicated, token-scoped function instead.
     const actor = await getCurrentUser();
     if (!actor || (actor.id !== id && !actor.isSuperAdmin)) {
-        throw new Error("Not authorized");
+        throw notAuthorizedError(Boolean(actor));
     }
     try {
         const updatedUser = await prisma.user.update({

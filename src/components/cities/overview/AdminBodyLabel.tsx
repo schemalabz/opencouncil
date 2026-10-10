@@ -1,11 +1,11 @@
 import { Landmark } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { AdministrativeBody } from '@prisma/client';
+import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { getLocalizedName } from '@/lib/formatters/name';
 import { cn } from '@/lib/utils';
 
 interface AdminBodyLabelProps {
-    body: AdministrativeBody | null | undefined;
+    body: PublicAdministrativeBody | null | undefined;
     locale: string;
     className?: string;
 }

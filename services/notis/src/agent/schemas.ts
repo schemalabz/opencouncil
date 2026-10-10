@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 
 /**
  * Canonical wire schemas for the agent's data shapes. The TypeScript types in

@@ -1,7 +1,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
-import { subjectDecisionSelect } from '@/lib/db/types';
+import { publicAdministrativeBodyRelation, roleWithRelationsInclude, subjectDecisionSelect } from '@/lib/db/types';
 import { TRANSCRIPT_PUBLIC_WHERE } from '@/lib/db/sharing/publicContent';
 import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches, RelatedScope } from './types';
@@ -15,6 +15,7 @@ import { getCities, getListedCitiesCached, filterCityIdsByRealm } from '@/lib/db
 import { logSearchQuery } from '@/lib/db/searchQueries';
 import { createCache } from '@/lib/cache/index';
 import { env } from '@/env.mjs';
+import { resolveSearchDayRange } from '@/lib/dates/cityDateRange';
 
 // Initialize Elasticsearch client
 const client = new Client({
@@ -40,13 +41,7 @@ const subjectDiscussionSegmentInclude = {
         include: {
             person: {
                 include: {
-                    roles: {
-                        include: {
-                            party: true,
-                            city: true,
-                            administrativeBody: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             }
         }
@@ -299,11 +294,14 @@ export async function searchSubjectsInRealm(
             ? await filterCityIdsByRealm(processedFilters.cityIds, realm)
             : [];
 
-        // Merge with explicit filters
+        // Merge with explicit filters. A calendar day of the range is a day
+        // in the city's zone, not the UTC day that Elasticsearch would read.
+        const mergedCityIds = extractedCityIds.length > 0 ? extractedCityIds : cityIds;
+        const mergedDateRange = request.dateRange ?? processedFilters.dateRange;
         const mergedRequest: SearchRequest = {
             ...request,
-            cityIds: extractedCityIds.length > 0 ? extractedCityIds : cityIds,
-            dateRange: request.dateRange ?? processedFilters.dateRange
+            cityIds: mergedCityIds,
+            dateRange: mergedDateRange && await resolveSearchDayRange(mergedCityIds, mergedDateRange),
         };
 
         // Report back the filters the query text supplied, so a caller showing
@@ -379,31 +377,19 @@ async function hydrateSubjectHits(hits: SubjectSearchHit[], detailed: boolean): 
             councilMeeting: {
                 include: {
                     city: true,
-                    administrativeBody: true
+                    administrativeBody: publicAdministrativeBodyRelation
                 }
             },
             introducedBy: {
                 include: {
-                    roles: {
-                        include: {
-                            party: true,
-                            city: true,
-                            administrativeBody: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             },
             contributions: {
                 include: {
                     speaker: {
                         include: {
-                            roles: {
-                                include: {
-                                    party: true,
-                                    city: true,
-                                    administrativeBody: true
-                                }
-                            }
+                            roles: roleWithRelationsInclude
                         }
                     }
                 }

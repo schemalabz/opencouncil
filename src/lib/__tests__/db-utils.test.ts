@@ -29,6 +29,7 @@ import { getTopics } from '../db/topics';
 import { getCity } from '../db/cities';
 import { getCouncilMeeting, getCouncilMeetingDirect } from '../db/meetings';
 import { getFixTranscriptRequestBody, getRequestOnTranscriptRequestBody } from '../db/utils';
+import { roleWithRelationsInclude } from '@/lib/db/types';
 import { makeTranscriptSegment, makePersonWithRoles } from '../../../tests/helpers/builders';
 
 const mockGetTranscript = getTranscript as jest.MockedFunction<typeof getTranscript>;
@@ -245,7 +246,7 @@ describe('getRequestOnTranscriptRequestBody', () => {
 
         expect(mockPrismaPersonFindMany).toHaveBeenCalledWith({
             where: { id: { in: ['person-1'] } },
-            include: { roles: { include: { party: true, administrativeBody: true, city: true } } },
+            include: { roles: roleWithRelationsInclude },
         });
     });
 });

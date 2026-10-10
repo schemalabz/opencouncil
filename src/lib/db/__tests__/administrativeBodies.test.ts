@@ -6,6 +6,7 @@
 const mockFindUniqueOrThrow = jest.fn();
 const mockUpdate = jest.fn();
 const mockFindMany = jest.fn();
+const mockMeetingFindUnique = jest.fn();
 const mockWithUserAuthorizedToEdit = jest.fn();
 const mockGetCurrentUser = jest.fn();
 
@@ -19,6 +20,9 @@ jest.mock('@/lib/db/prisma', () => ({
             create: (...a: unknown[]) => mockUpdate(...a),
             findMany: (...a: unknown[]) => mockFindMany(...a),
         },
+        councilMeeting: {
+            findUnique: (...a: unknown[]) => mockMeetingFindUnique(...a),
+        },
     },
 }));
 jest.mock('@/lib/auth', () => ({
@@ -27,10 +31,14 @@ jest.mock('@/lib/auth', () => ({
 }));
 
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
+import { NotFoundError } from '@/lib/api/errors';
 import {
     createAdministrativeBody,
+    deleteAdministrativeBody,
     editAdministrativeBody,
+    getAdministrativeBodiesForCity,
     getAdministrativeBodiesWithPublicMeetings,
+    getMeetingBodySettings,
     getPublicAdministrativeBodiesForCity,
 } from '@/lib/db/administrativeBodies';
 import { publicAdministrativeBodySelect } from '@/lib/db/types';
@@ -143,7 +151,7 @@ describe('the public body reads select only the public fields', () => {
     });
 
     it('the public select names the identity of a body and nothing of its settings', () => {
-        expect(Object.keys(publicAdministrativeBodySelect).sort()).toEqual(['cityId', 'id', 'name', 'name_en', 'type']);
+        expect(Object.keys(publicAdministrativeBodySelect).sort()).toEqual(['cityId', 'id', 'name', 'name_en', 'place', 'type', 'youtubeChannelUrl']);
     });
 
     it.each([
@@ -158,3 +166,76 @@ describe('the public body reads select only the public fields', () => {
         });
     });
 });
+
+/**
+ * The meeting's admin page and decisions page read the settings of the body
+ * apart from the public meeting. The read is the gate: it refuses a session
+ * that does not edit the city before it touches the row.
+ */
+describe('getMeetingBodySettings', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('reads nothing for a session that does not edit the city', async () => {
+        mockWithUserAuthorizedToEdit.mockRejectedValue(new Error('Unauthorized'));
+
+        await expect(getMeetingBodySettings('zografou', 'm1')).rejects.toThrow('Unauthorized');
+        expect(mockMeetingFindUnique).not.toHaveBeenCalled();
+    });
+
+    it("gives an editor the settings of the meeting's body", async () => {
+        mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+        const settings = { id: 'b1', notificationBehavior: 'NOTIFICATIONS_AUTO', diavgeiaUnitIds: ['81689'], decisionConventions: null };
+        mockMeetingFindUnique.mockResolvedValue({ administrativeBody: settings });
+
+        await expect(getMeetingBodySettings('zografou', 'm1')).resolves.toEqual(settings);
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou' });
+        expect(mockMeetingFindUnique.mock.calls[0][0]).toMatchObject({ where: { cityId_id: { cityId: 'zografou', id: 'm1' } } });
+    });
+});
+
+/** The full rows carry the settings, so the reader itself is the gate. */
+describe('getAdministrativeBodiesForCity', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('reads nothing for a session that does not edit the city', async () => {
+        mockWithUserAuthorizedToEdit.mockRejectedValue(new Error('Unauthorized'));
+
+        await expect(getAdministrativeBodiesForCity('zografou')).rejects.toThrow('Unauthorized');
+        expect(mockFindMany).not.toHaveBeenCalled();
+    });
+
+    it('gives an editor the full rows', async () => {
+        mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+        mockFindMany.mockResolvedValue([{ id: 'b1', contactEmails: ['a@b.gr'] }]);
+
+        await expect(getAdministrativeBodiesForCity('zografou')).resolves.toEqual([{ id: 'b1', contactEmails: ['a@b.gr'], decisionConventions: null }]);
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou' });
+    });
+
+    it('answers stored conventions with the current anchor names', async () => {
+        mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+        const legacy = { ...PROFILED, attendanceChangeAnchors: ['session_phase', 'this_document', 'clock_time'] };
+        mockFindMany.mockResolvedValue([{ id: 'b1', decisionConventions: legacy }]);
+
+        const [body] = await getAdministrativeBodiesForCity('zografou');
+        expect(body.decisionConventions?.attendanceChangeAnchors).toEqual(['phase', 'subject']);
+    });
+});
+
+/** A route answers a NotFoundError with 404, where a plain Error was a 500. */
+describe('a write to a body that does not exist', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockFindUniqueOrThrow.mockResolvedValue(null);
+    });
+
+    it('edit throws a NotFoundError', async () => {
+        await expect(editAdministrativeBody('missing', { name: 'x' })).rejects.toBeInstanceOf(NotFoundError);
+        expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('delete throws a NotFoundError', async () => {
+        await expect(deleteAdministrativeBody('missing')).rejects.toBeInstanceOf(NotFoundError);
+    });
+});
+

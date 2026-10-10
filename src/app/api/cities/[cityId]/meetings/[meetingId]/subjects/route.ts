@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { getApiSubjects } from '@/lib/db/subjectsApi';
 import { getRealm } from '@/lib/realm.server';
 import { meetingSubjectListQuerySchema } from '@/lib/zod-schemas/subject';
@@ -29,9 +28,6 @@ export async function GET(
 
         return NextResponse.json(subjects);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
-        }
         return handleApiError(error, 'Failed to fetch subjects');
     }
 }

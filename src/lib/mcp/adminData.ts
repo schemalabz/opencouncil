@@ -1,5 +1,5 @@
 import "server-only";
-import { AuthorityType, CityLanguage, Prisma, type City } from '@prisma/client';
+import { Prisma, type City } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import { env } from '@/env.mjs';
 import prisma from '@/lib/db/prisma';
@@ -7,13 +7,20 @@ import { BadRequestError, ConflictError, NotFoundError } from '@/lib/api/errors'
 import { createCityDirect } from '@/lib/db/citiesAdmin';
 import { populateCity, type CityPopulationData } from '@/lib/db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects, type MeetingDetailsEdit } from '@/lib/meetingWrites';
-import { pickRecordInput, type MeetingRecordInput } from '@/lib/meetingLifecycleRules';
-import { startMeetingTask, type MeetingTaskRequest } from '@/lib/tasks/startMeetingTask';
+import { pickRecordInput } from '@/lib/meetingLifecycleRules';
+import { startMeetingTask } from '@/lib/tasks/startMeetingTask';
 import { constructPublicUrl, generatePresignedUrl } from '@/lib/s3';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { CITY_DEFAULTS } from '@/lib/zod-schemas/city';
 import { REALMS } from '@/lib/realm';
 import type { McpIdentity } from './auth';
+import type {
+    AgendaUploadUrlToolArgs,
+    CreateCityToolArgs,
+    CreateMeetingToolArgs,
+    StartTaskToolArgs,
+    UpdateMeetingToolArgs,
+} from './adminToolSchemas';
 import { requireCityAdmin, requireSuperadmin } from './adminAccess';
 import { requireVisibleMeeting } from './gate';
 import { mcpTaskSummary } from './taskSummary';
@@ -21,6 +28,7 @@ import { requireCityBodies, requireRealmCity } from './realmGuards';
 import { currentBaseUrl, currentRealm } from './realm-context';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
+import { getCityTimezone } from '@/lib/db/cityTimezone';
 
 /**
  * The write side of the MCP server for administrators: meetings and their
@@ -31,28 +39,9 @@ import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 
 const meetingUrl = (cityId: string, meetingId: string) => `${currentBaseUrl()}/${cityId}/${meetingId}`;
 
-/** The timezone that a derived meeting name prints its date in. */
-async function cityTimezone(cityId: string): Promise<string> {
-    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { timezone: true } });
-    return city?.timezone ?? DEFAULT_TIMEZONE;
-}
-
 // --- Meetings -------------------------------------------------------------
 
-export async function mcpCreateMeeting(
-    identity: McpIdentity,
-    args: {
-        cityId: string;
-        name?: string;
-        name_en?: string;
-        dateTime: string;
-        youtubeUrl?: string;
-        agendaUrl?: string;
-        administrativeBodyId?: string;
-        processAgenda: boolean;
-        postponedFromId?: string;
-    } & MeetingRecordInput
-) {
+export async function mcpCreateMeeting(identity: McpIdentity, args: CreateMeetingToolArgs) {
     await requireCityAdmin(identity, args.cityId);
     await requireRealmCity(args.cityId);
     if (args.administrativeBodyId) {
@@ -71,7 +60,7 @@ export async function mcpCreateMeeting(
         ...pickRecordInput(args),
     });
 
-    const timezone = await cityTimezone(meeting.cityId);
+    const timezone = (await getCityTimezone(meeting.cityId)) ?? DEFAULT_TIMEZONE;
 
     return {
         id: meeting.id,
@@ -88,19 +77,7 @@ export async function mcpCreateMeeting(
     };
 }
 
-export async function mcpUpdateMeeting(
-    identity: McpIdentity,
-    args: {
-        cityId: string;
-        meetingId: string;
-        name?: string | null;
-        name_en?: string | null;
-        dateTime?: string;
-        youtubeUrl?: string | null;
-        agendaUrl?: string | null;
-        administrativeBodyId?: string | null;
-    } & MeetingRecordInput
-) {
+export async function mcpUpdateMeeting(identity: McpIdentity, args: UpdateMeetingToolArgs) {
     await requireCityAdmin(identity, args.cityId);
     // Realm-scoped, and an administrator of the city passes it for a draft.
     await requireVisibleMeeting(args.cityId, args.meetingId, identity);
@@ -125,7 +102,7 @@ export async function mcpUpdateMeeting(
     }
 
     const meeting = await updateMeetingWithEffects(args.cityId, args.meetingId, edit);
-    const timezone = await cityTimezone(meeting.cityId);
+    const timezone = (await getCityTimezone(meeting.cityId)) ?? DEFAULT_TIMEZONE;
 
     return {
         id: meeting.id,
@@ -142,10 +119,7 @@ export async function mcpUpdateMeeting(
     };
 }
 
-export async function mcpStartTask(
-    identity: McpIdentity,
-    args: { cityId: string; meetingId: string } & MeetingTaskRequest
-) {
+export async function mcpStartTask(identity: McpIdentity, args: StartTaskToolArgs) {
     const { cityId, meetingId, ...request } = args;
     await requireCityAdmin(identity, cityId);
     await requireVisibleMeeting(cityId, meetingId, identity);
@@ -168,14 +142,10 @@ export async function mcpStartTask(
 const AGENDA_CONTENT_TYPES = {
     pdf: 'application/pdf',
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-} as const;
-type AgendaFormat = keyof typeof AGENDA_CONTENT_TYPES;
+} as const satisfies Record<AgendaUploadUrlToolArgs['format'], string>;
 const AGENDA_UPLOAD_URL_SECONDS = 300;
 
-export async function mcpCreateAgendaUploadUrl(
-    identity: McpIdentity,
-    args: { cityId: string; identifier: string; format: AgendaFormat }
-) {
+export async function mcpCreateAgendaUploadUrl(identity: McpIdentity, args: AgendaUploadUrlToolArgs) {
     await requireCityAdmin(identity, args.cityId);
     await requireRealmCity(args.cityId);
 
@@ -217,19 +187,7 @@ async function createCityOrConflict(data: Parameters<typeof createCityDirect>[0]
     }
 }
 
-export async function mcpCreateCity(
-    identity: McpIdentity,
-    args: {
-        id: string;
-        name: string;
-        name_en: string;
-        name_municipality: string;
-        name_municipality_en: string;
-        timezone: string;
-        authorityType: AuthorityType;
-        language?: CityLanguage;
-    }
-) {
+export async function mcpCreateCity(identity: McpIdentity, args: CreateCityToolArgs) {
     await requireSuperadmin(identity);
 
     // A connector belongs to one realm, so the city it creates does too. The

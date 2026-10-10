@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent, { PointerEventsCheckLevel } from '@testing-library/user-event';
 import DecisionConventionsFields, { completeDraft, type ConventionsDraft } from '../DecisionConventionsFields';
-import { isDecisionConventions, type DecisionConventions } from '@/lib/decisionConventions';
+import { parseDecisionConventions, type DecisionConventions } from '@/lib/decisionConventions';
 
 // Radix Select asks the trigger about pointer capture on open; jsdom has none.
 beforeAll(() => {
@@ -154,7 +154,7 @@ describe('DecisionConventionsFields for a body with no record', () => {
             statesPerDecisionAttendance: false,
             provenance: { source: 'manual' },
         });
-        expect(isDecisionConventions(record)).toBe(true);
+        expect(parseDecisionConventions(record)).not.toBeNull();
     });
 });
 

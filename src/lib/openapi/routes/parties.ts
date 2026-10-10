@@ -1,158 +1,95 @@
-import { z } from 'zod';
-import { registry, sessionAuth, ErrorResponseSchema, MessageSchema, ValidationErrorSchema, cityIdParam } from '../registry';
-import { PersonWithRolesSchema } from './people';
+import * as z from 'zod';
+import { sessionAuthRequirement, MessageSchema, cityIdParam, editAuthResponses, errorResponseOf, invalidRequestOrMessageResponse, type Paths } from '@/lib/openapi/registry';
+import { PartySchema, PartyWithPeopleSchema } from '@/lib/openapi/entities';
 import { partyFormDataSchema } from '@/lib/zod-schemas/party';
 
-// --- Schemas ---
-
-// Matches the Party Prisma model fields returned by the handlers.
-const PartySchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    name_en: z.string(),
-    name_short: z.string(),
-    name_short_en: z.string(),
-    colorHex: z.string(),
-    logo: z.string().nullable(),
-    cityId: z.string(),
-    createdAt: z.string().datetime(),
-    updatedAt: z.string().datetime(),
-}).openapi('Party');
-
-// Matches PartyWithPersons returned by getPartiesForCity() and getParty():
-// each person is a PersonWithRoles (deduplicated from the party's roles).
-const PartyWithPeopleSchema = PartySchema.extend({
-    people: z.array(PersonWithRolesSchema),
-}).openapi('PartyWithPeople');
-
-// POST/PUT request — multipart/form-data. Reuse the actual validation schema
-// from zod-schemas/party.ts; z.instanceof(File) doesn't serialize to OpenAPI,
-// so the logo is documented as binary.
-const PartyRequestSchema = partyFormDataSchema
-    .omit({ logo: true })
-    .extend({
-        logo: z.string().optional().openapi({ description: 'Logo image file', format: 'binary' }),
-    })
-    .openapi('PartyRequest');
-
-registry.register('Party', PartySchema);
-registry.register('PartyWithPeople', PartyWithPeopleSchema);
-registry.register('PartyRequest', PartyRequestSchema);
+// POST/PUT request — multipart/form-data.
+const PartyRequestSchema = partyFormDataSchema.meta({ id: 'PartyRequest' });
 
 // --- Routes ---
 
 const partyIdParam = cityIdParam.extend({
-    partyId: z.string().openapi({ description: 'Party ID' }),
+    partyId: z.string().meta({ description: 'Party ID' }),
 });
 
-registry.registerPath({
-    method: 'get',
-    path: '/api/cities/{cityId}/parties',
-    summary: 'List parties for a city',
-    tags: ['Parties'],
-    request: { params: cityIdParam },
-    responses: {
-        200: {
-            description: 'List of parties with their members',
-            content: { 'application/json': { schema: z.array(PartyWithPeopleSchema) } },
+export const partiesPaths: Paths = {
+    '/api/cities/{cityId}/parties': {
+        get: {
+            summary: 'List parties for a city',
+            tags: ['Parties'],
+            requestParams: { path: cityIdParam },
+            responses: {
+                200: {
+                    description: 'List of parties with their members',
+                    content: { 'application/json': { schema: z.array(PartyWithPeopleSchema) } },
+                },
+            },
+        },
+        post: {
+            summary: 'Create a party',
+            tags: ['Parties'],
+            security: sessionAuthRequirement,
+            requestParams: { path: cityIdParam },
+            requestBody: {
+                required: true,
+                content: { 'multipart/form-data': { schema: PartyRequestSchema } },
+            },
+            responses: {
+                200: {
+                    description: 'Created party',
+                    content: { 'application/json': { schema: PartySchema } },
+                },
+                400: invalidRequestOrMessageResponse('Invalid party data'),
+                ...editAuthResponses,
+            },
+            'x-access-level': 'admin',
         },
     },
-});
-
-registry.registerPath({
-    method: 'post',
-    path: '/api/cities/{cityId}/parties',
-    summary: 'Create a party',
-    tags: ['Parties'],
-    security: [{ [sessionAuth.name]: [] }],
-    request: {
-        params: cityIdParam,
-        body: {
-            required: true,
-            content: { 'multipart/form-data': { schema: PartyRequestSchema } },
+    '/api/cities/{cityId}/parties/{partyId}': {
+        get: {
+            summary: 'Get a party',
+            tags: ['Parties'],
+            requestParams: { path: partyIdParam },
+            responses: {
+                200: {
+                    description: 'Party with its members',
+                    content: { 'application/json': { schema: PartyWithPeopleSchema } },
+                },
+                404: errorResponseOf('Party not found'),
+            },
+        },
+        put: {
+            summary: 'Update a party',
+            tags: ['Parties'],
+            security: sessionAuthRequirement,
+            requestParams: { path: partyIdParam },
+            requestBody: {
+                required: true,
+                content: { 'multipart/form-data': { schema: PartyRequestSchema } },
+            },
+            responses: {
+                200: {
+                    description: 'Updated party',
+                    content: { 'application/json': { schema: PartySchema } },
+                },
+                400: invalidRequestOrMessageResponse('Invalid party data'),
+                ...editAuthResponses,
+            },
+            'x-access-level': 'admin',
+        },
+        delete: {
+            summary: 'Delete a party',
+            tags: ['Parties'],
+            security: sessionAuthRequirement,
+            requestParams: { path: partyIdParam },
+            responses: {
+                200: {
+                    description: 'Party deleted',
+                    content: { 'application/json': { schema: MessageSchema } },
+                },
+                ...editAuthResponses,
+            },
+            'x-access-level': 'admin',
         },
     },
-    responses: {
-        200: {
-            description: 'Created party',
-            content: { 'application/json': { schema: PartySchema } },
-        },
-        400: {
-            description: 'Invalid party data',
-            content: { 'application/json': { schema: ValidationErrorSchema } },
-        },
-        401: {
-            description: 'Unauthorized',
-            content: { 'application/json': { schema: ErrorResponseSchema } },
-        },
-    },
-    'x-access-level': 'admin',
-});
-
-registry.registerPath({
-    method: 'get',
-    path: '/api/cities/{cityId}/parties/{partyId}',
-    summary: 'Get a party',
-    tags: ['Parties'],
-    request: { params: partyIdParam },
-    responses: {
-        200: {
-            description: 'Party with its members',
-            content: { 'application/json': { schema: PartyWithPeopleSchema } },
-        },
-        404: {
-            description: 'Party not found',
-            content: { 'application/json': { schema: ErrorResponseSchema } },
-        },
-    },
-});
-
-registry.registerPath({
-    method: 'put',
-    path: '/api/cities/{cityId}/parties/{partyId}',
-    summary: 'Update a party',
-    tags: ['Parties'],
-    security: [{ [sessionAuth.name]: [] }],
-    request: {
-        params: partyIdParam,
-        body: {
-            required: true,
-            content: { 'multipart/form-data': { schema: PartyRequestSchema } },
-        },
-    },
-    responses: {
-        200: {
-            description: 'Updated party',
-            content: { 'application/json': { schema: PartySchema } },
-        },
-        400: {
-            description: 'Invalid party data',
-            content: { 'application/json': { schema: ValidationErrorSchema } },
-        },
-        401: {
-            description: 'Unauthorized',
-            content: { 'application/json': { schema: ErrorResponseSchema } },
-        },
-    },
-    'x-access-level': 'admin',
-});
-
-registry.registerPath({
-    method: 'delete',
-    path: '/api/cities/{cityId}/parties/{partyId}',
-    summary: 'Delete a party',
-    tags: ['Parties'],
-    security: [{ [sessionAuth.name]: [] }],
-    request: { params: partyIdParam },
-    responses: {
-        200: {
-            description: 'Party deleted',
-            content: { 'application/json': { schema: MessageSchema } },
-        },
-        401: {
-            description: 'Unauthorized',
-            content: { 'application/json': { schema: ErrorResponseSchema } },
-        },
-    },
-    'x-access-level': 'admin',
-});
+};
