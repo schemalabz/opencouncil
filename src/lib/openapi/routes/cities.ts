@@ -1,10 +1,9 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, invalidRequestResponse, type Paths } from '../registry';
+import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, invalidRequestResponse, editAuthResponses, type Paths } from '@/lib/openapi/registry';
 import { CitySchema, CityMinimalSchema, CityWithCountsSchema, CityWithGeometrySchema } from '@/lib/openapi/entities';
 import { citiesListQuerySchema, createCityFormDataSchema, updateCityRequestFormDataSchema } from '@/lib/zod-schemas/city';
 
 // --- Request Schemas ---
-// The validation schemas of the handlers. Their file fields render as binary.
 const CreateCityRequestSchema = createCityFormDataSchema.meta({ id: 'CreateCityRequest' });
 const UpdateCityRequestSchema = updateCityRequestFormDataSchema.meta({ id: 'UpdateCityRequest' });
 
@@ -45,7 +44,7 @@ export const citiesPaths: Paths = {
                     content: { 'application/json': { schema: CitySchema } },
                 },
                 400: invalidRequestOrMessageResponse('Invalid city data, form data or boundary GeoJSON'),
-                401: errorResponseOf('Unauthorized — not authenticated'),
+                ...editAuthResponses,
             },
             'x-access-level': 'superadmin',
         },
@@ -95,13 +94,13 @@ export const citiesPaths: Paths = {
                     content: { 'application/json': { schema: CitySchema } },
                 },
                 400: invalidRequestOrMessageResponse('Invalid city data, form data or boundary GeoJSON'),
-                401: errorResponseOf('Unauthorized — admin access required for this city'),
+                ...editAuthResponses,
             },
             'x-access-level': 'admin',
         },
         delete: {
             summary: 'Delete a city',
-            description: 'Deletes a city. Requires admin authorization for the city.',
+            description: 'Deletes a city. Requires a superadmin.',
             tags: ['Cities'],
             security: sessionAuthRequirement,
             requestParams: { path: cityIdParam },
@@ -110,9 +109,9 @@ export const citiesPaths: Paths = {
                     description: 'City deleted',
                     content: { 'application/json': { schema: MessageSchema } },
                 },
-                401: errorResponseOf('Unauthorized — admin access required for this city'),
+                ...editAuthResponses,
             },
-            'x-access-level': 'admin',
+            'x-access-level': 'superadmin',
         },
     },
 };

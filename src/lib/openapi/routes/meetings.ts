@@ -67,8 +67,6 @@ const MeetingDataSchema = z.object({
 
 // --- Request Schemas ---
 
-// The validation schema of the route handler. A transformed field (date)
-// renders as the string the caller sends.
 const CreateMeetingSchema = meetingSchema.meta({ id: 'CreateMeeting' });
 
 // Update reuses the same source but drops the create-only fields the PUT handler
@@ -91,12 +89,13 @@ export const meetingsPaths: Paths = {
                     content: { 'application/json': { schema: z.array(MeetingWithSubjectsSchema) } },
                 },
                 400: invalidRequestResponse('Invalid query parameters'),
+                ...editAuthResponses,
                 500: errorResponseOf('Server error'),
             },
         },
         post: {
             summary: 'Create a meeting',
-            description: 'Creates a new council meeting for the given city. Requires admin authorization for the city.',
+            description: 'Creates a new council meeting for the given city. Requires an admin of the city or of the meeting\'s administrative body.',
             tags: ['Meetings'],
             security: sessionAuthRequirement,
             requestParams: { path: cityIdParam },
@@ -110,12 +109,9 @@ export const meetingsPaths: Paths = {
                     content: { 'application/json': { schema: MeetingCreatedSchema } },
                 },
                 400: invalidRequestResponse('Invalid meeting data'),
-                401: errorResponseOf('Unauthorized — authentication required'),
+                ...editAuthResponses,
+                409: errorResponseOf('A meeting with the given meetingId already exists'),
                 422: lifecycleRuleResponse,
-                // Note: no 409 is documented. The handler auto-generates a unique
-                // meetingId when omitted (retrying on collision), and a client-supplied
-                // duplicate id currently surfaces as a 500 rather than a 409 — see the
-                // follow-up on aligning handler status codes with the documented spec.
             },
             'x-access-level': 'admin',
         },
@@ -137,7 +133,8 @@ export const meetingsPaths: Paths = {
         },
         put: {
             summary: 'Update a meeting',
-            description: 'Updates an existing meeting. Requires admin authorization for the city.',
+            description: 'Updates an existing meeting. Requires an admin of the city or of the meeting\'s administrative body. '
+                + 'A move to another body needs the same right on that body.',
             tags: ['Meetings'],
             security: sessionAuthRequirement,
             requestParams: { path: meetingIdParam },
@@ -152,6 +149,7 @@ export const meetingsPaths: Paths = {
                 },
                 400: invalidRequestResponse('Invalid meeting data'),
                 ...editAuthResponses,
+                404: errorResponseOf('Meeting not found'),
                 422: lifecycleRuleResponse,
                 500: errorResponseOf('Server error'),
             },

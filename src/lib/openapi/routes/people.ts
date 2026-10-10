@@ -1,11 +1,9 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, type Paths } from '../registry';
+import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, editAuthResponses, type Paths } from '@/lib/openapi/registry';
 import { PersonWithRolesSchema } from '@/lib/openapi/entities';
 import { personFormDataSchema, personUpdateFormDataSchema } from '@/lib/zod-schemas/person';
 
-// POST/PUT request — multipart/form-data. The validation schema of the
-// handlers: the image renders as binary, and the roles as the JSON string
-// that the caller sends.
+// POST/PUT request — multipart/form-data. The roles field is the JSON string that the caller sends.
 const PersonRequestSchema = personFormDataSchema.meta({ id: 'PersonRequest' });
 // On PUT the roles are optional: an absent field keeps the roles as they are.
 const PersonUpdateRequestSchema = personUpdateFormDataSchema.meta({ id: 'PersonUpdateRequest' });
@@ -44,7 +42,7 @@ export const peoplePaths: Paths = {
                     content: { 'application/json': { schema: PersonWithRolesSchema } },
                 },
                 400: invalidRequestOrMessageResponse('Invalid person or role data'),
-                401: errorResponseOf('Unauthorized'),
+                ...editAuthResponses,
             },
             'x-access-level': 'admin',
         },
@@ -77,7 +75,7 @@ export const peoplePaths: Paths = {
                     content: { 'application/json': { schema: PersonWithRolesSchema } },
                 },
                 400: invalidRequestOrMessageResponse('Invalid person or role data'),
-                401: errorResponseOf('Unauthorized'),
+                ...editAuthResponses,
             },
             'x-access-level': 'admin',
         },
@@ -91,9 +89,9 @@ export const peoplePaths: Paths = {
                     description: 'Person deleted',
                     content: { 'application/json': { schema: MessageSchema } },
                 },
-                401: errorResponseOf('Unauthorized'),
+                ...editAuthResponses,
             },
-            'x-access-level': 'admin',
+            'x-access-level': 'superadmin',
         },
     },
 };

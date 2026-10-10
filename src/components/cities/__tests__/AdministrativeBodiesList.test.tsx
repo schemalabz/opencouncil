@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider, type AbstractIntlMessages } from 'next-intl';
 import AdministrativeBodiesList from '@/components/cities/AdministrativeBodiesList';
+import type { AdministrativeBodyWithSettings } from '@/lib/db/types';
 import enMain from '../../../../messages/en.json';
 import enAdmin from '../../../../messages/en/admin.json';
 import enValidation from '../../../../messages/en/validation.json';
@@ -34,23 +35,27 @@ function renderList(ui: React.ReactElement) {
     );
 }
 
-// A body whose stored conventions use the anchor names written before
-// 2026-09-14. The form holds them in the current vocabulary.
-const LEGACY_BODY = {
+// A body as GET /administrative-bodies answers it to an editor: the server
+// read the stored conventions and gives the anchors their current names.
+const BODY: AdministrativeBodyWithSettings = {
     id: 'b1',
+    cityId: 'athens',
     name: 'Δημοτικό Συμβούλιο',
     name_en: 'City Council',
-    type: 'council' as const,
+    type: 'council',
     youtubeChannelUrl: null,
+    place: null,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
     contactEmails: ['secretary@example.org'],
-    notificationBehavior: 'NOTIFICATIONS_APPROVAL' as const,
+    notificationBehavior: 'NOTIFICATIONS_APPROVAL',
     showUnreviewedTranscript: true,
     diavgeiaUnitIds: ['81689'],
     decisionConventions: {
         version: 1,
         rollCallLayout: 'present_and_absent',
         presentListMeaning: 'opening',
-        attendanceChangeAnchors: ['session_phase', 'this_document', 'clock_time'],
+        attendanceChangeAnchors: ['phase', 'subject'],
         statesPerDecisionAttendance: false,
         statesPerVoteAbsence: false,
         usesSubstitutes: false,
@@ -61,13 +66,12 @@ const LEGACY_BODY = {
 };
 
 describe('AdministrativeBodiesList', () => {
-    it('opens and saves a body whose conventions use legacy anchor names', async () => {
+    it('opens a body with its conventions and saves it', async () => {
         fetchMock.mockResolvedValue({ ok: true, json: async () => ({ id: 'b1' }) });
         const onUpdate = jest.fn();
-        renderList(<AdministrativeBodiesList cityId="athens" bodies={[LEGACY_BODY]} onUpdate={onUpdate} />);
+        renderList(<AdministrativeBodiesList cityId="athens" bodies={[BODY]} onUpdate={onUpdate} />);
 
         fireEvent.click(screen.getByRole('button', { name: 'Edit Body' }));
-        // The anchors show in the current vocabulary.
         expect(await screen.findByRole('checkbox', { name: enAdmin.conventions.attendanceChangeAnchors.phase.label })).toBeChecked();
         expect(screen.getByRole('checkbox', { name: enAdmin.conventions.attendanceChangeAnchors.subject.label })).toBeChecked();
 

@@ -1,4 +1,5 @@
-import type { Prisma } from '@prisma/client';
+import type { AdministrativeBody, Prisma } from '@prisma/client';
+import type { DecisionConventions } from '@/lib/decisionConventions';
 
 /**
  * The fields of an administrative body that anyone may read.
@@ -48,6 +49,18 @@ export const administrativeBodySettingsSelect = {
     decisionConventions: true,
 } satisfies Prisma.AdministrativeBodySelect;
 
-export type AdministrativeBodySettings = Prisma.AdministrativeBodyGetPayload<{
-    select: typeof administrativeBodySettingsSelect;
-}>;
+/** The settings of a body, with the conventions parsed as in AdministrativeBodyWithSettings. */
+export type AdministrativeBodySettings = Omit<
+    Prisma.AdministrativeBodyGetPayload<{ select: typeof administrativeBodySettingsSelect }>,
+    'decisionConventions'
+> & {
+    decisionConventions: DecisionConventions | null;
+};
+
+/**
+ * A whole AdministrativeBody row as the editor reads and writes answer it. The
+ * conventions are the parsed record, with the current anchor names, or null.
+ */
+export type AdministrativeBodyWithSettings = Omit<AdministrativeBody, 'decisionConventions'> & {
+    decisionConventions: DecisionConventions | null;
+};

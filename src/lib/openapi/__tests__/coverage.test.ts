@@ -11,6 +11,12 @@ import { filterSpecByAccessLevel, type OpenApiSpec } from '@/lib/utils/openapi';
 // existed in the hand-written spec but was dropped during the code-first migration.
 //
 // When you intentionally add or remove a documented endpoint, update this list.
+//
+// The spec does not document every route. For example, it leaves out routes
+// that only the admin pages call: the /api/admin routes other than the ones
+// below, the notifications of a meeting, and the admins of an administrative
+// body (/api/cities/{cityId}/administrative-bodies/{bodyId}/admins), which
+// invite people by email.
 const EXPECTED_OPERATIONS = [
     'GET /api/cities',
     'POST /api/cities',
@@ -41,6 +47,7 @@ const EXPECTED_OPERATIONS = [
     'GET /api/utterance/{utteranceId}/context',
     'POST /api/cities/{cityId}/administrative-bodies',
     'PUT /api/cities/{cityId}/administrative-bodies/{bodyId}',
+    'DELETE /api/cities/{cityId}/administrative-bodies/{bodyId}',
     'PUT /api/cities/{cityId}/meetings/{meetingId}/decisions',
     'POST /api/cities/{cityId}/meetings/{meetingId}/decisions',
     'POST /api/cities/{cityId}/roles/elected-order',
@@ -90,6 +97,16 @@ describe('OpenAPI coverage', () => {
         expect(adminOps).not.toContain('POST /api/admin/api-keys');
         expect(adminOps).not.toContain('POST /api/revalidate');
         expect(actualOperations(filterSpecByAccessLevel(spec, 'superadmin'))).toEqual(EXPECTED_OPERATIONS);
+
+        // Only a superadmin deletes a city, a party, a person or an administrative body.
+        for (const op of [
+            'DELETE /api/cities/{cityId}',
+            'DELETE /api/cities/{cityId}/parties/{partyId}',
+            'DELETE /api/cities/{cityId}/people/{personId}',
+            'DELETE /api/cities/{cityId}/administrative-bodies/{bodyId}',
+        ]) {
+            expect(adminOps).not.toContain(op);
+        }
 
         // The request schemas of a hidden operation are hidden too.
         const publicSchemas = Object.keys(filterSpecByAccessLevel(spec, 'public').components?.schemas ?? {});

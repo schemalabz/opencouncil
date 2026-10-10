@@ -31,11 +31,12 @@ jest.mock('@/lib/auth', () => ({
 }));
 
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
-import { NotFoundError } from '@/lib/api/errors';
+import { NotFoundError, UnauthorizedError } from '@/lib/api/errors';
 import {
     createAdministrativeBody,
     deleteAdministrativeBody,
     editAdministrativeBody,
+    editAdministrativeBodyContacts,
     getAdministrativeBodiesForCity,
     getAdministrativeBodiesWithPublicMeetings,
     getMeetingBodySettings,
@@ -101,9 +102,15 @@ describe('confirmDecisionConventions', () => {
         expect(mockUpdate).not.toHaveBeenCalled();
     });
 
-    it('refuses a record the schema does not accept, before it reaches the column', async () => {
-        await expect(confirmDecisionConventions('body-1', { version: 1 })).rejects.toThrow();
-        await expect(confirmDecisionConventions('body-1', { ...PROFILED, namedVoters: 'everyone' })).rejects.toThrow();
+    it('throws a NotFoundError for a body that does not exist', async () => {
+        mockFindUniqueOrThrow.mockResolvedValue(null);
+        await expect(confirmDecisionConventions('missing', PROFILED)).rejects.toBeInstanceOf(NotFoundError);
+        expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('throws an UnauthorizedError without a session', async () => {
+        mockGetCurrentUser.mockResolvedValue(null);
+        await expect(confirmDecisionConventions('body-1', PROFILED)).rejects.toBeInstanceOf(UnauthorizedError);
         expect(mockUpdate).not.toHaveBeenCalled();
     });
 });
@@ -191,6 +198,15 @@ describe('getMeetingBodySettings', () => {
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou', councilMeetingId: 'm1' });
         expect(mockMeetingFindUnique.mock.calls[0][0]).toMatchObject({ where: { cityId_id: { cityId: 'zografou', id: 'm1' } } });
     });
+
+    it('answers stored conventions with the current anchor names', async () => {
+        mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+        const legacy = { ...PROFILED, attendanceChangeAnchors: ['session_phase', 'this_document', 'clock_time'] };
+        mockMeetingFindUnique.mockResolvedValue({ administrativeBody: { id: 'b1', decisionConventions: legacy } });
+
+        const settings = await getMeetingBodySettings('zografou', 'm1');
+        expect(settings?.decisionConventions?.attendanceChangeAnchors).toEqual(['phase', 'subject']);
+    });
 });
 
 /** The full rows carry the settings, so the reader itself is the gate. */
@@ -208,8 +224,37 @@ describe('getAdministrativeBodiesForCity', () => {
         mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
         mockFindMany.mockResolvedValue([{ id: 'b1', contactEmails: ['a@b.gr'] }]);
 
-        await expect(getAdministrativeBodiesForCity('zografou')).resolves.toEqual([{ id: 'b1', contactEmails: ['a@b.gr'] }]);
+        await expect(getAdministrativeBodiesForCity('zografou')).resolves.toEqual([{ id: 'b1', contactEmails: ['a@b.gr'], decisionConventions: null }]);
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou' });
+    });
+
+    it('answers stored conventions with the current anchor names', async () => {
+        mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+        const legacy = { ...PROFILED, attendanceChangeAnchors: ['session_phase', 'this_document', 'clock_time'] };
+        mockFindMany.mockResolvedValue([{ id: 'b1', decisionConventions: legacy }]);
+
+        const [body] = await getAdministrativeBodiesForCity('zografou');
+        expect(body.decisionConventions?.attendanceChangeAnchors).toEqual(['phase', 'subject']);
+    });
+});
+
+/** An admin of the body reads the answer of the contacts write as the city admin reads the body. */
+describe('editAdministrativeBodyContacts', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockFindUniqueOrThrow.mockResolvedValue({ cityId: 'zografou' });
+        mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+    });
+
+    it('answers stored conventions with the current anchor names', async () => {
+        const legacy = { ...PROFILED, attendanceChangeAnchors: ['session_phase', 'this_document', 'clock_time'] };
+        mockUpdate.mockResolvedValue({ id: 'b1', contactEmails: ['clerk@example.org'], decisionConventions: legacy });
+
+        const body = await editAdministrativeBodyContacts('b1', { contactEmails: ['clerk@example.org'] });
+
+        expect(body.decisionConventions?.attendanceChangeAnchors).toEqual(['phase', 'subject']);
+        expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou', administrativeBodyId: 'b1' });
+        expect(mockUpdate.mock.calls[0][0].data).toEqual({ youtubeChannelUrl: undefined, contactEmails: ['clerk@example.org'] });
     });
 });
 

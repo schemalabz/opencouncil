@@ -1,7 +1,6 @@
 import { sessionAuthRequirement, SuccessSchema, cityIdParam, editAuthResponses, errorResponseOf, invalidRequestOrMessageResponse, type Paths } from '@/lib/openapi/registry';
 import { electedOrderRequestSchema } from '@/lib/zod-schemas/role';
 
-// The validation schema of the handler.
 const ElectedOrderRequestSchema = electedOrderRequestSchema.meta({ id: 'ElectedOrderRequest' });
 
 export const rolesPaths: Paths = {
@@ -22,9 +21,8 @@ export const rolesPaths: Paths = {
                     description: 'The elected order is saved',
                     content: { 'application/json': { schema: SuccessSchema } },
                 },
-                400: invalidRequestOrMessageResponse('Invalid request body, or a role that does not exist'),
-                401: editAuthResponses[401],
-                403: errorResponseOf('Not authorized to edit the city, or a role does not belong to the body or the city'),
+                400: invalidRequestOrMessageResponse('Invalid request body, a role that does not exist, or a role that does not belong to the body or the city'),
+                ...editAuthResponses,
                 500: errorResponseOf('Server error'),
             },
             'x-access-level': 'admin',

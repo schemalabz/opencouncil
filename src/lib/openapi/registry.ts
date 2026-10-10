@@ -8,6 +8,10 @@ import {
 import type { AccessLevel } from '@/lib/utils/openapi';
 import { errorResponseSchema, lifecycleRuleErrorSchema, validationErrorSchema } from '@/lib/api/errors';
 
+// Each route file documents a request with the zod schema that its handler
+// parses. The spec shows the input of that schema: a transformed field shows
+// as the string that the caller sends, and a file field shows as binary.
+
 // Session-based auth used by Next.js/NextAuth.
 const SESSION_AUTH = 'sessionAuth';
 export const sessionAuthRequirement = [{ [SESSION_AUTH]: [] }];
@@ -31,11 +35,17 @@ export const errorResponseOf = (description: string) => jsonError(description, e
 /** A 422 for a meeting write that breaks a lifecycle rule of the record. */
 export const lifecycleRuleResponse = jsonError('The write breaks a lifecycle rule of the meeting record', lifecycleRuleErrorSchema);
 
-/** The refusals of withUserAuthorizedToEdit: nobody signed in, or a user without the right to edit. */
+/**
+ * The refusals of withUserAuthorizedToEdit and withServiceOrUserAuth: nobody
+ * signed in, or a user without the right to edit.
+ */
 export const editAuthResponses = {
     401: errorResponseOf('Not signed in'),
     403: errorResponseOf('Not authorized to edit'),
 };
+
+/** The refusal of a route that answers 401 both when nobody is signed in and when the user lacks the right. */
+export const notAuthorizedResponse = errorResponseOf('Not signed in, or not authorized');
 
 // Simple `{ message }` response shared by delete endpoints.
 export const MessageSchema = z.object({

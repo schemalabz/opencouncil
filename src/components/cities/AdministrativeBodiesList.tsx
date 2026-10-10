@@ -20,7 +20,7 @@ import { useForm } from "react-hook-form"
 import type * as z from "zod"
 import { administrativeBodyFormSchema, administrativeBodySchema, confirmConventionsRequestSchema, type AdministrativeBodyFormInput, type AdministrativeBodyFormOutput } from "@/lib/zod-schemas/administrativeBody"
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
-import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client'
+import type { AdministrativeBodyWithSettings } from '@/lib/db/types'
 import { Switch } from "@/components/ui/switch"
 import { TripleToggle } from "@/components/ui/triple-toggle"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -28,23 +28,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 import DecisionConventionsFields from './DecisionConventionsFields'
-import { parseDecisionConventions, type DecisionConventions } from '@/lib/decisionConventions'
+import type { DecisionConventions } from '@/lib/decisionConventions'
 import { apiErrorMessage, formatValidationIssues, type FormattableIssue } from '@/lib/utils/validationIssues'
 
-
-interface AdministrativeBody {
-    id: string;
-    name: string;
-    name_en: string;
-    type: AdministrativeBodyType;
-    youtubeChannelUrl?: string | null;
-    place?: string | null;
-    contactEmails?: string[];
-    notificationBehavior?: NotificationBehavior | null;
-    showUnreviewedTranscript?: boolean;
-    diavgeiaUnitIds?: string[];
-    decisionConventions?: unknown;
-}
 
 /** The messages of a nested field error, one per leaf, with the path below the field. */
 function leafIssues(error: unknown, path: string[] = []): FormattableIssue[] {
@@ -70,11 +56,11 @@ function ConventionsMessage({ error }: { error: unknown }) {
 
 interface AdministrativeBodiesListProps {
     cityId: string;
-    bodies: AdministrativeBody[];
+    bodies: AdministrativeBodyWithSettings[];
     onUpdate: () => void;
 }
 
-function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFormInput {
+function getFormDefaults(body?: AdministrativeBodyWithSettings | null): AdministrativeBodyFormInput {
     return {
         name: body?.name || "",
         name_en: body?.name_en || "",
@@ -86,7 +72,7 @@ function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFo
         notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
         showUnreviewedTranscript: body?.showUnreviewedTranscript ?? true,
         diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
-        decisionConventions: parseDecisionConventions(body?.decisionConventions),
+        decisionConventions: body?.decisionConventions ?? null,
     };
 }
 
@@ -94,9 +80,9 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isConfirmingConventions, setIsConfirmingConventions] = useState(false)
     const [formError, setFormError] = useState<string | null>(null)
-    const [editingBody, setEditingBody] = useState<AdministrativeBody | null>(null)
+    const [editingBody, setEditingBody] = useState<AdministrativeBodyWithSettings | null>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [bodyToDelete, setBodyToDelete] = useState<AdministrativeBody | null>(null)
+    const [bodyToDelete, setBodyToDelete] = useState<AdministrativeBodyWithSettings | null>(null)
     const t = useTranslations('AdministrativeBodiesList')
     const { data: session } = useSession()
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false
@@ -179,8 +165,8 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                 const errorData = await response.json()
                 throw new Error(apiErrorMessage(errorData, t('failedToSave'), validationMessage))
             }
-            const updated = await response.json()
-            form.setValue('decisionConventions', parseDecisionConventions(updated.decisionConventions))
+            const updated: AdministrativeBodyWithSettings = await response.json()
+            form.setValue('decisionConventions', updated.decisionConventions)
             setEditingBody({ ...editingBody, decisionConventions: updated.decisionConventions })
             onUpdate()
         } catch (error) {

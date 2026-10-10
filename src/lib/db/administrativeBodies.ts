@@ -2,23 +2,35 @@
 // src/lib/actions/administrativeBodies.ts, and the API routes check their
 // input with zod.
 import "server-only";
-import { AdministrativeBody } from '@prisma/client';
+import { AdministrativeBody, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { NotFoundError } from "@/lib/api/errors";
+import { parseDecisionConventions } from "@/lib/decisionConventions";
 import {
     administrativeBodySettingsSelect,
     publicAdministrativeBodySelect,
     type AdministrativeBodySettings,
+    type AdministrativeBodyWithSettings,
     type PublicAdministrativeBody,
 } from "./types/administrativeBody";
+
+/**
+ * The row with its stored conventions read through parseDecisionConventions.
+ * A row imported before 2026-09-14 holds older anchor names. The editor reads
+ * and writes answer the current names, which the spec documents and the
+ * forms and pages read without a second parse.
+ */
+export function withParsedConventions<T extends { decisionConventions: Prisma.JsonValue }>(body: T): Omit<T, 'decisionConventions'> & Pick<AdministrativeBodyWithSettings, 'decisionConventions'> {
+    return { ...body, decisionConventions: parseDecisionConventions(body.decisionConventions) };
+}
 
 /**
  * Every administrative body of a city with all its settings (contact emails,
  * Diavgeia units, conventions). Throws unless the session edits the city. A
  * public read uses {@link getPublicAdministrativeBodiesForCity}.
  */
-export async function getAdministrativeBodiesForCity(cityId: string): Promise<AdministrativeBody[]> {
+export async function getAdministrativeBodiesForCity(cityId: string): Promise<AdministrativeBodyWithSettings[]> {
     await withUserAuthorizedToEdit({ cityId });
     try {
         const administrativeBodies = await prisma.administrativeBody.findMany({
@@ -28,7 +40,7 @@ export async function getAdministrativeBodiesForCity(cityId: string): Promise<Ad
                 { name: 'asc' },
             ],
         });
-        return administrativeBodies;
+        return administrativeBodies.map(withParsedConventions);
     } catch (error) {
         console.error('Error fetching administrative bodies:', error);
         throw new Error('Failed to fetch administrative bodies');
@@ -93,17 +105,17 @@ export async function getMeetingBodySettings(cityId: string, meetingId: string):
         where: { cityId_id: { cityId, id: meetingId } },
         select: { administrativeBody: { select: administrativeBodySettingsSelect } },
     });
-    return meeting?.administrativeBody ?? null;
+    return meeting?.administrativeBody ? withParsedConventions(meeting.administrativeBody) : null;
 }
 
-export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt' | 'decisionConventions' | 'place'> & { place?: string | null }): Promise<AdministrativeBody> {
+export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt' | 'decisionConventions' | 'place'> & { place?: string | null }): Promise<AdministrativeBodyWithSettings> {
     await withUserAuthorizedToEdit({ cityId: bodyData.cityId });
     try {
         const { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, contactEmails, diavgeiaUnitIds, place } = bodyData;
         const newBody = await prisma.administrativeBody.create({
             data: { cityId, name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, contactEmails, diavgeiaUnitIds, place },
         });
-        return newBody;
+        return withParsedConventions(newBody);
     } catch (error) {
         console.error('Error creating administrative body:', error);
         throw new Error('Failed to create administrative body');
@@ -113,7 +125,7 @@ export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody
 export async function editAdministrativeBody(
     id: string,
     bodyData: Partial<Omit<AdministrativeBody, 'id' | 'cityId' | 'createdAt' | 'updatedAt' | 'decisionConventions'>>
-): Promise<AdministrativeBody> {
+): Promise<AdministrativeBodyWithSettings> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
         select: { cityId: true },
@@ -128,7 +140,7 @@ export async function editAdministrativeBody(
             where: { id },
             data: { name, name_en, type, notificationBehavior, showUnreviewedTranscript, youtubeChannelUrl, contactEmails, diavgeiaUnitIds, place },
         });
-        return updatedBody;
+        return withParsedConventions(updatedBody);
     } catch (error) {
         console.error('Error editing administrative body:', error);
         throw new Error('Failed to edit administrative body');
@@ -143,7 +155,7 @@ export async function editAdministrativeBody(
 export async function editAdministrativeBodyContacts(
     id: string,
     { youtubeChannelUrl, contactEmails }: Partial<Pick<AdministrativeBody, 'youtubeChannelUrl' | 'contactEmails'>>
-): Promise<AdministrativeBody> {
+): Promise<AdministrativeBodyWithSettings> {
     const existingBody = await prisma.administrativeBody.findUnique({
         where: { id },
         select: { cityId: true },
@@ -151,10 +163,11 @@ export async function editAdministrativeBodyContacts(
     if (!existingBody) throw new NotFoundError('Administrative body not found');
 
     await withUserAuthorizedToEdit({ cityId: existingBody.cityId, administrativeBodyId: id });
-    return prisma.administrativeBody.update({
+    const updatedBody = await prisma.administrativeBody.update({
         where: { id },
         data: { youtubeChannelUrl, contactEmails },
     });
+    return withParsedConventions(updatedBody);
 }
 
 export async function deleteAdministrativeBody(id: string): Promise<void> {

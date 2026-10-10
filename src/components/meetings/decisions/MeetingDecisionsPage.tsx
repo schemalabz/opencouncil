@@ -17,7 +17,6 @@ import { pollCadence, takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff'
 import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib/utils/votes';
 import { formatCalendarDate, formatDate, localCalendarDate } from '@/lib/formatters/time';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
-import { parseDecisionConventions } from '@/lib/decisionConventions';
 import type { decisionActionSchema, decisionUpsertSchema } from '@/lib/zod-schemas/decision';
 import { isRecordSubject, recordSection } from '@/lib/utils/subjects';
 import { hasRecordedVote, resultKey } from '@/lib/utils/decisionResult';
@@ -181,15 +180,15 @@ export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
         [bodySettings?.diavgeiaUnitIds],
     );
     // The rules the derivation read this body's documents by, for the rail.
-    // Parsed rather than asserted: an unparseable record is as good as none, and
-    // the section says so. Nothing routes to a body on its own — its fields sit
+    // getMeetingBodySettings parsed them: an unparseable record is null, as
+    // good as none, and the section says so. Nothing routes to a body on its own — its fields sit
     // in the city form — so the edit link goes to the city's own page, whose
     // admin strip opens that form.
     const conventionsPanel = useMemo<ConventionsPanel | null>(() => {
         const body = meeting.administrativeBody;
         if (!body) return null;
         return {
-            rules: parseDecisionConventions(bodySettings?.decisionConventions),
+            rules: bodySettings?.decisionConventions ?? null,
             bodyName: getLocalizedName(body, locale),
             cityName: getLocalizedMunicipalityName(city, locale),
             editHref: `/${city.id}`,

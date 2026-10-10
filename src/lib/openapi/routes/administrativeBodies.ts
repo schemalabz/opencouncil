@@ -68,5 +68,18 @@ export const administrativeBodiesPaths: Paths = {
             },
             'x-access-level': 'admin',
         },
+        delete: {
+            summary: 'Delete an administrative body',
+            tags: ['Administrative bodies'],
+            security: sessionAuthRequirement,
+            requestParams: { path: bodyIdParam },
+            responses: {
+                204: { description: 'Administrative body deleted' },
+                ...editAuthResponses,
+                404: errorResponseOf('Administrative body not found'),
+                500: errorResponseOf('Server error'),
+            },
+            'x-access-level': 'superadmin',
+        },
     },
 };
