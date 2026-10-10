@@ -12,6 +12,23 @@ describe('administrativeBodySchema', () => {
         expect(administrativeBodySchema.parse({ ...validBody, youtubeChannelUrl: '' }).youtubeChannelUrl).toBeUndefined();
     });
 
+    it.each([
+        'https://www.youtube.com/@cityofathens',
+        'https://www.youtube.com/channel/UCX5CxaBSCrAJxQawnE1sKHw',
+        'https://www.youtube.com/user/cityofathens',
+    ])('accepts the channel URL %s', (url) => {
+        expect(administrativeBodySchema.safeParse({ ...validBody, youtubeChannelUrl: url }).success).toBe(true);
+    });
+
+    it.each([
+        'https://www.youtube.com/c/CityOfAthens',
+        'https://www.youtube.com/playlist?list=PLKlqe7zT3Sf9EYUPBx_AkVe7PJp1yEDjJ',
+        'https://www.youtube.com/results?search_query=council',
+        'https://example.com/@cityofathens',
+    ])('rejects the URL %s, which names no channel', (url) => {
+        expect(administrativeBodySchema.safeParse({ ...validBody, youtubeChannelUrl: url }).success).toBe(false);
+    });
+
     it('rejects an invalid contact email', () => {
         expect(administrativeBodySchema.safeParse({ ...validBody, contactEmails: ['not-an-email'] }).success).toBe(false);
     });

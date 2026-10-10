@@ -30,9 +30,14 @@ export function compareAdministrativeBodies(
         || a.name.localeCompare(b.name, 'el');
 }
 
+/** Whether an unvalidated value — a URL parameter — names an admin body type. */
+export function isAdministrativeBodyType(value: string | undefined): value is AdministrativeBodyType {
+    return (Object.values(AdministrativeBodyType) as string[]).includes(value ?? '');
+}
+
 /** Narrow an unvalidated value — a URL parameter — to an admin body type. */
 export function toAdministrativeBodyType(value: string | undefined): AdministrativeBodyType | undefined {
-    return ADMIN_BODY_TYPE_ORDER.find(type => type === value);
+    return isAdministrativeBodyType(value) ? value : undefined;
 }
 
 /**

@@ -14,7 +14,7 @@ jest.mock('../../auth', () => ({
 }));
 jest.mock('../../db/prisma', () => ({
   __esModule: true,
-  default: { taskStatus: { findUnique: (...args: unknown[]) => mockTaskFindUnique(...args) } },
+  default: { taskStatus: { findUnique: (...args: unknown[]) => mockTaskFindUnique(...args), updateMany: jest.fn() } },
 }));
 jest.mock('../fixTranscriptInternal', () => ({
   requestFixTranscriptInternal: (...args: unknown[]) => mockStartTask(...args),
@@ -34,7 +34,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockWithUserAuthorizedToEdit.mockResolvedValue(true);
   mockTaskFindUnique.mockResolvedValue({
-    id: 'task-1', type: 'transcribe', cityId: 'other-city', responseBody: '{}',
+    id: 'task-1', type: 'transcribe', status: 'failed', cityId: 'other-city', responseBody: '{}',
   });
 });
 

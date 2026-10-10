@@ -5,6 +5,7 @@
 import "server-only";
 import { AdministrativeBodyType, Prisma } from '@prisma/client';
 import prisma from "./prisma";
+import { meetingBodyTypeWhere } from "./meetingBodyFilter";
 
 const meetingWithSubjectsInclude = {
     subjects: {
@@ -124,19 +125,9 @@ function meetingListQuery(
     if (administrativeBodyIds && administrativeBodyIds.length > 0) {
         bodyFilter = { administrativeBodyId: { in: administrativeBodyIds } };
     } else if (administrativeBodyTypes && administrativeBodyTypes.length > 0) {
-        // A relation filter drops the rows whose body is NULL, and cities
-        // imported before bodies existed have many. Everywhere else in the app
-        // such a meeting reads as the council's (see timelineSide), so a filter
-        // that asks for the council admits them too — otherwise the overview
-        // timeline loses meetings the rail beside it still lists.
-        bodyFilter = administrativeBodyTypes.includes('council')
-            ? {
-                OR: [
-                    { administrativeBody: { type: { in: administrativeBodyTypes } } },
-                    { administrativeBodyId: null },
-                ],
-            }
-            : { administrativeBody: { type: { in: administrativeBodyTypes } } };
+        // Without the no-body rule, the overview timeline would lose meetings
+        // that the rail beside it still lists.
+        bodyFilter = meetingBodyTypeWhere(administrativeBodyTypes);
     }
 
     const where: Prisma.CouncilMeetingWhereInput = {

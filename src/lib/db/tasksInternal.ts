@@ -43,11 +43,11 @@ export async function deleteTaskStatusDirect(
 }
 
 /**
- * Error bodies of a meeting's most recent failed transcribes, newest first.
+ * Failure reasons of a meeting's most recent failed transcribes, newest first.
  *
- * Selects `responseBody` only for FAILED rows: on a failure it holds just the error
- * string, but on a succeeded transcribe it holds the whole result, and `requestBody`
- * holds up to 50 voiceprint embeddings. Widening either would make this expensive.
+ * Selects `failureReason` only. `responseBody` holds the whole result of a
+ * transcribe, and `requestBody` holds up to 50 voiceprint embeddings. Reading
+ * either would make this expensive.
  *
  * No user gate, for the same reason as getTaskStatusDirect: the caller is the
  * poll-livestreams cron, which runs with no session.
@@ -59,12 +59,12 @@ export async function getRecentTranscribeFailureErrors(
 ): Promise<string[]> {
     const rows = await prisma.taskStatus.findMany({
         where: { cityId, councilMeetingId, type: 'transcribe', status: 'failed' },
-        select: { responseBody: true },
+        select: { failureReason: true },
         orderBy: { createdAt: 'desc' },
         take: limit,
     });
 
-    return rows.map(row => row.responseBody ?? '');
+    return rows.map(row => row.failureReason ?? '');
 }
 
 const meetingTaskSelect = {
@@ -79,7 +79,7 @@ const meetingTaskSelect = {
 } satisfies Prisma.TaskStatusSelect;
 
 export type MeetingTaskRow = Prisma.TaskStatusGetPayload<{ select: typeof meetingTaskSelect }> & {
-    /** The answer of the task server, for a failed task only. */
+    /** The failure reason of a failed task; null otherwise. */
     error: string | null;
 };
 
@@ -93,9 +93,9 @@ export const MEETING_TASKS_PER_TYPE = 5;
 const MEETING_TASK_TYPES = Object.keys(TASK_CONFIG);
 
 /**
- * The tasks of a meeting, newest first, capped per type, with the error text
- * of the failed ones. The bodies stay out of the first read for the reason
- * given above; the failed rows are read again for their error string alone.
+ * The tasks of a meeting, newest first, capped per type, with the failure
+ * reason of the failed ones. The bodies stay out of the first read for the
+ * reason given above; the failed rows are read again for `failureReason` alone.
  *
  * No user gate: the MCP server authorizes with a token before it calls this.
  */
@@ -117,9 +117,9 @@ export async function getTasksForMeetingDirect(cityId: string, councilMeetingId:
         ? []
         : await prisma.taskStatus.findMany({
             where: { id: { in: failedIds } },
-            select: { id: true, responseBody: true },
+            select: { id: true, failureReason: true },
         });
-    const errorById = new Map(errors.map(row => [row.id, row.responseBody]));
+    const errorById = new Map(errors.map(row => [row.id, row.failureReason]));
 
     return rows.map(row => ({ ...row, error: errorById.get(row.id) ?? null }));
 }

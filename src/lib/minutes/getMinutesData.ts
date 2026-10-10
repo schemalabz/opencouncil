@@ -3,6 +3,7 @@
 import { getCouncilMeetingDirect } from '@/lib/db/meetings';
 import { getSubjectsForMeeting } from '@/lib/db/subject';
 import { getExtractedDataForMeeting, getMeetingAttendance, SubjectExtractedData } from '@/lib/db/decisions';
+import { getDecisionReadingsForMeeting } from '@/lib/db/decisionFacts';
 import { getAttendanceEventsForMeeting } from '@/lib/db/derivationFacts';
 import { readingStatesFacts } from '@/lib/derivation/load';
 import { getPeopleForCity } from '@/lib/db/people';
@@ -55,13 +56,14 @@ export async function getMinutesData(
     cityId: string,
     meetingId: string,
 ): Promise<MinutesData> {
-    const [meeting, city, subjects, extractedData, people, meetingAttendance] = await Promise.all([
+    const [meeting, city, subjects, extractedData, people, meetingAttendance, readings] = await Promise.all([
         getCouncilMeetingDirect(cityId, meetingId),
         getCity(cityId),
         getSubjectsForMeeting(cityId, meetingId),
         getExtractedDataForMeeting(cityId, meetingId),
         getPeopleForCity(cityId),
         getMeetingAttendance(cityId, meetingId),
+        getDecisionReadingsForMeeting(cityId, meetingId),
     ]);
 
     if (!meeting) {
@@ -216,7 +218,8 @@ export async function getMinutesData(
     // Who presided, as each subject's own document names it: the roster name when
     // the name resolved to a person, else the name as the document printed it.
     const documentedPresidedBy = new Map(sortedSubjects.map((s): [string, MinutesSubject['presidedBy']] => {
-        const documented = s.decision && readingStatesFacts(s.decision) ? presidedByOf(s.decision.extraction) : null;
+        const reading = readings.get(s.id);
+        const documented = reading && readingStatesFacts(reading) ? presidedByOf(reading.extraction) : null;
         const person = documented?.personId ? peopleMap.get(documented.personId) : undefined;
         return [s.id, person ? { name: resolveMember(person.id, person.name).name, personId: person.id } : documented];
     }));

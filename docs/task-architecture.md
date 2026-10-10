@@ -93,7 +93,8 @@ graph TD;
     -   `type`: The type of the task (e.g., "transcribe", "summarize").
     -   `status`: The current status of the task ("pending", "processing", "succeeded", "failed").
     -   `requestBody`: The JSON payload sent to the task server.
-    -   `responseBody`: The JSON result received from the task server.
+    -   `responseBody`: The JSON result received from the task server. It holds only a task-server payload, or null.
+    -   `failureReason`: The failure text of a failed task. It is set for every failure: the task server reports an error, the result handler throws (the stack of the error), or the task does not start (`Failed to start task: …`). A success callback sets it to null.
     -   `councilMeetingId`: Foreign key to the `CouncilMeeting` table.
     -   `version`: A version number for the task, allowing for reprocessing.
     -   ...and other relevant fields.
@@ -262,28 +263,19 @@ The optional `options` parameter allows handlers to accept flags like `force` fo
 
 A key feature of the task architecture is the ability to reprocess the results of a task without having to re-run the entire task on the backend server. This is made possible by storing the complete `responseBody` from the task server in the `TaskStatus` table.
 
+When the result handler throws, the task becomes `failed`. `responseBody` keeps the payload and `failureReason` holds the error. After a fix to the handler, a reprocess of the task uses the stored payload.
+
+The `failureReason` column starts with migration `20261006120000_task_status_failure_reason`. A failed row from before that migration has no `failureReason`, and its `responseBody` can hold failure text instead of a payload. A reprocess refuses such a row when the text is not JSON.
+
 ### Basic Reprocessing
 
-The `processTaskResponse` function in `src/lib/tasks/tasks.ts` uses the task handler registry to reprocess stored results:
+The `processTaskResponse` function in `src/lib/tasks/tasks.ts` uses the task handler registry to reprocess stored results. It calls the handler of the task type with the stored `responseBody` directly. The rules:
 
-```typescript
-import { taskHandlers } from './registry';
+-   The task must be terminal (`succeeded` or `failed`) and `responseBody` must not be null. Otherwise `processTaskResponse` throws before the handler runs and writes nothing. A pending task can still receive its callback. A failed task without a payload has nothing to replay.
+-   Only a failed task changes. If the handler succeeds, the task becomes `succeeded` and `failureReason` becomes null. If the handler throws, `failureReason` gets the new error and `processTaskResponse` rethrows the error.
+-   A replay never changes a `succeeded` task. Both writes use `updateMany` with `status: 'failed'` in the `where` clause.
 
-export const processTaskResponse = async (taskType: string, taskId: string, options?: { force?: boolean }) => {
-    const task = await prisma.taskStatus.findUnique({ where: { id: taskId } });
-    if (!task) {
-        console.error(`Task ${taskId} not found`);
-        return;
-    }
-
-    const handler = taskHandlers[taskType];
-    if (!handler) {
-        throw new Error(`Unsupported task type: ${taskType}`);
-    }
-
-    await handler(taskId, JSON.parse(task.responseBody!), options);
-}
-```
+Two concurrent replays of the same task can both run the handler. This race is known and accepted.
 
 ### Force Mode for Data Cleanup
 

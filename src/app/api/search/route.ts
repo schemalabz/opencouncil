@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { search } from '@/lib/search';
 import { z } from 'zod';
 import { searchRequestSchema } from '@/lib/zod-schemas/search';
+import type { SearchRequest } from '@/lib/search/types';
 
 // Hardcoded search configuration
 const SEARCH_CONFIG = {
@@ -14,23 +15,16 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const validatedRequest = searchRequestSchema.parse(body);
 
-        // Calculate offset for pagination
-        const offset = (validatedRequest.page - 1) * validatedRequest.pageSize;
-
-        // Prepare search request. The API takes the radius in kilometres;
-        // the search takes it in metres.
-        const { location, ...filters } = validatedRequest;
-        const searchRequest = {
+        // The filters have the search's own names and units, so they pass
+        // through. Only paging and detail are API-shaped.
+        const { page, pageSize, detailed, ...filters } = validatedRequest;
+        const searchRequest: SearchRequest = {
             ...filters,
-            locationFilter: location && {
-                point: location.point,
-                radiusMeters: location.radius * 1000
-            },
             config: {
                 ...SEARCH_CONFIG,
-                size: validatedRequest.pageSize,
-                from: offset,
-                detailed: validatedRequest.detailed
+                size: pageSize,
+                from: (page - 1) * pageSize,
+                detailed
             }
         };
 

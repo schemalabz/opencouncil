@@ -1,8 +1,4 @@
-// Import directly from @vercel/og rather than next/og: Next 14.2 ships an older
-// vendored @vercel/og@0.6.3 (satori@0.10.9) which has known runaway-CPU + memory
-// leaks (vercel/next.js#65451, satori#393/#532). The standalone package at 0.11.1
-// ships satori@0.25 with those fixes.
-import { ImageResponse } from '@vercel/og';
+import { ImageResponse } from 'next/og';
 import type { Realm } from '@prisma/client';
 import type { ReactElement, ReactNode } from 'react';
 import { icons, type IconNode } from 'lucide';

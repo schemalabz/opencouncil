@@ -1,11 +1,14 @@
 import "server-only";
 import { AuthorityType, CityLanguage, Prisma, type City } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
+import { env } from '@/env.mjs';
 import prisma from '@/lib/db/prisma';
 import { BadRequestError, ConflictError, NotFoundError } from '@/lib/api/errors';
 import { createCityDirect } from '@/lib/db/citiesAdmin';
 import { populateCity, type CityPopulationData } from '@/lib/db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects, type MeetingDetailsEdit } from '@/lib/meetingWrites';
 import { startMeetingTask, type MeetingTaskRequest } from '@/lib/tasks/startMeetingTask';
+import { constructPublicUrl, generatePresignedUrl } from '@/lib/s3';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
 import { CITY_DEFAULTS } from '@/lib/zod-schemas/city';
 import { REALMS } from '@/lib/realm';
@@ -137,6 +140,41 @@ export async function mcpStartTask(
         url: meetingUrl(cityId, meetingId),
         next: 'The task runs on the task server and takes minutes. Poll get_meeting: its `tasks` list '
             + 'carries the status, and a failed task carries the error.',
+    };
+}
+
+/** The agenda formats that the task server reads (documentConversion in opencouncil-tasks). */
+const AGENDA_CONTENT_TYPES = {
+    pdf: 'application/pdf',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+} as const;
+type AgendaFormat = keyof typeof AGENDA_CONTENT_TYPES;
+const AGENDA_UPLOAD_URL_SECONDS = 300;
+
+export async function mcpCreateAgendaUploadUrl(
+    identity: McpIdentity,
+    args: { cityId: string; identifier: string; format: AgendaFormat }
+) {
+    await requireCityAdmin(identity, args.cityId);
+    await requireRealmCity(args.cityId);
+
+    const contentType = AGENDA_CONTENT_TYPES[args.format];
+    // A random suffix in place of the collision loop of the upload route: the
+    // name stays readable in the bucket, and needs no lookup.
+    const key = `uploads/${args.cityId}_${args.identifier}_agenda_${uuidv4().slice(0, 8)}.${args.format}`;
+    const uploadUrl = await generatePresignedUrl(key, contentType, AGENDA_UPLOAD_URL_SECONDS);
+
+    // Spaces ignores the ACL that the signature carries in the query string:
+    // the PUT must send it as a header, or the file stays private.
+    return {
+        uploadUrl,
+        method: 'PUT',
+        headers: { 'Content-Type': contentType, 'x-amz-acl': 'public-read' },
+        expiresIn: AGENDA_UPLOAD_URL_SECONDS,
+        publicUrl: constructPublicUrl(env.DO_SPACES_BUCKET, key),
+        next: 'Send the file with a PUT to uploadUrl, with exactly these headers, within expiresIn seconds. '
+            + 'Without the x-amz-acl header the file stays private. '
+            + 'Then pass publicUrl as agendaUrl to create_meeting or update_meeting.',
     };
 }
 

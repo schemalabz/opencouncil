@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { registry, ErrorResponseSchema } from '../registry';
-import { searchRequestSchema } from '@/lib/zod-schemas/search';
+import { searchLocationSchema, searchRequestSchema } from '@/lib/zod-schemas/search';
+import type { DerivedFilters } from '@/lib/search/types';
 
 // --- Schemas ---
 
@@ -21,10 +22,17 @@ const SearchResultSchema = z.object({
         pageSize: z.number().int(),
         totalPages: z.number().int(),
     }),
+    // `satisfies` makes a field added to DerivedFilters fail to compile here
+    // until the spec documents it.
     derivedFilters: z.object({
         cityIds: z.array(z.string()).optional(),
         dateRange: z.object({ start: z.string(), end: z.string() }).optional(),
-    }).openapi({
+        locations: z.array(searchLocationSchema).optional().openapi({
+            description:
+                'Places the query text named. These raise the rank of subjects pinned within '
+                + '`radiusMeters` (metres) of a point, and do not remove other results.',
+        }),
+    } satisfies Record<keyof DerivedFilters, z.ZodTypeAny>).openapi({
         description:
             'The filters the search read out of the query text, because the request had not set them. '
             + 'A query naming a municipality or a period in prose narrows the results; these are the '

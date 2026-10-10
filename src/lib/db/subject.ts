@@ -4,7 +4,6 @@ import { TOPICLESS_COLOR } from '@/lib/topicStyle';
 import {
     Subject,
     SpeakerContribution,
-    Decision,
     Highlight,
     Location,
     Topic,
@@ -15,8 +14,12 @@ import {
 } from '@prisma/client';
 import { PersonWithRelations } from '@/lib/db/people';
 import { extractUtteranceIds } from '@/lib/utils/references';
+import { isAdministrativeBodyType } from '@/lib/utils/administrativeBodies';
+import { isCalendarDay } from '@/lib/utils/date';
 import { getContributionCount } from '@/lib/utils';
 import { roleWithRelationsInclude } from './types/roles';
+import { subjectDecisionSelect, type SubjectDecision } from './types/decision';
+import { meetingBodyTypeWhere } from './meetingBodyFilter';
 // Import from the leaf (not the `../cache` barrel, which re-exports cache/queries → auth → env
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
@@ -108,7 +111,7 @@ export type SubjectWithRelations = Subject & {
     topic: Topic | null;
     introducedBy: PersonWithRelations | null;
     discussedIn: (Subject & { topic: Topic | null }) | null;
-    decision: Decision | null;
+    decision: SubjectDecision | null;
     votes: { voteType: VoteType; person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }[];
     attendance: { status: 'PRESENT' | 'ABSENT'; person: { id: string; name: string; roles: { electedOrder: number | null; administrativeBodyId: string | null }[] } }[];
 };
@@ -245,23 +248,27 @@ export type MapSubjectFilters = {
     subjectIds?: string[];
 };
 
+/** A date bound of the map's URL: a calendar day, as the map writes it, or nothing. */
+function calendarDayParam(value: string | null): string | null {
+    return isCalendarDay(value) ? value : null;
+}
+
 /**
- * Parse the landing map's query params into MapSubjectFilters. Validates the enum/numbers so junk
- * (`?bodyType=foo`, `?daysBack=abc`) is dropped rather than reaching Prisma and 500-ing.
+ * Parse the landing map's query params into MapSubjectFilters. Validates the enum/numbers/dates so
+ * junk (`?bodyType=foo`, `?daysBack=abc`, `?dateFrom=abc`) is dropped rather than reaching Prisma
+ * and 500-ing.
  */
 export function parseMapSubjectFilters(searchParams: URLSearchParams): MapSubjectFilters {
     const num = (v: string | null) => (v && Number.isFinite(Number(v)) ? Number(v) : undefined);
-    const isBodyType = (b: string): b is AdministrativeBodyType =>
-        (Object.values(AdministrativeBodyType) as string[]).includes(b);
     return {
         monthsBack: num(searchParams.get('monthsBack')),
         daysBack: num(searchParams.get('daysBack')) ?? null,
         allTime: searchParams.get('allTime') === 'true',
         topicIds: (searchParams.get('topicIds') || '').split(',').filter(Boolean),
         cityIds: (searchParams.get('cityIds') || '').split(',').filter(Boolean),
-        bodyTypes: (searchParams.get('bodyType') || '').split(',').filter(isBodyType),
-        dateFrom: searchParams.get('dateFrom'),
-        dateTo: searchParams.get('dateTo'),
+        bodyTypes: (searchParams.get('bodyType') || '').split(',').filter(isAdministrativeBodyType),
+        dateFrom: calendarDayParam(searchParams.get('dateFrom')),
+        dateTo: calendarDayParam(searchParams.get('dateTo')),
     };
 }
 
@@ -365,7 +372,7 @@ export function buildMapSubjectWhere(realm: Realm | null, f: MapSubjectFilters):
             released: true,
             dateTime,
             city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
-            ...(f.bodyTypes?.length ? { administrativeBody: { type: { in: f.bodyTypes } } } : {}),
+            ...(f.bodyTypes?.length ? meetingBodyTypeWhere(f.bodyTypes) : {}),
         },
     };
 }
@@ -532,7 +539,7 @@ export async function getAllSubjects(): Promise<SubjectWithRelations[]> {
                 location: true,
                 topic: true,
                 introducedBy: introducedByInclude,
-                decision: true,
+                decision: { select: subjectDecisionSelect },
                 discussedIn: {
                     include: {
                         topic: true,
@@ -563,7 +570,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 highlights: true,
                 location: true,
                 topic: true,
-                decision: true,
+                decision: { select: subjectDecisionSelect },
                 discussedIn: {
                     include: {
                         topic: true,
@@ -575,7 +582,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
         });
 
         // Then get the coordinates for locations that exist
-        const locationIds = subjects.filter(s => s.location).map(s => s.location!.id);
+        const locationIds = subjects.flatMap(s => s.location ? [s.location.id] : []);
 
         if (locationIds.length > 0) {
             const locationCoordinates = await prisma.$queryRaw<Array<{ id: string; x: number; y: number }>>`
@@ -584,6 +591,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 WHERE id = ANY(${locationIds}::text[])
                 AND type = 'point'
             `;
+            const coordinatesByLocationId = new Map(locationCoordinates.map(l => [l.id, l]));
 
             // Merge coordinates into the subjects
             return subjects.map(subject => ({
@@ -591,7 +599,7 @@ export async function getSubjectsForMeeting(cityId: string, councilMeetingId: st
                 location: subject.location
                     ? {
                         ...subject.location,
-                        coordinates: locationCoordinates.find(l => l.id === subject.location!.id),
+                        coordinates: coordinatesByLocationId.get(subject.location.id),
                     }
                     : null,
             }));
@@ -619,7 +627,7 @@ export async function getSubject(subjectId: string): Promise<SubjectWithRelation
                 highlights: true,
                 location: true,
                 topic: true,
-                decision: true,
+                decision: { select: subjectDecisionSelect },
                 discussedIn: {
                     include: {
                         topic: true,

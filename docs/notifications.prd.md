@@ -111,7 +111,7 @@ NotificationDeliveries represent the sending of a notification to a user through
 - Uses the title and body content created during delivery creation
 
 **Phone channel:**
-The Notis service owns the WhatsApp templates, the WhatsApp-first delivery with SMS fallback, the quiet hours, and the ΣΤΟΠ ceremony. Its README documents them. The release step marks a `message` delivery row from before the switch as `skipped`. This app has no Bird integration left: no sender, no webhook, no credentials.
+The Notis service owns the WhatsApp templates, the WhatsApp-first delivery with SMS fallback, the quiet hours, and the ΣΤΟΠ ceremony. Its README documents them. The release step marks a `message` delivery row from before the switch as `skipped`. This app has no Bird webhook and sends no notification. Its one call to Bird is the SMS with a phone verification code.
 
 **Delivery Status Updates:**
 - Successful sending updates the delivery `status` field
@@ -279,6 +279,19 @@ The completion screen shows the real first message (`notis_intro`) and says when
 - **Per-city rows**: topics and locations, an email checkbox (`notifyByEmail`), edit (step 2 of the signup), delete.
 - **History**: past notifications with their delivery statuses.
 
+#### Phone verification
+
+A reader can prove that they own their mobile number with a code ([issue #813](https://github.com/schemalabz/opencouncil/issues/813)). The step is optional, so that it costs no signups.
+
+- **Nothing waits for it.** A number is saved on the account at once, in the signup, the petition and the profile. Νότης writes to it as before, verified or not.
+- **Where it is offered.** The profile's phone field shows «Δεν έχει επιβεβαιωθεί» with a "confirm with a code" button. The code opens in a dialog (`src/components/phone/PhoneCodeForm.tsx`). A verified number shows a tick.
+- **What the proof gives.** `User.phoneVerifiedAt` is set. A verified number cannot be claimed by another account. A number that another account only typed passes to the reader who proves it. A changed number is unverified again.
+- **The one case that needs a code.** A reader saves a number that another account already typed. The profile saves the other fields and opens the code dialog for that number.
+- **The code.** Six digits, kept as an HMAC with `NEXTAUTH_SECRET`, good for 10 minutes, void after 5 wrong attempts. A reader may ask for a code every 30 seconds, and 3 times an hour. One number receives at most 5 codes an hour, from all accounts together (`src/lib/phone-verification/constants.ts`).
+- **The limits hold under concurrency.** Each code that goes out is a `PhoneCodeSend` row, and the limits count these rows. A request checks the limits and reserves its row under a Postgres advisory lock on the number and on the account. An SMS that Bird refuses releases the reservation. An SMS that gets no answer keeps it, because the SMS may still arrive. A wrong-code attempt is claimed in one conditional update before the comparison. A confirmation takes the same lock on the number, so two accounts cannot both win it.
+- **Alerts.** Three requests post a Discord alert the moment the code goes out. These are a number outside the realm countries, the third code to one number within an hour, and the fifth code to one number. A failed Bird call posts one alert per ten minutes.
+- **The carrier.** The main app sends the code as one SMS, straight to Bird's SMS channel (`src/lib/phone-verification/sms.ts`). The code does not go through Notis. Without the three Bird values, a development or preview deployment prints the code to the server log. Production refuses.
+
 #### Unsubscribe
 
 - **ΣΤΟΠ on WhatsApp**: Notis unsubscribes the reader and keeps their preferences. The profile switch shows the subscription status, so it shows off.
@@ -291,14 +304,10 @@ The completion screen shows the real first message (`notis_intro`) and says when
 
 #### Core API Routes:
 ```typescript
-// Public endpoints
-GET /api/notifications/[id] - Get notification for public view
-
 // Admin endpoints  
 POST /api/cities/[cityId]/meetings/[meetingId]/notifications - Create notifications manually
 GET /api/admin/notifications - List all notifications with filters
 POST /api/admin/notifications/release - Release pending notifications
-GET /api/notifications/[id]/preview - Admin preview notification content
 
 // Administrative body management
 GET /api/admin/administrative-bodies - List with notification behavior

@@ -8,7 +8,7 @@ import { attachGeometryToCities } from "./cities";
 import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
 import { PHONE_IN_USE_CODE, PHONE_REJECTION_CODES, normalizeMobilePhone } from "@/lib/utils/phone";
-import { phoneBelongsToAnotherUser } from "./users";
+import { phoneBelongsToAnotherUser, setAccountPhone } from "./phoneVerification";
 import { NotFoundError } from "@/lib/api/errors";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
@@ -340,16 +340,17 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 return createError(PHONE_REJECTION_CODES.empty);
             }
 
-            if (phone && (await phoneBelongsToAnotherUser(phone, user.id))) {
-                return createError(PHONE_IN_USE_CODE);
-            }
+            // Update phone if provided, with the onboarding flag in the same
+            // write. Any other holder refuses it here, as before: only the
+            // profile offers the code that takes a number over.
             const onboards = signupOnboards(user);
-            const data = {
-                ...(phone ? { phone } : {}),
-                ...(onboards ? { onboarded: true } : {}),
-            };
-            if (Object.keys(data).length > 0) {
-                await prisma.user.update({ where: { id: user.id }, data });
+            const flags = onboards ? { onboarded: true } : {};
+            if (phone) {
+                if (!(await setAccountPhone(user.id, phone, flags)).ok) {
+                    return createError(PHONE_IN_USE_CODE);
+                }
+            } else if (onboards) {
+                await prisma.user.update({ where: { id: user.id }, data: flags });
             }
             if (onboards) onboardedUserId = user.id;
         } else if (email) {
@@ -569,19 +570,17 @@ export async function savePetition(data: OnboardingData & {
             userId = user.id;
 
             // Always set allowPetitionUpdates (submitting a petition is implicit
-            // consent for petition updates); merge phone in if provided.
-            if (phone && (await phoneBelongsToAnotherUser(phone, user.id))) {
-                return createError(PHONE_IN_USE_CODE);
-            }
+            // consent for petition updates); merge phone in if provided. One
+            // write for the number, the consent and the onboarding flag: a
+            // failure leaves none of them.
             const onboards = signupOnboards(user);
-            await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                    allowPetitionUpdates: true,
-                    ...(phone ? { phone } : {}),
-                    ...(onboards ? { onboarded: true } : {}),
-                },
-            });
+            const flags = { allowPetitionUpdates: true, ...(onboards ? { onboarded: true } : {}) };
+            if (phone) {
+                const saved = await setAccountPhone(user.id, phone, flags);
+                if (!saved.ok) return createError(PHONE_IN_USE_CODE);
+            } else {
+                await prisma.user.update({ where: { id: user.id }, data: flags });
+            }
             if (onboards) onboardedUserId = user.id;
         } else if (email) {
             // Non-authenticated user

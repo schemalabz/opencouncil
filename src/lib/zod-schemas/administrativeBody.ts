@@ -1,8 +1,10 @@
 import { z } from 'zod';
+import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client';
 import { decisionConventionsSchema } from '@/lib/decisionConventions';
+import { parseChannelRef } from '@/lib/utils/youtube';
 
-export const administrativeBodyTypeSchema = z.enum(['council', 'committee', 'community']);
-export const notificationBehaviorSchema = z.enum(['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL']);
+export const administrativeBodyTypeSchema = z.nativeEnum(AdministrativeBodyType);
+export const notificationBehaviorSchema = z.nativeEnum(NotificationBehavior);
 
 // Field rules of an administrative body — validation only, no defaults.
 // Shared by the body form, the body routes, and the city import
@@ -17,9 +19,13 @@ export const baseAdministrativeBodyFields = {
     type: administrativeBodyTypeSchema,
 };
 
+// pollLivestreams can only use a URL that parseChannelRef resolves, so reject
+// any other URL here (a /c/ vanity URL, a playlist, a search results page).
 const youtubeChannelUrl = z.union([
     z.string().url({
         message: "Must be a valid URL.",
+    }).refine(val => parseChannelRef(val) !== null, {
+        message: "Must be a YouTube channel URL: https://www.youtube.com/@handle or https://www.youtube.com/channel/UC…",
     }),
     z.literal('')
 ]).optional().transform(val => val === '' ? undefined : val);

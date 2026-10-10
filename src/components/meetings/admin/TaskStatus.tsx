@@ -167,10 +167,10 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                                     </div>
                                 </div>
                             )}
-                            {task.status === 'failed' && task.responseBody && (
+                            {task.status === 'failed' && (
                                 <div className="flex items-center justify-between">
                                     <code className="font-mono truncate block max-w-[300px]">
-                                        {task.responseBody || tStatus('unknownError')}
+                                        {task.failureReason ?? tStatus('unknownError')}
                                     </code>
                                     <div className="flex space-x-1">
                                         <Button
@@ -189,6 +189,7 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                                             size="sm"
                                             className="h-5 w-5 p-0"
                                             onClick={onReprocessClick}
+                                            disabled={task.responseBody === null}
                                         >
                                             <RefreshCw className="h-3 w-3" />
                                         </Button>
@@ -331,6 +332,9 @@ export function TaskStatusComponent({ task, onDelete, showMeetingInfo }: TaskSta
                 views={[
                     { label: 'Request', data: parseJson(task.requestBody) },
                     { label: 'Response', data: parseJson(task.responseBody) },
+                    ...(task.failureReason
+                        ? [{ label: 'Failure Reason', data: task.failureReason }]
+                        : []),
                 ]}
                 metadata={[
                     { label: 'Task ID', value: task.id },

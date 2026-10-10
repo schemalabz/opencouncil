@@ -41,7 +41,7 @@ const SERVICE: McpIdentity = { type: 'service', keyName: 'bot' };
 
 const CATEGORIES = ['discovery', 'directory', 'meetings', 'highlights', 'admin'];
 
-const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'start_task'];
+const MEETING_ADMIN_TOOLS = ['create_meeting', 'update_meeting', 'create_agenda_upload_url', 'start_task'];
 const SUPERADMIN_TOOLS = ['create_city', 'populate_city'];
 const CITY_ADMIN: McpAdminAccess = { superadmin: false, cityIds: new Set(['athens']) };
 const SUPERADMIN: McpAdminAccess = { superadmin: true, cityIds: new Set() };
@@ -251,6 +251,46 @@ describe('administrative-body filtering', () => {
 
         expect(data.mcpListMeetings).toHaveBeenCalledWith(
             'athens',
+            expect.objectContaining({
+                administrativeBodyIds: ['body-1'],
+                administrativeBodyTypes: ['community'],
+            }),
+            USER
+        );
+    });
+
+    it('accepts both body filters on search, with the same type list as list_meetings', () => {
+        const { meta } = advertised(USER);
+        const parsed = meta.search.inputSchema!.parse({
+            query: 'πάρκα',
+            administrativeBodyIds: ['body-1'],
+            administrativeBodyTypes: ['community'],
+        });
+
+        expect(parsed).toMatchObject({ administrativeBodyIds: ['body-1'], administrativeBodyTypes: ['community'] });
+        expect(() => meta.search.inputSchema!.parse({ administrativeBodyTypes: ['κοινότητα'] })).toThrow();
+    });
+
+    it('rejects an empty body filter on search rather than searching every body', () => {
+        const schema = advertised(USER).meta.search.inputSchema!;
+        expect(() => schema.parse({ administrativeBodyIds: [] })).toThrow();
+        expect(() => schema.parse({ administrativeBodyTypes: [] })).toThrow();
+    });
+
+    it('forwards both body filters of search to the data layer', async () => {
+        const { handlers } = advertised(USER);
+        await handlers.search(
+            {
+                query: 'πάρκα',
+                page: 1,
+                pageSize: 10,
+                administrativeBodyIds: ['body-1'],
+                administrativeBodyTypes: ['community'],
+            } as never,
+            ctxFor(USER)
+        );
+
+        expect(data.mcpSearch).toHaveBeenCalledWith(
             expect.objectContaining({
                 administrativeBodyIds: ['body-1'],
                 administrativeBodyTypes: ['community'],

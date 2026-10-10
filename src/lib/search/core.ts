@@ -1,6 +1,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
+import { subjectDecisionSelect } from '@/lib/db/types';
 import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches, RelatedScope } from './types';
 import { buildSearchQuery } from './query';
@@ -99,9 +100,13 @@ function searchFailureContext(request: SearchRequest): SearchFailureContext {
         cityIds: request.cityIds?.join(', '),
         personIds: request.personIds?.join(', '),
         partyIds: request.partyIds?.join(', '),
+        administrativeBodyIds: request.administrativeBodyIds?.join(', '),
+        administrativeBodyTypes: request.administrativeBodyTypes?.join(', '),
         topicIds: request.topicIds?.join(', '),
         dateRange: request.dateRange ? `${request.dateRange.start}..${request.dateRange.end}` : undefined,
-        hasLocations: request.locations?.length ? 'true' : undefined,
+        location: request.location
+            ? `${request.location.point.lat},${request.location.point.lng} within ${request.location.radiusMeters}m`
+            : undefined,
     };
 }
 
@@ -240,9 +245,11 @@ export async function searchSubjectsInRealm(
                 cityIds,
                 personIds: request.personIds,
                 partyIds: request.partyIds,
+                administrativeBodyIds: request.administrativeBodyIds,
+                administrativeBodyTypes: request.administrativeBodyTypes,
                 topicIds: request.topicIds,
                 dateRange: request.dateRange,
-                hasLocations: request.locations ? request.locations.length > 0 : false
+                location: request.location
             }
         });
 
@@ -283,7 +290,11 @@ export async function searchSubjectsInRealm(
         // win would search a municipality or period that contradicts the pills
         // on screen. An extracted city id outside the realm is dropped too —
         // the model reads a realm-scoped list but can still name anything.
-        const extractedCityIds = !hasExplicitCityFilter && processedFilters.cityIds?.length
+        // A caller's point names the place as well: a city read from the text
+        // ("πάρκα στο Χαλάνδρι" with a point in Athens) would lie outside it and
+        // leave nothing, so it is ignored. A period read from the text still
+        // applies.
+        const extractedCityIds = !hasExplicitCityFilter && !request.location && processedFilters.cityIds?.length
             ? await filterCityIdsByRealm(processedFilters.cityIds, realm)
             : [];
 
@@ -291,8 +302,7 @@ export async function searchSubjectsInRealm(
         const mergedRequest: SearchRequest = {
             ...request,
             cityIds: extractedCityIds.length > 0 ? extractedCityIds : cityIds,
-            dateRange: request.dateRange ?? processedFilters.dateRange,
-            locations: request.locations ?? processedFilters.locations
+            dateRange: request.dateRange ?? processedFilters.dateRange
         };
 
         // Report back the filters the query text supplied, so a caller showing
@@ -302,11 +312,11 @@ export async function searchSubjectsInRealm(
         const derivedFilters: DerivedFilters = {
             ...(extractedCityIds.length > 0 && { cityIds: extractedCityIds }),
             ...(!request.dateRange && processedFilters.dateRange && { dateRange: processedFilters.dateRange }),
-            ...(!request.locations && processedFilters.locations && { locations: processedFilters.locations }),
+            ...(processedFilters.locations && { locations: processedFilters.locations }),
         };
 
         // Build and execute the search query with retry logic
-        const searchQuery = buildSearchQuery(mergedRequest, extractedFilters);
+        const searchQuery = buildSearchQuery(mergedRequest, extractedFilters, processedFilters.locations);
         
         logEssential('Executing search query', { 
             hasSemanticSearch: request.config?.enableSemanticSearch 
@@ -398,7 +408,7 @@ async function hydrateSubjectHits(hits: SubjectSearchHit[], detailed: boolean): 
                 }
             },
             highlights: true,
-            decision: true,
+            decision: { select: subjectDecisionSelect },
             discussedIn: {
                 include: {
                     topic: true

@@ -7,6 +7,9 @@ import {
     getBodiesOfTypeFromPeople,
     filterMeetingByAdminBodyTypes,
     filterPersonByAdminBodyTypes,
+    ADMIN_BODY_TYPE_ORDER,
+    isAdministrativeBodyType,
+    toAdministrativeBodyType,
 } from '../administrativeBodies';
 
 function makeAdminBody(overrides: Partial<AdministrativeBody> = {}): AdministrativeBody {
@@ -232,5 +235,23 @@ describe('filterPersonByAdminBodyTypes', () => {
         ]);
         expect(filterPersonByAdminBodyTypes(person, ['committee'])).toBe(false);
         expect(filterPersonByAdminBodyTypes(person, ['council'])).toBe(true);
+    });
+});
+
+describe('administrative body type guards', () => {
+    it('accepts every type of the Prisma enum and nothing else', () => {
+        for (const type of Object.values(AdministrativeBodyType)) {
+            expect(isAdministrativeBodyType(type)).toBe(true);
+            expect(toAdministrativeBodyType(type)).toBe(type);
+        }
+        expect(isAdministrativeBodyType('κοινότητα')).toBe(false);
+        expect(isAdministrativeBodyType(undefined)).toBe(false);
+        expect(toAdministrativeBodyType('')).toBeUndefined();
+    });
+
+    // A type added to the enum (a youth body, say) must also get a place in
+    // the order every list of bodies uses, or it sorts after "no seat".
+    it('orders every type of the Prisma enum', () => {
+        expect([...ADMIN_BODY_TYPE_ORDER].sort()).toEqual([...Object.values(AdministrativeBodyType)].sort());
     });
 });

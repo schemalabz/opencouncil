@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { AdministrativeBodyType } from '@prisma/client'
 import { getRealm } from '@/lib/realm.server'
-import { getGeneralSubjects, getMapSubjects } from '@/lib/db/subject'
+import { getGeneralSubjects, getMapSubjects, parseMapSubjectFilters } from '@/lib/db/subject'
 import { searchSubjectsInRealm } from '@/lib/search/core'
+import { openDateRange } from '@/lib/search/dateRange'
 import { SUBJECT_DOT_THRESHOLD } from '@/lib/landing/landingCore'
 
 // Per-query, and every query is different. Nothing to cache.
@@ -19,14 +19,6 @@ export const dynamic = 'force-dynamic';
  * hundreds, so the cap bites rarely and the response says when it did.
  */
 const MAX_RESULTS = SUBJECT_DOT_THRESHOLD;
-
-const isBodyType = (b: string): b is AdministrativeBodyType =>
-    (Object.values(AdministrativeBodyType) as string[]).includes(b);
-
-const list = (value: string | null) => (value || '').split(',').filter(Boolean);
-
-/** The lower bound for a date filter that names only its end. Matches mcpSearch. */
-const OPEN_RANGE_START = '1970-01-01';
 
 /**
  * Search, answered in the landing map's own shape.
@@ -48,21 +40,20 @@ export async function GET(request: Request) {
         }
 
         const realm = await getRealm();
-        const dateFrom = searchParams.get('dateFrom');
-        const dateTo = searchParams.get('dateTo');
+        // The map's own parser, so the search reads the filters exactly as the
+        // map endpoints it is searching over do.
+        const filters = parseMapSubjectFilters(searchParams);
 
         const { hits, total, dropped, derivedFilters } = await searchSubjectsInRealm({
             query,
-            cityIds: list(searchParams.get('cityIds')),
-            topicIds: list(searchParams.get('topicIds')),
-            adminBodyTypes: list(searchParams.get('bodyType')).filter(isBodyType),
+            cityIds: filters.cityIds,
+            topicIds: filters.topicIds,
+            administrativeBodyTypes: filters.bodyTypes,
             // Either bound alone is a real filter — the map's own endpoints
             // honour one, so a search over them must too, or committing would
-            // widen the window the reader just set. The missing bound stays
-            // open rather than collapsing the range onto the one that is set.
-            dateRange: dateFrom || dateTo
-                ? { start: dateFrom ?? OPEN_RANGE_START, end: dateTo ?? new Date().toISOString() }
-                : undefined,
+            // widen the window the reader just set. A missing end is now, as
+            // in those endpoints.
+            dateRange: openDateRange(filters.dateFrom, filters.dateTo, new Date().toISOString()),
             config: {
                 enableSemanticSearch: true,
                 size: MAX_RESULTS,

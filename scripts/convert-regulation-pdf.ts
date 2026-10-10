@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 
 import fs from 'fs';
-import pdfParse from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 import { validateRegulation } from './lib/regulation-schema';
@@ -33,9 +33,11 @@ class RegulationConverter {
         try {
             console.log('📄 Reading PDF file...');
             const pdfBuffer = fs.readFileSync(pdfPath);
-            const pdfData = await pdfParse(pdfBuffer);
+            const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+            // v2 appends "-- N of M --" to each page by default; keep v1's plain page text for chunking.
+            const pdfData = await parser.getText({ pageJoiner: '' }).finally(() => parser.destroy());
 
-            console.log(`📊 PDF parsed successfully. Total pages: ${pdfData.numpages}`);
+            console.log(`📊 PDF parsed successfully. Total pages: ${pdfData.total}`);
             console.log(`📝 Total text length: ${pdfData.text.length} characters`);
 
             // Split text into manageable chunks

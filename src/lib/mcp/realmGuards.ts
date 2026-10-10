@@ -1,4 +1,5 @@
 import "server-only";
+import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 import { NotFoundError } from '@/lib/api/errors';
 import { filterCityIdsByRealm } from '@/lib/db/cities';
@@ -29,15 +30,34 @@ export async function requireRealmCity(cityId: string): Promise<void> {
  * is the reading these tools exist to prevent.
  */
 export async function requireCityBodies(cityId: string, bodyIds: string[]): Promise<void> {
+    return requireBodies(bodyIds, { cityId }, ` for ${cityId}`);
+}
+
+/**
+ * As requireCityBodies, for a tool that spans municipalities: the bodies must
+ * belong to the caller's `cityIds` when it names some, or to the realm. A body
+ * of a municipality outside the caller's own filter would match nothing.
+ */
+export async function requireRealmBodies(bodyIds: string[], cityIds?: string[]): Promise<void> {
+    return cityIds?.length
+        ? requireBodies(bodyIds, { cityId: { in: cityIds } }, ` for ${cityIds.join(', ')}`)
+        : requireBodies(bodyIds, { city: { realm: currentRealm() } }, '');
+}
+
+async function requireBodies(
+    bodyIds: string[],
+    scope: Prisma.AdministrativeBodyWhereInput,
+    scopeLabel: string
+): Promise<void> {
     const known = await prisma.administrativeBody.findMany({
-        where: { cityId, id: { in: bodyIds } },
+        where: { ...scope, id: { in: bodyIds } },
         select: { id: true },
     });
     const found = new Set(known.map(body => body.id));
     const unknown = [...new Set(bodyIds)].filter(id => !found.has(id));
     if (unknown.length > 0) {
         throw new NotFoundError(
-            `Unknown administrative body for ${cityId}: ${unknown.join(', ')}. See get_city.`
+            `Unknown administrative body${scopeLabel}: ${unknown.join(', ')}. See get_city.`
         );
     }
 }

@@ -21,12 +21,12 @@ const shared = {
     '<rootDir>/node_modules/(?!(next-intl|use-intl|intl-messageformat|icu-minify|@formatjs|@schummar)/)',
   ],
   transform: {
-    '^.+\\.(ts|tsx|js|jsx)$': ['ts-jest', {
+    '^.+\\.(ts|tsx|js|jsx|mjs)$': ['ts-jest', {
       tsconfig: 'tsconfig.jest.json',
       isolatedModules: true,
     }],
   },
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'mjs', 'json', 'node'],
 };
 
 // Two projects so server-side tests run under the Node environment, where all

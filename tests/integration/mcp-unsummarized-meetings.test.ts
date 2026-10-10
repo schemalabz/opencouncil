@@ -102,7 +102,7 @@ describe('MCP signals for a transcribed but unsummarized meeting - integration',
 
     it('lists the pipeline tasks to an editor and to nobody else', async () => {
         await prisma.taskStatus.create({
-            data: { type: 'transcribe', status: 'failed', requestBody: '{}', responseBody: 'worker down', councilMeetingId: 'transcribed', cityId: 'athens' },
+            data: { type: 'transcribe', status: 'failed', requestBody: '{}', failureReason: 'worker down', councilMeetingId: 'transcribed', cityId: 'athens' },
         })
 
         const seen = await asRequest(() => mcpGetMeeting('athens', 'transcribed', SERVICE), SERVICE)

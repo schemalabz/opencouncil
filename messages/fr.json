@@ -692,6 +692,7 @@
     "nextMeeting": "Séance suivante"
   },
   "Unsubscribe": {
+    "metaTitle": "Désinscription | OpenCouncil",
     "invalidLinkTitle": "Lien non valide",
     "invalidLinkDescription": "Ce lien de désinscription n'est pas valide ou a expiré.",
     "successCityTitle": "Désinscription réussie",
@@ -774,6 +775,10 @@
     "phoneInvalid": "Saisissez un numéro de téléphone valide",
     "phoneNotMobile": "Indiquez un numéro de mobile : WhatsApp et les SMS n'atteignent pas une ligne fixe",
     "phoneInUse": "Ce numéro est déjà associé à un autre compte",
+    "phoneUnverified": "Pas encore confirmé.",
+    "phoneVerify": "Confirmer avec un code",
+    "phoneVerified": "Confirmé",
+    "phoneConfirmTitle": "Confirmez votre mobile",
     "emailChangeTooltip": "Pour modifier votre e-mail, contactez-nous à dpo@opencouncil.gr",
     "lastUpdated": "Dernière mise à jour : {date}",
     "allowProductUpdates": "Mises à jour sur les actualités d'OpenCouncil",
