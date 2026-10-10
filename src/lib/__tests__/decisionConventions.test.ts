@@ -36,7 +36,7 @@ describe('decisionConventionsSchema', () => {
     it('refuses a value outside an enum', () => {
         const parsed = decisionConventionsSchema.safeParse({ ...VALID, namedVoters: 'everyone' });
         expect(parsed.success).toBe(false);
-        expect(parsed.success === false && parsed.error.errors[0].path).toEqual(['namedVoters']);
+        expect(parsed.success === false && parsed.error.issues[0].path).toEqual(['namedVoters']);
         expect(isDecisionConventions({ ...VALID, rollCallLayout: 'whatever' })).toBe(false);
     });
 

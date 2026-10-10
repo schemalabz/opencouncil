@@ -33,7 +33,7 @@ export async function POST(request: NextRequest, props: Params) {
         return NextResponse.json(result, { status: result.created ? 201 : 200 });
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
+            return NextResponse.json({ error: error.issues }, { status: 400 });
         }
         return handleApiError(error, 'Failed to add an admin to the body');
     }
@@ -48,7 +48,7 @@ export async function DELETE(request: NextRequest, props: Params) {
         return new NextResponse(null, { status: 204 });
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
+            return NextResponse.json({ error: error.issues }, { status: 400 });
         }
         return handleApiError(error, 'Failed to remove an admin from the body');
     }

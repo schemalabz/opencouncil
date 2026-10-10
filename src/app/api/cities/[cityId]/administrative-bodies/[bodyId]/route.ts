@@ -60,7 +60,7 @@ export async function PUT(
         return NextResponse.json(updatedBody);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
+            return NextResponse.json({ error: error.issues }, { status: 400 });
         }
         if (error instanceof ApiError) {
             return NextResponse.json({ error: error.message }, { status: error.statusCode });

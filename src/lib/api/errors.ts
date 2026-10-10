@@ -78,7 +78,7 @@ export function handleApiError(error: unknown, fallbackMessage: string = "An err
     }
 
     if (error instanceof ZodError) {
-        const message = error.errors.map(e => e.message).join(", ");
+        const message = error.issues.map(e => e.message).join(", ");
         return NextResponse.json({ error: message }, { status: 400 });
     }
 

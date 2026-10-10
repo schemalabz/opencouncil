@@ -83,7 +83,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         console.error('Error saving city data:', error);
 
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
+            return NextResponse.json({ error: error.issues }, { status: 400 });
         }
 
         if (error instanceof ApiError) {

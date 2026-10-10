@@ -82,7 +82,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     const { data: session } = useSession()
     const isSuperAdmin = session?.user?.isSuperAdmin ?? false
 
-    const form = useForm<AdministrativeBodyFormValues>({
+    const form = useForm({
         resolver: zodResolver(administrativeBodyFormSchema),
         defaultValues: getFormDefaults(editingBody),
     })
@@ -397,7 +397,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                         <FormItem>
                                             <DecisionConventionsFields
                                                 key={editingBody.id}
-                                                value={field.value}
+                                                value={field.value as DecisionConventions}
                                                 onChange={field.onChange}
                                                 onConfirm={handleConfirmConventions}
                                                 confirming={isConfirmingConventions}

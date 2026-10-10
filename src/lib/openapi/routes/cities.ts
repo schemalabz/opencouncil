@@ -48,7 +48,7 @@ const CityMinimalSchema = z.object({
 
 // GET /api/cities/{cityId} returns CityWithCounts + PostGIS geometry (getCity includes _count).
 const CityWithGeometrySchema = CityWithCountsSchema.extend({
-    geometry: z.record(z.unknown()).nullable().optional().openapi({ description: 'GeoJSON geometry' }),
+    geometry: z.record(z.string(), z.unknown()).nullable().optional().openapi({ description: 'GeoJSON geometry' }),
 }).openapi('CityWithGeometry');
 
 registry.register('City', CitySchema);
