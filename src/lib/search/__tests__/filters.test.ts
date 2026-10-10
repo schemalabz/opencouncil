@@ -90,6 +90,10 @@ describe('extractFilters', () => {
         ['2026-01-01', '2026-02-01'],
         ['2026-01-01T00:00:00Z', '2026-01-31T23:59:59.999Z'],
         ['2026-01-01T00:00:00+02:00', '2026-01-31T23:59:59'],
+        // Elasticsearch reads these too: seconds are optional, and a value
+        // without a zone is UTC.
+        ['2026-01-01T00:00+02:00', '2026-01-31T23:59Z'],
+        ['2026-01-01T00:00', '2026-01-31T23:59'],
     ])('keeps an ISO 8601 range %s..%s', async (start, end) => {
         modelReturns({ cityIds: null, dateRange: { start, end }, locationName: null });
 

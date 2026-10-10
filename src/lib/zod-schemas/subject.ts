@@ -1,23 +1,12 @@
 import * as z from 'zod';
 import { NonAgendaReason } from '@prisma/client';
-import { isCalendarDay } from '@/lib/utils/date';
-import { isoDateOrDateTime, stringBoolean } from './primitives';
+import { stringBoolean } from './primitives';
+import { DATE_BOUND_RULE, listQueryFields, MAX_LIST_LIMIT } from './listQuery';
 
 /** Page size of the subject listings when the caller names none. */
 export const DEFAULT_SUBJECT_LIMIT = 50;
 /** Largest page the subject listings serve. */
-export const MAX_SUBJECT_LIMIT = 100;
-
-/**
- * A bound of the date range. Both bounds are inclusive, which a date-only
- * upper bound only is if it covers the whole day: `new Date('2025-12-31')` is
- * midnight UTC at the *start* of the 31st, so `lte` against it would drop
- * every meeting held that day. A full timestamp passes through as written.
- * A date-only value must be a real day: `new Date('2026-02-31')` rolls over to
- * 3 March, so a parse check alone would accept it and search the wrong day.
- */
-const dateParam = (label: string, endOfDay = false) => isoDateOrDateTime({ error: `Invalid '${label}' date` })
-    .transform(val => new Date(endOfDay && isCalendarDay(val) ? `${val}T23:59:59.999Z` : val));
+export const MAX_SUBJECT_LIMIT = MAX_LIST_LIMIT;
 
 /**
  * Whether a listing includes unreleased content. The routes that take it
@@ -35,28 +24,18 @@ export const includeUnreleasedQuery = stringBoolean.default(false).meta({
  */
 export const subjectListQuerySchema = z.object({
     introducerId: z.string().min(1).optional().meta({ description: 'Return only subjects introduced by this person.' }),
-    from: dateParam('from').optional().meta({
-        description: 'Earliest meeting date, inclusive (ISO 8601).',
+    from: listQueryFields.from.meta({
+        description: `Earliest meeting date, inclusive. ${DATE_BOUND_RULE}`,
         example: '2025-01-01',
     }),
-    to: dateParam('to', true).optional().meta({
-        description: 'Latest meeting date, inclusive (ISO 8601). A date with no time of day covers the whole day.',
+    to: listQueryFields.to.meta({
+        description: `Latest meeting date, inclusive. ${DATE_BOUND_RULE}`,
         example: '2025-12-31',
     }),
-    // The whole string must be digits: parseInt alone reads `10abc` as 10 and
-    // `1.5` as 1, so malformed input would silently return a page of data
-    // instead of the documented validation error.
-    limit: z.string()
-        .regex(/^\d+$/, { error: `Limit must be a whole number between 1 and ${MAX_SUBJECT_LIMIT}` })
-        .optional()
-        .transform(val => val ? parseInt(val, 10) : DEFAULT_SUBJECT_LIMIT)
-        .refine(val => val >= 1 && val <= MAX_SUBJECT_LIMIT, {
-            error: `Limit must be a whole number between 1 and ${MAX_SUBJECT_LIMIT}`,
-        })
-        .meta({
-            description: `Maximum number of subjects to return (1-${MAX_SUBJECT_LIMIT}). Defaults to ${DEFAULT_SUBJECT_LIMIT}.`,
-            example: '20',
-        }),
+    limit: listQueryFields.limit.default(DEFAULT_SUBJECT_LIMIT).meta({
+        description: `Maximum number of subjects to return (1-${MAX_SUBJECT_LIMIT}). Defaults to ${DEFAULT_SUBJECT_LIMIT}.`,
+        example: '20',
+    }),
     includeUnreleased: includeUnreleasedQuery,
 });
 

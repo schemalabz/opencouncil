@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { vmsg } from './messages';
+import { ISO_DATE_OR_DATE_TIME_RULE, isoDateOrDateTime } from './dates';
 
 // Rank of a person in the election result of a body
 export const electedOrderSchema = z.number().int().nonnegative().nullable();
@@ -7,9 +8,8 @@ export const electedOrderSchema = z.number().int().nonnegative().nullable();
 // A blank title is no title: a plain member has a role without a name.
 export const roleTitleSchema = z.string().nullable().optional().transform(value => value?.trim() || null);
 
-// An ISO 8601 date, or a date-time with a time zone. A date-time without a
-// zone is rejected, because the server would read it in its own zone.
-export const roleDateSchema = z.union([z.iso.date(), z.iso.datetime({ offset: true })])
+export const roleDateSchema = isoDateOrDateTime()
+    .meta({ description: ISO_DATE_OR_DATE_TIME_RULE })
     .nullable()
     .optional()
     .transform(value => value ? new Date(value) : null);

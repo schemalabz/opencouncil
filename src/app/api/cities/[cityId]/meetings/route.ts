@@ -4,10 +4,11 @@ import { originalScheduledDates } from '@/lib/db/meetingLifecycle';
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { createMeetingWithEffects } from '@/lib/meetingWrites';
 import { handleApiError } from '@/lib/api/errors';
-import { getCityNameEnAndTimezone } from '@/lib/db/citiesAdmin';
+import { getCityTimezone } from '@/lib/db/cityTimezone';
 import { meetingListQuerySchema, meetingSchema } from '@/lib/zod-schemas/meeting';
 import { hideLinks, toPublicApiMeeting } from '@/lib/meetingPublic';
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
+import { resolveCityDateRange } from '@/lib/dates/cityDateRange';
 
 export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -45,8 +46,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
         const meetings = await getCouncilMeetingsForCity(params.cityId, {
             includeUnreleased,
             limit,
-            from,
-            to,
+            ...await resolveCityDateRange(params.cityId, { from, to }),
         });
 
         // An editor gets the rows as they are, links included, for the admin
@@ -55,8 +55,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
         if (includeUnreleased) {
             return NextResponse.json(meetings);
         }
-        const city = await getCityNameEnAndTimezone(params.cityId);
-        const timezone = city?.timezone ?? DEFAULT_TIMEZONE;
+        const timezone = (await getCityTimezone(params.cityId)) ?? DEFAULT_TIMEZONE;
         const dates = await originalScheduledDates(params.cityId, meetings);
         return NextResponse.json(meetings.map(meeting =>
             toPublicApiMeeting(hideLinks(meeting), { timezone, postponedFromDate: dates.get(meeting.id) ?? null })));

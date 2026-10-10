@@ -142,7 +142,7 @@ describe('the custom messages of the shared schemas', () => {
         expect(response.status).toBe(400);
         expect(await body(response)).toEqual({
             error: [
-                { code: 'custom', message: 'Invalid date/time format', path: ['date'] },
+                { code: 'invalid_union', message: 'Invalid date/time format', path: ['date'] },
                 { code: 'invalid_format', message: 'Invalid Agenda URL.', path: ['agendaUrl'] },
             ],
         });

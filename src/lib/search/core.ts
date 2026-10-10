@@ -15,6 +15,7 @@ import { getCities, getListedCitiesCached, filterCityIdsByRealm } from '@/lib/db
 import { logSearchQuery } from '@/lib/db/searchQueries';
 import { createCache } from '@/lib/cache/index';
 import { env } from '@/env.mjs';
+import { resolveSearchDayRange } from '@/lib/dates/cityDateRange';
 
 // Initialize Elasticsearch client
 const client = new Client({
@@ -293,11 +294,14 @@ export async function searchSubjectsInRealm(
             ? await filterCityIdsByRealm(processedFilters.cityIds, realm)
             : [];
 
-        // Merge with explicit filters
+        // Merge with explicit filters. A calendar day of the range is a day
+        // in the city's zone, not the UTC day that Elasticsearch would read.
+        const mergedCityIds = extractedCityIds.length > 0 ? extractedCityIds : cityIds;
+        const mergedDateRange = request.dateRange ?? processedFilters.dateRange;
         const mergedRequest: SearchRequest = {
             ...request,
-            cityIds: extractedCityIds.length > 0 ? extractedCityIds : cityIds,
-            dateRange: request.dateRange ?? processedFilters.dateRange
+            cityIds: mergedCityIds,
+            dateRange: mergedDateRange && await resolveSearchDayRange(mergedCityIds, mergedDateRange),
         };
 
         // Report back the filters the query text supplied, so a caller showing
