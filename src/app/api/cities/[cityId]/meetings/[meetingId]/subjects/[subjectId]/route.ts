@@ -7,6 +7,7 @@ import { getApiSubject } from '@/lib/db/subjectsApi';
 import { getRealm } from '@/lib/realm.server';
 import * as z from 'zod';
 import { NonAgendaReason } from '@prisma/client';
+import { stringBoolean } from '@/lib/zod-schemas/primitives';
 
 export async function GET(
     req: NextRequest,
@@ -14,7 +15,8 @@ export async function GET(
 ) {
     const params = await props.params;
     try {
-        const includeUnreleased = req.nextUrl.searchParams.get('includeUnreleased') === 'true';
+        const includeUnreleased = stringBoolean.default(false)
+            .parse(req.nextUrl.searchParams.get('includeUnreleased') ?? undefined);
         if (includeUnreleased) {
             await withServiceOrUserAuth(req, { cityId: params.cityId });
         }

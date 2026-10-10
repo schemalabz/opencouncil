@@ -2,12 +2,11 @@ import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import * as z from 'zod'
 import { uploadFile } from '@/lib/s3'
-import { ALLOWED_LOGO_CONTENT_TYPES } from '@/types/upload'
 import { deleteCity, editCity, getCity, updateCityGeometry } from '@/lib/db/cities'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
 import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
-import { updateCityFormDataSchema } from '@/lib/zod-schemas/city'
+import { updateCityRequestFormDataSchema } from '@/lib/zod-schemas/city'
 import { parseFormData } from '@/lib/api/form-data-parser'
 import { CityUpdateData } from '@/lib/db/types/city'
 
@@ -37,28 +36,23 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
 
     try {
         const formData = await request.formData();
-        const data = await parseFormData(formData, updateCityFormDataSchema);
-
-        // CityMessage is a separate entity, parsed manually and handled after city update
-        const hasMessage = formData.get('hasMessage') === 'true'
-        const messageEmoji = formData.get('messageEmoji') as string | null
-        const messageTitle = formData.get('messageTitle') as string | null
-        const messageDescription = formData.get('messageDescription') as string | null
-        const messageCallToActionText = formData.get('messageCallToActionText') as string | null
-        const messageCallToActionUrl = formData.get('messageCallToActionUrl') as string | null
-        const messageCallToActionExternal = formData.get('messageCallToActionExternal') === 'true'
-        const messageIsActive = formData.get('messageIsActive') === 'true'
+        const {
+            removeLogoImage,
+            // CityMessage is a separate entity, handled after the city update
+            hasMessage,
+            messageEmoji,
+            messageTitle,
+            messageDescription,
+            messageCallToActionText,
+            messageCallToActionUrl,
+            messageCallToActionExternal,
+            messageIsActive,
+            ...data
+        } = await parseFormData(formData, updateCityRequestFormDataSchema);
 
         // Upload logo if provided
-        const removeLogoImage = formData.get('removeLogoImage') === 'true'
         let logoImageUrl: string | undefined = undefined
         if (data.logoImage) {
-            if (!ALLOWED_LOGO_CONTENT_TYPES.includes(data.logoImage.type)) {
-                return NextResponse.json(
-                    { error: `Logo must be one of: ${ALLOWED_LOGO_CONTENT_TYPES.join(', ')}` },
-                    { status: 400 }
-                )
-            }
             try {
                 const result = await uploadFile(data.logoImage, { prefix: 'city-logos' })
                 logoImageUrl = result.url

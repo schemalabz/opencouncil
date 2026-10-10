@@ -1,6 +1,7 @@
 import * as z from 'zod';
 import { isTimeZone } from '@/lib/formatters/time';
 import { AuthorityType, CityStatus, HighlightCreationPermission, CityLanguage, Realm } from '@prisma/client';
+import { logoFile, stringBoolean } from './primitives';
 
 // Prisma enum schemas
 export const authorityTypeSchema = z.enum(AuthorityType);
@@ -30,9 +31,6 @@ export const CITY_DEFAULTS = {
   language: 'el' as CityLanguage,
   realm: 'greece' as Realm,
 } as const;
-
-// Helper to convert string to boolean (for FormData)
-const stringToBoolean = z.string().transform(val => val === 'true');
 
 // Helper to convert empty string to null (for optional nullable fields)
 const emptyStringToNull = z.string().transform(val => val === '' ? null : val);
@@ -83,8 +81,8 @@ export const baseCityFormSchema = z.object({
 export const baseCityFormDataSchema = z.object({
   ...baseCityFields,
   authorityType: authorityTypeSchema,
-  supportsNotifications: stringToBoolean,
-  consultationsEnabled: stringToBoolean,
+  supportsNotifications: stringBoolean,
+  consultationsEnabled: stringBoolean,
   diavgeiaUid: emptyStringToNull.optional(),
   // Pasted boundary GeoJSON, still as text: routes parse it with
   // parseBoundaryInput (shared with the form) and write via PostGIS.
@@ -95,20 +93,41 @@ export const baseCityFormDataSchema = z.object({
 // Create schema for FormData (POST route)
 export const createCityFormDataSchema = baseCityFormDataSchema.extend({
   id: cityIdSchema,
-  logoImage: z.instanceof(File, { error: 'Logo image is required' }),
+  logoImage: logoFile({ error: 'Logo image is required' }),
 });
 
 // Update schema for FormData (PUT route) — all fields optional.
 // Since there are no .default() values in the base schema, .partial()
 // is sufficient: absent fields are undefined = "don't change".
 export const updateCityFormDataSchema = baseCityFormDataSchema.partial().extend({
-  logoImage: z.instanceof(File).optional().nullable(),
+  logoImage: logoFile().optional().nullable(),
+});
+
+// The PUT route's fields that are not city columns: the logo removal flag
+// and the city message. Absent flags are false, so a request without
+// hasMessage deletes the message, as the route always did.
+export const updateCityRequestFormDataSchema = updateCityFormDataSchema.extend({
+  removeLogoImage: stringBoolean.default(false),
+  hasMessage: stringBoolean.default(false),
+  messageEmoji: z.string().optional(),
+  messageTitle: z.string().optional(),
+  messageDescription: z.string().optional(),
+  messageCallToActionText: z.string().optional(),
+  messageCallToActionUrl: z.string().optional(),
+  messageCallToActionExternal: stringBoolean.default(false),
+  messageIsActive: stringBoolean.default(false),
 });
 
 // Frontend form schema (extends base with id and logoImage)
 export const cityFormSchema = baseCityFormSchema.extend({
   id: cityIdSchema,
-  logoImage: z.instanceof(File).optional(),
+  logoImage: z.file().optional(),
+});
+
+// Query of GET /cities. includeUnlisted is public, so it takes every value
+// stringBoolean takes.
+export const citiesListQuerySchema = z.object({
+  includeUnlisted: stringBoolean.default(false),
 });
 
 // Type exports

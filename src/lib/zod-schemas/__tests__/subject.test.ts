@@ -63,9 +63,11 @@ describe('subjectListQuerySchema', () => {
         expect(subjectListQuerySchema.parse({ limit: '20' }).limit).toBe(20);
     });
 
-    it('treats includeUnreleased as true only for the exact string', () => {
+    it('reads includeUnreleased with the stringbool lists and refuses any other value', () => {
         expect(subjectListQuerySchema.parse({ includeUnreleased: 'true' }).includeUnreleased).toBe(true);
-        expect(subjectListQuerySchema.parse({ includeUnreleased: '1' }).includeUnreleased).toBe(false);
+        expect(subjectListQuerySchema.parse({ includeUnreleased: '1' }).includeUnreleased).toBe(true);
+        expect(subjectListQuerySchema.parse({ includeUnreleased: 'false' }).includeUnreleased).toBe(false);
+        expect(subjectListQuerySchema.safeParse({ includeUnreleased: 'maybe' }).success).toBe(false);
     });
 
     it('keeps introducerId', () => {

@@ -2,6 +2,7 @@ import * as z from 'zod';
 import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client';
 import { decisionConventionsSchema } from '@/lib/decisionConventions';
 import { parseChannelRef } from '@/lib/utils/youtube';
+import { webUrl } from './primitives';
 
 export const administrativeBodyTypeSchema = z.enum(AdministrativeBodyType);
 export const notificationBehaviorSchema = z.enum(NotificationBehavior);
@@ -21,8 +22,9 @@ export const baseAdministrativeBodyFields = {
 
 // pollLivestreams can only use a URL that parseChannelRef resolves, so reject
 // any other URL here (a /c/ vanity URL, a playlist, a search results page).
+// webUrl first: parseChannelRef reads a value without a slash as a bare handle.
 const youtubeChannelUrl = z.union([
-    z.url({
+    webUrl({
         error: "Must be a valid URL.",
     }).refine(val => parseChannelRef(val) !== null, {
         error: "Must be a YouTube channel URL: https://www.youtube.com/@handle or https://www.youtube.com/channel/UC…",

@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue } from './role';
+import { imageFile, stringBoolean, webUrl } from './primitives';
 
 // Field rules of a person — validation only, no defaults. Shared by the person
 // form, the person routes, and the city import (zod-schemas/cityPopulation.ts).
@@ -21,8 +22,8 @@ export const basePersonFields = {
 // Frontend form schema (React Hook Form)
 export const personFormSchema = z.object({
     ...basePersonFields,
-    image: z.instanceof(File).optional(),
-    profileUrl: z.url().optional().or(z.literal('')),
+    image: z.file().optional(),
+    profileUrl: webUrl().optional().or(z.literal('')),
 });
 
 export type PersonFormValues = z.infer<typeof personFormSchema>;
@@ -52,10 +53,10 @@ const rolesJson = z.string().transform((value, ctx) => {
 // all roles of the person, so the field is required.
 export const personFormDataSchema = z.object({
     ...basePersonFields,
-    profileUrl: z.url().optional().or(z.literal('')),
-    image: z.instanceof(File).optional(),
+    profileUrl: webUrl().optional().or(z.literal('')),
+    image: imageFile().optional(),
     // PUT only: remove the current image when no new one is sent
-    removeImage: z.string().optional().transform(val => val === 'true'),
+    removeImage: stringBoolean.default(false),
     roles: rolesJson,
 });
 
