@@ -40,6 +40,11 @@ describe('meetingSchema', () => {
     expect(() => meetingSchema.parse({ ...validBase, youtubeUrl: 'not a url' })).toThrow();
   });
 
+  it('refuses a session number above 999', () => {
+    expect(meetingSchema.safeParse({ ...validBase, sessionNumber: 999 }).success).toBe(true);
+    expect(meetingSchema.safeParse({ ...validBase, sessionNumber: 1000 }).success).toBe(false);
+  });
+
   it('drops a name that a client still sends, because the name is derived', () => {
     const parsed = meetingSchema.parse({ ...validBase, name: 'Δημοτικό Συμβούλιο', name_en: 'A' });
     expect(parsed).not.toHaveProperty('name');

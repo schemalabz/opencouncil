@@ -8,15 +8,25 @@ import { DATE_BOUND_RULE, listQueryFields, MAX_LIST_LIMIT } from './listQuery';
 import { vmsg } from './messages';
 
 /**
+ * The largest session number that a meeting takes. A session number has at
+ * most three digits, as scripts/meeting-lifecycle-apply.ts also reads it.
+ */
+export const MAX_SESSION_NUMBER = 999;
+
+/**
  * Field rules of a meeting, shared by the REST routes and the MCP meeting
  * tools. Each caller decides how a field is optional and how a blank clears
  * it: REST takes `""`, MCP takes null.
+ *
+ * The date, youtubeUrl and format messages are plain English, as is the
+ * meetingId message of meetingSchema: meetingFormSchema replaces those four
+ * fields, so only an API caller or an agent reads them.
  */
 export const baseMeetingFields = {
-    date: isoDateOrDateTime({ error: vmsg('invalidDateTime') })
+    date: isoDateOrDateTime({ error: 'Invalid date/time format' })
         .meta({ description: `Date and time of the meeting. ${ISO_DATE_OR_DATE_TIME_RULE}`, example: '2026-10-05T18:00:00+03:00' }),
     youtubeUrl: webUrl({
-        error: vmsg('invalidYoutubeUrl'),
+        error: 'Invalid YouTube URL.',
     }),
     agendaUrl: webUrl({
         error: vmsg('invalidAgendaUrl'),
@@ -31,7 +41,7 @@ export const baseMeetingFields = {
         .meta({ description: 'The kind of the meeting, as the invitation states it. Every kind except ordinary belongs to a council only.' }),
     urgent: z.boolean()
         .meta({ description: 'The meeting was convened urgently. Urgency is not a kind: any kind can be urgent, on every body.' }),
-    sessionNumber: z.number().int().positive()
+    sessionNumber: z.number().int().positive().max(MAX_SESSION_NUMBER)
         .meta({ description: 'The official number of the meeting, as the municipality prints it. Not unique.' }),
     scheduleStatus: z.enum(MeetingScheduleStatus)
         .meta({ description: 'Whether the meeting takes place. A postponed or cancelled meeting stays public with its status.' }),
@@ -60,7 +70,7 @@ export const meetingSchema = z.object({
     // unique ID from the meeting date. The PUT handler identifies the meeting
     // by the URL path param and ignores this field.
     meetingId: z.string().min(1, {
-        error: vmsg('meetingIdNotEmpty'),
+        error: 'Meeting ID must not be empty.',
     }).optional(),
     // On PUT, an absent body leaves the meeting's body as it is, and null or
     // an empty string clears it. On POST, absent and null both mean no body.
@@ -109,9 +119,10 @@ export const meetingFormSchema = meetingSchema.extend({
     date: z.date({
         error: vmsg('meetingDateRequired'),
     }),
+    // The time input holds HH:MM, and an empty one holds ''.
     time: z.string({
         error: vmsg('meetingTimeRequired'),
-    }),
+    }).regex(/^\d{2}:\d{2}$/, { error: vmsg('meetingTimeRequired') }),
     youtubeUrl: webUrl({
         error: vmsg('invalidMediaUrl'),
     }).optional().or(z.literal("")),
@@ -131,5 +142,6 @@ export const meetingFormSchema = meetingSchema.extend({
     // A text input. The request sends it as a number.
     sessionNumber: z.string().regex(/^\s*(\d*)\s*$/, { error: vmsg('sessionNumberWholeNumber') })
         .refine(val => val.trim() === '' || Number(val) >= 1, { error: vmsg('sessionNumberMin1') })
+        .refine(val => val.trim() === '' || Number(val) <= MAX_SESSION_NUMBER, { error: vmsg('sessionNumberMax999') })
         .optional(),
 });

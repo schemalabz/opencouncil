@@ -87,7 +87,7 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
                 router.refresh() // Refresh the page to show updated data
             } else {
                 const errorData = await response.json()
-                throw new Error(apiErrorMessage(errorData, t('failedToSaveParty'), validationMessage))
+                throw new Error(apiErrorMessage(errorData, response.status, t('failedToSaveParty'), validationMessage))
             }
         } catch (error) {
             console.error(t('failedToSaveParty'), error)

@@ -55,6 +55,7 @@ describe('a form that the server refuses', () => {
     it('PartyForm shows the issue of a ValidationError in the language of the reader', async () => {
         fetchMock.mockResolvedValue({
             ok: false,
+            status: 400,
             json: async () => ({ error: [{ path: ['colorHex'], message: vmsg('colorHex') }] }),
         });
         renderIn('el', <Sheet open><PartyForm cityId="athens" party={PARTY} /></Sheet>);
@@ -63,10 +64,17 @@ describe('a form that the server refuses', () => {
         expect(alert).toHaveTextContent(`colorHex: ${elValidation.colorHex}`);
     });
 
-    it('PartyForm shows the text of an ErrorResponse', async () => {
-        fetchMock.mockResolvedValue({ ok: false, json: async () => ({ error: 'Not authorized' }) });
+    it('PartyForm shows the text that a route wrote for the request', async () => {
+        fetchMock.mockResolvedValue({ ok: false, status: 409, json: async () => ({ error: 'A party with this name already exists' }) });
         renderIn('en', <Sheet open><PartyForm cityId="athens" party={PARTY} /></Sheet>);
         fireEvent.submit(document.querySelector('form')!);
-        expect(await screen.findByRole('alert')).toHaveTextContent('Not authorized');
+        expect(await screen.findByRole('alert')).toHaveTextContent('A party with this name already exists');
+    });
+
+    it('PartyForm shows its own message in the language of the reader for a refused guard', async () => {
+        fetchMock.mockResolvedValue({ ok: false, status: 403, json: async () => ({ error: 'Not authorized' }) });
+        renderIn('el', <Sheet open><PartyForm cityId="athens" party={PARTY} /></Sheet>);
+        fireEvent.submit(document.querySelector('form')!);
+        expect(await screen.findByRole('alert')).toHaveTextContent(elMain.PartyForm.failedToSaveParty);
     });
 });

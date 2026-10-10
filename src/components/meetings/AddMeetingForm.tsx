@@ -211,7 +211,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
             } else {
                 const errorData = await response.json()
                 // A lifecycle rule answers 422 with a message that names the rule.
-                throw new Error(apiErrorMessage(errorData, t(meeting ? 'failedToUpdateMeeting' : 'failedToAddMeeting'), validationMessage))
+                throw new Error(apiErrorMessage(errorData, response.status, t(meeting ? 'failedToUpdateMeeting' : 'failedToAddMeeting'), validationMessage))
             }
         } catch (error) {
             console.error(meeting ? t('failedToUpdateMeeting') : t('failedToAddMeeting'), error)

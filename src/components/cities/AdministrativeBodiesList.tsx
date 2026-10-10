@@ -140,7 +140,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                 setIsDialogOpen(false)
             } else {
                 const errorData = await response.json()
-                throw new Error(apiErrorMessage(errorData, t('failedToSave'), validationMessage))
+                throw new Error(apiErrorMessage(errorData, response.status, t('failedToSave'), validationMessage))
             }
         } catch (error) {
             console.error(t('failedToSave'), error)
@@ -163,7 +163,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
             })
             if (!response.ok) {
                 const errorData = await response.json()
-                throw new Error(apiErrorMessage(errorData, t('failedToSave'), validationMessage))
+                throw new Error(apiErrorMessage(errorData, response.status, t('failedToSave'), validationMessage))
             }
             const updated: AdministrativeBodyWithSettings = await response.json()
             form.setValue('decisionConventions', updated.decisionConventions)
@@ -188,7 +188,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                 onUpdate()
             } else {
                 const errorData = await response.json()
-                throw new Error(apiErrorMessage(errorData, t('failedToDelete'), validationMessage))
+                throw new Error(apiErrorMessage(errorData, response.status, t('failedToDelete'), validationMessage))
             }
         } catch (error) {
             console.error(t('failedToDelete'), error)

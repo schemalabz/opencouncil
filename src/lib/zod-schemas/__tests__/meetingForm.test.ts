@@ -38,6 +38,8 @@ describe('meeting form schema', () => {
         ['youtubeUrl', { youtubeUrl: 'javascript:alert(1)' }, 'Invalid media URL.'],
         ['agendaUrl', { agendaUrl: 'not a url' }, 'Invalid Agenda URL.'],
         ['sessionNumber', { sessionNumber: '0' }, 'The session number is 1 or more.'],
+        ['time', { time: '' }, 'Meeting time is required.'],
+        ['sessionNumber', { sessionNumber: '1000' }, 'The session number is 999 or less.'],
     ])('%s shows the form message', (path, change, message) => {
         expect(issues({ ...valid, ...change })).toEqual([[path, message]]);
     });

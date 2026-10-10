@@ -171,7 +171,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                 // The routes answer { error }: a string for a refused role,
                 // the zod issues for a malformed form.
                 const errorData = await response.json()
-                throw new Error(apiErrorMessage(errorData, t('failedToSavePerson'), validationMessage))
+                throw new Error(apiErrorMessage(errorData, response.status, t('failedToSavePerson'), validationMessage))
             }
         } catch (error) {
             console.error('Error in form submission:', error)
