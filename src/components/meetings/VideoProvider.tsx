@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, Syntheti
 import { useSearchParams } from 'next/navigation';
 import { CouncilMeeting, Utterance as UtteranceType } from "@prisma/client";
 import { usePlaybackSpeed } from './options/OptionsContext';
+import { revealUtterance } from '@/lib/utils/scrollAnchor';
 
 /**
  * VIDEO PLAYBACK ARCHITECTURE OVERVIEW:
@@ -106,6 +107,15 @@ const throttle = (func: Function, limit: number) => {
     };
 };
 
+/** The last utterance that starts at or before `time`, or the first one when `time` precedes them all. */
+function lastUtteranceStartingBy(utterances: UtteranceType[], time: number): UtteranceType | undefined {
+    let found: UtteranceType | undefined;
+    for (const u of utterances) {
+        if (u.startTimestamp <= time && (!found || u.startTimestamp > found.startTimestamp)) found = u;
+    }
+    return found ?? utterances[0];
+}
+
 export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
     const { playbackSpeed } = usePlaybackSpeed();
     const searchParams = useSearchParams();
@@ -119,20 +129,11 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     const playerRef = useRef<HTMLVideoElement | null>(null); // Direct reference to video element
     const [currentTime, setCurrentTime] = useState(0); // React state for UI (throttled updates)
 
-    // Scroll to the last utterance before the seek time or the first utterance if none before
     const scrollToUtterance = useCallback((time: number) => {
-        const lastUtteranceBeforeTime = utterances
-            .filter(u => u.startTimestamp <= time)
-            .sort((a, b) => b.startTimestamp - a.startTimestamp)[0];
-
-        const utteranceToScrollTo = lastUtteranceBeforeTime || utterances[0];
-
-        if (utteranceToScrollTo) {
-            const utteranceElement = document.getElementById(utteranceToScrollTo.id);
-            if (utteranceElement) {
-                utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }
+        const utteranceToScrollTo = lastUtteranceStartingBy(utterances, time);
+        if (!utteranceToScrollTo) return;
+        const utteranceElement = document.getElementById(utteranceToScrollTo.id);
+        if (utteranceElement) revealUtterance(utteranceElement);
     }, [utterances]);
 
     // === VIDEO METADATA SETUP ===
@@ -170,23 +171,15 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
                 // Retry scrolling until the utterance DOM element is rendered
                 const scrollAttempt = (attemptsLeft: number) => {
                     setTimeout(() => {
-                        const utteranceElement = utterances
-                            .filter(u => u.startTimestamp <= targetTime)
-                            .sort((a, b) => b.startTimestamp - a.startTimestamp)[0];
+                        const utteranceElement = lastUtteranceStartingBy(utterances, targetTime);
 
                         if (utteranceElement) {
                             const element = document.getElementById(utteranceElement.id);
                             if (element) {
                                 updateHighlightOnce();
-                                // content-visibility:auto causes layout shifts as off-screen
-                                // segments render at their actual size. Re-scroll to correct.
-                                // Multiple attempts with increasing delays to handle varying
-                                // numbers of segments that need to render.
-                                for (const delay of [150, 500, 1000]) {
-                                    setTimeout(() => {
-                                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    }, delay);
-                                }
+                                // Holds the target in place while the segments around it
+                                // settle; see revealElementInContainer.
+                                revealUtterance(element);
                             } else if (attemptsLeft > 0) {
                                 scrollAttempt(attemptsLeft - 1);
                             }
@@ -399,8 +392,10 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         if (newActiveId !== activeUtteranceIdRef.current) {
             activeUtteranceIdRef.current = newActiveId;
             if (styleRef.current) {
+                // Scoped to the text span: the editor box carries the same id, so
+                // that a seek finds it, and it keeps its own colour.
                 styleRef.current.textContent = newActiveId
-                    ? `#${CSS.escape(newActiveId)} { background: hsl(var(--accent)); }`
+                    ? `.utterance#${CSS.escape(newActiveId)} { background: hsl(var(--accent)); }`
                     : '';
             }
         }

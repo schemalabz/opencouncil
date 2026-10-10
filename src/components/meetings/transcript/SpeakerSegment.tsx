@@ -23,6 +23,21 @@ import { useMediaQuery } from '@/hooks/use-media-query';
 import { UNKNOWN_SPEAKER_COLOR } from '@/lib/utils';
 import { SegmentShareButton } from '@/components/sharing/SegmentShareButton';
 import { excerptSourceIsVisible } from '@/lib/sharing/excerptSelector';
+import { revealUtterance } from '@/lib/utils/scrollAnchor';
+
+// The new utterance is in the DOM only after React commits the updated
+// segment; both add paths have always allowed a beat for that. The click
+// opens the editor, which replaces the text span with a box that carries the
+// same id, and that box is what the reader needs to see.
+function openNewUtterance(utteranceId: string) {
+    setTimeout(() => {
+        document.getElementById(utteranceId)?.click();
+        requestAnimationFrame(() => {
+            const editor = document.getElementById(utteranceId);
+            if (editor) revealUtterance(editor);
+        });
+    }, 100);
+}
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingActions();
@@ -85,15 +100,7 @@ const EmptySegmentState = ({ segmentId }: { segmentId: string }) => {
         setIsLoading(true);
         try {
             const newUtteranceId = await addUtteranceToSegment(segmentId);
-            
-            // Focus on the new utterance after a short delay to ensure it's rendered
-            setTimeout(() => {
-                const utteranceElement = document.getElementById(newUtteranceId);
-                if (utteranceElement) {
-                    utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    utteranceElement.click(); // Trigger click to enter edit mode
-                }
-            }, 100);
+            openNewUtterance(newUtteranceId);
         } catch (error) {
             console.error('Failed to add utterance:', error);
         } finally {
@@ -128,15 +135,7 @@ const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
     const handleAddUtterance = async () => {
         try {
             const newUtteranceId = await addUtteranceToSegment(segmentId);
-            
-            // Focus on the new utterance after a short delay to ensure it's rendered
-            setTimeout(() => {
-                const utteranceElement = document.getElementById(newUtteranceId);
-                if (utteranceElement) {
-                    utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    utteranceElement.click(); // Trigger click to enter edit mode
-                }
-            }, 100);
+            openNewUtterance(newUtteranceId);
         } catch (error) {
             console.error('Failed to add utterance:', error);
         }
@@ -285,7 +284,8 @@ const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegm
             
             <div className='mb-2 sm:mb-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors border-l-[3px] sm:border-l-4' style={{ borderLeftColor: headerData.borderColor }}>
                 <div className='w-full'>
-                    <div 
+                    <div
+                        data-segment-header
                         className='sticky flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 transition-all duration-200'
                         style={{ top: 'var(--banner-offset, 0px)' }}
                     >

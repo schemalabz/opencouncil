@@ -287,8 +287,10 @@ const UtteranceC = React.memo(function UtteranceC({ utterance, onUpdate }: Utter
     }
 
     if (isEditing) {
+        // The id stays on the editor box, so a seek can still find and reveal
+        // the utterance while it is open for editing.
         return (
-            <div ref={setRootRef} className="relative w-full py-1 border border-blue-300 rounded-md p-2 bg-blue-50/30">
+            <div ref={setRootRef} id={localUtterance.id} className="relative w-full py-1 border border-blue-300 rounded-md p-2 bg-blue-50/30">
                 {/* Text Editor */}
                 <form onSubmit={handleEdit} className="relative">
                     <textarea
