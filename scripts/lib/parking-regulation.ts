@@ -11,7 +11,7 @@ import type {
     RegulationItem,
     Source,
     StaticGeometry,
-} from '../../src/components/consultations/types';
+} from '@/components/consultations/types';
 
 export interface UnitProperties {
     id: string;
