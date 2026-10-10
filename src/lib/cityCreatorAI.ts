@@ -1,12 +1,16 @@
 import { CityLanguage } from '@prisma/client';
 import { aiChat, AIConfig } from './ai';
 import * as z from 'zod';
-import { jsonSchemaOf } from '@/lib/openapi/jsonSchema';
+import { jsonSchemaOf } from '@/lib/cityCreatorJsonSchema';
 import { cityPopulationSchema, type CityPopulationInput } from '@/lib/zod-schemas/cityPopulation';
 import { formatValidationIssues } from '@/lib/utils/validationIssues';
 
 // The prompt describes the payload with the JSON Schema of the zod schema that
-// validates the answer and the save.
+// validates the answer and the save. The schema is prompt text and not
+// `output_config.format`: web search answers always carry citations, the API
+// documents structured outputs as incompatible with citations, and aiChat
+// continues a max_tokens answer with an assistant prefill, which structured
+// outputs also reject.
 export function cityPopulationJsonSchema() {
     return jsonSchemaOf(cityPopulationSchema);
 }
@@ -34,6 +38,29 @@ function isEditableFieldIssue(issue: z.core.$ZodIssue): boolean {
         && (list === 'parties' || list === 'people' || list === 'administrativeBodies')
         && typeof field === 'string' && EDITABLE_FIELDS.has(field)
         && (issue.code === 'too_small' || issue.code === 'invalid_format');
+}
+
+// Links of a party or a person. The editor does not show them, so a link that
+// is not http(s) is set to null with a warning. The answer stays usable.
+const LINK_FIELDS = { parties: ['logo'], people: ['image', 'profileUrl'] } as const;
+type LinkIssuePath = ['parties', number, 'logo'] | ['people', number, 'image' | 'profileUrl'];
+
+function isLinkFieldIssue(issue: z.core.$ZodIssue): issue is z.core.$ZodIssue & { path: LinkIssuePath } {
+    const [list, index, field] = issue.path;
+    if (issue.path.length !== 3 || typeof index !== 'number') return false;
+    if (list === 'parties') return (LINK_FIELDS.parties as readonly PropertyKey[]).includes(field);
+    if (list === 'people') return (LINK_FIELDS.people as readonly PropertyKey[]).includes(field);
+    return false;
+}
+
+/** Sets each link that the issues name to null, and returns one warning per link. */
+function dropInvalidLinks(answer: CityPopulationInput, issues: (z.core.$ZodIssue & { path: LinkIssuePath })[]): string[] {
+    return issues.map(({ path }) => {
+        const entry: Record<string, unknown> = path[0] === 'parties' ? answer.parties[path[1]] : answer.people[path[1]];
+        const value = entry[path[2]];
+        entry[path[2]] = null;
+        return `${path.join('.')}: ${JSON.stringify(value)} is not an http(s) URL, so it was removed.`;
+    });
 }
 
 export async function generateCityDataWithAI(
@@ -85,6 +112,7 @@ DATA QUALITY STANDARDS:
 8. For roles: always specify type, use null for name/name_en if it's simple membership
 9. For names: use the conventional form (not all caps, first name first). The short name for e.g. Έφη Σπυροπούλου is Ε. Σπυροπούλου.
 10. For party names: Avoid all-caps names. The english name should be greeklish (e.g. for Λαϊκή Συσπείρωση, Laiki Syspirosi).
+11. Links (party logo, person image, profileUrl) must be absolute http(s) URLs that start with https:// or http://. Use null if you have no such URL.
 
 RESPONSE REQUIREMENTS:
 - Return ONLY the JSON data structure
@@ -216,8 +244,12 @@ Generate the complete JSON structure now:`;
         // Validate against the schema the populate route applies on save
         const parsed = cityPopulationSchema.safeParse(result.result);
 
-        if (!parsed.success && !parsed.error.issues.every(isEditableFieldIssue)) {
-            const errors = formatValidationIssues(parsed.error.issues);
+        const issues = parsed.success ? [] : parsed.error.issues;
+        const linkIssues = issues.filter(isLinkFieldIssue);
+        const fieldIssues = issues.filter(issue => !isLinkFieldIssue(issue));
+
+        if (!fieldIssues.every(isEditableFieldIssue)) {
+            const errors = formatValidationIssues(issues);
 
             console.error(`[AI City Creator] Schema validation failed:`, errors);
 
@@ -231,10 +263,10 @@ Generate the complete JSON structure now:`;
             };
         }
 
-        // The schema found no issue, or only issues in editable fields, so the
-        // answer has the shape of the payload.
+        // The schema found no issue, or only issues in editable fields and
+        // links, so the answer has the shape of the payload.
         const answer = result.result as CityPopulationInput;
-        const warnings = parsed.success ? [] : formatValidationIssues(parsed.error.issues);
+        const warnings = [...formatValidationIssues(fieldIssues), ...dropInvalidLinks(answer, linkIssues)];
 
         // Additional business logic validation
         const businessValidation = validateBusinessLogic(answer);
@@ -335,6 +367,7 @@ DATA QUALITY STANDARDS:
 8. For roles: always specify type, use null for name/name_en if it's simple membership
 9. For names: use the conventional form (not all caps, first name first). The short name for e.g. Nathalie Appéré is N. Appéré.
 10. For list/group names: avoid all-caps names. Use the local electoral list or group name (e.g. "Rennes, ville d'avance"), not the national party - you may note the national affiliation if relevant. Provide a plausible colorHex if the list's color is unknown.
+11. Links (party logo, person image, profileUrl) must be absolute http(s) URLs that start with https:// or http://. Use null if you have no such URL.
 
 RESPONSE REQUIREMENTS:
 - Return ONLY the JSON data structure

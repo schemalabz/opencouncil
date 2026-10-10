@@ -8,7 +8,7 @@ import { partyFormSchema } from '@/lib/zod-schemas/party';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
 import { updateProfileSchema } from '@/lib/zod-schemas/user';
 import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
-import { jsonSchemaOf } from '@/lib/openapi/jsonSchema';
+import { jsonSchemaOf } from '@/lib/cityCreatorJsonSchema';
 
 const rhfOptions = { fields: {}, shouldUseNativeValidation: false } as const;
 
