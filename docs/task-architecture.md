@@ -165,7 +165,7 @@ The `poll-livestreams` cron closes the manual gap between a meeting being livest
 and its transcription: it finds the meeting's YouTube video and triggers `transcribe`
 automatically.
 
-**Endpoint:** `GET /api/cron/poll-livestreams` (`?dryRun=1` logs decisions without acting)
+**Endpoint:** `GET /api/cron/poll-livestreams` (`?dryRun=true` logs decisions without acting; `?dryRun=1` works too)
 **Authentication:** `Authorization: Bearer <CRON_SECRET>`
 
 **What it does (each run):**

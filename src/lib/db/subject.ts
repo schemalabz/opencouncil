@@ -16,6 +16,7 @@ import { PersonWithRelations } from '@/lib/db/people';
 import { extractUtteranceIds } from '@/lib/utils/references';
 import { isAdministrativeBodyType } from '@/lib/utils/administrativeBodies';
 import { isCalendarDay } from '@/lib/zod-schemas/dates';
+import { queryFlag } from '@/lib/zod-schemas/primitives';
 import { dayBounds } from '@/lib/dates/dayBounds';
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 import { getContributionCount } from '@/lib/utils';
@@ -266,7 +267,7 @@ export function parseMapSubjectFilters(searchParams: URLSearchParams): MapSubjec
     return {
         monthsBack: num(searchParams.get('monthsBack')),
         daysBack: num(searchParams.get('daysBack')) ?? null,
-        allTime: searchParams.get('allTime') === 'true',
+        allTime: queryFlag.catch(false).parse(searchParams.get('allTime') ?? ''),
         topicIds: (searchParams.get('topicIds') || '').split(',').filter(Boolean),
         cityIds: (searchParams.get('cityIds') || '').split(',').filter(Boolean),
         bodyTypes: (searchParams.get('bodyType') || '').split(',').filter(isAdministrativeBodyType),

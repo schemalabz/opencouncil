@@ -12,6 +12,15 @@ import { vmsg } from './messages';
 export const stringBoolean = z.stringbool();
 
 /**
+ * A boolean query flag: stringBoolean's lists, and an empty value (`?flag=`)
+ * as false, as the routes read `?includeUnreleased=` before zod.
+ */
+export const queryFlag = z.stringbool({
+    truthy: ['true', '1', 'yes', 'on', 'y', 'enabled'],
+    falsy: ['false', '0', 'no', 'off', 'n', 'disabled', ''],
+});
+
+/**
  * A link that a person supplies and that we later render or fetch: http or
  * https only, so `javascript:`, `data:` and `ftp:` fail. It checks the
  * protocol only, not the host. `z.httpUrl()` also checks the host, and it

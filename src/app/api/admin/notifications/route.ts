@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { handleApiError } from '@/lib/api/errors';
+import { queryFlag } from '@/lib/zod-schemas/primitives';
 import {
     getNotificationsGroupedByMeeting,
     getNotificationsForMeeting,
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Check if this is a request for cities list
-        if (searchParams.get('getCities') === 'true') {
+        if (queryFlag.default(false).parse(searchParams.get('getCities') ?? undefined)) {
             const cities = await getCitiesWithNotifications();
             return NextResponse.json({ cities });
         }

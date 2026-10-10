@@ -26,6 +26,7 @@ describe('GET /api/cities includeUnlisted', () => {
 
     it.each([
         ['', false],
+        ['?includeUnlisted=', false],
         ['?includeUnlisted=true', true],
         ['?includeUnlisted=false', false],
         ['?includeUnlisted=1', true],

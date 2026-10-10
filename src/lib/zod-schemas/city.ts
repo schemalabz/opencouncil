@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { isTimeZone } from '@/lib/formatters/time';
 import { AuthorityType, CityStatus, HighlightCreationPermission, CityLanguage, Realm } from '@prisma/client';
-import { logoFile, stringBoolean, webUrl } from './primitives';
+import { logoFile, queryFlag, stringBoolean, webUrl } from './primitives';
 import { vmsg } from './messages';
 
 // Prisma enum schemas
@@ -135,10 +135,10 @@ export const cityFormSchema = baseCityFormSchema.extend({
   logoImage: z.file().optional(),
 });
 
-// Query of GET /cities. includeUnlisted is public, so it takes every value
-// stringBoolean takes.
+// Query of GET /cities. includeUnlisted reads as a query flag: an empty value
+// is false, like every other query flag of the API.
 export const citiesListQuerySchema = z.object({
-  includeUnlisted: stringBoolean.default(false).meta({
+  includeUnlisted: queryFlag.default(false).meta({
     description: 'When "true", includes non-public (pending) cities the user can administer',
     example: 'false',
   }),
