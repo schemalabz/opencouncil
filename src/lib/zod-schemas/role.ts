@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { vmsg } from './messages';
 
 // Rank of a person in the election result of a body
 export const electedOrderSchema = z.number().int().nonnegative().nullable();
@@ -31,7 +32,7 @@ export function roleDatesInOrder(role: { startDate: Date | null; endDate: Date |
     return !role.startDate || !role.endDate || role.endDate >= role.startDate;
 }
 
-export const roleDatesInOrderIssue = { error: 'The end date must not be before the start date.', path: ['endDate'] };
+export const roleDatesInOrderIssue = { error: vmsg('roleEndBeforeStart'), path: ['endDate'] };
 
 /** JSON body of POST /roles/elected-order: the elected order of the members of one body. */
 export const electedOrderRequestSchema = z.object({

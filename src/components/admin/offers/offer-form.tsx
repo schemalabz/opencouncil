@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
@@ -37,38 +37,39 @@ import { Switch } from "@/components/ui/switch"
 import { adamSchema } from '@/lib/zod-schemas/offer'
 import { offerHasEquipment } from '@/lib/offers/display'
 import { useSession } from 'next-auth/react'
+import { vmsg } from '@/lib/zod-schemas/messages'
 
 export const formSchema = z.object({
     recipientName: z.string().min(2, {
-        error: "Recipient name must be at least 2 characters.",
+        error: vmsg('recipientNameMin2'),
     }),
     platformPrice: z.number().min(0, {
-        error: "Platform price must be a positive number.",
+        error: vmsg('platformPriceNonNegative'),
     }),
     ingestionPerHourPrice: z.number().min(0, {
-        error: "Ingestion price per hour must be a positive number.",
+        error: vmsg('ingestionPriceNonNegative'),
     }),
     hoursToIngest: z.number().int().min(1, {
-        error: "Hours to ingest must be at least 1.",
+        error: vmsg('hoursToIngestMin1'),
     }),
     discountPercentage: z.number().min(0).max(100, {
-        error: "Discount percentage must be between 0 and 100.",
+        error: vmsg('discountPercentageRange'),
     }),
     type: z.string().default("pilot"),
     startDate: z.date({
-        error: "Start date is required.",
+        error: vmsg('startDateRequired'),
     }),
     endDate: z.date({
-        error: "End date is required.",
+        error: vmsg('endDateRequired'),
     }),
     respondToName: z.string().min(2, {
-        error: "Respond to name must be at least 2 characters.",
+        error: vmsg('respondToNameMin2'),
     }),
     respondToEmail: z.email({
-        error: "Please enter a valid email address.",
+        error: vmsg('invalidEmailAddress'),
     }),
     respondToPhone: z.string().min(10, {
-        error: "Please enter a valid phone number.",
+        error: vmsg('invalidPhoneNumber'),
     }),
     cityId: z.string().optional(),
     correctnessGuarantee: z.boolean().default(false),
@@ -166,6 +167,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
     const [isSuccess, setIsSuccess] = useState(false)
     const [cities, setCities] = useState<{ id: string, name: string, population: number | null }[]>([])
     const t = useTranslations('OfferForm')
+    const validationMessage = useValidationMessage()
     const { toast } = useToast()
     const { data: session } = useSession()
 
@@ -211,7 +213,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
 
     const contact = sessionContactValues(session)
     const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+        resolver: useZodResolver(formSchema),
         defaultValues: {
             ...EMPTY_OFFER_DEFAULTS,
             recipientName: source?.recipientName || "",
@@ -371,7 +373,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
                         <strong className="font-bold">{t('formErrors')}</strong>
                         <ul className="mt-2 list-disc list-inside">
                             {Object.entries(form.formState.errors).map(([key, error]) => (
-                                <li key={key}>{error.message}</li>
+                                <li key={key}>{error.message && validationMessage(error.message)}</li>
                             ))}
                         </ul>
                     </div>

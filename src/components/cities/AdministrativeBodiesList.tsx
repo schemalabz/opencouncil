@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTranslations } from 'next-intl'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import type * as z from "zod"
 import { administrativeBodyFormSchema, administrativeBodySchema, type AdministrativeBodyFormInput, type AdministrativeBodyFormOutput } from "@/lib/zod-schemas/administrativeBody"
@@ -78,9 +78,10 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     const [editingBody, setEditingBody] = useState<AdministrativeBody | null>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const t = useTranslations('AdministrativeBodiesList')
+    const validationMessage = useValidationMessage()
 
     const form = useForm<AdministrativeBodyFormInput, unknown, AdministrativeBodyFormOutput>({
-        resolver: zodResolver(administrativeBodyFormSchema),
+        resolver: useZodResolver(administrativeBodyFormSchema),
         defaultValues: getFormDefaults(editingBody),
     })
 
@@ -131,7 +132,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                 setIsDialogOpen(false)
             } else {
                 const errorData = await response.json()
-                throw new Error(errorData.message || t('failedToSave'))
+                throw new Error(apiErrorMessage(errorData, t('failedToSave'), validationMessage))
             }
         } catch (error) {
             console.error(t('failedToSave'), error)
@@ -154,7 +155,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
             })
             if (!response.ok) {
                 const errorData = await response.json()
-                throw new Error(apiErrorMessage(errorData, t('failedToSave')))
+                throw new Error(apiErrorMessage(errorData, t('failedToSave'), validationMessage))
             }
             const updated = await response.json()
             form.setValue('decisionConventions', storedConventions(updated.decisionConventions))
@@ -180,7 +181,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                 onUpdate()
             } else {
                 const errorData = await response.json()
-                throw new Error(errorData.message || t('failedToDelete'))
+                throw new Error(apiErrorMessage(errorData, t('failedToDelete'), validationMessage))
             }
         } catch (error) {
             console.error(t('failedToDelete'), error)

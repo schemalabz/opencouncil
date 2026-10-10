@@ -1,21 +1,22 @@
 import * as z from 'zod';
 import { baseRoleFields, roleDatesInOrder, roleDatesInOrderIssue } from './role';
 import { imageFile, stringBoolean, webUrl } from './primitives';
+import { vmsg } from './messages';
 
 // Field rules of a person — validation only, no defaults. Shared by the person
 // form, the person routes, and the city import (zod-schemas/cityPopulation.ts).
 export const basePersonFields = {
     name: z.string().min(2, {
-        error: "Person name must be at least 2 characters.",
+        error: vmsg('personNameMin2'),
     }),
     name_en: z.string().min(2, {
-        error: "Person name (English) must be at least 2 characters.",
+        error: vmsg('personNameEnMin2'),
     }),
     name_short: z.string().min(2, {
-        error: "Short name must be at least 2 characters.",
+        error: vmsg('shortNameMin2'),
     }),
     name_short_en: z.string().min(2, {
-        error: "Short name (English) must be at least 2 characters.",
+        error: vmsg('shortNameEnMin2'),
     }),
 };
 

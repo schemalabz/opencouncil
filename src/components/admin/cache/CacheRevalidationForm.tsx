@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useZodResolver } from '@/hooks/useLocalizedValidation';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,7 @@ export function CacheRevalidationForm() {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<z.input<typeof revalidateRequestSchema>, unknown, RevalidateFormData>({
-        resolver: zodResolver(revalidateRequestSchema),
+        resolver: useZodResolver(revalidateRequestSchema),
         defaultValues: {
             tags: [''],
             paths: [{ path: '', type: 'page' }]

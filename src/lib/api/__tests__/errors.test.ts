@@ -14,6 +14,8 @@ import {
     validationErrorSchema,
     validationIssues,
 } from '@/lib/api/errors';
+import { meetingSchema } from '@/lib/zod-schemas/meeting';
+import { personRoleSchema } from '@/lib/zod-schemas/person';
 
 const schema = z.object({ name: z.string().min(2, { error: 'Name is too short' }), age: z.number() });
 
@@ -126,5 +128,33 @@ describe('searchError', () => {
         expect(await body(response)).toEqual({
             error: { code: 'SEARCH_ERROR', message: 'An error occurred while performing the search' },
         });
+    });
+});
+
+// A form shows a `vmsg` message in the language of the reader. An API caller
+// gets the English text, the same bytes as before the messages had keys.
+describe('the custom messages of the shared schemas', () => {
+    it('reach a 400 body as the English text', async () => {
+        const parsed = meetingSchema.safeParse({ name: 'a', name_en: 'b', date: 'nope' });
+        if (parsed.success) throw new Error('expected a validation failure');
+
+        const response = handleApiError(parsed.error);
+        expect(response.status).toBe(400);
+        expect(await body(response)).toEqual({
+            error: [
+                { code: 'custom', message: 'Meeting name must be at least 2 characters.', path: ['name'] },
+                { code: 'custom', message: 'Meeting name (English) must be at least 2 characters.', path: ['name_en'] },
+                { code: 'custom', message: 'Invalid date/time format', path: ['date'] },
+            ],
+        });
+    });
+
+    it('carry no catalog key', () => {
+        const parsed = personRoleSchema.safeParse({ startDate: '2026-02-01', endDate: '2026-01-01' });
+        if (parsed.success) throw new Error('expected a validation failure');
+
+        expect(validationIssues(parsed.error)).toEqual([
+            { code: 'custom', message: 'The end date must not be before the start date.', path: ['endDate'] },
+        ]);
     });
 });

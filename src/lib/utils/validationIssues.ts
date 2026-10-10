@@ -12,10 +12,18 @@ export function formatValidationIssues(issues: FormattableIssue[]): string[] {
 /**
  * The message to show for the JSON body of a failed API response: the text of
  * an `ErrorResponse`, or one line per issue of a `ValidationError`.
+ * `formatMessage` turns the message of each issue into the text to show. A
+ * form passes `useValidationMessage()`, so that a message of the catalog shows
+ * in the language of the reader, as it does under a field.
  */
-export function apiErrorMessage(body: unknown, fallback: string): string {
+export function apiErrorMessage(body: unknown, fallback: string, formatMessage?: (message: string) => string): string {
     const error = typeof body === 'object' && body !== null && 'error' in body ? body.error : undefined;
     if (typeof error === 'string' && error) return error;
-    if (Array.isArray(error) && error.length > 0) return formatValidationIssues(error).join('\n');
+    if (Array.isArray(error) && error.length > 0) {
+        const issues: FormattableIssue[] = formatMessage
+            ? error.map((issue: FormattableIssue) => ({ ...issue, message: formatMessage(issue.message) }))
+            : error;
+        return formatValidationIssues(issues).join('\n');
+    }
     return fallback;
 }

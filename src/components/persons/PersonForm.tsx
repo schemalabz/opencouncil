@@ -2,11 +2,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import type * as z from "zod"
 import { personFormDataSchema, personFormSchema, type PersonFormInput, type PersonFormOutput } from "@/lib/zod-schemas/person"
 import { toFormData } from "@/lib/utils/formData"
+import { apiErrorMessage } from "@/lib/utils/validationIssues"
 import { Button } from "../../components/ui/button"
 import {
     Form,
@@ -51,11 +52,12 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
     const [imagePreview, setImagePreview] = useState<string | null>(person?.image || null)
     const [roles, setRoles] = useState<RoleWithRelations[]>(person?.roles || [])
     const t = useTranslations('PersonForm')
+    const validationMessage = useValidationMessage()
     const { toast } = useToast()
     const nameInputRef = useRef<HTMLInputElement>(null)
 
     const form = useForm<PersonFormInput, unknown, PersonFormOutput>({
-        resolver: zodResolver(personFormSchema),
+        resolver: useZodResolver(personFormSchema),
         defaultValues: {
             name: person?.name || "",
             name_en: person?.name_en || "",
@@ -157,7 +159,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                 })
             } else {
                 const errorData = await response.json()
-                throw new Error(errorData.message || t('failedToSavePerson'))
+                throw new Error(apiErrorMessage(errorData, t('failedToSavePerson'), validationMessage))
             }
         } catch (error) {
             console.error('Error in form submission:', error)
@@ -191,7 +193,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                         <strong className="font-bold">{t('formErrors')}</strong>
                         <ul className="mt-2 list-disc list-inside">
                             {Object.entries(form.formState.errors).map(([key, error]) => (
-                                <li key={key}>{error.message}</li>
+                                <li key={key}>{error.message && validationMessage(error.message)}</li>
                             ))}
                         </ul>
                     </div>

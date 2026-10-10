@@ -142,12 +142,16 @@ const FormDescription = React.forwardRef<
 })
 FormDescription.displayName = "FormDescription"
 
-const FormMessage = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLParagraphElement>
->(({ className, children, ...props }, ref) => {
+type FormMessageProps = React.HTMLAttributes<HTMLParagraphElement> & {
+  /** Turns the message of the field error into the text to show, e.g. a translation. */
+  formatError?: (message: string) => React.ReactNode
+}
+
+const FormMessage = React.forwardRef<HTMLParagraphElement, FormMessageProps>(
+  ({ className, children, formatError, ...props }, ref) => {
   const { error, formMessageId } = useFormField()
-  const body = error ? String(error?.message) : children
+  const message = error ? String(error?.message) : undefined
+  const body = message !== undefined ? (formatError ? formatError(message) : message) : children
 
   if (!body) {
     return null
