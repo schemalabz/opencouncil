@@ -27,7 +27,7 @@ export type LandingPetitionedCity = PetitionedMapCityRow;
 /** Cities the landing lists — a subset of CityMinimalWithCounts. */
 export type LandingListCity = Pick<
     CityMinimalWithCounts,
-    'id' | 'name' | 'name_en' | 'name_municipality' | 'logoImage' | '_count'
+    'id' | 'name' | 'name_en' | 'name_municipality' | 'logoImage' | 'status' | '_count'
 >;
 
 /** A serialized (Date → string) view of UpcomingMeetingWithCity, derived so it tracks the schema. */

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
+import { getVotingUtterances } from '@/lib/db/votingUtterances';
 
 export async function POST(request: NextRequest) {
     try {
@@ -12,46 +12,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const utterances = await prisma.utterance.findMany({
-            where: {
-                discussionSubjectId: subjectId,
-                discussionStatus: 'VOTE'
-            },
-            select: {
-                id: true,
-                text: true,
-                startTimestamp: true,
-                endTimestamp: true,
-                speakerSegment: {
-                    select: {
-                        id: true,
-                        speakerTagId: true,
-                        speakerTag: {
-                            select: {
-                                id: true,
-                                label: true,
-                                personId: true,
-                                person: {
-                                    select: {
-                                        id: true,
-                                        name: true,
-                                        image: true,
-                                        roles: {
-                                            include: {
-                                                party: true
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            orderBy: {
-                startTimestamp: 'asc'
-            }
-        });
+        const utterances = await getVotingUtterances(subjectId);
 
         return NextResponse.json({ utterances });
     } catch (error) {

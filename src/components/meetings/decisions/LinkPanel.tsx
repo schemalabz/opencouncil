@@ -88,10 +88,12 @@ export interface LinkPanelProps {
      * step, and hides the way back to a list that would be empty. */
     offerableCount: number;
     /** The ΑΔΑ step. The page renders it, because the page owns the poll that
-     * answers it. `onBack` is `null` when there is no list to go back to. */
-    renderAdaStep: (args: { noCandidates: boolean; onBack: (() => void) | null; onManual: () => void; onClose: () => void }) => ReactNode;
-    /** The step that adds a decision by hand, for one Diavgeia does not have. */
-    renderManualStep: (args: { onBack: () => void; toAda: () => void; onClose: () => void }) => ReactNode;
+     * answers it. `onBack` is `null` when there is no list to go back to.
+     * Null when the meeting takes no decisions: no search can find one. */
+    renderAdaStep: ((args: { noCandidates: boolean; onBack: (() => void) | null; onManual: () => void; onClose: () => void }) => ReactNode) | null;
+    /** The step that adds a decision by hand, for one Diavgeia does not have.
+     * `onBack` is `null` when there is neither a list nor an ΑΔΑ step to go back to. */
+    renderManualStep: (args: { onBack: (() => void) | null; toAda: () => void; onClose: () => void }) => ReactNode;
     onOpenDocument: (documentId: string) => void;
     onClose: () => void;
     saving: boolean;
@@ -139,7 +141,7 @@ export function LinkPanel({
     const locale = useLocale();
     // The first step follows the data: with nothing to pick, a list would be
     // an empty box above a search field that filters nothing.
-    const [step, setStep] = useState<'list' | 'ada' | 'manual'>(offerableCount > 0 ? 'list' : 'ada');
+    const [step, setStep] = useState<'list' | 'ada' | 'manual'>(offerableCount > 0 ? 'list' : renderAdaStep ? 'ada' : 'manual');
     const [showAll, setShowAll] = useState(false);
     // Which row's button was pressed, so only that one shows the spinner —
     // `saving` alone can't tell rows apart, and disabling every row without
@@ -239,7 +241,7 @@ export function LinkPanel({
                     <Button variant="outline" size="sm" onClick={onRetry}>{t('panel.retry')}</Button>
                 </div>
             )}
-            {step === 'ada' ? (
+            {step === 'ada' && renderAdaStep ? (
                 <div className="mt-3 first:mt-0">
                     {renderAdaStep({
                         noCandidates: offerableCount === 0,
@@ -250,7 +252,7 @@ export function LinkPanel({
                 </div>
             ) : step === 'manual' ? (
                 <div className="mt-3 first:mt-0">
-                    {renderManualStep({ onBack: () => setStep(offerableCount > 0 ? 'list' : 'ada'), toAda: () => setStep('ada'), onClose })}
+                    {renderManualStep({ onBack: offerableCount > 0 ? () => setStep('list') : renderAdaStep ? () => setStep('ada') : null, toAda: () => setStep('ada'), onClose })}
                 </div>
             ) : (
                 <div className="mt-3 space-y-3">
@@ -337,14 +339,14 @@ export function LinkPanel({
                     {noResults && (
                         <div className="space-y-2 text-sm text-muted-foreground">
                             <p>{t('panel.noResults', { query })}</p>
-                            <Button variant="outline" size="sm" onClick={() => setStep('ada')}>{t('panel.addWithAda')}</Button>
+                            {renderAdaStep && <Button variant="outline" size="sm" onClick={() => setStep('ada')}>{t('panel.addWithAda')}</Button>}
                         </div>
                     )}
                     <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
                         <span>{t('panel.notHere')}</span>
                         {/* The empty-result state above already offers this same action —
                             repeating it here would show two identically-labelled buttons. */}
-                        {!noResults && (
+                        {!noResults && renderAdaStep && (
                             <>
                                 <span aria-hidden>&middot;</span>
                                 <QuietButton onClick={() => setStep('ada')} disabled={saving}>{t('panel.addWithAda')}</QuietButton>

@@ -6,12 +6,12 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import type { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { MeetingStageChip } from '@/components/meetings/stage/MeetingStageChip';
-import type { PublicMeetingStage } from '@/lib/meetingStage';
-import { getLocalizedName } from '@/lib/formatters/name';
+import type { PresentationKey } from '@/lib/meetingPresentation';
 import { formatClockTime, formatDateStamp } from '@/lib/formatters/time';
 import { cn } from '@/lib/utils';
 import { AdminBodyLabel } from './AdminBodyLabel';
 import { surfaceCardClass } from '@/components/ui/surface-card';
+import { meetingDisplayName } from '@/lib/meetingName';
 
 type Meeting = CouncilMeetingWithSubjectPreview;
 
@@ -24,7 +24,7 @@ type Meeting = CouncilMeetingWithSubjectPreview;
  */
 export interface DatedMeeting {
     meeting: Meeting;
-    stage: PublicMeetingStage;
+    stage: PresentationKey;
     /** The chip's soft second half, or null where the stage word says everything. */
     detail: string | null;
 }
@@ -141,8 +141,9 @@ export function CityMeetingsModule({ all, council, cityId, timezone, locale }: C
  * One meeting as a stamp-led row — shared by both halves, so the next and the
  * latest meeting can never drift apart in shape. The row is the link; a filled
  * button under it would repeat the same target and cost 56px of a phone screen.
+ * The secondary-body card beside this module draws its rows with it too.
  */
-function MeetingRow({
+export function MeetingRow({
     entry,
     cityId,
     timezone,
@@ -177,7 +178,7 @@ function MeetingRow({
                 a size to fit on one line more often than not. */}
             <span className="min-w-0 flex-1">
                 <span className="block text-base leading-snug transition-colors group-hover/row:text-[hsl(var(--orange))]">
-                    {getLocalizedName(meeting, locale)}
+                    {meetingDisplayName(meeting, locale, timezone)}
                 </span>
                 <span className="mt-1 flex min-w-0 items-center gap-x-2 text-xs text-muted-foreground">
                     <AdminBodyLabel body={meeting.administrativeBody} locale={locale} className="min-w-0" />

@@ -57,6 +57,8 @@
         "adminBodyType_council": "Скупштина",
         "adminBodyType_committee": "Одбор",
         "adminBodyType_community": "Заједнице",
+        "adminBodyType_youthCouncil": "Савет младих",
+        "showYouthCouncils": "Савети младих",
         "allPeople": "Сви",
         "allBodies": "Сва",
         "backToHome": "Назад на почетну",
@@ -264,6 +266,8 @@
         "supportBadgeUnofficialRegion": "Без званичне подршке округа",
         "supportBadgeShortOfficial": "Званична подршка",
         "supportBadgeShortUnofficial": "Без званичне подршке",
+        "supportBadgeShortYouthOnly": "Само Савет младих",
+        "supportBadgeYouthOnly": "Без званичне подршке општине. Само њен Савет младих објављује овде своје седнице.",
         "supportBadgeLearnMore": "Ко плаћа OpenCouncil?"
     },
     "EmbedConfigurator": {
@@ -344,7 +348,51 @@
         "noVideosFound": "Нису пронађени видео-снимци",
         "details": "Детаљи",
         "meetingId": "ID седнице",
-        "meetingIdDescription": "ID ће се користити у URL адреси седнице.",
+        "meetingIdDescription": "ID се користи у URL адреси седнице. Оставите га празним: платформа га прави од датума и додаје _2 када тај дан већ има седницу.",
+        "kind": "Врста седнице",
+        "kindDescription": "Како пише у позиву. Врста је део назива седнице.",
+        "fromInvitation": "Из позива",
+        "kindOptions": {
+            "regular": "Редовна",
+            "urgent": "Хитна",
+            "accountability": "Посебна: полагање рачуна",
+            "activityReport": "Посебна: извештај о раду",
+            "budget": "Посебна: буџет",
+            "presidencyElection": "Посебна: избор председништва"
+        },
+        "councilOnly": "само скупштина",
+        "scheduleStatus": "Статус",
+        "scheduleStatusOptions": {
+            "scheduled": "Заказана",
+            "postponed": "Одложена",
+            "cancelled": "Отказана"
+        },
+        "scheduleStatusDescription": "Одложена или отказана седница остаје видљива. Календар се ажурира аутоматски.",
+        "scheduleStatusReason": "Разлог",
+        "scheduleStatusReasonPlaceholder": "Како га је општина објавила",
+        "postponedFrom": "Нова седница одложене седнице",
+        "postponedFromNone": "Ниједна",
+        "postponedFromDescription": "Изаберите одложену седницу ако је ово њена нова седница. Када се ова објави, стара се скрива од читалаца.",
+        "sessionNumber": "Број седнице",
+        "sessionNumberDescription": "Како га општина штампа. Отказана седница задржава свој број, а нова седница после одлагања добија исти.",
+        "format": "Облик",
+        "formatOptions": {
+            "inPerson": "Уживо",
+            "remote": "Видео-конференција",
+            "hybrid": "Мешовита",
+            "byCirculation": "Писаним изјашњавањем"
+        },
+        "closedToPublic": "Без присуства јавности",
+        "closedToPublicDescription": "Читаоци виде да је седница одржана без присуства јавности.",
+        "noRecording": "Без снимка",
+        "noRecordingDescription": "Седница је одржана без снимања. Страница не обећава ни видео ни транскрипт.",
+        "agendaAsLink": "Веза или датотека",
+        "agendaAsText": "Налепи текст",
+        "agendaTextPlaceholder": "Налепите овде тачке дневног реда, онако како их наводи позив.",
+        "agendaTextDescription": "Тачке се издвајају из текста после чувања. Оне замењују теме које седница већ има.",
+        "place": "Место",
+        "placeDescription": "Само ако се разликује од сале органа.",
+        "nameOverrideDescription": "Оставите празно: назив се прави од органа, врсте и датума. Попуните га само за седницу којој треба посебан назив.",
         "meetingNameEnPlaceholder": "Унесите назив седнице на енглеском",
         "meetingNameEnDescription": "Наведите назив седнице на енглеском језику.",
         "administrativeBody": "Управно тело",
@@ -354,7 +402,8 @@
         "administrativeBodyType": {
             "council": "Скупштина града",
             "committee": "Општинска комисија",
-            "community": "Општинска заједница"
+            "community": "Општинска заједница",
+            "youthCouncil": "Градски савет младих"
         },
         "meetingAgenda": "Дневни ред седнице",
         "meetingAgendaPlaceholder": "URL или датотека дневног реда",
@@ -524,6 +573,7 @@
         "roleEnDescription": "Унесите функцију члана на енглеском.",
         "image": "Слика",
         "imageDescription": "Отпремите слику члана.",
+        "imageOwnersOnly": "Само члан додаје своју фотографију, са свог налога.",
         "failedToSavePerson": "Чување члана није успело.",
         "unexpectedError": "Неочекивана грешка.",
         "submitting": "Слање...",
@@ -732,7 +782,8 @@
         "contactForAccess": "Да бисте добили администраторски приступ, контактирајте нас:",
         "adminCity": "Управљај градом",
         "adminParty": "Управљај одборничком групом",
-        "adminPerson": "Управљај чланом"
+        "adminPerson": "Управљај чланом",
+        "adminBody": "Body administrator"
     },
     "OfferForm": {
         "recipientName": "Прималац",
@@ -825,6 +876,7 @@
             "byAdmin": "Унео/ла {recorder}, {date}. Особа не може да га промени са свог профила.",
             "unknownAccount": "обрисани налог",
             "recordHint": "Унесите га само ако је особа дала пристанак писмено, на штампаном обрасцу са својеручним потписом. Особа ће га видети на свом профилу, али неће моћи да га промени.",
+            "ownOnlyHint": "Ова особа је само члан савета младих: сагласност долази искључиво са њеног налога. Сагласност се не уноси у њено име.",
             "withdrawHint": "Повуците га када особа то затражи. Период пристанка остаје у историји.",
             "record": "Унеси пристанак",
             "withdraw": "Повуци пристанак",
@@ -926,11 +978,15 @@
         "types": {
             "council": "Скупштина града",
             "committee": "Општинска комисија",
-            "community": "Месна заједница"
+            "community": "Месна заједница",
+            "youthCouncil": "Градски савет младих"
         },
         "youtubeChannelUrl": "URL YouTube канала",
         "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",
         "youtubeChannelUrlDescription": "Унесите URL YouTube канала овог административног тела.",
+        "place": "Сала за седнице",
+        "placePlaceholder": "нпр. Сала скупштине, Градска кућа",
+        "placeDescription": "Где орган по правилу заседа. Страница сваке седнице уживо то приказује, осим ако седница има своје место.",
         "contactEmailPrimary": "Имејл примаоца (To)",
         "contactEmailPrimaryPlaceholder": "grammateia@municipality.gr",
         "contactEmailPrimaryDescription": "Примарни имејл примаоца за слање транскрипата.",
@@ -961,7 +1017,7 @@
     "RSS": {
         "title": "Најновија ажурирања - {city}",
         "description": "Ажурирања за {municipality}",
-        "meetingTitle": "{meetingName} — {cityName} ({date})",
+        "meetingTitle": "{meetingName} — {cityName}",
         "subjects": "Теме",
         "noSubjects": "Нема наведених тема",
         "cityNotFound": "Град није пронађен"

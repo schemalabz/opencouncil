@@ -1,4 +1,5 @@
 import { getCouncilMeeting, CouncilMeetingWithAdminBody } from '@/lib/db/meetings';
+import { pipelineRunsUnattended } from '@/lib/utils/bodyTier';
 import { getTranscript, Transcript } from '@/lib/db/transcript';
 import { CityWithGeometry, getCity } from '@/lib/db/cities';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -12,6 +13,8 @@ import { createCache } from '@/lib/cache';
 import { getRealm } from '@/lib/realm.server';
 import { Realm, SpeakerTag } from '@prisma/client';
 import { Party } from '@prisma/client';
+import { originalScheduledDate } from '@/lib/db/meetingLifecycle';
+import { hideLinks } from '@/lib/meetingPublic';
 
 const EMPTY_STATISTICS: Statistics = {
     speakingSeconds: 0,
@@ -20,8 +23,15 @@ const EMPTY_STATISTICS: Statistics = {
     topics: []
 };
 
+/**
+ * The meeting as the page receives it. The link to the meeting that it
+ * replaced is cleared, because that meeting is not public; the page shows the
+ * date for which the meeting was first scheduled instead.
+ */
+export type MeetingForPage = CouncilMeetingWithAdminBody & { postponedFromDate: Date | null };
+
 export type MeetingDataCore = {
-    meeting: CouncilMeetingWithAdminBody;
+    meeting: MeetingForPage;
     transcript: Transcript;
     city: CityWithGeometry;
     people: PersonWithRelations[];
@@ -146,11 +156,18 @@ async function fetchMeetingDataCore(cityId: string, meetingId: string, realm: Re
     }
     const speakerTags = Array.from(speakerTagsMap.values());
 
+    // A body whose pipeline runs unattended (#829) has no review step: its
+    // transcript shows as it is, whatever the setting says.
     const transcriptHiddenForReview = !taskStatus.humanReview
-        && meeting.administrativeBody?.showUnreviewedTranscript === false;
+        && meeting.administrativeBody?.showUnreviewedTranscript === false
+        && !pipelineRunsUnattended(meeting.administrativeBody);
+
+    const postponedFromDate = meeting.postponedFromId
+        ? await originalScheduledDate(cityId, meetingId)
+        : null;
 
     return {
-        meeting,
+        meeting: { ...hideLinks(meeting), postponedFromDate },
         transcript,
         city,
         people,

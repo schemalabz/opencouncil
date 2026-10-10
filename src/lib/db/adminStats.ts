@@ -4,6 +4,8 @@ import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
 import { subDays } from "date-fns";
 import { CUSTOMER_CITY_WHERE } from "../cityStatus";
+import { primaryMeetingWhere } from "@/lib/utils/bodyTier";
+import { primaryMeetingSql } from "./bodyTierSql";
 import type { SignupRow } from "../admin/signup-series";
 
 export interface AdminDashboardStats {
@@ -83,17 +85,19 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
         prisma.notificationDelivery.count({ where: { status: 'sent', sentAt: { gte: sevenDaysAgo } } }),
         prisma.petition.count(),
         prisma.petition.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
-        prisma.councilMeeting.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+        // The content figures count the municipalities' own bodies; a
+        // secondary body's meetings are not our operation's output (#829).
+        prisma.councilMeeting.count({ where: { createdAt: { gte: sevenDaysAgo }, ...primaryMeetingWhere } }),
         // There is no releasedAt column, so this counts meetings created this
         // week that are currently released — not release events this week.
-        prisma.councilMeeting.count({ where: { createdAt: { gte: sevenDaysAgo }, released: true } }),
+        prisma.councilMeeting.count({ where: { createdAt: { gte: sevenDaysAgo }, released: true, ...primaryMeetingWhere } }),
         prisma.$queryRaw<Array<{ total_hours: number }>>`
             SELECT COALESCE(SUM(meeting_hours), 0) as total_hours
             FROM (
                 SELECT (MAX(ss."endTimestamp") - MIN(ss."startTimestamp")) / 3600.0 as meeting_hours
                 FROM "CouncilMeeting" cm
                 JOIN "SpeakerSegment" ss ON ss."meetingId" = cm.id AND ss."cityId" = cm."cityId"
-                WHERE cm.released = true AND cm."createdAt" >= ${sevenDaysAgo}
+                WHERE cm.released = true AND cm."createdAt" >= ${sevenDaysAgo} AND ${primaryMeetingSql('cm')}
                 GROUP BY cm.id, cm."cityId"
             ) meetings
         `,

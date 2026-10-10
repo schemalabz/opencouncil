@@ -109,6 +109,14 @@ async function createTestUsers() {
       select: { id: true, name: true }
     })
 
+    // A body other than the council when there is one: the council is the
+    // body that a city admin's rights already cover.
+    const testBody = await prisma.administrativeBody.findFirst({
+      where: { cityId: DEV_TEST_CITY_ID, type: { not: 'council' } },
+      orderBy: [{ type: 'asc' }, { name: 'asc' }],
+      select: { id: true, name: true }
+    })
+
     for (const testUser of TEST_USERS) {
       // Check if user already exists
       const existingUser = await prisma.user.findUnique({
@@ -146,6 +154,14 @@ async function createTestUsers() {
             administers = [{ personId: testPerson.id, claimedAt: new Date() }]
           } else {
             finalName = 'Person Admin (No person available)'
+          }
+          break
+        case 'body':
+          if (testBody) {
+            finalName = `Body Admin (${testBody.name})`
+            administers = [{ administrativeBodyId: testBody.id }]
+          } else {
+            finalName = 'Body Admin (No body available)'
           }
           break
         case 'readonly':

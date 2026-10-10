@@ -57,6 +57,8 @@
     "adminBodyType_council": "Conseil municipal",
     "adminBodyType_committee": "Commission municipale",
     "adminBodyType_community": "Communautés",
+    "adminBodyType_youthCouncil": "Conseil municipal des jeunes",
+    "showYouthCouncils": "Conseils des jeunes",
     "allPeople": "Tous",
     "allBodies": "Tous",
     "backToHome": "Retour à l'accueil",
@@ -278,6 +280,8 @@
     "supportBadgeUnofficialRegion": "Sans soutien officiel de la région",
     "supportBadgeShortOfficial": "Soutien officiel",
     "supportBadgeShortUnofficial": "Sans soutien officiel",
+    "supportBadgeShortYouthOnly": "Conseil des jeunes seulement",
+    "supportBadgeYouthOnly": "Sans soutien officiel de la commune. Seul son conseil des jeunes publie ici ses séances.",
     "supportBadgeLearnMore": "Qui paie pour OpenCouncil ?"
   },
   "EmbedConfigurator": {
@@ -363,7 +367,51 @@
     "noVideosFound": "Aucune vidéo trouvée",
     "details": "Détails",
     "meetingId": "Identifiant de la séance",
-    "meetingIdDescription": "L'identifiant sera utilisé dans l'URL de la séance.",
+    "meetingIdDescription": "L'identifiant est utilisé dans l'URL de la séance. Laissez-le vide : la plateforme le crée à partir de la date et ajoute _2 si le jour a déjà une séance.",
+    "kind": "Type de séance",
+    "kindDescription": "Comme l’indique la convocation. Le type fait partie du nom de la séance.",
+    "fromInvitation": "D’après la convocation",
+    "kindOptions": {
+        "regular": "Ordinaire",
+        "urgent": "Extraordinaire",
+        "accountability": "Spéciale : reddition de comptes",
+        "activityReport": "Spéciale : bilan d’activité",
+        "budget": "Spéciale : budget",
+        "presidencyElection": "Spéciale : élection du bureau"
+    },
+    "councilOnly": "conseil uniquement",
+    "scheduleStatus": "Statut",
+    "scheduleStatusOptions": {
+        "scheduled": "Prévue",
+        "postponed": "Reportée",
+        "cancelled": "Annulée"
+    },
+    "scheduleStatusDescription": "Une séance reportée ou annulée reste visible. Le calendrier est mis à jour automatiquement.",
+    "scheduleStatusReason": "Motif",
+    "scheduleStatusReasonPlaceholder": "Tel que publié par la commune",
+    "postponedFrom": "Nouvelle séance d’une séance reportée",
+    "postponedFromNone": "Aucune",
+    "postponedFromDescription": "Choisissez la séance reportée si celle-ci est sa nouvelle séance. Quand celle-ci est publiée, l’ancienne est masquée pour les lecteurs.",
+    "sessionNumber": "Numéro de séance",
+    "sessionNumberDescription": "Tel que la commune l’imprime. Une séance annulée garde son numéro, et la nouvelle séance après un report prend le même.",
+    "format": "Format",
+    "formatOptions": {
+        "inPerson": "En présentiel",
+        "remote": "Visioconférence",
+        "hybrid": "Mixte",
+        "byCirculation": "Par consultation écrite"
+    },
+    "closedToPublic": "À huis clos",
+    "closedToPublicDescription": "Les lecteurs voient que la séance s’est tenue à huis clos.",
+    "noRecording": "Sans enregistrement",
+    "noRecordingDescription": "La séance s’est tenue sans enregistrement. La page ne promet ni vidéo ni transcription.",
+    "agendaAsLink": "Lien ou fichier",
+    "agendaAsText": "Coller le texte",
+    "agendaTextPlaceholder": "Collez ici les points de l’ordre du jour, tels que la convocation les énumère.",
+    "agendaTextDescription": "Les points sont extraits du texte après l’enregistrement. Ils remplacent les sujets que la séance a déjà.",
+    "place": "Lieu",
+    "placeDescription": "Seulement s’il diffère de la salle de l’organe.",
+    "nameOverrideDescription": "Laissez vide : le nom est construit à partir de l’organe, du type et de la date. Remplissez-le seulement pour une séance qui a besoin de son propre nom.",
     "meetingNameEnPlaceholder": "Saisissez le nom de la séance en anglais",
     "meetingNameEnDescription": "Donnez le nom de la séance en anglais.",
     "administrativeBody": "Organe administratif",
@@ -373,7 +421,8 @@
     "administrativeBodyType": {
       "council": "Conseil municipal",
       "committee": "Commission municipale",
-      "community": "Communauté municipale"
+      "community": "Communauté municipale",
+      "youthCouncil": "Conseil municipal des jeunes"
     },
     "formErrors": "Veuillez corriger les erreurs suivantes :"
   },
@@ -497,6 +546,7 @@
       "byAdmin": "Enregistré par {recorder}, le {date}. La personne ne peut pas le modifier depuis son profil.",
       "unknownAccount": "un compte supprimé",
       "recordHint": "Enregistrez-le uniquement si la personne a donné son consentement par écrit, sur un formulaire imprimé avec une signature manuscrite. La personne le verra sur son profil, mais ne pourra pas le modifier.",
+      "ownOnlyHint": "Cette personne ne siège qu’à un conseil des jeunes : le consentement vient de son propre compte uniquement. Aucun consentement n’est enregistré pour elle.",
       "withdrawHint": "Retirez-le lorsque la personne le demande. La période de consentement reste dans l'historique.",
       "record": "Enregistrer le consentement",
       "withdraw": "Retirer le consentement",
@@ -610,6 +660,7 @@
     "personShortNameEnDescription": "Saisissez le nom court du membre en anglais.",
     "image": "Image",
     "imageDescription": "Téléversez une image pour le membre.",
+    "imageOwnersOnly": "Seul le membre ajoute sa photo, depuis son propre compte.",
     "failedToSavePerson": "Échec de l'enregistrement du membre.",
     "unexpectedError": "Erreur inattendue.",
     "submitting": "Envoi...",
@@ -835,7 +886,8 @@
     "contactForAccess": "Pour obtenir un accès d'administration, contactez-nous :",
     "adminCity": "Gérer la ville",
     "adminParty": "Gérer le groupe",
-    "adminPerson": "Gérer le membre"
+    "adminPerson": "Gérer le membre",
+    "adminBody": "Body administrator"
   },
   "OfferForm": {
     "success": "Succès",
@@ -921,11 +973,15 @@
     "types": {
       "council": "Conseil municipal",
       "committee": "Commission municipale",
-      "community": "Communauté municipale"
+      "community": "Communauté municipale",
+      "youthCouncil": "Conseil municipal des jeunes"
     },
     "youtubeChannelUrl": "URL de la chaîne YouTube",
     "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",
     "youtubeChannelUrlDescription": "Saisissez l'URL de la chaîne YouTube pour cet organe administratif.",
+    "place": "Salle des séances",
+    "placePlaceholder": "p. ex. Salle du conseil, Hôtel de ville",
+    "placeDescription": "Là où l’organe siège en règle générale. La page de chaque séance en présentiel l’affiche, sauf si la séance a son propre lieu.",
     "contactEmailPrimary": "E-mail du destinataire (À)",
     "contactEmailPrimaryPlaceholder": "grammateia@municipality.gr",
     "contactEmailPrimaryDescription": "E-mail principal du destinataire pour l'envoi des transcriptions.",
@@ -956,7 +1012,7 @@
   "RSS": {
     "title": "Dernières mises à jour - {city}",
     "description": "Mises à jour pour {municipality}",
-    "meetingTitle": "{meetingName} — {cityName} ({date})",
+    "meetingTitle": "{meetingName} — {cityName}",
     "subjects": "Points",
     "noSubjects": "Aucun point à l'ordre du jour",
     "cityNotFound": "Ville introuvable"

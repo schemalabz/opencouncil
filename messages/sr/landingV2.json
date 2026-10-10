@@ -151,7 +151,8 @@
     "bodyType": {
         "council": "Скупштина",
         "committee": "Одбор",
-        "community": "Месна заједница"
+        "community": "Месна заједница",
+        "youthCouncil": "Савет младих"
     },
     "duration": {
         "5": "5′+",

@@ -1,4 +1,4 @@
-import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, pollCadence, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, MEETING_POLL_DELAY_DAYS, isLogodosiaMeeting } from '../pollDecisionsBackoff';
+import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, pollCadence, BACKOFF_SCHEDULE, MAX_POLLING_DAYS, MEETING_POLL_DELAY_DAYS, takesNoDecisions } from '../pollDecisionsBackoff';
 
 // Helper: create a Date that is `daysAgo` days before now
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -199,30 +199,22 @@ describe('getBackoffState', () => {
     });
 });
 
-describe('isLogodosiaMeeting', () => {
-    it.each([
-        ['Ειδική Συνεδρίαση Λογοδοσίας 26/02/2026', 'pure logodosia with date'],
-        ['Ειδική Συνεδρίαση Λογοδοσίας', 'pure logodosia without date'],
-        ['4η Ειδική Συνεδρίαση Λογοδοσίας', 'numbered logodosia'],
-        ['11η Ειδική Συνεδρίαση Λογοδοσίας', 'double-digit numbered logodosia'],
-        ['Ειδική Συνεδρίαση Λογοδοσίας και Τακτική Συνεδρίαση 29/08/25', 'combined with και'],
-        ['Ειδική Συνεδρίαση Λογοδοσίας & Τακτική Συνεδρίαση 22/12/25', 'combined with &'],
-        ['Δημοτικό Συμβούλιο και Λογοδοσία 08/09/25', 'logodosia after και'],
-        ['Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26', 'logodosia first'],
-        ['1η Ειδική Λογοδοσίας & 6η Τακτική Συνεδρίαση', 'numbered combined'],
-    ])('returns true for "%s" — %s', (name) => {
-        expect(isLogodosiaMeeting(name)).toBe(true);
+describe('takesNoDecisions', () => {
+    it('reads the kind, not the name', () => {
+        expect(takesNoDecisions({ kind: 'accountability', continuationOf: null })).toBe(true);
+        expect(takesNoDecisions({ kind: 'activityReport', continuationOf: null })).toBe(true);
+        expect(takesNoDecisions({ kind: 'regular', continuationOf: null })).toBe(false);
+        expect(takesNoDecisions({ kind: 'budget', continuationOf: null })).toBe(false);
     });
 
-    it.each([
-        ['Δημοτικό Συμβούλιο 11/02/26', 'regular council meeting'],
-        ['Δημοτική Επιτροπή 24/02/2026', 'municipal committee'],
-        ['Συνεδρίαση 16/02/26', 'generic session'],
-        ['Ειδική Συνεδρίαση Δημοτικού Συμβουλίου 26/01/26', 'special council session'],
-        ['Έκτακτη Συνεδρίαση Δημοτικής Επιτροπής 16/10/25', 'emergency committee'],
-        ['23η Τακτική Συνεδρίαση', 'numbered regular session'],
-    ])('returns false for "%s" — %s', (name) => {
-        expect(isLogodosiaMeeting(name)).toBe(false);
+    it('polls a meeting of unknown kind: a combined record has no kind of its own', () => {
+        expect(takesNoDecisions({ kind: null, continuationOf: null })).toBe(false);
+    });
+
+    it('reads the kind of the first part for a later part', () => {
+        expect(takesNoDecisions({ kind: null, continuationOf: { kind: 'activityReport' } })).toBe(true);
+        expect(takesNoDecisions({ kind: null, continuationOf: { kind: 'regular' } })).toBe(false);
+        expect(takesNoDecisions({ kind: null, continuationOf: { kind: null } })).toBe(false);
     });
 });
 
@@ -262,6 +254,7 @@ describe('getPollableMeetingDateRange', () => {
 
 describe('pollCadence', () => {
     const input = (over: Partial<Parameters<typeof pollCadence>[0]> = {}) => ({
+        noDecisions: false,
         canPoll: true,
         pollInFlight: false,
         ...over,
@@ -277,6 +270,10 @@ describe('pollCadence', () => {
 
     it('reports a poll in flight', () => {
         expect(pollCadence(input({ pollInFlight: true }))).toEqual({ kind: 'running' });
+    });
+
+    it('offers no poll for a meeting that takes no decisions, even one in flight', () => {
+        expect(pollCadence(input({ noDecisions: true, pollInFlight: true }))).toEqual({ kind: 'noDecisions' });
     });
 
     it('offers the poll in every other state', () => {

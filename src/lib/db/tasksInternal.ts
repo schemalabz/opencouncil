@@ -123,3 +123,21 @@ export async function getTasksForMeetingDirect(cityId: string, councilMeetingId:
 
     return rows.map(row => ({ ...row, error: errorById.get(row.id) ?? null }));
 }
+
+/**
+ * The task row of an agenda that was pasted as text (#829, lib/agendaText.ts):
+ * a succeeded processAgenda task, so the task list, a re-run and the Notis
+ * view see the agenda as they see the task's. The request keeps the text; the
+ * response holds the subjects, in the shape a re-run replays.
+ */
+export async function recordAgendaTextTask(cityId: string, councilMeetingId: string, agendaText: string, subjects: unknown[]): Promise<TaskStatus> {
+    return prisma.taskStatus.create({
+        data: {
+            type: 'processAgenda',
+            status: 'succeeded',
+            requestBody: JSON.stringify({ source: 'agendaText', agendaText }),
+            responseBody: JSON.stringify({ subjects }),
+            councilMeeting: { connect: { cityId_id: { cityId, id: councilMeetingId } } },
+        },
+    });
+}

@@ -1,5 +1,6 @@
 import { AdministrativeBodyType, Party, Role } from "@prisma/client";
 import { RoleWithRelations } from "@/lib/db/types";
+import { bodyTier } from "./bodyTier";
 
 /**
  * Validation error type for role validation
@@ -27,6 +28,40 @@ export type RoleValidationError = {
  * @param validAdminBodyIds Set of valid administrative body IDs for the city
  * @returns null if valid, or an error object if validation fails
  */
+/**
+ * The roles a body admin may give a person (#828): at least one, each on a
+ * body they administer, none on a party and none city-level. An empty set of
+ * bodies says the viewer may not change roles at all (a person who claimed
+ * their own page edits name and photo only).
+ */
+export function validateRolesForBodyAdmin(
+  roles: Array<{
+    cityId?: string | null;
+    partyId?: string | null;
+    administrativeBodyId?: string | null;
+  }>,
+  heldBodyIds: ReadonlySet<string>
+): RoleValidationError | null {
+  if (heldBodyIds.size === 0) {
+    return { error: 'You may not change the roles of this person.' };
+  }
+  if (roles.length === 0) {
+    return { error: 'The person needs at least one role on an administrative body you administer.' };
+  }
+  for (const role of roles) {
+    if (role.partyId) {
+      return { error: 'You may not give party roles.' };
+    }
+    if (!role.administrativeBodyId) {
+      return { error: 'You may not give city-level roles.' };
+    }
+    if (!heldBodyIds.has(role.administrativeBodyId)) {
+      return { error: 'Every role must be on an administrative body you administer.' };
+    }
+  }
+  return null;
+}
+
 export function validateRoles(
   roles: Array<{
     cityId?: string | null;
@@ -320,11 +355,19 @@ export function getSingleCityRole(roles: (Role & { cityId?: string | null })[], 
  * (e.g. a council member role should rank above a party role when viewing a council meeting).
  * This will require passing context (e.g. administrativeBodyId) to the sorting function.
  */
-export function getRoleTypePriority(role: { isHead: boolean; cityId?: string | null; partyId?: string | null; administrativeBodyId?: string | null }): number {
+export function getRoleTypePriority(role: {
+  isHead: boolean;
+  cityId?: string | null;
+  partyId?: string | null;
+  administrativeBodyId?: string | null;
+  administrativeBody?: { type: AdministrativeBodyType } | null;
+}): number {
   if (isMayorRole(role)) return 0;             // mayor
   const isCityLevel = role.cityId && !role.partyId && !role.administrativeBodyId;
   if (isCityLevel) return 1;                 // deputy mayor
-  if (role.administrativeBodyId && role.isHead) return 2; // council president, committee chair
+  // The chair of a secondary body ranks as a member: that title must not stand
+  // above the council president's on a person who holds both.
+  if (role.administrativeBodyId && role.isHead && bodyTier(role.administrativeBody?.type) === 'primary') return 2; // council president, committee chair
   if (role.partyId && role.isHead) return 3;  // party leader
   if (role.partyId) return 4;                 // party member
   if (role.administrativeBodyId) return 5;    // regular admin body member

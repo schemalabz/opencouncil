@@ -3,9 +3,13 @@
 // API route — authorize before calling. Kept apart from meetings.ts as its own
 // concern: the list queries, their payload types and the page size.
 import "server-only";
+import { unreleasedMeetingWhere, type UnreleasedScope } from '@/lib/unreleased';
+import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
 import { AdministrativeBodyType, Prisma } from '@prisma/client';
 import prisma from "./prisma";
 import { meetingBodyTypeWhere } from "./meetingBodyFilter";
+import { TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
+import { DECISION_KIND_SELECT } from "@/lib/tasks/pollDecisionsBackoff";
 
 const meetingWithSubjectsInclude = {
     subjects: {
@@ -20,6 +24,7 @@ const meetingWithSubjectsInclude = {
         },
     },
     administrativeBody: true,
+    continuationOf: DECISION_KIND_SELECT.continuationOf,
 } satisfies Prisma.CouncilMeetingInclude;
 
 export type CouncilMeetingWithAdminBodyAndSubjects = Prisma.CouncilMeetingGetPayload<{
@@ -72,15 +77,25 @@ export type CouncilMeetingWithSubjectPreview = Prisma.CouncilMeetingGetPayload<{
 };
 
 export interface MeetingListOptions {
+    /** Every unreleased meeting. Prefer `unreleased`, which names whose they are. */
     includeUnreleased?: boolean;
+    /** The unreleased meetings the viewer may see; released only when absent. */
+    unreleased?: UnreleasedScope;
     limit?: number;
     page?: number;
     pageSize?: number;
     from?: Date;
     to?: Date;
+    /**
+     * Which bodies. Ids win over types. With neither, the list holds the
+     * primary tier (see bodyTier.ts): a secondary body's meetings show only
+     * when a caller names its type or its id.
+     */
     administrativeBodyTypes?: AdministrativeBodyType[];
     administrativeBodyIds?: string[];
     timeFilter?: 'upcoming' | 'past';
+    /** Only meetings that take place on their date: no postponed or cancelled one. */
+    takesPlace?: boolean;
 }
 
 /**
@@ -101,7 +116,7 @@ export const DEFAULT_MEETING_PAGE_SIZE = 12;
  */
 function meetingListQuery(
     cityId: string,
-    { includeUnreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter }: MeetingListOptions,
+    { includeUnreleased, unreleased, limit, page, pageSize = DEFAULT_MEETING_PAGE_SIZE, from, to, administrativeBodyTypes, administrativeBodyIds, timeFilter, takesPlace }: MeetingListOptions,
 ) {
     // Calculate pagination
     const skip = page ? (page - 1) * pageSize : undefined;
@@ -120,8 +135,9 @@ function meetingListQuery(
         ...(upperBound && { lte: upperBound }),
     };
 
-    // Specific bodies (ids) take precedence over the broader type filter.
-    let bodyFilter: Prisma.CouncilMeetingWhereInput = {};
+    // Specific bodies (ids) take precedence over the broader type filter, and
+    // no filter at all means the primary tier.
+    let bodyFilter: Prisma.CouncilMeetingWhereInput = primaryMeetingWhere;
     if (administrativeBodyIds && administrativeBodyIds.length > 0) {
         bodyFilter = { administrativeBodyId: { in: administrativeBodyIds } };
     } else if (administrativeBodyTypes && administrativeBodyTypes.length > 0) {
@@ -130,11 +146,13 @@ function meetingListQuery(
         bodyFilter = meetingBodyTypeWhere(administrativeBodyTypes);
     }
 
+    // The visibility filter and the body filter can both be an OR, so they
+    // meet under AND rather than spread into one object.
     const where: Prisma.CouncilMeetingWhereInput = {
         cityId,
-        released: includeUnreleased ? undefined : true,
         ...(Object.keys(dateTimeFilter).length > 0 && { dateTime: dateTimeFilter }),
-        ...bodyFilter,
+        AND: [includeUnreleased ? {} : unreleasedMeetingWhere(unreleased), bodyFilter],
+        ...(takesPlace && TAKES_PLACE_WHERE),
     };
 
     return {

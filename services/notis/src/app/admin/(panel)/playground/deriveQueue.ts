@@ -1,11 +1,35 @@
+import { asMeetingKind, meetingTitle } from "@opencouncil/ui/lib/meeting-title";
+import { fmtNumericDate } from "../_lib/format";
 import { WakeRecord } from "./types";
 
 export interface MeetingSummary {
   id: string;
   cityId: string;
+  /** The label: «Δημοτικό Συμβούλιο · 3η Τακτική · 12/03/2026». */
   name: string;
+  /** The title alone: the override, or the one that the facts give. */
+  title?: string | null;
+  kind?: string | null;
+  sessionNumber?: number | null;
   dateTime: string;
   administrativeBody?: string | null;
+}
+
+/**
+ * The facts of a meeting as the poller carries them. list_meetings returns
+ * the title, not the override, so the title counts as an override only when
+ * the shared rule does not derive it. A server without `title` gives the
+ * label alone, as the stored name of a record from before the facts.
+ */
+function meetingFacts(m: MeetingSummary) {
+  if (m.title == null) return { meetingName: m.name };
+  const facts = { kind: asMeetingKind(m.kind), sessionNumber: m.sessionNumber ?? null };
+  const derived = meetingTitle({ override: null, ...facts }, "el", () => fmtNumericDate(m.dateTime)).text;
+  return {
+    meetingName: m.title === derived ? null : m.title,
+    meetingKind: m.kind ?? null,
+    sessionNumber: facts.sessionNumber,
+  };
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -48,7 +72,7 @@ export function deriveQueue(meetings: MeetingSummary[], from: string): WakeRecor
         at: summaryAt,
         cityId: m.cityId,
         meetingId: m.id,
-        meetingName: m.name,
+        ...meetingFacts(m),
         meetingDate: m.dateTime.slice(0, 10),
         adminBody: m.administrativeBody ?? null,
         brief: { pending: true as const },

@@ -740,7 +740,7 @@ GET subjects/_search
       "functions": [{ "script_score": { "script": {
         "source": "<Painless: adminWeight * discussionFactor * recencyFactor>",
         "params": {
-          "councilWeight": 1.15, "committeeWeight": 1.075, "communityWeight": 1.0,
+          "councilWeight": 1.15, "committeeWeight": 1.075, "communityWeight": 1.0, "youthCouncilWeight": 1.0,
           "defaultAdminBodyWeight": 1.0, "discussionWeight": 0.03,
           "recencyWeight": 0.1, "recencyScaleDays": 365, "nowMillis": 1787242196648
         }

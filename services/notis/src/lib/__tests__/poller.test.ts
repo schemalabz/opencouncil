@@ -153,13 +153,15 @@ function meetingRow(taskId: string, overrides: Row = {}): Row {
     completedAt: new Date(NOW.getTime() - 3_600_000),
     cityId: "athens",
     meetingId: "m1",
-    meetingName: "Δημοτικό Συμβούλιο",
+    meetingName: null,
     meetingDate: new Date("2026-08-17T18:00:00.000Z"),
     released: true,
-    adminBodyName: null,
+    adminBodyName: "Δημοτικό Συμβούλιο",
     realm: "greece",
     language: "el",
     timezone: "Europe/Athens",
+    meetingKind: "regular",
+    sessionNumber: 3,
     ...overrides,
   };
 }
@@ -891,6 +893,44 @@ describe("meeting events", () => {
     expect(processedFor(db, "athens", "m1", "summarize")).toMatchObject({ briefCostUsd: 0.07 });
     const row = [...db.store.queue.values()][0];
     expect((row.events as Array<{ type: string }>)[0].type).toBe("meeting_summarized");
+  });
+
+  it("carries the override, the kind and the number into the ledger and the wake event", async () => {
+    // The view gives the facts, not a title: Notis derives the title itself.
+    const db = seededDb();
+    const main = makeFakeMain({
+      users: [{ id: "user1", name: "Μαρία", phone: "+306900000001" }],
+      targets: [target("user1", "athens")],
+      events: [
+        meetingRow("task-derived", { meetingId: "m-derived" }),
+        meetingRow("task-named", {
+          meetingId: "m-named",
+          meetingName: "Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26",
+          meetingKind: null,
+          sessionNumber: null,
+        }),
+      ],
+    });
+
+    await runPollerTick({ db, main, bird: new FakeBird(), alert: async () => {}, now, editorial: editorialOk });
+
+    expect(processedFor(db, "athens", "m-derived", "summarize")).toMatchObject({
+      meetingName: null,
+      meetingKind: "regular",
+      sessionNumber: 3,
+    });
+    expect(processedFor(db, "athens", "m-named", "summarize")).toMatchObject({
+      meetingName: "Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26",
+      meetingKind: null,
+      sessionNumber: null,
+    });
+    const events = [...db.store.queue.values()].flatMap((r) => r.events as Array<Record<string, unknown>>);
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ meetingId: "m-derived", meetingName: null, meetingKind: "regular", sessionNumber: 3 }),
+        expect.objectContaining({ meetingId: "m-named", meetingName: "Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26", meetingKind: null }),
+      ]),
+    );
   });
 
   it("unreleased events are skipped AND not recorded — a later release fires naturally", async () => {

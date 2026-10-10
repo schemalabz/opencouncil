@@ -113,6 +113,37 @@ enum AdministrativeBodyType {
   council      // Συμβούλιο (π.χ. Δημοτικό Συμβούλιο)
   committee    // Επιτροπή (π.χ. Δημοτική Επιτροπή)
   community    // Κοινότητα (π.χ. 5η Δημοτική Κοινότητα)
+  /// Δημοτικό Συμβούλιο Νέων. The one secondary-tier type: its content stays out
+  /// of every default scope (see bodyTier in src/lib/utils/administrativeBodies.ts).
+  youthCouncil
+}
+
+/// Whether the announced meeting is still expected. Whether it was held stays
+/// derived from what the record holds (lib/meetingStage.ts).
+enum MeetingScheduleStatus {
+  scheduled
+  postponed
+  cancelled
+}
+
+/// The kind of meeting that the invitation names. A null kind means that the
+/// record states no single kind: its invitation is not read yet, it holds
+/// several meetings (its name override says which), or the meeting is none of
+/// these kinds, such as the financial accounts. See MEETING_KINDS.
+enum MeetingKind {
+  regular            // Τακτική
+  urgent             // Έκτακτη (the law says κατεπείγουσα)
+  accountability     // Ειδική Συνεδρίαση Λογοδοσίας, council only
+  activityReport     // Ειδική Συνεδρίαση Απολογισμού Πεπραγμένων, council only
+  budget             // Ειδική Συνεδρίαση Προϋπολογισμού, council only
+  presidencyElection // Ειδική Συνεδρίαση Εκλογής Προεδρείου, council only
+}
+
+enum MeetingFormat {
+  inPerson
+  remote
+  hybrid
+  byCirculation
 }
 
 enum NotificationBehavior {
@@ -136,6 +167,7 @@ model AdministrativeBody {
   /// Shape: DecisionConventions in src/lib/decisionConventions.ts. Written by the import of
   /// fixtures/body-conventions.json or by a person in admin; read by extraction and by the minutes.
   decisionConventions Json?
+  place     String?  // the hall the body sits in as a rule; a meeting's own place overrides it
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -144,6 +176,7 @@ model AdministrativeBody {
   meetings  CouncilMeeting[]
 
   roles Role[]
+  administrators Administers[]
 
   @@index([cityId])
 }
@@ -209,8 +242,8 @@ model Person {
 
 model CouncilMeeting {
   id        String   @default(cuid())
-  name      String
-  name_en   String
+  name      String?  // the override only; null means the name is derived (lib/meetingName.ts)
+  name_en   String?
   dateTime  DateTime
   youtubeUrl String?
   agendaUrl String?
@@ -224,6 +257,39 @@ model CouncilMeeting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   released  Boolean  @default(false)
+
+  scheduleStatus       MeetingScheduleStatus @default(scheduled)
+  scheduleStatusReason String?
+  kind                 MeetingKind?
+  // The official number, as the municipality prints it. Not unique: a
+  // cancelled meeting keeps its number, and the new meeting after a
+  // postponement reuses it.
+  sessionNumber        Int?
+  // Null: nobody has stated the format, and nobody has read it from the
+  // invitation yet.
+  format               MeetingFormat?
+  closedToPublic       Boolean @default(false)
+  // The body states that no recording of the meeting exists: the page
+  // promises no video and no transcript. A body that records only some of
+  // its meetings sets it (#829). It differs from closedToPublic: the public
+  // was there, nobody filmed.
+  noRecording          Boolean @default(false)
+  place                String? // overrides administrativeBody.place
+
+  // "A was postponed to B", "B was postponed from A". One new meeting for each
+  // postponed meeting. The composite key keeps both ends in one city.
+  postponedFromId String?
+  postponedFrom   CouncilMeeting? @relation("Postponement", fields: [cityId, postponedFromId], references: [cityId, id], onDelete: NoAction, onUpdate: NoAction)
+  postponedTo     CouncilMeeting? @relation("Postponement")
+  // The release of a later meeting of the chain unreleased this meeting. Only
+  // such a meeting becomes public again when the later meeting stops being
+  // public: a postponed draft stays a draft.
+  hiddenByPostponement Boolean @default(false)
+
+  // A later day of the same meeting points to its first part.
+  continuationOfId String?
+  continuationOf   CouncilMeeting?  @relation("Continuation", fields: [cityId, continuationOfId], references: [cityId, id], onDelete: NoAction, onUpdate: NoAction)
+  continuations    CouncilMeeting[] @relation("Continuation")
 
   city   City   @relation(fields: [cityId], references: [id], onDelete: Cascade)
   cityId String
@@ -244,6 +310,8 @@ model CouncilMeeting {
   @@id([cityId, id])
   @@unique([cityId, id])
 
+  @@unique([cityId, postponedFromId])
+  @@index([cityId, continuationOfId])
   @@index([dateTime])
   @@index([released])
   @@index([administrativeBodyId])
@@ -1171,10 +1239,14 @@ model Administers {
   cityId    String?
   partyId   String?
   personId  String?
+  /// An admin of one administrative body: its meetings, its members and its
+  /// own contact settings, and nothing else in the city (#828).
+  administrativeBodyId String?
   
   city      City?    @relation(fields: [cityId], references: [id], onDelete: Cascade)
   party     Party?   @relation(fields: [partyId], references: [id], onDelete: Cascade)
   person    Person?  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  administrativeBody AdministrativeBody? @relation(fields: [administrativeBodyId], references: [id], onDelete: Cascade)
 
   /// Set only by claimPerson, when the person scans their own QR code. It
   /// says "this account is this person", where a row without it says only
@@ -1186,7 +1258,7 @@ model Administers {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, cityId, partyId, personId])
+  @@unique([userId, cityId, partyId, personId, administrativeBodyId])
 }
 
 model ServiceApiKey {

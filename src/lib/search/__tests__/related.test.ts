@@ -6,8 +6,9 @@ jest.mock('@/env.mjs', () => ({ env: { ELASTICSEARCH_INDEX: 'test-index' } }));
 import { buildRelatedSubjectsQuery, RELATED_MIN_SIMILARITY, RELATED_SUBJECTS_SIZE } from '../related';
 import { subjectVisibilityFilters } from '../query';
 
-const SEED = { id: 'subject-1', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1' };
+const SEED = { id: 'subject-1', name: 'Κυκλοφοριακές ρυθμίσεις', cityId: 'athens', councilMeetingId: 'meeting-1', administrativeBodyType: 'council' as const };
 const REALM_CITIES = ['athens', 'chania', 'argos'];
+const NO_SECONDARY = { bool: { must_not: [{ terms: { administrative_body_type: ['youthCouncil'] } }] } };
 
 function boolOf(query: estypes.SearchRequest): estypes.QueryDslBoolQuery {
     return query.query?.bool as estypes.QueryDslBoolQuery;
@@ -79,5 +80,24 @@ describe('buildRelatedSubjectsQuery', () => {
     it('keeps an empty city filter rather than dropping it, so no scope can reach another realm', () => {
         expect(cityTerms(buildRelatedSubjectsQuery(SEED, 'other', ['athens']))).toEqual([]);
         expect(cityTerms(buildRelatedSubjectsQuery(SEED, 'city', ['chania']))).toEqual([]);
+    });
+
+    // The tier rule of #829: a municipal subject never leads to a secondary
+    // body's, and a meeting with no body is the council's.
+    it('keeps a municipal subject away from the secondary tier in both scopes', () => {
+        for (const scope of ['city', 'other'] as const) {
+            expect(boolOf(buildRelatedSubjectsQuery(SEED, scope, REALM_CITIES)).filter).toContainEqual(NO_SECONDARY);
+            expect(boolOf(buildRelatedSubjectsQuery({ ...SEED, administrativeBodyType: null }, scope, REALM_CITIES)).filter).toContainEqual(NO_SECONDARY);
+        }
+    });
+
+    it('relates a secondary body\'s subject to its whole municipality, and to the same kind of body elsewhere', () => {
+        const seed = { ...SEED, administrativeBodyType: 'youthCouncil' as const };
+        const cityFilters = boolOf(buildRelatedSubjectsQuery(seed, 'city', REALM_CITIES)).filter as QueryContainer[];
+        expect(cityFilters.some(f => f.bool || (f.term && 'administrative_body_type' in f.term))).toBe(false);
+
+        const otherFilters = boolOf(buildRelatedSubjectsQuery(seed, 'other', REALM_CITIES)).filter as QueryContainer[];
+        expect(otherFilters).toContainEqual({ term: { administrative_body_type: 'youthCouncil' } });
+        expect(otherFilters).not.toContainEqual(NO_SECONDARY);
     });
 });

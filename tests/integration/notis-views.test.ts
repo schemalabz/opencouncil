@@ -26,6 +26,15 @@ const MIGRATION_PATHS = [
     '20260913120200_unique_user_phone',
 ].map((name) => path.join(__dirname, `../../prisma/migrations/${name}/migration.sql`))
 
+const TITLE_MIGRATION_PATH = path.join(
+    __dirname,
+    '../../prisma/migrations/20261010120100_meeting_title/migration.sql',
+)
+const DISABLED_BODIES_MIGRATION_PATH = path.join(
+    __dirname,
+    '../../prisma/migrations/20261011120000_notis_meeting_events_skip_disabled_bodies/migration.sql',
+)
+
 /** The consumer's half of the contract: the Prisma models Notis reads the
  *  views through. Kept in a separate file from the SQL that defines them,
  *  which is exactly why the drift below is worth a test. */
@@ -71,6 +80,18 @@ async function applyNotisMigration() {
         for (const statement of splitSqlStatements(sql)) {
             await prisma.$executeRawUnsafe(statement)
         }
+    }
+    // The title migration redefines notis_meeting_events. The rest of that
+    // migration changes columns that `db push` already made, so only the view
+    // is replayed.
+    for (const statement of splitSqlStatements(fs.readFileSync(TITLE_MIGRATION_PATH, 'utf8'))) {
+        if (statement.includes('CREATE OR REPLACE VIEW "notis_meeting_events"')) {
+            await prisma.$executeRawUnsafe(statement)
+        }
+    }
+    // The disabled-bodies migration (#829) keeps that SELECT list and adds a WHERE condition.
+    for (const statement of splitSqlStatements(fs.readFileSync(DISABLED_BODIES_MIGRATION_PATH, 'utf8'))) {
+        await prisma.$executeRawUnsafe(statement)
     }
 }
 
@@ -195,11 +216,26 @@ describe('notis views migration', () => {
             type: 'summarize',
             status: 'succeeded',
         })
+        // A body with its notifications off never reaches Notis (#829): its
+        // meeting's events stay out of the view, released or not.
+        const silentBody = await createAdministrativeBody(city.id, {
+            name: 'Youth council',
+            name_en: 'Youth council',
+            type: 'youthCouncil',
+            notificationBehavior: 'NOTIFICATIONS_DISABLED',
+        })
+        const silent = await createMeeting(city.id, {
+            id: 'nv_meeting_silent',
+            administrativeBodyId: silentBody.id,
+            released: true,
+        })
+        const silentTask = await createTaskStatus(silent.id, city.id, { type: 'summarize', status: 'succeeded' })
 
         const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
             'SELECT * FROM notis_meeting_events',
         )
         expect(rows).toHaveLength(2)
+        expect(rows.find((r) => r.taskId === silentTask.id)).toBeUndefined()
         const row = rows.find((r) => r.taskId === succeeded.id)!
         const hidden = rows.find((r) => r.taskId === unreleasedTask.id)!
         expect(hidden.released).toBe(false)
@@ -209,6 +245,43 @@ describe('notis views migration', () => {
         expect(row.released).toBe(true)
         expect(row.adminBodyName).toEqual(expect.any(String))
         expect(row.realm).toBe('greece')
+    })
+
+    test('notis_meeting_events carries the override, the kind and the number of a meeting', async () => {
+        const city = await createCity({ id: 'nv_city' })
+        const body = await createAdministrativeBody(city.id, { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' })
+        const derived = await createMeeting(city.id, {
+            id: 'nv_derived',
+            name: null,
+            name_en: null,
+            kind: 'accountability',
+            sessionNumber: 4,
+            dateTime: new Date('2026-06-25T22:30:00Z'),
+            administrativeBodyId: body.id,
+            released: true,
+        })
+        const overridden = await createMeeting(city.id, {
+            id: 'nv_override',
+            name: 'Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26',
+            kind: null,
+            sessionNumber: null,
+            administrativeBodyId: body.id,
+            released: true,
+        })
+        const derivedTask = await createTaskStatus(derived.id, city.id, { type: 'summarize', status: 'succeeded' })
+        const overrideTask = await createTaskStatus(overridden.id, city.id, { type: 'summarize', status: 'succeeded' })
+
+        const rows = await prisma.$queryRawUnsafe<
+            Array<{ taskId: string; meetingName: string | null; meetingKind: string | null; sessionNumber: number | null }>
+        >('SELECT "taskId", "meetingName", "meetingKind", "sessionNumber" FROM notis_meeting_events')
+        const byTask = new Map(rows.map(({ taskId, ...facts }) => [taskId, facts]))
+        // Notis derives the title from these facts with the shared code.
+        expect(byTask.get(derivedTask.id)).toEqual({ meetingName: null, meetingKind: 'accountability', sessionNumber: 4 })
+        expect(byTask.get(overrideTask.id)).toEqual({
+            meetingName: 'Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26',
+            meetingKind: null,
+            sessionNumber: null,
+        })
     })
 
     test('notis_admin_sessions exposes hashed superadmin sessions only', async () => {

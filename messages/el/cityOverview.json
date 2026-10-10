@@ -66,6 +66,7 @@
   "notisExampleLabel": "παράδειγμα",
   "scopeCommittee": "ΔΕ",
   "scopeCommunity": "ΔΚ",
+  "scopeYouthCouncil": "ΔΣΝ",
   "period3m": "3 μήνες",
   "period6m": "6 μήνες",
   "period12m": "12 μήνες",
@@ -77,7 +78,9 @@
   "scopeCouncilFull": "Δημοτικό Συμβούλιο",
   "scopeCommitteeFull": "Δημοτική Επιτροπή",
   "scopeCommunityFull": "Δημοτικές Κοινότητες",
+  "scopeYouthCouncilFull": "Δημοτικό Συμβούλιο Νέων",
   "scopeAllFull": "Όλα τα όργανα",
+  "allMeetingsOfBody": "Όλες οι συνεδριάσεις",
   "petitionTeaser": {
     "municipality": "Θέλεις το OpenCouncil στον δήμο σου;",
     "region": "Θέλεις το OpenCouncil στην περιφέρειά σου;"

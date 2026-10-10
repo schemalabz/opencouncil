@@ -64,6 +64,7 @@ const OUT_OF_AGENDA_SUBJECT = {
     withdrawn: false,
     cityId: CITY_ID,
     councilMeetingId: MEETING_ID,
+    councilMeeting: { administrativeBody: { type: 'committee' } },
 };
 
 function meetingWith(subjects: Array<Record<string, unknown>>) {
@@ -72,7 +73,7 @@ function meetingWith(subjects: Array<Record<string, unknown>>) {
         cityId: CITY_ID,
         dateTime: new Date('2026-09-16T18:00:00Z'),
         city: { diavgeiaUid: 'uid-1', timezone: 'Europe/Athens' },
-        administrativeBody: { id: 'body-1', name: 'Δημοτική Επιτροπή', diavgeiaUnitIds: [] },
+        administrativeBody: { id: 'body-1', name: 'Δημοτική Επιτροπή', type: 'committee', diavgeiaUnitIds: [] },
         subjects: subjects.map(s => ({ ...s, discussedIn: null, decision: null })),
     };
 }
@@ -110,7 +111,23 @@ describe('requestPollDecisionForSubject', () => {
         await requestPollDecisionForSubject('subject-1');
 
         const { select } = mockSubjectFindUnique.mock.calls[0][0];
-        expect(select).toMatchObject({ agendaItemIndex: true, nonAgendaReason: true, withdrawn: true });
+        expect(select).toMatchObject({
+            agendaItemIndex: true, nonAgendaReason: true, withdrawn: true,
+            councilMeeting: { select: { administrativeBody: { select: { type: true } } } },
+        });
+    });
+
+    // A secondary body publishes no decisions (#829). The refusal happens before
+    // any task row is read or written, so the button cannot start a poll.
+    it('refuses a subject of a secondary body before it looks for a running task', async () => {
+        mockSubjectFindUnique.mockResolvedValue({
+            ...OUT_OF_AGENDA_SUBJECT,
+            councilMeeting: { administrativeBody: { type: 'youthCouncil' } },
+        });
+
+        await expect(requestPollDecisionForSubject('subject-1')).rejects.toThrow('not polled for this administrative body');
+        expect(mockTaskStatusFindFirst).not.toHaveBeenCalled();
+        expect(mockStartTask).not.toHaveBeenCalled();
     });
 
     it('refuses a withdrawn out-of-agenda subject, which the body rejected as urgent', async () => {

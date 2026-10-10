@@ -2,6 +2,7 @@
 // caller authorizes first — the populate API route and the MCP admin tools do.
 import "server-only";
 import { AdministrativeBodyType } from '@prisma/client';
+import { defaultNotificationBehavior } from '@/lib/utils/bodyTier';
 import prisma from './prisma';
 import { canUseCityCreator, getCity } from './cities';
 import { BadRequestError, NotFoundError } from '@/lib/api/errors';
@@ -59,6 +60,7 @@ export async function populateCity(cityId: string, validatedData: CityPopulation
                         name: adminBody.name,
                         name_en: adminBody.name_en,
                         type: adminBody.type as AdministrativeBodyType,
+                        notificationBehavior: defaultNotificationBehavior(adminBody.type as AdministrativeBodyType),
                         cityId: cityId,
                     },
                 })

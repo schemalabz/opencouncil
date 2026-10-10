@@ -38,3 +38,99 @@ then they are "onboarded", but /profile still lets them edit these things.
 
 
 Importantly, src/lib/auth.js needs to be updated!
+## Admins of one administrative body (#828)
+
+`Administers` has a fourth scope: `administrativeBodyId`. A body admin runs one
+body. An example is the secretary of a youth council. A body admin manages the
+meetings and the members of that body. They manage nothing else in the city.
+
+### The scopes of the check
+
+The check in `src/lib/auth.ts` accepts these shapes:
+
+- `{}`: a superadmin only.
+- `{ cityId }`: an admin of the city. A body admin never passes this shape. A
+  mutation that nobody converts therefore stays closed to them.
+- `{ cityId, councilMeetingId }`: an admin of the city, or an admin of the body
+  that holds the meeting.
+- `{ cityId, administrativeBodyId }`: an admin of the city, or an admin of that
+  body. The body must belong to the city.
+- `{ partyId }`: an admin of the party, or an admin of its city.
+- `{ personId }`: an admin of the person, an admin of its city, or a body admin
+  who owns the person.
+
+A body admin owns a person when two conditions are true:
+
+- The person has at least one role.
+- Every role of the person is on a body that the admin holds.
+
+### What a body admin can do
+
+A body admin can do these things for the meetings of their bodies:
+
+- Create, edit and release a meeting.
+- Upload the recording and the agenda.
+- Start the tasks `processAgenda`, `transcribe`, `fixTranscript`, `summarize`
+  and `generateHighlight`.
+- Replay or delete the rows of those five tasks. `taskScope` in
+  `src/lib/tasks/types.ts` sets this rule.
+- Edit the transcript and the speakers.
+- Make highlights.
+- See the unreleased meetings. `getUnreleasedScope` sets this rule.
+- Move a meeting between two bodies that they administer.
+
+A body admin can also do these things:
+
+- Add and edit the members of their bodies. Every role in the payload must be
+  on a body that they hold. `getRoleLimitForCity` and
+  `validateRolesForBodyAdmin` apply this rule.
+- Run the roster tools of their bodies (#829): import a pasted list of
+  members, end a membership, start a new term, and make the claim links of the
+  members who have no account. `src/lib/db/bodyMembers.ts` gates each one on
+  the body. An import with no start date starts the memberships where the
+  last membership of the body ended, so the members of a new term stay out of
+  the minutes of the old term. A claim link claims the whole person, so it
+  goes only to a member whose every role is on the body. A member with a seat
+  elsewhere in the municipality gets their link from the city admin.
+
+A person whose every role is on a secondary body consents to a voiceprint from
+their own account only (#829). `voiceprintNeedsOwnConsent` in
+`src/lib/utils/bodyTier.ts` names the rule. A superadmin cannot record a
+consent for them, and no voiceprint task starts for them without that consent.
+The consent counts only from the account that claimed their page: a delegate
+that a superadmin added cannot give it, and a consent from any other account
+does not start a voiceprint. The same account alone adds their photo.
+`withPersonImageAuthorized` in `src/lib/db/personImage.ts` refuses a photo from
+any other account, and the member form of a secondary body offers no photo
+field.
+- Change the YouTube channel and the contact emails of their body.
+- Invite and remove the admins of their body through
+  `/api/cities/{cityId}/administrative-bodies/{bodyId}/admins`.
+
+The page of the body, at `/{cityId}/bodies/{bodyId}`, holds these forms: the
+meeting form, the member form, the contact settings and the list of admins.
+The profile of a body admin links to it.
+
+A body has a maximum of 20 admins. Only a city admin or a superadmin can remove
+the last admin of a body.
+
+### What stays with the city
+
+A body admin cannot do these things:
+
+- Open the city form.
+- Move a meeting to a body that they do not administer.
+- Delete a meeting.
+- Complete a human review.
+- Send the transcript.
+- Send notifications.
+- Poll decisions.
+- Run or delete voiceprint tasks.
+- Edit parties.
+- Edit a person who has a role outside the bodies of the admin.
+
+A person who claimed their own page edits their name and photo only. Their form
+sends no roles.
+
+The MCP admin tools `create_meeting`, `update_meeting` and `start_task` apply
+the same scopes.

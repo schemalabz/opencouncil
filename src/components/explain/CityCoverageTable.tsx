@@ -7,6 +7,7 @@ const TYPE_LABEL: Record<AdministrativeBodyType, string> = {
     council: "Δημοτικά Συμβούλια",
     committee: "Δημοτικές Επιτροπές",
     community: "Δημοτικές Κοινότητες",
+    youthCouncil: "Δημοτικά Συμβούλια Νέων",
 };
 
 /** "Έως" is always the present. */

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { editAdministrativeBody, deleteAdministrativeBody } from '@/lib/db/administrativeBodies';
+import { editAdministrativeBody, editAdministrativeBodyContacts, deleteAdministrativeBody, getBodyPageRow } from '@/lib/db/administrativeBodies';
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
+import { getCityRealm } from '@/lib/db/cityRealm';
+import { cityListTags, upcomingMeetingsTag } from '@/lib/db/meetings';
+import { landingSubjectsTag } from '@/lib/db/subject';
 import { rederiveMeetingsOfBody } from '@/lib/derivation/rederive';
 import { z } from 'zod';
-import { withUserAuthorizedToEdit } from '@/lib/auth';
-import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
+import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
+import { ApiError } from '@/lib/api/errors';
+import { administrativeBodySchema, administrativeBodyContactsSchema } from '@/lib/zod-schemas/administrativeBody';
 
 
 export async function PUT(
@@ -14,8 +18,19 @@ export async function PUT(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId });
         const body = await request.json();
+
+        // An admin of the body, not of the city, changes the YouTube channel
+        // and the contact emails and nothing else (#828). The page of the body
+        // sends those two fields alone, for an admin of the city as well.
+        const contactsOnly = body && typeof body === 'object' && !('name' in body) && !body.confirmConventions;
+        if (contactsOnly || !(await isUserAuthorizedToEdit({ cityId: params.cityId }))) {
+            await withUserAuthorizedToEdit({ cityId: params.cityId, administrativeBodyId: params.bodyId });
+            const { youtubeChannelUrl, contactEmails } = administrativeBodyContactsSchema.parse(body);
+            const updatedBody = await editAdministrativeBodyContacts(params.bodyId, { youtubeChannelUrl, contactEmails });
+            revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
+            return NextResponse.json(updatedBody);
+        }
 
         // Confirming the conventions is its own write: it carries only the
         // conventions, and the writer parses them and stamps who confirmed them.
@@ -30,8 +45,9 @@ export async function PUT(
         }
 
         const parsed = administrativeBodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
 
+        const previous = await getBodyPageRow(params.cityId, params.bodyId);
         const updatedBody = await editAdministrativeBody(params.bodyId, {
             name,
             name_en,
@@ -41,15 +57,30 @@ export async function PUT(
             notificationBehavior: notificationBehavior,
             ...(showUnreviewedTranscript !== undefined && { showUnreviewedTranscript }),
             diavgeiaUnitIds: diavgeiaUnitIds || [],
+            place,
         });
 
         revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
         revalidatePath(`/${params.cityId}/people`);
+        // A new type can move the meetings of the body to the other tier
+        // (#829): every list that reads the tier learns it now, the city's
+        // route to the public lists with them.
+        if (previous && previous.type !== updatedBody.type) {
+            revalidateTag(`city:${params.cityId}:meetings`, 'max');
+            revalidatePath(`/${params.cityId}`, 'layout');
+            const realm = await getCityRealm(params.cityId);
+            if (realm) {
+                [...cityListTags(realm), landingSubjectsTag(realm), upcomingMeetingsTag(realm)].forEach(tag => revalidateTag(tag, 'max'));
+            }
+        }
 
         return NextResponse.json(updatedBody);
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: error.errors }, { status: 400 });
+        }
+        if (error instanceof ApiError) {
+            return NextResponse.json({ error: error.message }, { status: error.statusCode });
         }
         console.error('Failed to update administrative body:', error);
         return NextResponse.json(

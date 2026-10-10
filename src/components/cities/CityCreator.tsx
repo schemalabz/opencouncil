@@ -884,6 +884,7 @@ export default function CityCreator({ cityId, cityName, onSuccess, onCancel }: C
                                                 <SelectItem value="council">Council</SelectItem>
                                                 <SelectItem value="committee">Committee</SelectItem>
                                                 <SelectItem value="community">Community</SelectItem>
+                                                <SelectItem value="youthCouncil">Youth council</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>

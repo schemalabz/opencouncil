@@ -4,6 +4,7 @@ import { createNotificationsForMeeting } from '@/lib/db/notifications';
 import { releaseNotifications } from '@/lib/notifications/deliver';
 import { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } from '@/lib/discord';
 import prisma from '@/lib/db/prisma';
+import { meetingLabelInCity } from '@/lib/meetingName';
 
 export async function POST(
     request: NextRequest,
@@ -19,6 +20,22 @@ export async function POST(
         return NextResponse.json(
             { error: 'Valid type (beforeMeeting or afterMeeting) is required' },
             { status: 400 }
+        );
+    }
+
+    // The body's setting binds the manual path as it binds the automatic one:
+    // a body with its notifications off sends none, whoever asks.
+    const held = await prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId: params.cityId, id: params.meetingId } },
+        select: { administrativeBody: { select: { notificationBehavior: true } } },
+    });
+    if (!held) {
+        return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
+    }
+    if (held.administrativeBody?.notificationBehavior === 'NOTIFICATIONS_DISABLED') {
+        return NextResponse.json(
+            { error: 'Notifications are disabled for the administrative body of this meeting' },
+            { status: 409 }
         );
     }
 
@@ -53,7 +70,8 @@ export async function POST(
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId: params.cityId, id: params.meetingId } },
         include: {
-            city: true
+            city: true,
+            administrativeBody: true,
         }
     });
 
@@ -61,7 +79,7 @@ export async function POST(
     if (stats.notificationsCreated > 0 && meeting) {
         sendNotificationsCreatedAdminAlert({
             cityName: meeting.city.name_en,
-            meetingName: meeting.name,
+            meetingName: meetingLabelInCity(meeting, 'el'),
             notificationType: type,
             notificationsCreated: stats.notificationsCreated,
             subjectsTotal: stats.subjectsTotal,
@@ -83,7 +101,7 @@ export async function POST(
             cityId: params.cityId,
             meetingId: params.meetingId,
             cityName: meeting?.city.name_en ?? params.cityId,
-            meetingName: meeting?.name ?? params.meetingId,
+            meetingName: meeting ? meetingLabelInCity(meeting, 'el') : params.meetingId,
             notificationCount: stats.notificationsCreated,
             emailsSent: releaseResult.emailsSent,
             failed: releaseResult.failed,

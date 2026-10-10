@@ -10,14 +10,17 @@ import { CouncilMeetingWithSubjectPreview } from '@/lib/db/meetings';
 import { getAdministrativeBodyTypes, filterMeetingByAdminBodyTypes, getBodiesOfType } from '@/lib/utils/administrativeBodies';
 import type { PaginationParams, PublicAdministrativeBody } from '@/lib/db/types';
 import { AdminBodyPicker, type AdminBodyGroup } from '@/components/ui/admin-body-picker';
+import { SecondaryTierToggle } from '@/components/cities/SecondaryTierToggle';
 import { updateBodyFilterURL, resolveBodyFromURL } from '@/lib/utils/filterURL';
-import { getLocalizedName } from '@/lib/formatters/name';
+import { meetingLabel } from '@/lib/meetingName';
 
 type CityMeetingsProps = {
     councilMeetings: CouncilMeetingWithSubjectPreview[],
     cityId: string,
     timezone: string,
     canEdit: boolean,
+    /** The bodies a body admin may create meetings for; absent for a city admin. */
+    editableBodyIds?: string[],
     /**
      * Every body the city has released a meeting for — not only the bodies
      * inside the loaded window. The list is capped, so deriving the picker from
@@ -25,6 +28,12 @@ type CityMeetingsProps = {
      * empty state, and its meetings unreachable through the filter.
      */
     administrativeBodies: PublicAdministrativeBody[],
+    /**
+     * Whether the city has a secondary body to offer, and whether the page
+     * loaded that tier (#829). The toggle shows for the first; the rows and
+     * the picker already reflect the second.
+     */
+    secondaryTier?: { available: boolean; shown: boolean },
     /** Fixed by the server page, so a card's stage survives hydration. */
     now: Date,
     /** The row cap the page fetched with, so the count can name its window. */
@@ -36,7 +45,9 @@ export default function CityMeetings({
     cityId,
     timezone,
     canEdit,
+    editableBodyIds,
     administrativeBodies,
+    secondaryTier,
     now,
     cappedAt,
     pageSize
@@ -49,13 +60,13 @@ export default function CityMeetings({
     // The subject titles are already on the card's preview, and they are what a
     // reader remembers a meeting by far more often than its number.
     const searchKeys = useCallback((meeting: CouncilMeetingWithSubjectPreview) => [
-        meeting.name,
-        meeting.name_en,
-        getLocalizedName(meeting, locale),
+        meetingLabel(meeting, 'el', timezone),
+        meetingLabel(meeting, 'en', timezone),
+        meetingLabel(meeting, locale, timezone),
         meeting.administrativeBody?.name,
         meeting.administrativeBody?.name_en,
         ...meeting.subjects.map(subject => subject.name),
-    ], [locale]);
+    ], [locale, timezone]);
 
     const typeOptions = useMemo(() =>
         getAdministrativeBodyTypes(administrativeBodies, tCommon),
@@ -99,7 +110,7 @@ export default function CityMeetings({
             itemProps={{ cityTimezone: timezone, now }}
             cappedAt={cappedAt}
             FormComponent={AddMeetingForm}
-            formProps={{ cityId }}
+            formProps={{ cityId, allowedBodyIds: editableBodyIds }}
             t={t}
             filterAvailableValues={typeOptions}
             filter={(selectedValues, meeting) => {
@@ -119,15 +130,18 @@ export default function CityMeetings({
                     ? (bodyGroups.find(g => g.type === selectedType)?.bodies ?? [])
                     : [];
                 return (
-                    <AdminBodyPicker
-                        groups={bodyGroups}
-                        selectedType={selectedType}
-                        onTypeChange={(type) => onChange(type ? [type] : [])}
-                        selectedBodyId={resolveBodyFromURL(searchParams, subBodies)}
-                        onBodyChange={(bodyId) => updateBodyFilterURL(bodyId, subBodies, searchParams)}
-                        allTypesLabel={tCommon('allMeetings')}
-                        allBodiesLabel={tCommon('allBodies')}
-                    />
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <AdminBodyPicker
+                            groups={bodyGroups}
+                            selectedType={selectedType}
+                            onTypeChange={(type) => onChange(type ? [type] : [])}
+                            selectedBodyId={resolveBodyFromURL(searchParams, subBodies)}
+                            onBodyChange={(bodyId) => updateBodyFilterURL(bodyId, subBodies, searchParams)}
+                            allTypesLabel={tCommon('allMeetings')}
+                            allBodiesLabel={tCommon('allBodies')}
+                        />
+                        {secondaryTier?.available && <SecondaryTierToggle shown={secondaryTier.shown} />}
+                    </div>
                 );
             }}
             // A quiet filter over the loaded rows. The identity band's field is

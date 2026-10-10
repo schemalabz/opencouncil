@@ -6,7 +6,7 @@ import type { AdministrativeBodyType } from '@prisma/client';
  * what a value means or which one is the default.
  */
 
-export type HotScope = 'council' | 'committee' | 'community' | 'all';
+export type HotScope = 'council' | 'committee' | 'community' | 'youthCouncil' | 'all';
 export type HotPeriod = '3m' | '6m' | '12m' | 'all';
 
 export const HOT_SCOPES: Record<HotScope, {
@@ -14,7 +14,7 @@ export const HOT_SCOPES: Record<HotScope, {
     label: string;
     /** What the body is called, for the open menu where there is room to say it. */
     fullLabel: string;
-    /** Undefined means every body — the meetings query reads it as no filter. */
+    /** Undefined means every primary body — the meetings query's default (see bodyTier.ts). */
     types?: AdministrativeBodyType[];
     isDefault: boolean;
 }> = {
@@ -24,6 +24,7 @@ export const HOT_SCOPES: Record<HotScope, {
     council: { label: 'scopeCouncil', fullLabel: 'scopeCouncilFull', types: ['council'], isDefault: true },
     committee: { label: 'scopeCommittee', fullLabel: 'scopeCommitteeFull', types: ['committee'], isDefault: false },
     community: { label: 'scopeCommunity', fullLabel: 'scopeCommunityFull', types: ['community'], isDefault: false },
+    youthCouncil: { label: 'scopeYouthCouncil', fullLabel: 'scopeYouthCouncilFull', types: ['youthCouncil'], isDefault: false },
     all: { label: 'scopeAll', fullLabel: 'scopeAllFull', isDefault: false },
 };
 

@@ -1,3 +1,4 @@
+import { PUBLIC_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE } from '@/lib/cityStatus';
 import { getCities, filterCityIdsByRealm } from '../db/cities';
 import prisma from '../db/prisma';
 import * as auth from '../auth';
@@ -52,7 +53,7 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: {
-                    status: { in: ['demo', 'supported'] }
+                    ...PUBLIC_CITY_WHERE
                 }
             })
         );
@@ -69,7 +70,7 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: {
-                    status: { in: ['demo', 'supported'] }
+                    ...PUBLIC_CITY_WHERE
                 }
             })
         );
@@ -121,9 +122,9 @@ describe('getCities', () => {
             expect.objectContaining({
                 where: {
                     OR: [
-                        { status: { in: ['demo', 'supported'] } },
+                        PUBLIC_CITY_WHERE,
                         {
-                            status: 'pending',
+                            ...OUT_OF_NETWORK_CITY_WHERE,
                             id: { in: ['city2', 'city3'] }
                         }
                     ]
@@ -147,9 +148,9 @@ describe('getCities', () => {
             expect.objectContaining({
                 where: {
                     OR: [
-                        { status: { in: ['demo', 'supported'] } },
+                        PUBLIC_CITY_WHERE,
                         {
-                            status: 'pending',
+                            ...OUT_OF_NETWORK_CITY_WHERE,
                             id: { in: [] }
                         }
                     ]
@@ -176,9 +177,9 @@ describe('getCities', () => {
             expect.objectContaining({
                 where: {
                     OR: [
-                        { status: { in: ['demo', 'supported'] } },
+                        PUBLIC_CITY_WHERE,
                         {
-                            status: 'pending',
+                            ...OUT_OF_NETWORK_CITY_WHERE,
                             id: { in: [] }
                         }
                     ]
@@ -213,7 +214,7 @@ describe('getCities', () => {
         expect(prisma.city.findMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: {
-                    status: { in: ['demo', 'supported'] }
+                    ...PUBLIC_CITY_WHERE
                 }
             })
         );
