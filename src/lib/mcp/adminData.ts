@@ -27,7 +27,7 @@ import { mcpTaskSummary } from './taskSummary';
 import { requireCityBodies, requireRealmCity } from './realmGuards';
 import { currentBaseUrl, currentRealm } from './realm-context';
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
-import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
+import { getCityTimezone } from '@/lib/db/cityTimezone';
 
 /**
  * The write side of the MCP server for administrators: meetings and their
@@ -38,12 +38,6 @@ import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
  */
 
 const meetingUrl = (cityId: string, meetingId: string) => `${currentBaseUrl()}/${cityId}/${meetingId}`;
-
-/** The timezone that a derived meeting name prints its date in. */
-async function cityTimezone(cityId: string): Promise<string> {
-    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { timezone: true } });
-    return city?.timezone ?? DEFAULT_TIMEZONE;
-}
 
 // --- Meetings -------------------------------------------------------------
 
@@ -70,7 +64,7 @@ export async function mcpCreateMeeting(identity: McpIdentity, args: CreateMeetin
         ...pickRecordInput(args),
     });
 
-    const timezone = await cityTimezone(meeting.cityId);
+    const timezone = await getCityTimezone(meeting.cityId);
 
     return {
         id: meeting.id,
@@ -116,7 +110,7 @@ export async function mcpUpdateMeeting(identity: McpIdentity, args: UpdateMeetin
     }
 
     const meeting = await updateMeetingWithEffects(args.cityId, args.meetingId, edit);
-    const timezone = await cityTimezone(meeting.cityId);
+    const timezone = await getCityTimezone(meeting.cityId);
 
     return {
         id: meeting.id,

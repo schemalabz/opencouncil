@@ -2,8 +2,9 @@ import * as z from 'zod';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
 import { webUrl } from './primitives';
-import { isoDateOrDateTime } from './dates';
+import { ISO_DATE_OR_DATE_TIME_RULE, isoDateOrDateTime } from './dates';
 import { includeUnreleasedQuery } from './subject';
+import { DATE_BOUND_RULE, listQueryFields, MAX_LIST_LIMIT } from './listQuery';
 import { vmsg } from './messages';
 
 /** Free text that an empty string clears. */
@@ -19,6 +20,7 @@ const optionalText = (max: number) => z.string()
 // still sends: the request succeeds and writes no name.
 export const meetingSchema = z.object({
     date: isoDateOrDateTime({ error: vmsg('invalidDateTime') })
+        .meta({ description: `Date and time of the meeting. ${ISO_DATE_OR_DATE_TIME_RULE}`, example: '2026-10-05T18:00:00+03:00' })
         .transform((str) => new Date(str)),
     youtubeUrl: webUrl({
         error: vmsg('invalidYoutubeUrl'),
@@ -58,26 +60,18 @@ export const meetingSchema = z.object({
 
 /**
  * Query parameters of GET /meetings. The route parses `searchParams`, so
- * every field arrives as a string.
+ * every field arrives as a string. With no limit, the list has no page size.
  */
 export const meetingListQuerySchema = z.object({
-    limit: z.string()
-        .optional()
-        .transform((val) => val ? parseInt(val, 10) : undefined)
-        .refine((val) => val === undefined || (!isNaN(val) && val >= 1 && val <= 100), {
-            error: "Limit must be a number between 1 and 100"
-        })
-        .meta({ description: 'Maximum number of meetings to return (1-100)', example: '10' }),
-    from: z.string()
-        .optional()
-        .refine((val) => !val || !isNaN(new Date(val).getTime()), { error: "Invalid 'from' date" })
-        .transform((val) => val ? new Date(val) : undefined)
-        .meta({ description: 'Earliest meeting date and time, inclusive.', example: '2025-01-01' }),
-    to: z.string()
-        .optional()
-        .refine((val) => !val || !isNaN(new Date(val).getTime()), { error: "Invalid 'to' date" })
-        .transform((val) => val ? new Date(val) : undefined)
-        .meta({ description: 'Latest meeting date and time, inclusive.', example: '2025-12-31T23:59:59Z' }),
+    limit: listQueryFields.limit
+        .meta({ description: `Maximum number of meetings to return (1-${MAX_LIST_LIMIT})`, example: '10' }),
+    from: listQueryFields.from
+        .meta({ description: `Earliest meeting date and time, inclusive. ${DATE_BOUND_RULE}`, example: '2025-01-01' }),
+    to: listQueryFields.to
+        .meta({
+            description: `Latest meeting date and time, inclusive. ${DATE_BOUND_RULE}`,
+            example: '2025-12-31',
+        }),
     includeUnreleased: includeUnreleasedQuery,
 });
 

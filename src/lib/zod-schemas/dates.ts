@@ -14,10 +14,21 @@ const zonelessDateTime = z.iso.datetime({ local: true });
 export const isoUtcDateTime = () => z.union([z.iso.datetime(), z.iso.datetime({ precision: -1 })]);
 
 /**
- * An ISO 8601 calendar date (`2025-12-31`, a real day), or a date-time with a
- * zone: `Z` or an offset such as `+03:00`. Seconds are optional. A date-time
- * without a zone is refused, because the server would read it in its own
- * zone. `zoneless` also accepts a date-time without a zone, for a reader
+ * Whether a value is a real calendar day written as `2025-12-31`, with no time
+ * of day in it. `2026-02-31` has the shape but is not a day.
+ */
+export function isCalendarDay(value: string | null | undefined): value is string {
+    return calendarDay.safeParse(value).success;
+}
+
+/** The text of the rule below, for the OpenAPI description of each field that uses it. */
+export const ISO_DATE_OR_DATE_TIME_RULE = 'An ISO 8601 date (2026-04-15), or a date-time with a zone: '
+    + '`Z` or an offset such as `+03:00` (2026-04-15T18:00+03:00). Seconds are optional. '
+    + 'A date-time without a zone is refused, because the server would read it in its own zone.';
+
+/**
+ * An ISO 8601 calendar date or date-time, as ISO_DATE_OR_DATE_TIME_RULE
+ * states. `zoneless` also accepts a date-time without a zone, for a reader
  * that reads it in a fixed zone: Elasticsearch reads it as UTC.
  *
  * A union of zod's formats, so the JSON Schema of the API spec, the MCP tools
@@ -30,3 +41,10 @@ export const isoDateOrDateTime = (params?: { error?: string; zoneless?: boolean 
         : [calendarDay, zonedDateTime, zonedDateTimeToTheMinute],
     { error: params?.error },
 );
+
+const strictIsoDateOrDateTime = isoDateOrDateTime();
+
+/** Whether a value passes ISO_DATE_OR_DATE_TIME_RULE. */
+export function isIsoDateOrDateTime(value: string): boolean {
+    return strictIsoDateOrDateTime.safeParse(value).success;
+}

@@ -10,7 +10,7 @@ import SearchFilterSections from "./SearchFilterSections";
 import {
     DERIVED_FILTER_PARAM,
     DERIVED_FILTER_PARAMS,
-    filterDateRangeToInstants,
+    filterDateRange,
     formatFilterDate,
     hasActiveSearchFilters,
     parseDerivedKeys,
@@ -238,7 +238,7 @@ export default function SearchPage() {
         // empty the results with nothing on screen to explain why.
         const adminBodyTypeFilter = toAdministrativeBodyType(adminBodyType);
         const requestedCityIds = cityId ? [cityId] : undefined;
-        const requestedDateRange = filterDateRangeToInstants(dateFrom, dateTo);
+        const requestedDateRange = filterDateRange(dateFrom, dateTo);
         const searchedWith = (cityIds?: string[], dateRange?: { start: string; end: string }) =>
             JSON.stringify([query, cityIds, personId, partyId, adminBodyId, adminBodyTypeFilter, topicIds, dateRange, page]);
 
@@ -340,10 +340,10 @@ export default function SearchPage() {
             // follows the URL write can tell whether it would be asking the
             // same question.
             //
-            // A derived date usually means it would not. The model answers with
-            // a range of its own, while the URL carries a calendar day and
-            // reads back local day edges — rarely the same instants. The second
-            // search is the correction for that, not waste: recording the URL's
+            // A derived date can mean it would not. The model can answer with
+            // date-times, while the URL carries calendar days, so the two are
+            // not the same range. The second search is the correction for
+            // that, not waste: recording the URL's
             // interval here instead would suppress it and leave the results on
             // screen describing one period while the pill and the shareable
             // link claim another.

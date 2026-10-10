@@ -10,8 +10,9 @@ const OPEN_RANGE_START = '1970-01-01';
  *
  * A missing end is the caller's to choose, because the surfaces differ on
  * purpose: the map stops at the current moment, as its own endpoints do, and
- * the MCP tool includes the whole of today. Elasticsearch reads a date-only
- * end as the end of that day, so `2026-10-08` includes a meeting at 12:00Z.
+ * the MCP tool includes the whole of today. The search reads a date-only end
+ * as the end of that day in the city's zone (resolveSearchDayRange), so
+ * `2026-10-08` includes a meeting at 23:30 Athens time on that day.
  */
 export function openDateRange(
     from: string | null | undefined,

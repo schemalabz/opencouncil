@@ -6,6 +6,8 @@ import { calculateMeetingDurationMs } from '@/lib/db/utils/meetingDuration';
 import { renderReportDocx, ReportMeeting } from '@/lib/export/report-docx';
 import { getReportContract } from '@/lib/offers/state';
 import { meetingLabel } from '@/lib/meetingName';
+import { dayBounds } from '@/lib/dates/dayBounds';
+import { isCalendarDay } from '@/lib/zod-schemas/dates';
 
 export async function POST(request: NextRequest) {
     try {
@@ -27,8 +29,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid contract reference' }, { status: 400 });
         }
 
-        // Validate date strings parse correctly and are in order
-        if (isNaN(Date.parse(startDate)) || isNaN(Date.parse(endDate))) {
+        // The report covers whole days: the form sends YYYY-MM-DD.
+        if (!isCalendarDay(startDate) || !isCalendarDay(endDate)) {
             return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
         }
 
@@ -53,17 +55,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'No offer found for this city' }, { status: 404 });
         }
 
-        // Client sends date-only strings (YYYY-MM-DD) to avoid timezone issues.
-        // Construct UTC day boundaries for the query.
-        const startDateUTC = new Date(startDate + 'T00:00:00.000Z');
-        const endDateUTC = new Date(endDate + 'T23:59:59.999Z');
+        // The period label and the month count of the document read these in
+        // the server's zone, so they stay UTC days. The query reads the days
+        // in the city's zone, where a meeting at local midnight belongs.
+        const startDateUTC = dayBounds(startDate, 'UTC').start;
+        const endDateUTC = dayBounds(endDate, 'UTC').end;
 
         const meetings = await prisma.councilMeeting.findMany({
             where: {
                 cityId,
                 dateTime: {
-                    gte: startDateUTC,
-                    lte: endDateUTC,
+                    gte: dayBounds(startDate, city.timezone).start,
+                    lte: dayBounds(endDate, city.timezone).end,
                 },
             },
             include: {

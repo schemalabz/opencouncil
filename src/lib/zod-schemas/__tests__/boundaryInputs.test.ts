@@ -142,7 +142,9 @@ describe('dates sent as text', () => {
     });
 
     it.each(accepted)('the subject listing takes %s', (_, from) => {
-        expect(subjectListQuerySchema.parse({ from }).from).toEqual(new Date(from));
+        expect(subjectListQuerySchema.parse({ from }).from).toEqual(
+            from.includes('T') ? { kind: 'instant', at: new Date(from) } : { kind: 'day', day: from },
+        );
     });
     it.each(refused)('the subject listing refuses %s, with its message', (_, from) => {
         expect(subjectListQuerySchema.safeParse({ from }).error?.issues)

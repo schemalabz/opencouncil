@@ -6,6 +6,7 @@ import { openDateRange } from '@/lib/search/dateRange';
 import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
 import { getHotSubjectsNearPoint, withDistances } from '@/lib/hotSubjects';
 import { getCouncilMeetingsWithSubjectPreview } from '@/lib/db/meetingsList';
+import { resolveDateRange } from '@/lib/dates/dayBounds';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
 import {
@@ -36,7 +37,7 @@ import {
 import { isSuperIdentity, type McpIdentity } from './auth';
 import { isCustomer } from "@/lib/cityStatus";
 import { meetingDisplayName, meetingLabel, meetingLabelInCity } from '@/lib/meetingName';
-import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
+import { getCityTimezone } from '@/lib/db/cityTimezone';
 import { originalScheduledDate, originalScheduledDates } from '@/lib/db/meetingLifecycle';
 import { publicRecordFields } from '@/lib/meetingPublic';
 
@@ -166,12 +167,6 @@ const SCHEDULE_STATUS_NOTES = {
     postponed: 'This meeting was postponed: it did not take place on this date. The new meeting, once published, '
         + 'carries postponedFromDate.',
 } as const satisfies Record<MeetingScheduleStatus, string | null>;
-
-/** The timezone that a derived meeting name prints its date in. */
-async function cityTimezone(cityId: string): Promise<string> {
-    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { timezone: true } });
-    return city?.timezone ?? DEFAULT_TIMEZONE;
-}
 
 export async function mcpGetCity(cityId: string, identity: McpIdentity) {
     await requireRealmCity(cityId);
@@ -307,22 +302,23 @@ export async function mcpListMeetings(
     // subject's description and context to answer that. The projection counts
     // segments per listed meeting anyway, so hasTranscript reads that count
     // instead of the semi-join it used to run for itself.
+    // The tool takes calendar days, inclusive, as the REST list does.
+    const timezone = await getCityTimezone(cityId);
+    const { from, to } = resolveDateRange({
+        from: options.from ? { kind: 'day', day: options.from } : undefined,
+        to: options.to ? { kind: 'day', day: options.to } : undefined,
+    }, timezone);
     const meetings = await getCouncilMeetingsWithSubjectPreview(cityId, {
         includeUnreleased: await canSeeUnreleased(identity, cityId),
         page: options.page,
         pageSize: options.pageSize,
-        from: options.from ? new Date(`${options.from}T00:00:00.000Z`) : undefined,
-        // `to` is documented as inclusive, and the underlying filter is `lte`
-        // against a timestamp — so the bound has to be the end of that day.
-        // Parsed as a bare date it lands on midnight and drops every meeting
-        // held later that day.
-        to: options.to ? new Date(`${options.to}T23:59:59.999Z`) : undefined,
+        from,
+        to,
         timeFilter: options.timeFilter,
         administrativeBodyIds: options.administrativeBodyIds,
         administrativeBodyTypes: options.administrativeBodyTypes,
     });
 
-    const timezone = await cityTimezone(cityId);
     const postponedFromDates = await originalScheduledDates(cityId, meetings);
     return {
         meetings: meetings.map(meeting => ({
@@ -753,7 +749,7 @@ export async function mcpListNearbySubjects(args: {
         args.limit
     );
     const ranked = await withDistances(subjects, center);
-    const timezone = await cityTimezone(city.id);
+    const timezone = await getCityTimezone(city.id);
 
     return {
         cityId: city.id,

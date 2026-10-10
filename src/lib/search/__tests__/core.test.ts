@@ -25,6 +25,7 @@ jest.mock('@/lib/db/cities', () => ({
     getListedCitiesCached: jest.fn(),
     filterCityIdsByRealm: jest.fn(),
 }));
+jest.mock('@/lib/db/cityTimezone', () => ({ getCityTimezone: jest.fn() }));
 jest.mock('../filters', () => ({
     ...jest.requireActual('../filters'),
     extractFilters: jest.fn(),
@@ -47,6 +48,7 @@ import { extractFilters, processFilters, NO_EXTRACTED_FILTERS } from '../filters
 import { buildSearchQuery } from '../query';
 import { buildRelatedSubjectsQuery } from '../related';
 import { createCache } from '@/lib/cache/index';
+import { getCityTimezone } from '@/lib/db/cityTimezone';
 import { searchInRealm, searchSubjectsInRealm, searchRelatedSubjectsInRealm } from '../core';
 import type { SearchRequest } from '../types';
 
@@ -532,5 +534,38 @@ describe('searchRelatedSubjectsInRealm', () => {
         const results = await searchRelatedSubjectsInRealm(SEED, 'city', 'greece');
 
         expect(results.map(r => [r.id, r.score])).toEqual([['near', 0.95], ['far', 0.94]]);
+    });
+});
+
+describe('searchInRealm — calendar days of the date range', () => {
+    const getCityTimezoneMock = getCityTimezone as jest.MockedFunction<typeof getCityTimezone>;
+
+    it('reads the days in the zone of the one searched city', async () => {
+        getCityTimezoneMock.mockResolvedValue('Europe/Belgrade');
+
+        await searchInRealm({ cityIds: ['athens'], dateRange: { start: '2026-01-10', end: '2026-01-11' } }, 'greece');
+
+        expect(getCityTimezoneMock).toHaveBeenCalledWith('athens');
+        expect(requestSentToElasticsearch().dateRange)
+            .toEqual({ start: '2026-01-09T23:00:00.000Z', end: '2026-01-11T22:59:59.999Z' });
+    });
+
+    it('reads the days in DEFAULT_TIMEZONE for more than one city', async () => {
+        await searchInRealm({ query: 'πάρκα', dateRange: { start: '2026-01-10', end: '2026-01-11' } }, 'greece');
+
+        expect(getCityTimezoneMock).not.toHaveBeenCalled();
+        expect(requestSentToElasticsearch().dateRange)
+            .toEqual({ start: '2026-01-09T22:00:00.000Z', end: '2026-01-11T21:59:59.999Z' });
+    });
+
+    it('reads the days of a range that the query text supplied', async () => {
+        processFiltersMock.mockResolvedValue({
+            cityIds: undefined, dateRange: { start: '2025-01-01', end: '2025-12-31' }, locations: undefined,
+        });
+
+        await searchInRealm({ query: 'προϋπολογισμός πέρσι' }, 'greece');
+
+        expect(requestSentToElasticsearch().dateRange)
+            .toEqual({ start: '2024-12-31T22:00:00.000Z', end: '2025-12-31T21:59:59.999Z' });
     });
 });
