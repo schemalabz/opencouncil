@@ -38,6 +38,20 @@ describe("useLocationSearch", () => {
         await waitFor(() => expect(result.current.error).toEqual({ kind: "unavailable" }));
     });
 
+    it("drops a reply that arrives after the reader cleared the box", async () => {
+        let reply: (value: { data: typeof voutsina[] }) => void = () => undefined;
+        suggestions.mockReturnValue(new Promise(resolve => { reply = resolve; }));
+        const { result } = renderHook(() => useLocationSearch(city));
+
+        act(() => result.current.changeInput("Βουτσινά"));
+        await waitFor(() => expect(suggestions).toHaveBeenCalledTimes(1));
+        act(() => result.current.clear());
+        await act(async () => { reply({ data: [voutsina] }); });
+
+        expect(result.current.suggestions).toEqual([]);
+        expect(result.current.busy).toBe(false);
+    });
+
     it("resolves a suggestion to a point and clears the search", async () => {
         suggestions.mockResolvedValue({ data: [voutsina] });
         details.mockResolvedValue({ text: "Βουτσινά 41, Χολαργός 155 61", coordinates: [23.79, 37.99] });
