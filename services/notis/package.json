@@ -26,7 +26,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "recharts": "^3.10.1",
-    "zod": "^3.25.67"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

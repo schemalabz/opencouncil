@@ -69,7 +69,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
     const [editingRole, setEditingRole] = useState<RoleWithRelations | null>(null)
     const t = useTranslations('RolesList')
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: editingRole?.name || "",

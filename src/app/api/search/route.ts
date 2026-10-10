@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
                     error: {
                         code: 'INVALID_REQUEST',
                         message: 'Invalid request parameters',
-                        details: error.errors
+                        details: error.issues
                     }
                 },
                 { status: 400 }

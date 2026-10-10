@@ -38,10 +38,10 @@ import { useToast } from "@/hooks/use-toast"
 // The form has no name fields: the name of a meeting is derived (src/lib/meetingName.ts).
 const formSchema = z.object({
     date: z.date({
-        required_error: "Meeting date is required.",
+        error: "Meeting date is required.",
     }),
     time: z.string({
-        required_error: "Meeting time is required.",
+        error: "Meeting time is required.",
     }),
     youtubeUrl: z.string().url({
         message: "Invalid media URL.",
@@ -107,7 +107,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess }: Ad
     const t = useTranslations('AddMeetingForm')
     const greekCodeFacts = recordsGreekCodeFacts(realm)
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             date: meeting ? new Date(meeting.dateTime) : new Date(),

@@ -28,7 +28,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
         data = await parseFormData(await request.formData(), personFormDataSchema)
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 })
+            return NextResponse.json({ error: error.issues }, { status: 400 })
         }
         console.error('Error parsing form data:', error)
         return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 })

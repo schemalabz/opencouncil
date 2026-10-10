@@ -15,7 +15,7 @@ const getCitiesQuerySchema = z.object({
     includeUnlisted: z.string()
         .optional()
         .transform((val) => val === 'true')
-        .default('false')
+        .default(false)
 });
 
 export async function GET(req: NextRequest) {
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
         // Preserve the legacy `{ error: ZodIssue[] }` shape for ZodError specifically;
         // every other error goes through the standard handler.
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
+            return NextResponse.json({ error: error.issues }, { status: 400 });
         }
         return handleApiError(error, 'An unexpected error occurred');
     }
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json(
-                { error: error.errors },
+                { error: error.issues },
                 { status: 400 }
             );
         }

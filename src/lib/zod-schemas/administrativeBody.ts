@@ -72,3 +72,4 @@ export const administrativeBodyFormSchema = z.object({
 });
 
 export type AdministrativeBodyFormValues = z.infer<typeof administrativeBodyFormSchema>;
+export type AdministrativeBodyFormInput = z.input<typeof administrativeBodyFormSchema>;

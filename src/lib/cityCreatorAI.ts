@@ -33,7 +33,7 @@ function isEditableFieldIssue(issue: z.ZodIssue): boolean {
     return issue.path.length === 3
         && (list === 'parties' || list === 'people' || list === 'administrativeBodies')
         && typeof field === 'string' && EDITABLE_FIELDS.has(field)
-        && (issue.code === z.ZodIssueCode.too_small || issue.code === z.ZodIssueCode.invalid_string);
+        && (issue.code === 'too_small' || issue.code === 'invalid_format');
 }
 
 export async function generateCityDataWithAI(

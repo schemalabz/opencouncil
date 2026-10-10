@@ -56,10 +56,10 @@ const formSchema = z.object({
     }),
     type: z.string().default("pilot"),
     startDate: z.date({
-        required_error: "Start date is required.",
+        error: "Start date is required.",
     }),
     endDate: z.date({
-        required_error: "End date is required.",
+        error: "End date is required.",
     }),
     respondToName: z.string().min(2, {
         message: "Respond to name must be at least 2 characters.",
@@ -210,7 +210,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
     const freshEnd = endDateForTerm(freshStart)
 
     const contact = sessionContactValues(session)
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             ...EMPTY_OFFER_DEFAULTS,
@@ -276,7 +276,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
         ingestionPerHourPrice: watchedValues.ingestionPerHourPrice,
         hoursToIngest: watchedValues.hoursToIngest,
         discountPercentage: watchedValues.discountPercentage,
-        correctnessGuarantee: watchedValues.correctnessGuarantee,
+        correctnessGuarantee: watchedValues.correctnessGuarantee ?? false,
         version: offerVersion,
         hoursToGuarantee: watchedValues.hoursToGuarantee ?? null,
         meetingsToIngest: watchedValues.meetingsToIngest ?? null,

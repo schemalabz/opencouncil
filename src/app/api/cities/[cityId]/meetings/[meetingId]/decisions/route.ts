@@ -58,7 +58,7 @@ export async function PUT(
     const body = await request.json().catch(() => null);
     const result = upsertSchema.safeParse(body);
     if (!result.success) {
-        return NextResponse.json({ error: 'Invalid decision', details: result.error.errors }, { status: 400 });
+        return NextResponse.json({ error: 'Invalid decision', details: result.error.issues }, { status: 400 });
     }
     const parsed = result.data;
 
@@ -171,7 +171,7 @@ export async function POST(
     const parsed = postSchema.safeParse(body);
 
     if (!parsed.success) {
-        return NextResponse.json({ error: 'Invalid action', details: parsed.error.errors }, { status: 400 });
+        return NextResponse.json({ error: 'Invalid action', details: parsed.error.issues }, { status: 400 });
     }
 
     // Destructive extraction operations are superadmin-only; the city-admin
