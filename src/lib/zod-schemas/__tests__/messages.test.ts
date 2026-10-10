@@ -1,4 +1,6 @@
 import { IntlMessageFormat } from 'intl-messageformat';
+import { ALLOWED_LOGO_CONTENT_TYPES } from '@/types/upload';
+import { MAX_IMAGE_BYTES } from '@/lib/utils/imageUpload';
 import { validationMessageKey, vmsg, type ValidationMessageKey } from '@/lib/zod-schemas/messages';
 import en from '../../../../messages/en/validation.json';
 import el from '../../../../messages/el/validation.json';
@@ -27,5 +29,14 @@ describe('validation messages', () => {
         for (const message of Object.values(catalog)) {
             expect(new IntlMessageFormat(message, locale).format()).toBe(message);
         }
+    });
+
+    // The catalog cannot interpolate, so the upload messages carry the limit
+    // and the types as text. A change of either constant must change them.
+    it('name the current upload limit and logo types', () => {
+        const megabytes = MAX_IMAGE_BYTES / (1024 * 1024);
+        expect(vmsg('imageMaxSize')).toBe(`Image must be at most ${megabytes} MB`);
+        expect(vmsg('logoMaxSize')).toBe(`Logo must be at most ${megabytes} MB`);
+        expect(vmsg('logoType')).toBe(`Logo must be one of: ${ALLOWED_LOGO_CONTENT_TYPES.join(', ')}`);
     });
 });

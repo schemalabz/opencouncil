@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from 'react';
-import { useZodResolver } from '@/hooks/useLocalizedValidation';
+import { useTranslations } from 'next-intl';
+import { useValidationMessage, useZodResolver } from '@/hooks/useLocalizedValidation';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { startOfMonth, subMonths, endOfMonth, addMonths, subDays, isSameDay, format } from 'date-fns';
@@ -40,7 +41,7 @@ function getEndOfLastMonth(): Date {
     return endOfMonth(subMonths(startOfMonth(new Date()), 1));
 }
 
-type HalfYear = { label: string; from: Date; to: Date };
+type HalfYear = { number: number; from: Date; to: Date };
 
 /**
  * The contract's period split into six-month chunks. Contracts are usually a
@@ -57,7 +58,7 @@ function getHalfYears(contract: ReportContract): HalfYear[] {
         if (from > end) break;
         const nextStart = addMonths(start, (i + 1) * 6);
         const to = nextStart > end ? end : subDays(nextStart, 1);
-        halves.push({ label: `${i + 1}ο εξάμηνο`, from, to });
+        halves.push({ number: i + 1, from, to });
     }
 
     return halves;
@@ -66,6 +67,8 @@ function getHalfYears(contract: ReportContract): HalfYear[] {
 export function ReportForm({ cities, contracts }: ReportFormProps) {
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
+    const t = useTranslations('ReportForm');
+    const validationMessage = useValidationMessage();
 
     const form = useForm({
         resolver: useZodResolver(reportFormSchema),
@@ -106,7 +109,7 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
             });
 
             if (!response.ok) {
-                throw new Error(apiErrorMessage(await response.json(), 'Failed to generate report'));
+                throw new Error(apiErrorMessage(await response.json(), t('failed'), validationMessage));
             }
 
             const blob = await response.blob();
@@ -121,11 +124,11 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            toast({ title: 'Η αναφορά δημιουργήθηκε επιτυχώς' });
+            toast({ title: t('success') });
         } catch (error) {
             toast({
-                title: 'Σφάλμα',
-                description: error instanceof Error ? error.message : 'Αποτυχία δημιουργίας αναφοράς',
+                title: t('error'),
+                description: error instanceof Error ? error.message : t('failed'),
                 variant: 'destructive',
             });
         } finally {
@@ -135,7 +138,7 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
 
     return (
         <div className="max-w-2xl mx-auto p-6">
-            <h1 className="text-2xl font-bold mb-6">Δημιουργία Αναφοράς Προόδου</h1>
+            <h1 className="text-2xl font-bold mb-6">{t('title')}</h1>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <FormField
@@ -143,16 +146,16 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
                         name="cityId"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Δήμος</FormLabel>
+                                <FormLabel>{t('city')}</FormLabel>
                                 <FormControl>
                                     <CityCombobox
                                         cities={cities}
                                         value={field.value || null}
                                         onChange={(cityId) => handleCityChange(cityId, field.onChange)}
                                         getLabel={city => city.name_municipality}
-                                        placeholder="Επιλέξτε δήμο"
-                                        searchPlaceholder="Αναζήτηση δήμου..."
-                                        emptyMessage="Δεν βρέθηκε δήμος."
+                                        placeholder={t('selectCity')}
+                                        searchPlaceholder={t('searchCity')}
+                                        emptyMessage={t('noCityFound')}
                                     />
                                 </FormControl>
                                 <FormMessage />
@@ -165,9 +168,9 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
                         name="contractReference"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Αριθμός Σύμβασης</FormLabel>
+                                <FormLabel>{t('contractReference')}</FormLabel>
                                 <FormControl>
-                                    <Input placeholder="π.χ. 25SYMV01234567" {...field} />
+                                    <Input placeholder={t('contractReferencePlaceholder')} {...field} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -179,7 +182,7 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
                         name="dateRange"
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
-                                <FormLabel>Περίοδος</FormLabel>
+                                <FormLabel>{t('period')}</FormLabel>
                                 <FormControl>
                                     <DateRangePicker
                                         value={field.value}
@@ -198,13 +201,13 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
                                                 && isSameDay(field.value.to, half.to);
                                             return (
                                                 <Button
-                                                    key={half.label}
+                                                    key={half.number}
                                                     type="button"
                                                     variant={isSelected ? 'default' : 'outline'}
                                                     size="sm"
                                                     onClick={() => field.onChange({ from: half.from, to: half.to })}
                                                 >
-                                                    {half.label}
+                                                    {t('halfYear', { number: half.number })}
                                                     <span className="ml-2 text-xs opacity-70">
                                                         {format(half.from, 'dd/MM/yy')} – {format(half.to, 'dd/MM/yy')}
                                                     </span>
@@ -215,7 +218,7 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
                                 )}
                                 {field.value?.from && field.value?.to && (
                                     <p className="text-xs text-muted-foreground">
-                                        {monthsBetween(field.value.from, field.value.to)} μήνες
+                                        {t('months', { count: monthsBetween(field.value.from, field.value.to) })}
                                     </p>
                                 )}
                                 <FormMessage />
@@ -227,12 +230,12 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
                         {isGenerating ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Δημιουργία...
+                                {t('generating')}
                             </>
                         ) : (
                             <>
                                 <Download className="mr-2 h-4 w-4" />
-                                Δημιουργία Αναφοράς (.docx)
+                                {t('generate')}
                             </>
                         )}
                     </Button>

@@ -7,8 +7,10 @@ import { IMAGE_HEIGHT, IMAGE_WIDTH } from "@opencouncil/subject-images/constants
 import { AdminStrip, AdminToolButton } from "@/components/admin/AdminStrip";
 import { ImageCropDialog } from "@/components/ui/ImageCropDialog";
 import { useToast } from "@/hooks/use-toast";
+import { useValidationMessage } from "@/hooks/useLocalizedValidation";
 import { cn } from "@/lib/utils";
 import { SUBJECT_IMAGE_TYPES } from "@/lib/utils/imageUpload";
+import { apiErrorMessage } from "@/lib/utils/validationIssues";
 import { subjectImageUrl } from "./SubjectImage";
 
 /**
@@ -34,6 +36,7 @@ export function SubjectImageAdminControls({ subjectId, onChanged, className, chi
 }) {
     const t = useTranslations("Subject");
     const { toast } = useToast();
+    const validationMessage = useValidationMessage();
     const [busy, setBusy] = useState(false);
     const [cropFile, setCropFile] = useState<File | null>(null);
     const fileInput = useRef<HTMLInputElement>(null);
@@ -43,8 +46,7 @@ export function SubjectImageAdminControls({ subjectId, onChanged, className, chi
         try {
             const res = await fetch(subjectImageUrl(subjectId), { method: "POST", ...init });
             if (!res.ok) {
-                const body = await res.json().catch(() => ({}));
-                throw new Error(typeof body.error === "string" ? body.error : res.statusText);
+                throw new Error(apiErrorMessage(await res.json().catch(() => null), res.statusText, validationMessage));
             }
             toast({ title: t("imageUpdated") });
             onChanged();

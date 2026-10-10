@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useZodResolver } from '@/hooks/useLocalizedValidation';
+import { useValidationMessage, useZodResolver } from '@/hooks/useLocalizedValidation';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ type RevalidateFormData = z.output<typeof revalidateRequestSchema>;
 
 export function CacheRevalidationForm() {
     const { toast } = useToast();
+    const validationMessage = useValidationMessage();
     const [isLoading, setIsLoading] = useState(false);
     const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
         resolver: useZodResolver(revalidateRequestSchema),
@@ -60,7 +61,7 @@ export function CacheRevalidationForm() {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
-                throw new Error(apiErrorMessage(errorData, 'Failed to revalidate cache'));
+                throw new Error(apiErrorMessage(errorData, 'Failed to revalidate cache', validationMessage));
             }
 
             const result = await response.json();

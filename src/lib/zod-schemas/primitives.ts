@@ -1,6 +1,7 @@
 import * as z from 'zod';
 import { ALLOWED_LOGO_CONTENT_TYPES } from '@/types/upload';
 import { MAX_IMAGE_BYTES } from '@/lib/utils/imageUpload';
+import { vmsg } from './messages';
 
 /**
  * A boolean that arrives as text: a FormData field or a query parameter.
@@ -23,13 +24,14 @@ export const latitude = z.number().min(-90).max(90);
 /** A WGS84 longitude in degrees. */
 export const longitude = z.number().min(-180).max(180);
 
-const MAX_IMAGE_MB = MAX_IMAGE_BYTES / (1024 * 1024);
+// The catalog texts name the size limit and the logo types. messages.test.ts
+// checks them against MAX_IMAGE_BYTES and ALLOWED_LOGO_CONTENT_TYPES.
 
 /** An uploaded image of any type. */
 export const imageFile = () => z.file()
-    .max(MAX_IMAGE_BYTES, { error: `Image must be at most ${MAX_IMAGE_MB} MB` });
+    .max(MAX_IMAGE_BYTES, { error: vmsg('imageMaxSize') });
 
 /** An uploaded logo of a city or a party: only the types in ALLOWED_LOGO_CONTENT_TYPES. */
 export const logoFile = (params?: { error?: string }) => z.file(params)
-    .mime([...ALLOWED_LOGO_CONTENT_TYPES], { error: `Logo must be one of: ${ALLOWED_LOGO_CONTENT_TYPES.join(', ')}` })
-    .max(MAX_IMAGE_BYTES, { error: `Logo must be at most ${MAX_IMAGE_MB} MB` });
+    .mime([...ALLOWED_LOGO_CONTENT_TYPES], { error: vmsg('logoType') })
+    .max(MAX_IMAGE_BYTES, { error: vmsg('logoMaxSize') });

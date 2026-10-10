@@ -772,6 +772,23 @@
         "adminParty": "Управљај одборничком групом",
         "adminPerson": "Управљај чланом"
     },
+    "ReportForm": {
+        "title": "Креирање извештаја о напретку",
+        "city": "Општина",
+        "selectCity": "Изаберите општину",
+        "searchCity": "Претражите општине...",
+        "noCityFound": "Општина није пронађена.",
+        "contractReference": "Број уговора",
+        "contractReferencePlaceholder": "нпр. 25SYMV01234567",
+        "period": "Период",
+        "halfYear": "{number}. полугодиште",
+        "months": "{count, plural, one {# месец} few {# месеца} other {# месеци}}",
+        "generating": "Креирање...",
+        "generate": "Креирај извештај (.docx)",
+        "success": "Извештај је успешно креиран",
+        "error": "Грешка",
+        "failed": "Креирање извештаја није успело"
+    },
     "OfferForm": {
         "recipientName": "Прималац",
         "recipientNameDescription": "Назив организације која ће примити понуду",
