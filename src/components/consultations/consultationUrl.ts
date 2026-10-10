@@ -159,7 +159,6 @@ export function resolveConsultationUrlState({
         view: explicitView ?? defaultView,
         entityId: normalizeEntityId(liveParams.get("entity")) ?? fallbackEntityId,
     });
-    // Only a comment view carries `posted`; it is a one-off notice, not part of the canonical state.
 
     return {
         view: resolvedView,
