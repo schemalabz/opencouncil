@@ -1,7 +1,7 @@
 "use server";
 
 import { PollDecisionsRequest, PollDecisionsResult, PollDecisionsMatch, ExtractedDecisionData } from "@/lib/apiTypes";
-import { isDecisionConventions } from "@/lib/decisionConventions";
+import { parseDecisionConventions } from "@/lib/decisionConventions";
 import { renderConventionsText, conventionsGlossaryEn } from "@/lib/decisionConventionsText";
 import { storeDecisionFacts } from "@/lib/db/decisionFacts";
 import { deriveAndPersist } from "@/lib/derivation/persist";
@@ -187,9 +187,9 @@ export async function pollDecisionsForMeeting(
     });
 
     // The extractor is told the body's conventions as sentences; the glossary lives in messages/en/admin.json.
-    const conventionsValue = councilMeeting.administrativeBody?.decisionConventions;
-    const conventionsText = isDecisionConventions(conventionsValue)
-        ? renderConventionsText(conventionsValue, conventionsGlossaryEn)
+    const conventions = parseDecisionConventions(councilMeeting.administrativeBody?.decisionConventions);
+    const conventionsText = conventions
+        ? renderConventionsText(conventions, conventionsGlossaryEn)
         : null;
     // No conventions record, no extraction: the poll only links the body's
     // decisions. A page read without the hints keeps that reading, because the

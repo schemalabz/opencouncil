@@ -16,7 +16,7 @@ import { useTranslations } from 'next-intl'
 import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import type * as z from "zod"
-import { administrativeBodyFormSchema, administrativeBodySchema, type AdministrativeBodyFormInput, type AdministrativeBodyFormOutput } from "@/lib/zod-schemas/administrativeBody"
+import { administrativeBodyFormSchema, administrativeBodySchema, confirmConventionsRequestSchema, type AdministrativeBodyFormInput, type AdministrativeBodyFormOutput } from "@/lib/zod-schemas/administrativeBody"
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client'
 import { Switch } from "@/components/ui/switch"
@@ -26,8 +26,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 import DecisionConventionsFields from './DecisionConventionsFields'
-import { isDecisionConventions, type DecisionConventions } from '@/lib/decisionConventions'
-import { apiErrorMessage } from '@/lib/utils/validationIssues'
+import { parseDecisionConventions, type DecisionConventions } from '@/lib/decisionConventions'
+import { apiErrorMessage, formatValidationIssues, type FormattableIssue } from '@/lib/utils/validationIssues'
 
 
 interface AdministrativeBody {
@@ -44,9 +44,26 @@ interface AdministrativeBody {
     decisionConventions?: unknown;
 }
 
-/** The stored column, as the form holds it: a record that parses, or nothing. */
-function storedConventions(value: unknown): DecisionConventions | null {
-    return isDecisionConventions(value) ? value : null;
+/** The messages of a nested field error, one per leaf, with the path below the field. */
+function leafIssues(error: unknown, path: string[] = []): FormattableIssue[] {
+    if (typeof error !== 'object' || error === null) return [];
+    if ('message' in error && typeof error.message === 'string') return [{ path, message: error.message }];
+    return Object.entries(error).flatMap(([key, child]) => key === 'ref' ? [] : leafIssues(child, [...path, key]));
+}
+
+/**
+ * The error of the conventions field. FormMessage shows the message of the
+ * field itself, and a record that fails holds its messages on its sub-fields.
+ */
+function ConventionsMessage({ error }: { error: unknown }) {
+    const validationMessage = useValidationMessage()
+    const issues = leafIssues(error).map(issue => ({ ...issue, message: validationMessage(issue.message) }))
+    if (issues.length === 0) return null
+    return (
+        <p role="alert" className="whitespace-pre-line text-sm font-medium text-destructive">
+            {formatValidationIssues(issues).join('\n')}
+        </p>
+    )
 }
 
 interface AdministrativeBodiesListProps {
@@ -67,7 +84,7 @@ function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFo
         notificationBehavior: body?.notificationBehavior || "NOTIFICATIONS_APPROVAL",
         showUnreviewedTranscript: body?.showUnreviewedTranscript ?? true,
         diavgeiaUnitIds: body?.diavgeiaUnitIds?.join(', ') || "",
-        decisionConventions: storedConventions(body?.decisionConventions),
+        decisionConventions: parseDecisionConventions(body?.decisionConventions),
     };
 }
 
@@ -151,14 +168,14 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
             const response = await fetch(`/api/cities/${cityId}/administrative-bodies/${editingBody.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ confirmConventions: true, decisionConventions: conventions }),
+                body: JSON.stringify({ confirmConventions: true, decisionConventions: conventions } satisfies z.input<typeof confirmConventionsRequestSchema>),
             })
             if (!response.ok) {
                 const errorData = await response.json()
                 throw new Error(apiErrorMessage(errorData, t('failedToSave'), validationMessage))
             }
             const updated = await response.json()
-            form.setValue('decisionConventions', storedConventions(updated.decisionConventions))
+            form.setValue('decisionConventions', parseDecisionConventions(updated.decisionConventions))
             setEditingBody({ ...editingBody, decisionConventions: updated.decisionConventions })
             onUpdate()
         } catch (error) {
@@ -397,15 +414,16 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                 <FormField
                                     control={form.control}
                                     name="decisionConventions"
-                                    render={({ field }) => (
+                                    render={({ field, fieldState }) => (
                                         <FormItem>
                                             <DecisionConventionsFields
                                                 key={editingBody.id}
-                                                value={field.value as DecisionConventions}
+                                                value={field.value}
                                                 onChange={field.onChange}
                                                 onConfirm={handleConfirmConventions}
                                                 confirming={isConfirmingConventions}
                                             />
+                                            <ConventionsMessage error={fieldState.error} />
                                         </FormItem>
                                     )}
                                 />
