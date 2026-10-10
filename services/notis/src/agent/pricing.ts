@@ -21,11 +21,12 @@ function ratesFrom(inputPerMTok: number, outputPerMTok: number): Rates {
 }
 
 /**
- * List prices, USD per million tokens, by model-id prefix. Sonnet 5 lists at
- * $2/$10 (the model table as of 2026-09); the $3/$15 this file carried was
- * Sonnet 4.6's rate, and every cost the panel showed was 1.5× too high. The
- * playground can override the model per wake — costs must follow the model
- * that actually ran, not the default.
+ * List prices, USD per million tokens, by model-id prefix. Sonnet 5 and
+ * Sonnet 5.5 both list at $2/$10 (the model table as of 2026-09); the
+ * "claude-sonnet-5" prefix covers both ids. The $3/$15 this file once carried
+ * was Sonnet 4.6's rate, and every cost the panel showed was 1.5× too high.
+ * The playground can override the model per wake — costs must follow the
+ * model that actually ran, not the default.
  */
 const RATES_BY_MODEL_PREFIX: Array<[prefix: string, rates: Rates]> = [
   ["claude-sonnet-5", ratesFrom(2, 10)],

@@ -27,7 +27,7 @@ at a database that has the notis views migration. Set
 to your local sign-in and the cookie port matches.
 
 Simulation state lives in your browser's localStorage. Every step calls the
-real model against the public `opencouncil.gr/mcp` (on claude-sonnet-5) — a
+real model against the public `opencouncil.gr/mcp` (on claude-sonnet-5-5) — a
 decide-only wake costs a couple of cents, a research/send wake ~$0.10-0.25, an
 editorial brief ~$0.05-0.10 per meeting (cached on the queue item). A wake
 that searches the web adds $0.01 per search, three searches at most.
