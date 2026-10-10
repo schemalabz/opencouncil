@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { webUrl } from "@/lib/zod-schemas/primitives"
+import { meetingFormSchema, meetingSchema } from "@/lib/zod-schemas/meeting"
 import { Button } from "../ui/button"
 import {
     Form,
@@ -36,44 +36,10 @@ import { formatDateAsMeetingId } from '@/lib/utils/meetingId'
 import { meetingIdForRequest, meetingRequestFields, postponementCandidatesUrl } from './meetingFormRequest'
 import { useToast } from "@/hooks/use-toast"
 
-// The form has no name fields: the name of a meeting is derived (src/lib/meetingName.ts).
-
 /** The body selector stores "none" for no body; an upload config takes the id or nothing. */
-function uploadBodyId(value: string | undefined): string | undefined {
+function uploadBodyId(value: string | null | undefined): string | undefined {
     return value && value !== 'none' ? value : undefined
 }
-
-export const formSchema = z.object({
-    date: z.date({
-        error: "Meeting date is required.",
-    }),
-    time: z.string({
-        error: "Meeting time is required.",
-    }),
-    youtubeUrl: webUrl({
-        error: "Invalid media URL.",
-    }).optional().or(z.literal("")),
-    agendaUrl: webUrl({
-        error: "Invalid Agenda URL.",
-    }).optional().or(z.literal("")),
-    // Empty on create: the API makes the id from the date and adds _2, _3 when
-    // the day already has a meeting. A typed id is sent as it is.
-    meetingId: z.string().optional(),
-    administrativeBodyId: z.string().optional(),
-    processAgenda: z.boolean().default(true),
-    // Null until somebody states it: processAgenda can read it from the invitation.
-    kind: z.enum(MeetingKind).nullable(),
-    urgent: z.boolean(),
-    scheduleStatus: z.enum(MeetingScheduleStatus),
-    scheduleStatusReason: z.string().max(SCHEDULE_STATUS_REASON_MAX_LENGTH).optional(),
-    sessionNumber: z.string().regex(/^\s*(\d*)\s*$/, { error: "The session number is a whole number." })
-        .refine(val => val.trim() === '' || Number(val) >= 1, { error: "The session number is 1 or more." })
-        .optional(),
-    format: z.enum(MeetingFormat).nullable(),
-    closedToPublic: z.boolean(),
-    place: z.string().max(200).optional(),
-    postponedFromId: z.string().optional(),
-})
 
 const KINDS = Object.values(MeetingKind)
 /** The Select's sentinel for a null kind or format: «Από την πρόσκληση». */
@@ -120,7 +86,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
     const greekCodeFacts = recordsGreekCodeFacts(realm)
 
     const form = useForm({
-        resolver: zodResolver(formSchema),
+        resolver: zodResolver(meetingFormSchema),
         defaultValues: {
             date: meeting ? new Date(meeting.dateTime) : new Date(),
             time: meeting ? format(new Date(meeting.dateTime), "HH:mm") : "12:00",
@@ -190,7 +156,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
         }
     }, [currentLink, form])
 
-    async function onSubmit(values: z.output<typeof formSchema>) {
+    async function onSubmit(values: z.output<typeof meetingFormSchema>) {
         setIsSubmitting(true)
         setFormError(null)
 
@@ -214,8 +180,10 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    ...values,
+                    youtubeUrl: values.youtubeUrl,
+                    agendaUrl: values.agendaUrl,
                     meetingId: meetingIdForRequest(values.meetingId, Boolean(meeting)),
+                    processAgenda: values.processAgenda,
                     // "none" is a UI sentinel (Radix Select can't have an empty-string
                     // item) — it must not reach the API, where any truthy value is
                     // stored as a foreign key and "none" violates the FK constraint.
@@ -226,7 +194,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                     // of its own; the form edits none (the continuation form is a follow-up).
                     ...(meeting?.continuationOfId ? { kind: undefined, sessionNumber: undefined, urgent: undefined } : {}),
                     date: dateTime.toISOString(),
-                }),
+                } satisfies z.input<typeof meetingSchema>),
             })
 
             if (response.ok) {
@@ -388,7 +356,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                                 <FormItem>
                                     <FormLabel>{t('scheduleStatusReason')}</FormLabel>
                                     <FormControl>
-                                        <Textarea {...field} placeholder={t('scheduleStatusReasonPlaceholder')} maxLength={SCHEDULE_STATUS_REASON_MAX_LENGTH} />
+                                        <Textarea {...field} value={field.value ?? ''} placeholder={t('scheduleStatusReasonPlaceholder')} maxLength={SCHEDULE_STATUS_REASON_MAX_LENGTH} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -616,7 +584,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
                             <FormItem>
                                 <FormLabel>{t('place')}</FormLabel>
                                 <FormControl>
-                                    <Input {...field} placeholder={selectedBody?.place ?? ''} />
+                                    <Input {...field} value={field.value ?? ''} placeholder={selectedBody?.place ?? ''} />
                                 </FormControl>
                                 <FormDescription>{t('placeDescription')}</FormDescription>
                                 <FormMessage />

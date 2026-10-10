@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { personFormSchema, type PersonFormValues } from "@/lib/zod-schemas/person"
+import type * as z from "zod"
+import { personUpdateFormDataSchema, personFormSchema, type PersonFormOutput } from "@/lib/zod-schemas/person"
+import { toFormData } from "@/lib/utils/formData"
 import { Button } from "../../components/ui/button"
 import {
     Form,
@@ -70,7 +72,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
         },
     })
 
-    async function onSubmit(values: PersonFormValues) {
+    async function onSubmit(values: PersonFormOutput) {
         setIsSubmitting(true)
         const url = person ? `/api/cities/${cityId}/people/${person.id}` : `/api/cities/${cityId}/people`
         const method = person ? 'PUT' : 'POST'
@@ -85,17 +87,6 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
             setIsSubmitting(false)
             return
         }
-
-        const formData = new FormData()
-        console.log('Creating FormData object...')
-
-        // Append all form values
-        formData.append('name', values.name)
-        formData.append('name_en', values.name_en)
-        formData.append('name_short', values.name_short)
-        formData.append('name_short_en', values.name_short_en)
-        formData.append('cityId', cityId)
-        formData.append('profileUrl', values.profileUrl || "")
 
         // Clean up roles data before sending
         const cleanRoles = roles.map(role => ({
@@ -114,18 +105,19 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
 
         if (canEditRoles) {
             console.log('Roles to be sent:', cleanRoles)
-            formData.append('roles', JSON.stringify(cleanRoles))
         }
 
-        // Only append image if it exists and is valid
-        if (image) {
-            console.log('Appending image:', image.name, image.size)
-            formData.append('image', image)
-        }
-        // Signal removal of an existing image
-        if (removeImage && !image) {
-            formData.append('removeImage', 'true')
-        }
+        const formData = toFormData({
+            name: values.name,
+            name_en: values.name_en,
+            name_short: values.name_short,
+            name_short_en: values.name_short_en,
+            profileUrl: values.profileUrl || "",
+            roles: canEditRoles ? JSON.stringify(cleanRoles) : undefined,
+            image: image ?? undefined,
+            // Signal removal of an existing image
+            removeImage: removeImage && !image ? 'true' : undefined,
+        } satisfies z.input<typeof personUpdateFormDataSchema>)
 
         console.log('FormData created, sending request to:', url)
 

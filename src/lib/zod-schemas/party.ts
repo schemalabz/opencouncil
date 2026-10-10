@@ -27,7 +27,7 @@ export const partyFormSchema = z.object({
     logo: z.file().optional(),
 });
 
-export type PartyFormValues = z.infer<typeof partyFormSchema>;
+export type PartyFormOutput = z.output<typeof partyFormSchema>;
 export type PartyFormInput = z.input<typeof partyFormSchema>;
 
 // FormData body of POST /parties and PUT /parties/{partyId}

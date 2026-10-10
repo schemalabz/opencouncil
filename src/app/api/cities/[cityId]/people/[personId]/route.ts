@@ -6,7 +6,7 @@ import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import * as z from 'zod'
 import { parseFormData } from '@/lib/api/form-data-parser'
-import { personUpdateFormDataSchema, type PersonUpdateFormData } from '@/lib/zod-schemas/person'
+import { personUpdateFormDataSchema, type PersonUpdateFormDataOutput } from '@/lib/zod-schemas/person'
 import { isUserAuthorizedToEdit, getRoleLimitForCity } from '@/lib/auth'
 import { validateRoles, validateRolesForBodyAdmin } from '@/lib/utils/roles'
 
@@ -29,7 +29,7 @@ export async function PUT(
         return new NextResponse("Unauthorized", { status: 401 });
     }
     console.log(`Updating person ${params.personId}`)
-    let data: PersonUpdateFormData
+    let data: PersonUpdateFormDataOutput
     try {
         data = await parseFormData(await request.formData(), personUpdateFormDataSchema)
     } catch (error) {

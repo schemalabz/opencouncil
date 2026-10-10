@@ -17,7 +17,8 @@ import { useSession } from 'next-auth/react'
 import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { administrativeBodyFormSchema, type AdministrativeBodyFormValues } from "@/lib/zod-schemas/administrativeBody"
+import type * as z from "zod"
+import { administrativeBodyFormSchema, administrativeBodySchema, type AdministrativeBodyFormInput, type AdministrativeBodyFormOutput } from "@/lib/zod-schemas/administrativeBody"
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client'
 import { Switch } from "@/components/ui/switch"
@@ -55,7 +56,7 @@ interface AdministrativeBodiesListProps {
     onUpdate: () => void;
 }
 
-function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFormValues {
+function getFormDefaults(body?: AdministrativeBody | null): AdministrativeBodyFormInput {
     return {
         name: body?.name || "",
         name_en: body?.name_en || "",
@@ -87,7 +88,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
         defaultValues: getFormDefaults(editingBody),
     })
 
-    async function onSubmit(values: AdministrativeBodyFormValues) {
+    async function onSubmit(values: AdministrativeBodyFormOutput) {
         setIsSubmitting(true)
         setFormError(null)
 
@@ -112,14 +113,19 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                // The conventions are written by their own Confirm button, so
+                // this body leaves them out.
                 body: JSON.stringify({
-                    ...values,
-                    contactEmailPrimary: undefined,
-                    contactEmailsCC: undefined,
+                    name: values.name,
+                    name_en: values.name_en,
+                    type: values.type,
+                    youtubeChannelUrl: values.youtubeChannelUrl,
+                    place: values.place,
                     contactEmails: contactEmailsArray,
-                    // The conventions are written by their own Confirm button.
-                    decisionConventions: undefined,
-                }),
+                    notificationBehavior: values.notificationBehavior,
+                    showUnreviewedTranscript: values.showUnreviewedTranscript,
+                    diavgeiaUnitIds: values.diavgeiaUnitIds,
+                } satisfies z.input<typeof administrativeBodySchema>),
             })
 
             if (response.ok) {

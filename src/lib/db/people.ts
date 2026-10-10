@@ -1,6 +1,6 @@
 "use server";
 import { Person, VoicePrint } from '@prisma/client';
-import type { PersonRoleData } from '@/lib/zod-schemas/person';
+import type { PersonRoleOutput } from '@/lib/zod-schemas/person';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit, getRoleLimitForCity, personIsOwnedByBodyAdmin } from "@/lib/auth";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
@@ -39,7 +39,7 @@ export async function createPerson(data: {
     name_short_en: string;
     image: string | null;
     profileUrl: string | null;
-    roles: PersonRoleData[];
+    roles: PersonRoleOutput[];
 }): Promise<Person> {
     await withRolesAuthorized(data.cityId, data.roles);
     try {
@@ -90,7 +90,7 @@ export async function createPerson(data: {
  */
 async function withRolesAuthorized(
     cityId: string,
-    roles: PersonRoleData[],
+    roles: PersonRoleOutput[],
     currentRoles?: { administrativeBodyId: string | null }[],
 ): Promise<void> {
     const limit = await getRoleLimitForCity(cityId);
@@ -109,7 +109,7 @@ export async function editPerson(id: string, data: {
     image?: string | null;
     profileUrl: string | null;
     /** Replaces every role of the person. Absent, the roles stay as they are. */
-    roles?: PersonRoleData[];
+    roles?: PersonRoleOutput[];
 }): Promise<Person> {
     await withUserAuthorizedToEdit({ personId: id });
     if (data.roles) {

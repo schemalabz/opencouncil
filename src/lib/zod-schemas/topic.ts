@@ -18,6 +18,3 @@ export const createTopicSchema = z.object(baseTopicFields);
 
 // All fields optional for partial updates — absent fields stay undefined.
 export const updateTopicSchema = z.object(baseTopicFields).partial();
-
-export type CreateTopicData = z.infer<typeof createTopicSchema>;
-export type UpdateTopicData = z.infer<typeof updateTopicSchema>;
