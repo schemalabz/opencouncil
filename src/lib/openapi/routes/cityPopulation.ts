@@ -6,7 +6,7 @@ import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 
 // Reuse the actual validation schema from zod-schemas/cityPopulation.ts
 // (single source of truth, also given to the AI City Creator).
-const CityPopulationRequestSchema = cityPopulationSchema.openapi('CityPopulation');
+const CityPopulationRequestSchema = cityPopulationSchema.clone().openapi('CityPopulation');
 
 const CityPopulationResultSchema = z.object({
     success: z.literal(true),

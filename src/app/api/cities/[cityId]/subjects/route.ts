@@ -28,7 +28,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
         return NextResponse.json(subjects);
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 });
+            return NextResponse.json({ error: error.issues }, { status: 400 });
         }
         return handleApiError(error, 'Failed to fetch subjects');
     }

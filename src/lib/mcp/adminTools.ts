@@ -1,5 +1,4 @@
-import { z } from 'zod4';
-import { z as z3 } from 'zod';
+import { z } from 'zod';
 import { AuthorityType, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { identityFromContext } from './auth';
@@ -214,7 +213,7 @@ function registerCityAdminTools(server: McpServer) {
                 + 'pending, so it is not public, and it has no logo and no boundary: those are added on the '
                 + 'site. Fill it next with populate_city. The id is permanent and is part of every URL of '
                 + 'the city. Confirm the id and the names with the user before you call.',
-            inputSchema: toolSchema(z3.object({
+            inputSchema: toolSchema(z.object({
                 id: cityIdSchema.describe('URL slug: lowercase letters a-z and dashes only, e.g. "chania"'),
                 name: baseCityFields.name.describe('City name in its own language, e.g. "Χανιά"'),
                 name_en: baseCityFields.name_en.describe('City name in English, e.g. "Chania"'),

@@ -44,10 +44,10 @@ const formSchema = z.object({
     name: nameOverride("Meeting name must be at least 2 characters."),
     name_en: nameOverride("Meeting name (English) must be at least 2 characters."),
     date: z.date({
-        required_error: "Meeting date is required.",
+        error: "Meeting date is required.",
     }),
     time: z.string({
-        required_error: "Meeting time is required.",
+        error: "Meeting time is required.",
     }),
     youtubeUrl: z.string().url({
         message: "Invalid media URL.",
@@ -108,7 +108,7 @@ export default function AddMeetingForm({ cityId, meeting, onSuccess }: AddMeetin
     const [cityMeetings, setCityMeetings] = useState<PostponementCandidate[]>([])
     const t = useTranslations('AddMeetingForm')
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: meeting?.name || "",

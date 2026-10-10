@@ -45,8 +45,9 @@ export type ToolCategory = 'discovery' | 'directory' | 'meetings' | 'highlights'
 export const category = (category: ToolCategory) => ({ category });
 
 /**
- * A zod 3 schema as a tool input schema. The SDK takes any Standard Schema
- * that also converts to JSON Schema; zod 3 only validates. With this, a tool
+ * A zod schema as a tool input schema. The SDK takes any Standard Schema
+ * that also converts to JSON Schema. The JSON Schema comes from jsonSchemaOf,
+ * which describes the input of a transform. With this, a tool
  * uses the schema of the route that saves the same data, and cannot drift
  * from it: the SDK validates with it, and the tool list advertises it.
  */

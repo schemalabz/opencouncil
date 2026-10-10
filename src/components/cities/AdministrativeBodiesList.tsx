@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTranslations } from 'next-intl'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { administrativeBodyFormSchema, type AdministrativeBodyFormValues } from "@/lib/zod-schemas/administrativeBody"
+import { administrativeBodyFormSchema, type AdministrativeBodyFormInput, type AdministrativeBodyFormValues } from "@/lib/zod-schemas/administrativeBody"
 import { Loader2, Pencil, Plus, Trash2, XCircle, Send, CheckCircle } from "lucide-react"
 import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client'
 import { Switch } from "@/components/ui/switch"
@@ -77,7 +77,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const t = useTranslations('AdministrativeBodiesList')
 
-    const form = useForm<AdministrativeBodyFormValues>({
+    const form = useForm<AdministrativeBodyFormInput, unknown, AdministrativeBodyFormValues>({
         resolver: zodResolver(administrativeBodyFormSchema),
         defaultValues: getFormDefaults(editingBody),
     })
@@ -393,7 +393,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
                                         <FormItem>
                                             <DecisionConventionsFields
                                                 key={editingBody.id}
-                                                value={field.value}
+                                                value={field.value as DecisionConventions}
                                                 onChange={field.onChange}
                                                 onConfirm={handleConfirmConventions}
                                                 confirming={isConfirmingConventions}

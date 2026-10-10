@@ -26,7 +26,7 @@ const formSchema = z.object({
     dateRange: z.object({
         from: z.date(),
         to: z.date(),
-    }, { required_error: 'Επιλέξτε περίοδο' }),
+    }, { error: 'Επιλέξτε περίοδο' }),
     contractReference: z.string().min(1, 'Απαιτείται αριθμός σύμβασης'),
 });
 

@@ -62,7 +62,7 @@ const MeetingCreatedSchema = MeetingSchema.extend({
 
 // Reuse the actual validation schema from the route handler (single source of truth).
 // zod-to-openapi handles .transform() correctly: documents the input type (string for date).
-const CreateMeetingSchema = meetingSchema.openapi('CreateMeeting');
+const CreateMeetingSchema = meetingSchema.clone().openapi('CreateMeeting');
 
 // Update reuses the same source but drops the create-only fields the PUT handler
 // ignores: meetingId (identified by the URL) and processAgenda (POST-only trigger).

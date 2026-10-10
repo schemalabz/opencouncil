@@ -55,7 +55,7 @@ describe('parseFormData', () => {
       }),
     });
 
-    await expect(parseFormData(formData, schema)).rejects.toThrow();
+    await expect(parseFormData(formData, schema)).rejects.toBeInstanceOf(z.ZodError);
   });
 
   it('should handle empty FormData', async () => {

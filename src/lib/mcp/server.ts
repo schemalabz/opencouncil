@@ -1,4 +1,4 @@
-import { z } from 'zod4';
+import { z } from 'zod';
 import { AdministrativeBodyType } from '@prisma/client';
 import type { McpServer, ServerContext } from '@modelcontextprotocol/server';
 import { identityFromContext } from './auth';

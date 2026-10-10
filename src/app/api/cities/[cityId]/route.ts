@@ -156,7 +156,7 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json(
-                { error: error.errors },
+                { error: error.issues },
                 { status: 400 }
             );
         }

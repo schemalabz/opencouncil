@@ -51,7 +51,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
         return NextResponse.json(party)
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.errors }, { status: 400 })
+            return NextResponse.json({ error: error.issues }, { status: 400 })
         }
         console.error('Error creating party:', error)
         return NextResponse.json({ error: 'Failed to create party' }, { status: 500 })

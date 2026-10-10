@@ -6,7 +6,7 @@ import type { DerivedFilters } from '@/lib/search/types';
 // --- Schemas ---
 
 // Reuse the actual validation schema from the route handler (single source of truth).
-const SearchRequestSchema = searchRequestSchema.openapi('SearchRequest');
+const SearchRequestSchema = searchRequestSchema.clone().openapi('SearchRequest');
 
 const SearchResultSchema = z.object({
     results: z.array(z.unknown()).openapi({
