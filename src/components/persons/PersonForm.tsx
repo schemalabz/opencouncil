@@ -2,11 +2,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import type * as z from "zod"
 import { personUpdateFormDataSchema, personFormSchema, type PersonFormOutput } from "@/lib/zod-schemas/person"
 import { toFormData } from "@/lib/utils/formData"
+import { apiErrorMessage } from "@/lib/utils/validationIssues"
 import { Button } from "../../components/ui/button"
 import {
     Form,
@@ -59,11 +60,12 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
     const [imagePreview, setImagePreview] = useState<string | null>(person?.image || null)
     const [roles, setRoles] = useState<RoleWithRelations[]>(person?.roles || [])
     const t = useTranslations('PersonForm')
+    const validationMessage = useValidationMessage()
     const { toast } = useToast()
     const nameInputRef = useRef<HTMLInputElement>(null)
 
     const form = useForm({
-        resolver: zodResolver(personFormSchema),
+        resolver: useZodResolver(personFormSchema),
         defaultValues: {
             name: person?.name || "",
             name_en: person?.name_en || "",
@@ -169,8 +171,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                 // The routes answer { error }: a string for a refused role,
                 // the zod issues for a malformed form.
                 const errorData = await response.json()
-                const message = typeof errorData.error === 'string' ? errorData.error : errorData.message
-                throw new Error(message || t('failedToSavePerson'))
+                throw new Error(apiErrorMessage(errorData, t('failedToSavePerson'), validationMessage))
             }
         } catch (error) {
             console.error('Error in form submission:', error)
@@ -204,7 +205,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                         <strong className="font-bold">{t('formErrors')}</strong>
                         <ul className="mt-2 list-disc list-inside">
                             {Object.entries(form.formState.errors).map(([key, error]) => (
-                                <li key={key}>{error.message}</li>
+                                <li key={key}>{error.message && validationMessage(error.message)}</li>
                             ))}
                         </ul>
                     </div>

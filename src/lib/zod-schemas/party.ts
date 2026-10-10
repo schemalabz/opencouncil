@@ -1,23 +1,24 @@
 import * as z from 'zod';
 import { logoFile, stringBoolean } from './primitives';
+import { vmsg } from './messages';
 
 // Field rules of a party — validation only, no defaults. Shared by the party
 // form, the party routes, and the city import (zod-schemas/cityPopulation.ts).
 export const basePartyFields = {
     name: z.string().min(2, {
-        error: "Party name must be at least 2 characters.",
+        error: vmsg('partyNameMin2'),
     }),
     name_en: z.string().min(2, {
-        error: "Party name (English) must be at least 2 characters.",
+        error: vmsg('partyNameEnMin2'),
     }),
     name_short: z.string().min(2, {
-        error: "Short name must be at least 2 characters.",
+        error: vmsg('shortNameMin2'),
     }),
     name_short_en: z.string().min(2, {
-        error: "Short name (English) must be at least 2 characters.",
+        error: vmsg('shortNameEnMin2'),
     }),
     colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/, {
-        error: "Color must be a hex code such as #1A73E8.",
+        error: vmsg('colorHex'),
     }),
 };
 

@@ -4,6 +4,7 @@ import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetin
 import { webUrl } from './primitives';
 import { isoDateOrDateTime } from './dates';
 import { includeUnreleasedQuery } from './subject';
+import { vmsg } from './messages';
 
 /** Free text that an empty string clears. */
 const optionalText = (max: number) => z.string()
@@ -17,19 +18,19 @@ const optionalText = (max: number) => z.string()
 // has no name fields. z.object strips a `name` or `name_en` that a client
 // still sends: the request succeeds and writes no name.
 export const meetingSchema = z.object({
-    date: isoDateOrDateTime({ error: "Invalid date/time format" })
+    date: isoDateOrDateTime({ error: vmsg('invalidDateTime') })
         .transform((str) => new Date(str)),
     youtubeUrl: webUrl({
-        error: "Invalid YouTube URL.",
+        error: vmsg('invalidYoutubeUrl'),
     }).optional().or(z.literal("")),
     agendaUrl: webUrl({
-        error: "Invalid Agenda URL.",
+        error: vmsg('invalidAgendaUrl'),
     }).optional().or(z.literal("")),
     // Optional on create: when omitted, the POST handler auto-generates a
     // unique ID from the meeting date. The PUT handler identifies the meeting
     // by the URL path param and ignores this field.
     meetingId: z.string().min(1, {
-        error: "Meeting ID must not be empty.",
+        error: vmsg('meetingIdNotEmpty'),
     }).optional(),
     // On PUT, an absent body leaves the meeting's body as it is, and null or
     // an empty string clears it. On POST, absent and null both mean no body.
@@ -88,13 +89,13 @@ export const meetingListQuerySchema = z.object({
 // into the request.
 export const meetingFormSchema = meetingSchema.extend({
     date: z.date({
-        error: "Meeting date is required.",
+        error: vmsg('meetingDateRequired'),
     }),
     time: z.string({
-        error: "Meeting time is required.",
+        error: vmsg('meetingTimeRequired'),
     }),
     youtubeUrl: webUrl({
-        error: "Invalid media URL.",
+        error: vmsg('invalidMediaUrl'),
     }).optional().or(z.literal("")),
     // Empty on create: the API makes the id from the date and adds _2, _3 when
     // the day already has a meeting. A typed id is sent as it is.
@@ -108,7 +109,7 @@ export const meetingFormSchema = meetingSchema.extend({
     // back a format that no form offers.
     format: z.enum(MeetingFormat).nullable(),
     // A text input. The request sends it as a number.
-    sessionNumber: z.string().regex(/^\s*(\d*)\s*$/, { error: "The session number is a whole number." })
-        .refine(val => val.trim() === '' || Number(val) >= 1, { error: "The session number is 1 or more." })
+    sessionNumber: z.string().regex(/^\s*(\d*)\s*$/, { error: vmsg('sessionNumberWholeNumber') })
+        .refine(val => val.trim() === '' || Number(val) >= 1, { error: vmsg('sessionNumberMin1') })
         .optional(),
 });

@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { meetingFormSchema, meetingSchema } from "@/lib/zod-schemas/meeting"
@@ -34,6 +34,7 @@ import { DEFAULT_TIMEZONE } from '@/lib/formatters/time'
 import { Textarea } from '../ui/textarea'
 import { formatDateAsMeetingId } from '@/lib/utils/meetingId'
 import { meetingIdForRequest, meetingRequestFields, postponementCandidatesUrl } from './meetingFormRequest'
+import { apiErrorMessage } from '@/lib/utils/validationIssues'
 import { useToast } from "@/hooks/use-toast"
 
 /** The body selector stores "none" for no body; an upload config takes the id or nothing. */
@@ -84,9 +85,10 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
     const [cityMeetings, setCityMeetings] = useState<PostponementCandidate[]>([])
     const t = useTranslations('AddMeetingForm')
     const greekCodeFacts = recordsGreekCodeFacts(realm)
+    const validationMessage = useValidationMessage()
 
     const form = useForm({
-        resolver: zodResolver(meetingFormSchema),
+        resolver: useZodResolver(meetingFormSchema),
         defaultValues: {
             date: meeting ? new Date(meeting.dateTime) : new Date(),
             time: meeting ? format(new Date(meeting.dateTime), "HH:mm") : "12:00",
@@ -209,7 +211,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess, allo
             } else {
                 const errorData = await response.json()
                 // A lifecycle rule answers 422 with a message that names the rule.
-                throw new Error(errorData.message || (typeof errorData.error === 'string' ? errorData.error : null) || t(meeting ? 'failedToUpdateMeeting' : 'failedToAddMeeting'))
+                throw new Error(apiErrorMessage(errorData, t(meeting ? 'failedToUpdateMeeting' : 'failedToAddMeeting'), validationMessage))
             }
         } catch (error) {
             console.error(meeting ? t('failedToUpdateMeeting') : t('failedToAddMeeting'), error)

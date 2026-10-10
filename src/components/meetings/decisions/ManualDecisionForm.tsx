@@ -1,7 +1,7 @@
 "use client";
 
 import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useZodResolver } from '@/hooks/useLocalizedValidation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,7 @@ export function ManualDecisionForm({ subjectLabel, uploadConfig, initial, onCont
 }) {
     const t = useTranslations('admin.decisionsPage');
     const { control, register, handleSubmit, watch, formState: { errors } } = useForm({
-        resolver: zodResolver(manualDecisionFormSchema),
+        resolver: useZodResolver(manualDecisionFormSchema),
         defaultValues: {
             pdfUrl: initial?.pdfUrl ?? '',
             decisionNumber: initial?.decisionNumber ?? '',
