@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { getPlaceDetails, getPlaceSuggestions, type PlaceSuggestion, type PlaceSuggestionsResult } from '@/lib/google-maps';
 import { calculateGeometryBounds } from '@/lib/geo';
@@ -47,11 +47,15 @@ export function useLocationSearch(city: Pick<CityWithGeometry, 'name' | 'geometr
     const [isSelecting, setIsSelecting] = useState(false);
     const [isWaitingForDebounce, setIsWaitingForDebounce] = useState(false);
     const [error, setError] = useState<LocationSearchError | null>(null);
+    // What the box holds now, so a reply that arrives after the reader typed on, cleared the box
+    // or picked a place is dropped instead of showing suggestions for an abandoned query.
+    const currentInput = useRef('');
 
     // Debounce the input value to avoid making too many API calls
     const debouncedInputValue = useDebounce(inputValue, 300);
 
     useEffect(() => {
+        let cancelled = false;
         async function fetchSuggestions() {
             setError(null);
 
@@ -71,6 +75,7 @@ export function useLocationSearch(city: Pick<CityWithGeometry, 'name' | 'geometr
                         getRealmGeocoding(city.realm)
                     );
 
+                    if (cancelled || currentInput.current.trim() !== debouncedInputValue.trim()) return;
                     setSuggestions(result.data);
 
                     // Show error if there's an API error or no results for longer queries
@@ -79,21 +84,26 @@ export function useLocationSearch(city: Pick<CityWithGeometry, 'name' | 'geometr
                     }
                 } catch (error) {
                     console.error('Unexpected error fetching place suggestions:', error);
-                    setError({ kind: 'generic' });
+                    if (!cancelled) setError({ kind: 'generic' });
                 } finally {
-                    setIsLoadingSuggestions(false);
+                    if (!cancelled) setIsLoadingSuggestions(false);
                     // Don't refocus on mobile - it causes the keyboard to dismiss
                 }
             } else {
                 setIsWaitingForDebounce(false);
+                setIsLoadingSuggestions(false);
                 setSuggestions([]);
             }
         }
 
         fetchSuggestions();
+        return () => {
+            cancelled = true;
+        };
     }, [debouncedInputValue, city.name, city.geometry, city.realm]);
 
     const changeInput = (value: string) => {
+        currentInput.current = value;
         setInputValue(value);
         setError(null);
 
@@ -107,6 +117,7 @@ export function useLocationSearch(city: Pick<CityWithGeometry, 'name' | 'geometr
     };
 
     const clear = () => {
+        currentInput.current = '';
         setInputValue('');
         setError(null);
         setIsWaitingForDebounce(false);
@@ -126,6 +137,7 @@ export function useLocationSearch(city: Pick<CityWithGeometry, 'name' | 'geometr
                 setError({ kind: 'detailsUnavailable' });
                 return null;
             }
+            currentInput.current = '';
             setInputValue('');
             setSuggestions([]);
             setIsWaitingForDebounce(false);
