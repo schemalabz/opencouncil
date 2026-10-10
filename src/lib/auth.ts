@@ -4,7 +4,7 @@ import { cache } from "react";
 import { auth } from "@/auth";
 import prisma from "@/lib/db/prisma";
 import { validateServiceApiKey } from "@/lib/db/apiKeys";
-import { UnauthorizedError } from "@/lib/api/errors";
+import { NotFoundError, UnauthorizedError, notAuthorizedError } from "@/lib/api/errors";
 import { type NextRequest } from "next/server";
 
 // Request-scoped so the many call sites that each need the viewer — a page and
@@ -85,7 +85,7 @@ async function checkUserAuthorization({
         });
 
         if (!councilMeeting) {
-            throw new Error("Council meeting not found or does not belong to the specified city");
+            throw new NotFoundError("Council meeting not found or does not belong to the specified city");
         }
     }
 
@@ -129,7 +129,8 @@ export async function withUserAuthorizedToEdit({
     });
 
     if (!isAuthorized) {
-        throw new Error("Not authorized");
+        // getCurrentUser is cached per request, so this reads no row again.
+        throw notAuthorizedError(Boolean(await getCurrentUser()));
     }
 
     return true;
@@ -176,7 +177,8 @@ export async function validateBearerAuth(
  * or a user session. Service keys get full access (equivalent to superadmin).
  * User sessions are checked against the standard authorization hierarchy.
  *
- * Throws if neither auth method succeeds.
+ * Throws if neither auth method succeeds: 401 when nobody is signed in, 403
+ * when the signed-in user lacks the right.
  */
 export async function withServiceOrUserAuth(
     request: NextRequest,
@@ -189,13 +191,11 @@ export async function withServiceOrUserAuth(
 
     // Fall back to session auth — reuse the result to avoid a second DB round-trip
     const isAuthorized = await checkUserAuthorization({ cityId });
-    if (!isAuthorized) {
-        throw new UnauthorizedError("Not authorized");
+    // getCurrentUser is cached per request, so this reads no row again.
+    const user = await getCurrentUser();
+    if (!isAuthorized || !user) {
+        throw notAuthorizedError(Boolean(user));
     }
 
-    // checkUserAuthorization already verified the user exists and is authorized,
-    // so getCurrentUser() is guaranteed to return non-null here. However this is
-    // still a second DB call. TODO: refactor checkUserAuthorization to return the user.
-    const user = await getCurrentUser();
-    return { type: 'user', userId: user!.id };
+    return { type: 'user', userId: user.id };
 }

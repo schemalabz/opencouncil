@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { isUserAuthorizedToEdit } from '@/lib/auth';
-import * as z from 'zod';
+import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { revalidateRequestSchema } from '@/lib/zod-schemas/revalidate';
+import { handleApiError } from '@/lib/api/errors';
 
 export async function POST(request: Request) {
-    if (!await isUserAuthorizedToEdit({})) {
-        return NextResponse.json({ error: 'Unauthorized: Only super admins can revalidate cache' }, { status: 401 });
-    }
-
     try {
+        await withUserAuthorizedToEdit({});
+
         const body = await request.json();
         const { tags, paths } = revalidateRequestSchema.parse(body);
 
@@ -39,13 +37,6 @@ export async function POST(request: Request) {
             timestamp: new Date().toISOString()
         });
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.issues }, { status: 400 });
-        }
-        console.error('Error revalidating cache:', error);
-        return NextResponse.json(
-            { error: 'Failed to revalidate cache' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'Failed to revalidate cache');
     }
 } 

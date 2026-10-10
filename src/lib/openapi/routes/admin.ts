@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, ErrorResponseSchema, ValidationErrorSchema, type Operation, type Paths } from '../registry';
+import { sessionAuthRequirement, editAuthResponses, errorResponseOf, invalidRequestResponse, type Operation, type Paths } from '../registry';
 import { createApiKeySchema } from '@/lib/zod-schemas/apiKey';
 import { productUpdateSendSchema } from '@/lib/zod-schemas/productUpdate';
 import { revalidateRequestSchema } from '@/lib/zod-schemas/revalidate';
@@ -40,21 +40,11 @@ const ProductUpdateResultSchema = z.object({
     failedEmails: z.array(z.string()),
 }).meta({ id: 'ProductUpdateResult' });
 
-const notSignedIn = {
-    description: 'Not signed in',
-    content: { 'application/json': { schema: ErrorResponseSchema } },
-};
+const notSignedIn = errorResponseOf('Not signed in');
 
-const notSuperadmin = {
-    description: 'Not a superadmin',
-    content: { 'application/json': { schema: ErrorResponseSchema } },
-};
+const notSuperadmin = errorResponseOf('Not a superadmin');
 
-// handleApiError joins the zod issues into one message.
-const invalidBody = {
-    description: 'Invalid request body',
-    content: { 'application/json': { schema: ErrorResponseSchema } },
-};
+const invalidBody = invalidRequestResponse('Invalid request body');
 
 const topicIdParam = z.object({
     topicId: z.string().meta({ description: 'Topic ID' }),
@@ -81,15 +71,9 @@ export const adminPaths: Paths = {
                     description: 'The tags and paths that were revalidated',
                     content: { 'application/json': { schema: RevalidateResultSchema } },
                 },
-                400: {
-                    description: 'Invalid request body',
-                    content: { 'application/json': { schema: ValidationErrorSchema } },
-                },
-                401: notSuperadmin,
-                500: {
-                    description: 'Server error',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestResponse('Invalid request body'),
+                ...editAuthResponses,
+                500: errorResponseOf('Server error'),
             },
         },
     },
@@ -106,10 +90,7 @@ export const adminPaths: Paths = {
                     description: 'The new key. The response shows the raw key once.',
                     content: { 'application/json': { schema: CreatedApiKeySchema } },
                 },
-                400: {
-                    description: 'Invalid request body',
-                    content: { 'application/json': { schema: ValidationErrorSchema } },
-                },
+                400: invalidRequestResponse('Invalid request body'),
                 401: notSignedIn,
                 403: notSuperadmin,
             },
@@ -133,10 +114,7 @@ export const adminPaths: Paths = {
                 400: invalidBody,
                 401: notSignedIn,
                 403: notSuperadmin,
-                500: {
-                    description: 'Server error',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                500: errorResponseOf('Server error'),
             },
         },
     },
@@ -151,6 +129,7 @@ export const adminPaths: Paths = {
             responses: {
                 200: { description: 'The created topic' },
                 400: invalidBody,
+                ...editAuthResponses,
             },
         },
     },
@@ -166,6 +145,7 @@ export const adminPaths: Paths = {
             responses: {
                 200: { description: 'The updated topic' },
                 400: invalidBody,
+                ...editAuthResponses,
             },
         },
     },
@@ -182,7 +162,7 @@ export const adminPaths: Paths = {
             responses: {
                 200: { description: 'The created user' },
                 400: invalidBody,
-                401: { description: 'Not signed in as a superadmin' },
+                401: errorResponseOf('Not signed in as a superadmin'),
             },
         },
         put: {
@@ -195,7 +175,7 @@ export const adminPaths: Paths = {
             responses: {
                 200: { description: 'The updated user' },
                 400: invalidBody,
-                401: { description: 'Not signed in as a superadmin' },
+                401: errorResponseOf('Not signed in as a superadmin'),
             },
         },
     },

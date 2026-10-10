@@ -2,6 +2,7 @@
 import prisma from "./prisma";
 import { ElectedOrderRanking } from "@/lib/db/types";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { BadRequestError, ForbiddenError } from "@/lib/api/errors";
 
 /**
  * Updates elected order for roles belonging to a specific administrative body within a city.
@@ -33,7 +34,7 @@ export async function updateElectedOrder(
     });
 
     if (roles.length !== roleIds.length) {
-        throw new Error('One or more roles not found');
+        throw new BadRequestError('One or more roles not found');
     }
 
     const invalidRoles = roles.filter(
@@ -41,7 +42,7 @@ export async function updateElectedOrder(
             || role.person.cityId !== cityId
     );
     if (invalidRoles.length > 0) {
-        throw new Error('One or more roles do not belong to the specified administrative body');
+        throw new ForbiddenError('One or more roles do not belong to the specified administrative body');
     }
 
     // Update roles in a transaction

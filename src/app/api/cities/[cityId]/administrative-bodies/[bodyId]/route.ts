@@ -3,9 +3,9 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { editAdministrativeBody, deleteAdministrativeBody } from '@/lib/db/administrativeBodies';
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
 import { rederiveMeetingsOfBody } from '@/lib/derivation/rederive';
-import * as z from 'zod';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
+import { handleApiError } from '@/lib/api/errors';
 
 
 export async function PUT(
@@ -49,14 +49,7 @@ export async function PUT(
 
         return NextResponse.json(updatedBody);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.issues }, { status: 400 });
-        }
-        console.error('Failed to update administrative body:', error);
-        return NextResponse.json(
-            { error: 'Failed to update administrative body' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'Failed to update administrative body');
     }
 }
 
@@ -72,10 +65,6 @@ export async function DELETE(
         revalidatePath(`/${params.cityId}/people`);
         return new NextResponse(null, { status: 204 });
     } catch (error) {
-        console.error('Failed to delete administrative body:', error);
-        return NextResponse.json(
-            { error: 'Failed to delete administrative body' },
-            { status: 500 }
-        );
+        return handleApiError(error, 'Failed to delete administrative body');
     }
 } 

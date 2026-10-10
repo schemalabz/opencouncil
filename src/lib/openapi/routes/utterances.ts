@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { ErrorResponseSchema, type Paths } from '../registry';
+import { errorResponseOf, type Paths } from '@/lib/openapi/registry';
 
 // --- Response Schemas ---
 // Mirrors the UtteranceContext / UtteranceContextNeighbor types returned by
@@ -50,18 +50,9 @@ export const utterancesPaths: Paths = {
                     description: 'Utterance context',
                     content: { 'application/json': { schema: UtteranceContextSchema } },
                 },
-                400: {
-                    description: 'Invalid before/after parameter',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
-                404: {
-                    description: 'Utterance not found',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
-                500: {
-                    description: 'Server error',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: errorResponseOf('Invalid before/after parameter'),
+                404: errorResponseOf('Utterance not found'),
+                500: errorResponseOf('Server error'),
             },
         },
     },

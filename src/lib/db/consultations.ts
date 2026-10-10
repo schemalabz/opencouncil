@@ -3,6 +3,7 @@ import { Session } from 'next-auth';
 import prisma from "./prisma";
 import { consultationCommentResponseSelect, type ConsultationCommentResponseView } from "./types/consultation";
 import { withUserAuthorizedToEdit } from "@/lib/auth";
+import { BadRequestError, NotFoundError } from "@/lib/api/errors";
 import { sendMagicLink } from "@/lib/auth/magicLink";
 import { plainTextToCommentHtml } from "@/lib/utils/commentText";
 import {
@@ -54,11 +55,11 @@ export async function createConsultation(data: {
     });
 
     if (!city) {
-        throw new Error('City not found');
+        throw new NotFoundError('City not found');
     }
 
     if (!city.consultationsEnabled) {
-        throw new Error('Consultations are not enabled for this city. Enable them first in city settings.');
+        throw new BadRequestError('Consultations are not enabled for this city. Enable them first in city settings.');
     }
 
     return prisma.consultation.create({

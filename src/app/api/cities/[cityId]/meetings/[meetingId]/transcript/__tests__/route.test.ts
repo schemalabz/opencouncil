@@ -5,7 +5,7 @@ jest.mock('@/lib/export/meetings-server', () => ({ generateMeetingDocxBuffer: je
 import { GET } from '../route';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { generateMeetingDocxBuffer } from '@/lib/export/meetings-server';
-import { NotFoundError } from '@/lib/api/errors';
+import { ForbiddenError, NotFoundError } from '@/lib/api/errors';
 
 const mockAuthorize = withUserAuthorizedToEdit as jest.MockedFunction<typeof withUserAuthorizedToEdit>;
 const mockGenerate = generateMeetingDocxBuffer as jest.MockedFunction<typeof generateMeetingDocxBuffer>;
@@ -40,10 +40,14 @@ describe('GET transcript', () => {
         expect(await response.json()).toEqual({ error: 'Transcript not found for meeting: chania/oct1_2026' });
     });
 
-    it('builds nothing for a user who may not edit the meeting', async () => {
-        mockAuthorize.mockRejectedValue(new Error('Not authorized'));
+    it('answers 403 and builds nothing for a user who may not edit the meeting', async () => {
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        mockAuthorize.mockRejectedValue(new ForbiddenError());
 
-        await expect(get()).rejects.toThrow('Not authorized');
+        const response = await get();
+
+        expect(response.status).toBe(403);
+        expect(await response.json()).toEqual({ error: 'Not authorized' });
         expect(mockGenerate).not.toHaveBeenCalled();
     });
 });

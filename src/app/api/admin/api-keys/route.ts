@@ -2,7 +2,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { createServiceApiKey, getServiceApiKeys } from "@/lib/db/apiKeys";
 import { handleApiError } from "@/lib/api/errors";
-import * as z from "zod";
 import { createApiKeySchema } from "@/lib/zod-schemas/apiKey";
 
 export async function GET() {
@@ -46,9 +45,6 @@ export async function POST(request: Request) {
             createdAt: result.createdAt,
         }, { status: 201 });
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.issues }, { status: 400 });
-        }
         return handleApiError(error, "Failed to create API key");
     }
 }

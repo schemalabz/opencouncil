@@ -16,6 +16,7 @@ import { X } from "lucide-react"
 import { UserWithRelations } from "@/lib/db/users"
 import Combobox from "@/components/Combobox"
 import { toast } from "@/hooks/use-toast"
+import { apiErrorMessage } from "@/lib/utils/validationIssues"
 
 interface UserDialogProps {
     open: boolean
@@ -139,8 +140,8 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
             })
 
             if (!response.ok) {
-                const { error } = await response.json().catch(() => ({ error: "Failed to save user" }))
-                throw new Error(typeof error === "string" ? error : "Failed to save user")
+                const errorData = await response.json().catch(() => null)
+                throw new Error(apiErrorMessage(errorData, "Failed to save user"))
             }
 
             const result = await response.json()

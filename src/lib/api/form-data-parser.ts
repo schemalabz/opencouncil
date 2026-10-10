@@ -1,4 +1,14 @@
 import * as z from 'zod';
+import { BadRequestError } from '@/lib/api/errors';
+
+/** The multipart body of a request. A body that is not form data is a 400, not a 500. */
+export async function readFormData(request: Request): Promise<FormData> {
+  try {
+    return await request.formData();
+  } catch {
+    throw new BadRequestError('Failed to parse form data');
+  }
+}
 
 /**
  * Parse FormData using a Zod schema
