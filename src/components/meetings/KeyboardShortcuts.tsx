@@ -1,16 +1,16 @@
 "use client";
 
-import { useVideo, useVideoActions } from './VideoProvider';
+import { useVideoActions } from './VideoProvider';
 import { useTranscriptOptions, usePlaybackSpeed } from './options/OptionsContext';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useKeyboardShortcut, ACTIONS } from '@/contexts/KeyboardShortcutsContext';
 
 export function KeyboardShortcuts() {
-    const { seekTo, handleSpeedChange, togglePlayPause, meeting } = useVideo();
-    const { currentTimeRef } = useVideoActions();
+    // The actions context: the reactive one changes on every playback tick.
+    const { seekTo, handleSpeedChange, togglePlayPause, currentTimeRef } = useVideoActions();
     const { options } = useTranscriptOptions();
     const { playbackSpeed, setPlaybackSpeed } = usePlaybackSpeed();
-    const { transcript } = useCouncilMeetingData();
+    const { transcript, meeting } = useCouncilMeetingData();
 
     // The same media test the meeting layout uses to decide whether to render a
     // PlaybackBar at all. A registered shortcut gets its key preventDefault-ed,

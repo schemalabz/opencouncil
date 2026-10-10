@@ -16,7 +16,7 @@ const mockSetScroll = jest.fn();
 
 jest.mock('next/navigation', () => ({ useSearchParams: () => mockQuery }));
 jest.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }));
-jest.mock('@/components/meetings/VideoProvider', () => ({ useVideo: () => ({ setCurrentScrollInterval: mockSetScroll }), useVideoActions: () => ({ seekToWithoutScroll: jest.fn() }) }));
+jest.mock('@/components/meetings/VideoProvider', () => ({ useVideoActions: () => ({ seekToWithoutScroll: jest.fn(), setCurrentScrollInterval: mockSetScroll }) }));
 jest.mock('@/components/meetings/HighlightContext', () => ({ useHighlight: () => ({ editingHighlight: null }) }));
 jest.mock('@/components/meetings/CouncilMeetingDataContext', () => ({
     useCouncilMeetingData: () => ({ transcript: mockSegments, subjects: [], taskStatus: { humanReview: true }, meeting: { released: true, cityId: 'city', id: 'meeting' } }),

@@ -32,7 +32,6 @@ interface VideoContextType {
     currentTime: number;
     currentTimeRef: React.MutableRefObject<number>;
     duration: number;
-    setCurrentScrollInterval: (interval: [number, number]) => void;
     currentScrollInterval: [number, number];
     togglePlayPause: () => void;
     handleSpeedChange: (value: string) => void;
@@ -64,6 +63,7 @@ interface VideoActionsContextType {
     seekToWithoutScroll: (time: number) => void;
     togglePlayPause: () => void;
     handleSpeedChange: (value: string) => void;
+    setCurrentScrollInterval: (interval: [number, number]) => void;
 }
 
 const VideoActionsContext = createContext<VideoActionsContextType | undefined>(undefined);
@@ -478,6 +478,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         seekToWithoutScroll: stableSeekToWithoutScroll,
         togglePlayPause: stableTogglePlayPause,
         handleSpeedChange: stableHandleSpeedChange,
+        setCurrentScrollInterval,
     }), [stableSeekTo, stableSeekToWithoutScroll, stableTogglePlayPause, stableHandleSpeedChange]);
 
     // Memoize the value so it only invalidates when the reactive fields it
@@ -489,7 +490,6 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         currentTimeRef,
         duration,
         currentScrollInterval,
-        setCurrentScrollInterval,
         togglePlayPause: stableTogglePlayPause,
         handleSpeedChange: stableHandleSpeedChange,
         seekTo: stableSeekTo,
