@@ -19,6 +19,8 @@ import { sendWelcomeEmail } from "@/lib/notifications/welcome";
 import { setNotisSubscription } from "@/lib/notis/client";
 import { IS_DEV } from "@/lib/utils";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
+import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
+import { SECONDARY_BODY_TYPES, isSecondaryBody } from '@/lib/utils/bodyTier';
 
 // Type definitions for user preferences data
 export type PetitionWithRelations = Petition & {
@@ -112,7 +114,9 @@ export async function getNotificationPreferenceForCity(userId: string, cityId: s
     await requireSelfOrSuperadmin(userId);
     return prisma.notificationPreference.findUnique({
         where: { userId_cityId: { userId, cityId } },
-        include: { interests: true, locations: true },
+        // The bodies the reader follows (#829): the meeting page promises an
+        // update only where one will come.
+        include: { interests: true, locations: true, bodies: { select: { id: true } } },
     });
 }
 
@@ -318,6 +322,12 @@ export async function saveNotificationPreferences(data: OnboardingData & {
      */
     notifyByPhone?: boolean;
     notifyByEmail?: boolean;
+    /**
+     * The secondary bodies of the city the reader follows (#829). The
+     * signup always sends the list; an older caller that omits it leaves
+     * the row's bodies as they are.
+     */
+    bodyIds?: string[];
 }): Promise<Result<NotificationPreference>> {
     const validation = saveNotificationPreferencesSchema.safeParse(data);
     if (!validation.success) {
@@ -325,7 +335,7 @@ export async function saveNotificationPreferences(data: OnboardingData & {
     }
     const {
         cityId, locations, topicIds, phone: rawPhone, email, name, seedUser: rawSeedUser,
-        notifyByPhone, notifyByEmail, returnTo,
+        notifyByPhone, notifyByEmail, bodyIds, returnTo,
     } = data;
     // A phone is stored as a mobile number in E.164 or not at all (@/lib/phone):
     // the old input let national numbers through, and they reached nobody.
@@ -446,6 +456,15 @@ export async function saveNotificationPreferences(data: OnboardingData & {
             validTopicIds = topics.map(topic => topic.id);
         }
 
+        // The bodies a reader may follow: secondary bodies of this city. Any
+        // other id is dropped, as an unknown topic is.
+        const validBodyIds = bodyIds?.length
+            ? (await prisma.administrativeBody.findMany({
+                  where: { id: { in: bodyIds }, cityId, type: { in: [...SECONDARY_BODY_TYPES] } },
+                  select: { id: true },
+              })).map(body => body.id)
+            : [];
+
         // Create the locations and the preference in one transaction. The
         // locations are created here (server-side, at submit time) rather than
         // by a separate client action, and they commit only together with the
@@ -473,6 +492,9 @@ export async function saveNotificationPreferences(data: OnboardingData & {
             const interestConnect = validTopicIds.length > 0
                 ? { connect: validTopicIds.map(id => ({ id })) }
                 : undefined;
+            // The whole list, so an unticked body leaves; nothing when the
+            // caller did not ask about the bodies at all.
+            const bodiesWrite = bodyIds === undefined ? {} : { bodies: { set: validBodyIds.map(id => ({ id })) } };
 
             // Only the channels the caller decided on are written: an older
             // caller that sends neither leaves the flags alone and a new row on
@@ -503,7 +525,7 @@ export async function saveNotificationPreferences(data: OnboardingData & {
                 });
                 const updated = await tx.notificationPreference.update({
                     where: { id: existing.id },
-                    data: { locations: locationConnect, interests: interestConnect, ...channels },
+                    data: { locations: locationConnect, interests: interestConnect, ...bodiesWrite, ...channels },
                     include: { city: true, locations: true, interests: true },
                 });
                 // The places this save replaced, removed ones included.
@@ -512,7 +534,10 @@ export async function saveNotificationPreferences(data: OnboardingData & {
             }
 
             const created = await tx.notificationPreference.create({
-                data: { userId, cityId, locations: locationConnect, interests: interestConnect, ...channels },
+                data: {
+                    userId, cityId, locations: locationConnect, interests: interestConnect, ...channels,
+                    ...(validBodyIds.length > 0 ? { bodies: { connect: validBodyIds.map(id => ({ id })) } } : {}),
+                },
                 include: { city: true, locations: true, interests: true },
             });
             return { preference: created, wasNew: true };
@@ -794,9 +819,14 @@ export async function createNotificationsForMeeting(
             throw new Error(`Meeting ${meetingId} not found`);
         }
 
-        // Get all users with notification preferences for this city
+        // The audience: every preference of the city, or, for a meeting of a
+        // secondary body (#829), the preferences that follow that body. A
+        // youth council's agenda is not what the municipality's subscribers
+        // signed up for.
         const notificationPreferences = await prisma.notificationPreference.findMany({
-            where: { cityId },
+            where: isSecondaryBody(meeting.administrativeBody) && meeting.administrativeBodyId
+                ? { cityId, bodies: { some: { id: meeting.administrativeBodyId } } }
+                : { cityId },
             include: {
                 user: true,
                 locations: true,
@@ -805,7 +835,7 @@ export async function createNotificationsForMeeting(
         });
 
         if (notificationPreferences.length === 0) {
-            console.log('No users with notification preferences for this city');
+            console.log('No users with notification preferences for this meeting');
             return { notificationsCreated: 0, subjectsTotal: 0, notificationIds: [] };
         }
 
@@ -1071,6 +1101,8 @@ export type NotificationStatusCounts = {
 export type MeetingNotificationStats = {
     meetingId: string;
     meetingName: string;
+    /** The name with the body and the date, for a reader that has only the name (an aria-label). */
+    meetingLabel: string;
     meetingDate: Date;
     cityId: string;
     cityName: string;
@@ -1189,17 +1221,22 @@ export async function getNotificationsGroupedByMeeting(filters: {
                 select: {
                     id: true,
                     name: true,
-                    name_municipality: true
+                    name_municipality: true,
+                    timezone: true
                 }
             },
             meeting: {
                 select: {
                     id: true,
                     name: true,
+                    name_en: true,
+                    kind: true,
+                    sessionNumber: true,
                     dateTime: true,
                     administrativeBody: {
                         select: {
-                            name: true
+                            name: true,
+                            name_en: true
                         }
                     }
                 }
@@ -1221,7 +1258,9 @@ export async function getNotificationsGroupedByMeeting(filters: {
         if (!meetingStatsMap.has(key)) {
             meetingStatsMap.set(key, {
                 meetingId: notification.meetingId,
-                meetingName: notification.meeting.name,
+                // The row shows the body and the date in their own lines.
+                meetingName: meetingDisplayName(notification.meeting, 'el', notification.city.timezone),
+                meetingLabel: meetingLabel(notification.meeting, 'el', notification.city.timezone),
                 meetingDate: notification.meeting.dateTime,
                 cityId: notification.cityId,
                 cityName: notification.city.name_municipality || notification.city.name,
@@ -1394,6 +1433,13 @@ export async function getUserNotificationPreferences(userId: string) {
                         id: true,
                         name: true,
                         colorHex: true
+                    }
+                },
+                bodies: {
+                    select: {
+                        id: true,
+                        name: true,
+                        name_en: true
                     }
                 }
             },

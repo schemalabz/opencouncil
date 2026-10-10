@@ -2,8 +2,11 @@
 import { Person, VoicePrint } from '@prisma/client';
 import type { PersonRoleData } from '@/lib/zod-schemas/person';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit } from "../auth";
+import { withUserAuthorizedToEdit, getRoleLimitForCity } from "@/lib/auth";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
+import { validateRolesForBodyAdmin } from "@/lib/utils/roles";
+import { rolesOfPerson, rolesWithBodyType, withPersonImageAuthorized } from "@/lib/db/personImage";
+import { isSecondaryBody } from "@/lib/utils/bodyTier";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
 export type PersonWithRelations = Person & {
@@ -40,7 +43,8 @@ export async function createPerson(data: {
     profileUrl: string | null;
     roles: PersonRoleData[];
 }): Promise<Person> {
-    await withUserAuthorizedToEdit({ cityId: data.cityId });
+    await withRolesAuthorized(data.cityId, data.roles);
+    if (data.image) await withPersonImageAuthorized(await rolesWithBodyType(data.roles), null);
     try {
         const newPerson = await prisma.person.create({
             data: {
@@ -76,6 +80,22 @@ export async function createPerson(data: {
     }
 }
 
+/**
+ * The gate on a person's roles. A city admin or a superadmin gives any role.
+ * A body admin gives roles on their bodies only, and at least one, with no
+ * party and no other city on any of them: the rules of the people routes
+ * (validateRolesForBodyAdmin), applied here too, so a direct call of these
+ * functions cannot pass what the routes refuse. Anyone else, a person who
+ * claimed their own page among them, changes no roles.
+ */
+async function withRolesAuthorized(cityId: string, roles: PersonRoleData[]): Promise<void> {
+    const limit = await getRoleLimitForCity(cityId);
+    if (!limit) return;
+    const refused = validateRolesForBodyAdmin(roles, limit)
+        ?? (roles.some(role => role.cityId && role.cityId !== cityId) ? { error: 'Every role must be in this city.' } : null);
+    if (refused) throw new Error(`Not authorized: ${refused.error}`);
+}
+
 export async function editPerson(id: string, data: {
     name: string;
     name_en: string;
@@ -83,17 +103,27 @@ export async function editPerson(id: string, data: {
     name_short_en: string;
     image?: string | null;
     profileUrl: string | null;
-    roles: PersonRoleData[];
+    /** Replaces every role of the person. Absent, the roles stay as they are. */
+    roles?: PersonRoleData[];
 }): Promise<Person> {
     await withUserAuthorizedToEdit({ personId: id });
+    if (data.roles) {
+        const person = await prisma.person.findUnique({ where: { id }, select: { cityId: true } });
+        if (!person) throw new Error('Person not found');
+        await withRolesAuthorized(person.cityId, data.roles);
+    }
+    // The roles after the write decide whose photo it is.
+    if (data.image) await withPersonImageAuthorized(data.roles ? await rolesWithBodyType(data.roles) : await rolesOfPerson(id), id);
+    const roles = data.roles;
     try {
         const updatedPerson = await prisma.$transaction(async (tx) => {
-            // First delete all existing roles
-            await tx.role.deleteMany({
-                where: { personId: id }
-            });
+            // The roles are replaced as a set: delete them all, then create the new ones.
+            if (roles) {
+                await tx.role.deleteMany({
+                    where: { personId: id }
+                });
+            }
 
-            // Then update the person and create new roles
             return await tx.person.update({
                 where: { id },
                 data: {
@@ -103,19 +133,21 @@ export async function editPerson(id: string, data: {
                     name_short_en: data.name_short_en,
                     ...(data.image !== undefined && { image: data.image }),
                     profileUrl: data.profileUrl,
-                    roles: {
-                        create: data.roles.map(role => ({
-                            cityId: role.cityId,
-                            partyId: role.partyId,
-                            administrativeBodyId: role.administrativeBodyId,
-                            name: role.name,
-                            name_en: role.name_en,
-                            isHead: role.isHead,
-                            startDate: role.startDate,
-                            endDate: role.endDate,
-                            electedOrder: role.electedOrder
-                        }))
-                    }
+                    ...(roles && {
+                        roles: {
+                            create: roles.map(role => ({
+                                cityId: role.cityId,
+                                partyId: role.partyId,
+                                administrativeBodyId: role.administrativeBodyId,
+                                name: role.name,
+                                name_en: role.name_en,
+                                isHead: role.isHead,
+                                startDate: role.startDate,
+                                endDate: role.endDate,
+                                electedOrder: role.electedOrder
+                            }))
+                        }
+                    }),
                 },
                 include: {
                     roles: roleWithRelationsInclude
@@ -165,6 +197,18 @@ export async function getPeopleForCity(cityId: string, activeRolesOnly: boolean 
     }
 }
 
+/**
+ * Everyone who holds, or held, a role on the body, with all their roles. The
+ * page of the body splits them into members and former members by the dates
+ * of the role on that body.
+ */
+export async function getPeopleOfBody(cityId: string, administrativeBodyId: string): Promise<PersonWithRelations[]> {
+    return prisma.person.findMany({
+        where: { cityId, roles: { some: { administrativeBodyId } } },
+        include: { roles: roleWithRelationsInclude },
+    });
+}
+
 export async function getPeopleWithVoicePrintsForCity(cityId: string): Promise<PersonWithVoicePrints[]> {
     await withUserAuthorizedToEdit({ cityId });
     try {
@@ -210,18 +254,24 @@ function maySpeakAtMeeting(person: PersonWithRelations, administrativeBodyId: st
     if (hasCityLevelRole(person.roles, date)) {
         return true;
     }
-    const isInMeetingBody = person.roles.some(role => role.administrativeBodyId === administrativeBodyId);
     const isInCouncil = person.roles.some(role => role.administrativeBody?.type === 'council');
     const isCommunityHead = person.roles.some(role => role.administrativeBody?.type === 'community' && role.isHead);
     const hasNoAdminBody = !person.roles.some(role => role.administrativeBody);
 
-    return isInMeetingBody || isInCouncil || isCommunityHead || hasNoAdminBody;
+    return isMemberOf(person, administrativeBodyId) || isInCouncil || isCommunityHead || hasNoAdminBody;
+}
+
+/** Whether a person has held a role on a body, whenever that was (see maySpeakAtMeeting on dates). */
+function isMemberOf(person: PersonWithRelations, administrativeBodyId: string): boolean {
+    return person.roles.some(role => role.administrativeBodyId === administrativeBodyId);
 }
 
 /**
  * The people who may speak at a meeting (see maySpeakAtMeeting): whose
  * voiceprints transcribe matches against, and who the transcript tasks are told
- * about. A meeting with no administrative body gets all people in the city.
+ * about. A meeting with no administrative body gets all people in the city. A
+ * meeting of a secondary body gets that body's members and nobody else: the
+ * municipality's roster does not sit there.
  *
  * `date` is the day city-level roles are read on; today when left out.
  */
@@ -229,6 +279,10 @@ export async function getPeopleWhoMaySpeak(cityId: string, administrativeBodyId:
     const allPeople = await getPeopleForCity(cityId);
     if (!administrativeBodyId) {
         return allPeople;
+    }
+    const body = await prisma.administrativeBody.findUnique({ where: { id: administrativeBodyId }, select: { type: true } });
+    if (isSecondaryBody(body)) {
+        return allPeople.filter(person => isMemberOf(person, administrativeBodyId));
     }
     return allPeople.filter(person => maySpeakAtMeeting(person, administrativeBodyId, date));
 }
@@ -241,8 +295,7 @@ export async function getPeopleWhoMaySpeak(cityId: string, administrativeBodyId:
  *
  * Rules:
  * - Council meetings (type=council): everyone who may speak there (see maySpeakAtMeeting)
- * - Committee meetings (type=committee): Only members of that specific committee
- * - Community meetings (type=community): Only members of that specific community
+ * - Every other body, primary or secondary: only the members of that body
  * - No admin body: All people in the city
  */
 export async function getPeopleForMeeting(cityId: string, administrativeBodyId: string | null): Promise<PersonWithRelations[]> {
@@ -275,18 +328,8 @@ export async function getPeopleForMeeting(cityId: string, administrativeBodyId: 
             const bestRoleB = Math.min(...b.roles.map(getRoleTypePriority));
             return bestRoleA - bestRoleB;
         });
-    } else if (adminBody.type === 'committee') {
-        // Committee meetings: Only members of this specific committee
-        return allPeople.filter(person =>
-            person.roles.some(role => role.administrativeBodyId === administrativeBodyId)
-        );
-    } else if (adminBody.type === 'community') {
-        // Community meetings: Only members of this specific community
-        return allPeople.filter(person =>
-            person.roles.some(role => role.administrativeBodyId === administrativeBodyId)
-        );
     }
 
-    // Fallback: return all people
-    return allPeople;
-} 
+    // A committee, a κοινότητα, a youth council: only the members of that body.
+    return allPeople.filter(person => isMemberOf(person, administrativeBodyId));
+}

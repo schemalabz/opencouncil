@@ -1,4 +1,5 @@
 import prisma from "../db/prisma";
+import { pipelineRunsUnattended } from '@/lib/utils/bodyTier';
 import { env } from "@/env.mjs";
 import { aiChat } from "../ai";
 import { resolveChannelId, listRecentChannelVideos, watchUrl, type YouTubeVideo } from "../youtube";
@@ -7,6 +8,9 @@ import { getRecentTranscribeFailureErrors } from "@/lib/db/tasksInternal";
 import { cacheHas, cacheSetJSON } from "../cache/valkey";
 import { requestTranscribeInternal } from "./transcribeInternal";
 import { sendLivestreamMatchedAlert, sendLivestreamMultipleMeetingsAlert, sendLivestreamRetriesExhaustedAlert } from "../discord";
+import type { MeetingKind } from "@prisma/client";
+import { meetingLabelInCity } from "@/lib/meetingName";
+import { PUBLIC_RECORDING_WHERE, TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 
 /** ±12h around a meeting's scheduled time — the window in which its livestream appears. */
 const WINDOW_MS = 12 * 60 * 60 * 1000;
@@ -75,6 +79,8 @@ export async function matchMeetingToVideo(
         dateTime: Date;
         administrativeBodyName: string;
         subjectNames: string[];
+        kind?: MeetingKind | null;
+        sessionNumber?: number | null;
     },
     videos: YouTubeVideo[],
 ): Promise<LivestreamMatchDecision> {
@@ -86,6 +92,10 @@ export async function matchMeetingToVideo(
         meeting: {
             title: meeting.name,
             title_en: meeting.name_en,
+            // The video title often says «21η Τακτική Συνεδρίαση»; the kind and
+            // the number of the meeting help to match it.
+            kind: meeting.kind ?? undefined,
+            sessionNumber: meeting.sessionNumber ?? undefined,
             scheduledAt: meeting.dateTime.toISOString(),
             administrativeBody: meeting.administrativeBodyName,
             agendaSubjects: meeting.subjectNames.slice(0, 20),
@@ -150,9 +160,10 @@ async function distinctFailureErrors(cityId: string, councilMeetingId: string): 
  * Finds meetings whose livestream should now exist, matches each to a YouTube video
  * via the LLM, and triggers transcription for confident single-meeting matches.
  *
- * Candidate = processAgenda succeeded, scheduled within ±12h of now, the administrative body
- * has a youtubeChannelUrl, and no transcribe is succeeded or in flight (a failed-only meeting
- * is retried, up to MAX_AUTO_TRANSCRIBE_ATTEMPTS attempts on the same video).
+ * Candidate = processAgenda succeeded (or the body's pipeline runs unattended, #829), scheduled
+ * within ±12h of now, the administrative body has a youtubeChannelUrl, and no transcribe is
+ * succeeded or in flight (a failed-only meeting is retried, up to MAX_AUTO_TRANSCRIBE_ATTEMPTS
+ * attempts on the same video).
  *
  * Called by the poll-livestreams cron. Pass { dryRun: true } to log decisions without
  * triggering transcription or posting alerts.
@@ -182,10 +193,14 @@ export async function pollLivestreamsForRecentMeetings(
         where: {
             dateTime: { gte: windowStart, lte: windowEnd },
             administrativeBody: { youtubeChannelUrl: { not: null } },
+            // A postponed meeting in the window would take the stream of its
+            // new meeting. A meeting by circulation has no stream.
+            ...TAKES_PLACE_WHERE,
+            ...PUBLIC_RECORDING_WHERE,
         },
         include: {
             administrativeBody: true,
-            city: { select: { name: true } },
+            city: { select: { name: true, timezone: true } },
             subjects: { select: { name: true }, orderBy: { agendaItemIndex: 'asc' } },
         },
         orderBy: { dateTime: 'desc' },
@@ -222,9 +237,11 @@ export async function pollLivestreamsForRecentMeetings(
 
     // Candidate = processAgenda succeeded AND no transcribe that is succeeded or in flight.
     // A meeting whose only prior transcribe attempts failed is eligible again (auto-retry).
+    // A body whose pipeline runs unattended (#829) rarely has an agenda PDF, so
+    // its meetings are candidates without the agenda task.
     const candidates = meetings.filter(m => {
         const key = meetingKey(m.cityId, m.id);
-        return processAgendaSucceeded.has(key) && !transcribeActive.has(key);
+        return (processAgendaSucceeded.has(key) || pipelineRunsUnattended(m.administrativeBody)) && !transcribeActive.has(key);
     });
 
     if (candidates.length === 0) {
@@ -267,9 +284,11 @@ export async function pollLivestreamsForRecentMeetings(
             const videos = await getChannelVideos(channelUrl);
             const decision = await matchMeetingToVideo(
                 {
-                    name: meeting.name,
-                    name_en: meeting.name_en,
+                    name: meetingLabelInCity(meeting, 'el'),
+                    name_en: meetingLabelInCity(meeting, 'en'),
                     dateTime: meeting.dateTime,
+                    kind: meeting.kind,
+                    sessionNumber: meeting.sessionNumber,
                     administrativeBodyName: meeting.administrativeBody!.name,
                     subjectNames: meeting.subjects.map(s => s.name),
                 },
@@ -311,7 +330,7 @@ export async function pollLivestreamsForRecentMeetings(
                             cityId,
                             cityName: meeting.city.name,
                             meetingId,
-                            meetingName: meeting.name,
+                            meetingName: meetingLabelInCity(meeting, 'el'),
                             videoUrl,
                             videoTitle: matchedVideo.title,
                             attempts,
@@ -353,7 +372,7 @@ export async function pollLivestreamsForRecentMeetings(
                         cityId,
                         cityName: meeting.city.name,
                         meetingId,
-                        meetingName: meeting.name,
+                        meetingName: meetingLabelInCity(meeting, 'el'),
                         videoUrl,
                         videoTitle: matchedVideo.title,
                         confidence: decision.confidence,
@@ -378,7 +397,7 @@ export async function pollLivestreamsForRecentMeetings(
                         cityId,
                         cityName: meeting.city.name,
                         meetingId,
-                        meetingName: meeting.name,
+                        meetingName: meetingLabelInCity(meeting, 'el'),
                         channelUrl,
                         videoUrl,
                         reasoning: decision.reasoning,

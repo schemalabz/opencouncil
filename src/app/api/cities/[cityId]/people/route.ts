@@ -7,8 +7,10 @@ import { parseFormData } from '@/lib/api/form-data-parser'
 import { personFormDataSchema, type PersonFormData } from '@/lib/zod-schemas/person'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
-import { isUserAuthorizedToEdit } from '@/lib/auth'
-import { validateRoles } from '@/lib/utils/roles'
+import { getRoleLimitForCity } from '@/lib/auth'
+import { validateRoles, validateRolesForBodyAdmin } from '@/lib/utils/roles'
+import { rolesWithBodyType, withPersonImageAuthorized } from '@/lib/db/personImage'
+import { handleApiError } from '@/lib/api/errors'
 
 export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -18,8 +20,10 @@ export async function GET(request: Request, props: { params: Promise<{ cityId: s
 
 export async function POST(request: Request, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
-    const authorizedToEdit = await isUserAuthorizedToEdit({ cityId: params.cityId })
-    if (!authorizedToEdit) {
+    // null: a city admin or a superadmin. A set: the bodies a body admin may
+    // give roles on; empty for everyone else.
+    const roleLimit = await getRoleLimitForCity(params.cityId)
+    if (roleLimit && roleLimit.size === 0) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
     console.log('Creating person')
@@ -47,13 +51,23 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
         const validAdminBodyIds = new Set(adminBodies.map(a => a.id));
 
         // Validate roles using shared helper
-        const validationError = validateRoles(roles, params.cityId, validPartyIds, validAdminBodyIds);
+        const validationError = validateRoles(roles, params.cityId, validPartyIds, validAdminBodyIds)
+            ?? (roleLimit ? validateRolesForBodyAdmin(roles, roleLimit) : null);
         if (validationError) {
             return NextResponse.json(validationError, { status: 400 });
         }
     } catch (error) {
         console.error('Error validating roles:', error);
         return NextResponse.json({ error: 'Failed to validate roles' }, { status: 500 });
+    }
+
+    // Before the upload, so a refused photo leaves no file behind (#829).
+    if (image) {
+        try {
+            await withPersonImageAuthorized(await rolesWithBodyType(roles), null)
+        } catch (error) {
+            return handleApiError(error, 'Failed to create person')
+        }
     }
 
     let imageUrl: string | undefined = undefined

@@ -37,7 +37,7 @@ const paginationShape = {
  * opposite of what passing it means.
  */
 const administrativeBodyTypesFilter = z.array(z.enum(AdministrativeBodyType)).min(1).optional()
-    .describe('Restrict to bodies of these kinds: council (Δημοτικό or Περιφερειακό Συμβούλιο; also matches meetings with no body, from cities imported before bodies existed), committee (Δημοτική or Περιφερειακή Επιτροπή), community (Δημοτική Κοινότητα; municipalities only)');
+    .describe('Restrict to bodies of these kinds: council (Δημοτικό or Περιφερειακό Συμβούλιο; also matches meetings with no body, from cities imported before bodies existed), committee (Δημοτική or Περιφερειακή Επιτροπή), community (Δημοτική Κοινότητα; municipalities only), youthCouncil (Δημοτικό Συμβούλιο Νέων; left out unless asked for)');
 
 /**
  * The render settings both highlight write tools accept. Shared so the two
@@ -182,8 +182,9 @@ export function registerOpenCouncilServer(server: McpServer) {
             _meta: category('directory'),
             description:
                 'Get a municipality profile: its political parties, and its administrative ' +
-                'bodies — the council, committees and κοινότητες that hold meetings. Each body ' +
-                'carries the id that list_meetings and search filter by.',
+                'bodies — the council, committees, κοινότητες and youth councils that hold meetings. ' +
+                'Each body carries the id that list_meetings and search filter by. A youth council ' +
+                '(youthCouncil) is secondary: its meetings show only when a body id or body type asks for them.',
             inputSchema: z.object({ cityId: z.string().min(1) }),
         },
         (args, ctx: ServerContext) => run(() => mcpGetCity(args.cityId, identityFromContext(ctx)))
@@ -242,7 +243,10 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'with timeFilter "past" for the last held session, "upcoming" for the next one. ' +
                 'Each row carries subjectCount and hasTranscript: `subjectCount: 0` with ' +
                 '`hasTranscript: true` is a meeting that is transcribed but not yet summarized, ' +
-                'and get_transcript still holds everything that was said in it.',
+                'and get_transcript still holds everything that was said in it. '
+                + 'Read scheduleStatus before you call a row the last meeting of a body: a '
+                + '"postponed" or "cancelled" meeting did not take place on its date. '
+                + 'postponedFromDate is set on the new meeting of a postponement.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 from: z.iso.date().optional().describe('ISO date (YYYY-MM-DD), inclusive'),
@@ -288,7 +292,8 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'summarization step that runs after transcription, so a meeting can hold the full ' +
                 'verbatim record and no agenda yet. Read `hasTranscript` — when it is true, work ' +
                 'from get_transcript instead (summarize it yourself, quote it, or clip a highlight ' +
-                'from it) rather than reporting that there is nothing to show.',
+                'from it) rather than reporting that there is nothing to show. '
+                + 'scheduleStatus "postponed" or "cancelled" means that the meeting did not take place on its date.',
             inputSchema: z.object({
                 cityId: z.string().min(1),
                 meetingId: z.string().min(1),

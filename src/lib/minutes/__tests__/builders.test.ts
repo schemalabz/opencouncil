@@ -6,6 +6,7 @@ import {
     buildCouncilComposition,
     buildMayorNote,
     buildRollCall,
+    compositionHeading,
     buildSubjectRollCall,
     formatRollCallMemberLabel,
     formatRollCallSentenceName,
@@ -24,7 +25,7 @@ import {
     ElectedOrderGetter,
 } from '../builders';
 import { MinutesMember } from '../types';
-import { committeeWithSubstitute, councilWithAbsentPresident } from './rollCallFixtures';
+import { committeeWithSubstitute, councilWithAbsentPresident, youthCouncilWithAbsentMember } from './rollCallFixtures';
 import spartaMay6 from './fixtures/sparta-may6-2026-utterances.json';
 
 // --- Test helpers ---
@@ -605,6 +606,28 @@ describe('buildRollCall', () => {
         data.councilComposition!.mayor!.note = null;
         const rollCall = buildRollCall(data.councilComposition!, new Set(['mayor']), 'council');
         expect(rollCall.mayor).toMatchObject({ absent: true, note: null, printedNote: 'ΑΠΩΝ' });
+    });
+
+    it('gives a secondary body «ΜΕΛΗ» over its list and no ΔΗΜΑΡΧΟΣ line, even when the city has a mayor', () => {
+        // A youth council (#829) is not one of the municipality's own bodies: the
+        // mayor is not part of it, so a mayor in the composition gets no line.
+        const data = youthCouncilWithAbsentMember();
+        data.councilComposition!.mayor = { name: 'Ρούσσος Σίμος', personId: 'mayor', note: null };
+        const rollCall = rollCallOf(data);
+        expect(rollCall.isCommittee).toBe(false);
+        expect(rollCall.compositionHeading).toBe('ΜΕΛΗ');
+        expect(rollCall.mayor).toBeNull();
+        expect(rollCall.president).toMatchObject({ name: 'Νεανίδη Μαρία', isMayor: false, printedName: 'Νεανίδη Μαρία' });
+        expect(names(rollCall.present)).toEqual(['Νεανίδη Μαρία', 'Νεαρός Γιώργος']);
+        expect(names(rollCall.absent)).toEqual(['Παιδάκη Ελένη']);
+    });
+
+    it('names the composition of each type: the council and the community council by name, a committee with no heading', () => {
+        expect(compositionHeading('council')).toBe('ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ');
+        expect(compositionHeading('community')).toBe('ΣΥΝΘΕΣΗ ΣΥΜΒΟΥΛΙΟΥ ΔΗΜΟΤΙΚΗΣ ΚΟΙΝΟΤΗΤΑΣ');
+        expect(compositionHeading('committee')).toBeNull();
+        // A meeting with no body is the council's.
+        expect(compositionHeading(null)).toBe('ΣΥΝΘΕΣΗ ΔΗΜΟΤΙΚΟΥ ΣΥΜΒΟΥΛΙΟΥ');
     });
 });
 

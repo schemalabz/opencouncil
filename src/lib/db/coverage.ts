@@ -14,7 +14,7 @@ export interface CoverageRow {
     cityId: string;
     cityName: string; // name_municipality, e.g. "Δήμος Αθηναίων"
     cityTimezone: string; // format `fromDate` in the municipality's own timezone
-    bodyType: AdministrativeBodyType; // 'council' | 'committee' | 'community'
+    bodyType: AdministrativeBodyType;
     /** ISO date of the first released meeting for this city + body type. */
     fromDate: string;
 }
@@ -23,6 +23,7 @@ const TYPE_ORDER: Record<AdministrativeBodyType, number> = {
     council: 0,
     committee: 1,
     community: 2,
+    youthCouncil: 3,
 };
 
 export async function getCityCoverage(realm: Realm): Promise<CoverageRow[]> {

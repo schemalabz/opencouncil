@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import { renderMinutesDocx } from '../MinutesDocx';
 import { MinutesData, MinutesSubject } from '@/lib/minutes/types';
-import { committeeWithSubstitute, councilWithAbsentPresident } from '@/lib/minutes/__tests__/rollCallFixtures';
+import { committeeWithSubstitute, councilWithAbsentPresident, youthCouncilWithAbsentMember } from '@/lib/minutes/__tests__/rollCallFixtures';
 
 function makeMinutesData(overrides: Partial<MinutesData> = {}): MinutesData {
     return {
@@ -380,6 +380,17 @@ describe('MinutesDocx roll call', () => {
 
     it('prints a council with the mayor apart and the president absent', async () => {
         expect(await docxRuns(councilWithAbsentPresident())).toMatchSnapshot();
+    });
+
+    it('prints a secondary body with «ΜΕΛΗ» over its list, no ΔΗΜΑΡΧΟΣ line and no party after a name', async () => {
+        const runs = await docxRuns(youthCouncilWithAbsentMember());
+        expect(runs).toContain('ΜΕΛΗ (3)');
+        expect(runs.join('\n')).not.toContain('ΔΗΜΑΡΧΟΣ');
+        expect(runs.join('\n')).not.toContain('ΣΥΝΘΕΣΗ');
+        const line = runs.indexOf('ΠΡΟΕΔΡΟΣ: ');
+        expect(runs.slice(line, line + 2)).toEqual(['ΠΡΟΕΔΡΟΣ: ', 'Νεανίδη Μαρία']);
+        expect(runs).toContain('Κατά την έναρξη της συνεδρίασης απουσίαζαν οι ');
+        expect(runs[runs.indexOf('Νεαρός Γιώργος') + 1]).not.toMatch(/^ \(/);
     });
 
     it('names who presided first when the mayor who presides a committee was absent, and lists the mayor as absent with the office', async () => {

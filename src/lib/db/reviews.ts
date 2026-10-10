@@ -3,7 +3,9 @@ import { Prisma } from '@prisma/client';
 import prisma from './prisma';
 import { buildDateFilter } from './reviews/dateFilters';
 import { CUSTOMER_CITY_WHERE } from '../cityStatus';
+import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
 
 // ============================================================================
 // SHARED PRISMA PATTERNS
@@ -50,7 +52,7 @@ const selectPattern = {
   user: { id: true, name: true, email: true } as const,
 
   /** City name */
-  cityName: { name: true } as const,
+  cityName: { name: true, timezone: true } as const,
 };
 
 /**
@@ -60,7 +62,7 @@ const includePattern = {
   /** Basic meeting info with city and relevant task statuses */
   meetingWithReviewInfo: () => ({
     city: { select: selectPattern.cityName },
-    administrativeBody: { select: { id: true, name: true } },
+    administrativeBody: { select: { id: true, name: true, name_en: true } },
     taskStatuses: {
       where: whereClause.reviewTaskStatuses(),
       // Only the fields hasSucceededTask reads. The full rows carry the
@@ -938,6 +940,10 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
   // Only track reviews for officially supported cities
   conditions.push({ city: CUSTOMER_CITY_WHERE });
 
+  // A secondary body's meetings get no human review: their transcripts go
+  // out as the machine wrote them, under the unreviewed banner (#829).
+  conditions.push(primaryMeetingWhere);
+
   // Add status filter
   conditions.push(buildStatusWhereConditions(show));
 
@@ -997,7 +1003,8 @@ export async function getMeetingsNeedingReview(filters: ReviewFilterOptions = {}
       cityId: m.cityId,
       cityName: m.city.name,
       administrativeBodyName: m.administrativeBody?.name ?? null,
-      meetingName: m.name,
+      // The table shows the body and the date in their own lines.
+      meetingName: meetingDisplayName(m, 'el', m.city.timezone),
       meetingDate: m.dateTime,
       status,
       ...stats,
@@ -1139,7 +1146,7 @@ export async function getReviewProgressForMeeting(
     cityId: meetingRecord.cityId,
     cityName: meetingRecord.city.name,
     administrativeBodyName: meetingRecord.administrativeBody?.name ?? null,
-    meetingName: meetingRecord.name,
+    meetingName: meetingLabel(meetingRecord, 'el', meetingRecord.city.timezone),
     meetingDate: meetingRecord.dateTime,
     status,
     // Aggregated stats (all ReviewListItem fields)

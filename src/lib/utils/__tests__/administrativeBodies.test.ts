@@ -25,6 +25,7 @@ function makeAdminBody(overrides: Partial<AdministrativeBody> = {}): Administrat
         contactEmails: [],
         diavgeiaUnitIds: [],
         decisionConventions: null,
+        place: null,
         createdAt: new Date('2020-01-01'),
         updatedAt: new Date('2020-01-01'),
         ...overrides,

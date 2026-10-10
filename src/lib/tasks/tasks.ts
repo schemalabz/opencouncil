@@ -7,7 +7,7 @@ import "server-only";
 import { TaskUpdate } from '../apiTypes';
 import prisma from '@/lib/db/prisma';
 import { lockKey } from '@/lib/db/advisoryLock';
-import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, type TaskConfig } from '@/lib/tasks/types';
+import { MeetingTaskType, TASK_CONFIG, TaskAlreadyExistsError, TaskBlockedReason, getDiscordAlertMode, taskScope, type TaskConfig } from '@/lib/tasks/types';
 import { PipelineBusyError } from '@/lib/tasks/types';
 import { findConflictingTask } from './pipelineRules';
 import { withUserAuthorizedToEdit } from '../auth';
@@ -18,6 +18,8 @@ import { revalidateTag } from 'next/cache';
 import { taskHandlers, taskTerminalHooks } from './registry';
 import { mintCallbackToken } from './callbackToken';
 import { errorDetail, errorMessage } from '@/lib/utils/errors';
+import { meetingNameSelect } from '@/lib/db/types';
+import { meetingLabelInCity } from '@/lib/meetingName';
 
 export interface TaskIdempotencyResult {
     proceed: boolean;
@@ -88,10 +90,11 @@ export interface TaskVersionsFilter {
 const taskStatusWithMeetingInclude = {
     councilMeeting: {
         select: {
-            name_en: true,
+            ...meetingNameSelect,
             city: {
                 select: {
-                    name_en: true
+                    name_en: true,
+                    timezone: true,
                 }
             }
         }
@@ -105,7 +108,7 @@ function taskAlertTarget(task: TaskStatusWithMeeting) {
     return {
         taskType: task.type,
         cityName: task.councilMeeting.city.name_en,
-        meetingName: task.councilMeeting.name_en,
+        meetingName: meetingLabelInCity(task.councilMeeting, 'en'),
         taskId: task.id,
         cityId: task.cityId,
         meetingId: task.councilMeetingId,
@@ -224,7 +227,7 @@ export const startTask = async (taskType: MeetingTaskType, requestBody: any, cou
             status: 'started',
             taskType: taskType,
             cityName: newTask.councilMeeting.city.name_en,
-            meetingName: newTask.councilMeeting.name_en,
+            meetingName: meetingLabelInCity(newTask.councilMeeting, 'en'),
             taskId: newTask.id,
             cityId: cityId,
             meetingId: councilMeetingId,
@@ -371,7 +374,7 @@ export const processTaskResponse = async (taskType: string, taskId: string, opti
 
     // The caller supplies the task id, so the gate is what stops one city's
     // admin from replaying a result onto another city's meeting.
-    await withUserAuthorizedToEdit({ cityId: task.cityId });
+    await withUserAuthorizedToEdit(taskScope(task));
 
     const handler = taskHandlers[taskType];
     if (!handler) {

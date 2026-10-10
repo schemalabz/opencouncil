@@ -177,7 +177,15 @@ const meetingEventFields = {
   at: z.string(),
   cityId: z.string(),
   meetingId: z.string(),
-  meetingName: z.string(),
+  /**
+   * The name override of the meeting; null when its title is derived from
+   * meetingKind and sessionNumber. An event queued before the view carried
+   * the facts holds the stored name here and has neither fact.
+   */
+  meetingName: z.string().nullish(),
+  /** The MeetingKind value, e.g. "regular"; null when the kind is not stated. */
+  meetingKind: z.string().nullish(),
+  sessionNumber: z.number().int().nullish(),
   meetingDate: z.string(),
   /** Which body is meeting (Δημοτικό Συμβούλιο, Επιτροπή, Κοινότητα...). */
   adminBody: z.string().nullable().optional(),

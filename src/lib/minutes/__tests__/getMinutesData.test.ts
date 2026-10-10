@@ -330,3 +330,58 @@ describe('getMinutesData — a mayor who is a member of the committee', () => {
         expect(printedNameAt('s4')).toBe('Πετσέλης Χρήστος');
     });
 });
+
+describe('getMinutesData — a body of the secondary tier', () => {
+    const YOUTH = { id: 'youth', name: 'Δημοτικό Συμβούλιο Νέων', type: 'youthCouncil' };
+    const role = (o: { isHead?: boolean; cityId?: string | null; administrativeBodyId?: string | null }) => ({
+        id: `r-${Math.random()}`, name: null, isHead: o.isHead ?? false, cityId: o.cityId ?? null, partyId: null,
+        administrativeBodyId: o.administrativeBodyId ?? null, startDate: null, endDate: null, party: null, administrativeBody: null,
+    });
+    const person = (id: string, name: string, roles: ReturnType<typeof role>[]) => ({ id, name, name_short: name, roles });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockGetCouncilMeetingDirect.mockResolvedValue({
+            id: MEETING_ID, cityId: CITY_ID, name: 'Συνεδρίαση', dateTime: new Date('2026-07-21T11:00:00Z'), administrativeBody: YOUTH,
+        });
+        mockGetCity.mockResolvedValue({ name: 'Άργος', name_municipality: 'Δήμος Άργους', timezone: 'Europe/Athens', logoImage: null, realm: 'greece' });
+        mockGetSubjectsForMeeting.mockResolvedValue([
+            subjectRow({ id: 's1', name: 'Ένα', agendaItemTitle: null, agendaItemIndex: 1 }),
+            subjectRow({ id: 's2', name: 'Δύο', agendaItemTitle: null, agendaItemIndex: 2 }),
+        ]);
+        mockUtteranceFindMany.mockResolvedValue([]);
+        // The mayor of the city visits the youth council; its president is a member.
+        mockGetPeopleForCity.mockResolvedValue([
+            person('mayor', 'Ιωάννης Μαλτέζος', [role({ isHead: true, cityId: CITY_ID })]),
+            person('y1', 'Μαρία Νεανίδη', [role({ isHead: true, administrativeBodyId: YOUTH.id })]),
+            person('y2', 'Γιώργος Νεαρός', [role({ administrativeBodyId: YOUTH.id })]),
+        ]);
+        mockGetMeetingAttendance.mockResolvedValue(['mayor', 'y1', 'y2'].map(personId => ({
+            personId, status: 'PRESENT', person: { name: personId === 'mayor' ? 'Ιωάννης Μαλτέζος' : personId === 'y1' ? 'Μαρία Νεανίδη' : 'Γιώργος Νεαρός' },
+        })));
+        mockAttendanceEventFindMany.mockResolvedValue([{
+            personId: 'mayor', kind: 'DEPARTURE', anchorKind: 'AGENDA_ITEM', anchorAgendaItemIndex: 2, anchorNonAgendaReason: null,
+            anchorDecisionNumber: null, anchorSubjectId: null, anchorPhase: null, timing: 'BEFORE', rawText: 'Ο Δήμαρχος αποχώρησε',
+        }]);
+    });
+
+    afterEach(() => {
+        mockGetPeopleForCity.mockResolvedValue([]);
+        mockGetMeetingAttendance.mockResolvedValue([]);
+        mockAttendanceEventFindMany.mockResolvedValue([]);
+    });
+
+    it('gives the mayor no line and no note: a guest, listed and tracked like anyone the documents name', async () => {
+        const data = await getMinutesData(CITY_ID, MEETING_ID);
+        expect(data.councilComposition!.mayor).toBeNull();
+        expect(data.councilComposition!.president).toMatchObject({ personId: 'y1' });
+        // The departure stays in the changes list, as a member's would.
+        expect(data.attendanceChanges).toEqual([
+            expect.objectContaining({ personId: 'mayor', type: 'departure', atSubject: expect.objectContaining({ id: 's2' }) }),
+        ]);
+        const rollCall = buildRollCall(data.councilComposition!, new Set(), data.administrativeBody?.type ?? null);
+        expect(rollCall.mayor).toBeNull();
+        expect(rollCall.compositionHeading).toBe('ΜΕΛΗ');
+        expect(rollCall.president).toMatchObject({ isMayor: false, printedName: 'Νεανίδη Μαρία' });
+    });
+});

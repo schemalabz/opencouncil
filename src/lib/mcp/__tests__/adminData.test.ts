@@ -5,6 +5,9 @@ const mockUserFindMany = jest.fn();
 const mockUserCount = jest.fn();
 const mockPartyFindMany = jest.fn();
 const mockPersonFindMany = jest.fn();
+const mockMeetingFindUnique = jest.fn();
+const mockBodyFindUnique = jest.fn();
+const mockCityFindUnique = jest.fn();
 
 jest.mock('../../db/prisma', () => ({
     __esModule: true,
@@ -16,6 +19,9 @@ jest.mock('../../db/prisma', () => ({
         },
         party: { findMany: (...args: unknown[]) => mockPartyFindMany(...args) },
         person: { findMany: (...args: unknown[]) => mockPersonFindMany(...args) },
+        councilMeeting: { findUnique: (...args: unknown[]) => mockMeetingFindUnique(...args) },
+        administrativeBody: { findUnique: (...args: unknown[]) => mockBodyFindUnique(...args) },
+        city: { findUnique: (...args: unknown[]) => mockCityFindUnique(...args) },
     },
 }));
 
@@ -51,6 +57,7 @@ import { createCityDirect } from '../../db/citiesAdmin';
 import { populateCity } from '../../db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects } from '../../meetingWrites';
 import { requireRealmCity } from '../realmGuards';
+import { requireVisibleMeeting } from '../gate';
 import { startMeetingTask } from '../../tasks/startMeetingTask';
 import { generatePresignedUrl } from '../../s3';
 import * as cityPopulate from '../../db/cityPopulate';
@@ -60,8 +67,22 @@ const SERVICE = { type: 'service', keyName: 'bot' } as const;
 
 const asCityAdmin = (...cityIds: string[]) =>
     mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: cityIds.map(cityId => ({ cityId })) });
+// An admin of one body of a city, and of nothing else.
+const asBodyAdmin = (bodyId: string, cityId: string) =>
+    mockUserFindUnique.mockResolvedValue({
+        isSuperAdmin: false,
+        administers: [{ cityId: null, administrativeBodyId: bodyId, administrativeBody: { cityId } }],
+    });
 
-const SUPERADMIN: McpAdminAccess = { superadmin: true, cityIds: new Set() };
+const SUPERADMIN: McpAdminAccess = { superadmin: true, cityIds: new Set(), bodyIds: new Set() };
+
+// The bodies of argos, and its meetings: m1 is the council's, m2 the
+// committee's, m3 has no body. requireVisibleMeeting is mocked, so it answers
+// from the same table.
+const BODIES: Record<string, { cityId: string }> = { council: { cityId: 'argos' }, committee: { cityId: 'argos' } };
+const MEETINGS: Record<string, { administrativeBodyId: string | null }> = {
+    m1: { administrativeBodyId: 'council' }, m2: { administrativeBodyId: 'committee' }, m3: { administrativeBodyId: null },
+};
 
 // A request scope with the access the route handler would have resolved.
 const inRealm = <T>(realm: Realm, fn: () => Promise<T>, adminAccess: McpAdminAccess = SUPERADMIN) =>
@@ -75,6 +96,12 @@ beforeEach(() => {
     mockUserFindUnique.mockResolvedValue({ isSuperAdmin: false, administers: [] });
     mockPartyFindMany.mockResolvedValue([]);
     mockPersonFindMany.mockResolvedValue([]);
+    mockBodyFindUnique.mockImplementation(({ where }: { where: { id: string } }) => Promise.resolve(BODIES[where.id] ?? null));
+    mockMeetingFindUnique.mockImplementation(({ where }: { where: { cityId_id: { id: string } } }) =>
+        Promise.resolve(MEETINGS[where.cityId_id.id] ?? null));
+    (requireVisibleMeeting as jest.Mock).mockImplementation((_cityId: string, meetingId: string) =>
+        Promise.resolve({ released: false, administrativeBodyId: MEETINGS[meetingId]?.administrativeBodyId ?? null, editor: true }));
+    mockCityFindUnique.mockResolvedValue({ timezone: 'Europe/Athens' });
 });
 
 describe('meeting tools authorize before they write', () => {
@@ -101,9 +128,101 @@ describe('meeting tools authorize before they write', () => {
         expect(updateMeetingWithEffects).toHaveBeenCalledWith('argos', 'm1', { agendaUrl: null });
     });
 
+    it('creates a meeting with no name, and returns the derived name', async () => {
+        asCityAdmin('argos');
+        (createMeetingWithEffects as jest.Mock).mockResolvedValue({ meeting: {
+            id: 'oct05_2026', cityId: 'argos', name: null, name_en: null, kind: 'regular',
+            dateTime: new Date('2026-10-05T15:00:00Z'), released: false,
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' },
+        } });
+        const result = await mcpCreateMeeting(ADMIN_TOKEN, { cityId: 'argos', dateTime: '2026-10-05T18:00:00+03:00', processAgenda: false });
+        expect(createMeetingWithEffects).toHaveBeenCalledWith('argos', expect.objectContaining({ name: undefined, name_en: undefined }));
+        expect(result.name).toBe('Δημοτικό Συμβούλιο · Τακτική Συνεδρίαση · 05/10/2026');
+        expect(result.title).toBe('Τακτική Συνεδρίαση');
+    });
+
+    it('clears the name override with null, and returns the derived names', async () => {
+        asCityAdmin('argos');
+        (updateMeetingWithEffects as jest.Mock).mockResolvedValue({
+            id: 'm1', cityId: 'argos', name: null, name_en: null, kind: 'urgent',
+            dateTime: new Date('2026-10-05T15:00:00Z'), youtubeUrl: null, agendaUrl: null, released: false,
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' },
+        });
+        const result = await mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', name: null, name_en: null });
+        expect(updateMeetingWithEffects).toHaveBeenCalledWith('argos', 'm1', { name: null, name_en: null });
+        expect(result.name).toBe('Δημοτικό Συμβούλιο · Έκτακτη Συνεδρίαση · 05/10/2026');
+        expect(result.name_en).toBe('Municipal Council · Urgent Meeting · 05/10/2026');
+    });
+
     it('rejects an update with no field to change', async () => {
         asCityAdmin('argos');
         await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1' })).rejects.toThrow(BadRequestError);
+    });
+});
+
+describe('an administrator of one body', () => {
+    beforeEach(() => {
+        asBodyAdmin('council', 'argos');
+        (createMeetingWithEffects as jest.Mock).mockResolvedValue({
+            meeting: { id: 'new', cityId: 'argos', name: 'n', dateTime: new Date(), administrativeBody: { name: 'Council' }, released: false },
+            processAgendaStatus: null,
+        });
+        (updateMeetingWithEffects as jest.Mock).mockResolvedValue({
+            id: 'm1', cityId: 'argos', name: 'n', name_en: 'n', dateTime: new Date(), youtubeUrl: null,
+            agendaUrl: null, administrativeBody: { name: 'Council' }, released: false,
+        });
+        (startMeetingTask as jest.Mock).mockResolvedValue({
+            id: 't1', type: 'transcribe', status: 'pending', stage: null, percentComplete: null,
+            createdAt: new Date(), updatedAt: new Date(), version: null,
+        });
+    });
+
+    it('creates a meeting of their body, and not of another body or with no body', async () => {
+        await expect(mcpCreateMeeting(ADMIN_TOKEN, { ...MEETING, administrativeBodyId: 'council' })).resolves.toMatchObject({ id: 'new' });
+        await expect(mcpCreateMeeting(ADMIN_TOKEN, { ...MEETING, administrativeBodyId: 'committee' })).rejects.toThrow(ForbiddenError);
+        await expect(mcpCreateMeeting(ADMIN_TOKEN, MEETING)).rejects.toThrow(ForbiddenError);
+        expect(createMeetingWithEffects).toHaveBeenCalledTimes(1);
+    });
+
+    it('updates a meeting of their body, and not another meeting', async () => {
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', name: 'Νέο' })).resolves.toMatchObject({ id: 'm1' });
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm2', name: 'Νέο' })).rejects.toThrow(ForbiddenError);
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm3', name: 'Νέο' })).rejects.toThrow(ForbiddenError);
+        expect(updateMeetingWithEffects).toHaveBeenCalledTimes(1);
+    });
+
+    it('may keep the body of their meeting, but not move it to another body or clear it', async () => {
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', administrativeBodyId: 'council' })).resolves.toMatchObject({ id: 'm1' });
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', administrativeBodyId: 'committee' })).rejects.toThrow(ForbiddenError);
+        await expect(mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', administrativeBodyId: null })).rejects.toThrow(ForbiddenError);
+        expect(updateMeetingWithEffects).toHaveBeenCalledTimes(1);
+    });
+
+    it('starts a task on a meeting of their body, and not on another meeting', async () => {
+        await expect(mcpStartTask(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', type: 'transcribe' })).resolves.toMatchObject({ id: 't1' });
+        await expect(mcpStartTask(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm2', type: 'transcribe' })).rejects.toThrow(ForbiddenError);
+        expect(startMeetingTask).toHaveBeenCalledTimes(1);
+    });
+
+    it('is refused the city tools', async () => {
+        await expect(mcpCreateCity(ADMIN_TOKEN, {
+            id: 'lyon', name: 'Lyon', name_en: 'Lyon', name_municipality: 'Ville de Lyon',
+            name_municipality_en: 'City of Lyon', timezone: 'Europe/Paris', authorityType: 'municipality',
+        })).rejects.toThrow(ForbiddenError);
+        expect(createCityDirect).not.toHaveBeenCalled();
+    });
+});
+
+describe('a city administrator and the body of a meeting', () => {
+    it('moves a meeting to another body and clears the body', async () => {
+        asCityAdmin('argos');
+        (updateMeetingWithEffects as jest.Mock).mockResolvedValue({
+            id: 'm1', cityId: 'argos', name: 'n', name_en: 'n', dateTime: new Date(), youtubeUrl: null,
+            agendaUrl: null, administrativeBody: null, released: false,
+        });
+        await mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', administrativeBodyId: 'committee' });
+        await mcpUpdateMeeting(ADMIN_TOKEN, { cityId: 'argos', meetingId: 'm1', administrativeBodyId: null });
+        expect(updateMeetingWithEffects).toHaveBeenCalledTimes(2);
     });
 });
 

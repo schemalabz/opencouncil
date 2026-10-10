@@ -4,6 +4,9 @@ import { Realm } from '@prisma/client'
 import { getRealm, getRealmBaseUrlFromRequest } from '@/lib/realm.server'
 import { hasExplainPage } from '@/lib/explain/availability'
 import { PUBLIC_CITY_WHERE } from '@/lib/cityStatus';
+import { countBodyDirectory } from '@/lib/db/administrativeBodies'
+import { bodyDirectoryPath } from '@/lib/realm'
+import { SECONDARY_BODY_TYPES } from '@/lib/utils/bodyTier'
 
 // Resolves the realm from the request Host, so it must render per request rather
 // than being statically generated at build time (where no Host is available and
@@ -61,6 +64,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const baseUrl = await getRealmBaseUrlFromRequest()
 
     const cities = await fetchSitemapData(realm)
+    // The directory of a secondary body type (#829), when the realm has a body on it.
+    const directoryCounts = await Promise.all(
+        SECONDARY_BODY_TYPES.map(async type => ({ type, count: await countBodyDirectory(realm, type) })),
+    )
 
     const staticEntries: MetadataRoute.Sitemap = [
         {
@@ -86,7 +93,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             url: `${baseUrl}/corrections`,
             changeFrequency: 'weekly',
             priority: 0.8,
-        }
+        },
+        ...directoryCounts
+            .filter(directory => directory.count > 0)
+            .map(directory => ({
+                url: `${baseUrl}${bodyDirectoryPath(directory.type)}`,
+                changeFrequency: 'daily' as const,
+                priority: 0.8,
+            })),
     ]
 
     const cityEntries: MetadataRoute.Sitemap = cities.flatMap(city => {

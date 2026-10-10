@@ -2,6 +2,7 @@ import 'server-only';
 
 import { prisma } from '@/lib/db/prisma';
 import { getLocationCoordinates, withCoordinates } from '@/lib/db/notifications';
+import { publicAdministrativeBodySelect } from '@/lib/db/types/administrativeBody';
 
 /**
  * What the municipality pickers need of a signed-in reader: which
@@ -36,20 +37,22 @@ export async function hasNotificationPreference(userId: string): Promise<boolean
 
 /**
  * What the signup needs of a reader's preference for one municipality: the
- * places with their points, the topics, the email flag. One row and one
- * coordinate query, instead of every preference with its city boundary. The
- * phone channel is the person's, and comes with the account.
+ * places with their points, the topics, the bodies they follow (#829), the
+ * email flag. One row and one coordinate query, instead of every preference
+ * with its city boundary. The phone channel is the person's, and comes with
+ * the account.
  */
 export async function getSignupPreference(userId: string, cityId: string) {
     const preference = await prisma.notificationPreference.findUnique({
         where: { userId_cityId: { userId, cityId } },
-        include: { interests: true, locations: true },
+        include: { interests: true, locations: true, bodies: { select: publicAdministrativeBodySelect } },
     });
     if (!preference) return null;
     const coordinates = await getLocationCoordinates(preference.locations.map((l) => l.id));
     return {
         locations: withCoordinates(preference.locations, coordinates),
         topics: preference.interests,
+        bodies: preference.bodies,
         notifyByEmail: preference.notifyByEmail,
     };
 }

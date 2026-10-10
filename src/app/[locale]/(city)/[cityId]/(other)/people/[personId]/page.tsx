@@ -7,7 +7,8 @@ import { notFound } from "next/navigation";
 import Person from "@/components/persons/Person";
 import { getCity } from "@/lib/db/cities";
 import { getStatisticsFor } from "@/lib/statistics";
-import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { getCurrentUser, getUnreleasedScope, getRoleLimitForCity } from "@/lib/auth";
+import { mayChangePersonImage } from "@/lib/db/personImage";
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
@@ -99,14 +100,18 @@ export default async function PersonPage(
     props: { params: Promise<{ locale: string, personId: string, cityId: string }> }
 ) {
     const params = await props.params;
-    const includeUnreleased = await isUserAuthorizedToEdit({ cityId: params.cityId });
+    const [unreleased, roleLimit, user] = await Promise.all([
+        getUnreleasedScope(params.cityId),
+        getRoleLimitForCity(params.cityId),
+        getCurrentUser(),
+    ]);
 
     const [person, city, parties, administrativeBodies, statistics, contributionTopics] = await Promise.all([
         getPerson(params.personId),
         getCity(params.cityId),
         getPartiesForCity(params.cityId),
         getAdministrativeBodiesForCity(params.cityId),
-        getStatisticsFor({ personId: params.personId, cityId: params.cityId, includeUnreleased }, ['topic']),
+        getStatisticsFor({ personId: params.personId, cityId: params.cityId, unreleased }, ['topic']),
         getDistinctTopicsForSpeakerContributions(params.personId),
     ]);
 
@@ -121,5 +126,7 @@ export default async function PersonPage(
         administrativeBodies={administrativeBodies}
         statistics={statistics}
         contributionTopics={contributionTopics}
+        editableBodyIds={roleLimit ? [...roleLimit] : undefined}
+        canEditImage={mayChangePersonImage(user, person.roles, person.id)}
     />;
 }

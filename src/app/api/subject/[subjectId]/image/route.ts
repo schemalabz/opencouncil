@@ -61,7 +61,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     if (visible === null) {
         return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
     }
-    if (!visible.public && !(await isUserAuthorizedToEdit({ cityId: visible.cityId }))) {
+    if (!visible.public && !(await isUserAuthorizedToEdit({ cityId: visible.cityId, councilMeetingId: visible.councilMeetingId }))) {
         return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
     }
 

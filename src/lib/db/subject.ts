@@ -24,6 +24,8 @@ import { meetingBodyTypeWhere } from './meetingBodyFilter';
 // and would drag that heavy server-only chain into this widely-imported module).
 import { createCache } from '../cache/index';
 import { PUBLIC_CITY_WHERE } from '../cityStatus';
+import { primaryMeetingWhere } from '@/lib/utils/bodyTier';
+import { meetingLabelInCity } from '@/lib/meetingName';
 
 // The landing subject finders are realm + filter keyed in the data cache. Releasing/unreleasing
 // a meeting busts the tag (see toggleMeetingRelease); the TTL is a safety net for other changes
@@ -40,7 +42,8 @@ function subjectFilterKey(f: MapSubjectFilters): string {
         f.allTime ? '1' : '',
         (f.topicIds ?? []).slice().sort().join('.'),
         (f.cityIds ?? []).slice().sort().join('.'),
-        (f.bodyTypes ?? []).slice().sort().join('.'),
+        // No type means the primary tier, not every body (see buildMapSubjectWhere).
+        (f.bodyTypes ?? []).slice().sort().join('.') || 'primary',
         f.dateFrom ?? '',
         f.dateTo ?? '',
         // Prefixed so that "no id restriction" and "restrict to no ids" — which
@@ -166,6 +169,7 @@ export async function getSubjectCountForCity(cityId: string): Promise<number> {
             councilMeeting: {
                 released: true,
                 dateTime: { lte: new Date() },
+                ...primaryMeetingWhere,
             },
         },
     });
@@ -189,6 +193,7 @@ export async function getSubjectCountsByCityCached(realm: Realm): Promise<Record
                         released: true,
                         dateTime: { lte: new Date() },
                         city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
+                        ...primaryMeetingWhere,
                     },
                 },
                 _count: { _all: true },
@@ -321,7 +326,10 @@ const mapSubjectInclude = {
         select: {
             dateTime: true,
             name: true,
-            administrativeBody: { select: { name: true, type: true } },
+            name_en: true,
+            kind: true,
+            sessionNumber: true,
+            administrativeBody: { select: { name: true, name_en: true, type: true } },
             // City display fields travel on every row so the client needn't reconcile against
             // the loaded city list (Subject reaches City only through councilMeeting).
             city: { select: { name: true, name_municipality: true, logoImage: true, timezone: true } },
@@ -372,7 +380,10 @@ export function buildMapSubjectWhere(realm: Realm | null, f: MapSubjectFilters):
             released: true,
             dateTime,
             city: realm ? { ...PUBLIC_CITY_WHERE, realm } : PUBLIC_CITY_WHERE,
-            ...(f.bodyTypes?.length ? meetingBodyTypeWhere(f.bodyTypes) : {}),
+            // A named type widens or narrows the scope; no type means the
+            // primary tier, so a secondary body's subjects never reach the map
+            // or the hot list unasked (see bodyTier.ts).
+            ...(f.bodyTypes?.length ? meetingBodyTypeWhere(f.bodyTypes) : primaryMeetingWhere),
         },
     };
 }
@@ -390,7 +401,7 @@ function toGeneralSubjectRow(s: MapSubjectPayload, discussionSeconds: Map<string
         cityTimezone: s.councilMeeting.city.timezone,
         councilMeetingId: s.councilMeetingId,
         meetingDate: s.councilMeeting?.dateTime?.toISOString(),
-        meetingName: s.councilMeeting?.name,
+        meetingName: meetingLabelInCity(s.councilMeeting, 'el'),
         bodyName: s.councilMeeting?.administrativeBody?.name ?? null,
         adminBodyType: s.councilMeeting?.administrativeBody?.type ?? null,
         topicId: s.topicId,
@@ -758,14 +769,16 @@ export async function getLatestSubjectsForSpeaker(personId: string, take: number
  * Whether a subject is public: its meeting released and its city public, the
  * same test every public reader applies. `null` when the subject does not exist.
  */
-export async function subjectIsPublic(subjectId: string): Promise<{ cityId: string; public: boolean } | null> {
+export async function subjectIsPublic(subjectId: string): Promise<{ cityId: string; councilMeetingId: string; public: boolean } | null> {
     const row = await prisma.subject.findUnique({
         where: { id: subjectId },
-        select: { cityId: true, councilMeeting: { select: { released: true, city: { select: { status: true } } } } },
+        select: { cityId: true, councilMeetingId: true, councilMeeting: { select: { released: true } } },
     });
     if (!row) return null;
-    const publicStatuses: readonly CityStatus[] = PUBLIC_CITY_WHERE.status.in;
-    return { cityId: row.cityId, public: row.councilMeeting.released && publicStatuses.includes(row.councilMeeting.city.status) };
+    // The city's publicness is a where clause, not a status alone (see PUBLIC_CITY_WHERE).
+    const cityIsPublic = row.councilMeeting.released
+        && (await prisma.city.count({ where: { id: row.cityId, ...PUBLIC_CITY_WHERE } })) > 0;
+    return { cityId: row.cityId, councilMeetingId: row.councilMeetingId, public: cityIsPublic };
 }
 
 export async function subjectExists(subjectId: string): Promise<boolean> {

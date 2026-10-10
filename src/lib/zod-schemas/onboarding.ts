@@ -39,6 +39,9 @@ export const saveNotificationPreferencesSchema = z
         // signup flow always sends both.
         notifyByPhone: z.boolean().optional(),
         notifyByEmail: z.boolean().optional(),
+        // The secondary bodies of the city the reader follows (#829). Absent
+        // for an older caller, which leaves the row's bodies as they are.
+        bodyIds: z.array(z.string()).optional(),
     })
     .passthrough();
 

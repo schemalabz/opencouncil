@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { voiceprintNeedsOwnConsent } from "@/lib/utils/bodyTier";
 import { useState, useMemo } from "react";
 import { Search } from "lucide-react";
 import { PeopleStats } from "@/components/admin/people/people-stats";
@@ -135,6 +136,7 @@ export default function People({ people, consents, currentCityName, administrati
                                             personId={person.id}
                                             personName={person.name}
                                             status={consents[person.id] ?? null}
+                                            ownConsentOnly={voiceprintNeedsOwnConsent(person.roles)}
                                         />
                                         <VoiceprintActions
                                             personId={person.id}

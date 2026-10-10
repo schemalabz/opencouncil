@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { getRoleLimitForCity } from "@/lib/auth";
+import { isSecondaryBody, readTier } from "@/lib/utils/bodyTier";
 import CityPeople from "@/components/cities/CityPeople";
 import { getPartiesForCityCached, getPeopleForCityCached, getAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
 import { Metadata } from "next";
@@ -72,21 +73,28 @@ export async function generateMetadata(props: { params: Promise<{ cityId: string
 
 export default async function PeoplePage(
     props: {
-        params: Promise<{ cityId: string }>
+        params: Promise<{ cityId: string }>;
+        searchParams: Promise<{ tier?: string }>;
     }
 ) {
-    const params = await props.params;
+    const [params, search] = await Promise.all([props.params, props.searchParams]);
 
     const {
         cityId
     } = params;
 
-    const [partiesWithPersons, administrativeBodies, allPeople, canEdit] = await Promise.all([
+    const [partiesWithPersons, administrativeBodies, allPeople, roleLimit] = await Promise.all([
         getPartiesForCityCached(cityId),
         getAdministrativeBodiesForCityCached(cityId),
         getPeopleForCityCached(cityId),
-        isUserAuthorizedToEdit({ cityId })
+        // null for a city admin; the bodies of a body admin; empty for a reader
+        getRoleLimitForCity(cityId),
     ]);
+    const canEdit = roleLimit === null || roleLimit.size > 0;
+    // The members of a secondary body show on request, or to whoever
+    // administers such a body (#829).
+    const showSecondary = readTier(search.tier) === 'all'
+        || (roleLimit !== null && administrativeBodies.some(body => roleLimit.has(body.id) && isSecondaryBody(body)));
 
     if (!partiesWithPersons) {
         notFound();
@@ -99,6 +107,8 @@ export default async function PeoplePage(
             administrativeBodies={administrativeBodies}
             cityId={cityId}
             canEdit={canEdit}
+            editableBodyIds={roleLimit ? [...roleLimit] : undefined}
+            showSecondary={showSecondary}
         />
     );
 } 

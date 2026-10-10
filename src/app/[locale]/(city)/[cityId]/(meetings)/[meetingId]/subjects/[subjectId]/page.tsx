@@ -17,6 +17,7 @@ import { formatNumericDate } from '@/lib/formatters/time';
 import { getPublicContribution } from '@/lib/sharing/contributions';
 import { contributionMetadata } from '@/lib/sharing/contributionMetadata';
 import type { QueryParams } from '@/lib/sharing/excerptSelector';
+import { meetingLabel } from '@/lib/meetingName';
 
 interface SubjectPageProps {
     params: Promise<{ cityId: string; meetingId: string; subjectId: string; locale: string }>;
@@ -131,7 +132,7 @@ export default async function SubjectPage(
         subjectCreatedAt: subject.createdAt,
         subjectUpdatedAt: subject.updatedAt,
         cityName: getLocalizedName(meetingData.city, params.locale),
-        meetingName: getLocalizedName(meetingData.meeting, params.locale),
+        meetingName: meetingLabel(meetingData.meeting, params.locale, meetingData.city.timezone),
         meetingDate: meetingData.meeting.dateTime,
         administrativeBodyName: meetingData.meeting.administrativeBody
             ? getLocalizedName(meetingData.meeting.administrativeBody, params.locale)
@@ -145,6 +146,7 @@ export default async function SubjectPage(
         name: subject.name,
         cityId: subject.cityId,
         councilMeetingId: subject.councilMeetingId,
+        administrativeBodyType: meetingData.meeting.administrativeBody?.type ?? null,
     };
     const meetingDate = new Date(meetingData.meeting.dateTime).toISOString();
 

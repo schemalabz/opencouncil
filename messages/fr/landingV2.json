@@ -151,7 +151,8 @@
   "bodyType": {
     "council": "Conseil",
     "committee": "Commission",
-    "community": "Communauté"
+    "community": "Communauté",
+    "youthCouncil": "Conseil des jeunes"
   },
   "duration": {
     "5": "5′+",

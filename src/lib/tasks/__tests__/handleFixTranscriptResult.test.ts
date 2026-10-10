@@ -25,10 +25,23 @@ jest.mock('@/lib/db/prisma', () => ({
 jest.mock('@/lib/db/utils', () => ({ getFixTranscriptRequestBody: jest.fn() }));
 jest.mock('@/lib/tasks/tasks', () => ({ startTask: jest.fn() }));
 jest.mock('../speakerHints', () => ({ applySpeakerHints: (...args: unknown[]) => mockApplySpeakerHints(...args) }));
+const mockRequestSummarizeInternal = jest.fn();
+jest.mock('../summarizeInternal', () => ({ requestSummarizeInternal: (...args: unknown[]) => mockRequestSummarizeInternal(...args) }));
+jest.mock('@/lib/discord', () => ({ sendTaskAdminAlert: jest.fn().mockResolvedValue(undefined) }));
 
 import { handleFixTranscriptResult } from '../fixTranscriptInternal';
 
 const TASK_CREATED = new Date('2026-09-18T10:10:00Z');
+/** One row serves both lookups of the handler: the supersession check and the body of the meeting. */
+function taskRow(administrativeBody: { type: string; name: string; name_en: string } | null) {
+  return {
+    cityId: 'city-1', councilMeetingId: 'meeting-1', createdAt: TASK_CREATED,
+    councilMeeting: {
+      name: null, name_en: null, kind: 'regular', sessionNumber: 3, dateTime: new Date('2026-09-17T16:00:00Z'),
+      administrativeBody, city: { name_en: 'Chania', timezone: 'Europe/Athens' },
+    },
+  };
+}
 const result = {
   updateUtterances: [{ utteranceId: 'u1', text: 'Διορθωμένο.', markUncertain: false }],
   speakerHints: [{ speakerTagId: 't1', personId: 'anna', actionable: true, evidenceKind: 'named' as const, confidence: 95, evidence: 'e' }],
@@ -38,7 +51,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(console, 'log').mockImplementation(() => {});
   jest.spyOn(console, 'error').mockImplementation(() => {});
-  mockTaskFindUnique.mockResolvedValue({ cityId: 'city-1', councilMeetingId: 'meeting-1', createdAt: TASK_CREATED });
+  mockTaskFindUnique.mockResolvedValue(taskRow(null));
   mockTaskFindFirst.mockResolvedValue(null);
   mockUtteranceFindUnique.mockResolvedValue({ id: 'u1', text: 'Λάθος.' });
 });
@@ -85,6 +98,23 @@ describe('handleFixTranscriptResult', () => {
 
     expect(mockUtteranceUpdate).toHaveBeenCalledTimes(1);
     expect(mockApplySpeakerHints).not.toHaveBeenCalled();
+  });
+
+  it('asks for the summary of a meeting whose body runs its pipeline unattended (#829)', async () => {
+    mockTaskFindUnique.mockResolvedValue(taskRow({ type: 'youthCouncil', name: 'Δημοτικό Συμβούλιο Νέων', name_en: 'Youth Council' }));
+
+    await handleFixTranscriptResult('task-1', result);
+
+    // Forced: the summary of the old transcript must not block this one.
+    expect(mockRequestSummarizeInternal).toHaveBeenCalledWith('city-1', 'meeting-1', [], undefined, { force: true });
+  });
+
+  it('leaves the summary of a primary body to the human review', async () => {
+    mockTaskFindUnique.mockResolvedValue(taskRow({ type: 'council', name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council' }));
+
+    await handleFixTranscriptResult('task-1', result);
+
+    expect(mockRequestSummarizeInternal).not.toHaveBeenCalled();
   });
 
   it('keeps the text corrections when applying the hints fails', async () => {

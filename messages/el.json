@@ -57,6 +57,8 @@
         "adminBodyType_council": "Δημοτικό Συμβούλιο",
         "adminBodyType_committee": "Δημοτική Επιτροπή",
         "adminBodyType_community": "Κοινότητες",
+        "adminBodyType_youthCouncil": "Δημοτικό Συμβούλιο Νέων",
+        "showYouthCouncils": "Συμβούλια Νέων",
         "allPeople": "Όλα",
         "allBodies": "Όλες",
         "backToHome": "Πίσω στην αρχική σελίδα",
@@ -278,6 +280,8 @@
         "supportBadgeUnofficialRegion": "Χωρίς επίσημη υποστήριξη της περιφέρειας",
         "supportBadgeShortOfficial": "Επίσημη υποστήριξη",
         "supportBadgeShortUnofficial": "Χωρίς επίσημη υποστήριξη",
+        "supportBadgeShortYouthOnly": "Μόνο Συμβούλιο Νέων",
+        "supportBadgeYouthOnly": "Χωρίς επίσημη υποστήριξη του δήμου. Μόνο το Δημοτικό Συμβούλιο Νέων δημοσιεύει εδώ τις συνεδριάσεις του.",
         "supportBadgeLearnMore": "Ποιος πληρώνει για το OpenCouncil;"
     },
     "EmbedConfigurator": {
@@ -287,6 +291,7 @@
         "typeSubjects": "Επίκαιρα θέματα",
         "numberOfSubjects": "Πόσα θέματα να εμφανίζονται",
         "description": "Ενσωματώστε τις συνεδριάσεις του δήμου στο site σας. Ρυθμίστε την εμφάνιση, αντιγράψτε τον κώδικα iframe και επικολλήστε τον στο CMS σας (WordPress, Joomla κλπ).",
+        "descriptionBody": "Ενσωματώστε τις συνεδριάσεις του οργάνου «{body}» στο site σας. Ρυθμίστε την εμφάνιση, αντιγράψτε τον κώδικα iframe και επικολλήστε τον στο CMS σας (WordPress, Joomla κλπ).",
         "accentColor": "Χρώμα",
         "accentColorHint": "Το κύριο χρώμα του widget — χρησιμοποιείται σε τίτλους, links και badges. Βάλτε το χρώμα του δήμου σας για να ταιριάζει με το site.",
         "darkMode": "Σκούρο φόντο",
@@ -363,7 +368,51 @@
         "noVideosFound": "Δεν βρέθηκαν βίντεο",
         "details": "Λεπτομέρειες",
         "meetingId": "Αναγνωριστικό Συνεδρίασης",
-        "meetingIdDescription": "Το αναγνωριστικό θα χρησιμοποιηθεί στη διεύθυνση URL της συνεδρίασης.",
+        "meetingIdDescription": "Το αναγνωριστικό μπαίνει στη διεύθυνση URL της συνεδρίασης. Αφήστε το κενό: η πλατφόρμα το φτιάχνει από την ημερομηνία και προσθέτει _2 όταν η ημέρα έχει ήδη συνεδρίαση.",
+        "kind": "Είδος συνεδρίασης",
+        "kindDescription": "Όπως το γράφει η πρόσκληση. Το είδος μπαίνει στο όνομα της συνεδρίασης.",
+        "fromInvitation": "Από την πρόσκληση",
+        "kindOptions": {
+            "regular": "Τακτική",
+            "urgent": "Έκτακτη",
+            "accountability": "Ειδική Λογοδοσίας",
+            "activityReport": "Ειδική Απολογισμού Πεπραγμένων",
+            "budget": "Ειδική Προϋπολογισμού",
+            "presidencyElection": "Ειδική Εκλογής Προεδρείου"
+        },
+        "councilOnly": "μόνο δημοτικό συμβούλιο",
+        "scheduleStatus": "Κατάσταση",
+        "scheduleStatusOptions": {
+            "scheduled": "Προγραμματισμένη",
+            "postponed": "Αναβλήθηκε",
+            "cancelled": "Ακυρώθηκε"
+        },
+        "scheduleStatusDescription": "Μια συνεδρίαση που αναβάλλεται ή ακυρώνεται μένει ορατή. Το ημερολόγιο ενημερώνεται αυτόματα.",
+        "scheduleStatusReason": "Αιτία",
+        "scheduleStatusReasonPlaceholder": "Όπως τη δημοσίευσε ο δήμος",
+        "postponedFrom": "Από αναβολή της συνεδρίασης",
+        "postponedFromNone": "Καμία",
+        "postponedFromDescription": "Επιλέξτε τη συνεδρίαση που αναβλήθηκε, αν αυτή είναι η νέα της. Μόλις δημοσιευτεί αυτή, η παλιά κρύβεται από τους αναγνώστες.",
+        "sessionNumber": "Αριθμός συνεδρίασης",
+        "sessionNumberDescription": "Όπως τον γράφει ο δήμος, π.χ. 15 για «15η». Μια συνεδρίαση που ακυρώθηκε κρατά τον αριθμό της, και η νέα συνεδρίαση μετά από αναβολή παίρνει τον ίδιο.",
+        "format": "Μορφή",
+        "formatOptions": {
+            "inPerson": "Δια ζώσης",
+            "remote": "Τηλεδιάσκεψη",
+            "hybrid": "Μεικτή",
+            "byCirculation": "Δια περιφοράς"
+        },
+        "closedToPublic": "Κεκλεισμένων των θυρών",
+        "closedToPublicDescription": "Οι αναγνώστες βλέπουν ότι η συνεδρίαση έγινε κεκλεισμένων των θυρών.",
+        "noRecording": "Χωρίς βιντεοσκόπηση",
+        "noRecordingDescription": "Η συνεδρίαση έγινε χωρίς βιντεοσκόπηση. Η σελίδα δεν υπόσχεται βίντεο ούτε απομαγνητοφώνηση.",
+        "agendaAsLink": "Σύνδεσμος ή αρχείο",
+        "agendaAsText": "Επικόλληση κειμένου",
+        "agendaTextPlaceholder": "Επικολλήστε εδώ τα θέματα της ημερήσιας διάταξης, όπως τα γράφει η πρόσκληση.",
+        "agendaTextDescription": "Τα θέματα εξάγονται αυτόματα από το κείμενο μετά την αποθήκευση. Αντικαθιστούν τα θέματα που έχει ήδη η συνεδρίαση.",
+        "place": "Τόπος",
+        "placeDescription": "Μόνο αν διαφέρει από την αίθουσα του οργάνου.",
+        "nameOverrideDescription": "Αφήστε το κενό: το όνομα φτιάχνεται από το όργανο, το είδος και την ημερομηνία. Συμπληρώστε το μόνο για μια συνεδρίαση που χρειάζεται δικό της όνομα.",
         "meetingNameEnPlaceholder": "Εισάγετε το όνομα της συνεδρίασης στα Αγγλικά",
         "meetingNameEnDescription": "Δώστε το όνομα της συνεδρίασης στα Αγγλικά.",
         "administrativeBody": "Διοικητικό Όργανο",
@@ -373,7 +422,8 @@
         "administrativeBodyType": {
             "council": "Δημοτικό Συμβούλιο",
             "committee": "Δημοτική Επιτροπή",
-            "community": "Δημοτική Κοινότητα"
+            "community": "Δημοτική Κοινότητα",
+            "youthCouncil": "Δημοτικό Συμβούλιο Νέων"
         },
         "formErrors": "Παρακαλώ διορθώστε τα παρακάτω σφάλματα:"
     },
@@ -497,6 +547,7 @@
             "byAdmin": "Καταχωρήθηκε από {recorder}, στις {date}. Το πρόσωπο δεν μπορεί να την αλλάξει από το προφίλ του.",
             "unknownAccount": "διαγραμμένο λογαριασμό",
             "recordHint": "Καταχωρήστε τη μόνο αν το πρόσωπο έδωσε τη συναίνεσή του γραπτώς, με έντυπη φόρμα και φυσική υπογραφή. Το πρόσωπο θα τη βλέπει στο προφίλ του, αλλά δεν θα μπορεί να την αλλάξει.",
+            "ownOnlyHint": "Το πρόσωπο ανήκει μόνο σε Συμβούλιο Νέων: η συγκατάθεση δίνεται μόνο από τον δικό του λογαριασμό. Δεν καταχωρείται συγκατάθεση για λογαριασμό του.",
             "withdrawHint": "Ανακαλέστε τη όταν το πρόσωπο το ζητήσει. Η περίοδος της συναίνεσης μένει στο ιστορικό.",
             "record": "Καταχώριση συναίνεσης",
             "withdraw": "Ανάκληση συναίνεσης",
@@ -610,6 +661,7 @@
         "personShortNameEnDescription": "Εισάγετε το σύντομο όνομα του μέλους στα Αγγλικά.",
         "image": "Εικόνα",
         "imageDescription": "Ανεβάστε μια εικόνα για το μέλος.",
+        "imageOwnersOnly": "Τη φωτογραφία την προσθέτει μόνο το ίδιο το μέλος, από τον λογαριασμό του.",
         "failedToSavePerson": "Αποτυχία αποθήκευσης του μέλους.",
         "unexpectedError": "Απρόσμενο σφάλμα.",
         "submitting": "Υποβολή...",
@@ -835,7 +887,8 @@
         "contactForAccess": "Για να αποκτήσετε πρόσβαση διαχείρισης, επικοινωνήστε μαζί μας:",
         "adminCity": "Διαχείριση Πόλης",
         "adminParty": "Διαχείριση Παράταξης",
-        "adminPerson": "Διαχείριση Μέλους"
+        "adminPerson": "Διαχείριση Μέλους",
+        "adminBody": "Διαχειριστής οργάνου"
     },
     "OfferForm": {
         "success": "Επιτυχία",
@@ -921,11 +974,15 @@
         "types": {
             "council": "Δημοτικό Συμβούλιο",
             "committee": "Δημοτική Επιτροπή",
-            "community": "Δημοτική Κοινότητα"
+            "community": "Δημοτική Κοινότητα",
+            "youthCouncil": "Δημοτικό Συμβούλιο Νέων"
         },
         "youtubeChannelUrl": "URL Κανάλι YouTube",
         "youtubeChannelUrlPlaceholder": "https://youtube.com/@channel",
         "youtubeChannelUrlDescription": "Εισάγετε το URL του καναλιού YouTube για αυτό το διοικητικό όργανο.",
+        "place": "Αίθουσα συνεδριάσεων",
+        "placePlaceholder": "π.χ. Αίθουσα Δημοτικού Συμβουλίου, Δημαρχείο",
+        "placeDescription": "Εκεί συνεδριάζει το όργανο κατά κανόνα. Η σελίδα κάθε δια ζώσης συνεδρίασης τη δείχνει, εκτός αν η συνεδρίαση έχει δικό της τόπο.",
         "contactEmailPrimary": "Email Παραλήπτη (To)",
         "contactEmailPrimaryPlaceholder": "grammateia@municipality.gr",
         "contactEmailPrimaryDescription": "Κύριο email παραλήπτη για αποστολή απομαγνητοφωνήσεων.",
@@ -956,7 +1013,7 @@
     "RSS": {
         "title": "Τελευταίες Ενημερώσεις - {city}",
         "description": "Ενημερώσεις για {municipality}",
-        "meetingTitle": "{meetingName} — {cityName} ({date})",
+        "meetingTitle": "{meetingName} — {cityName}",
         "subjects": "Θέματα",
         "noSubjects": "Δεν υπάρχουν θέματα",
         "cityNotFound": "Η πόλη δεν βρέθηκε"

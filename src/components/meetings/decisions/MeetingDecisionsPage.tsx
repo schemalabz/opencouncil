@@ -12,7 +12,7 @@ import { MeetingCandidate } from '@/lib/db/decisionCandidateShape';
 import type { AdaLookupOutcome } from '@/lib/db/types';
 import { ADA_LOOKUP_SETTLE_MS } from '@/lib/db/types/adaLookups';
 import { getPollingHistoryForMeeting, requestPollDecisions, resolveCandidateConflict } from '@/lib/tasks/pollDecisions';
-import { pollCadence } from '@/lib/tasks/pollDecisionsBackoff';
+import { pollCadence, takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff';
 import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib/utils/votes';
 import { formatCalendarDate, formatDate, localCalendarDate } from '@/lib/formatters/time';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
@@ -166,6 +166,8 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const auditMode = isSuperAdmin && auditModePreference;
     const { toast } = useToast();
     const { subjects, meeting, city, getPerson } = useCouncilMeetingData();
+    // A λογοδοσία or an απολογισμός has no decisions on Diavgeia: the page offers no poll for it.
+    const noDecisions = takesNoDecisions(meeting);
     const t = useTranslations('admin.adminActions');
     const tPage = useTranslations('admin.decisionsPage');
     const tSubject = useTranslations('Subject');
@@ -650,6 +652,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const estimate = estimateWork(attention, waiting);
 
     const pollState: DiavgeiaFooterState = pollCadence({
+        noDecisions,
         canPoll: Boolean(city.diavgeiaUid) && pollScope.every(entry => entry.scope !== null),
         pollInFlight: Boolean(pollingStatus?.pendingTaskId),
     });
@@ -876,6 +879,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
             addReceipt(tPage('receipts.savedManual', { number: entry.decisionNumber, subject: labelOf(subject) }));
             // The poll reads the uploaded PDF like any linked decision. A poll already
             // running reads it too if it started after the save; otherwise the next one does.
+            if (noDecisions) return;
             try {
                 const start = await requestPollDecisions(meeting.cityId, meeting.id);
                 if (start.status === 'started') await refreshPollingStatus();
@@ -1216,7 +1220,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 onConfirm={confirm => handlePanelConfirm(subjectId, confirm)}
                 onLink={candidateId => handlePanelPick(subjectId, candidateId)}
                 offerableCount={rowCandidates({ subjectId, candidates, subjectByCandidate, subjects: panelSubjects, query: '' }).length}
-                renderAdaStep={({ noCandidates, onBack, onManual, onClose }) => (
+                renderAdaStep={noDecisions ? null : ({ noCandidates, onBack, onManual, onClose }) => (
                     <AdaLookupStep
                         subjectLabel={labelOf(subject)}
                         noCandidates={noCandidates}
@@ -1234,7 +1238,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         uploadConfig={{ cityId: meeting.cityId, identifier: `${meeting.id}_${subjectId}`, suffix: 'decision' }}
                         initial={panel.lastManual}
                         onContinue={entry => setPanel(p => p && { ...p, manual: entry, lastManual: entry })}
-                        onUseAda={ada => { toAda(); void handleAdaSearch(subjectId, ada); }}
+                        onUseAda={noDecisions ? undefined : ada => { toAda(); void handleAdaSearch(subjectId, ada); }}
                         onBack={onBack}
                         onClose={onClose}
                     />
@@ -1687,7 +1691,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                         onExportDocx={handleExportDocx}
                         previewDisabled={!minutes}
                         isPolling={isPolling}
-                        onPollSkippingCache={() => { void handlePoll(true); }}
+                        onPollSkippingCache={noDecisions ? null : () => { void handlePoll(true); }}
                         isClearing={isClearing}
                         onResetExtractions={handleClearExtractedData}
                         showResetExtractions={hasLoaded && hasExtractions}

@@ -91,8 +91,13 @@ export async function createEmptySpeakerSegmentAfter(
     if (!currentSegment) {
         throw new Error('Segment not found');
     }
+    // The gate below reads the meeting the caller named, so the segment must be
+    // in it: a body admin could otherwise name their meeting and another's segment.
+    if (currentSegment.cityId !== cityId || currentSegment.meetingId !== meetingId) {
+        throw new Error('Segment does not belong to the meeting');
+    }
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
 
     // Find the next segment to ensure we place the new segment correctly
     const nextSegment = await prisma.speakerSegment.findFirst({
@@ -154,8 +159,11 @@ export async function createEmptySpeakerSegmentBefore(
     if (!firstSegment) {
         throw new Error('Segment not found');
     }
+    if (firstSegment.cityId !== cityId || firstSegment.meetingId !== meetingId) {
+        throw new Error('Segment does not belong to the meeting');
+    }
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
 
     // Calculate timestamps for the new segment
     // We want to create a small segment before the first segment
@@ -225,7 +233,7 @@ export async function addUtteranceToSegment(
         throw new Error('City ID mismatch');
     }
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: segment.meetingId });
 
     let startTimestamp: number;
     let endTimestamp: number;
@@ -300,7 +308,7 @@ async function moveUtterancesToSegment(
         throw new Error('Current segment not found');
     }
 
-    await withUserAuthorizedToEdit({ cityId: currentSegment.cityId });
+    await withUserAuthorizedToEdit({ cityId: currentSegment.cityId, councilMeetingId: currentSegment.meetingId });
 
     // Find the target segment (previous or next)
     const targetSegment = await prisma.speakerSegment.findFirst({
@@ -400,7 +408,7 @@ export async function updateSegmentTimestamps(segmentId: string) {
         throw new Error('Segment not found');
     }
 
-    await withUserAuthorizedToEdit({ cityId: segment.cityId });
+    await withUserAuthorizedToEdit({ cityId: segment.cityId, councilMeetingId: segment.meetingId });
 
     const earliestStart = Math.min(...segment.utterances.map(u => u.startTimestamp));
     const latestEnd = Math.max(...segment.utterances.map(u => u.endTimestamp));
@@ -453,7 +461,7 @@ export async function deleteEmptySpeakerSegment(
         throw new Error('City ID mismatch');
     }
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: segment.meetingId });
 
     const text = segment.utterances.map((u) => u.text).join(" ");
     const isOnlyWhitespace = text.trim().length === 0;
@@ -740,7 +748,7 @@ export async function updateSpeakerSegmentData(
         throw new Error('City ID mismatch');
     }
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: currentSegment.meetingId });
 
     // Validate the input data
     if (data.utterances.length === 0) {
@@ -763,7 +771,8 @@ export async function updateSpeakerSegmentData(
         data.summary = null;
     }
 
-    // Validate that all referenced subject IDs exist
+    // Every subject named must be one of this meeting: the gate above covers
+    // this meeting alone, so a subject of another meeting is not the caller's.
     const subjectIds = [...new Set(
         data.utterances
             .map(u => u.discussionSubjectId)
@@ -771,13 +780,13 @@ export async function updateSpeakerSegmentData(
     )];
     if (subjectIds.length > 0) {
         const existingSubjects = await prisma.subject.findMany({
-            where: { id: { in: subjectIds } },
+            where: { id: { in: subjectIds }, cityId, councilMeetingId: currentSegment.meetingId },
             select: { id: true }
         });
         const existingSubjectIds = new Set(existingSubjects.map(s => s.id));
         for (const subjectId of subjectIds) {
             if (!existingSubjectIds.has(subjectId)) {
-                throw new Error(`Subject with ID "${subjectId}" does not exist`);
+                throw new Error(`Subject with ID "${subjectId}" does not exist in this meeting`);
             }
         }
     }
@@ -795,13 +804,15 @@ export async function updateSpeakerSegmentData(
         }
 
         // The merged transcript view can include utterances from adjacent segments.
-        // Verify which non-segment IDs actually exist in the DB so we can update them.
+        // Verify which non-segment IDs exist in this meeting so we can update them:
+        // the gate above covers this meeting alone, so an id of another meeting
+        // is left as it is, like an id that no longer exists.
         const unknownIds = data.utterances
             .filter(u => !segmentUtteranceIds.has(u.id) && !u.id.startsWith('temp_'))
             .map(u => u.id);
         const verifiedOtherIds = unknownIds.length > 0
             ? new Set((await prisma.utterance.findMany({
-                where: { id: { in: unknownIds } },
+                where: { id: { in: unknownIds }, speakerSegment: { cityId, meetingId: currentSegment.meetingId } },
                 select: { id: true }
             })).map(u => u.id))
             : new Set<string>();
@@ -903,8 +914,9 @@ export async function extractSpeakerSegment(
 
     if (!originalSegment) throw new Error('Segment not found');
     if (originalSegment.cityId !== cityId) throw new Error('City mismatch');
+    if (originalSegment.meetingId !== meetingId) throw new Error('Meeting mismatch');
 
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
 
     // 2. Find utterance indices
     const utterances = originalSegment.utterances;

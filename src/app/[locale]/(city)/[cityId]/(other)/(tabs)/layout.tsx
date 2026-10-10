@@ -7,12 +7,14 @@ import { CityRail } from "@/components/cities/CityRail";
 import { CityNavigation } from "@/components/cities/CityNavigation";
 import type { DatedMeeting, MeetingBookends } from "@/components/cities/overview/CityMeetingsModule";
 import { stageChipDetail } from "@/components/meetings/stage/stageDetail";
-import { getCityCached, getCityMessageCached, getCityPetitionBucketCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
-import { isPetitionable } from "@/lib/cityStatus";
+import { getAdministrativeBodiesWithPublicMeetingsCached, getCityCached, getCityMessageCached, getCityPetitionBucketCached, getCityPublicThroughSecondaryCached, getCouncilMeetingsPreviewPublicCached, getSubjectCountForCityCached } from "@/lib/cache";
+import { isOutOfNetwork, isPetitionable } from "@/lib/cityStatus";
+import { SECONDARY_BODY_TYPES, isSecondaryBody } from "@/lib/utils/bodyTier";
 import { getCurrentUser, isUserAuthorizedToEdit } from "@/lib/auth";
 import type { CouncilMeetingWithSubjectPreview } from "@/lib/db/meetings";
 import { getNotificationPreferenceForCity } from "@/lib/db/notifications";
-import { publicMeetingStage, stageSignalsFromPreview } from "@/lib/meetingStage";
+import { stageSignalsFromPreview } from "@/lib/meetingStage";
+import { presentationKey, publicMeetingPresentation } from "@/lib/meetingPresentation";
 import { readerPhoneChannel } from "@/lib/notis/reader";
 
 export default async function TabsLayout(
@@ -39,21 +41,30 @@ export default async function TabsLayout(
     // Both scopes are fetched up front so the band's scope switch is instant. All
     // four are cached and narrow (limit 1), and the council-only pair is what the
     // page shows for cities whose committees meet far more often than the council.
+    // The next meeting takes place: a postponed or cancelled one heads no rail.
     // The petition bucket chains on the city: the rail's petition card reads it
     // on a city we do not cover yet, and a supported city has no card to read it.
     const cityPromise = getCityCached(cityId);
     const currentUserPromise = getCurrentUser();
-    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, subjectCount, petitionBucket, tStage, notificationPreference] = await Promise.all([
+    // The secondary tier (#829) gets its own pair and its own card: the two
+    // scopes above never include it.
+    const [city, cityMessage, currentUser, canEdit, upcoming, past, councilUpcoming, councilPast, secondaryUpcoming, secondaryPast, publicBodies, subjectCount, petitionBucket, publicThroughSecondary, tStage, notificationPreference] = await Promise.all([
         cityPromise,
         getCityMessageCached(cityId),
         currentUserPromise,
         isUserAuthorizedToEdit({ cityId }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1 }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, takesPlace: true }),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1 }),
-        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: ['council'] }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: ['council'], takesPlace: true }),
         getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: ['council'] }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'upcoming', limit: 1, administrativeBodyTypes: [...SECONDARY_BODY_TYPES] }),
+        getCouncilMeetingsPreviewPublicCached(cityId, { timeFilter: 'past', limit: 1, administrativeBodyTypes: [...SECONDARY_BODY_TYPES] }),
+        getAdministrativeBodiesWithPublicMeetingsCached(cityId),
         getSubjectCountForCityCached(cityId),
         cityPromise.then(found => found && isPetitionable(found.status) ? getCityPetitionBucketCached(cityId) : null),
+        // Only a city that is not public by status can be public through a
+        // secondary body alone (#829); the others need no lookup.
+        cityPromise.then(found => found && isOutOfNetwork(found.status) ? getCityPublicThroughSecondaryCached(cityId) : false),
         getTranslations({ locale, namespace: 'meetingStage' }),
         // The whole preference, not just whether one exists: the notification
         // card shows the reader which topics and places they signed up for.
@@ -81,7 +92,7 @@ export default async function TabsLayout(
     const now = new Date();
     const dated = (meeting: CouncilMeetingWithSubjectPreview | undefined): DatedMeeting | null => {
         if (!meeting) return null;
-        const stage = publicMeetingStage(stageSignalsFromPreview(meeting), now);
+        const stage = presentationKey(publicMeetingPresentation(meeting, stageSignalsFromPreview(meeting), now));
         return { meeting, stage, detail: stageChipDetail(tStage, stage, meeting.dateTime, city.timezone, locale, now) };
     };
 
@@ -125,6 +136,7 @@ export default async function TabsLayout(
                     cityMessage={cityMessage}
                     showMessage={showMessage}
                     subjectCount={subjectCount}
+                    publicThroughSecondary={publicThroughSecondary}
                     locale={locale}
                 />
 
@@ -144,6 +156,8 @@ export default async function TabsLayout(
                         petitionBucket={petitionBucket}
                         allMeetings={bookends(upcoming[0], past[0])}
                         councilMeetings={bookends(councilUpcoming[0], councilPast[0])}
+                        secondaryBodies={publicBodies.filter(isSecondaryBody)}
+                        secondaryMeetings={bookends(secondaryUpcoming[0], secondaryPast[0])}
                         locale={locale}
                     />
                 </div>

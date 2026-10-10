@@ -49,7 +49,7 @@ export interface EmbedSearchParams {
     mode?: string;
     limit?: string;
     radius?: string;
-    /** Comma-separated admin-body types (council/committee/community). */
+    /** Comma-separated admin-body types (the values of AdministrativeBodyType). */
     bodies?: string;
     /** Comma-separated specific admin-body ids; takes precedence over `bodies`. */
     bodyIds?: string;

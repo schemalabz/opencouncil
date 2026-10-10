@@ -4,7 +4,8 @@ import { Utterance as ApiUtterance, SummarizeRequest, SummarizeResult } from "..
 import { getTranscript } from "../db/transcript";
 import { getPartiesForCity } from "../db/parties";
 import { getCity } from "../db/cities";
-import { getCouncilMeeting } from "../db/meetings";
+import { getCouncilMeeting, setMeetingReleasedWithEffects } from "../db/meetings";
+import { pipelineRunsUnattended } from "@/lib/utils/bodyTier";
 import prisma from "../db/prisma";
 import { revalidateMeeting } from "../cache";
 import { getAvailableSpeakerSegmentIds, saveSubjectsForMeeting } from "../db/utils";
@@ -12,6 +13,7 @@ import { requestSummarizeInternal } from "./summarizeInternal";
 import { withUserAuthorizedToEdit } from "../auth";
 import { after } from "next/server";
 import { generateImagesForMeeting } from "../subjectImages";
+import { notifyMeetingSubjects } from '@/lib/notifications/meetingTask';
 
 /**
  * Browser-facing entry point for the admin panel's summarize button. Callers
@@ -22,7 +24,7 @@ export async function requestSummarize(cityId: string, councilMeetingId: string,
 }: {
     force?: boolean;
 } = {}) {
-    await withUserAuthorizedToEdit({ cityId });
+    await withUserAuthorizedToEdit({ cityId, councilMeetingId });
     return requestSummarizeInternal(cityId, councilMeetingId, requestedSubjects, additionalInstructions, { force });
 }
 
@@ -172,59 +174,18 @@ export async function handleSummarizeResult(taskId: string, response: SummarizeR
     // outlive the response rather than escape it. Each failure alerts on its own.
     after(() => generateImagesForMeeting(councilMeeting.cityId, councilMeeting.id));
 
-    // Create notifications if administrative body allows it
-    const adminBody = councilMeeting.administrativeBody;
-    if (adminBody && adminBody.notificationBehavior !== 'NOTIFICATIONS_DISABLED') {
-        const { createNotificationsForMeeting } = await import('../db/notifications');
-        const { releaseNotifications } = await import('../notifications/deliver');
-        const { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } = await import('../discord');
+    await notifyMeetingSubjects(councilMeeting, 'afterMeeting');
 
+    // The last step of a pipeline that runs with no operator (#829): the
+    // summary is in, so the meeting goes public. A primary body's meeting
+    // waits for an admin. A failure here must not fail the task: the summary
+    // is saved, and an admin can release the meeting by hand.
+    if (pipelineRunsUnattended(councilMeeting.administrativeBody) && !councilMeeting.released) {
         try {
-            const stats = await createNotificationsForMeeting(
-                councilMeeting.cityId,
-                councilMeeting.id,
-                'afterMeeting'
-            );
-
-            console.log(`Created ${stats.notificationsCreated} afterMeeting notifications for ${stats.subjectsTotal} subjects`);
-
-            const autoSend = adminBody.notificationBehavior === 'NOTIFICATIONS_AUTO';
-
-            // Send Discord admin alert about notification creation
-            if (stats.notificationsCreated > 0) {
-                sendNotificationsCreatedAdminAlert({
-                    cityName: councilMeeting.city.name_en,
-                    meetingName: councilMeeting.name,
-                    notificationType: 'afterMeeting',
-                    notificationsCreated: stats.notificationsCreated,
-                    subjectsTotal: stats.subjectsTotal,
-                    cityId: councilMeeting.cityId,
-                    meetingId: councilMeeting.id,
-                    autoSend
-                });
-            }
-
-            // If auto-send is enabled, release notifications immediately
-            if (autoSend) {
-                console.log('Auto-sending notifications...');
-                const releaseResult = await releaseNotifications(stats.notificationIds);
-                console.log(`Released notifications: ${releaseResult.emailsSent} emails`);
-
-                // Send Discord admin alert about sending
-                sendNotificationsSentAdminAlert({
-                    cityId: councilMeeting.cityId,
-                    meetingId: councilMeeting.id,
-                    cityName: councilMeeting.city.name_en,
-                    meetingName: councilMeeting.name,
-                    notificationCount: stats.notificationsCreated,
-                    emailsSent: releaseResult.emailsSent,
-                    failed: releaseResult.failed,
-                    leftPending: releaseResult.leftPending
-                });
-            }
+            await setMeetingReleasedWithEffects(councilMeeting.cityId, councilMeeting.id, true);
+            console.log(`Released ${councilMeeting.cityId}/${councilMeeting.id} after its summary (unattended pipeline)`);
         } catch (error) {
-            console.error('Error creating notifications after summarize:', error);
-            // Don't throw - we don't want to fail the entire task if notifications fail
+            console.error(`Failed to release ${councilMeeting.cityId}/${councilMeeting.id} after its summary:`, error);
         }
     }
 }

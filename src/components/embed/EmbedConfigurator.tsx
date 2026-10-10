@@ -49,9 +49,15 @@ interface EmbedConfiguratorProps {
     bodyGroups: EmbedBodyGroup[];
     /** Released past meetings, newest first — choices for the summary widget's meeting picker. */
     recentMeetings: EmbedRecentMeeting[];
+    /**
+     * The one body the widget shows, for an admin of that body (#829). The
+     * body filter is then fixed and the picker stays hidden; `recentMeetings`
+     * are that body's.
+     */
+    lockedBody?: { id: string; name: string; name_en: string; type: AdministrativeBodyType } | null;
 }
 
-export function EmbedConfigurator({ cityId, cityName, cityTimezone, bodyGroups, recentMeetings }: EmbedConfiguratorProps) {
+export function EmbedConfigurator({ cityId, cityName, cityTimezone, bodyGroups, recentMeetings, lockedBody = null }: EmbedConfiguratorProps) {
     const t = useTranslations('EmbedConfigurator');
     const tCommon = useTranslations('Common');
     const locale = useLocale();
@@ -68,8 +74,8 @@ export function EmbedConfigurator({ cityId, cityName, cityTimezone, bodyGroups, 
     const [summaryLimit, setSummaryLimit] = useState<number>(EMBED_SUMMARY_LIMITS.meetings.default);
     const [subjectsPerMeeting, setSubjectsPerMeeting] = useState<number>(EMBED_SUMMARY_LIMITS.subjects.default);
     // Body filter: a single type (level 1) plus an optional specific body (level 2).
-    const [selectedType, setSelectedType] = useState<AdministrativeBodyType | null>(null);
-    const [selectedBodyId, setSelectedBodyId] = useState<string | null>(null);
+    const [selectedType, setSelectedType] = useState<AdministrativeBodyType | null>(lockedBody?.type ?? null);
+    const [selectedBodyId, setSelectedBodyId] = useState<string | null>(lockedBody?.id ?? null);
     // Optional location filter (subjects widget only) — address resolved to a geohash-6.
     const [geoLocation, setGeoLocation] = useState<EmbedLocation | null>(null);
     const [copied, setCopied] = useState(false);
@@ -158,7 +164,9 @@ export function EmbedConfigurator({ cityId, cityName, cityTimezone, bodyGroups, 
             <div className="space-y-6">
                 <div>
                     <h2 className="text-xl font-semibold mb-1">{t('title')}</h2>
-                    <p className="text-sm text-muted-foreground">{t('description')}</p>
+                    <p className="text-sm text-muted-foreground">
+                        {lockedBody ? t('descriptionBody', { body: getLocalizedName(lockedBody, locale) }) : t('description')}
+                    </p>
                 </div>
 
                 {/* Widget type */}
@@ -339,8 +347,15 @@ export function EmbedConfigurator({ cityId, cityName, cityTimezone, bodyGroups, 
                 </div>
                 )}
 
-                {/* Administrative body filter — type (level 1) + specific body (level 2) */}
-                {bodyFilterApplies && (
+                {/* Administrative body filter — type (level 1) + specific body (level 2).
+                    Fixed for an admin of one body: the widget is that body's. */}
+                {bodyFilterApplies && lockedBody && (
+                    <div className="space-y-2">
+                        <Label>{t('administrativeBodies')}</Label>
+                        <p className="text-sm">{getLocalizedName(lockedBody, locale)}</p>
+                    </div>
+                )}
+                {bodyFilterApplies && !lockedBody && (
                     <AdminBodyPicker
                         groups={bodyPickerGroups}
                         selectedType={selectedType}

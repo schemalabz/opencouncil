@@ -1,5 +1,6 @@
 import type { Topic } from '@prisma/client';
 import { accountIssues, type SignupAccount, type SignupIssue } from '@/components/signup/signup-shared';
+import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { type NotisStatus, phoneChannelFor } from '@/lib/notis/phone-channel';
 import type { Location } from '@/lib/types/onboarding';
 
@@ -17,6 +18,8 @@ export type SignupStep = 1 | 2 | 3;
 export interface ExistingPreference {
     locations: Location[];
     topics: Topic[];
+    /** The secondary bodies of the municipality the reader follows (#829). */
+    bodies: PublicAdministrativeBody[];
     notifyByEmail: boolean;
 }
 
@@ -24,6 +27,8 @@ export interface SignupState {
     step: SignupStep;
     locations: Location[];
     topics: Topic[];
+    /** The secondary bodies the reader ticked. Off by default: their meetings are not the municipality's. */
+    bodies: PublicAdministrativeBody[];
     phoneChannel: boolean;
     emailChannel: boolean;
     phone: string;
@@ -64,12 +69,15 @@ export function initialSignupState(input: {
     initialStep: SignupStep;
     existing: ExistingPreference | null;
     account: SignupAccount | null;
+    /** Ticked from the start for a new reader: the bodies a signup for bodies alone is about (#829). */
+    preselectedBodies?: PublicAdministrativeBody[];
 }): SignupState {
     const { existing, account } = input;
     return {
         step: input.initialStep,
         locations: existing?.locations ?? [],
         topics: existing?.topics ?? [],
+        bodies: existing?.bodies ?? input.preselectedBodies ?? [],
         // Notis has not been asked yet; the answer replaces this before the
         // card shows. Email starts off, as the design proposes it.
         phoneChannel: phoneChannelDefault(null, account),
@@ -119,6 +127,8 @@ export interface SignupSubmission {
 
     locations: { text: string; coordinates: [number, number] }[];
     topicIds: string[];
+    /** The secondary bodies the reader follows, always sent: an unticked body leaves. */
+    bodyIds: string[];
     notifyByPhone?: boolean;
     notifyByEmail: boolean;
     phone?: string;
@@ -144,6 +154,7 @@ export function buildSubmission(
         ...(opts.returnTo ? { returnTo: opts.returnTo } : {}),
         locations: state.locations.map(({ text, coordinates }) => ({ text, coordinates })),
         topicIds: state.topics.map((topic) => topic.id),
+        bodyIds: state.bodies.map((body) => body.id),
         ...(opts.phoneChannelLocked ? {} : { notifyByPhone: state.phoneChannel }),
         notifyByEmail: state.emailChannel,
         ...(state.phoneChannel && state.phone ? { phone: state.phone } : {}),

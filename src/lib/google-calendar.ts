@@ -11,6 +11,8 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { getMeetingForCalendarSync, setMeetingCalendarEventId, MeetingForCalendarSync } from '@/lib/db/meetingsCalendarSync';
 import { sendTaskAdminAlert } from '@/lib/discord';
 import { realmBaseUrl } from '@/lib/utils/realmBaseUrl';
+import { meetingLabel, meetingLabelInCity } from '@/lib/meetingName';
+import { takesPlace } from '@/lib/meetingLifecycleRules';
 
 // Bounds each Google API call so a hung request cannot stall the admin
 // routes that await the sync (googleapis sets no timeout by default).
@@ -60,10 +62,8 @@ function calculateMeetingEndTime(startTime: Date, durationHours: number = 2): Da
  * update paths both use this, so every sync rewrites the whole event
  * (title, description, times, attendees).
  */
-function buildMeetingEventPayload(meeting: MeetingForCalendarSync) {
-    const title = meeting.administrativeBody?.name
-        ? `${meeting.city.name}: ${meeting.administrativeBody.name}`
-        : meeting.city.name;
+function buildMeetingEventPayload(meeting: MeetingForCalendarSync, { restore }: { restore: boolean }) {
+    const title = `${meeting.city.name}: ${meetingLabel(meeting, 'el', meeting.city.timezone, { date: false })}`;
 
     const meetingUrl = `${realmBaseUrl(meeting.city.realm)}/${meeting.cityId}/${meeting.id}`;
     const descriptionParts: string[] = [];
@@ -96,6 +96,12 @@ function buildMeetingEventPayload(meeting: MeetingForCalendarSync) {
         // sends them the invite, so keep their address off the guest list that
         // readers of the event can see.
         guestsCanSeeOtherGuests: false,
+        // A postponed or cancelled meeting cancels its event, and Google tells
+        // the attendees. The event is kept, so a return to scheduled is one
+        // more patch. The new meeting after a postponement gets its own event.
+        // Any other edit leaves the status alone, so it never restores an
+        // event that someone cancelled by hand in Google Calendar.
+        status: !takesPlace(meeting) ? 'cancelled' : restore ? 'confirmed' : undefined,
     };
 }
 
@@ -104,7 +110,7 @@ function buildMeetingEventPayload(meeting: MeetingForCalendarSync) {
  *
  * - Patches the stored event when the meeting has a calendarEventId.
  * - Creates the event (and stores its ID) only when allowCreate is set —
- *   the meeting-creation path — and only for future meetings. Meetings
+ *   the meeting-creation path — and only for future, scheduled meetings. Meetings
  *   from before event IDs were stored, and retroactively added past
  *   meetings, are deliberately left alone.
  * - A stored event still gets patched when the meeting is in the past
@@ -122,8 +128,9 @@ function buildMeetingEventPayload(meeting: MeetingForCalendarSync) {
  *   event.
  *
  * sendUpdates 'all' makes Google email the attendees about the change:
- * invites to added attendees, cancellations to removed ones, and update
- * notices on time changes.
+ * invites to added attendees, cancellations to removed ones, update
+ * notices on time changes, and a cancellation when the meeting is
+ * postponed or cancelled.
  */
 export async function syncMeetingToCalendar(
     cityId: string,
@@ -147,7 +154,7 @@ export async function syncMeetingToCalendar(
         const isPast = meeting.dateTime.getTime() < Date.now();
 
         const calendar = await getCalendarClient();
-        const requestBody = buildMeetingEventPayload(meeting);
+        const requestBody = buildMeetingEventPayload(meeting, { restore: !!options.allowCreate });
 
         if (meeting.calendarEventId) {
             await calendar.events.patch({
@@ -156,7 +163,7 @@ export async function syncMeetingToCalendar(
                 requestBody,
                 sendUpdates: isPast ? 'none' : 'all',
             }, { timeout: CALENDAR_REQUEST_TIMEOUT_MS });
-        } else if (options.allowCreate && !isPast) {
+        } else if (options.allowCreate && !isPast && takesPlace(meeting)) {
             const response = await calendar.events.insert({
                 calendarId: env.GOOGLE_CALENDAR_ID,
                 requestBody,
@@ -196,7 +203,7 @@ export async function syncMeetingToCalendar(
             status: 'failed',
             taskType: 'calendarSync',
             cityName: meeting?.city.name ?? cityId,
-            meetingName: meeting?.name ?? meetingId,
+            meetingName: meeting ? meetingLabelInCity(meeting, 'el') : meetingId,
             // This alert has no task record. The field carries the calendar
             // event instead, because that is what an admin needs to inspect
             // or delete when a sync fails.

@@ -26,7 +26,7 @@ describe('buildApiSubjectWhere', () => {
             // status constraint is what keeps their meetings out of the API.
             const { councilMeeting } = buildApiSubjectWhere(Realm.greece, 'pending-city', {});
 
-            expect(councilMeeting).toMatchObject({ city: { status: { in: ['demo', 'supported'] } } });
+            expect(councilMeeting).toMatchObject({ city: PUBLIC_CITY_WHERE });
         });
 
         it('scopes to the realm of the request', () => {

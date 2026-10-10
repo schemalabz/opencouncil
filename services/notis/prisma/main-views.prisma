@@ -4,10 +4,13 @@
 // cannot write the main database.
 //
 // Generate-only: the views are owned by the ROOT prisma migration history
-// (prisma/migrations/20260815120000_notis_views_and_rollout, and
-// notis_fanout_targets last replaced in 20260906210000_phone_consent_per_user:
-// notifyByPhone is the reader's now, repeated on each of their rows). Never
-// run migrate against this schema.
+// (prisma/migrations/20260815120000_notis_views_and_rollout; notis_fanout_targets
+// and notis_meeting_events last replaced in
+// 20261009150000_notification_preference_bodies, which adds the bodies a
+// reader follows and the body an event belongs to, #829). A column added
+// here is required at read time, so the main database migrates before the
+// Notis build that reads the column deploys. Never run migrate against this
+// schema.
 
 generator client {
   provider = "prisma-client-js"
@@ -45,6 +48,9 @@ model FanoutTargetRow {
   // [{text, type, lng, lat}] — lng/lat are centroid coordinates, null-able
   locations Json
   updatedAt DateTime
+  // [{id, name, name_en}]: the bodies of the city the reader follows on
+  // their own (#829). An event with followersOnly reaches these readers alone.
+  bodies    Json
 
   @@id([userId, cityId])
   @@map("notis_fanout_targets")
@@ -56,13 +62,21 @@ model MeetingEventRow {
   completedAt   DateTime
   cityId        String
   meetingId     String
-  meetingName   String
+  // The name override only. Null means that the title is derived from
+  // meetingKind and sessionNumber (@opencouncil/ui/lib/meeting-title).
+  meetingName   String?
   meetingDate   DateTime
   released      Boolean
   adminBodyName String?
   realm         String
   language      String
   timezone      String
+  meetingKind   String?
+  sessionNumber Int?
+  adminBodyId   String?
+  // The body is one a reader follows on their own (#829): the audience is
+  // the followers of adminBodyId, not every subscriber of the city.
+  followersOnly Boolean
 
   @@map("notis_meeting_events")
 }

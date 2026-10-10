@@ -4,6 +4,7 @@ import { getAdministrativeBodiesForCity, getPublicAdministrativeBodiesForCity, c
 import { z } from 'zod';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
+import { defaultNotificationBehavior } from '@/lib/utils/bodyTier';
 
 
 export async function GET(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
@@ -13,7 +14,8 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
 
         // The route has no auth of its own (the proxy skips /api), so the
         // body's settings go only to an editor of the city: the body form in
-        // the city form edits them.
+        // the city form edits them. Everyone else, a body admin included,
+        // gets the public fields of every body.
         const administrativeBodies = await isUserAuthorizedToEdit({ cityId })
             ? await getAdministrativeBodiesForCity(cityId)
             : await getPublicAdministrativeBodiesForCity(cityId);
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
         const cityId = params.cityId;
         const body = await request.json();
         const parsed = administrativeBodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
 
         const newBody = await createAdministrativeBody({
             name,
@@ -44,9 +46,10 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             cityId,
             youtubeChannelUrl: youtubeChannelUrl && youtubeChannelUrl.trim() !== '' ? youtubeChannelUrl : null,
             contactEmails: contactEmails || [],
-            notificationBehavior: notificationBehavior || 'NOTIFICATIONS_APPROVAL',
+            notificationBehavior: notificationBehavior ?? defaultNotificationBehavior(type),
             showUnreviewedTranscript: showUnreviewedTranscript ?? true,
             diavgeiaUnitIds: diavgeiaUnitIds || [],
+            place,
         });
 
         revalidateTag(`city:${cityId}:administrativeBodies`, 'max');

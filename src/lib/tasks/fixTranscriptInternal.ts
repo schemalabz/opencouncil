@@ -14,6 +14,10 @@ import { FixTranscriptResult } from '@/lib/apiTypes';
 import { getFixTranscriptRequestBody } from '@/lib/db/utils';
 import { startTask } from '@/lib/tasks/tasks';
 import { applySpeakerHints } from './speakerHints';
+import { autoTriggerTask } from './autoTrigger';
+import { requestSummarizeInternal } from './summarizeInternal';
+import { pipelineRunsUnattended } from '@/lib/utils/bodyTier';
+import { meetingLabelInCity } from '@/lib/meetingName';
 
 export const requestFixTranscriptInternal = async (councilMeetingId: string, cityId: string, options: { force?: boolean } = {}) => {
     const requestBody = await getFixTranscriptRequestBody(councilMeetingId, cityId);
@@ -113,4 +117,44 @@ export const handleFixTranscriptResult = async (taskId: string, result: FixTrans
             console.error(`Failed to apply speaker hints of task ${taskId}; the text corrections stand:`, error);
         }
     }
+
+    await summarizeUnattended(taskId);
 };
+
+/**
+ * The next step of a pipeline that runs with no operator (#829): a body
+ * whose meetings nobody reviews gets its summary as soon as the transcript
+ * is corrected. A primary body waits for the human review, which asks for
+ * the summary itself (humanReview.ts).
+ */
+async function summarizeUnattended(taskId: string): Promise<void> {
+    const task = await prisma.taskStatus.findUnique({
+        where: { id: taskId },
+        select: {
+            cityId: true,
+            councilMeetingId: true,
+            councilMeeting: {
+                select: {
+                    name: true, name_en: true, kind: true, sessionNumber: true, dateTime: true,
+                    administrativeBody: { select: { type: true, name: true, name_en: true } },
+                    city: { select: { name_en: true, timezone: true } },
+                },
+            },
+        },
+    });
+    if (!task || !pipelineRunsUnattended(task.councilMeeting.administrativeBody)) return;
+
+    await autoTriggerTask(
+        'summarize',
+        {
+            cityId: task.cityId,
+            meetingId: task.councilMeetingId,
+            cityName: task.councilMeeting.city.name_en,
+            meetingName: meetingLabelInCity(task.councilMeeting, 'en'),
+            source: { taskType: 'fixTranscript', taskId },
+        },
+        // Forced: a summary of the old transcript must not block the one of
+        // the corrected transcript. A summary that still runs blocks it anyway.
+        () => requestSummarizeInternal(task.cityId, task.councilMeetingId, [], undefined, { force: true }),
+    );
+}
