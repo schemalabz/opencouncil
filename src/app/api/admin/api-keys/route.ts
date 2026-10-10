@@ -3,10 +3,7 @@ import { NextResponse } from "next/server";
 import { createServiceApiKey, getServiceApiKeys } from "@/lib/db/apiKeys";
 import { handleApiError } from "@/lib/api/errors";
 import * as z from "zod";
-
-const createKeySchema = z.object({
-    name: z.string().min(1).max(100).trim(),
-});
+import { createApiKeySchema } from "@/lib/zod-schemas/apiKey";
 
 export async function GET() {
     const user = await getCurrentUser();
@@ -36,7 +33,7 @@ export async function POST(request: Request) {
 
     try {
         const body = await request.json();
-        const { name } = createKeySchema.parse(body);
+        const { name } = createApiKeySchema.parse(body);
 
         const result = await createServiceApiKey(name, user.id);
 

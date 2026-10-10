@@ -40,6 +40,18 @@ const nextConfig = {
         domains: ['townhalls-gr.fra1.digitaloceanspaces.com', 'data.opencouncil.gr', 'fra1.digitaloceanspaces.com'],
     },
     transpilePackages: ['@opencouncil/ui', '@opencouncil/subject-images'],
+    turbopack: {
+        resolveAlias: {
+            // swagger-ui-react reaches apidom through swagger-client's ESM
+            // build. Turbopack follows apidom's re-exports past
+            // refractor/registration.mjs, the side-effect module that adds
+            // `.refract` to the element classes, so /docs fails on an OAS 3.1
+            // spec with "refract is not a function"
+            // (vercel/next.js#86507). The CommonJS build loads the
+            // registration with require(), which Turbopack keeps.
+            'swagger-client/es/*': 'swagger-client/lib/*',
+        },
+    },
     // Next 16 answers /_next/* and /__nextjs* requests that carry an Origin
     // outside this list with 403 (Next 15 only warned). The mobile preview
     // opens the app through the LAN IP, so the phone's HMR socket and

@@ -2,6 +2,7 @@ import * as z from 'zod';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
 import { isoDateOrDateTime, webUrl } from './primitives';
+import { includeUnreleasedQuery } from './subject';
 
 /**
  * A name override. The name of a meeting is derived (src/lib/meetingName.ts),
@@ -58,6 +59,31 @@ export const meetingSchema = z.object({
     place: optionalText(200),
     postponedFromId: z.string().min(1).nullable().optional(),
     continuationOfId: z.string().min(1).nullable().optional(),
+});
+
+/**
+ * Query parameters of GET /meetings. The route parses `searchParams`, so
+ * every field arrives as a string.
+ */
+export const meetingListQuerySchema = z.object({
+    limit: z.string()
+        .optional()
+        .transform((val) => val ? parseInt(val, 10) : undefined)
+        .refine((val) => val === undefined || (!isNaN(val) && val >= 1 && val <= 100), {
+            error: "Limit must be a number between 1 and 100"
+        })
+        .meta({ description: 'Maximum number of meetings to return (1-100)', example: '10' }),
+    from: z.string()
+        .optional()
+        .refine((val) => !val || !isNaN(new Date(val).getTime()), { error: "Invalid 'from' date" })
+        .transform((val) => val ? new Date(val) : undefined)
+        .meta({ description: 'Earliest meeting date and time, inclusive.', example: '2025-01-01' }),
+    to: z.string()
+        .optional()
+        .refine((val) => !val || !isNaN(new Date(val).getTime()), { error: "Invalid 'to' date" })
+        .transform((val) => val ? new Date(val) : undefined)
+        .meta({ description: 'Latest meeting date and time, inclusive.', example: '2025-12-31T23:59:59Z' }),
+    includeUnreleased: includeUnreleasedQuery,
 });
 
 export type MeetingFormData = z.infer<typeof meetingSchema>;

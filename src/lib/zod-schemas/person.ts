@@ -47,16 +47,20 @@ const rolesJson = z.string().transform((value, ctx) => {
         ctx.addIssue({ code: 'custom', message: 'roles must be a JSON array' });
         return z.NEVER;
     }
-}).pipe(z.array(personRoleSchema));
+}).pipe(z.array(personRoleSchema)).meta({
+    description: 'JSON array of role objects, each with cityId, partyId or administrativeBodyId, '
+        + 'name, name_en, isHead, startDate, endDate and electedOrder. Replaces all roles of the person.',
+});
 
 // FormData body of POST /people and PUT /people/{personId}. The roles replace
 // all roles of the person, so the field is required.
 export const personFormDataSchema = z.object({
     ...basePersonFields,
     profileUrl: webUrl().optional().or(z.literal('')),
-    image: imageFile().optional(),
-    // PUT only: remove the current image when no new one is sent
-    removeImage: stringBoolean.default(false),
+    image: imageFile().optional().meta({ description: 'Profile image file' }),
+    removeImage: stringBoolean.default(false).meta({
+        description: 'PUT only: "true" removes the current image when no new one is sent. Defaults to false.',
+    }),
     roles: rolesJson,
 });
 

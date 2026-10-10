@@ -7,8 +7,7 @@ import { deriveAndPersist, explainMeeting } from '@/lib/derivation/persist';
 import prisma from '@/lib/db/prisma';
 import { decisionWriteCause } from '@/lib/utils/decisionWriteCause';
 import { revalidateTag } from 'next/cache';
-import * as z from 'zod';
-import { webUrl } from '@/lib/zod-schemas/primitives';
+import { decisionActionSchema, decisionUpsertSchema } from '@/lib/zod-schemas/decision';
 
 export async function GET(
     request: Request,
@@ -36,16 +35,6 @@ export async function GET(
     return NextResponse.json({ decisions: decisionsWithBacking, extractedData, candidates, derivation });
 }
 
-const upsertSchema = z.object({
-    subjectId: z.string().min(1),
-    pdfUrl: webUrl({ error: 'pdfUrl must be http(s)' }),
-    decisionNumber: z.string().optional(),
-    protocolNumber: z.string().optional(),
-    ada: z.string().optional(),
-    title: z.string().optional(),
-    publishDate: z.iso.datetime().optional(),
-});
-
 export async function PUT(
     request: Request,
     props: { params: Promise<{ cityId: string; meetingId: string }> }
@@ -57,7 +46,7 @@ export async function PUT(
     const userId = session?.user?.id;
 
     const body = await request.json().catch(() => null);
-    const result = upsertSchema.safeParse(body);
+    const result = decisionUpsertSchema.safeParse(body);
     if (!result.success) {
         return NextResponse.json({ error: 'Invalid decision', details: result.error.issues }, { status: 400 });
     }
@@ -152,15 +141,6 @@ function writeFailure(error: unknown, fallback: string) {
     );
 }
 
-const postSchema = z.discriminatedUnion('action', [
-    z.object({ action: z.literal('clearExtractedData') }),
-    z.object({ action: z.literal('resetExtraction'), subjectId: z.string().min(1) }),
-    z.object({ action: z.literal('assignCandidate'), candidateId: z.string().min(1), subjectId: z.string().min(1) }),
-    z.object({ action: z.literal('dismissCandidate'), candidateId: z.string().min(1) }),
-    z.object({ action: z.literal('undismissCandidate'), candidateId: z.string().min(1) }),
-    z.object({ action: z.literal('rederive') }),
-]);
-
 export async function POST(
     request: Request,
     props: { params: Promise<{ cityId: string; meetingId: string }> }
@@ -169,7 +149,7 @@ export async function POST(
     await withUserAuthorizedToEdit({ cityId: params.cityId });
 
     const body = await request.json().catch(() => null);
-    const parsed = postSchema.safeParse(body);
+    const parsed = decisionActionSchema.safeParse(body);
 
     if (!parsed.success) {
         return NextResponse.json({ error: 'Invalid action', details: parsed.error.issues }, { status: 400 });
