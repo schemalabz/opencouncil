@@ -1,15 +1,13 @@
 import * as z from 'zod';
+import type { User } from '@prisma/client';
 
 // Input validation for the public onboarding Server Actions
 // (saveNotificationPreferences / savePetition in src/lib/db/notifications.ts).
+// The actions take z.input of these schemas and use the parsed output.
 //
 // These actions are reachable directly as Server Actions from the onboarding
 // client, so their arguments are untrusted. The schemas below validate the
-// shape of the known public fields. `z.looseObject` is deliberate: the
-// dev-only `seedUser` field is carried through and neutralized separately by
-// sanitizeSeedUser() — it must not be stripped here, or the dev seed route
-// would lose its seed fields. Privilege escalation via `seedUser` is closed in
-// sanitizeSeedUser(), not here; this schema only tightens the client input.
+// shape of the known public fields.
 
 // Shared public fields both onboarding actions accept.
 const onboardingBaseFields = {
@@ -21,9 +19,15 @@ const onboardingBaseFields = {
     // account: the page the reader is filling in. Validated again server-side
     // by safeRedirectPath — a relative path only, never another origin.
     returnTo: z.string().max(512).optional(),
+    // Dev-seed-only convenience: lets the seed-users API create users without
+    // a session and without a magic link. It is carried through unvalidated,
+    // so it is attacker-controllable. sanitizeSeedUser() neutralizes it: it
+    // returns undefined off local dev and otherwise keeps only benign fields,
+    // never isSuperAdmin or identity fields. Never spread the raw value.
+    seedUser: z.custom<Partial<User>>().optional(),
 };
 
-export const saveNotificationPreferencesSchema = z.looseObject({
+export const saveNotificationPreferencesSchema = z.object({
     ...onboardingBaseFields,
     // Locations are created server-side inside saveNotificationPreferences
     // (in the preference's transaction), so the client sends their raw
@@ -40,7 +44,7 @@ export const saveNotificationPreferencesSchema = z.looseObject({
     notifyByEmail: z.boolean().optional(),
 });
 
-export const savePetitionSchema = z.looseObject({
+export const savePetitionSchema = z.object({
     ...onboardingBaseFields,
     isResident: z.boolean(),
     isCitizen: z.boolean(),

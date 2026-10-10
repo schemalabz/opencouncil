@@ -1,6 +1,7 @@
 import "server-only";
 
 import { NotificationPreference, Petition, City, Topic, User, Location, Prisma } from '@prisma/client';
+import * as z from 'zod';
 import { auth, signIn } from "@/auth";
 import { signInFailurePath } from "@/lib/auth/signInResult";
 import { safeRedirectPath } from "@/lib/safeRedirect";
@@ -246,27 +247,6 @@ export async function getUserPreferences(): Promise<UserPreference[]> {
     }
 }
 
-type OnboardingData = {
-    cityId: string;
-    phone?: string;
-    email?: string; // For non-authenticated users
-    name?: string;
-    /**
-     * Where the sign-in link should land when the email already has an
-     * account: the page the reader is filling in. Attacker-controllable like
-     * every other field here, so it goes through safeRedirectPath — a
-     * same-origin relative path or the profile, never another origin.
-     */
-    returnTo?: string;
-    // Dev-seed-only convenience: lets the seed-users API create users without a
-    // session and without a magic link. SECURITY: these actions are reachable as
-    // Server Actions from the public onboarding client, so this field is
-    // attacker-controllable. It is always run through sanitizeSeedUser(), which
-    // returns undefined off local dev and otherwise allow-lists benign fields —
-    // never isSuperAdmin or identity fields. Never spread the raw value.
-    seedUser?: Partial<User>;
-}
-
 // Neutralize the dev-seed convenience field before it can influence auth or user
 // creation. Off local dev (production/preview: IS_DEV === false) it is ignored
 // entirely, so the onboarding Server Actions cannot skip the session check or
@@ -309,25 +289,20 @@ async function deleteUnusedLocations(tx: Prisma.TransactionClient, ids: string[]
 /**
  * Create or update notification preferences
  */
-export async function saveNotificationPreferences(data: OnboardingData & {
-    locations: { text: string; coordinates: [number, number] }[];
-    topicIds: string[];
-    /**
-     * Channel consent from the delivery step; omitted by older callers, who
-     * keep the defaults. The phone channel is the person's (User.notifyByPhone),
-     * the email summary is this municipality's.
-     */
-    notifyByPhone?: boolean;
-    notifyByEmail?: boolean;
-}): Promise<Result<NotificationPreference>> {
-    const validation = saveNotificationPreferencesSchema.safeParse(data);
+export async function saveNotificationPreferences(
+    input: z.input<typeof saveNotificationPreferencesSchema>
+): Promise<Result<NotificationPreference>> {
+    const validation = saveNotificationPreferencesSchema.safeParse(input);
     if (!validation.success) {
         return createError('Invalid input');
     }
+    // notifyByPhone/notifyByEmail: the channel consent of the delivery step.
+    // Older callers omit them and keep the defaults. The phone channel is the
+    // person's (User.notifyByPhone), the email summary is this municipality's.
     const {
         cityId, locations, topicIds, phone: rawPhone, email, name, seedUser: rawSeedUser,
         notifyByPhone, notifyByEmail, returnTo,
-    } = data;
+    } = validation.data;
     // A phone is stored as a mobile number in E.164 or not at all (@/lib/phone):
     // the old input let national numbers through, and they reached nobody.
     let phone: string | undefined;
@@ -556,21 +531,19 @@ export async function saveNotificationPreferences(data: OnboardingData & {
 /**
  * Create or update petition
  */
-export async function savePetition(data: OnboardingData & {
-    isResident: boolean;
-    isCitizen: boolean;
-    /** The reader's own words for a third relation; null clears it, undefined keeps it. */
-    otherRelation?: string | null;
-}): Promise<Result<Petition>> {
-    const validation = savePetitionSchema.safeParse(data);
+export async function savePetition(
+    input: z.input<typeof savePetitionSchema>
+): Promise<Result<Petition>> {
+    const validation = savePetitionSchema.safeParse(input);
     if (!validation.success) {
         return createError('Invalid input');
     }
-    const { cityId, isResident, isCitizen, otherRelation, phone: rawPhone, email, name, seedUser: rawSeedUser, returnTo } = data;
+    const { cityId, isResident, isCitizen, otherRelation, phone: rawPhone, email, name, seedUser: rawSeedUser, returnTo } = validation.data;
+    // otherRelation: null clears it, undefined keeps it.
     const relation = {
         is_resident: isResident,
         is_citizen: isCitizen,
-        ...(otherRelation !== undefined ? { other_relation: otherRelation?.trim() || null } : {}),
+        ...(otherRelation !== undefined ? { other_relation: otherRelation || null } : {}),
     };
     // Same rule as saveNotificationPreferences: a mobile in E.164 or nothing.
     let phone: string | undefined;

@@ -47,7 +47,7 @@ describe('createAdminUserSchema email', () => {
 });
 
 describe('saveNotificationPreferencesSchema', () => {
-    it('keeps a key it does not name, for sanitizeSeedUser to read', () => {
+    it('carries seedUser through unvalidated, for sanitizeSeedUser to read', () => {
         const parsed = saveNotificationPreferencesSchema.safeParse({ cityId: 'c', locations: [], topicIds: [], seedUser: { isSuperAdmin: true } });
         expect(parsed.success && parsed.data).toMatchObject({ seedUser: { isSuperAdmin: true } });
     });

@@ -5,6 +5,7 @@ import {
     disableAllNotificationPreferences,
     getPhoneChannelState,
     saveNotificationPreferences,
+    savePetition,
     setNotifyByPhoneForUser,
 } from '@/lib/db/notifications'
 import { ensureTestDb, resetDatabase } from '../helpers/test-db'
@@ -178,5 +179,43 @@ describe('notification signup channel consent', () => {
         await deleteNotificationPreference(preference.id, admin.id)
 
         expect(await prisma.location.count()).toBe(0)
+    })
+})
+
+describe('petition other relation', () => {
+    beforeAll(async () => {
+        await ensureTestDb()
+    })
+
+    beforeEach(async () => {
+        await resetDatabase(prisma)
+    })
+
+    test('stores the trimmed words, clears a blank one, and keeps the value when the field is absent', async () => {
+        const admin = await signInAsSuperAdmin()
+        const city = await createCity({ id: 'pt_city' })
+        const read = () => prisma.petition.findUniqueOrThrow({
+            where: { userId_cityId: { userId: admin.id, cityId: city.id } },
+        })
+        const base = { cityId: city.id, isResident: true, isCitizen: false }
+
+        expect((await savePetition({ ...base, otherRelation: '  εργάζομαι εδώ  ' })).success).toBe(true)
+        expect((await read()).other_relation).toBe('εργάζομαι εδώ')
+
+        await savePetition(base)
+        expect((await read()).other_relation).toBe('εργάζομαι εδώ')
+
+        await savePetition({ ...base, otherRelation: '   ' })
+        expect((await read()).other_relation).toBeNull()
+    })
+
+    test('refuses words over the limit before it writes', async () => {
+        await signInAsSuperAdmin()
+        const city = await createCity({ id: 'pt_long' })
+
+        const result = await savePetition({ cityId: city.id, isResident: true, isCitizen: false, otherRelation: 'x'.repeat(121) })
+
+        expect(result).toEqual({ success: false, error: 'Invalid input' })
+        expect(await prisma.petition.count()).toBe(0)
     })
 })
