@@ -2,7 +2,7 @@ import * as z from 'zod';
 import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client';
 import { decisionConventionsRecordSchema, decisionConventionsSchema } from '@/lib/decisionConventions';
 import { parseChannelRef } from '@/lib/utils/youtube';
-import { webUrl } from './primitives';
+import { blankToNull, webUrl } from './primitives';
 import { vmsg } from './messages';
 
 export const administrativeBodyTypeSchema = z.enum(AdministrativeBodyType);
@@ -30,9 +30,7 @@ const youtubeChannelUrlValue = webUrl({
     error: vmsg('youtubeChannelUrl'),
 });
 // In a request, an absent channel stays as it is. An empty string or null clears it.
-const youtubeChannelUrlRequest = z.union([youtubeChannelUrlValue, z.literal(''), z.null()])
-    .optional()
-    .transform(val => val === '' ? null : val);
+const youtubeChannelUrlRequest = blankToNull(z.union([youtubeChannelUrlValue, z.literal('')]));
 
 // JSON body of POST /administrative-bodies and PUT /administrative-bodies/{bodyId}.
 // On PUT, an absent field stays as it is.
@@ -43,7 +41,7 @@ export const administrativeBodySchema = z.object({
     notificationBehavior: notificationBehaviorSchema.optional(),
     showUnreviewedTranscript: z.boolean().optional(),
     // The hall where the body meets as a rule. An empty string clears it.
-    place: z.string().trim().max(200).optional().transform(val => (val === '' ? null : val)),
+    place: blankToNull(z.string().trim().max(200)),
     // Comma-separated in the request, an array in the database. An empty string clears it.
     diavgeiaUnitIds: z.string().optional().transform(val => val?.split(',').map(s => s.trim()).filter(Boolean)),
 });

@@ -42,11 +42,6 @@ export async function GET(
     }
 }
 
-/** An empty value clears the field; an omitted one leaves it as it is. */
-function emptyToNull(value: string | null | undefined): string | null | undefined {
-    return value === undefined ? undefined : value || null;
-}
-
 export async function PUT(
     request: Request,
     props: { params: Promise<{ cityId: string; meetingId: string }> }
@@ -81,8 +76,8 @@ export async function PUT(
             postponedFromId,
             continuationOfId,
             dateTime: date,
-            youtubeUrl: emptyToNull(youtubeUrl),
-            agendaUrl: emptyToNull(agendaUrl),
+            youtubeUrl,
+            agendaUrl,
             ...(nextBodyId !== undefined && { administrativeBodyId: nextBodyId }),
         });
 

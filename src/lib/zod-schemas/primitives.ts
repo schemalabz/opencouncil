@@ -27,6 +27,15 @@ export const queryFlag = z.stringbool({
  */
 export const webUrl = (params?: { error?: string }) => z.url({ protocol: /^https?$/, ...params });
 
+/**
+ * An optional text field of a request that an empty string or null clears:
+ * `''` becomes null, and an absent field stays absent.
+ */
+export const blankToNull = <T extends z.ZodType<string, string>>(field: T) => field
+    .nullable()
+    .optional()
+    .transform((value): z.output<T> | null | undefined => (value === '' ? null : value));
+
 /** A WGS84 latitude in degrees. */
 export const latitude = z.number().min(-90).max(90);
 /** A WGS84 longitude in degrees. */

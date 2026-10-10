@@ -1,8 +1,8 @@
 import * as z from 'zod';
-import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
+import { MeetingFormat } from '@prisma/client';
 import { sessionAuthRequirement, cityIdParam, meetingIdParam, editAuthResponses, errorResponseOf, invalidRequestResponse, lifecycleRuleResponse, type Paths } from '@/lib/openapi/registry';
 import { AdministrativeBodySchema, CityWithGeometrySchema, PartyWithPeopleSchema, PersonWithRolesSchema } from '@/lib/openapi/entities';
-import { meetingListQuerySchema, meetingSchema } from '@/lib/zod-schemas/meeting';
+import { baseMeetingFields, meetingListQuerySchema, meetingSchema } from '@/lib/zod-schemas/meeting';
 
 // --- Response Schemas ---
 
@@ -26,16 +26,18 @@ const MeetingSchema = z.object({
     calendarEventId: z.string().nullable().meta({ description: 'ID of the Google Calendar event of the meeting.' }),
     administrativeBodyId: z.string().nullable(),
     administrativeBody: AdministrativeBodySchema.nullable(),
-    scheduleStatus: z.enum(MeetingScheduleStatus),
-    scheduleStatusReason: z.string().nullable(),
-    kind: z.enum(MeetingKind).nullable().meta({ description: 'Null: the record states no single kind. The invitation is not read yet, or the record holds several meetings.' }),
-    urgent: z.boolean().meta({ description: 'The meeting was convened urgently («Έκτακτη»). Any kind can be urgent, on every body.' }),
-    sessionNumber: z.number().int().nullable().meta({ description: 'The official number, as the municipality prints it. Not unique.' }),
-    format: z.enum(MeetingFormat).nullable().meta({ description: 'Null: not stated yet. The meeting is expected as usual, with a recording, in the hall of its body.' }),
-    closedToPublic: z.boolean(),
-    place: z.string().nullable().meta({ description: 'In public responses, the place of the meeting or else of its body.' }),
+    scheduleStatus: baseMeetingFields.scheduleStatus,
+    scheduleStatusReason: baseMeetingFields.scheduleStatusReason.nullable(),
+    kind: baseMeetingFields.kind.nullable().meta({ description: 'Null: the record states no single kind. The invitation is not read yet, or the record holds several meetings.' }),
+    urgent: baseMeetingFields.urgent,
+    sessionNumber: baseMeetingFields.sessionNumber.nullable(),
+    // A stored meeting can have any format, by circulation too.
+    format: z.enum(MeetingFormat).meta({ description: baseMeetingFields.format.description })
+        .nullable().meta({ description: 'Null: not stated yet. The meeting is expected as usual, with a recording, in the hall of its body.' }),
+    closedToPublic: baseMeetingFields.closedToPublic,
+    place: baseMeetingFields.place.nullable().meta({ description: 'In public responses, the place of the meeting or else of its body.' }),
     continuationOfId: z.string().nullable().optional().meta({ description: 'Admin responses only.' }),
-    postponedFromId: z.string().nullable().optional().meta({ description: 'Admin responses only. Public responses carry postponedFromDate instead.' }),
+    postponedFromId: baseMeetingFields.postponedFromId.nullable().optional().meta({ description: 'Admin responses only. Public responses carry postponedFromDate instead.' }),
     hiddenByPostponement: z.boolean().optional().meta({ description: 'Admin responses only.' }),
     postponedFromDate: z.iso.datetime().nullable().optional().meta({ description: 'Public responses only: the date for which the meeting was first scheduled, when it replaces a postponed meeting.' }),
     createdAt: z.iso.datetime(),
