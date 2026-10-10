@@ -2,7 +2,6 @@ import * as z from 'zod';
 import { sessionAuthRequirement, meetingIdParam, editAuthResponses, errorResponseOf, invalidRequestResponse, type Paths } from '@/lib/openapi/registry';
 import { decisionActionSchema, decisionUpsertSchema } from '@/lib/zod-schemas/decision';
 
-// The validation schemas of the handlers.
 const DecisionUpsertSchema = decisionUpsertSchema.meta({ id: 'DecisionUpsert' });
 const DecisionActionSchema = decisionActionSchema.meta({ id: 'DecisionAction' });
 

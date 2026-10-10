@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import { LocationType, NonAgendaReason } from '@prisma/client';
-import { sessionAuthRequirement, cityIdParam, meetingIdParam, errorResponseOf, invalidRequestOrMessageResponse, invalidRequestResponse, type Paths } from '../registry';
+import { sessionAuthRequirement, editAuthResponses, cityIdParam, meetingIdParam, errorResponseOf, invalidRequestOrMessageResponse, invalidRequestResponse, type Paths } from '@/lib/openapi/registry';
 import {
     meetingSubjectListQuerySchema,
     subjectAgendaFlagsSchema,
@@ -60,12 +60,11 @@ const listResponses = {
         content: { 'application/json': { schema: z.array(SubjectSchema) } },
     },
     400: invalidRequestResponse('Invalid query parameters'),
-    401: errorResponseOf('includeUnreleased requested without authorization'),
+    ...editAuthResponses,
     500: errorResponseOf('Server error'),
 };
 
 
-// The validation schema of the PATCH handler.
 const UpdateSubjectSchema = subjectAgendaFlagsSchema.meta({ id: 'UpdateSubject' });
 
 const subjectIdParam = meetingIdParam.extend({
@@ -107,7 +106,7 @@ export const subjectsPaths: Paths = {
                     content: { 'application/json': { schema: SubjectSchema } },
                 },
                 400: invalidRequestResponse('Invalid query parameters'),
-                401: errorResponseOf('includeUnreleased requested without authorization'),
+                ...editAuthResponses,
                 404: errorResponseOf('Subject not found'),
                 500: errorResponseOf('Server error'),
             },

@@ -1,8 +1,8 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, errorResponseOf, invalidRequestResponse, type Paths } from '../registry';
+import { sessionAuthRequirement, editAuthResponses, invalidRequestResponse, type Paths } from '@/lib/openapi/registry';
 import { updateProfileSchema } from '@/lib/zod-schemas/user';
 
-// The validation schema of the handler. Every field is optional; a phone of
+// Every field is optional; a phone of
 // null removes the phone.
 const UpdateProfileSchema = updateProfileSchema.meta({ id: 'UpdateProfile' });
 
@@ -23,7 +23,7 @@ export const profilePaths: Paths = {
                 200: { description: 'The updated user, with `phoneNeedsCode: true` when the phone was not saved' },
                 400: invalidRequestResponse('Invalid profile data. A rejected phone is the issue at path `["phone"]`, '
                     + 'and its message is the rejection code.'),
-                401: errorResponseOf('Not signed in'),
+                401: editAuthResponses[401],
                 409: {
                     description: 'Another account proved this phone',
                     content: { 'application/json': { schema: z.object({ error: z.object({ code: z.string() }) }) } },

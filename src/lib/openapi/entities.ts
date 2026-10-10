@@ -1,7 +1,8 @@
 import * as z from 'zod';
 import { PeopleOrdering } from '@prisma/client';
-import { baseCityFields, authorityTypeSchema, cityStatusSchema } from '@/lib/zod-schemas/city';
+import { baseCityFields } from '@/lib/zod-schemas/city';
 import { administrativeBodyTypeSchema, notificationBehaviorSchema } from '@/lib/zod-schemas/administrativeBody';
+import { decisionConventionsRecordSchema } from '@/lib/decisionConventions';
 
 // The response schemas of the records that several route files return. The
 // handlers send Prisma payloads, so each schema lists the columns of its
@@ -31,20 +32,21 @@ export const CityWithCountsSchema = CitySchema.extend({
     _count: cityCountsSchema,
 }).meta({ id: 'CityWithCounts' });
 
-// Matches CityMinimalWithCounts returned by getAllCitiesMinimal() — a subset of CitySchema
-// without diavgeiaUid, wikipediaId, population, createdAt, updatedAt.
-export const CityMinimalSchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    name_en: z.string(),
-    name_municipality: z.string(),
-    name_municipality_en: z.string(),
-    logoImage: z.string().nullable(),
-    timezone: z.string(),
-    supportsNotifications: z.boolean(),
-    status: cityStatusSchema,
+// Matches CityMinimalWithCounts returned by getAllCitiesMinimal(), plus the
+// `officialSupport` flag that GET /api/cities/all derives from the status.
+export const CityMinimalSchema = CitySchema.pick({
+    id: true,
+    name: true,
+    name_en: true,
+    name_municipality: true,
+    name_municipality_en: true,
+    logoImage: true,
+    timezone: true,
+    supportsNotifications: true,
+    status: true,
+    authorityType: true,
+}).extend({
     officialSupport: z.boolean(),
-    authorityType: authorityTypeSchema,
     _count: cityCountsSchema,
 }).meta({ id: 'CityMinimal' });
 
@@ -74,8 +76,9 @@ export const AdministrativeBodyWithSettingsSchema = AdministrativeBodySchema.ext
     diavgeiaUnitIds: z.array(z.string()).meta({
         description: 'Diavgeia scopes polled for the decisions of the body, each `unit[:signer]`.',
     }),
-    decisionConventions: z.unknown().meta({
-        description: 'How the decisions of the body are numbered and signed. Null until set.',
+    decisionConventions: decisionConventionsRecordSchema.nullable().meta({
+        description: 'What the decision documents of the body state, and how. Null until set. '
+            + 'A record stored before 2026-09-14 with older names in attendanceChangeAnchors is answered with the current names.',
     }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
