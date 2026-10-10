@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { isTimeZone } from '@/lib/formatters/time';
 import { AuthorityType, CityStatus, HighlightCreationPermission, CityLanguage, Realm } from '@prisma/client';
-import { logoFile, stringBoolean } from './primitives';
+import { logoFile, stringBoolean, webUrl } from './primitives';
 import { vmsg } from './messages';
 
 // Prisma enum schemas
@@ -104,17 +104,27 @@ export const updateCityFormDataSchema = baseCityFormDataSchema.partial().extend(
   logoImage: logoFile().optional().nullable().meta({ description: 'Replacement logo image file' }),
 });
 
+// The link of the call to action of a city message: an http(s) URL, which the
+// message opens in a new tab, or a path on this site, which it navigates to.
+// The path starts with one slash. A second slash or a backslash would make
+// the browser read the rest as a host.
+const cityMessageLinkError = 'Must be an http(s) URL or a path that starts with a single /';
+export const cityMessageLinkSchema = z.union([
+  webUrl(),
+  z.string().regex(/^\/(?![/\\])/),
+], { error: cityMessageLinkError });
+
 // The PUT route's fields that are not city columns: the logo removal flag
-// and the city message. Absent flags are false, so a request without
-// hasMessage deletes the message, as the route always did.
+// and the city message. The route writes the message for a superadmin only,
+// and a request without hasMessage leaves the message as it is.
 export const updateCityRequestFormDataSchema = updateCityFormDataSchema.extend({
   removeLogoImage: stringBoolean.default(false),
-  hasMessage: stringBoolean.default(false),
+  hasMessage: stringBoolean.optional(),
   messageEmoji: z.string().optional(),
   messageTitle: z.string().optional(),
   messageDescription: z.string().optional(),
   messageCallToActionText: z.string().optional(),
-  messageCallToActionUrl: z.string().optional(),
+  messageCallToActionUrl: z.union([cityMessageLinkSchema, z.literal('')], { error: cityMessageLinkError }).optional(),
   messageCallToActionExternal: stringBoolean.default(false),
   messageIsActive: stringBoolean.default(false),
 });

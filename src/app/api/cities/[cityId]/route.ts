@@ -112,27 +112,29 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
             await updateCityGeometry(params.cityId, boundary.geometry);
         }
 
-        // Handle message operations
-        try {
-            if (hasMessage && messageEmoji && messageTitle && messageDescription) {
-                // Upsert message (create or update - overwrites existing)
-                await upsertCityMessage(params.cityId, {
-                    emoji: messageEmoji,
-                    title: messageTitle,
-                    description: messageDescription,
-                    callToActionText: messageCallToActionText || null,
-                    callToActionUrl: messageCallToActionUrl || null,
-                    callToActionExternal: messageCallToActionExternal,
-                    isActive: messageIsActive
-                });
-            } else if (!hasMessage) {
-                // Delete message if hasMessage is false
-                await deleteCityMessage(params.cityId);
+        // The message editor is a superadmin tool, so only a superadmin's
+        // request writes the message. Any other request leaves it as it is.
+        if (isSuperAdmin && hasMessage !== undefined) {
+            try {
+                if (hasMessage && messageEmoji && messageTitle && messageDescription) {
+                    // Upsert message (create or update - overwrites existing)
+                    await upsertCityMessage(params.cityId, {
+                        emoji: messageEmoji,
+                        title: messageTitle,
+                        description: messageDescription,
+                        callToActionText: messageCallToActionText || null,
+                        callToActionUrl: messageCallToActionUrl || null,
+                        callToActionExternal: messageCallToActionExternal,
+                        isActive: messageIsActive
+                    });
+                } else if (!hasMessage) {
+                    await deleteCityMessage(params.cityId);
+                }
+            } catch (error) {
+                console.error('Error handling city message:', error);
+                // Don't return error here, as city was updated successfully
+                // Just log the message operation failure
             }
-        } catch (error) {
-            console.error('Error handling city message:', error);
-            // Don't return error here, as city was updated successfully
-            // Just log the message operation failure
         }
 
         // Revalidate cache after successful operations
