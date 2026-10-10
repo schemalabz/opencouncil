@@ -23,6 +23,20 @@ export const latitude = z.number().min(-90).max(90);
 /** A WGS84 longitude in degrees. */
 export const longitude = z.number().min(-180).max(180);
 
+const isoDate = z.iso.date();
+const isoDateTime = z.iso.datetime({ offset: true, local: true });
+
+/**
+ * An ISO 8601 calendar date (`2025-12-31`, a real day) or date-time. A
+ * date-time with `Z` or an offset needs seconds. A date-time with no zone
+ * reads in the server's zone, as `new Date()` reads it.
+ *
+ * A refine, not a union: a failure stays one `custom` issue with the given
+ * message, which the API 400 bodies already return.
+ */
+export const isoDateOrDateTime = (params?: { error?: string }) => z.string()
+    .refine(value => isoDate.safeParse(value).success || isoDateTime.safeParse(value).success, params);
+
 const MAX_IMAGE_MB = MAX_IMAGE_BYTES / (1024 * 1024);
 
 /** An uploaded image of any type. */
