@@ -771,7 +771,8 @@ export async function updateSpeakerSegmentData(
         data.summary = null;
     }
 
-    // Validate that all referenced subject IDs exist
+    // Every subject named must be one of this meeting: the gate above covers
+    // this meeting alone, so a subject of another meeting is not the caller's.
     const subjectIds = [...new Set(
         data.utterances
             .map(u => u.discussionSubjectId)
@@ -779,13 +780,13 @@ export async function updateSpeakerSegmentData(
     )];
     if (subjectIds.length > 0) {
         const existingSubjects = await prisma.subject.findMany({
-            where: { id: { in: subjectIds } },
+            where: { id: { in: subjectIds }, cityId, councilMeetingId: currentSegment.meetingId },
             select: { id: true }
         });
         const existingSubjectIds = new Set(existingSubjects.map(s => s.id));
         for (const subjectId of subjectIds) {
             if (!existingSubjectIds.has(subjectId)) {
-                throw new Error(`Subject with ID "${subjectId}" does not exist`);
+                throw new Error(`Subject with ID "${subjectId}" does not exist in this meeting`);
             }
         }
     }
@@ -803,13 +804,15 @@ export async function updateSpeakerSegmentData(
         }
 
         // The merged transcript view can include utterances from adjacent segments.
-        // Verify which non-segment IDs actually exist in the DB so we can update them.
+        // Verify which non-segment IDs exist in this meeting so we can update them:
+        // the gate above covers this meeting alone, so an id of another meeting
+        // is left as it is, like an id that no longer exists.
         const unknownIds = data.utterances
             .filter(u => !segmentUtteranceIds.has(u.id) && !u.id.startsWith('temp_'))
             .map(u => u.id);
         const verifiedOtherIds = unknownIds.length > 0
             ? new Set((await prisma.utterance.findMany({
-                where: { id: { in: unknownIds } },
+                where: { id: { in: unknownIds }, speakerSegment: { cityId, meetingId: currentSegment.meetingId } },
                 select: { id: true }
             })).map(u => u.id))
             : new Set<string>();
