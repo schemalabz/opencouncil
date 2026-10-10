@@ -18,6 +18,7 @@ jest.mock('@/lib/db/cityMessages', () => ({
 jest.mock('@/lib/s3', () => ({ uploadFile: jest.fn().mockResolvedValue({ url: 'https://cdn.example.com/logo.png' }) }));
 
 import { PUT } from '@/app/api/cities/[cityId]/route';
+import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
 import { editCity } from '@/lib/db/cities';
 import { deleteCityMessage, upsertCityMessage } from '@/lib/db/cityMessages';
 import { uploadFile } from '@/lib/s3';
@@ -45,6 +46,19 @@ const MESSAGE = {
 
 describe('PUT /api/cities/[cityId]', () => {
     beforeEach(() => jest.clearAllMocks());
+
+    it('answers 401 without a session and 403 to a signed-in user without the right', async () => {
+        jest.mocked(isUserAuthorizedToEdit).mockResolvedValueOnce(false);
+        jest.mocked(getCurrentUser).mockResolvedValueOnce(null);
+        expect((await put({ name: 'x' })).status).toBe(401);
+
+        jest.mocked(isUserAuthorizedToEdit).mockResolvedValueOnce(false);
+        jest.mocked(getCurrentUser).mockResolvedValueOnce({ isSuperAdmin: false } as Awaited<ReturnType<typeof getCurrentUser>>);
+        const refused = await put({ name: 'x' });
+        expect(refused.status).toBe(403);
+        expect(await refused.json()).toEqual({ error: 'Not authorized' });
+        expect(editCity).not.toHaveBeenCalled();
+    });
 
     it('reads the message flags that CityForm sends', async () => {
         const response = await put({ name: 'Αθήνα', ...MESSAGE });

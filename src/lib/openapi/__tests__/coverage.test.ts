@@ -1,4 +1,6 @@
-import { getOpenApiSpec } from '@/lib/openapi';
+import * as z from 'zod';
+import { getOpenApiSpec, paths } from '@/lib/openapi';
+import { validationErrorSchema } from '@/lib/api/errors';
 import { filterSpecByAccessLevel, type OpenApiSpec } from '@/lib/utils/openapi';
 
 // The set of API operations we intend the generated OpenAPI spec to document.
@@ -91,7 +93,43 @@ describe('OpenAPI coverage', () => {
 
         // The request schemas of a hidden operation are hidden too.
         const publicSchemas = Object.keys(filterSpecByAccessLevel(spec, 'public').components?.schemas ?? {});
-        expect(publicSchemas.filter(name => ['CreateApiKey', 'UpdateProfile', 'DecisionAction', 'AdministrativeBodyRequest'].includes(name)))
+        expect(publicSchemas.filter(name => ['CreateApiKey', 'UpdateProfile', 'DecisionAction', 'AdministrativeBodyRequest', 'RevalidateRequest'].includes(name)))
             .toEqual([]);
+    });
+
+    // A 400 for a request that fails a zod schema has one shape. These two
+    // operations answer 400 in another documented shape on purpose.
+    const OTHER_400 = [
+        'POST /api/search', // SearchError, whose INVALID_REQUEST carries the same issues
+        'GET /api/utterance/{utteranceId}/context', // no zod schema: the handler checks two numbers
+    ];
+
+    it('documents every other 400 as a ValidationError', () => {
+        const without: string[] = [];
+        for (const [path, item] of Object.entries(paths)) {
+            for (const [method, operation] of Object.entries(item)) {
+                const name = `${method.toUpperCase()} ${path}`;
+                const response = operation?.responses?.['400'];
+                if (!response || OTHER_400.includes(name)) continue;
+                const schema = 'content' in response ? response.content?.['application/json']?.schema : undefined;
+                const documented = schema === validationErrorSchema
+                    || (schema instanceof z.ZodUnion && schema.options.includes(validationErrorSchema));
+                if (!documented) without.push(name);
+            }
+        }
+        expect(without).toEqual([]);
+    });
+
+    // The test above checks the shape of a 400 that exists. This one makes a
+    // dropped 400 fail: an operation that parses a body or a query can refuse it.
+    it('documents a 400 for every operation with a request body or a query schema', () => {
+        const without: string[] = [];
+        for (const [path, item] of Object.entries(paths)) {
+            for (const [method, operation] of Object.entries(item)) {
+                const validates = operation?.requestBody !== undefined || operation?.requestParams?.query !== undefined;
+                if (validates && !operation?.responses?.['400']) without.push(`${method.toUpperCase()} ${path}`);
+            }
+        }
+        expect(without).toEqual([]);
     });
 });

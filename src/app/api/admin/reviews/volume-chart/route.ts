@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { handleApiError } from '@/lib/api/errors';
 import { calculateMeetingDurationMs } from '@/lib/db/utils/meetingDuration';
 import { startOfWeek, subWeeks, format } from 'date-fns';
 import { CUSTOMER_CITY_WHERE } from '@/lib/cityStatus';
@@ -12,10 +13,10 @@ interface WeekData {
 }
 
 export async function GET() {
-  // Check authentication - admin routes require authorization
-  await withUserAuthorizedToEdit({});
-  
   try {
+    // Check authentication - admin routes require authorization
+    await withUserAuthorizedToEdit({});
+
     const now = new Date();
     const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
     const twelveWeeksAgo = subWeeks(currentWeekStart, 11); // 12 weeks including current week
@@ -108,11 +109,7 @@ export async function GET() {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching volume chart data:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch volume chart data' },
-      { status: 500 }
-    );
+    return handleApiError(error, 'Failed to fetch volume chart data');
   }
 }
 

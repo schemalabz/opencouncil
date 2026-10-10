@@ -14,10 +14,10 @@ export async function GET(
     props: { params: Promise<{ cityId: string; meetingId: string }> }
 ) {
     const { cityId, meetingId } = await props.params;
-    await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId });
 
     let buffer: Buffer;
     try {
+        await withUserAuthorizedToEdit({ councilMeetingId: meetingId, cityId });
         buffer = await generateMeetingDocxBuffer(cityId, meetingId);
     } catch (error) {
         return handleApiError(error, 'Failed to build the transcript');

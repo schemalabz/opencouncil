@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { createPerson, getPeopleForCity } from '@/lib/db/people'
 import { uploadFile } from '@/lib/s3'
-import * as z from 'zod'
-import { parseFormData } from '@/lib/api/form-data-parser'
+import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { personFormDataSchema, type PersonFormDataOutput } from '@/lib/zod-schemas/person'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getPublicAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
-import { getRoleLimitForCity } from '@/lib/auth'
+import { getRoleLimitForCity, getCurrentUser } from '@/lib/auth'
 import { validateRoles, validateRolesForBodyAdmin } from '@/lib/utils/roles'
+import { handleApiError, notAuthorizedErrorResponse } from '@/lib/api/errors'
 
 export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -22,18 +22,14 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
     // give roles on; empty for everyone else.
     const roleLimit = await getRoleLimitForCity(params.cityId)
     if (roleLimit && roleLimit.size === 0) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return notAuthorizedErrorResponse(Boolean(await getCurrentUser()));
     }
     console.log('Creating person')
     let data: PersonFormDataOutput
     try {
-        data = await parseFormData(await request.formData(), personFormDataSchema)
+        data = await parseFormData(await readFormData(request), personFormDataSchema)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.issues }, { status: 400 })
-        }
-        console.error('Error parsing form data:', error)
-        return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 })
+        return handleApiError(error, 'Failed to parse form data')
     }
     const { name, name_en, name_short, name_short_en, image, profileUrl, roles } = data
 

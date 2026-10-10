@@ -10,7 +10,7 @@ import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
 import { PHONE_IN_USE_CODE, PHONE_REJECTION_CODES, normalizeMobilePhone } from "@/lib/utils/phone";
 import { phoneBelongsToAnotherUser, setAccountPhone } from "./phoneVerification";
-import { NotFoundError } from "@/lib/api/errors";
+import { NotFoundError, notAuthorizedError } from "@/lib/api/errors";
 import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
@@ -18,6 +18,7 @@ import { generateEmailContent } from "@/lib/notifications/content";
 import { sendWelcomeEmail } from "@/lib/notifications/welcome";
 import { setNotisSubscription } from "@/lib/notis/client";
 import { IS_DEV } from "@/lib/utils";
+import type { SubjectImportance } from "@/lib/zod-schemas/notification";
 import { saveNotificationPreferencesSchema, savePetitionSchema } from "@/lib/zod-schemas/onboarding";
 import { sendMagicLink } from "@/lib/auth/magicLink";
 import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
@@ -70,7 +71,7 @@ async function getServerSession() {
 async function requireSelfOrSuperadmin(userId: string): Promise<void> {
     const actor = await getCurrentUser();
     if (!actor || (actor.id !== userId && !actor.isSuperAdmin)) {
-        throw new Error("Not authorized");
+        throw notAuthorizedError(Boolean(actor));
     }
 }
 
@@ -709,10 +710,7 @@ export async function createNotificationsForMeeting(
     cityId: string,
     meetingId: string,
     type: 'beforeMeeting' | 'afterMeeting',
-    subjectImportanceOverrides?: Record<string, {
-        topicImportance: 'doNotNotify' | 'normal' | 'high';
-        proximityImportance: 'none' | 'near' | 'wide';
-    }>
+    subjectImportanceOverrides?: Record<string, SubjectImportance>
 ): Promise<{ notificationsCreated: number; subjectsTotal: number; notificationIds: string[] }> {
     try {
         console.log(`Creating ${type} notifications for meeting ${meetingId} in city ${cityId}`);
@@ -796,16 +794,13 @@ export async function createNotificationsForMeeting(
         // Build effective importance overrides:
         // - If overrides are provided (manual creation), use them
         // - Otherwise, use the subject's stored importance values
-        const effectiveOverrides: Record<string, {
-            topicImportance: 'doNotNotify' | 'normal' | 'high';
-            proximityImportance: 'none' | 'near' | 'wide';
-        }> = subjectImportanceOverrides || {};
+        const effectiveOverrides: Record<string, SubjectImportance> = subjectImportanceOverrides || {};
 
         if (!subjectImportanceOverrides) {
             for (const subject of meeting.subjects) {
                 effectiveOverrides[subject.id] = {
-                    topicImportance: (subject.topicImportance as 'doNotNotify' | 'normal' | 'high') || 'normal',
-                    proximityImportance: (subject.proximityImportance as 'none' | 'near' | 'wide') || 'none'
+                    topicImportance: (subject.topicImportance as SubjectImportance['topicImportance']) || 'normal',
+                    proximityImportance: (subject.proximityImportance as SubjectImportance['proximityImportance']) || 'none'
                 };
             }
         }

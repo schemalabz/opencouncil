@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, ErrorResponseSchema, InvalidRequestSchema, meetingIdParam, type Paths } from '../registry';
+import { sessionAuthRequirement, meetingIdParam, editAuthResponses, errorResponseOf, invalidRequestResponse, type Paths } from '@/lib/openapi/registry';
 import { decisionActionSchema, decisionUpsertSchema } from '@/lib/zod-schemas/decision';
 
 // The validation schemas of the handlers.
@@ -14,10 +14,7 @@ const DecisionWriteFailureSchema = z.object({
     subjectId: z.string().optional().meta({ description: 'The subject that already holds the ΑΔΑ, when the server named it.' }),
 }).meta({ id: 'DecisionWriteFailure' });
 
-const subjectNotFound = {
-    description: 'The subject is not in this meeting',
-    content: { 'application/json': { schema: ErrorResponseSchema } },
-};
+const subjectNotFound = errorResponseOf('The subject is not in this meeting');
 
 export const decisionsPaths: Paths = {
     '/api/cities/{cityId}/meetings/{meetingId}/decisions': {
@@ -33,10 +30,8 @@ export const decisionsPaths: Paths = {
             },
             responses: {
                 200: { description: 'The saved decision' },
-                400: {
-                    description: 'Invalid decision',
-                    content: { 'application/json': { schema: InvalidRequestSchema } },
-                },
+                400: invalidRequestResponse('Invalid decision'),
+                ...editAuthResponses,
                 404: subjectNotFound,
                 409: {
                     description: 'The ΑΔΑ is already linked to another subject',
@@ -61,14 +56,9 @@ export const decisionsPaths: Paths = {
                     description: '`{ "success": true }` for the candidate and extraction actions. '
                         + '`clearExtractedData` returns `{ "clearedCount": n }`, and `rederive` the derivation result.',
                 },
-                400: {
-                    description: 'Invalid action',
-                    content: { 'application/json': { schema: InvalidRequestSchema } },
-                },
-                403: {
-                    description: 'Superadmin access required',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestResponse('Invalid action'),
+                401: editAuthResponses[401],
+                403: errorResponseOf('Not authorized to edit, or the action requires superadmin access'),
                 404: subjectNotFound,
                 409: {
                     description: 'The candidate action conflicts with the stored decisions',

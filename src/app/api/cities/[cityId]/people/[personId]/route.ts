@@ -4,11 +4,11 @@ import { uploadFile } from '@/lib/s3'
 import { getPerson, editPerson, deletePerson } from '@/lib/db/people'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getPublicAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
-import * as z from 'zod'
-import { parseFormData } from '@/lib/api/form-data-parser'
+import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { personUpdateFormDataSchema, type PersonUpdateFormDataOutput } from '@/lib/zod-schemas/person'
-import { isUserAuthorizedToEdit, getRoleLimitForCity } from '@/lib/auth'
+import { isUserAuthorizedToEdit, getRoleLimitForCity, getCurrentUser } from '@/lib/auth'
 import { validateRoles, validateRolesForBodyAdmin } from '@/lib/utils/roles'
+import { handleApiError, notAuthorizedErrorResponse } from '@/lib/api/errors'
 
 export async function GET(
     request: Request,
@@ -26,18 +26,14 @@ export async function PUT(
     const params = await props.params;
     const authorizedToEdit = await isUserAuthorizedToEdit({ personId: params.personId })
     if (!authorizedToEdit) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return notAuthorizedErrorResponse(Boolean(await getCurrentUser()));
     }
     console.log(`Updating person ${params.personId}`)
     let data: PersonUpdateFormDataOutput
     try {
-        data = await parseFormData(await request.formData(), personUpdateFormDataSchema)
+        data = await parseFormData(await readFormData(request), personUpdateFormDataSchema)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.issues }, { status: 400 })
-        }
-        console.error('Error parsing form data:', error)
-        return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 })
+        return handleApiError(error, 'Failed to parse form data')
     }
     const { name, name_en, name_short, name_short_en, image, removeImage, profileUrl, roles } = data
 
@@ -117,7 +113,7 @@ export async function DELETE(
     const params = await props.params;
     const authorizedToDelete = await isUserAuthorizedToEdit({})
     if (!authorizedToDelete) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return notAuthorizedErrorResponse(Boolean(await getCurrentUser()));
     }
     try {
         await deletePerson(params.personId)

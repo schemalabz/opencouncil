@@ -7,6 +7,7 @@ import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { apiErrorMessage } from '@/lib/utils/validationIssues';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2 } from 'lucide-react';
 import { revalidateRequestSchema } from '@/lib/zod-schemas/revalidate';
@@ -58,8 +59,8 @@ export function CacheRevalidationForm() {
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to revalidate cache');
+                const errorData = await response.json().catch(() => null);
+                throw new Error(apiErrorMessage(errorData, 'Failed to revalidate cache'));
             }
 
             const result = await response.json();

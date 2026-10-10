@@ -62,3 +62,16 @@ export const updateAdminUserSchema = z.object({
     id: z.string().min(1, "User ID is required"),
     ...adminUserFields,
 }).partial().required({ id: true });
+
+// --- Admins of an administrative body ---
+
+// JSON body of POST /api/cities/{cityId}/administrative-bodies/{bodyId}/admins
+export const addBodyAdminRequestSchema = z.object({
+    email: adminUserFields.email,
+    name: z.string().trim().min(1).nullable().optional(),
+});
+
+// JSON body of DELETE /api/cities/{cityId}/administrative-bodies/{bodyId}/admins
+export const removeBodyAdminRequestSchema = z.object({
+    userId: z.string().min(1),
+});

@@ -5,6 +5,7 @@ import "server-only";
 import { AdministrativeBody } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
+import { NotFoundError } from "@/lib/api/errors";
 import {
     administrativeBodySettingsSelect,
     publicAdministrativeBodySelect,
@@ -117,7 +118,7 @@ export async function editAdministrativeBody(
         where: { id },
         select: { cityId: true },
     });
-    if (!existingBody) throw new Error('Administrative body not found');
+    if (!existingBody) throw new NotFoundError('Administrative body not found');
 
     await withUserAuthorizedToEdit({ cityId: existingBody.cityId });
     try {
@@ -147,7 +148,7 @@ export async function editAdministrativeBodyContacts(
         where: { id },
         select: { cityId: true },
     });
-    if (!existingBody) throw new Error('Administrative body not found');
+    if (!existingBody) throw new NotFoundError('Administrative body not found');
 
     await withUserAuthorizedToEdit({ cityId: existingBody.cityId, administrativeBodyId: id });
     return prisma.administrativeBody.update({
@@ -158,6 +159,12 @@ export async function editAdministrativeBodyContacts(
 
 export async function deleteAdministrativeBody(id: string): Promise<void> {
     await withUserAuthorizedToEdit({});
+    const existingBody = await prisma.administrativeBody.findUnique({
+        where: { id },
+        select: { id: true },
+    });
+    if (!existingBody) throw new NotFoundError('Administrative body not found');
+
     try {
         await prisma.administrativeBody.delete({
             where: { id },

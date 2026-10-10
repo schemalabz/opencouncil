@@ -34,29 +34,33 @@ export interface LifecycleContext {
     continuations: Array<{ administrativeBodyId: string | null; dateTime: Date }>;
 }
 
-export type LifecycleRuleCode =
-    | 'greekRealmOnly'
-    | 'councilOnlyKind'
-    | 'bodyMissing'
-    | 'postponedFromMissing'
-    | 'postponedFromNotPostponed'
-    | 'postponedFromTaken'
-    | 'postponedFromOtherBody'
-    | 'postponedToEarlier'
-    | 'postponedToOtherBody'
-    | 'postponementCycle'
-    | 'postponedMeetingIsLinked'
-    | 'continuationMissing'
-    | 'continuationTargetIsPart'
-    | 'continuationHasParts'
-    | 'continuationOtherBody'
-    | 'continuationNotLater'
-    | 'continuationOwnsNothing'
-    | 'partsOtherBody'
-    | 'partsNotLater'
-    | 'chainTooLong'
-    | 'laterMeetingReleased'
-    | 'hasDependents';
+/** The rules that a meeting write can break. The API answers the code of the rule in a 422. */
+export const LIFECYCLE_RULE_CODES = [
+    'greekRealmOnly',
+    'councilOnlyKind',
+    'bodyMissing',
+    'postponedFromMissing',
+    'postponedFromNotPostponed',
+    'postponedFromTaken',
+    'postponedFromOtherBody',
+    'postponedToEarlier',
+    'postponedToOtherBody',
+    'postponementCycle',
+    'postponedMeetingIsLinked',
+    'continuationMissing',
+    'continuationTargetIsPart',
+    'continuationHasParts',
+    'continuationOtherBody',
+    'continuationNotLater',
+    'continuationOwnsNothing',
+    'partsOtherBody',
+    'partsNotLater',
+    'chainTooLong',
+    'laterMeetingReleased',
+    'hasDependents',
+] as const;
+
+export type LifecycleRuleCode = (typeof LIFECYCLE_RULE_CODES)[number];
 
 export class LifecycleRuleError extends Error {
     constructor(readonly code: LifecycleRuleCode, message: string) {

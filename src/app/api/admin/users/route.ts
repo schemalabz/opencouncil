@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth"
+import { withUserAuthorizedToEdit } from "@/lib/auth"
 import { NextResponse } from "next/server"
 import { createUser, getUsers, updateUser } from "@/lib/db/users"
 import { sendUserOnboardedAdminAlert } from "@/lib/discord"
@@ -7,12 +7,8 @@ import { sendInviteEmail } from "@/lib/auth/invite"
 import { createAdminUserSchema, updateAdminUserSchema } from "@/lib/zod-schemas/user"
 
 export async function GET() {
-    const user = await getCurrentUser()
-    if (!user?.isSuperAdmin) {
-        return new NextResponse("Unauthorized", { status: 401 })
-    }
-
     try {
+        await withUserAuthorizedToEdit({})
         const users = await getUsers()
         return NextResponse.json(users)
     } catch (error) {
@@ -21,19 +17,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-    const user = await getCurrentUser()
-    if (!user?.isSuperAdmin) {
-        return new NextResponse("Unauthorized", { status: 401 })
-    }
-
-    const raw = await request.json()
-    const parsed = createAdminUserSchema.safeParse(raw)
-    if (!parsed.success) {
-        return handleApiError(parsed.error, "Validation failed")
-    }
-    const { email, name, isSuperAdmin, administers } = parsed.data
-
     try {
+        await withUserAuthorizedToEdit({})
+        const { email, name, isSuperAdmin, administers } = createAdminUserSchema.parse(await request.json().catch(() => null))
+
         const newUser = await createUser({ email, name, isSuperAdmin, administers })
 
         // Send invitation email
@@ -57,19 +44,10 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-    const user = await getCurrentUser()
-    if (!user?.isSuperAdmin) {
-        return new NextResponse("Unauthorized", { status: 401 })
-    }
-
-    const raw = await request.json()
-    const parsed = updateAdminUserSchema.safeParse(raw)
-    if (!parsed.success) {
-        return handleApiError(parsed.error, "Validation failed")
-    }
-    const { id, email, name, isSuperAdmin, administers } = parsed.data
-
     try {
+        await withUserAuthorizedToEdit({})
+        const { id, email, name, isSuperAdmin, administers } = updateAdminUserSchema.parse(await request.json().catch(() => null))
+
         const updatedUser = await updateUser(id, { email, name, isSuperAdmin, administers })
         return NextResponse.json(updatedUser)
     } catch (error) {

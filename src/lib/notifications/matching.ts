@@ -1,6 +1,7 @@
 import "server-only";
 
 import { calculateProximityMatches } from '@/lib/db/notifications';
+import type { SubjectImportance } from '@/lib/zod-schemas/notification';
 
 interface Subject {
     id: string;
@@ -14,10 +15,6 @@ interface UserPreference {
     interests: { id: string }[];
 }
 
-interface SubjectImportance {
-    topicImportance: 'doNotNotify' | 'normal' | 'high';
-    proximityImportance: 'none' | 'near' | 'wide';
-}
 
 interface SubjectMatch {
     subjectId: string;

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import * as z from "zod";
 import type { User } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { deleteCurrentUser } from "@/lib/db/users";
@@ -8,20 +7,16 @@ import { clearPhone, setAccountPhone } from "@/lib/db/phoneVerification";
 import { sendUserOnboardedAdminAlert } from "@/lib/discord";
 import { PHONE_IN_USE_CODE } from "@/lib/utils/phone";
 import { updateProfileSchema } from "@/lib/zod-schemas/user";
+import { errorResponse, handleApiError } from "@/lib/api/errors";
 
 export async function POST(request: Request) {
     try {
         const user = await getCurrentUser();
         if (!user) {
-            return new NextResponse("Unauthorized", { status: 401 });
+            return errorResponse(401, "Unauthorized");
         }
 
-        const raw = await request.json();
-        const parsed = updateProfileSchema.safeParse(raw);
-        if (!parsed.success) {
-            return NextResponse.json({ error: z.flattenError(parsed.error) }, { status: 400 });
-        }
-        const { phone, ...updateData } = parsed.data;
+        const { phone, ...updateData } = updateProfileSchema.parse(await request.json());
 
         // The number is saved with the rest, in one write, unproved; the
         // reader may prove it with a code later (issue #813). One exception:
@@ -61,21 +56,19 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ ...updatedUser, ...(phoneNeedsCode ? { phoneNeedsCode: true } : {}) });
     } catch (error) {
-        console.error("Failed to update profile:", error);
-        return new NextResponse("Internal Server Error", { status: 500 });
+        return handleApiError(error, "Failed to update profile");
     }
 }
 
 export async function DELETE() {
     const user = await getCurrentUser();
     if (!user) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return errorResponse(401, "Unauthorized");
     }
     try {
         await deleteCurrentUser();
         return new NextResponse(null, { status: 204 });
     } catch (error) {
-        console.error("Failed to delete account:", error);
-        return new NextResponse("Internal Server Error", { status: 500 });
+        return handleApiError(error, "Failed to delete account");
     }
 }
