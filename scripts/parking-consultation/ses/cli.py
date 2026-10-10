@@ -130,7 +130,13 @@ def cmd_build(args) -> None:
         raise SystemExit("not every zone polygon could be built; fix the aliases or the boundary list")
     # A wrong zone tells residents the wrong resident card, so the build stops before it writes one.
     if problems and not args.allow_zone_problems:
-        raise SystemExit(f"{len(problems)} zone problem(s) above; fix config/zone-streets.json or the aliases, or rerun with --allow-zone-problems after checking out/overlay-p1.png")
+        # Draw the zones over their Π1 strips first, so the stop comes with the picture that explains it.
+        render_overlay(ROOT / "out/overlay-zones.png", streets, [(f"zone_{letter}", strip) for letter, strips in zone_strips.items() for strip in strips], list(zones.values()))
+        raise SystemExit(
+            f"{len(problems)} zone problem(s) above; see out/overlay-zones.png. The zones follow the Π1 strips "
+            "and the street blocks, so check config/street-aliases.json and the Π1 drawing. "
+            "To write the data anyway, rerun with --allow-zone-problems."
+        )
     assign_zones(units, zone_strips, zones)
     print("unit zones:", dict(Counter(f"{u.zone}/{u.zone_source}" for u in units)))
 
