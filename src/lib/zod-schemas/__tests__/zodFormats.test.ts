@@ -3,6 +3,7 @@
 // the shared schemas accept, so a change of zod API spelling cannot move it.
 import { roleDateSchema } from '@/lib/zod-schemas/role';
 import { searchRequestSchema } from '@/lib/zod-schemas/search';
+import { decisionUpsertSchema } from '@/lib/zod-schemas/decision';
 import { createAdminUserSchema } from '@/lib/zod-schemas/user';
 import { saveNotificationPreferencesSchema } from '@/lib/zod-schemas/onboarding';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
@@ -83,5 +84,15 @@ describe('decisionConventionsSchema anchors', () => {
 
     it.each([[['phase', 3]], ['phase'], [undefined]])('refuses %p', anchors => {
         expect(decisionConventionsSchema.safeParse({ ...record, attendanceChangeAnchors: anchors }).success).toBe(false);
+    });
+});
+
+describe('decisionUpsertSchema publishDate', () => {
+    const publishDate = (value: string) => decisionUpsertSchema.shape.publishDate.safeParse(value).success;
+
+    it('takes a UTC date-time to the minute or to the second', () => {
+        expect(publishDate('2026-01-01T10:00Z')).toBe(true);
+        expect(publishDate('2026-01-01T10:00:00Z')).toBe(true);
+        expect(publishDate('2026-01-01T10:00:00+02:00')).toBe(false);
     });
 });

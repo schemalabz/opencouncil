@@ -93,14 +93,14 @@ export const baseCityFormDataSchema = z.object({
 // Create schema for FormData (POST route)
 export const createCityFormDataSchema = baseCityFormDataSchema.extend({
   id: cityIdSchema,
-  logoImage: logoFile({ error: 'Logo image is required' }),
+  logoImage: logoFile({ error: 'Logo image is required' }).meta({ description: 'Logo image file' }),
 });
 
 // Update schema for FormData (PUT route) — all fields optional.
 // Since there are no .default() values in the base schema, .partial()
 // is sufficient: absent fields are undefined = "don't change".
 export const updateCityFormDataSchema = baseCityFormDataSchema.partial().extend({
-  logoImage: logoFile().optional().nullable(),
+  logoImage: logoFile().optional().nullable().meta({ description: 'Replacement logo image file' }),
 });
 
 // The PUT route's fields that are not city columns: the logo removal flag
@@ -127,7 +127,10 @@ export const cityFormSchema = baseCityFormSchema.extend({
 // Query of GET /cities. includeUnlisted reads as a query flag: an empty value
 // is false, like every other query flag of the API.
 export const citiesListQuerySchema = z.object({
-  includeUnlisted: queryFlag.default(false),
+  includeUnlisted: queryFlag.default(false).meta({
+    description: 'When "true", includes non-public (pending) cities the user can administer',
+    example: 'false',
+  }),
 });
 
 // Type exports

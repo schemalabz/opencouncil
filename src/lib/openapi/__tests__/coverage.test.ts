@@ -1,9 +1,10 @@
 import { getOpenApiSpec } from '@/lib/openapi';
+import { filterSpecByAccessLevel, type OpenApiSpec } from '@/lib/utils/openapi';
 
 // The set of API operations we intend the generated OpenAPI spec to document.
 // This is a deliberate snapshot: because the spec is generated only from
-// registry.registerPath() calls, an endpoint whose registration is removed (or
-// never written) silently disappears from the spec. This guard fails loudly in
+// the paths that the route files export, an endpoint whose entry is removed
+// (or never written) silently disappears from the spec. This guard fails loudly in
 // that case — as happened with GET /api/utterance/{utteranceId}/context, which
 // existed in the hand-written spec but was dropped during the code-first migration.
 //
@@ -36,12 +37,24 @@ const EXPECTED_OPERATIONS = [
     'PATCH /api/cities/{cityId}/meetings/{meetingId}/subjects/{subjectId}',
     'POST /api/search',
     'GET /api/utterance/{utteranceId}/context',
+    'POST /api/cities/{cityId}/administrative-bodies',
+    'PUT /api/cities/{cityId}/administrative-bodies/{bodyId}',
+    'PUT /api/cities/{cityId}/meetings/{meetingId}/decisions',
+    'POST /api/cities/{cityId}/meetings/{meetingId}/decisions',
+    'POST /api/cities/{cityId}/roles/elected-order',
+    'POST /api/profile',
+    'POST /api/revalidate',
+    'POST /api/admin/api-keys',
+    'POST /api/admin/product-updates/send',
+    'POST /api/admin/topics',
+    'PUT /api/admin/topics/{topicId}',
+    'POST /api/admin/users',
+    'PUT /api/admin/users',
 ].sort();
 
 const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete'];
 
-function actualOperations(): string[] {
-    const spec = getOpenApiSpec();
+function actualOperations(spec: OpenApiSpec = getOpenApiSpec()): string[] {
     const ops: string[] = [];
     for (const [path, item] of Object.entries(spec.paths ?? {})) {
         for (const method of Object.keys(item as Record<string, unknown>)) {
@@ -61,5 +74,24 @@ describe('OpenAPI coverage', () => {
         expect(missing).toEqual([]);
         // `unexpected` catches a new endpoint added without updating this snapshot.
         expect(unexpected).toEqual([]);
+    });
+
+    it('shows each viewer only the operations of its access level', () => {
+        const spec = getOpenApiSpec();
+        const publicOps = actualOperations(filterSpecByAccessLevel(spec, 'public'));
+        const userOps = actualOperations(filterSpecByAccessLevel(spec, 'user'));
+        const adminOps = actualOperations(filterSpecByAccessLevel(spec, 'admin'));
+
+        expect(publicOps).not.toContain('POST /api/profile');
+        expect(userOps).toContain('POST /api/profile');
+        expect(adminOps).toContain('POST /api/cities/{cityId}/administrative-bodies');
+        expect(adminOps).not.toContain('POST /api/admin/api-keys');
+        expect(adminOps).not.toContain('POST /api/revalidate');
+        expect(actualOperations(filterSpecByAccessLevel(spec, 'superadmin'))).toEqual(EXPECTED_OPERATIONS);
+
+        // The request schemas of a hidden operation are hidden too.
+        const publicSchemas = Object.keys(filterSpecByAccessLevel(spec, 'public').components?.schemas ?? {});
+        expect(publicSchemas.filter(name => ['CreateApiKey', 'UpdateProfile', 'DecisionAction', 'AdministrativeBodyRequest'].includes(name)))
+            .toEqual([]);
     });
 });

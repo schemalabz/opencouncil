@@ -1,5 +1,5 @@
 /**
- * Generate OpenAPI spec from registered Zod schemas.
+ * Generate the OpenAPI spec from the Zod schemas of src/lib/openapi/routes.
  *
  * Usage:
  *   npm run generate-openapi            # writes to swagger.yaml (default)
@@ -13,7 +13,6 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 
-// Side-effect: registers all routes on the shared registry
 import { generateSpec } from '../src/lib/openapi';
 
 const spec = generateSpec();
