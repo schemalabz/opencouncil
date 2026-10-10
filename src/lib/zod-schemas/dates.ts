@@ -36,6 +36,16 @@ export const isoDateOrDateTime = (params?: { error?: string; zoneless?: boolean 
     { error: params?.error },
 );
 
+/**
+ * An ISO 8601 date-time with a zone, to the minute or to the second. For a
+ * value that is a moment, such as the start of a meeting: a date-only value
+ * would be read as UTC midnight.
+ */
+export const isoZonedDateTime = (params?: { error?: string }) => z.union(
+    [zonedDateTime, zonedDateTimeToTheMinute],
+    { error: params?.error },
+);
+
 const strictIsoDateOrDateTime = isoDateOrDateTime();
 
 /** Whether a value passes ISO_DATE_OR_DATE_TIME_RULE. */
