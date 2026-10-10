@@ -1,5 +1,6 @@
 import { AdministrativeBodyType, Realm } from "@prisma/client";
-import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { isUserAuthorizedToEdit, getUnreleasedScope } from "@/lib/auth";
+import { unreleasedCacheKey } from "@/lib/unreleased";
 import { getCity, getAllCitiesMinimal, getAllCityIds, getSupportedCitiesWithLogos, getAboutPageStats, getCityIdContainingPoint } from "@/lib/db/cities";
 import { decodeGeohashToCenter } from "@/lib/geo";
 import { getGitHubStats } from "@/lib/github";
@@ -37,7 +38,7 @@ const TIME_FILTERED_TTL = 900;
  * was handed. Leaving it in the signature let a caller ask for unreleased
  * meetings, type-check, and quietly get released ones.
  */
-type CachedMeetingListOptions = Omit<MeetingListOptions, 'includeUnreleased'>;
+type CachedMeetingListOptions = Omit<MeetingListOptions, 'includeUnreleased' | 'unreleased'>;
 
 /**
  * Cached list of all city ids (single shared cache key, tag `cities:all`).
@@ -141,10 +142,10 @@ function meetingListKey(options: MeetingListOptions): string[] {
  * read inside one.
  */
 export async function getCouncilMeetingsPreviewCached(cityId: string, options: CachedMeetingListOptions = {}) {
-  const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
+  const unreleased = await getUnreleasedScope(cityId);
   return createCache(
-    () => getCouncilMeetingsWithSubjectPreview(cityId, { ...options, includeUnreleased }),
-    ['city', cityId, 'meetingPreviews', MEETING_PREVIEW_CACHE_VERSION, includeUnreleased ? 'withUnreleased' : 'onlyReleased', ...meetingListKey(options)],
+    () => getCouncilMeetingsWithSubjectPreview(cityId, { ...options, unreleased }),
+    ['city', cityId, 'meetingPreviews', MEETING_PREVIEW_CACHE_VERSION, unreleasedCacheKey(unreleased), ...meetingListKey(options)],
     {
       tags: ['city', `city:${cityId}`, `city:${cityId}:meetings`],
       ...(options.timeFilter ? { revalidate: TIME_FILTERED_TTL } : {}),
@@ -322,7 +323,9 @@ export async function getSubjectStatisticsCached(
   subjects: SubjectWithRelations[],
   meetingDateTime: Date | string,
 ): Promise<Record<string, Statistics>> {
-  const includeUnreleased = await isUserAuthorizedToEdit({ cityId });
+  // The subjects are this meeting's, so its editors (a body admin among them)
+  // see the statistics of a draft.
+  const includeUnreleased = await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
 
   return createCache(
     async () => {

@@ -27,6 +27,40 @@ export type RoleValidationError = {
  * @param validAdminBodyIds Set of valid administrative body IDs for the city
  * @returns null if valid, or an error object if validation fails
  */
+/**
+ * The roles a body admin may give a person (#828): at least one, each on a
+ * body they administer, none on a party and none city-level. An empty set of
+ * bodies says the viewer may not change roles at all (a person who claimed
+ * their own page edits name and photo only).
+ */
+export function validateRolesForBodyAdmin(
+  roles: Array<{
+    cityId?: string | null;
+    partyId?: string | null;
+    administrativeBodyId?: string | null;
+  }>,
+  heldBodyIds: ReadonlySet<string>
+): RoleValidationError | null {
+  if (heldBodyIds.size === 0) {
+    return { error: 'You may not change the roles of this person.' };
+  }
+  if (roles.length === 0) {
+    return { error: 'The person needs at least one role on an administrative body you administer.' };
+  }
+  for (const role of roles) {
+    if (role.partyId) {
+      return { error: 'You may not give party roles.' };
+    }
+    if (!role.administrativeBodyId) {
+      return { error: 'You may not give city-level roles.' };
+    }
+    if (!heldBodyIds.has(role.administrativeBodyId)) {
+      return { error: 'Every role must be on an administrative body you administer.' };
+    }
+  }
+  return null;
+}
+
 export function validateRoles(
   roles: Array<{
     cityId?: string | null;

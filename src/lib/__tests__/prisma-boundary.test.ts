@@ -49,7 +49,6 @@ const ALLOWED_FILES = new Set([
     'src/app/qr/[code]/route.ts',
     'src/app/[locale]/(admin)/admin/reports/page.tsx',
     'src/app/api/admin/elasticsearch/status/route.ts',
-    'src/app/api/admin/entities/route.ts',
     'src/app/api/admin/notifications/release/route.ts',
     'src/app/api/admin/qr/[id]/route.ts',
     'src/app/api/admin/qr/route.ts',

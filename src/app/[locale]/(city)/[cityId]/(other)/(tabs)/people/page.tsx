@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { getRoleLimitForCity } from "@/lib/auth";
 import CityPeople from "@/components/cities/CityPeople";
 import { getPartiesForCityCached, getPeopleForCityCached, getAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
 import { Metadata } from "next";
@@ -81,12 +81,14 @@ export default async function PeoplePage(
         cityId
     } = params;
 
-    const [partiesWithPersons, administrativeBodies, allPeople, canEdit] = await Promise.all([
+    const [partiesWithPersons, administrativeBodies, allPeople, roleLimit] = await Promise.all([
         getPartiesForCityCached(cityId),
         getAdministrativeBodiesForCityCached(cityId),
         getPeopleForCityCached(cityId),
-        isUserAuthorizedToEdit({ cityId })
+        // null for a city admin; the bodies of a body admin; empty for a reader
+        getRoleLimitForCity(cityId),
     ]);
+    const canEdit = roleLimit === null || roleLimit.size > 0;
 
     if (!partiesWithPersons) {
         notFound();
@@ -99,6 +101,7 @@ export default async function PeoplePage(
             administrativeBodies={administrativeBodies}
             cityId={cityId}
             canEdit={canEdit}
+            editableBodyIds={roleLimit ? [...roleLimit] : undefined}
         />
     );
 } 

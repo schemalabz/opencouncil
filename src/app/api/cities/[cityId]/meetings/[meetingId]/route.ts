@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { getMeetingDataCore } from '@/lib/getMeetingData';
 import { z } from 'zod';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { ApiError } from '@/lib/api/errors';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
 import { updateMeetingWithEffects } from '@/lib/meetingWrites';
+import { getCouncilMeetingDirect } from '@/lib/db/meetings';
 
 export async function GET(
     request: Request,
@@ -39,9 +41,24 @@ export async function PUT(
 ) {
     const params = await props.params;
     try {
-        await withUserAuthorizedToEdit({ cityId: params.cityId });
+        await withUserAuthorizedToEdit({ cityId: params.cityId, councilMeetingId: params.meetingId });
         const body = await request.json();
         const { name, name_en, date, youtubeUrl, agendaUrl, administrativeBodyId } = meetingSchema.parse(body);
+
+        const current = await getCouncilMeetingDirect(params.cityId, params.meetingId);
+        if (!current) {
+            return NextResponse.json({ error: 'Meeting not found' }, { status: 404 });
+        }
+
+        // An absent body leaves the meeting where it is. Moving it to another
+        // body, or to no body, needs rights on the destination too: a body
+        // admin may not hand their meeting over or take one of another body.
+        const nextBodyId = administrativeBodyId === undefined ? undefined : administrativeBodyId || null;
+        if (nextBodyId !== undefined && nextBodyId !== current.administrativeBodyId) {
+            await withUserAuthorizedToEdit(nextBodyId
+                ? { cityId: params.cityId, administrativeBodyId: nextBodyId }
+                : { cityId: params.cityId });
+        }
 
         const meeting = await updateMeetingWithEffects(params.cityId, params.meetingId, {
             name,
@@ -49,7 +66,7 @@ export async function PUT(
             dateTime: date,
             youtubeUrl: youtubeUrl || null,
             agendaUrl: agendaUrl || null,
-            administrativeBodyId: administrativeBodyId || null,
+            ...(nextBodyId !== undefined && { administrativeBodyId: nextBodyId }),
         });
 
         return NextResponse.json(meeting);
@@ -57,6 +74,9 @@ export async function PUT(
         if (error instanceof z.ZodError) {
             console.error('Validation error:', error.errors);
             return NextResponse.json({ error: error.errors }, { status: 400 });
+        }
+        if (error instanceof ApiError) {
+            return NextResponse.json({ error: error.message }, { status: error.statusCode });
         }
         console.error('Failed to update meeting:', error);
         return NextResponse.json(

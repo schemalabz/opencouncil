@@ -21,12 +21,12 @@ beforeEach(() => {
 });
 
 describe('getSpeakerIdentificationsForMeeting', () => {
-  it('reads nothing for a user who may not edit the city', async () => {
+  it('reads nothing for a user who may not edit the meeting', async () => {
     mockWithUserAuthorizedToEdit.mockRejectedValue(new Error('Not authorized'));
 
     await expect(getSpeakerIdentificationsForMeeting('city-1', 'meeting-1')).rejects.toThrow('Not authorized');
 
-    expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'city-1' });
+    expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'city-1', councilMeetingId: 'meeting-1' });
     expect(mockIdentificationFindMany).not.toHaveBeenCalled();
   });
 

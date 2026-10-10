@@ -33,7 +33,7 @@ export default async function PresentationPage(
         meetingId
     } = params;
 
-    const editable = await isUserAuthorizedToEdit({ cityId });
+    const editable = await isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
     if (!editable) {
         notFound();
     }

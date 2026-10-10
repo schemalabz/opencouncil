@@ -24,6 +24,15 @@ export async function getAdministrativeBodiesForCity(cityId: string): Promise<Ad
 }
 
 /**
+ * Whether a body belongs to a city. Ungated: the meeting writes call it to
+ * keep a meeting and its body in one city, whoever the caller is.
+ */
+export async function isBodyOfCity(bodyId: string, cityId: string): Promise<boolean> {
+    const body = await prisma.administrativeBody.findUnique({ where: { id: bodyId }, select: { cityId: true } });
+    return body?.cityId === cityId;
+}
+
+/**
  * Every administrative body of a city, with the fields anyone may read. The
  * public twin of {@link getAdministrativeBodiesForCity}.
  */
@@ -107,6 +116,28 @@ export async function editAdministrativeBody(
         console.error('Error editing administrative body:', error);
         throw new Error('Failed to edit administrative body');
     }
+}
+
+/**
+ * The two settings a body admin may change (#828): where the body's
+ * recordings live and who receives its transcripts. The name, the type, the
+ * notification behaviour and the Diavgeia scopes stay with the city admin.
+ */
+export async function editAdministrativeBodyContacts(
+    id: string,
+    { youtubeChannelUrl, contactEmails }: Partial<Pick<AdministrativeBody, 'youtubeChannelUrl' | 'contactEmails'>>
+): Promise<AdministrativeBody> {
+    const existingBody = await prisma.administrativeBody.findUnique({
+        where: { id },
+        select: { cityId: true },
+    });
+    if (!existingBody) throw new Error('Administrative body not found');
+
+    await withUserAuthorizedToEdit({ cityId: existingBody.cityId, administrativeBodyId: id });
+    return prisma.administrativeBody.update({
+        where: { id },
+        data: { youtubeChannelUrl, contactEmails },
+    });
 }
 
 export async function deleteAdministrativeBody(id: string): Promise<void> {

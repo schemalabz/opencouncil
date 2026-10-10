@@ -13,6 +13,18 @@ import { sendMeetingCreatedAdminAlert } from '@/lib/discord';
 import { syncMeetingToCalendar } from '@/lib/google-calendar';
 import { requestProcessAgendaInternal } from '@/lib/tasks/processAgendaInternal';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
+import { isBodyOfCity } from '@/lib/db/administrativeBodies';
+import { BadRequestError } from '@/lib/api/errors';
+
+/**
+ * A meeting and its body are in one city. The authorization of a superadmin
+ * or a service key does not look at the body, so the write checks it.
+ */
+async function requireBodyOfCity(cityId: string, administrativeBodyId: string | null | undefined): Promise<void> {
+    if (administrativeBodyId && !(await isBodyOfCity(administrativeBodyId, cityId))) {
+        throw new BadRequestError(`Administrative body ${administrativeBodyId} is not a body of ${cityId}`);
+    }
+}
 
 export type NewMeetingInput = {
     name: string;
@@ -39,6 +51,7 @@ export async function createMeetingWithEffects(
     input: NewMeetingInput
 ): Promise<{ meeting: CouncilMeetingWithAdminBody; processAgendaStatus?: ProcessAgendaOutcome }> {
     const { name, name_en, date, youtubeUrl, agendaUrl, administrativeBodyId, processAgenda } = input;
+    await requireBodyOfCity(cityId, administrativeBodyId);
 
     let meetingId = input.meetingId || (await generateUniqueMeetingId(cityId, date));
 
@@ -119,6 +132,7 @@ export async function updateMeetingWithEffects(
     meetingId: string,
     data: MeetingDetailsEdit
 ): Promise<CouncilMeetingWithAdminBody> {
+    await requireBodyOfCity(cityId, data.administrativeBodyId);
     const meeting = await editCouncilMeetingDirect(cityId, meetingId, data);
 
     revalidateAfterResponse({

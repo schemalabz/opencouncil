@@ -758,14 +758,14 @@ export async function getLatestSubjectsForSpeaker(personId: string, take: number
  * Whether a subject is public: its meeting released and its city public, the
  * same test every public reader applies. `null` when the subject does not exist.
  */
-export async function subjectIsPublic(subjectId: string): Promise<{ cityId: string; public: boolean } | null> {
+export async function subjectIsPublic(subjectId: string): Promise<{ cityId: string; councilMeetingId: string; public: boolean } | null> {
     const row = await prisma.subject.findUnique({
         where: { id: subjectId },
-        select: { cityId: true, councilMeeting: { select: { released: true, city: { select: { status: true } } } } },
+        select: { cityId: true, councilMeetingId: true, councilMeeting: { select: { released: true, city: { select: { status: true } } } } },
     });
     if (!row) return null;
     const publicStatuses: readonly CityStatus[] = PUBLIC_CITY_WHERE.status.in;
-    return { cityId: row.cityId, public: row.councilMeeting.released && publicStatuses.includes(row.councilMeeting.city.status) };
+    return { cityId: row.cityId, councilMeetingId: row.councilMeetingId, public: row.councilMeeting.released && publicStatuses.includes(row.councilMeeting.city.status) };
 }
 
 export async function subjectExists(subjectId: string): Promise<boolean> {

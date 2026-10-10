@@ -62,6 +62,26 @@ export const TASK_CONFIG = {
 export type MeetingTaskType = keyof typeof TASK_CONFIG;
 
 /**
+ * The tasks that an admin of a meeting's body runs (#828). The others are the
+ * city's: human review and the transcript it sends, decision polling, and
+ * voiceprints. Replaying or deleting one of those rows would rewrite a step
+ * that a body admin may not take.
+ */
+const BODY_ADMIN_TASK_TYPES: ReadonlySet<string> = new Set<MeetingTaskType>([
+  'processAgenda', 'transcribe', 'fixTranscript', 'summarize', 'generateHighlight',
+]);
+
+/**
+ * The authorization scope of a task: its meeting for a task that a body admin
+ * runs, so that an admin of the meeting's body passes, and its city otherwise.
+ */
+export function taskScope(task: { type: string; cityId: string; councilMeetingId: string | null }): { cityId: string; councilMeetingId?: string } {
+    return task.councilMeetingId && BODY_ADMIN_TASK_TYPES.has(task.type)
+        ? { cityId: task.cityId, councilMeetingId: task.councilMeetingId }
+        : { cityId: task.cityId };
+}
+
+/**
  * startTask throws this when the idempotency guard blocks a pipeline task.
  * A caller that chains one task after another treats it as a skip, not as a failure:
  * the meeting already has the task that the caller wanted to start.

@@ -97,7 +97,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                     }
                 }
 
-                const { url: presignedUrl, publicUrl, key } = await presignedResponse.json()
+                const { url: presignedUrl, publicUrl, key, aclToken } = await presignedResponse.json()
 
                 // Step 2: Upload directly to S3 with progress tracking
                 await new Promise<void>((resolve, reject) => {
@@ -140,7 +140,7 @@ const LinkOrDrop = React.forwardRef<HTMLInputElement, LinkOrDropProps>(
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ key }),
+                    body: JSON.stringify({ key, token: aclToken }),
                 })
 
                 if (!aclResponse.ok) {

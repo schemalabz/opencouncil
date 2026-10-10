@@ -153,3 +153,47 @@ describe('updateSpeakerSegmentData', () => {
         expect(updated.discussionSubjectId).toBeNull()
     })
 })
+
+describe('updateSpeakerSegmentData keeps every write inside the authorized meeting', () => {
+    let cityId: string
+    let speakerTagId: string
+
+    beforeEach(async () => {
+        await resetDatabase(prisma as any)
+        cityId = (await createCity({ id: 'c1' })).id
+        await createMeeting(cityId, { id: 'm1' })
+        await createMeeting(cityId, { id: 'm2' })
+        speakerTagId = (await createSpeakerTag({ label: 'Speaker 1' })).id
+    })
+
+    // The gate reads the meeting of the segment named, so a body admin of m1
+    // could otherwise name an utterance or a subject of m2 and write there.
+    test('leaves an utterance of another meeting as it is', async () => {
+        const own = await createSpeakerSegment('m1', cityId, { speakerTagId, startTimestamp: 0, endTimestamp: 10 })
+        const other = await createSpeakerSegment('m2', cityId, { speakerTagId, startTimestamp: 0, endTimestamp: 10 })
+        const u1 = await createUtterance(own.id, { text: 'Own', startTimestamp: 0, endTimestamp: 10 })
+        const u2 = await createUtterance(other.id, { text: 'Other', startTimestamp: 0, endTimestamp: 10 })
+
+        await updateSpeakerSegmentData(own.id, {
+            utterances: [
+                { id: u1.id, text: 'Own edited', startTimestamp: 0, endTimestamp: 10, discussionStatus: null, discussionSubjectId: null },
+                { id: u2.id, text: 'Other edited', startTimestamp: 0, endTimestamp: 10, discussionStatus: null, discussionSubjectId: null },
+            ],
+        }, cityId)
+
+        expect((await prisma.utterance.findUniqueOrThrow({ where: { id: u1.id } })).text).toBe('Own edited')
+        expect((await prisma.utterance.findUniqueOrThrow({ where: { id: u2.id } })).text).toBe('Other')
+    })
+
+    test('refuses a subject of another meeting', async () => {
+        const own = await createSpeakerSegment('m1', cityId, { speakerTagId, startTimestamp: 0, endTimestamp: 10 })
+        const u1 = await createUtterance(own.id, { text: 'Own', startTimestamp: 0, endTimestamp: 10 })
+        const subject = await createSubject('m2', cityId, { name: 'Of m2' })
+
+        await expect(updateSpeakerSegmentData(own.id, {
+            utterances: [
+                { id: u1.id, text: 'Own', startTimestamp: 0, endTimestamp: 10, discussionStatus: 'SUBJECT_DISCUSSION', discussionSubjectId: subject.id },
+            ],
+        }, cityId)).rejects.toThrow('does not exist in this meeting')
+    })
+})

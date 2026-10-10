@@ -137,7 +137,7 @@ export default async function CouncilMeetingPage(
     } = props;
 
     const currentUserPromise = getCurrentUser();
-    const editablePromise = isUserAuthorizedToEdit({ cityId });
+    const editablePromise = isUserAuthorizedToEdit({ cityId, councilMeetingId: meetingId });
     const realmPromise = getRealm();
     const [currentUser, editable, data, notificationPreference, realm, adjacent, tMeeting] = await Promise.all([
         currentUserPromise,

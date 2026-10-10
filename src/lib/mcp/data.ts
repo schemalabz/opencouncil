@@ -834,8 +834,8 @@ export async function mcpSearch(
  * `search` does not: it returns released subjects only, for every identity.
  */
 async function editableCities(identity: McpIdentity): Promise<UserCityRights> {
-    if (isSuperIdentity(identity)) return { all: true, cityIds: new Set() };
-    if (identity?.type !== 'user') return { all: false, cityIds: new Set() };
+    if (isSuperIdentity(identity)) return { all: true, cityIds: new Set(), bodies: new Map() };
+    if (identity?.type !== 'user') return { all: false, cityIds: new Set(), bodies: new Map() };
     return getUserCityRights(identity.userId);
 }
 

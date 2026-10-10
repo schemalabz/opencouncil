@@ -32,18 +32,19 @@ export type MyHighlights = {
  * Gets the current user's permission context for highlights.
  * Returns null if not authenticated, otherwise returns user permissions.
  */
-export async function getHighlightPermissions(cityId: City["id"]) {
+export async function getHighlightPermissions(cityId: City["id"], meetingId?: CouncilMeeting["id"]) {
     const currentUser = await getCurrentUser();
     
     if (!currentUser) {
         return null;
     }
     
-    const canEditCity = await isUserAuthorizedToEdit({ cityId });
+    // With a meeting, an admin of the meeting's body is an editor too.
+    const canEdit = await isUserAuthorizedToEdit(meetingId ? { cityId, councilMeetingId: meetingId } : { cityId });
     
     return {
         userId: currentUser.id,
-        canEditCity
+        canEdit
     };
 }
 
@@ -51,14 +52,14 @@ export async function getHighlightPermissions(cityId: City["id"]) {
  * Helper to check if the current user can view a highlight.
  * Returns true if user is authorized, false otherwise.
  */
-export async function canViewHighlight(highlight: { cityId: string; createdById: string | null }): Promise<boolean> {
-    const permissions = await getHighlightPermissions(highlight.cityId);
+export async function canViewHighlight(highlight: { cityId: string; meetingId: string; createdById: string | null }): Promise<boolean> {
+    const permissions = await getHighlightPermissions(highlight.cityId, highlight.meetingId);
     
     // Not logged in = can't see anything
     if (!permissions) return false;
     
     // City editors (including super admins) see everything
-    if (permissions.canEditCity) return true;
+    if (permissions.canEdit) return true;
     
     // Regular users see only their own highlights
     return highlight.createdById === permissions.userId;
@@ -85,7 +86,7 @@ export async function getHighlightsForMeeting(
     cityId: City["id"],
     meetingId: CouncilMeeting["id"]
 ): Promise<HighlightWithUtterances[]> {
-    const permissions = await getHighlightPermissions(cityId);
+    const permissions = await getHighlightPermissions(cityId, meetingId);
     
     // Not logged in = no highlights
     if (!permissions) {
@@ -98,9 +99,9 @@ export async function getHighlightsForMeeting(
         meetingId
     };
 
-    // City editors (including super admins) see all highlights
+    // Editors of the meeting (a body admin among them) see all highlights
     // Regular users only see their own
-    if (!permissions.canEditCity) {
+    if (!permissions.canEdit) {
         where.createdById = permissions.userId;
     }
 
@@ -124,7 +125,7 @@ export async function canAccessMyHighlights(): Promise<boolean> {
     const currentUser = await getCurrentUser();
     if (!currentUser) return false;
     if (currentUser.isSuperAdmin) return true;
-    if (currentUser.administers.some(administers => administers.cityId !== null)) return true;
+    if (currentUser.administers.some(administers => administers.cityId !== null || administers.administrativeBodyId !== null)) return true;
 
     const openCity = await prisma.city.findFirst({
         where: { highlightCreationPermission: HighlightCreationPermission.EVERYONE },
@@ -162,13 +163,17 @@ export async function getMyHighlights(): Promise<MyHighlights> {
     const editableCityIds = currentUser.administers
         .map(administers => administers.cityId)
         .filter((cityId): cityId is string => cityId !== null);
+    const editableBodyIds = currentUser.administers
+        .map(administers => administers.administrativeBodyId)
+        .filter((bodyId): bodyId is string => !!bodyId);
 
     const visibleMeetings: Prisma.HighlightWhereInput = currentUser.isSuperAdmin
         ? {}
         : {
             OR: [
                 { meeting: { released: true } },
-                ...(editableCityIds.length > 0 ? [{ cityId: { in: editableCityIds } }] : [])
+                ...(editableCityIds.length > 0 ? [{ cityId: { in: editableCityIds } }] : []),
+                ...(editableBodyIds.length > 0 ? [{ meeting: { administrativeBodyId: { in: editableBodyIds } } }] : []),
             ]
         };
 
@@ -244,16 +249,16 @@ export async function renameHighlight(
 
     const highlight = await prisma.highlight.findUnique({
         where: { id },
-        select: { cityId: true, createdById: true }
+        select: { cityId: true, meetingId: true, createdById: true }
     });
 
     if (!highlight) {
         throw new NotFoundError('Highlight not found');
     }
 
-    // Same rule as deleteHighlight: the author, or an editor of the city.
-    const canEditCity = await isUserAuthorizedToEdit({ cityId: highlight.cityId });
-    if (!canEditCity && highlight.createdById !== currentUser.id) {
+    // Same rule as deleteHighlight: the author, or an editor of the meeting.
+    const canEdit = await isUserAuthorizedToEdit({ cityId: highlight.cityId, councilMeetingId: highlight.meetingId });
+    if (!canEdit && highlight.createdById !== currentUser.id) {
         throw new ForbiddenError('Not authorized to rename this highlight');
     }
 
@@ -275,18 +280,18 @@ export async function deleteHighlight(id: Highlight["id"]) {
 
     const highlight = await prisma.highlight.findUnique({
         where: { id },
-        select: { cityId: true, createdById: true }
+        select: { cityId: true, meetingId: true, createdById: true }
     });
 
     if (!highlight) {
         throw new NotFoundError('Highlight not found');
     }
 
-    // Check authorization: city editors or owner can delete
-    const canEditCity = await isUserAuthorizedToEdit({ cityId: highlight.cityId });
+    // Check authorization: editors of the meeting or the owner can delete
+    const canEdit = await isUserAuthorizedToEdit({ cityId: highlight.cityId, councilMeetingId: highlight.meetingId });
     const isOwner = highlight.createdById === currentUser.id;
 
-    if (!canEditCity && !isOwner) {
+    if (!canEdit && !isOwner) {
         throw new ForbiddenError('Not authorized to delete this highlight');
     }
 

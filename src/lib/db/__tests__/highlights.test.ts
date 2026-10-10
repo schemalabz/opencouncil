@@ -27,7 +27,8 @@ jest.mock('../../auth', () => ({
     withUserAuthorizedToEdit: jest.fn(),
 }));
 
-import { canAccessMyHighlights, getMyHighlights } from '../highlights';
+import { canAccessMyHighlights, getMyHighlights, getHighlightsForMeeting } from '../highlights';
+import { isUserAuthorizedToEdit } from '../../auth';
 import { MY_HIGHLIGHTS_LIMIT } from '../highlights-core';
 
 const highlight = (id: string) => ({
@@ -194,5 +195,17 @@ describe('getMyHighlights', () => {
         await getMyHighlights();
 
         expect(mockQueryRaw).not.toHaveBeenCalled();
+    });
+});
+
+describe('getHighlightsForMeeting', () => {
+    it("asks for the meeting, so the admin of the meeting's body sees every highlight", async () => {
+        const mockIsUserAuthorizedToEdit = isUserAuthorizedToEdit as jest.MockedFunction<typeof isUserAuthorizedToEdit>;
+        mockIsUserAuthorizedToEdit.mockResolvedValue(true);
+
+        await getHighlightsForMeeting('chania', 'nov5_2026');
+
+        expect(mockIsUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'chania', councilMeetingId: 'nov5_2026' });
+        expect(mockFindMany.mock.calls[0][0].where).toEqual({ cityId: 'chania', meetingId: 'nov5_2026' });
     });
 });

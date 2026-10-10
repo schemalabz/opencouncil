@@ -58,6 +58,36 @@ describe('requireVisibleMeeting', () => {
         await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
     });
 
+    it('shows a body administrator the unreleased meetings of their body, and no other', async () => {
+        const asBodyAdmin = (bodyId: string, cityId: string) => mockUserFindUnique.mockResolvedValue({
+            isSuperAdmin: false,
+            administers: [{ cityId: null, administrativeBodyId: bodyId, administrativeBody: { cityId } }],
+        });
+        const draft = { released: false, dateTime: new Date('2026-05-12T18:00:00Z'), administrativeBodyId: 'council' };
+        mockMeetingFindFirst.mockResolvedValue(draft);
+
+        asBodyAdmin('council', 'athens');
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).resolves.toEqual({ ...draft, editor: true });
+
+        asBodyAdmin('committee', 'athens');
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
+
+        // The same body id, administered under another city.
+        asBodyAdmin('council', 'argos');
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
+
+        // A draft with no body is the city admin's.
+        mockMeetingFindFirst.mockResolvedValue({ ...draft, administrativeBodyId: null });
+        asBodyAdmin('council', 'athens');
+        await expect(requireVisibleMeeting('athens', 'm1', USER)).rejects.toThrow(NotFoundError);
+    });
+
+    it('reads the body of the meeting in the same query', async () => {
+        mockMeetingFindFirst.mockResolvedValue({ released: true });
+        await requireVisibleMeeting('athens', 'm1', null);
+        expect(mockMeetingFindFirst.mock.calls[0][0].select).toMatchObject({ administrativeBodyId: true });
+    });
+
     it('404s missing meetings for everyone', async () => {
         mockMeetingFindFirst.mockResolvedValue(null);
         await expect(requireVisibleMeeting('athens', 'nope', SERVICE)).rejects.toThrow(NotFoundError);

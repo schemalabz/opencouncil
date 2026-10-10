@@ -24,7 +24,7 @@ interface UserDialogProps {
     user?: UserWithRelations
 }
 
-type EntityType = 'city' | 'party' | 'person'
+type EntityType = 'city' | 'party' | 'person' | 'body'
 
 interface EntityOption {
     id: string
@@ -65,6 +65,14 @@ function mapAdministersToEntities(administers: NonNullable<UserDialogProps['user
                 displayName: `${a.person.city.name} / ${a.person.name}`,
                 type: 'person',
                 city: a.person.city
+            })
+        } else if (a.administrativeBody?.city) {
+            entities.push({
+                id: a.administrativeBody.id,
+                name: a.administrativeBody.name,
+                displayName: `${a.administrativeBody.city.name} / ${a.administrativeBody.name}`,
+                type: 'body',
+                city: a.administrativeBody.city
             })
         }
     }
@@ -123,6 +131,7 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
                 cityId: entity.type === 'city' ? entity.id : null,
                 partyId: entity.type === 'party' ? entity.id : null,
                 personId: entity.type === 'person' ? entity.id : null,
+                administrativeBodyId: entity.type === 'body' ? entity.id : null,
             }))
         }
 
@@ -189,7 +198,8 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
     const groupedEntities = {
         cities: availableEntities.filter(e => e.type === 'city'),
         parties: availableEntities.filter(e => e.type === 'party'),
-        people: availableEntities.filter(e => e.type === 'person')
+        people: availableEntities.filter(e => e.type === 'person'),
+        bodies: availableEntities.filter(e => e.type === 'body')
     }
 
     return (
@@ -247,6 +257,7 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
                                     { key: 'cities', label: 'Cities', items: groupedEntities.cities },
                                     { key: 'parties', label: 'Parties', items: groupedEntities.parties },
                                     { key: 'people', label: 'People', items: groupedEntities.people },
+                                    { key: 'bodies', label: 'Administrative bodies', items: groupedEntities.bodies },
                                 ]}
                                 disabled={loadingEntities}
                             />
@@ -256,6 +267,7 @@ export function UserDialog({ open, onOpenChange, user, onDelete }: UserDialogPro
                                         {entity.type === 'city' && '🏛️'}
                                         {entity.type === 'party' && '👥'}
                                         {entity.type === 'person' && '👤'}
+                                        {entity.type === 'body' && '🏢'}
                                         {' '}
                                         {entity.displayName}
                                         <button
