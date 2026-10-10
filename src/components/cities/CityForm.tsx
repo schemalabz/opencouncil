@@ -1,11 +1,12 @@
 "use client"
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { cityFormSchema, CITY_DEFAULTS, createCityFormDataSchema, updateCityRequestFormDataSchema } from "@/lib/zod-schemas/city"
 import { toFormData } from "@/lib/utils/formData"
+import { apiErrorMessage } from "@/lib/utils/validationIssues"
 import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm"
 import { Button } from "@/components/ui/button"
 import {
@@ -61,6 +62,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
     const [logoPreview, setLogoPreview] = useState<string | null>(city?.logoImage || null)
     const [timezones, setTimezones] = useState<string[]>([])
     const t = useTranslations('CityForm')
+    const validationMessage = useValidationMessage()
     const locale = useLocale()
     const [administrativeBodies, setAdministrativeBodies] = useState<Array<{
         id: string;
@@ -107,7 +109,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
     }
 
     const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+        resolver: useZodResolver(formSchema),
         defaultValues: {
             name: city?.name || "",
             name_en: city?.name_en || "",
@@ -185,7 +187,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                 router.refresh() // Refresh the page to show updated data
             } else {
                 const errorData = await response.json()
-                throw new Error(errorData.message || t('failedToSaveCity'))
+                throw new Error(apiErrorMessage(errorData, t('failedToSaveCity'), validationMessage))
             }
         } catch (error) {
             console.error(t('failedToSaveCity'), error)

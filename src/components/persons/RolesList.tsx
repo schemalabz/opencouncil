@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTranslations } from 'next-intl'
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { roleDatesInOrder, roleDatesInOrderIssue } from "@/lib/zod-schemas/role"
@@ -71,7 +71,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
     const t = useTranslations('RolesList')
 
     const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+        resolver: useZodResolver(formSchema),
         defaultValues: {
             name: editingRole?.name || "",
             name_en: editingRole?.name_en || "",

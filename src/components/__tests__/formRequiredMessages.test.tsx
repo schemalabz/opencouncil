@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { formSchema as reportFormSchema } from '@/components/admin/reports/ReportForm';
 import { meetingFormSchema as addMeetingFormSchema } from '@/lib/zod-schemas/meeting';
 import { formSchema as offerFormSchema } from '@/components/admin/offers/offer-form';
+import { vmsg } from '@/lib/zod-schemas/messages';
 
 jest.mock('@/lib/db/offers', () => ({}));
 jest.mock('@/lib/db/cities', () => ({}));
@@ -19,9 +20,11 @@ async function emptyFormErrors<S extends z.ZodObject>(schema: S) {
 // A form shows the custom message of a required field that the user left empty.
 // The resolver must return field errors with these messages, and must not throw.
 describe('required-field messages of the forms', () => {
-    it('ReportForm: a missing period shows the Greek message', async () => {
+    // The resolver returns the English text of the key. FormMessage shows it in
+    // the language of the reader (localizedValidationMessages.test.tsx).
+    it('ReportForm: a missing period shows the period message', async () => {
         const errors = await emptyFormErrors(reportFormSchema);
-        expect(errors.dateRange?.message).toBe('Επιλέξτε περίοδο');
+        expect(errors.dateRange?.message).toBe(vmsg('periodRequired'));
     });
 
     it('AddMeetingForm: a missing date and time show the English messages', async () => {

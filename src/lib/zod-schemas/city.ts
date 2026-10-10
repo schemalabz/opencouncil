@@ -2,6 +2,7 @@ import * as z from 'zod';
 import { isTimeZone } from '@/lib/formatters/time';
 import { AuthorityType, CityStatus, HighlightCreationPermission, CityLanguage, Realm } from '@prisma/client';
 import { logoFile, stringBoolean } from './primitives';
+import { vmsg } from './messages';
 
 // Prisma enum schemas
 export const authorityTypeSchema = z.enum(AuthorityType);
@@ -37,30 +38,30 @@ const emptyStringToNull = z.string().transform(val => val === '' ? null : val);
 
 // The id is part of every URL of the city.
 export const cityIdSchema = z.string().min(2, {
-  error: "ID must be at least 2 characters.",
+  error: vmsg('cityIdMin2'),
 }).regex(/^[a-z-]+$/, {
-  error: "ID must contain only lowercase letters a-z and dashes.",
+  error: vmsg('cityIdFormat'),
 });
 
 // Base field definitions — validation and transformation only, no defaults.
 // Shared between frontend (baseCityFormSchema) and backend (baseCityFormDataSchema).
 export const baseCityFields = {
   name: z.string().min(2, {
-    error: "City name must be at least 2 characters.",
+    error: vmsg('cityNameMin2'),
   }),
   name_en: z.string().min(2, {
-    error: "City name (English) must be at least 2 characters.",
+    error: vmsg('cityNameEnMin2'),
   }),
   name_municipality: z.string().min(2, {
-    error: "Municipality name must be at least 2 characters.",
+    error: vmsg('municipalityNameMin2'),
   }),
   name_municipality_en: z.string().min(2, {
-    error: "Municipality name (English) must be at least 2 characters.",
+    error: vmsg('municipalityNameEnMin2'),
   }),
   timezone: z.string().min(1, {
-    error: "Timezone is required.",
+    error: vmsg('timezoneRequired'),
   }).refine(isTimeZone, {
-    error: 'Not an IANA time zone name; e.g. "Europe/Athens".',
+    error: vmsg('timezoneInvalid'),
   }),
   authorityType: authorityTypeSchema,
   status: cityStatusSchema,

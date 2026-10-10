@@ -3,6 +3,7 @@ import { AdministrativeBodyType, NotificationBehavior } from '@prisma/client';
 import { decisionConventionsSchema } from '@/lib/decisionConventions';
 import { parseChannelRef } from '@/lib/utils/youtube';
 import { webUrl } from './primitives';
+import { vmsg } from './messages';
 
 export const administrativeBodyTypeSchema = z.enum(AdministrativeBodyType);
 export const notificationBehaviorSchema = z.enum(NotificationBehavior);
@@ -12,10 +13,10 @@ export const notificationBehaviorSchema = z.enum(NotificationBehavior);
 // (zod-schemas/cityPopulation.ts).
 export const baseAdministrativeBodyFields = {
     name: z.string().min(2, {
-        error: "Name must be at least 2 characters.",
+        error: vmsg('bodyNameMin2'),
     }),
     name_en: z.string().min(2, {
-        error: "Name (English) must be at least 2 characters.",
+        error: vmsg('bodyNameEnMin2'),
     }),
     type: administrativeBodyTypeSchema,
 };
@@ -25,9 +26,9 @@ export const baseAdministrativeBodyFields = {
 // webUrl first: parseChannelRef reads a value without a slash as a bare handle.
 const youtubeChannelUrl = z.union([
     webUrl({
-        error: "Must be a valid URL.",
+        error: vmsg('invalidUrl'),
     }).refine(val => parseChannelRef(val) !== null, {
-        error: "Must be a YouTube channel URL: https://www.youtube.com/@handle or https://www.youtube.com/channel/UC…",
+        error: vmsg('youtubeChannelUrl'),
     }),
     z.literal('')
 ]).optional().transform(val => val === '' ? undefined : val);
@@ -54,7 +55,7 @@ export const administrativeBodyFormSchema = z.object({
     ...baseAdministrativeBodyFields,
     youtubeChannelUrl,
     contactEmailPrimary: z.union([
-        z.email({ error: "Must be a valid email address" }),
+        z.email({ error: vmsg('invalidEmail') }),
         z.literal('')
     ]).optional().transform(val => val === '' ? undefined : val),
     contactEmailsCC: z.string().optional().refine(val => {
@@ -62,7 +63,7 @@ export const administrativeBodyFormSchema = z.object({
         const emails = val.split(',').map(e => e.trim()).filter(e => e !== '');
         const emailSchema = z.email();
         return emails.every(email => emailSchema.safeParse(email).success);
-    }, { error: "All entries must be valid email addresses" }),
+    }, { error: vmsg('invalidEmailList') }),
     notificationBehavior: notificationBehaviorSchema,
     place: z.string().max(200).optional(),
     showUnreviewedTranscript: z.boolean(),

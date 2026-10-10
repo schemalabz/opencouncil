@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useZodResolver } from '@/hooks/useLocalizedValidation';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { startOfMonth, subMonths, endOfMonth, addMonths, subDays, isSameDay, format } from 'date-fns';
@@ -20,14 +20,15 @@ import { Input } from '@/components/ui/input';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { CityCombobox } from '@/components/cities/CityCombobox';
 import { useToast } from '@/hooks/use-toast';
+import { vmsg } from '@/lib/zod-schemas/messages';
 
 export const formSchema = z.object({
-    cityId: z.string().min(1, 'Επιλέξτε δήμο'),
+    cityId: z.string().min(1, vmsg('cityRequired')),
     dateRange: z.object({
         from: z.date(),
         to: z.date(),
-    }, { error: 'Επιλέξτε περίοδο' }),
-    contractReference: z.string().min(1, 'Απαιτείται αριθμός σύμβασης'),
+    }, { error: vmsg('periodRequired') }),
+    contractReference: z.string().min(1, vmsg('contractReferenceRequired')),
 });
 
 /** The offer a report is about: its coverage period and ΑΔΑΜ (ISO date strings). */
@@ -75,7 +76,7 @@ export function ReportForm({ cities, contracts }: ReportFormProps) {
     const { toast } = useToast();
 
     const form = useForm<z.input<typeof formSchema>, unknown, z.output<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+        resolver: useZodResolver(formSchema),
         defaultValues: {
             cityId: '',
             contractReference: '',
