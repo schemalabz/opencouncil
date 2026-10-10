@@ -167,3 +167,10 @@ export const SEARCH_COLORS = ['#EF4444', '#8B5CF6', '#F59E0B', '#10B981', '#3B82
  * 24 hours) or on a closed consultation, found nothing to publish, or could not reach the regulation.
  */
 export type PendingCommentConfirmation = 'published' | 'expired' | 'not-found' | 'unavailable';
+
+/** A confirmation link's result, with the comment it was for: only that comment's screen shows it. */
+export interface ConfirmedPendingComment {
+    pendingId: string;
+    entityId: string;
+    result: PendingCommentConfirmation;
+}
