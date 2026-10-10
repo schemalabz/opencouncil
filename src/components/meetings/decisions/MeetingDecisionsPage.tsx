@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, RotateCcw, Search } from 'lucide-react';
+import type * as z from 'zod';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { AdminStrip, AdminToolButton } from '@/components/admin/AdminStrip';
@@ -17,6 +18,7 @@ import { calculateVoteResult, voteCountsPhrase, voteResultSentence } from '@/lib
 import { formatCalendarDate, formatDate, localCalendarDate } from '@/lib/formatters/time';
 import { getLocalizedMunicipalityName, getLocalizedName } from '@/lib/formatters/name';
 import { isDecisionConventions } from '@/lib/decisionConventions';
+import type { decisionActionSchema, decisionUpsertSchema } from '@/lib/zod-schemas/decision';
 import { isRecordSubject, recordSection } from '@/lib/utils/subjects';
 import { hasRecordedVote, resultKey } from '@/lib/utils/decisionResult';
 import { causeFromPayload, decisionWriteCause, DecisionWriteError } from '@/lib/utils/decisionWriteCause';
@@ -68,12 +70,7 @@ interface DecisionsPayload {
 }
 
 /** Every write the page can POST to the decisions route. */
-type DecisionsAction =
-    | { action: 'assignCandidate'; candidateId: string; subjectId: string }
-    | { action: 'dismissCandidate'; candidateId: string }
-    | { action: 'undismissCandidate'; candidateId: string }
-    | { action: 'resetExtraction'; subjectId: string }
-    | { action: 'clearExtractedData' };
+type DecisionsAction = z.input<typeof decisionActionSchema>;
 
 /** The row panel: which row it belongs to, what it is doing, what it is asking. */
 interface PanelState {
@@ -686,7 +683,7 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
                 ...(body.decisionNumber ? { decisionNumber: body.decisionNumber } : {}),
                 ...(body.title ? { title: body.title } : {}),
                 ...(body.protocolNumber ? { protocolNumber: body.protocolNumber } : {}),
-            }),
+            } satisfies z.input<typeof decisionUpsertSchema>),
         });
         if (!response.ok) throw await writeFailure(response);
     };

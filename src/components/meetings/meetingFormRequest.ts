@@ -12,21 +12,25 @@ export function meetingIdForRequest(typedId: string | undefined, editing: boolea
     return typedId?.trim() || undefined;
 }
 
-/** The lifecycle fields as the form holds them: every input is a string. */
+/**
+ * The lifecycle fields as the form holds them: every input is a string.
+ * meetingFormSchema has already turned an empty reason or place into
+ * null.
+ */
 export interface MeetingFormLifecycleValues {
     /** Null: «Από την πρόσκληση», nobody has stated the kind. */
     kind: MeetingKind | null;
     /** «Έκτακτη»: unchecked by default. */
     urgent: boolean;
     scheduleStatus: MeetingScheduleStatus;
-    scheduleStatusReason?: string;
+    scheduleStatusReason?: string | null;
     sessionNumber?: string;
     /** Null: «Από την πρόσκληση», nobody has stated the format. */
     format: MeetingFormat | null;
     closedToPublic: boolean;
-    place?: string;
+    place?: string | null;
     /** `none` is the Select's sentinel for "not the new meeting of a postponement". */
-    postponedFromId?: string;
+    postponedFromId?: string | null;
 }
 
 /**
@@ -43,7 +47,7 @@ export function meetingRequestFields(
     values: MeetingFormLifecycleValues,
     { linkChanged, greekCodeFacts }: { linkChanged: boolean; greekCodeFacts: boolean },
 ) {
-    const text = (value: string | undefined) => value?.trim() || null;
+    const text = (value: string | null | undefined) => value?.trim() || null;
     const number = values.sessionNumber?.trim();
     return {
         kind: greekCodeFacts ? values.kind : undefined,

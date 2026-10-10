@@ -4,7 +4,7 @@ import { createPerson, getPeopleForCity } from '@/lib/db/people'
 import { uploadFile } from '@/lib/s3'
 import * as z from 'zod'
 import { parseFormData } from '@/lib/api/form-data-parser'
-import { personFormDataSchema, type PersonFormData } from '@/lib/zod-schemas/person'
+import { personFormDataSchema, type PersonFormDataOutput } from '@/lib/zod-schemas/person'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
@@ -23,7 +23,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
         return new NextResponse("Unauthorized", { status: 401 });
     }
     console.log('Creating person')
-    let data: PersonFormData
+    let data: PersonFormDataOutput
     try {
         data = await parseFormData(await request.formData(), personFormDataSchema)
     } catch (error) {

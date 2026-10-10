@@ -34,8 +34,6 @@ const profileFields = {
 
 export const updateProfileSchema = z.object(profileFields).partial();
 
-export type UpdateProfileData = z.infer<typeof updateProfileSchema>;
-
 // --- Admin user management (superadmin only) ---
 
 const administersEntrySchema = z.object({
@@ -63,6 +61,3 @@ export const updateAdminUserSchema = z.object({
     id: z.string().min(1, "User ID is required"),
     ...adminUserFields,
 }).partial().required({ id: true });
-
-export type CreateAdminUserData = z.infer<typeof createAdminUserSchema>;
-export type UpdateAdminUserData = z.infer<typeof updateAdminUserSchema>;
