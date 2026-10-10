@@ -2,7 +2,7 @@ import "server-only";
 import { ConsultationCommentEntityType, type ConsultationComment, type Realm } from '@prisma/client';
 import prisma from "./prisma";
 import { env } from "@/env.mjs";
-import { sendConsultationCommentEmail } from "../email/consultation";
+import { sendConsultationCommentEmail } from "@/lib/email/consultation";
 import { realmBaseUrl } from "@/lib/utils/realmBaseUrl";
 import { commentHtmlToPlainText } from "@/lib/utils/commentText";
 import { describeEntity, entityLabel, extractGeoSets } from "@/components/consultations/entityDisplay";
