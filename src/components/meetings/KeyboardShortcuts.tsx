@@ -1,14 +1,15 @@
 "use client";
 
 import { useVideo, useVideoActions } from './VideoProvider';
-import { useTranscriptOptions } from './options/OptionsContext';
+import { useTranscriptOptions, usePlaybackSpeed } from './options/OptionsContext';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useKeyboardShortcut, ACTIONS } from '@/contexts/KeyboardShortcutsContext';
 
 export function KeyboardShortcuts() {
     const { seekTo, handleSpeedChange, togglePlayPause, meeting } = useVideo();
     const { currentTimeRef } = useVideoActions();
-    const { options, updateOptions } = useTranscriptOptions();
+    const { options } = useTranscriptOptions();
+    const { playbackSpeed, setPlaybackSpeed } = usePlaybackSpeed();
     const { transcript } = useCouncilMeetingData();
 
     // The same media test the meeting layout uses to decide whether to render a
@@ -83,15 +84,15 @@ export function KeyboardShortcuts() {
 
     // Speed Up (ArrowUp)
     useKeyboardShortcut(ACTIONS.SPEED_UP.id, () => {
-        const newSpeedUp = Math.min(4, Math.round((options.playbackSpeed + 0.1) * 10) / 10);
-        updateOptions({ playbackSpeed: newSpeedUp });
+        const newSpeedUp = Math.min(4, Math.round((playbackSpeed + 0.1) * 10) / 10);
+        setPlaybackSpeed(newSpeedUp);
         handleSpeedChange(newSpeedUp.toString());
     }, hasPlayback, speedScope);
 
     // Speed Down (ArrowDown)
     useKeyboardShortcut(ACTIONS.SPEED_DOWN.id, () => {
-        const newSpeedDown = Math.max(0.5, Math.round((options.playbackSpeed - 0.1) * 10) / 10);
-        updateOptions({ playbackSpeed: newSpeedDown });
+        const newSpeedDown = Math.max(0.5, Math.round((playbackSpeed - 0.1) * 10) / 10);
+        setPlaybackSpeed(newSpeedDown);
         handleSpeedChange(newSpeedDown.toString());
     }, hasPlayback, speedScope);
 

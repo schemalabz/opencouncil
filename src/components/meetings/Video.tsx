@@ -6,7 +6,7 @@ import { ArrowDownLeft, ArrowUpRight, Minimize2, Move, ArrowDownLeftSquare, Scal
 import { motion, useAnimation } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
-import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
+import { usePlaybackSpeed } from '@/components/meetings/options/OptionsContext';
 
 // MuxErrorCode.NETWORK_NOT_READY. playback-core reaches us as a transitive
 // dependency, so importing the enum would mean pinning it directly.
@@ -256,7 +256,7 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
     isExpanded?: boolean;
 }) => {
     const { onSeeked, onSeeking, onTimeUpdate, onLoadedMetadata, playerRef, currentTimeRef } = useVideo();
-    const { options } = useTranscriptOptions();
+    const { playbackSpeed } = usePlaybackSpeed();
 
     // Resume where the swapped-out element left off. This runs in both directions:
     // Mux erroring onto the original, and the asset finishing its encode and
@@ -267,7 +267,7 @@ const VideoElement = ({ id, title, playbackId, fallbackSrc, onMuxError, isExpand
         }
         // A fresh element starts at rate 1; the chosen speed must survive the
         // expand/collapse remounts and the Mux/S3 swaps that land here.
-        e.currentTarget.playbackRate = options.playbackSpeed;
+        e.currentTarget.playbackRate = playbackSpeed;
         onLoadedMetadata();
     };
 

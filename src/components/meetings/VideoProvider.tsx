@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect, SyntheticEvent, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CouncilMeeting, Utterance as UtteranceType } from "@prisma/client";
-import { useTranscriptOptions } from './options/OptionsContext';
+import { usePlaybackSpeed } from './options/OptionsContext';
 
 /**
  * VIDEO PLAYBACK ARCHITECTURE OVERVIEW:
@@ -107,7 +107,7 @@ const throttle = (func: Function, limit: number) => {
 };
 
 export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting, utterances }) => {
-    const { options } = useTranscriptOptions();
+    const { playbackSpeed } = usePlaybackSpeed();
     const searchParams = useSearchParams();
     
     // === CORE VIDEO STATE ===
@@ -206,9 +206,9 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
     // === PLAYBACK SPEED SYNC ===
     useEffect(() => {
         if (playerRef.current) {
-            playerRef.current.playbackRate = options.playbackSpeed;
+            playerRef.current.playbackRate = playbackSpeed;
         }
-    }, [options.playbackSpeed]);
+    }, [playbackSpeed]);
 
     // === CORE PLAYBACK CONTROLS ===
     
@@ -283,7 +283,7 @@ export const VideoProvider: React.FC<VideoProviderProps> = ({ children, meeting,
         }
     }
     
-    // One store for speed: options.playbackSpeed (persisted there). This just
+    // One store for speed: the playback speed context (persisted there). This just
     // applies it to the element immediately; a freshly mounted or swapped
     // element gets the speed re-applied in Video's resumeFromLastPosition.
     const handleSpeedChange = (value: string) => {

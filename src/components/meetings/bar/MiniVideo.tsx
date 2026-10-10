@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Video } from '@/components/meetings/Video';
 import { useVideoActions } from '@/components/meetings/VideoProvider';
 import { useHighlight } from '@/components/meetings/HighlightContext';
-import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
+import { usePlaybackSpeed } from '@/components/meetings/options/OptionsContext';
 import { DOCK_ROW, DOCK_ROW_COMPACT, MINI_VIDEO_WIDTH, MINI_VIDEO_WIDTH_COMPACT } from './geometry';
 import { cycleSpeed, formatSpeed, sameSpeed, SPEED_MENU } from '@/lib/utils/barTimeline';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,7 @@ const LONG_PRESS_MS = 450;
  */
 export function MiniVideo({ compact = false }: { compact?: boolean }) {
     const t = useTranslations('transcript.controls');
-    const { options, updateOptions } = useTranscriptOptions();
+    const { playbackSpeed: speed, setPlaybackSpeed } = usePlaybackSpeed();
     const { handleSpeedChange } = useVideoActions();
     const { isPreviewDialogOpen } = useHighlight();
     const [isExpanded, setIsExpanded] = useState(false);
@@ -29,12 +29,10 @@ export function MiniVideo({ compact = false }: { compact?: boolean }) {
     const longPressed = useRef(false);
     const wrapRef = useRef<HTMLDivElement>(null);
 
-    const speed = options.playbackSpeed;
-
     const setSpeed = useCallback((value: number) => {
-        updateOptions({ playbackSpeed: value });
+        setPlaybackSpeed(value);
         handleSpeedChange(String(value));
-    }, [updateOptions, handleSpeedChange]);
+    }, [setPlaybackSpeed, handleSpeedChange]);
 
     // The pointer only ever decides whether this is a long press. The cycling
     // itself hangs off click, which a pointer and a keyboard both dispatch —
