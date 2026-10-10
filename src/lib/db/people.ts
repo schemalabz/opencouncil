@@ -2,8 +2,9 @@
 import { Person, VoicePrint } from '@prisma/client';
 import type { PersonRoleData } from '@/lib/zod-schemas/person';
 import prisma from "./prisma";
-import { withUserAuthorizedToEdit, getRoleLimitForCity, personIsOwnedByBodyAdmin } from "@/lib/auth";
+import { withUserAuthorizedToEdit, getRoleLimitForCity } from "@/lib/auth";
 import { getActiveRoleCondition, hasCityLevelRole, getRoleTypePriority } from "../utils";
+import { validateRolesForBodyAdmin } from "@/lib/utils/roles";
 import { RoleWithRelations, roleWithRelationsInclude } from "./types";
 
 export type PersonWithRelations = Person & {
@@ -78,15 +79,18 @@ export async function createPerson(data: {
 
 /**
  * The gate on a person's roles. A city admin or a superadmin gives any role.
- * A body admin gives roles on their bodies only, and at least one (see
- * personIsOwnedByBodyAdmin). Anyone else, a person who claimed their own page
- * among them, changes no roles.
+ * A body admin gives roles on their bodies only, and at least one, with no
+ * party and no other city on any of them: the rules of the people routes
+ * (validateRolesForBodyAdmin), applied here too, so a direct call of these
+ * functions cannot pass what the routes refuse. Anyone else, a person who
+ * claimed their own page among them, changes no roles.
  */
 async function withRolesAuthorized(cityId: string, roles: PersonRoleData[]): Promise<void> {
     const limit = await getRoleLimitForCity(cityId);
-    if (limit && !personIsOwnedByBodyAdmin(roles, limit)) {
-        throw new Error("Not authorized");
-    }
+    if (!limit) return;
+    const refused = validateRolesForBodyAdmin(roles, limit)
+        ?? (roles.some(role => role.cityId && role.cityId !== cityId) ? { error: 'Every role must be in this city.' } : null);
+    if (refused) throw new Error(`Not authorized: ${refused.error}`);
 }
 
 export async function editPerson(id: string, data: {
