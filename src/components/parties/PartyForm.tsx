@@ -4,7 +4,9 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { partyFormSchema, type PartyFormInput, type PartyFormValues } from "@/lib/zod-schemas/party"
+import type * as z from "zod"
+import { partyFormDataSchema, partyFormSchema, type PartyFormInput, type PartyFormOutput } from "@/lib/zod-schemas/party"
+import { toFormData } from "@/lib/utils/formData"
 import { Button } from "../../components/ui/button"
 import {
     Form,
@@ -43,7 +45,7 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
     const [logoPreview, setLogoPreview] = useState<string | null>(party?.logo || null)
     const t = useTranslations('PartyForm')
 
-    const form = useForm<PartyFormInput, unknown, PartyFormValues>({
+    const form = useForm<PartyFormInput, unknown, PartyFormOutput>({
         resolver: zodResolver(partyFormSchema),
         defaultValues: {
             name: party?.name || "",
@@ -53,30 +55,22 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
             colorHex: party?.colorHex || "",
         },
     })
-    async function onSubmit(values: PartyFormValues) {
+    async function onSubmit(values: PartyFormOutput) {
         setIsSubmitting(true)
         setFormError(null)
         const url = party ? `/api/cities/${cityId}/parties/${party.id}` : `/api/cities/${cityId}/parties`
         const method = party ? 'PUT' : 'POST'
 
-        const formData = new FormData()
-
-        // Append all form values
-        formData.append('name', values.name)
-        formData.append('name_en', values.name_en)
-        formData.append('name_short', values.name_short)
-        formData.append('name_short_en', values.name_short_en)
-        formData.append('colorHex', values.colorHex)
-        formData.append('cityId', cityId)
-
-        // Append logo if it exists
-        if (logo) {
-            formData.append('logo', logo)
-        }
-        // Signal removal of an existing logo
-        if (removeLogo && !logo) {
-            formData.append('removeLogo', 'true')
-        }
+        const formData = toFormData({
+            name: values.name,
+            name_en: values.name_en,
+            name_short: values.name_short,
+            name_short_en: values.name_short_en,
+            colorHex: values.colorHex,
+            logo: logo ?? undefined,
+            // Signal removal of an existing logo
+            removeLogo: removeLogo && !logo ? 'true' : undefined,
+        } satisfies z.input<typeof partyFormDataSchema>)
 
         try {
             const response = await fetch(url, {

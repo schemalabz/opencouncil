@@ -132,8 +132,3 @@ export const citiesListQuerySchema = z.object({
     example: 'false',
   }),
 });
-
-// Type exports
-export type CityFormData = z.infer<typeof cityFormSchema>;
-export type CreateCityFormData = z.infer<typeof createCityFormDataSchema>;
-export type UpdateCityFormData = z.infer<typeof updateCityFormDataSchema>;

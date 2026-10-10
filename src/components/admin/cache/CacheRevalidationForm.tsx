@@ -9,22 +9,15 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Trash2 } from 'lucide-react';
+import { revalidateRequestSchema } from '@/lib/zod-schemas/revalidate';
 
-const revalidateSchema = z.object({
-    tags: z.array(z.string()).optional(),
-    paths: z.array(z.object({
-        path: z.string(),
-        type: z.enum(['page', 'layout']).optional()
-    })).optional()
-});
-
-type RevalidateFormData = z.output<typeof revalidateSchema>;
+type RevalidateFormData = z.output<typeof revalidateRequestSchema>;
 
 export function CacheRevalidationForm() {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
-    const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<z.input<typeof revalidateSchema>, unknown, RevalidateFormData>({
-        resolver: zodResolver(revalidateSchema),
+    const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<z.input<typeof revalidateRequestSchema>, unknown, RevalidateFormData>({
+        resolver: zodResolver(revalidateRequestSchema),
         defaultValues: {
             tags: [''],
             paths: [{ path: '', type: 'page' }]
@@ -61,7 +54,7 @@ export function CacheRevalidationForm() {
                 body: JSON.stringify({
                     tags: data.tags?.filter(tag => tag.trim() !== ''),
                     paths: data.paths?.filter(path => path.path.trim() !== '')
-                })
+                } satisfies z.input<typeof revalidateRequestSchema>)
             });
 
             if (!response.ok) {

@@ -3,6 +3,7 @@ import {
     meetingSubjectListQuerySchema,
     DEFAULT_SUBJECT_LIMIT,
     MAX_SUBJECT_LIMIT,
+    subjectAgendaFlagsSchema,
 } from '../subject';
 
 describe('subjectListQuerySchema', () => {
@@ -80,5 +81,17 @@ describe('meetingSubjectListQuerySchema', () => {
         const parsed = meetingSubjectListQuerySchema.parse({ from: '2025-01-01', introducerId: 'person-1' });
         expect(parsed).not.toHaveProperty('from');
         expect(parsed.introducerId).toBe('person-1');
+    });
+});
+
+describe('subjectAgendaFlagsSchema', () => {
+    it('takes a category, a cleared category and the withdrawn flag', () => {
+        expect(subjectAgendaFlagsSchema.parse({ nonAgendaReason: 'beforeAgenda' })).toEqual({ nonAgendaReason: 'beforeAgenda' });
+        expect(subjectAgendaFlagsSchema.parse({ nonAgendaReason: null, withdrawn: true })).toEqual({ nonAgendaReason: null, withdrawn: true });
+    });
+
+    it('refuses an unknown category and an unknown key', () => {
+        expect(subjectAgendaFlagsSchema.safeParse({ nonAgendaReason: 'agenda' }).success).toBe(false);
+        expect(subjectAgendaFlagsSchema.safeParse({ withdrawn: true, name: 'x' }).success).toBe(false);
     });
 });

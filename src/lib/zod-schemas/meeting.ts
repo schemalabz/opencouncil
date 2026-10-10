@@ -86,4 +86,34 @@ export const meetingListQuerySchema = z.object({
     includeUnreleased: includeUnreleasedQuery,
 });
 
-export type MeetingFormData = z.infer<typeof meetingSchema>;
+// Frontend form schema (React Hook Form). The form picks the day in a calendar
+// and types the time apart, so it sends `date` as one ISO string built from
+// both. The form ticks processAgenda through its defaultValues: the API leaves
+// it off, so that a caller opts in. meetingRequestFields
+// (src/components/meetings/meetingFormRequest.ts) turns the lifecycle inputs
+// into the request.
+export const meetingFormSchema = meetingSchema.extend({
+    date: z.date({
+        error: "Meeting date is required.",
+    }),
+    time: z.string({
+        error: "Meeting time is required.",
+    }),
+    youtubeUrl: webUrl({
+        error: "Invalid media URL.",
+    }).optional().or(z.literal("")),
+    // Empty on create: the API makes the id from the date and adds _2, _3 when
+    // the day already has a meeting. A typed id is sent as it is.
+    meetingId: z.string().optional(),
+    // The form always holds these. Null is «Από την πρόσκληση».
+    kind: meetingSchema.shape.kind.unwrap(),
+    scheduleStatus: meetingSchema.shape.scheduleStatus.unwrap(),
+    closedToPublic: meetingSchema.shape.closedToPublic.unwrap(),
+    // The form holds the stored format, by circulation too, and does not send
+    // back a format that no form offers.
+    format: z.enum(MeetingFormat).nullable(),
+    // A text input. The request sends it as a number.
+    sessionNumber: z.string().regex(/^\s*(\d*)\s*$/, { error: "The session number is a whole number." })
+        .refine(val => val.trim() === '' || Number(val) >= 1, { error: "The session number is 1 or more." })
+        .optional(),
+});

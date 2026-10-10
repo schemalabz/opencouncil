@@ -10,6 +10,11 @@ import { JsonMetadataDialog } from "@/components/ui/json-metadata-dialog";
 import { getWithdrawnLabel } from "@/lib/utils/subjects";
 import { useTranslations } from "next-intl";
 import { FileJson } from "lucide-react";
+import type { NonAgendaReason } from "@prisma/client";
+import type * as z from "zod";
+import type { subjectAgendaFlagsSchema } from "@/lib/zod-schemas/subject";
+
+const NON_AGENDA_REASONS = ['beforeAgenda', 'outOfAgenda'] as const satisfies readonly NonAgendaReason[];
 
 interface SubjectAdminControlsProps {
     /** Extra classes for the trigger button, e.g. to seat it on an image. */
@@ -29,7 +34,7 @@ export function SubjectAdminControls({ subject, cityId, meetingId, className }: 
     const [open, setOpen] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
 
-    const updateSubject = useCallback(async (fields: { nonAgendaReason?: string | null; withdrawn?: boolean }) => {
+    const updateSubject = useCallback(async (fields: z.input<typeof subjectAgendaFlagsSchema>) => {
         setIsUpdating(true);
         try {
             const res = await fetch(
@@ -71,7 +76,8 @@ export function SubjectAdminControls({ subject, cityId, meetingId, className }: 
                             <Select
                                 value={subject.nonAgendaReason ?? 'agenda'}
                                 onValueChange={(value) => updateSubject({
-                                    nonAgendaReason: value === 'agenda' ? null : value,
+                                    // 'agenda' is the select item for no reason
+                                    nonAgendaReason: NON_AGENDA_REASONS.find(reason => reason === value) ?? null,
                                 })}
                                 disabled={isUpdating}
                             >

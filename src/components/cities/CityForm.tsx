@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { cityFormSchema, CITY_DEFAULTS } from "@/lib/zod-schemas/city"
+import { cityFormSchema, CITY_DEFAULTS, createCityFormDataSchema, updateCityRequestFormDataSchema } from "@/lib/zod-schemas/city"
+import { toFormData } from "@/lib/utils/formData"
 import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm"
 import { Button } from "@/components/ui/button"
 import {
@@ -38,6 +39,10 @@ import { getRealmBaseUrl } from '@/lib/realm'
 
 // Use shared schema from lib/schemas/city.ts
 const formSchema = cityFormSchema
+
+// The form sends one body to POST /cities and PUT /cities/{cityId}. POST takes
+// the city fields and the logo. PUT also takes the logo removal and the message.
+type CityRequestFields = Partial<z.input<typeof createCityFormDataSchema>> & z.input<typeof updateCityRequestFormDataSchema>
 
 interface CityFormProps {
     city?: City
@@ -136,44 +141,36 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         setFormError(null)
         const url = city ? `/api/cities/${city.id}` : '/api/cities'
         const method = city ? 'PUT' : 'POST'
-        const formData = new FormData()
-        formData.append('name', values.name)
-        formData.append('name_en', values.name_en)
-        formData.append('name_municipality', values.name_municipality)
-        formData.append('name_municipality_en', values.name_municipality_en)
-        formData.append('timezone', values.timezone)
-        formData.append('id', values.id)
-        formData.append('authorityType', values.authorityType)
-        formData.append('status', values.status)
-        formData.append('supportsNotifications', values.supportsNotifications.toString())
-        formData.append('consultationsEnabled', values.consultationsEnabled.toString())
-        formData.append('highlightCreationPermission', values.highlightCreationPermission)
-        formData.append('diavgeiaUid', values.diavgeiaUid || '')
-        formData.append('language', values.language)
-        formData.append('realm', values.realm)
-        if (boundary) {
-            formData.append('geometry', JSON.stringify(boundary))
-        }
-        if (logoImage) {
-            formData.append('logoImage', logoImage)
-        }
-        if (removeLogoImage && !logoImage) {
-            formData.append('removeLogoImage', 'true')
-        }
-
-        // Add message data if superadmin and message data exists
-        if (isSuperAdmin && messageData) {
-            formData.append('hasMessage', messageData.hasMessage.toString())
-            if (messageData.hasMessage) {
-                formData.append('messageEmoji', messageData.emoji)
-                formData.append('messageTitle', messageData.title)
-                formData.append('messageDescription', messageData.description)
-                formData.append('messageCallToActionText', messageData.callToActionText || '')
-                formData.append('messageCallToActionUrl', messageData.callToActionUrl || '')
-                formData.append('messageCallToActionExternal', messageData.callToActionExternal.toString())
-                formData.append('messageIsActive', messageData.isActive.toString())
-            }
-        }
+        // Only a superadmin edits the message. Without a message, only hasMessage is sent.
+        const message = isSuperAdmin ? messageData : null
+        const shownMessage = message?.hasMessage ? message : null
+        const formData = toFormData({
+            name: values.name,
+            name_en: values.name_en,
+            name_municipality: values.name_municipality,
+            name_municipality_en: values.name_municipality_en,
+            timezone: values.timezone,
+            id: values.id,
+            authorityType: values.authorityType,
+            status: values.status,
+            supportsNotifications: values.supportsNotifications.toString(),
+            consultationsEnabled: values.consultationsEnabled.toString(),
+            highlightCreationPermission: values.highlightCreationPermission,
+            diavgeiaUid: values.diavgeiaUid || '',
+            language: values.language,
+            realm: values.realm,
+            geometry: boundary ? JSON.stringify(boundary) : undefined,
+            logoImage: logoImage ?? undefined,
+            removeLogoImage: removeLogoImage && !logoImage ? 'true' : undefined,
+            hasMessage: message?.hasMessage.toString(),
+            messageEmoji: shownMessage?.emoji,
+            messageTitle: shownMessage?.title,
+            messageDescription: shownMessage?.description,
+            messageCallToActionText: shownMessage ? shownMessage.callToActionText || '' : undefined,
+            messageCallToActionUrl: shownMessage ? shownMessage.callToActionUrl || '' : undefined,
+            messageCallToActionExternal: shownMessage?.callToActionExternal.toString(),
+            messageIsActive: shownMessage?.isActive.toString(),
+        } satisfies CityRequestFields)
 
         try {
             const response = await fetch(url, {

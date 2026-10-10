@@ -12,21 +12,25 @@ export function meetingIdForRequest(typedId: string | undefined, editing: boolea
     return typedId?.trim() || undefined;
 }
 
-/** The lifecycle fields as the form holds them: every input is a string. */
+/**
+ * The lifecycle fields as the form holds them: every input is a string.
+ * meetingFormSchema has already turned an empty name, reason or place into
+ * null.
+ */
 export interface MeetingFormLifecycleValues {
-    name?: string;
-    name_en?: string;
+    name?: string | null;
+    name_en?: string | null;
     /** Null: «Από την πρόσκληση», nobody has stated the kind. */
     kind: MeetingKind | null;
     scheduleStatus: MeetingScheduleStatus;
-    scheduleStatusReason?: string;
+    scheduleStatusReason?: string | null;
     sessionNumber?: string;
     /** Null: «Από την πρόσκληση», nobody has stated the format. */
     format: MeetingFormat | null;
     closedToPublic: boolean;
-    place?: string;
+    place?: string | null;
     /** `none` is the Select's sentinel for "not the new meeting of a postponement". */
-    postponedFromId?: string;
+    postponedFromId?: string | null;
 }
 
 /**
@@ -39,7 +43,7 @@ export interface MeetingFormLifecycleValues {
  * the API refuses it, and the save must not fail over a field the admin left.
  */
 export function meetingRequestFields(values: MeetingFormLifecycleValues, { linkChanged }: { linkChanged: boolean }) {
-    const text = (value: string | undefined) => value?.trim() || null;
+    const text = (value: string | null | undefined) => value?.trim() || null;
     const number = values.sessionNumber?.trim();
     return {
         name: text(values.name),

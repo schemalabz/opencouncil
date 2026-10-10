@@ -1,4 +1,5 @@
 import { parseFormData } from '../form-data-parser';
+import { toFormData } from '@/lib/utils/formData';
 import * as z from 'zod';
 
 describe('parseFormData', () => {
@@ -233,3 +234,14 @@ describe('parseFormData', () => {
   });
 });
 
+
+describe('toFormData', () => {
+  it('appends every defined field and skips undefined ones, and parseFormData reads it back', async () => {
+    const logo = new File(['png'], 'logo.png', { type: 'image/png' });
+    const formData = toFormData({ name: 'Athens', removeLogo: undefined, logo });
+
+    expect([...formData.keys()]).toEqual(['name', 'logo']);
+    const result = await parseFormData(formData, z.object({ name: z.string(), logo: z.file(), removeLogo: z.stringbool().default(false) }));
+    expect(result).toEqual({ name: 'Athens', logo: expect.any(File), removeLogo: false });
+  });
+});

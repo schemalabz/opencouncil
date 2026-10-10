@@ -26,7 +26,7 @@ export const personFormSchema = z.object({
     profileUrl: webUrl().optional().or(z.literal('')),
 });
 
-export type PersonFormValues = z.infer<typeof personFormSchema>;
+export type PersonFormOutput = z.output<typeof personFormSchema>;
 export type PersonFormInput = z.input<typeof personFormSchema>;
 
 // A role as the person form sends it: it names its city, party or body by
@@ -38,7 +38,7 @@ export const personRoleSchema = z.object({
     ...baseRoleFields,
 }).refine(roleDatesInOrder, roleDatesInOrderIssue);
 
-export type PersonRoleData = z.output<typeof personRoleSchema>;
+export type PersonRoleOutput = z.output<typeof personRoleSchema>;
 
 const rolesJson = z.string().transform((value, ctx) => {
     try {
@@ -64,4 +64,4 @@ export const personFormDataSchema = z.object({
     roles: rolesJson,
 });
 
-export type PersonFormData = z.infer<typeof personFormDataSchema>;
+export type PersonFormDataOutput = z.output<typeof personFormDataSchema>;

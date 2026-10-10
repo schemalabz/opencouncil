@@ -26,4 +26,3 @@ export async function parseFormData<T extends z.ZodType>(
   
   return schema.parse(data);
 }
-

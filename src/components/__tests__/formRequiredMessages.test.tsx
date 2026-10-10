@@ -1,7 +1,7 @@
 import type * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { formSchema as reportFormSchema } from '@/components/admin/reports/ReportForm';
-import { formSchema as addMeetingFormSchema } from '@/components/meetings/AddMeetingForm';
+import { meetingFormSchema as addMeetingFormSchema } from '@/lib/zod-schemas/meeting';
 import { formSchema as offerFormSchema } from '@/components/admin/offers/offer-form';
 
 jest.mock('@/lib/db/offers', () => ({}));

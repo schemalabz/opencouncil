@@ -73,5 +73,5 @@ export const administrativeBodyFormSchema = z.object({
     decisionConventions: decisionConventionsSchema.nullable(),
 });
 
-export type AdministrativeBodyFormValues = z.infer<typeof administrativeBodyFormSchema>;
+export type AdministrativeBodyFormOutput = z.output<typeof administrativeBodyFormSchema>;
 export type AdministrativeBodyFormInput = z.input<typeof administrativeBodyFormSchema>;
