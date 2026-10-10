@@ -1,12 +1,14 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, type Paths } from '../registry';
-import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
+import { sessionAuthRequirement, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, notAuthorizedResponse, type Paths } from '@/lib/openapi/registry';
+import { cityPopulationAiRequestSchema, cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 
 // --- Schemas ---
 
 // Reuse the actual validation schema from zod-schemas/cityPopulation.ts
 // (single source of truth, also given to the AI City Creator).
 const CityPopulationRequestSchema = cityPopulationSchema.meta({ id: 'CityPopulation' });
+
+const CityPopulationAiRequestSchema = cityPopulationAiRequestSchema.meta({ id: 'CityPopulationAiRequest' });
 
 const CityPopulationResultSchema = z.object({
     success: z.literal(true),
@@ -43,7 +45,36 @@ export const cityPopulationPaths: Paths = {
                     content: { 'application/json': { schema: CityPopulationResultSchema } },
                 },
                 400: invalidRequestOrMessageResponse('Invalid data, or the city already has data'),
-                401: errorResponseOf('Unauthorized — not a superadmin'),
+                401: notAuthorizedResponse,
+                404: errorResponseOf('City not found'),
+            },
+            'x-access-level': 'superadmin',
+        },
+    },
+    '/api/cities/{cityId}/populate/ai': {
+        post: {
+            summary: 'Draft the council of a city with AI',
+            description:
+                'Asks the model, with web search, for the parties, administrative bodies, people and roles of a city. '
+                + 'Saves nothing: the City Creator shows the draft for review, then sends it to POST /api/cities/{cityId}/populate. '
+                + 'Works only on a city that has no parties, people, roles or meetings. '
+                + 'The response is a stream of server-sent events. Each event is a JSON object with a `type`: '
+                + '`status`, `heartbeat`, `complete` (with the draft in `data`, in the `CityPopulation` shape) or `error`. '
+                + 'Requires superadmin authorization.',
+            tags: ['Cities'],
+            security: sessionAuthRequirement,
+            requestParams: { path: cityIdParam },
+            requestBody: {
+                required: true,
+                content: { 'application/json': { schema: CityPopulationAiRequestSchema } },
+            },
+            responses: {
+                200: {
+                    description: 'A stream of server-sent events',
+                    content: { 'text/event-stream': { schema: z.string() } },
+                },
+                400: invalidRequestOrMessageResponse('Invalid request, or the city already has data'),
+                401: notAuthorizedResponse,
                 404: errorResponseOf('City not found'),
             },
             'x-access-level': 'superadmin',

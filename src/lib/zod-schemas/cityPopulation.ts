@@ -36,7 +36,7 @@ export const cityPopulationSchema = z.object({
     cityId: z.string().describe('Reference to existing city ID in the database'),
     parties: z.array(z.object({
         ...basePartyFields,
-        logo: optionalLink.describe('URL to party logo'),
+        logo: optionalLink.describe('Absolute http(s) URL of the party logo, or null'),
     })).describe('Political parties/coalitions in the council'),
     // A city without a body has nowhere to hold a meeting.
     administrativeBodies: z.array(z.object(baseAdministrativeBodyFields))
@@ -44,10 +44,10 @@ export const cityPopulationSchema = z.object({
         .describe('Administrative bodies like council, committees, communities. At least one, e.g. the council itself'),
     people: z.array(z.object({
         ...basePersonFields,
-        image: optionalLink.describe("URL to person's photo"),
+        image: optionalLink.describe("Absolute http(s) URL of the person's photo, or null"),
         activeFrom: optionalText.describe('ISO 8601 date-time'),
         activeTo: optionalText.describe('ISO 8601 date-time'),
-        profileUrl: optionalLink,
+        profileUrl: optionalLink.describe("Absolute http(s) URL of the person's profile page, or null"),
         partyName: optionalText.describe('Reference to party name (null for independents)'),
         roles: z.array(cityPopulationRoleSchema).optional().describe('Roles assigned to this person'),
     })).describe('All people in the council'),
@@ -55,3 +55,10 @@ export const cityPopulationSchema = z.object({
 
 export type CityPopulationInput = z.input<typeof cityPopulationSchema>;
 export type CityPopulationData = z.output<typeof cityPopulationSchema>;
+
+// The request of the AI City Creator. The superadmin can paste text about the
+// council (e.g. an election result) for the model to use.
+export const cityPopulationAiRequestSchema = z.object({
+    userProvidedText: z.string().trim().optional()
+        .describe('Text about the council for the model to use, e.g. an election result'),
+});

@@ -7,6 +7,7 @@ import {
 } from 'zod-openapi';
 import type { AccessLevel } from '@/lib/utils/openapi';
 import { errorResponseSchema, lifecycleRuleErrorSchema, validationErrorSchema } from '@/lib/api/errors';
+import { stripSafeIntBounds } from './jsonSchemaBounds';
 
 // Each route file documents a request with the zod schema that its handler
 // parses. The spec shows the input of that schema: a transformed field shows
@@ -88,14 +89,12 @@ export function mergePaths(...groups: Paths[]): Paths {
 // strip a key that a response schema leaves out. An output object therefore
 // must not claim `additionalProperties: false`, which zod sets for a
 // non-strict object in the output context. A z.strictObject keeps it.
-// zod gives every .int() the safe-integer range, which tells a reader nothing.
 const overrideSchema: ZodOpenApiOverride = ({ jsonSchema, zodSchema, io }) => {
     const def = zodSchema._zod.def;
     if (io === 'output' && def.type === 'object' && !('catchall' in def && def.catchall)) {
         delete jsonSchema.additionalProperties;
     }
-    if (jsonSchema.maximum === Number.MAX_SAFE_INTEGER) delete jsonSchema.maximum;
-    if (jsonSchema.minimum === Number.MIN_SAFE_INTEGER) delete jsonSchema.minimum;
+    stripSafeIntBounds(jsonSchema);
 };
 
 export function generateDocument(paths: Paths) {
