@@ -1,7 +1,7 @@
 import { Client } from '@elastic/elasticsearch';
 import { Prisma, Realm } from '@prisma/client';
 import prisma from "@/lib/db/prisma";
-import { subjectDecisionSelect } from '@/lib/db/types';
+import { publicAdministrativeBodyRelation, roleWithRelationsInclude, subjectDecisionSelect } from '@/lib/db/types';
 import { TRANSCRIPT_PUBLIC_WHERE } from '@/lib/db/sharing/publicContent';
 import { MATCH_FIELDS } from './constants';
 import { SearchRequest, SearchResponse, SearchResultLight, SearchResultDetailed, SubjectDocument, ExtractedFilters, DerivedFilters, SearchMatches, RelatedScope } from './types';
@@ -40,13 +40,7 @@ const subjectDiscussionSegmentInclude = {
         include: {
             person: {
                 include: {
-                    roles: {
-                        include: {
-                            party: true,
-                            city: true,
-                            administrativeBody: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             }
         }
@@ -379,31 +373,19 @@ async function hydrateSubjectHits(hits: SubjectSearchHit[], detailed: boolean): 
             councilMeeting: {
                 include: {
                     city: true,
-                    administrativeBody: true
+                    administrativeBody: publicAdministrativeBodyRelation
                 }
             },
             introducedBy: {
                 include: {
-                    roles: {
-                        include: {
-                            party: true,
-                            city: true,
-                            administrativeBody: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             },
             contributions: {
                 include: {
                     speaker: {
                         include: {
-                            roles: {
-                                include: {
-                                    party: true,
-                                    city: true,
-                                    administrativeBody: true
-                                }
-                            }
+                            roles: roleWithRelationsInclude
                         }
                     }
                 }

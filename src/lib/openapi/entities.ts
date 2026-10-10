@@ -53,16 +53,23 @@ export const CityWithGeometrySchema = CityWithCountsSchema.extend({
     geometry: z.record(z.string(), z.unknown()).nullable().optional().meta({ description: 'GeoJSON geometry' }),
 }).meta({ id: 'CityWithGeometry' });
 
-// The AdministrativeBody row, as a handler that includes the relation returns it.
+// The public fields of an administrative body (publicAdministrativeBodySelect),
+// as every public read that includes the relation returns them.
 export const AdministrativeBodySchema = z.object({
     id: z.string(),
     name: z.string(),
     name_en: z.string(),
     type: administrativeBodyTypeSchema,
     cityId: z.string(),
+    youtubeChannelUrl: z.string().nullable(),
+    place: z.string().nullable().meta({ description: 'The hall where the body meets as a rule.' }),
+}).meta({ id: 'AdministrativeBody' });
+
+// The whole AdministrativeBody row with the settings of the municipality. Only
+// the admin writes return it, to an editor of the city.
+export const AdministrativeBodyWithSettingsSchema = AdministrativeBodySchema.extend({
     notificationBehavior: notificationBehaviorSchema,
     showUnreviewedTranscript: z.boolean(),
-    youtubeChannelUrl: z.string().nullable(),
     contactEmails: z.array(z.string()),
     diavgeiaUnitIds: z.array(z.string()).meta({
         description: 'Diavgeia scopes polled for the decisions of the body, each `unit[:signer]`.',
@@ -70,10 +77,9 @@ export const AdministrativeBodySchema = z.object({
     decisionConventions: z.unknown().meta({
         description: 'How the decisions of the body are numbered and signed. Null until set.',
     }),
-    place: z.string().nullable().meta({ description: 'The hall where the body meets as a rule.' }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
-}).meta({ id: 'AdministrativeBody' });
+}).meta({ id: 'AdministrativeBodyWithSettings' });
 
 // Matches the Party Prisma model fields returned by the handlers.
 export const PartySchema = z.object({

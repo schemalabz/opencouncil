@@ -19,7 +19,8 @@ import {
 } from "../../components/ui/form"
 import { Input } from "../../components/ui/input"
 import { SheetClose } from "../../components/ui/sheet"
-import { Party, Person, Role, AdministrativeBody } from '@prisma/client'
+import { Party, Person, Role } from '@prisma/client'
+import type { PublicAdministrativeBody } from '@/lib/db/types'
 import { RoleWithRelations } from '@/lib/db/types'
 import { Loader2, Check, Trash2 } from "lucide-react"
 import { useTranslations } from 'next-intl'
@@ -37,7 +38,7 @@ interface PersonFormProps {
     onSuccess?: () => void
     cityId: string,
     parties: Party[]
-    administrativeBodies: AdministrativeBody[]
+    administrativeBodies: PublicAdministrativeBody[]
 }
 
 export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId }: PersonFormProps) {

@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import { sessionAuthRequirement, ValidationErrorSchema, ErrorResponseSchema, cityIdParam, type Paths } from '../registry';
-import { AdministrativeBodySchema } from '../entities';
+import { AdministrativeBodyWithSettingsSchema } from '@/lib/openapi/entities';
 import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
 
 // The validation schema of both handlers. diavgeiaUnitIds is the
@@ -37,7 +37,7 @@ export const administrativeBodiesPaths: Paths = {
             responses: {
                 201: {
                     description: 'Created administrative body',
-                    content: { 'application/json': { schema: AdministrativeBodySchema } },
+                    content: { 'application/json': { schema: AdministrativeBodyWithSettingsSchema } },
                 },
                 ...errorResponses,
             },
@@ -60,7 +60,7 @@ export const administrativeBodiesPaths: Paths = {
             responses: {
                 200: {
                     description: 'Updated administrative body',
-                    content: { 'application/json': { schema: AdministrativeBodySchema } },
+                    content: { 'application/json': { schema: AdministrativeBodyWithSettingsSchema } },
                 },
                 ...errorResponses,
             },

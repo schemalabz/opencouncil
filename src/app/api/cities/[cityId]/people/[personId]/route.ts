@@ -3,7 +3,7 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
 import { getPerson, editPerson, deletePerson } from '@/lib/db/people'
 import { getPartiesForCity } from '@/lib/db/parties'
-import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
+import { getPublicAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import * as z from 'zod'
 import { parseFormData } from '@/lib/api/form-data-parser'
 import { personFormDataSchema, type PersonFormDataOutput } from '@/lib/zod-schemas/person'
@@ -47,7 +47,7 @@ export async function PUT(
         // Get valid parties and administrative bodies for this city
         const [parties, adminBodies] = await Promise.all([
             getPartiesForCity(params.cityId),
-            getAdministrativeBodiesForCity(params.cityId)
+            getPublicAdministrativeBodiesForCity(params.cityId)
         ]);
         console.log('Got parties and admin bodies')
 

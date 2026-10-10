@@ -3,6 +3,7 @@ import { City, CouncilMeeting, Party, Person, SpeakerSegment, Subject, Topic, To
 import prisma from "./db/prisma";
 import { PersonWithRelations } from "./db/people";
 import { getPartyFromRoles } from "./utils";
+import { roleWithRelationsInclude } from "@/lib/db/types";
 
 export interface Stat<T> {
     item: T;
@@ -109,13 +110,7 @@ export async function getStatisticsFor(
         include: {
             person: {
                 include: {
-                    roles: {
-                        include: {
-                            party: true,
-                            administrativeBody: true,
-                            city: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             }
         }
@@ -216,13 +211,7 @@ export async function getBatchStatisticsForSubjects(
         include: {
             person: {
                 include: {
-                    roles: {
-                        include: {
-                            party: true,
-                            administrativeBody: true,
-                            city: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             }
         }

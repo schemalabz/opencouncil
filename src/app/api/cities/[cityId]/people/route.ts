@@ -6,7 +6,7 @@ import * as z from 'zod'
 import { parseFormData } from '@/lib/api/form-data-parser'
 import { personFormDataSchema, type PersonFormDataOutput } from '@/lib/zod-schemas/person'
 import { getPartiesForCity } from '@/lib/db/parties'
-import { getAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
+import { getPublicAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
 import { validateRoles } from '@/lib/utils/roles'
 
@@ -40,7 +40,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
         // Get valid parties and administrative bodies for this city
         const [parties, adminBodies] = await Promise.all([
             getPartiesForCity(params.cityId),
-            getAdministrativeBodiesForCity(params.cityId)
+            getPublicAdministrativeBodiesForCity(params.cityId)
         ]);
 
         const validPartyIds = new Set(parties.map(p => p.id));

@@ -1,7 +1,7 @@
 "use server";
 import { getPerson } from "@/lib/db/people";
 import { getPartiesForCity } from "@/lib/db/parties";
-import { getAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
+import { getPublicAdministrativeBodiesForCity } from "@/lib/db/administrativeBodies";
 import { getDistinctTopicsForSpeakerContributions } from "@/lib/db/contributions";
 import { notFound } from "next/navigation";
 import Person from "@/components/persons/Person";
@@ -105,7 +105,7 @@ export default async function PersonPage(
         getPerson(params.personId),
         getCity(params.cityId),
         getPartiesForCity(params.cityId),
-        getAdministrativeBodiesForCity(params.cityId),
+        getPublicAdministrativeBodiesForCity(params.cityId),
         getStatisticsFor({ personId: params.personId, cityId: params.cityId, includeUnreleased }, ['topic']),
         getDistinctTopicsForSpeakerContributions(params.personId),
     ]);
