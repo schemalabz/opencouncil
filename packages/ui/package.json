@@ -14,6 +14,7 @@
     "./lib/phone": "./src/lib/phone.ts",
     "./lib/bird-sms": "./src/lib/bird-sms.ts",
     "./lib/pagination": "./src/lib/pagination.ts",
+    "./lib/meeting-title": "./src/lib/meeting-title.ts",
     "./*": "./src/*.tsx"
   },
   "dependencies": {

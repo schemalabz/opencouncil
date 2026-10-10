@@ -56,13 +56,17 @@ model MeetingEventRow {
   completedAt   DateTime
   cityId        String
   meetingId     String
-  meetingName   String
+  // The name override only. Null means that the title is derived from
+  // meetingKind and sessionNumber (@opencouncil/ui/lib/meeting-title).
+  meetingName   String?
   meetingDate   DateTime
   released      Boolean
   adminBodyName String?
   realm         String
   language      String
   timezone      String
+  meetingKind   String?
+  sessionNumber Int?
 
   @@map("notis_meeting_events")
 }

@@ -26,6 +26,7 @@ import { MeetingExportButtons } from '../MeetingExportButtons';
 import { CreateNotificationModal } from './CreateNotificationModal';
 import { useTranslations } from 'next-intl';
 import MeetingOperator from './MeetingOperator';
+import { transcriptionRefusal } from '@/lib/meetingLifecycleRules';
 
 export default function AdminActions({
     editableBodyIds,
@@ -36,6 +37,7 @@ export default function AdminActions({
     const { toast } = useToast();
     const t = useTranslations('admin.adminActions');
     const { meeting, transcript, people, city, subjects } = useCouncilMeetingData();
+    const transcriptionRefused = transcriptionRefusal(meeting) !== null;
     const [isTranscribing, setIsTranscribing] = React.useState(false);
     const [isSummarizing, setIsSummarizing] = React.useState(false);
     const [isProcessingAgenda, setIsProcessingAgenda] = React.useState(false);
@@ -86,7 +88,15 @@ export default function AdminActions({
     const handleTranscribe = async () => {
         setIsTranscribing(true);
         try {
-            await requestTranscribe(mediaUrl, meeting.id, meeting.cityId, { force: forceTranscribe });
+            const result = await requestTranscribe(mediaUrl, meeting.id, meeting.cityId, { force: forceTranscribe });
+            if (!result.ok) {
+                toast({
+                    title: t('toasts.errorRequestingTranscription.title'),
+                    description: result.message,
+                    variant: 'destructive'
+                });
+                return;
+            }
             toast({
                 title: t('toasts.transcriptionRequested.title'),
                 description: t('toasts.transcriptionRequested.description'),
@@ -191,7 +201,16 @@ export default function AdminActions({
 
     const handleReleaseToggle = async () => {
         try {
-            const updatedMeeting = await toggleMeetingRelease(meeting.cityId, meeting.id, !isReleased);
+            const result = await toggleMeetingRelease(meeting.cityId, meeting.id, !isReleased);
+            if (!result.ok) {
+                toast({
+                    title: t('toasts.errorTogglingRelease.title'),
+                    description: result.message,
+                    variant: 'destructive'
+                });
+                return;
+            }
+            const updatedMeeting = result.meeting;
             setIsReleased(updatedMeeting.released);
             toast({
                 title: updatedMeeting.released ? t('toasts.meetingReleased.title') : t('toasts.meetingUnreleased.title'),
@@ -313,7 +332,10 @@ export default function AdminActions({
             <div className="space-x-4">
                 <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                     <PopoverTrigger asChild>
-                        <Button>{t('buttons.transcribe')}</Button>
+                        {/* The server refuses the task too (requestTranscribeInternal). */}
+                        <Button disabled={transcriptionRefused} title={transcriptionRefused ? t('transcribeRefused') : undefined}>
+                            {t('buttons.transcribe')}
+                        </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80">
                         <div className="space-y-4">

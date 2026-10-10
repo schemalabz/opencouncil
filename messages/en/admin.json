@@ -242,7 +242,8 @@
       "markedNotAttended": "Marked as not assigned",
       "errorTitle": "Error",
       "updateFailed": "Failed to update the operator"
-    }
+    },
+    "transcribeRefused": "This meeting takes no transcription: it was postponed or cancelled, or it was held by circulation."
   },
   "decisionsPage": {
     "sheet": {
@@ -422,7 +423,8 @@
     "poll": {
       "action": "Check now",
       "running": "We are checking Diavgeia for decisions on this meeting. It usually takes one to two minutes. The page will update itself, you can carry on.",
-      "alreadyRunning": "A Diavgeia search is already running for this meeting."
+      "alreadyRunning": "A Diavgeia search is already running for this meeting.",
+      "noDecisions": "This meeting takes no decisions, so it has none on Diavgeia."
     },
     "status": {
       "loadFailed": "The decisions did not load. The table shows what we last knew.",

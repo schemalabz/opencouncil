@@ -3,6 +3,9 @@
 /**
  * PUT of a meeting: an absent body leaves the meeting where it is, and a body
  * admin may move a meeting only to a body they administer (#828).
+ *
+ * The single-meeting GET has no auth. The new meeting of a postponement must
+ * not name the meeting that it replaced, which readers can no longer see.
  */
 const mockWithUserAuthorizedToEdit = jest.fn();
 const mockGetCouncilMeetingDirect = jest.fn();
@@ -19,8 +22,11 @@ jest.mock('@/lib/meetingWrites', () => ({
 }));
 jest.mock('@/lib/getMeetingData', () => ({ getMeetingDataCore: jest.fn() }));
 
-import { PUT } from '../route';
+import { GET, PUT } from '../route';
 import { ForbiddenError } from '@/lib/api/errors';
+import { getMeetingDataCore } from '@/lib/getMeetingData';
+
+const mockCore = getMeetingDataCore as jest.MockedFunction<typeof getMeetingDataCore>;
 
 const CITY = 'chania';
 const MEETING = 'nov5_2026';
@@ -95,5 +101,48 @@ describe('PUT /api/cities/{cityId}/meetings/{meetingId}', () => {
 
         expect(res.status).toBe(403);
         expect(mockUpdateMeetingWithEffects).not.toHaveBeenCalled();
+    });
+});
+
+function meetingData(postponedFromId: string | null) {
+    return {
+        meeting: {
+            id: 'mar19_2026',
+            cityId: 'chania',
+            name: null,
+            name_en: null,
+            kind: 'regular',
+            dateTime: new Date('2026-03-19T16:00:00Z'),
+            format: 'inPerson',
+            closedToPublic: false,
+            youtubeUrl: 'https://youtu.be/x',
+            videoUrl: 'https://cdn/v.mp4',
+            audioUrl: null,
+            muxPlaybackId: 'mux1',
+            place: null,
+            postponedFromId,
+            postponedFromDate: new Date('2026-03-12T16:00:00Z'),
+            administrativeBody: { name: 'Δημοτικό Συμβούλιο', name_en: 'Municipal Council', place: null },
+        },
+        city: { timezone: 'Europe/Athens' },
+        transcript: [{ id: 'seg1' }],
+        speakerTags: [{ id: 'tag1' }],
+        transcriptHiddenForReview: false,
+    } as unknown as Awaited<ReturnType<typeof getMeetingDataCore>>;
+}
+
+describe('GET /api/cities/[cityId]/meetings/[meetingId]', () => {
+    it.each([null, 'mar12_2026'])('never returns the id of the postponed meeting (link in the row: %s)', async (postponedFromId) => {
+        mockCore.mockResolvedValue(meetingData(postponedFromId));
+        const response = await GET({} as Request, { params: Promise.resolve({ cityId: 'chania', meetingId: 'mar19_2026' }) });
+        const text = await response.text();
+        expect(text).not.toContain('postponedFromId');
+        expect(text).not.toContain('mar12_2026');
+        expect(JSON.parse(text).meeting).toMatchObject({
+            name: 'Δημοτικό Συμβούλιο · Τακτική Συνεδρίαση · 19/03/2026',
+            title: 'Τακτική Συνεδρίαση',
+            name_en: 'Municipal Council · Regular Meeting · 19/03/2026',
+            postponedFromDate: '2026-03-12T16:00:00.000Z',
+        });
     });
 });

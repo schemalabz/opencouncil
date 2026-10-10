@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
+import { originalScheduledDates } from '@/lib/db/meetingLifecycle';
 import { withServiceOrUserAuth } from '@/lib/auth';
 import { createMeetingWithEffects } from '@/lib/meetingWrites';
 import { handleApiError } from '@/lib/api/errors';
+import { getCityNameEnAndTimezone } from '@/lib/db/citiesAdmin';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
+import { hideLinks, toPublicApiMeeting } from '@/lib/meetingPublic';
+import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 
 const getMeetingsQuerySchema = z.object({
     limit: z.string()
@@ -37,8 +41,8 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             ? { cityId: params.cityId, administrativeBodyId: input.administrativeBodyId }
             : { cityId: params.cityId });
 
-        // Auth was already verified by withServiceOrUserAuth above, so the
-        // shared write skips the internal session check.
+        // Auth was already verified by withServiceOrUserAuth above. The shared
+        // write runs the lifecycle rules and does no auth of its own.
         const { meeting, processAgendaStatus } = await createMeetingWithEffects(params.cityId, { ...input, processAgenda });
 
         return NextResponse.json({
@@ -73,7 +77,17 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
             to,
         });
 
-        return NextResponse.json(meetings);
+        // An editor gets the rows as they are, links included, for the admin
+        // form. The public list never names the meeting that a new meeting
+        // replaced: it gets the date instead.
+        if (includeUnreleased) {
+            return NextResponse.json(meetings);
+        }
+        const city = await getCityNameEnAndTimezone(params.cityId);
+        const timezone = city?.timezone ?? DEFAULT_TIMEZONE;
+        const dates = await originalScheduledDates(params.cityId, meetings);
+        return NextResponse.json(meetings.map(meeting =>
+            toPublicApiMeeting(hideLinks(meeting), { timezone, postponedFromDate: dates.get(meeting.id) ?? null })));
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: error.errors }, { status: 400 });

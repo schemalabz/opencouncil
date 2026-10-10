@@ -1,4 +1,5 @@
-import { assembleSystem, assembleUserTurn } from "../prompt";
+import { type MeetingWakeEvent, assembleSystem, assembleUserTurn, meetingLine } from "../prompt";
+import { wakeEventSchema } from "../schemas";
 import { DECISION_WINDOW, DecisionEntry } from "../types";
 import { FIXED_NOW, makeState, meetingEvent } from "./helpers";
 
@@ -234,7 +235,7 @@ describe("assembleUserTurn — dates, places and delivery mode", () => {
     const turn = assembleUserTurn(makeState(), [meetingEvent()], FIXED_NOW);
     expect(turn).toContain("<current_time>2026-03-10T10:00:00.000Z — Τρίτη 10/03/2026 12:00 ώρα Αθήνας</current_time>");
     // A date-only meeting value carries no clock.
-    expect(turn).toContain("(Δευτέρα 09/03/2026, χθες)");
+    expect(turn).toContain("— Δευτέρα 09/03/2026, χθες, city athens");
     expect(turn).toContain("never work out a weekday or a relative day yourself");
   });
 
@@ -266,5 +267,49 @@ describe("assembleUserTurn — dates, places and delivery mode", () => {
     const warm = assembleUserTurn(makeState({ deliveryMode: "freeform" }), [meetingEvent()], FIXED_NOW);
     expect(warm).toContain("Delivery for this wake: FREEFORM");
     expect(assembleUserTurn(makeState(), [meetingEvent()], FIXED_NOW)).not.toContain("Delivery for this wake");
+  });
+});
+
+describe("meetingLine", () => {
+  const event = (overrides: Parameters<typeof meetingEvent>[0] = {}) => meetingEvent(overrides) as MeetingWakeEvent;
+  const line = (overrides: Parameters<typeof meetingEvent>[0]) => meetingLine(event(overrides), FIXED_NOW);
+
+  it("states the title that the kind and the number give, and the facts", () => {
+    expect(line({})).toBe(
+      "Meeting: Δημοτικό Συμβούλιο, 3η Τακτική (kind: regular, session number 3) — Δευτέρα 09/03/2026, χθες, city athens, id m1.\n",
+    );
+    expect(line({ sessionNumber: null, adminBody: null })).toBe(
+      "Meeting: Τακτική Συνεδρίαση (kind: regular, no session number) — Δευτέρα 09/03/2026, χθες, city athens, id m1.\n",
+    );
+  });
+
+  it("names no kind words when the kind is not stated", () => {
+    expect(line({ meetingKind: null, sessionNumber: null })).toBe(
+      "Meeting: Δημοτικό Συμβούλιο (kind not stated, no session number) — Δευτέρα 09/03/2026, χθες, city athens, id m1.\n",
+    );
+  });
+
+  it("adds the municipality's own name when the meeting has one", () => {
+    expect(line({ meetingName: "Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26", meetingKind: "accountability", sessionNumber: 4 })).toBe(
+      "Meeting: Δημοτικό Συμβούλιο, 4η Ειδική Λογοδοσίας (kind: accountability, session number 4) — Δευτέρα 09/03/2026, χθες, city athens, id m1.\n" +
+        "The municipality's own name for it: «Λογοδοσία και Δημοτικό Συμβούλιο 04/02/26».\n",
+    );
+  });
+
+  it("renders an event queued before the facts as it did then", () => {
+    const legacy = wakeEventSchema.parse({
+      type: "meeting_summarized",
+      at: FIXED_NOW.toISOString(),
+      cityId: "athens",
+      meetingId: "m1",
+      meetingName: "Συνεδρίαση ΔΣ Αθήνας",
+      meetingDate: "2026-03-09",
+      adminBody: "Δημοτικό Συμβούλιο",
+      brief: event().brief,
+    }) as MeetingWakeEvent;
+    expect(legacy).not.toHaveProperty("meetingKind");
+    expect(meetingLine(legacy, FIXED_NOW)).toBe(
+      "Meeting: Συνεδρίαση ΔΣ Αθήνας (Δευτέρα 09/03/2026, χθες) — Δημοτικό Συμβούλιο, city athens, id m1.\n",
+    );
   });
 });

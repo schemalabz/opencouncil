@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { CallToolResult, StandardSchemaWithJSON } from '@modelcontextprotocol/server';
 import { ApiError } from '@/lib/api/errors';
+import { LifecycleRuleError } from '@/lib/meetingLifecycleRules';
 import { jsonSchemaOf } from '@/lib/openapi/jsonSchema';
 
 /** Shared by every file that registers tools: result wrapping and the tool categories. */
@@ -14,7 +15,7 @@ function errorResult(message: string): CallToolResult {
 }
 
 /**
- * Wrap a tool implementation so ApiErrors surface as readable tool errors and
+ * Wrap a tool implementation so ApiErrors and lifecycle rule errors surface as readable tool errors and
  * anything unexpected stays generic (no stack traces to clients).
  */
 export async function run(fn: () => Promise<unknown>): Promise<CallToolResult> {
@@ -23,6 +24,11 @@ export async function run(fn: () => Promise<unknown>): Promise<CallToolResult> {
     } catch (error) {
         if (error instanceof ApiError) {
             return errorResult(error.message);
+        }
+        // A broken lifecycle rule of a meeting explains itself, and its code
+        // names the rule, as the 422 of the REST API does.
+        if (error instanceof LifecycleRuleError) {
+            return errorResult(`${error.message} (rule: ${error.code})`);
         }
         console.error('MCP tool error:', error);
         return errorResult('Internal error');

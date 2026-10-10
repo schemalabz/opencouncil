@@ -52,12 +52,32 @@ function emailDelivery(id: string, to: string) {
         email: to,
         title: `Subject ${id}`,
         body: `<p>Body ${id}</p>`,
+        notification: { type: 'beforeMeeting', meeting: { scheduleStatus: 'scheduled' } },
     };
 }
 
 describe('releaseNotifications — email batching (issue #380)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+    });
+
+    it('skips postponed and cancelled announcements while batching eligible emails', async () => {
+        const deliveries = [
+            emailDelivery('scheduled', 'scheduled@example.com'),
+            { ...emailDelivery('postponed', 'postponed@example.com'), notification: { type: 'beforeMeeting', meeting: { scheduleStatus: 'postponed' } } },
+            { ...emailDelivery('cancelled', 'cancelled@example.com'), notification: { type: 'beforeMeeting', meeting: { scheduleStatus: 'cancelled' } } },
+            { ...emailDelivery('after', 'after@example.com'), notification: { type: 'afterMeeting', meeting: { scheduleStatus: 'cancelled' } } },
+        ];
+        getPendingDeliveriesMock.mockResolvedValue(deliveries);
+        sendEmailBatchMock.mockResolvedValue({ success: true, failedTos: [] });
+
+        const result = await releaseNotifications(['n1']);
+
+        expect(result).toMatchObject({ success: true, emailsSent: 2, skipped: 2, failed: 0 });
+        expect(sendEmailBatchMock).toHaveBeenCalledTimes(1);
+        expect(sendEmailBatchMock.mock.calls[0][0].map((item: { to: string }) => item.to)).toEqual(['scheduled@example.com', 'after@example.com']);
+        expect(updateDeliveryStatusMock).toHaveBeenCalledWith('postponed', 'skipped');
+        expect(updateDeliveryStatusMock).toHaveBeenCalledWith('cancelled', 'skipped');
     });
 
     it('sends all emails in a single batch when count <= 100, without 500ms per-email delay', async () => {
@@ -128,7 +148,7 @@ describe('releaseNotifications — email batching (issue #380)', () => {
     it('marks deliveries missing email/title/body as failed before batch send', async () => {
         const deliveries = [
             emailDelivery('d1', 'ok@x.com'),
-            { id: 'd2', medium: 'email', email: null, title: 't', body: 'b' },
+            { ...emailDelivery('d2', 'invalid@example.com'), email: null },
         ];
         getPendingDeliveriesMock.mockResolvedValue(deliveries);
         sendEmailBatchMock.mockResolvedValue({ success: true, failedTos: [] });
@@ -166,7 +186,7 @@ describe('releaseNotifications — email batching (issue #380)', () => {
     it('marks message deliveries skipped and keeps them out of the email batch', async () => {
         getPendingDeliveriesMock.mockResolvedValue([
             emailDelivery('e1', 'a@example.com'),
-            { id: 'm1', medium: 'message', phone: '+306900000000' },
+            { id: 'm1', medium: 'message', phone: '+306900000000', notification: { type: 'beforeMeeting', meeting: { scheduleStatus: 'scheduled' } } },
         ]);
         sendEmailBatchMock.mockResolvedValue({ success: true, failedTos: [] });
 

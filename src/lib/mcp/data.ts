@@ -1,5 +1,6 @@
 import prisma from '@/lib/db/prisma';
-import { Prisma, DiscussionStatus, type AdministrativeBodyType } from '@prisma/client';
+import { Prisma, DiscussionStatus, type AdministrativeBodyType, type CouncilMeeting, type MeetingScheduleStatus } from '@prisma/client';
+import { takesPlace } from '@/lib/meetingLifecycleRules';
 import { searchInRealm } from '@/lib/search/core';
 import { openDateRange } from '@/lib/search/dateRange';
 import { getCities, getCity, getListedCityAtPoint } from '@/lib/db/cities';
@@ -19,7 +20,7 @@ import { mcpTaskSummary } from './taskSummary';
 import { upsertHighlightCore, canUserEditCity, canActorManageHighlight, getUserCityRights, type UserCityRights } from '@/lib/db/highlights-core';
 import { requestGenerateHighlightCore } from '@/lib/tasks/generateHighlight-core';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '@/lib/api/errors';
-import { canSeeUnreleased, requireVisibleMeeting } from './gate';
+import { canSeeUnreleased, requirePublicTranscript, requireVisibleMeeting } from './gate';
 import { assertCitiesInRealm, requireCityBodies, requireRealmBodies, requireRealmCity } from './realmGuards';
 import { getRoleLabelAt, RoleTextTranslator } from '@/lib/utils/roles';
 import { roleWithRelationsInclude } from '@/lib/db/types';
@@ -33,6 +34,10 @@ import {
 } from './render';
 import { isSuperIdentity, type McpIdentity } from './auth';
 import { isCustomer } from "@/lib/cityStatus";
+import { meetingDisplayName, meetingLabel, meetingLabelInCity } from '@/lib/meetingName';
+import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
+import { originalScheduledDate, originalScheduledDates } from '@/lib/db/meetingLifecycle';
+import { publicRecordFields } from '@/lib/meetingPublic';
 
 /** Built per request: the hint must point at the host the caller is using. */
 function authHint(): string {
@@ -150,6 +155,20 @@ export async function mcpListCities() {
             url: urls.city(city.id),
         })),
     };
+}
+
+/** What an assistant must know about a meeting that does not take place on its date. */
+const SCHEDULE_STATUS_NOTES = {
+    scheduled: null,
+    cancelled: 'This meeting was cancelled: it did not take place. Its agenda is the whole record.',
+    postponed: 'This meeting was postponed: it did not take place on this date. The new meeting, once published, '
+        + 'carries postponedFromDate.',
+} as const satisfies Record<MeetingScheduleStatus, string | null>;
+
+/** The timezone that a derived meeting name prints its date in. */
+async function cityTimezone(cityId: string): Promise<string> {
+    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { timezone: true } });
+    return city?.timezone ?? DEFAULT_TIMEZONE;
 }
 
 export async function mcpGetCity(cityId: string, identity: McpIdentity) {
@@ -301,12 +320,16 @@ export async function mcpListMeetings(
         administrativeBodyTypes: options.administrativeBodyTypes,
     });
 
+    const timezone = await cityTimezone(cityId);
+    const postponedFromDates = await originalScheduledDates(cityId, meetings);
     return {
         meetings: meetings.map(meeting => ({
             id: meeting.id,
-            name: meeting.name,
+            name: meetingLabel(meeting, 'el', timezone),
+            title: meetingDisplayName(meeting, 'el', timezone),
             dateTime: meeting.dateTime.toISOString(),
             administrativeBody: meeting.administrativeBody?.name ?? null,
+            ...publicRecordFields(meeting, postponedFromDates.get(meeting.id) ?? null),
             released: meeting.released,
             subjectCount: meeting.subjects.length,
             hasTranscript: meeting._count.speakerSegments > 0,
@@ -323,6 +346,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         where: { cityId_id: { cityId, id: meetingId } },
         include: {
             administrativeBody: true,
+            city: { select: { timezone: true } },
             subjects: {
                 orderBy: [{ agendaSectionIndex: { sort: 'asc', nulls: 'first' } }, { agendaItemIndex: 'asc' }, { name: 'asc' }],
                 include: { topic: true, location: true },
@@ -357,9 +381,11 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
     return {
         id: meeting.id,
         cityId,
-        name: meeting.name,
+        name: meetingLabelInCity(meeting, 'el'),
+        title: meetingDisplayName(meeting, 'el', meeting.city.timezone),
         dateTime: meeting.dateTime.toISOString(),
         administrativeBody: meeting.administrativeBody?.name ?? null,
+        ...publicRecordFields(meeting, await originalScheduledDate(cityId, meetingId)),
         youtubeUrl: meeting.youtubeUrl,
         agendaUrl: meeting.agendaUrl,
         hasTranscript: transcribed,
@@ -367,7 +393,9 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
         // An empty agenda is the one shape an agent reads wrongly: it looks
         // like an empty meeting, when in fact the transcript is usually there
         // and only the summarization step has not run. Say so in the payload.
-        ...(meeting.subjects.length === 0 && {
+        ...(!takesPlace(meeting) ? {
+            note: SCHEDULE_STATUS_NOTES[meeting.scheduleStatus],
+        } : meeting.subjects.length === 0 && {
             note: transcribed
                 ? 'This meeting has no subjects because it has not been summarized yet — not because nothing was said. '
                 + 'The full verbatim transcript is available: read it with get_transcript (add includeUtteranceIds to '
@@ -461,11 +489,13 @@ export async function mcpGetSubjectTranscript(subjectId: string, page: number, i
         select: { id: true, name: true, cityId: true, councilMeetingId: true },
     });
     if (!subject) throw new NotFoundError('Subject not found');
-    const { dateTime: meetingDate } = await requireVisibleMeeting(
+    const visibleMeeting = await requireVisibleMeeting(
         subject.cityId,
         subject.councilMeetingId,
         identity
     );
+    await requirePublicTranscript(visibleMeeting, subject.cityId, identity);
+    const meetingDate = visibleMeeting.dateTime;
     const t = await getRoleTranslations();
 
     const where: Prisma.UtteranceWhereInput = {
@@ -535,7 +565,9 @@ export async function mcpGetTranscript(
     options: { page: number; segmentsPerPage: number; includeUtteranceIds: boolean; personId?: string },
     identity: McpIdentity
 ) {
-    const { dateTime: meetingDate } = await requireVisibleMeeting(cityId, meetingId, identity);
+    const visibleMeeting = await requireVisibleMeeting(cityId, meetingId, identity);
+    await requirePublicTranscript(visibleMeeting, cityId, identity);
+    const meetingDate = visibleMeeting.dateTime;
     const t = await getRoleTranslations();
 
     const allSegments = await getTranscript(meetingId, cityId);
@@ -719,6 +751,7 @@ export async function mcpListNearbySubjects(args: {
         args.limit
     );
     const ranked = await withDistances(subjects, center);
+    const timezone = await cityTimezone(city.id);
 
     return {
         cityId: city.id,
@@ -738,7 +771,7 @@ export async function mcpListNearbySubjects(args: {
                 cityName: city.name,
                 meetingId: meeting.id,
                 meetingDate: meeting.dateTime,
-                meetingName: meeting.name,
+                meetingName: meetingLabel(meeting, 'el', timezone),
                 administrativeBody: meeting.administrativeBody?.name ?? null,
                 topic: subject.topic?.name ?? null,
             }),
@@ -814,7 +847,7 @@ export async function mcpSearch(
                 cityName: result.councilMeeting.city.name,
                 meetingId: result.councilMeetingId,
                 meetingDate: result.councilMeeting.dateTime,
-                meetingName: result.councilMeeting.name,
+                meetingName: meetingLabelInCity(result.councilMeeting, 'el'),
                 administrativeBody: result.councilMeeting.administrativeBody?.name ?? null,
                 topic: result.topic?.name ?? null,
             }),

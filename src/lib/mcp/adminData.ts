@@ -7,6 +7,7 @@ import { BadRequestError, ConflictError, NotFoundError } from '@/lib/api/errors'
 import { createCityDirect } from '@/lib/db/citiesAdmin';
 import { populateCity, type CityPopulationData } from '@/lib/db/cityPopulate';
 import { createMeetingWithEffects, updateMeetingWithEffects, type MeetingDetailsEdit } from '@/lib/meetingWrites';
+import { pickRecordInput, type MeetingRecordInput } from '@/lib/meetingLifecycleRules';
 import { startMeetingTask, type MeetingTaskRequest } from '@/lib/tasks/startMeetingTask';
 import { constructPublicUrl, generatePresignedUrl } from '@/lib/s3';
 import { revalidateAfterResponse } from '@/lib/cache/afterResponse';
@@ -18,6 +19,8 @@ import { requireVisibleMeeting } from './gate';
 import { mcpTaskSummary } from './taskSummary';
 import { requireCityBodies, requireRealmCity } from './realmGuards';
 import { currentBaseUrl, currentRealm } from './realm-context';
+import { meetingDisplayName, meetingLabel } from '@/lib/meetingName';
+import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 
 /**
  * The write side of the MCP server for administrators: meetings and their
@@ -29,20 +32,27 @@ import { currentBaseUrl, currentRealm } from './realm-context';
 
 const meetingUrl = (cityId: string, meetingId: string) => `${currentBaseUrl()}/${cityId}/${meetingId}`;
 
+/** The timezone that a derived meeting name prints its date in. */
+async function cityTimezone(cityId: string): Promise<string> {
+    const city = await prisma.city.findUnique({ where: { id: cityId }, select: { timezone: true } });
+    return city?.timezone ?? DEFAULT_TIMEZONE;
+}
+
 // --- Meetings -------------------------------------------------------------
 
 export async function mcpCreateMeeting(
     identity: McpIdentity,
     args: {
         cityId: string;
-        name: string;
-        name_en: string;
+        name?: string;
+        name_en?: string;
         dateTime: string;
         youtubeUrl?: string;
         agendaUrl?: string;
         administrativeBodyId?: string;
         processAgenda: boolean;
-    }
+        postponedFromId?: string;
+    } & MeetingRecordInput
 ) {
     // A body admin creates meetings of their body only; a meeting with no
     // body is the city admin's.
@@ -64,12 +74,17 @@ export async function mcpCreateMeeting(
         agendaUrl: args.agendaUrl,
         administrativeBodyId: args.administrativeBodyId,
         processAgenda: args.processAgenda,
+        postponedFromId: args.postponedFromId,
+        ...pickRecordInput(args),
     });
+
+    const timezone = await cityTimezone(meeting.cityId);
 
     return {
         id: meeting.id,
         cityId: meeting.cityId,
-        name: meeting.name,
+        name: meetingLabel(meeting, 'el', timezone),
+        title: meetingDisplayName(meeting, 'el', timezone),
         dateTime: meeting.dateTime.toISOString(),
         administrativeBody: meeting.administrativeBody?.name ?? null,
         released: meeting.released,
@@ -85,13 +100,13 @@ export async function mcpUpdateMeeting(
     args: {
         cityId: string;
         meetingId: string;
-        name?: string;
-        name_en?: string;
+        name?: string | null;
+        name_en?: string | null;
         dateTime?: string;
         youtubeUrl?: string | null;
         agendaUrl?: string | null;
         administrativeBodyId?: string | null;
-    }
+    } & MeetingRecordInput
 ) {
     await requireMeetingAdmin(identity, args.cityId, args.meetingId);
     // Realm-scoped, and an administrator of the meeting passes it for a draft.
@@ -109,25 +124,31 @@ export async function mcpUpdateMeeting(
         await requireCityBodies(args.cityId, [args.administrativeBodyId]);
     }
 
+    // Clearing the name clears its English form too, unless the call sets one:
+    // a derived name never shows an English override of the old name.
+    const nameEn = args.name_en !== undefined ? args.name_en : args.name === null ? null : undefined;
     const edit: MeetingDetailsEdit = {
         ...(args.name !== undefined && { name: args.name }),
-        ...(args.name_en !== undefined && { name_en: args.name_en }),
+        ...(nameEn !== undefined && { name_en: nameEn }),
         ...(args.dateTime !== undefined && { dateTime: new Date(args.dateTime) }),
         ...(args.youtubeUrl !== undefined && { youtubeUrl: args.youtubeUrl }),
         ...(args.agendaUrl !== undefined && { agendaUrl: args.agendaUrl }),
         ...(args.administrativeBodyId !== undefined && { administrativeBodyId: args.administrativeBodyId }),
+        ...pickRecordInput(args),
     };
     if (Object.keys(edit).length === 0) {
         throw new BadRequestError('Nothing to update: pass at least one field to change.');
     }
 
     const meeting = await updateMeetingWithEffects(args.cityId, args.meetingId, edit);
+    const timezone = await cityTimezone(meeting.cityId);
 
     return {
         id: meeting.id,
         cityId: meeting.cityId,
-        name: meeting.name,
-        name_en: meeting.name_en,
+        name: meetingLabel(meeting, 'el', timezone),
+        title: meetingDisplayName(meeting, 'el', timezone),
+        name_en: meetingLabel(meeting, 'en', timezone),
         dateTime: meeting.dateTime.toISOString(),
         youtubeUrl: meeting.youtubeUrl,
         agendaUrl: meeting.agendaUrl,

@@ -40,7 +40,7 @@ export async function PUT(
         }
 
         const parsed = administrativeBodySchema.parse(body);
-        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds } = parsed;
+        const { name, name_en, type, youtubeChannelUrl, contactEmails, notificationBehavior, showUnreviewedTranscript, diavgeiaUnitIds, place } = parsed;
 
         const updatedBody = await editAdministrativeBody(params.bodyId, {
             name,
@@ -51,6 +51,7 @@ export async function PUT(
             notificationBehavior: notificationBehavior,
             ...(showUnreviewedTranscript !== undefined && { showUnreviewedTranscript }),
             diavgeiaUnitIds: diavgeiaUnitIds || [],
+            place,
         });
 
         revalidateTag(`city:${params.cityId}:administrativeBodies`, 'max');
