@@ -440,7 +440,10 @@ export async function submitPendingConsultationComment(data: {
     // `pending` names the comment the link publishes (the page confirms it on arrival), and tells the
     // auth email to ask for a confirmation, quoting the comment, rather than a sign-in.
     const returnTo = `/${consultation.cityId}/consultation/${consultation.id}?view=comment&entity=${encodeURIComponent(data.entityId)}&pending=${encodeURIComponent(pending.id)}`;
-    return { emailSent: await sendMagicLink(email, returnTo) };
+    const emailSent = await sendMagicLink(email, returnTo);
+    // Without the email nothing can confirm the comment: drop it, and the reader sends the form again.
+    if (!emailSent) await prisma.pendingConsultationComment.deleteMany({ where: { id: pending.id } });
+    return { emailSent };
 }
 
 // Toggle upvote on a comment (with auth)

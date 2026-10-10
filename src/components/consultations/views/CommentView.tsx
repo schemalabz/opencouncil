@@ -28,7 +28,7 @@ export interface CommentViewProps {
 
 type Outcome =
     | { kind: 'published' }
-    | { kind: 'pending'; email: string; emailSent: boolean }
+    | { kind: 'pending'; email: string }
     | { kind: 'error'; message: string };
 
 const CONFIRMATION_PROBLEM: Record<Exclude<PendingCommentConfirmation, 'published'>, string> = {
@@ -82,6 +82,11 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                 setOutcome({ kind: 'error', message: data.error === 'A valid email is required' ? 'Ελέγξτε το email σας.' : 'Κάτι πήγε στραβά. Δοκιμάστε ξανά σε λίγο.' });
                 return;
             }
+            if (response.status === 202 && data.emailSent === false) {
+                // The server kept nothing it could confirm, so the form stays filled in for another try.
+                setOutcome({ kind: 'error', message: 'Δεν μπορέσαμε να στείλουμε το email επιβεβαίωσης. Ελέγξτε τη διεύθυνση και πατήστε ξανά «Αποστολή στον Δήμο».' });
+                return;
+            }
             captureEvent('consultation_comment_submitted', {
                 consultation_id: consultationId,
                 city_id: cityId,
@@ -90,7 +95,7 @@ export default function CommentView({ display, backHref, consultationId, cityId,
             });
             setText('');
             if (response.status === 202) {
-                setOutcome({ kind: 'pending', email: email.trim(), emailSent: data.emailSent !== false });
+                setOutcome({ kind: 'pending', email: email.trim() });
             } else {
                 setOutcome({ kind: 'published' });
                 router.refresh();
@@ -135,11 +140,7 @@ export default function CommentView({ display, backHref, consultationId, cityId,
                 ) : outcome?.kind === 'pending' ? (
                     <div role="status" className="flex items-start gap-3 rounded-2xl bg-[#fff7ed] p-4 text-[#431407]">
                         <Mail className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                        {outcome.emailSent ? (
-                            <p className="text-base">Σχεδόν έτοιμο. Σας στείλαμε email στο <strong>{outcome.email}</strong>. Πατήστε τον σύνδεσμο μέσα σε 24 ώρες για να δημοσιευτεί το σχόλιο.</p>
-                        ) : (
-                            <p className="text-base">Κρατήσαμε το σχόλιό σας, αλλά δεν μπορέσαμε να στείλουμε το email. Δοκιμάστε ξανά σε λίγο.</p>
-                        )}
+                        <p className="text-base">Σχεδόν έτοιμο. Σας στείλαμε email στο <strong>{outcome.email}</strong>. Πατήστε τον σύνδεσμο μέσα σε 24 ώρες για να δημοσιευτεί το σχόλιο.</p>
                     </div>
                 ) : (
                     <form onSubmit={submit} className="flex flex-col gap-4">
