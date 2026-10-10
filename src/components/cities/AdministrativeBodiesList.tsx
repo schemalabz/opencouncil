@@ -27,6 +27,7 @@ import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 import InputWithDerivatives from '@/components/InputWithDerivatives'
 import DecisionConventionsFields from './DecisionConventionsFields'
 import { isDecisionConventions, type DecisionConventions } from '@/lib/decisionConventions'
+import { apiErrorMessage } from '@/lib/utils/validationIssues'
 
 
 interface AdministrativeBody {
@@ -153,7 +154,7 @@ export default function AdministrativeBodiesList({ cityId, bodies, onUpdate }: A
             })
             if (!response.ok) {
                 const errorData = await response.json()
-                throw new Error(errorData.error || t('failedToSave'))
+                throw new Error(apiErrorMessage(errorData, t('failedToSave')))
             }
             const updated = await response.json()
             form.setValue('decisionConventions', storedConventions(updated.decisionConventions))

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
+import { handleApiError } from '@/lib/api/errors';
 import {
     getNotificationsGroupedByMeeting,
     getNotificationsForMeeting,
@@ -12,62 +13,66 @@ import {
  * Returns notifications grouped by meeting with pagination
  */
 export async function GET(request: NextRequest) {
-    await withUserAuthorizedToEdit({});
+    try {
+        await withUserAuthorizedToEdit({});
 
-    const searchParams = request.nextUrl.searchParams;
+        const searchParams = request.nextUrl.searchParams;
 
-    // Check if this is a request for a specific meeting's notifications
-    const meetingId = searchParams.get('meetingId');
-    const cityIdForMeeting = searchParams.get('cityIdForMeeting');
+        // Check if this is a request for a specific meeting's notifications
+        const meetingId = searchParams.get('meetingId');
+        const cityIdForMeeting = searchParams.get('cityIdForMeeting');
 
-    if (meetingId && cityIdForMeeting) {
-        // Return notifications for a specific meeting (for expanded view)
+        if (meetingId && cityIdForMeeting) {
+            // Return notifications for a specific meeting (for expanded view)
+            const type = searchParams.get('type') as 'beforeMeeting' | 'afterMeeting' | undefined;
+            const notifications = await getNotificationsForMeeting(meetingId, cityIdForMeeting, type);
+            return NextResponse.json({ notifications });
+        }
+
+        // Check if this is a request for cities list
+        if (searchParams.get('getCities') === 'true') {
+            const cities = await getCitiesWithNotifications();
+            return NextResponse.json({ cities });
+        }
+
+        // Otherwise, return meeting-grouped notifications
+        const cityId = searchParams.get('cityId') || undefined;
+        const status = searchParams.get('status') as 'pending' | 'sent' | 'failed' | 'skipped' | undefined;
         const type = searchParams.get('type') as 'beforeMeeting' | 'afterMeeting' | undefined;
-        const notifications = await getNotificationsForMeeting(meetingId, cityIdForMeeting, type);
-        return NextResponse.json({ notifications });
+        const page = parseInt(searchParams.get('page') || '1');
+        const pageSize = parseInt(searchParams.get('pageSize') || '20');
+
+        // Parse date range
+        let startDate: Date | undefined;
+        let endDate: Date | undefined;
+
+        const startDateStr = searchParams.get('startDate');
+        const endDateStr = searchParams.get('endDate');
+
+        if (startDateStr) {
+            startDate = new Date(startDateStr);
+            // When filtering by start date, default endDate to 90 days in the future
+            // to include pending beforeMeeting notifications for upcoming meetings
+            endDate = endDateStr ? new Date(endDateStr) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+        } else if (endDateStr) {
+            endDate = new Date(endDateStr);
+        }
+        // No dates = no date filter (all time)
+
+        const result = await getNotificationsGroupedByMeeting({
+            cityId,
+            status,
+            type,
+            startDate,
+            endDate,
+            page,
+            pageSize
+        });
+
+        return NextResponse.json(result);
+    } catch (error) {
+        return handleApiError(error, 'Failed to fetch notifications');
     }
-
-    // Check if this is a request for cities list
-    if (searchParams.get('getCities') === 'true') {
-        const cities = await getCitiesWithNotifications();
-        return NextResponse.json({ cities });
-    }
-
-    // Otherwise, return meeting-grouped notifications
-    const cityId = searchParams.get('cityId') || undefined;
-    const status = searchParams.get('status') as 'pending' | 'sent' | 'failed' | 'skipped' | undefined;
-    const type = searchParams.get('type') as 'beforeMeeting' | 'afterMeeting' | undefined;
-    const page = parseInt(searchParams.get('page') || '1');
-    const pageSize = parseInt(searchParams.get('pageSize') || '20');
-
-    // Parse date range
-    let startDate: Date | undefined;
-    let endDate: Date | undefined;
-
-    const startDateStr = searchParams.get('startDate');
-    const endDateStr = searchParams.get('endDate');
-
-    if (startDateStr) {
-        startDate = new Date(startDateStr);
-        // When filtering by start date, default endDate to 90 days in the future
-        // to include pending beforeMeeting notifications for upcoming meetings
-        endDate = endDateStr ? new Date(endDateStr) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-    } else if (endDateStr) {
-        endDate = new Date(endDateStr);
-    }
-    // No dates = no date filter (all time)
-
-    const result = await getNotificationsGroupedByMeeting({
-        cityId,
-        status,
-        type,
-        startDate,
-        endDate,
-        page,
-        pageSize
-    });
-
-    return NextResponse.json(result);
 }
 
 /**
@@ -76,25 +81,29 @@ export async function GET(request: NextRequest) {
  * Optionally filter by type (beforeMeeting/afterMeeting)
  */
 export async function DELETE(request: NextRequest) {
-    await withUserAuthorizedToEdit({});
+    try {
+        await withUserAuthorizedToEdit({});
 
-    const body = await request.json();
-    const { meetingKeys, type } = body as {
-        meetingKeys: Array<{ meetingId: string; cityId: string }>;
-        type?: 'beforeMeeting' | 'afterMeeting';
-    };
+        const body = await request.json();
+        const { meetingKeys, type } = body as {
+            meetingKeys: Array<{ meetingId: string; cityId: string }>;
+            type?: 'beforeMeeting' | 'afterMeeting';
+        };
 
-    if (!meetingKeys || !Array.isArray(meetingKeys) || meetingKeys.length === 0) {
-        return NextResponse.json(
-            { error: 'meetingKeys array is required' },
-            { status: 400 }
-        );
+        if (!meetingKeys || !Array.isArray(meetingKeys) || meetingKeys.length === 0) {
+            return NextResponse.json(
+                { error: 'meetingKeys array is required' },
+                { status: 400 }
+            );
+        }
+
+        const deletedCount = await deleteNotificationsForMeetings(meetingKeys, type);
+
+        return NextResponse.json({
+            success: true,
+            deletedCount
+        });
+    } catch (error) {
+        return handleApiError(error, 'Failed to delete notifications');
     }
-
-    const deletedCount = await deleteNotificationsForMeetings(meetingKeys, type);
-
-    return NextResponse.json({
-        success: true,
-        deletedCount
-    });
 }

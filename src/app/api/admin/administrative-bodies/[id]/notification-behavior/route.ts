@@ -1,25 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, withUserAuthorizedToEdit } from '@/lib/auth';
+import { handleApiError } from '@/lib/api/errors';
 import { updateNotificationBehavior } from '@/lib/db/administrativeBodies';
 
 export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
     const params = await props.params;
-    await withUserAuthorizedToEdit({});
+    try {
+        await withUserAuthorizedToEdit({});
 
-    const body = await request.json();
-    const { notificationBehavior } = body;
+        const body = await request.json();
+        const { notificationBehavior } = body;
 
-    if (!notificationBehavior || !['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL'].includes(notificationBehavior)) {
-        return NextResponse.json(
-            { error: 'Valid notificationBehavior is required' },
-            { status: 400 }
-        );
+        if (!notificationBehavior || !['NOTIFICATIONS_DISABLED', 'NOTIFICATIONS_AUTO', 'NOTIFICATIONS_APPROVAL'].includes(notificationBehavior)) {
+            return NextResponse.json(
+                { error: 'Valid notificationBehavior is required' },
+                { status: 400 }
+            );
+        }
+
+        const updatedBody = await updateNotificationBehavior(params.id, notificationBehavior);
+
+        console.log(`Updated notification behavior for ${updatedBody.name} to ${notificationBehavior}`);
+
+        return NextResponse.json(updatedBody);
+    } catch (error) {
+        return handleApiError(error, 'Failed to update notification behavior');
     }
-
-    const updatedBody = await updateNotificationBehavior(params.id, notificationBehavior);
-
-    console.log(`Updated notification behavior for ${updatedBody.name} to ${notificationBehavior}`);
-
-    return NextResponse.json(updatedBody);
 }
 

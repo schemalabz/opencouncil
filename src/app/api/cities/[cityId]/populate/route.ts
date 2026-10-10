@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as z from 'zod';
 import { getCurrentUser } from '@/lib/auth';
 import { canUseCityCreator, getCity } from '@/lib/db/cities';
 import { populateCity, requireEmptyCity } from '@/lib/db/cityPopulate';
-import { ApiError } from '@/lib/api/errors';
+import { handleApiError } from '@/lib/api/errors';
 import { revalidateTag } from 'next/cache';
 import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 
@@ -80,16 +79,6 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             stats: result,
         });
     } catch (error) {
-        console.error('Error saving city data:', error);
-
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.issues }, { status: 400 });
-        }
-
-        if (error instanceof ApiError) {
-            return NextResponse.json({ error: error.message }, { status: error.statusCode });
-        }
-
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return handleApiError(error, 'Internal server error');
     }
 }

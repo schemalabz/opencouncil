@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
-import { sessionAuthRequirement, ValidationErrorSchema, ErrorResponseSchema, cityIdParam, meetingIdParam, type Paths } from '@/lib/openapi/registry';
+import { sessionAuthRequirement, cityIdParam, meetingIdParam, editAuthResponses, errorResponseOf, invalidRequestResponse, lifecycleRuleResponse, type Paths } from '@/lib/openapi/registry';
 import { AdministrativeBodySchema, CityWithGeometrySchema, PartyWithPeopleSchema, PersonWithRolesSchema } from '@/lib/openapi/entities';
 import { meetingListQuerySchema, meetingSchema } from '@/lib/zod-schemas/meeting';
 
@@ -89,14 +89,8 @@ export const meetingsPaths: Paths = {
                     description: 'List of meetings',
                     content: { 'application/json': { schema: z.array(MeetingWithSubjectsSchema) } },
                 },
-                400: {
-                    description: 'Invalid query parameters',
-                    content: { 'application/json': { schema: ValidationErrorSchema } },
-                },
-                500: {
-                    description: 'Server error',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestResponse('Invalid query parameters'),
+                500: errorResponseOf('Server error'),
             },
         },
         post: {
@@ -114,14 +108,9 @@ export const meetingsPaths: Paths = {
                     description: 'Meeting created',
                     content: { 'application/json': { schema: MeetingCreatedSchema } },
                 },
-                400: {
-                    description: 'Invalid meeting data',
-                    content: { 'application/json': { schema: ValidationErrorSchema } },
-                },
-                401: {
-                    description: 'Unauthorized — authentication required',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestResponse('Invalid meeting data'),
+                401: errorResponseOf('Unauthorized — authentication required'),
+                422: lifecycleRuleResponse,
                 // Note: no 409 is documented. The handler auto-generates a unique
                 // meetingId when omitted (retrying on collision), and a client-supplied
                 // duplicate id currently surfaces as a 500 rather than a 409 — see the
@@ -141,14 +130,8 @@ export const meetingsPaths: Paths = {
                     description: 'Full meeting data',
                     content: { 'application/json': { schema: MeetingDataSchema } },
                 },
-                404: {
-                    description: 'Meeting not found',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
-                500: {
-                    description: 'Server error',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                404: errorResponseOf('Meeting not found'),
+                500: errorResponseOf('Server error'),
             },
         },
         put: {
@@ -166,18 +149,10 @@ export const meetingsPaths: Paths = {
                     description: 'Updated meeting',
                     content: { 'application/json': { schema: MeetingSchema } },
                 },
-                400: {
-                    description: 'Invalid meeting data',
-                    content: { 'application/json': { schema: ValidationErrorSchema } },
-                },
-                401: {
-                    description: 'Unauthorized — admin access required for this city',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
-                500: {
-                    description: 'Server error',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestResponse('Invalid meeting data'),
+                ...editAuthResponses,
+                422: lifecycleRuleResponse,
+                500: errorResponseOf('Server error'),
             },
             'x-access-level': 'admin',
         },

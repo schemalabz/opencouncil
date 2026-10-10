@@ -4,11 +4,11 @@ import { uploadFile } from '@/lib/s3'
 import { getPerson, editPerson, deletePerson } from '@/lib/db/people'
 import { getPartiesForCity } from '@/lib/db/parties'
 import { getPublicAdministrativeBodiesForCity } from '@/lib/db/administrativeBodies'
-import * as z from 'zod'
-import { parseFormData } from '@/lib/api/form-data-parser'
+import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { personFormDataSchema, type PersonFormDataOutput } from '@/lib/zod-schemas/person'
 import { isUserAuthorizedToEdit } from '@/lib/auth'
 import { validateRoles } from '@/lib/utils/roles'
+import { errorResponse, handleApiError } from '@/lib/api/errors'
 
 export async function GET(
     request: Request,
@@ -26,18 +26,14 @@ export async function PUT(
     const params = await props.params;
     const authorizedToEdit = await isUserAuthorizedToEdit({ personId: params.personId })
     if (!authorizedToEdit) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return errorResponse(401, "Unauthorized");
     }
     console.log(`Updating person ${params.personId}`)
     let data: PersonFormDataOutput
     try {
-        data = await parseFormData(await request.formData(), personFormDataSchema)
+        data = await parseFormData(await readFormData(request), personFormDataSchema)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.issues }, { status: 400 })
-        }
-        console.error('Error parsing form data:', error)
-        return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 })
+        return handleApiError(error, 'Failed to parse form data')
     }
     const { name, name_en, name_short, name_short_en, image, removeImage, profileUrl, roles } = data
 
@@ -113,7 +109,7 @@ export async function DELETE(
     const params = await props.params;
     const authorizedToDelete = await isUserAuthorizedToEdit({ personId: params.personId })
     if (!authorizedToDelete) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return errorResponse(401, "Unauthorized");
     }
     try {
         await deletePerson(params.personId)

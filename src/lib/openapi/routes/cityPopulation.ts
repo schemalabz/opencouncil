@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, ValidationErrorSchema, ErrorResponseSchema, cityIdParam, type Paths } from '../registry';
+import { sessionAuthRequirement, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, type Paths } from '../registry';
 import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 
 // --- Schemas ---
@@ -42,18 +42,9 @@ export const cityPopulationPaths: Paths = {
                     description: 'Counts of the created records',
                     content: { 'application/json': { schema: CityPopulationResultSchema } },
                 },
-                400: {
-                    description: 'Invalid data, or the city already has data',
-                    content: { 'application/json': { schema: z.union([ValidationErrorSchema, ErrorResponseSchema]) } },
-                },
-                401: {
-                    description: 'Unauthorized — not a superadmin',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
-                404: {
-                    description: 'City not found',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestOrMessageResponse('Invalid data, or the city already has data'),
+                401: errorResponseOf('Unauthorized — not a superadmin'),
+                404: errorResponseOf('City not found'),
             },
             'x-access-level': 'superadmin',
         },

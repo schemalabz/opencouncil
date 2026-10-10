@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as z from 'zod';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
 import { originalScheduledDates } from '@/lib/db/meetingLifecycle';
 import { withServiceOrUserAuth } from '@/lib/auth';
@@ -26,9 +25,6 @@ export async function POST(request: NextRequest, props: { params: Promise<{ city
             ...(processAgenda && { processAgendaStatus }),
         }, { status: 201 });
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.issues }, { status: 400 });
-        }
         return handleApiError(error, 'Failed to create meeting');
     }
 }
@@ -65,9 +61,6 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
         return NextResponse.json(meetings.map(meeting =>
             toPublicApiMeeting(hideLinks(meeting), { timezone, postponedFromDate: dates.get(meeting.id) ?? null })));
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.issues }, { status: 400 });
-        }
         return handleApiError(error, 'Failed to fetch meetings');
     }
 }

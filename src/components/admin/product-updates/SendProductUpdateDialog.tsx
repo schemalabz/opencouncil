@@ -22,6 +22,7 @@ import {
 } from './ProductUpdateEmailEditor';
 import { DEFAULT_PRODUCT_UPDATE_TEMPLATE_MARKDOWN } from '@/lib/email/templates/productUpdateDefault';
 import { loadDraft, saveDraft, clearDraft } from './draftStorage';
+import { apiErrorMessage } from '@/lib/utils/validationIssues';
 
 interface SendResult {
     sent: number;
@@ -191,7 +192,7 @@ export function SendProductUpdateDialog() {
             });
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                setErrorMessage(data?.error ?? `HTTP ${res.status}`);
+                setErrorMessage(apiErrorMessage(data, `HTTP ${res.status}`));
                 setStatus('error');
                 return;
             }

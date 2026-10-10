@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, ValidationErrorSchema, ErrorResponseSchema, cityIdParam, type Paths } from '../registry';
+import { sessionAuthRequirement, cityIdParam, editAuthResponses, errorResponseOf, invalidRequestResponse, type Paths } from '@/lib/openapi/registry';
 import { AdministrativeBodyWithSettingsSchema } from '@/lib/openapi/entities';
 import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
 
@@ -12,14 +12,9 @@ const bodyIdParam = cityIdParam.extend({
 });
 
 const errorResponses = {
-    400: {
-        description: 'Invalid administrative body data',
-        content: { 'application/json': { schema: ValidationErrorSchema } },
-    },
-    500: {
-        description: 'Server error. The handlers also answer 500 when the caller may not edit the city.',
-        content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
+    400: invalidRequestResponse('Invalid administrative body data'),
+    ...editAuthResponses,
+    500: errorResponseOf('Server error'),
 };
 
 export const administrativeBodiesPaths: Paths = {

@@ -31,8 +31,10 @@ jest.mock('@/lib/auth', () => ({
 }));
 
 import { confirmDecisionConventions } from '@/lib/db/administrativeBodiesInternal';
+import { NotFoundError } from '@/lib/api/errors';
 import {
     createAdministrativeBody,
+    deleteAdministrativeBody,
     editAdministrativeBody,
     getAdministrativeBodiesForCity,
     getAdministrativeBodiesWithPublicMeetings,
@@ -210,3 +212,21 @@ describe('getAdministrativeBodiesForCity', () => {
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou' });
     });
 });
+
+/** A route answers a NotFoundError with 404, where a plain Error was a 500. */
+describe('a write to a body that does not exist', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockFindUniqueOrThrow.mockResolvedValue(null);
+    });
+
+    it('edit throws a NotFoundError', async () => {
+        await expect(editAdministrativeBody('missing', { name: 'x' })).rejects.toBeInstanceOf(NotFoundError);
+        expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it('delete throws a NotFoundError', async () => {
+        await expect(deleteAdministrativeBody('missing')).rejects.toBeInstanceOf(NotFoundError);
+    });
+});
+

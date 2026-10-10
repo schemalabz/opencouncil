@@ -1,14 +1,13 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { revalidateTag } from 'next/cache'
-import * as z from 'zod'
 import { createCity, getCities, updateCityGeometry } from '@/lib/db/cities'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { getAllCitiesAsServiceKey } from '@/lib/db/citiesAdmin'
 import { uploadFile } from '@/lib/s3'
 import { isUserAuthorizedToEdit, validateBearerAuth } from '@/lib/auth'
 import { citiesListQuerySchema, createCityFormDataSchema } from '@/lib/zod-schemas/city'
-import { parseFormData } from '@/lib/api/form-data-parser'
-import { handleApiError } from '@/lib/api/errors'
+import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
+import { errorResponse, handleApiError } from '@/lib/api/errors'
 
 export async function GET(req: NextRequest) {
     try {
@@ -28,11 +27,6 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json(cities);
     } catch (error) {
-        // Preserve the legacy `{ error: ZodIssue[] }` shape for ZodError specifically;
-        // every other error goes through the standard handler.
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.issues }, { status: 400 });
-        }
         return handleApiError(error, 'An unexpected error occurred');
     }
 }
@@ -40,11 +34,11 @@ export async function GET(req: NextRequest) {
 export async function POST(request: Request) {
     const authorizedToEdit = await isUserAuthorizedToEdit({})
     if (!authorizedToEdit) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return errorResponse(401, "Unauthorized");
     }
 
     try {
-        const formData = await request.formData();
+        const formData = await readFormData(request);
         const data = await parseFormData(formData, createCityFormDataSchema);
 
         // Boundary paste: validate before any side effects (logo upload, insert).
@@ -94,13 +88,6 @@ export async function POST(request: Request) {
 
         return NextResponse.json(city);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json(
-                { error: error.issues },
-                { status: 400 }
-            );
-        }
-        console.error('Error creating city:', error);
-        return NextResponse.json({ error: 'Failed to create city' }, { status: 500 });
+        return handleApiError(error, 'Failed to create city');
     }
 }

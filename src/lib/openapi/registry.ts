@@ -6,29 +6,36 @@ import {
     type ZodOpenApiOverride,
 } from 'zod-openapi';
 import type { AccessLevel } from '@/lib/utils/openapi';
+import { errorResponseSchema, lifecycleRuleErrorSchema, validationErrorSchema } from '@/lib/api/errors';
 
 // Session-based auth used by Next.js/NextAuth.
 const SESSION_AUTH = 'sessionAuth';
 export const sessionAuthRequirement = [{ [SESSION_AUTH]: [] }];
 
-// Reusable error schemas
-export const ValidationErrorSchema = z.object({
-    error: z.array(z.object({
-        code: z.string(),
-        message: z.string(),
-        path: z.array(z.string().or(z.number())).optional(),
-    })),
-}).meta({ id: 'ValidationError' });
+// The error bodies the handlers build (see @/lib/api/errors).
+const jsonError = (description: string, schema: z.ZodType) => ({
+    description,
+    content: { 'application/json': { schema } },
+});
 
-export const ErrorResponseSchema = z.object({
-    error: z.string(),
-}).meta({ id: 'ErrorResponse' });
+/** A 400 for a body or query that fails the zod schema of the handler. */
+export const invalidRequestResponse = (description = 'Invalid request') => jsonError(description, validationErrorSchema);
 
-// A 400 that names the problem and lists the zod issues.
-export const InvalidRequestSchema = z.object({
-    error: z.string(),
-    details: ValidationErrorSchema.shape.error,
-}).meta({ id: 'InvalidRequest' });
+/** A 400 that is a `ValidationError`, or an `ErrorResponse` from a check that the schema does not make. */
+export const invalidRequestOrMessageResponse = (description: string) =>
+    jsonError(description, z.union([validationErrorSchema, errorResponseSchema]));
+
+/** An `ErrorResponse` with the given description. */
+export const errorResponseOf = (description: string) => jsonError(description, errorResponseSchema);
+
+/** A 422 for a meeting write that breaks a lifecycle rule of the record. */
+export const lifecycleRuleResponse = jsonError('The write breaks a lifecycle rule of the meeting record', lifecycleRuleErrorSchema);
+
+/** The refusals of withUserAuthorizedToEdit: nobody signed in, or a user without the right to edit. */
+export const editAuthResponses = {
+    401: errorResponseOf('Not signed in'),
+    403: errorResponseOf('Not authorized to edit'),
+};
 
 // Simple `{ message }` response shared by delete endpoints.
 export const MessageSchema = z.object({
@@ -103,8 +110,8 @@ export function generateDocument(paths: Paths) {
                 },
             },
             schemas: {
-                ValidationError: ValidationErrorSchema,
-                ErrorResponse: ErrorResponseSchema,
+                ValidationError: validationErrorSchema,
+                ErrorResponse: errorResponseSchema,
                 Message: MessageSchema,
             },
         },

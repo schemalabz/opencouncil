@@ -6,9 +6,8 @@ import { handleApiError } from "@/lib/api/errors";
 import { createTopicSchema } from "@/lib/zod-schemas/topic";
 
 export async function GET() {
-    await withUserAuthorizedToEdit({});
-
     try {
+        await withUserAuthorizedToEdit({});
         const topics = await getAllTopicsWithSubjectCount();
         return NextResponse.json(topics);
     } catch (error) {
@@ -17,9 +16,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-    await withUserAuthorizedToEdit({});
-
     try {
+        await withUserAuthorizedToEdit({});
         const data = createTopicSchema.parse(await request.json());
 
         const topic = await createTopic(data);

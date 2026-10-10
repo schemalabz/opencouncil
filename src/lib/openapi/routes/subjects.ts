@@ -1,6 +1,6 @@
 import * as z from 'zod';
 import { LocationType, NonAgendaReason } from '@prisma/client';
-import { sessionAuthRequirement, ValidationErrorSchema, ErrorResponseSchema, cityIdParam, meetingIdParam, type Paths } from '../registry';
+import { sessionAuthRequirement, cityIdParam, meetingIdParam, errorResponseOf, invalidRequestOrMessageResponse, invalidRequestResponse, type Paths } from '../registry';
 import {
     meetingSubjectListQuerySchema,
     subjectAgendaFlagsSchema,
@@ -59,18 +59,9 @@ const listResponses = {
         description: 'List of subjects',
         content: { 'application/json': { schema: z.array(SubjectSchema) } },
     },
-    400: {
-        description: 'Invalid query parameters',
-        content: { 'application/json': { schema: ValidationErrorSchema } },
-    },
-    401: {
-        description: 'includeUnreleased requested without authorization',
-        content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
-    500: {
-        description: 'Server error',
-        content: { 'application/json': { schema: ErrorResponseSchema } },
-    },
+    400: invalidRequestResponse('Invalid query parameters'),
+    401: errorResponseOf('includeUnreleased requested without authorization'),
+    500: errorResponseOf('Server error'),
 };
 
 
@@ -115,22 +106,10 @@ export const subjectsPaths: Paths = {
                     description: 'The subject',
                     content: { 'application/json': { schema: SubjectSchema } },
                 },
-                400: {
-                    description: 'Invalid query parameters',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
-                401: {
-                    description: 'includeUnreleased requested without authorization',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
-                404: {
-                    description: 'Subject not found',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
-                500: {
-                    description: 'Server error',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestResponse('Invalid query parameters'),
+                401: errorResponseOf('includeUnreleased requested without authorization'),
+                404: errorResponseOf('Subject not found'),
+                500: errorResponseOf('Server error'),
             },
         },
         patch: {
@@ -153,18 +132,9 @@ export const subjectsPaths: Paths = {
                         },
                     },
                 },
-                400: {
-                    description: 'Invalid request body',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
-                403: {
-                    description: 'Superadmin access required',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
-                404: {
-                    description: 'Subject not found',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestOrMessageResponse('Invalid request body, or no fields to update'),
+                403: errorResponseOf('Superadmin access required'),
+                404: errorResponseOf('Subject not found'),
             },
         },
     },

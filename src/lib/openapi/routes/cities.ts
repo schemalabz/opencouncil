@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, ValidationErrorSchema, ErrorResponseSchema, MessageSchema, cityIdParam, type Paths } from '../registry';
+import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, invalidRequestResponse, type Paths } from '../registry';
 import { CitySchema, CityMinimalSchema, CityWithCountsSchema, CityWithGeometrySchema } from '@/lib/openapi/entities';
 import { citiesListQuerySchema, createCityFormDataSchema, updateCityRequestFormDataSchema } from '@/lib/zod-schemas/city';
 
@@ -24,10 +24,7 @@ export const citiesPaths: Paths = {
                     description: 'List of cities with counts',
                     content: { 'application/json': { schema: z.array(CityWithCountsSchema) } },
                 },
-                400: {
-                    description: 'Invalid query parameters',
-                    content: { 'application/json': { schema: ValidationErrorSchema } },
-                },
+                400: invalidRequestResponse('Invalid query parameters'),
             },
         },
         post: {
@@ -47,14 +44,8 @@ export const citiesPaths: Paths = {
                     description: 'Created city',
                     content: { 'application/json': { schema: CitySchema } },
                 },
-                400: {
-                    description: 'Invalid city data',
-                    content: { 'application/json': { schema: ValidationErrorSchema } },
-                },
-                401: {
-                    description: 'Unauthorized — not authenticated',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestOrMessageResponse('Invalid city data, form data or boundary GeoJSON'),
+                401: errorResponseOf('Unauthorized — not authenticated'),
             },
             'x-access-level': 'superadmin',
         },
@@ -69,10 +60,7 @@ export const citiesPaths: Paths = {
                     description: 'List of minimal city objects with counts',
                     content: { 'application/json': { schema: z.array(CityMinimalSchema) } },
                 },
-                500: {
-                    description: 'Server error',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                500: errorResponseOf('Server error'),
             },
         },
     },
@@ -87,10 +75,7 @@ export const citiesPaths: Paths = {
                     description: 'City data with geometry',
                     content: { 'application/json': { schema: CityWithGeometrySchema } },
                 },
-                404: {
-                    description: 'City not found',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                404: errorResponseOf('City not found'),
             },
         },
         put: {
@@ -109,14 +94,8 @@ export const citiesPaths: Paths = {
                     description: 'Updated city',
                     content: { 'application/json': { schema: CitySchema } },
                 },
-                400: {
-                    description: 'Invalid city data',
-                    content: { 'application/json': { schema: ValidationErrorSchema } },
-                },
-                401: {
-                    description: 'Unauthorized — admin access required for this city',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestOrMessageResponse('Invalid city data, form data or boundary GeoJSON'),
+                401: errorResponseOf('Unauthorized — admin access required for this city'),
             },
             'x-access-level': 'admin',
         },
@@ -131,10 +110,7 @@ export const citiesPaths: Paths = {
                     description: 'City deleted',
                     content: { 'application/json': { schema: MessageSchema } },
                 },
-                401: {
-                    description: 'Unauthorized — admin access required for this city',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                401: errorResponseOf('Unauthorized — admin access required for this city'),
             },
             'x-access-level': 'admin',
         },

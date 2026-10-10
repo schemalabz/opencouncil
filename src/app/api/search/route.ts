@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { search } from '@/lib/search';
-import * as z from 'zod';
 import { searchRequestSchema } from '@/lib/zod-schemas/search';
 import type { SearchRequest } from '@/lib/search/types';
+import { searchError } from '@/lib/api/errors';
 
 // Hardcoded search configuration
 const SEARCH_CONFIG = {
@@ -50,30 +50,6 @@ export async function POST(request: NextRequest) {
             derivedFilters
         });
     } catch (error) {
-        console.error('Search error:', error);
-
-        if (error instanceof z.ZodError) {
-            return NextResponse.json(
-                {
-                    error: {
-                        code: 'INVALID_REQUEST',
-                        message: 'Invalid request parameters',
-                        details: error.issues
-                    }
-                },
-                { status: 400 }
-            );
-        }
-
-        return NextResponse.json(
-            {
-                error: {
-                    code: 'SEARCH_ERROR',
-                    message: 'An error occurred while performing the search',
-                    details: error instanceof Error ? error.message : 'Unknown error'
-                }
-            },
-            { status: 500 }
-        );
+        return searchError(error);
     }
-} 
+}

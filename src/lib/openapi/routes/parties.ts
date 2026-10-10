@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, ErrorResponseSchema, MessageSchema, ValidationErrorSchema, cityIdParam, type Paths } from '../registry';
+import { sessionAuthRequirement, MessageSchema, cityIdParam, editAuthResponses, errorResponseOf, invalidRequestOrMessageResponse, type Paths } from '@/lib/openapi/registry';
 import { PartySchema, PartyWithPeopleSchema } from '@/lib/openapi/entities';
 import { partyFormDataSchema } from '@/lib/zod-schemas/party';
 
@@ -40,14 +40,8 @@ export const partiesPaths: Paths = {
                     description: 'Created party',
                     content: { 'application/json': { schema: PartySchema } },
                 },
-                400: {
-                    description: 'Invalid party data',
-                    content: { 'application/json': { schema: ValidationErrorSchema } },
-                },
-                401: {
-                    description: 'Unauthorized',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestOrMessageResponse('Invalid party data'),
+                ...editAuthResponses,
             },
             'x-access-level': 'admin',
         },
@@ -62,10 +56,7 @@ export const partiesPaths: Paths = {
                     description: 'Party with its members',
                     content: { 'application/json': { schema: PartyWithPeopleSchema } },
                 },
-                404: {
-                    description: 'Party not found',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                404: errorResponseOf('Party not found'),
             },
         },
         put: {
@@ -82,14 +73,8 @@ export const partiesPaths: Paths = {
                     description: 'Updated party',
                     content: { 'application/json': { schema: PartySchema } },
                 },
-                400: {
-                    description: 'Invalid party data',
-                    content: { 'application/json': { schema: ValidationErrorSchema } },
-                },
-                401: {
-                    description: 'Unauthorized',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestOrMessageResponse('Invalid party data'),
+                ...editAuthResponses,
             },
             'x-access-level': 'admin',
         },
@@ -103,10 +88,7 @@ export const partiesPaths: Paths = {
                     description: 'Party deleted',
                     content: { 'application/json': { schema: MessageSchema } },
                 },
-                401: {
-                    description: 'Unauthorized',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                ...editAuthResponses,
             },
             'x-access-level': 'admin',
         },

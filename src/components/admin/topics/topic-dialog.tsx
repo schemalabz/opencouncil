@@ -28,6 +28,7 @@ import { toast } from "@/hooks/use-toast";
 import { IconInput, isValidIconName } from "@/components/admin/icon-input";
 import { Sparkles } from "lucide-react";
 import { HEX_REGEX, suggestDistinctColor } from "@/lib/utils/colorSuggestion";
+import { apiErrorMessage } from "@/lib/utils/validationIssues";
 
 interface TopicDialogProps {
     open: boolean;
@@ -144,7 +145,7 @@ export function TopicDialog({ open, onOpenChange, topic, defaultRealm, existingC
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
-                throw new Error(errorData?.error || "Failed to save topic");
+                throw new Error(apiErrorMessage(errorData, "Failed to save topic"));
             }
 
             toast({

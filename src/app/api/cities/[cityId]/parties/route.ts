@@ -3,9 +3,9 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { uploadFile } from '@/lib/s3'
 import { getPartiesForCity, createParty } from '@/lib/db/parties'
 import { withUserAuthorizedToEdit } from '@/lib/auth'
-import * as z from 'zod'
-import { parseFormData } from '@/lib/api/form-data-parser'
+import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { partyFormDataSchema } from '@/lib/zod-schemas/party'
+import { handleApiError } from '@/lib/api/errors'
 
 export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -18,7 +18,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId })
         const { name, name_en, name_short, name_short_en, colorHex, logo } =
-            await parseFormData(await request.formData(), partyFormDataSchema)
+            await parseFormData(await readFormData(request), partyFormDataSchema)
 
         let logoUrl: string | undefined = undefined
 
@@ -50,10 +50,6 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
 
         return NextResponse.json(party)
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: error.issues }, { status: 400 })
-        }
-        console.error('Error creating party:', error)
-        return NextResponse.json({ error: 'Failed to create party' }, { status: 500 })
+        return handleApiError(error, 'Failed to create party');
     }
 }

@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, ErrorResponseSchema, MessageSchema, ValidationErrorSchema, cityIdParam, type Paths } from '../registry';
+import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, type Paths } from '../registry';
 import { PersonWithRolesSchema } from '@/lib/openapi/entities';
 import { personFormDataSchema } from '@/lib/zod-schemas/person';
 
@@ -41,14 +41,8 @@ export const peoplePaths: Paths = {
                     description: 'Created person with their roles',
                     content: { 'application/json': { schema: PersonWithRolesSchema } },
                 },
-                400: {
-                    description: 'Invalid person or role data',
-                    content: { 'application/json': { schema: z.union([ValidationErrorSchema, ErrorResponseSchema]) } },
-                },
-                401: {
-                    description: 'Unauthorized',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestOrMessageResponse('Invalid person or role data'),
+                401: errorResponseOf('Unauthorized'),
             },
             'x-access-level': 'admin',
         },
@@ -79,14 +73,8 @@ export const peoplePaths: Paths = {
                     description: 'Updated person',
                     content: { 'application/json': { schema: PersonWithRolesSchema } },
                 },
-                400: {
-                    description: 'Invalid person or role data',
-                    content: { 'application/json': { schema: z.union([ValidationErrorSchema, ErrorResponseSchema]) } },
-                },
-                401: {
-                    description: 'Unauthorized',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                400: invalidRequestOrMessageResponse('Invalid person or role data'),
+                401: errorResponseOf('Unauthorized'),
             },
             'x-access-level': 'admin',
         },
@@ -100,10 +88,7 @@ export const peoplePaths: Paths = {
                     description: 'Person deleted',
                     content: { 'application/json': { schema: MessageSchema } },
                 },
-                401: {
-                    description: 'Unauthorized',
-                    content: { 'application/json': { schema: ErrorResponseSchema } },
-                },
+                401: errorResponseOf('Unauthorized'),
             },
             'x-access-level': 'admin',
         },

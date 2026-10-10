@@ -2,6 +2,7 @@ import * as z from 'zod';
 import type { Paths } from '@/lib/openapi/registry';
 import { searchLocationSchema, searchRequestSchema } from '@/lib/zod-schemas/search';
 import type { DerivedFilters } from '@/lib/search/types';
+import { searchErrorSchema } from '@/lib/api/errors';
 
 // --- Schemas ---
 
@@ -40,14 +41,6 @@ const SearchResultSchema = z.object({
     }),
 }).meta({ id: 'SearchResponse' });
 
-// Matches the actual { error: { code, message, details } } shape returned by the handler
-const SearchErrorSchema = z.object({
-    error: z.object({
-        code: z.string(),
-        message: z.string(),
-        details: z.unknown(),
-    }),
-}).meta({ id: 'SearchError' });
 
 // --- Routes ---
 
@@ -77,13 +70,13 @@ export const searchPaths: Paths = {
                 400: {
                     description: 'Invalid search parameters',
                     content: {
-                        'application/json': { schema: SearchErrorSchema },
+                        'application/json': { schema: searchErrorSchema },
                     },
                 },
                 500: {
                     description: 'Search engine error',
                     content: {
-                        'application/json': { schema: SearchErrorSchema },
+                        'application/json': { schema: searchErrorSchema },
                     },
                 },
             },

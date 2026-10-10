@@ -12,7 +12,7 @@ import prisma from "@/lib/db/prisma";
 import { Result, createSuccess, createError } from "@/lib/result";
 import { PHONE_IN_USE_CODE, PHONE_REJECTION_CODES, normalizeMobilePhone } from "@/lib/utils/phone";
 import { phoneBelongsToAnotherUser, setAccountPhone } from "./phoneVerification";
-import { NotFoundError } from "@/lib/api/errors";
+import { NotFoundError, notAuthorizedError } from "@/lib/api/errors";
 import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
@@ -71,7 +71,7 @@ async function getServerSession() {
 async function requireSelfOrSuperadmin(userId: string): Promise<void> {
     const actor = await getCurrentUser();
     if (!actor || (actor.id !== userId && !actor.isSuperAdmin)) {
-        throw new Error("Not authorized");
+        throw notAuthorizedError(Boolean(actor));
     }
 }
 

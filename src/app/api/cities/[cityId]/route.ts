@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
-import * as z from 'zod'
 import { uploadFile } from '@/lib/s3'
 import { deleteCity, editCity, getCity, updateCityGeometry } from '@/lib/db/cities'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { upsertCityMessage, deleteCityMessage } from '@/lib/db/cityMessages'
 import { isUserAuthorizedToEdit, getCurrentUser } from '@/lib/auth'
 import { updateCityRequestFormDataSchema } from '@/lib/zod-schemas/city'
-import { parseFormData } from '@/lib/api/form-data-parser'
+import { parseFormData, readFormData } from '@/lib/api/form-data-parser'
 import { CityUpdateData } from '@/lib/db/types/city'
+import { errorResponse, handleApiError } from '@/lib/api/errors'
 
 export async function GET(request: Request, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -27,7 +27,7 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
     const params = await props.params;
     const authorizedToEdit = await isUserAuthorizedToEdit({ cityId: params.cityId })
     if (!authorizedToEdit) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return errorResponse(401, "Unauthorized");
     }
 
     // Check if user is superadmin (required for status changes)
@@ -35,7 +35,7 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
     const isSuperAdmin = currentUser?.isSuperAdmin ?? false
 
     try {
-        const formData = await request.formData();
+        const formData = await readFormData(request);
         const {
             removeLogoImage,
             // CityMessage is a separate entity, handled after the city update
@@ -148,14 +148,7 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
 
         return NextResponse.json(city);
     } catch (error) {
-        if (error instanceof z.ZodError) {
-            return NextResponse.json(
-                { error: error.issues },
-                { status: 400 }
-            );
-        }
-        console.error('Error updating city:', error);
-        return NextResponse.json({ error: 'Failed to update city' }, { status: 500 });
+        return handleApiError(error, 'Failed to update city');
     }
 }
 
@@ -163,7 +156,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ cityId
     const params = await props.params;
     const authorizedToDelete = await isUserAuthorizedToEdit({})
     if (!authorizedToDelete) {
-        return new NextResponse("Unauthorized", { status: 401 });
+        return errorResponse(401, "Unauthorized");
     }
     await deleteCity(params.cityId);
     return NextResponse.json({ message: 'City deleted successfully' })
