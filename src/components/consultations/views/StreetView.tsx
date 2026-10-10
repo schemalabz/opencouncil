@@ -7,7 +7,7 @@ import MarkdownContent from "../MarkdownContent";
 import { formatDistance, type AddressLookupResult } from "../addressLookup";
 import type { ConsultationView } from "../consultationUrl";
 import { findExplainingCard } from "../entityDisplay";
-import type { OverviewCard } from "../types";
+import type { OverviewCard, RegulationData } from "../types";
 import { cardClass, Dot, headingClass, pageClass, primaryButtonClass, secondaryButtonClass, SectionLabel, smallActionClass, textLinkClass, ViewHeader, ViewLink } from "./ui";
 
 export interface StreetViewProps {
@@ -18,10 +18,14 @@ export interface StreetViewProps {
     commentCounts: Map<string, number>;
     /** The phone's small map; on a computer the big map beside the panel shows the street. */
     miniMap?: ReactNode;
+    /** For `{REF:id}` links in the zone's description. */
+    regulationData: RegulationData;
+    onReferenceClick: (entityId: string) => void;
 }
 
 /** "Your street": the zone you are in, what each side of your street becomes, and what is near. */
-export default function StreetView({ address, lookup, overview, href, commentCounts, miniMap }: StreetViewProps) {
+export default function StreetView({ address, lookup, overview, href, commentCounts, miniMap, regulationData, onReferenceClick }: StreetViewProps) {
+    const references = { referenceFormat: regulationData.referenceFormat, onReferenceClick, regulationData };
     const { zone, zoneConfigured, street, nearby, config } = lookup;
     const zoneCard = zone ? findExplainingCard(overview, zone.geoSet.id) : undefined;
     // The street's comment button speaks for the nearest side, or for the zone when no side is near.
@@ -39,7 +43,7 @@ export default function StreetView({ address, lookup, overview, href, commentCou
                             <h2 className={cn(headingClass, "!text-2xl")}>Είστε στη {zone.geometry.name}</h2>
                         </div>
                         {zone.geometry.description && (
-                            <MarkdownContent content={zone.geometry.description} className="text-base leading-relaxed text-stone-700" />
+                            <MarkdownContent content={zone.geometry.description} className="text-base leading-relaxed text-stone-700" {...references} />
                         )}
                         {zoneCard && (
                             <ViewLink href={href('plan', zoneCard.id)} className={cn(textLinkClass, "text-base")}>
@@ -49,7 +53,7 @@ export default function StreetView({ address, lookup, overview, href, commentCou
                     </div>
                 ) : zoneConfigured ? (
                     <div className={cn(cardClass, "border-dashed p-5")}>
-                        <MarkdownContent content={config.noZoneText ?? 'Η διεύθυνση βρίσκεται έξω από τις περιοχές του σχεδίου.'} className="text-base leading-relaxed text-stone-700" />
+                        <MarkdownContent content={config.noZoneText ?? 'Η διεύθυνση βρίσκεται έξω από τις περιοχές του σχεδίου.'} className="text-base leading-relaxed text-stone-700" {...references} />
                     </div>
                 ) : null}
 

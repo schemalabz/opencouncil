@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import MarkdownContent from "../MarkdownContent";
 import type { ConsultationView } from "../consultationUrl";
 import type { EntityDisplay } from "../entityDisplay";
-import type { OverviewCard } from "../types";
+import type { OverviewCard, RegulationData } from "../types";
 import { Dot, headingClass, primaryButtonClass, secondaryButtonClass, textLinkClass, ViewHeader, ViewLink } from "./ui";
 
 export interface PlaceViewProps {
@@ -17,10 +17,13 @@ export interface PlaceViewProps {
     active: boolean;
     /** `sheet`: the phone's card over the map (the viewer positions it). `panel`: the computer's side panel. */
     variant: 'sheet' | 'panel';
+    /** For `{REF:id}` links in the place's description. */
+    regulationData: RegulationData;
+    onReferenceClick: (entityId: string) => void;
 }
 
 /** A place tapped on the map: who parks there, where exactly, what it means, and a way to comment. */
-export default function PlaceView({ display, commentCount, explainingCard, href, closeHref, active, variant }: PlaceViewProps) {
+export default function PlaceView({ display, commentCount, explainingCard, href, closeHref, active, variant, regulationData, onReferenceClick }: PlaceViewProps) {
     const body = (
         <div className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2.5">
@@ -34,7 +37,15 @@ export default function PlaceView({ display, commentCount, explainingCard, href,
             )}
             {(display.meaning || explainingCard) && (
                 <div className="text-[15px] leading-relaxed text-stone-600">
-                    {display.meaning && <MarkdownContent content={display.meaning} className="inline text-[15px] text-stone-600 [&_p]:inline" />}
+                    {display.meaning && (
+                        <MarkdownContent
+                            content={display.meaning}
+                            className="inline text-[15px] text-stone-600 [&_p]:inline"
+                            referenceFormat={regulationData.referenceFormat}
+                            onReferenceClick={onReferenceClick}
+                            regulationData={regulationData}
+                        />
+                    )}
                     {explainingCard && (
                         <> <ViewLink href={href('plan', explainingCard.id)} className={textLinkClass}>{explainingCard.linkLabel ?? explainingCard.title}</ViewLink></>
                     )}
