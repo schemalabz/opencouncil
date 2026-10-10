@@ -7,6 +7,7 @@ import { validateServiceApiKey } from "@/lib/db/apiKeys";
 import { ForbiddenError, UnauthorizedError } from "@/lib/api/errors";
 import { type NextRequest } from "next/server";
 import { type UnreleasedScope, NO_UNRELEASED, ALL_UNRELEASED } from "@/lib/unreleased";
+import { publicAdministrativeBodyRelation } from "@/lib/db/types";
 
 // Request-scoped so the many call sites that each need the viewer — a page and
 // the queries it calls — resolve the session and the user row once per request.
@@ -22,7 +23,7 @@ const currentUser = cache(async () => {
                     city: true,
                     party: true,
                     person: true,
-                    administrativeBody: true,
+                    administrativeBody: publicAdministrativeBodyRelation,
                 }
             }
         }

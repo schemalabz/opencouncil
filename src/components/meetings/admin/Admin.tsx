@@ -2,7 +2,7 @@
 import React from 'react';
 import { Slider } from '@/components/ui/slider';
 import { useTranscriptOptions } from '@/components/meetings/options/OptionsContext';
-import { TaskStatus } from '@prisma/client';
+import type { NotificationBehavior, TaskStatus } from '@prisma/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,8 +29,11 @@ import MeetingOperator from './MeetingOperator';
 import { transcriptionRefusal } from '@/lib/meetingLifecycleRules';
 
 export default function AdminActions({
+    notificationBehavior,
     editableBodyIds,
 }: {
+    /** The notification setting of the meeting's body, null without a body. The page reads it for an editor; the public meeting does not carry it. */
+    notificationBehavior: NotificationBehavior | null;
     /** The bodies a body admin may move the meeting to; absent for a city admin. */
     editableBodyIds?: string[],
 }) {
@@ -59,8 +62,6 @@ export default function AdminActions({
     React.useEffect(() => {
         setMediaUrl(meeting.youtubeUrl || '');
     }, [meeting.youtubeUrl]);
-
-    const notificationBehavior = meeting.administrativeBody?.notificationBehavior;
 
     const notificationsEnabled = notificationBehavior && notificationBehavior !== 'NOTIFICATIONS_DISABLED';
     const fetchTaskStatuses = React.useCallback(async () => {

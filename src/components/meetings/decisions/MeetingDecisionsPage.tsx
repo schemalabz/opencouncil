@@ -10,7 +10,7 @@ import { AdminStrip, AdminToolButton } from '@/components/admin/AdminStrip';
 import { useCouncilMeetingData } from '../CouncilMeetingDataContext';
 import { DecisionWithSource, SubjectExtractedData } from '@/lib/db/decisions';
 import { MeetingCandidate } from '@/lib/db/decisionCandidateShape';
-import type { AdaLookupOutcome } from '@/lib/db/types';
+import type { AdaLookupOutcome, AdministrativeBodySettings } from '@/lib/db/types';
 import { ADA_LOOKUP_SETTLE_MS } from '@/lib/db/types/adaLookups';
 import { getPollingHistoryForMeeting, requestPollDecisions, resolveCandidateConflict } from '@/lib/tasks/pollDecisions';
 import { pollCadence, takesNoDecisions } from '@/lib/tasks/pollDecisionsBackoff';
@@ -155,7 +155,11 @@ const writeFailure = async (response: Response): Promise<DecisionWriteError> => 
     return new DecisionWriteError(causeFromPayload(payload), `HTTP ${response.status}`);
 };
 
-export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }) {
+export function MeetingDecisionsPage({ isSuperAdmin, bodySettings }: {
+    isSuperAdmin: boolean;
+    /** The settings of the meeting's body. The page reads them for an editor; the public meeting does not carry them. */
+    bodySettings: Pick<AdministrativeBodySettings, 'diavgeiaUnitIds' | 'decisionConventions'> | null;
+}) {
     // The mode lives here rather than in the rail that toggles it, because the
     // table and the sheet read it too, and a superadmin's choice must never
     // reach a page rendered for anyone else.
@@ -173,8 +177,8 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     // helper the task uses, so a malformed entry surfaces here — in the admin
     // page, before it fails a poll — rather than only in the task log.
     const pollScope = useMemo(
-        () => readDiavgeiaUnitEntries(meeting.administrativeBody?.diavgeiaUnitIds),
-        [meeting.administrativeBody?.diavgeiaUnitIds],
+        () => readDiavgeiaUnitEntries(bodySettings?.diavgeiaUnitIds),
+        [bodySettings?.diavgeiaUnitIds],
     );
     // The rules the derivation read this body's documents by, for the rail.
     // Parsed rather than asserted: an unparseable record is as good as none, and
@@ -184,13 +188,14 @@ export function MeetingDecisionsPage({ isSuperAdmin }: { isSuperAdmin: boolean }
     const conventionsPanel = useMemo<ConventionsPanel | null>(() => {
         const body = meeting.administrativeBody;
         if (!body) return null;
+        const conventions = bodySettings?.decisionConventions;
         return {
-            rules: isDecisionConventions(body.decisionConventions) ? body.decisionConventions : null,
+            rules: isDecisionConventions(conventions) ? conventions : null,
             bodyName: getLocalizedName(body, locale),
             cityName: getLocalizedMunicipalityName(city, locale),
             editHref: `/${city.id}`,
         };
-    }, [meeting.administrativeBody, city, locale]);
+    }, [meeting.administrativeBody, bodySettings?.decisionConventions, city, locale]);
 
     const [decisions, setDecisions] = useState<Record<string, DecisionWithSource>>({});
     const [candidates, setCandidates] = useState<CandidateView[]>([]);

@@ -1,4 +1,16 @@
 import type { CouncilMeeting, Prisma } from '@prisma/client';
+import { DECISION_KIND_SELECT } from '@/lib/tasks/pollDecisionsBackoff';
+import { publicAdministrativeBodyRelation } from './administrativeBody';
+
+/**
+ * The relations that a meeting write and the admin meeting read return with
+ * the row (CouncilMeetingWithAdminBody): the public fields of its body and the
+ * kind of the meeting that it continues.
+ */
+export const meetingWithAdminBodyInclude = {
+    administrativeBody: publicAdministrativeBodyRelation,
+    continuationOf: DECISION_KIND_SELECT.continuationOf,
+} satisfies Prisma.CouncilMeetingInclude;
 
 /**
  * The columns that the meeting names (src/lib/meetingName.ts) read. Add

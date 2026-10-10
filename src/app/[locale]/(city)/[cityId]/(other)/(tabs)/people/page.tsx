@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCurrentUser, getRoleLimitForCity } from "@/lib/auth";
 import CityPeople from "@/components/cities/CityPeople";
-import { getPartiesForCityCached, getPeopleForCityCached, getAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
+import { getPartiesForCityCached, getPeopleForCityCached, getPublicAdministrativeBodiesForCityCached, getCityCached } from "@/lib/cache";
 import { Metadata } from "next";
 import { buildCanonicalAlternates } from '@/lib/utils/hreflang';
 import { getLocalizedName } from "@/lib/formatters/name";
@@ -83,7 +83,7 @@ export default async function PeoplePage(
 
     const [partiesWithPersons, administrativeBodies, allPeople, roleLimit, currentUser] = await Promise.all([
         getPartiesForCityCached(cityId),
-        getAdministrativeBodiesForCityCached(cityId),
+        getPublicAdministrativeBodiesForCityCached(cityId),
         getPeopleForCityCached(cityId),
         // null for a city admin; the bodies of a body admin; empty for a reader
         getRoleLimitForCity(cityId),

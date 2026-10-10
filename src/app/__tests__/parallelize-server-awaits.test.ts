@@ -34,7 +34,7 @@ jest.mock('@/lib/cache', () => ({
     getCityPetitionBucketCached: jest.fn(),
     getPartiesForCityCached: jest.fn(),
     getPeopleForCityCached: jest.fn(),
-    getAdministrativeBodiesForCityCached: jest.fn(),
+    getPublicAdministrativeBodiesForCityCached: jest.fn(),
     getAdministrativeBodiesWithPublicMeetingsCached: jest.fn(),
     getCityCached: jest.fn(),
     getCityMessageCached: jest.fn(),
@@ -397,7 +397,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         const authD = deferred<ReadonlySet<string> | null>();
 
         cache.getPartiesForCityCached.mockReturnValue(partiesD.promise);
-        cache.getAdministrativeBodiesForCityCached.mockReturnValue(adminD.promise);
+        cache.getPublicAdministrativeBodiesForCityCached.mockReturnValue(adminD.promise);
         cache.getPeopleForCityCached.mockReturnValue(peopleD.promise);
         auth.getRoleLimitForCity.mockReturnValue(authD.promise);
 
@@ -410,7 +410,7 @@ describe('PR1: server-side awaits run concurrently', () => {
         // The crucial assertion: auth must be invoked BEFORE the Promise.all batch resolves.
         expect(auth.getRoleLimitForCity).toHaveBeenCalledTimes(1);
         expect(cache.getPartiesForCityCached).toHaveBeenCalledTimes(1);
-        expect(cache.getAdministrativeBodiesForCityCached).toHaveBeenCalledTimes(1);
+        expect(cache.getPublicAdministrativeBodiesForCityCached).toHaveBeenCalledTimes(1);
         expect(cache.getPeopleForCityCached).toHaveBeenCalledTimes(1);
 
         partiesD.resolve([{ id: 'p', people: [] }]);
