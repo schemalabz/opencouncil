@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Loader2, Maximize2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { env } from '@/env.mjs';
+import { publicEnv } from '@/lib/publicEnv';
 import type { MapFeature } from '@/components/map/map';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import type { CityWithGeometry } from '@/lib/db/cities';
@@ -99,7 +99,7 @@ export function LocationPreview({
     }
     if (!src && (panel || emptyLabel)) {
         const view = getRealmDefaultMapView(city.realm);
-        src = `https://api.mapbox.com/styles/v1/${STATIC_MAP_STYLE}/static/${view.center[0]},${view.center[1]},${view.zoom.toFixed(2)},0/${width}x${height}@2x?access_token=${env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}`;
+        src = `https://api.mapbox.com/styles/v1/${STATIC_MAP_STYLE}/static/${view.center[0]},${view.center[1]},${view.zoom.toFixed(2)},0/${width}x${height}@2x?access_token=${publicEnv.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}`;
     }
 
     if (!src) return null;

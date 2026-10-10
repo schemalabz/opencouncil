@@ -1,5 +1,5 @@
 import posthog from "posthog-js";
-import { env } from "@/env.mjs";
+import { publicEnv } from "@/lib/publicEnv";
 import { EMBED_PATH } from "@/lib/utils/embed";
 import { applyStoredAnalyticsConsent, INTERNAL_USER_KEY } from "@/lib/utils/analyticsConsent";
 
@@ -35,8 +35,8 @@ function withoutSearchText(value: unknown): unknown {
 // Without a token (contributor setups, CI), analytics stays fully disabled.
 // Embed routes are excluded like in PlausibleAnalytics: they load inside
 // iframes on third-party sites.
-if (env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && !EMBED_PATH.test(window.location.pathname)) {
-    posthog.init(env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN, {
+if (publicEnv.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN && !EMBED_PATH.test(window.location.pathname)) {
+    posthog.init(publicEnv.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN, {
         api_host: "/ingest",
         ui_host: "https://eu.posthog.com",
         defaults: "2026-01-30",

@@ -1,4 +1,4 @@
-import { env } from '@/env.mjs';
+import { publicEnv } from '@/lib/publicEnv';
 
 /**
  * Mapbox Static Images with features drawn over the map. The interactive
@@ -113,7 +113,7 @@ export function staticMapOverlayUrl({
     height: number;
     padding?: number;
 }): string | null {
-    const token = env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
+    const token = publicEnv.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
     const validFeatures = features.filter(f =>
         f.geometry?.type === 'Polygon' ||
