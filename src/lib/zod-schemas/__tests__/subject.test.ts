@@ -1,18 +1,17 @@
 import {
     subjectListQuerySchema,
     meetingSubjectListQuerySchema,
-    DEFAULT_SUBJECT_LIMIT,
     MAX_SUBJECT_LIMIT,
     subjectAgendaFlagsSchema,
 } from '../subject';
 
 describe('subjectListQuerySchema', () => {
-    it('applies the default limit when the caller names none', () => {
+    it('leaves the limit to the data layer when the caller names none', () => {
         expect(subjectListQuerySchema.parse({})).toEqual({
             introducerId: undefined,
             from: undefined,
             to: undefined,
-            limit: DEFAULT_SUBJECT_LIMIT,
+            limit: undefined,
             includeUnreleased: false,
         });
     });
@@ -42,6 +41,17 @@ describe('subjectListQuerySchema', () => {
         expect(subjectListQuerySchema.safeParse({ to: day }).success).toBe(false);
     });
 
+    // A client that builds `?to=${x ?? ''}` means "no bound". Before zod, the
+    // routes ignored an empty value; zod made it a 400.
+    it('reads an empty value as an absent one', () => {
+        expect(subjectListQuerySchema.parse({ from: '', to: '', limit: '', includeUnreleased: '' })).toEqual({
+            from: undefined,
+            to: undefined,
+            limit: undefined,
+            includeUnreleased: false,
+        });
+    });
+
     it('rejects a limit outside the allowed range', () => {
         expect(() => subjectListQuerySchema.parse({ limit: '0' })).toThrow();
         expect(() => subjectListQuerySchema.parse({ limit: String(MAX_SUBJECT_LIMIT + 1) })).toThrow();
@@ -65,6 +75,7 @@ describe('subjectListQuerySchema', () => {
         expect(subjectListQuerySchema.parse({ includeUnreleased: '1' }).includeUnreleased).toBe(true);
         expect(subjectListQuerySchema.parse({ includeUnreleased: 'false' }).includeUnreleased).toBe(false);
         expect(subjectListQuerySchema.safeParse({ includeUnreleased: 'maybe' }).success).toBe(false);
+        expect(subjectListQuerySchema.safeParse({ includeUnreleased: ' ' }).success).toBe(false);
     });
 
     it('keeps introducerId', () => {

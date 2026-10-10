@@ -275,6 +275,19 @@ describe('POST /api/subject/[subjectId]/image', () => {
         const res = await POST(uploadRequest(file), context);
 
         expect(res.status).toBe(400);
+        expect(await res.json()).toMatchObject({ error: [{ path: ['file'], message: 'Image must be at most 5 MB' }] });
+        expect(mockStore).not.toHaveBeenCalled();
+    });
+
+    it('answers a ValidationError for a multipart body without a file', async () => {
+        mockGetCurrentUser.mockResolvedValue({ id: 'u1', isSuperAdmin: true } as never);
+        const form = new FormData();
+        form.append('note', 'no file');
+
+        const res = await POST(new NextRequest(url, { method: 'POST', body: form }), context);
+
+        expect(res.status).toBe(400);
+        expect(await res.json()).toMatchObject({ error: [{ path: ['file'] }] });
         expect(mockStore).not.toHaveBeenCalled();
     });
 

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse, after } from 'next/server';
+import * as z from 'zod';
 import { UnreadableImageError, isSubjectImageId } from '@opencouncil/subject-images';
 import { subjectExists, subjectIsPublic } from '@/lib/db/subject';
 import { getCurrentUser, isUserAuthorizedToEdit } from '@/lib/auth';
-import { MAX_IMAGE_BYTES } from '@/lib/utils/imageUpload';
+import { handleApiError } from '@/lib/api/errors';
+import { parseFormData, readFormData } from '@/lib/api/form-data-parser';
+import { imageFile } from '@/lib/zod-schemas/primitives';
 import {
     generateImageForSubject,
     generateImageForSubjectInBackground,
@@ -28,6 +31,10 @@ const REDIRECT_CACHE = 'public, max-age=300, s-maxage=300';
 const MISS_CACHE = 'public, max-age=60, s-maxage=60';
 
 type RouteContext = { params: Promise<{ subjectId: string }> };
+
+// The declared type is whatever the client set. storeSubjectImage reads the
+// real one from the bytes, so the schema checks the size only.
+const subjectImageUploadSchema = z.object({ file: imageFile() });
 
 /** The id names an object in the bucket before it is looked up, so it is checked before anything else. */
 function invalidId(subjectId: string) {
@@ -88,15 +95,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const contentType = request.headers.get('content-type') ?? '';
 
     if (contentType.includes('multipart/form-data')) {
-        const file = (await request.formData()).get('file');
-        if (!(file instanceof File)) {
-            return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+        let file: File;
+        try {
+            ({ file } = parseFormData(await readFormData(request), subjectImageUploadSchema));
+        } catch (error) {
+            return handleApiError(error, 'Failed to read the upload');
         }
-        if (file.size > MAX_IMAGE_BYTES) {
-            return NextResponse.json({ error: `Image exceeds ${MAX_IMAGE_BYTES / (1024 * 1024)} MB` }, { status: 400 });
-        }
-        // The declared type is whatever the client set. The library reads the
-        // real one from the bytes, so nothing that is not a raster reaches sharp.
         try {
             await storeSubjectImage(subjectId, Buffer.from(await file.arrayBuffer()));
         } catch (error) {

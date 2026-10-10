@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { NonAgendaReason } from '@prisma/client';
-import { stringBoolean } from './primitives';
 import { DATE_BOUND_RULE, listQueryFields, MAX_LIST_LIMIT } from './listQuery';
+import { queryFlag } from './primitives';
 
 /** Page size of the subject listings when the caller names none. */
 export const DEFAULT_SUBJECT_LIMIT = 50;
@@ -12,7 +12,7 @@ export const MAX_SUBJECT_LIMIT = MAX_LIST_LIMIT;
  * Whether a listing includes unreleased content. The routes that take it
  * authorize the caller before they read with it.
  */
-export const includeUnreleasedQuery = stringBoolean.default(false).meta({
+export const includeUnreleasedQuery = queryFlag.default(false).meta({
     description: 'Include unreleased meetings and their subjects, and a city that is not published. '
         + 'Requires an authorized session for the city, or a service key.',
     example: 'true',
@@ -32,7 +32,8 @@ export const subjectListQuerySchema = z.object({
         description: `Latest meeting date, inclusive. ${DATE_BOUND_RULE}`,
         example: '2025-12-31',
     }),
-    limit: listQueryFields.limit.default(DEFAULT_SUBJECT_LIMIT).meta({
+    // No zod default: getApiSubjects applies it, also to an empty `?limit=`.
+    limit: listQueryFields.limit.meta({
         description: `Maximum number of subjects to return (1-${MAX_SUBJECT_LIMIT}). Defaults to ${DEFAULT_SUBJECT_LIMIT}.`,
         example: '20',
     }),

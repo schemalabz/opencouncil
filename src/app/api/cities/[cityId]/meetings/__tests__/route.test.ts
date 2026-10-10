@@ -82,6 +82,15 @@ describe('GET /api/cities/[cityId]/meetings date range and limit', () => {
         expect(from! <= meeting && meeting <= to!).toBe(listed);
     });
 
+    // A client that builds `?to=${x ?? ''}` means "no bound", as before zod.
+    it('ignores an empty value', async () => {
+        const response = await get('?limit=&from=&to=&includeUnreleased=');
+        expect(response.status).toBe(200);
+        expect(listOptions()).toEqual(expect.objectContaining({
+            limit: undefined, from: undefined, to: undefined, includeUnreleased: false,
+        }));
+    });
+
     it.each([
         // Old: 200, rolled over to 3 March.
         ['?to=2026-02-31'],
