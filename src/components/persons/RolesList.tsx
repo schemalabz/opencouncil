@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTranslations } from 'next-intl'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import * as z from "zod"
 import { roleDatesInOrder, roleDatesInOrderIssue } from "@/lib/zod-schemas/role"
 import { Loader2, Pencil, Trash2 } from "lucide-react"
 import { Party, AdministrativeBody } from '@prisma/client'
@@ -83,7 +83,7 @@ export default function RolesList({ personId, cityId, roles, parties, administra
         },
     })
 
-    const handleSubmit = (values: z.infer<typeof formSchema>, e: React.FormEvent) => {
+    const handleSubmit = (values: z.output<typeof formSchema>, e: React.FormEvent) => {
         e.preventDefault(); // Prevent form submission
 
         const administrativeBodyId = values.type === 'administrativeBody' ? values.administrativeBodyId || null : null;

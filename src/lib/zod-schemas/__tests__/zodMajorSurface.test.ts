@@ -1,6 +1,7 @@
 /** @jest-environment node */
 // The zod behaviour that this repo depends on, across a major version bump.
 // Every assertion is a behaviour that a user or an API client sees.
+import * as z from 'zod';
 import type { ZodError } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { handleApiError } from '@/lib/api/errors';
@@ -52,7 +53,7 @@ describe('zod surface used by this repo', () => {
         const parsed = updateProfileSchema.safeParse({ phone: '123' });
         expect(parsed.success).toBe(false);
         expect(parsed.error?.issues[0].message).toMatch(/^[a-zA-Z_.]+$/);
-        // src/app/api/profile/route.ts:21 sends flatten(); profile-api.ts:25 reads fieldErrors.phone[0].
-        expect(parsed.error?.flatten().fieldErrors.phone?.[0]).toBe(parsed.error?.issues[0].message);
+        // src/app/api/profile/route.ts sends z.flattenError(); profile-api.ts:25 reads fieldErrors.phone[0].
+        expect(parsed.error && z.flattenError(parsed.error).fieldErrors.phone?.[0]).toBe(parsed.error?.issues[0].message);
     });
 });

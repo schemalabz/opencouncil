@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -40,19 +40,19 @@ import { useSession } from 'next-auth/react'
 
 export const formSchema = z.object({
     recipientName: z.string().min(2, {
-        message: "Recipient name must be at least 2 characters.",
+        error: "Recipient name must be at least 2 characters.",
     }),
     platformPrice: z.number().min(0, {
-        message: "Platform price must be a positive number.",
+        error: "Platform price must be a positive number.",
     }),
     ingestionPerHourPrice: z.number().min(0, {
-        message: "Ingestion price per hour must be a positive number.",
+        error: "Ingestion price per hour must be a positive number.",
     }),
     hoursToIngest: z.number().int().min(1, {
-        message: "Hours to ingest must be at least 1.",
+        error: "Hours to ingest must be at least 1.",
     }),
     discountPercentage: z.number().min(0).max(100, {
-        message: "Discount percentage must be between 0 and 100.",
+        error: "Discount percentage must be between 0 and 100.",
     }),
     type: z.string().default("pilot"),
     startDate: z.date({
@@ -62,13 +62,13 @@ export const formSchema = z.object({
         error: "End date is required.",
     }),
     respondToName: z.string().min(2, {
-        message: "Respond to name must be at least 2 characters.",
+        error: "Respond to name must be at least 2 characters.",
     }),
-    respondToEmail: z.string().email({
-        message: "Please enter a valid email address.",
+    respondToEmail: z.email({
+        error: "Please enter a valid email address.",
     }),
     respondToPhone: z.string().min(10, {
-        message: "Please enter a valid phone number.",
+        error: "Please enter a valid phone number.",
     }),
     cityId: z.string().optional(),
     correctnessGuarantee: z.boolean().default(false),
@@ -149,7 +149,7 @@ const EMPTY_OFFER_DEFAULTS = {
     physicalPresenceHours: 0,
     agreed: false,
     adam: "",
-} satisfies Partial<z.infer<typeof formSchema>>
+} satisfies Partial<z.input<typeof formSchema>>
 
 /** Responder contact prefill from the signed-in session (fresh creates). */
 function sessionContactValues(session: ReturnType<typeof useSession>['data']) {
@@ -288,7 +288,7 @@ export default function OfferForm({ offer, onSuccess, cityId, renewFrom }: Offer
             : null,
     })
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: z.output<typeof formSchema>) {
         setIsSubmitting(true)
         try {
             const commonData = {

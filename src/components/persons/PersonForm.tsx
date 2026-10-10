@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { personFormSchema, type PersonFormValues } from "@/lib/zod-schemas/person"
+import { personFormSchema, type PersonFormInput, type PersonFormValues } from "@/lib/zod-schemas/person"
 import { Button } from "../../components/ui/button"
 import {
     Form,
@@ -51,7 +51,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
     const { toast } = useToast()
     const nameInputRef = useRef<HTMLInputElement>(null)
 
-    const form = useForm<PersonFormValues>({
+    const form = useForm<PersonFormInput, unknown, PersonFormValues>({
         resolver: zodResolver(personFormSchema),
         defaultValues: {
             name: person?.name || "",

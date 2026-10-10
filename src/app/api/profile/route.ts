@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as z from "zod";
 import type { User } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
 import { deleteCurrentUser } from "@/lib/db/users";
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
         const raw = await request.json();
         const parsed = updateProfileSchema.safeParse(raw);
         if (!parsed.success) {
-            return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+            return NextResponse.json({ error: z.flattenError(parsed.error) }, { status: 400 });
         }
         const { phone, ...updateData } = parsed.data;
 

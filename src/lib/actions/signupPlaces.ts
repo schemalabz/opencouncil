@@ -1,6 +1,6 @@
 "use server";
 
-import { z } from "zod";
+import * as z from "zod";
 import { env } from "@/env.mjs";
 import { createCache, getAllCitiesMinimalCached, getCityWithGeometryCached } from "@/lib/cache";
 import { isPointInGeometry } from "@/lib/geo";

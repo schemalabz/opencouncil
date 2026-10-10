@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { registry, ErrorResponseSchema } from '../registry';
 import { searchLocationSchema, searchRequestSchema } from '@/lib/zod-schemas/search';
 import type { DerivedFilters } from '@/lib/search/types';

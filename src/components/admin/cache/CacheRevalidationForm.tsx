@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -18,12 +18,12 @@ const revalidateSchema = z.object({
     })).optional()
 });
 
-type RevalidateFormData = z.infer<typeof revalidateSchema>;
+type RevalidateFormData = z.output<typeof revalidateSchema>;
 
 export function CacheRevalidationForm() {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
-    const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<RevalidateFormData>({
+    const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<z.input<typeof revalidateSchema>, unknown, RevalidateFormData>({
         resolver: zodResolver(revalidateSchema),
         defaultValues: {
             tags: [''],

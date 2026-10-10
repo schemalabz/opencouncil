@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 import { withUserAuthorizedToEdit } from '@/lib/auth'
 import { updateElectedOrder } from '@/lib/db/roles'
-import { z } from 'zod'
+import * as z from 'zod'
 import { electedOrderSchema } from '@/lib/zod-schemas/role'
 
 const electedOrderRequestSchema = z.object({

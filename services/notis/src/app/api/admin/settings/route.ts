@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import * as z from "zod";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { PROACTIVE_PAUSED_KEY, getProactiveSettings, putSetting } from "@/lib/settings";
 import { requireAdmin } from "@/lib/session-auth";

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
+import * as z from 'zod';
 import { getCurrentUser } from '@/lib/auth';
 import { canUseCityCreator, getCity } from '@/lib/db/cities';
 import { populateCity, requireEmptyCity } from '@/lib/db/cityPopulate';

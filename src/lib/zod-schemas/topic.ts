@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { Realm } from '@prisma/client';
 import { HEX_REGEX } from '@/lib/utils/colorSuggestion';
 
@@ -11,7 +11,7 @@ const baseTopicFields = {
     description: z.string(),
     icon: z.string().nullable().optional().transform(val => val || null),
     deprecated: z.boolean().optional().transform(val => val ?? false),
-    realm: z.nativeEnum(Realm),
+    realm: z.enum(Realm),
 };
 
 export const createTopicSchema = z.object(baseTopicFields);

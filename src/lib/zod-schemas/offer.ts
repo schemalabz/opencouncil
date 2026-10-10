@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 /**
  * ΑΔΑΜ (ΚΗΜΔΗΣ public-procurement registry) identifier format:
@@ -22,7 +22,7 @@ export const adamSchema = z
     .optional()
     .refine(
         (val) => !val || ADAM_REGEX.test(val),
-        { message: ADAM_FORMAT_MESSAGE }
+        { error: ADAM_FORMAT_MESSAGE }
     );
 
 /**

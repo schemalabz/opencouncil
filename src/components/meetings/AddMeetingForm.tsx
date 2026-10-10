@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { z } from "zod"
+import * as z from "zod"
 import { Button } from "../ui/button"
 import {
     Form,
@@ -43,11 +43,11 @@ export const formSchema = z.object({
     time: z.string({
         error: "Meeting time is required.",
     }),
-    youtubeUrl: z.string().url({
-        message: "Invalid media URL.",
+    youtubeUrl: z.url({
+        error: "Invalid media URL.",
     }).optional().or(z.literal("")),
-    agendaUrl: z.string().url({
-        message: "Invalid Agenda URL.",
+    agendaUrl: z.url({
+        error: "Invalid Agenda URL.",
     }).optional().or(z.literal("")),
     // Empty on create: the API makes the id from the date and adds _2, _3 when
     // the day already has a meeting. A typed id is sent as it is.
@@ -55,14 +55,14 @@ export const formSchema = z.object({
     administrativeBodyId: z.string().optional(),
     processAgenda: z.boolean().default(true),
     // Null until somebody states it: processAgenda can read it from the invitation.
-    kind: z.nativeEnum(MeetingKind).nullable(),
+    kind: z.enum(MeetingKind).nullable(),
     urgent: z.boolean(),
-    scheduleStatus: z.nativeEnum(MeetingScheduleStatus),
+    scheduleStatus: z.enum(MeetingScheduleStatus),
     scheduleStatusReason: z.string().max(SCHEDULE_STATUS_REASON_MAX_LENGTH).optional(),
-    sessionNumber: z.string().regex(/^\s*(\d*)\s*$/, { message: "The session number is a whole number." })
-        .refine(val => val.trim() === '' || Number(val) >= 1, { message: "The session number is 1 or more." })
+    sessionNumber: z.string().regex(/^\s*(\d*)\s*$/, { error: "The session number is a whole number." })
+        .refine(val => val.trim() === '' || Number(val) >= 1, { error: "The session number is 1 or more." })
         .optional(),
-    format: z.nativeEnum(MeetingFormat).nullable(),
+    format: z.enum(MeetingFormat).nullable(),
     closedToPublic: z.boolean(),
     place: z.string().max(200).optional(),
     postponedFromId: z.string().optional(),
@@ -177,7 +177,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess }: Ad
         }
     }, [currentLink, form])
 
-    async function onSubmit(values: z.infer<typeof formSchema>) {
+    async function onSubmit(values: z.output<typeof formSchema>) {
         setIsSubmitting(true)
         setFormError(null)
 

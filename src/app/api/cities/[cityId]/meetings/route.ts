@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
+import * as z from 'zod';
 import { getCouncilMeetingsForCity } from '@/lib/db/meetingsList';
 import { originalScheduledDates } from '@/lib/db/meetingLifecycle';
 import { withServiceOrUserAuth } from '@/lib/auth';
@@ -15,15 +15,15 @@ const getMeetingsQuerySchema = z.object({
         .optional()
         .transform((val) => val ? parseInt(val, 10) : undefined)
         .refine((val) => val === undefined || (!isNaN(val) && val >= 1 && val <= 100), {
-            message: "Limit must be a number between 1 and 100"
+            error: "Limit must be a number between 1 and 100"
         }),
     from: z.string()
         .optional()
-        .refine((val) => !val || !isNaN(new Date(val).getTime()), { message: "Invalid 'from' date" })
+        .refine((val) => !val || !isNaN(new Date(val).getTime()), { error: "Invalid 'from' date" })
         .transform((val) => val ? new Date(val) : undefined),
     to: z.string()
         .optional()
-        .refine((val) => !val || !isNaN(new Date(val).getTime()), { message: "Invalid 'to' date" })
+        .refine((val) => !val || !isNaN(new Date(val).getTime()), { error: "Invalid 'to' date" })
         .transform((val) => val ? new Date(val) : undefined),
     includeUnreleased: z.string()
         .optional()

@@ -3,7 +3,7 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
-import { z } from 'zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,7 +44,7 @@ export function ManualDecisionForm({ subjectLabel, uploadConfig, initial, onCont
     onClose: () => void;
 }) {
     const t = useTranslations('admin.decisionsPage');
-    const { control, register, handleSubmit, watch, formState: { errors } } = useForm<z.infer<typeof schema>>({
+    const { control, register, handleSubmit, watch, formState: { errors } } = useForm<z.input<typeof schema>, unknown, z.output<typeof schema>>({
         resolver: zodResolver(schema),
         defaultValues: {
             pdfUrl: initial?.pdfUrl ?? '',

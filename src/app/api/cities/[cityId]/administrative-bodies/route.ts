@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { getAdministrativeBodiesForCity, getPublicAdministrativeBodiesForCity, createAdministrativeBody } from '@/lib/db/administrativeBodies';
-import { z } from 'zod';
+import * as z from 'zod';
 import { isUserAuthorizedToEdit, withUserAuthorizedToEdit } from '@/lib/auth';
 import { administrativeBodySchema } from '@/lib/zod-schemas/administrativeBody';
 
