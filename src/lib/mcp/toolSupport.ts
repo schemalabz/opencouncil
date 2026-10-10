@@ -1,8 +1,6 @@
-import type * as z from 'zod';
-import type { CallToolResult, StandardSchemaWithJSON } from '@modelcontextprotocol/server';
+import type { CallToolResult } from '@modelcontextprotocol/server';
 import { ApiError } from '@/lib/api/errors';
 import { LifecycleRuleError } from '@/lib/meetingLifecycleRules';
-import { jsonSchemaOf } from '@/lib/openapi/jsonSchema';
 
 /** Shared by every file that registers tools: result wrapping and the tool categories. */
 
@@ -43,17 +41,3 @@ export async function run(fn: () => Promise<unknown>): Promise<CallToolResult> {
  */
 export type ToolCategory = 'discovery' | 'directory' | 'meetings' | 'highlights' | 'admin';
 export const category = (category: ToolCategory) => ({ category });
-
-/**
- * A zod schema as a tool input schema. The SDK takes any Standard Schema
- * that also converts to JSON Schema. The JSON Schema comes from jsonSchemaOf,
- * which describes the input of a transform. With this, a tool
- * uses the schema of the route that saves the same data, and cannot drift
- * from it: the SDK validates with it, and the tool list advertises it.
- */
-export function toolSchema<T extends z.ZodType>(schema: T): StandardSchemaWithJSON<z.input<T>, z.output<T>> {
-    const jsonSchema = () => jsonSchemaOf(schema);
-    return {
-        '~standard': { ...schema['~standard'], jsonSchema: { input: jsonSchema, output: jsonSchema } },
-    };
-}
