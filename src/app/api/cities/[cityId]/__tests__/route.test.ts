@@ -18,6 +18,7 @@ jest.mock('@/lib/db/cityMessages', () => ({
 jest.mock('@/lib/s3', () => ({ uploadFile: jest.fn().mockResolvedValue({ url: 'https://cdn.example.com/logo.png' }) }));
 
 import { PUT } from '@/app/api/cities/[cityId]/route';
+import { getCurrentUser } from '@/lib/auth';
 import { editCity } from '@/lib/db/cities';
 import { deleteCityMessage, upsertCityMessage } from '@/lib/db/cityMessages';
 import { uploadFile } from '@/lib/s3';
@@ -55,10 +56,40 @@ describe('PUT /api/cities/[cityId]', () => {
         });
     });
 
-    it('deletes the message when hasMessage is false or absent', async () => {
+    it('deletes the message when hasMessage is false, and leaves it when hasMessage is absent', async () => {
         await put({ name: 'Αθήνα', hasMessage: 'false' });
         await put({ name: 'Αθήνα' });
-        expect(deleteCityMessage).toHaveBeenCalledTimes(2);
+        expect(deleteCityMessage).toHaveBeenCalledTimes(1);
+        expect(upsertCityMessage).not.toHaveBeenCalled();
+    });
+
+    it('leaves the message as it is when the editor is not a superadmin', async () => {
+        jest.mocked(getCurrentUser).mockResolvedValueOnce({ isSuperAdmin: false } as Awaited<ReturnType<typeof getCurrentUser>>);
+        jest.mocked(getCurrentUser).mockResolvedValueOnce({ isSuperAdmin: false } as Awaited<ReturnType<typeof getCurrentUser>>);
+        const saved = await put({ name: 'Αθήνα' });
+        const sent = await put({ name: 'Αθήνα', ...MESSAGE });
+        expect(saved.status).toBe(200);
+        expect(sent.status).toBe(200);
+        expect(editCity).toHaveBeenCalledTimes(2);
+        expect(deleteCityMessage).not.toHaveBeenCalled();
+        expect(upsertCityMessage).not.toHaveBeenCalled();
+    });
+
+    it.each(['https://example.org/a', 'http://δήμος.ελ/x', '/athens/meetings'])('stores the call-to-action link %s', async (link) => {
+        const response = await put({ ...MESSAGE, messageCallToActionUrl: link });
+        expect(response.status).toBe(200);
+        expect(upsertCityMessage).toHaveBeenCalledWith('athens', expect.objectContaining({ callToActionUrl: link }));
+    });
+
+    it.each(['javascript:alert(1)', '//example.org/a', '/\\example.org', 'www.example.org', 'mailto:a@example.org'])('refuses the call-to-action link %s with 400', async (link) => {
+        const response = await put({ ...MESSAGE, messageCallToActionUrl: link });
+        expect(response.status).toBe(400);
+        const body = await response.json();
+        expect(body.error).toEqual([expect.objectContaining({
+            path: ['messageCallToActionUrl'],
+            message: 'Must be an http(s) URL or a path that starts with a single /',
+        })]);
+        expect(editCity).not.toHaveBeenCalled();
         expect(upsertCityMessage).not.toHaveBeenCalled();
     });
 
