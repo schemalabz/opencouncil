@@ -10,6 +10,7 @@ import { getCityNameEnAndTimezone } from '@/lib/db/citiesAdmin';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
 import { hideLinks, toPublicApiMeeting } from '@/lib/meetingPublic';
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
+import { queryFlag } from '@/lib/zod-schemas/primitives';
 
 const getMeetingsQuerySchema = z.object({
     limit: z.string()
@@ -26,9 +27,7 @@ const getMeetingsQuerySchema = z.object({
         .optional()
         .refine((val) => !val || !isNaN(new Date(val).getTime()), { error: "Invalid 'to' date" })
         .transform((val) => val ? new Date(val) : undefined),
-    includeUnreleased: z.string()
-        .optional()
-        .transform((val) => val === 'true'),
+    includeUnreleased: queryFlag.default(false),
 });
 
 export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {

@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { logoFile, stringBoolean } from './primitives';
 
 // Field rules of a party — validation only, no defaults. Shared by the party
 // form, the party routes, and the city import (zod-schemas/cityPopulation.ts).
@@ -23,7 +24,7 @@ export const basePartyFields = {
 // Frontend form schema (React Hook Form)
 export const partyFormSchema = z.object({
     ...basePartyFields,
-    logo: z.instanceof(File).optional(),
+    logo: z.file().optional(),
 });
 
 export type PartyFormValues = z.infer<typeof partyFormSchema>;
@@ -32,7 +33,7 @@ export type PartyFormInput = z.input<typeof partyFormSchema>;
 // FormData body of POST /parties and PUT /parties/{partyId}
 export const partyFormDataSchema = z.object({
     ...basePartyFields,
-    logo: z.instanceof(File).optional(),
+    logo: logoFile().optional(),
     // PUT only: remove the current logo when no new one is sent
-    removeLogo: z.string().optional().transform(val => val === 'true'),
+    removeLogo: stringBoolean.default(false),
 });

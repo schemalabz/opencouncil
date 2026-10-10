@@ -5,6 +5,7 @@ import { identityFromContext } from './auth';
 import { currentAdminAccess, currentMcpIdentity } from './realm-context';
 import { registerAdminTools } from './adminTools';
 import { category, run } from './toolSupport';
+import { latitude, longitude } from '@/lib/zod-schemas/primitives';
 import {
     mcpCreateHighlight,
     mcpFetch,
@@ -136,8 +137,8 @@ export function registerOpenCouncilServer(server: McpServer) {
                 'bound the window, so report an empty list as "nothing since {oldestMeetingScanned}", ' +
                 'never as "nothing ever".',
             inputSchema: z.object({
-                lat: z.number().min(-90).max(90).describe('Latitude (WGS84)'),
-                lng: z.number().min(-180).max(180).describe('Longitude (WGS84)'),
+                lat: latitude.describe('Latitude (WGS84)'),
+                lng: longitude.describe('Longitude (WGS84)'),
                 radiusMeters: z.number().int().min(50).max(10000).default(1000)
                     .describe('Radius in meters around the point for location-pinned subjects'),
                 limit: z.number().int().min(1).max(50).default(10),
