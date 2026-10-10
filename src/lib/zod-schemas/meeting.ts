@@ -1,6 +1,7 @@
 import * as z from 'zod';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
+import { webUrl } from './primitives';
 
 /**
  * A name override. The name of a meeting is derived (src/lib/meetingName.ts),
@@ -30,10 +31,10 @@ export const meetingSchema = z.object({
             error: "Invalid date/time format"
         })
         .transform((str) => new Date(str)),
-    youtubeUrl: z.url({
+    youtubeUrl: webUrl({
         error: "Invalid YouTube URL.",
     }).optional().or(z.literal("")),
-    agendaUrl: z.url({
+    agendaUrl: webUrl({
         error: "Invalid Agenda URL.",
     }).optional().or(z.literal("")),
     // Optional on create: when omitted, the POST handler auto-generates a

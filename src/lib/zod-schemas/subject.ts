@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { isCalendarDay } from '@/lib/utils/date';
+import { stringBoolean } from './primitives';
 
 /** Page size of the subject listings when the caller names none. */
 export const DEFAULT_SUBJECT_LIMIT = 50;
@@ -40,9 +41,7 @@ export const subjectListQuerySchema = z.object({
         .refine(val => val >= 1 && val <= MAX_SUBJECT_LIMIT, {
             error: `Limit must be a whole number between 1 and ${MAX_SUBJECT_LIMIT}`,
         }),
-    includeUnreleased: z.string()
-        .optional()
-        .transform(val => val === 'true'),
+    includeUnreleased: stringBoolean.default(false),
 });
 
 /**

@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { latitude, longitude } from './primitives';
 import { administrativeBodyTypeSchema } from './administrativeBody';
 import type { Location } from '@/lib/search/types';
 
@@ -9,8 +10,8 @@ import type { Location } from '@/lib/search/types';
  */
 export const searchLocationSchema = z.strictObject({
     point: z.strictObject({
-        lat: z.number().min(-90).max(90),
-        lng: z.number().min(-180).max(180)
+        lat: latitude,
+        lng: longitude
     }),
     radiusMeters: z.number().positive().max(100_000)
 }) satisfies z.ZodType<Location>;

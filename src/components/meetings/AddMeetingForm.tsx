@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
+import { webUrl } from "@/lib/zod-schemas/primitives"
 import { Button } from "../ui/button"
 import {
     Form,
@@ -49,10 +50,10 @@ export const formSchema = z.object({
     time: z.string({
         error: "Meeting time is required.",
     }),
-    youtubeUrl: z.url({
+    youtubeUrl: webUrl({
         error: "Invalid media URL.",
     }).optional().or(z.literal("")),
-    agendaUrl: z.url({
+    agendaUrl: webUrl({
         error: "Invalid Agenda URL.",
     }).optional().or(z.literal("")),
     // Empty on create: the API makes the id from the date and adds _2, _3 when

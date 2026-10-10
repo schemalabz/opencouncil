@@ -16,6 +16,7 @@ import { STARTABLE_MEETING_TASKS } from '@/lib/tasks/startableTasks';
 import { baseCityFields, cityIdSchema } from '@/lib/zod-schemas/city';
 import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH, type MEETING_RECORD_INPUT_KEYS } from '@/lib/meetingLifecycleRules';
+import { webUrl } from '@/lib/zod-schemas/primitives';
 
 const isoDateTime = z.iso.datetime({ offset: true })
     .describe('ISO 8601 date and time with a UTC offset, e.g. "2026-10-05T18:00:00+03:00"');
@@ -81,8 +82,8 @@ function registerMeetingAdminTools(server: McpServer) {
                 name_en: z.string().min(2).optional()
                     .describe('The English form of a special name. Omit it, as name'),
                 dateTime: isoDateTime,
-                youtubeUrl: z.url().optional().describe('URL of the meeting video'),
-                agendaUrl: z.url().optional().describe('URL of the agenda PDF'),
+                youtubeUrl: webUrl().optional().describe('URL of the meeting video'),
+                agendaUrl: webUrl().optional().describe('URL of the agenda PDF'),
                 administrativeBodyId: z.string().min(1).optional()
                     .describe('The body that meets (council, committee, community). See get_city'),
                 processAgenda: z.boolean().default(false)
@@ -120,8 +121,8 @@ function registerMeetingAdminTools(server: McpServer) {
                 name_en: z.string().min(2).nullable().optional()
                     .describe('The English form of a special name. Omit it, as name'),
                 dateTime: isoDateTime.optional(),
-                youtubeUrl: z.url().nullable().optional(),
-                agendaUrl: z.url().nullable().optional(),
+                youtubeUrl: webUrl().nullable().optional(),
+                agendaUrl: webUrl().nullable().optional(),
                 administrativeBodyId: z.string().min(1).nullable().optional(),
                 ...meetingRecordInput,
             }),
@@ -179,10 +180,10 @@ function registerTaskAdminTools(server: McpServer) {
                 type: z.enum(STARTABLE_MEETING_TASKS),
                 force: z.boolean().default(false)
                     .describe('Run the step again although it already succeeded or is running. On transcribe this deletes the transcript'),
-                videoUrl: z.url().optional()
+                videoUrl: webUrl().optional()
                     .describe('transcribe only: the video to transcribe. Defaults to the youtubeUrl of the meeting. '
                         + 'A URL passed here is STORED as the youtubeUrl of the meeting, which the public page embeds'),
-                agendaUrl: z.url().optional()
+                agendaUrl: webUrl().optional()
                     .describe('processAgenda only: the agenda PDF. Defaults to the agendaUrl of the meeting'),
                 additionalInstructions: z.string().min(1).optional()
                     .describe('summarize only: free-text guidance for the summary, e.g. what to pay attention to'),

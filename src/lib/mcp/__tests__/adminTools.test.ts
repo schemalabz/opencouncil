@@ -15,7 +15,7 @@ jest.mock('../../db/prisma', () => ({ __esModule: true, default: {} }));
 
 import { InMemoryTransport, LATEST_PROTOCOL_VERSION, McpServer, type JSONRPCMessage } from '@modelcontextprotocol/server';
 import { registerAdminTools } from '../adminTools';
-import { mcpCreateAgendaUploadUrl, mcpCreateCity, mcpPopulateCity } from '../adminData';
+import { mcpCreateAgendaUploadUrl, mcpCreateCity, mcpCreateMeeting, mcpPopulateCity, mcpStartTask, mcpUpdateMeeting } from '@/lib/mcp/adminData';
 
 type Response = { id: number; result?: Record<string, unknown>; error?: { message: string } };
 type CallResult = { isError?: boolean; content: { text: string }[] };
@@ -164,5 +164,30 @@ describe('create_agenda_upload_url through the SDK', () => {
     it('forwards a docx format', async () => {
         await mcp.call('create_agenda_upload_url', { cityId: 'chania', identifier: '2026-10-15', format: 'docx' });
         expect(mcpCreateAgendaUploadUrl).toHaveBeenCalledWith(null, expect.objectContaining({ format: 'docx' }));
+    });
+});
+
+describe('link inputs take http(s) only', () => {
+    const MEETING = { cityId: 'chania', name: 'Συνεδρίαση', name_en: 'Meeting', dateTime: '2026-10-05T18:00:00+03:00' };
+    const cases: [string, string, Record<string, unknown>, jest.Mock][] = [
+        ['create_meeting', 'youtubeUrl', MEETING, mcpCreateMeeting as jest.Mock],
+        ['create_meeting', 'agendaUrl', MEETING, mcpCreateMeeting as jest.Mock],
+        ['update_meeting', 'youtubeUrl', { cityId: 'chania', meetingId: 'm1' }, mcpUpdateMeeting as jest.Mock],
+        ['update_meeting', 'agendaUrl', { cityId: 'chania', meetingId: 'm1' }, mcpUpdateMeeting as jest.Mock],
+        ['start_task', 'videoUrl', { cityId: 'chania', meetingId: 'm1', type: 'transcribe' }, mcpStartTask as jest.Mock],
+        ['start_task', 'agendaUrl', { cityId: 'chania', meetingId: 'm1', type: 'processAgenda' }, mcpStartTask as jest.Mock],
+    ];
+
+    it.each(cases)('%s refuses a javascript: %s', async (tool, field, args, handler) => {
+        const result = await mcp.call(tool, { ...args, [field]: 'javascript:alert(1)' });
+        expect(result.isError).toBe(true);
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it.each(cases)('%s takes an https %s', async (tool, field, args, handler) => {
+        handler.mockResolvedValue({});
+        const result = await mcp.call(tool, { ...args, [field]: 'https://example.com/file' });
+        expect(result.isError).toBeFalsy();
+        expect(handler).toHaveBeenCalledWith(null, expect.objectContaining({ [field]: 'https://example.com/file' }));
     });
 });

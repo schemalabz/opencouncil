@@ -8,6 +8,7 @@ import prisma from '@/lib/db/prisma';
 import { decisionWriteCause } from '@/lib/utils/decisionWriteCause';
 import { revalidateTag } from 'next/cache';
 import * as z from 'zod';
+import { webUrl } from '@/lib/zod-schemas/primitives';
 
 export async function GET(
     request: Request,
@@ -37,7 +38,7 @@ export async function GET(
 
 const upsertSchema = z.object({
     subjectId: z.string().min(1),
-    pdfUrl: z.url().refine(u => /^https?:\/\//.test(u), 'pdfUrl must be http(s)'),
+    pdfUrl: webUrl({ error: 'pdfUrl must be http(s)' }),
     decisionNumber: z.string().optional(),
     protocolNumber: z.string().optional(),
     ada: z.string().optional(),
