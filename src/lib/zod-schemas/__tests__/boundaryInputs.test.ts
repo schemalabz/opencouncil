@@ -5,9 +5,10 @@ import { cityPopulationSchema } from '@/lib/zod-schemas/cityPopulation';
 import { meetingSchema } from '@/lib/zod-schemas/meeting';
 import { partyFormDataSchema } from '@/lib/zod-schemas/party';
 import { personFormDataSchema, personFormSchema } from '@/lib/zod-schemas/person';
+import { subjectListQuerySchema } from '@/lib/zod-schemas/subject';
 
-// Inputs at the edge of the app: links a person or a model supplies, uploads
-// and booleans sent as text.
+// Inputs at the edge of the app: links a person or a model supplies, uploads,
+// booleans and dates sent as text.
 
 const UNSAFE_LINKS = ['javascript:alert(1)', 'data:text/html,<script>alert(1)</script>', 'ftp://example.com/file.pdf'];
 // Greek-script domains, in Unicode and in punycode, are real links.
@@ -111,5 +112,37 @@ describe('booleans sent as text', () => {
 
     it('refuses a value outside the stringbool lists instead of reading it as false', () => {
         expect(personFormDataSchema.safeParse({ ...personFormData, removeImage: 'maybe' }).success).toBe(false);
+    });
+});
+
+describe('dates sent as text', () => {
+    const accepted: [string, string][] = [
+        ['what AddMeetingForm sends (toISOString)', '2026-10-05T15:00:00.000Z'],
+        ['a calendar day', '2026-10-05'],
+        ['a date-time with an offset', '2026-10-05T18:00:00+03:00'],
+        ['a date-time with no zone', '2026-10-05T18:00:00'],
+        ['a date-time with no zone and no seconds', '2026-10-05T18:00'],
+    ];
+    const refused: [string, string][] = [
+        ['a day that does not exist', '2026-02-31'],
+        ['a space for the T', '2026-10-05 18:00:00'],
+        ['an English date', 'October 5, 2026'],
+        ['a zoned date-time with no seconds', '2026-10-05T18:00Z'],
+    ];
+
+    it.each(accepted)('meetingSchema takes %s', (_, date) => {
+        expect(meetingSchema.parse({ ...meeting, date }).date).toEqual(new Date(date));
+    });
+    it.each(refused)('meetingSchema refuses %s, with its message', (_, date) => {
+        expect(meetingSchema.safeParse({ ...meeting, date }).error?.issues)
+            .toEqual([expect.objectContaining({ path: ['date'], message: 'Invalid date/time format' })]);
+    });
+
+    it.each(accepted)('the subject listing takes %s', (_, from) => {
+        expect(subjectListQuerySchema.parse({ from }).from).toEqual(new Date(from));
+    });
+    it.each(refused)('the subject listing refuses %s, with its message', (_, from) => {
+        expect(subjectListQuerySchema.safeParse({ from }).error?.issues)
+            .toEqual([expect.objectContaining({ path: ['from'], message: "Invalid 'from' date" })]);
     });
 });

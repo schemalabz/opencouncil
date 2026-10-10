@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { MeetingFormat, MeetingKind, MeetingScheduleStatus } from '@prisma/client';
 import { OFFERED_FORMATS, SCHEDULE_STATUS_REASON_MAX_LENGTH } from '@/lib/meetingLifecycleRules';
-import { webUrl } from './primitives';
+import { isoDateOrDateTime, webUrl } from './primitives';
 
 /**
  * A name override. The name of a meeting is derived (src/lib/meetingName.ts),
@@ -26,10 +26,7 @@ const optionalText = (max: number) => z.string()
 export const meetingSchema = z.object({
     name: nameOverride("Meeting name must be at least 2 characters."),
     name_en: nameOverride("Meeting name (English) must be at least 2 characters."),
-    date: z.string()
-        .refine(val => !isNaN(new Date(val).getTime()), {
-            error: "Invalid date/time format"
-        })
+    date: isoDateOrDateTime({ error: "Invalid date/time format" })
         .transform((str) => new Date(str)),
     youtubeUrl: webUrl({
         error: "Invalid YouTube URL.",

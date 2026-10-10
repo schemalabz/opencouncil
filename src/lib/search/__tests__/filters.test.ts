@@ -86,6 +86,28 @@ describe('extractFilters', () => {
         });
     });
 
+    it.each([
+        ['2026-01-01', '2026-02-01'],
+        ['2026-01-01T00:00:00Z', '2026-01-31T23:59:59.999Z'],
+        ['2026-01-01T00:00:00+02:00', '2026-01-31T23:59:59'],
+    ])('keeps an ISO 8601 range %s..%s', async (start, end) => {
+        modelReturns({ cityIds: null, dateRange: { start, end }, locationName: null });
+
+        expect((await extractFilters('πάρκα', 'greece')).dateRange).toEqual({ start, end });
+    });
+
+    // Elasticsearch reads the default date format of meeting_date, ISO 8601
+    // only. Date.parse took these, and Elasticsearch cannot read them.
+    it.each([
+        ['January 2026', '2026-02-01'],
+        ['2026-01-01', '2026/02/01'],
+        ['2026-02-30', '2026-03-01'],
+    ])('drops a range that is not ISO 8601: %s..%s', async (start, end) => {
+        modelReturns({ cityIds: null, dateRange: { start, end }, locationName: null });
+
+        expect((await extractFilters('πάρκα', 'greece')).dateRange).toBeNull();
+    });
+
     it.each([null, 'not json at all', [], 7])(
         'falls back to no filters when the response is %p',
         async (result) => {

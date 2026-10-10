@@ -1,14 +1,11 @@
 import * as z from 'zod';
 import { isCalendarDay } from '@/lib/utils/date';
-import { stringBoolean } from './primitives';
+import { isoDateOrDateTime, stringBoolean } from './primitives';
 
 /** Page size of the subject listings when the caller names none. */
 export const DEFAULT_SUBJECT_LIMIT = 50;
 /** Largest page the subject listings serve. */
 export const MAX_SUBJECT_LIMIT = 100;
-
-/** `2025-12-31`: the shape of a calendar day, whether or not the day exists. */
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * A bound of the date range. Both bounds are inclusive, which a date-only
@@ -18,9 +15,7 @@ const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
  * A date-only value must be a real day: `new Date('2026-02-31')` rolls over to
  * 3 March, so a parse check alone would accept it and search the wrong day.
  */
-const dateParam = (label: string, endOfDay = false) => z.string()
-    .refine(val => DATE_ONLY.test(val) ? isCalendarDay(val) : !isNaN(new Date(val).getTime()),
-        { error: `Invalid '${label}' date` })
+const dateParam = (label: string, endOfDay = false) => isoDateOrDateTime({ error: `Invalid '${label}' date` })
     .transform(val => new Date(endOfDay && isCalendarDay(val) ? `${val}T23:59:59.999Z` : val));
 
 /**
