@@ -48,7 +48,7 @@ export async function PUT(request: Request, props: { params: Promise<{ cityId: s
             messageCallToActionExternal,
             messageIsActive,
             ...data
-        } = await parseFormData(formData, updateCityRequestFormDataSchema);
+        } = parseFormData(formData, updateCityRequestFormDataSchema);
 
         // Upload logo if provided
         let logoImageUrl: string | undefined = undefined

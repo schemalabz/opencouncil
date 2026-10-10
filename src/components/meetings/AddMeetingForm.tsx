@@ -77,7 +77,7 @@ export default function AddMeetingForm({ cityId, realm, meeting, onSuccess }: Ad
     const greekCodeFacts = recordsGreekCodeFacts(realm)
     const validationMessage = useValidationMessage()
 
-    const form = useForm<z.input<typeof meetingFormSchema>, unknown, z.output<typeof meetingFormSchema>>({
+    const form = useForm({
         resolver: useZodResolver(meetingFormSchema),
         defaultValues: {
             date: meeting ? new Date(meeting.dateTime) : new Date(),
