@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { Realm } from '@prisma/client';
 import { ExtractedFilters } from './types';
 import { aiChat } from '@/lib/ai';

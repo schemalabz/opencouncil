@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
+import * as z from 'zod';
 import { listBodyAdmins, addBodyAdmin, removeBodyAdmin } from '@/lib/db/bodyAdmins';
 import { handleApiError } from '@/lib/api/errors';
 
 type Params = { params: Promise<{ cityId: string; bodyId: string }> };
 
 const addSchema = z.object({
-    email: z.string().trim().toLowerCase().email("Invalid email address"),
+    email: z.string().trim().toLowerCase().pipe(z.email("Invalid email address")),
     name: z.string().trim().min(1).nullable().optional(),
 });
 

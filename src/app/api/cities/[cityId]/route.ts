@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { z } from 'zod'
+import * as z from 'zod'
 import { uploadFile } from '@/lib/s3'
 import { ALLOWED_LOGO_CONTENT_TYPES } from '@/types/upload'
 import { deleteCity, editCity, getCity, updateCityGeometry } from '@/lib/db/cities'

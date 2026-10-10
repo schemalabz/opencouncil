@@ -7,7 +7,7 @@ import { deriveAndPersist, explainMeeting } from '@/lib/derivation/persist';
 import prisma from '@/lib/db/prisma';
 import { decisionWriteCause } from '@/lib/utils/decisionWriteCause';
 import { revalidateTag } from 'next/cache';
-import { z } from 'zod';
+import * as z from 'zod';
 
 export async function GET(
     request: Request,
@@ -37,12 +37,12 @@ export async function GET(
 
 const upsertSchema = z.object({
     subjectId: z.string().min(1),
-    pdfUrl: z.string().url().refine(u => /^https?:\/\//.test(u), 'pdfUrl must be http(s)'),
+    pdfUrl: z.url().refine(u => /^https?:\/\//.test(u), 'pdfUrl must be http(s)'),
     decisionNumber: z.string().optional(),
     protocolNumber: z.string().optional(),
     ada: z.string().optional(),
     title: z.string().optional(),
-    publishDate: z.string().datetime().optional(),
+    publishDate: z.iso.datetime().optional(),
 });
 
 export async function PUT(

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { search } from '@/lib/search';
-import { z } from 'zod';
+import * as z from 'zod';
 import { searchRequestSchema } from '@/lib/zod-schemas/search';
 import type { SearchRequest } from '@/lib/search/types';
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import * as z from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { handleApiError } from "@/lib/api/errors";
 import { sendProductUpdateToAll, sendProductUpdateTest } from "@/lib/email/productUpdate";
@@ -10,7 +10,7 @@ const tagValue = z.string().regex(/^[A-Za-z0-9_-]+$/).max(256);
 const sendSchema = z.object({
     subject: z.string().trim().min(1).max(200),
     bodyHtml: z.string().trim().min(1),
-    testEmail: z.string().email().optional(),
+    testEmail: z.email().optional(),
     testName: z.string().max(120).optional(),
     tags: z.array(tagValue).max(70).optional(),
 });

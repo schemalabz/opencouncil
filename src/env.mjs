@@ -1,5 +1,5 @@
 import { createEnv } from "@t3-oss/env-nextjs";
-import { z } from "zod";
+import * as z from "zod";
 
 /**
  * Session-mirror defaults. Both values are a function of where the app runs,
@@ -36,8 +36,8 @@ export const env = createEnv({
    * isn't built with invalid env vars.
    */
   server: {
-    DATABASE_URL: z.string().url(),
-    DIRECT_URL: z.string().url(),
+    DATABASE_URL: z.url(),
+    DIRECT_URL: z.url(),
 
     // Database Initialization (for local Docker setup)
     DATABASE_USER: z.string().optional(),
@@ -49,7 +49,7 @@ export const env = createEnv({
     // Replaces every sender address; see src/lib/email/senders.ts.
     EMAIL_FROM_OVERRIDE: z.string().min(1).optional(),
     NEXTAUTH_SECRET: z.string().min(1),
-    NEXTAUTH_URL: z.string().url(),
+    NEXTAUTH_URL: z.url(),
     BASIC_AUTH_USERNAME: z.string().optional(),
     BASIC_AUTH_PASSWORD: z.string().optional(),
     // Sign in with Google. Both unset disables the provider and hides the
@@ -82,14 +82,14 @@ export const env = createEnv({
     DO_SPACES_KEY: z.string().min(1),
     DO_SPACES_SECRET: z.string().min(1),
     DO_SPACES_BUCKET: z.string().min(1),
-    CDN_URL: z.string().url(),
+    CDN_URL: z.url(),
 
     // Task Server
-    TASK_API_URL: z.string().url(),
+    TASK_API_URL: z.url(),
     TASK_API_KEY: z.string().min(1),
 
     // Elasticsearch
-    ELASTICSEARCH_URL: z.string().url(),
+    ELASTICSEARCH_URL: z.url(),
     ELASTICSEARCH_API_KEY: z.string().min(1),
     ELASTICSEARCH_INDEX: z.string().default('subjects'), // Override for testing (e.g., 'subjects_test')
 
@@ -104,7 +104,7 @@ export const env = createEnv({
     // subscription through /api/subscriptions/{userId}. Both optional — a
     // deployment without them shows the switch as unavailable and still
     // writes notifyByPhone, which is what the poller enrolls on.
-    NOTIS_API_URL: z.string().url().optional(),
+    NOTIS_API_URL: z.url().optional(),
     NOTIS_SERVICE_TOKEN: z.string().optional(),
 
     // Bird, for one thing only: the SMS that carries a phone verification
@@ -116,7 +116,7 @@ export const env = createEnv({
     BIRD_SMS_CHANNEL_ID: z.string().optional(),
 
     // Discord Admin Alerts
-    DISCORD_WEBHOOK_URL: z.string().url().optional(),
+    DISCORD_WEBHOOK_URL: z.url().optional(),
 
     // Google Calendar Integration (OAuth 2.0)
     GOOGLE_CALENDAR_CLIENT_ID: z.string().optional(),
@@ -133,9 +133,9 @@ export const env = createEnv({
 
     // Development
     DEV_TEST_CITY_ID: z.string().default('chania'),
-    DEV_EMAIL_OVERRIDE: z.string().email().optional(),
+    DEV_EMAIL_OVERRIDE: z.email().optional(),
     SIMULATE_WHATSAPP_UNAVAILABLE: z.string().optional(),
-    SEED_DATA_URL: z.string().url().default('https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json'),
+    SEED_DATA_URL: z.url().default('https://raw.githubusercontent.com/schemalabz/opencouncil-seed-data/refs/heads/main/seed_data.json'),
     SEED_DATA_PATH: z.string().default('./prisma/seed_data.json'),
   },
 
@@ -146,7 +146,7 @@ export const env = createEnv({
    */
   client: {
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: z.string().min(1),
-    NEXT_PUBLIC_CONTACT_EMAIL: z.string().email().optional(),
+    NEXT_PUBLIC_CONTACT_EMAIL: z.email().optional(),
     NEXT_PUBLIC_CONTACT_ADDRESS: z.string().optional(),
     NEXT_PUBLIC_BUILD_COMMIT_SHA: z.string().optional(),
     // PostHog analytics; unset (or empty) disables analytics entirely.

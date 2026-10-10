@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 // Rank of a person in the election result of a body
 export const electedOrderSchema = z.number().int().nonnegative().nullable();
@@ -8,7 +8,7 @@ export const roleTitleSchema = z.string().nullable().optional().transform(value 
 
 // An ISO 8601 date, or a date-time with a time zone. A date-time without a
 // zone is rejected, because the server would read it in its own zone.
-export const roleDateSchema = z.union([z.string().date(), z.string().datetime({ offset: true })])
+export const roleDateSchema = z.union([z.iso.date(), z.iso.datetime({ offset: true })])
     .nullable()
     .optional()
     .transform(value => value ? new Date(value) : null);
@@ -31,4 +31,4 @@ export function roleDatesInOrder(role: { startDate: Date | null; endDate: Date |
     return !role.startDate || !role.endDate || role.endDate >= role.startDate;
 }
 
-export const roleDatesInOrderIssue = { message: 'The end date must not be before the start date.', path: ['endDate'] };
+export const roleDatesInOrderIssue = { error: 'The end date must not be before the start date.', path: ['endDate'] };

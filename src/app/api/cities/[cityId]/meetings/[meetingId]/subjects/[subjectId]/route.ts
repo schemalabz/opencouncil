@@ -5,7 +5,8 @@ import prisma from '@/lib/db/prisma';
 import { handleApiError } from '@/lib/api/errors';
 import { getApiSubject } from '@/lib/db/subjectsApi';
 import { getRealm } from '@/lib/realm.server';
-import { z } from 'zod';
+import * as z from 'zod';
+import { NonAgendaReason } from '@prisma/client';
 
 export async function GET(
     req: NextRequest,
@@ -35,10 +36,10 @@ export async function GET(
     }
 }
 
-const patchSchema = z.object({
-    nonAgendaReason: z.enum(['beforeAgenda', 'outOfAgenda']).nullable().optional(),
+const patchSchema = z.strictObject({
+    nonAgendaReason: z.enum(NonAgendaReason).nullable().optional(),
     withdrawn: z.boolean().optional(),
-}).strict();
+});
 
 export async function PATCH(
     req: NextRequest,

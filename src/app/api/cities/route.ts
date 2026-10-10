@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { revalidateTag } from 'next/cache'
-import { z } from 'zod'
+import * as z from 'zod'
 import { createCity, getCities, updateCityGeometry } from '@/lib/db/cities'
 import { parseBoundaryInput } from '@/lib/utils/geojson'
 import { getAllCitiesAsServiceKey } from '@/lib/db/citiesAdmin'

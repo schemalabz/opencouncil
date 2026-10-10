@@ -43,7 +43,7 @@ export default function PartyForm({ party, onSuccess, cityId }: PartyFormProps) 
     const [logoPreview, setLogoPreview] = useState<string | null>(party?.logo || null)
     const t = useTranslations('PartyForm')
 
-    const form = useForm<PartyFormValues>({
+    const form = useForm({
         resolver: zodResolver(partyFormSchema),
         defaultValues: {
             name: party?.name || "",

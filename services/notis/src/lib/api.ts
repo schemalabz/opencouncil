@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import * as z from "zod";
 import { env } from "@/env.mjs";
 
 /**
@@ -7,7 +7,7 @@ import { env } from "@/env.mjs";
  * upstream-failure responses, so every route reports errors the same way.
  */
 
-export async function parseJsonBody<S extends z.ZodTypeAny>(
+export async function parseJsonBody<S extends z.ZodType>(
   request: Request,
   schema: S,
 ): Promise<{ data: z.infer<S>; error?: never } | { data?: never; error: NextResponse }> {

@@ -59,7 +59,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
     const { toast } = useToast()
     const nameInputRef = useRef<HTMLInputElement>(null)
 
-    const form = useForm<PersonFormValues>({
+    const form = useForm({
         resolver: zodResolver(personFormSchema),
         defaultValues: {
             name: person?.name || "",

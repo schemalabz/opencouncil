@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 /**
  * Parse FormData using a Zod schema
@@ -13,7 +13,7 @@ import { z } from 'zod';
  * @returns The parsed and validated data
  * @throws {z.ZodError} If validation fails
  */
-export async function parseFormData<T extends z.ZodTypeAny>(
+export async function parseFormData<T extends z.ZodType>(
   formData: FormData,
   schema: T
 ): Promise<z.infer<T>> {

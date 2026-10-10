@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import * as z from "zod";
 import { editorialPass } from "@/agent/editorialPass";
 import { errorResponse, parseJsonBody } from "@/lib/api";
 import { buildDeps } from "@/lib/deps";

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import * as z from "zod";
 import { closeSupportRequest } from "@/app/admin/(panel)/_lib/support-requests";
 import { hasNotisDb } from "@/lib/db";
 import { requireAdmin } from "@/lib/session-auth";

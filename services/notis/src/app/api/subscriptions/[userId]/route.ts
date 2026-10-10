@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import * as z from "zod";
 import { hasNotisDb, notisDb } from "@/lib/db";
 import { hasMainDb, mainDb } from "@/lib/main-db";
 import { requireService } from "@/lib/service-auth";

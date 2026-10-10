@@ -1,13 +1,13 @@
-import { z } from 'zod';
+import * as z from 'zod';
 import { isTimeZone } from '@/lib/formatters/time';
 import { AuthorityType, CityStatus, HighlightCreationPermission, CityLanguage, Realm } from '@prisma/client';
 
-// Prisma enum schemas - use nativeEnum for type safety
-export const authorityTypeSchema = z.nativeEnum(AuthorityType);
-export const cityStatusSchema = z.nativeEnum(CityStatus);
-export const highlightCreationPermissionSchema = z.nativeEnum(HighlightCreationPermission);
-export const cityLanguageSchema = z.nativeEnum(CityLanguage);
-export const realmSchema = z.nativeEnum(Realm);
+// Prisma enum schemas
+export const authorityTypeSchema = z.enum(AuthorityType);
+export const cityStatusSchema = z.enum(CityStatus);
+export const highlightCreationPermissionSchema = z.enum(HighlightCreationPermission);
+export const cityLanguageSchema = z.enum(CityLanguage);
+export const realmSchema = z.enum(Realm);
 
 // Default values — single source of truth for the entire app.
 // These mirror the Prisma schema defaults and are used by:
@@ -39,30 +39,30 @@ const emptyStringToNull = z.string().transform(val => val === '' ? null : val);
 
 // The id is part of every URL of the city.
 export const cityIdSchema = z.string().min(2, {
-  message: "ID must be at least 2 characters.",
+  error: "ID must be at least 2 characters.",
 }).regex(/^[a-z-]+$/, {
-  message: "ID must contain only lowercase letters a-z and dashes.",
+  error: "ID must contain only lowercase letters a-z and dashes.",
 });
 
 // Base field definitions — validation and transformation only, no defaults.
 // Shared between frontend (baseCityFormSchema) and backend (baseCityFormDataSchema).
 export const baseCityFields = {
   name: z.string().min(2, {
-    message: "City name must be at least 2 characters.",
+    error: "City name must be at least 2 characters.",
   }),
   name_en: z.string().min(2, {
-    message: "City name (English) must be at least 2 characters.",
+    error: "City name (English) must be at least 2 characters.",
   }),
   name_municipality: z.string().min(2, {
-    message: "Municipality name must be at least 2 characters.",
+    error: "Municipality name must be at least 2 characters.",
   }),
   name_municipality_en: z.string().min(2, {
-    message: "Municipality name (English) must be at least 2 characters.",
+    error: "Municipality name (English) must be at least 2 characters.",
   }),
   timezone: z.string().min(1, {
-    message: "Timezone is required.",
+    error: "Timezone is required.",
   }).refine(isTimeZone, {
-    message: 'Not an IANA time zone name; e.g. "Europe/Athens".',
+    error: 'Not an IANA time zone name; e.g. "Europe/Athens".',
   }),
   authorityType: authorityTypeSchema,
   status: cityStatusSchema,
@@ -95,7 +95,7 @@ export const baseCityFormDataSchema = z.object({
 // Create schema for FormData (POST route)
 export const createCityFormDataSchema = baseCityFormDataSchema.extend({
   id: cityIdSchema,
-  logoImage: z.instanceof(File, { message: 'Logo image is required' }),
+  logoImage: z.instanceof(File, { error: 'Logo image is required' }),
 });
 
 // Update schema for FormData (PUT route) — all fields optional.
