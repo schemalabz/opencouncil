@@ -45,9 +45,12 @@ export const longitude = z.number().min(-180).max(180);
 // The catalog texts name the size limit and the logo types. messages.test.ts
 // checks them against MAX_IMAGE_BYTES and ALLOWED_LOGO_CONTENT_TYPES.
 
+/** The message of an image larger than MAX_IMAGE_BYTES. */
+export const IMAGE_TOO_LARGE = vmsg('imageMaxSize');
+
 /** An uploaded image of any type. */
 export const imageFile = () => z.file()
-    .max(MAX_IMAGE_BYTES, { error: vmsg('imageMaxSize') });
+    .max(MAX_IMAGE_BYTES, { error: IMAGE_TOO_LARGE });
 
 /** An uploaded logo of a city or a party: only the types in ALLOWED_LOGO_CONTENT_TYPES. */
 export const logoFile = (params?: { error?: string }) => z.file(params)

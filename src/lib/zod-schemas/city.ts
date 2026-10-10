@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { isTimeZone } from '@/lib/formatters/time';
 import { AuthorityType, CityStatus, HighlightCreationPermission, CityLanguage, Realm } from '@prisma/client';
-import { logoFile, queryFlag, stringBoolean, webUrl } from './primitives';
+import { blankToNull, logoFile, queryFlag, stringBoolean, webUrl } from './primitives';
 import { vmsg } from './messages';
 
 // Prisma enum schemas
@@ -32,9 +32,6 @@ export const CITY_DEFAULTS = {
   language: 'el' as CityLanguage,
   realm: 'greece' as Realm,
 } as const;
-
-// Helper to convert empty string to null (for optional nullable fields)
-const emptyStringToNull = z.string().transform(val => val === '' ? null : val);
 
 // The id is part of every URL of the city.
 export const cityIdSchema = z.string().min(2, {
@@ -84,11 +81,11 @@ export const baseCityFormDataSchema = z.object({
   authorityType: authorityTypeSchema,
   supportsNotifications: stringBoolean,
   consultationsEnabled: stringBoolean,
-  diavgeiaUid: emptyStringToNull.optional(),
+  diavgeiaUid: blankToNull(z.string()),
   // Pasted boundary GeoJSON, still as text: routes parse it with
   // parseBoundaryInput (shared with the form) and write via PostGIS.
   // Absent/empty = leave the stored geometry unchanged.
-  geometry: emptyStringToNull.optional(),
+  geometry: blankToNull(z.string()),
 });
 
 // Create schema for FormData (POST route)

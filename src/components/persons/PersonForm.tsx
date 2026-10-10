@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import type * as z from "zod"
-import { personUpdateFormDataSchema, personFormSchema, type PersonFormOutput } from "@/lib/zod-schemas/person"
+import { personFormDataSchema, personUpdateFormDataSchema, personFormSchema, type PersonFormOutput } from "@/lib/zod-schemas/person"
 import { toFormData } from "@/lib/utils/formData"
 import { apiErrorMessage } from "@/lib/utils/validationIssues"
 import { Button } from "../../components/ui/button"
@@ -52,7 +52,6 @@ interface PersonFormProps {
 
 export default function PersonForm({ person, parties, administrativeBodies, onSuccess, cityId, canEditRoles = true, roleTypes }: PersonFormProps) {
     const router = useRouter()
-    const [image, setImage] = useState<File | null>(null)
     const [removeImage, setRemoveImage] = useState(false)
     const [cropFile, setCropFile] = useState<File | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -80,17 +79,6 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
         const url = person ? `/api/cities/${cityId}/people/${person.id}` : `/api/cities/${cityId}/people`
         const method = person ? 'PUT' : 'POST'
 
-        // Validate image size
-        if (image && image.size > 5 * 1024 * 1024) { // 5MB limit
-            toast({
-                title: t('error'),
-                description: 'Image size must be less than 5MB',
-                variant: "destructive",
-            })
-            setIsSubmitting(false)
-            return
-        }
-
         // Clean up roles data before sending
         const cleanRoles = roles.map(role => ({
             id: role.id,
@@ -110,17 +98,21 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
             console.log('Roles to be sent:', cleanRoles)
         }
 
-        const formData = toFormData({
+        const fields = {
             name: values.name,
             name_en: values.name_en,
             name_short: values.name_short,
             name_short_en: values.name_short_en,
             profileUrl: values.profileUrl || "",
-            roles: canEditRoles ? JSON.stringify(cleanRoles) : undefined,
-            image: image ?? undefined,
+            image: values.image,
             // Signal removal of an existing image
-            removeImage: removeImage && !image ? 'true' : undefined,
-        } satisfies z.input<typeof personUpdateFormDataSchema>)
+            removeImage: removeImage && !values.image ? 'true' : undefined,
+        }
+        // A new person needs roles. An edit by a person who may not change
+        // the roles leaves them out, and the server keeps them.
+        const formData = person
+            ? toFormData({ ...fields, roles: canEditRoles ? JSON.stringify(cleanRoles) : undefined } satisfies z.input<typeof personUpdateFormDataSchema>)
+            : toFormData({ ...fields, roles: JSON.stringify(cleanRoles) } satisfies z.input<typeof personFormDataSchema>)
 
         console.log('FormData created, sending request to:', url)
 
@@ -155,7 +147,6 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                         image: undefined,
                         profileUrl: "",
                     })
-                    setImage(null)
                     setImagePreview(null)
                     setRemoveImage(false)
                     // Do not reset roles ever, for easier data entry
@@ -259,7 +250,7 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                                         size="icon"
                                         aria-label="Remove image"
                                         onClick={() => {
-                                            setImage(null)
+                                            form.setValue('image', undefined)
                                             setImagePreview(null)
                                             setRemoveImage(true)
                                         }}
@@ -284,7 +275,8 @@ export default function PersonForm({ person, parties, administrativeBodies, onSu
                     title={t('image')}
                     onCancel={() => setCropFile(null)}
                     onConfirm={(processed) => {
-                        setImage(processed)
+                        // The schema checks the size, and FormMessage shows its message.
+                        form.setValue('image', processed, { shouldValidate: true })
                         setImagePreview(URL.createObjectURL(processed))
                         setRemoveImage(false)
                         setCropFile(null)

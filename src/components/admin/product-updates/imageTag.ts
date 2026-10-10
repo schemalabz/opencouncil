@@ -20,7 +20,11 @@ export function buildImageTag(url: string, naturalWidth: number): string {
 
 export type ImageValidation = { ok: true } | { ok: false; error: string };
 
-/** Guard the type and the size, because POST /api/upload validates neither. */
+/**
+ * Guard the type, because POST /api/upload takes a file of any type. The
+ * route also refuses an image above MAX_IMAGE_BYTES. This check shows the
+ * message before the upload starts.
+ */
 export function validateImageFile(file: { type: string; size: number }): ImageValidation {
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type as (typeof ACCEPTED_IMAGE_TYPES)[number])) {
         return { ok: false, error: 'Use a PNG, JPEG, or GIF image.' };

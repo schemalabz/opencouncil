@@ -54,3 +54,18 @@ describe('GET /api/map/search filters', () => {
         expect(sent().dateRange).toEqual({ start: '2026-01-01', end: NOW });
     });
 });
+
+describe('GET /api/map/search extract flag', () => {
+    it.each([
+        ['', true],
+        ['extract=', false],
+        ['extract=false', false],
+        ['extract=0', false],
+        ['extract=true', true],
+        ['extract=maybe', true],
+    ])('reads %p as extractFilters %p', async (qs, expected) => {
+        await get(qs);
+
+        expect(sent().config.extractFilters).toBe(expected);
+    });
+});

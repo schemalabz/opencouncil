@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withUserAuthorizedToEdit } from '@/lib/auth';
 import { handleApiError } from '@/lib/api/errors';
+import { adminNotificationsQuerySchema } from '@/lib/zod-schemas/notification';
 import {
     getNotificationsGroupedByMeeting,
     getNotificationsForMeeting,
@@ -16,48 +17,26 @@ export async function GET(request: NextRequest) {
     try {
         await withUserAuthorizedToEdit({});
 
-        const searchParams = request.nextUrl.searchParams;
+        const query = adminNotificationsQuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams));
+        const { meetingId, cityIdForMeeting, cityId, status, type, page, pageSize, startDate } = query;
 
         // Check if this is a request for a specific meeting's notifications
-        const meetingId = searchParams.get('meetingId');
-        const cityIdForMeeting = searchParams.get('cityIdForMeeting');
-
         if (meetingId && cityIdForMeeting) {
             // Return notifications for a specific meeting (for expanded view)
-            const type = searchParams.get('type') as 'beforeMeeting' | 'afterMeeting' | undefined;
             const notifications = await getNotificationsForMeeting(meetingId, cityIdForMeeting, type);
             return NextResponse.json({ notifications });
         }
 
         // Check if this is a request for cities list
-        if (searchParams.get('getCities') === 'true') {
+        if (query.getCities) {
             const cities = await getCitiesWithNotifications();
             return NextResponse.json({ cities });
         }
 
-        // Otherwise, return meeting-grouped notifications
-        const cityId = searchParams.get('cityId') || undefined;
-        const status = searchParams.get('status') as 'pending' | 'sent' | 'failed' | 'skipped' | undefined;
-        const type = searchParams.get('type') as 'beforeMeeting' | 'afterMeeting' | undefined;
-        const page = parseInt(searchParams.get('page') || '1');
-        const pageSize = parseInt(searchParams.get('pageSize') || '20');
-
-        // Parse date range
-        let startDate: Date | undefined;
-        let endDate: Date | undefined;
-
-        const startDateStr = searchParams.get('startDate');
-        const endDateStr = searchParams.get('endDate');
-
-        if (startDateStr) {
-            startDate = new Date(startDateStr);
-            // When filtering by start date, default endDate to 90 days in the future
-            // to include pending beforeMeeting notifications for upcoming meetings
-            endDate = endDateStr ? new Date(endDateStr) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-        } else if (endDateStr) {
-            endDate = new Date(endDateStr);
-        }
-        // No dates = no date filter (all time)
+        // When filtering by start date, default endDate to 90 days in the future
+        // to include pending beforeMeeting notifications for upcoming meetings.
+        // No dates = no date filter (all time).
+        const endDate = query.endDate ?? (startDate ? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) : undefined);
 
         const result = await getNotificationsGroupedByMeeting({
             cityId,

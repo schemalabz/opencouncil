@@ -23,7 +23,7 @@ export const basePersonFields = {
 // Frontend form schema (React Hook Form)
 export const personFormSchema = z.object({
     ...basePersonFields,
-    image: z.file().optional(),
+    image: imageFile().optional(),
     profileUrl: webUrl().optional().or(z.literal('')),
 });
 

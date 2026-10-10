@@ -10,6 +10,7 @@ import { CityCombobox } from '@/components/cities/CityCombobox';
 import { Upload, ExternalLink, Pencil, Check, X } from 'lucide-react';
 import { ConsultationForAdmin } from '@/lib/db/consultations';
 import { formatDateTime } from '@/lib/formatters/time';
+import { apiErrorMessage } from '@/lib/utils/validationIssues';
 
 type CityOption = { id: string; name: string };
 
@@ -68,8 +69,7 @@ export default function Consultations({ initialConsultations, initialCities }: C
         });
 
         if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.error || 'Upload failed');
+            throw new Error(apiErrorMessage(await res.json().catch(() => null), res.status, 'Upload failed'));
         }
 
         const data = await res.json();

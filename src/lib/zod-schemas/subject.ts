@@ -32,7 +32,8 @@ export const subjectListQuerySchema = z.object({
         description: `Latest meeting date, inclusive. ${DATE_BOUND_RULE}`,
         example: '2025-12-31',
     }),
-    limit: listQueryFields.limit.default(DEFAULT_SUBJECT_LIMIT).meta({
+    // No zod default: getApiSubjects applies it, also to an empty `?limit=`.
+    limit: listQueryFields.limit.meta({
         description: `Maximum number of subjects to return (1-${MAX_SUBJECT_LIMIT}). Defaults to ${DEFAULT_SUBJECT_LIMIT}.`,
         example: '20',
     }),
