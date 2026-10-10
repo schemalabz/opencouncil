@@ -18,7 +18,7 @@ import { useLocalizeText } from '@/hooks/useLocalizeText';
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { UNKNOWN_SPEAKER_COLOR } from '@/lib/utils';
 import { SegmentShareButton } from '@/components/sharing/SegmentShareButton';
@@ -175,11 +175,11 @@ const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
     );
 };
 
-const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }: {
+const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegment, canShare = false }: {
     segment: TranscriptType[number],
     isFirstSegment?: boolean,
     canShare?: boolean
-}) => {
+}) {
     // useCouncilMeetingMeta() — not useCouncilMeetingData() — so this
     // component bails on transcript-only edits.
     const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, meeting } = useCouncilMeetingMeta();
@@ -189,7 +189,6 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
     const { assignSpeaker, deleteEmptySegment } = useCouncilMeetingActions();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
-    const { toast } = useToast();
     const tCopy = useTranslations('transcript.copySegment');
     const tCommon = useTranslations('Common');
     const tTranscript = useTranslations('transcript');
@@ -471,7 +470,5 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
         </>
     );
 });
-
-SpeakerSegment.displayName = 'SpeakerSegment';
 
 export default SpeakerSegment;
