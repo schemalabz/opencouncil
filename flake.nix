@@ -1601,6 +1601,9 @@ EOF
                 name="\$(basename "\$item")"
                 [ "\$name" = cache ] || ln -sfn "\$item" "\$RUN/services/notis/.next/\$name"
               done
+              # Prisma looks for the engine by its platform file name, which the
+              # Nix engine does not use. Both generated clients carry the same one.
+              export PRISMA_QUERY_ENGINE_LIBRARY="\$APP/generated/client/libquery_engine.node"
               cd "\$RUN/services/notis"
               exec ${pkgs.nodejs}/bin/node server.js
               EOF
