@@ -20,6 +20,7 @@ import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
 import { getPeopleForMeeting } from "@/lib/db/people";
 import { deriveWindowDays } from "./decisionWindow";
 import { localCalendarDate } from "@/lib/formatters/time";
+import { dayBounds } from "@/lib/dates/dayBounds";
 import { applyCandidateConflictResolution, getUnresolvedCandidatesForMeeting } from "@/lib/db/decisionCandidates";
 import { isRoleActiveAt, isMayorRole } from "@/lib/utils/roles";
 import { shouldSkipPolling, getBackoffState, getPollableMeetingDateRange, TAKES_DECISIONS_WHERE, pendingPollTaskId, type BackoffTier } from "./pollDecisionsBackoff";
@@ -172,13 +173,13 @@ export async function pollDecisionsForMeeting(
     // window — mostly neighbouring meetings' decisions, which is the point —
     // plus this meeting's own open candidates. The window misses those whose
     // issue date precedes the meeting or whose publication came late; the task
-    // fetches them by their ΑΔΑ.
+    // fetches them by their ΑΔΑ. The window names days in the city's zone.
     const ownOpen = { councilMeetingId, decisionId: null, dismissedAt: null };
     const known = await prisma.decisionCandidate.findMany({
         where: {
             cityId,
             OR: [
-                { publishDate: { gte: new Date(windowFromDate), lte: new Date(`${windowToDate}T23:59:59Z`) } },
+                { publishDate: { gte: dayBounds(windowFromDate, cityTz).start, lte: dayBounds(windowToDate, cityTz).end } },
                 ownOpen,
             ],
         },

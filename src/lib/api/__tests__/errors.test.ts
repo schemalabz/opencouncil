@@ -144,7 +144,7 @@ describe('the custom messages of the shared schemas', () => {
             error: [
                 { code: 'custom', message: 'Meeting name must be at least 2 characters.', path: ['name'] },
                 { code: 'custom', message: 'Meeting name (English) must be at least 2 characters.', path: ['name_en'] },
-                { code: 'custom', message: 'Invalid date/time format', path: ['date'] },
+                { code: 'invalid_union', message: 'Invalid date/time format', path: ['date'] },
             ],
         });
     });

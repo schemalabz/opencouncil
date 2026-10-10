@@ -38,6 +38,7 @@ jest.mock('@/lib/db/people', () => ({ getPeopleForMeeting: (...args: unknown[]) 
 
 import { pollDecisionsForMeeting } from '@/lib/tasks/pollDecisions';
 import type { PollDecisionsRequest } from '@/lib/apiTypes';
+import { dayBounds } from '@/lib/dates/dayBounds';
 import type { DecisionConventions } from '@/lib/decisionConventions';
 
 const CITY_ID = 'city-1';
@@ -227,6 +228,21 @@ describe('pollDecisionsForMeeting — stored candidates sent to the task', () =>
             expect.objectContaining({ publishDate: expect.any(Object) }),
             { councilMeetingId: MEETING_ID, decisionId: null, dismissedAt: null },
         ]));
+    });
+
+    it('reads the window days in the city\'s zone', async () => {
+        mockDecisionCandidateFindMany.mockResolvedValue([]);
+        await pollDecisionsForMeeting(CITY_ID, MEETING_ID);
+        const { window } = mockStartTask.mock.calls[0][1] as Omit<PollDecisionsRequest, 'callbackUrl'>;
+        const where = mockDecisionCandidateFindMany.mock.calls[0][0].where;
+        // The meeting is at 20:00 Athens time on 4 March, so the window starts
+        // at local midnight of that day, 22:00Z on the 3rd.
+        if (!window) throw new Error('the request has no window');
+        expect(window.fromDate).toBe('2026-03-04');
+        expect(where.OR[0].publishDate).toEqual({
+            gte: new Date('2026-03-03T22:00:00.000Z'),
+            lte: dayBounds(window.toDate, 'Europe/Athens').end,
+        });
     });
 
     it('marks only an open candidate of this meeting as own', async () => {

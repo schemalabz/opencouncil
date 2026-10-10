@@ -9,11 +9,11 @@ import { meetingSchema } from '@/lib/zod-schemas/meeting';
 import { decisionConventionsSchema } from '@/lib/decisionConventions';
 
 describe('roleDateSchema', () => {
-    it.each(['2024-01-01', '2024-01-01T10:00:00Z', '2024-01-01T10:00:00+03:00', '2024-01-01T10:00:00.123+03:00'])('accepts %s', value => {
+    it.each(['2024-01-01', '2024-01-01T10:00:00Z', '2024-01-01T10:00:00+03:00', '2024-01-01T10:00:00.123+03:00', '2024-01-01T10:00+03:00'])('accepts %s', value => {
         expect(roleDateSchema.safeParse(value).success).toBe(true);
     });
 
-    it.each(['2024-01-01T10:00:00', '2024-01-01T10:00+03:00', '2024-13-01', '01/02/2024'])('refuses %s', value => {
+    it.each(['2024-01-01T10:00:00', '2024-01-01T10:00', '2024-13-01', '01/02/2024'])('refuses %s', value => {
         expect(roleDateSchema.safeParse(value).success).toBe(false);
     });
 });

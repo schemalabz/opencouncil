@@ -17,17 +17,17 @@ describe('subjectListQuerySchema', () => {
         });
     });
 
-    it('parses the date range into Date objects', () => {
+    // The schema does not know the city, so it keeps a date-only bound as a
+    // day. resolveCityDateRange reads it in the city's zone.
+    it('keeps a date-only bound as a calendar day', () => {
         const parsed = subjectListQuerySchema.parse({ from: '2025-01-01', to: '2025-12-31' });
-        expect(parsed.from).toEqual(new Date('2025-01-01T00:00:00.000Z'));
-        // The upper bound covers the whole day. Midnight at the start of the
-        // 31st would drop every meeting held on the 31st.
-        expect(parsed.to).toEqual(new Date('2025-12-31T23:59:59.999Z'));
+        expect(parsed.from).toEqual({ kind: 'day', day: '2025-01-01' });
+        expect(parsed.to).toEqual({ kind: 'day', day: '2025-12-31' });
     });
 
-    it('keeps a full timestamp in the upper bound as written', () => {
+    it('keeps a full timestamp as an instant', () => {
         const parsed = subjectListQuerySchema.parse({ to: '2025-12-31T09:00:00.000Z' });
-        expect(parsed.to).toEqual(new Date('2025-12-31T09:00:00.000Z'));
+        expect(parsed.to).toEqual({ kind: 'instant', at: new Date('2025-12-31T09:00:00.000Z') });
     });
 
     it('rejects an unparseable date', () => {
@@ -40,10 +40,6 @@ describe('subjectListQuerySchema', () => {
     it.each(['2026-02-31', '2026-04-31', '2026-02-29'])('rejects the impossible day %s in either bound', (day) => {
         expect(subjectListQuerySchema.safeParse({ from: day }).success).toBe(false);
         expect(subjectListQuerySchema.safeParse({ to: day }).success).toBe(false);
-    });
-
-    it('extends a real last day of the month to its end', () => {
-        expect(subjectListQuerySchema.parse({ to: '2026-02-28' }).to?.toISOString()).toBe('2026-02-28T23:59:59.999Z');
     });
 
     it('rejects a limit outside the allowed range', () => {

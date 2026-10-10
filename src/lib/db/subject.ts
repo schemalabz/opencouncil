@@ -15,7 +15,9 @@ import {
 import { PersonWithRelations } from '@/lib/db/people';
 import { extractUtteranceIds } from '@/lib/utils/references';
 import { isAdministrativeBodyType } from '@/lib/utils/administrativeBodies';
-import { isCalendarDay } from '@/lib/utils/date';
+import { isCalendarDay } from '@/lib/zod-schemas/dates';
+import { dayBounds } from '@/lib/dates/dayBounds';
+import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
 import { getContributionCount } from '@/lib/utils';
 import { roleWithRelationsInclude } from './types/roles';
 import { subjectDecisionSelect, type SubjectDecision } from './types/decision';
@@ -350,9 +352,12 @@ export function buildMapSubjectWhere(realm: Realm | null, f: MapSubjectFilters):
     const now = new Date();
     const dateTime: { gte?: Date; lte: Date } = { lte: now };
     if (f.dateFrom || f.dateTo) {
-        if (f.dateFrom) dateTime.gte = new Date(f.dateFrom);
+        // The map spans many cities, and a where clause reads a day in one
+        // zone. DEFAULT_TIMEZONE is the zone of the Greek cities; for a city
+        // in another zone, a meeting near midnight can fall on the next day.
+        if (f.dateFrom) dateTime.gte = dayBounds(f.dateFrom, DEFAULT_TIMEZONE).start;
         if (f.dateTo) {
-            const to = new Date(`${f.dateTo}T23:59:59.999`);
+            const to = dayBounds(f.dateTo, DEFAULT_TIMEZONE).end;
             if (to < now) dateTime.lte = to;
         }
     } else if (!f.allTime) {

@@ -120,14 +120,17 @@ describe('dates sent as text', () => {
         ['what AddMeetingForm sends (toISOString)', '2026-10-05T15:00:00.000Z'],
         ['a calendar day', '2026-10-05'],
         ['a date-time with an offset', '2026-10-05T18:00:00+03:00'],
-        ['a date-time with no zone', '2026-10-05T18:00:00'],
-        ['a date-time with no zone and no seconds', '2026-10-05T18:00'],
+        ['a date-time with an offset and no seconds', '2026-10-05T18:00+03:00'],
+        ['a UTC date-time with no seconds', '2026-10-05T18:00Z'],
     ];
     const refused: [string, string][] = [
         ['a day that does not exist', '2026-02-31'],
         ['a space for the T', '2026-10-05 18:00:00'],
         ['an English date', 'October 5, 2026'],
-        ['a zoned date-time with no seconds', '2026-10-05T18:00Z'],
+        // The server would read these in its own zone.
+        ['a date-time with no zone', '2026-10-05T18:00:00'],
+        ['a date-time with no zone and no seconds', '2026-10-05T18:00'],
+        ['an offset without a colon', '2026-10-05T18:00:00+0300'],
     ];
 
     it.each(accepted)('meetingSchema takes %s', (_, date) => {
@@ -139,7 +142,9 @@ describe('dates sent as text', () => {
     });
 
     it.each(accepted)('the subject listing takes %s', (_, from) => {
-        expect(subjectListQuerySchema.parse({ from }).from).toEqual(new Date(from));
+        expect(subjectListQuerySchema.parse({ from }).from).toEqual(
+            from.includes('T') ? { kind: 'instant', at: new Date(from) } : { kind: 'day', day: from },
+        );
     });
     it.each(refused)('the subject listing refuses %s, with its message', (_, from) => {
         expect(subjectListQuerySchema.safeParse({ from }).error?.issues)
