@@ -3,12 +3,11 @@ import { City, CityStatus, CouncilMeeting, Prisma, Realm } from '@prisma/client'
 import { revalidateTag } from 'next/cache';
 import prisma from "./prisma";
 import { createCache } from "../cache";
-import { isUserAuthorizedToEdit, withUserAuthorizedToEdit, getCurrentUser } from "../auth";
+import { withUserAuthorizedToEdit, getCurrentUser } from "@/lib/auth";
 import { UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
 import { createCityDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
-import { publicAdministrativeBodyRelation, roleWithRelationsInclude } from "./types";
 import {
     PETITION_DISPLAY_THRESHOLD,
     buildPetitionedCities,
@@ -398,59 +397,6 @@ export async function getListedCitiesCached(realm: Realm): Promise<CityWithCount
         ['cities', 'public', realm],
         { revalidate: 900, tags: ['cities:all', `realm:${realm}:cities:all`] },
     )();
-}
-
-export async function getFullCity(
-    cityId: string,
-    options?: CityGeometryOptions
-) {
-    const canEdit = await isUserAuthorizedToEdit({ cityId });
-    const city = await prisma.city.findUnique({
-        where: { id: cityId },
-        include: {
-            councilMeetings: {
-                where: {
-                    released: canEdit ? undefined : true
-                },
-                include: {
-                    subjects: {
-                        include: {
-                            highlights: true,
-                            location: true,
-                            topic: true,
-                            introducedBy: {
-                                include: {
-                                    roles: {
-                                        include: {
-                                            party: true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    administrativeBody: publicAdministrativeBodyRelation
-                }
-            },
-            parties: true,
-            persons: {
-                include: {
-                    speakerTags: true,
-                    roles: roleWithRelationsInclude
-                }
-            },
-            administrators: {
-                include: {
-                    user: true
-                }
-            }
-        }
-    });
-    
-    if (!city) return null;
-    if (!options?.includeGeometry) return city;
-    
-    return await attachGeometryToCity(city);
 }
 
 export async function getAllCitiesMinimal(realm?: Realm): Promise<CityMinimalWithCounts[]> {
