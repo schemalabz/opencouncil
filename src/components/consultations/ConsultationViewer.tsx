@@ -20,7 +20,7 @@ import {
     type ConsultationView,
 } from "./consultationUrl";
 import { describeEntity, extractGeoSets, findExplainingCard } from "./entityDisplay";
-import type { CurrentUser, PendingCommentConfirmation, RegulationData } from "./types";
+import type { ConfirmedPendingComment, CurrentUser, RegulationData } from "./types";
 import CommentsView from "./views/CommentsView";
 import CommentView from "./views/CommentView";
 import HomeView from "./views/HomeView";
@@ -35,7 +35,7 @@ interface ConsultationViewerProps {
     /** The site's header. It tops every screen but the phone's full-screen map. */
     header?: ReactNode;
     /** What opening a comment's confirmation link did, when the page was opened from one. */
-    pendingConfirmation?: PendingCommentConfirmation | null;
+    pendingConfirmation?: ConfirmedPendingComment | null;
     consultation: ConsultationWithStatus;
     regulationData: RegulationData | null;
     comments: ConsultationCommentWithUpvotes[];
@@ -94,6 +94,12 @@ function isLocation(value: unknown): value is Location {
         && coordinates.every(n => typeof n === 'number' && Number.isFinite(n));
 }
 
+function isFailedConfirmation(value: unknown): value is ConfirmedPendingComment {
+    if (!value || typeof value !== 'object') return false;
+    const { pendingId, entityId, result } = value as Partial<ConfirmedPendingComment>;
+    return typeof pendingId === 'string' && typeof entityId === 'string' && result === 'unavailable';
+}
+
 const href = (view: ConsultationView, entityId?: string | null) => buildConsultationUrl('', { view, entityId });
 
 /**
@@ -149,6 +155,30 @@ export default function ConsultationViewer({
         });
     }
     const previous = trail.previous;
+
+    // A confirmation link's result shows on its comment's screen only, and only until the reader leaves it.
+    // A link that could not publish is kept in this tab instead, so that the reader can try it again later.
+    const retryKey = `oc:consultation:${consultationId}:pending-retry`;
+    const [confirmation, setConfirmation] = useState(pendingConfirmation);
+    useEffect(() => {
+        if (pendingConfirmation) setConfirmation(pendingConfirmation);
+        try {
+            if (pendingConfirmation?.result === 'unavailable') {
+                sessionStorage.setItem(retryKey, JSON.stringify(pendingConfirmation));
+            } else if (pendingConfirmation) {
+                sessionStorage.removeItem(retryKey);
+            } else {
+                const saved: unknown = JSON.parse(sessionStorage.getItem(retryKey) ?? 'null');
+                if (isFailedConfirmation(saved)) setConfirmation(saved);
+            }
+        } catch {
+            // Storage can be unavailable (private mode, blocked site data): the retry lasts until a reload.
+        }
+    }, [retryKey, pendingConfirmation]);
+    const onConfirmedScreen = urlState.view === 'comment' && urlState.entityId === confirmation?.entityId;
+    if (confirmation && confirmation.result !== 'unavailable' && !onConfirmedScreen) {
+        setConfirmation(null);
+    }
 
     // The reader's address lives in this tab only: never in the URL, so analytics never see it.
     const addressKey = `oc:consultation:${consultationId}:address`;
@@ -347,7 +377,7 @@ export default function ConsultationViewer({
                         consultationId={consultationId}
                         cityId={cityId}
                         active={active}
-                        confirmation={pendingConfirmation}
+                        confirmation={confirmation?.entityId === entityDisplay.id ? confirmation : null}
                         comments={liveComments.filter(comment => comment.entityId === entityDisplay.id)}
                         onUpvoted={onUpvoted}
                         onDeleted={onDeleted}

@@ -8,7 +8,7 @@ import { captureEvent } from "@/lib/analytics/capture";
 import { cn } from "@/lib/utils";
 import type { ConsultationCommentWithUpvotes } from "@/lib/db/consultations";
 import type { EntityDisplay } from "../entityDisplay";
-import type { PendingCommentConfirmation } from "../types";
+import type { ConfirmedPendingComment, PendingCommentConfirmation } from "../types";
 import { buildConsultationUrl } from "../consultationUrl";
 import CommentList, { type CommentListProps } from "./CommentList";
 import { cardClass, Dot, pageClass, primaryButtonClass, SectionLabel, textLinkClass, navigateTo, ViewHeader, ViewLink } from "./ui";
@@ -20,7 +20,7 @@ export interface CommentViewProps {
     cityId: string;
     active: boolean;
     /** What opening the comment's confirmation link did, when the reader arrived from it. */
-    confirmation: PendingCommentConfirmation | null;
+    confirmation: ConfirmedPendingComment | null;
     comments: ConsultationCommentWithUpvotes[];
     onUpvoted: CommentListProps['onUpvoted'];
     onDeleted: CommentListProps['onDeleted'];
@@ -34,7 +34,7 @@ type Outcome =
 const CONFIRMATION_PROBLEM: Record<Exclude<PendingCommentConfirmation, 'published'>, string> = {
     expired: 'Ο σύνδεσμος έληξε: ισχύει 24 ώρες. Γράψτε το σχόλιο ξανά παρακάτω.',
     'not-found': 'Δεν βρήκαμε το σχόλιο που επιβεβαιώνετε. Γράψτε το ξανά παρακάτω.',
-    unavailable: 'Δεν μπορέσαμε να δημοσιεύσουμε το σχόλιο αυτή τη στιγμή. Ανανεώστε τη σελίδα σε λίγο.',
+    unavailable: 'Δεν μπορέσαμε να δημοσιεύσουμε το σχόλιο αυτή τη στιγμή.',
 };
 
 const inputClass = "h-12 w-full rounded-xl border-[1.5px] border-stone-300 bg-white px-4 text-base text-stone-900 focus:border-[#c2410c] focus:outline-none";
@@ -54,11 +54,12 @@ export default function CommentView({ display, backHref, consultationId, cityId,
     const [outcome, setOutcome] = useState<Outcome | null>(null);
     // Once the link has done its work, `pending` leaves the URL, so a reload or a shared link does not
     // repeat it. When the regulation could not be reached it stays, so a reload tries again.
+    const result = confirmation?.result ?? null;
     useEffect(() => {
-        if (confirmation && confirmation !== 'unavailable') {
+        if (result && result !== 'unavailable') {
             navigateTo(buildConsultationUrl('', { view: 'comment', entityId: display.id }), { replace: true });
         }
-    }, [confirmation, display.id]);
+    }, [result, display.id]);
 
     const submit = async (event: FormEvent) => {
         event.preventDefault();
@@ -109,16 +110,27 @@ export default function CommentView({ display, backHref, consultationId, cityId,
         <div className={pageClass}>
             <ViewHeader backHref={backHref} title="Το σχόλιό σας" />
             <div className="flex flex-col gap-4 px-4 pb-8 pt-4">
-                {confirmation === 'published' && (
+                {result === 'published' && (
                     <div role="status" className="flex items-start gap-3 rounded-2xl bg-green-50 p-4 text-green-900">
                         <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
                         <p className="text-base">Το σχόλιό σας δημοσιεύτηκε και στάλθηκε στον Δήμο. Ευχαριστούμε.</p>
                     </div>
                 )}
-                {confirmation && confirmation !== 'published' && (
+                {confirmation && result && result !== 'published' && (
                     <div role="status" className="flex items-start gap-3 rounded-2xl bg-[#fff7ed] p-4 text-[#431407]">
                         <Mail className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                        <p className="text-base">{CONFIRMATION_PROBLEM[confirmation]}</p>
+                        <p className="text-base">
+                            {CONFIRMATION_PROBLEM[result]}
+                            {result === 'unavailable' && (
+                                <>
+                                    {' '}
+                                    {/* A full page load, so that the server opens the confirmation link again. */}
+                                    <a href={`?${new URLSearchParams({ view: 'comment', entity: display.id, pending: confirmation.pendingId })}`} className={textLinkClass}>
+                                        Δοκιμάστε ξανά
+                                    </a>
+                                </>
+                            )}
+                        </p>
                     </div>
                 )}
 
