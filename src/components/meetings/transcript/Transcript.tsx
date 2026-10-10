@@ -193,7 +193,7 @@ export default function Transcript() {
                 <div ref={containerRef} data-excerpt-root role="list" aria-label={t('transcript')}>
                 {displayedSegments.map((segment, index: number) => (
                     <div
-                        key={index}
+                        key={segment.id}
                         id={createSegmentId(index)}
                         className="content-visibility-auto"
                         role="listitem"
