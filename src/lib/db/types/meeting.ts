@@ -1,4 +1,17 @@
-import type { CouncilMeeting } from '@prisma/client';
+import type { CouncilMeeting, Prisma } from '@prisma/client';
+
+/**
+ * The columns that the meeting names (src/lib/meetingName.ts) read. Add
+ * the city's timezone next to it where the caller has no timezone in scope.
+ */
+export const meetingNameSelect = {
+    name: true,
+    name_en: true,
+    kind: true,
+    sessionNumber: true,
+    dateTime: true,
+    administrativeBody: { select: { name: true, name_en: true } },
+} satisfies Prisma.CouncilMeetingSelect;
 
 /**
  * Version tag for cache keys built over the meeting-preview projection
@@ -6,11 +19,15 @@ import type { CouncilMeeting } from '@prisma/client';
  * the same edit that changes that include — persisted unstable_cache entries
  * keep serving the old shape under the old key otherwise. It lives here
  * because meetings.ts is a "use server" module and cannot export a constant.
+ * The public meeting lists key on it too: v6 hides the links to other
+ * meetings.
  */
-export const MEETING_PREVIEW_CACHE_VERSION = 'v3';
+export const MEETING_PREVIEW_CACHE_VERSION = 'v6';
 
 /** What the header needs to step to a neighbouring meeting. */
-export type AdjacentMeeting = Pick<CouncilMeeting, 'id' | 'name' | 'name_en'>;
+export type AdjacentMeeting = Pick<CouncilMeeting, 'id' | 'name' | 'name_en' | 'kind' | 'sessionNumber' | 'dateTime'> & {
+    administrativeBody: { name: string; name_en: string } | null;
+};
 
 export type AdjacentMeetings = {
     /** The meeting held before this one, or null at the start. */

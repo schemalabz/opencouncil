@@ -335,6 +335,10 @@ model NotisProcessedEvent {
   meetingName   String?
   meetingDate   DateTime?
   adminBodyName String?
+  // The facts the title is derived from. Null on rows recorded before the
+  // view carried them: their meetingName is the stored name then.
+  meetingKind   String?
+  sessionNumber Int?
 
   // The shared editorial pass output, run once per taskId before fan-out;
   // every enqueued event embeds it verbatim. Null only for seed-only

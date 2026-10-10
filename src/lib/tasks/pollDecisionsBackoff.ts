@@ -3,21 +3,44 @@
 // (Prisma, `server-only`, ...) — one would break the client build from
 // here, with the error pointing at that page instead of this file.
 
-// ─── Λογοδοσία meeting detection ─────────────────────────────────────
-// Stem used to identify Λογοδοσία (accountability) meetings by name.
-// Covers both "Λογοδοσία" and "Λογοδοσίας" (genitive).
-// TODO: Replace with proper meeting tags once available.
-export const LOGODOSIA_NAME_PATTERN = "Λογοδοσί";
+import type { MeetingKind, Prisma } from "@prisma/client";
+import { MEETING_KINDS, NO_DECISION_KINDS } from "@/lib/meetingLifecycleRules";
+
+// ─── Meetings that take no decisions ─────────────────────────────────
 
 /**
- * Returns true if the meeting name indicates a Λογοδοσία session.
- * Used to skip automated decision polling — these meetings don't produce
- * decisions on Diavgeia. Combined meetings (e.g. "Λογοδοσία και Δημοτικό
- * Συμβούλιο") are also matched; they can still be polled manually.
+ * Returns true for a meeting that takes no decisions: a λογοδοσία or an
+ * απολογισμός. Used to skip automated decision polling. A later part has no
+ * kind of its own, so the kind of its first part counts. A record that also
+ * holds a regular meeting (e.g. "Λογοδοσία και Δημοτικό Συμβούλιο") has no
+ * kind and is polled: its regular part produces decisions.
  */
-export function isLogodosiaMeeting(name: string): boolean {
-    return name.includes(LOGODOSIA_NAME_PATTERN);
+export function takesNoDecisions(meeting: { kind: MeetingKind | null; continuationOf: { kind: MeetingKind | null } | null }): boolean {
+    const kind = meeting.kind ?? meeting.continuationOf?.kind ?? null;
+    return kind !== null && !MEETING_KINDS[kind].takesDecisions;
 }
+
+/** The fields `takesNoDecisions` reads. An `include` takes its `continuationOf`. */
+export const DECISION_KIND_SELECT = {
+    kind: true,
+    continuationOf: { select: { kind: true } },
+} satisfies Prisma.CouncilMeetingSelect;
+
+/**
+ * The database form of `!takesNoDecisions`. `kind` is nullable, and in SQL
+ * `kind NOT IN (…)` is not true for a null kind, so a bare `notIn` would drop
+ * every meeting of unknown kind. The null case is explicit.
+ */
+const KIND_TAKES_DECISIONS_WHERE = {
+    OR: [{ kind: null }, { kind: { notIn: NO_DECISION_KINDS } }],
+} satisfies Prisma.CouncilMeetingWhereInput;
+
+export const TAKES_DECISIONS_WHERE = {
+    AND: [
+        KIND_TAKES_DECISIONS_WHERE,
+        { OR: [{ continuationOfId: null }, { continuationOf: KIND_TAKES_DECISIONS_WHERE }] },
+    ],
+} satisfies Prisma.CouncilMeetingWhereInput;
 
 // ─── Backoff configuration ───────────────────────────────────────────
 // Controls how often each meeting becomes due for a cron poll — a floor,
@@ -185,9 +208,12 @@ export function pendingPollTaskId(tasks: ReadonlyArray<{ id: string; status: str
 export type PollCadence =
     | { kind: 'ready' }
     | { kind: 'running' }
-    | { kind: 'blocked' };
+    | { kind: 'blocked' }
+    | { kind: 'noDecisions' };
 
 export interface PollCadenceInput {
+    /** The meeting takes no decisions (see takesNoDecisions): a poll can find none. */
+    noDecisions: boolean;
     /** False when the city has no Diavgeia organisation id, or a configured
      * unit entry does not parse — either way a poll cannot run at all. */
     canPoll: boolean;
@@ -196,16 +222,18 @@ export interface PollCadenceInput {
 }
 
 /**
- * Map a meeting's polling state onto the footer's three states.
+ * Map a meeting's polling state onto the footer's four states.
  *
  * The footer no longer names the cron's cadence, so the cron's own gates —
- * the pollable date window, the Λογοδοσία exclusion, the undecided-subject
- * clause and the backoff tier — are not restated here. They stay in
+ * the pollable date window, the undecided-subject clause and the backoff
+ * tier — are not restated here. They stay in
  * `pollDecisionsForRecentMeetings`'s query and in `shouldSkipPolling()`. A
- * meeting the cron skips still reads as `ready`, because a manual poll runs
- * whatever the cron does.
+ * meeting the cron skips for those reasons still reads as `ready`, because a
+ * manual poll runs whatever the cron does. A meeting that takes no decisions
+ * reads as `noDecisions`: no poll, by the cron or by hand, can find any.
  */
 export function pollCadence(input: PollCadenceInput): PollCadence {
+    if (input.noDecisions) return { kind: 'noDecisions' };
     if (!input.canPoll) return { kind: 'blocked' };
     if (input.pollInFlight) return { kind: 'running' };
     return { kind: 'ready' };

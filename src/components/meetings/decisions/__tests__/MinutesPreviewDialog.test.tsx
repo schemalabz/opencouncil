@@ -7,7 +7,10 @@ jest.mock('next-intl', () => ({
     useLocale: () => 'el',
 }));
 jest.mock('@/components/meetings/CouncilMeetingDataContext', () => ({
-    useCouncilMeetingData: () => ({ meeting: { name: 'Δημοτικό Συμβούλιο 26/08/26' } }),
+    useCouncilMeetingData: () => ({
+        meeting: { name: 'Δημοτικό Συμβούλιο 26/08/26', name_en: null, kind: 'regular', dateTime: '2026-08-26T15:00:00Z', administrativeBody: null },
+        city: { timezone: 'Europe/Athens' },
+    }),
 }));
 jest.mock('@/components/meetings/admin/MinutesPreviewContent', () => ({
     MinutesPreviewContent: ({ debugMode }: { debugMode: boolean }) => <div data-testid="content">debug {String(debugMode)}</div>,

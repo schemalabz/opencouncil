@@ -1,3 +1,4 @@
+import { asMeetingKind, meetingKindTitle } from "@opencouncil/ui/lib/meeting-title";
 import { describeMeetingDate, describeNow } from "./dates";
 import { distanceLine, locationLabel, locationPoints } from "./geo";
 import {
@@ -163,22 +164,46 @@ export function decisionLine(
   );
 }
 
+export type MeetingWakeEvent = Extract<WakeEvent, { type: "agenda_processed" | "meeting_summarized" }>;
+
+/**
+ * The Meeting line of a meeting event: the body, the title that the kind and
+ * the number give (the shared rule the app uses), the raw facts, and the
+ * date. The municipality's own name for the meeting, when set, follows on a
+ * line of its own. Notis is Greek-only, so the title is in Greek.
+ * An event queued before the view carried the facts has neither kind nor
+ * number, only the stored name; it renders as it did then.
+ */
+export function meetingLine(event: MeetingWakeEvent, now: Date): string {
+  const where = `, city ${event.cityId}, id ${event.meetingId}.\n`;
+  const when = describeMeetingDate(event.meetingDate, now);
+  if (event.meetingKind === undefined && event.sessionNumber === undefined) {
+    return `Meeting: ${event.meetingName ?? "(no name)"} (${when})${
+      event.adminBody ? ` — ${event.adminBody}` : ""
+    }${where}`;
+  }
+  const kind = asMeetingKind(event.meetingKind);
+  const number = event.sessionNumber ? `session number ${event.sessionNumber}` : "no session number";
+  const facts = event.meetingKind ? `kind: ${event.meetingKind}, ${number}` : `kind not stated, ${number}`;
+  const head = [event.adminBody, meetingKindTitle(kind, event.sessionNumber, "el")].filter(Boolean).join(", ");
+  return (
+    `Meeting: ${head ? `${head} ` : ""}(${facts}) — ${when}${where}` +
+    (event.meetingName ? `The municipality's own name for it: «${event.meetingName}».\n` : "")
+  );
+}
+
 export function renderEvent(event: WakeEvent, state: WakeState, now: Date): string {
   switch (event.type) {
     case "agenda_processed":
       return (
         `The agenda for an upcoming meeting has been processed.\n` +
-        `Meeting: ${event.meetingName} (${describeMeetingDate(event.meetingDate, now)})${
-          event.adminBody ? ` — ${event.adminBody}` : ""
-        }, city ${event.cityId}, id ${event.meetingId}.\n` +
+        meetingLine(event, now) +
         `Editorial brief (a map, not a source — read the record before quoting):\n${renderBrief(event.brief, readerPlaces(state, event.cityId))}`
       );
     case "meeting_summarized":
       return (
         `A meeting has concluded and its record is published.\n` +
-        `Meeting: ${event.meetingName} (${describeMeetingDate(event.meetingDate, now)})${
-          event.adminBody ? ` — ${event.adminBody}` : ""
-        }, city ${event.cityId}, id ${event.meetingId}.\n` +
+        meetingLine(event, now) +
         `Editorial brief (a map, not a source — read the record before quoting):\n${renderBrief(event.brief, readerPlaces(state, event.cityId))}`
       );
     case "user_message":

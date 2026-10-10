@@ -373,7 +373,7 @@ export function NotificationMeetingRow({
                 }
             }}
             expandedContent={expandedContent}
-            ariaLabel={meeting.meetingName}
+            ariaLabel={meeting.meetingLabel}
         >
             {/* Meeting Info */}
             <TableCell className="min-w-0" onClick={() => loadNotifications()}>
@@ -447,7 +447,7 @@ export function NotificationMeetingRow({
                     <DialogTitle>Delete {typeToDelete === 'beforeMeeting' ? 'Before' : 'After'} Meeting Notifications</DialogTitle>
                     <DialogDescription>
                         Are you sure you want to delete all {typeToDelete === 'beforeMeeting' ? 'before' : 'after'} meeting
-                        notifications for &quot;{meeting.meetingName}&quot;? This action cannot be undone.
+                        notifications for &quot;{[meeting.administrativeBodyName, meeting.meetingName, meetingDate].filter(Boolean).join(' · ')}&quot;? This action cannot be undone.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
