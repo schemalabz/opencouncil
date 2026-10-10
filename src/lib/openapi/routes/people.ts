@@ -1,11 +1,9 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, type Paths } from '../registry';
+import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, notAuthorizedResponse, type Paths } from '@/lib/openapi/registry';
 import { PersonWithRolesSchema } from '@/lib/openapi/entities';
 import { personFormDataSchema } from '@/lib/zod-schemas/person';
 
-// POST/PUT request — multipart/form-data. The validation schema of the
-// handlers: the image renders as binary, and the roles as the JSON string
-// that the caller sends.
+// POST/PUT request — multipart/form-data. The roles field is the JSON string that the caller sends.
 const PersonRequestSchema = personFormDataSchema.meta({ id: 'PersonRequest' });
 
 // --- Routes ---
@@ -42,7 +40,7 @@ export const peoplePaths: Paths = {
                     content: { 'application/json': { schema: PersonWithRolesSchema } },
                 },
                 400: invalidRequestOrMessageResponse('Invalid person or role data'),
-                401: errorResponseOf('Unauthorized'),
+                401: notAuthorizedResponse,
             },
             'x-access-level': 'admin',
         },
@@ -74,7 +72,7 @@ export const peoplePaths: Paths = {
                     content: { 'application/json': { schema: PersonWithRolesSchema } },
                 },
                 400: invalidRequestOrMessageResponse('Invalid person or role data'),
-                401: errorResponseOf('Unauthorized'),
+                401: notAuthorizedResponse,
             },
             'x-access-level': 'admin',
         },
@@ -88,7 +86,7 @@ export const peoplePaths: Paths = {
                     description: 'Person deleted',
                     content: { 'application/json': { schema: MessageSchema } },
                 },
-                401: errorResponseOf('Unauthorized'),
+                401: notAuthorizedResponse,
             },
             'x-access-level': 'admin',
         },

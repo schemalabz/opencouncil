@@ -208,8 +208,17 @@ describe('getAdministrativeBodiesForCity', () => {
         mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
         mockFindMany.mockResolvedValue([{ id: 'b1', contactEmails: ['a@b.gr'] }]);
 
-        await expect(getAdministrativeBodiesForCity('zografou')).resolves.toEqual([{ id: 'b1', contactEmails: ['a@b.gr'] }]);
+        await expect(getAdministrativeBodiesForCity('zografou')).resolves.toEqual([{ id: 'b1', contactEmails: ['a@b.gr'], decisionConventions: null }]);
         expect(mockWithUserAuthorizedToEdit).toHaveBeenCalledWith({ cityId: 'zografou' });
+    });
+
+    it('answers stored conventions with the current anchor names', async () => {
+        mockWithUserAuthorizedToEdit.mockResolvedValue(undefined);
+        const legacy = { ...PROFILED, attendanceChangeAnchors: ['session_phase', 'this_document', 'clock_time'] };
+        mockFindMany.mockResolvedValue([{ id: 'b1', decisionConventions: legacy }]);
+
+        const [body] = await getAdministrativeBodiesForCity('zografou');
+        expect(body.decisionConventions?.attendanceChangeAnchors).toEqual(['phase', 'subject']);
     });
 });
 

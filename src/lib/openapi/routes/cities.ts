@@ -1,10 +1,9 @@
 import * as z from 'zod';
-import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, invalidRequestResponse, type Paths } from '../registry';
+import { sessionAuthRequirement, MessageSchema, cityIdParam, errorResponseOf, invalidRequestOrMessageResponse, invalidRequestResponse, notAuthorizedResponse, type Paths } from '@/lib/openapi/registry';
 import { CitySchema, CityMinimalSchema, CityWithCountsSchema, CityWithGeometrySchema } from '@/lib/openapi/entities';
 import { citiesListQuerySchema, createCityFormDataSchema, updateCityRequestFormDataSchema } from '@/lib/zod-schemas/city';
 
 // --- Request Schemas ---
-// The validation schemas of the handlers. Their file fields render as binary.
 const CreateCityRequestSchema = createCityFormDataSchema.meta({ id: 'CreateCityRequest' });
 const UpdateCityRequestSchema = updateCityRequestFormDataSchema.meta({ id: 'UpdateCityRequest' });
 
@@ -45,7 +44,7 @@ export const citiesPaths: Paths = {
                     content: { 'application/json': { schema: CitySchema } },
                 },
                 400: invalidRequestOrMessageResponse('Invalid city data, form data or boundary GeoJSON'),
-                401: errorResponseOf('Unauthorized — not authenticated'),
+                401: notAuthorizedResponse,
             },
             'x-access-level': 'superadmin',
         },
@@ -95,7 +94,7 @@ export const citiesPaths: Paths = {
                     content: { 'application/json': { schema: CitySchema } },
                 },
                 400: invalidRequestOrMessageResponse('Invalid city data, form data or boundary GeoJSON'),
-                401: errorResponseOf('Unauthorized — admin access required for this city'),
+                401: notAuthorizedResponse,
             },
             'x-access-level': 'admin',
         },
@@ -110,7 +109,7 @@ export const citiesPaths: Paths = {
                     description: 'City deleted',
                     content: { 'application/json': { schema: MessageSchema } },
                 },
-                401: errorResponseOf('Unauthorized — admin access required for this city'),
+                401: notAuthorizedResponse,
             },
             'x-access-level': 'admin',
         },

@@ -3,8 +3,7 @@ import { sessionAuthRequirement, MessageSchema, cityIdParam, editAuthResponses, 
 import { PartySchema, PartyWithPeopleSchema } from '@/lib/openapi/entities';
 import { partyFormDataSchema } from '@/lib/zod-schemas/party';
 
-// POST/PUT request — multipart/form-data. The validation schema of the
-// handlers; the logo renders as binary.
+// POST/PUT request — multipart/form-data.
 const PartyRequestSchema = partyFormDataSchema.meta({ id: 'PartyRequest' });
 
 // --- Routes ---

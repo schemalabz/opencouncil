@@ -66,8 +66,6 @@ const MeetingDataSchema = z.object({
 
 // --- Request Schemas ---
 
-// The validation schema of the route handler. A transformed field (date)
-// renders as the string the caller sends.
 const CreateMeetingSchema = meetingSchema.meta({ id: 'CreateMeeting' });
 
 // Update reuses the same source but drops the create-only fields the PUT handler
@@ -90,6 +88,7 @@ export const meetingsPaths: Paths = {
                     content: { 'application/json': { schema: z.array(MeetingWithSubjectsSchema) } },
                 },
                 400: invalidRequestResponse('Invalid query parameters'),
+                ...editAuthResponses,
                 500: errorResponseOf('Server error'),
             },
         },
@@ -109,7 +108,7 @@ export const meetingsPaths: Paths = {
                     content: { 'application/json': { schema: MeetingCreatedSchema } },
                 },
                 400: invalidRequestResponse('Invalid meeting data'),
-                401: errorResponseOf('Unauthorized — authentication required'),
+                ...editAuthResponses,
                 422: lifecycleRuleResponse,
                 // Note: no 409 is documented. The handler auto-generates a unique
                 // meetingId when omitted (retrying on collision), and a client-supplied

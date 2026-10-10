@@ -1,7 +1,6 @@
 import { sessionAuthRequirement, SuccessSchema, cityIdParam, editAuthResponses, errorResponseOf, invalidRequestOrMessageResponse, type Paths } from '@/lib/openapi/registry';
 import { electedOrderRequestSchema } from '@/lib/zod-schemas/role';
 
-// The validation schema of the handler.
 const ElectedOrderRequestSchema = electedOrderRequestSchema.meta({ id: 'ElectedOrderRequest' });
 
 export const rolesPaths: Paths = {

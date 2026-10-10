@@ -5,8 +5,10 @@
 // It is the person's own write: it reads its user here rather than taking one,
 // so no caller can name another.
 import "server-only";
-import { AdministrativeBody, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import prisma from "./prisma";
+import { withParsedConventions } from "@/lib/db/administrativeBodies";
+import type { AdministrativeBodyWithSettings } from "@/lib/db/types";
 import { getCurrentUser, withUserAuthorizedToEdit } from "@/lib/auth";
 import { decisionConventionsSchema, type DecisionConventions } from "@/lib/decisionConventions";
 
@@ -19,7 +21,7 @@ import { decisionConventionsSchema, type DecisionConventions } from "@/lib/decis
  * neither can be supplied by a caller. Both were the route's business while this
  * lived among the Server Actions, where the route was only one of the ways in.
  */
-export async function confirmDecisionConventions(id: string, conventions: unknown): Promise<AdministrativeBody> {
+export async function confirmDecisionConventions(id: string, conventions: unknown): Promise<AdministrativeBodyWithSettings> {
     const parsed = decisionConventionsSchema.parse(conventions);
     const user = await getCurrentUser();
     if (!user) throw new Error('Not authenticated');
@@ -29,8 +31,8 @@ export async function confirmDecisionConventions(id: string, conventions: unknow
         ...parsed,
         provenance: { ...parsed.provenance, source: 'manual', confirmedBy: user.id, confirmedAt: new Date().toISOString() },
     };
-    return prisma.administrativeBody.update({
+    return withParsedConventions(await prisma.administrativeBody.update({
         where: { id },
         data: { decisionConventions: value as unknown as Prisma.InputJsonValue },
-    });
+    }));
 }
