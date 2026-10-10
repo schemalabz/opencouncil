@@ -13,6 +13,7 @@ import { Result, createSuccess, createError } from "@/lib/result";
 import { PHONE_IN_USE_CODE, PHONE_REJECTION_CODES, normalizeMobilePhone } from "@/lib/utils/phone";
 import { phoneBelongsToAnotherUser, setAccountPhone } from "./phoneVerification";
 import { NotFoundError } from "@/lib/api/errors";
+import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
 import { sendPetitionReceivedAdminAlert, sendUserOnboardedAdminAlert, sendNotificationSignupAdminAlert } from "@/lib/discord";
 import { matchUsersToSubjects } from "@/lib/notifications/matching";
 import { generateEmailContent } from "@/lib/notifications/content";
@@ -760,7 +761,7 @@ export async function createNotificationsForMeeting(
                     }
                 },
                 city: true,
-                administrativeBody: true
+                administrativeBody: publicAdministrativeBodyRelation
             }
         });
 
@@ -1012,7 +1013,7 @@ export async function getPendingDeliveries(notificationIds: string[]) {
                     city: true,
                     meeting: {
                         include: {
-                            administrativeBody: true
+                            administrativeBody: publicAdministrativeBodyRelation
                         }
                     },
                     subjects: {
@@ -1629,7 +1630,7 @@ export async function getNotificationForView(id: string) {
                 city: true,
                 meeting: {
                     include: {
-                        administrativeBody: true
+                        administrativeBody: publicAdministrativeBodyRelation
                     }
                 },
                 subjects: {

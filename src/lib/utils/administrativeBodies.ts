@@ -1,11 +1,11 @@
 import { PersonWithRelations } from '../db/people';
-import { AdministrativeBody, AdministrativeBodyType } from '@prisma/client';
+import { AdministrativeBodyType } from '@prisma/client';
 import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { hasCityLevelRole, isRoleActive } from './roles';
 
 /** Minimal type for meetings - only what we need for extracting admin bodies */
 type MeetingWithAdminBody = {
-    administrativeBody: AdministrativeBody | null;
+    administrativeBody: PublicAdministrativeBody | null;
 };
 
 /** Canonical ordering for admin body types */

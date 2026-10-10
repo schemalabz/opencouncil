@@ -18,7 +18,8 @@ import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { roleDatesInOrder, roleDatesInOrderIssue } from "@/lib/zod-schemas/role"
 import { Loader2, Pencil, Trash2 } from "lucide-react"
-import { Party, AdministrativeBody } from '@prisma/client'
+import { Party } from '@prisma/client'
+import type { PublicAdministrativeBody } from '@/lib/db/types'
 import { RoleWithRelations } from '@/lib/db/types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -58,7 +59,7 @@ interface RolesListProps {
     cityId: string;
     roles: RoleWithRelations[];
     parties: Party[];
-    administrativeBodies: AdministrativeBody[];
+    administrativeBodies: PublicAdministrativeBody[];
     onUpdate: (roles: RoleWithRelations[]) => void;
 }
 

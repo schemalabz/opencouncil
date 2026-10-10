@@ -4,6 +4,7 @@ import { releaseNotifications } from '@/lib/notifications/deliver';
 import { sendNotificationsSentAdminAlert } from '@/lib/discord';
 import prisma from '@/lib/db/prisma';
 import { meetingLabel } from '@/lib/meetingName';
+import { meetingNameSelect } from '@/lib/db/types';
 
 export async function POST(request: NextRequest) {
     await withUserAuthorizedToEdit({});
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     // Look up meeting/city context from the notifications being released
     const notification = await prisma.notification.findFirst({
         where: { id: { in: notificationIds } },
-        include: { city: true, meeting: { include: { administrativeBody: true } } }
+        include: { city: true, meeting: { include: { administrativeBody: meetingNameSelect.administrativeBody } } }
     });
 
     const result = await releaseNotifications(notificationIds);

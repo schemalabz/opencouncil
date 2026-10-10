@@ -8,6 +8,7 @@ import { UnauthorizedError } from "../api/errors";
 import { getRealm } from "../realm.server";
 import { createCityDirect } from "./citiesAdmin";
 import { CUSTOMER_CITY_WHERE, OUT_OF_NETWORK_CITY_WHERE, PUBLIC_CITY_WHERE } from "../cityStatus";
+import { publicAdministrativeBodyRelation, roleWithRelationsInclude } from "./types";
 import {
     PETITION_DISPLAY_THRESHOLD,
     buildPetitionedCities,
@@ -428,20 +429,14 @@ export async function getFullCity(
                             }
                         }
                     },
-                    administrativeBody: true
+                    administrativeBody: publicAdministrativeBodyRelation
                 }
             },
             parties: true,
             persons: {
                 include: {
                     speakerTags: true,
-                    roles: {
-                        include: {
-                            party: true,
-                            city: true,
-                            administrativeBody: true
-                        }
-                    }
+                    roles: roleWithRelationsInclude
                 }
             },
             administrators: {

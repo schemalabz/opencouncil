@@ -13,7 +13,7 @@ import { MEETING_PREVIEW_CACHE_VERSION } from "@/lib/db/types";
 import { getPartiesForCity } from "@/lib/db/parties";
 import { getPeopleForCity } from "@/lib/db/people";
 import { getSubjectCountForCity, getSubjectsForMeeting, SubjectWithRelations } from "@/lib/db/subject";
-import { getAdministrativeBodiesForCity, getAdministrativeBodiesWithPublicMeetings } from "@/lib/db/administrativeBodies";
+import { getPublicAdministrativeBodiesForCity, getAdministrativeBodiesWithPublicMeetings } from "@/lib/db/administrativeBodies";
 import { getMeetingStatus } from "@/lib/meetingStatus";
 import { getBatchStatisticsForSubjects, Statistics } from "@/lib/statistics";
 import { createCache } from "./index";
@@ -245,11 +245,12 @@ export async function getPeopleForCityCached(cityId: string) {
 }
 
 /**
- * Cached version of getAdministrativeBodiesForCity that fetches and caches all administrative bodies for a city
+ * Cached version of getPublicAdministrativeBodiesForCity: every administrative
+ * body of a city, with the fields anyone may read.
  */
 export async function getAdministrativeBodiesForCityCached(cityId: string) {
   return createCache(
-    () => getAdministrativeBodiesForCity(cityId),
+    () => getPublicAdministrativeBodiesForCity(cityId),
     ['city', cityId, 'administrativeBodies'],
     { tags: ['city', `city:${cityId}`, `city:${cityId}:administrativeBodies`] }
   )();

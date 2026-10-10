@@ -5,9 +5,20 @@ import "server-only";
 import { AdministrativeBody } from '@prisma/client';
 import prisma from "./prisma";
 import { withUserAuthorizedToEdit } from "../auth";
-import { publicAdministrativeBodySelect, type PublicAdministrativeBody } from "./types/administrativeBody";
+import {
+    administrativeBodySettingsSelect,
+    publicAdministrativeBodySelect,
+    type AdministrativeBodySettings,
+    type PublicAdministrativeBody,
+} from "./types/administrativeBody";
 
+/**
+ * Every administrative body of a city with all its settings (contact emails,
+ * Diavgeia units, conventions). Throws unless the session edits the city. A
+ * public read uses {@link getPublicAdministrativeBodiesForCity}.
+ */
 export async function getAdministrativeBodiesForCity(cityId: string): Promise<AdministrativeBody[]> {
+    await withUserAuthorizedToEdit({ cityId });
     try {
         const administrativeBodies = await prisma.administrativeBody.findMany({
             where: { cityId },
@@ -68,6 +79,20 @@ export async function getAdministrativeBodiesWithPublicMeetings(cityId: string):
         console.error('Error fetching administrative bodies with public meetings:', error);
         throw new Error('Failed to fetch administrative bodies');
     }
+}
+
+/**
+ * The settings of the body that holds a meeting, for the meeting's admin page
+ * and decisions page. Throws unless the session edits the city. Null when the
+ * meeting has no body.
+ */
+export async function getMeetingBodySettings(cityId: string, meetingId: string): Promise<AdministrativeBodySettings | null> {
+    await withUserAuthorizedToEdit({ cityId });
+    const meeting = await prisma.councilMeeting.findUnique({
+        where: { cityId_id: { cityId, id: meetingId } },
+        select: { administrativeBody: { select: administrativeBodySettingsSelect } },
+    });
+    return meeting?.administrativeBody ?? null;
 }
 
 export async function createAdministrativeBody(bodyData: Omit<AdministrativeBody, 'id' | 'createdAt' | 'updatedAt' | 'decisionConventions' | 'place'> & { place?: string | null }): Promise<AdministrativeBody> {

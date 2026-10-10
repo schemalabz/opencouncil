@@ -8,6 +8,7 @@ import prisma from "./prisma";
 import { meetingBodyTypeWhere } from "./meetingBodyFilter";
 import { TAKES_PLACE_WHERE } from "@/lib/meetingLifecycleRules";
 import { DECISION_KIND_SELECT } from "@/lib/tasks/pollDecisionsBackoff";
+import { publicAdministrativeBodyRelation } from "./types/administrativeBody";
 
 const meetingWithSubjectsInclude = {
     subjects: {
@@ -21,7 +22,7 @@ const meetingWithSubjectsInclude = {
             _count: { select: { contributions: true } },
         },
     },
-    administrativeBody: true,
+    administrativeBody: publicAdministrativeBodyRelation,
     continuationOf: DECISION_KIND_SELECT.continuationOf,
 } satisfies Prisma.CouncilMeetingInclude;
 
@@ -56,7 +57,7 @@ const meetingWithSubjectPreviewInclude = {
             _count: { select: { contributions: true } },
         },
     },
-    administrativeBody: true,
+    administrativeBody: publicAdministrativeBodyRelation,
     // The public stage (lib/meetingStage.ts) reads which pipeline tasks have
     // succeeded. Whether segments exist at all — an imported transcript has no
     // task row — is counted per listed meeting below, not as a relation

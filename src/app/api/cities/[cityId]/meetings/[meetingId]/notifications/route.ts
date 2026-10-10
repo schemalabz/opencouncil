@@ -5,6 +5,7 @@ import { releaseNotifications } from '@/lib/notifications/deliver';
 import { sendNotificationsCreatedAdminAlert, sendNotificationsSentAdminAlert } from '@/lib/discord';
 import prisma from '@/lib/db/prisma';
 import { meetingLabelInCity } from '@/lib/meetingName';
+import { meetingNameSelect } from '@/lib/db/types';
 
 export async function POST(
     request: NextRequest,
@@ -55,7 +56,7 @@ export async function POST(
         where: { cityId_id: { cityId: params.cityId, id: params.meetingId } },
         include: {
             city: true,
-            administrativeBody: true,
+            administrativeBody: meetingNameSelect.administrativeBody,
         }
     });
 

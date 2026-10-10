@@ -1,5 +1,6 @@
 import { Prisma, SpeakerContribution } from '@prisma/client';
 import type { PersonWithRelations } from '../people';
+import { publicAdministrativeBodyRelation } from './administrativeBody';
 
 /**
  * The subject fields a contribution card reads: its agenda position, its topic
@@ -17,7 +18,7 @@ export const contributionSubjectSelect = {
     withdrawn: true,
     topic: true,
     councilMeeting: {
-        include: { administrativeBody: true },
+        include: { administrativeBody: publicAdministrativeBodyRelation },
     },
 } satisfies Prisma.SubjectSelect;
 

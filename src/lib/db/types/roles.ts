@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { publicAdministrativeBodyRelation } from './administrativeBody';
 
 export interface ElectedOrderRanking {
     roleId: string;
@@ -8,7 +9,7 @@ export interface ElectedOrderRanking {
 export const roleWithRelationsInclude = {
     include: {
         party: true,
-        administrativeBody: true,
+        administrativeBody: publicAdministrativeBodyRelation,
         city: true,
     }
 } satisfies Prisma.RoleDefaultArgs;

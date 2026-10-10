@@ -1,7 +1,8 @@
 "use client";
 import { useLocale, useTranslations } from 'next-intl';
 import { captureEvent } from '@/lib/analytics/capture';
-import { City, Party, AdministrativeBody, Topic } from '@prisma/client';
+import { City, Party, Topic } from '@prisma/client';
+import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { Button } from '../ui/button';
 import FormSheet from '../FormSheet';
 import PersonForm from './PersonForm';
@@ -45,7 +46,7 @@ export default function PersonC({ city, person, parties, administrativeBodies, s
     city: City,
     person: PersonWithRelations,
     parties: Party[],
-    administrativeBodies: AdministrativeBody[],
+    administrativeBodies: PublicAdministrativeBody[],
     statistics: Statistics,
     contributionTopics: Topic[],
 }) {

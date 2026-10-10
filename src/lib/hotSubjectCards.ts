@@ -1,4 +1,5 @@
-import type { AdministrativeBody, AdministrativeBodyType, MeetingKind, NonAgendaReason, Topic } from '@prisma/client';
+import type { AdministrativeBodyType, MeetingKind, NonAgendaReason, Topic } from '@prisma/client';
+import type { PublicAdministrativeBody } from '@/lib/db/types';
 import { bodyFilterKey, createCache } from '@/lib/cache';
 import { getBatchStatisticsForSubjects } from '@/lib/statistics';
 import { getSubjectCardExtras } from '@/lib/db/subject';
@@ -29,7 +30,7 @@ export interface HotCardMeeting {
     /** Always a Date. A cache hit hands back an ISO string, which getHotSubjectCardsCached
      *  restores before it returns — so a reader can call Date methods on this. */
     dateTime: Date;
-    administrativeBody: AdministrativeBody | null;
+    administrativeBody: PublicAdministrativeBody | null;
 }
 
 /**

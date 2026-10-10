@@ -1,5 +1,6 @@
 import type { estypes } from '@elastic/elasticsearch';
-import { AdministrativeBody, AdministrativeBodyType, City, CouncilMeeting } from "@prisma/client";
+import { AdministrativeBodyType, City, CouncilMeeting } from "@prisma/client";
+import type { PublicAdministrativeBody } from "@/lib/db/types";
 import { MATCH_FIELDS } from "./constants";
 import { SubjectWithRelations } from "@/lib/db/subject";
 import { SegmentWithRelations } from "@/lib/db/speakerSegments";
@@ -96,7 +97,7 @@ export type SearchResultLight = SubjectWithRelations & {
     matches?: SearchMatches;
     councilMeeting: CouncilMeeting & {
         city: City;
-        administrativeBody: AdministrativeBody | null;
+        administrativeBody: PublicAdministrativeBody | null;
     };
 };
 

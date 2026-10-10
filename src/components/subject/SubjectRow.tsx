@@ -1,4 +1,5 @@
-import { AdministrativeBody, City, CouncilMeeting } from "@prisma/client";
+import { City, CouncilMeeting } from "@prisma/client";
+import type { PublicAdministrativeBody } from "@/lib/db/types";
 import { useSubjectBarHover } from '@/components/meetings/bar/BarHighlightContext';
 import { Statistics } from "@/lib/statistics";
 import { SubjectWithRelations } from "@/lib/db/subject";
@@ -27,7 +28,7 @@ import { meetingDisplayName } from '@/lib/meetingName';
 interface SubjectRowProps {
     subject: SubjectWithRelations & { statistics?: Statistics; matches?: SearchMatches };
     city: City;
-    meeting: CouncilMeeting & { administrativeBody?: AdministrativeBody | null };
+    meeting: CouncilMeeting & { administrativeBody?: PublicAdministrativeBody | null };
     /** Show the city / body / date line — off when the row already sits inside a meeting. */
     showContext?: boolean;
     /** What a row says in place of the stats it does not have yet — the meeting's stage decides. */

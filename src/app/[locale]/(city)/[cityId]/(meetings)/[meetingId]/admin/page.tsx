@@ -1,5 +1,6 @@
 import Admin from "@/components/meetings/admin/Admin";
 import { isUserAuthorizedToEdit } from "@/lib/auth";
+import { getMeetingBodySettings } from "@/lib/db/administrativeBodies";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 
@@ -17,14 +18,15 @@ export default async function AdminPage(props: {
     // for anyone — and a layout guard would not re-run on an RSC navigation
     // anyway. Gate here, at city-admin scope (not superadmin), so the check
     // fires on every render path. `notFound()` hides the page's existence.
-    const { cityId } = await props.params;
+    const { cityId, meetingId } = await props.params;
     if (!(await isUserAuthorizedToEdit({ cityId }))) {
         notFound();
     }
+    const bodySettings = await getMeetingBodySettings(cityId, meetingId);
 
     return (
         <div className="container py-8">
-            <Admin />
+            <Admin bodySettings={bodySettings} />
         </div>
     );
 }

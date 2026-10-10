@@ -9,7 +9,7 @@ import { getCouncilMeetingsWithSubjectPreview } from '@/lib/db/meetingsList';
 import { getPeopleForCity, getPerson, type PersonWithRelations } from '@/lib/db/people';
 import { getPartiesForCity, getParty } from '@/lib/db/parties';
 import {
-    getAdministrativeBodiesForCity,
+    getPublicAdministrativeBodiesForCity,
     getAdministrativeBodiesWithPublicMeetings,
 } from '@/lib/db/administrativeBodies';
 import { getSubject, getDiscussionSecondsForSubjects, getHotSubjectsCached } from '@/lib/db/subject';
@@ -23,7 +23,7 @@ import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } fro
 import { canSeeUnreleased, requirePublicTranscript, requireVisibleMeeting } from './gate';
 import { assertCitiesInRealm, requireCityBodies, requireRealmBodies, requireRealmCity } from './realmGuards';
 import { getRoleLabelAt, RoleTextTranslator } from '@/lib/utils/roles';
-import { roleWithRelationsInclude } from '@/lib/db/types';
+import { publicAdministrativeBodyRelation, roleWithRelationsInclude } from '@/lib/db/types';
 import { getTranslations } from 'next-intl/server';
 import {
     renderOptionsFromRequestBody,
@@ -184,7 +184,7 @@ export async function mcpGetCity(cityId: string, identity: McpIdentity) {
     // meetings are all drafts would be a dead filter option for anyone who
     // cannot see drafts — offer it only to the callers who can.
     const administrativeBodies = includeUnreleased
-        ? await getAdministrativeBodiesForCity(cityId)
+        ? await getPublicAdministrativeBodiesForCity(cityId)
         : await getAdministrativeBodiesWithPublicMeetings(cityId);
 
     return {
@@ -345,7 +345,7 @@ export async function mcpGetMeeting(cityId: string, meetingId: string, identity:
     const meeting = await prisma.councilMeeting.findUnique({
         where: { cityId_id: { cityId, id: meetingId } },
         include: {
-            administrativeBody: true,
+            administrativeBody: publicAdministrativeBodyRelation,
             city: { select: { timezone: true } },
             subjects: {
                 orderBy: [{ agendaSectionIndex: { sort: 'asc', nulls: 'first' } }, { agendaItemIndex: 'asc' }, { name: 'asc' }],
