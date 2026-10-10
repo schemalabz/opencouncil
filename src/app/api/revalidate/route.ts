@@ -2,14 +2,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { isUserAuthorizedToEdit } from '@/lib/auth';
 import * as z from 'zod';
-
-const revalidateSchema = z.object({
-    tags: z.array(z.string()).optional(),
-    paths: z.array(z.object({
-        path: z.string(),
-        type: z.enum(['page', 'layout']).optional()
-    })).optional()
-});
+import { revalidateRequestSchema } from '@/lib/zod-schemas/revalidate';
 
 export async function POST(request: Request) {
     if (!await isUserAuthorizedToEdit({})) {
@@ -18,7 +11,7 @@ export async function POST(request: Request) {
 
     try {
         const body = await request.json();
-        const { tags, paths } = revalidateSchema.parse(body);
+        const { tags, paths } = revalidateRequestSchema.parse(body);
 
         const revalidatedTags: string[] = [];
         const revalidatedPaths: string[] = [];

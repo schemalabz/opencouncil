@@ -1,0 +1,23 @@
+import * as z from 'zod';
+import { webUrl } from './primitives';
+
+/** JSON body of PUT /decisions: link a decision to a subject of the meeting. */
+export const decisionUpsertSchema = z.object({
+    subjectId: z.string().min(1),
+    pdfUrl: webUrl({ error: 'pdfUrl must be http(s)' }),
+    decisionNumber: z.string().optional(),
+    protocolNumber: z.string().optional(),
+    ada: z.string().optional(),
+    title: z.string().optional(),
+    publishDate: z.iso.datetime().optional(),
+});
+
+/** JSON body of POST /decisions: one action on the decisions of the meeting. */
+export const decisionActionSchema = z.discriminatedUnion('action', [
+    z.object({ action: z.literal('clearExtractedData') }),
+    z.object({ action: z.literal('resetExtraction'), subjectId: z.string().min(1) }),
+    z.object({ action: z.literal('assignCandidate'), candidateId: z.string().min(1), subjectId: z.string().min(1) }),
+    z.object({ action: z.literal('dismissCandidate'), candidateId: z.string().min(1) }),
+    z.object({ action: z.literal('undismissCandidate'), candidateId: z.string().min(1) }),
+    z.object({ action: z.literal('rederive') }),
+]);

@@ -32,3 +32,12 @@ export function roleDatesInOrder(role: { startDate: Date | null; endDate: Date |
 }
 
 export const roleDatesInOrderIssue = { error: 'The end date must not be before the start date.', path: ['endDate'] };
+
+/** JSON body of POST /roles/elected-order: the elected order of the members of one body. */
+export const electedOrderRequestSchema = z.object({
+    administrativeBodyId: z.string().min(1),
+    rankings: z.array(z.object({
+        roleId: z.string().min(1),
+        electedOrder: electedOrderSchema,
+    })),
+});

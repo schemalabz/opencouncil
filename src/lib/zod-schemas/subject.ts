@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { NonAgendaReason } from '@prisma/client';
 import { isCalendarDay } from '@/lib/utils/date';
 import { isoDateOrDateTime, stringBoolean } from './primitives';
 
@@ -19,13 +20,29 @@ const dateParam = (label: string, endOfDay = false) => isoDateOrDateTime({ error
     .transform(val => new Date(endOfDay && isCalendarDay(val) ? `${val}T23:59:59.999Z` : val));
 
 /**
+ * Whether a listing includes unreleased content. The routes that take it
+ * authorize the caller before they read with it.
+ */
+export const includeUnreleasedQuery = stringBoolean.default(false).meta({
+    description: 'Include unreleased meetings and their subjects, and a city that is not published. '
+        + 'Requires an authorized session for the city, or a service key.',
+    example: 'true',
+});
+
+/**
  * Query parameters of the subject listings. The routes parse
  * `searchParams`, so every field arrives as a string.
  */
 export const subjectListQuerySchema = z.object({
-    introducerId: z.string().min(1).optional(),
-    from: dateParam('from').optional(),
-    to: dateParam('to', true).optional(),
+    introducerId: z.string().min(1).optional().meta({ description: 'Return only subjects introduced by this person.' }),
+    from: dateParam('from').optional().meta({
+        description: 'Earliest meeting date, inclusive (ISO 8601).',
+        example: '2025-01-01',
+    }),
+    to: dateParam('to', true).optional().meta({
+        description: 'Latest meeting date, inclusive (ISO 8601). A date with no time of day covers the whole day.',
+        example: '2025-12-31',
+    }),
     // The whole string must be digits: parseInt alone reads `10abc` as 10 and
     // `1.5` as 1, so malformed input would silently return a page of data
     // instead of the documented validation error.
@@ -35,8 +52,12 @@ export const subjectListQuerySchema = z.object({
         .transform(val => val ? parseInt(val, 10) : DEFAULT_SUBJECT_LIMIT)
         .refine(val => val >= 1 && val <= MAX_SUBJECT_LIMIT, {
             error: `Limit must be a whole number between 1 and ${MAX_SUBJECT_LIMIT}`,
+        })
+        .meta({
+            description: `Maximum number of subjects to return (1-${MAX_SUBJECT_LIMIT}). Defaults to ${DEFAULT_SUBJECT_LIMIT}.`,
+            example: '20',
         }),
-    includeUnreleased: stringBoolean.default(false),
+    includeUnreleased: includeUnreleasedQuery,
 });
 
 /**
@@ -44,3 +65,15 @@ export const subjectListQuerySchema = z.object({
  * date range.
  */
 export const meetingSubjectListQuerySchema = subjectListQuerySchema.omit({ from: true, to: true });
+
+/** Query parameters of a single subject. */
+export const subjectQuerySchema = subjectListQuerySchema.pick({ includeUnreleased: true });
+
+/**
+ * JSON body of PATCH /subjects/{subjectId}: the agenda flags of a subject.
+ * Strict, so a misspelt flag is a 400 rather than a write that does nothing.
+ */
+export const subjectAgendaFlagsSchema = z.strictObject({
+    nonAgendaReason: z.enum(NonAgendaReason).nullable().optional(),
+    withdrawn: z.boolean().optional(),
+});

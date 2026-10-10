@@ -6,28 +6,9 @@ import { withServiceOrUserAuth } from '@/lib/auth';
 import { createMeetingWithEffects } from '@/lib/meetingWrites';
 import { handleApiError } from '@/lib/api/errors';
 import { getCityNameEnAndTimezone } from '@/lib/db/citiesAdmin';
-import { meetingSchema } from '@/lib/zod-schemas/meeting';
+import { meetingListQuerySchema, meetingSchema } from '@/lib/zod-schemas/meeting';
 import { hideLinks, toPublicApiMeeting } from '@/lib/meetingPublic';
 import { DEFAULT_TIMEZONE } from '@/lib/formatters/time';
-import { stringBoolean } from '@/lib/zod-schemas/primitives';
-
-const getMeetingsQuerySchema = z.object({
-    limit: z.string()
-        .optional()
-        .transform((val) => val ? parseInt(val, 10) : undefined)
-        .refine((val) => val === undefined || (!isNaN(val) && val >= 1 && val <= 100), {
-            error: "Limit must be a number between 1 and 100"
-        }),
-    from: z.string()
-        .optional()
-        .refine((val) => !val || !isNaN(new Date(val).getTime()), { error: "Invalid 'from' date" })
-        .transform((val) => val ? new Date(val) : undefined),
-    to: z.string()
-        .optional()
-        .refine((val) => !val || !isNaN(new Date(val).getTime()), { error: "Invalid 'to' date" })
-        .transform((val) => val ? new Date(val) : undefined),
-    includeUnreleased: stringBoolean.default(false),
-});
 
 export async function POST(request: NextRequest, props: { params: Promise<{ cityId: string }> }) {
     const params = await props.params;
@@ -58,7 +39,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ cityI
         const { searchParams } = request.nextUrl;
         const queryParams = Object.fromEntries(searchParams.entries());
 
-        const { limit, from, to, includeUnreleased } = getMeetingsQuerySchema.parse(queryParams);
+        const { limit, from, to, includeUnreleased } = meetingListQuerySchema.parse(queryParams);
 
         // includeUnreleased requires auth (service key or authorized user)
         if (includeUnreleased) {

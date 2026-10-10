@@ -33,7 +33,8 @@ export type PartyFormInput = z.input<typeof partyFormSchema>;
 // FormData body of POST /parties and PUT /parties/{partyId}
 export const partyFormDataSchema = z.object({
     ...basePartyFields,
-    logo: logoFile().optional(),
-    // PUT only: remove the current logo when no new one is sent
-    removeLogo: stringBoolean.default(false),
+    logo: logoFile().optional().meta({ description: 'Logo image file' }),
+    removeLogo: stringBoolean.default(false).meta({
+        description: 'PUT only: "true" removes the current logo when no new one is sent. Defaults to false.',
+    }),
 });
