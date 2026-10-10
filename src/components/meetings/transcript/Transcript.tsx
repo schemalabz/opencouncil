@@ -1,7 +1,7 @@
 "use client";
 import SpeakerSegment from "./SpeakerSegment";
 import { useEffect, useRef, useMemo, useState } from 'react';
-import { useVideo } from "../VideoProvider";
+import { useVideoActions } from "../VideoProvider";
 import { debounce, joinTranscriptSegments } from '@/lib/utils';
 import { useCouncilMeetingData } from "../CouncilMeetingDataContext";
 import { Clock, ScrollText } from "lucide-react";
@@ -36,7 +36,9 @@ export default function Transcript() {
     const { options } = useTranscriptOptions();
     const tTranscript = useTranslations('transcript');
     const t = useTranslations('Common');
-    const { setCurrentScrollInterval } = useVideo();
+    // The actions context, not the reactive one: this component must not
+    // re-render on every playback tick just to hold the setter.
+    const { setCurrentScrollInterval } = useVideoActions();
     const { enterEditMode, editingHighlight } = useHighlight();
     const containerRef = useRef<HTMLDivElement>(null);
     const [bannerHeight, setBannerHeight] = useState(BANNER_HEIGHT_FULL);
@@ -191,7 +193,7 @@ export default function Transcript() {
                 <div ref={containerRef} data-excerpt-root role="list" aria-label={t('transcript')}>
                 {displayedSegments.map((segment, index: number) => (
                     <div
-                        key={index}
+                        key={segment.id}
                         id={createSegmentId(index)}
                         className="content-visibility-auto"
                         role="listitem"

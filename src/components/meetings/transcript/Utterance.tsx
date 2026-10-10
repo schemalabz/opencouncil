@@ -10,7 +10,7 @@ import { editUtterance, updateUtteranceTimestamps } from "@/lib/db/utterance";
 import { useCouncilMeetingActions } from "../CouncilMeetingDataContext";
 import { Button } from "@/components/ui/button";
 import { Check, X, Trash2, Clock } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import {
     Tooltip,
     TooltipContent,
@@ -50,10 +50,14 @@ function getCaretOffsetFromClick(e: React.MouseEvent, maxOffset: number): number
     return Math.min(offset, maxOffset);
 }
 
-const UtteranceC: React.FC<{
-    utterance: Utterance,
-    onUpdate?: (updatedUtterance: Utterance) => void
-}> = React.memo(({ utterance, onUpdate }) => {
+interface UtteranceProps {
+    utterance: Utterance;
+    onUpdate?: (updatedUtterance: Utterance) => void;
+}
+
+// A named function, so the component shows up by name in React's profiler
+// measures; an anonymous memo body is logged under its nearest named ancestor.
+const UtteranceC = React.memo(function UtteranceC({ utterance, onUpdate }: UtteranceProps) {
     const { currentTimeRef, seekToWithoutScroll, togglePlayPause, seekTo } = useVideoActions();
     const { options } = useTranscriptOptions();
     const { editingHighlight, updateHighlightUtterances } = useHighlight();
@@ -73,7 +77,6 @@ const UtteranceC: React.FC<{
     const [editedText, setEditedText] = useState(utterance.text);
     const [editedStartTime, setEditedStartTime] = useState(utterance.startTimestamp);
     const [editedEndTime, setEditedEndTime] = useState(utterance.endTimestamp);
-    const { toast } = useToast();
     const t = useTranslations('transcript.utterance');
     const localize = useLocalizeText();
     const excerptHighlighted = useExcerptHighlighted(localUtterance.id);
@@ -284,8 +287,10 @@ const UtteranceC: React.FC<{
     }
 
     if (isEditing) {
+        // The id stays on the editor box, so a seek can still find and reveal
+        // the utterance while it is open for editing.
         return (
-            <div ref={setRootRef} className="relative w-full py-1 border border-blue-300 rounded-md p-2 bg-blue-50/30">
+            <div ref={setRootRef} id={localUtterance.id} className="relative w-full py-1 border border-blue-300 rounded-md p-2 bg-blue-50/30">
                 {/* Text Editor */}
                 <form onSubmit={handleEdit} className="relative">
                     <textarea
@@ -490,7 +495,5 @@ const UtteranceC: React.FC<{
 
     return utteranceSpan;
 });
-
-UtteranceC.displayName = 'UtteranceC';
 
 export default UtteranceC;

@@ -9,6 +9,7 @@ import { toast } from '@/hooks/use-toast';
 import { digestExcerpt, parseExcerptSelector, selectExcerptRuns, excerptSourceIsVisible, type ExcerptSource } from '@/lib/sharing/excerptSelector';
 import { subjectOfPassage } from '@/lib/sharing/passageSubject';
 import { captureSharingEvent } from '@/lib/analytics/sharing';
+import { revealUtterance } from '@/lib/utils/scrollAnchor';
 
 const NONE: ReadonlySet<string> = new Set();
 const sameIds = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every(id => b.has(id));
@@ -63,7 +64,7 @@ export function ExcerptRangeHighlight({ sources, rootRef, children }: { sources:
                 // Focus takes screen readers and keyboards to the passage too, not only the viewport.
                 element.tabIndex = -1;
                 element.focus({ preventScroll: true });
-                element.scrollIntoView({ block: 'center', behavior: 'instant' });
+                revealUtterance(element);
             });
         }).catch(() => { /* Unsupported browser crypto leaves the ordinary transcript available. */ });
         return () => { cancelled = true; };

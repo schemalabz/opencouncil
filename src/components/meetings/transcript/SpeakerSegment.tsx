@@ -1,14 +1,14 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { useSpeakerBarHover } from '@/components/meetings/bar/BarHighlightContext';
 import { useCouncilMeetingActions, useCouncilMeetingMeta } from "../CouncilMeetingDataContext";
 import { Transcript as TranscriptType } from '@/lib/db/transcript';
+import type { SpeakerEdit, SpeakerAssignmentScope } from '@/lib/db/speakerTags';
 import TopicBadge from './Topic';
 import { PersonBadge } from '@/components/persons/PersonBadge';
 import UtteranceC from "./Utterance";
 import { useTranscriptOptions } from "../options/OptionsContext";
 import { useSpeakerIdentifications } from "../SpeakerIdentificationsContext";
 import { listSpeakerSuggestions, speakerIdentificationsStatus } from '@/lib/speakerIdentifications';
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, FileJson, MessageSquarePlus, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { getPartyFromRoles, buildUnknownSpeakerLabel, UNKNOWN_SPEAKER_LABEL, formatTimestamp } from "@/lib/utils";
@@ -18,11 +18,26 @@ import { useLocalizeText } from '@/hooks/useLocalizeText';
 import SpeakerSegmentMetadataDialog from "./SpeakerSegmentMetadataDialog";
 import { useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { UNKNOWN_SPEAKER_COLOR } from '@/lib/utils';
 import { SegmentShareButton } from '@/components/sharing/SegmentShareButton';
 import { excerptSourceIsVisible } from '@/lib/sharing/excerptSelector';
+import { revealUtterance } from '@/lib/utils/scrollAnchor';
+
+// The new utterance is in the DOM only after React commits the updated
+// segment; both add paths have always allowed a beat for that. The click
+// opens the editor, which replaces the text span with a box that carries the
+// same id, and that box is what the reader needs to see.
+function openNewUtterance(utteranceId: string) {
+    setTimeout(() => {
+        document.getElementById(utteranceId)?.click();
+        requestAnimationFrame(() => {
+            const editor = document.getElementById(utteranceId);
+            if (editor) revealUtterance(editor);
+        });
+    }, 100);
+}
 
 const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     const { createEmptySegmentAfter } = useCouncilMeetingActions();
@@ -33,22 +48,16 @@ const AddSegmentButton = ({ segmentId }: { segmentId: string }) => {
     return (
         <div className="w-full h-2 group relative">
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 bg-white hover:bg-gray-100"
-                            onClick={() => createEmptySegmentAfter(segmentId)}
-                        >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Add new segment
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Add a new empty segment here</p>
-                    </TooltipContent>
-                </Tooltip>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 bg-white hover:bg-gray-100"
+                    onClick={() => createEmptySegmentAfter(segmentId)}
+                    title="Add a new empty segment here"
+                >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add new segment
+                </Button>
             </div>
         </div>
     );
@@ -67,22 +76,16 @@ const AddSegmentBeforeButton = ({ segmentId, isFirstSegment }: {
     return (
         <div className="w-full h-2 group relative">
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 bg-white hover:bg-gray-100"
-                            onClick={() => createEmptySegmentBefore(segmentId)}
-                        >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Add segment before
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Add a new empty segment before the first segment</p>
-                    </TooltipContent>
-                </Tooltip>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 bg-white hover:bg-gray-100"
+                    onClick={() => createEmptySegmentBefore(segmentId)}
+                    title="Add a new empty segment before the first segment"
+                >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add segment before
+                </Button>
             </div>
         </div>
     );
@@ -97,15 +100,7 @@ const EmptySegmentState = ({ segmentId }: { segmentId: string }) => {
         setIsLoading(true);
         try {
             const newUtteranceId = await addUtteranceToSegment(segmentId);
-            
-            // Focus on the new utterance after a short delay to ensure it's rendered
-            setTimeout(() => {
-                const utteranceElement = document.getElementById(newUtteranceId);
-                if (utteranceElement) {
-                    utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    utteranceElement.click(); // Trigger click to enter edit mode
-                }
-            }, 100);
+            openNewUtterance(newUtteranceId);
         } catch (error) {
             console.error('Failed to add utterance:', error);
         } finally {
@@ -140,15 +135,7 @@ const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
     const handleAddUtterance = async () => {
         try {
             const newUtteranceId = await addUtteranceToSegment(segmentId);
-            
-            // Focus on the new utterance after a short delay to ensure it's rendered
-            setTimeout(() => {
-                const utteranceElement = document.getElementById(newUtteranceId);
-                if (utteranceElement) {
-                    utteranceElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    utteranceElement.click(); // Trigger click to enter edit mode
-                }
-            }, 100);
+            openNewUtterance(newUtteranceId);
         } catch (error) {
             console.error('Failed to add utterance:', error);
         }
@@ -156,30 +143,25 @@ const AddUtteranceButton = ({ segmentId }: { segmentId: string }) => {
 
     return (
         <span className="inline-flex items-center group relative ml-1">
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-5 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/10 text-muted-foreground hover:text-primary"
-                        onClick={handleAddUtterance}
-                    >
-                        <Plus className="h-3.5 w-3.5" />
-                    </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>{t('tooltip')}</p>
-                </TooltipContent>
-            </Tooltip>
+            <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/10 text-muted-foreground hover:text-primary"
+                onClick={handleAddUtterance}
+                title={t('tooltip')}
+                aria-label={t('tooltip')}
+            >
+                <Plus className="h-3.5 w-3.5" />
+            </Button>
         </span>
     );
 };
 
-const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }: {
+const SpeakerSegment = React.memo(function SpeakerSegment({ segment, isFirstSegment, canShare = false }: {
     segment: TranscriptType[number],
     isFirstSegment?: boolean,
     canShare?: boolean
-}) => {
+}) {
     // useCouncilMeetingMeta() — not useCouncilMeetingData() — so this
     // component bails on transcript-only edits.
     const { getPerson, getSpeakerTag, getSpeakerSegmentCount, people, speakerTags, meeting } = useCouncilMeetingMeta();
@@ -189,7 +171,15 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
     const { assignSpeaker, deleteEmptySegment } = useCouncilMeetingActions();
     const { options } = useTranscriptOptions();
     const { data: session } = useSession();
-    const { toast } = useToast();
+    // Stable, so the memoized PersonBadge skips transcript-wide re-renders.
+    const handleAssign = useCallback(
+        (assignment: SpeakerEdit, scope: SpeakerAssignmentScope) => assignSpeaker(segment.id, assignment, scope),
+        [assignSpeaker, segment.id],
+    );
+    const shareableUtteranceIds = useMemo(
+        () => segment.utterances.filter(utterance => excerptSourceIsVisible(utterance, options.maxUtteranceDrift)).map(utterance => utterance.id),
+        [segment.utterances, options.maxUtteranceDrift],
+    );
     const tCopy = useTranslations('transcript.copySegment');
     const tCommon = useTranslations('Common');
     const tTranscript = useTranslations('transcript');
@@ -251,26 +241,28 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
     // Hovering the speaker's header lights all their turns on the playback bar.
     const speakerBarHover = useSpeakerBarHover(person?.id ?? null);
 
-    const utterances = segment.utterances;
-    if (!utterances) {
-        return null;
-    }
-
-    const isEmpty = utterances.length === 0;
-
-    const summary = segment.summary;
-
     // What the voiceprint match and the transcript each say about this speaker.
     // Empty outside editing mode, where identifications are never loaded.
-    const identifications = headerData.speakerTag ? getIdentifications(headerData.speakerTag.id) : [];
-    const speakerSuggestions = listSpeakerSuggestions(identifications).flatMap(({ personId, source, evidence }) => {
-        const suggested = getPerson(personId);
-        return suggested ? [{ person: suggested, source, reason: tHints(source), evidence }] : [];
-    });
+    const identifications = getIdentifications(segment.speakerTagId);
+    // Memoized so that the badge's `suggestions` prop keeps its identity across
+    // transcript-wide renders. `getPerson` reads through a ref, so `people` is
+    // the dependency that follows the roster.
+    const speakerSuggestions = useMemo(
+        () => listSpeakerSuggestions(identifications).flatMap(({ personId, source, evidence }) => {
+            const suggested = getPerson(personId);
+            return suggested ? [{ person: suggested, source, reason: tHints(source), evidence }] : [];
+        }),
+        [identifications, getPerson, people, tHints],
+    );
     const hintsStatus = speakerIdentificationsStatus(identifications);
     // A confident disagreement nobody has settled yet: the badge says so, and the
     // picker's two suggestions show who each method points to.
     const speakerWarning = headerData.speakerTag && needsReview(headerData.speakerTag.id) ? tHints('needsReview') : undefined;
+
+    const utterances = segment.utterances;
+    const isEmpty = utterances.length === 0;
+
+    const summary = segment.summary;
 
     const handleCopySegment = () => {
         // Copy what the reader sees: the displayed utterances are localized to
@@ -292,7 +284,8 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
             
             <div className='mb-2 sm:mb-6 flex flex-col items-start w-full rounded-r-lg hover:bg-accent/5 transition-colors border-l-[3px] sm:border-l-4' style={{ borderLeftColor: headerData.borderColor }}>
                 <div className='w-full'>
-                    <div 
+                    <div
+                        data-segment-header
                         className='sticky flex flex-row items-center justify-between w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30 transition-all duration-200'
                         style={{ top: 'var(--banner-offset, 0px)' }}
                     >
@@ -321,7 +314,7 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
                                                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
                                             </div>
                                         </button>
-                                        {canShare && !isEmpty && <SegmentShareButton utteranceIds={utterances.filter(utterance => excerptSourceIsVisible(utterance, options.maxUtteranceDrift)).map(utterance => utterance.id)} />}
+                                        {canShare && !isEmpty && <SegmentShareButton utteranceIds={shareableUtteranceIds} />}
                                     </div>
                                 )}
 
@@ -335,12 +328,9 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
                                                     speakerTag={headerData.speakerTag}
                                                     segmentCount={headerData.segmentCount}
                                                     editable={options.editable}
-                                                    onAssign={(assignment, scope) => assignSpeaker(segment.id, assignment, scope)}
+                                                    onAssign={handleAssign}
                                                     nextUnknownLabel={nextUnknownLabel}
-                                                    availablePeople={people.map(p => ({
-                                                        ...p,
-                                                        party: getPartyFromRoles(p.roles, meetingDate)
-                                                    }))}
+                                                    availablePeople={people}
                                                     suggestions={speakerSuggestions}
                                                     suggestionsHeading={hintsStatus ? tHints(`status.${hintsStatus}`) : undefined}
                                                     allPeopleHeading={tHints('allPeople')}
@@ -363,56 +353,40 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
                                         </Button>
                                         <div className='col-span-2 flex items-center gap-1 md:gap-2 shrink-0'>
                                             {options.editable && isEmpty && (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                            onClick={() => deleteEmptySegment(segment.id)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Delete empty segment</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={() => deleteEmptySegment(segment.id)}
+                                                    title="Delete empty segment"
+                                                    aria-label="Delete empty segment"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
                                             )}
                                             {isSuperAdmin && (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                                                            onClick={() => setMetadataDialogOpen(true)}
-                                                        >
-                                                            <FileJson className="h-4 w-4" />
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>View segment metadata</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                    onClick={() => setMetadataDialogOpen(true)}
+                                                    title="View segment metadata"
+                                                    aria-label="View segment metadata"
+                                                >
+                                                    <FileJson className="h-4 w-4" />
+                                                </Button>
                                             )}
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="size-11 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
-                                                        onClick={handleCopySegment}
-                                                        aria-label={tCopy('button')}
-                                                    >
-                                                        <Copy className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>{tCopy('button')}</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                            {canShare && !isEmpty && <SegmentShareButton utteranceIds={utterances.filter(utterance => excerptSourceIsVisible(utterance, options.maxUtteranceDrift)).map(utterance => utterance.id)} />}
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="size-11 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                onClick={handleCopySegment}
+                                                aria-label={tCopy('button')}
+                                                title={tCopy('button')}
+                                            >
+                                                <Copy className="h-4 w-4" />
+                                            </Button>
+                                            {canShare && !isEmpty && <SegmentShareButton utteranceIds={shareableUtteranceIds} />}
                                             <div className='ml-auto md:ml-0 flex items-center gap-2 text-[10px] sm:text-xs text-muted-foreground'>
                                                 <span className='font-medium whitespace-nowrap'>{formatTimestamp(segment.startTimestamp)}</span>
                                             </div>
@@ -463,15 +437,17 @@ const SpeakerSegment = React.memo(({ segment, isFirstSegment, canShare = false }
                 <AddSegmentButton segmentId={segment.id} />
             )}
 
-            <SpeakerSegmentMetadataDialog
-                segment={segment}
-                open={metadataDialogOpen}
-                onOpenChange={setMetadataDialogOpen}
-            />
+            {/* Mounted only while open: a closed Radix Dialog per segment is a
+                tree React has to visit on every transcript-wide render. */}
+            {metadataDialogOpen && (
+                <SpeakerSegmentMetadataDialog
+                    segment={segment}
+                    open
+                    onOpenChange={setMetadataDialogOpen}
+                />
+            )}
         </>
     );
 });
-
-SpeakerSegment.displayName = 'SpeakerSegment';
 
 export default SpeakerSegment;

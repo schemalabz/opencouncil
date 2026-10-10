@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { SpeakerTag } from '@prisma/client';
 import { PersonBadge } from '../PersonBadge';
 import { PersonWithRelations } from '@/lib/db/people';
@@ -62,9 +62,10 @@ const people: PersonWithRelations[] = [
     makePerson({ id: 'p2', name: 'Σαλαμανή' }),
 ];
 
-const renderBadge = (props: Partial<React.ComponentProps<typeof PersonBadge>> = {}) =>
+const renderBadge = (props: Partial<React.ComponentProps<typeof PersonBadge>> = {}, sibling?: React.ReactNode) =>
     render(
         <NextIntlClientProvider locale="en" messages={{ transcript }}>
+            {sibling}
             <PersonBadge
                 editable
                 speakerTag={speakerTag}
@@ -328,5 +329,44 @@ describe('PersonBadge speaker suggestions', () => {
 
         renderBadge({ warning: 'Methods disagree', editable: false });
         expect(screen.queryByText('Methods disagree')).not.toBeInTheDocument();
+    });
+});
+
+describe('PersonBadge picker focus', () => {
+    const outsideControl = <button type="button">outside</button>;
+    // Radix restores focus from a zero-delay timer after the picker unmounts.
+    const flushUnmountFocus = () => act(() => new Promise<void>(resolve => { setTimeout(resolve, 0); }));
+    const badge = () => screen.getByText('Speaker 1').closest('[role="button"]');
+
+    it('closes on a second press of the badge', () => {
+        renderBadge();
+        fireEvent.click(screen.getByText('Speaker 1'));
+        expect(screen.getByPlaceholderText('Search people...')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('Speaker 1'));
+
+        expect(screen.queryByPlaceholderText('Search people...')).not.toBeInTheDocument();
+    });
+
+    it('returns focus to the badge after Escape', async () => {
+        renderBadge({}, outsideControl);
+        fireEvent.click(screen.getByText('Speaker 1'));
+        fireEvent.keyDown(screen.getByPlaceholderText('Search people...'), { key: 'Escape' });
+        await waitFor(() => expect(screen.queryByPlaceholderText('Search people...')).not.toBeInTheDocument());
+        await flushUnmountFocus();
+
+        expect(document.activeElement).toBe(badge());
+    });
+
+    it('leaves focus on a control the reader moved to', async () => {
+        renderBadge({}, outsideControl);
+        fireEvent.click(screen.getByText('Speaker 1'));
+        const outside = screen.getByRole('button', { name: 'outside' });
+        act(() => { outside.focus(); });
+        fireEvent.focusIn(outside);
+        await waitFor(() => expect(screen.queryByPlaceholderText('Search people...')).not.toBeInTheDocument());
+        await flushUnmountFocus();
+
+        expect(document.activeElement).toBe(outside);
     });
 });

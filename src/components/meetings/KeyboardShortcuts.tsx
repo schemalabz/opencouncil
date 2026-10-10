@@ -1,15 +1,24 @@
 "use client";
 
-import { useVideo, useVideoActions } from './VideoProvider';
-import { useTranscriptOptions } from './options/OptionsContext';
+import { useMemo } from 'react';
+import { useVideoActions } from './VideoProvider';
+import { useTranscriptOptions, usePlaybackSpeed } from './options/OptionsContext';
 import { useCouncilMeetingData } from './CouncilMeetingDataContext';
 import { useKeyboardShortcut, ACTIONS } from '@/contexts/KeyboardShortcutsContext';
 
 export function KeyboardShortcuts() {
-    const { seekTo, handleSpeedChange, togglePlayPause, meeting } = useVideo();
-    const { currentTimeRef } = useVideoActions();
-    const { options, updateOptions } = useTranscriptOptions();
-    const { transcript } = useCouncilMeetingData();
+    // The actions context: the reactive one changes on every playback tick.
+    const { seekTo, handleSpeedChange, togglePlayPause, currentTimeRef } = useVideoActions();
+    const { options } = useTranscriptOptions();
+    const { playbackSpeed, setPlaybackSpeed } = usePlaybackSpeed();
+    const { transcript, meeting } = useCouncilMeetingData();
+
+    // Sorted once per transcript, not once per key press: flattening and
+    // sorting every utterance of a long meeting is too much work for a keystroke.
+    const sortedUtterances = useMemo(
+        () => transcript.flatMap(segment => segment.utterances || []).sort((a, b) => a.startTimestamp - b.startTimestamp),
+        [transcript],
+    );
 
     // The same media test the meeting layout uses to decide whether to render a
     // PlaybackBar at all. A registered shortcut gets its key preventDefault-ed,
@@ -33,11 +42,6 @@ export function KeyboardShortcuts() {
 
     // Edit Next Utterance (Enter)
     useKeyboardShortcut(ACTIONS.EDIT_NEXT_UTTERANCE.id, () => {
-        // Get all utterances
-        const allUtterances = transcript.flatMap(segment => segment.utterances || []);
-        const sortedUtterances = allUtterances.sort((a, b) => a.startTimestamp - b.startTimestamp);
-        
-        // Find current utterance
         const currentUtterance = sortedUtterances.find(u =>
             currentTimeRef.current >= u.startTimestamp && currentTimeRef.current <= u.endTimestamp
         );
@@ -50,14 +54,10 @@ export function KeyboardShortcuts() {
 
     // Seek Previous (ArrowLeft)
     useKeyboardShortcut(ACTIONS.SEEK_PREVIOUS.id, () => {
-        const allUtterances = transcript.flatMap(segment => segment.utterances || []);
-        const sortedUtterances = allUtterances.sort((a, b) => a.startTimestamp - b.startTimestamp);
-        
-        // Find utterances before current time
-        const prevUtterances = [...sortedUtterances]
-            .reverse()
+        const prevUtterances = sortedUtterances
             .filter(u => u.startTimestamp < currentTimeRef.current)
-            .slice(0, 2);
+            .slice(-2)
+            .reverse();
 
         const currentUtterance = sortedUtterances.find(u =>
             currentTimeRef.current >= u.startTimestamp && currentTimeRef.current <= u.endTimestamp
@@ -71,9 +71,6 @@ export function KeyboardShortcuts() {
 
     // Seek Next (ArrowRight)
     useKeyboardShortcut(ACTIONS.SEEK_NEXT.id, () => {
-        const allUtterances = transcript.flatMap(segment => segment.utterances || []);
-        const sortedUtterances = allUtterances.sort((a, b) => a.startTimestamp - b.startTimestamp);
-        
         const nextUtterance = sortedUtterances
             .find(u => u.startTimestamp > currentTimeRef.current);
         if (nextUtterance) {
@@ -83,15 +80,15 @@ export function KeyboardShortcuts() {
 
     // Speed Up (ArrowUp)
     useKeyboardShortcut(ACTIONS.SPEED_UP.id, () => {
-        const newSpeedUp = Math.min(4, Math.round((options.playbackSpeed + 0.1) * 10) / 10);
-        updateOptions({ playbackSpeed: newSpeedUp });
+        const newSpeedUp = Math.min(4, Math.round((playbackSpeed + 0.1) * 10) / 10);
+        setPlaybackSpeed(newSpeedUp);
         handleSpeedChange(newSpeedUp.toString());
     }, hasPlayback, speedScope);
 
     // Speed Down (ArrowDown)
     useKeyboardShortcut(ACTIONS.SPEED_DOWN.id, () => {
-        const newSpeedDown = Math.max(0.5, Math.round((options.playbackSpeed - 0.1) * 10) / 10);
-        updateOptions({ playbackSpeed: newSpeedDown });
+        const newSpeedDown = Math.max(0.5, Math.round((playbackSpeed - 0.1) * 10) / 10);
+        setPlaybackSpeed(newSpeedDown);
         handleSpeedChange(newSpeedDown.toString());
     }, hasPlayback, speedScope);
 
