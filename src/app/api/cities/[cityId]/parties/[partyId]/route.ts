@@ -32,7 +32,7 @@ export async function PUT(
     try {
         await withUserAuthorizedToEdit({ partyId: params.partyId });
         const { name, name_en, name_short, name_short_en, colorHex, logo, removeLogo } =
-            await parseFormData(await readFormData(request), partyFormDataSchema)
+            parseFormData(await readFormData(request), partyFormDataSchema)
 
         let logoUrl: string | undefined = undefined
 

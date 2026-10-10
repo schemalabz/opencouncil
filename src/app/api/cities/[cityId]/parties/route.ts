@@ -18,7 +18,7 @@ export async function POST(request: Request, props: { params: Promise<{ cityId: 
     try {
         await withUserAuthorizedToEdit({ cityId: params.cityId })
         const { name, name_en, name_short, name_short_en, colorHex, logo } =
-            await parseFormData(await readFormData(request), partyFormDataSchema)
+            parseFormData(await readFormData(request), partyFormDataSchema)
 
         let logoUrl: string | undefined = undefined
 
