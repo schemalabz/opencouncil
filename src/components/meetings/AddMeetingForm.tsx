@@ -40,7 +40,7 @@ import { toPhoneticLatin as toGreeklish } from 'greek-utils'
 /** An optional name override: empty, or at least two characters. */
 const nameOverride = (message: string) => z.string().refine(val => val.trim() === '' || val.trim().length >= 2, { message })
 
-const formSchema = z.object({
+export const formSchema = z.object({
     name: nameOverride("Meeting name must be at least 2 characters."),
     name_en: nameOverride("Meeting name (English) must be at least 2 characters."),
     date: z.date({

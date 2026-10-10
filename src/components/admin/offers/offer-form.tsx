@@ -38,7 +38,7 @@ import { adamSchema } from '@/lib/zod-schemas/offer'
 import { offerHasEquipment } from '@/lib/offers/display'
 import { useSession } from 'next-auth/react'
 
-const formSchema = z.object({
+export const formSchema = z.object({
     recipientName: z.string().min(2, {
         message: "Recipient name must be at least 2 characters.",
     }),
