@@ -57,45 +57,21 @@ const TYPE_NAMES: Record<string, string> = {
     function: 'функција',
 };
 
-/** Every string format zod checks. The type fails to compile when zod adds a format. */
-const FORMAT_NAMES: Record<z.core.$ZodStringFormats, string> & Record<string, string> = {
+/**
+ * The names of the string formats that the app's schemas check. A format
+ * without a name here shows its zod name, so a format that a new zod version
+ * adds needs no entry.
+ */
+const FORMAT_NAMES: Partial<Record<z.core.$ZodStringFormats, string>> = {
     email: 'адреса е-поште',
     url: 'URL',
-    emoji: 'емоџи',
-    uuid: 'UUID',
-    uuidv4: 'UUIDv4',
-    uuidv6: 'UUIDv6',
-    guid: 'GUID',
-    nanoid: 'nanoid',
-    cuid: 'cuid',
-    cuid2: 'cuid2',
-    ulid: 'ULID',
-    xid: 'XID',
-    ksuid: 'KSUID',
     datetime: 'ISO датум и време',
     date: 'ISO датум',
     time: 'ISO време',
     duration: 'ISO трајање',
-    ipv4: 'IPv4 адреса',
-    ipv6: 'IPv6 адреса',
-    mac: 'MAC адреса',
-    cidrv4: 'IPv4 опсег',
-    cidrv6: 'IPv6 опсег',
-    base64: 'base64 текст',
-    base64url: 'base64url текст',
-    json_string: 'JSON текст',
-    e164: 'E.164 број',
-    credit_card: 'број платне картице',
-    currency_code: 'код валуте',
-    iban: 'IBAN',
-    lowercase: 'текст малим словима',
-    uppercase: 'текст великим словима',
+    uuid: 'UUID',
+    cuid: 'cuid',
     regex: 'унос',
-    jwt: 'JWT',
-    starts_with: 'унос',
-    ends_with: 'унос',
-    includes: 'унос',
-    template_literal: 'унос',
 };
 
 const typeName = (type: string) => TYPE_NAMES[type] ?? type;
@@ -130,7 +106,7 @@ export const srIssueMessages: IssueMessages = {
             case 'ends_with': return `Неисправан текст: мора се завршавати са "${issue.suffix}"`;
             case 'includes': return `Неисправан текст: мора садржати "${issue.includes}"`;
             case 'regex': return `Неисправан текст: мора одговарати шаблону ${issue.pattern}`;
-            default: return `Неисправан формат: очекивано ${FORMAT_NAMES[issue.format] ?? issue.format}`;
+            default: return `Неисправан формат: очекивано ${FORMAT_NAMES[issue.format as z.core.$ZodStringFormats] ?? issue.format}`;
         }
     },
     not_multiple_of: issue => `Неисправан број: мора бити дељив са ${issue.divisor}`,
@@ -143,12 +119,8 @@ export const srIssueMessages: IssueMessages = {
     custom: () => 'Неисправан унос',
 };
 
-/** The zod locale for Serbian Cyrillic, in the shape of `z.locales.*`. */
-export default function sr(): { localeError: z.core.$ZodErrorMap } {
-    return {
-        localeError: issue => {
-            const message = srIssueMessages[issue.code] as (issue: RawIssue) => string;
-            return message(issue);
-        },
-    };
-}
+/** The zod error map for Serbian Cyrillic. */
+export const srErrorMap: z.core.$ZodErrorMap = issue => {
+    const message = srIssueMessages[issue.code] as (issue: RawIssue) => string;
+    return message(issue);
+};

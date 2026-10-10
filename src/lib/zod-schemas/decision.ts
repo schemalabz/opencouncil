@@ -1,11 +1,13 @@
 import * as z from 'zod';
 import { webUrl } from './primitives';
-import { vmsg } from './messages';
 
-/** JSON body of PUT /decisions: link a decision to a subject of the meeting. */
+/**
+ * JSON body of PUT /decisions: link a decision to a subject of the meeting.
+ * The messages are plain English: the manual decision form shows its own text.
+ */
 export const decisionUpsertSchema = z.object({
     subjectId: z.string().min(1),
-    pdfUrl: webUrl({ error: vmsg('pdfUrlHttp') }),
+    pdfUrl: webUrl({ error: 'pdfUrl must be http(s)' }),
     decisionNumber: z.string().optional(),
     protocolNumber: z.string().optional(),
     ada: z.string().optional(),

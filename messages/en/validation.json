@@ -1,11 +1,8 @@
 {
     "meetingNameMin2": "Meeting name must be at least 2 characters.",
     "meetingNameEnMin2": "Meeting name (English) must be at least 2 characters.",
-    "invalidDateTime": "Invalid date/time format",
-    "invalidYoutubeUrl": "Invalid YouTube URL.",
     "invalidAgendaUrl": "Invalid Agenda URL.",
     "invalidMediaUrl": "Invalid media URL.",
-    "meetingIdNotEmpty": "Meeting ID must not be empty.",
     "meetingDateRequired": "Meeting date is required.",
     "meetingTimeRequired": "Meeting time is required.",
     "sessionNumberWholeNumber": "The session number is a whole number.",
@@ -32,7 +29,6 @@
     "invalidEmail": "Must be a valid email address",
     "invalidEmailList": "All entries must be valid email addresses",
     "roleEndBeforeStart": "The end date must not be before the start date.",
-    "pdfUrlHttp": "pdfUrl must be http(s)",
     "recipientNameMin2": "Recipient name must be at least 2 characters.",
     "platformPriceNonNegative": "Platform price must be a positive number.",
     "ingestionPriceNonNegative": "Ingestion price per hour must be a positive number.",
@@ -41,9 +37,12 @@
     "startDateRequired": "Start date is required.",
     "endDateRequired": "End date is required.",
     "respondToNameMin2": "Respond to name must be at least 2 characters.",
-    "invalidEmailAddress": "Please enter a valid email address.",
     "invalidPhoneNumber": "Please enter a valid phone number.",
     "cityRequired": "Select a city",
     "periodRequired": "Select a period",
-    "contractReferenceRequired": "A contract number is required"
+    "contractReferenceRequired": "A contract number is required",
+    "cityMessageLink": "Must be an http(s) URL or a path that starts with a single /",
+    "imageMaxSize": "Image must be at most 5 MB",
+    "logoType": "Logo must be one of: image/png, image/jpeg",
+    "logoMaxSize": "Logo must be at most 5 MB"
 }

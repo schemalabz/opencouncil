@@ -1,11 +1,8 @@
 {
     "meetingNameMin2": "Το όνομα της συνεδρίασης πρέπει να έχει τουλάχιστον 2 χαρακτήρες.",
     "meetingNameEnMin2": "Το όνομα της συνεδρίασης (στα αγγλικά) πρέπει να έχει τουλάχιστον 2 χαρακτήρες.",
-    "invalidDateTime": "Μη έγκυρη μορφή ημερομηνίας/ώρας",
-    "invalidYoutubeUrl": "Μη έγκυρο URL YouTube.",
     "invalidAgendaUrl": "Μη έγκυρο URL ημερήσιας διάταξης.",
     "invalidMediaUrl": "Μη έγκυρο URL πολυμέσων.",
-    "meetingIdNotEmpty": "Το ID της συνεδρίασης δεν μπορεί να είναι κενό.",
     "meetingDateRequired": "Η ημερομηνία της συνεδρίασης είναι υποχρεωτική.",
     "meetingTimeRequired": "Η ώρα της συνεδρίασης είναι υποχρεωτική.",
     "sessionNumberWholeNumber": "Ο αριθμός της συνεδρίασης είναι ακέραιος αριθμός.",
@@ -32,7 +29,6 @@
     "invalidEmail": "Πρέπει να είναι έγκυρη διεύθυνση email",
     "invalidEmailList": "Όλες οι καταχωρήσεις πρέπει να είναι έγκυρες διευθύνσεις email",
     "roleEndBeforeStart": "Η ημερομηνία λήξης δεν μπορεί να είναι πριν από την ημερομηνία έναρξης.",
-    "pdfUrlHttp": "Το URL του PDF πρέπει να ξεκινά με http ή https",
     "recipientNameMin2": "Το όνομα του παραλήπτη πρέπει να έχει τουλάχιστον 2 χαρακτήρες.",
     "platformPriceNonNegative": "Η τιμή της πλατφόρμας πρέπει να είναι θετικός αριθμός.",
     "ingestionPriceNonNegative": "Η τιμή επεξεργασίας ανά ώρα πρέπει να είναι θετικός αριθμός.",
@@ -41,9 +37,12 @@
     "startDateRequired": "Η ημερομηνία έναρξης είναι υποχρεωτική.",
     "endDateRequired": "Η ημερομηνία λήξης είναι υποχρεωτική.",
     "respondToNameMin2": "Το όνομα του υπευθύνου απαντήσεων πρέπει να έχει τουλάχιστον 2 χαρακτήρες.",
-    "invalidEmailAddress": "Συμπληρώστε μια έγκυρη διεύθυνση email.",
     "invalidPhoneNumber": "Συμπληρώστε έναν έγκυρο αριθμό τηλεφώνου.",
     "cityRequired": "Επιλέξτε δήμο",
     "periodRequired": "Επιλέξτε περίοδο",
-    "contractReferenceRequired": "Απαιτείται αριθμός σύμβασης"
+    "contractReferenceRequired": "Απαιτείται αριθμός σύμβασης",
+    "cityMessageLink": "Πρέπει να είναι διεύθυνση URL http(s) ή διαδρομή που ξεκινά με μία μόνο /",
+    "imageMaxSize": "Η εικόνα πρέπει να είναι έως 5 MB",
+    "logoType": "Το λογότυπο πρέπει να είναι ένας από τους τύπους: image/png, image/jpeg",
+    "logoMaxSize": "Το λογότυπο πρέπει να είναι έως 5 MB"
 }

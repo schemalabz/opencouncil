@@ -28,6 +28,7 @@ import { toast } from "@/hooks/use-toast";
 import { IconInput, isValidIconName } from "@/components/admin/icon-input";
 import { Sparkles } from "lucide-react";
 import { HEX_REGEX, suggestDistinctColor } from "@/lib/utils/colorSuggestion";
+import { useValidationMessage } from "@/hooks/useLocalizedValidation";
 import { apiErrorMessage } from "@/lib/utils/validationIssues";
 
 interface TopicDialogProps {
@@ -44,6 +45,7 @@ const NONE_ICON = "__none__";
 export function TopicDialog({ open, onOpenChange, topic, defaultRealm, existingColors, onSaved }: TopicDialogProps) {
     const isEditing = !!topic;
     const locale = useLocale();
+    const validationMessage = useValidationMessage();
     const [loading, setLoading] = useState(false);
 
     const realmLabel = (realm: Realm) => getRealmDisplayName(realm, locale);
@@ -145,7 +147,7 @@ export function TopicDialog({ open, onOpenChange, topic, defaultRealm, existingC
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => null);
-                throw new Error(apiErrorMessage(errorData, "Failed to save topic"));
+                throw new Error(apiErrorMessage(errorData, "Failed to save topic", validationMessage));
             }
 
             toast({

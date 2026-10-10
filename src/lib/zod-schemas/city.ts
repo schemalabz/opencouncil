@@ -108,7 +108,7 @@ export const updateCityFormDataSchema = baseCityFormDataSchema.partial().extend(
 // message opens in a new tab, or a path on this site, which it navigates to.
 // The path starts with one slash. A second slash or a backslash would make
 // the browser read the rest as a host.
-const cityMessageLinkError = 'Must be an http(s) URL or a path that starts with a single /';
+const cityMessageLinkError = vmsg('cityMessageLink');
 export const cityMessageLinkSchema = z.union([
   webUrl(),
   z.string().regex(/^\/(?![/\\])/),

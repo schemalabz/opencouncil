@@ -875,6 +875,23 @@
     "adminParty": "Gérer le groupe",
     "adminPerson": "Gérer le membre"
   },
+  "ReportForm": {
+    "title": "Créer un rapport d’avancement",
+    "city": "Commune",
+    "selectCity": "Sélectionnez une commune",
+    "searchCity": "Rechercher une commune...",
+    "noCityFound": "Aucune commune trouvée.",
+    "contractReference": "Numéro de contrat",
+    "contractReferencePlaceholder": "ex. 25SYMV01234567",
+    "period": "Période",
+    "halfYear": "Semestre {number}",
+    "months": "{count} mois",
+    "generating": "Génération...",
+    "generate": "Créer le rapport (.docx)",
+    "success": "Rapport créé avec succès",
+    "error": "Erreur",
+    "failed": "Échec de la génération du rapport"
+  },
   "OfferForm": {
     "success": "Succès",
     "offerUpdated": "L'offre a été mise à jour",

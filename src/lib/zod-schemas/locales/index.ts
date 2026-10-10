@@ -1,7 +1,7 @@
 import * as z from 'zod';
 import { cyrillicToLatin } from '@/lib/serbian/transliterate';
 import type { AppLocale } from '@/i18n/config';
-import sr from './sr';
+import { srErrorMap } from './sr';
 
 /**
  * The error map that gives the default zod messages in the language of the
@@ -13,15 +13,13 @@ import sr from './sr';
  * A message that a schema sets (`vmsg`) wins over this map. English has no
  * map: the default messages of zod are English.
  */
-const srCyrillic = sr().localeError;
-
 const errorMaps: Record<AppLocale, z.core.$ZodErrorMap | undefined> = {
     en: undefined,
     el: z.locales.el().localeError,
     fr: z.locales.fr().localeError,
-    sr: srCyrillic,
+    sr: srErrorMap,
     'sr-Latn': issue => {
-        const message = srCyrillic(issue);
+        const message = srErrorMap(issue);
         return typeof message === 'string' ? cyrillicToLatin(message) : message;
     },
 };

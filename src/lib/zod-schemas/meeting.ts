@@ -29,6 +29,10 @@ const blankToNull = (field: z.ZodString) => field
  * Field rules of a meeting, shared by the REST routes and the MCP meeting
  * tools. Each caller decides how a field is optional and how a blank clears
  * it: REST takes `""`, MCP takes null.
+ *
+ * The date, youtubeUrl and format messages are plain English, as is the
+ * meetingId message of meetingSchema: meetingFormSchema replaces those four
+ * fields, so only an API caller or an agent reads them.
  */
 export const baseMeetingFields = {
     name: z.string().min(2, {
@@ -37,10 +41,10 @@ export const baseMeetingFields = {
     name_en: z.string().min(2, {
         error: vmsg('meetingNameEnMin2'),
     }),
-    date: isoDateOrDateTime({ error: vmsg('invalidDateTime') })
+    date: isoDateOrDateTime({ error: 'Invalid date/time format' })
         .meta({ description: `Date and time of the meeting. ${ISO_DATE_OR_DATE_TIME_RULE}`, example: '2026-10-05T18:00:00+03:00' }),
     youtubeUrl: webUrl({
-        error: vmsg('invalidYoutubeUrl'),
+        error: 'Invalid YouTube URL.',
     }),
     agendaUrl: webUrl({
         error: vmsg('invalidAgendaUrl'),
@@ -72,7 +76,7 @@ export const meetingSchema = z.object({
     // unique ID from the meeting date. The PUT handler identifies the meeting
     // by the URL path param and ignores this field.
     meetingId: z.string().min(1, {
-        error: vmsg('meetingIdNotEmpty'),
+        error: 'Meeting ID must not be empty.',
     }).optional(),
     administrativeBodyId: baseMeetingFields.administrativeBodyId.nullable().optional().or(z.literal("")),
     processAgenda: z.boolean().optional().default(false),

@@ -1,11 +1,8 @@
 {
     "meetingNameMin2": "Назив седнице мора имати најмање 2 знака.",
     "meetingNameEnMin2": "Назив седнице (на енглеском) мора имати најмање 2 знака.",
-    "invalidDateTime": "Неисправан формат датума/времена",
-    "invalidYoutubeUrl": "Неисправан YouTube URL.",
     "invalidAgendaUrl": "Неисправан URL дневног реда.",
     "invalidMediaUrl": "Неисправан URL медија.",
-    "meetingIdNotEmpty": "ID седнице не сме бити празан.",
     "meetingDateRequired": "Датум седнице је обавезан.",
     "meetingTimeRequired": "Време седнице је обавезно.",
     "sessionNumberWholeNumber": "Број седнице је цео број.",
@@ -32,7 +29,6 @@
     "invalidEmail": "Мора бити исправна адреса е-поште",
     "invalidEmailList": "Сви уноси морају бити исправне адресе е-поште",
     "roleEndBeforeStart": "Датум завршетка не сме бити пре датума почетка.",
-    "pdfUrlHttp": "URL PDF документа мора почињати са http или https",
     "recipientNameMin2": "Име примаоца мора имати најмање 2 знака.",
     "platformPriceNonNegative": "Цена платформе мора бити позитиван број.",
     "ingestionPriceNonNegative": "Цена обраде по сату мора бити позитиван број.",
@@ -41,9 +37,12 @@
     "startDateRequired": "Датум почетка је обавезан.",
     "endDateRequired": "Датум завршетка је обавезан.",
     "respondToNameMin2": "Име особе за одговоре мора имати најмање 2 знака.",
-    "invalidEmailAddress": "Унесите исправну адресу е-поште.",
     "invalidPhoneNumber": "Унесите исправан број телефона.",
     "cityRequired": "Изаберите општину",
     "periodRequired": "Изаберите период",
-    "contractReferenceRequired": "Број уговора је обавезан"
+    "contractReferenceRequired": "Број уговора је обавезан",
+    "cityMessageLink": "Мора бити http(s) URL или путања која почиње једном косом цртом /",
+    "imageMaxSize": "Слика може имати највише 5 MB",
+    "logoType": "Логотип мора бити једног од типова: image/png, image/jpeg",
+    "logoMaxSize": "Логотип може имати највише 5 MB"
 }

@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useValidationMessage, useZodResolver } from "@/hooks/useLocalizedValidation"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { cityFormSchema, CITY_DEFAULTS, createCityFormDataSchema, updateCityRequestFormDataSchema } from "@/lib/zod-schemas/city"
+import { cityFormSchema, cityMessageLinkSchema, CITY_DEFAULTS, createCityFormDataSchema, updateCityRequestFormDataSchema } from "@/lib/zod-schemas/city"
 import { toFormData } from "@/lib/utils/formData"
 import { apiErrorMessage } from "@/lib/utils/validationIssues"
 import { ALL_REALMS, getRealmDisplayName } from "@/lib/realm"
@@ -79,6 +79,7 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
 
     // Message data for form submission - only stored when message component updates
     const [messageData, setMessageData] = useState<MessageFormState | null>(null);
+    const [messageLinkError, setMessageLinkError] = useState<string | null>(null);
 
     const isSuperAdmin = session?.user?.isSuperAdmin
     // The slug is shown under the domain it will actually answer on: a city in
@@ -148,6 +149,18 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
         // Only a superadmin edits the message. Without a message, only hasMessage is sent.
         const message = isSuperAdmin ? messageData : null
         const shownMessage = message?.hasMessage ? message : null
+        // The server refuses the same link. Checked here, the error shows under
+        // the link field, and not as a line with the name of the API field.
+        const messageLink = shownMessage?.callToActionUrl
+            ? cityMessageLinkSchema.safeParse(shownMessage.callToActionUrl)
+            : null
+        if (messageLink?.error) {
+            const linkError = validationMessage(messageLink.error.issues[0].message)
+            setMessageLinkError(linkError)
+            setFormError(linkError)
+            setIsSubmitting(false)
+            return
+        }
         const formData = toFormData({
             name: values.name,
             name_en: values.name_en,
@@ -451,7 +464,11 @@ export default function CityForm({ city, cityMessage, onSuccess }: CityFormProps
                 {isSuperAdmin && city && (
                     <CityMessageForm
                         existingMessage={cityMessage}
-                        onMessageChange={setMessageData}
+                        onMessageChange={(data) => {
+                            setMessageData(data)
+                            setMessageLinkError(null)
+                        }}
+                        callToActionUrlError={messageLinkError}
                     />
                 )}
 

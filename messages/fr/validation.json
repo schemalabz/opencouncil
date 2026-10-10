@@ -1,11 +1,8 @@
 {
     "meetingNameMin2": "Le nom de la séance doit contenir au moins 2 caractères.",
     "meetingNameEnMin2": "Le nom de la séance (en anglais) doit contenir au moins 2 caractères.",
-    "invalidDateTime": "Format de date/heure invalide",
-    "invalidYoutubeUrl": "URL YouTube invalide.",
     "invalidAgendaUrl": "URL de l'ordre du jour invalide.",
     "invalidMediaUrl": "URL du média invalide.",
-    "meetingIdNotEmpty": "L'identifiant de la séance ne doit pas être vide.",
     "meetingDateRequired": "La date de la séance est obligatoire.",
     "meetingTimeRequired": "L'heure de la séance est obligatoire.",
     "sessionNumberWholeNumber": "Le numéro de la séance est un nombre entier.",
@@ -32,7 +29,6 @@
     "invalidEmail": "Doit être une adresse e-mail valide",
     "invalidEmailList": "Toutes les entrées doivent être des adresses e-mail valides",
     "roleEndBeforeStart": "La date de fin ne doit pas précéder la date de début.",
-    "pdfUrlHttp": "L'URL du PDF doit commencer par http ou https",
     "recipientNameMin2": "Le nom du destinataire doit contenir au moins 2 caractères.",
     "platformPriceNonNegative": "Le prix de la plateforme doit être un nombre positif.",
     "ingestionPriceNonNegative": "Le prix de traitement par heure doit être un nombre positif.",
@@ -41,9 +37,12 @@
     "startDateRequired": "La date de début est obligatoire.",
     "endDateRequired": "La date de fin est obligatoire.",
     "respondToNameMin2": "Le nom du contact doit contenir au moins 2 caractères.",
-    "invalidEmailAddress": "Veuillez saisir une adresse e-mail valide.",
     "invalidPhoneNumber": "Veuillez saisir un numéro de téléphone valide.",
     "cityRequired": "Sélectionnez une commune",
     "periodRequired": "Sélectionnez une période",
-    "contractReferenceRequired": "Un numéro de contrat est obligatoire"
+    "contractReferenceRequired": "Un numéro de contrat est obligatoire",
+    "cityMessageLink": "Doit être une URL http(s) ou un chemin qui commence par un seul /",
+    "imageMaxSize": "L’image ne doit pas dépasser 5 Mo",
+    "logoType": "Le logo doit être de l’un de ces types : image/png, image/jpeg",
+    "logoMaxSize": "Le logo ne doit pas dépasser 5 Mo"
 }

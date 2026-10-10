@@ -65,7 +65,7 @@ export const offerFormSchema = z.object({
         error: vmsg('respondToNameMin2'),
     }),
     respondToEmail: z.email({
-        error: vmsg('invalidEmailAddress'),
+        error: vmsg('invalidEmail'),
     }),
     respondToPhone: z.string().min(10, {
         error: vmsg('invalidPhoneNumber'),

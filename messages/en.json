@@ -772,6 +772,23 @@
         "adminParty": "Manage Party",
         "adminPerson": "Manage Member"
     },
+    "ReportForm": {
+        "title": "Create Progress Report",
+        "city": "Municipality",
+        "selectCity": "Select a municipality",
+        "searchCity": "Search municipalities...",
+        "noCityFound": "No municipality found.",
+        "contractReference": "Contract Number",
+        "contractReferencePlaceholder": "e.g. 25SYMV01234567",
+        "period": "Period",
+        "halfYear": "Half-year {number}",
+        "months": "{count, plural, one {# month} other {# months}}",
+        "generating": "Generating...",
+        "generate": "Create Report (.docx)",
+        "success": "Report created successfully",
+        "error": "Error",
+        "failed": "Failed to generate report"
+    },
     "OfferForm": {
         "recipientName": "Recipient",
         "recipientNameDescription": "The name of the organization that will receive the offer",
